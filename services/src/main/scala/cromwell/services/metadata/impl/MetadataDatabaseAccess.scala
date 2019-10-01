@@ -6,7 +6,6 @@ import cats.instances.future._
 import cats.instances.list._
 import cats.syntax.semigroup._
 import cats.syntax.traverse._
-//import cats.syntax.validated._
 import common.validation.Validation._
 import cromwell.core._
 import cromwell.database.sql.SqlConverters._
@@ -195,6 +194,11 @@ trait MetadataDatabaseAccess {
     } yield SummaryResult(increasingProcessed, increasingGap, decreasingProcessed, decreasingGap)
   }
 
+  def updateMetadataArchiveStatus(workflowId: WorkflowId, newStatus: MetadataArchiveStatus): Future[Int] = {
+    val databaseStatusValue = MetadataArchiveStatus.toDatabaseValue(newStatus)
+    metadataDatabaseInterface.updateMetadataArchiveStatus(workflowId.toString, databaseStatusValue)
+  }
+
   def getWorkflowStatus(id: WorkflowId)
                        (implicit ec: ExecutionContext): Future[Option[WorkflowState]] = {
     metadataDatabaseInterface.getWorkflowStatus(id.toString) map { _ map WorkflowState.withName }
@@ -276,7 +280,6 @@ trait MetadataDatabaseAccess {
           metadataDatabaseInterface.getWorkflowLabels(workflow.workflowExecutionUuid), Future.successful(Map.empty))
 
       val archiveStatus = MetadataArchiveStatus.fromDatabaseValue(workflow.metadataArchiveStatus)
-//      val archiveStatus = MetadataArchiveStatus.Archived.validNel // MetadataArchiveStatus.fromDatabaseValue(workflow.metadataArchiveStatus)
 
       for {
         labels <- workflowLabels
@@ -300,6 +303,5 @@ trait MetadataDatabaseAccess {
       workflows <- workflowSummaries
       queryResults <- summariesToQueryResults(workflows)
     } yield (WorkflowQueryResponse(queryResults, count), queryMetadata(count))
-
   }
 }

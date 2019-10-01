@@ -18,9 +18,9 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-final class CarbonitingMetadataFreezerActor(carboniterConfig: HybridCarboniteConfig,
-                                            serviceRegistry: ActorRef,
-                                            ioActor: ActorRef) extends
+class CarbonitingMetadataFreezerActor(carboniterConfig: HybridCarboniteConfig,
+                                      serviceRegistry: ActorRef,
+                                      ioActor: ActorRef) extends
   LoggingFSM[CarbonitingMetadataFreezingState, CarbonitingMetadataFreezingData]
   with MetadataDatabaseAccess
   with MetadataServicesStore {
@@ -89,7 +89,7 @@ final class CarbonitingMetadataFreezerActor(carboniterConfig: HybridCarboniteCon
   def scheduleDatabaseUpdateAndAwaitResult(workflowId: WorkflowId, newStatus: MetadataArchiveStatus, delay: Option[FiniteDuration] = None) = {
 
     def updateDatabase() = {
-      val dbUpdateFuture = super[MetadataDatabaseAccess].updateMetadataArchiveStatus(workflowId, newStatus)
+      val dbUpdateFuture = updateMetadataArchiveStatus(workflowId, newStatus)
       dbUpdateFuture onComplete { dbUpdateResult => self ! DatabaseUpdateCompleted(dbUpdateResult) }
     }
     delay match {

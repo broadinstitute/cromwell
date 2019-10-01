@@ -33,7 +33,7 @@ class CarbonitingMetadataFreezerActor(carboniterConfig: HybridCarboniteConfig,
 
   when(Pending) {
     case Event(FreezeMetadata(workflowId), NoData) =>
-      val getMetadataAction = GetMetadataAction(MetadataQuery(
+      val fetchMetadataRequestToServiceRegistry = GetMetadataAction(MetadataQuery(
         workflowId = workflowId,
         jobKey = None,
         key = None,
@@ -42,7 +42,7 @@ class CarbonitingMetadataFreezerActor(carboniterConfig: HybridCarboniteConfig,
         expandSubWorkflows = true
       ))
 
-      serviceRegistry ! getMetadataAction
+      serviceRegistry ! fetchMetadataRequestToServiceRegistry
       goto(Fetching) using FetchingData(workflowId)
   }
 

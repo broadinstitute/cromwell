@@ -96,7 +96,6 @@ class CarbonitingMetadataFreezerActor(carboniterConfig: HybridCarboniteConfig,
       case Some(d) => context.system.scheduler.scheduleOnce(d)(updateDatabase())
       case None => updateDatabase()
     }
-
     goto(UpdatingDatabase) using UpdatingDatabaseData(workflowId, newStatus)
   }
 }

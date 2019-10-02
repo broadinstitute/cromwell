@@ -61,6 +61,20 @@ trait MetadataEntryComponent {
     } yield metadataEntry).sortBy(_.metadataTimestamp)
   )
 
+  val workflowIdIsTerminal = Compiled(
+    (rootWorkflowId: Rep[String], terminalStatuses: Iterable[String]) => {
+      for {
+        summary <- workflowMetadataSummaryEntries
+        if summary.workflowExecutionUuid === rootWorkflowId
+      } yield {
+        summary.workflowStatus in Query(terminalStatuses) && !summary.rootWorkflowExecutionUuid.isDefined && !summary.rootWorkflowExecutionUuid.isDefined
+      }
+
+    }
+  )
+
+  val workflowIdIsRoot
+
   val metadataEntriesWithoutLabelsForRootWorkflowId = Compiled(
     (rootWorkflowId: Rep[String]) => {
       val targetWorkflowIds = for {

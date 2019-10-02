@@ -85,10 +85,16 @@ trait WorkflowMetadataSummaryEntryComponent {
   )
 
   val workflowStatusesForWorkflowExecutionUuid = Compiled(
-    (workflowExecutionUuid: Rep[String]) => for {
+    (workflowExecutionUuid: Rep[String]) => (for {
       workflowMetadataSummaryEntry <- workflowMetadataSummaryEntries
       if workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid
-    } yield workflowMetadataSummaryEntry.workflowStatus
+    } yield workflowMetadataSummaryEntry.workflowStatus).take(1)
+  )
+
+  val workflowIdIsTerminal = Compiled(
+    (workflowExecutionUuid: Rep[String], terminalStatuses: Iterable[String]) => ({
+      workflowStatusesForWorkflowExecutionUuid in Query(terminalStatuses)
+    })
   )
 
   def concat(a: SQLActionBuilder, b: SQLActionBuilder): SQLActionBuilder = {

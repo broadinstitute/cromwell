@@ -99,7 +99,6 @@ class CarbonitingMetadataFreezerActor(carboniterConfig: HybridCarboniteConfig,
 
     goto(UpdatingDatabase) using UpdatingDatabaseData(workflowId, newStatus)
   }
-
 }
 
 

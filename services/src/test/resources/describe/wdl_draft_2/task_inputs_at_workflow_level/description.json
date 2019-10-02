@@ -15,6 +15,30 @@
       "default" : null
     },
     {
+      "name" : "my_task.task_input_optional",
+      "valueType" : {
+        "typeName" : "Optional",
+        "optionalType" : {
+          "typeName" : "String"
+        }
+      },
+      "typeDisplayName" : "String?",
+      "optional" : true,
+      "default" : null
+    },
+    {
+      "name" : "my_task.task_input_optional_with_default",
+      "valueType" : {
+        "typeName" : "Optional",
+        "optionalType" : {
+          "typeName" : "String"
+        }
+      },
+      "typeDisplayName" : "String?",
+      "optional" : true,
+      "default" : "\"a\""
+    },
+    {
       "name" : "workflow_input",
       "valueType" : {
         "typeName" : "String"

@@ -4,7 +4,9 @@ backends: ["papi-v2-usa"]
 
 files {
   workflow: drs_usa_hca/drs_usa_hca.wdl
-  options: rendered/papi_v2_usa.options.json
+  options-dir: ../../../../../target/ci/resources/
+  options-dir: ${?CROMWELL_BUILD_RESOURCES_DIRECTORY}
+  options: ${files.options-dir}/papi_v2_usa.options.json
   inputs: drs_usa_hca/drs_usa_hca.inputs
 }
 

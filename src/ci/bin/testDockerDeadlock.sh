@@ -12,19 +12,16 @@ cromwell::build::setup_common_environment
 
 cromwell::build::setup_docker_environment
 
-export TEST_CROMWELL_TAG=test-only-do-not-push
-
-docker image ls -q broadinstitute/cromwell:"${TEST_CROMWELL_TAG}" | grep . || \
-CROMWELL_SBT_DOCKER_TAGS="${TEST_CROMWELL_TAG}" sbt server/docker
+cromwell::build::build_cromwell_docker
 
 # Turn off exit-on-error temporarily, as we expect an error
 set +o errexit
-CROMWELL_TAG="${TEST_CROMWELL_TAG}" \
+CROMWELL_TAG="${CROMWELL_BUILD_CROMWELL_DOCKER_TAG}" \
 docker-compose \
-  -f scripts/docker-compose-mysql/docker-compose-deadlock.yml \
-  up \
-  --scale cromwell_norefresh=2 \
-  --exit-code-from deadlocker
+    --file "${CROMWELL_BUILD_DOCKER_DIRECTORY}/docker-compose-deadlock.yml" \
+    up \
+    --scale cromwell-norefresh=2 \
+    --exit-code-from deadlocker
 
 exit_code=$?
 set -o errexit
@@ -32,15 +29,16 @@ set -o errexit
 echo "docker-compose exit code was ${exit_code}"
 
 # Tear everything down, but dump out the logs first
-CROMWELL_TAG="${TEST_CROMWELL_TAG}" \
+CROMWELL_TAG="${CROMWELL_BUILD_CROMWELL_DOCKER_TAG}" \
 docker-compose \
-  -f scripts/docker-compose-mysql/docker-compose-deadlock.yml \
-  logs --no-color > deadlock.logs \
+    --file "${CROMWELL_BUILD_DOCKER_DIRECTORY}/docker-compose-deadlock.yml" \
+    logs --no-color > "${CROMWELL_BUILD_LOG_DIRECTORY}/deadlock.logs"
 
+CROMWELL_TAG="${CROMWELL_BUILD_CROMWELL_DOCKER_TAG}" \
 docker-compose \
-  -f scripts/docker-compose-mysql/docker-compose-deadlock.yml \
-  down \
-  -v
+    --file "${CROMWELL_BUILD_DOCKER_DIRECTORY}/docker-compose-deadlock.yml" \
+    down \
+    -v
 
 # Note: leaving behind these directories that may be manually cleaned
 # - scripts/docker-compose-mysql/compose/mysql/data

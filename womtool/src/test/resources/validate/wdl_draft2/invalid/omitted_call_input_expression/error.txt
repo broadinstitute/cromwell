@@ -1,0 +1,2 @@
+Unable to build WOM node for Scatter '$scatter_0': Unable to build WOM node for WdlTaskCall 'CramFoo': Cannot build expression for 'BarcodeHg38.CramFoo.intervals = <<expected an expression, none found>>': Cannot evaluate the type of an empty expression
+Unable to build WOM node for Scatter '$scatter_0': Unable to build WOM node for WdlTaskCall 'CramFoo': No input ref found evaluating inputs for expression ref in (cram, crams)

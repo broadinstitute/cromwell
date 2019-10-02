@@ -16,7 +16,7 @@ source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 #     Functions for use only within this file by cromwell::build::papi::* functions
 #
 
-cromwell::build::papi::setup_papi_environment() {
+cromwell::private::papi::setup_papi_gcloud() {
     CROMWELL_BUILD_PAPI_AUTH_JSON="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-service-account.json"
     CROMWELL_BUILD_PAPI_CLIENT_EMAIL="$(jq --exit-status --raw-output .client_email "${CROMWELL_BUILD_PAPI_AUTH_JSON}")"
     CROMWELL_BUILD_PAPI_PROJECT_ID="$(jq --exit-status --raw-output .project_id "${CROMWELL_BUILD_PAPI_AUTH_JSON}")"
@@ -25,7 +25,6 @@ cromwell::build::papi::setup_papi_environment() {
 
     export CROMWELL_BUILD_PAPI_AUTH_JSON
     export CROMWELL_BUILD_PAPI_CLIENT_EMAIL
-    export CROMWELL_BUILD_PAPI_CLIENT_EMAIL_ORIGINAL
     export CROMWELL_BUILD_PAPI_CLOUDSDK_CONFIG
     export CROMWELL_BUILD_PAPI_GCR_IMAGES
     export CROMWELL_BUILD_PAPI_PROJECT_ID
@@ -39,26 +38,14 @@ cromwell::build::papi::setup_papi_environment() {
     # https://github.com/googleapis/google-auth-library-java/issues/58
     export CLOUDSDK_CONFIG="${CROMWELL_BUILD_PAPI_CLOUDSDK_CONFIG}"
 
-    cromwell::build::add_exit_function cromwell::private::papi::teardown_papi_environment
+    cromwell::build::add_exit_function cromwell::private::papi::teardown_papi_gcloud
 
     gcloud auth activate-service-account --key-file="${CROMWELL_BUILD_PAPI_AUTH_JSON}"
     gcloud config set account "${CROMWELL_BUILD_PAPI_CLIENT_EMAIL}"
     gcloud config set project "${CROMWELL_BUILD_PAPI_PROJECT_ID}"
-
-    if command -v docker; then
-        # Upload images built from this commit
-        gcloud auth configure-docker --quiet
-        CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS="gcr.io/${CROMWELL_BUILD_PAPI_PROJECT_ID}/cromwell-drs-localizer:${CROMWELL_BUILD_CENTAUR_DOCKER_TAG}"
-        cromwell::private::papi::gcr_image_push cromwell-drs-localizer "${CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS}"
-    else
-        # Just use the default images
-        CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS="broadinstitute/cromwell-drs-localizer:45-d46ff9f"
-    fi
-
-    export CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
 }
 
-cromwell::private::papi::teardown_papi_environment() {
+cromwell::private::papi::teardown_papi_gcloud() {
     cromwell::build::delete_docker_images cromwell::private::papi::gcr_image_delete "${CROMWELL_BUILD_PAPI_GCR_IMAGES}"
 }
 
@@ -93,4 +80,49 @@ cromwell::private::papi::gcr_image_delete() {
     docker_image_name="${1:?gcr_image_delete called without a docker_image_name}"
     shift
     gcloud container images delete "${docker_image_name}" --force-delete-tags --quiet
+}
+
+cromwell::private::papi::setup_papi_gcr() {
+    if command -v docker; then
+        # Upload images built from this commit
+        gcloud auth configure-docker --quiet
+        CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS="gcr.io/${CROMWELL_BUILD_PAPI_PROJECT_ID}/cromwell-drs-localizer:${CROMWELL_BUILD_CENTAUR_DOCKER_TAG}"
+        cromwell::private::papi::gcr_image_push cromwell-drs-localizer "${CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS}"
+    else
+        # Just use the default images
+        CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS="broadinstitute/cromwell-drs-localizer:45-d46ff9f"
+    fi
+
+    export CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
+}
+
+cromwell::private::papi::setup_papi_service_account() {
+    GOOGLE_AUTH_MODE="service-account"
+
+    # See papi_application.inc.conf.ctmpl for more info.
+    # Delete GOOGLE_SERVICE_ACCOUNT_JSON from there if you delete this block!
+    if [[ "${CROMWELL_BUILD_TYPE}" == "centaurPapiV1" ]]; then
+        GOOGLE_SERVICE_ACCOUNT_JSON="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-service-account.json"
+    else
+        GOOGLE_SERVICE_ACCOUNT_JSON="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-centaur-service-account.json"
+    fi
+
+    export GOOGLE_AUTH_MODE
+    export GOOGLE_SERVICE_ACCOUNT_JSON
+}
+
+cromwell::private::papi::setup_papi_refresh_token() {
+    GOOGLE_REFRESH_TOKEN_PATH="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_refresh_token.txt"
+    export GOOGLE_REFRESH_TOKEN_PATH
+}
+
+cromwell::build::papi::setup_papi_centaur_environment() {
+    cromwell::private::papi::setup_papi_gcloud
+    cromwell::private::papi::setup_papi_gcr
+    cromwell::private::papi::setup_papi_service_account
+    cromwell::private::papi::setup_papi_refresh_token
+}
+
+cromwell::build::papi::setup_papi_conformance_environment() {
+    cromwell::private::papi::setup_papi_service_account
 }

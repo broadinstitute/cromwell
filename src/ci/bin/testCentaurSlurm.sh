@@ -10,11 +10,11 @@ source "${BASH_SOURCE%/*}/test_slurm.inc.sh" || source test_slurm.inc.sh
 
 cromwell::build::setup_common_environment
 
+cromwell::build::slurm::setup_slurm_environment
+
 cromwell::build::setup_centaur_environment
 
 cromwell::build::assemble_jars
-
-cromwell::build::slurm::slurm_install
 
 cromwell::build::run_centaur \
     -e call_cache_capoeira_local \

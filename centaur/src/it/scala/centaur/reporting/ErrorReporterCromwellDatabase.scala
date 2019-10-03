@@ -9,6 +9,8 @@ import scala.concurrent.ExecutionContext
 
 class ErrorReporterCromwellDatabase(cromwellDatabase: CromwellDatabase) {
 
+  import centaur.TestContext._
+
   def jobKeyValueEntriesIo(workflowExecutionUuidOption: Option[String])
                           (implicit executionContext: ExecutionContext): IO[Seq[JobKeyValueEntry]] = {
     workflowExecutionUuidOption.map(jobKeyValueEntriesIo).getOrElse(IO.pure(Seq.empty))

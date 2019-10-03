@@ -16,7 +16,7 @@ source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 #     Functions for use only within this file by cromwell::build::slurm::* functions
 #
 
-cromwell::build::slurm::slurm_install() {
+cromwell::build::slurm::setup_slurm_environment() {
     # Installs the Slurm Workload Manager (WLM) on Ubuntu
     # https://slurm.schedmd.com/
     sudo apt-get update

@@ -75,12 +75,6 @@ class YamlUtilsSpec extends FlatSpec with Matchers with TableDrivenPropertyCheck
       null,
     ),
     (
-      "an empty yaml",
-      "",
-      refineMV[NonNegative](1),
-      "null",
-    ),
-    (
       "an empty yaml mapping when limited to zero nodes",
       "{}",
       refineMV[NonNegative](0),
@@ -115,6 +109,12 @@ class YamlUtilsSpec extends FlatSpec with Matchers with TableDrivenPropertyCheck
       "{}",
       refineMV[NonNegative](1),
       Json.obj(),
+    ),
+    (
+      "an empty yaml",
+      "",
+      refineMV[NonNegative](1),
+      Json.False,
     ),
     (
       "an empty yaml sequence when limited to one node",

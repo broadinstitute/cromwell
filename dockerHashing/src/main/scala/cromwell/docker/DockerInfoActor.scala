@@ -3,6 +3,7 @@ package cromwell.docker
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.stream._
 import cats.effect.IO
+import cats.effect.IO._
 import cats.instances.list._
 import cats.syntax.parallel._
 import com.google.common.cache.CacheBuilder
@@ -83,7 +84,7 @@ final class DockerInfoActor(
       // Shutdown all streams by sending None to the queue
       registries
         .values.toList
-        .parTraverse[IO, IO.Par, Unit](_.enqueue1(None))
+        .parTraverse[IO, Unit](_.enqueue1(None))
         .unsafeRunSync()
 
       context stop self

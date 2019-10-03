@@ -2,7 +2,7 @@ name: hello
 testFormat: workflowsuccess
 
 files {
-  workflow: hello_no_docker.wdl
+  workflow: hello/hello_no_docker.wdl
 }
 
 metadata {

@@ -12,23 +12,9 @@ cromwell::build::setup_common_environment
 
 cromwell::build::setup_centaur_environment
 
+cromwell::build::papi::setup_papi_centaur_environment
+
 cromwell::build::assemble_jars
-
-cromwell::build::papi::setup_papi_environment
-
-GOOGLE_AUTH_MODE="service-account"
-GOOGLE_REFRESH_TOKEN_PATH="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_refresh_token.txt"
-
-# Export variables used in conf files
-export GOOGLE_AUTH_MODE
-export GOOGLE_REFRESH_TOKEN_PATH
-
-# Copy rendered files
-mkdir -p "${CROMWELL_BUILD_CENTAUR_TEST_RENDERED}"
-cp \
-    "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2_usa.options.json" \
-    "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/private_docker_papi_v2_usa.options" \
-    "${CROMWELL_BUILD_CENTAUR_TEST_RENDERED}"
 
 cromwell::build::run_centaur \
     -p 100 \

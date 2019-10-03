@@ -229,7 +229,7 @@ private [preprocessor] class CwlCanonicalizer(saladFunction: SaladFunction)(impl
     // Recursively process the inlined run workflows (where run is a Json object representing a workflow)
     val processedInlineReferences: IOChecked[Map[String, ProcessedJsonAndDependencies]] = (for {
       inlineWorkflowReferences <- findRunInlinedWorkflows(saladedJson).toIOChecked
-      flattenedWorkflows <- inlineWorkflowReferences.toList.parTraverse[IOChecked, IOCheckedPar, (String, ProcessedJsonAndDependencies)]({
+      flattenedWorkflows <- inlineWorkflowReferences.toList.parTraverse[IOChecked, (String, ProcessedJsonAndDependencies)]({
         case (id, value) => flattenJson(value, unProcessedReferences, processedReferences, breadCrumbs, namespacesJsonOption, schemasJsonOption).map(id -> _)
       })
     } yield flattenedWorkflows).map(_.toMap)

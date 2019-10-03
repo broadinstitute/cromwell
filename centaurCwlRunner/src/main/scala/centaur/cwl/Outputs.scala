@@ -51,7 +51,7 @@ object Outputs {
                   //converting the whole response to Json using Circe's auto-encoder derivation
                   asJson.
                   //drop null values so that we don't print when Option == None
-                  pretty(io.circe.Printer.spaces2.copy(dropNullValues = true))
+                  printWith(io.circe.Printer.spaces2.copy(dropNullValues = true))
               case other => s"it seems cromwell is not returning outputs as a Jsobject but is instead a $other"
             }
           case Right(Left(error)) => s"couldn't parse workflow: $workflow failed with error: $error"

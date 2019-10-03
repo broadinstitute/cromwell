@@ -12,22 +12,12 @@ cromwell::build::setup_common_environment
 
 cromwell::build::unit::setup_scale_factor
 
-case "${CROMWELL_BUILD_PROVIDER}" in
-    "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
-        CROMWELL_SBT_TEST_EXCLUDE_TAGS="AwsTest,CromwellIntegrationTest,DbmsTest,GcsIntegrationTest"
-        ;;
-    "${CROMWELL_BUILD_PROVIDER_JENKINS}")
-        CROMWELL_SBT_TEST_EXCLUDE_TAGS="AwsTest,CromwellIntegrationTest,DockerTest,DbmsTest,GcsIntegrationTest"
-        ;;
-    *)
-        # Use the full list of excludes listed in Testing.scala
-        CROMWELL_SBT_TEST_EXCLUDE_TAGS=""
-        ;;
-esac
-export CROMWELL_SBT_TEST_EXCLUDE_TAGS
+cromwell::build::unit::setup_exclude_tags
 
+CROMWELL_SBT_TEST_EXCLUDE_TAGS="${CROMWELL_BUILD_UNIT_EXCLUDE_TAGS}" \
+CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR="${CROMWELL_BUILD_UNIT_SPAN_SCALE_FACTOR}" \
 sbt \
-    -Dakka.test.timefactor=${CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR} \
+    -Dakka.test.timefactor=${CROMWELL_BUILD_UNIT_SPAN_SCALE_FACTOR} \
     -Dbackend.providers.Local.config.filesystems.local.localization.0=copy \
     coverage test
 

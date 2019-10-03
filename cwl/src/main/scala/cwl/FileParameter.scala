@@ -80,6 +80,7 @@ object FileParameter {
   }
 
   def load64KiB(path: String, ioFunctionSet: IoFunctionSet): IO[String] = {
+    implicit val ec = IO.contextShift(ioFunctionSet.ec)
     IO.fromFuture(IO { ioFunctionSet.readFile(path, ReadLimit, failOnOverflow = false) })
   }
 

@@ -80,7 +80,7 @@ object WebServiceUtils extends WebServiceUtils {
 
   private def prettyPrint(failureResponse: FailureResponse): String ={
     // .asJson cannot live inside a value class like `EnhancedThrowable`, hence the object method
-    failureResponse.asJson.pretty(Printer.spaces2.copy(dropNullValues = true, colonLeft = ""))
+    failureResponse.asJson.printWith(Printer.spaces2.copy(dropNullValues = true, colonLeft = ""))
   }
 
 }

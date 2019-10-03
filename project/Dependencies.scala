@@ -8,11 +8,11 @@ object Dependencies {
   private val aliyunCoreV = "4.3.2"
   private val aliyunCrV = "3.0.0"
   private val aliyunOssV = "3.4.0"
-  private val ammoniteOpsV = "1.6.3"
+  private val ammoniteOpsV = "1.7.4"
   private val apacheCommonNetV = "3.6"
   private val apacheHttpClientV = "4.5.7"
   private val awsSdkV = "2.3.9"
-  private val betterFilesV = "2.17.1"
+  private val betterFilesV = "3.8.0"
   private val catsEffectV = "2.0.0"
   private val catsV = "2.0.0"
   private val circeOpticsV = "0.12.0"
@@ -25,9 +25,9 @@ object Dependencies {
   private val commonsTextV = "1.6"
   private val configsV = "0.4.4"
   private val delightRhinoSandboxV = "0.0.10"
-  private val ficusV = "1.4.4"
+  private val ficusV = "1.4.7"
   private val fs2V = "2.0.0"
-  private val fs2VStatsDProxy = "1.0.3"
+  private val fs2VStatsDProxy = "1.1.0-M2"
   private val googleApiClientV = "1.28.0"
   private val googleCloudCoreV = "1.61.0"
   private val googleCloudKmsV = "v1-rev63-1.25.0"
@@ -73,22 +73,22 @@ object Dependencies {
   private val scalaLoggingV = "3.9.2"
   private val scalaPoolV = "0.4.1"
   private val scalacheckV = "1.14.0"
-  private val scalacticV = "3.0.5"
+  private val scalacticV = "3.0.8"
   private val scalameterV = "0.10.1"
-  private val scalamockV = "4.1.0"
-  private val scalatestV = "3.0.5"
+  private val scalamockV = "4.4.0"
+  private val scalatestV = "3.0.8"
   private val scalazV = "7.2.27"
   private val scoptV = "3.7.1"
   private val sentryLogbackV = "1.7.17"
   private val shapelessV = "2.3.3"
-  private val simulacrumV = "0.15.0"
+  private val simulacrumV = "1.0.0"
   private val slf4jV = "1.7.25"
   private val slickCatsV = "0.9.0"
-  private val slickV = "3.2.3"
+  private val slickV = "3.3.2"
   private val snakeyamlV = "1.23"
-  private val specs2MockV = "4.4.1"
+  private val specs2MockV = "4.7.1"
   private val sprayJsonV = "1.3.5"
-  private val sttpV = "1.5.8"
+  private val sttpV = "1.6.8"
   private val swaggerParserV = "1.0.41"
   private val swaggerUiV = "3.2.2"
   private val tikaV = "1.20"
@@ -278,8 +278,7 @@ object Dependencies {
       exclude("com.google.api.grpc", "grpc-google-common-protos")
       exclude("com.google.cloud.datastore", "datastore-v1-protos")
       exclude("org.apache.httpcomponents", "httpclient"),
-    "org.broadinstitute.dsde.workbench" %% "workbench-google" % workbenchGoogleV
-      exclude("com.google.apis", "google-api-services-genomics"),
+    //"org.broadinstitute.dsde.workbench" %% "workbench-google" % workbenchGoogleV exclude("com.google.apis", "google-api-services-genomics"),
     "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV,
     "com.google.apis" % "google-api-services-cloudkms" % googleCloudKmsV
       exclude("com.google.guava", "guava-jdk5")
@@ -384,7 +383,7 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "io.spray" %% "spray-json" % sprayJsonV,
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
-    "com.github.mpilquist" %% "simulacrum" % simulacrumV,
+    "org.typelevel" %% "simulacrum" % simulacrumV,
     "commons-codec" % "commons-codec" % commonsCodecV,
   ) ++ circeDependencies ++ refinedTypeDependenciesList
 
@@ -511,7 +510,7 @@ object Dependencies {
   ) ++ slf4jBindingDependencies // During testing, add an slf4j binding for _all_ libraries.
 
   val kindProjectorPlugin = "org.spire-math" %% "kind-projector" % kindProjectorV
-  val paradisePlugin = "org.scalamacros" % "paradise" % paradiseV cross CrossVersion.full
+  //val paradisePlugin = "org.scalamacros" % "paradise" % paradiseV cross CrossVersion.full
 
   // Version of the swagger UI to write into config files
   val swaggerUiVersion = swaggerUiV

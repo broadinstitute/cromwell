@@ -79,6 +79,7 @@ object Settings {
     "-Ywarn-unused:privates",
     "-Ywarn-unused:locals",
     "-Ypartial-unification",
+    "-Ymacro-annotations",
     "-Ywarn-unused:patvars"
   )
 
@@ -95,7 +96,7 @@ object Settings {
       sys.env.get("CROMWELL_SBT_ASSEMBLY_LOG_LEVEL").flatMap(Level.apply).getOrElse((logLevel in assembly).value)
   )
 
-  val Scala2_12Version = "2.12.9"
+  val Scala2_12Version = "2.13.1"
   val ScalaVersion = Scala2_12Version
   val sharedSettings = ReleasePlugin.projectSettings ++
     cromwellVersionWithGit ++ artifactorySettings ++ List(
@@ -110,7 +111,7 @@ object Settings {
     // No console-hostile options, otherwise the console is effectively unusable.
     // https://github.com/sbt/sbt/issues/1815
     scalacOptions in(Compile, console) --= consoleHostileSettings,
-    addCompilerPlugin(paradisePlugin)
+    //addCompilerPlugin(paradisePlugin)
   )
 
   val swaggerUiSettings = List(resourceGenerators in Compile += writeSwaggerUiVersionConf)

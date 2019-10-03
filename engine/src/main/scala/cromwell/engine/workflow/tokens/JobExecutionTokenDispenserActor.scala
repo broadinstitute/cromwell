@@ -166,7 +166,7 @@ class JobExecutionTokenDispenserActor(override val serviceRegistryActor: ActorRe
 
   private def logTokenAllocation(someInterval: FiniteDuration): Unit = {
 
-    log.info(tokenDispenserState.asJson.pretty(Printer.spaces2))
+    log.info(tokenDispenserState.asJson.printWith(Printer.spaces2))
 
     // Schedule the next log event:
     context.system.scheduler.scheduleOnce(someInterval) { self ! LogJobExecutionTokenAllocation(someInterval) }(context.dispatcher)

@@ -71,7 +71,7 @@ object Executable {
       case optional: OptionalGraphInputNode => IOChecked.pure(Coproduct[ResolvedExecutableInput](optional.womType.none: WomValue))
     }
 
-    val providedInputsValidation: IOChecked[ResolvedExecutableInputs] = graph.inputNodes.toList.parTraverse[IOChecked, IOCheckedPar, Option[(OutputPort, ResolvedExecutableInput)]]({
+    val providedInputsValidation: IOChecked[ResolvedExecutableInputs] = graph.inputNodes.toList.parTraverse[IOChecked, Option[(OutputPort, ResolvedExecutableInput)]]({
       case gin: ExternalGraphInputNode =>
         // The compiler needs the type ascription for some reason
         fromInputMapping(gin).getOrElse(fallBack(gin)).map((gin.singleOutputPort: OutputPort) -> _).map(Option(_))

@@ -33,7 +33,8 @@ package object model {
   val FailureResponseOrT = EitherT
 
   implicit class EnhancedFutureHttpResponse(val responseFuture: Future[HttpResponse]) extends AnyVal {
-    def asFailureResponseOrT: FailureResponseOrT[HttpResponse] = {
+    def asFailureResponseOrT(implicit ec: ExecutionContext): FailureResponseOrT[HttpResponse] = {
+      implicit def cs = IO.contextShift(ec)
       val ioHttpResponse = IO.fromFuture(IO(responseFuture))
       val ioEither = ioHttpResponse map {
         case response if response.status.isFailure() => Left(response)
@@ -63,6 +64,7 @@ package object model {
     def asIo(implicit materializer: ActorMaterializer, executionContext: ExecutionContext): IO[SuccessType] = {
       responseIoT.value flatMap {
         case Left(response) =>
+          implicit def cs = IO.contextShift(executionContext)
           IO.fromFuture(IO {
             Unmarshal(response.entity).to[String] flatMap { responseString =>
               Future.failed(UnsuccessfulRequestException(responseString, response))

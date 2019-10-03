@@ -5,6 +5,7 @@ import cats.syntax.functor._
 import cats.syntax.traverse._
 import cats.instances.list._
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
+import common.validation.IOChecked
 import common.validation.Validation._
 import common.validation.IOChecked._
 import cwl.ExpressionEvaluator.{ECMAScriptExpression, ECMAScriptFunction}
@@ -59,7 +60,7 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
       import cats.instances.list._
       import cats.syntax.traverse._
       for {
-        listing <- ioFunctionSet.listDirectory(directory)().toIOChecked
+        listing <- ioFunctionSet.listDirectory(directory)().toIOChecked(ioFunctionSet.cs)
         fileListing <- listing.toList.traverse[IOChecked, WomFile] {
           case IoDirectory(e) => recursivelyBuildDirectory(e).widen
           case IoFile(e) => WomSingleFile(e).validIOChecked.widen

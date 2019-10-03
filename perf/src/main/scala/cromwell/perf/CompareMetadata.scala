@@ -12,7 +12,6 @@ import com.typesafe.scalalogging.StrictLogging
 import common.validation.ErrorOr._
 import io.circe._
 import io.circe.generic.semiauto._
-import io.circe.java8.time._
 import io.circe.parser._
 
 object CompareMetadata extends App with StrictLogging{

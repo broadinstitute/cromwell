@@ -66,7 +66,7 @@ final class CarbonitedMetadataThawingActor(carboniterConfig: HybridCarboniteConf
       stay()
   }
 
-  def mergeResponses(metadata: Json, labels: Map[String, String]): String = JsonEditor.augmentLabels(metadata, labels).pretty(Printer.spaces2)
+  def mergeResponses(metadata: Json, labels: Map[String, String]): String = JsonEditor.augmentLabels(metadata, labels).printWith(Printer.spaces2)
 
 }
 

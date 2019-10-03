@@ -109,7 +109,7 @@ class CwlPreProcessorSpec extends FlatSpec with Matchers with MockFactory {
       case (Left(errors), None) => fail("Unexpected failure to pre-process workflow: " + errors.toList.mkString(", "))
       case (Right(result), None) =>
         val content = (testRoot / "expected_result.json").contentAsString
-        val uuid = uuidExtractor.flatMap(_.r.findFirstMatchIn(result.pretty(Printer.noSpaces)).map(_.group(1)))
+        val uuid = uuidExtractor.flatMap(_.r.findFirstMatchIn(result.printWith(Printer.noSpaces)).map(_.group(1)))
         val expectationContent = content
           .replaceAll("<<RESOURCES_ROOT>>", resourcesRoot.pathAsString)
           .replaceAll("<<RANDOM_UUID>>", uuid.getOrElse(""))

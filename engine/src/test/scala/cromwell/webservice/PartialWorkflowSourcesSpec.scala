@@ -29,7 +29,7 @@ class PartialWorkflowSourcesSpec extends FlatSpec with Matchers {
 
     mergedMapsErrorOr match {
       case Valid(_) => fail("This is unexpected! This test is designed to fail!")
-      case Invalid(error) => error.head shouldBe "Submitted input '\"invalidInput\"' of type JsString is not a JSON object."
+      case Invalid(error) => error.head shouldBe "Submitted input '\"invalidInput\"' of type JsString is not a valid JSON object."
     }
   }
 

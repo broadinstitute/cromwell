@@ -7,9 +7,9 @@ object CwlEncoder {
 
   def encodeCwl(cwl: Cwl): Json = cwl.fold(CwlEncoderFold)
 
-  val jsonPrettyPrinter = io.circe.Printer.spaces2.copy(dropNullValues = true, preserveOrder = true)
+  val jsonPrettyPrinter = io.circe.Printer.spaces2.copy(dropNullValues = true)
 
-  def cwlToJson(cwl: Cwl): String = jsonPrettyPrinter.pretty(encodeCwl(cwl))
+  def cwlToJson(cwl: Cwl): String = jsonPrettyPrinter.print(encodeCwl(cwl))
 }
 
 

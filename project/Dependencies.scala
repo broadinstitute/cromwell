@@ -1,7 +1,7 @@
 import sbt._
 
 object Dependencies {
-  private val akkaHttpCirceIntegrationV = "1.24.3"
+  private val akkaHttpCirceIntegrationV = "1.29.1"
   private val akkaHttpV = "10.1.9"
   private val akkaV = "2.5.23"
   private val aliyunBcsV = "6.1.0"
@@ -13,11 +13,11 @@ object Dependencies {
   private val apacheHttpClientV = "4.5.7"
   private val awsSdkV = "2.3.9"
   private val betterFilesV = "2.17.1"
-  private val catsEffectV = "1.2.0"
-  private val catsV = "1.5.0"
-  private val circeOpticsV = "0.11.0"
-  private val circeV = "0.11.1"
-  private val circeYamlV = "0.9.0"
+  private val catsEffectV = "2.0.0"
+  private val catsV = "2.0.0"
+  private val circeOpticsV = "0.12.0"
+  private val circeV = "0.12.1"
+  private val circeYamlV = "0.11.0-M1"
   private val commonsCodecV = "1.11"
   private val commonsIoV = "2.6"
   private val commonsLang3V = "3.8.1"
@@ -26,7 +26,8 @@ object Dependencies {
   private val configsV = "0.4.4"
   private val delightRhinoSandboxV = "0.0.10"
   private val ficusV = "1.4.4"
-  private val fs2V = "1.0.3"
+  private val fs2V = "2.0.0"
+  private val fs2VStatsDProxy = "1.0.3"
   private val googleApiClientV = "1.28.0"
   private val googleCloudCoreV = "1.61.0"
   private val googleCloudKmsV = "v1-rev63-1.25.0"
@@ -49,7 +50,7 @@ object Dependencies {
   private val javaxActivationV = "1.2.0"
   private val jaxbV = "2.3.2"
   private val kindProjectorV = "0.9.9"
-  private val kittensV = "1.2.0"
+  private val kittensV = "2.0.0"
   private val liquibaseSlf4jV = "2.0.0"
   private val liquibaseV = "3.6.3"
   private val logbackV = "1.2.3"
@@ -58,7 +59,7 @@ object Dependencies {
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "2.7.1"
   private val mockserverNettyV = "5.5.1"
-  private val mouseV = "0.20"
+  private val mouseV = "0.23"
   private val mysqlV = "8.0.15"
   private val nettyV = "4.1.33.Final"
   private val owlApiV = "5.1.9"
@@ -108,7 +109,6 @@ object Dependencies {
     "parser",
     "generic",
     "generic-extras",
-    "java8",
     "shapes",
     "refined",
     "literal"
@@ -375,7 +375,7 @@ object Dependencies {
   )
 
   val statsDProxyDependencies = List(
-    "co.fs2" %% "fs2-io" % fs2V,
+    "co.fs2" %% "fs2-io" % fs2VStatsDProxy,
     "com.iheart" %% "ficus" % ficusV,
     "com.google.cloud" % "google-cloud-nio" % googleCloudNioV
   ) ++ commonDependencies

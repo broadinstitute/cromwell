@@ -48,68 +48,86 @@ object CwlCodecs {
   ```
    */
   // Semi-Auto decoders
-  implicit lazy val decodeArgumentCommandLineBinding: Decoder[ArgumentCommandLineBinding] = deriveDecoder
-  implicit lazy val decodeCommandInputParameter: Decoder[CommandInputParameter] = deriveDecoder
-  implicit lazy val decodeCommandLineTool: Decoder[CommandLineTool] = deriveDecoder
-  implicit lazy val decodeCommandOutputBinding: Decoder[CommandOutputBinding] = deriveDecoder
-  implicit lazy val decodeCommandOutputParameter: Decoder[CommandOutputParameter] = deriveDecoder
+  implicit lazy val decodeArgumentCommandLineBinding: Codec[ArgumentCommandLineBinding] = deriveCodec
+  implicit lazy val decodeCommandInputParameter: Codec[CommandInputParameter] = deriveCodec
+  implicit lazy val decodeCommandLineTool: Codec[CommandLineTool] = deriveCodec
+  implicit lazy val decodeCommandOutputBinding: Codec[CommandOutputBinding] = deriveCodec
+  implicit lazy val decodeCommandOutputParameter: Codec[CommandOutputParameter] = deriveCodec
+  implicit lazy val decodeCwlType: Codec[CwlType] = Codec.codecForEnumeration(CwlType)
+  implicit lazy val decodeCwlVersion: Codec[CwlVersion] = Codec.codecForEnumeration(CwlVersion)
+  implicit lazy val decodeDirectory: Codec[Directory] = deriveCodec
+  implicit lazy val decodeDockerRequirement: Codec[DockerRequirement] = deriveCodec
+  implicit lazy val decodeEnvVarRequirement: Codec[EnvVarRequirement] = deriveCodec
+  implicit lazy val decodeEnvironmentDef: Codec[EnvironmentDef] = deriveCodec
+  implicit lazy val decodeExpressionDirent: Codec[ExpressionDirent] = deriveCodec
+  implicit lazy val decodeExpressionTool: Codec[ExpressionTool] = deriveCodec
+  implicit lazy val decodeExpressionToolInputParameter: Codec[ExpressionToolInputParameter] = deriveCodec
+  implicit lazy val decodeExpressionToolOutputParameter: Codec[ExpressionToolOutputParameter] = deriveCodec
+  implicit lazy val decodeFile: Codec[File] = deriveCodec
+  implicit lazy val decodeInitialWorkDirRequirement: Codec[InitialWorkDirRequirement] = deriveCodec
+  implicit lazy val decodeInlineJavascriptRequirement: Codec[InlineJavascriptRequirement] = deriveCodec
+  implicit lazy val decodeInputArraySchema: Codec[InputArraySchema] = deriveCodec
+  implicit lazy val decodeInputBinding: Codec[InputBinding] = deriveCodec
+  implicit lazy val decodeInputCommandLineBinding: Codec[InputCommandLineBinding] = deriveCodec
+  implicit lazy val decodeInputEnumSchema: Codec[InputEnumSchema] = deriveCodec
+  implicit lazy val decodeInputRecordField: Codec[InputRecordField] = deriveCodec
+  implicit lazy val decodeInputRecordSchema: Codec[InputRecordSchema] = deriveCodec
+  implicit lazy val decodeInputResourceRequirement: Codec[DnaNexusInputResourceRequirement] = deriveCodec
+  implicit lazy val decodeLinkMergeMethod: Codec[LinkMergeMethod] = Codec.codecForEnumeration(LinkMergeMethod)
+  implicit lazy val decodeMultipleInputFeatureRequirement: Codec[MultipleInputFeatureRequirement] = deriveCodec
+  implicit lazy val decodeOutputArraySchema: Codec[OutputArraySchema] = deriveCodec
+  implicit lazy val decodeOutputEnumSchema: Codec[OutputEnumSchema] = deriveCodec
+  implicit lazy val decodeOutputRecordField: Codec[OutputRecordField] = deriveCodec
+  implicit lazy val decodeOutputRecordSchema: Codec[OutputRecordSchema] = deriveCodec
+  implicit lazy val decodeResourceRequirement: Codec[ResourceRequirement] = deriveCodec
+  implicit lazy val decodeScatterFeatureRequirement: Codec[ScatterFeatureRequirement] = deriveCodec
+  implicit lazy val decodeScatterMethod: Codec[ScatterMethod] = Codec.codecForEnumeration(ScatterMethod)
+  implicit lazy val decodeSchemaDefRequirement: Codec[SchemaDefRequirement] = deriveCodec
+  implicit lazy val decodeShellCommandRequirement: Codec[ShellCommandRequirement] = deriveCodec
+  implicit lazy val decodeSoftwarePackage: Codec[SoftwarePackage] = deriveCodec
+  implicit lazy val decodeSoftwareRequirement: Codec[SoftwareRequirement] = deriveCodec
+  implicit lazy val decodeStepInputExpressionRequirement: Codec[StepInputExpressionRequirement] = deriveCodec
+  implicit lazy val decodeStringDirent: Codec[StringDirent] = deriveCodec
+  implicit lazy val decodeSubworkflowFeatureRequirement: Codec[SubworkflowFeatureRequirement] = deriveCodec
+  implicit lazy val decodeWorkflow: Codec[Workflow] = deriveCodec
+  implicit lazy val decodeWorkflowInputParameter: Codec[WorkflowInputParameter] = deriveCodec
+  implicit lazy val decodeWorkflowOutputParameter: Codec[WorkflowOutputParameter] = deriveCodec
+  implicit lazy val decodeWorkflowStep: Codec[WorkflowStep] = deriveCodec
+  implicit lazy val decodeWorkflowStepInput: Codec[WorkflowStepInput] = deriveCodec
+  implicit lazy val decodeWorkflowStepOutput: Codec[WorkflowStepOutput] = deriveCodec
+
+  // Semi-Auto encoders
   implicit lazy val decodeCwlAny: Decoder[CwlAny] = decodeCCons
-  implicit lazy val decodeCwlType: Decoder[CwlType] = Decoder.decodeEnumeration(CwlType)
-  implicit lazy val decodeCwlVersion: Decoder[CwlVersion] = Decoder.decodeEnumeration(CwlVersion)
-  implicit lazy val decodeDirectory: Decoder[Directory] = deriveDecoder
-  implicit lazy val decodeDockerRequirement: Decoder[DockerRequirement] = deriveDecoder
-  implicit lazy val decodeEnvVarRequirement: Decoder[EnvVarRequirement] = deriveDecoder
-  implicit lazy val decodeEnvironmentDef: Decoder[EnvironmentDef] = deriveDecoder
   implicit lazy val decodeExpression: Decoder[Expression] = decodeCCons
-  implicit lazy val decodeExpressionDirent: Decoder[ExpressionDirent] = deriveDecoder
-  implicit lazy val decodeExpressionTool: Decoder[ExpressionTool] = deriveDecoder
-  implicit lazy val decodeExpressionToolInputParameter: Decoder[ExpressionToolInputParameter] = deriveDecoder
-  implicit lazy val decodeExpressionToolOutputParameter: Decoder[ExpressionToolOutputParameter] = deriveDecoder
-  implicit lazy val decodeFile: Decoder[File] = deriveDecoder
   implicit lazy val decodeFileOrDirectory: Decoder[FileOrDirectory] = decodeCCons
   implicit lazy val decodeGlob: Decoder[Glob] = decodeCCons
   implicit lazy val decodeHint: Decoder[Hint] = decodeCCons
-  implicit lazy val decodeInitialWorkDirRequirement: Decoder[InitialWorkDirRequirement] = deriveDecoder
-  implicit lazy val decodeInlineJavascriptRequirement: Decoder[InlineJavascriptRequirement] = deriveDecoder
-  implicit lazy val decodeInputArraySchema: Decoder[InputArraySchema] = deriveDecoder
-  implicit lazy val decodeInputBinding: Decoder[InputBinding] = deriveDecoder
-  implicit lazy val decodeInputCommandLineBinding: Decoder[InputCommandLineBinding] = deriveDecoder
-  implicit lazy val decodeInputEnumSchema: Decoder[InputEnumSchema] = deriveDecoder
-  implicit lazy val decodeInputRecordField: Decoder[InputRecordField] = deriveDecoder
-  implicit lazy val decodeInputRecordSchema: Decoder[InputRecordSchema] = deriveDecoder
-  implicit lazy val decodeInputResourceRequirement: Decoder[DnaNexusInputResourceRequirement] = deriveDecoder
   implicit lazy val decodeIwdrListingArrayEntry: Decoder[IwdrListingArrayEntry] = decodeCCons
-  implicit lazy val decodeLinkMergeMethod: Decoder[LinkMergeMethod] = Decoder.decodeEnumeration(LinkMergeMethod)
-  implicit lazy val decodeMultipleInputFeatureRequirement: Decoder[MultipleInputFeatureRequirement] = deriveDecoder
   implicit lazy val decodeMyriadInputInnerType: Decoder[MyriadInputInnerType] = decodeCCons
   implicit lazy val decodeMyriadInputType: Decoder[MyriadInputType] = decodeCCons
   implicit lazy val decodeMyriadOutputType: Decoder[MyriadOutputType] = decodeCCons
-  implicit lazy val decodeOutputArraySchema: Decoder[OutputArraySchema] = deriveDecoder
-  implicit lazy val decodeOutputEnumSchema: Decoder[OutputEnumSchema] = deriveDecoder
-  implicit lazy val decodeOutputRecordField: Decoder[OutputRecordField] = deriveDecoder
-  implicit lazy val decodeOutputRecordSchema: Decoder[OutputRecordSchema] = deriveDecoder
   implicit lazy val decodeRequirement: Decoder[Requirement] = decodeCCons
-  implicit lazy val decodeResourceRequirement: Decoder[ResourceRequirement] = deriveDecoder
   implicit lazy val decodeResourceRequirementType: Decoder[ResourceRequirementType] = decodeCCons
-  implicit lazy val decodeScatterFeatureRequirement: Decoder[ScatterFeatureRequirement] = deriveDecoder
-  implicit lazy val decodeScatterMethod: Decoder[ScatterMethod] = Decoder.decodeEnumeration(ScatterMethod)
-  implicit lazy val decodeSchemaDefRequirement: Decoder[SchemaDefRequirement] = deriveDecoder
   implicit lazy val decodeSchemaDefTypes: Decoder[SchemaDefTypes] = decodeCCons
   implicit lazy val decodeSecondaryFiles: Decoder[SecondaryFiles] = decodeCCons
-  implicit lazy val decodeShellCommandRequirement: Decoder[ShellCommandRequirement] = deriveDecoder
   implicit lazy val decodeSingleOrArrayOfStrings: Decoder[SingleOrArrayOfStrings] = decodeCCons
-  implicit lazy val decodeSoftwarePackage: Decoder[SoftwarePackage] = deriveDecoder
-  implicit lazy val decodeSoftwareRequirement: Decoder[SoftwareRequirement] = deriveDecoder
-  implicit lazy val decodeStepInputExpressionRequirement: Decoder[StepInputExpressionRequirement] = deriveDecoder
-  implicit lazy val decodeStringDirent: Decoder[StringDirent] = deriveDecoder
   implicit lazy val decodeStringOrExpression: Decoder[StringOrExpression] = decodeCCons
-  implicit lazy val decodeSubworkflowFeatureRequirement: Decoder[SubworkflowFeatureRequirement] = deriveDecoder
-  implicit lazy val decodeWorkflow: Decoder[Workflow] = deriveDecoder
-  implicit lazy val decodeWorkflowInputParameter: Decoder[WorkflowInputParameter] = deriveDecoder
-  implicit lazy val decodeWorkflowOutputParameter: Decoder[WorkflowOutputParameter] = deriveDecoder
-  implicit lazy val decodeWorkflowStep: Decoder[WorkflowStep] = deriveDecoder
-  implicit lazy val decodeWorkflowStepInput: Decoder[WorkflowStepInput] = deriveDecoder
-  implicit lazy val decodeWorkflowStepOutput: Decoder[WorkflowStepOutput] = deriveDecoder
+
+  implicit lazy val encodeCwlAny: Encoder[CwlAny] = encodeCCons
+  implicit lazy val encodeExpression: Encoder[Expression] = encodeCCons
+  implicit lazy val encodeFileOrDirectory: Encoder[FileOrDirectory] = encodeCCons
+  implicit lazy val encodeGlob: Encoder[Glob] = encodeCCons
+  implicit lazy val encodeHint: Encoder[Hint] = encodeCCons
+  implicit lazy val encodeIwdrListingArrayEntry: Encoder[IwdrListingArrayEntry] = encodeCCons
+  implicit lazy val encodeMyriadInputInnerType: Encoder[MyriadInputInnerType] = encodeCCons
+  implicit lazy val encodeMyriadInputType: Encoder[MyriadInputType] = encodeCCons
+  implicit lazy val encodeMyriadOutputType: Encoder[MyriadOutputType] = encodeCCons
+  implicit lazy val encodeRequirement: Encoder[Requirement] = encodeCCons
+  implicit lazy val encodeResourceRequirementType: Encoder[ResourceRequirementType] = encodeCCons
+  implicit lazy val encodeSchemaDefTypes: Encoder[SchemaDefTypes] = encodeCCons
+  implicit lazy val encodeSecondaryFiles: Encoder[SecondaryFiles] = encodeCCons
+  implicit lazy val encodeSingleOrArrayOfStrings: Encoder[SingleOrArrayOfStrings] = encodeCCons
+  implicit lazy val encodeStringOrExpression: Encoder[StringOrExpression] = encodeCCons
 
   def decodeCwl(json: Json): Checked[Cwl] = {
     findClass(json) match {
@@ -121,7 +139,7 @@ object CwlCodecs {
     }
   }
 
-  private def decodeWithErrorStringsJson[A](in: Json)(implicit d: Decoder[A]): Checked[A] =
+  private def decodeWithErrorStringsJson[A](in: Json)(implicit d: Codec[A]): Checked[A] =
     in.as[A].leftMap(_.show).leftMap(NonEmptyList.one)
 
   private def findClass(json: Json): Option[String] =

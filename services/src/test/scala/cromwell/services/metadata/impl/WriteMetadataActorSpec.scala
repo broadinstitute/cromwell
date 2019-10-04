@@ -262,6 +262,10 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     override def deleteNonLabelMetadataForWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Int] = {
       notImplemented()
     }
+
+    override def isRootWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Option[Boolean]] = {
+      notImplemented()
+    }
   }
 }
 

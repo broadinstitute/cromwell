@@ -4,8 +4,10 @@ import cats.Semigroup
 import cats.data.NonEmptyList
 import cats.instances.future._
 import cats.instances.list._
+import cats.syntax.apply._
 import cats.syntax.semigroup._
 import cats.syntax.traverse._
+
 //import cats.syntax.validated._
 import common.validation.Validation._
 import cromwell.core._
@@ -301,5 +303,24 @@ trait MetadataDatabaseAccess {
       queryResults <- summariesToQueryResults(workflows)
     } yield (WorkflowQueryResponse(queryResults, count), queryMetadata(count))
 
+  }
+
+  def deleteNonLabelMetadataEntriesForWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Int] = {
+    import cromwell.core.WorkflowState
+
+    ((metadataDatabaseInterface.isRootWorkflow(rootWorkflowId), metadataDatabaseInterface.getWorkflowStatus(rootWorkflowId)) mapN {
+      case (None, _) =>
+        Future.failed(new Exception(s"Metadata deletion precondition failed: workflow ID $rootWorkflowId not found in summary table"))
+      case (Some(false), _) =>
+        Future.failed(new Exception(s"Metadata deletion precondition failed: workflow ID $rootWorkflowId is not a root workflow"))
+      case (_, None) =>
+        Future.failed(new Exception(s"Metadata deletion precondition failed: workflow ID $rootWorkflowId did not have a status in the summary table"))
+      case (Some(true), Some(status)) =>
+        if (WorkflowState.WorkflowStateValues.filter(_.isTerminal).map(_.toString).contains(status))
+          metadataDatabaseInterface.deleteNonLabelMetadataForWorkflow(rootWorkflowId)
+        else
+          Future.failed(new Exception(s"Metadata deletion precondition failed: workflow ID $rootWorkflowId was in non-terminal status $status" ))
+
+    }).flatten
   }
 }

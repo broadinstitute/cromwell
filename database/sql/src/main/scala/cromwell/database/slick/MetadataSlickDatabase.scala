@@ -2,11 +2,8 @@ package cromwell.database.slick
 
 import java.sql.Timestamp
 
-import cats.data.NonEmptyList
 import cats.implicits._
 import com.typesafe.config.{Config, ConfigFactory}
-import common.Checked
-import common.validation.Checked._
 import cromwell.database.slick.tables.MetadataDataAccessComponent
 import cromwell.database.sql.MetadataSqlDatabase
 import cromwell.database.sql.SqlConverters._
@@ -364,49 +361,15 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   }
 
   override def deleteNonLabelMetadataForWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Int] = {
-
-    val delete: DBIO[Int] = checkDeletionPreconditions(rootWorkflowId) flatMap { checkResult: Checked[Unit] =>
-      checkResult match {
-        case Right(_) =>
-          dataAccess.metadataEntriesWithoutLabelsForRootWorkflowId(rootWorkflowId).delete
-        case Left(errors: NonEmptyList[String]) =>
-          DBIO.failed(new Exception(errors.toList.mkString(",")))
-      }
-    }
-
-    runTransaction(delete)
+    runTransaction(
+      dataAccess.metadataEntriesWithoutLabelsForRootWorkflowId(rootWorkflowId).delete
+    )
   }
 
-  private def checkDeletionPreconditions(rootWorkflowId: String)(implicit ec: ExecutionContext): DBIO[Checked[Unit]] = {
-    dataAccess.workflowMetadataSummaryEntriesForWorkflowExecutionUuid(rootWorkflowId).result.headOption map {
-      case Some(workflow: WorkflowMetadataSummaryEntry) =>
-        (isTerminalCheck(workflow), isRootWorkflowCheck(workflow)) mapN {
-          case (_, _) => ()
-        }
-      case None =>
-        s"""[Carbonite metadata deletion] Failed with non-existent root workflow "$rootWorkflowId"""".invalidNelCheck
-    }
-  }
-
-  private def isTerminalCheck(summaryEntry: WorkflowMetadataSummaryEntry): Checked[Unit] = {
-    import cromwell.core.WorkflowState
-
-    summaryEntry.workflowStatus match {
-      case Some(status) =>
-        if (WorkflowState.WorkflowStateValues.filter(_.isTerminal).map(_.toString).contains(status))
-          ().validNelCheck
-        else
-          s"""[Carbonite metadata deletion] Failed with non-terminal summary status "$status" for workflow "${summaryEntry.workflowExecutionUuid}"""".invalidNelCheck
-      case None =>
-        s"""[Carbonite metadata deletion] Failed because summary status unexpectedly empty for workflow "${summaryEntry.workflowExecutionUuid}"""".invalidNelCheck
-    }
-  }
-
-  private def isRootWorkflowCheck(summaryEntry: WorkflowMetadataSummaryEntry): Checked[Unit] = {
-    if (summaryEntry.parentWorkflowExecutionUuid.isEmpty && summaryEntry.rootWorkflowExecutionUuid.isEmpty)
-      ().validNelCheck
-    else
-      s"""[Carbonite metadata deletion] Failed because workflow is not root: "${summaryEntry.workflowExecutionUuid}"""".invalidNelCheck
+  override def isRootWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Option[Boolean]] = {
+    runTransaction(
+      dataAccess.isRootWorkflow(rootWorkflowId).result.headOption
+    )
   }
 
 }

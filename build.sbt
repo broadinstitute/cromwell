@@ -128,8 +128,6 @@ lazy val drsFileSystem = (project in file("filesystems/drs"))
 
 lazy val databaseSql = (project in file("database/sql"))
   .withLibrarySettings("cromwell-database-sql", databaseSqlDependencies)
-  .dependsOn(core)
-  .dependsOn(core % "test->test")
 
 lazy val databaseMigration = (project in file("database/migration"))
   .withLibrarySettings("cromwell-database-migration", databaseMigrationDependencies)

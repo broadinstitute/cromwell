@@ -60,7 +60,7 @@ class CarbonitingMetadataFreezerActorSpec extends TestKitSuite("CarbonitedMetada
     ioActor.expectMsgPF(10.seconds) {
       case command @ IoCommandWithPromise(ioCommand: IoWriteCommand, _) =>
         ioCommand.file.pathAsString should be(HybridCarboniteConfig.pathForWorkflow(workflowIdToFreeze, "carbonite-test-bucket"))
-        ioCommand.content should be(jsonValue.compactPrint)
+        ioCommand.content should be(jsonValue.prettyPrint)
         ioCommandPromise = command.promise
     }
     eventually {

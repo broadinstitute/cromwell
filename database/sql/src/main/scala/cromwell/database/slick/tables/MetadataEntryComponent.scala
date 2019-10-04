@@ -2,6 +2,7 @@ package cromwell.database.slick.tables
 
 import java.sql.Timestamp
 import javax.sql.rowset.serial.SerialClob
+
 import cromwell.database.sql.tables.MetadataEntry
 
 trait MetadataEntryComponent {

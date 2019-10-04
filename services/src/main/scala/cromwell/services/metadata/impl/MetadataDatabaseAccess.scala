@@ -7,8 +7,6 @@ import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.semigroup._
 import cats.syntax.traverse._
-
-//import cats.syntax.validated._
 import common.validation.Validation._
 import cromwell.core._
 import cromwell.database.sql.SqlConverters._

@@ -96,7 +96,7 @@ trait WorkflowMetadataSummaryEntryComponent {
       summary <- workflowMetadataSummaryEntries
       if summary.workflowExecutionUuid === workflowId
     } yield {
-      !summary.rootWorkflowExecutionUuid.isDefined && !summary.rootWorkflowExecutionUuid.isDefined
+      !summary.rootWorkflowExecutionUuid.isDefined && !summary.parentWorkflowExecutionUuid.isDefined
     }
   )
 

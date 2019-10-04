@@ -139,7 +139,10 @@ object CallElementToGraphNode {
 
         // No input mapping, add an optional input using the default expression
         case withDefault@OverridableInputDefinitionWithDefault(n, womType, expression, _, _) =>
-          val identifier = WomIdentifier(s"${a.workflowName}.$callName.${n.value}")
+          val identifier = WomIdentifier(
+            localName = s"$callName.${n.value}",
+            fullyQualifiedName = s"${a.workflowName}.$callName.${n.value}"
+          )
           withGraphInputNode(withDefault, OptionalGraphInputNodeWithDefault(identifier, womType, expression, identifier.fullyQualifiedName.value))
 
         // Not an input, use the default expression:
@@ -150,13 +153,19 @@ object CallElementToGraphNode {
         // No input mapping, required and we don't have a default value, create a new RequiredGraphInputNode
         // so that it can be satisfied via workflow inputs
         case required@RequiredInputDefinition(n, womType, _, _) =>
-          val identifier = WomIdentifier(s"${a.workflowName}.$callName.${n.value}")
+          val identifier = WomIdentifier(
+            localName = s"$callName.${n.value}",
+            fullyQualifiedName = s"${a.workflowName}.$callName.${n.value}"
+          )
           withGraphInputNode(required, RequiredGraphInputNode(identifier, womType, identifier.fullyQualifiedName.value))
 
         // No input mapping, no default value but optional, create a OptionalGraphInputNode
         // so that it can be satisfied via workflow inputs
         case optional@OptionalInputDefinition(n, womType, _, _) =>
-          val identifier = WomIdentifier(s"${a.workflowName}.$callName.${n.value}")
+          val identifier = WomIdentifier(
+            localName = s"$callName.${n.value}",
+            fullyQualifiedName = s"${a.workflowName}.$callName.${n.value}"
+          )
           withGraphInputNode(optional, OptionalGraphInputNode(identifier, womType, identifier.fullyQualifiedName.value))
       }
     }

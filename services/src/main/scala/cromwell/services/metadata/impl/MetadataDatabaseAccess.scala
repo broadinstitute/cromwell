@@ -303,21 +303,22 @@ trait MetadataDatabaseAccess {
 
   }
 
-  def deleteNonLabelMetadataEntriesForWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Int] = {
+  def deleteNonLabelMetadataEntriesForWorkflow(rootWorkflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int] = {
     import cromwell.core.WorkflowState
 
-    ((metadataDatabaseInterface.isRootWorkflow(rootWorkflowId), metadataDatabaseInterface.getWorkflowStatus(rootWorkflowId)) mapN {
+    // TODO: Does it make sense to check archive status? Probably not if this function is called immediately after archiving succeeds.
+    ((metadataDatabaseInterface.isRootWorkflow(rootWorkflowId.toString), metadataDatabaseInterface.getWorkflowStatus(rootWorkflowId.toString)) mapN {
       case (None, _) =>
-        Future.failed(new Exception(s"Metadata deletion precondition failed: workflow ID $rootWorkflowId not found in summary table"))
+        Future.failed(new Exception(s"""Metadata deletion precondition failed: workflow ID "$rootWorkflowId" not found in summary table"""))
       case (Some(false), _) =>
-        Future.failed(new Exception(s"Metadata deletion precondition failed: workflow ID $rootWorkflowId is not a root workflow"))
+        Future.failed(new Exception(s"""Metadata deletion precondition failed: workflow ID "$rootWorkflowId" is not a root workflow"""))
       case (_, None) =>
-        Future.failed(new Exception(s"Metadata deletion precondition failed: workflow ID $rootWorkflowId did not have a status in the summary table"))
+        Future.failed(new Exception(s"""Metadata deletion precondition failed: workflow ID "$rootWorkflowId" did not have a status in the summary table"""))
       case (Some(true), Some(status)) =>
         if (WorkflowState.WorkflowStateValues.filter(_.isTerminal).map(_.toString).contains(status))
-          metadataDatabaseInterface.deleteNonLabelMetadataForWorkflow(rootWorkflowId)
+          metadataDatabaseInterface.deleteNonLabelMetadataForWorkflow(rootWorkflowId.toString)
         else
-          Future.failed(new Exception(s"Metadata deletion precondition failed: workflow ID $rootWorkflowId was in non-terminal status $status" ))
+          Future.failed(new Exception(s"""Metadata deletion precondition failed: workflow ID "$rootWorkflowId" was in non-terminal status "$status""""))
 
     }).flatten
   }

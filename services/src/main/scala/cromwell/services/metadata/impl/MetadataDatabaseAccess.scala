@@ -309,7 +309,6 @@ trait MetadataDatabaseAccess {
   def deleteNonLabelMetadataEntriesForWorkflow(rootWorkflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int] = {
     import cromwell.core.WorkflowState
 
-    // TODO: Does it make sense to check archive status? Probably not if this function is called immediately after archiving succeeds.
     ((metadataDatabaseInterface.isRootWorkflow(rootWorkflowId.toString), metadataDatabaseInterface.getWorkflowStatus(rootWorkflowId.toString)) mapN {
       case (None, _) =>
         Future.failed(new Exception(s"""Metadata deletion precondition failed: workflow ID "$rootWorkflowId" not found in summary table"""))

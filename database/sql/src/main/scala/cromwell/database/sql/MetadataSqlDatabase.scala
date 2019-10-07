@@ -105,6 +105,8 @@ trait MetadataSqlDatabase extends SqlDatabase {
                             => WorkflowMetadataSummaryEntry)
                          (implicit ec: ExecutionContext): Future[(Long, Long)]
 
+  def updateMetadataArchiveStatus(workflowExecutionUuid: String, newArchiveStatus: Option[String]): Future[Int]
+
   def getWorkflowStatus(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Option[String]]
 
   def getWorkflowLabels(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Map[String, String]]

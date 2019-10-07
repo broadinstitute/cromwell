@@ -195,6 +195,11 @@ trait MetadataDatabaseAccess {
     } yield SummaryResult(increasingProcessed, increasingGap, decreasingProcessed, decreasingGap)
   }
 
+  def updateMetadataArchiveStatus(workflowId: WorkflowId, newStatus: MetadataArchiveStatus): Future[Int] = {
+    val databaseStatusValue = MetadataArchiveStatus.toDatabaseValue(newStatus)
+    metadataDatabaseInterface.updateMetadataArchiveStatus(workflowId.toString, databaseStatusValue)
+  }
+
   def getWorkflowStatus(id: WorkflowId)
                        (implicit ec: ExecutionContext): Future[Option[WorkflowState]] = {
     metadataDatabaseInterface.getWorkflowStatus(id.toString) map { _ map WorkflowState.withName }
@@ -276,7 +281,6 @@ trait MetadataDatabaseAccess {
           metadataDatabaseInterface.getWorkflowLabels(workflow.workflowExecutionUuid), Future.successful(Map.empty))
 
       val archiveStatus = MetadataArchiveStatus.fromDatabaseValue(workflow.metadataArchiveStatus)
-//      val archiveStatus = MetadataArchiveStatus.Archived.validNel // MetadataArchiveStatus.fromDatabaseValue(workflow.metadataArchiveStatus)
 
       for {
         labels <- workflowLabels
@@ -300,7 +304,6 @@ trait MetadataDatabaseAccess {
       workflows <- workflowSummaries
       queryResults <- summariesToQueryResults(workflows)
     } yield (WorkflowQueryResponse(queryResults, count), queryMetadata(count))
-
   }
 
   def deleteNonLabelMetadataEntriesForWorkflow(rootWorkflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int] = {

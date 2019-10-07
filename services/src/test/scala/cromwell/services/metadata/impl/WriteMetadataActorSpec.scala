@@ -253,6 +253,8 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
       notImplemented()
     }
 
+    override def updateMetadataArchiveStatus(workflowExecutionUuid: String, newArchiveStatus: Option[String]): Future[Int] = notImplemented()
+
     override def withConnection[A](block: Connection => A): Nothing = {
       notImplemented()
     }

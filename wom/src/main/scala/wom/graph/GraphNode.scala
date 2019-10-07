@@ -98,10 +98,13 @@ object GraphNode {
       */
     def inputDefinitions: Set[_ <: Callable.InputDefinition] = nodes collect {
       case required: RequiredGraphInputNode =>
+        println(s"Interpreting $required as ${required.identifier.localName}")
         RequiredInputDefinition(required.identifier.localName, required.womType)
       case optional: OptionalGraphInputNode =>
+        println(s"Interpreting $optional as ${optional.identifier.localName}")
         OptionalInputDefinition(optional.identifier.localName, optional.womType)
       case withDefault: OptionalGraphInputNodeWithDefault =>
+        println(s"Interpreting $withDefault as ${withDefault.identifier.localName}")
         OverridableInputDefinitionWithDefault(withDefault.identifier.localName, withDefault.womType, withDefault.default)
     }
 

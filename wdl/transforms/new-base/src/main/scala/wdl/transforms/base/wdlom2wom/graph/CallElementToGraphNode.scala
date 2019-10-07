@@ -63,7 +63,9 @@ object CallElementToGraphNode {
       */
     def expressionNodeMappings(callable: Callable): ErrorOr[Map[LocalName, AnonymousExpressionNode]] = {
       def validInput(name: String, definition: Callable.InputDefinition): Boolean = {
-        definition.name == name && !definition.isInstanceOf[FixedInputDefinitionWithDefault]
+        definition.name == name &&
+          !definition.isInstanceOf[FixedInputDefinitionWithDefault] &&
+          !definition.name.contains(".") // NB: Remove this check when sub-workflows allow pass-through task inputs
       }
 
       def hasDeclaration(callable: Callable, name: String): Boolean = callable match {

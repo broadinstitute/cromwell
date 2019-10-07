@@ -52,6 +52,15 @@ object CallElementToGraphNode {
         case None => s"Cannot resolve a callable with name ${a.node.callableReference}".invalidNel
       }
 
+    def supplyableInput(definition: Callable.InputDefinition): Boolean = {
+        !definition.isInstanceOf[FixedInputDefinitionWithDefault] &&
+        !definition.name.contains(".") // NB: Remove this check when sub-workflows allow pass-through task inputs
+    }
+
+    def validInput(name: String, definition: Callable.InputDefinition): Boolean = {
+      definition.name == name && supplyableInput(definition)
+    }
+
     /*
       * Each input definition KV pair becomes an entry in map.
       *
@@ -62,11 +71,6 @@ object CallElementToGraphNode {
       * @return ErrorOr of LocalName(key) mapped to ExpressionNode(value).
       */
     def expressionNodeMappings(callable: Callable): ErrorOr[Map[LocalName, AnonymousExpressionNode]] = {
-      def validInput(name: String, definition: Callable.InputDefinition): Boolean = {
-        definition.name == name &&
-          !definition.isInstanceOf[FixedInputDefinitionWithDefault] &&
-          !definition.name.contains(".") // NB: Remove this check when sub-workflows allow pass-through task inputs
-      }
 
       def hasDeclaration(callable: Callable, name: String): Boolean = callable match {
         case t: TaskDefinition =>
@@ -129,7 +133,7 @@ object CallElementToGraphNode {
         )
       }
 
-      callable.inputs foldMap {
+      callable.inputs.filter(supplyableInput) foldMap {
         // If there is an input mapping for this input definition, use that
         case inputDefinition if expressionNodes.contains(inputDefinition.localName) =>
           val expressionNode = expressionNodes(inputDefinition.localName)

@@ -99,6 +99,7 @@ trait WorkflowMetadataSummaryEntryComponent {
       !summary.rootWorkflowExecutionUuid.isDefined && !summary.parentWorkflowExecutionUuid.isDefined
     }
   )
+
   val metadataArchiveStatusByWorkflowId = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
       workflowMetadataSummaryEntry <- workflowMetadataSummaryEntries

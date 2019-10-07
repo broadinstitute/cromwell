@@ -179,7 +179,7 @@ object CommandOutputBinding {
       primaryPaths <- GlobEvaluator.globs(commandOutputBinding.glob, parameterContext, expressionLib).toIOChecked
 
       // 2. loadContents: load the contents of the primary files
-      primaryAsDirectoryOrFiles <- primaryPaths.parTraverse[IOChecked, IOCheckedPar, List[WomFile]] {
+      primaryAsDirectoryOrFiles <- primaryPaths.parTraverse[IOChecked, List[WomFile]] {
         loadPrimaryWithContents(ioFunctionSet, outputWomType, commandOutputBinding)
       } map (_.flatten)
 
@@ -187,7 +187,7 @@ object CommandOutputBinding {
       absolutePaths = primaryAsDirectoryOrFiles.map(_.mapFile(ioFunctionSet.pathFunctions.relativeToHostCallRoot))
       
       // Load file size
-      withFileSizes <- absolutePaths.parTraverse[IOChecked, IOCheckedPar, WomFile](_.withSize(ioFunctionSet).to[IOChecked])
+      withFileSizes <- absolutePaths.parTraverse[IOChecked, WomFile](_.withSize(ioFunctionSet).to[IOChecked])
 
       womFilesArray = WomArray(withFileSizes)
 
@@ -253,7 +253,7 @@ object CommandOutputBinding {
               })
 
         globs.flatMap({ files =>
-          files.toList.parTraverse[IOChecked, IOCheckedPar, WomFile](v => loadFileWithContents(ioFunctionSet, commandOutputBinding)(v).to[IOChecked])
+          files.toList.parTraverse[IOChecked, WomFile](v => loadFileWithContents(ioFunctionSet, commandOutputBinding)(v).to[IOChecked])
         }) 
       case other => s"Program error: $other type was not expected".invalidIOChecked
     }
@@ -268,7 +268,7 @@ object CommandOutputBinding {
 
     for {
       listing <- IO.fromFuture(IO { ioFunctionSet.listDirectory(path)(visited) }).to[IOChecked]
-      loadedListing <- listing.toList.parTraverse[IOChecked, IOCheckedPar, WomFile]({
+      loadedListing <- listing.toList.parTraverse[IOChecked, WomFile]({
         case IoFile(p) => loadFileWithContents(ioFunctionSet, commandOutputBinding)(p).to[IOChecked]
         case IoDirectory(p) => loadDirectoryWithListing(ioFunctionSet, commandOutputBinding)(p, visited :+ path).widen
       })

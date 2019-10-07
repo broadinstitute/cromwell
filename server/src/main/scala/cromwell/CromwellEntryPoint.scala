@@ -82,6 +82,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
     implicit val actorSystem = ActorSystem("SubmitSystem")
     implicit val materializer = ActorMaterializer()
     implicit val ec = actorSystem.dispatcher
+    implicit val cs = IO.contextShift(ec)
 
     val cromwellClient = new CromwellClient(args.host, "v2")
 
@@ -200,7 +201,11 @@ object CromwellEntryPoint extends GracefulStopSupport {
 
     val validation = args.validateSubmission(EntryPointLogger) map {
       case ValidSubmission(w, u, r, i, o, l, z) =>
-        val finalWorkflowSourceAndUrl: WorkflowSourceOrUrl = getFinalWorkflowSourceAndUrl(w, u)
+        val finalWorkflowSourceAndUrl: WorkflowSourceOrUrl = {
+          if (w.isDefined) WorkflowSourceOrUrl(w,u)  // submission has CWL workflow file path and no imports
+          else if (u.get.startsWith("http")) WorkflowSourceOrUrl(w, u)
+          else WorkflowSourceOrUrl(Option(DefaultPathBuilder.get(u.get).contentAsString), None) //case where url is a WDL/CWL file
+        }
 
         WorkflowSingleSubmission(
           workflowSource = finalWorkflowSourceAndUrl.source,
@@ -221,11 +226,10 @@ object CromwellEntryPoint extends GracefulStopSupport {
 
     val sourceFileCollection = (args.validateSubmission(EntryPointLogger), writeableMetadataPath(args.metadataOutput)) mapN {
       case (ValidSubmission(w, u, r, i, o, l, Some(z)), _) =>
-        val finalWorkflowSourceAndUrl: WorkflowSourceOrUrl = getFinalWorkflowSourceAndUrl(w, u)
         //noinspection RedundantDefaultArgument
         WorkflowSourceFilesWithDependenciesZip.apply(
-          workflowSource = finalWorkflowSourceAndUrl.source,
-          workflowUrl = finalWorkflowSourceAndUrl.url,
+          workflowSource = w,
+          workflowUrl = u,
           workflowRoot = r,
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,
@@ -236,11 +240,10 @@ object CromwellEntryPoint extends GracefulStopSupport {
           warnings = Vector.empty,
           workflowOnHold = false)
       case (ValidSubmission(w, u, r, i, o, l, None), _) =>
-        val finalWorkflowSourceAndUrl: WorkflowSourceOrUrl = getFinalWorkflowSourceAndUrl(w, u)
         //noinspection RedundantDefaultArgument
         WorkflowSourceFilesWithoutImports.apply(
-          workflowSource = finalWorkflowSourceAndUrl.source,
-          workflowUrl = finalWorkflowSourceAndUrl.url,
+          workflowSource = w,
+          workflowUrl = u,
           workflowRoot = r,
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,
@@ -264,12 +267,6 @@ object CromwellEntryPoint extends GracefulStopSupport {
       override def exceptionContext: String = "ERROR: Unable to submit workflow to Cromwell:"
       override def errorMessages: Traversable[String] = errors.toList
     })
-  }
-
-  private def getFinalWorkflowSourceAndUrl(workflowSource: Option[String], workflowUrl: Option[String]): WorkflowSourceOrUrl = {
-    if (workflowSource.isDefined) WorkflowSourceOrUrl(workflowSource, workflowUrl) // submission has CWL workflow file path and no imports
-    else if (workflowUrl.get.startsWith("http")) WorkflowSourceOrUrl(workflowSource, workflowUrl)
-    else WorkflowSourceOrUrl(Option(DefaultPathBuilder.get(workflowUrl.get).contentAsString), None) //case where url is a WDL/CWL file
   }
 
   private def writeableMetadataPath(path: Option[Path]): ErrorOr[Unit] = {

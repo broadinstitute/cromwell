@@ -96,7 +96,7 @@ class PipelinesApiInitializationActorSpec extends TestKitSuite("PipelinesApiInit
     val calls = workflowDescriptor.callable.taskCallNodes
     val backendConfigurationDescriptor = BackendConfigurationDescriptor(backendConfig, globalConfig)
     val customGoogleConfig = GoogleConfiguration(globalConfig)
-    val customAttributes = PipelinesApiConfigurationAttributes(customGoogleConfig, backendConfig)
+    val customAttributes = PipelinesApiConfigurationAttributes(customGoogleConfig, backendConfig, "papi")
     val jesConfiguration = new PipelinesApiConfiguration(backendConfigurationDescriptor, genomicsFactory, customGoogleConfig, customAttributes)
 
     val actorRef = TestActorRef[PipelinesApiInitializationActor](

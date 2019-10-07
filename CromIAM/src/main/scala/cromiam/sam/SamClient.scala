@@ -35,6 +35,8 @@ class SamClient(scheme: String,
                 serviceRegistryActorRef: ActorRef)
                (implicit system: ActorSystem, ece: ExecutionContextExecutor, materializer: ActorMaterializer) extends StatusCheckedSubsystem with CromIamInstrumentation {
 
+  private implicit val cs = IO.contextShift(ece)
+
   override val statusUri = uri"$samBaseUri/status"
   override val serviceRegistryActor: ActorRef = serviceRegistryActorRef
 

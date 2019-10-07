@@ -11,7 +11,13 @@ cromwell::build::start_build_heartbeat
 
 cromwell::build::assemble_jars
 
-java -jar $CROMWELL_BUILD_CROMWELL_JAR run ./centaur/src/main/resources/standardTestCases/hello/hello.wdl --inputs ./centaur/src/main/resources/standardTestCases/hello/hello.inputs --metadata-output ./run_mode_metadata.json | tee console_output.txt
+# Test 1: basic hello world
+java \
+    -jar "${CROMWELL_BUILD_CROMWELL_JAR}" \
+    run ./centaur/src/main/resources/standardTestCases/hello/hello.wdl \
+    --inputs ./centaur/src/main/resources/standardTestCases/hello/hello.inputs \
+    --metadata-output ./run_mode_metadata.json \
+| tee console_output.txt
 
 # grep exits 1 if no matches
 grep "terminal state: WorkflowSucceededState" console_output.txt
@@ -36,3 +42,29 @@ jq '{
 }' run_mode_metadata.json > actual.json
 
 cmp <(jq -cS . actual.json) <(jq -cS . expected.json)
+
+
+# Test 2: relative imports
+STANDARD_TEST_CASES="$PWD/centaur/src/main/resources/standardTestCases/import_subdir"
+SUBDIR="$STANDARD_TEST_CASES/subdir"
+mkdir -p "$SUBDIR"
+pushd "$SUBDIR" > /dev/null
+
+java -jar ${CROMWELL_BUILD_CROMWELL_JAR} run ../echo.wdl --inputs <(echo '{"echo.ss": ["Alice", "Bob"]}') --metadata-output ./run_mode_metadata.json | tee console_output.txt
+
+cat > expected.json <<FIN
+{
+  "actualWorkflowLanguage": "WDL",
+  "actualWorkflowLanguageVersion": "1.0",
+  "who" : ["Alice", "Bob"]
+}
+FIN
+
+jq '{
+  actualWorkflowLanguage,
+  actualWorkflowLanguageVersion,
+  who:.outputs["echo.echo.who"]
+}' run_mode_metadata.json > actual.json
+
+cmp <(jq -cS . actual.json) <(jq -cS . expected.json)
+popd > /dev/null

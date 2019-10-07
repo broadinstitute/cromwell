@@ -112,38 +112,12 @@ trait MetadataEntryComponent {
   )
 
   val metadataEntriesForIdRange = Compiled(
-    (minMetadataEntryId: Rep[Long], maxMetadataEntryId: Rep[Long],
-     startMetadataKey: Rep[String], endMetadataKey: Rep[String],
-     nameMetadataKey: Rep[String], statusMetadataKey: Rep[String], submissionMetadataKey: Rep[String],
-     parentWorkflowIdMetadataKey: Rep[String], rootWorkflowIdMetadataKey: Rep[String],
-     likeLabelMetadataKey: Rep[String]) => {
+    (minMetadataEntryId: Rep[Long], maxMetadataEntryId: Rep[Long]) => {
       for {
         metadataEntry <- metadataEntries
         if metadataEntry.metadataEntryId >= minMetadataEntryId
         if metadataEntry.metadataEntryId <= maxMetadataEntryId
-        if metadataEntry.metadataKey === startMetadataKey ||
-          metadataEntry.metadataKey === endMetadataKey ||
-          metadataEntry.metadataKey === nameMetadataKey ||
-          metadataEntry.metadataKey === statusMetadataKey ||
-          metadataEntry.metadataKey === submissionMetadataKey ||
-          metadataEntry.metadataKey === parentWorkflowIdMetadataKey ||
-          metadataEntry.metadataKey === rootWorkflowIdMetadataKey ||
-          // http://slick.lightbend.com/doc/3.2.3/queries.html#expressions
-          metadataEntry.metadataKey.like(likeLabelMetadataKey ++ ("%": Rep[String]))
-        if metadataEntry.callFullyQualifiedName.isEmpty
-        if metadataEntry.jobIndex.isEmpty
-        if metadataEntry.jobAttempt.isEmpty
       } yield metadataEntry
-    }
-  )
-
-  val existsMetadataEntriesGreaterThanMetadataEntryId = Compiled(
-    (metadataEntryId: Rep[Long]) => {
-      val query = for {
-        metadataEntry <- metadataEntries
-        if metadataEntry.metadataEntryId > metadataEntryId
-      } yield metadataEntry.metadataEntryId
-      query.exists
     }
   )
 

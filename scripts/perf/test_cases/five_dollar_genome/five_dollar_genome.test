@@ -1,0 +1,11 @@
+name: five_dollar_genome
+testFormat: workflowsuccess
+
+files {
+  workflow: "https://raw.githubusercontent.com/broadinstitute/cromwell/$BRANCH/scripts/perf/test_cases/five_dollar_genome/five_dollar_genome.wdl"
+  inputs: "https://raw.githubusercontent.com/broadinstitute/cromwell/$BRANCH/scripts/perf/test_cases/five_dollar_genome/five_dollar_genome.inputs"
+}
+
+metadata {
+  status: Succeeded
+}

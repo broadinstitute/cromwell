@@ -26,7 +26,7 @@ import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{Assertion, FlatSpecLike, OptionValues}
 import wom.expression.NoIoFunctionSet
-import wom.graph.CommandCallNode
+import wom.graph.{CommandCallNode, WomIdentifier}
 import wom.types._
 import wom.values._
 
@@ -40,10 +40,13 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
   lazy val runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
     StandardValidatedRuntimeAttributesBuilder.default(Some(TestConfig.optionalRuntimeConfig)).definitions.toSet
 
+  val call = CommandCallNode(WomIdentifier("SfsJEASpec_call"), null, null, null, Set.empty, null, None)
+  val mockBackendJobDescriptorKey = BackendJobDescriptorKey(call, None, 1)
+
   def executeSpec(docker: Boolean): Any = {
     val expectedOutputs: CallOutputs = WomMocks.mockOutputExpectations(Map("hello.salutation" -> WomString("Hello you !")))
-    
-    val expectedResponse = JobSucceededResponse(mock[BackendJobDescriptorKey], Some(0), expectedOutputs, None, Seq.empty, None, resultGenerationMode = RunOnBackend)
+
+    val expectedResponse = JobSucceededResponse(mockBackendJobDescriptorKey, Some(0), expectedOutputs, None, Seq.empty, None, resultGenerationMode = RunOnBackend)
     val runtime = if (docker) """runtime { docker: "ubuntu:latest" }""" else ""
     val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = runtime)
     val workflow = TestWorkflow(workflowDescriptor, TestConfig.backendRuntimeConfigDescriptor, expectedResponse)
@@ -61,7 +64,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
 
   it should "send back an execution failure if the task fails" in {
     val expectedResponse =
-      JobFailedNonRetryableResponse(mock[BackendJobDescriptorKey], WrongReturnCode("wf_goodbye.goodbye:NA:1", 1, None), Option(1))
+      JobFailedNonRetryableResponse(mockBackendJobDescriptorKey, WrongReturnCode("wf_goodbye.goodbye:NA:1", 1, None), Option(1))
     val workflow = TestWorkflow(buildWdlWorkflowDescriptor(GoodbyeWorld), TestConfig.backendRuntimeConfigDescriptor, expectedResponse)
     val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflow.workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions), workflow.config)
     testWorkflow(workflow, backend)
@@ -259,7 +262,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
         BackendJobDescriptor(workflowDescriptor, BackendJobDescriptorKey(call, Option(shard), 1), runtimeAttributes, fqnWdlMapToDeclarationMap(symbolMaps), NoDocker, None, Map.empty)
       val backend = createBackend(jobDescriptor, TestConfig.backendRuntimeConfigDescriptor)
       val response =
-        JobSucceededResponse(mock[BackendJobDescriptorKey], Some(0), WomMocks.mockOutputExpectations(Map("scattering.out" -> WomInteger(shard))), None, Seq.empty, None, resultGenerationMode = RunOnBackend)
+        JobSucceededResponse(mockBackendJobDescriptorKey, Some(0), WomMocks.mockOutputExpectations(Map("scattering.out" -> WomInteger(shard))), None, Seq.empty, None, resultGenerationMode = RunOnBackend)
       executeJobAndAssertOutputs(backend, response)
     }
   }
@@ -286,7 +289,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
   }
 
   it should "fail post processing if an output file is not found" in {
-    val expectedResponse = JobFailedNonRetryableResponse(mock[BackendJobDescriptorKey],
+    val expectedResponse = JobFailedNonRetryableResponse(mockBackendJobDescriptorKey,
       new FileNotFoundException("Could not process output, file not found:"), Option(0))
     val workflow = TestWorkflow(buildWdlWorkflowDescriptor(MissingOutputProcess), TestConfig.backendRuntimeConfigDescriptor, expectedResponse)
     val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflow.workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions), workflow.config)

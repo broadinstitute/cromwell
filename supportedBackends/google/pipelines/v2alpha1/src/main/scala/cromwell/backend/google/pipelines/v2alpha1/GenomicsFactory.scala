@@ -12,7 +12,7 @@ import com.google.api.services.genomics.v2alpha1.{Genomics, GenomicsScopes}
 import com.google.api.services.oauth2.Oauth2Scopes
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.http.HttpCredentialsAdapter
-import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{LocalizationConfiguration, VirtualPrivateCloudConfiguration}
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{GcsTransferConfiguration, VirtualPrivateCloudConfiguration}
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiFactoryInterface, PipelinesApiRequestFactory}
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
@@ -31,12 +31,13 @@ import wom.format.MemorySize
 
 import scala.collection.JavaConverters._
 
-case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, endpointUrl: URL)(implicit localizationConfiguration: LocalizationConfiguration) extends PipelinesApiFactoryInterface
+case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, endpointUrl: URL)(implicit gcsTransferConfiguration: GcsTransferConfiguration) extends PipelinesApiFactoryInterface
   with ContainerSetup
   with MonitoringAction
   with Localization
   with UserAction
-  with Delocalization {
+  with Delocalization
+  with MemoryRetryCheckAction {
 
   override def build(initializer: HttpRequestInitializer): PipelinesApiRequestFactory = new PipelinesApiRequestFactory {
     implicit lazy val googleProjectMetadataLabelDecoder: Decoder[ProjectLabels] = deriveDecoder
@@ -135,11 +136,15 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       val containerSetup: List[Action] = containerSetupActions(mounts)
       val localization: List[Action] = localizeActions(createPipelineParameters, mounts)
       val userAction: List[Action] = userActions(createPipelineParameters, mounts)
+      val memoryRetryAction: List[Action] = checkForMemoryRetryActions(createPipelineParameters, mounts)
       val deLocalization: List[Action] = deLocalizeActions(createPipelineParameters, mounts)
       val monitoring: List[Action] = monitoringActions(createPipelineParameters, mounts)
-      val allActions = containerSetup ++ localization ++ userAction ++ deLocalization ++ monitoring
+      val allActions = containerSetup ++ localization ++ userAction ++ memoryRetryAction ++ deLocalization ++ monitoring
 
-      val environment = Map.empty[String, String].asJava
+      // adding memory as environment variables makes it easy for a user to retrieve the new value of memory
+      // on the machine to utilize in their command blocks if needed
+      val runtimeMemory = createPipelineParameters.runtimeAttributes.memory
+      val environment = Map("MEM_UNIT" -> runtimeMemory.unit.toString, "MEM_SIZE" -> runtimeMemory.amount.toString).asJava
 
       // Start background actions first, leave the rest as is
       val sortedActions = allActions.sortWith({
@@ -173,10 +178,6 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
        * Adjust using docker images used by Cromwell as well as the tool's docker image size if available
        */
       val adjustedBootDiskSize = {
-        /*
-         * At the moment, google/cloud-sdk:slim (664MB on 12/3/18) and possibly stedolan/jq (182MB) decompressed ~= 1 GB
-         */
-        val cromwellImagesSize = 1
         val fromRuntimeAttributes = createPipelineParameters.runtimeAttributes.bootDiskSize
         // Compute the decompressed size based on the information available
         val actualSizeInBytes = createPipelineParameters.jobDescriptor.dockerSize.map(_.toFullSize(DockerConfiguration.instance.sizeCompressionFactor)).getOrElse(0L)
@@ -188,7 +189,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
           jobLogger.info(s"Adjusting boot disk size to $actualSizeRoundedUpInGB GB to account for docker image size")
         }
 
-        Math.max(fromRuntimeAttributes, actualSizeRoundedUpInGB) + cromwellImagesSize
+        Math.max(fromRuntimeAttributes, actualSizeRoundedUpInGB) + GenomicsFactory.CromwellImagesSizeRoundedUpInGB
       }
 
       val virtualMachine = new VirtualMachine()
@@ -246,6 +247,22 @@ object GenomicsFactory {
     * For some reason we couldn't find this scope within Google libraries
     */
   val MonitoringWrite = "https://www.googleapis.com/auth/monitoring.write"
+
+  /**
+    * An image with the Google Cloud SDK installed.
+    * http://gcr.io/google.com/cloudsdktool/cloud-sdk
+    *
+    * FYI additional older versions are available on DockerHub at:
+    * https://hub.docker.com/r/google/cloud-sdk
+    *
+    * When updating this value, also consider updating the CromwellImagesSizeRoundedUpInGB below.
+    */
+  val CloudSdkImage = "gcr.io/google.com/cloudsdktool/cloud-sdk:264.0.0-slim"
+
+  /*
+   * At the moment, the cloud-sdk:slim (727MB on 2019-09-26) and possibly stedolan/jq (182MB) decompressed ~= 1 GB
+   */
+  val CromwellImagesSizeRoundedUpInGB = 1
 }
 
 case class ProjectLabels(labels: Map[String, String])

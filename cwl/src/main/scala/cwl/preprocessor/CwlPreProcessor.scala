@@ -145,7 +145,7 @@ object CwlPreProcessor {
   private val saladCwlFileWithoutLogging: SaladFunction = saladSpinner(false)
 
   implicit class PrintableJson(val json: Json) extends AnyVal {
-    def printCompact = io.circe.Printer.noSpaces.pretty(json)
+    def printCompact = io.circe.Printer.noSpaces.print(json)
   }
 
   def noLogging = new CwlPreProcessor(saladCwlFileWithoutLogging)

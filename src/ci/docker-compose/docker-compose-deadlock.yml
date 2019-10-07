@@ -1,0 +1,110 @@
+# Runs a cluster of cromwells exiting with a failure if when an error occurs.
+
+# WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+# WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+# WARNING                                                         WARNING
+# WARNING                                                         WARNING
+# WARNING               !!FOR TEST PURPOSES ONLY!!                WARNING
+# WARNING                                                         WARNING
+# WARNING      This debug configuration is setup to run with      WARNING
+# WARNING         a very high workflow heartbeat polling          WARNING
+# WARNING            frequency, and then exit when a              WARNING
+# WARNING        MySQLTransactionRollbackException occurs!        WARNING
+# WARNING                                                         WARNING
+# WARNING                                                         WARNING
+# WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+# WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+
+version: '2.1'
+services:
+  mysql-db:
+    image: "mysql:5.7"
+    environment:
+      - MYSQL_ROOT_PASSWORD=private
+      - MYSQL_USER=cromwell
+      - MYSQL_PASSWORD=test
+      - MYSQL_DATABASE=cromwell_test
+    volumes:
+      - ${CROMWELL_BUILD_DOCKER_DIRECTORY}/mysql-conf.d:/etc/mysql/conf.d
+    healthcheck:
+      test: ["CMD", "service", "mysql", "status"]
+      interval: 2s
+      timeout: 30s
+      retries: 15
+  cromwell-master:
+    image: "broadinstitute/cromwell:${CROMWELL_TAG}"
+    working_dir: ${CROMWELL_BUILD_ROOT_DIRECTORY}
+    volumes:
+      - ${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+    command: ["server"]
+    environment:
+      - >-
+        JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_RESOURCES_DIRECTORY}/local_application_deadlock.conf
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8000"]
+      interval: 2s
+      timeout: 30s
+      retries: 60
+  cromwell-norefresh:
+    image: "broadinstitute/cromwell:${CROMWELL_TAG}"
+    working_dir: ${CROMWELL_BUILD_ROOT_DIRECTORY}
+    volumes:
+      - ${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+      cromwell-master:
+        condition: service_healthy
+    command: ["server"]
+    environment:
+      - >-
+        JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_RESOURCES_DIRECTORY}/local_application_deadlock.conf
+        -Dservices.MetadataService.config.metadata-summary-refresh-interval=Inf
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8000"]
+      interval: 2s
+      timeout: 30s
+      retries: 60
+  deadlocker:
+    image: python:3.7
+    links:
+      - cromwell-master
+      - cromwell-norefresh
+      - load-balancer
+    working_dir: ${CROMWELL_BUILD_ROOT_DIRECTORY}
+    volumes:
+      - ${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: ["bash", "${CROMWELL_BUILD_SCRIPTS_DIRECTORY}/test-deadlock.sh"]
+    environment:
+      - CROMWELL_BUILD_ROOT_DIRECTORY
+      - CROMWELL_BUILD_SCRIPTS_DIRECTORY
+      - CROMWELL_BUILD_LOG_DIRECTORY
+      - CROMWELL_BUILD_RESOURCES_DIRECTORY
+      - CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+      cromwell-master:
+        condition: service_healthy
+      cromwell-norefresh:
+        condition: service_healthy
+  load-balancer:
+    image: dockercloud/haproxy
+    links:
+      - cromwell-master
+      - cromwell-norefresh
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - 8000:80
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+      cromwell-master:
+        condition: service_healthy
+      cromwell-norefresh:
+        condition: service_healthy

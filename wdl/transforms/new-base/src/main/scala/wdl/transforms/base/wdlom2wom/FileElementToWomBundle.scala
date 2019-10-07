@@ -1,5 +1,6 @@
 package wdl.transforms.base.wdlom2wom
 
+import cats.data.NonEmptyList
 import cats.instances.either._
 import cats.instances.vector._
 import cats.syntax.either._
@@ -34,11 +35,23 @@ object FileElementToWomBundle {
         val allStructs = structs ++ imports.flatMap(_.typeAliases)
 
         val localTasksValidation: ErrorOr[Map[String, Callable]] = {
-          tasks.traverse { taskDefinition =>
+          val validatedTasksVector: ErrorOr[Vector[(String, Callable)]] = tasks.traverse { taskDefinition =>
             a.taskConverter
               .run(TaskDefinitionElementToWomInputs(taskDefinition, structs))
               .map(t => t.name -> t).toValidated
-          }.map(_.toMap)
+          }
+
+          validatedTasksVector flatMap { tasksVector =>
+
+            val duplicateTaskNames = tasksVector.groupBy(_._1).collect { case (x, list) if list.size > 1 => x }
+
+            NonEmptyList.fromList(duplicateTaskNames.toList) match {
+              case None => tasksVector.toMap.validNel
+              case Some(duplicates) => duplicates.map { x => s"Cannot reuse the same task name ('$x') more than once" }.invalid
+
+            }
+
+          }
         }
 
         localTasksValidation flatMap { localTaskMapping =>

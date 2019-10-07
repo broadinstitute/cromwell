@@ -142,6 +142,7 @@ class CromwellClient(val cromwellUrl: URL,
   private def makeRequest[A](request: HttpRequest, headers: List[HttpHeader] = defaultHeaders)
                             (implicit um: Unmarshaller[ResponseEntity, A], ec: ExecutionContext):
   FailureResponseOrT[A] = {
+    implicit def cs = IO.contextShift(ec)
     for {
       response <- executeRequest(request, headers).asFailureResponseOrT
       decoded <- FailureResponseOrT.right(decodeResponse(response))

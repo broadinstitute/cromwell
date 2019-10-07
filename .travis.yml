@@ -86,10 +86,8 @@ env:
       BUILD_MYSQL=5.7
     - >-
       BUILD_TYPE=dockerDeadlock
-      BUILD_MYSQL=5.7
     - >-
       BUILD_TYPE=dockerScripts
-      BUILD_MYSQL=5.7
     - >-
       BUILD_TYPE=sbt
     # The below list of docker tags should be synced with the tags in DatabaseTestKit.getDatabaseSystemSettings

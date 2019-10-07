@@ -105,6 +105,8 @@ trait MetadataSqlDatabase extends SqlDatabase {
                             => WorkflowMetadataSummaryEntry)
                          (implicit ec: ExecutionContext): Future[(Long, Long)]
 
+  def updateMetadataArchiveStatus(workflowExecutionUuid: String, newArchiveStatus: Option[String]): Future[Int]
+
   def getWorkflowStatus(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Option[String]]
 
   def getWorkflowLabels(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Map[String, String]]
@@ -120,6 +122,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
                              submissionTimestamp: Option[Timestamp],
                              startTimestampOption: Option[Timestamp],
                              endTimestampOption: Option[Timestamp],
+                             metadataArchiveStatus: Set[Option[String]],
                              includeSubworkflows: Boolean,
                              page: Option[Int],
                              pageSize: Option[Int])
@@ -135,6 +138,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
                              submissionTimestamp: Option[Timestamp],
                              startTimestampOption: Option[Timestamp],
                              endTimestampOption: Option[Timestamp],
+                             metadataArchiveStatus: Set[Option[String]],
                              includeSubworkflows: Boolean)
                              (implicit ec: ExecutionContext): Future[Int]
 }

@@ -2,7 +2,7 @@
 {
    "google_compute_service_account": "{{$cromwellServiceAccount.Data.client_email}}",
    "google_project": "{{$cromwellServiceAccount.Data.project_id }}",
-   "jes_gcs_root": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/travis",
+   "jes_gcs_root": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci",
    "user_service_account_json": "{{$cromwellServiceAccount.Data | toJSON | replaceAll "\\" "\\\\" | replaceAll "\"" "\\\"" }}"
 }
 {{end}}

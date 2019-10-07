@@ -15,7 +15,8 @@ private::delocalize_file() {
   local container="$2"
   local rpflag="$3"
   local required="$4"
-  local content="$5"
+  local parallel_composite_upload_threshold="$5"
+  local content="$6"
 
   # From Thibault:
   #
@@ -29,13 +30,13 @@ private::delocalize_file() {
   #
   # By instead using the parent directory (and ensuring it ends with a slash), gsutil will treat that as a directory and put the file under it.
   # So the final gsutil command will look something like gsutil cp /local/file.txt gs://bucket/subdir/
-  local cloud_parent=$(dirname "$cloud")
-  cloud_parent="${cloud_parent}/"
+  local cloud_parent
+  cloud_parent=$(dirname "$cloud")"/"
 
   if [[ -f "$container" && -n "$content" ]]; then
-    rm -f "$HOME/.config/gcloud/gce" && gsutil ${rpflag} -m -h "Content-Type: $content" cp "$container" "$cloud_parent" > "$gsutil_log" 2>&1
+    rm -f "$HOME/.config/gcloud/gce" && gsutil ${rpflag} -m -h "Content-Type: $content" -o GSUtil:parallel_composite_upload_threshold="$parallel_composite_upload_threshold" cp "$container" "$cloud_parent" > "$gsutil_log" 2>&1
   elif [[ -f "$container" ]]; then
-    rm -f "$HOME/.config/gcloud/gce" && gsutil ${rpflag} -m cp "$container" "$cloud_parent" > "$gsutil_log" 2>&1
+    rm -f "$HOME/.config/gcloud/gce" && gsutil ${rpflag} -m -o GSUtil:parallel_composite_upload_threshold="$parallel_composite_upload_threshold" cp "$container" "$cloud_parent" > "$gsutil_log" 2>&1
   elif [[ -e "$container" ]]; then
     echo "File output '$container' exists but is not a file"
     exit 1
@@ -51,7 +52,8 @@ private::delocalize_directory() {
   local container="$2"
   local rpflag="$3"
   local required="$4"
-  local content="$5"
+  local parallel_composite_upload_threshold="$5" # not used
+  local content="$6"
 
   if [[ -d "$container" && -n "$content" ]]; then
     rm -f "$HOME/.config/gcloud/gce" && gsutil ${rpflag} -m -h "Content-Type: $content" rsync -r "$container" "$cloud" > "$gsutil_log" 2>&1
@@ -72,13 +74,14 @@ private::delocalize_file_or_directory() {
   local container="$2"
   local rpflag="$3"
   local required="$4"
-  local content="$5"
+  local parallel_composite_upload_threshold="$5"
+  local content="$6"
 
   # required must be optional for 'file_or_directory' and was checked in the caller
   if [[ -f "$container" ]]; then
-    private::delocalize_file "$cloud" "$container" "$rpflag" "$required" "$content"
+    private::delocalize_file "$cloud" "$container" "$rpflag" "$required" "$parallel_composite_upload_threshold" "$content"
   elif [[ -d "$container" ]]; then
-    private::delocalize_directory "$cloud" "$container" "$rpflag" "$required" "$content"
+    private::delocalize_directory "$cloud" "$container" "$rpflag" "$required" "$parallel_composite_upload_threshold" "$content"
   elif [[ -e "$container" ]]; then
     echo "'file_or_directory' output '$container' exists but is neither a file nor a directory"
     exit 1
@@ -262,8 +265,9 @@ localize_directories() {
 delocalize() {
   local project="$1"
   local max_attempts="$2"
+  local parallel_composite_upload_threshold="$3"
 
-  shift 2
+  shift 3
 
   # Whether the requester pays status of the GCS bucket is certain. rp status is presumed false until proven otherwise.
   local rp_status_certain=false
@@ -311,8 +315,7 @@ delocalize() {
         rpflag=""
       fi
 
-      # Note the localization versions of transfer functions are passed "required" and "content_type" parameters they will not use.
-      if ${transfer_fn_name} "$cloud" "$container" "$rpflag" "$required" "$content_type"; then
+      if ${transfer_fn_name} "$cloud" "$container" "$rpflag" "$required" "$parallel_composite_upload_threshold" "$content_type"; then
         if [[ "$required" = "false" && ! -e "$container" ]]; then
           # Do not set rp_status_certain=true if an optional file was absent and no transfer was attempted.
           break

@@ -1,0 +1,17 @@
+name: retry_with_more_memory
+testFormat: workflowfailure
+backends: [Papiv2-Retry-With-More-Memory]
+
+files {
+  workflow: retry_with_more_memory/retry_with_more_memory.wdl
+}
+
+metadata {
+  workflowName: retry_with_more_memory
+  status: Failed
+  "failures.0.message": "Workflow failed"
+  "failures.0.causedBy.0.message": "stderr for job retry_with_more_memory.imitate_oom_error:NA:2 contained one of the `memory-retry` error-keys specified in the config. Job might have run out of memory."
+  "retry_with_more_memory.imitate_oom_error.-1.attempt": 2
+  "retry_with_more_memory.imitate_oom_error.-1.executionStatus": "Failed"
+  "retry_with_more_memory.imitate_oom_error.-1.runtimeAttributes.memory": "1.1 GB"
+}

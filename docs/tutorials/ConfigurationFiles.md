@@ -17,9 +17,9 @@ At the end of this tutorial you'll have set up a configuration file for Cromwell
 
 When Cromwell runs, it contains a large number of default options useful for getting started. For example, by default Cromwell doesn't require an external database while running all workflow jobs on your local machine.
 
-Soon you may want to start storing the results of your Cromwell runs in an external MySQL database. Or, you may want to run jobs on your organizations compute farm, or even run jobs in the cloud via the Pipelines API. All of these changes to the defaults will done by setting configuration values.
+Soon you may want to start storing the results of your Cromwell runs in an external MySQL database. Or, you may want to run jobs on your organizations compute farm, or even run jobs in the cloud via the Pipelines API. All of these changes to the defaults will be done by setting configuration values.
 
-When you have many configuration settings you would like to set, you specify them in custom configuration file. See the [configuration](../Configuring) page for more specific information on the configuration file, and for links to the example configuration file.
+When you have many configuration settings you would like to set, you specify them in a custom configuration file. See the [configuration](../Configuring) page for more specific information on the configuration file, and for links to the example configuration file.
 
 #### Configuration file syntax
 
@@ -37,7 +37,7 @@ The default Cromwell configuration values are set via Cromwell's `application.co
 
 #### Running Cromwell with your configuration file
 
-One you have created a new configuration file, you can pass the path to Cromwell by setting the system property `config.file`:
+Once you have created a new configuration file, you can pass the path to Cromwell by setting the system property `config.file`:
 
 ```bash
 java -Dconfig.file=/path/to/your.conf -jar cromwell-[VERSION].jar server
@@ -68,7 +68,7 @@ backend provider examples in [cromwell.example.backends][cromwell-examples-folde
 
 ### Next Steps
 
-After completing this tutorial you might find the following page interesting:
+After completing this tutorial you might find the following pages interesting:
 
 * [Configuring the Local Backend](LocalBackendIntro)
 * [Server Mode](ServerMode.md)

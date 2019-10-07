@@ -49,11 +49,11 @@ task check_log {
       set -euo pipefail
       gsutil cp ~{file_log} log.txt
       set +e
-      grep 'Localizing input gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/travis/dedup_localizations_papi_v2/' log.txt | grep -c "data.txt"
+      grep 'Localizing input gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/dedup_localizations_papi_v2/' log.txt | grep -c "data.txt"
   }
   output {
       File out = stdout()
       Int num_input_localizations = read_int(stdout())
   }
-  runtime { docker: "google/cloud-sdk" }
+  runtime { docker: "gcr.io/google.com/cloudsdktool/cloud-sdk" }
 }

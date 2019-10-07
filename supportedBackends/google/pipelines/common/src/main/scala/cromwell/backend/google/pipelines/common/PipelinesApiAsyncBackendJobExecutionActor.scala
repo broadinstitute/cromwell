@@ -14,7 +14,7 @@ import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.backend._
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle}
-import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.LocalizationConfiguration
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.pipelines.common.PipelinesApiJobPaths.GcsTransferLibraryName
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory._
 import cromwell.backend.google.pipelines.common.api.RunStatus.TerminalRunStatus
@@ -39,7 +39,6 @@ import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
 import shapeless.Coproduct
 import wdl4s.parser.MemoryUnit
-import wom.CommandSetupSideEffectFile
 import wom.callable.AdHocValue
 import wom.callable.Callable.OutputDefinition
 import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
@@ -141,6 +140,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     case _ => false
   }
 
+  override lazy val memoryRetryFactor: Option[GreaterEqualRefined] = initializationData.papiConfiguration.papiAttributes.memoryRetryConfiguration.map(_.multiplier)
+
   override def tryAbort(job: StandardAsyncJob): Unit = abortJob(job)
 
   override def requestsAbortAndDiesImmediately: Boolean = false
@@ -172,7 +173,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     * relativeLocalizationPath("foo/bar.txt") -> "foo/bar.txt"
     * relativeLocalizationPath("gs://some/bucket/foo.txt") -> "some/bucket/foo.txt"
     */
-  protected def relativeLocalizationPath(file: WomFile): WomFile = {
+  override protected def relativeLocalizationPath(file: WomFile): WomFile = {
     file.mapFile(value =>
       getPath(value) match {
         case Success(drsPath: DrsPath) => DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()
@@ -182,7 +183,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     )
   }
 
-  protected def fileName(file: WomFile): WomFile = {
+  override protected def fileName(file: WomFile): WomFile = {
     file.mapFile(value =>
       getPath(value) match {
         case Success(drsPath: DrsPath) => DefaultPathBuilder.get(DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()).name
@@ -215,11 +216,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           case womFile: WomFile => womFile
         }
     }
-  }
-
-  protected def localizationPath(f: CommandSetupSideEffectFile) = {
-    val fileTransformer = if (isAdHocFile(f.file)) fileName _ else relativeLocalizationPath _
-    f.relativeLocalPath.fold(ifEmpty = fileTransformer(f.file))(WomFile(f.file.womFileType, _))
   }
 
   private[pipelines] def generateInputs(jobDescriptor: BackendJobDescriptor): Set[PipelinesApiInput] = {
@@ -447,7 +443,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           privateDockerKeyAndEncryptedToken = dockerKeyAndToken,
           womOutputRuntimeExtractor = jobDescriptor.workflowDescriptor.outputRuntimeExtractor,
           adjustedSizeDisks = adjustedSizeDisks,
-          virtualPrivateCloudConfiguration = jesAttributes.virtualPrivateCloudConfiguration
+          virtualPrivateCloudConfiguration = jesAttributes.virtualPrivateCloudConfiguration,
+          retryWithMoreMemoryKeys = jesAttributes.memoryRetryConfiguration.map(_.errorKeys),
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")
@@ -475,17 +472,17 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     Future.successful(PendingExecutionHandle(jobDescriptor, jobForResumption, Option(Run(jobForResumption)), previousState = None))
   }
 
-  protected def uploadGcsTransferLibrary(createPipelineParameters: CreatePipelineParameters, cloudPath: Path, localizationConfiguration: LocalizationConfiguration): Future[Unit] = Future.successful(())
+  protected def uploadGcsTransferLibrary(createPipelineParameters: CreatePipelineParameters, cloudPath: Path, gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = Future.successful(())
 
   protected def uploadGcsLocalizationScript(createPipelineParameters: CreatePipelineParameters,
                                             cloudPath: Path,
                                             transferLibraryContainerPath: Path,
-                                            localizationConfiguration: LocalizationConfiguration): Future[Unit] = Future.successful(())
+                                            gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = Future.successful(())
 
   protected def uploadGcsDelocalizationScript(createPipelineParameters: CreatePipelineParameters,
                                               cloudPath: Path,
                                               transferLibraryContainerPath: Path,
-                                              localizationConfiguration: LocalizationConfiguration): Future[Unit] = Future.successful(())
+                                              gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = Future.successful(())
 
   private def createNewJob(): Future[ExecutionHandle] = {
     // Want to force runtimeAttributes to evaluate so we can fail quickly now if we need to:
@@ -494,6 +491,16 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     def generateInputOutputParameters: Future[InputOutputParameters] = Future.fromTry(Try {
       val rcFileOutput = PipelinesApiFileOutput(returnCodeFilename, returnCodeGcsPath, DefaultPathBuilder.get(returnCodeFilename), workingDisk, optional = false, secondary = false,
         contentType = plainTextContentType)
+
+      val memoryRetryRCFileOutput = PipelinesApiFileOutput(
+        memoryRetryRCFilename,
+        memoryRetryRCGcsPath,
+        DefaultPathBuilder.get(memoryRetryRCFilename),
+        workingDisk,
+        optional = true,
+        secondary = false,
+        contentType = plainTextContentType
+      )
 
       case class StandardStream(name: String, f: StandardPaths => Path) {
         val filename = f(pipelinesApiCallPaths.standardPaths).name
@@ -516,7 +523,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         generateOutputs(jobDescriptor).toList ++ standardStreams,
         DetritusOutputParameters(
           monitoringScriptOutputParameter = monitoringOutput,
-          rcFileOutputParameter = rcFileOutput
+          rcFileOutputParameter = rcFileOutput,
+          memoryRetryRCFileOutputParameter = memoryRetryRCFileOutput
         ),
         gcsAuthParameter.toList
       )
@@ -538,14 +546,14 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       customLabels <- Future.fromTry(GoogleLabels.fromWorkflowOptions(workflowDescriptor.workflowOptions))
       jesParameters <- generateInputOutputParameters
       createParameters = createPipelineParameters(jesParameters, customLabels)
-      localizationConfiguration = initializationData.papiConfiguration.papiAttributes.localizationConfiguration
+      gcsTransferConfiguration = initializationData.papiConfiguration.papiAttributes.gcsTransferConfiguration
       gcsTransferLibraryCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsTransferLibraryName
       transferLibraryContainerPath = createParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
-      _ <- uploadGcsTransferLibrary(createParameters, gcsTransferLibraryCloudPath, localizationConfiguration)
+      _ <- uploadGcsTransferLibrary(createParameters, gcsTransferLibraryCloudPath, gcsTransferConfiguration)
       gcsLocalizationScriptCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsLocalizationScriptName
-      _ <- uploadGcsLocalizationScript(createParameters, gcsLocalizationScriptCloudPath, transferLibraryContainerPath, localizationConfiguration)
+      _ <- uploadGcsLocalizationScript(createParameters, gcsLocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration)
       gcsDelocalizationScriptCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsDelocalizationScriptName
-      _ <- uploadGcsDelocalizationScript(createParameters, gcsDelocalizationScriptCloudPath, transferLibraryContainerPath, localizationConfiguration)
+      _ <- uploadGcsDelocalizationScript(createParameters, gcsDelocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration)
       _ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined
       runId <- runPipeline(workflowId, createParameters, jobLogger)
       _ = sendGoogleLabelsToMetadata(customLabels)

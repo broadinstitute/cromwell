@@ -4,7 +4,9 @@ backends: ["papi-v2-usa"]
 
 files {
   workflow: drs_usa_hca/drs_usa_hca.wdl
-  options: rendered/papi_v2_usa.options.json
+  options-dir: ../../../../../target/ci/resources/
+  options-dir: ${?CROMWELL_BUILD_RESOURCES_DIRECTORY}
+  options: ${files.options-dir}/papi_v2_usa.options.json
   inputs: drs_usa_hca/drs_usa_hca.inputs
 }
 
@@ -12,14 +14,14 @@ metadata {
   workflowName: drs_usa_hca
   status: Succeeded
 
-  "outputs.drs_usa_hca.hash1" = "0f9e425404d1ffda8e9ecd313c7d7ecb"
-  "outputs.drs_usa_hca.hash2" = "0f9e425404d1ffda8e9ecd313c7d7ecb"
-  "outputs.drs_usa_hca.hash3" = "0f9e425404d1ffda8e9ecd313c7d7ecb"
-  "outputs.drs_usa_hca.hash4" = "0f9e425404d1ffda8e9ecd313c7d7ecb"
-  "outputs.drs_usa_hca.hash5" = "a34f51039b67d4bf3418c5ad1b94a1ea"
-  "outputs.drs_usa_hca.size1" = 36895.0
-  "outputs.drs_usa_hca.size2" = 36895.0
-  "outputs.drs_usa_hca.size3" = 36895.0
-  "outputs.drs_usa_hca.size4" = 36895.0
-  "outputs.drs_usa_hca.size5" = 22403106
+  "outputs.drs_usa_hca.hash1" = "d18ef9b8fd14ac922588baeec4853c0d"
+  "outputs.drs_usa_hca.hash2" = "a75d7e4302ce4685470eb2da97945ce1"
+  "outputs.drs_usa_hca.hash3" = "4a44a0f9ca3a801332070e3a5e3e8e7d"
+  "outputs.drs_usa_hca.hash4" = "d4716b00e39809505e45d7a4605a6fb8"
+  "outputs.drs_usa_hca.hash5" = "e29b037110d1ee96fe6d1025ef6d0cd2"
+  "outputs.drs_usa_hca.size1" = 148.0
+  "outputs.drs_usa_hca.size2" = 14790984
+  "outputs.drs_usa_hca.size3" = 15419927
+  "outputs.drs_usa_hca.size4" = 1.849607E+7
+  "outputs.drs_usa_hca.size5" = 2138914697
 }

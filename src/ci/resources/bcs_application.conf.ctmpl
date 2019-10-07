@@ -34,11 +34,11 @@ backend {
           # TODO: Is there an even smaller/faster image that we can use for BCS
           #cluster: "OnDemand ecs.sn1.medium img-ubuntu"
           # Alternatively leave a fixed cluster spun up via:
-          # bcs cc travis_test_cluster -i img-ubuntu -t ecs.sn1.medium -n 1 -d 'travis test cluster'
+          # bcs cc cromwell_test_cluster -i img-ubuntu -t ecs.sn1.medium -n 1 -d 'cromwell test cluster'
           cluster: "OnDemand ecs.sn1.medium img-ubuntu"
           cluster: ${?CROMWELL_BUILD_BCS_CLUSTER_ID}
 
-          # TODO: We should continue to allow users and our Travis test to cache images in their own OSS bucket
+          # TODO: We should continue to allow users and our CI tests to cache images in their own OSS bucket
           # BUT we should also be able to check the hash of the image in OSS using the config supplied credentials
           # - https://www.alibabacloud.com/help/doc-detail/50452.htm?spm=a3c0i.l31815en.a3.109.50db5139VKk1FK
           # - https://www.alibabacloud.com/product/oss?spm=a3c0i.7911826.1023975.dproductb1.454c737bJknGYt#resources

@@ -222,6 +222,36 @@ On the Local, SGE, and associated backends any GCS URI will be downloaded locall
 precedence over the `root` specified at `backend.providers.JES.config.root` in the configuration file. Google Cloud Storage URIs are the only acceptable values for `File` inputs for
 workflows using the Google backend.
 
+**Retry with More Memory**
+
+With `memory-retry` you can specify an array of strings which when encountered in the `stderr` file by Cromwell, allows the task to be retried with more memory.
+The optional `multiplier` config specifies the factor by which the memory should be multiplied while retrying. This multiplier should be greater than 1.0. 
+If the value is not mentioned in config, it will default to 2.0. The retry will be counted against the `maxRetries` count mentioned in the `runtimeAtrributes` in the task. 
+For example,
+```hocon
+backend.providers.Papiv2.config {
+  memory-retry {
+    error-keys = ["OutOfMemoryError", "Killed"]
+    multiplier = 1.1
+  }
+}
+```  
+this tells Cromwell to retry the task with 1.1x memory when it sees either `OutOfMemoryError` or `Killed` in the `stderr` file. If the task has 
+runtime attributes as below 
+```hocon
+runtimeAtrributes {
+  memory: "1 GB"
+  continueOnReturnCode: true
+  maxRetries: 1
+}
+``` 
+the task will be retried at max 1 more time, and this time with "1.1 GB" memory. Please note that Pipelines API will adjust the memory value based on their
+standards for memory for a VM. So it's possible that even though the request says 1.1 GB memory, it actually allocated a bit more memory to the VM.
+
+Two environment variables called `${MEM_UNIT}` and `${MEM_SIZE}` are also available inside the command block of a task,
+making it easy to retrieve the new value of memory on the machine.
+
+
 #### Google Labels
 
 Every call run on the Pipelines API backend is given certain labels by default, so that Google resources can be queried by these labels later. 
@@ -302,3 +332,76 @@ For example, if your `virtual-private-cloud` config looks like the one above, an
 Cromwell will get labels from the project's metadata and look for a label whose key is `my-private-network`.
 Then it will use the value of the label, which is `vpc-network` here, as the name of private network and run the jobs on this network.
 If the network key is not present in the project's metadata Cromwell will fall back to running jobs on the default network.
+
+### Parallel Composite Uploads
+
+Cromwell can be configured to use GCS parallel composite uploads which can greatly improve delocalization performance. This feature
+is turned off by default but can be enabled backend-wide by specifying a `gsutil`-compatible memory specification for the key
+`genomics.parallel-composite-upload-threshold` in backend configuration. This memory value represents the minimum size an output file
+must have to be a candidate for `gsutil` parallel composite uploading:
+
+```
+backend {
+  ...
+  providers {
+    ...
+    PapiV2 {
+      actor-factory = "cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory"
+      config {
+        ...
+        genomics {
+          ...
+          parallel-composite-upload-threshold = 150M
+          ...
+        }
+        ...
+      }
+    }
+  }
+}
+```
+
+Alternatively this threshold can be specified in workflow options using the key `parallel-composite-upload-threshold`,
+which takes precedence over a setting in configuration. The default setting for this threshold is `0` which turns off
+parallel composite uploads; a value of `0` can also be used in workflow options to turn off parallel composite uploads
+in a Cromwell deployment where they are turned on in config.
+
+#### Issues with composite files
+
+Please see the [Google documentation](https://cloud.google.com/storage/docs/gsutil/commands/cp#parallel-composite-uploads)
+describing the benefits and drawbacks of parallel composite uploads.
+
+The actual error message observed when attempting to download a composite file on a system without a compiled `crcmod`
+looks like the following:
+
+```
+/ # gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp gs://my-bucket/composite.bam .
+Copying gs://my-bucket/composite.bam...
+==> NOTE: You are downloading one or more large file(s), which would
+run significantly faster if you enabled sliced object downloads. This
+feature is enabled by default but requires that compiled crcmod be
+installed (see "gsutil help crcmod").
+
+CommandException:
+Downloading this composite object requires integrity checking with CRC32c,
+but your crcmod installation isn't using the module's C extension, so the
+hash computation will likely throttle download performance. For help
+installing the extension, please see "gsutil help crcmod".
+
+To download regardless of crcmod performance or to skip slow integrity
+checks, see the "check_hashes" option in your boto config file.
+
+NOTE: It is strongly recommended that you not disable integrity checks. Doing so
+could allow data corruption to go undetected during uploading/downloading.
+/ #
+```
+
+As the message states, the best option would be to have a compiled `crcmod` installed on the system.
+Turning off integrity checks on downloads does get around this issue but really isn't a great idea.
+
+#### Parallel composite uploads and call caching
+
+Because the parallel composite upload threshold is not considered part of the hash used for call caching purposes, calls
+which would be expected to generate non-composite outputs may call cache to results that did generate composite
+outputs. Calls which are executed and not cached will always honor the parallel composite upload setting at the time of
+their execution.

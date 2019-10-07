@@ -154,7 +154,8 @@ read_service_account_from_vault() {
 gcloud_run_as_service_account() {
   local name="$1"
   local command="$2"
-  docker run --name $name -v "$(pwd)"/mnt:${DOCKER_ETC_PATH} --rm google/cloud-sdk:slim /bin/bash -c "\
+  docker run --name $name -v "$(pwd)"/mnt:${DOCKER_ETC_PATH} --rm gcr.io/google.com/cloudsdktool/cloud-sdk:slim \
+    /bin/bash -c "\
     gcloud auth activate-service-account --key-file ${DOCKER_ETC_PATH}/sa.json 2> /dev/null &&\
     ${command}"
 }

@@ -49,7 +49,7 @@ task check_labels {
     ~{sep="\n" label_checker_lines}
   }
   runtime {
-    docker: "google/cloud-sdk:slim"
+    docker: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
     # Specify this zone because it's used in the curl commands above. We probably *could* work this out ad-hoc but it's easier to hard-code it here:
     zones: ["us-central1-c"]
     failOnStderr: true

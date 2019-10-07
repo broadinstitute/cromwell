@@ -305,6 +305,11 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     } yield summaryPosition
   }
 
+  override def updateMetadataArchiveStatus(workflowExecutionUuid: String, newArchiveStatus: Option[String]): Future[Int] = {
+    val action = dataAccess.metadataArchiveStatusByWorkflowId(workflowExecutionUuid).update(newArchiveStatus)
+    runTransaction(action)
+  }
+
   override def getWorkflowStatus(workflowExecutionUuid: String)
                                 (implicit ec: ExecutionContext): Future[Option[String]] = {
     val action = dataAccess.workflowStatusesForWorkflowExecutionUuid(workflowExecutionUuid).result.headOption

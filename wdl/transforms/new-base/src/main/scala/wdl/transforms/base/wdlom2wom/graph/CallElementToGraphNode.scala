@@ -144,7 +144,7 @@ object CallElementToGraphNode {
           )
 
         // No input mapping, add an optional input using the default expression
-        case withDefault@OverridableInputDefinitionWithDefault(n, womType, expression, _, _) if supplyableInput(withDefault) =>
+        case withDefault@OverridableInputDefinitionWithDefault(n, womType, expression, _, _) =>
           val identifier = WomIdentifier(
             localName = s"$callName.${n.value}",
             fullyQualifiedName = s"${a.workflowName}.$callName.${n.value}"

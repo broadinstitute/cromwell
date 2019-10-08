@@ -317,7 +317,7 @@ trait MetadataDatabaseAccess {
       case (_, None) =>
         Future.failed(new Exception(s"""Metadata deletion precondition failed: workflow ID "$rootWorkflowId" did not have a status in the summary table"""))
       case (Some(true), Some(status)) =>
-        if (WorkflowState.WorkflowStateValues.filter(_.isTerminal).map(_.toString).contains(status))
+        if (WorkflowState.withName(status).isTerminal)
           metadataDatabaseInterface.deleteNonLabelMetadataForWorkflow(rootWorkflowId.toString)
         else
           Future.failed(new Exception(s"""Metadata deletion precondition failed: workflow ID "$rootWorkflowId" was in non-terminal status "$status""""))

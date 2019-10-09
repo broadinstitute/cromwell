@@ -318,11 +318,6 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
   private def check(request: DescribeRequest, expectedResponse: DescribeResult) = {
     val result = Await.result((womtoolActor ? request).mapTo[DescribeResult], 10.seconds)
     result shouldBe expectedResponse
-
-//    (for {
-//      result <- (womtoolActor ? request).mapTo[DescribeResult]
-//      _ = result shouldBe expectedResponse
-//    } yield ()).futureValue
   }
 
   private def wsfcConjurer(workflowSource: Option[WorkflowSource] = None,

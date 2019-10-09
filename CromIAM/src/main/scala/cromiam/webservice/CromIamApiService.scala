@@ -63,12 +63,6 @@ trait CromIamApiService extends RequestSupport
     log,
     serviceRegistryActor)
 
-  lazy val cromwellAbortClient = new CromwellClient(configuration.cromwellAbortConfig.scheme,
-    configuration.cromwellAbortConfig.interface,
-    configuration.cromwellAbortConfig.port,
-    log,
-    serviceRegistryActor)
-
   lazy val samClient = new SamClient(
     configuration.samConfig.http.scheme,
     configuration.samConfig.http.interface,
@@ -182,17 +176,11 @@ trait CromIamApiService extends RequestSupport
     }
   }
 
-  /**
-    * Authorization-related Cromwell interactions run through the `cromwellAuthClient`, while the actual Cromwell
-    * request runs through `cromwellRequestClient`. These can be the same Cromwell instance but they can also be
-    * different if the request needs to go to a specific Cromwell instance such as an abort server.
-    */
   private def authorizeThenForwardToCromwell(user: User,
                                              workflowIds: List[String],
                                              action: String,
                                              request: HttpRequest,
-                                             cromwellAuthClient: CromwellClient,
-                                             cromwellRequestClient: CromwellClient):
+                                             cromwellClient: CromwellClient):
   FailureResponseOrT[HttpResponse] = {
     def authForCollection(collection: Collection): FailureResponseOrT[Unit] = {
       samClient.requestAuth(CollectionAuthorizationRequest(user, collection, action), request) mapErrorWith {
@@ -204,12 +192,12 @@ trait CromIamApiService extends RequestSupport
     }
 
     val cromwellResponseT = for {
-      rootWorkflowIds <- workflowIds.traverse(cromwellAuthClient.getRootWorkflow(_, user, request))
+      rootWorkflowIds <- workflowIds.traverse(cromwellClient.getRootWorkflow(_, user, request))
       collections <- rootWorkflowIds
-        .traverse(cromwellAuthClient.collectionForWorkflow(_, user, request))
+        .traverse(cromwellClient.collectionForWorkflow(_, user, request))
         .map(_.distinct)
       _ <- collections traverse authForCollection
-      resp <- cromwellRequestClient.forwardToCromwell(request)
+      resp <- cromwellClient.forwardToCromwell(request)
     } yield resp
 
     FailureResponseOrT(
@@ -230,8 +218,7 @@ trait CromIamApiService extends RequestSupport
       workflowIds = workflowIds,
       action = "view",
       request = request,
-      cromwellAuthClient = cromwellClient,
-      cromwellRequestClient = cromwellClient)
+      cromwellClient = cromwellClient)
   }
 
   private def authorizeUpdateThenForwardToCromwell(user: User,
@@ -243,8 +230,7 @@ trait CromIamApiService extends RequestSupport
       workflowIds = List(workflowId),
       action = "update",
       request = request,
-      cromwellAuthClient = cromwellClient,
-      cromwellRequestClient = cromwellClient)
+      cromwellClient = cromwellClient)
   }
 
   private def authorizeAbortThenForwardToCromwell(user: User,
@@ -258,8 +244,7 @@ trait CromIamApiService extends RequestSupport
       workflowIds = List(workflowId),
       action = "abort",
       request = request,
-      cromwellAuthClient = cromwellClient,
-      cromwellRequestClient = cromwellAbortClient
+      cromwellClient = cromwellClient
     )
   }
 

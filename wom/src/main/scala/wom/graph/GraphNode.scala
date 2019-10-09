@@ -97,9 +97,12 @@ object GraphNode {
       * Interpret this graph's "GraphInputNode"s as "Callable.InputDefinition"s
       */
     def inputDefinitions: Set[_ <: Callable.InputDefinition] = nodes collect {
-      case required: RequiredGraphInputNode => RequiredInputDefinition(required.identifier.localName, required.womType)
-      case optional: OptionalGraphInputNode => OptionalInputDefinition(optional.identifier.localName, optional.womType)
-      case withDefault: OptionalGraphInputNodeWithDefault => OverridableInputDefinitionWithDefault(withDefault.identifier.localName, withDefault.womType, withDefault.default)
+      case required: RequiredGraphInputNode =>
+        RequiredInputDefinition(required.identifier.localName, required.womType)
+      case optional: OptionalGraphInputNode =>
+        OptionalInputDefinition(optional.identifier.localName, optional.womType)
+      case withDefault: OptionalGraphInputNodeWithDefault =>
+        OverridableInputDefinitionWithDefault(withDefault.identifier.localName, withDefault.womType, withDefault.default)
     }
 
     def outputDefinitions: Set[_ <: Callable.OutputDefinition] = nodes collect {

@@ -68,13 +68,15 @@ class WomtoolValidateSpec extends FlatSpec with Matchers {
           case None => Seq.empty[String]
         }
 
+        val expectedErrorMessage = errorFile map { ef => ef.trim.replace(s"$${PWD_NAME}", presentWorkingDirectoryName) }
+
         WomtoolMain.runWomtool(Seq("validate", wdl.getAbsolutePath) ++ inputsArgs) match {
-          case UnsuccessfulTermination(msg) => errorFile match {
+          case UnsuccessfulTermination(msg) => expectedErrorMessage match {
             case Some(expectedError) =>
-              msg should include(expectedError.trim.replace(s"$${PWD_NAME}", presentWorkingDirectoryName))
+              msg should include(expectedError)
             case None => succeed
           }
-          case other => fail(s"Expected UnsuccessfulTermination but got $other")
+          case other => fail(s"Expected UnsuccessfulTermination but got $other. Expected error message: ${System.lineSeparator()}${expectedErrorMessage.getOrElse("<<No expected error message specified>>")}")
         }
       }
     }

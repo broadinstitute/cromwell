@@ -22,11 +22,11 @@ object HybridCarboniteConfig {
 
   def pathForWorkflow(id: WorkflowId, bucket: String) = s"gs://$bucket/$id/$id.json"
   
-  def parseConfig(globalConfig: Config, carboniterConfig: Config)(implicit system: ActorSystem): Checked[HybridCarboniteConfig] = {
+  def parseConfig(carboniterConfig: Config)(implicit system: ActorSystem): Checked[HybridCarboniteConfig] = {
     val enable = carboniterConfig.as[Option[Boolean]]("enabled").getOrElse(false)
 
     for {
-      _ <- Try(carboniterConfig.hasPath("filesystems.gcs")).toCheckedWithContext("parse Carboniter 'filesystems.gcs' field from config")
+      _ <- Try(carboniterConfig.getConfig("filesystems.gcs")).toCheckedWithContext("parse Carboniter 'filesystems.gcs' field from config")
       pathBuilderFactories <- CromwellFileSystems.instance.factoriesFromConfig(carboniterConfig)
       pathBuilders <- Try(Await.result(PathBuilderFactory.instantiatePathBuilders(pathBuilderFactories.values.toList, WorkflowOptions.empty), 10.seconds))
         .toCheckedWithContext("construct Carboniter path builders from factories")

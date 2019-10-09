@@ -9,7 +9,7 @@ import cromwell.core.io.IoWriteCommand
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataService.GetMetadataAction
-import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActor.{Fetching, FreezeMetadata, Freezing, UpdatingDatabase}
+import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActor.{Fetching, FreezeMetadata, Freezing, Pending, UpdatingDatabase}
 import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActorSpec.TestableCarbonitingMetadataFreezerActor
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor.BuiltMetadataResponse
 import org.scalatest.{FlatSpecLike, Matchers}
@@ -23,8 +23,9 @@ class CarbonitingMetadataFreezerActorSpec extends TestKitSuite("CarbonitedMetada
 
   implicit val ec: ExecutionContext = system.dispatcher
 
-  val carboniterConfig = HybridCarboniteConfig.make(ConfigFactory.parseString(
-    """bucket = "carbonite-test-bucket"
+  val carboniterConfig = HybridCarboniteConfig.parseConfig(ConfigFactory.parseString(
+    """enabled = true
+      |bucket = "carbonite-test-bucket"
       |filesystems {
       |  gcs {
       |    # A reference to the auth to use for storing and retrieving metadata:
@@ -34,9 +35,10 @@ class CarbonitingMetadataFreezerActorSpec extends TestKitSuite("CarbonitedMetada
 
   val serviceRegistryActor = TestProbe()
   val ioActor = TestProbe()
+  val carboniteWorkerActor = TestProbe()
 
   it should "follow the expected golden-path lifecycle" in {
-    val actor = TestFSMRef(new TestableCarbonitingMetadataFreezerActor(carboniterConfig, serviceRegistryActor.ref, ioActor.ref))
+    val actor = TestFSMRef(new TestableCarbonitingMetadataFreezerActor(carboniterConfig, carboniteWorkerActor.ref, serviceRegistryActor.ref, ioActor.ref))
     val workflowIdToFreeze = WorkflowId.randomId()
 
     actor ! FreezeMetadata(workflowIdToFreeze)
@@ -77,16 +79,15 @@ class CarbonitingMetadataFreezerActorSpec extends TestKitSuite("CarbonitedMetada
     // Finally, when the database responds appropriately, the actor should shut itself down:
     watch(actor)
     actor.underlyingActor.updateArchiveStatusPromise.success(1)
-    expectTerminated(actor)
-
+    actor.stateName should be(Pending)
   }
 
 }
 
 object CarbonitingMetadataFreezerActorSpec {
 
-  class TestableCarbonitingMetadataFreezerActor(config: HybridCarboniteConfig, serviceRegistry: ActorRef, ioActor: ActorRef)
-    extends CarbonitingMetadataFreezerActor(config, serviceRegistry, ioActor) {
+  class TestableCarbonitingMetadataFreezerActor(config: HybridCarboniteConfig, carboniteWorkerActor: ActorRef, serviceRegistry: ActorRef, ioActor: ActorRef)
+    extends CarbonitingMetadataFreezerActor(config, carboniteWorkerActor, serviceRegistry, ioActor) {
 
     var updateArchiveStatusCall: (WorkflowId, MetadataArchiveStatus) = (null, null)
     val updateArchiveStatusPromise = Promise[Int]()

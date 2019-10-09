@@ -21,7 +21,7 @@ class HybridMetadataServiceActor(serviceConfig: Config, globalConfig: Config, se
 
   val carboniteMetadataServiceActorConfig: HybridCarboniteConfig = {
     val hybridCarboniteConfig = if (serviceConfig.hasPath(CarboniteConfigPath)) {
-      HybridCarboniteConfig.parseConfig(globalConfig, serviceConfig.getConfig(CarboniteConfigPath))(context.system).contextualizeErrors("parse config")
+      HybridCarboniteConfig.parseConfig(serviceConfig.getConfig(CarboniteConfigPath))(context.system).contextualizeErrors("parse config")
     } else {
       s"No ${getClass.getSimpleName} subservice config found for $CarboniteConfigPath.".invalidNelCheck
     }

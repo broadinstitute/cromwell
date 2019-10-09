@@ -1,21 +1,27 @@
 package cromwell.services.metadata.hybridcarbonite
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import cats.data.NonEmptyList
 import cromwell.core.retry.SimpleExponentialBackoff
-import cromwell.core.{WorkflowAborted, WorkflowFailed, WorkflowSucceeded}
+import cromwell.core.{WorkflowAborted, WorkflowFailed, WorkflowId, WorkflowSucceeded}
 import cromwell.services.metadata.MetadataArchiveStatus.Unarchived
 import cromwell.services.metadata.MetadataService.{QueryForWorkflowsMatchingParameters, WorkflowQueryFailure, WorkflowQuerySuccess}
 import cromwell.services.metadata.WorkflowQueryKey._
-import cromwell.services.metadata.hybridcarbonite.CarboniteWorkerActor.CarboniteWorkflowSuccess
+import cromwell.services.metadata.hybridcarbonite.CarboniteWorkerActor.CarboniteWorkflowComplete
+import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActor.FreezeMetadata
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-class CarboniteWorkerActor(serviceRegistryActor: ActorRef, ioActor: ActorRef) extends Actor with ActorLogging with GracefulShutdownHelper {
+class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
+                           serviceRegistryActor: ActorRef,
+                           ioActor: ActorRef) extends Actor with ActorLogging with GracefulShutdownHelper {
 
   implicit val ec: ExecutionContext = context.dispatcher
+
+  val carboniteFreezerActor = context.actorOf(CarbonitingMetadataFreezerActor.props(carboniterConfig, self, serviceRegistryActor, ioActor))
 
   val findWorkflowToCarboniteQuery: Seq[(String, String)] = Seq(
     IncludeSubworkflows.name -> "false",
@@ -43,15 +49,16 @@ class CarboniteWorkerActor(serviceRegistryActor: ActorRef, ioActor: ActorRef) ex
       else scheduleNextCarboniting(backOff.backoffMillis)
     }
     case f: WorkflowQueryFailure => {
-      log.error(s"Something went wrong while querying to find workflow to carbonite. Error: ${f.reason}")
+      log.error(s"Something went wrong while querying to find workflow to carbonite. It will retry in sometime. Error: ${f.reason}")
       scheduleNextCarboniting(backOff.backoffMillis)
     }
-    case CarboniteWorkflowSuccess => {
-      // it was able to find a workflow to carbonite and after successful carbonation reset the backoff
+    case CarboniteWorkflowComplete(id) => {
+      // after completion of carbonite process reset the backoff
+      log.info(s"Carbonation complete for workflow $id")
       backOff.googleBackoff.reset()
       scheduleNextCarboniting(backOff.backoffMillis)
     }
-    case ShutdownCommand => stopGracefully()
+    case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(carboniteFreezerActor))
     case other => log.error(s"Programmer Error! The CarboniteWorkerActor received unexpected message! ($sender sent $other})")
   }
 
@@ -66,28 +73,22 @@ class CarboniteWorkerActor(serviceRegistryActor: ActorRef, ioActor: ActorRef) ex
   def findWorkflowToCarbonite(): Unit = {
     // TODO: [CARBONITE] When carboniting actually does something, we probably metrics here rather than a tick log...
     log.info("Carbonite Worker Tick...")
-
     serviceRegistryActor ! QueryForWorkflowsMatchingParameters(findWorkflowToCarboniteQuery)
   }
 
 
-  def carboniteWorkflow(workflowId: String) = {
+  def carboniteWorkflow(workflowId: String): Unit = {
     log.info(s"Starting Carbonation of workflow: $workflowId")
-
-    // after successful carbonation of a workflow send 'success' command and schedule next carboniting
-    self ! CarboniteWorkflowSuccess
-  }
-
-
-  // TODO: [CARBONITE] When the carboniting process is implemented, we might need to implement graceful shutdowns
-  def stopGracefully(): Unit = {
-    context.stop(self)
+    carboniteFreezerActor ! FreezeMetadata(WorkflowId.fromString(workflowId))
   }
 }
 
 object CarboniteWorkerActor {
 
-  def props(serviceRegistryActor: ActorRef, ioActor: ActorRef) = Props(new CarboniteWorkerActor(serviceRegistryActor, ioActor))
+  def props(carboniterConfig: HybridCarboniteConfig, serviceRegistryActor: ActorRef, ioActor: ActorRef) =
+    Props(new CarboniteWorkerActor(carboniterConfig, serviceRegistryActor, ioActor))
 
-  case object CarboniteWorkflowSuccess
+
+  sealed trait CarboniteWorkerMessage
+  case class CarboniteWorkflowComplete(workflowId: WorkflowId) extends CarboniteWorkerMessage
 }

@@ -11,8 +11,7 @@ class HybridMetadataServiceActorSpec extends MetadataServiceActorSpec {
 
   val hybridConfigString =
     s"""${HybridMetadataServiceActor.CarboniteConfigPath} {
-        |    carbonite-interval = Inf
-        |
+        |    enabled = true
         |    bucket = "this test shouldn't need a bucket"
         |
         |    filesystems {

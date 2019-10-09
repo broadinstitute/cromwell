@@ -81,8 +81,7 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration) extends Act
     queryWorkflows map {
       case (response, metadata) => WorkflowQuerySuccess(response, metadata)
     } recover {
-      case t =>
-        WorkflowQueryFailure(t)
+      case t => WorkflowQueryFailure(t)
     }
   }
 
@@ -101,4 +100,5 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration) extends Act
       case t => LogsFailure(id, t)
     }
   }
+
 }

@@ -52,9 +52,9 @@ class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
       log.error(s"Something went wrong while querying to find workflow to carbonite. It will retry in sometime. Error: ${f.reason}")
       scheduleNextCarboniting(backOff.backoffMillis)
     }
-    case CarboniteWorkflowComplete(id) => {
+    case c: CarboniteWorkflowComplete => {
       // after completion of carbonite process reset the backoff
-      log.info(s"Carbonation complete for workflow $id")
+      log.info(s"Carbonation complete for workflow ${c.workflowId}")
       backOff.googleBackoff.reset()
       scheduleNextCarboniting(backOff.backoffMillis)
     }

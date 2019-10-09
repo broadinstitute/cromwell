@@ -22,7 +22,6 @@ class CarboniteMetadataServiceActor(carboniteConfig: HybridCarboniteConfig, serv
 
   var carboniteWorker: Option[ActorRef] = None
 
-
   override def receive: Receive = {
     case read: MetadataReadAction =>
       ioActorOption match {

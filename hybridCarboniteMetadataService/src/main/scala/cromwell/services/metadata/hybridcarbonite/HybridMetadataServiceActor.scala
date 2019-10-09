@@ -43,8 +43,7 @@ class HybridMetadataServiceActor(serviceConfig: Config, globalConfig: Config, se
 
   override def receive = {
     case action: MetadataServiceAction => action match {
-      case read: MetadataReadAction =>
-        readRegulatorActor forward read
+      case read: MetadataReadAction => readRegulatorActor forward read
       case write: MetadataWriteAction => classicMetadataService.forward(write)
       case validate: ValidateWorkflowIdInMetadata => classicMetadataService forward validate
     }

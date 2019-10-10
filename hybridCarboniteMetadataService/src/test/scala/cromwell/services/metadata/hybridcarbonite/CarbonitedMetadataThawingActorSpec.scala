@@ -22,7 +22,7 @@ class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadat
 
   implicit val ec: ExecutionContext = system.dispatcher
 
-  val carboniterConfig = HybridCarboniteConfig.make(ConfigFactory.parseString(
+  val carboniterConfig = HybridCarboniteConfig.parseConfig(ConfigFactory.parseString(
     """bucket = "carbonite-test-bucket"
       |filesystems {
       |  gcs {

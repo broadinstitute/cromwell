@@ -107,6 +107,7 @@ trait GetRequestHandler { this: RequestHandler =>
             case None => Success(executionEvents, machineType, zone, instanceName)
           }
         } else if (operation.hasStarted) {
+          println(s"[${OffsetDateTime.now()}] ${operation.getName}: Running")
           Running
         } else {
           Initializing

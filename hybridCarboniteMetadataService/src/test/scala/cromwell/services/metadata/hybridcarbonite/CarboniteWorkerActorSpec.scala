@@ -22,8 +22,8 @@ class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") 
   val carboniteFreezerActor = TestProbe()
 
   val fasterBackOff: SimpleExponentialBackoff = SimpleExponentialBackoff(
-    initialInterval = 1.second,
-    maxInterval = 10.seconds,
+    initialInterval = 10.millis,
+    maxInterval = 100.millis,
     multiplier = 1,
     randomizationFactor = 0.0
   )

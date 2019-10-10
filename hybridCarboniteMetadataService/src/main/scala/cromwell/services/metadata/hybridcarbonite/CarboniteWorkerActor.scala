@@ -14,6 +14,7 @@ import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
+import scala.util.{Failure, Success, Try}
 
 class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
                            serviceRegistryActor: ActorRef,
@@ -34,12 +35,10 @@ class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
 
 
   override def receive: Receive = {
-    case s: WorkflowQuerySuccess => {
-      if (s.response.results.nonEmpty) carboniteWorkflow(s.response.results.head.id)
-      else scheduleNextCarboniting()
-    }
+    case s: WorkflowQuerySuccess if s.response.results.nonEmpty => carboniteWorkflow(s.response.results.head.id)
+    case _: WorkflowQuerySuccess => scheduleNextCarboniting()
     case f: WorkflowQueryFailure => {
-      log.error(f.reason, s" Error while querying workflow to carbonite, will retry.")
+      log.error(f.reason, s"Error while querying workflow to carbonite, will retry.")
       scheduleNextCarboniting()
     }
     case c: CarboniteWorkflowComplete => {
@@ -67,8 +66,16 @@ class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
 
 
   def carboniteWorkflow(workflowId: String): Unit = {
-    log.info(s"Starting carboniting of workflow: $workflowId")
-    carboniteFreezerActor ! FreezeMetadata(WorkflowId.fromString(workflowId))
+    Try(WorkflowId.fromString(workflowId)) match {
+      case Success(id: WorkflowId) => {
+        log.info(s"Starting carboniting of workflow: $workflowId")
+        carboniteFreezerActor ! FreezeMetadata(id)
+      }
+      case Failure(e) => {
+        log.error(e, s"Cannot carbonite workflow $workflowId. Error while converting it to WorkflowId, will retry.")
+        scheduleNextCarboniting()
+      }
+    }
   }
 }
 

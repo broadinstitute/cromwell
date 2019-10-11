@@ -193,7 +193,7 @@ This attribute specifies volumes that will be mounted to the VM for your job. Th
 They are specified as a comma separated list of disks. Each disk is further separated as a space separated triplet (e.g. `local-disk 10 SSD`) consisting of:
 
 1. Mount point (absolute path), or `local-disk` to reference the mount point where Google Cloud will localize files and the task's current working directory will be
-2. Disk size in GB (ignored for disk type LOCAL)
+2. Disk size in GB (rounded to the next 375 GB for LOCAL)
 3. Disk type.  One of: "LOCAL", "SSD", or "HDD" ([documentation](https://cloud.google.com/compute/docs/disks/#overview))
 
 All tasks launched on Google Cloud *must* have a `local-disk`.  If one is not specified in the runtime section of the task, then a default of `local-disk 10 SSD` will be used.  The `local-disk` will be mounted to `/cromwell_root`.

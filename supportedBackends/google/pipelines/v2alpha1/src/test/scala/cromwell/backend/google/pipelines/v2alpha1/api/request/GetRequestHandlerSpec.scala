@@ -189,7 +189,7 @@ class GetRequestHandlerSpec extends FlatSpec with Matchers with TableDrivenPrope
         Nil,
         List(
           ExecutionEvent("waiting for quota", OffsetDateTime.parse("2019-08-18T12:04:38.082650Z"),None),
-          ExecutionEvent("Complete in GCS / Cromwell Poll Interval", OffsetDateTime.parse("2019-08-18T15:58:26.659602622Z"),None),
+          ExecutionEvent("Complete in GCE / Cromwell Poll Interval", OffsetDateTime.parse("2019-08-18T15:58:26.659602622Z"),None),
         ),
         Some("custom-2-7168"),
         None,
@@ -299,7 +299,9 @@ class GetRequestHandlerSpec extends FlatSpec with Matchers with TableDrivenPrope
       val operation =
       Option(json).map(GoogleAuthMode.jsonFactory.createJsonParser).map(_.parse(classOf[Operation])).orNull
       val runStatus = requestHandler.interpretOperationStatus(operation, pollingRequest)
+
       runStatus should be(expectedStatus)
+
     }
   }
 

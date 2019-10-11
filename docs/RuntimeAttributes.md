@@ -201,7 +201,7 @@ All tasks launched on Google Cloud *must* have a `local-disk`.  If one is not sp
 For the AWS Batch backend, the disk volume is managed by AWS EBS with autoscaling capabilities.  As such, the Disk size and disk type will be ignored. If provided, the mount point will be verified at runtime.
 
 
-The Disk type must be one of "LOCAL", "SSD", or "HDD". When set to "LOCAL", the size of the drive is automatically provisioned by Google so any size specified in WDL will be ignored. All disks are set to auto-delete after the job completes.
+The Disk type must be one of "LOCAL", "SSD", or "HDD". When set to "LOCAL", the size of the drive is constrained to 375 GB intervals so intermediate values will be rounded up to the next 375 GB.
 
 *Example 1: Changing the Localization Disk*
 

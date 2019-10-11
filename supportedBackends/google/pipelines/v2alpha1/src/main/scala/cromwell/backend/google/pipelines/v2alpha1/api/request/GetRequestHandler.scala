@@ -107,7 +107,6 @@ trait GetRequestHandler { this: RequestHandler =>
             case None => Success(executionEvents, machineType, zone, instanceName)
           }
         } else if (operation.hasStarted) {
-          println(s"[${OffsetDateTime.now()}] ${operation.getName}: Running")
           Running
         } else {
           Initializing
@@ -130,7 +129,7 @@ trait GetRequestHandler { this: RequestHandler =>
     }
 
     val completionEvent: Option[ExecutionEvent] = {
-      metadata.get("endTime") map { time => ExecutionEvent("Complete in GCS / Cromwell Poll Interval", OffsetDateTime.parse(time.toString)) }
+      metadata.get("endTime") map { time => ExecutionEvent("Complete in GCE / Cromwell Poll Interval", OffsetDateTime.parse(time.toString)) }
     }
 
     // Map action indexes to event types. Action indexes are 1-based for some reason.

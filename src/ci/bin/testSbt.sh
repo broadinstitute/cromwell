@@ -18,7 +18,6 @@ CROMWELL_SBT_TEST_EXCLUDE_TAGS="${CROMWELL_BUILD_UNIT_EXCLUDE_TAGS}" \
 CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR="${CROMWELL_BUILD_UNIT_SPAN_SCALE_FACTOR}" \
 sbt \
     -J-Xmx6000M \
-    -Dsbt.classloader.close=false \
     -Dakka.test.timefactor=${CROMWELL_BUILD_UNIT_SPAN_SCALE_FACTOR} \
     -Dbackend.providers.Local.config.filesystems.local.localization.0=copy \
     coverage test

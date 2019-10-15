@@ -67,8 +67,8 @@ class ErrorReporter(machineType: Option[String],
     val status = statusOption.getOrElse(GStatus.UNAVAILABLE)
     val builder = status match {
       case GStatus.UNAVAILABLE if wasPreemptible => Preempted.apply _
+      case GStatus.ABORTED if wasPreemptible && Option(error.getMessage).exists(_.contains(PipelinesApiAsyncBackendJobExecutionActor.FailedV2Style)) => Preempted.apply _
       case GStatus.CANCELLED => Cancelled.apply _
-      case GStatus.ABORTED if Option(error.getMessage).exists(_.contains(PipelinesApiAsyncBackendJobExecutionActor.FailedV2Style)) => Preempted.apply _
       case _ => Failed.apply _
     }
 

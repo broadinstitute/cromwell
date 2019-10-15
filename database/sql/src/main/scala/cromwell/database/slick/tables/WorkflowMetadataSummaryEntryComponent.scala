@@ -91,6 +91,15 @@ trait WorkflowMetadataSummaryEntryComponent {
     } yield workflowMetadataSummaryEntry.workflowStatus
   )
 
+  val isRootWorkflow = Compiled(
+    (workflowId: Rep[String]) => for {
+      summary <- workflowMetadataSummaryEntries
+      if summary.workflowExecutionUuid === workflowId
+    } yield {
+      summary.rootWorkflowExecutionUuid.isEmpty && summary.parentWorkflowExecutionUuid.isEmpty
+    }
+  )
+
   val metadataArchiveStatusByWorkflowId = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
       workflowMetadataSummaryEntry <- workflowMetadataSummaryEntries

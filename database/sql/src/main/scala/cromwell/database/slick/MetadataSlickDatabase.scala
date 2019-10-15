@@ -2,6 +2,7 @@ package cromwell.database.slick
 
 import java.sql.Timestamp
 
+import cats.implicits._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.database.slick.tables.MetadataDataAccessComponent
 import cromwell.database.sql.MetadataSqlDatabase
@@ -363,4 +364,17 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption, endTimestampOption, metadataArchiveStatus, includeSubworkflows)
     runTransaction(action)
   }
+
+  override def deleteNonLabelMetadataForWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Int] = {
+    runTransaction(
+      dataAccess.metadataEntriesWithoutLabelsForRootWorkflowId(rootWorkflowId).delete
+    )
+  }
+
+  override def isRootWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Option[Boolean]] = {
+    runTransaction(
+      dataAccess.isRootWorkflow(rootWorkflowId).result.headOption
+    )
+  }
+
 }

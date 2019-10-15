@@ -141,4 +141,8 @@ trait MetadataSqlDatabase extends SqlDatabase {
                              metadataArchiveStatus: Set[Option[String]],
                              includeSubworkflows: Boolean)
                              (implicit ec: ExecutionContext): Future[Int]
+
+  def deleteNonLabelMetadataForWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Int]
+
+  def isRootWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Option[Boolean]]
 }

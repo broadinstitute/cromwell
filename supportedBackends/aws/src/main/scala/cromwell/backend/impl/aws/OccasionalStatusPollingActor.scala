@@ -34,7 +34,6 @@ class OccasionalStatusPollingActor(configRegion: Option[Region], optAwsAuthMode:
 
   lazy val client = {
     val builder = BatchClient.builder()
-    Console.out.println("XXXXXX Made new client")
     optAwsAuthMode.foreach { awsAuthMode =>
       builder.credentialsProvider(awsAuthMode.provider())
     }
@@ -85,7 +84,6 @@ class OccasionalStatusPollingActor(configRegion: Option[Region], optAwsAuthMode:
 
       val request = requestBuilder.build()
 
-      Console.out.println("YYYYY Using client")
       val response = client.listJobs(request)
       val jobIds = response.jobSummaryList().asScala.map(_.jobId()).toVector
 

@@ -101,35 +101,36 @@ object CustomKeyMode
  * The AwsAuthMode constructed from a 'custom_key' auths scheme.
  *
  * @param name
- * @param accessKey
- * @param secretKey
- * @param region
+ * @param accessKey static AWS access key
+ * @param secretKey static AWS secret key
+ * @param region an optional AWS region
  */
 final case class CustomKeyMode(override val name: String,
                                     accessKey: String,
                                     secretKey: String,
                                     region: Option[String]
                                     ) extends AwsAuthMode {
-  private lazy val _credential: AwsCredentials = {
+  private lazy val _provider: AwsCredentialsProvider = {
     // Validate credentials synchronously here, without retry.
     // It's very unlikely to fail as it should not happen more than a few times
     // (one for the engine and for each backend using it) per Cromwell instance.
-    validateCredential(AwsBasicCredentials.create(accessKey, secretKey), region)
+    var creds = validateCredential(AwsBasicCredentials.create(accessKey, secretKey), region)
+
+    StaticCredentialsProvider.create(creds)
   }
 
-  override def provider(): AwsCredentialsProvider = StaticCredentialsProvider.create(_credential)
+  override def provider(): AwsCredentialsProvider = _provider
 }
 
 /**
  * The AwsAuthMode constructed from a 'default' auths scheme.
  *
  * @param name
- * @param region
+ * @param region an optional AWS region
  */
 final case class DefaultMode(override val name: String, region: Option[String]) extends AwsAuthMode {
-  //
   // The DefaultCredentialsProvider will look through a chain of standard AWS providers as
-  // per the normal behaviour of aws cli etc
+  // per the normal behaviour of aws-cli etc
   private lazy val _provider: AwsCredentialsProvider = {
     DefaultCredentialsProvider.create()
   }
@@ -144,7 +145,7 @@ final case class DefaultMode(override val name: String, region: Option[String]) 
  * @param baseAuthName the name of another AwsAuthMode that will give us starting credentials
  * @param roleArn the ARN of the role that we want to assume
  * @param externalId an optional external id
- * @param region
+ * @param region an optional AWS region
  */
 final case class AssumeRoleMode(override val name: String,
                           baseAuthName: String,

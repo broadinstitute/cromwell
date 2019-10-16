@@ -115,7 +115,7 @@ object S3PathBuilder {
                    configuration: S3Configuration,
                    options: WorkflowOptions,
                    storageRegion: Option[Region])(implicit ec: ExecutionContext): Future[S3PathBuilder] = {
-    val credentials = authMode.credential((key: String) => options.get(key).get)
+    val credentials = authMode.provider().resolveCredentials
 
     // Other backends needed retry here. In case we need retry, we'll return
     // a future. This will allow us to add capability without changing signature

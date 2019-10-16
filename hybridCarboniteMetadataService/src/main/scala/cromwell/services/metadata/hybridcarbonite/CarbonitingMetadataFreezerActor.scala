@@ -70,9 +70,9 @@ class CarbonitingMetadataFreezerActor(carboniterConfig: HybridCarboniteConfig,
   }
 
   when(UpdatingDatabase) {
-    case Event(DatabaseUpdateCompleted(Success(_)), UpdatingDatabaseData(workflowId, _)) =>
+    case Event(DatabaseUpdateCompleted(Success(_)), UpdatingDatabaseData(workflowId, result)) =>
       // All set; send 'complete' to CarboniteWorkerActor; wait for next workflow to carbonite
-      carboniteWorkerActor ! CarboniteWorkflowComplete(workflowId)
+      carboniteWorkerActor ! CarboniteWorkflowComplete(workflowId, result)
       goto(Pending)
     case Event(DatabaseUpdateCompleted(Failure(reason)), UpdatingDatabaseData(workflowId, freezingResult)) =>
       log.error(reason, s"Unable to update workflow ID $workflowId's METADATA_ARCHIVE_STATUS to $freezingResult. Will try again in 1 minute")

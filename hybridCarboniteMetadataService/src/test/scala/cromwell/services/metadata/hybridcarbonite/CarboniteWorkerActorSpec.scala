@@ -7,7 +7,7 @@ import common.validation.Validation._
 import common.assertion.ManyTimes._
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{TestKitSuite, WorkflowId}
-import cromwell.services.metadata.MetadataArchiveStatus.Unarchived
+import cromwell.services.metadata.MetadataArchiveStatus.{Archived, Unarchived}
 import cromwell.services.metadata.MetadataService.{QueryForWorkflowsMatchingParameters, QueryMetadata, WorkflowQueryResponse, WorkflowQueryResult, WorkflowQuerySuccess}
 import cromwell.services.metadata.hybridcarbonite.CarboniteWorkerActor.CarboniteWorkflowComplete
 import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActor.FreezeMetadata
@@ -63,7 +63,7 @@ class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") 
 
       carboniteFreezerActor.expectMsg(FreezeMetadata(WorkflowId.fromString(workflowToCarbonite)))
 
-      carboniteFreezerActor.send(carboniteWorkerActor, CarboniteWorkflowComplete(WorkflowId.fromString(workflowToCarbonite)))
+      carboniteFreezerActor.send(carboniteWorkerActor, CarboniteWorkflowComplete(WorkflowId.fromString(workflowToCarbonite), Archived))
     }
   }
 }

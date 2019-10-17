@@ -130,7 +130,7 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
       val updatedData = respondToAllRequestsWithTerminalFailure(FailedException, data)
       goto(Terminal) using updatedData.withFailureCause(FailedException)
     case Event(message, _) =>
-      log.warning(s"Unexpected message $message in $stateName state")
+      log.error(s"Programmer Error: Unexpected message $message in $stateName state")
       stay()
   }
 

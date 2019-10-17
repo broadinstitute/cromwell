@@ -2,6 +2,7 @@ package cromwell.engine.workflow
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
 import cats.data.NonEmptyList
+import common.collections.EnhancedCollections._
 import common.util.TryUtil
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.{Dispatcher, WorkflowId}
@@ -12,6 +13,7 @@ import cromwell.docker.{DockerClientHelper, DockerHashResult, DockerImageIdentif
 import cromwell.engine.workflow.WorkflowDockerLookupActor._
 import cromwell.services.EngineServicesStore
 
+import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success}
 
 /**
@@ -91,10 +93,14 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
       handleStoreFailure(request, new Exception(s"Failure storing docker hash for ${request.dockerImageID.fullName}", e), data)
   }
 
-  // In state Terminal we reject all requests with the cause set in the state data.
   when(Terminal) {
     case Event(request: DockerInfoRequest, data) =>
+      // In the Terminal state we reject all requests with the cause set in the state data.
       sender() ! WorkflowDockerLookupFailure(data.failureCause.orNull, request)
+      stay()
+    case Event(_ @ (_: DockerInfoSuccessResponse | _: DockerHashFailureResponse | _: DockerHashStoreSuccess | _: DockerHashStoreFailure), _) =>
+      // Other expected message types are unsurprising in the Terminal state and can be swallowed. Unexpected message
+      // types will be handled by `whenUnhandled`.
       stay()
   }
 
@@ -105,7 +111,7 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
 
   whenUnhandled {
     case Event(DockerHashActorTimeout(request), data) =>
-      val reason = new Exception(s"Timeout looking up hash for Docker image ${request.dockerImageID}")
+      val reason = new Exception(s"Timeout looking up hash for Docker image ${request.dockerImageID} in state $stateName")
       data.hashRequests.get(request.dockerImageID) match {
         case Some(requestsAndReplyTos) =>
           requestsAndReplyTos foreach { case RequestAndReplyTo(_, replyTo) =>
@@ -114,13 +120,18 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
           val updatedData = data.copy(hashRequests = data.hashRequests - request.dockerImageID)
           stay() using updatedData
         case None =>
-          val message = s"Unable to find requesters for timed out lookup of Docker image '${request.dockerImageID}'"
-          fail(new RuntimeException(message))
+          val headline = s"Unable to find requesters for timed out lookup of Docker image '${request.dockerImageID}' in state $stateName"
+          val pendingImageIdsAndCounts = stateData.hashRequests.toList map { case (imageId, requestAndReplyTos) => s"$imageId -> ${requestAndReplyTos.size}" }
+          val message = pendingImageIdsAndCounts.mkString(headline + "\n" + "Pending image ID requests with requester counts: ", ", ", "")
+          fail(new RuntimeException(message) with NoStackTrace)
       }
     case Event(TransitionToFailed(cause), data) =>
       log.error(cause, s"Workflow Docker lookup actor for $workflowId transitioning to Failed")
       val updatedData = respondToAllRequestsWithTerminalFailure(FailedException, data)
       goto(Terminal) using updatedData.withFailureCause(FailedException)
+    case Event(message, _) =>
+      log.warning(s"Unexpected message $message in $stateName state")
+      stay()
   }
 
   /**
@@ -170,7 +181,7 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
     val request = response.request
     data.hashRequests.get(request.dockerImageID) match {
       case Some(actors) => actors foreach { case RequestAndReplyTo(_, replyTo) => replyTo ! DockerInfoSuccessResponse(response.dockerInformation, request) }
-      case None => fail(new Exception(s"Could not find the actors associated with $request. Available requests are ${data.hashRequests.keys.mkString(", ")}"))
+      case None => fail(new Exception(s"Could not find the actors associated with $request. Available requests are ${data.hashRequests.keys.mkString(", ")}") with NoStackTrace)
     } 
     val updatedData = data.copy(hashRequests = data.hashRequests - request.dockerImageID, mappings = data.mappings + (request.dockerImageID -> response.dockerInformation))
     stay using updatedData
@@ -313,11 +324,5 @@ object WorkflowDockerLookupActor {
       * @return Updated state data.
       */
     def withFailureCause(cause: Throwable): WorkflowDockerLookupActorData = this.copy(failureCause = Option(cause))
-  }
-
-  implicit class EnhancedNonEmptyList[A](val nel: NonEmptyList[A]) extends AnyVal {
-    def foreach(f: A => Unit): Unit = {
-      nel.toList foreach f
-    }
   }
 }

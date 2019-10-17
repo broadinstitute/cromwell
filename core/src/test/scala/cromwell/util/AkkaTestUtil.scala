@@ -3,7 +3,9 @@ package cromwell.util
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Kill, PoisonPill, Props, SupervisorStrategy}
 import akka.testkit.TestProbe
 
+import scala.annotation.tailrec
 import scala.util.control.NoStackTrace
+import scala.concurrent.duration._
 
 object AkkaTestUtil {
 
@@ -19,6 +21,18 @@ object AkkaTestUtil {
         case inbound => probe.ref forward inbound
       }
     })
+
+    @tailrec
+    final def expectMsgAmongstOthers(message: Any, maxWait: FiniteDuration = 10.seconds): Unit = {
+      val waitStart = System.currentTimeMillis()
+      val nextMessage = probe.expectMsgPF(10.seconds) { case anything => anything }
+      nextMessage match {
+        case `message` => () // success!
+        case _ =>
+          val waitedSoFar = System.currentTimeMillis() - waitStart
+          probe.expectMsgAmongstOthers(message, maxWait.minus(waitedSoFar.millis))
+      }
+    }
   }
 
   def actorDeathMethods(system: ActorSystem): List[(String, ActorRef => Unit)] = List(

@@ -114,9 +114,7 @@ final case class CustomKeyMode(override val name: String,
     // Validate credentials synchronously here, without retry.
     // It's very unlikely to fail as it should not happen more than a few times
     // (one for the engine and for each backend using it) per Cromwell instance.
-    var creds = validateCredential(AwsBasicCredentials.create(accessKey, secretKey), region)
-
-    StaticCredentialsProvider.create(creds)
+    StaticCredentialsProvider.create(validateCredential(AwsBasicCredentials.create(accessKey, secretKey), region))
   }
 
   override def provider(): AwsCredentialsProvider = _provider

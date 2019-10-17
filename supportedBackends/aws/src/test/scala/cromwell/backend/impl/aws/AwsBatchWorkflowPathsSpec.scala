@@ -59,7 +59,7 @@ class AwsBatchWorkflowPathsSpec extends TestKitSuite with FlatSpecLike with Matc
 
     val workflowPaths = AwsBatchWorkflowPaths(
       workflowDescriptor,
-      AnonymousCredentialsProvider.create.resolveCredentials(),
+      AnonymousCredentialsProvider.create,
       configuration
     )
     workflowPaths.executionRoot.pathAsString should be("s3://my-cromwell-workflows-bucket/")

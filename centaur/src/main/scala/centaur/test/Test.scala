@@ -31,6 +31,7 @@ import spray.json.JsString
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import scala.util.Failure
 
 /**
   * A simplified riff on the final tagless pattern where the interpreter (monad & related bits) are fixed. Operation
@@ -462,6 +463,31 @@ object Operations extends StrictLogging {
             .timeoutTo(CentaurConfig.metadataConsistencyTimeout, validateMetadata(submittedWorkflow, expectedMetadata))
         // Nothing to wait for, so just return the first metadata we get back:
         case None => CentaurCromwellClient.metadata(submittedWorkflow)
+      }
+    }
+  }
+
+  def waitForArchive(workflowId: WorkflowId): Test[Unit] = {
+    new Test[Unit] {
+
+      def validateMetadataArchiveStatus(status: String): IO[Unit] = if (status == "Archived") IO[Unit].apply(()) else IO.fromTry(Failure(new Exception(s"Expected Archived but got $status")))
+
+      def validateArchived(): IO[Unit] = for {
+          archiveStatus <- CentaurCromwellClient.archiveStatus(workflowId)
+          _ <- validateMetadataArchiveStatus(archiveStatus)
+      } yield ()
+
+      def eventuallyArchived(): IO[Unit] = {
+          validateArchived().handleErrorWith({ _ =>
+            for {
+              _ <- IO.sleep(2.seconds)
+              recurse <- eventuallyArchived()
+            } yield recurse
+          })
+      }
+
+      override def run: IO[Unit] = {
+        eventuallyArchived().timeout(CentaurConfig.metadataConsistencyTimeout)
       }
     }
   }

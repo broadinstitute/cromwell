@@ -11,6 +11,7 @@ import akka.http.scaladsl.model.headers.{Authorization, HttpCredentials, HttpEnc
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
+import cats.data.NonEmptyList
 import cats.effect.IO
 import cromwell.api.CromwellClient._
 import cromwell.api.model._
@@ -30,6 +31,18 @@ class CromwellClient(val cromwellUrl: URL,
   lazy val submitEndpoint = s"$cromwellUrl/api/workflows/$apiVersion"
   // Everything else is a suffix off the submit endpoint:
   lazy val batchSubmitEndpoint = s"$submitEndpoint/batch"
+
+  def queryEndpoint(args: List[(String, String)]): Uri = {
+    val base = s"$submitEndpoint/query"
+
+    val argString = if (args.isEmpty) {
+      ""
+    } else {
+      (args map { case (key, value) => s"$key=$value" }).mkString("?", "&", "")
+    }
+
+    base + argString
+  }
 
   def abortEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(submitEndpoint, workflowId, "abort")
   def statusEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(submitEndpoint, workflowId, "status")
@@ -113,6 +126,10 @@ class CromwellClient(val cromwellUrl: URL,
 
   def logs(workflowId: WorkflowId)(implicit ec: ExecutionContext): FailureResponseOrT[WorkflowLogs] = {
     simpleRequest[WorkflowLogsStruct](outputsEndpoint(workflowId)) map WorkflowLogs.apply
+  }
+
+  def query(workflowId: WorkflowId)(implicit ec: ExecutionContext): FailureResponseOrT[CromwellQueryResults] = {
+    simpleRequest[CromwellQueryResults](queryEndpoint(List(("id", workflowId.id.toString))))
   }
 
   def callCacheDiff(workflowA: WorkflowId,

@@ -470,7 +470,7 @@ object Operations extends StrictLogging {
   def waitForArchive(workflowId: WorkflowId): Test[Unit] = {
     new Test[Unit] {
 
-      def validateMetadataArchiveStatus(status: String): IO[Unit] = if (status == "Archived") IO[Unit].apply(()) else IO.fromTry(Failure(new Exception(s"Expected Archived but got $status")))
+      def validateMetadataArchiveStatus(status: String): IO[Unit] = if (status == "Archived") IO.pure(()) else IO.fromTry(Failure(new Exception(s"Expected Archived but got $status")))
 
       def validateArchived(): IO[Unit] = for {
           archiveStatus <- CentaurCromwellClient.archiveStatus(workflowId)

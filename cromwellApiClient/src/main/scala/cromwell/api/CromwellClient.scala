@@ -11,7 +11,6 @@ import akka.http.scaladsl.model.headers.{Authorization, HttpCredentials, HttpEnc
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
-import cats.data.NonEmptyList
 import cats.effect.IO
 import cromwell.api.CromwellClient._
 import cromwell.api.model._
@@ -64,6 +63,7 @@ class CromwellClient(val cromwellUrl: URL,
   import model.WorkflowLabelsJsonSupport._
   import model.WorkflowLogsJsonSupport._
   import model.WorkflowOutputsJsonSupport._
+  import model.CromwellQueryResultJsonSupport._
 
   def submit(workflow: WorkflowSubmission)
             (implicit ec: ExecutionContext): FailureResponseOrT[SubmittedWorkflow] = {

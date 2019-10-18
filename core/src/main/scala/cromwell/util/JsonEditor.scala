@@ -8,6 +8,7 @@ import mouse.all._
 import io.circe.Json.Folder
 
 import scala.collection.immutable
+import common.util.StringUtil._
 
 object JsonEditor {
 
@@ -95,7 +96,7 @@ object JsonEditor {
 
     def doUpdateWorkflow(workflowJson: Json): Json = {
       val id: String = workflowJson.rootWorkflowId.
-        getOrElse(throw new RuntimeException(s"did not find workflow id in ${workflowJson.printWith(Printer.spaces2)}")).toString
+        getOrElse(throw new RuntimeException(s"did not find workflow id in ${workflowJson.printWith(Printer.spaces2).elided(100)}")).toString
 
       // Look for an optional JsonObject keyed by "calls".
       val callsObject: Option[JsonObject] = for {
@@ -112,22 +113,22 @@ object JsonEditor {
             // The Json (a JSON array, really) corresponding to the array of call objects for a call name.
             callValue: Json =>
               // The object above converted to a List[Json].
-              val callArray: List[Json] = callValue.asArray.toList flatMap { _.toList }
+              val callArray: Vector[Json] = callValue.asArray.toVector.flatten
 
               val updatedCallArray = callArray map { callJson =>
                 // If there is no subworkflow object this will be None.
-                val callAndSubworkflowObjects: Option[(JsonObject, JsonObject)] = for {
+                val callAndSubworkflowObjects: Option[(JsonObject, Json)] = for {
                   co <- callJson.asObject
                   sub <- co(subWorkflowMetadataKey)
-                  so <- sub.asObject
-                } yield (co, so)
+                  _ <- sub.asObject
+                } yield (co, sub)
 
                 callAndSubworkflowObjects match {
                   case None => callJson
                   case Some((callObject, subworkflowObject)) =>
                     // If the call contains a subWorkflowMetadata key, return a copy of the call with
                     // its subworkflowMetadata updated via a recursive call to `doUpdateWorkflow`.
-                    val updatedSubworkflow = doUpdateWorkflow(Json.fromJsonObject(subworkflowObject))
+                    val updatedSubworkflow = doUpdateWorkflow(subworkflowObject)
                     Json.fromJsonObject(callObject.add(subWorkflowMetadataKey, updatedSubworkflow))
                 }
               }

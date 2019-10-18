@@ -29,6 +29,7 @@ import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import io.circe.parser._
 import spray.json.JsString
 
+import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.util.Failure
@@ -470,20 +471,27 @@ object Operations extends StrictLogging {
   def waitForArchive(workflowId: WorkflowId): Test[Unit] = {
     new Test[Unit] {
 
-      def validateMetadataArchiveStatus(status: String): IO[Unit] = if (status == "Archived") IO.pure(()) else IO.fromTry(Failure(new Exception(s"Expected Archived but got $status")))
+      def validateMetadataArchiveStatus(status: String): IO[Boolean] = if (status == "Archived") {
+        IO.pure(true)
+      }  else if (status == "Unarchived" ) {
+        IO.pure(false)
+      } else {
+        IO.fromTry(Failure(new Exception(s"Expected Archived but got $status")))
+      }
 
-      def validateArchived(): IO[Unit] = for {
+      def checkArchived(): IO[Boolean] = for {
           archiveStatus <- CentaurCromwellClient.archiveStatus(workflowId)
-          _ <- validateMetadataArchiveStatus(archiveStatus)
-      } yield ()
+          isArchived <- validateMetadataArchiveStatus(archiveStatus)
+      } yield isArchived
 
       def eventuallyArchived(): IO[Unit] = {
-          validateArchived().handleErrorWith({ _ =>
-            for {
+          checkArchived() flatMap {
+            case true => IO.pure(())
+            case false => for {
               _ <- IO.sleep(2.seconds)
               recurse <- eventuallyArchived()
             } yield recurse
-          })
+          }
       }
 
       override def run: IO[Unit] = {

@@ -29,7 +29,6 @@ import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import io.circe.parser._
 import spray.json.JsString
 
-import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.util.Failure

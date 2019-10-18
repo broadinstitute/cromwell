@@ -56,10 +56,11 @@ object CromwellEntryPoint extends GracefulStopSupport {
     * Run a single workflow using the successfully parsed but as yet not validated arguments.
     */
   def runSingle(args: CommandLineArguments): Unit = {
+    val sources = validateRunArguments(args)
+
     val cromwellSystem = buildCromwellSystem(Run)
     implicit val actorSystem = cromwellSystem.actorSystem
 
-    val sources = validateRunArguments(args)
     val runnerProps = SingleWorkflowRunnerActor.props(
       source = sources,
       metadataOutputFile = args.metadataOutput,

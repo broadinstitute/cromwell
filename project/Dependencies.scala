@@ -46,6 +46,7 @@ object Dependencies {
   private val http4sVersion = "0.20.0-M5"
   private val jacksonDatabindV = "2.9.9.3"
   private val jacksonV = "2.9.9" // NOTE: On the next version, please remove jacksonDatabindV and just use this!
+  private val jacksonJqV = "1.0.0-preview.20190925"
   private val janinoV = "3.0.12"
   private val javaxActivationV = "1.2.0"
   private val jaxbV = "2.3.2"
@@ -482,6 +483,10 @@ object Dependencies {
     "com.fasterxml.jackson.core" % "jackson-databind" % jacksonDatabindV,
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV
   ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ akkaHttpCirceIntegrationDependency ++ circeDependencies
+
+  val hybridCarboniteMetadataServiceDependencies = List(
+    "net.thisptr" % "jackson-jq" % jacksonJqV % Test
+  )
 
   val serverDependencies = slf4jBindingDependencies
 

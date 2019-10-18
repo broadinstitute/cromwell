@@ -2,9 +2,10 @@ package cromwell.util
 
 import java.nio.file.{Files, Paths}
 
-import JsonEditor._
 import cats.data.NonEmptyList
 import cats.syntax.either._
+import cromwell.util.JsonEditor._
+import io.circe.Json
 import io.circe.parser.parse
 import org.scalameter.api._
 import org.scalameter.picklers.Implicits._
@@ -24,7 +25,7 @@ object JsonEditorBenchmark extends Bench[Double] {
     .getCanonicalPath, fileName)))
 
   val jsonStrs = jsonPool map { case (sz, fn) => sz → loadJson(fn) }
-  val jsonTree = jsonStrs map { case (sz, fn) => sz → parse(fn).leftMap(_.toString) }
+  val jsonTree: Map[Int, Either[String, Json]] = jsonStrs map { case (sz, fn) => sz → parse(fn).leftMap(_.toString) }
 
   /* Benchmark configuration */
   lazy val measurer = new Measurer.Default
@@ -33,7 +34,7 @@ object JsonEditorBenchmark extends Bench[Double] {
   lazy val persistor = Persistor.None
 
   // Increase or decrease exec.benchRuns to repeat the same test numerous times.
-  // The avaerage measured clock time will be the output.
+  // The average measured clock time will be the output.
   performance of "JsonEditor with circe" in {
     // Measures how fast the JsonEditor can exclude keys using circe.
     measure method "parse" in {
@@ -73,7 +74,9 @@ object JsonEditorBenchmark extends Bench[Double] {
         exec.maxWarmupRuns -> 1,
         exec.benchRuns -> 1
       ) in { sz =>
-        jsonTree(sz).map(augmentLabels(_, Map(("new","label")))).right.get // traversal
+        jsonTree(sz).map { json =>
+          updateLabels(json, Map(json.rootWorkflowId.get -> Map(("new", "label"))))
+        }.right.get // traversal
       }
     }
   }

@@ -210,6 +210,12 @@ trait MetadataDatabaseAccess {
     metadataDatabaseInterface.getWorkflowLabels(id.toString)
   }
 
+  def getRootAndSubworkflowLabels(rootWorkflowId: RootWorkflowId)(implicit ec: ExecutionContext): Future[Map[WorkflowId, Map[String, String]]] = {
+    metadataDatabaseInterface.getRootAndSubworkflowLabels(rootWorkflowId.toString) map {
+      _ map { case (id, labelsForId) => WorkflowId.fromString(id) -> labelsForId }
+    }
+  }
+
   def workflowWithIdExistsInMetadata(possibleWorkflowId: String)(implicit ec: ExecutionContext): Future[Boolean] = {
     metadataDatabaseInterface.metadataEntryExists(possibleWorkflowId)
   }

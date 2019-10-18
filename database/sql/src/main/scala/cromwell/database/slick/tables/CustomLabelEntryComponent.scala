@@ -67,4 +67,13 @@ trait CustomLabelEntryComponent {
       if customLabelEntry.workflowExecutionUuid === workflowExecutionUuid
     } yield (customLabelEntry.customLabelKey, customLabelEntry.customLabelValue)
   )
+
+  val labelsForWorkflowAndSubworkflows = Compiled(
+    (workflowExecutionUuid: Rep[String]) => for {
+      summary <- workflowMetadataSummaryEntries
+      if summary.rootWorkflowExecutionUuid === workflowExecutionUuid || summary.workflowExecutionUuid === workflowExecutionUuid
+      customLabelEntry <- customLabelEntries
+      if customLabelEntry.workflowExecutionUuid === summary.workflowExecutionUuid
+    } yield (summary.workflowExecutionUuid, customLabelEntry.customLabelKey, customLabelEntry.customLabelValue)
+  )
 }

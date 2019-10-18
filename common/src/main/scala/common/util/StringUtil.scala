@@ -44,5 +44,11 @@ object StringUtil {
       * e.g: /root/some/dir -> root/some/dir/
       */
     def relativeDirectory = string.ensureNoLeadingSlash.ensureSlashed
+
+    def elided(limit: Int): String = {
+      if (string.length > limit) {
+        s"(elided) ${string.take(limit)}..."
+      } else string
+    }
   }
 }

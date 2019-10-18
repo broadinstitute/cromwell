@@ -14,7 +14,7 @@ object CromwellApp extends App {
       case Some(Run) => CromwellEntryPoint.runSingle(args)
       case Some(Server) => CromwellEntryPoint.runServer()
       case Some(Submit) => CromwellEntryPoint.submitToServer(args)
-      case None => parser.showUsage()
+      case None => showUsageAndExitWithError()
     }
   }
 
@@ -23,6 +23,11 @@ object CromwellApp extends App {
   val parsedArgs = parser.parse(args, CommandLineArguments())
   parsedArgs match {
     case Some(pa) => runCromwell(pa)
-    case None => parser.showUsage()
+    case None => showUsageAndExitWithError()
+  }
+
+  private def showUsageAndExitWithError(): Unit = {
+    parser.showUsage()
+    System.exit(1)
   }
 }

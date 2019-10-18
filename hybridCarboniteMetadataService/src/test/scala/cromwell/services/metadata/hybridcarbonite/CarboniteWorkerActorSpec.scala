@@ -1,6 +1,5 @@
 package cromwell.services.metadata.hybridcarbonite
 
-import cromwell.util.AkkaTestUtil.EnhancedTestProbe
 import akka.actor.ActorRef
 import akka.testkit.{TestActorRef, TestProbe}
 import com.typesafe.config.ConfigFactory
@@ -13,6 +12,7 @@ import cromwell.services.metadata.MetadataService.{QueryForWorkflowsMatchingPara
 import cromwell.services.metadata.hybridcarbonite.CarboniteWorkerActor.CarboniteWorkflowComplete
 import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActor.FreezeMetadata
 import org.scalatest.{FlatSpecLike, Matchers}
+
 import scala.concurrent.duration._
 
 class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") with FlatSpecLike with Matchers {
@@ -58,7 +58,9 @@ class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") 
 
     10.times {
       // We might get noise from instrumentation. We can ignore that, but we expect the query to come through eventually:
-      serviceRegistryActor.expectMsgAmongstOthers(QueryForWorkflowsMatchingParameters(CarboniteWorkerActor.findWorkflowToCarboniteQueryParameters))
+      serviceRegistryActor.fishForSpecificMessage(10.seconds) {
+        case QueryForWorkflowsMatchingParameters(CarboniteWorkerActor.findWorkflowToCarboniteQueryParameters) => true
+      }
 
       serviceRegistryActor.send(carboniteWorkerActor, querySuccessResponse)
 
@@ -67,8 +69,6 @@ class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") 
       carboniteFreezerActor.send(carboniteWorkerActor, CarboniteWorkflowComplete(WorkflowId.fromString(workflowToCarbonite), Archived))
     }
   }
-
-
 }
 
 

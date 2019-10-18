@@ -101,7 +101,7 @@ class GetRequestHandlerSpec extends FlatSpec with Matchers with TableDrivenPrope
          |""".stripMargin,
       Failed(Status.UNAVAILABLE, None, Nil, Nil, None, None, None)
     ),
-    ("Check that we classify error code 10 as a preemption on a preemptible VM",
+    ("check that we classify error code 10 as a preemption on a preemptible VM",
       """{
         |  "done": true,
         |  "error": {
@@ -182,9 +182,20 @@ class GetRequestHandlerSpec extends FlatSpec with Matchers with TableDrivenPrope
         |    "startTime": "2019-08-18T12:04:39.192909594Z"
         |  },
         |  "name": "asdfasdf"
-        |}""".stripMargin, Preempted(Status.ABORTED, None, Nil, List(ExecutionEvent("waiting for quota", OffsetDateTime.parse("2019-08-18T12:04:38.082650Z"),None)), Some("custom-2-7168"), None, None)
+        |}""".stripMargin,
+      Preempted(
+        Status.ABORTED,
+        None,
+        Nil,
+        List(
+          ExecutionEvent("waiting for quota", OffsetDateTime.parse("2019-08-18T12:04:38.082650Z"),None),
+          ExecutionEvent("Complete in GCE / Cromwell Poll Interval", OffsetDateTime.parse("2019-08-18T15:58:26.659602622Z"),None),
+        ),
+        Some("custom-2-7168"),
+        None,
+        None)
     ),
-    ("Check that we classify error code 10 as a failure on a non-preemptible VM",
+    ("check that we classify error code 10 as a failure on a non-preemptible VM",
       """{
         |  "done": true,
         |  "error": {
@@ -265,7 +276,19 @@ class GetRequestHandlerSpec extends FlatSpec with Matchers with TableDrivenPrope
         |    "startTime": "2019-08-18T12:04:39.192909594Z"
         |  },
         |  "name": "asdfasdf"
-        |}""".stripMargin, Failed(Status.ABORTED, None, Nil, List(ExecutionEvent("waiting for quota", OffsetDateTime.parse("2019-08-18T12:04:38.082650Z"),None)), Some("custom-2-7168"), None, None)
+        |}""".stripMargin,
+      Failed(
+        Status.ABORTED,
+        None,
+        Nil,
+        List(
+          ExecutionEvent("waiting for quota", OffsetDateTime.parse("2019-08-18T12:04:38.082650Z"),None),
+          ExecutionEvent("Complete in GCE / Cromwell Poll Interval", OffsetDateTime.parse("2019-08-18T15:58:26.659602622Z"),None),
+        ),
+        Some("custom-2-7168"),
+        None,
+        None
+      )
     )
   )
 
@@ -276,7 +299,9 @@ class GetRequestHandlerSpec extends FlatSpec with Matchers with TableDrivenPrope
       val operation =
       Option(json).map(GoogleAuthMode.jsonFactory.createJsonParser).map(_.parse(classOf[Operation])).orNull
       val runStatus = requestHandler.interpretOperationStatus(operation, pollingRequest)
+
       runStatus should be(expectedStatus)
+
     }
   }
 

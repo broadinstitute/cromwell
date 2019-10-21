@@ -48,6 +48,8 @@ object CromwellEntryPoint extends GracefulStopSupport {
     * Run Cromwell in server mode.
     */
   def runServer() = {
+    initLogging(Server)
+
     val system = buildCromwellSystem(Server)
     waitAndExit(CromwellServer.run(gracefulShutdown, abortJobsOnTerminate.getOrElse(false)) _, system)
   }
@@ -56,10 +58,13 @@ object CromwellEntryPoint extends GracefulStopSupport {
     * Run a single workflow using the successfully parsed but as yet not validated arguments.
     */
   def runSingle(args: CommandLineArguments): Unit = {
+    initLogging(Run)
+
+    val sources = validateRunArguments(args)
+
     val cromwellSystem = buildCromwellSystem(Run)
     implicit val actorSystem = cromwellSystem.actorSystem
 
-    val sources = validateRunArguments(args)
     val runnerProps = SingleWorkflowRunnerActor.props(
       source = sources,
       metadataOutputFile = args.metadataOutput,
@@ -112,7 +117,6 @@ object CromwellEntryPoint extends GracefulStopSupport {
   }
 
   private def buildCromwellSystem(command: Command): CromwellSystem = {
-    initLogging(command)
     lazy val Log = LoggerFactory.getLogger("cromwell")
     Try {
       new CromwellSystem {

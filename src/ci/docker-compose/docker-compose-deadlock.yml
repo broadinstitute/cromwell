@@ -27,7 +27,7 @@ services:
     volumes:
       - ${CROMWELL_BUILD_DOCKER_DIRECTORY}/mysql-conf.d:/etc/mysql/conf.d
     healthcheck:
-      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      test: ["CMD", "service", "mysql", "status"]
       interval: 2s
       timeout: 30s
       retries: 15

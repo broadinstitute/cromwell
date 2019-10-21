@@ -68,3 +68,14 @@ jq '{
 
 cmp <(jq -cS . actual.json) <(jq -cS . expected.json)
 popd > /dev/null
+
+# Test 4: application should return non-zero exit code when parsing of command-line arguments fails
+java \
+    -jar "${CROMWELL_BUILD_CROMWELL_JAR}" \
+    run ./centaur/src/main/resources/standardTestCases/hello/hello.wdl \
+    ./centaur/src/main/resources/standardTestCases/hello/hello.inputs
+retVal=$?
+if [ $retVal -eq 0 ]; then
+    echo "ERROR: application exited with exit code 0 when invalid command-line arguments were provided"
+    exit 1
+fi

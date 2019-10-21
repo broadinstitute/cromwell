@@ -470,12 +470,15 @@ object Operations extends StrictLogging {
   def waitForArchive(workflowId: WorkflowId): Test[Unit] = {
     new Test[Unit] {
 
-      def validateMetadataArchiveStatus(status: String): IO[Boolean] = if (status == "Archived") {
-        IO.pure(true)
-      }  else if (status == "Unarchived" ) {
-        IO.pure(false)
-      } else {
-        IO.fromTry(Failure(new Exception(s"Expected Archived but got $status")))
+      def validateMetadataArchiveStatus(status: String): IO[Boolean] = {
+        logger.info(s"Validating archive status '$status for workflow ID: $workflowId'")
+        if (status == "Archived") {
+          IO.pure(true)
+        }  else if (status == "Unarchived" ) {
+          IO.pure(false)
+        } else {
+          IO.fromTry(Failure(new Exception(s"Expected Archived but got $status")))
+        }
       }
 
       def checkArchived(): IO[Boolean] = for {

@@ -19,6 +19,15 @@ export AWS_CONFIG_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_config
 
 cromwell::build::run_centaur \
     -p 100 \
+    -e smartseq2singlesample \
+    -e arrays \
+    -e haplotypecaller \
+    -e jointdiscovery \
+    -e mutect2 \
+    -e singlesample \
+    -e singlesample_production \
+    -e cnv_somatic_pair \
+    -e cnv_somatic_panel \
     -e localdockertest \
     -e non_root_default_user \
     -e non_root_specified_user \

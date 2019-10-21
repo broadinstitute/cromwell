@@ -31,7 +31,7 @@ then
   echo "Failed docker runs:"
   docker ps -a | egrep "Exited \([1-9][0-9]*\)"
 
-  for bad_docker_container in $(docker ps -a | awk '{print $1}')
+  for bad_docker_container in $(docker ps -a | grep -v "CONTAINER" | awk '{print $1}')
   do
     echo "Logs for ${bad_docker_container}:"
     echo "*********"

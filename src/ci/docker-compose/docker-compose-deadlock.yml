@@ -27,7 +27,7 @@ services:
     volumes:
       - ${CROMWELL_BUILD_DOCKER_DIRECTORY}/mysql-conf.d:/etc/mysql/conf.d
     healthcheck:
-      test: "/usr/bin/mysql --user=root --password=private --execute \"SHOW DATABASES;\""
+      test: "/usr/bin/mysql --user=root --password=${MYSQL_ROOT_PASSWORD} --execute \"SHOW DATABASES;\""
       interval: 2s
       timeout: 30s
       retries: 15

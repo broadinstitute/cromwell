@@ -86,5 +86,11 @@ java \
     run ./centaur/src/main/resources/standardTestCases/hello/hello.wdl \
     ./centaur/src/main/resources/standardTestCases/hello/hello.inputs \
 2>&1 | tee console_output.txt
+retVal=$?
 set -e
-grep "Error: Unknown argument" console_output.txt
+if [ $retVal -eq 0 ]; then
+    echo "ERROR: application exited with exit code 0 when invalid command-line arguments were provided"
+    exit 1
+else
+    grep "Error: Unknown argument" console_output.txt
+fi

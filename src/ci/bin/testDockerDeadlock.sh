@@ -26,6 +26,8 @@ docker-compose \
 exit_code=$?
 set -o errexit
 
+echo "docker-compose exit code was ${exit_code}"
+
 if test "${exit_code}" -gt "0"
 then
   echo "Failed docker runs:"
@@ -40,10 +42,6 @@ then
     echo
   done
 fi
-
-echo "docker-compose exit code was ${exit_code}. Docker images:"
-docker ps -a
-
 
 # Tear everything down, but dump out the logs first
 CROMWELL_TAG="${CROMWELL_BUILD_CROMWELL_DOCKER_TAG}" \

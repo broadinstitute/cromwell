@@ -1,0 +1,26 @@
+name: draft2_read_functions_windows_line_endings
+testFormat: workflowsuccess
+workflowType: WDL
+workflowTypeVersion: draft-2
+tags: [localdockertest, "draft-2"]
+
+files {
+  workflow: wdl_draft2/read_functions_windows_line_endings/read_functions_windows_line_endings.wdl
+}
+
+metadata {
+  workflowName: d2_read_functions_windows_line_endings
+  status: Succeeded
+  "outputs.d2_read_functions_windows_line_endings.map.y": 600
+  "outputs.d2_read_functions_windows_line_endings.map.z": 700
+  "outputs.d2_read_functions_windows_line_endings.map.x": 500
+  "outputs.d2_read_functions_windows_line_endings.tsv.0": "[\"line1\",\"line one\"]"
+  "outputs.d2_read_functions_windows_line_endings.tsv.1": "[\"line2\",\"line two\"]"
+  "outputs.d2_read_functions_windows_line_endings.tsv.2": "[\"line3\",\"line three\"]"
+  "outputs.d2_read_functions_windows_line_endings.lines.0": "line1"
+  "outputs.d2_read_functions_windows_line_endings.lines.1": "line2"
+  "outputs.d2_read_functions_windows_line_endings.lines.2": "line3"
+  "outputs.d2_read_functions_windows_line_endings.lines.3": "line4"
+  "outputs.d2_read_functions_windows_line_endings.json.field1": "1"
+  "outputs.d2_read_functions_windows_line_endings.json.field2": 2
+}

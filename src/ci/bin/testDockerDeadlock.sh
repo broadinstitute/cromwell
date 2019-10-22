@@ -28,7 +28,7 @@ set -o errexit
 
 echo "docker-compose exit code was ${exit_code}"
 
-if test "${exit_code}" -gt "0"
+if [[ "${exit_code}" -gt "0" ]]
 then
   echo "Failed docker runs:"
   docker ps -a | egrep "Exited \([1-9][0-9]*\)"

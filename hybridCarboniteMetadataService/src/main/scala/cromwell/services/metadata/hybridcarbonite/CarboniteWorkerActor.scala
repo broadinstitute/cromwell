@@ -2,13 +2,17 @@ package cromwell.services.metadata.hybridcarbonite
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
+import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{WorkflowAborted, WorkflowFailed, WorkflowId, WorkflowSucceeded}
-import cromwell.services.metadata.MetadataArchiveStatus.Unarchived
+import cromwell.services.instrumentation.CromwellInstrumentation
+import cromwell.services.metadata.MetadataArchiveStatus.{ArchiveFailed, Archived, Unarchived}
+import cromwell.services.metadata.MetadataService
 import cromwell.services.metadata.MetadataService.{QueryForWorkflowsMatchingParameters, WorkflowQueryFailure, WorkflowQuerySuccess}
 import cromwell.services.metadata.WorkflowQueryKey._
-import cromwell.services.metadata.hybridcarbonite.CarboniteWorkerActor.CarboniteWorkflowComplete
+import cromwell.services.metadata.hybridcarbonite.CarboniteWorkerActor._
 import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActor.FreezeMetadata
+import cromwell.services.metadata.impl.MetadataServiceActor
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
@@ -17,8 +21,8 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
-                           serviceRegistryActor: ActorRef,
-                           ioActor: ActorRef) extends Actor with ActorLogging with GracefulShutdownHelper {
+                           override val serviceRegistryActor: ActorRef,
+                           ioActor: ActorRef) extends Actor with ActorLogging with GracefulShutdownHelper with CromwellInstrumentation {
 
   implicit val ec: ExecutionContext = context.dispatcher
 
@@ -31,27 +35,53 @@ class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
     randomizationFactor = 0.0
   )
 
-  scheduleNextCarboniting()
+  scheduleNextCarbonitingQuery()
 
+  var workflowQueryStartTime: Option[Long] = None
+  var carboniteFreezeStartTime: Option[Long] = None
 
   override def receive: Receive = {
-    case s: WorkflowQuerySuccess if s.response.results.nonEmpty => carboniteWorkflow(s.response.results.head.id)
-    case _: WorkflowQuerySuccess => scheduleNextCarboniting()
-    case f: WorkflowQueryFailure => {
+    case s: WorkflowQuerySuccess =>
+
+      s.meta match {
+        case Some(MetadataService.QueryMetadata(_, _, Some(totalRecords))) => sendGauge(CarboniteWorkflowsToCarboniteMetricPath, totalRecords.toLong, InstrumentationPrefix)
+        case _ => log.warning("Unable to write a 'workflowsToCarbonite' metric. No 'totalRecords' count was returned by the workflows query")
+      }
+
+      recordTimeSinceStartAsMetric(CarboniteWorkflowQueryTimeMetricPath, workflowQueryStartTime)
+      workflowQueryStartTime = None
+
+      if (s.response.results.nonEmpty)
+        carboniteWorkflow(s.response.results.head.id)
+      else
+        scheduleNextCarbonitingQuery()
+
+    case f: WorkflowQueryFailure =>
       log.error(f.reason, s"Error while querying workflow to carbonite, will retry.")
-      scheduleNextCarboniting()
-    }
-    case c: CarboniteWorkflowComplete => {
+      scheduleNextCarbonitingQuery()
+    case c: CarboniteWorkflowComplete =>
+
+      recordTimeSinceStartAsMetric(CarboniteFreezingTimeMetricPath, carboniteFreezeStartTime)
+      carboniteFreezeStartTime = None
+
+      c.result match {
+        case Archived => increment(CarboniteSuccessesMetricPath, InstrumentationPrefix)
+        case ArchiveFailed => increment(CarboniteFailuresMetricPath, InstrumentationPrefix)
+        case _ => log.error(s"Programmer Error! The CarboniteWorkerActor cannot convert this into a completion metric: $c")
+      }
+
       // after completion of carbonite process reset the backoff
       log.info(s"Carboniting complete for workflow ${c.workflowId}")
-      scheduleNextCarboniting(true)
-    }
+
+      // Immediately reset the timer and check for the next workflow to carbonite:
+      backOff.googleBackoff.reset()
+      findWorkflowToCarbonite()
+
     case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(carboniteFreezerActor))
     case other => log.error(s"Programmer Error! The CarboniteWorkerActor received unexpected message! ($sender sent $other})")
   }
 
-
-  def scheduleNextCarboniting(resetBackoff: Boolean = false): Unit = {
+  def scheduleNextCarbonitingQuery(resetBackoff: Boolean = false): Unit = {
     if (resetBackoff) backOff.googleBackoff.reset()
     val duration = Duration(backOff.backoffMillis, MILLISECONDS)
     context.system.scheduler.scheduleOnce(duration)(findWorkflowToCarbonite())
@@ -60,29 +90,37 @@ class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
 
 
   def findWorkflowToCarbonite(): Unit = {
-    // TODO: [CARBONITE] When carboniting we probably should publish metrics here
+    workflowQueryStartTime = Option(System.currentTimeMillis())
     serviceRegistryActor ! QueryForWorkflowsMatchingParameters(CarboniteWorkerActor.findWorkflowToCarboniteQueryParameters)
   }
 
 
   def carboniteWorkflow(workflowId: String): Unit = {
+    carboniteFreezeStartTime = Option(System.currentTimeMillis())
+
     Try(WorkflowId.fromString(workflowId)) match {
-      case Success(id: WorkflowId) => {
+      case Success(id: WorkflowId) =>
         log.info(s"Starting carboniting of workflow: $workflowId")
         carboniteFreezerActor ! FreezeMetadata(id)
-      }
-      case Failure(e) => {
+      case Failure(e) =>
         log.error(e, s"Cannot carbonite workflow $workflowId. Error while converting it to WorkflowId, will retry.")
-        scheduleNextCarboniting()
-      }
+        scheduleNextCarbonitingQuery()
     }
+  }
+
+  def recordTimeSinceStartAsMetric(path: NonEmptyList[String], startTime: Option[Long]) = startTime match {
+    case Some(timestamp) =>
+      val duration = (System.currentTimeMillis() - timestamp).millis
+      sendTiming(path, duration, InstrumentationPrefix)
+    case None =>
+      log.error(s"Programmer Error: CarboniteWorkerActor cannot record '${path.toList.mkString(":")}' metric. Start time was not set.")
   }
 }
 
 object CarboniteWorkerActor {
 
   sealed trait CarboniteWorkerMessage
-  case class CarboniteWorkflowComplete(workflowId: WorkflowId) extends CarboniteWorkerMessage
+  case class CarboniteWorkflowComplete(workflowId: WorkflowId, result: cromwell.services.metadata.MetadataArchiveStatus) extends CarboniteWorkerMessage
 
 
   val findWorkflowToCarboniteQueryParameters: Seq[(String, String)] = Seq(
@@ -98,4 +136,16 @@ object CarboniteWorkerActor {
 
   def props(carboniterConfig: HybridCarboniteConfig, serviceRegistryActor: ActorRef, ioActor: ActorRef) =
     Props(new CarboniteWorkerActor(carboniterConfig, serviceRegistryActor, ioActor))
+
+  val InstrumentationPrefix: Option[String] = InstrumentationPrefixes.ServicesPrefix
+  private val carboniteMetricsBasePath: NonEmptyList[String] = MetadataServiceActor.MetadataInstrumentationPrefix :+ "carbonite"
+
+  val CarboniteSuccessesMetricPath: NonEmptyList[String] = carboniteMetricsBasePath :+ "successful"
+  val CarboniteFailuresMetricPath: NonEmptyList[String] = carboniteMetricsBasePath :+ "failure"
+
+  val CarboniteWorkflowQueryTimeMetricPath: NonEmptyList[String] = carboniteMetricsBasePath :+ "workflowQueryTime"
+  val CarboniteFreezingTimeMetricPath: NonEmptyList[String] = carboniteMetricsBasePath :+ "freezeTime"
+
+  val CarboniteWorkflowsToCarboniteMetricPath: NonEmptyList[String] = carboniteMetricsBasePath :+ "workflowsToCarbonite"
+
 }

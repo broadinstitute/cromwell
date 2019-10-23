@@ -4,15 +4,15 @@ import java.util.UUID
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.core.Dispatcher.ApiDispatcher
+import cromwell.services.BuildMetadataResponse
 import cromwell.services.metadata.MetadataService
-import cromwell.services.metadata.MetadataService.{MetadataQueryResponse, MetadataReadAction, MetadataServiceAction, MetadataServiceResponse, WorkflowMetadataReadAction}
-import cromwell.services.metadata.impl.ReadMetadataRegulatorActor.ReadMetadataWorkerMaker
+import cromwell.services.metadata.MetadataService.{MetadataQueryResponse, MetadataReadAction, MetadataServiceAction, MetadataServiceResponse, RootAndSubworkflowLabelsLookupResponse, WorkflowMetadataReadAction}
+import cromwell.services.metadata.impl.ReadMetadataRegulatorActor.PropsMaker
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
-import cromwell.services.metadata.impl.builder.MetadataBuilderActor.MetadataBuilderActorResponse
 
 import scala.collection.mutable
 
-class ReadMetadataRegulatorActor(metadataBuilderActorProps: ReadMetadataWorkerMaker, readMetadataWorkerProps: ReadMetadataWorkerMaker) extends Actor with ActorLogging {
+class ReadMetadataRegulatorActor(metadataBuilderActorProps: PropsMaker, readMetadataWorkerProps: PropsMaker) extends Actor with ActorLogging {
   // This actor tracks all requests coming in from the API service and spins up new builders as needed to service them.
   // If the processing of an identical request is already in flight the requester will be added to a set of requesters
   // to notify when the response from the first request becomes available.
@@ -48,8 +48,8 @@ class ReadMetadataRegulatorActor(metadataBuilderActorProps: ReadMetadataWorkerMa
       }
     case serviceResponse: MetadataServiceResponse =>
       serviceResponse match {
-        case response: MetadataBuilderActorResponse => handleResponseFromMetadataWorker(response)
-        case response: MetadataQueryResponse => handleResponseFromMetadataWorker(response)
+        case response @ (_: BuildMetadataResponse | _: MetadataQueryResponse | _: RootAndSubworkflowLabelsLookupResponse) =>
+          handleResponseFromMetadataWorker(response)
       }
     case other => log.error(s"Programmer Error: Unexpected message $other received from $sender")
   }
@@ -76,10 +76,9 @@ class ReadMetadataRegulatorActor(metadataBuilderActorProps: ReadMetadataWorkerMa
 }
 
 object ReadMetadataRegulatorActor {
+  type PropsMaker = () => Props
 
-  type ReadMetadataWorkerMaker = () => Props
-
-  def props(metadataBuilderActorProps: ReadMetadataWorkerMaker, readMetadataWorkerProps: ReadMetadataWorkerMaker): Props = {
-    Props(new ReadMetadataRegulatorActor(metadataBuilderActorProps, readMetadataWorkerProps))
+  def props(singleWorkflowMetadataBuilderProps: PropsMaker, summarySearcherProps: PropsMaker): Props = {
+    Props(new ReadMetadataRegulatorActor(singleWorkflowMetadataBuilderProps, summarySearcherProps))
   }
 }

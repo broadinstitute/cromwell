@@ -14,7 +14,7 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffAct
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter.CallCacheDiffQueryCall
 import cromwell.services.metadata.MetadataService.GetMetadataAction
 import cromwell.services.metadata._
-import cromwell.services.metadata.impl.builder.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse}
+import cromwell.services.{BuiltMetadataResponse, FailedMetadataResponse}
 import spray.json.{JsArray, JsBoolean, JsNumber, JsObject, JsString, JsValue}
 
 class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[CallCacheDiffActorState, CallCacheDiffActorData] {

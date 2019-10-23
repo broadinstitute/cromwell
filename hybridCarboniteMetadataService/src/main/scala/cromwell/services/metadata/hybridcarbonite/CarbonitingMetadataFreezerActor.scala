@@ -12,7 +12,7 @@ import cromwell.services.metadata.MetadataService.GetMetadataAction
 import cromwell.services.metadata.hybridcarbonite.CarboniteWorkerActor.CarboniteWorkflowComplete
 import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActor._
 import cromwell.services.metadata.impl.MetadataDatabaseAccess
-import cromwell.services.metadata.impl.builder.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse}
+import cromwell.services.{BuiltMetadataResponse, FailedMetadataResponse}
 import cromwell.services.metadata.{MetadataArchiveStatus, MetadataQuery}
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 

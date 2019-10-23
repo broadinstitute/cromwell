@@ -31,7 +31,7 @@ import cromwell.server.CromwellShutdown
 import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse}
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice._
-import cromwell.services.metadata.impl.builder.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
+import cromwell.services._
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.WebServiceUtils
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
@@ -158,14 +158,14 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
   } ~ metadataRoutes
 
 
-  private def metadataLookupForTimingRoute(workflowId: WorkflowId): Future[MetadataBuilderActorResponse] = {
+  private def metadataLookupForTimingRoute(workflowId: WorkflowId): Future[BuildMetadataResponse] = {
     val includeKeys = NonEmptyList.of("start", "end", "executionStatus", "executionEvents", "subWorkflowMetadata")
     val readMetadataRequest = (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, Option(includeKeys), None, expandSubWorkflows = true)
 
-    serviceRegistryActor.ask(readMetadataRequest(workflowId)).mapTo[MetadataBuilderActorResponse]
+    serviceRegistryActor.ask(readMetadataRequest(workflowId)).mapTo[BuildMetadataResponse]
   }
 
-  private def completeTimingRouteResponse(metadataResponse: Future[MetadataBuilderActorResponse]) = {
+  private def completeTimingRouteResponse(metadataResponse: Future[BuildMetadataResponse]) = {
     onComplete(metadataResponse) {
       case Success(r: BuiltMetadataResponse) =>
 

@@ -19,7 +19,7 @@ import WesRouteSupport._
 import cromwell.core.abort.SuccessfulAbortResponse
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.server.CromwellShutdown
-import cromwell.services.metadata.impl.builder.MetadataBuilderActor.BuiltMetadataResponse
+import cromwell.services.BuiltMetadataResponse
 import cromwell.webservice.routes.CromwellApiService
 
 trait WesRouteSupport extends HttpInstrumentation {

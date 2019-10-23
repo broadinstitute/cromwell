@@ -20,8 +20,8 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.SubmitWorkflow
 import cromwell.engine.workflow.workflowstore.{InMemoryWorkflowStore, WorkflowStoreSubmitActor}
 import cromwell.jobstore.EmptyJobStoreActor
 import cromwell.server.CromwellRootActor
+import cromwell.services.{BuiltMetadataResponse, FailedMetadataResponse}
 import cromwell.services.metadata.MetadataService.{GetSingleWorkflowMetadataAction, GetStatus, ListenToMetadataWriteActor, WorkflowOutputs}
-import cromwell.services.metadata.impl.builder.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse}
 import cromwell.subworkflowstore.EmptySubWorkflowStoreActor
 import spray.json._
 

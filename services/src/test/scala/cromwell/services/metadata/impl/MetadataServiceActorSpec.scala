@@ -6,10 +6,9 @@ import akka.pattern._
 import akka.testkit.TestProbe
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core._
-import cromwell.services.ServicesSpec
+import cromwell.services.{BuiltMetadataResponse, ServicesSpec}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
-import cromwell.services.metadata.impl.builder.MetadataBuilderActor.BuiltMetadataResponse
 import cromwell.services.metadata.impl.MetadataServiceActorSpec._
 
 import scala.concurrent.Await

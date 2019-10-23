@@ -16,7 +16,7 @@ import cromwell.core.{WorkflowId, path => _}
 import cromwell.engine.instrumentation.HttpInstrumentation
 import cromwell.server.CromwellShutdown
 import cromwell.services.metadata.MetadataService._
-import cromwell.services.metadata.impl.builder.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
+import cromwell.services._
 import cromwell.webservice.LabelsManagerActor
 import cromwell.webservice.LabelsManagerActor._
 import cromwell.webservice.routes.CromwellApiService.{InvalidWorkflowException, UnrecognizedWorkflowException, serviceShuttingDownResponse, validateWorkflowIdInMetadata, validateWorkflowIdInMetadataSummaries}
@@ -143,11 +143,11 @@ object MetadataRouteSupport {
                                   request: WorkflowId => MetadataReadAction,
                                   serviceRegistryActor: ActorRef)
                                  (implicit timeout: Timeout,
-                                  ec: ExecutionContext): Future[MetadataBuilderActorResponse] = {
-    validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor) flatMap { w => serviceRegistryActor.ask(request(w)).mapTo[MetadataBuilderActorResponse] }
+                                  ec: ExecutionContext): Future[BuildMetadataResponse] = {
+    validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor) flatMap { w => serviceRegistryActor.ask(request(w)).mapTo[BuildMetadataResponse] }
   }
 
-  def completeMetadataBuilderResponse(response: Future[MetadataBuilderActorResponse]): Route = {
+  def completeMetadataBuilderResponse(response: Future[BuildMetadataResponse]): Route = {
     onComplete(response) {
       case Success(r: BuiltMetadataResponse) => complete(r.responseJson)
       case Success(r: FailedMetadataResponse) => r.reason.errorRequest(StatusCodes.InternalServerError)

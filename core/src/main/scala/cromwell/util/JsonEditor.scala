@@ -70,6 +70,10 @@ object JsonEditor {
     }
   }
 
+  def extractCall(json: Json, callFqn: String, index: Option[Int], attempt: Option[Int]): Json = json // ??? // FIXME
+
+  def removeSubworkflowMetadata(json: Json): Json = json // ??? // FIXME
+
   def outputs(json: Json): Json = includeJson(json, NonEmptyList.of("outputs", "id")) |> (excludeJson(_, NonEmptyList.one("calls")))
 
   def logs(json: Json): Json = includeJson(json, NonEmptyList.of("stdout", "stderr", "backendLogs", "id"))

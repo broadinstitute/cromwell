@@ -2,9 +2,9 @@ package cromwell.services.metadata.hybridcarbonite
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
+import cromwell.services.FailedMetadataResponse
 import cromwell.services.ServiceRegistryActor.{IoActorRef, NoIoActorRefAvailable, RequestIoActorRef}
 import cromwell.services.metadata.MetadataService.{MetadataReadAction, MetadataWriteAction, MetadataWriteFailure}
-import cromwell.services.metadata.hybridcarbonite.CarbonitedMetadataThawingActor.ThawCarboniteFailed
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import mouse.boolean._
@@ -30,7 +30,7 @@ class CarboniteMetadataServiceActor(carboniteConfig: HybridCarboniteConfig, serv
           val worker = context.actorOf(thawingActorProps(ioActor))
           worker forward read
         case None =>
-          sender ! ThawCarboniteFailed(new Exception("Cannot create CarbonitedMetadataThawingActor: no IoActor reference available"))
+          sender ! FailedMetadataResponse(read, new Exception("Cannot create CarbonitedMetadataThawingActor: no IoActor reference available"))
       }
     case write: MetadataWriteAction =>
       val error = new UnsupportedOperationException(s"Programmer Error! Carboniter Worker should never be sent write requests (but got $write from $sender)")

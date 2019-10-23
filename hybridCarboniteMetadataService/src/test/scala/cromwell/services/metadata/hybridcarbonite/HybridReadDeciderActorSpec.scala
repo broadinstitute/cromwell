@@ -3,11 +3,11 @@ package cromwell.services.metadata.hybridcarbonite
 import akka.actor.ActorSystem
 import akka.testkit.{TestFSMRef, TestProbe}
 import cromwell.core.{TestKitSuite, WorkflowId}
+import cromwell.services.BuiltMetadataResponse
 import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataArchiveStatus._
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.hybridcarbonite.HybridReadDeciderActor._
-import cromwell.services.metadata.impl.builder.MetadataBuilderActor.BuiltMetadataResponse
 import org.scalatest.{FlatSpecLike, Matchers}
 import spray.json._
 
@@ -35,7 +35,7 @@ class HybridReadDeciderActorSpec extends TestKitSuite("HybridReadDeciderActorSpe
 
     hrda.stateName should be(Pending)
 
-    val incomingQuery = GetLabels(sampleWorkflowId)
+    val incomingQuery = WorkflowOutputs(sampleWorkflowId)
 
     // The HybridReadDeciderActor gets a workflow-specific query and looks up its archive status:
     client.send(hrda, incomingQuery)
@@ -52,7 +52,7 @@ class HybridReadDeciderActorSpec extends TestKitSuite("HybridReadDeciderActorSpe
     // Send a basic response:
     val responseJsonString =
       s"""{
-        |  "labels": [],
+        |  "outputs": {},
         |  "id": "${sampleWorkflowId.toString}"
         |}""".stripMargin
     val responseJson = responseJsonString.parseJson.asJsObject
@@ -68,7 +68,7 @@ class HybridReadDeciderActorSpec extends TestKitSuite("HybridReadDeciderActorSpe
     carboniteMetadataActor.msgAvailable should be(false)
   }
 
-  it should "go straight to the classic metadata service for archive status for multi-workflow queries" in {
+  it should "go straight to the classic metadata service for summary table searches" in {
 
     val client = TestProbe("client")
     val classicMetadataActor = TestProbe("classic")

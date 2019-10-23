@@ -73,6 +73,7 @@ class CarbonitingMetadataFreezerActor(carboniterConfig: HybridCarboniteConfig,
     case Event(DatabaseUpdateCompleted(Success(_)), UpdatingDatabaseData(workflowId, result)) =>
       // All set; send 'complete' to CarboniteWorkerActor; wait for next workflow to carbonite
       carboniteWorkerActor ! CarboniteWorkflowComplete(workflowId, result)
+      // Prepare for the next work request by reverting to the initial FSM state (and data):
       goto(Pending) using NoData
     case Event(DatabaseUpdateCompleted(Failure(reason)), UpdatingDatabaseData(workflowId, freezingResult)) =>
       log.error(reason, s"Unable to update workflow ID $workflowId's METADATA_ARCHIVE_STATUS to $freezingResult. Will try again in 1 minute")

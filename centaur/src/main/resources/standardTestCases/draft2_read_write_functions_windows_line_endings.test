@@ -2,7 +2,7 @@ name: draft2_read_functions_windows_line_endings
 testFormat: workflowsuccess
 workflowType: WDL
 workflowTypeVersion: draft-2
-tags: [localdockertest, "draft-2"]
+tags: ["draft-2"]
 
 files {
   workflow: wdl_draft2/read_functions_windows_line_endings/read_functions_windows_line_endings.wdl

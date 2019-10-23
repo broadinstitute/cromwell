@@ -2,7 +2,7 @@ name: biscayne_read_functions_windows_line_endings
 testFormat: workflowsuccess
 workflowType: WDL
 workflowTypeVersion: biscayne
-tags: [localdockertest, "wdl_biscayne"]
+tags: ["wdl_biscayne"]
 
 files {
   workflow: wdl_biscayne/read_functions_windows_line_endings/read_functions_windows_line_endings.wdl

@@ -56,8 +56,14 @@ sealed trait AwsAuthMode {
     ()
   }
 
+  /**
+   * The name of the auth mode
+   */
   def name: String
 
+  /**
+   * Access a credentials provider for this auth mode
+   */
   def provider(): AwsCredentialsProvider
 
   /**
@@ -66,29 +72,32 @@ sealed trait AwsAuthMode {
     * All traits in this file are sealed, all classes final, meaning things
     * like Mockito or other java/scala overrides cannot work.
     */
-   private[auth] var credentialValidation: (AwsCredentials, Option[String]) => Unit =
-     (credentials: AwsCredentials, region: Option[String]) => {
+   private[auth] var credentialValidation: (AwsCredentialsProvider, Option[String]) => Unit =
+     (provider: AwsCredentialsProvider, region: Option[String]) => {
        val builder = StsClient.builder
 
        //If the region argument exists in config, set it in the builder.
-       //Otherwise it is left unset and the AwsCredential builder will look in various places to supply,
-       //ultimately using US-EAST-1 if none is found
+       //Otherwise it is left unset and the AwsCredentialsProvider will be responsible for sourcing a region
        region.map(Region.of).foreach(builder.region)
 
-       builder.credentialsProvider(StaticCredentialsProvider.create(credentials))
+       // make an essentially no-op call just to assure ourselves the credentials from our provider are valid
+       builder.credentialsProvider(provider)
          .build
          .getCallerIdentity(GetCallerIdentityRequest.builder.build)
        ()
      }
 
-  protected def validateCredential(credential: AwsCredentials, region: Option[String]) = {
-    Try(credentialValidation(credential, region)) match {
-      case Failure(ex) => throw new RuntimeException(s"Credentials are invalid: ${ex.getMessage}", ex)
-      case Success(_) => credential
+  protected def validateCredential(provider: AwsCredentialsProvider, region: Option[String]) = {
+    Try(credentialValidation(provider, region)) match {
+      case Failure(ex) => throw new RuntimeException(s"Credentials produced by the AWS provider ${name} are invalid: ${ex.getMessage}", ex)
+      case Success(_) => provider
     }
   }
 }
 
+/**
+ * A mock AwsAuthMode using the anonymous credentials provider.
+ */
 case object MockAuthMode extends AwsAuthMode {
   override val name = "no_auth"
 
@@ -111,10 +120,11 @@ final case class CustomKeyMode(override val name: String,
                                     region: Option[String]
                                     ) extends AwsAuthMode {
   private lazy val _provider: AwsCredentialsProvider = {
-    // Validate credentials synchronously here, without retry.
-    // It's very unlikely to fail as it should not happen more than a few times
-    // (one for the engine and for each backend using it) per Cromwell instance.
-    StaticCredentialsProvider.create(validateCredential(AwsBasicCredentials.create(accessKey, secretKey), region))
+    // make a provider locked to the given access and secret
+    val p = StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey))
+
+    // immediately validate the credentials that the provider will generate before returning the provider
+    validateCredential(p, region)
   }
 
   override def provider(): AwsCredentialsProvider = _provider
@@ -127,10 +137,13 @@ final case class CustomKeyMode(override val name: String,
  * @param region an optional AWS region
  */
 final case class DefaultMode(override val name: String, region: Option[String]) extends AwsAuthMode {
-  // The DefaultCredentialsProvider will look through a chain of standard AWS providers as
-  // per the normal behaviour of aws-cli etc
   private lazy val _provider: AwsCredentialsProvider = {
-    DefaultCredentialsProvider.create()
+    // The DefaultCredentialsProvider will look through a chain of standard AWS providers as
+    // per the normal behaviour of aws-cli etc
+    val p = DefaultCredentialsProvider.create()
+
+    // immediately validate the credentials that the provider will generate before returning the provider
+    validateCredential(p, region)
   }
 
   override def provider(): AwsCredentialsProvider = _provider
@@ -152,7 +165,7 @@ final case class AssumeRoleMode(override val name: String,
                           region: Option[String]
                           ) extends AwsAuthMode {
 
-  private lazy val _provider: StsAssumeRoleCredentialsProvider = {
+  private lazy val _provider: AwsCredentialsProvider = {
     // we need to perform operations on STS using the credentials provided from the baseAuthName
     val stsBuilder = StsClient.builder
     region.foreach(str => stsBuilder.region(Region.of(str)))
@@ -168,11 +181,14 @@ final case class AssumeRoleMode(override val name: String,
       .roleSessionName("cromwell")
     if (! externalId.isEmpty) assumeRoleBuilder.externalId(externalId)
 
-    // the returned provider will handle refreshing the assume-role creds when needed
-    StsAssumeRoleCredentialsProvider.builder
+    // this provider is one that will handle refreshing the assume-role creds when needed
+    val p = StsAssumeRoleCredentialsProvider.builder
       .stsClient(stsBuilder.build())
       .refreshRequest(assumeRoleBuilder.build())
       .build()
+
+    // immediately validate the credentials that the provider will generate before returning the provider
+    validateCredential(p, region)
   }
 
   // we use the lazily create _provider as providers that support refreshing token will sometimes

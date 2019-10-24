@@ -101,6 +101,7 @@ class NioFlow(parallelism: Int,
       read.file.limitFileContent(read.options.maxBytes, read.options.failOnOverflow),
       StandardCharsets.UTF_8
     )
+      .replaceAll("\\r\\n", "\\\n")
   }
 
   private def size(size: IoSizeCommand) = IO {

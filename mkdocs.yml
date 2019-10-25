@@ -78,6 +78,9 @@ pages:
     - Security: developers/Security.md
     - Contribute to docs: developers/Contribute.md
     - CWL Parsing: developers/CwlParsing.md
+    - Bitesize Design Docs:
+      - Workflow Execution:
+        - Main Actors: developers/bitesize/workflowExecution/majorActors.md
 
 theme: readthedocs
 

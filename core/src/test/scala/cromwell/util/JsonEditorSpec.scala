@@ -7,6 +7,8 @@ import io.circe.parser._
 import io.circe.{HCursor, Json, ParsingFailure}
 import org.scalatest.{FlatSpec, Matchers}
 
+import scala.io.Source
+
 class JsonEditorSpec extends FlatSpec with Matchers{
   import JsonEditorSpec._
 
@@ -69,6 +71,20 @@ class JsonEditorSpec extends FlatSpec with Matchers{
     val newJson = realJson.map(json => updateLabels(json, Map(json.rootWorkflowId.get -> Map(("new","label"))))).right.get
     val newLabels = newJson.hcursor.downField("labels").keys.get
     assert(newLabels.size  === 2)
+  }
+
+  it should "replace subworkflow metadata with subworkflow id" in {
+    val metadataWithSubworkflows =
+      parse(Source
+        .fromInputStream(Thread
+          .currentThread
+          .getContextClassLoader
+          .getResourceAsStream("metadata_with_subworkflows.json")
+        ).mkString)
+    val newJson = metadataWithSubworkflows.map(json => replaceSubworkflowMetadataWithId(json)).right.get
+    val keys = newJson.hcursor.downField("calls").downField("wf.wf").downArray.keys
+    assert(keys.exists(_.exists(_ == "subWorkflowMetadata")) === false)
+    assert(keys.exists(_.exists(_ == "subWorkflowId")) === true)
   }
 
   it should "remove subworkflow info" in {

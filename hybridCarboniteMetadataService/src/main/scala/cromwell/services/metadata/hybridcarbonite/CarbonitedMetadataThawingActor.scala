@@ -5,9 +5,9 @@ import akka.pattern.pipe
 import cats.data.NonEmptyList
 import cromwell.core.WorkflowId
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
+import cromwell.services.metadata.MetadataQuery
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.hybridcarbonite.CarbonitedMetadataThawingActor._
-import cromwell.services.metadata.{MetadataQuery, MetadataQueryJobKey}
 import cromwell.services.{BuiltMetadataResponse, FailedMetadataResponse}
 import cromwell.util.JsonEditor
 import io.circe.parser._
@@ -79,7 +79,7 @@ final class CarbonitedMetadataThawingActor(carboniterConfig: HybridCarboniteConf
       data.requester ! FailedMetadataResponse(data.action, failure)
       stop()
     case other =>
-      log.error(s"Programmer Error: Unexpected message to ${self.path.name}: $other")
+      log.error(s"Programmer Error: Unexpected message to ${getClass.getSimpleName} ${self.path.name}: $other")
       stay()
   }
 }
@@ -113,15 +113,12 @@ object CarbonitedMetadataThawingActor {
         val intermediate = get.key match {
           case MetadataQuery(_, None, None, None, None, _) => json
           case MetadataQuery(_, None, Some(key), None, None, _) => JsonEditor.includeJson(json, NonEmptyList.of(key))
-          case MetadataQuery(_, Some(jobKey), None, None, None, _) => JsonEditor.extractCall(json, jobKey.callFqn, jobKey.index, jobKey.attempt)
-          case MetadataQuery(_, Some(MetadataQueryJobKey(callFqn, index, attempt)), Some(key), None, None, _) =>
-            val callJson = JsonEditor.extractCall(json, callFqn, index, attempt)
-            JsonEditor.includeJson(callJson, NonEmptyList.of(key))
-          case MetadataQuery(_, None, None, includeKeys, excludeKeys, _) =>
-            JsonEditor.includeExcludeJson(json, includeKeys, excludeKeys)
-          case MetadataQuery(_, Some(MetadataQueryJobKey(callFqn, index, attempt)), None, includeKeys, excludeKeys, _) =>
-            val callJson = JsonEditor.extractCall(json, callFqn, index, attempt)
-            JsonEditor.includeExcludeJson(callJson, includeKeys, excludeKeys)
+          case MetadataQuery(_, None, None, includeKeys, excludeKeys, _) => JsonEditor.includeExcludeJson(json, includeKeys, excludeKeys)
+          // The following three don't bother with exclusions or inclusions since they are only used internally
+          // and the existing client code is robust to superfluous data.
+          case MetadataQuery(_, Some(_), None, None, None, _) => json
+          case MetadataQuery(_, Some(_), Some(_), None, None, _) => json
+          case MetadataQuery(_, Some(_), None, _, _, _) => json
           case wrong => throw new RuntimeException(s"Programmer Error: Invalid MetadataQuery: $wrong")
         }
         // For carbonited metadata, "expanded" subworkflows translates to not deleting subworkflows out of the root workflow that already

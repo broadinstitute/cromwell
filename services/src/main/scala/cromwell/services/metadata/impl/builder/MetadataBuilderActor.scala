@@ -85,7 +85,7 @@ object MetadataBuilderActor {
      *    ...
      * )
      * Note that groupBy will preserve the ordering of the events in the Seq, which means that as long as the DB sorts them by timestamp, we can always assume the last one is the newest one.
-     * This is guaranteed by the groupBy invariant and the fact that filter preservers the ordering. (See scala doc for groupBy and filter)
+     * This is guaranteed by the groupBy invariant and the fact that filter preserves the ordering. (See scala doc for groupBy and filter)
      */
     val callsGroupedByFQN = callLevel groupBy { _.key.jobKey.get.callFqn }
     /*

@@ -129,7 +129,7 @@ class AwsBatchJobSpec extends TestKitSuite with FlatSpecLike with Matchers with 
     val configuration = new AwsBatchConfiguration(AwsBatchBackendConfigurationDescriptor)
     val workflowPaths = AwsBatchWorkflowPaths(
       workFlowDescriptor,
-      AnonymousCredentialsProvider.create.resolveCredentials(),
+      AnonymousCredentialsProvider.create,
       configuration
     )
 

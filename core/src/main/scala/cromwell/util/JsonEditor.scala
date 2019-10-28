@@ -78,7 +78,7 @@ object JsonEditor {
   def logs(json: Json): Json = includeJson(json, NonEmptyList.of("stdout", "stderr", "backendLogs", "id"))
 
   implicit class EnhancedJson(val json: Json) extends AnyVal {
-    def rootWorkflowId: Option[WorkflowId] = {
+    def workflowId: Option[WorkflowId] = {
       for {
         o <- json.asObject
         id <- o.kleisli("id")
@@ -88,18 +88,18 @@ object JsonEditor {
   }
 
   /**
-    * Look for an optional JsonObject by its' key
+    * Look for an optional JsonObject by its key
     * @param workflowJson - workflow Json to look in
     * @param key - key to look for
     * @return - optional tuple of workflow JsonObject and found element JsonObject
     */
   private def extractJsonObjectByKey(workflowJson: Json, key: String): Option[(JsonObject, JsonObject)] =
     extractJsonByKey(workflowJson, key) flatMap {
-      case (jsonObj, json) => json.asObject.flatMap(jo => Some((jsonObj, jo)))
+      case (jsonObj, json) => json.asObject.flatMap(jo => Option((jsonObj, jo)))
     }
 
   /**
-    * Look for an optional JsonObject by its' key
+    * Look for an optional JsonObject by its key
     * @param workflowJson - workflow Json to look in
     * @param key - key to look for
     * @return - optional tuple of workflow JsonObject and found element Json
@@ -127,7 +127,7 @@ object JsonEditor {
     }
 
     def doUpdateWorkflow(workflowJson: Json): Json = {
-      val id: String = workflowJson.rootWorkflowId.
+      val id: String = workflowJson.workflowId.
         getOrElse(throw new RuntimeException(s"did not find workflow id in ${workflowJson.printWith(Printer.spaces2).elided(100)}")).toString
 
       val workflowWithUpdatedCalls = updateWorkflowCallsJson(workflowJson, updateLabelsInCalls)
@@ -144,7 +144,7 @@ object JsonEditor {
   }
 
   /**
-    * Update workflow json, replacing subWorkflowMetadata elements of root workflow's "calls" object by subworkflowId
+    * Update workflow json, replacing "subWorkflowMetadata" elements of root workflow's "calls" object by "subworkflowId"
     *
     * @param workflowJson json blob
     * @return updated json
@@ -152,7 +152,7 @@ object JsonEditor {
   def replaceSubworkflowMetadataWithId(workflowJson: Json): Json = {
     def replaceSubworkflowMetadataObjectWithSubworkflowIdInCalls(callObject: JsonObject, subworkflowJson: Json): Json = {
       val callObjectWithRemovedSubworkflow = callObject.remove(subWorkflowMetadataKey)
-      val resultingCallObject = subworkflowJson.rootWorkflowId match {
+      val resultingCallObject = subworkflowJson.workflowId match {
         case None => callObjectWithRemovedSubworkflow
         case Some(subworkflowId) =>
           callObjectWithRemovedSubworkflow.add(subWorkflowIdKey, Json.fromString(subworkflowId.toString))

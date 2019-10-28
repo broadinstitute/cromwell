@@ -75,7 +75,7 @@ object JsonEditorBenchmark extends Bench[Double] {
         exec.benchRuns -> 1
       ) in { sz =>
         jsonTree(sz).map { json =>
-          updateLabels(json, Map(json.rootWorkflowId.get -> Map(("new", "label"))))
+          updateLabels(json, Map(json.workflowId.get -> Map(("new", "label"))))
         }.right.get // traversal
       }
     }

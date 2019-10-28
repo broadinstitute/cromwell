@@ -78,12 +78,17 @@ object JsonEditor {
   def logs(json: Json): Json = includeJson(json, NonEmptyList.of("stdout", "stderr", "backendLogs", "id"))
 
   implicit class EnhancedJson(val json: Json) extends AnyVal {
-    def workflowId: Option[WorkflowId] = {
-      for {
+    def workflowId: Either[Exception, WorkflowId] = {
+      val workflowIdOpt = for {
         o <- json.asObject
         id <- o.kleisli("id")
         s <- id.asString
       } yield WorkflowId.fromString(s)
+
+      workflowIdOpt match {
+        case Some(workflowId) => Right(workflowId)
+        case None => Left(new RuntimeException(s"did not find workflow id in ${json.printWith(Printer.spaces2).elided(100)}"))
+      }
     }
   }
 
@@ -127,8 +132,10 @@ object JsonEditor {
     }
 
     def doUpdateWorkflow(workflowJson: Json): Json = {
-      val id: String = workflowJson.workflowId.
-        getOrElse(throw new RuntimeException(s"did not find workflow id in ${workflowJson.printWith(Printer.spaces2).elided(100)}")).toString
+      val id: String = workflowJson.workflowId match {
+        case Right(id) => id.toString
+        case Left(e) => throw e
+      }
 
       val workflowWithUpdatedCalls = updateWorkflowCallsJson(workflowJson, updateLabelsInCalls)
 
@@ -151,13 +158,12 @@ object JsonEditor {
     */
   def replaceSubworkflowMetadataWithId(workflowJson: Json): Json = {
     def replaceSubworkflowMetadataObjectWithSubworkflowIdInCalls(callObject: JsonObject, subworkflowJson: Json): Json = {
-      val callObjectWithRemovedSubworkflow = callObject.remove(subWorkflowMetadataKey)
-      val resultingCallObject = subworkflowJson.workflowId match {
-        case None => callObjectWithRemovedSubworkflow
-        case Some(subworkflowId) =>
-          callObjectWithRemovedSubworkflow.add(subWorkflowIdKey, Json.fromString(subworkflowId.toString))
+      val subWorkflowId = subworkflowJson.workflowId match {
+        case Right(id) => id.toString
+        case Left(e) => throw e
       }
-      Json.fromJsonObject(resultingCallObject)
+      val updatedCallObj = callObject.remove(subWorkflowMetadataKey).add(subWorkflowIdKey, Json.fromString(subWorkflowId))
+      Json.fromJsonObject(updatedCallObj)
     }
 
     updateWorkflowCallsJson(workflowJson, replaceSubworkflowMetadataObjectWithSubworkflowIdInCalls)

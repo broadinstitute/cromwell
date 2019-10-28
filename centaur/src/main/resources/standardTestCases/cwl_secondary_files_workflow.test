@@ -6,6 +6,7 @@ workflowRoot: cwl_secondary_files_workflow
 backendsMode: "any"
 backends: [Local, LocalNoDocker]
 tags: [localdockertest]
+skipDescribeEndpointValidation: true
 
 files {
   workflow: cwl_secondary_files_workflow/cwl_secondary_files_workflow.cwl

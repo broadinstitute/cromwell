@@ -16,7 +16,7 @@ import cromwell.core.{WorkflowId, path => _}
 import cromwell.engine.instrumentation.HttpInstrumentation
 import cromwell.server.CromwellShutdown
 import cromwell.services.metadata.MetadataService._
-import cromwell.services.metadata.impl.builder.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
+import cromwell.services._
 import cromwell.webservice.LabelsManagerActor
 import cromwell.webservice.LabelsManagerActor._
 import cromwell.webservice.routes.CromwellApiService.{InvalidWorkflowException, UnrecognizedWorkflowException, serviceShuttingDownResponse, validateWorkflowIdInMetadata, validateWorkflowIdInMetadataSummaries}
@@ -127,7 +127,7 @@ trait MetadataRouteSupport extends HttpInstrumentation {
 
 object MetadataRouteSupport {
   def metadataLookup(possibleWorkflowId: String,
-                     request: WorkflowId => MetadataReadAction,
+                     request: WorkflowId => BuildMetadataJsonAction,
                      serviceRegistryActor: ActorRef)
                     (implicit timeout: Timeout,
                      ec: ExecutionContext): Route = {
@@ -140,17 +140,17 @@ object MetadataRouteSupport {
   }
 
   def metadataBuilderActorRequest(possibleWorkflowId: String,
-                                  request: WorkflowId => MetadataReadAction,
+                                  request: WorkflowId => BuildMetadataJsonAction,
                                   serviceRegistryActor: ActorRef)
                                  (implicit timeout: Timeout,
-                                  ec: ExecutionContext): Future[MetadataBuilderActorResponse] = {
-    validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor) flatMap { w => serviceRegistryActor.ask(request(w)).mapTo[MetadataBuilderActorResponse] }
+                                  ec: ExecutionContext): Future[MetadataJsonResponse] = {
+    validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor) flatMap { w => serviceRegistryActor.ask(request(w)).mapTo[MetadataJsonResponse] }
   }
 
-  def completeMetadataBuilderResponse(response: Future[MetadataBuilderActorResponse]): Route = {
+  def completeMetadataBuilderResponse(response: Future[MetadataJsonResponse]): Route = {
     onComplete(response) {
-      case Success(r: BuiltMetadataResponse) => complete(r.responseJson)
-      case Success(r: FailedMetadataResponse) => r.reason.errorRequest(StatusCodes.InternalServerError)
+      case Success(r: SuccessfulMetadataJsonResponse) => complete(r.responseJson)
+      case Success(r: FailedMetadataJsonResponse) => r.reason.errorRequest(StatusCodes.InternalServerError)
       case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
       case Failure(e: UnrecognizedWorkflowException) => e.failRequest(StatusCodes.NotFound)
       case Failure(e: InvalidWorkflowException) => e.failRequest(StatusCodes.BadRequest)

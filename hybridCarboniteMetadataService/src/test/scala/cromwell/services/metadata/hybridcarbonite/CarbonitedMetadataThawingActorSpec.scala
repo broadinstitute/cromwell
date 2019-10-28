@@ -1,31 +1,33 @@
 package cromwell.services.metadata.hybridcarbonite
 
-import java.util.UUID
-
 import akka.stream.ActorMaterializer
 import akka.testkit.{TestActorRef, TestProbe}
+import cats.data.NonEmptyList
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import com.typesafe.config.ConfigFactory
 import common.validation.Validation._
 import cromwell.core.io.IoContentAsStringCommand
 import cromwell.core.io.IoPromiseProxyActor.IoCommandWithPromise
-import cromwell.core.{RootWorkflowId, TestKitSuite, WorkflowId}
-import cromwell.services.metadata.MetadataService.{GetRootAndSubworkflowLabels, RootAndSubworkflowLabelsLookupResponse}
-import cromwell.services.metadata.hybridcarbonite.CarbonitedMetadataThawingActor.{ThawCarboniteFailed, ThawCarboniteSucceeded, ThawCarbonitedMetadata}
+import cromwell.core.{TestKitSuite, WorkflowId}
+import cromwell.services.metadata.MetadataQuery
+import cromwell.services.metadata.MetadataService.{GetLogs, GetMetadataAction, GetRootAndSubworkflowLabels, RootAndSubworkflowLabelsLookupResponse, WorkflowOutputs}
 import cromwell.services.metadata.hybridcarbonite.CarbonitedMetadataThawingActorSpec.{workflowId, _}
+import cromwell.services.{FailedMetadataJsonResponse, SuccessfulMetadataJsonResponse}
 import io.circe.parser._
-import net.thisptr.jackson.jq.{BuiltinFunctionLoader, JsonQuery, Output, Scope, Versions}
+import net.thisptr.jackson.jq._
+import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, Matchers}
 
+import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.io.Source
 import scala.language.postfixOps
-import scala.collection.JavaConverters._
+import cromwell.services.metadata.hybridcarbonite.CarbonitedMetadataThawingActor._
 
 
-class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadataThawingActorSpec") with FlatSpecLike with Matchers {
+class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadataThawingActorSpec") with FlatSpecLike with Matchers with TableDrivenPropertyChecks {
 
   implicit val ec: ExecutionContext = system.dispatcher
 
@@ -46,10 +48,16 @@ class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadat
   it should "receive a message from GCS" in {
 
     val clientProbe = TestProbe()
-
     val actorUnderTest = TestActorRef(new CarbonitedMetadataThawingActor(carboniterConfig, serviceRegistryActor.ref, ioActor.ref), "ThawingActor")
-
-    clientProbe.send(actorUnderTest, ThawCarbonitedMetadata(workflowId))
+    clientProbe.send(actorUnderTest, GetMetadataAction(
+      MetadataQuery(
+        workflowId = workflowId,
+        jobKey = None,
+        key = None,
+        includeKeysOption = None,
+        excludeKeysOption = None,
+        expandSubWorkflows = true
+      )))
 
     serviceRegistryActor.expectMsg(GetRootAndSubworkflowLabels(workflowId))
     serviceRegistryActor.send(actorUnderTest, RootAndSubworkflowLabelsLookupResponse(workflowId, Map(WorkflowId(workflowId.id) -> Map("bob loblaw" -> "law blog"))))
@@ -60,14 +68,14 @@ class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadat
     }
 
     clientProbe.expectMsgPF(max = 5.seconds) {
-      case ThawCarboniteSucceeded(str) => parse(str) should be(parse(augmentedMetadataSample))
-      case ThawCarboniteFailed(reason) => fail(reason)
+      case SuccessfulMetadataJsonResponse(_, jsObject) => parse(jsObject.compactPrint) should be(parse(augmentedMetadataSample))
+      case FailedMetadataJsonResponse(_, reason) => fail(reason)
     }
   }
 
   it should "add labels to subworkflows" in {
 
-    val rootWorkflowId = RootWorkflowId(UUID.fromString("e0c918bb-695e-458a-ab37-be33db7bf721"))
+    val rootWorkflowId = WorkflowId.fromString("e0c918bb-695e-458a-ab37-be33db7bf721")
     // The subworkflow IDs in the order they appear in the metadata JSON.
     val subWorkflowIds = List(
       "be186a2f-b52c-4c6d-96dd-b9a7f16ac526",
@@ -85,13 +93,22 @@ class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadat
       "0571a73e-1485-4b28-9320-e87036685d61",
       "d9ce3320-727f-42f5-a946-e11177ebd7dd") map WorkflowId.fromString
 
-    // The root workflow ID has to be a WorkflowId and not a RootWorkflowId in this Map.
-    val labelsForUpdate: Map[WorkflowId, Map[String, String]] = (WorkflowId.fromString(rootWorkflowId.toString) :: subWorkflowIds) map { id => id -> Map("short_id" -> id.shortString) } toMap
+    val labelsForUpdate: Map[WorkflowId, Map[String, String]] = (rootWorkflowId :: subWorkflowIds) map { id => id -> Map("short_id" -> id.shortString) } toMap
+
+    val action = GetMetadataAction(
+      MetadataQuery(
+        workflowId = rootWorkflowId,
+        jobKey = None,
+        key = None,
+        includeKeysOption = None,
+        excludeKeysOption = None,
+        expandSubWorkflows = true
+      ))
 
     val clientProbe = TestProbe()
     val actorUnderTest = TestActorRef(new CarbonitedMetadataThawingActor(carboniterConfig, serviceRegistryActor.ref, ioActor.ref), "ThawingActor")
 
-    clientProbe.send(actorUnderTest, ThawCarbonitedMetadata(rootWorkflowId))
+    clientProbe.send(actorUnderTest, action)
     serviceRegistryActor.expectMsg(GetRootAndSubworkflowLabels(rootWorkflowId))
     serviceRegistryActor.send(actorUnderTest, RootAndSubworkflowLabelsLookupResponse(rootWorkflowId, labelsForUpdate))
 
@@ -121,11 +138,11 @@ class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadat
     }
 
     clientProbe.expectMsgPF(max = 5.seconds) {
-      case ThawCarboniteSucceeded(metadataAfterThawing) =>
+      case SuccessfulMetadataJsonResponse(_, metadataAfterThawing) =>
         val rootNodesAfterUpdate = new ArrayBuffer[JsonNode]()
         val rootOutputAfterUpdate = outputBuilder(rootNodesAfterUpdate)
 
-        val jsonNodeAfterUpdate = objectMapper.readTree(metadataAfterThawing)
+        val jsonNodeAfterUpdate = objectMapper.readTree(metadataAfterThawing.compactPrint)
         rootWorkflowLabelsQuery.apply(scope, jsonNodeAfterUpdate, rootOutputAfterUpdate)
         val actualRootLabelsAfterUpdate = rootNodesAfterUpdate.head.fields().asScala.toList map { e => e.getKey -> e.getValue.textValue() } toMap
         val expectedRootLabelsAfterUpdate = Map(
@@ -144,13 +161,35 @@ class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadat
         val expected = subWorkflowIds map { _.shortString }
         actual shouldEqual expected
 
-      case ThawCarboniteFailed(reason) => fail(reason)
+      case FailedMetadataJsonResponse(_, reason) => fail(reason)
+    }
+  }
+
+  it should "determine if WorkflowMetadataReadAction messages require labels correctly" in {
+    val workflowId = WorkflowId.randomId()
+    val table = Table(("message", "requires labels?"),
+      (GetLogs(workflowId), false),
+      (WorkflowOutputs(workflowId), false),
+      (GetMetadataAction(MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = true)), true),
+      (GetMetadataAction(MetadataQuery(workflowId, None, key = Option("randomKey"), None, None, expandSubWorkflows = true)), false),
+      (GetMetadataAction(MetadataQuery(workflowId, None, key = Option("labels"), None, None, expandSubWorkflows = true)), true),
+      (GetMetadataAction(MetadataQuery(workflowId, None, None, includeKeysOption = Option(NonEmptyList.of("randomKey")), None, expandSubWorkflows = true)), false),
+      (GetMetadataAction(MetadataQuery(workflowId, None, None, includeKeysOption = Option(NonEmptyList.of("randomKey")), excludeKeysOption = Option(NonEmptyList.of("whatever")), expandSubWorkflows = true)), false),
+      (GetMetadataAction(MetadataQuery(workflowId, None, None, includeKeysOption = Option(NonEmptyList.of("labels")), excludeKeysOption = Option(NonEmptyList.of("whatever")), expandSubWorkflows = true)), true),
+      (GetMetadataAction(MetadataQuery(workflowId, None, None, includeKeysOption = Option(NonEmptyList.of("labels")), excludeKeysOption = Option(NonEmptyList.of("labels")), expandSubWorkflows = true)), false),
+      (GetMetadataAction(MetadataQuery(workflowId, None, None, includeKeysOption = Option(NonEmptyList.of("randomKey")), excludeKeysOption = Option(NonEmptyList.of("labels")), expandSubWorkflows = true)), false),
+      (GetMetadataAction(MetadataQuery(workflowId, None, None, None, excludeKeysOption = Option(NonEmptyList.of("whatever")), expandSubWorkflows = true)), true),
+      (GetMetadataAction(MetadataQuery(workflowId, None, None, None, excludeKeysOption = Option(NonEmptyList.of("labels")), expandSubWorkflows = true)), false),
+    )
+
+    forAll(table) { case (message, expectedRequiresLabels) =>
+      message.requiresLabels shouldEqual expectedRequiresLabels
     }
   }
 }
 
 object CarbonitedMetadataThawingActorSpec {
-  val workflowId = RootWorkflowId(UUID.fromString("2ce544a0-4c0d-4cc9-8a0b-b412bb1e5f82"))
+  val workflowId = WorkflowId.fromString("2ce544a0-4c0d-4cc9-8a0b-b412bb1e5f82")
 
   val rawMetadataSample = sampleMetadataContent("")
   val augmentedMetadataSample = sampleMetadataContent("""

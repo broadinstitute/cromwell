@@ -27,7 +27,7 @@ import cromwell.services.ServiceRegistryActor
 import cromwell.services.metadata.MetadataService._
 import cromwell.subworkflowstore.EmptySubWorkflowStoreActor
 import cromwell.util.SampleWdl
-import cromwell.services.metadata.impl.builder.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
+import cromwell.services._
 import org.scalactic.Equality
 import org.scalatest._
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
@@ -37,6 +37,7 @@ import wom.core.FullyQualifiedName
 import wom.types._
 import wom.values._
 
+import scala.annotation.tailrec
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
@@ -269,6 +270,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
 
   // Allow to use shouldEqual between 2 WdlTypes while acknowledging for edge cases
   implicit val wdlTypeSoftEquality = new Equality[WomType] {
+    @tailrec
     override def areEqual(a: WomType, b: Any): Boolean = (a, b) match {
       case (WomStringType | WomSingleFileType, WomSingleFileType | WomStringType) => true
       case (arr1: WomArrayType, arr2: WomArrayType) => areEqual(arr1.memberType, arr2.memberType)
@@ -375,7 +377,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
 
   private def getWorkflowState(workflowId: WorkflowId, serviceRegistryActor: ActorRef)(implicit ec: ExecutionContext): WorkflowState = {
     val statusResponse = serviceRegistryActor.ask(GetStatus(workflowId))(TimeoutDuration).collect {
-      case BuiltMetadataResponse(_, jsObject) => WorkflowState.withName(jsObject.fields("status").asInstanceOf[JsString].value)
+      case SuccessfulMetadataJsonResponse(_, jsObject) => WorkflowState.withName(jsObject.fields("status").asInstanceOf[JsString].value)
       case f => throw new RuntimeException(s"Unexpected status response for $workflowId: $f")
     }
     Await.result(statusResponse, TimeoutDuration)
@@ -399,9 +401,9 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
 
   private def getWorkflowOutputsFromMetadata(id: WorkflowId, serviceRegistryActor: ActorRef): Map[FullyQualifiedName, WomValue] = {
 
-    val response = serviceRegistryActor.ask(WorkflowOutputs(id)).mapTo[MetadataBuilderActorResponse] collect {
-      case BuiltMetadataResponse(_, r) => r
-      case FailedMetadataResponse(_, e) => throw e
+    val response = serviceRegistryActor.ask(WorkflowOutputs(id)).mapTo[MetadataJsonResponse] collect {
+      case SuccessfulMetadataJsonResponse(_, r) => r
+      case FailedMetadataJsonResponse(_, e) => throw e
     }
     val jsObject = Await.result(response, TimeoutDuration)
 

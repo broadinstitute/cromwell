@@ -25,6 +25,7 @@ object JsonEditor {
     }
 
   def includeJson(json: Json, keys: NonEmptyList[String]): Json = {
+    val keysWithId = "id" :: keys
     def folder: Folder[(Json, Boolean)] = new Folder[(Json, Boolean)] {
       override def onNull: (Json, Boolean) = (Json.Null, false)
       override def onBoolean(value: Boolean): (Json, Boolean) = (Json.fromBoolean(value), false)
@@ -39,7 +40,7 @@ object JsonEditor {
       override def onObject(value: JsonObject): (Json, Boolean) = {
         val modified: immutable.List[(String, Json)] = value.toList.flatMap{
           case (key, value) =>
-            val keep =  keys.foldLeft(false)(_ || key.startsWith(_))
+            val keep = keysWithId.foldLeft(false)(_ || key.startsWith(_))
             if (keep)
               List[(String,Json)]((key,value))
             else {
@@ -73,9 +74,13 @@ object JsonEditor {
     }
   }
 
-  def outputs(json: Json): Json = includeJson(json, NonEmptyList.of("outputs", "id")) |> (excludeJson(_, NonEmptyList.one("calls")))
+  def extractCall(json: Json, callFqn: String, index: Option[Int], attempt: Option[Int]): Json = json // ??? // FIXME
 
-  def logs(json: Json): Json = includeJson(json, NonEmptyList.of("stdout", "stderr", "backendLogs", "id"))
+  def removeSubworkflowMetadata(json: Json): Json = json // ??? // FIXME
+
+  def outputs(json: Json): Json = includeJson(json, NonEmptyList.of("outputs")) |> (excludeJson(_, NonEmptyList.one("calls")))
+
+  def logs(json: Json): Json = includeJson(json, NonEmptyList.of("stdout", "stderr", "backendLogs"))
 
   implicit class EnhancedJson(val json: Json) extends AnyVal {
     def workflowId: Either[Exception, WorkflowId] = {

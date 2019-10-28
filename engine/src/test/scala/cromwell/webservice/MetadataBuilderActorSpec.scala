@@ -7,19 +7,19 @@ import akka.pattern.ask
 import akka.testkit._
 import akka.util.Timeout
 import cromwell.core._
+import cromwell.services._
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
-import cromwell.services.metadata.impl.builder.MetadataBuilderActor.{BuiltMetadataResponse, MetadataBuilderActorResponse}
+import cromwell.util.AkkaTestUtil.EnhancedTestProbe
+import cromwell.webservice.MetadataBuilderActorSpec._
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{Assertion, AsyncFlatSpecLike, Matchers, Succeeded}
 import org.specs2.mock.Mockito
 import spray.json._
-import cromwell.util.AkkaTestUtil.EnhancedTestProbe
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import cromwell.webservice.MetadataBuilderActorSpec._
 
 
 class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSpecLike with Matchers with Mockito
@@ -39,11 +39,11 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
 
 
     val mba = system.actorOf(MetadataBuilderActor.props(readMetadataWorkerMaker))
-    val response = mba.ask(action).mapTo[MetadataBuilderActorResponse]
+    val response = mba.ask(action).mapTo[MetadataJsonResponse]
     mockReadMetadataWorkerActor.expectMsg(defaultTimeout, action)
     mockReadMetadataWorkerActor.reply(MetadataLookupResponse(queryReply, events))
-    response map { r => r shouldBe a [BuiltMetadataResponse] }
-    response.mapTo[BuiltMetadataResponse] map { b => b.responseJson shouldBe expectedRes.parseJson}
+    response map { r => r shouldBe a [SuccessfulMetadataJsonResponse] }
+    response.mapTo[SuccessfulMetadataJsonResponse] map { b => b.responseJson shouldBe expectedRes.parseJson}
   }
 
   it should "build workflow scope tree from metadata events" in {
@@ -471,7 +471,7 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
     def readMetadataWorkerMaker = () => mockReadMetadataWorkerActor.props
 
     val metadataBuilder = TestActorRef(MetadataBuilderActor.props(readMetadataWorkerMaker), parentProbe.ref, s"MetadataActor-${UUID.randomUUID()}")
-    val response = metadataBuilder.ask(mainQueryAction).mapTo[MetadataBuilderActorResponse]
+    val response = metadataBuilder.ask(mainQueryAction).mapTo[MetadataJsonResponse]
     mockReadMetadataWorkerActor.expectMsg(defaultTimeout, mainQueryAction)
     mockReadMetadataWorkerActor.reply(MetadataLookupResponse(mainQuery, mainEvents))
     mockReadMetadataWorkerActor.expectMsg(defaultTimeout, subQueryAction)
@@ -497,8 +497,8 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
          |}
        """.stripMargin
 
-    response map { r => r shouldBe a [BuiltMetadataResponse] }
-    val bmr = response.mapTo[BuiltMetadataResponse]
+    response map { r => r shouldBe a [SuccessfulMetadataJsonResponse] }
+    val bmr = response.mapTo[SuccessfulMetadataJsonResponse]
     bmr map { b => b.responseJson shouldBe expandedRes.parseJson}
   }
   
@@ -519,7 +519,7 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
     def readMetadataWorkerMaker= () => mockReadMetadataWorkerActor.props
 
     val metadataBuilder = TestActorRef(MetadataBuilderActor.props(readMetadataWorkerMaker), parentProbe.ref, s"MetadataActor-${UUID.randomUUID()}")
-    val response = metadataBuilder.ask(queryNoExpandAction).mapTo[MetadataBuilderActorResponse]
+    val response = metadataBuilder.ask(queryNoExpandAction).mapTo[MetadataJsonResponse]
     mockReadMetadataWorkerActor.expectMsg(defaultTimeout, queryNoExpandAction)
     mockReadMetadataWorkerActor.reply(MetadataLookupResponse(queryNoExpand, mainEvents))
 
@@ -540,8 +540,8 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
          |}
        """.stripMargin
 
-    response map { r => r shouldBe a [BuiltMetadataResponse] }
-    val bmr = response.mapTo[BuiltMetadataResponse]
+    response map { r => r shouldBe a [SuccessfulMetadataJsonResponse] }
+    val bmr = response.mapTo[SuccessfulMetadataJsonResponse]
     bmr map { b => b.responseJson shouldBe nonExpandedRes.parseJson}
 
   }

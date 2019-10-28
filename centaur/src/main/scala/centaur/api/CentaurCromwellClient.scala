@@ -18,6 +18,7 @@ import cromwell.api.CromwellClient
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
 import cromwell.api.model._
 import net.ceedubs.ficus.Ficus._
+import spray.json.DeserializationException
 
 import scala.concurrent._
 import scala.concurrent.duration._
@@ -121,7 +122,9 @@ object CentaurCromwellClient extends StrictLogging {
         () => func().asIo.unsafeToFuture(),
         Option(5),
         5.seconds,
-        isTransient = isTransient)
+        isTransient = isTransient,
+        isFatal = isFatal
+      )
       ).timeout(timeout))
     )
   }
@@ -130,13 +133,18 @@ object CentaurCromwellClient extends StrictLogging {
     retryRequest(x, CentaurConfig.sendReceiveTimeout)
   }
 
+  private def isFatal(f: Throwable) = f match {
+    case _: DeserializationException => true
+    case _ => false
+  }
+
   private def isTransient(f: Throwable) = f match {
     case _: StreamTcpException |
          _: IOException |
          _: UnsupportedContentTypeException => true
     case BufferOverflowException(message) => message.contains("Please retry the request later.")
     case unsuccessful: UnsuccessfulRequestException => unsuccessful.httpResponse.status == StatusCodes.NotFound
-    case unexpected: RuntimeException => unexpected.getMessage.contains("The http server closed the connection unexpectedly") 
+    case unexpected: RuntimeException => unexpected.getMessage.contains("The http server closed the connection unexpectedly")
     case _ => false
   }
 }

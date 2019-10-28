@@ -268,8 +268,6 @@ object Operations extends StrictLogging {
     }
   }
 
-  def describeValidWorkflow(workflow: Workflow): Test[Any] = ???
-
   /**
     * Validate that the given jobId matches the one in the metadata
     */

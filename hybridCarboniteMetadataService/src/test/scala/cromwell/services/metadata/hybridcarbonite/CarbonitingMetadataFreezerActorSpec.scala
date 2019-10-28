@@ -11,7 +11,7 @@ import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataService.GetMetadataAction
 import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActor.{Fetching, FreezeMetadata, Freezing, Pending, UpdatingDatabase}
 import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActorSpec.TestableCarbonitingMetadataFreezerActor
-import cromwell.services.BuiltMetadataResponse
+import cromwell.services.SuccessfulMetadataJsonResponse
 import org.scalatest.{FlatSpecLike, Matchers}
 import spray.json._
 import org.scalatest.concurrent.Eventually._
@@ -56,7 +56,7 @@ class CarbonitingMetadataFreezerActorSpec extends TestKitSuite("CarbonitedMetada
          |  "status": "Successful"
          |}""".stripMargin.parseJson
 
-    serviceRegistryActor.send(actor, BuiltMetadataResponse(null, jsonValue.asJsObject))
+    serviceRegistryActor.send(actor, SuccessfulMetadataJsonResponse(null, jsonValue.asJsObject))
 
     var ioCommandPromise: Promise[Any] = null
     ioActor.expectMsgPF(10.seconds) {

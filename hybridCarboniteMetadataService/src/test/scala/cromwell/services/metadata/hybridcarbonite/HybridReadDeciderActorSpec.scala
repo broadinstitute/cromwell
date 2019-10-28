@@ -3,7 +3,7 @@ package cromwell.services.metadata.hybridcarbonite
 import akka.actor.ActorSystem
 import akka.testkit.{TestFSMRef, TestProbe}
 import cromwell.core.{TestKitSuite, WorkflowId}
-import cromwell.services.BuiltMetadataResponse
+import cromwell.services.SuccessfulMetadataJsonResponse
 import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataArchiveStatus._
 import cromwell.services.metadata.MetadataService._
@@ -56,7 +56,7 @@ class HybridReadDeciderActorSpec extends TestKitSuite("HybridReadDeciderActorSpe
         |  "id": "${sampleWorkflowId.toString}"
         |}""".stripMargin
     val responseJson = responseJsonString.parseJson.asJsObject
-    val response = BuiltMetadataResponse(incomingQuery, responseJson)
+    val response = SuccessfulMetadataJsonResponse(incomingQuery, responseJson)
     decidedUponActor.send(hrda, response)
 
     client.expectMsg(response)

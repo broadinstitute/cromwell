@@ -1,7 +1,7 @@
 package cromwell.services.metadata.hybridcarbonite
 
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
-import cromwell.services.FailedMetadataResponse
+import cromwell.services.FailedMetadataJsonResponse
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.hybridcarbonite.HybridReadDeciderActor._
 import cromwell.services.metadata.{MetadataArchiveStatus, WorkflowQueryKey}
@@ -15,12 +15,14 @@ class HybridReadDeciderActor(classicMetadataServiceActor: ActorRef, carboniteMet
   implicit val ec: ExecutionContext = context.dispatcher
 
   when(Pending) {
-    case Event(action: MetadataReadAction, NoData) if action.requiresOnlyClassicMetadata =>
-      classicMetadataServiceActor ! action
-      goto(WaitingForMetadataResponse) using WorkingData(sender(), action)
-    case Event(action: WorkflowMetadataReadAction, NoData) =>
-      classicMetadataServiceActor ! QueryForWorkflowsMatchingParameters(Vector(WorkflowQueryKey.Id.name -> action.workflowId.toString))
-      goto(RequestingMetadataArchiveStatus) using WorkingData(sender(), action)
+    case Event(action: BuildMetadataJsonAction, NoData) => action match {
+      case action if action.requiresOnlyClassicMetadata =>
+        classicMetadataServiceActor ! action
+        goto(WaitingForMetadataResponse) using WorkingData(sender(), action)
+      case workflowAction: BuildWorkflowMetadataJsonAction =>
+        classicMetadataServiceActor ! QueryForWorkflowsMatchingParameters(Vector(WorkflowQueryKey.Id.name -> workflowAction.workflowId.toString))
+        goto(RequestingMetadataArchiveStatus) using WorkingData(sender(), workflowAction)
+    }
   }
 
   when(RequestingMetadataArchiveStatus) {
@@ -59,9 +61,9 @@ class HybridReadDeciderActor(classicMetadataServiceActor: ActorRef, carboniteMet
       }
   }
 
-  def makeAppropriateFailureForRequest(msg: String, request: MetadataReadAction) = request match {
+  def makeAppropriateFailureForRequest(msg: String, request: BuildMetadataJsonAction) = request match {
     case _: QueryForWorkflowsMatchingParameters => WorkflowQueryFailure(new Exception(msg))
-    case _ => FailedMetadataResponse(request, new Exception(msg))
+    case _ => FailedMetadataJsonResponse(request, new Exception(msg))
   }
 
 }
@@ -77,17 +79,17 @@ object HybridReadDeciderActor {
 
   sealed trait HybridReadDeciderData
   case object NoData extends HybridReadDeciderData
-  final case class WorkingData(requester: ActorRef, request: MetadataReadAction) extends HybridReadDeciderData
+  final case class WorkingData(requester: ActorRef, request: BuildMetadataJsonAction) extends HybridReadDeciderData
 
   implicit class EnhancedWorkflowQuerySuccess(val success: WorkflowQuerySuccess) extends AnyVal {
     def hasMultipleSummaryRows: Boolean = success.response.results.size > 1
     def isCarbonited: Boolean = success.response.results.headOption.exists(_.metadataArchiveStatus == MetadataArchiveStatus.Archived)
   }
 
-  implicit class EnhancedMetadataReadAction(val action: MetadataReadAction) extends AnyVal {
+  implicit class EnhancedMetadataReadAction(val action: BuildMetadataJsonAction) extends AnyVal {
     def requiresOnlyClassicMetadata: Boolean = action match {
       case _: GetLabels | _: GetRootAndSubworkflowLabels | _: GetStatus | _: QueryForWorkflowsMatchingParameters => true
-      case _ => false // GetLogs, WorkflowOutputs, GetMetadataAction
+      case _: GetLogs | _: WorkflowOutputs | _: GetMetadataAction => false
     }
   }
 }

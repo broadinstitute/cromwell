@@ -158,16 +158,16 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
   } ~ metadataRoutes
 
 
-  private def metadataLookupForTimingRoute(workflowId: WorkflowId): Future[BuildMetadataResponse] = {
+  private def metadataLookupForTimingRoute(workflowId: WorkflowId): Future[MetadataJsonResponse] = {
     val includeKeys = NonEmptyList.of("start", "end", "executionStatus", "executionEvents", "subWorkflowMetadata")
     val readMetadataRequest = (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, Option(includeKeys), None, expandSubWorkflows = true)
 
-    serviceRegistryActor.ask(readMetadataRequest(workflowId)).mapTo[BuildMetadataResponse]
+    serviceRegistryActor.ask(readMetadataRequest(workflowId)).mapTo[MetadataJsonResponse]
   }
 
-  private def completeTimingRouteResponse(metadataResponse: Future[BuildMetadataResponse]) = {
+  private def completeTimingRouteResponse(metadataResponse: Future[MetadataJsonResponse]) = {
     onComplete(metadataResponse) {
-      case Success(r: BuiltMetadataResponse) =>
+      case Success(r: SuccessfulMetadataJsonResponse) =>
 
         Try(Source.fromResource("workflowTimings/workflowTimings.html").mkString) match {
           case Success(wfTimingsContent) =>
@@ -175,7 +175,7 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
             complete(response.withEntity(response.entity.withContentType(`text/html(UTF-8)`)))
           case Failure(e) => completeResponse(StatusCodes.InternalServerError, APIResponse.fail(new RuntimeException("Error while loading workflowTimings.html", e)), Seq.empty)
         }
-      case Success(r: FailedMetadataResponse) => r.reason.errorRequest(StatusCodes.InternalServerError)
+      case Success(r: FailedMetadataJsonResponse) => r.reason.errorRequest(StatusCodes.InternalServerError)
       case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
       case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
       case Failure(e) => e.failRequest(StatusCodes.InternalServerError)

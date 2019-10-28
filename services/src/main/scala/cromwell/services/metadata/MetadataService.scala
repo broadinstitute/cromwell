@@ -39,9 +39,9 @@ object MetadataService {
   trait MetadataServiceAction extends MetadataServiceMessage with ServiceRegistryMessage {
     def serviceName = MetadataServiceName
   }
-  sealed trait MetadataReadAction extends MetadataServiceAction
+  sealed trait BuildMetadataJsonAction extends MetadataServiceAction
 
-  sealed trait WorkflowMetadataReadAction extends MetadataReadAction {
+  sealed trait BuildWorkflowMetadataJsonAction extends BuildMetadataJsonAction {
     def workflowId: WorkflowId
   }
 
@@ -93,21 +93,21 @@ object MetadataService {
     def apply(workflowId: WorkflowId,
               includeKeysOption: Option[NonEmptyList[String]],
               excludeKeysOption: Option[NonEmptyList[String]],
-              expandSubWorkflows: Boolean): WorkflowMetadataReadAction = {
+              expandSubWorkflows: Boolean): BuildWorkflowMetadataJsonAction = {
       GetMetadataAction(MetadataQuery(workflowId, None, None, includeKeysOption, excludeKeysOption, expandSubWorkflows))
     }
   }
 
 
-  final case class GetMetadataAction(key: MetadataQuery) extends WorkflowMetadataReadAction {
+  final case class GetMetadataAction(key: MetadataQuery) extends BuildWorkflowMetadataJsonAction {
     override def workflowId: WorkflowId = key.workflowId
   }
-  final case class GetStatus(workflowId: WorkflowId) extends WorkflowMetadataReadAction
-  final case class GetLabels(workflowId: WorkflowId) extends WorkflowMetadataReadAction
-  final case class GetRootAndSubworkflowLabels(workflowId: WorkflowId) extends WorkflowMetadataReadAction
-  final case class QueryForWorkflowsMatchingParameters(parameters: Seq[(String, String)]) extends MetadataReadAction
-  final case class WorkflowOutputs(workflowId: WorkflowId) extends WorkflowMetadataReadAction
-  final case class GetLogs(workflowId: WorkflowId) extends WorkflowMetadataReadAction
+  final case class GetStatus(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
+  final case class GetLabels(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
+  final case class GetRootAndSubworkflowLabels(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
+  final case class QueryForWorkflowsMatchingParameters(parameters: Seq[(String, String)]) extends BuildMetadataJsonAction
+  final case class WorkflowOutputs(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
+  final case class GetLogs(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
   case object RefreshSummary extends MetadataServiceAction
   trait ValidationCallback {
     def onMalformed(possibleWorkflowId: String): Unit

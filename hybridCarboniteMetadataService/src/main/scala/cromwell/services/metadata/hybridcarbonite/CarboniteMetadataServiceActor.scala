@@ -2,9 +2,9 @@ package cromwell.services.metadata.hybridcarbonite
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
-import cromwell.services.FailedMetadataResponse
+import cromwell.services.FailedMetadataJsonResponse
 import cromwell.services.ServiceRegistryActor.{IoActorRef, NoIoActorRefAvailable, RequestIoActorRef}
-import cromwell.services.metadata.MetadataService.{MetadataReadAction, MetadataWriteAction, MetadataWriteFailure}
+import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, MetadataWriteAction, MetadataWriteFailure}
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import mouse.boolean._
@@ -24,13 +24,13 @@ class CarboniteMetadataServiceActor(carboniteConfig: HybridCarboniteConfig, serv
   var carboniteWorker: Option[ActorRef] = None
 
   override def receive: Receive = {
-    case read: MetadataReadAction =>
+    case read: BuildMetadataJsonAction =>
       ioActorOption match {
         case Some(ioActor) =>
           val worker = context.actorOf(thawingActorProps(ioActor))
           worker forward read
         case None =>
-          sender ! FailedMetadataResponse(read, new Exception("Cannot create CarbonitedMetadataThawingActor: no IoActor reference available"))
+          sender ! FailedMetadataJsonResponse(read, new Exception("Cannot create CarbonitedMetadataThawingActor: no IoActor reference available"))
       }
     case write: MetadataWriteAction =>
       val error = new UnsupportedOperationException(s"Programmer Error! Carboniter Worker should never be sent write requests (but got $write from $sender)")

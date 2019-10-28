@@ -4,9 +4,9 @@ import java.util.UUID
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.core.Dispatcher.ApiDispatcher
-import cromwell.services.BuildMetadataResponse
+import cromwell.services.MetadataJsonResponse
 import cromwell.services.metadata.MetadataService
-import cromwell.services.metadata.MetadataService.{MetadataQueryResponse, MetadataReadAction, MetadataServiceAction, MetadataServiceResponse, RootAndSubworkflowLabelsLookupResponse, WorkflowMetadataReadAction}
+import cromwell.services.metadata.MetadataService.{MetadataQueryResponse, BuildMetadataJsonAction, MetadataServiceAction, MetadataServiceResponse, RootAndSubworkflowLabelsLookupResponse, BuildWorkflowMetadataJsonAction}
 import cromwell.services.metadata.impl.ReadMetadataRegulatorActor.PropsMaker
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
 
@@ -26,9 +26,9 @@ class ReadMetadataRegulatorActor(metadataBuilderActorProps: PropsMaker, readMeta
 
   override def receive: Receive = {
     // This indirection via 'MetadataReadAction' lets the compiler make sure we cover all cases in the sealed trait:
-    case action: MetadataReadAction =>
+    case action: BuildMetadataJsonAction =>
       action match {
-        case singleWorkflowAction: WorkflowMetadataReadAction =>
+        case singleWorkflowAction: BuildWorkflowMetadataJsonAction =>
           val currentRequesters = apiRequests.getOrElse(singleWorkflowAction, Set.empty)
           apiRequests.put(singleWorkflowAction, currentRequesters + sender())
           if (currentRequesters.isEmpty) {
@@ -48,7 +48,7 @@ class ReadMetadataRegulatorActor(metadataBuilderActorProps: PropsMaker, readMeta
       }
     case serviceResponse: MetadataServiceResponse =>
       serviceResponse match {
-        case response @ (_: BuildMetadataResponse | _: MetadataQueryResponse | _: RootAndSubworkflowLabelsLookupResponse) =>
+        case response @ (_: MetadataJsonResponse | _: MetadataQueryResponse | _: RootAndSubworkflowLabelsLookupResponse) =>
           handleResponseFromMetadataWorker(response)
       }
     case other => log.error(s"Programmer Error: Unexpected message $other received from $sender")

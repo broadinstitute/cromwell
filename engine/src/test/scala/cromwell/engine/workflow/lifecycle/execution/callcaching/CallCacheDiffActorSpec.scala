@@ -8,7 +8,7 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQue
 import cromwell.services.metadata.MetadataService.GetMetadataAction
 import cromwell.services.metadata.{MetadataService, _}
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
-import cromwell.services.{BuiltMetadataResponse, FailedMetadataResponse}
+import cromwell.services.{SuccessfulMetadataJsonResponse, FailedMetadataJsonResponse}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.{FlatSpecLike, Matchers}
 import spray.json.JsObject
@@ -55,7 +55,7 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
       MetadataEvent(MetadataKey(workflowIdA, metadataJobKeyA, "callCaching:hashes:hash in A and B with different value"), MetadataValue("I'm the hash for A !"))
   )
   val workflowMetadataA: JsObject = MetadataBuilderActor.workflowMetadataResponse(workflowIdA, eventsA, includeCallsIfEmpty = false, Map.empty)
-  val responseForA = BuiltMetadataResponse(MetadataService.GetMetadataAction(queryA), workflowMetadataA)
+  val responseForA = SuccessfulMetadataJsonResponse(MetadataService.GetMetadataAction(queryA), workflowMetadataA)
 
   val eventsB = List(
     MetadataEvent(MetadataKey(workflowIdB, metadataJobKeyB, "executionStatus"), MetadataValue("Failed")),
@@ -65,7 +65,7 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     MetadataEvent(MetadataKey(workflowIdB, metadataJobKeyB, "callCaching:hashes:hash in A and B with different value"), MetadataValue("I'm the hash for B !"))
   )
   val workflowMetadataB: JsObject = MetadataBuilderActor.workflowMetadataResponse(workflowIdB, eventsB, includeCallsIfEmpty = false, Map.empty)
-  val responseForB = BuiltMetadataResponse(MetadataService.GetMetadataAction(queryB), workflowMetadataB)
+  val responseForB = SuccessfulMetadataJsonResponse(MetadataService.GetMetadataAction(queryB), workflowMetadataB)
 
   it should "send correct queries to MetadataService when receiving a CallCacheDiffRequest" in {
     val mockServiceRegistryActor = TestProbe()
@@ -227,7 +227,7 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     val modifiedEventsA = eventsAAttempt1 ++ eventsAAttempt2
 
     val workflowMetadataA: JsObject = MetadataBuilderActor.workflowMetadataResponse(workflowIdA, modifiedEventsA, includeCallsIfEmpty = false, Map.empty)
-    val responseForA = BuiltMetadataResponse(MetadataService.GetMetadataAction(queryA), workflowMetadataA)
+    val responseForA = SuccessfulMetadataJsonResponse(MetadataService.GetMetadataAction(queryA), workflowMetadataA)
 
 
     actor ! responseForB
@@ -259,7 +259,7 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     val actor = TestFSMRef(new CallCacheDiffActor(mockServiceRegistryActor.ref))
     watch(actor)
     val exception = new Exception("Query lookup failed - but it's ok ! this is a test !")
-    val responseA = FailedMetadataResponse(GetMetadataAction(queryA), exception)
+    val responseA = FailedMetadataJsonResponse(GetMetadataAction(queryA), exception)
 
     actor.setState(WaitingForMetadata, CallCacheDiffWithRequest(queryA, queryB, None, None, self))
 
@@ -299,10 +299,10 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     val actor = TestFSMRef(new CallCacheDiffActor(mockServiceRegistryActor.ref))
     watch(actor)
 
-    def getModifiedResponse(workflowId: WorkflowId, query: MetadataQuery, events: Seq[MetadataEvent]): BuiltMetadataResponse = {
+    def getModifiedResponse(workflowId: WorkflowId, query: MetadataQuery, events: Seq[MetadataEvent]): SuccessfulMetadataJsonResponse = {
       val modifiedEvents = events.filterNot(metadataFilter) // filters out any "call" level metadata
       val modifiedWorkflowMetadata = MetadataBuilderActor.workflowMetadataResponse(workflowId, modifiedEvents, includeCallsIfEmpty = false, Map.empty)
-      BuiltMetadataResponse(MetadataService.GetMetadataAction(query), modifiedWorkflowMetadata)
+      SuccessfulMetadataJsonResponse(MetadataService.GetMetadataAction(query), modifiedWorkflowMetadata)
     }
 
     actor.setState(WaitingForMetadata, CallCacheDiffWithRequest(queryA, queryB, None, None, self))

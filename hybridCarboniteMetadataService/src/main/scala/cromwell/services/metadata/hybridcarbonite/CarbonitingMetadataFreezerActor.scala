@@ -12,7 +12,7 @@ import cromwell.services.metadata.MetadataService.GetMetadataAction
 import cromwell.services.metadata.hybridcarbonite.CarboniteWorkerActor.CarboniteWorkflowComplete
 import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActor._
 import cromwell.services.metadata.impl.MetadataDatabaseAccess
-import cromwell.services.{BuiltMetadataResponse, FailedMetadataResponse}
+import cromwell.services.{SuccessfulMetadataJsonResponse, FailedMetadataJsonResponse}
 import cromwell.services.metadata.{MetadataArchiveStatus, MetadataQuery}
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
@@ -50,13 +50,13 @@ class CarbonitingMetadataFreezerActor(carboniterConfig: HybridCarboniteConfig,
   }
 
   when(Fetching) {
-    case Event(BuiltMetadataResponse(_, responseJson), FetchingData(workflowId)) =>
+    case Event(SuccessfulMetadataJsonResponse(_, responseJson), FetchingData(workflowId)) =>
       asyncIo.writeAsync(carboniterConfig.makePath(workflowId), responseJson.prettyPrint, Seq(StandardOpenOption.CREATE)) onComplete {
         result => self ! CarbonitingFreezeResult(result)
       }
       goto(Freezing) using FreezingData(workflowId)
 
-    case Event(FailedMetadataResponse(_, reason), FetchingData(workflowId)) =>
+    case Event(FailedMetadataJsonResponse(_, reason), FetchingData(workflowId)) =>
       log.error(reason, s"Failed to fetch workflow $workflowId's metadata to archive. Marking as $ArchiveFailed")
       scheduleDatabaseUpdateAndAwaitResult(workflowId, ArchiveFailed)
   }

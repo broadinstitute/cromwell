@@ -377,7 +377,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
 
   private def getWorkflowState(workflowId: WorkflowId, serviceRegistryActor: ActorRef)(implicit ec: ExecutionContext): WorkflowState = {
     val statusResponse = serviceRegistryActor.ask(GetStatus(workflowId))(TimeoutDuration).collect {
-      case BuiltMetadataResponse(_, jsObject) => WorkflowState.withName(jsObject.fields("status").asInstanceOf[JsString].value)
+      case SuccessfulMetadataJsonResponse(_, jsObject) => WorkflowState.withName(jsObject.fields("status").asInstanceOf[JsString].value)
       case f => throw new RuntimeException(s"Unexpected status response for $workflowId: $f")
     }
     Await.result(statusResponse, TimeoutDuration)
@@ -401,9 +401,9 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
 
   private def getWorkflowOutputsFromMetadata(id: WorkflowId, serviceRegistryActor: ActorRef): Map[FullyQualifiedName, WomValue] = {
 
-    val response = serviceRegistryActor.ask(WorkflowOutputs(id)).mapTo[BuildMetadataResponse] collect {
-      case BuiltMetadataResponse(_, r) => r
-      case FailedMetadataResponse(_, e) => throw e
+    val response = serviceRegistryActor.ask(WorkflowOutputs(id)).mapTo[MetadataJsonResponse] collect {
+      case SuccessfulMetadataJsonResponse(_, r) => r
+      case FailedMetadataJsonResponse(_, e) => throw e
     }
     val jsObject = Await.result(response, TimeoutDuration)
 

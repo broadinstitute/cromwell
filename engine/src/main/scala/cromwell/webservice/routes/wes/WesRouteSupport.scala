@@ -19,7 +19,7 @@ import WesRouteSupport._
 import cromwell.core.abort.SuccessfulAbortResponse
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.server.CromwellShutdown
-import cromwell.services.BuiltMetadataResponse
+import cromwell.services.SuccessfulMetadataJsonResponse
 import cromwell.webservice.routes.CromwellApiService
 
 trait WesRouteSupport extends HttpInstrumentation {
@@ -57,7 +57,7 @@ trait WesRouteSupport extends HttpInstrumentation {
                   val response = validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor).flatMap(w => serviceRegistryActor.ask(GetStatus(w)).mapTo[MetadataServiceResponse])
                   // WES can also return a 401 or a 403 but that requires user auth knowledge which Cromwell doesn't currently have
                   onComplete(response) {
-                    case Success(BuiltMetadataResponse(_, jsObject)) =>
+                    case Success(SuccessfulMetadataJsonResponse(_, jsObject)) =>
                       val wesState = WesState.fromCromwellStatusJson(jsObject)
                       complete(WesRunStatus(possibleWorkflowId, wesState))
                     case Success(r: StatusLookupFailed) => r.reason.errorRequest(StatusCodes.InternalServerError)

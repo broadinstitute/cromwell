@@ -2,6 +2,7 @@ package cromwell.services.metadata.hybridcarbonite
 
 import akka.stream.ActorMaterializer
 import akka.testkit.{TestActorRef, TestProbe}
+import cats.data.NonEmptyList
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import com.typesafe.config.ConfigFactory
 import common.validation.Validation._
@@ -9,11 +10,12 @@ import cromwell.core.io.IoContentAsStringCommand
 import cromwell.core.io.IoPromiseProxyActor.IoCommandWithPromise
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.services.metadata.MetadataQuery
-import cromwell.services.metadata.MetadataService.{GetMetadataAction, GetRootAndSubworkflowLabels, RootAndSubworkflowLabelsLookupResponse}
+import cromwell.services.metadata.MetadataService.{GetLogs, GetMetadataAction, GetRootAndSubworkflowLabels, RootAndSubworkflowLabelsLookupResponse, WorkflowOutputs}
 import cromwell.services.metadata.hybridcarbonite.CarbonitedMetadataThawingActorSpec.{workflowId, _}
-import cromwell.services.{BuiltMetadataResponse, FailedMetadataResponse}
+import cromwell.services.{FailedMetadataJsonResponse, SuccessfulMetadataJsonResponse}
 import io.circe.parser._
 import net.thisptr.jackson.jq._
+import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{FlatSpecLike, Matchers}
 
 import scala.collection.JavaConverters._
@@ -22,9 +24,10 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.io.Source
 import scala.language.postfixOps
+import cromwell.services.metadata.hybridcarbonite.CarbonitedMetadataThawingActor._
 
 
-class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadataThawingActorSpec") with FlatSpecLike with Matchers {
+class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadataThawingActorSpec") with FlatSpecLike with Matchers with TableDrivenPropertyChecks {
 
   implicit val ec: ExecutionContext = system.dispatcher
 
@@ -65,8 +68,8 @@ class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadat
     }
 
     clientProbe.expectMsgPF(max = 5.seconds) {
-      case BuiltMetadataResponse(_, jsObject) => parse(jsObject.compactPrint) should be(parse(augmentedMetadataSample))
-      case FailedMetadataResponse(_, reason) => fail(reason)
+      case SuccessfulMetadataJsonResponse(_, jsObject) => parse(jsObject.compactPrint) should be(parse(augmentedMetadataSample))
+      case FailedMetadataJsonResponse(_, reason) => fail(reason)
     }
   }
 
@@ -135,7 +138,7 @@ class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadat
     }
 
     clientProbe.expectMsgPF(max = 5.seconds) {
-      case BuiltMetadataResponse(_, metadataAfterThawing) =>
+      case SuccessfulMetadataJsonResponse(_, metadataAfterThawing) =>
         val rootNodesAfterUpdate = new ArrayBuffer[JsonNode]()
         val rootOutputAfterUpdate = outputBuilder(rootNodesAfterUpdate)
 
@@ -158,7 +161,29 @@ class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadat
         val expected = subWorkflowIds map { _.shortString }
         actual shouldEqual expected
 
-      case FailedMetadataResponse(_, reason) => fail(reason)
+      case FailedMetadataJsonResponse(_, reason) => fail(reason)
+    }
+  }
+
+  it should "determine if WorkflowMetadataReadAction messages require labels correctly" in {
+    val workflowId = WorkflowId.randomId()
+    val table = Table(("message", "requires labels?"),
+      (GetLogs(workflowId), false),
+      (WorkflowOutputs(workflowId), false),
+      (GetMetadataAction(MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = true)), true),
+      (GetMetadataAction(MetadataQuery(workflowId, None, key = Option("randomKey"), None, None, expandSubWorkflows = true)), false),
+      (GetMetadataAction(MetadataQuery(workflowId, None, key = Option("labels"), None, None, expandSubWorkflows = true)), true),
+      (GetMetadataAction(MetadataQuery(workflowId, None, None, includeKeysOption = Option(NonEmptyList.of("randomKey")), None, expandSubWorkflows = true)), false),
+      (GetMetadataAction(MetadataQuery(workflowId, None, None, includeKeysOption = Option(NonEmptyList.of("randomKey")), excludeKeysOption = Option(NonEmptyList.of("whatever")), expandSubWorkflows = true)), false),
+      (GetMetadataAction(MetadataQuery(workflowId, None, None, includeKeysOption = Option(NonEmptyList.of("labels")), excludeKeysOption = Option(NonEmptyList.of("whatever")), expandSubWorkflows = true)), true),
+      (GetMetadataAction(MetadataQuery(workflowId, None, None, includeKeysOption = Option(NonEmptyList.of("labels")), excludeKeysOption = Option(NonEmptyList.of("labels")), expandSubWorkflows = true)), false),
+      (GetMetadataAction(MetadataQuery(workflowId, None, None, includeKeysOption = Option(NonEmptyList.of("randomKey")), excludeKeysOption = Option(NonEmptyList.of("labels")), expandSubWorkflows = true)), false),
+      (GetMetadataAction(MetadataQuery(workflowId, None, None, None, excludeKeysOption = Option(NonEmptyList.of("whatever")), expandSubWorkflows = true)), true),
+      (GetMetadataAction(MetadataQuery(workflowId, None, None, None, excludeKeysOption = Option(NonEmptyList.of("labels")), expandSubWorkflows = true)), false),
+    )
+
+    forAll(table) { case (message, expectedRequiresLabels) =>
+      message.requiresLabels shouldEqual expectedRequiresLabels
     }
   }
 }

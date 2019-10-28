@@ -7,7 +7,7 @@ import common.exception.AggregatedMessageException
 import common.validation.Checked._
 import common.validation.Validation._
 import cromwell.core.Dispatcher.ServiceDispatcher
-import cromwell.services.metadata.MetadataService.{MetadataReadAction, MetadataServiceAction, MetadataWriteAction, ValidateWorkflowIdInMetadata}
+import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, MetadataServiceAction, MetadataWriteAction, ValidateWorkflowIdInMetadata}
 import cromwell.services.metadata.impl.{MetadataServiceActor, ReadMetadataRegulatorActor}
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
@@ -43,7 +43,7 @@ class HybridMetadataServiceActor(serviceConfig: Config, globalConfig: Config, se
 
   override def receive = {
     case action: MetadataServiceAction => action match {
-      case read: MetadataReadAction => readRegulatorActor forward read
+      case read: BuildMetadataJsonAction => readRegulatorActor forward read
       case write: MetadataWriteAction => classicMetadataService.forward(write)
       case validate: ValidateWorkflowIdInMetadata => classicMetadataService forward validate
     }

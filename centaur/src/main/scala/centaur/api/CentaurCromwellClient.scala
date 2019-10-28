@@ -60,6 +60,10 @@ object CentaurCromwellClient extends StrictLogging {
     })
   }
 
+  def describe(workflow: Workflow): IO[WaasDescription] = {
+    sendReceiveFutureCompletion(() => cromwellClient.describe(workflow.toWorkflowDescribeRequest))
+  }
+
   def status(workflow: SubmittedWorkflow): IO[WorkflowStatus] = {
     sendReceiveFutureCompletion(() => cromwellClient.status(workflow.id))
   }

@@ -23,7 +23,7 @@ import com.typesafe.scalalogging.StrictLogging
 import common.validation.Validation._
 import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
-import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, Succeeded, TerminalStatus, WorkflowId, WorkflowMetadata, WorkflowStatus}
+import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, Succeeded, TerminalStatus, WaasDescription, WorkflowId, WorkflowMetadata, WorkflowStatus}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import io.circe.parser._
@@ -121,9 +121,28 @@ object Operations extends StrictLogging {
     storageOptions.getService
   }
 
+  implicit private val timer = IO.timer(global)
+  implicit private val contextShift = IO.contextShift(global)
+
   def submitWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = {
     new Test[SubmittedWorkflow] {
       override def run: IO[SubmittedWorkflow] = CentaurCromwellClient.submit(workflow)
+    }
+  }
+
+  def checkDescription(workflow: Workflow, validityExpectation: Boolean): Test[Unit] = {
+    new Test[Unit] {
+      override def run: IO[Unit] = CentaurCromwellClient.describe(workflow).timeout(10.seconds) flatMap { d: WaasDescription =>
+        if (d.valid == validityExpectation) {
+          IO.pure(())
+        } else {
+          if (validityExpectation) {
+            logger.error(s"Unexpected 'valid=false' response describing workflow. Description was:${System.lineSeparator()}$d")
+          }
+
+          IO.raiseError(new Exception(s"Expected this workflow's /describe validity to be '$validityExpectation' but got: '${d.valid}'"))
+        }
+      }
     }
   }
 
@@ -164,9 +183,6 @@ object Operations extends StrictLogging {
       override def run: IO[WorkflowStatus] = CentaurCromwellClient.abort(workflow)
     }
   }
-
-  implicit private val timer = IO.timer(global)
-  implicit private val contextShift = IO.contextShift(global)
 
   def waitFor(duration: FiniteDuration) = {
     new Test[Unit] {
@@ -251,6 +267,8 @@ object Operations extends StrictLogging {
       override def run: IO[SubmittedWorkflow] = status.timeout(CentaurConfig.maxWorkflowLength)
     }
   }
+
+  def describeValidWorkflow(workflow: Workflow): Test[Any] = ???
 
   /**
     * Validate that the given jobId matches the one in the metadata

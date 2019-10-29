@@ -15,14 +15,14 @@ final case class WaasDescription(valid: Boolean,
                                  validWorkflow: Boolean,
                                  errors: List[String],
                                  name: String,
-                                 inputs: Option[List[WaasDescriptionInputDefinition]],
-                                 outputs: Option[List[WaasDescriptionOutputDefinition]],
-                                 images: Option[List[String]],
-                                 submittedDescriptorType: Option[WaasWorkflowDescriptorType],
-                                 importedDescriptorTypes: Option[List[WaasWorkflowDescriptorType]],
-                                 meta: Option[JsObject],
-                                 parameterMeta: Option[JsObject],
-                                 isRunnableWorkflow: Option[Boolean])
+                                 inputs: List[WaasDescriptionInputDefinition],
+                                 outputs: List[WaasDescriptionOutputDefinition],
+                                 images: List[String],
+                                 submittedDescriptorType: WaasWorkflowDescriptorType,
+                                 importedDescriptorTypes: List[WaasWorkflowDescriptorType],
+                                 meta: JsObject,
+                                 parameterMeta: JsObject,
+                                 isRunnableWorkflow: Boolean)
 
 final case class WaasDescriptionInputDefinition(name: String,
                                                 valueType: WaasDescriptionWomType,
@@ -35,4 +35,4 @@ final case class WaasDescriptionOutputDefinition(name: String,
                                                  typeDisplayName: String)
 
 final case class WaasDescriptionWomType(typeName: String)
-final case class WaasWorkflowDescriptorType(descriptorType: String, descriptorTypeVersion: String)
+final case class WaasWorkflowDescriptorType(descriptorType: Option[String], descriptorTypeVersion: Option[String])

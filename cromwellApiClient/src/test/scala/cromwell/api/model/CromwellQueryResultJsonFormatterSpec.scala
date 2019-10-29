@@ -12,19 +12,19 @@ class CromwellQueryResultJsonFormatterSpec extends FlatSpec with Matchers {
 
   val sampleQueryResult = CromwellQueryResults(results = List(
     CromwellQueryResult(
-      "switcheroo",
+      Option("switcheroo"),
       WorkflowId.fromString("bee51f36-396d-4e22-8a81-33dedff66bf6"),
       Failed,
-      OffsetDateTime.parse("2017-07-24T14:44:34.010Z"),
-      OffsetDateTime.parse("2017-07-24T14:44:33.227Z"),
+      Option(OffsetDateTime.parse("2017-07-24T14:44:34.010Z")),
+        Option(OffsetDateTime.parse("2017-07-24T14:44:33.227Z")),
       "Archived"
     ),
     CromwellQueryResult(
-      "switcheroo",
+      Option("switcheroo"),
       WorkflowId.fromString("0071495e-39eb-478e-bc98-8614b986c91e"),
       Succeeded,
-      OffsetDateTime.parse("2017-07-24T15:06:45.940Z"),
-      OffsetDateTime.parse("2017-07-24T15:04:54.372Z"),
+        Option(OffsetDateTime.parse("2017-07-24T15:06:45.940Z")),
+          Option(OffsetDateTime.parse("2017-07-24T15:04:54.372Z")),
       "Unarchived"
     ),
   ))

@@ -1,6 +1,6 @@
 # Workflow Execution: Major Actors
 
-* **Word Count:** 195
+* **Word Count:** 242
 
 ## Major Actor Hierarchy
 

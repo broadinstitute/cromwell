@@ -1,9 +1,10 @@
 # Workflow Execution: Major Actors
 
-* **Bitesize Documentation:** Covering the main actors involved in workflow execution.
 * **Word Count:** 195
 
-## High Level Overview
+## Major Actor Hierarchy
+
+At the highest level, these are the main actors involved in workflow execution.
 
 ![high level overview diagram](WorkflowExecutionHighLevelOverview.png)
 
@@ -18,11 +19,17 @@ The `WorkflowManagerActor` is responsible for:
 * Tracking, supervising and aborting running workflows
 * Parent actor for all `WorkflowActor`s
 
-### WorkflowActor(s)
+### WorkflowActor
 
-Each `WorkflowActor` is responsible for:
+The `WorkflowActor` is responsible for:
+ 
+* Co-ordinating the stages of a workflow lifecycle from parsing through to finalization.
+* Parent actor of the `WorkflowExecutionActor` which runs the workflow's jobs.
 
-* Running a single workflow.
+### WorkflowExecutionActor(s)
+
+The `WorkflowExecutionActor` is responsible for:
+
 * Starting jobs and sub-workflows as soon as they are able to run.
     * Based on values in the (in-memory) ValueStore and ExecutionStore objects.
 * Parent actor for all `EngineJobExecutionActor`s and `SubWorkflowExecutionActor`s.
@@ -46,6 +53,12 @@ Each `SubWorkflowExecutionActor` is responsible for:
 * Running a single sub-workflow.
 * Parent actor for the `WorkflowActor` created to run the sub-workflow.
 
+## Major Actor Hierarchy (in context)
+
+The above diagram omitted a lot of details. This diagram attempts to show a little more of the
+context:
+
+![high level overview in context diagram](WorkflowExecutionHighLevelOverviewInContext.png)
 
 ## See Also 
 

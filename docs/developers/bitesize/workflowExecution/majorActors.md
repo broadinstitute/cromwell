@@ -1,6 +1,6 @@
 # Workflow Execution: Major Actors
 
-* **Word Count:** 242
+* **Word Count:** 245
 
 ## Major Actor Hierarchy
 
@@ -19,7 +19,7 @@ The `WorkflowManagerActor` is responsible for:
 * Tracking, supervising and aborting running workflows
 * Parent actor for all `WorkflowActor`s
 
-### WorkflowActor
+### WorkflowActor(s)
 
 The `WorkflowActor` is responsible for:
  
@@ -51,7 +51,7 @@ Each `EngineJobExecutionActor` (EJEA) is responsible for:
 Each `SubWorkflowExecutionActor` is responsible for:
 
 * Running a single sub-workflow.
-* Parent actor for the `WorkflowActor` created to run the sub-workflow.
+* Parent actor for a new `WorkflowExecutionActor` (see above) created to run the sub-workflow.
 
 ## Major Actor Hierarchy (in context)
 

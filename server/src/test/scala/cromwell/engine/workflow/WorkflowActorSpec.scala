@@ -187,25 +187,25 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       deathwatch.expectTerminated(actor)
     }
 
-    "abort execution before escalating failure if one of it's child actors crashed" in {
-      val actor = createWorkflowActor(ExecutingWorkflowState)
-      deathwatch watch actor
+    "abort execution before escalating failure if one of its child actors crashed" in {
+      val workflowActor = createWorkflowActor(ExecutingWorkflowState)
+      deathwatch watch workflowActor
 
-      actor.children.head ! Kill
+      workflowActor.children.head ! Kill
 
-      eventually { actor.stateName should be(WorkflowAbortingState) }
+      eventually { workflowActor.stateName should be(WorkflowAbortingState) }
       currentLifecycleActor.expectMsgPF(TimeoutDuration) {
         case EngineLifecycleActorAbortCommand =>
-          actor ! WorkflowExecutionAbortedResponse(Map.empty)
+          workflowActor ! WorkflowExecutionAbortedResponse(Map.empty)
       }
       finalizationProbe.expectMsg(StartFinalizationCommand)
-      actor.stateName should be(FinalizingWorkflowState)
-      actor ! WorkflowFinalizationSucceededResponse
+      workflowActor.stateName should be(FinalizingWorkflowState)
+      workflowActor ! WorkflowFinalizationSucceededResponse
       supervisorProbe.expectMsgPF(TimeoutDuration) {
         case resp: WorkflowFailedResponse => resp
       }
 
-      deathwatch.expectTerminated(actor)
+      deathwatch.expectTerminated(workflowActor)
     }
 
     "log an error when a path builder factory initialization fails" in {

@@ -341,7 +341,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
     // Whether we're running or aborting, restarting or not, pass along the abort command.
     // Note that aborting a workflow multiple times will result in as many abort commands sent to the execution actor
     case Event(AbortWorkflowWithExceptionCommand(ex), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) =>
-      handleAbortCommand(data, workflowDescriptor, Some(ex))
+      handleAbortCommand(data, workflowDescriptor, Option(ex))
     case Event(AbortWorkflowCommand, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) => 
       handleAbortCommand(data, workflowDescriptor)
   }
@@ -383,7 +383,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
     data.currentLifecycleStateActor match {
       case Some(currentActor) => 
         currentActor ! EngineLifecycleActorAbortCommand
-        goto(WorkflowAbortingState) using data.copy(lastStateReached = StateCheckpoint(stateName, exOpt.map(ex => List(ex))))
+        goto(WorkflowAbortingState) using data.copy(lastStateReached = StateCheckpoint(stateName, exOpt.map(List(_))))
       case None => 
         workflowLogger.warn(s"Received an abort command in state $stateName but there's no lifecycle actor associated. This is an abnormal state, finalizing the workflow anyway.")
         finalizeWorkflow(data, workflowDescriptor, Map.empty, CallOutputs.empty, None)

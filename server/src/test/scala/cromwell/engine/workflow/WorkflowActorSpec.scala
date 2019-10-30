@@ -202,7 +202,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       workflowActor.stateName should be(FinalizingWorkflowState)
       workflowActor ! WorkflowFinalizationSucceededResponse
       supervisorProbe.expectMsgPF(TimeoutDuration) {
-        case resp: WorkflowFailedResponse => resp
+        case _: WorkflowFailedResponse => // success
       }
 
       deathwatch.expectTerminated(workflowActor)

@@ -133,18 +133,17 @@ object Operations extends StrictLogging {
   def checkDescription(workflow: Workflow, validityExpectation: Option[Boolean]): Test[Unit] = {
     new Test[Unit] {
       override def run: IO[Unit] = {
-        if (workflow.skipDescribeEndpointValidation) {
+        // We can't describe workflows based on zipped imports, so don't try:
+        if (workflow.skipDescribeEndpointValidation || workflow.data.zippedImports.nonEmpty) {
           IO.pure(())
         } else {
           CentaurCromwellClient.describe(workflow).timeout(10.seconds) flatMap { d: WaasDescription =>
-            if (validityExpectation.forall(_ == d.valid)) {
-              IO.pure(())
-            } else {
-              if (validityExpectation.contains(true)) {
-                logger.error(s"Unexpected 'valid=false' response describing workflow. Description was:${System.lineSeparator()}$d")
-              }
-
-              IO.raiseError(new Exception(s"Expected this workflow's /describe validity to be '$validityExpectation' but got: '${d.valid}'"))
+            validityExpectation match {
+              case None => IO.pure(())
+              case Some(d.valid) => IO.pure(())
+              case Some(otherExpectation) =>
+                logger.error(s"Unexpected 'valid=${d.valid}' response when expecting $otherExpectation. Full unexpected description:${System.lineSeparator()}$d")
+                IO.raiseError(new Exception(s"Expected this workflow's /describe validity to be '$otherExpectation' but got: '${d.valid}'"))
             }
           }
         }

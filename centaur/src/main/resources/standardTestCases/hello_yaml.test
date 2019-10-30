@@ -1,5 +1,6 @@
 name: hello_yaml
 testFormat: workflowsuccess
+skipDescribeEndpointValidation: true // BA-6092
 
 files {
   workflow: hello/hello.wdl

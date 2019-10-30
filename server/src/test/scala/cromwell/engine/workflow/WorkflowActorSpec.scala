@@ -3,7 +3,7 @@ package cromwell.engine.workflow
 import java.time.OffsetDateTime
 import java.util.concurrent.atomic.AtomicInteger
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Kill, Props}
 import akka.testkit.{EventFilter, TestActorRef, TestFSMRef, TestProbe}
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell._
@@ -184,6 +184,27 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       copyWorkflowLogsProbe.expectMsg(CopyWorkflowLogsActor.Copy(currentWorkflowId, mockDir))
 
       finalizationProbe.expectNoMessage(AwaitAlmostNothing)
+      deathwatch.expectTerminated(actor)
+    }
+
+    "abort execution before escalating failure if one of it's child actors crashed" in {
+      val actor = createWorkflowActor(ExecutingWorkflowState)
+      deathwatch watch actor
+
+      actor.children.head ! Kill
+
+      eventually { actor.stateName should be(WorkflowAbortingState) }
+      currentLifecycleActor.expectMsgPF(TimeoutDuration) {
+        case EngineLifecycleActorAbortCommand =>
+          actor ! WorkflowExecutionAbortedResponse(Map.empty)
+      }
+      finalizationProbe.expectMsg(StartFinalizationCommand)
+      actor.stateName should be(FinalizingWorkflowState)
+      actor ! WorkflowFinalizationSucceededResponse
+      supervisorProbe.expectMsgPF(TimeoutDuration) {
+        case resp: WorkflowFailedResponse => resp
+      }
+
       deathwatch.expectTerminated(actor)
     }
 

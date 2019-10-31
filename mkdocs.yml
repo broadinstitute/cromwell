@@ -81,6 +81,10 @@ pages:
     - Bitesize Design Docs:
       - Workflow Execution:
         - Main Actors: developers/bitesize/workflowExecution/majorActors.md
+      - Workflow Parsing & Graph Construction:
+        - What is WOM?: developers/bitesize/workflowParsing/whatIsWom.md
+        - From WDL Source to WOM: developers/bitesize/workflowParsing/wdlParsingOverview.md
+        - From CWL Source to WOM: developers/bitesize/workflowParsing/cwlParsingOverview.md
 
 theme: readthedocs
 

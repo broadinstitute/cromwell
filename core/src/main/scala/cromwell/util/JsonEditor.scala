@@ -143,15 +143,13 @@ object JsonEditor {
       for {
         id <- workflowJson.workflowId
         workflowWithUpdatedCalls <- updateWorkflowCallsJson(workflowJson, updateLabelsInCalls)
-      } yield {
-
-        databaseLabels.get(id) match {
+        json = databaseLabels.get(id) match {
           case None => workflowWithUpdatedCalls
           case Some(labels) =>
             val labelsJson: Json = Json.fromFields(labels safeMapValues Json.fromString)
             workflowWithUpdatedCalls deepMerge Json.fromFields(List(("labels", labelsJson)))
         }
-      }
+      } yield json
     }
 
     doUpdateWorkflow(workflowJson = json)
@@ -194,10 +192,13 @@ object JsonEditor {
                 case Some((callObject, subworkflowJson)) => updateCallsFunc(callObject, subworkflowJson)
               }
             }
-
             (updatedCallArray.sequence[ErrorOr, Json]: ErrorOr[Vector[Json]]) map Json.fromValues
         }
-        updatedCalls map { z => Json.fromJsonObject(workflowJson.asObject.get.add("calls", Json.fromJsonObject(z))) }
+
+        for {
+          calls <- updatedCalls
+          updatedWorkflow = Json.fromJsonObject(workflowJson.asObject.get.add("calls", Json.fromJsonObject(calls)))
+        } yield updatedWorkflow
     }
     workflowWithUpdatedCalls
   }

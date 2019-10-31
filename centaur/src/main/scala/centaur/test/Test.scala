@@ -30,6 +30,7 @@ import io.circe.parser._
 import spray.json.JsString
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 import scala.util.Failure
 
@@ -137,7 +138,10 @@ object Operations extends StrictLogging {
         if (workflow.skipDescribeEndpointValidation || workflow.data.zippedImports.nonEmpty) {
           IO.pure(())
         } else {
-          CentaurCromwellClient.describe(workflow).timeout(10.seconds) flatMap { d: WaasDescription =>
+          val timeout = 60.seconds
+          val timeoutStackTraceString = org.apache.commons.lang3.exception.ExceptionUtils.getStackTrace(new Exception)
+
+          (CentaurCromwellClient.describe(workflow) flatMap { d: WaasDescription =>
             validityExpectation match {
               case None => IO.pure(())
               case Some(d.valid) => IO.pure(())
@@ -145,7 +149,9 @@ object Operations extends StrictLogging {
                 logger.error(s"Unexpected 'valid=${d.valid}' response when expecting $otherExpectation. Full unexpected description:${System.lineSeparator()}$d")
                 IO.raiseError(new Exception(s"Expected this workflow's /describe validity to be '$otherExpectation' but got: '${d.valid}'"))
             }
-          }
+          }).timeoutTo(timeout, {
+            IO.raiseError(new TimeoutException("Timeout from checkDescription 60 seconds: " + timeoutStackTraceString))
+          })
         }
       }
     }

@@ -8,17 +8,17 @@ IO subsystem consists of the following actors.
 
 ![IoActor hierarchy](IoActor.png)
 
-All messages are sent to `IoActorProxy`, which then routes them either to IoActor or `IoPromiseProxyActor` based on if 
+All messages are sent to `IoActorProxy`, which then routes them either to `IoActor` or `IoPromiseProxyActor` based on if 
 message contains a Promise. `IoActorProxy` receives a message with Promise, forwards message to the `IoActor`, and once 
-response from IoActor comes back, completes the promise.
+response from `IoActor` comes back, completes the promise.
 
-IoActor has back-pressure (always enabled) and throttling (configurable) features implemented in order to prevent 
+`IoActor` has back-pressure (always enabled) and throttling (configurable) features implemented in order to prevent 
 overflowing the incoming messages queue.
 
 ## Message types and processing logic
 
 IoActor accepts messages of base type `IoCommand[T]` with or without clientContext (which is a Promise, which will be 
-passed through back to the `IoPromiseProxyActor` in the end)
+passed through, back to the `IoPromiseProxyActor` in the end)
 
 Message processing logic is implemented using Akka Stream API and can be represented with the following graph:
 ![IoActor message processing graph](IoActor_message_processing_graph.png)

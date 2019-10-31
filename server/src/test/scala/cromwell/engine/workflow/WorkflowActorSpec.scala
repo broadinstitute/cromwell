@@ -3,7 +3,7 @@ package cromwell.engine.workflow
 import java.time.OffsetDateTime
 import java.util.concurrent.atomic.AtomicInteger
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Kill, Props}
 import akka.testkit.{EventFilter, TestActorRef, TestFSMRef, TestProbe}
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell._
@@ -185,6 +185,27 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
 
       finalizationProbe.expectNoMessage(AwaitAlmostNothing)
       deathwatch.expectTerminated(actor)
+    }
+
+    "abort execution before escalating failure if one of its child actors crashed" in {
+      val workflowActor = createWorkflowActor(ExecutingWorkflowState)
+      deathwatch watch workflowActor
+
+      workflowActor.children.head ! Kill
+
+      eventually { workflowActor.stateName should be(WorkflowAbortingState) }
+      currentLifecycleActor.expectMsgPF(TimeoutDuration) {
+        case EngineLifecycleActorAbortCommand =>
+          workflowActor ! WorkflowExecutionAbortedResponse(Map.empty)
+      }
+      finalizationProbe.expectMsg(StartFinalizationCommand)
+      workflowActor.stateName should be(FinalizingWorkflowState)
+      workflowActor ! WorkflowFinalizationSucceededResponse
+      supervisorProbe.expectMsgPF(TimeoutDuration) {
+        case _: WorkflowFailedResponse => // success
+      }
+
+      deathwatch.expectTerminated(workflowActor)
     }
 
     "log an error when a path builder factory initialization fails" in {

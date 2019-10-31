@@ -43,6 +43,7 @@ object WorkflowActor {
   sealed trait WorkflowActorCommand
   case object StartWorkflowCommand extends WorkflowActorCommand
   case object AbortWorkflowCommand extends WorkflowActorCommand
+  final case class AbortWorkflowWithExceptionCommand(exception: Throwable) extends WorkflowActorCommand
   case object SendWorkflowHeartbeatCommand extends WorkflowActorCommand
 
   case class WorkflowFailedResponse(workflowId: WorkflowId, inState: WorkflowActorState, reasons: Seq[Throwable])
@@ -235,7 +236,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       self ! WorkflowInitializationFailedResponse(List(exception))
       Stop
     case exception if stateName == ExecutingWorkflowState =>
-      self ! WorkflowExecutionFailedResponse(Map.empty, exception)
+      self ! AbortWorkflowWithExceptionCommand(exception)
       Stop
     case exception if stateName == FinalizingWorkflowState =>
       self ! WorkflowFinalizationFailedResponse(List(exception))
@@ -334,11 +335,13 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
     data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, jobKeys, CallOutputs.empty, Option(List(failures)))
     case Event(WorkflowExecutionAbortedResponse(jobKeys),
-    data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) =>
-      finalizeWorkflow(data, workflowDescriptor, jobKeys, CallOutputs.empty, None)
+    data @ WorkflowActorData(_, Some(workflowDescriptor), _, StateCheckpoint(_, failures), _)) =>
+      finalizeWorkflow(data, workflowDescriptor, jobKeys, CallOutputs.empty, failures)
 
     // Whether we're running or aborting, restarting or not, pass along the abort command.
     // Note that aborting a workflow multiple times will result in as many abort commands sent to the execution actor
+    case Event(AbortWorkflowWithExceptionCommand(ex), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) =>
+      handleAbortCommand(data, workflowDescriptor, Option(ex))
     case Event(AbortWorkflowCommand, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) => 
       handleAbortCommand(data, workflowDescriptor)
   }
@@ -376,11 +379,11 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
     case Event(AbortWorkflowCommand, _) => stay()
   }
   
-  def handleAbortCommand(data: WorkflowActorData, workflowDescriptor: EngineWorkflowDescriptor) = {
+  def handleAbortCommand(data: WorkflowActorData, workflowDescriptor: EngineWorkflowDescriptor, exceptionCausedAbortOpt: Option[Throwable] = None) = {
     data.currentLifecycleStateActor match {
-      case Some(currentActor) => 
+      case Some(currentActor) =>
         currentActor ! EngineLifecycleActorAbortCommand
-        goto(WorkflowAbortingState)
+        goto(WorkflowAbortingState) using data.copy(lastStateReached = StateCheckpoint(stateName, exceptionCausedAbortOpt.map(List(_))))
       case None => 
         workflowLogger.warn(s"Received an abort command in state $stateName but there's no lifecycle actor associated. This is an abnormal state, finalizing the workflow anyway.")
         finalizeWorkflow(data, workflowDescriptor, Map.empty, CallOutputs.empty, None)
@@ -493,6 +496,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       copyWorkflowOutputsActor = copyWorkflowOutputsActorProps
     ), name = s"WorkflowFinalizationActor")
   }
+
   /**
     * Run finalization actor and transition to FinalizingWorkflowState.
     */

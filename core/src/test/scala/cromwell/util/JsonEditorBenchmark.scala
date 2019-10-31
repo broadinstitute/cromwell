@@ -4,6 +4,7 @@ import java.nio.file.{Files, Paths}
 
 import cats.data.NonEmptyList
 import cats.syntax.either._
+import cromwell.util.ErrorOrUtil._
 import cromwell.util.JsonEditor._
 import io.circe.Json
 import io.circe.parser.parse
@@ -75,7 +76,7 @@ object JsonEditorBenchmark extends Bench[Double] {
         exec.benchRuns -> 1
       ) in { sz =>
         jsonTree(sz).map { json =>
-          updateLabels(json, Map(json.workflowId.right.get -> Map(("new", "label"))))
+          updateLabels(json, Map(json.workflowId.get -> Map(("new", "label"))))
         }.right.get // traversal
       }
     }

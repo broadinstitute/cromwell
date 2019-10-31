@@ -81,7 +81,7 @@ task join {
 
 Now, compare the workflow source to its WOM graph (generated with the `womtool womgraph` command).
 
-![](forkjoin_graph.svg)
+![Graph of forkjoin](forkjoin_graph.svg)
 
 Input values are ovals, outputs are hexagons. You can see that a hexagon in one node (call) becomes an oval in the next. 
 

@@ -113,6 +113,8 @@ object CentaurCromwellClient extends StrictLogging {
     // If Cromwell is known not to be ready, delay the request to avoid requests bound to fail
     val ioDelay = if (!CromwellManager.isReady) IO.sleep(10.seconds) else IO.unit
 
+    val stackTraceString = org.apache.commons.lang3.exception.ExceptionUtils.getStackTrace(new Exception)
+
     ioDelay.flatMap( _ =>
       // Could probably use IO to do the retrying too. For now use a copyport of Retry from cromwell core. Retry 5 times,
       // wait 5 seconds between retries. Timeout the whole thing using the IO timeout.
@@ -124,9 +126,11 @@ object CentaurCromwellClient extends StrictLogging {
         5.seconds,
         isTransient = isTransient,
         isFatal = isFatal
-      )
-      ).timeout(timeout))
-    )
+      )).timeoutTo(timeout,
+        {
+          IO.raiseError(new TimeoutException("Timeout from retryRequest " + timeout.toString + ": " + stackTraceString))
+        }
+    )))
   }
 
   def sendReceiveFutureCompletion[T](x: () => FailureResponseOrT[T]): IO[T] = {
@@ -150,8 +154,9 @@ object CentaurCromwellClient extends StrictLogging {
     }
 
     if (result) {
-      logger.warn(s"Unexpected transient exception caught: $f")
+      logger.warn(s"Unexpected transient ${f.getClass.getSimpleName} exception caught: $f")
     }
 
+    result
   }
 }

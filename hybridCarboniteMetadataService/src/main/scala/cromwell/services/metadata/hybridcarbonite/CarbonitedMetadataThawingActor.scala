@@ -3,12 +3,16 @@ package cromwell.services.metadata.hybridcarbonite
 import akka.actor.{ActorRef, LoggingFSM, Props, Status}
 import akka.pattern.pipe
 import cats.data.NonEmptyList
+import cats.data.Validated.{Invalid, Valid}
+import cats.syntax.validated._
+import common.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr._
 import cromwell.core.WorkflowId
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
 import cromwell.services.metadata.MetadataQuery
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.hybridcarbonite.CarbonitedMetadataThawingActor._
-import cromwell.services.{SuccessfulMetadataJsonResponse, FailedMetadataJsonResponse}
+import cromwell.services.{FailedMetadataJsonResponse, SuccessfulMetadataJsonResponse}
 import cromwell.util.JsonEditor
 import io.circe.parser._
 import io.circe.{Json, Printer}
@@ -41,21 +45,17 @@ final class CarbonitedMetadataThawingActor(carboniterConfig: HybridCarboniteConf
 
   when(NeedsOnlyGcsState) {
     case Event(GcsMetadataResponse(gcsResponse), WorkingNoData(requester, action)) =>
-      val responseJson = gcsResponse.editFor(action).toSpray
-      requester ! SuccessfulMetadataJsonResponse(action, responseJson)
+      requester.respondWith(action, gcsResponse)
       stop()
   }
 
   when(NeedsGcsAndLabelsState) {
-    // Successful Responses:
     case Event(GcsMetadataResponse(gcsResponse), WorkingWithLabelsData(requester, action, labels)) =>
-      val responseJson = gcsResponse.editFor(action).updateLabels(labels).toSpray
-      requester ! SuccessfulMetadataJsonResponse(action, responseJson)
+      requester.respondWith(action, gcsResponse, labels)
       stop()
 
     case Event(RootAndSubworkflowLabelsLookupResponse(_, labels), WorkingWithGcsData(requester, action, gcsResponse)) =>
-      val responseJson = gcsResponse.editFor(action).updateLabels(labels).toSpray
-      requester ! SuccessfulMetadataJsonResponse(action, responseJson)
+      requester.respondWith(action, gcsResponse, labels)
       stop()
 
     case Event(GcsMetadataResponse(gcsResponse), WorkingNoData(requester, action)) =>
@@ -103,9 +103,9 @@ object CarbonitedMetadataThawingActor {
   final case class WorkingWithGcsData(requester: ActorRef, action: BuildWorkflowMetadataJsonAction, gcsResponse: Json) extends WorkingData
 
   implicit class EnhancedJson(val json: Json) extends AnyVal {
-    def editFor(action: BuildWorkflowMetadataJsonAction): Json = action match {
-      case _: GetLogs => JsonEditor.logs(json)
-      case _: WorkflowOutputs => JsonEditor.outputs(json)
+    def editFor(action: BuildWorkflowMetadataJsonAction): ErrorOr[Json] = action match {
+      case _: GetLogs => JsonEditor.logs(json).validNel
+      case _: WorkflowOutputs => JsonEditor.outputs(json).validNel
       case get: GetMetadataAction =>
         val intermediate = get.key match {
           case MetadataQuery(_, None, None, None, None, _) => json
@@ -119,14 +119,15 @@ object CarbonitedMetadataThawingActor {
           case wrong => throw new RuntimeException(s"Programmer Error: Invalid MetadataQuery: $wrong")
         }
         // For carbonited metadata, "expanded" subworkflows translates to not deleting subworkflows out of the root workflow that already
-        // contains them. So `identity` for expanded subworkflows and `JsonEditor.removeSubworkflowMetadata` for unexpanded subworkflows.
-        val processSubworkflowMetadata: Json => Json = if (get.key.expandSubWorkflows) identity else JsonEditor.replaceSubworkflowMetadataWithId
+        // contains them. So `validize` for expanded subworkflows and `JsonEditor.removeSubworkflowMetadata` for unexpanded subworkflows.
+        def validize(json: Json): ErrorOr[Json] = json.validNel
+        val processSubworkflowMetadata: Json => ErrorOr[Json] = if (get.key.expandSubWorkflows) validize else JsonEditor.replaceSubworkflowMetadataWithId
         processSubworkflowMetadata(intermediate)
       case other =>
         throw new RuntimeException(s"Programmer Error: Unexpected BuildWorkflowMetadataJsonAction message of type '${other.getClass.getSimpleName}': $other")
     }
 
-    def updateLabels(labels: Map[WorkflowId, Map[String, String]]): Json = JsonEditor.updateLabels(json, labels)
+    def updateLabels(labels: Map[WorkflowId, Map[String, String]]): ErrorOr[Json] = JsonEditor.updateLabels(json, labels)
 
     def toSpray: JsObject = json.printWith(Printer.spaces2).parseJson.asJsObject
   }
@@ -139,6 +140,30 @@ object CarbonitedMetadataThawingActor {
       case q: GetMetadataAction if q.key.includeKeysOption.exists { _.toList.contains("labels") } => true
       case q: GetMetadataAction if q.key.includeKeysOption.isDefined => false
       case _ => true
+    }
+  }
+
+  implicit class EnhancedRequester(val requester: ActorRef) extends AnyVal {
+    private def respondWith(action: BuildWorkflowMetadataJsonAction, sprayJson: ErrorOr[JsObject]): Unit = {
+      val message = sprayJson match {
+        case Valid(json) => SuccessfulMetadataJsonResponse(action, json)
+        case Invalid(errors) => FailedMetadataJsonResponse(action, new Throwable(errors.toList.mkString("\n")))
+      }
+      requester ! message
+    }
+
+    def respondWith(action: BuildWorkflowMetadataJsonAction, gcsResponse: Json): Unit = {
+      val responseJson = gcsResponse.editFor(action) map { _.toSpray }
+      requester.respondWith(action, responseJson)
+    }
+
+    def respondWith(action: BuildWorkflowMetadataJsonAction, gcsResponse: Json, labels: Map[WorkflowId, Map[String, String]]): Unit = {
+      val responseJson = for {
+        edited <- gcsResponse.editFor(action)
+        updated <- edited.updateLabels(labels)
+      } yield updated.toSpray
+
+      requester.respondWith(action, responseJson)
     }
   }
 }

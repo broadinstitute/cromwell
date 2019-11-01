@@ -143,7 +143,7 @@ object CentaurCromwellClient extends StrictLogging {
   }
 
   private def isTransient(f: Throwable) = {
-    val result = f match {
+    f match {
       case _: StreamTcpException |
            _: IOException |
            _: UnsupportedContentTypeException => true
@@ -152,11 +152,5 @@ object CentaurCromwellClient extends StrictLogging {
       case unexpected: RuntimeException => unexpected.getMessage.contains("The http server closed the connection unexpectedly")
       case _ => false
     }
-
-    if (result) {
-      logger.warn(s"Unexpected transient ${f.getClass.getSimpleName} exception caught: $f")
-    }
-
-    result
   }
 }

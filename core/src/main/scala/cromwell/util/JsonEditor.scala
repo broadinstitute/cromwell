@@ -6,7 +6,8 @@ import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.collections.EnhancedCollections._
 import common.util.StringUtil._
-import common.validation.ErrorOr.{ErrorOr, _}
+import common.validation.ErrorOr._
+import common.validation.Validation._
 import cromwell.core.WorkflowId
 import io.circe.Json.Folder
 import io.circe.{Json, JsonNumber, JsonObject, Printer}
@@ -197,7 +198,8 @@ object JsonEditor {
 
         for {
           calls <- updatedCalls
-          updatedWorkflow = Json.fromJsonObject(workflowJson.asObject.get.add("calls", Json.fromJsonObject(calls)))
+          obj <- workflowJson.asObject.toErrorOr(s"unexpectedly not a JSON object: $workflowJson")
+          updatedWorkflow = Json.fromJsonObject(obj.add("calls", Json.fromJsonObject(calls)))
         } yield updatedWorkflow
     }
     workflowWithUpdatedCalls

@@ -119,9 +119,8 @@ object CarbonitedMetadataThawingActor {
           case wrong => throw new RuntimeException(s"Programmer Error: Invalid MetadataQuery: $wrong")
         }
         // For carbonited metadata, "expanded" subworkflows translates to not deleting subworkflows out of the root workflow that already
-        // contains them. So `validize` for expanded subworkflows and `JsonEditor.removeSubworkflowMetadata` for unexpanded subworkflows.
-        def validize(json: Json): ErrorOr[Json] = json.validNel
-        val processSubworkflowMetadata: Json => ErrorOr[Json] = if (get.key.expandSubWorkflows) validize else JsonEditor.replaceSubworkflowMetadataWithId
+        // contains them. So `_.validNel` for expanded subworkflows and `JsonEditor.removeSubworkflowMetadata` for unexpanded subworkflows.
+        val processSubworkflowMetadata: Json => ErrorOr[Json] = if (get.key.expandSubWorkflows) _.validNel else JsonEditor.replaceSubworkflowMetadataWithId
         processSubworkflowMetadata(intermediate)
       case other =>
         throw new RuntimeException(s"Programmer Error: Unexpected BuildWorkflowMetadataJsonAction message of type '${other.getClass.getSimpleName}': $other")

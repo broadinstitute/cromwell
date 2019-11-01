@@ -8,6 +8,7 @@ import io.circe.{DecodingFailure, FailedCursor, HCursor, Json, ParsingFailure}
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.io.Source
+import cromwell.util.ErrorOrUtil._
 
 class JsonEditorSpec extends FlatSpec with Matchers{
   import JsonEditorSpec._
@@ -68,8 +69,8 @@ class JsonEditorSpec extends FlatSpec with Matchers{
   }
 
   it should "add labels" in {
-    val newJson = realJson.map(json => updateLabels(json, Map(json.workflowId.right.get -> Map(("new","label"))))).right.get
-    val newLabels = newJson.hcursor.downField("labels").keys.get
+    val newJson = realJson.map(json => updateLabels(json, Map(json.workflowId.get -> Map(("new","label"))))).right.get
+    val newLabels = newJson.get.hcursor.downField("labels").keys.get
     assert(newLabels.size  === 2)
   }
 
@@ -82,14 +83,14 @@ class JsonEditorSpec extends FlatSpec with Matchers{
           .getResourceAsStream("metadata_with_subworkflows.json")
         ).mkString)
     val newJson = metadataWithSubworkflows.map(replaceSubworkflowMetadataWithId).right.get
-    val keys = newJson.hcursor.downField("calls").downField("wf.wf").downArray.keys
+    val keys = newJson.get.hcursor.downField("calls").downField("wf.wf").downArray.keys
     assert(keys.exists(_.exists(_ == "subWorkflowMetadata")) === false)
 
     val oldCallsArrayCursor = metadataWithSubworkflows.right.get.hcursor.downField("calls").downField("wf.wf").downArray
     val oldSubWorkflowId1 = oldCallsArrayCursor.downField("subWorkflowMetadata").get[String]("id").asInstanceOf[Right[DecodingFailure, String]].value
     val oldSubWorkflowId2 = oldCallsArrayCursor.right.downField("subWorkflowMetadata").get[String]("id").asInstanceOf[Right[DecodingFailure, String]].value
 
-    val newCallsArrayCursor = newJson.hcursor.downField("calls").downField("wf.wf").downArray
+    val newCallsArrayCursor = newJson.get.hcursor.downField("calls").downField("wf.wf").downArray
     val newSubWorkflowId1 = newCallsArrayCursor.get[String]("subWorkflowId").asInstanceOf[Right[DecodingFailure, String]].value
     val newSubWorkflowId2 = newCallsArrayCursor.right.get[String]("subWorkflowId").asInstanceOf[Right[DecodingFailure, String]].value
 

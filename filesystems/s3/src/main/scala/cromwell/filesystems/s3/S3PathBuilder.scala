@@ -33,8 +33,6 @@ package cromwell.filesystems.s3
 import java.net.URI
 
 import com.google.common.net.UrlEscapers
-import software.amazon.awssdk.auth.credentials.AwsCredentials
-import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 import cromwell.cloudsupport.aws.auth.AwsAuthMode
 import cromwell.cloudsupport.aws.s3.S3Storage
 import cromwell.core.WorkflowOptions
@@ -42,7 +40,9 @@ import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.s3.S3PathBuilder._
 import org.lerch.s3fs.S3FileSystemProvider
 import org.lerch.s3fs.util.S3Utils
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
@@ -115,22 +115,22 @@ object S3PathBuilder {
                    configuration: S3Configuration,
                    options: WorkflowOptions,
                    storageRegion: Option[Region])(implicit ec: ExecutionContext): Future[S3PathBuilder] = {
-    val credentials = authMode.credential((key: String) => options.get(key).get)
+    val provider = authMode.provider()
 
     // Other backends needed retry here. In case we need retry, we'll return
     // a future. This will allow us to add capability without changing signature
-    Future(fromCredentials(credentials,
+    Future(fromProvider(provider,
       configuration,
       options,
       storageRegion
     ))
   }
 
-  def fromCredentials(credentials: AwsCredentials,
-                      configuration: S3Configuration,
-                      options: WorkflowOptions,
-                      storageRegion: Option[Region]): S3PathBuilder = {
-    new S3PathBuilder(S3Storage.s3Client(credentials, storageRegion), configuration)
+  def fromProvider(provider: AwsCredentialsProvider,
+                   configuration: S3Configuration,
+                   options: WorkflowOptions,
+                   storageRegion: Option[Region]): S3PathBuilder = {
+    new S3PathBuilder(S3Storage.s3Client(provider, storageRegion), configuration)
   }
 }
 

@@ -49,7 +49,6 @@ import cromwell.backend.io.JobPaths
 import cromwell.cloudsupport.aws.auth.AwsAuthMode
 import org.slf4j.LoggerFactory
 import fs2.Stream
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.regions.Region
 
 import scala.collection.JavaConverters._
@@ -85,7 +84,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
   lazy val client = {
     val builder = BatchClient.builder()
     optAwsAuthMode.foreach { awsAuthMode =>
-      builder.credentialsProvider(StaticCredentialsProvider.create(awsAuthMode.credential(_ => "")))
+      builder.credentialsProvider(awsAuthMode.provider())
     }
     configRegion.foreach(builder.region)
     builder.build

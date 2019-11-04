@@ -8,6 +8,7 @@ import common.collections.EnhancedCollections._
 import cromwell.services.metadata.impl.builder.MetadataComponent._
 import cromwell.core.ExecutionIndex.ExecutionIndex
 import cromwell.core._
+import cromwell.services._
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor._
@@ -19,10 +20,6 @@ import scala.language.postfixOps
 
 
 object MetadataBuilderActor {
-  sealed trait MetadataBuilderActorResponse extends MetadataServiceResponse { def originalRequest: MetadataReadAction }
-  final case class BuiltMetadataResponse(originalRequest: MetadataReadAction, responseJson: JsObject) extends MetadataBuilderActorResponse
-  final case class FailedMetadataResponse(originalRequest: MetadataReadAction, reason: Throwable) extends MetadataBuilderActorResponse
-
   sealed trait MetadataBuilderActorState
   case object Idle extends MetadataBuilderActorState
   case object WaitingForMetadataService extends MetadataBuilderActorState
@@ -32,9 +29,9 @@ object MetadataBuilderActor {
 
   case object IdleData extends MetadataBuilderActorData
   final case class HasWorkData(target: ActorRef,
-                               originalRequest: MetadataReadAction) extends MetadataBuilderActorData
+                               originalRequest: BuildMetadataJsonAction) extends MetadataBuilderActorData
   final case class HasReceivedEventsData(target: ActorRef,
-                                         originalRequest: MetadataReadAction,
+                                         originalRequest: BuildMetadataJsonAction,
                                          originalQuery: MetadataQuery,
                                          originalEvents: Seq[MetadataEvent],
                                          subWorkflowsMetadata: Map[String, JsValue],
@@ -88,7 +85,7 @@ object MetadataBuilderActor {
      *    ...
      * )
      * Note that groupBy will preserve the ordering of the events in the Seq, which means that as long as the DB sorts them by timestamp, we can always assume the last one is the newest one.
-     * This is guaranteed by the groupBy invariant and the fact that filter preservers the ordering. (See scala doc for groupBy and filter)
+     * This is guaranteed by the groupBy invariant and the fact that filter preserves the ordering. (See scala doc for groupBy and filter)
      */
     val callsGroupedByFQN = callLevel groupBy { _.key.jobKey.get.callFqn }
     /*
@@ -253,7 +250,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props)
   val tag = self.path.name
 
   when(Idle) {
-    case Event(action: MetadataReadAction, IdleData) =>
+    case Event(action: BuildMetadataJsonAction, IdleData) =>
 
       val readActor = context.actorOf(readMetadataWorkerMaker.apply())
 
@@ -268,29 +265,32 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props)
 
   when(WaitingForMetadataService) {
     case Event(StatusLookupResponse(w, status), HasWorkData(target, originalRequest)) =>
-      target ! BuiltMetadataResponse(originalRequest, processStatusResponse(w, status))
+      target ! SuccessfulMetadataJsonResponse(originalRequest, processStatusResponse(w, status))
       allDone()
     case Event(LabelLookupResponse(w, labels), HasWorkData(target, originalRequest)) =>
-      target ! BuiltMetadataResponse(originalRequest, processLabelsResponse(w, labels))
+      target ! SuccessfulMetadataJsonResponse(originalRequest, processLabelsResponse(w, labels))
       allDone()
     case Event(WorkflowOutputsResponse(id, events), HasWorkData(target, originalRequest)) =>
-      target ! BuiltMetadataResponse(originalRequest, processOutputsResponse(id, events))
+      target ! SuccessfulMetadataJsonResponse(originalRequest, processOutputsResponse(id, events))
       allDone()
     case Event(LogsResponse(w, l), HasWorkData(target, originalRequest)) =>
-      target ! BuiltMetadataResponse(originalRequest, workflowMetadataResponse(w, l, includeCallsIfEmpty = false, Map.empty))
+      target ! SuccessfulMetadataJsonResponse(originalRequest, workflowMetadataResponse(w, l, includeCallsIfEmpty = false, Map.empty))
       allDone()
     case Event(MetadataLookupResponse(query, metadata), HasWorkData(target, originalRequest)) =>
       processMetadataResponse(query, metadata, target, originalRequest)
     case Event(failure: MetadataServiceFailure, HasWorkData(target, originalRequest)) =>
-      target ! FailedMetadataResponse(originalRequest, failure.reason)
+      target ! FailedMetadataJsonResponse(originalRequest, failure.reason)
+      allDone()
+    case Event(response: RootAndSubworkflowLabelsLookupResponse, HasWorkData(target, _)) =>
+      target ! response
       allDone()
   }
 
   when(WaitingForSubWorkflows) {
-    case Event(mbr: MetadataBuilderActorResponse, data: HasReceivedEventsData) =>
+    case Event(mbr: MetadataJsonResponse, data: HasReceivedEventsData) =>
       processSubWorkflowMetadata(mbr, data)
     case Event(failure: MetadataServiceFailure, data: HasReceivedEventsData) =>
-      data.target ! FailedMetadataResponse(data.originalRequest, failure.reason)
+      data.target ! FailedMetadataJsonResponse(data.originalRequest, failure.reason)
       allDone()
   }
 
@@ -308,9 +308,9 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props)
       stay
   }
 
-  def processSubWorkflowMetadata(metadataResponse: MetadataBuilderActorResponse, data: HasReceivedEventsData) = {
+  def processSubWorkflowMetadata(metadataResponse: MetadataJsonResponse, data: HasReceivedEventsData) = {
     metadataResponse match {
-      case BuiltMetadataResponse(GetMetadataAction(queryKey), js) =>
+      case SuccessfulMetadataJsonResponse(GetMetadataAction(queryKey), js) =>
         val subId: WorkflowId = queryKey.workflowId
         val newData = data.withSubWorkflow(subId.toString, js)
 
@@ -319,7 +319,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props)
         } else {
           stay() using newData
         }
-      case FailedMetadataResponse(originalRequest, e) =>
+      case FailedMetadataJsonResponse(originalRequest, e) =>
         failAndDie(new RuntimeException(s"Failed to retrieve metadata for a sub workflow ($originalRequest)", e), data.target, data.originalRequest)
 
       case other =>
@@ -329,19 +329,19 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props)
     }
   }
 
-  def failAndDie(reason: Throwable, target: ActorRef, originalRequest: MetadataReadAction) = {
-    target ! FailedMetadataResponse(originalRequest, reason)
+  def failAndDie(reason: Throwable, target: ActorRef, originalRequest: BuildMetadataJsonAction) = {
+    target ! FailedMetadataJsonResponse(originalRequest, reason)
     context stop self
     stay()
   }
 
-  def buildAndStop(query: MetadataQuery, eventsList: Seq[MetadataEvent], expandedValues: Map[String, JsValue], target: ActorRef, originalRequest: MetadataReadAction) = {
+  def buildAndStop(query: MetadataQuery, eventsList: Seq[MetadataEvent], expandedValues: Map[String, JsValue], target: ActorRef, originalRequest: BuildMetadataJsonAction) = {
     val groupedEvents = groupEvents(eventsList)
-    target ! BuiltMetadataResponse(originalRequest, processMetadataEvents(query, groupedEvents, expandedValues))
+    target ! SuccessfulMetadataJsonResponse(originalRequest, processMetadataEvents(query, groupedEvents, expandedValues))
     allDone()
   }
 
-  def processMetadataResponse(query: MetadataQuery, eventsList: Seq[MetadataEvent], target: ActorRef, originalRequest: MetadataReadAction) = {
+  def processMetadataResponse(query: MetadataQuery, eventsList: Seq[MetadataEvent], target: ActorRef, originalRequest: BuildMetadataJsonAction) = {
     if (query.expandSubWorkflows) {
       // Scan events for sub workflow ids
       val subWorkflowIds = eventsList.collect({

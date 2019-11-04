@@ -68,3 +68,29 @@ jq '{
 
 cmp <(jq -cS . actual.json) <(jq -cS . expected.json)
 popd > /dev/null
+
+# Test 3: program should exit with error in case if validation of command line arguments failed
+java -jar "${CROMWELL_BUILD_CROMWELL_JAR}" run nonexistent.wdl &
+pid=$!
+sleep 10
+if kill -0 $pid > /dev/null 2>&1; then
+  echo "ERROR: Process still exists"
+  kill $pid
+  exit 1
+fi
+
+# Test 4: application should return non-zero exit code when parsing of command-line arguments fails
+set +e
+java \
+    -jar "${CROMWELL_BUILD_CROMWELL_JAR}" \
+    run ./centaur/src/main/resources/standardTestCases/hello/hello.wdl \
+    ./centaur/src/main/resources/standardTestCases/hello/hello.inputs \
+2>&1 | tee console_output.txt
+retVal=$?
+set -e
+if [ $retVal -eq 0 ]; then
+    echo "ERROR: application exited with exit code 0 when invalid command-line arguments were provided"
+    exit 1
+else
+    grep "Error: Unknown argument" console_output.txt
+fi

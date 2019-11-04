@@ -111,6 +111,8 @@ trait MetadataSqlDatabase extends SqlDatabase {
 
   def getWorkflowLabels(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Map[String, String]]
 
+  def getRootAndSubworkflowLabels(rootWorkflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Map[String, Map[String, String]]]
+
   def queryWorkflowSummaries(parentIdWorkflowMetadataKey: String,
                              workflowStatuses: Set[String],
                              workflowNames: Set[String],
@@ -141,4 +143,8 @@ trait MetadataSqlDatabase extends SqlDatabase {
                              metadataArchiveStatus: Set[Option[String]],
                              includeSubworkflows: Boolean)
                              (implicit ec: ExecutionContext): Future[Int]
+
+  def deleteNonLabelMetadataForWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Int]
+
+  def isRootWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Option[Boolean]]
 }

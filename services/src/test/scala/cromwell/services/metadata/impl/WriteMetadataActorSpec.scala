@@ -218,6 +218,9 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     override def getWorkflowLabels(workflowExecutionUuid: String)
                                   (implicit ec: ExecutionContext): Nothing = notImplemented()
 
+    override def getRootAndSubworkflowLabels(rootWorkflowExecutionUuid: String)
+                                  (implicit ec: ExecutionContext): Nothing = notImplemented()
+
     override def queryWorkflowSummaries(parentWorkflowIdMetadataKey: String,
                                         workflowStatuses: Set[String],
                                         workflowNames: Set[String],
@@ -261,6 +264,13 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
 
     override def close(): Nothing = notImplemented()
 
+    override def deleteNonLabelMetadataForWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Int] = {
+      notImplemented()
+    }
+
+    override def isRootWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Option[Boolean]] = {
+      notImplemented()
+    }
   }
 }
 

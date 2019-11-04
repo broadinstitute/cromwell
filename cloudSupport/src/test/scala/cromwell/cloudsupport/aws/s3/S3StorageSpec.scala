@@ -53,7 +53,7 @@ class S3StorageSpec extends FlatSpec with Matchers {
 
   it should "build s3 client with credentials" taggedAs S3StorageSpecUtils.AwsTest in {
     S3Storage.s3Client(
-      AnonymousCredentialsProvider.create.resolveCredentials(),
+      AnonymousCredentialsProvider.create,
       Option(Region.US_EAST_1)
     )
   }

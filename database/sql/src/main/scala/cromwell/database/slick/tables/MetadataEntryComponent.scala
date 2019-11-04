@@ -7,7 +7,7 @@ import cromwell.database.sql.tables.MetadataEntry
 
 trait MetadataEntryComponent {
 
-  this: DriverComponent =>
+  this: DriverComponent with WorkflowMetadataSummaryEntryComponent =>
 
   import driver.api._
 
@@ -60,6 +60,22 @@ trait MetadataEntryComponent {
       metadataEntry <- metadataEntries
       if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
     } yield metadataEntry).sortBy(_.metadataTimestamp)
+  )
+
+  val metadataEntriesWithoutLabelsForRootWorkflowId = Compiled(
+    (rootWorkflowId: Rep[String]) => {
+      val targetWorkflowIds = for {
+        summary <- workflowMetadataSummaryEntries
+        // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
+        if summary.rootWorkflowExecutionUuid === rootWorkflowId || summary.workflowExecutionUuid === rootWorkflowId
+      } yield summary.workflowExecutionUuid
+
+      for {
+        metadata <- metadataEntries
+        if metadata.workflowExecutionUuid in targetWorkflowIds // Uses `METADATA_WORKFLOW_IDX`
+        if !(metadata.metadataKey like "labels:%")
+      } yield metadata
+    }
   )
 
   val metadataEntryExistsForWorkflowExecutionUuid = Compiled(

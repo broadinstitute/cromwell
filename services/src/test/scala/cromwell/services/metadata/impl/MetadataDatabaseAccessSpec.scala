@@ -59,8 +59,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       dataAccess.addMetadataEvents(events)
     }
 
-    def baseWorkflowMetadata(name: String, labels: Set[Label] = Set.empty): Future[WorkflowId] = {
-      val workflowId = WorkflowId.randomId()
+    def baseWorkflowMetadata(name: String, labels: Set[Label] = Set.empty, workflowId: WorkflowId = WorkflowId.randomId()): Future[WorkflowId] = {
       val defaultLabels = Set(Label("cromwell-workflow-name", name))
       val labelMetadata = (labels ++ defaultLabels).map(label => (s"${WorkflowMetadataKeys.Labels}:${label.key}", label.value)).toArray
 
@@ -75,8 +74,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       publishMetadataEvents(workflowKey, keyAndValue(name)).map(_ => workflowId)
     }
 
-    def subworkflowMetadata(parentWorkflowId: WorkflowId, subworkflowName: String): Future[WorkflowId] = {
-      val workflowId = WorkflowId.randomId()
+    def subworkflowMetadata(parentWorkflowId: WorkflowId, subworkflowName: String, workflowId: WorkflowId = WorkflowId.randomId()): Future[WorkflowId] = {
       val workflowKey = MetadataKey(workflowId, jobKey = None, key = null)
       val metadataKeys = Array(
         (WorkflowMetadataKeys.Status, WorkflowRunning.toString),
@@ -473,6 +471,38 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
             }
         }
       } yield()).futureValue
+    }
+
+    it should "error when deleting metadata for a root workflow that does not exist" taggedAs DbmsTest in {
+      dataAccess
+        .deleteNonLabelMetadataEntriesForWorkflow(WorkflowId.fromString("00000000-0000-0000-0000-000000000000"))
+        .failed.futureValue(Timeout(10.seconds))
+        .getMessage should be("""Metadata deletion precondition failed: workflow ID "00000000-0000-0000-0000-000000000000" not found in summary table""")
+    }
+
+    it should "error when deleting metadata for a subworkflow" taggedAs DbmsTest in {
+      val test = for {
+        rootWorkflowId <- baseWorkflowMetadata("root workflow name", workflowId = WorkflowId.fromString("11111111-1111-1111-1111-111111111111"))
+        subworkflowId <- subworkflowMetadata(rootWorkflowId, "subworkflow name", workflowId = WorkflowId.fromString("22222222-2222-2222-2222-222222222222"))
+        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000)
+        _ <- dataAccess.deleteNonLabelMetadataEntriesForWorkflow(subworkflowId)
+      } yield ()
+
+      test
+        .failed.futureValue(Timeout(10.seconds))
+        .getMessage should be(s"""Metadata deletion precondition failed: workflow ID "22222222-2222-2222-2222-222222222222" is not a root workflow""")
+    }
+
+    it should "refuse to delete a non-terminal workflow" taggedAs DbmsTest in {
+      val test = for {
+        rootWorkflowId <- baseWorkflowMetadata("root workflow name", workflowId = WorkflowId.fromString("33333333-3333-3333-3333-333333333333"))
+        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000)
+        _ <- dataAccess.deleteNonLabelMetadataEntriesForWorkflow(rootWorkflowId)
+      } yield ()
+
+      test
+        .failed.futureValue(Timeout(10.seconds))
+        .getMessage should be(s"""Metadata deletion precondition failed: workflow ID "33333333-3333-3333-3333-333333333333" was in non-terminal status "Submitted"""")
     }
 
     it should "close the database" taggedAs DbmsTest in {

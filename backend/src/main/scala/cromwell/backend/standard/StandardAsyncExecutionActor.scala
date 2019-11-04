@@ -245,7 +245,7 @@ trait StandardAsyncExecutionActor
     val absoluteGlobValue = commandDirectory.resolve(globFile.value).pathAsString
     val globLinkCommand: String = configurationDescriptor.backendConfig.getAs[String]("glob-link-command")
       .map("( " + _ + " )")
-      .getOrElse("( ln -L GLOB_PATTERN GLOB_DIRECTORY 2> /dev/null ) || ( ln GLOB_PATTERN GLOB_DIRECTORY )")
+      .getOrElse("( ln -sL GLOB_PATTERN GLOB_DIRECTORY 2> /dev/null ) || ( ln -s GLOB_PATTERN GLOB_DIRECTORY )")
       .replaceAll("GLOB_PATTERN", absoluteGlobValue)
       .replaceAll("GLOB_DIRECTORY", globDirectory.pathAsString)
 

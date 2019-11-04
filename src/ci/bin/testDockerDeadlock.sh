@@ -28,6 +28,21 @@ set -o errexit
 
 echo "docker-compose exit code was ${exit_code}"
 
+if [[ "${exit_code}" -gt "0" ]]
+then
+  echo "Failed docker runs:"
+  docker ps -a | egrep "Exited \([1-9][0-9]*\)"
+
+  for bad_docker_container in $(docker ps -a | grep -v "CONTAINER" | awk '{print $1}')
+  do
+    echo "Logs for ${bad_docker_container}:"
+    echo "*********"
+    docker logs -t ${bad_docker_container}
+    echo "*********"
+    echo
+  done
+fi
+
 # Tear everything down, but dump out the logs first
 CROMWELL_TAG="${CROMWELL_BUILD_CROMWELL_DOCKER_TAG}" \
 docker-compose \

@@ -2,23 +2,26 @@ package cromwell.services.metadata.hybridcarbonite
 
 import java.nio.file.StandardOpenOption
 
-import akka.actor.{ActorRef, FSM, LoggingFSM}
+import akka.actor.{ActorRef, LoggingFSM, Props}
 import cats.data.NonEmptyList
 import cromwell.core.WorkflowId
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataArchiveStatus.{ArchiveFailed, Archived}
 import cromwell.services.metadata.MetadataService.GetMetadataAction
+import cromwell.services.metadata.hybridcarbonite.CarboniteWorkerActor.CarboniteWorkflowComplete
 import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActor._
 import cromwell.services.metadata.impl.MetadataDatabaseAccess
-import cromwell.services.metadata.impl.builder.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse}
+import cromwell.services.{SuccessfulMetadataJsonResponse, FailedMetadataJsonResponse}
 import cromwell.services.metadata.{MetadataArchiveStatus, MetadataQuery}
+import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
 class CarbonitingMetadataFreezerActor(carboniterConfig: HybridCarboniteConfig,
+                                      carboniteWorkerActor: ActorRef,
                                       serviceRegistry: ActorRef,
                                       ioActor: ActorRef) extends
   LoggingFSM[CarbonitingMetadataFreezingState, CarbonitingMetadataFreezingData]
@@ -47,13 +50,13 @@ class CarbonitingMetadataFreezerActor(carboniterConfig: HybridCarboniteConfig,
   }
 
   when(Fetching) {
-    case Event(BuiltMetadataResponse(_, responseJson), FetchingData(workflowId)) =>
+    case Event(SuccessfulMetadataJsonResponse(_, responseJson), FetchingData(workflowId)) =>
       asyncIo.writeAsync(carboniterConfig.makePath(workflowId), responseJson.prettyPrint, Seq(StandardOpenOption.CREATE)) onComplete {
         result => self ! CarbonitingFreezeResult(result)
       }
       goto(Freezing) using FreezingData(workflowId)
 
-    case Event(FailedMetadataResponse(_, reason), FetchingData(workflowId)) =>
+    case Event(FailedMetadataJsonResponse(_, reason), FetchingData(workflowId)) =>
       log.error(reason, s"Failed to fetch workflow $workflowId's metadata to archive. Marking as $ArchiveFailed")
       scheduleDatabaseUpdateAndAwaitResult(workflowId, ArchiveFailed)
   }
@@ -67,15 +70,20 @@ class CarbonitingMetadataFreezerActor(carboniterConfig: HybridCarboniteConfig,
   }
 
   when(UpdatingDatabase) {
-    case Event(DatabaseUpdateCompleted(Success(_)), UpdatingDatabaseData(_, _)) =>
-      // All set; exit normally:
-      stop(FSM.Normal)
+    case Event(DatabaseUpdateCompleted(Success(_)), UpdatingDatabaseData(workflowId, result)) =>
+      // All set; send 'complete' to CarboniteWorkerActor; wait for next workflow to carbonite
+      carboniteWorkerActor ! CarboniteWorkflowComplete(workflowId, result)
+      // Prepare for the next work request by reverting to the initial FSM state (and data):
+      goto(Pending) using NoData
     case Event(DatabaseUpdateCompleted(Failure(reason)), UpdatingDatabaseData(workflowId, freezingResult)) =>
       log.error(reason, s"Unable to update workflow ID $workflowId's METADATA_ARCHIVE_STATUS to $freezingResult. Will try again in 1 minute")
       scheduleDatabaseUpdateAndAwaitResult(workflowId, freezingResult, delay = Option(1.minute))
   }
 
   whenUnhandled {
+    case Event(ShutdownCommand, _) =>
+      context stop self
+      stay()
     case other =>
       log.error(s"Programmer Error: Unexpected message to ${getClass.getSimpleName} ${self.path.name} in state $stateName with $stateData: $other")
       stay()
@@ -102,6 +110,10 @@ class CarbonitingMetadataFreezerActor(carboniterConfig: HybridCarboniteConfig,
 
 
 object CarbonitingMetadataFreezerActor {
+
+  def props(carboniterConfig: HybridCarboniteConfig, carboniteWorkerActor: ActorRef, serviceRegistry: ActorRef, ioActor: ActorRef) =
+    Props(new CarbonitingMetadataFreezerActor(carboniterConfig, carboniteWorkerActor, serviceRegistry, ioActor))
+
   sealed trait CarbonitingMetadataFreezingState
   case object Pending extends CarbonitingMetadataFreezingState
   case object Fetching extends CarbonitingMetadataFreezingState

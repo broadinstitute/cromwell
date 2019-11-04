@@ -6,10 +6,9 @@ import akka.pattern._
 import akka.testkit.TestProbe
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core._
-import cromwell.services.ServicesSpec
+import cromwell.services.{SuccessfulMetadataJsonResponse, ServicesSpec}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
-import cromwell.services.metadata.impl.builder.MetadataBuilderActor.BuiltMetadataResponse
 import cromwell.services.metadata.impl.MetadataServiceActorSpec._
 
 import scala.concurrent.Await
@@ -119,7 +118,7 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
 
       s"perform $name correctly" in {
         eventually(Timeout(10.seconds), Interval(2.seconds)) {
-          val response = Await.result((actor ? GetMetadataAction(query)).mapTo[BuiltMetadataResponse], 1.seconds)
+          val response = Await.result((actor ? GetMetadataAction(query)).mapTo[SuccessfulMetadataJsonResponse], 1.seconds)
 
           response.responseJson shouldBe expectation.parseJson
         }

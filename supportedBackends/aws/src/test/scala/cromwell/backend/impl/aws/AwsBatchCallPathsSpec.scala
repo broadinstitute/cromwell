@@ -61,7 +61,7 @@ class AwsBatchCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers
     val configuration = new AwsBatchConfiguration(AwsBatchBackendConfigurationDescriptor)
     val workflowPaths = AwsBatchWorkflowPaths(
       workflowDescriptor,
-      AnonymousCredentialsProvider.create.resolveCredentials(),
+      AnonymousCredentialsProvider.create,
       configuration
     )
 
@@ -83,7 +83,7 @@ class AwsBatchCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers
     val configuration = new AwsBatchConfiguration(AwsBatchBackendConfigurationDescriptor)
     val workflowPaths = AwsBatchWorkflowPaths(
       workflowDescriptor,
-      AnonymousCredentialsProvider.create.resolveCredentials(),
+      AnonymousCredentialsProvider.create,
       configuration
     )
 
@@ -108,7 +108,7 @@ class AwsBatchCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers
     val configuration = new AwsBatchConfiguration(AwsBatchBackendConfigurationDescriptor)
     val workflowPaths = AwsBatchWorkflowPaths(
       workflowDescriptor,
-      AnonymousCredentialsProvider.create.resolveCredentials(),
+      AnonymousCredentialsProvider.create,
       configuration
     )
 

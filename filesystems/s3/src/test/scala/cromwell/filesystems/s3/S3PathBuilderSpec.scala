@@ -47,8 +47,8 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
     // We aren't using workflow options...yet
     val wfOptionsWithProject = WorkflowOptions.empty
 
-    S3PathBuilder.fromCredentials(
-      AnonymousCredentialsProvider.create.resolveCredentials(),
+    S3PathBuilder.fromProvider(
+      AnonymousCredentialsProvider.create,
       S3Storage.s3Configuration(),
       wfOptionsWithProject,
       Option(Region.US_EAST_1)
@@ -381,8 +381,8 @@ class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wit
   )
 
   private lazy val pathBuilder = {
-    S3PathBuilder.fromCredentials(
-      AnonymousCredentialsProvider.create.resolveCredentials(),
+    S3PathBuilder.fromProvider(
+      AnonymousCredentialsProvider.create,
       S3Storage.s3Configuration(),
       WorkflowOptions.empty,
       Option(Region.US_EAST_1)

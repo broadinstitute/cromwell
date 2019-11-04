@@ -5,7 +5,7 @@ import akka.testkit.TestProbe
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.TestKitSuite
 import cromwell.services.metadata.MetadataQuerySpec.{CannedResponseReadMetadataWorker, MetadataServiceActor_CustomizeRead}
-import cromwell.services.metadata.MetadataService.{MetadataReadAction, MetadataServiceResponse, QueryForWorkflowsMatchingParameters, WorkflowQueryResponse, WorkflowQuerySuccess}
+import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, MetadataServiceResponse, QueryForWorkflowsMatchingParameters, WorkflowQueryResponse, WorkflowQuerySuccess}
 import cromwell.services.metadata.impl.{MetadataServiceActor, MetadataServiceActorSpec}
 import org.scalatest.{FlatSpecLike, Matchers}
 
@@ -50,9 +50,9 @@ object MetadataQuerySpec {
   }
 
 
-  final class CannedResponseReadMetadataWorker(cannedResponses: Map[MetadataReadAction, MetadataServiceResponse]) extends Actor {
+  final class CannedResponseReadMetadataWorker(cannedResponses: Map[BuildMetadataJsonAction, MetadataServiceResponse]) extends Actor {
     override def receive = {
-      case msg: MetadataReadAction => sender ! cannedResponses.getOrElse(msg, throw new Exception(s"Unexpected inbound message: $msg"))
+      case msg: BuildMetadataJsonAction => sender ! cannedResponses.getOrElse(msg, throw new Exception(s"Unexpected inbound message: $msg"))
     }
   }
 }

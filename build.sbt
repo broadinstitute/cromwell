@@ -164,7 +164,7 @@ lazy val services = project
   .dependsOn(ftpFileSystem % "test->test")
 
 lazy val hybridCarboniteMetadataService = project
-  .withLibrarySettings("hybrid-carbonite-metadata-service")
+  .withLibrarySettings("hybrid-carbonite-metadata-service", hybridCarboniteMetadataServiceDependencies)
   .dependsOn(services)
   .dependsOn(engine)
   .dependsOn(core % "test->test")

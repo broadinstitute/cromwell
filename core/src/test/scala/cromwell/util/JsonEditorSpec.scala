@@ -1,11 +1,13 @@
 package cromwell.util
 
-import JsonEditor._
 import cats.data.NonEmptyList
-import io.circe.{HCursor, Json, ParsingFailure}
-import io.circe.parser._
-import org.scalatest.{FlatSpec, Matchers}
 import cats.syntax.either._
+import cromwell.util.JsonEditor._
+import io.circe.parser._
+import io.circe.{DecodingFailure, FailedCursor, HCursor, Json, ParsingFailure}
+import org.scalatest.{FlatSpec, Matchers}
+
+import scala.io.Source
 
 class JsonEditorSpec extends FlatSpec with Matchers{
   import JsonEditorSpec._
@@ -66,18 +68,47 @@ class JsonEditorSpec extends FlatSpec with Matchers{
   }
 
   it should "add labels" in {
-    val newJson = realJson.map(augmentLabels(_, Map(("new","label")))).right.get
+    val newJson = realJson.map(json => updateLabels(json, Map(json.workflowId.right.get -> Map(("new","label"))))).right.get
     val newLabels = newJson.hcursor.downField("labels").keys.get
     assert(newLabels.size  === 2)
+  }
+
+  it should "replace subworkflow metadata with subworkflow id" in {
+    val metadataWithSubworkflows =
+      parse(Source
+        .fromInputStream(Thread
+          .currentThread
+          .getContextClassLoader
+          .getResourceAsStream("metadata_with_subworkflows.json")
+        ).mkString)
+    val newJson = metadataWithSubworkflows.map(replaceSubworkflowMetadataWithId).right.get
+    val keys = newJson.hcursor.downField("calls").downField("wf.wf").downArray.keys
+    assert(keys.exists(_.exists(_ == "subWorkflowMetadata")) === false)
+
+    val oldCallsArrayCursor = metadataWithSubworkflows.right.get.hcursor.downField("calls").downField("wf.wf").downArray
+    val oldSubWorkflowId1 = oldCallsArrayCursor.downField("subWorkflowMetadata").get[String]("id").asInstanceOf[Right[DecodingFailure, String]].value
+    val oldSubWorkflowId2 = oldCallsArrayCursor.right.downField("subWorkflowMetadata").get[String]("id").asInstanceOf[Right[DecodingFailure, String]].value
+
+    val newCallsArrayCursor = newJson.hcursor.downField("calls").downField("wf.wf").downArray
+    val newSubWorkflowId1 = newCallsArrayCursor.get[String]("subWorkflowId").asInstanceOf[Right[DecodingFailure, String]].value
+    val newSubWorkflowId2 = newCallsArrayCursor.right.get[String]("subWorkflowId").asInstanceOf[Right[DecodingFailure, String]].value
+
+    assert(newSubWorkflowId1 === oldSubWorkflowId1)
+    assert(newSubWorkflowId2 === oldSubWorkflowId2)
+
+    val thirdArrayElement = newCallsArrayCursor.right.right
+    assert(thirdArrayElement.isInstanceOf[FailedCursor])
   }
 
   it should "remove subworkflow info" in {
     val sub = subWorkflowJson.map(removeSubworkflowData).right.get
     val keys = sub.hcursor.downField("calls").downField("sub_workflow_interactions.countEvens").downArray.keys
-    assert(keys.contains("subWorkflowMetadata") === false)
+    assert(keys.exists(_.exists(_ == "subWorkflowMetadata")) === false)
   }
 
   def removeDeepNested(json: Json): Json = excludeJson(json, NonEmptyList.of("deep"))
+
+  def removeSubworkflowData(json: Json): Json = excludeJson(json, NonEmptyList.of("subWorkflowMetadata"))
 
   it should "remove multiple nested keys excludes in array" in {
     val sub = contrivedJsonWithArrayEither.map(removeDeepNested).right.get
@@ -603,5 +634,4 @@ object JsonEditorSpec {
                                           |""".stripMargin
 
   val subWorkflowJson: Either[ParsingFailure, Json] = parse(metadataWithSubWorkflowMetadata)
-
 }

@@ -1,9 +1,9 @@
 package cromwell.services.metadata.hybridcarbonite
 
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
-import cromwell.services.metadata.MetadataService.{MetadataReadAction, MetadataServiceResponse, QueryForWorkflowsMatchingParameters, WorkflowMetadataReadAction, WorkflowQueryFailure, WorkflowQuerySuccess}
+import cromwell.services.FailedMetadataJsonResponse
+import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.hybridcarbonite.HybridReadDeciderActor._
-import cromwell.services.metadata.impl.builder.MetadataBuilderActor.FailedMetadataResponse
 import cromwell.services.metadata.{MetadataArchiveStatus, WorkflowQueryKey}
 
 import scala.concurrent.ExecutionContext
@@ -15,33 +15,27 @@ class HybridReadDeciderActor(classicMetadataServiceActor: ActorRef, carboniteMet
   implicit val ec: ExecutionContext = context.dispatcher
 
   when(Pending) {
-    case Event(read: MetadataReadAction, NoData) =>
-      read match {
-        case wmra: WorkflowMetadataReadAction =>
-          classicMetadataServiceActor ! QueryForWorkflowsMatchingParameters(Vector(WorkflowQueryKey.Id.name -> wmra.workflowId.toString))
-          goto(RequestingMetadataArchiveStatus) using WorkingData(sender(), read)
-
-        case query: QueryForWorkflowsMatchingParameters =>
-          classicMetadataServiceActor ! query
-          goto(WaitingForMetadataResponse) using WorkingData(sender(), read)
-      }
+    case Event(action: BuildMetadataJsonAction, NoData) => action match {
+      case action if action.requiresOnlyClassicMetadata =>
+        classicMetadataServiceActor ! action
+        goto(WaitingForMetadataResponse) using WorkingData(sender(), action)
+      case workflowAction: BuildWorkflowMetadataJsonAction =>
+        classicMetadataServiceActor ! QueryForWorkflowsMatchingParameters(Vector(WorkflowQueryKey.Id.name -> workflowAction.workflowId.toString))
+        goto(RequestingMetadataArchiveStatus) using WorkingData(sender(), workflowAction)
+    }
   }
 
   when(RequestingMetadataArchiveStatus) {
-    case Event(WorkflowQuerySuccess(response, _), wd: WorkingData) =>
-      if (response.results.size > 1) {
-        val errorMsg = s"Programmer Error: Got more than one status row back looking up metadata archive status for ${wd.request}: $response"
-        wd.actor ! makeAppropriateFailureForRequest(errorMsg, wd.request)
-        stop(FSM.Failure(errorMsg))
-      } else if (response.results.headOption.exists(_.metadataArchiveStatus == MetadataArchiveStatus.Archived)) {
-        carboniteMetadataServiceActor ! wd.request
-        goto(WaitingForMetadataResponse)
-      } else {
-        classicMetadataServiceActor ! wd.request
-        goto(WaitingForMetadataResponse)
-      }
-
-
+    case Event(s: WorkflowQuerySuccess, wd: WorkingData) if s.hasMultipleSummaryRows =>
+      val errorMsg = s"Programmer Error: Found multiple summary rows looking up metadata archive status for ${wd.request}: ${s.response}"
+      wd.requester ! makeAppropriateFailureForRequest(errorMsg, wd.request)
+      stop(FSM.Failure(errorMsg))
+    case Event(s: WorkflowQuerySuccess, wd: WorkingData) if s.isCarbonited =>
+      carboniteMetadataServiceActor ! wd.request
+      goto(WaitingForMetadataResponse)
+    case Event(_: WorkflowQuerySuccess, wd: WorkingData) => // this is an uncarbonited workflow
+      classicMetadataServiceActor ! wd.request
+      goto(WaitingForMetadataResponse)
     case Event(WorkflowQueryFailure(reason), wd: WorkingData) =>
       log.error(reason, s"Programmer Error: Failed to determine how to route ${wd.request.getClass.getSimpleName}. Falling back to classic.")
       classicMetadataServiceActor ! wd.request
@@ -49,27 +43,27 @@ class HybridReadDeciderActor(classicMetadataServiceActor: ActorRef, carboniteMet
   }
 
   when(WaitingForMetadataResponse) {
-    case Event(response: MetadataServiceResponse , wd: WorkingData) =>
-      wd.actor ! response
+    case Event(response: MetadataServiceResponse, wd: WorkingData) =>
+      wd.requester ! response
       stop(FSM.Normal)
   }
 
   whenUnhandled {
-    case Event(msg, data) =>
-      val errorMsg = s"Programmer Error: Unexpected message '$msg' sent to ${getClass.getSimpleName} in state $stateName with data $stateData from $sender()"
-      log.error(errorMsg)
+    case Event(akkaMessage, data) =>
+      val logMessage = s"Programmer Error: Unexpected message '$akkaMessage' sent to ${getClass.getSimpleName} in state $stateName with data $stateData from $sender()"
+      log.error(logMessage)
       data match {
-        case NoData => stop(FSM.Failure(errorMsg))
+        case NoData =>
+          stop(FSM.Failure(logMessage))
         case WorkingData(actor, request) =>
-          actor ! makeAppropriateFailureForRequest(errorMsg, request)
-
-          stop(FSM.Failure(msg))
+          actor ! makeAppropriateFailureForRequest(logMessage, request)
+          stop(FSM.Failure(logMessage))
       }
   }
 
-  def makeAppropriateFailureForRequest(msg: String, request: MetadataReadAction) = request match {
+  def makeAppropriateFailureForRequest(msg: String, request: BuildMetadataJsonAction) = request match {
     case _: QueryForWorkflowsMatchingParameters => WorkflowQueryFailure(new Exception(msg))
-    case _ => FailedMetadataResponse(request, new Exception(msg))
+    case _ => FailedMetadataJsonResponse(request, new Exception(msg))
   }
 
 }
@@ -85,5 +79,17 @@ object HybridReadDeciderActor {
 
   sealed trait HybridReadDeciderData
   case object NoData extends HybridReadDeciderData
-  final case class WorkingData(actor: ActorRef, request: MetadataReadAction) extends HybridReadDeciderData
+  final case class WorkingData(requester: ActorRef, request: BuildMetadataJsonAction) extends HybridReadDeciderData
+
+  implicit class EnhancedWorkflowQuerySuccess(val success: WorkflowQuerySuccess) extends AnyVal {
+    def hasMultipleSummaryRows: Boolean = success.response.results.size > 1
+    def isCarbonited: Boolean = success.response.results.headOption.exists(_.metadataArchiveStatus == MetadataArchiveStatus.Archived)
+  }
+
+  implicit class EnhancedMetadataReadAction(val action: BuildMetadataJsonAction) extends AnyVal {
+    def requiresOnlyClassicMetadata: Boolean = action match {
+      case _: GetLabels | _: GetRootAndSubworkflowLabels | _: GetStatus | _: QueryForWorkflowsMatchingParameters => true
+      case _: GetLogs | _: WorkflowOutputs | _: GetMetadataAction => false
+    }
+  }
 }

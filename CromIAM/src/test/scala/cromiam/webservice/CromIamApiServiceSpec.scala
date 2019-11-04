@@ -20,7 +20,6 @@ class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiServic
   override def configuration = throw new UnsupportedOperationException("This spec shouldn't need to access the real interface/port")
 
   override lazy val cromwellClient = new MockCromwellClient()
-  override lazy val cromwellAbortClient = new MockCromwellClient()
   override lazy val samClient = new MockSamClient()
   override val statusService: StatusService = new StatusService(() => Map.empty)
 

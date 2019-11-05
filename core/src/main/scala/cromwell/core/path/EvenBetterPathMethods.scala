@@ -105,15 +105,20 @@ trait EvenBetterPathMethods {
     case ex: Throwable => Failure(new IOException(s"Could not read from ${this.pathAsString}: ${ex.getMessage}", ex))
   }
 
-  /*
-   * The input stream will be closed when this method returns, which means the f function
-   * cannot leak an open stream.
-   */
+  /**
+    * BufferedReader can be used to read UTF-8 characters from the input stream.
+    * The input stream will be closed when this method returns, which means the f function
+    * cannot leak an open stream.
+    */
   def withReader[A](f: BufferedReader => A)(implicit ec: ExecutionContext): A = {
     // Use an input reader to convert the byte stream to character stream. Buffered reader for efficiency.
     tryWithResource(() => new BufferedReader(new InputStreamReader(this.mediaInputStream, Codec.UTF8.name)))(f).recoverWith(fileIoErrorPf).get
   }
 
+  /**
+    * InputStream's read method reads bytes, whereas InputStreamReader's read method reads characters.
+    * BufferedInputStream can be used to read bytes directly from input stream, without conversion to characters.
+    */
   def withBufferedStream[A](f: BufferedInputStream => A)(implicit ec: ExecutionContext): A = {
     tryWithResource(() => new BufferedInputStream(this.mediaInputStream))(f).recoverWith(fileIoErrorPf).get
   }

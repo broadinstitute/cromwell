@@ -55,7 +55,7 @@ SLURM_CONF
     sudo chmod 400 /etc/munge/munge.key
 
     # Start munge as the munge user
-    sudo -u munge munged
+    sudo -u munge munged -F
 
     # Start the slurm master
     sudo slurmctld

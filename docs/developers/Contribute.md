@@ -73,8 +73,8 @@ _produces this block_
 **Images**
 
 * Relative: `![](ImgName.png)`
-	* _Example:_ `![](jamie_the_cromwell_pig.png)` _produces this image_  
-	![](jamie_the_cromwell_pig.png)  
+	* _Example:_ `![](../jamie_the_cromwell_pig.png)` _produces this image_  
+	![](../jamie_the_cromwell_pig.png)  
 * Absolute: `![](URLofImg.png)`
 	* _Example:_ `![](https://www.broadinstitute.org/sites/all/themes/custom/at_broad/logo.png)` _produces this image_  
 	![](https://www.broadinstitute.org/sites/all/themes/custom/at_broad/logo.png)  

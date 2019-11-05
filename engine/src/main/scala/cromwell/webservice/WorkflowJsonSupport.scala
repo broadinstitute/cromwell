@@ -13,7 +13,9 @@ import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataService._
 import cromwell.util.JsonFormatting.WomValueJsonFormatter._
 import cromwell.webservice.routes.CromwellApiService.BackendResponse
-import spray.json.{DefaultJsonProtocol, JsString, JsValue, JsonFormat, RootJsonFormat}
+import spray.json.{DefaultJsonProtocol, DeserializationException, JsObject, JsString, JsValue, JsonFormat, RootJsonFormat}
+
+import scala.util.{Failure, Success, Try}
 
 object WorkflowJsonSupport extends DefaultJsonProtocol {
   implicit val workflowStatusResponseProtocol = jsonFormat2(WorkflowStatusResponse)
@@ -47,7 +49,31 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
 
   implicit val workflowSourceDataWithImports = jsonFormat11(WorkflowSourceFilesWithDependenciesZip)
   implicit val errorResponse = jsonFormat3(FailureResponse)
-  implicit val successResponse = jsonFormat3(SuccessResponse)
+  implicit val successResponse = new RootJsonFormat[SuccessResponse] {
+    override def read(json: JsValue): SuccessResponse = Try {
+        val obj = json.asJsObject
+        val status = obj.fields("status").convertTo[String]
+        val message =  obj.fields("message").convertTo[String]
+        val data = obj.fields.get("data")
+
+      SuccessResponse(status, message, data)
+    } match {
+      case Success(value) => value
+      case Failure(error) => throw DeserializationException(s"Failed to deserialize SuccessResponse", error)
+    }
+    override def write(obj: SuccessResponse): JsValue = {
+      val base = Map[String, JsValue](
+          "status" -> JsString(obj.status),
+          "message" -> JsString(obj.message)
+        )
+      obj.data match {
+        case None => JsObject(base)
+        case Some(data) => JsObject(base + ("data" -> data))
+      }
+    }
+  }
+
+    jsonFormat3(SuccessResponse)
 
   implicit object DateJsonFormat extends RootJsonFormat[OffsetDateTime] {
     override def write(offsetDateTime: OffsetDateTime) = JsString(offsetDateTime.toUtcMilliString)

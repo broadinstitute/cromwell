@@ -146,6 +146,7 @@ object CallCacheDiffActor {
 
     for {
       // Sanity Checks:
+      _ <- response.value.validateNonEmptyResponse()
       _ <- response.value.checkFieldValue("id", s""""${query.workflowId}"""")
       jobKey <- query.jobKey.toErrorOr("Call is required in call cache diff query")
 
@@ -212,6 +213,10 @@ object CallCacheDiffActor {
     def checkFieldValue(field: String, expectation: String): ErrorOr[Unit] = jsObject.getField(field) flatMap {
       case v: JsValue if v.toString == expectation => ().validNel
       case other => s"Unexpected metadata field '$field'. Expected '$expectation' but got ${other.toString}".invalidNel
+    }
+
+    def validateNonEmptyResponse(): ErrorOr[Unit] = if (jsObject.fields.nonEmpty) { ().validNel } else {
+      "No metadata was found for that workflow/call/index combination. Check that the workflow ID is correct, that the call name is formatted like 'workflowname.callname' and that an index is provided if this was a scattered task. (NOTE: the default index is -1, ie non-scattered)".invalidNel
     }
   }
 

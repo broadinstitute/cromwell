@@ -32,8 +32,6 @@ The documentation is written in Markdown. Click here for a [Github Guide on Mark
 
 **Links:**
 
-* Absolute: `[link text](www.destinationURL.com)`  
-_Example:_ `[Broad Institute](www.broadinstitute.org)` _produces this link_ [Broad Institute](www.broadinstitute.org).
 * Relative: `[link text](Destination_Page)`, where `Destination_Page` is the file name without the `.md` extension  
 _Example:_ `[How to use the Cromwell CLI](CommandLine)` _produces this link_ [How to use the Cromwell CLI](CommandLine).
 * Anchor link: `[anchor text](../Path/To/Page#Anchor)`  

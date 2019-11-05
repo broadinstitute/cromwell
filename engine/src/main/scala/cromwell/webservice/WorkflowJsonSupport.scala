@@ -54,8 +54,6 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
   }
   implicit val successResponse = jsonFormat3(SuccessResponse)
 
-    jsonFormat3(SuccessResponse)
-
   implicit object DateJsonFormat extends RootJsonFormat[OffsetDateTime] {
     override def write(offsetDateTime: OffsetDateTime) = JsString(offsetDateTime.toUtcMilliString)
 

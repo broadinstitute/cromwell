@@ -5,7 +5,7 @@ site_author: Red Team at Broad Institute
 
 repo_url: https://github.com/broadinstitute/cromwell/
 
-pages:
+nav:
 - Introduction: index.md
 - Tutorials:
 #    - Tutorial Map: tutorials/Overview.md

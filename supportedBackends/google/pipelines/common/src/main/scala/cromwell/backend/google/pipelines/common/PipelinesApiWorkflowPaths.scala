@@ -69,6 +69,11 @@ case class PipelinesApiWorkflowPaths(workflowDescriptor: BackendWorkflowDescript
     authBucket.resolve(s"${workflowDescriptor.rootWorkflowId}_auth.json")
   }
 
+  val initScriptPath: Option[Path] = workflowOptions.get(WorkflowOptionKeys.InitScript).toOption map { path =>
+    // Fail here if the path exists but can't be built
+    getPath(path).get
+  }
+
   val monitoringScriptPath: Option[Path] = workflowOptions.get(WorkflowOptionKeys.MonitoringScript).toOption map { path =>
     // Fail here if the path exists but can't be built
     getPath(path).get

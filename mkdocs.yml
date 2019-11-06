@@ -87,6 +87,7 @@ nav:
       - IoActor: developers/bitesize/IoActor/IoActor.md
       - General Topics:
         - Simpletons: developers/bitesize/general/simpletons.md
+      - 5000ft view of Actor System: developers/bitesize/majorActorSystem/5000FtActorSystem.md
 
 theme: readthedocs
 

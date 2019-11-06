@@ -89,4 +89,4 @@ The the `grep` call is special because one of its two inputs, `pattern`, is not 
 
 Finally, the `proportion` output of the `join` call is piped out of the bounds of the workflow graph by becoming the green `joined_proportion` graph output node (`wom.graph.ExpressionBasedGraphOutputNode` in the code). 
 
-Graph nodes inherit from trait `wom.graph.GraphNode`. The graph is constructed in class `wdl.transforms.base.wdlom2wom.WorkflowDefinitionElementToWomWorkflowDefinition`. The `convertGraphElements` function is especially interesting; it accepts a `Set` of nodes, generates the edges, links everything together, and spits out the finished graph as a `wom.graph.Graph`.
+Graph nodes inherit from trait `wom.graph.GraphNode`. The graph is constructed in class `wdl.transforms.base.wdlom2wom.WorkflowDefinitionElementToWomWorkflowDefinition`. The `convertGraphElements` function is especially interesting. It accepts a `Set` of `WorkflowGraphElement` objects, which represent individual pieces of the parsed workflow, and converts them to WOM nodes. Then it links the WOM nodes together with edges and emits the finished graph as a `wom.graph.Graph`.

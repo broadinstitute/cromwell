@@ -8,7 +8,7 @@ import common.assertion.ManyTimes._
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.services.metadata.MetadataArchiveStatus.{Archived, Unarchived}
-import cromwell.services.metadata.MetadataService.{DeleteMetadataAction, DeleteMetadataSuccessfulResponse, QueryForWorkflowsMatchingParameters, QueryMetadata, WorkflowQueryResponse, WorkflowQueryResult, WorkflowQuerySuccess}
+import cromwell.services.metadata.MetadataService.{DeleteMetadataAction, DeleteMetadataFailedResponse, DeleteMetadataSuccessfulResponse, QueryForWorkflowsMatchingParameters, QueryMetadata, WorkflowQueryResponse, WorkflowQueryResult, WorkflowQuerySuccess}
 import cromwell.services.metadata.hybridcarbonite.CarboniteWorkerActor.CarboniteWorkflowComplete
 import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActor.FreezeMetadata
 import org.scalatest.{FlatSpecLike, Matchers}
@@ -42,21 +42,21 @@ class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") 
       |}""".stripMargin
   )).unsafe("Make config file")
 
+  val carboniteWorkerActor = TestActorRef(new MockCarboniteWorkerActor(
+    carboniterConfig,
+    serviceRegistryActor.ref,
+    ioActor.ref,
+    carboniteFreezerActor.ref,
+    fasterBackOff
+  ))
+
+  val workflowToCarbonite = "04c93860-ea0a-11e9-81b4-2a2ae2dbcce4"
+  val queryMeta = QueryMetadata(Option(1), Option(1), Option(1))
+  val queryResult = WorkflowQueryResult(workflowToCarbonite, None, None, None, None, None, None, None, None, Unarchived)
+  val queryResponse = WorkflowQueryResponse(Seq(queryResult), 1)
+  val querySuccessResponse = WorkflowQuerySuccess(queryResponse, Option(queryMeta))
+
   it should "carbonite workflow at intervals and delete data from DB after carboniting finished" in {
-    val carboniteWorkerActor = TestActorRef(new MockCarboniteWorkerActor(
-      carboniterConfig,
-      serviceRegistryActor.ref,
-      ioActor.ref,
-      carboniteFreezerActor.ref,
-      fasterBackOff
-    ))
-
-    val workflowToCarbonite = "04c93860-ea0a-11e9-81b4-2a2ae2dbcce4"
-    val queryMeta = QueryMetadata(Option(1), Option(1), Option(1))
-    val queryResult = WorkflowQueryResult(workflowToCarbonite, None, None, None, None, None, None, None, None, Unarchived)
-    val queryResponse = WorkflowQueryResponse(Seq(queryResult), 1)
-    val querySuccessResponse = WorkflowQuerySuccess(queryResponse, Option(queryMeta))
-
     10.times {
       // We might get noise from instrumentation. We can ignore that, but we expect the query to come through eventually:
       serviceRegistryActor.fishForSpecificMessage(10.seconds) {
@@ -75,6 +75,35 @@ class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") 
 
       EventFilter.info(message = s"Completed deleting metadata from database for carbonited workflow: $workflowToCarbonite", occurrences = 1) intercept {
         deleteMetadataActor.send(carboniteWorkerActor, DeleteMetadataSuccessfulResponse(WorkflowId.fromString(workflowToCarbonite)))
+      }
+    }
+  }
+
+  it should "carbonite workflow at intervals even if metadata deletion after carboniting fails" in {
+    10.times {
+      // We might get noise from instrumentation. We can ignore that, but we expect the query to come through eventually:
+      serviceRegistryActor.fishForSpecificMessage(10.seconds) {
+        case QueryForWorkflowsMatchingParameters(CarboniteWorkerActor.findWorkflowToCarboniteQueryParameters) => true
+      }
+
+      serviceRegistryActor.send(carboniteWorkerActor, querySuccessResponse)
+
+      carboniteFreezerActor.expectMsg(FreezeMetadata(WorkflowId.fromString(workflowToCarbonite)))
+
+      carboniteFreezerActor.send(carboniteWorkerActor, CarboniteWorkflowComplete(WorkflowId.fromString(workflowToCarbonite), Archived))
+
+      serviceRegistryActor.fishForSpecificMessage(10.second) {
+        case DeleteMetadataAction(_, _, _) => true
+      }
+
+      val exceptionMessage=  "Test exception"
+      EventFilter.error(message = s"All attempts to delete metadata from database for carbonited workflow $workflowToCarbonite failed: $exceptionMessage", occurrences = 1) intercept {
+        deleteMetadataActor.send(carboniteWorkerActor,
+          DeleteMetadataFailedResponse(
+            WorkflowId.fromString(workflowToCarbonite),
+            new RuntimeException(exceptionMessage)
+          )
+        )
       }
     }
   }

@@ -64,33 +64,37 @@ class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
       recordTimeSinceStartAsMetric(CarboniteFreezingTimeMetricPath, carboniteFreezeStartTime)
       carboniteFreezeStartTime = None
 
-      c.result match {
-        case Archived => increment(CarboniteSuccessesMetricPath, InstrumentationPrefix)
-        case ArchiveFailed => increment(CarboniteFailuresMetricPath, InstrumentationPrefix)
-        case _ => log.error(s"Programmer Error! The CarboniteWorkerActor cannot convert this into a completion metric: $c")
-      }
-
-      // after completion of carbonite process reset the backoff
       log.info(s"Carboniting complete for workflow ${c.workflowId}")
 
-      if (c.result == Archived) {
-        log.info(s"Starting deleting metadata from database for carbonited workflow: ${c.workflowId}")
-        serviceRegistryActor ! DeleteMetadataAction(c.workflowId, self)
+      c.result match {
+        case Archived =>
+          increment(CarboniteSuccessesMetricPath, InstrumentationPrefix)
+
+          log.info(s"Starting deleting metadata from database for carbonited workflow: ${c.workflowId}")
+          serviceRegistryActor ! DeleteMetadataAction(c.workflowId, self)
+        case ArchiveFailed =>
+          increment(CarboniteFailuresMetricPath, InstrumentationPrefix)
+        case _ =>
+          log.error(s"Programmer Error! The CarboniteWorkerActor cannot convert this into a completion metric: $c")
+      }
+
+      if (c.result != Archived) {
+        resetBackoffAndFindNextWorkflowForCarboniting()
       }
     case DeleteMetadataSuccessfulResponse(workflowId) =>
       log.info(s"Completed deleting metadata from database for carbonited workflow: $workflowId")
-
-      // Immediately reset the timer and check for the next workflow to carbonite:
-      backOff.googleBackoff.reset()
-      findWorkflowToCarbonite()
+      resetBackoffAndFindNextWorkflowForCarboniting()
     case DeleteMetadataFailedResponse(workflowId, reason) =>
-      log.error(s"All attempts to delete metadata from database for carbonited workflow $workflowId failed ${reason.getMessage}", reason)
-
-      // Immediately reset the timer and check for the next workflow to carbonite:
-      backOff.googleBackoff.reset()
-      findWorkflowToCarbonite()
+      log.error(s"All attempts to delete metadata from database for carbonited workflow $workflowId failed: {}", reason.getMessage)
+      resetBackoffAndFindNextWorkflowForCarboniting()
     case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(carboniteFreezerActor))
     case other => log.error(s"Programmer Error! The CarboniteWorkerActor received unexpected message! ($sender sent $other})")
+  }
+
+  private def resetBackoffAndFindNextWorkflowForCarboniting() = {
+    // Immediately reset the timer and check for the next workflow to carbonite:
+    backOff.googleBackoff.reset()
+    findWorkflowToCarbonite()
   }
 
   def scheduleNextCarbonitingQuery(resetBackoff: Boolean = false): Unit = {

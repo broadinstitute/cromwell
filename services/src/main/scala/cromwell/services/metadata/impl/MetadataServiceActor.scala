@@ -58,7 +58,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
   val dbFlushRate = serviceConfig.getOrElse("db-flush-rate", 5.seconds)
   val dbBatchSize = serviceConfig.getOrElse("db-batch-size", 200)
   val writeActor = context.actorOf(WriteMetadataActor.props(dbBatchSize, dbFlushRate, serviceRegistryActor, LoadConfig.MetadataWriteThreshold), "WriteMetadataActor")
-  val deleteActor = context.actorOf(Props(new DeleteMetadataActor), "DeleteMetadataActor")
+  val deleteActor = context.actorOf(DeleteMetadataActor.props(), "DeleteMetadataActor")
   implicit val ec = context.dispatcher
   //noinspection ActorMutableStateInspection
   private var summaryRefreshCancellable: Option[Cancellable] = None

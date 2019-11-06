@@ -16,7 +16,7 @@ class DeleteMetadataActorSpec extends TestKitSuite with FlatSpecLike {
   private val workflowId = UUID.randomUUID().toString
   private val deleteMetadataActor = system.actorOf(Props(new DeleteMetadataActor {
     override def deleteNonLabelMetadataEntriesForWorkflow(rootWorkflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int] = {
-      Future.failed(new RuntimeException("Tests exception"))
+      Future.failed(new RuntimeException("Test exception"))
     }
   }))
 

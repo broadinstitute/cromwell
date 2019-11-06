@@ -20,11 +20,21 @@ trait WorkflowDescriptorBuilderForSpecs {
     import akka.pattern.ask
     implicit val timeout = akka.util.Timeout(awaitTimeout)
     implicit val ec = actorSystem.dispatcher
-
+    val callCachingEnabled = true
+    val invalidateBadCacheResults = true
     val serviceRegistryIgnorer = actorSystem.actorOf(Props.empty)
-    val actor = actorSystem.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryIgnorer, id, importLocalFilesystem = false, ioActorProxy = ioActor, hogGroup = HogGroup("testcase")), "MaterializeWorkflowDescriptorActor-" + id.id)
+    val actor = actorSystem.actorOf(MaterializeWorkflowDescriptorActor.props(
+      serviceRegistryIgnorer,
+      id,
+      importLocalFilesystem = false,
+      ioActorProxy = ioActor,
+      hogGroup = HogGroup("testcase")), "MaterializeWorkflowDescriptorActor-" + id.id)
     val workflowDescriptorFuture = actor.ask(
-      MaterializeWorkflowDescriptorCommand(workflowSources, ConfigFactory.load)
+      MaterializeWorkflowDescriptorCommand(
+        workflowSources,
+        ConfigFactory.load,
+        callCachingEnabled,
+        invalidateBadCacheResults)
     ).mapTo[WorkflowDescriptorMaterializationResult]
 
     Await.result(workflowDescriptorFuture map {
@@ -33,3 +43,5 @@ trait WorkflowDescriptorBuilderForSpecs {
     }, awaitTimeout)
   }
 }
+
+

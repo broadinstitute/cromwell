@@ -20,12 +20,12 @@ import common.validation.IOChecked._
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.{ReadFromCache, WorkflowOption, WriteToCache}
+import cromwell.core._
 import cromwell.core.callcaching._
 import cromwell.core.io.AsyncIo
 import cromwell.core.labels.{Label, Labels}
 import cromwell.core.logging.WorkflowLogging
 import cromwell.core.path.{PathBuilder, PathBuilderFactory}
-import cromwell.core._
 import cromwell.engine._
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.WorkflowProcessingEventPublishing._
@@ -70,7 +70,9 @@ object MaterializeWorkflowDescriptorActor {
    */
   sealed trait MaterializeWorkflowDescriptorActorMessage
   case class MaterializeWorkflowDescriptorCommand(workflowSourceFiles: WorkflowSourceFilesCollection,
-                                                  conf: Config) extends MaterializeWorkflowDescriptorActorMessage
+                                                  conf: Config,
+                                                  callCachingEnabled: Boolean,
+                                                  invalidateBadCacheResults: Boolean) extends MaterializeWorkflowDescriptorActorMessage
   case object MaterializeWorkflowDescriptorAbortCommand
 
   /*
@@ -95,7 +97,9 @@ object MaterializeWorkflowDescriptorActor {
 
   private val DefaultWorkflowFailureMode = NoNewCalls.toString
 
-  private[lifecycle] def validateCallCachingMode(workflowOptions: WorkflowOptions, conf: Config): ErrorOr[CallCachingMode] = {
+  private[lifecycle] def validateCallCachingMode(workflowOptions: WorkflowOptions,
+                                                 callCachingEnabled: Boolean,
+                                                 invalidateBadCacheResults: Boolean): ErrorOr[CallCachingMode] = {
 
     def readOptionalOption(option: WorkflowOption): ErrorOr[Boolean] = {
       workflowOptions.getBoolean(option.name) match {
@@ -105,15 +109,7 @@ object MaterializeWorkflowDescriptorActor {
       }
     }
 
-    val callCachingConfig = conf.getConfig("call-caching")
-
-    def errorOrCallCachingBoolean(path: String): ErrorOr[Boolean] = {
-      import common.validation.Validation._
-      validate(callCachingConfig.getBoolean(path))
-    }
-
-    val errorOrEnabled = errorOrCallCachingBoolean("enabled")
-    if (errorOrEnabled.exists(_ == true)) {
+    if (callCachingEnabled) {
       val readFromCache = readOptionalOption(ReadFromCache)
       val writeToCache = readOptionalOption(WriteToCache)
 
@@ -126,28 +122,18 @@ object MaterializeWorkflowDescriptorActor {
         }
       }
 
-      val errorOrMaybePrefixes = workflowOptions.getVectorOfStrings("call_cache_hit_path_prefixes")
-      val errorOrInvalidateBadCacheResults = errorOrCallCachingBoolean("invalidate-bad-cache-results")
-      val errorOrCallCachingOptions = (
-        errorOrMaybePrefixes,
-        errorOrInvalidateBadCacheResults,
-      ) mapN {
-        (
-          maybePrefixes,
-          invalidateBadCacheResults,
-        ) =>
-          CallCachingOptions(
-            invalidateBadCacheResults,
-            maybePrefixes,
-          )
+      val errorOrMaybePrefixes: ErrorOr[Option[Vector[String]]] = workflowOptions.getVectorOfStrings("call_cache_hit_path_prefixes")
+
+      val errorOrCallCachingOptions: ErrorOr[CallCachingOptions] = errorOrMaybePrefixes.map { maybePrefixes =>
+        CallCachingOptions(invalidateBadCacheResults, maybePrefixes)
       }
       for {
-        callCachingOptions <- errorOrCallCachingOptions
-        mode <- errorOrCallCachingMode(callCachingOptions)
+        options <- errorOrCallCachingOptions
+        mode <- errorOrCallCachingMode(options)
       } yield mode
     }
     else {
-      errorOrEnabled.map(_ => CallCachingOff)
+      CallCachingOff.validNel
     }
   }
 }
@@ -173,17 +159,26 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
   startWith(ReadyToMaterializeState, ())
 
-  when(ReadyToMaterializeState) {
-    case Event(MaterializeWorkflowDescriptorCommand(workflowSourceFiles, conf), _) =>
-      val replyTo = sender()
 
+  when(ReadyToMaterializeState) {
+
+    case Event(MaterializeWorkflowDescriptorCommand(workflowSourceFiles, conf, callCachingEnabled, invalidateBadCacheResults), _) =>
+      val replyTo = sender()
       workflowOptionsAndPathBuilders(workflowSourceFiles) match {
         case (workflowOptions, pathBuilders) =>
           val futureDescriptor: Future[ErrorOr[EngineWorkflowDescriptor]] = pathBuilders flatMap { pb =>
             val engineIoFunctions = new EngineIoFunctions(pb, new AsyncIo(ioActorProxy, GcsBatchCommandBuilder), iOExecutionContext)
-            buildWorkflowDescriptor(workflowId, workflowSourceFiles, conf, workflowOptions, pb, engineIoFunctions).
-              value.
-              unsafeToFuture().
+            buildWorkflowDescriptor(
+              workflowId,
+              workflowSourceFiles,
+              conf,
+              callCachingEnabled,
+              invalidateBadCacheResults,
+              workflowOptions,
+              pb,
+              engineIoFunctions)
+              .value
+              .unsafeToFuture().
               map(_.toValidated)
           }
 
@@ -247,6 +242,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   private def buildWorkflowDescriptor(id: WorkflowId,
                                       sourceFiles: WorkflowSourceFilesCollection,
                                       conf: Config,
+                                      callCachingEnabled: Boolean,
+                                      invalidateBadCacheResults: Boolean,
                                       workflowOptions: WorkflowOptions,
                                       pathBuilders: List[PathBuilder],
                                       engineIoFunctions: EngineIoFunctions): IOChecked[EngineWorkflowDescriptor] = {
@@ -297,7 +294,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
       validatedNamespace <- buildValidatedNamespace(factory, sourceAndResolvers._1, sourceAndResolvers._2)
       closeResult = sourceAndResolvers._2.traverse(_.cleanupIfNecessary())
       _ = pushNamespaceMetadata(validatedNamespace)
-      ewd <- buildWorkflowDescriptor(id, validatedNamespace, workflowOptions, labels, conf, pathBuilders, outputRuntimeExtractor).toIOChecked
+      ewd <- buildWorkflowDescriptor(id, validatedNamespace, workflowOptions, labels, conf, callCachingEnabled,
+        invalidateBadCacheResults, pathBuilders, outputRuntimeExtractor).toIOChecked
     } yield {
       closeResult match {
         case Valid(_) => ()
@@ -379,6 +377,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                       workflowOptions: WorkflowOptions,
                                       labels: Labels,
                                       conf: Config,
+                                      callCachingEnabled: Boolean,
+                                      invalidateBadCacheResults: Boolean,
                                       pathBuilders: List[PathBuilder],
                                       outputRuntimeExtractor: Option[WomOutputRuntimeExtractor]): ErrorOr[EngineWorkflowDescriptor] = {
     val taskCalls = womNamespace.executable.graph.allNodes collect { case taskNode: CommandCallNode => taskNode }
@@ -387,7 +387,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     val failureModeValidation = validateWorkflowFailureMode(workflowOptions, conf)
     val backendAssignmentsValidation = validateBackendAssignments(taskCalls, workflowOptions, defaultBackendName)
 
-    val callCachingModeValidation = validateCallCachingMode(workflowOptions, conf)
+    val callCachingModeValidation = validateCallCachingMode(workflowOptions, callCachingEnabled,
+      invalidateBadCacheResults)
 
     (failureModeValidation, backendAssignmentsValidation, callCachingModeValidation) mapN {
       case (failureMode, backendAssignments, callCachingMode) =>

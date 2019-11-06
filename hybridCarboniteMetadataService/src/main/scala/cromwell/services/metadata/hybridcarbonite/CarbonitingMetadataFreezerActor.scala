@@ -3,17 +3,15 @@ package cromwell.services.metadata.hybridcarbonite
 import java.nio.file.StandardOpenOption
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
-import cats.data.NonEmptyList
 import cromwell.core.WorkflowId
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
-import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataArchiveStatus.{ArchiveFailed, Archived}
 import cromwell.services.metadata.MetadataService.GetMetadataAction
 import cromwell.services.metadata.hybridcarbonite.CarboniteWorkerActor.CarboniteWorkflowComplete
 import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActor._
 import cromwell.services.metadata.impl.MetadataDatabaseAccess
-import cromwell.services.{SuccessfulMetadataJsonResponse, FailedMetadataJsonResponse}
 import cromwell.services.metadata.{MetadataArchiveStatus, MetadataQuery}
+import cromwell.services.{FailedMetadataJsonResponse, MetadataServicesStore, SuccessfulMetadataJsonResponse}
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 import scala.concurrent.ExecutionContext
@@ -41,7 +39,7 @@ class CarbonitingMetadataFreezerActor(carboniterConfig: HybridCarboniteConfig,
         jobKey = None,
         key = None,
         includeKeysOption = None,
-        excludeKeysOption = Option(NonEmptyList.of("labels")),
+        excludeKeysOption = None,
         expandSubWorkflows = true
       ))
 

@@ -85,7 +85,7 @@ Now, compare the workflow source to its WOM graph (generated with the `womtool w
 
 Input values are ovals, outputs are hexagons. You can see that a hexagon in one node (call) becomes an oval in the next. 
 
-The the `grep` call is special because one of its two inputs, `pattern`, is not specified by any previous call within the bounds of the graph. This causes Cromwell to generate a blue "external graph input node" (`wom.graph.ExternalGraphInputNode` if you're looking at the code). Its value must be specified by the user in the inputs file of the workflow under key `grep.pattern`, and Cromwell will pass it into the `grep` call.   
+The `grep` call is special because one of its two inputs, `pattern`, is not specified by any previous call within the bounds of the graph. This causes Cromwell to generate a blue "external graph input node" (`wom.graph.ExternalGraphInputNode` if you're looking at the code). Its value must be specified by the user in the inputs file of the workflow under key `grep.pattern`, and Cromwell will pass it into the `grep` call.   
 
 Finally, the `proportion` output of the `join` call is piped out of the bounds of the workflow graph by becoming the green `joined_proportion` graph output node (`wom.graph.ExpressionBasedGraphOutputNode` in the code). 
 

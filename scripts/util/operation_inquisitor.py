@@ -39,15 +39,17 @@ def getOperationsMetadata(operationId):
                     machine_type = event['details']['machineType']
                     instance = event['details']['instance']
                     zone = event['details']['zone']
-            disks = metadata_field['pipeline']['resources']['virtualMachine']['disks']
+            vm_spec = metadata_field['pipeline']['resources']['virtualMachine']
+            disks = vm_spec['disks']
             disk_details = [ disk['name'] + ' ' + str(disk['sizeGb']) + 'GB ' + disk['type'] for disk in disks ]
-            return [operationId, machine_type, instance, zone, str(duration), ", ".join(disk_details)]
+            preemptible = vm_spec['preemptible']
+            return [operationId, machine_type, instance, zone, str(duration), preemptible] + disk_details
         except:
             print('Unable to process ' + operationId + '. Error: ' + str(sys.exc_info()[1]) + ': ' + str(sys.exc_info()[1]))
-            return [operationId, "???", "???", "???", "???", "???"]
+            return [operationId, "???", "???", "???", "???", "???", "???"]
     else:
         print('Unable to process ' + operationId + '. Exit code: ' + str(completedProcess.returncode) + '. Stderr: ' + completedProcess.stderr)
-        return [operationId, "???", "???", "???", "???", "???"]
+        return [operationId, "???", "???", "???", "???", "???", "???"]
 
 
 # Read input CSV file name from command line:
@@ -86,7 +88,7 @@ for project in projects:
     output_file = 'duration_details_' + project + '.csv'
     with open(output_file, 'w+') as csv_file:
         csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        csv_writer.writerow(["Project", "OperationId", "MachineType", "Instance", "Zone", "DurationSeconds", "Disks"])
+        csv_writer.writerow(["Project", "OperationId", "MachineType", "Instance", "Zone", "DurationSeconds", "Preemptible", "Disks"])
         for operation_details_entry in operation_details:
             row = [project] + operation_details_entry
             csv_writer.writerow(row)

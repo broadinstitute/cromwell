@@ -81,6 +81,7 @@ nav:
     - Bitesize Design Docs:
       - Workflow Execution:
         - Main Actors: developers/bitesize/workflowExecution/majorActors.md
+      - IoActor: developers/bitesize/IoActor/IoActor.md
 
 theme: readthedocs
 

@@ -27,24 +27,24 @@ def getOperationsMetadata(operationId):
                                       capture_output=True,
                                       encoding='ascii')
     if completedProcess.returncode == 0:
-        # try:
-        operation_metadata = json.loads(completedProcess.stdout)
-        metadata_field = operation_metadata['metadata']
-        start = parsedate(metadata_field['startTime'])
-        end = parsedate(metadata_field['endTime'])
-        duration = (end - start).total_seconds()
-        events = metadata_field['events']
-        for event in events:
-            if event['description'].startswith('Worker "google-pipelines-worker-'):
-                machine_type = event['details']['machineType']
-                instance = event['details']['instance']
-                zone = event['details']['zone']
-        disks = metadata_field['pipeline']['resources']['virtualMachine']['disks']
-        disk_details = [ disk['name'] + ' ' + str(disk['sizeGb']) + 'GB ' + disk['type'] for disk in disks ]
-        return [operationId, machine_type, instance, zone, str(duration), ", ".join(disk_details)]
-        # except:
-        #     print('Unable to process ' + operationId + '. Error: ' + str(sys.exc_info()[1]) + ': ' + str(sys.exc_info()[1]))
-        #     return [operationId, "???", "???", "???", "???", "???"]
+        try:
+            operation_metadata = json.loads(completedProcess.stdout)
+            metadata_field = operation_metadata['metadata']
+            start = parsedate(metadata_field['startTime'])
+            end = parsedate(metadata_field['endTime'])
+            duration = (end - start).total_seconds()
+            events = metadata_field['events']
+            for event in events:
+                if event['description'].startswith('Worker "google-pipelines-worker-'):
+                    machine_type = event['details']['machineType']
+                    instance = event['details']['instance']
+                    zone = event['details']['zone']
+            disks = metadata_field['pipeline']['resources']['virtualMachine']['disks']
+            disk_details = [ disk['name'] + ' ' + str(disk['sizeGb']) + 'GB ' + disk['type'] for disk in disks ]
+            return [operationId, machine_type, instance, zone, str(duration), ", ".join(disk_details)]
+        except:
+            print('Unable to process ' + operationId + '. Error: ' + str(sys.exc_info()[1]) + ': ' + str(sys.exc_info()[1]))
+            return [operationId, "???", "???", "???", "???", "???"]
     else:
         print('Unable to process ' + operationId + '. Exit code: ' + str(completedProcess.returncode) + '. Stderr: ' + completedProcess.stderr)
         return [operationId, "???", "???", "???", "???", "???"]

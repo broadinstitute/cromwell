@@ -115,6 +115,7 @@ object ActionBuilder {
       .setEntrypoint("")
       .setLabels(Map(Key.Tag -> Value.UserAction).asJava)
       .setCredentials(secret.orNull)
+      .setFlags(List(ActionFlag.EnableFuse.toString).asJava)
   }
 
   def checkForMemoryRetryAction(retryLookupKeys: List[String], mounts: List[Mount]): Action = {

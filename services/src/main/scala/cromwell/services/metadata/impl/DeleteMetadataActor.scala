@@ -20,10 +20,10 @@ class DeleteMetadataActor extends Actor
         case Success(_) => replyTo ! DeleteMetadataSuccessfulResponse(workflowId)
         case Failure(ex) if maxAttempts > 1 =>
           val remainingAttempts = action.maxAttempts - 1
-          log.error(s"Cannot delete metadata. Remaining number of attempts: $maxAttempts. Error message: {}", ex.getMessage)
+          log.error(ex, s"Cannot delete metadata. Remaining number of attempts: $maxAttempts.")
           self ! action.copy(maxAttempts = remainingAttempts)
         case Failure(ex) =>
-          log.error(s"Cannot delete metadata. Error message: {}", ex.getMessage)
+          log.error(ex, s"Cannot delete metadata.")
           replyTo ! DeleteMetadataFailedResponse(workflowId, ex)
       }
   }

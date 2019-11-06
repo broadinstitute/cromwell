@@ -22,7 +22,7 @@ class DeleteMetadataActorSpec extends TestKitSuite with FlatSpecLike {
 
   it should "try to repeat delete action required amount of times in case of failure" in {
     val probe = TestProbe()
-    EventFilter.error(start = "Cannot delete metadata. Remaining number of attempts", occurrences = 5) intercept {
+    EventFilter.error(start = "Cannot delete metadata. Remaining number of attempts", occurrences = 4) intercept {
       probe.send(deleteMetadataActor, DeleteMetadataAction(WorkflowId.fromString(workflowId), probe.ref, maxAttempts = 5))
     }
     probe.expectMsgPF(5.seconds) {

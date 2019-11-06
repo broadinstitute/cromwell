@@ -85,7 +85,7 @@ class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
       log.info(s"Completed deleting metadata from database for carbonited workflow: $workflowId")
       resetBackoffAndFindNextWorkflowForCarboniting()
     case DeleteMetadataFailedResponse(workflowId, reason) =>
-      log.error(s"All attempts to delete metadata from database for carbonited workflow $workflowId failed: {}", reason.getMessage)
+      log.error(reason, s"All attempts to delete metadata from database for carbonited workflow $workflowId failed.")
       resetBackoffAndFindNextWorkflowForCarboniting()
     case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(carboniteFreezerActor))
     case other => log.error(s"Programmer Error! The CarboniteWorkerActor received unexpected message! ($sender sent $other})")

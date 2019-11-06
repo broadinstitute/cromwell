@@ -96,12 +96,11 @@ class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") 
         case DeleteMetadataAction(_, _, _) => true
       }
 
-      val exceptionMessage=  "Test exception"
-      EventFilter.error(message = s"All attempts to delete metadata from database for carbonited workflow $workflowToCarbonite failed: $exceptionMessage", occurrences = 1) intercept {
+      EventFilter.error(message = s"All attempts to delete metadata from database for carbonited workflow $workflowToCarbonite failed.", occurrences = 1) intercept {
         deleteMetadataActor.send(carboniteWorkerActor,
           DeleteMetadataFailedResponse(
             WorkflowId.fromString(workflowToCarbonite),
-            new RuntimeException(exceptionMessage)
+            new RuntimeException("Test exception")
           )
         )
       }

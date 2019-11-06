@@ -81,7 +81,8 @@ object PipelinesApiRequestFactory {
                                       womOutputRuntimeExtractor: Option[WomOutputRuntimeExtractor],
                                       adjustedSizeDisks: Seq[PipelinesApiAttachedDisk],
                                       virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
-                                      retryWithMoreMemoryKeys: Option[List[String]]) {
+                                      retryWithMoreMemoryKeys: Option[List[String]],
+                                      fuseEnabled: Boolean) {
     def literalInputs = inputOutputParameters.literalInputParameters
     def inputParameters = inputOutputParameters.fileInputParameters
     def outputParameters = inputOutputParameters.fileOutputParameters

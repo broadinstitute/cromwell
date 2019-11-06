@@ -30,6 +30,7 @@ case class PipelinesApiConfigurationAttributes(project: String,
                                                computeServiceAccount: String,
                                                auths: PipelinesApiAuths,
                                                restrictMetadataAccess: Boolean,
+                                               enableFuse: Boolean,
                                                executionBucket: String,
                                                endpointUrl: URL,
                                                location: String,
@@ -72,6 +73,7 @@ object PipelinesApiConfigurationAttributes {
     "genomics.compute-service-account",
     "genomics.auth",
     "genomics.restrict-metadata-access",
+    "genomics.enable-fuse",
     "genomics.endpoint-url",
     "genomics-api-queries-per-100-seconds",
     "genomics.localization-attempts",
@@ -146,6 +148,7 @@ object PipelinesApiConfigurationAttributes {
     val computeServiceAccount: String = backendConfig.as[Option[String]]("genomics.compute-service-account").getOrElse("default")
     val genomicsAuthName: ErrorOr[String] = validate { backendConfig.as[String]("genomics.auth") }
     val genomicsRestrictMetadataAccess: ErrorOr[Boolean] = validate { backendConfig.as[Option[Boolean]]("genomics.restrict-metadata-access").getOrElse(false) }
+    val genomicsEnableFuse: ErrorOr[Boolean] = validate { backendConfig.as[Option[Boolean]]("genomics.enable-fuse").getOrElse(false) }
     val gcsFilesystemAuthName: ErrorOr[String] = validate { backendConfig.as[String]("filesystems.gcs.auth") }
     val qpsValidation = validateQps(backendConfig)
     val duplicationStrategy = validate { backendConfig.as[Option[String]]("filesystems.gcs.caching.duplication-strategy").getOrElse("copy") match {
@@ -206,6 +209,7 @@ object PipelinesApiConfigurationAttributes {
                                                        genomicsName: String,
                                                        location: String,
                                                        restrictMetadata: Boolean,
+                                                       enableFuse: Boolean,
                                                        gcsName: String,
                                                        qps: Int Refined Positive,
                                                        cacheHitDuplicationStrategy: PipelinesCacheHitDuplicationStrategy,
@@ -221,6 +225,7 @@ object PipelinesApiConfigurationAttributes {
             computeServiceAccount = computeServiceAccount,
             auths = PipelinesApiAuths(genomicsAuth, gcsAuth),
             restrictMetadataAccess = restrictMetadata,
+            enableFuse = enableFuse,
             executionBucket = bucket,
             endpointUrl = endpointUrl,
             location = location,
@@ -243,6 +248,7 @@ object PipelinesApiConfigurationAttributes {
       genomicsAuthName,
       location,
       genomicsRestrictMetadataAccess,
+      genomicsEnableFuse,
       gcsFilesystemAuthName,
       qpsValidation,
       duplicationStrategy,

@@ -1,0 +1,12 @@
+name: control_chars
+testFormat: workflowsuccess
+
+files {
+  workflow: control_chars/control_chars.wdl
+}
+
+metadata {
+  workflowName: control_chars
+  status: Succeeded
+  "calls.control_chars.control.executionStatus": Done
+}

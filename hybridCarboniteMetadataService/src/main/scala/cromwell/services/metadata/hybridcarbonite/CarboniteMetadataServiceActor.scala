@@ -1,10 +1,12 @@
 package cromwell.services.metadata.hybridcarbonite
 
+import java.util.concurrent.atomic.AtomicLong
+
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
 import cromwell.services.FailedMetadataJsonResponse
 import cromwell.services.ServiceRegistryActor.{IoActorRef, NoIoActorRefAvailable, RequestIoActorRef}
-import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, MetadataWriteAction, MetadataWriteFailure}
+import cromwell.services.metadata.MetadataService.{BuildWorkflowMetadataJsonAction, MetadataWriteAction, MetadataWriteFailure}
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import mouse.boolean._
@@ -24,10 +26,10 @@ class CarboniteMetadataServiceActor(carboniteConfig: HybridCarboniteConfig, serv
   var carboniteWorker: Option[ActorRef] = None
 
   override def receive: Receive = {
-    case read: BuildMetadataJsonAction =>
+    case read: BuildWorkflowMetadataJsonAction =>
       ioActorOption match {
         case Some(ioActor) =>
-          val worker = context.actorOf(thawingActorProps(ioActor))
+          val worker = context.actorOf(thawingActorProps(ioActor), s"ThawingActor-${saltNumber.incrementAndGet()}-for-${read.workflowId}")
           worker forward read
         case None =>
           sender ! FailedMetadataJsonResponse(read, new Exception("Cannot create CarbonitedMetadataThawingActor: no IoActor reference available"))
@@ -55,6 +57,11 @@ class CarboniteMetadataServiceActor(carboniteConfig: HybridCarboniteConfig, serv
     }
     ()
   }
+
+  // For naming:
+  // - Makes sure we don't accidentally duplicate sub-actor names
+  // - We don't actually need the thread-safety, this class just has a convenient incrementAndGet method
+  val saltNumber = new AtomicLong(0)
 }
 
 object CarboniteMetadataServiceActor {

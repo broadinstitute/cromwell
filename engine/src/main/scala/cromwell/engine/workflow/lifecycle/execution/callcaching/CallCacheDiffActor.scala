@@ -216,7 +216,7 @@ object CallCacheDiffActor {
     }
 
     def validateNonEmptyResponse(): ErrorOr[Unit] = if (jsObject.fields.nonEmpty) { ().validNel } else {
-      "No metadata was found for that workflow/call/index combination. Check that the workflow ID is correct, that the call name is formatted like 'workflowname.callname' and that an index is provided if this was a scattered task. (NOTE: the default index is -1, ie non-scattered)".invalidNel
+      "No metadata was found for that workflow/call/index combination. Check that the workflow ID is correct, that the call name is formatted like 'workflowname.callname' and that an index is provided if this was a scattered task. (NOTE: the default index is -1, i.e. non-scattered)".invalidNel
     }
   }
 

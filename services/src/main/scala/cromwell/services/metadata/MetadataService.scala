@@ -82,11 +82,13 @@ object MetadataService {
     def size: Int = events.size
   }
 
-  val MaximumMetadataWriteAttempts = 10
-  final case class PutMetadataAction(events: Iterable[MetadataEvent], maxAttempts: Int = MaximumMetadataWriteAttempts) extends MetadataWriteAction
-  final case class PutMetadataActionAndRespond(events: Iterable[MetadataEvent], replyTo: ActorRef, maxAttempts: Int = MaximumMetadataWriteAttempts) extends MetadataWriteAction
+  val MaximumMetadataActionAttempts = 10
+  final case class PutMetadataAction(events: Iterable[MetadataEvent], maxAttempts: Int = MaximumMetadataActionAttempts) extends MetadataWriteAction
+  final case class PutMetadataActionAndRespond(events: Iterable[MetadataEvent], replyTo: ActorRef, maxAttempts: Int = MaximumMetadataActionAttempts) extends MetadataWriteAction
 
   final case object ListenToMetadataWriteActor extends MetadataServiceAction with ListenToMessage
+
+  final case class DeleteMetadataAction(workflowId: WorkflowId, replyTo: ActorRef, maxAttempts: Int = MaximumMetadataActionAttempts) extends MetadataServiceAction
 
   // Utility object to get GetMetadataAction's for a workflow-only query:
   object GetSingleWorkflowMetadataAction {
@@ -150,6 +152,9 @@ object MetadataService {
 
   final case class MetadataWriteSuccess(events: Iterable[MetadataEvent]) extends MetadataServiceResponse
   final case class MetadataWriteFailure(reason: Throwable, events: Iterable[MetadataEvent]) extends MetadataServiceFailure
+
+  final case class DeleteMetadataSuccessfulResponse(workflowId: WorkflowId) extends MetadataServiceResponse
+  final case class DeleteMetadataFailedResponse(workflowId: WorkflowId, reason: Throwable) extends MetadataServiceFailure
 
   sealed abstract class WorkflowValidationResponse extends MetadataServiceResponse
   case object RecognizedWorkflowId extends WorkflowValidationResponse

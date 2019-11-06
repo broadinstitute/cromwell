@@ -1,0 +1,30 @@
+package cromwell.services.metadata.impl
+
+import akka.actor.{Actor, ActorLogging}
+import cromwell.services.MetadataServicesStore
+import cromwell.services.metadata.MetadataService.{DeleteMetadataAction, DeleteMetadataFailedResponse, DeleteMetadataSuccessfulResponse}
+
+import scala.util.{Failure, Success}
+
+class DeleteMetadataActor extends Actor
+  with ActorLogging
+  with MetadataDatabaseAccess
+  with MetadataServicesStore {
+
+  implicit val ec = context.dispatcher
+
+  override def receive: Receive = {
+    case action@DeleteMetadataAction(workflowId, replyTo, maxAttempts) =>
+      val deleteFromDbFuture = deleteNonLabelMetadataEntriesForWorkflow(workflowId)
+      deleteFromDbFuture onComplete {
+        case Success(_) => replyTo ! DeleteMetadataSuccessfulResponse(workflowId)
+        case Failure(ex) if maxAttempts > 0 =>
+          val remainingAttempts = action.maxAttempts - 1
+          log.error(s"Cannot delete metadata. Remaining number of attempts: $maxAttempts. Error message: ${ex.getMessage}", ex)
+          self ! action.copy(maxAttempts = remainingAttempts)
+        case Failure(ex) =>
+          log.error(s"Cannot delete metadata. Error message: ${ex.getMessage}", ex)
+          replyTo ! DeleteMetadataFailedResponse(workflowId, ex)
+      }
+  }
+}

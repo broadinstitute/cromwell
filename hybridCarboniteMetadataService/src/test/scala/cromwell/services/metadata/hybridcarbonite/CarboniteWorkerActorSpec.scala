@@ -1,14 +1,14 @@
 package cromwell.services.metadata.hybridcarbonite
 
 import akka.actor.ActorRef
-import akka.testkit.{TestActorRef, TestProbe}
+import akka.testkit.{EventFilter, TestActorRef, TestProbe}
 import com.typesafe.config.ConfigFactory
 import common.validation.Validation._
 import common.assertion.ManyTimes._
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.services.metadata.MetadataArchiveStatus.{Archived, Unarchived}
-import cromwell.services.metadata.MetadataService.{QueryForWorkflowsMatchingParameters, QueryMetadata, WorkflowQueryResponse, WorkflowQueryResult, WorkflowQuerySuccess}
+import cromwell.services.metadata.MetadataService.{DeleteMetadataAction, DeleteMetadataSuccessfulResponse, QueryForWorkflowsMatchingParameters, QueryMetadata, WorkflowQueryResponse, WorkflowQueryResult, WorkflowQuerySuccess}
 import cromwell.services.metadata.hybridcarbonite.CarboniteWorkerActor.CarboniteWorkflowComplete
 import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActor.FreezeMetadata
 import org.scalatest.{FlatSpecLike, Matchers}
@@ -20,6 +20,7 @@ class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") 
   val serviceRegistryActor = TestProbe()
   val ioActor = TestProbe()
   val carboniteFreezerActor = TestProbe()
+  val deleteMetadataActor = TestProbe()
 
   val fasterBackOff: SimpleExponentialBackoff = SimpleExponentialBackoff(
     initialInterval = 10.millis,
@@ -41,7 +42,7 @@ class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") 
       |}""".stripMargin
   )).unsafe("Make config file")
 
-  it should "carbonite workflow at intervals" in {
+  it should "carbonite workflow at intervals and delete data from DB after carboniting finished" in {
     val carboniteWorkerActor = TestActorRef(new MockCarboniteWorkerActor(
       carboniterConfig,
       serviceRegistryActor.ref,
@@ -67,6 +68,14 @@ class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") 
       carboniteFreezerActor.expectMsg(FreezeMetadata(WorkflowId.fromString(workflowToCarbonite)))
 
       carboniteFreezerActor.send(carboniteWorkerActor, CarboniteWorkflowComplete(WorkflowId.fromString(workflowToCarbonite), Archived))
+
+      serviceRegistryActor.fishForSpecificMessage(10.second) {
+        case DeleteMetadataAction(_, _, _) => true
+      }
+
+      EventFilter.info(message = s"Completed deleting metadata from database for carbonited workflow: $workflowToCarbonite", occurrences = 1) intercept {
+        deleteMetadataActor.send(carboniteWorkerActor, DeleteMetadataSuccessfulResponse(WorkflowId.fromString(workflowToCarbonite)))
+      }
     }
   }
 }

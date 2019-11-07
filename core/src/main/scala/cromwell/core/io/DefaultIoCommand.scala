@@ -14,8 +14,9 @@ object DefaultIoCommand {
   case class DefaultIoSizeCommand(override val file: Path) extends IoSizeCommand(file)
   case class DefaultIoWriteCommand(override val file: Path,
                                    override val content: String,
-                                   override val openOptions: OpenOptions) extends IoWriteCommand(
-    file, content, openOptions
+                                   override val openOptions: OpenOptions,
+                                   override val compressPayload: Boolean) extends IoWriteCommand(
+    file, content, openOptions, compressPayload
   )
   case class DefaultIoDeleteCommand(override val file: Path,
                                     override val swallowIOExceptions: Boolean) extends IoDeleteCommand(

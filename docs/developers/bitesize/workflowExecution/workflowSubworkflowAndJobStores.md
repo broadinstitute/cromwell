@@ -17,12 +17,12 @@ running [Horizontal Cromwell](../horicromtal.md) etc).
 started will not have rows in this table. The main purpose of the job store table is to support resuming execution of
 a workflow when Cromwell is restarted by recovering the outputs of completed jobs. This table is closely related to
 `JOB_STORE_SIMPLETON_ENTRY` which holds the [simpleton](../general/simpletons.md) values comprising a job's outputs,
-and loosely related to the [job key/value store](jobKeyValueStore.md) which holds other job-scoped data important
-in recovering jobs on Cromwell restart.
+and loosely related to the [job key/value store (`JOB_KEY_VALUE_ENTRY`)](jobKeyValueStore.md) which holds other
+job-scoped data important in recovering jobs on Cromwell restart.
 
 ### Subworkflow Store / `SUB_WORKFLOW_STORE_ENTRY`
 
 `SUB_WORKFLOW_STORE_ENTRY` holds data for subworkflows that have begun execution. The rows in this table persist the fact
-that particular subworkflows corresponding to a call FQN, index and attempt (?) were started and assigned a workflow ID.
+that particular subworkflows corresponding to a call FQN and index were started and assigned a workflow ID.
 The completed jobs within these subworkflows will be recorded in the job store described above, linking to the
 subworkflows in this table by the subworkflow's ID.

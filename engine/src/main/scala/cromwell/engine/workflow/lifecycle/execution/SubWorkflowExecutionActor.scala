@@ -85,7 +85,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
 
   /*
     * ! Hot Potato Warning !
-    * We ask explicitly for the output store so we can use it on the fly and more importantly not store it as a
+    * We ask explicitly for the value store so we can use it on the fly and more importantly not store it as a
     * variable in this actor, which would prevent it from being garbage collected for the duration of the
     * subworkflow and would lead to memory leaks.
     */

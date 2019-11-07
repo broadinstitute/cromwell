@@ -97,7 +97,7 @@ trait EvenBetterPathMethods {
     newInputStream
   }
 
-  def gzipByteArray(byteArray: Array[Byte]): Array[Byte] = {
+  protected def gzipByteArray(byteArray: Array[Byte]): Array[Byte] = {
     val byteStream = new ByteArrayOutputStream
     tryWithResource(() => new GZIPOutputStream(byteStream)) {
       _.write(byteArray)

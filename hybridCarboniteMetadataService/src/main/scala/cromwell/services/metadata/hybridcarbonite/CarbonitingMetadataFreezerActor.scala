@@ -49,7 +49,7 @@ class CarbonitingMetadataFreezerActor(carboniterConfig: HybridCarboniteConfig,
 
   when(Fetching) {
     case Event(SuccessfulMetadataJsonResponse(_, responseJson), FetchingData(workflowId)) =>
-      asyncIo.writeAsync(carboniterConfig.makePath(workflowId), responseJson.prettyPrint, Seq(StandardOpenOption.CREATE)) onComplete {
+      asyncIo.writeAsync(carboniterConfig.makePath(workflowId), responseJson.prettyPrint, Seq(StandardOpenOption.CREATE), compressPayload = true) onComplete {
         result => self ! CarbonitingFreezeResult(result)
       }
       goto(Freezing) using FreezingData(workflowId)

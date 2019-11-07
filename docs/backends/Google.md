@@ -280,6 +280,28 @@ backend.providers.PAPIv2.config {
 }
 ```
 
+**Enabling fuse capabilities**
+
+By default cromwell task containers doesn't allow to mount any fuses. It happens because containers are launched without specific linux capabilities being enabled. 
+Google pipelines backend supports running containers with the enabled capabilities and so does cromwell. 
+
+If you need to use fuses within task containers then you can set `enable_fuse` workflow option. 
+
+```
+{
+    "enable_fuse": true
+}
+```
+
+Differently you can enable support for fuses right in your backend configuration.
+
+```
+backend.providers.Papiv2.config {
+    genomics {
+        enable-fuse = true
+    }
+}
+```
 
 #### Google Labels
 

@@ -51,6 +51,7 @@ object CentaurConfig {
   lazy val conf = ConfigFactory.load().getConfig("centaur")
   
   lazy val runMode = CentaurRunMode(conf)
+  lazy val expectCarbonite = if (conf.hasPath("expectCarbonite")) conf.getBoolean("expectCarbonite") else false
   
   lazy val cromwellUrl = runMode.cromwellUrl
   lazy val sendReceiveTimeout = conf.getDuration("sendReceiveTimeout").toScala

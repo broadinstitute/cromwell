@@ -38,6 +38,9 @@ object TestFormulas {
     metadata <- validateMetadata(submittedWorkflow, workflowDefinition)
     _ = cromwellTracker.track(metadata)
     _ <- validateDirectoryContentsCounts(workflowDefinition, submittedWorkflow, metadata)
+    _ <- waitForArchive(submittedWorkflow.id)
+    // Re-validate the metadata now that carboniting has completed
+    _ <- validateMetadata(submittedWorkflow, workflowDefinition)
   } yield SubmitResponse(submittedWorkflow)
 
   def runFailingWorkflowAndVerifyMetadata(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = for {
@@ -45,6 +48,9 @@ object TestFormulas {
     metadata <- validateMetadata(submittedWorkflow, workflowDefinition)
     _ = cromwellTracker.track(metadata)
     _ <- validateDirectoryContentsCounts(workflowDefinition, submittedWorkflow, metadata)
+    _ <- waitForArchive(submittedWorkflow.id)
+    // Re-validate the metadata now that carboniting has completed
+    _ <- validateMetadata(submittedWorkflow, workflowDefinition)
   } yield SubmitResponse(submittedWorkflow)
 
   def runWorkflowTwiceExpectingCaching(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = {

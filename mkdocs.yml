@@ -5,7 +5,7 @@ site_author: Red Team at Broad Institute
 
 repo_url: https://github.com/broadinstitute/cromwell/
 
-pages:
+nav:
 - Introduction: index.md
 - Tutorials:
 #    - Tutorial Map: tutorials/Overview.md
@@ -85,6 +85,7 @@ pages:
         - What is WOM?: developers/bitesize/workflowParsing/whatIsWom.md
         - From WDL Source to WOM: developers/bitesize/workflowParsing/wdlParsingOverview.md
         - From CWL Source to WOM: developers/bitesize/workflowParsing/cwlParsingOverview.md
+      - IoActor: developers/bitesize/IoActor/IoActor.md
 
 theme: readthedocs
 
@@ -93,5 +94,5 @@ extra_css:
 extra_javascript:
     - js/extra.js
 
-copyright: Copyright &copy; 2017 <a href="https://broadinstitute.org">Broad Institute</a>
+copyright: Copyright &copy; 2019 <a href="https://broadinstitute.org">Broad Institute</a>
 # google_analytics: ['identifierID', 'URL.org']

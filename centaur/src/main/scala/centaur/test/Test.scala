@@ -31,6 +31,7 @@ import spray.json.JsString
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import scala.util.Failure
 
 /**
   * A simplified riff on the final tagless pattern where the interpreter (monad & related bits) are fixed. Operation
@@ -462,6 +463,47 @@ object Operations extends StrictLogging {
             .timeoutTo(CentaurConfig.metadataConsistencyTimeout, validateMetadata(submittedWorkflow, expectedMetadata))
         // Nothing to wait for, so just return the first metadata we get back:
         case None => CentaurCromwellClient.metadata(submittedWorkflow)
+      }
+    }
+  }
+
+  def waitForArchive(workflowId: WorkflowId): Test[Unit] = {
+    new Test[Unit] {
+
+      def validateMetadataArchiveStatus(status: String): IO[Boolean] = {
+        logger.info(s"Validating archive status '$status for workflow ID: $workflowId'")
+        if (status == "Archived") {
+          IO.pure(true)
+        }  else if (status == "Unarchived" ) {
+          IO.pure(false)
+        } else {
+          IO.fromTry(Failure(new Exception(s"Expected Archived but got $status")))
+        }
+      }
+
+      def checkArchived(): IO[Boolean] = for {
+          archiveStatus <- CentaurCromwellClient.archiveStatus(workflowId)
+          isArchived <- validateMetadataArchiveStatus(archiveStatus)
+      } yield isArchived
+
+      def eventuallyArchived(): IO[Unit] = {
+          checkArchived() flatMap {
+            case true => IO.pure(())
+            case false => for {
+              _ <- IO.sleep(2.seconds)
+              recurse <- eventuallyArchived()
+            } yield recurse
+          }
+      }
+
+      override def run: IO[Unit] = {
+        if (CentaurConfig.expectCarbonite) {
+          logger.info(s"Expecting carbonited status for $workflowId")
+          eventuallyArchived().timeout(CentaurConfig.metadataConsistencyTimeout)
+        } else {
+          logger.info(s"Not expecting carbonited status for $workflowId (because expectCarbonite is turned off)")
+          IO.pure(())
+        }
       }
     }
   }

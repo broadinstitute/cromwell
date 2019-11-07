@@ -94,6 +94,10 @@ object CentaurCromwellClient extends StrictLogging {
   def metadataWithId(id: WorkflowId, args: Option[Map[String, List[String]]] = defaultMetadataArgs): IO[WorkflowMetadata] = {
     sendReceiveFutureCompletion(() => cromwellClient.metadata(id, args))
   }
+
+  def archiveStatus(id: WorkflowId): IO[String] = {
+    sendReceiveFutureCompletion(() => cromwellClient.query(id)).map(_.results.head.metadataArchiveStatus)
+  }
   
   implicit private val timer = IO.timer(blockingEc)
   implicit private val contextShift = IO.contextShift(blockingEc)

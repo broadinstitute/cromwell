@@ -31,6 +31,18 @@ class CromwellClient(val cromwellUrl: URL,
   // Everything else is a suffix off the submit endpoint:
   lazy val batchSubmitEndpoint = s"$submitEndpoint/batch"
 
+  def queryEndpoint(args: List[(String, String)]): Uri = {
+    val base = s"$submitEndpoint/query"
+
+    val argString = if (args.isEmpty) {
+      ""
+    } else {
+      (args map { case (key, value) => s"$key=$value" }).mkString("?", "&", "")
+    }
+
+    base + argString
+  }
+
   def abortEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(submitEndpoint, workflowId, "abort")
   def statusEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(submitEndpoint, workflowId, "status")
   def metadataEndpoint(workflowId: WorkflowId, args: Option[Map[String, List[String]]] = None): Uri = workflowSpecificGetEndpoint(submitEndpoint, workflowId, "metadata", args)
@@ -51,6 +63,7 @@ class CromwellClient(val cromwellUrl: URL,
   import model.WorkflowLabelsJsonSupport._
   import model.WorkflowLogsJsonSupport._
   import model.WorkflowOutputsJsonSupport._
+  import model.CromwellQueryResultJsonSupport._
 
   def submit(workflow: WorkflowSubmission)
             (implicit ec: ExecutionContext): FailureResponseOrT[SubmittedWorkflow] = {
@@ -113,6 +126,10 @@ class CromwellClient(val cromwellUrl: URL,
 
   def logs(workflowId: WorkflowId)(implicit ec: ExecutionContext): FailureResponseOrT[WorkflowLogs] = {
     simpleRequest[WorkflowLogsStruct](outputsEndpoint(workflowId)) map WorkflowLogs.apply
+  }
+
+  def query(workflowId: WorkflowId)(implicit ec: ExecutionContext): FailureResponseOrT[CromwellQueryResults] = {
+    simpleRequest[CromwellQueryResults](queryEndpoint(List(("id", workflowId.id.toString))))
   }
 
   def callCacheDiff(workflowA: WorkflowId,

@@ -452,7 +452,12 @@ cromwell::private::create_centaur_variables() {
             ;;
         *)
             CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY="${CROMWELL_BUILD_CENTAUR_RESOURCES}/${CROMWELL_BUILD_CENTAUR_TYPE}TestCases"
-            CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application.conf"
+            if test "${CROMWELL_BUILD_BACKEND_TYPE}" = "papi_v2"
+            then
+              CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2_centaur_application.conf"
+            else
+              CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application.conf"
+            fi
             ;;
     esac
 

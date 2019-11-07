@@ -23,7 +23,7 @@ from dateutil.parser import parse as parsedate
 
 def getOperationsMetadata(operationId):
     print('Getting operation metadata for: ' + operationId)
-    completedProcess = subprocess.run(["gcloud", "alpha", "genomics", "operations", "describe", operationId, "--format", "json"],
+    completedProcess = subprocess.run(f"gcloud alpha genomics operations describe {operationId} --format json".split(' '),
                                       capture_output=True,
                                       encoding='ascii')
     if completedProcess.returncode == 0:
@@ -39,13 +39,15 @@ def getOperationsMetadata(operationId):
                     machine_type = event['details']['machineType']
                     instance = event['details']['instance']
                     zone = event['details']['zone']
+                    break
             vm_spec = metadata_field['pipeline']['resources']['virtualMachine']
             disks = vm_spec['disks']
             disk_details = [ disk['name'] + ' ' + str(disk['sizeGb']) + 'GB ' + disk['type'] for disk in disks ]
             preemptible = vm_spec['preemptible']
             return [operationId, machine_type, instance, zone, str(duration), preemptible] + disk_details
         except:
-            print('Unable to process ' + operationId + '. Error: ' + str(sys.exc_info()[1]) + ': ' + str(sys.exc_info()[1]))
+            exc = sys.exc_info()
+            print('Unable to process ' + operationId + '. Error: ' + str(exc[0]) + ': ' + str(exc[1]))
             return [operationId, "???", "???", "???", "???", "???", "???"]
     else:
         print('Unable to process ' + operationId + '. Exit code: ' + str(completedProcess.returncode) + '. Stderr: ' + completedProcess.stderr)
@@ -64,7 +66,7 @@ else:
     print('Filtering for the following projects in input CSV: ' + str(requested_projects))
 
 # Read in the project IDs:
-projects = {}
+opids_by_project = {}
 with open(csv_in) as csv_file:
     csv_reader = csv.reader(csv_file, delimiter=',')
     for row in csv_reader:
@@ -77,11 +79,11 @@ with open(csv_in) as csv_file:
         else:
             project = project_match.group(1)
             if len(requested_projects) == 0 or project in requested_projects:
-                operations = projects.get(project, [])
-                projects[project] = operations + [operationId]
+                operations = opids_by_project.get(project, [])
+                opids_by_project[project] = operations + [operationId]
 
-for project in projects:
-    operations = projects[project]
+for project in opids_by_project:
+    operations = opids_by_project[project]
     print('Processing project ' + project + '. Total operations in this project: ' + str(len(operations)))
     operation_details = [ getOperationsMetadata(operation) for operation in operations ]
 

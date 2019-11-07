@@ -18,6 +18,7 @@ import cromwell.api.CromwellClient
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
 import cromwell.api.model._
 import net.ceedubs.ficus.Ficus._
+import org.apache.commons.lang3.exception.ExceptionUtils
 import spray.json.DeserializationException
 
 import scala.concurrent._
@@ -113,7 +114,7 @@ object CentaurCromwellClient extends StrictLogging {
     // If Cromwell is known not to be ready, delay the request to avoid requests bound to fail
     val ioDelay = if (!CromwellManager.isReady) IO.sleep(10.seconds) else IO.unit
 
-    val stackTraceString = org.apache.commons.lang3.exception.ExceptionUtils.getStackTrace(new Exception)
+    val stackTraceString = ExceptionUtils.getStackTrace(new Exception)
 
     ioDelay.flatMap( _ =>
       // Could probably use IO to do the retrying too. For now use a copyport of Retry from cromwell core. Retry 5 times,

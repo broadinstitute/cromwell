@@ -27,6 +27,7 @@ import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, Succeeded, 
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import io.circe.parser._
+import org.apache.commons.lang3.exception.ExceptionUtils
 import spray.json.JsString
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -136,10 +137,14 @@ object Operations extends StrictLogging {
       override def run: IO[Unit] = {
         // We can't describe workflows based on zipped imports, so don't try:
         if (workflow.skipDescribeEndpointValidation || workflow.data.zippedImports.nonEmpty) {
+          val logMessage = s"Skipping womtool/describe validation on ${workflow.testName}." +
+            (if (workflow.skipDescribeEndpointValidation) " skipDescribeEndpointValidation is set to 'true'." else "") +
+            (if (workflow.data.zippedImports.nonEmpty) "zipped imports are not supported by /describe." else "")
+          logger.warn(logMessage)
           IO.pure(())
         } else {
           val timeout = 60.seconds
-          val timeoutStackTraceString = org.apache.commons.lang3.exception.ExceptionUtils.getStackTrace(new Exception)
+          val timeoutStackTraceString = ExceptionUtils.getStackTrace(new Exception)
 
           (CentaurCromwellClient.describe(workflow) flatMap { d: WaasDescription =>
             validityExpectation match {

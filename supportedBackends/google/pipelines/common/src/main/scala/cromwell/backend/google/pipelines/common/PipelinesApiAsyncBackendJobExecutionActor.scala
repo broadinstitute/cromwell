@@ -442,6 +442,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           computeServiceAccount = computeServiceAccount(jobDescriptor.workflowDescriptor),
           googleLabels = backendLabels ++ customLabels,
           preemptible = preemptible,
+          pipelineTimeout = pipelinesConfiguration.pipelineTimeout,
           jobShell = pipelinesConfiguration.jobShell,
           privateDockerKeyAndEncryptedToken = dockerKeyAndToken,
           womOutputRuntimeExtractor = jobDescriptor.workflowDescriptor.outputRuntimeExtractor,

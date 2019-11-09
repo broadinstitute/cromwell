@@ -1,9 +1,11 @@
 package cromwell.services.metadata.hybridcarbonite
 
 import akka.actor.ActorSystem
+import cats.syntax.apply._
 import com.typesafe.config.Config
 import common.Checked
 import common.validation.Checked._
+import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.path.PathFactory.PathBuilders
@@ -34,21 +36,19 @@ object HybridCarboniteConfig {
       if (carboniterConfig.hasPath("freeze-scan")) {
         val freeze = carboniterConfig.getConfig("freeze-scan")
 
-        val initialInterval = Try { freeze.getOrElse("initial-interval", 5 seconds) }
-        val maxInterval = Try { freeze.getOrElse("max-interval", default = 5 minutes) }
-        val multiplier = Try { freeze.getOrElse("multiplier", 1.1) }
+        val initialInterval = Try { freeze.getOrElse("initial-interval", 5 seconds) } toErrorOr
+        val maxInterval = Try { freeze.getOrElse("max-interval", default = 5 minutes) } toErrorOr
+        val multiplier = Try { freeze.getOrElse("multiplier", 1.1) } toErrorOr
 
-        import cats.instances.try_._
-        import cats.syntax.apply._
-
-        val tryImx = (initialInterval, maxInterval, multiplier) mapN { case (i, m, x) => (i, m, x) }
+        val errorOrFreezeScanConfig = (initialInterval, maxInterval, multiplier) mapN {
+          case (i, m, x) => HybridCarboniteFreezeScanConfig(i, m, x)
+        } contextualizeErrors "parse Carboniter 'freeze-scan' stanza"
 
         for {
-          imx <- tryImx.toCheckedWithContext("parse Carboniter 'freeze-scan' stanza")
-          (initial, max, multi) = imx
-          _ <- if (max > initial) "".validNelCheck else "max-interval must be greater than or equal to initial-interval in Carboniter 'freeze-scan' stanza".invalidNelCheck
-          _ <- if (multi > 1) "".validNelCheck else "'multiplier' must be greater than 1 in Carboniter 'freeze-scan' stanza".invalidNelCheck
-        } yield HybridCarboniteFreezeScanConfig(initialInterval = initial, maxInterval = max, multiplier = multi)
+          freezeScanConfig <- errorOrFreezeScanConfig.toEither
+          _ <- if (freezeScanConfig.maxInterval > freezeScanConfig.initialInterval) "".validNelCheck else "'max-interval' must be greater than or equal to 'initial-interval' in Carboniter 'freeze-scan' stanza".invalidNelCheck
+          _ <- if (freezeScanConfig.multiplier > 1) "".validNelCheck else "'multiplier' must be greater than 1 in Carboniter 'freeze-scan' stanza".invalidNelCheck
+        } yield freezeScanConfig
       } else {
         HybridCarboniteFreezeScanConfig().validNelCheck
       }

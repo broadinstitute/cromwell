@@ -137,10 +137,6 @@ object Operations extends StrictLogging {
       override def run: IO[Unit] = {
         // We can't describe workflows based on zipped imports, so don't try:
         if (workflow.skipDescribeEndpointValidation || workflow.data.zippedImports.nonEmpty) {
-          val logMessage = s"Skipping womtool/describe validation on ${workflow.testName}." +
-            (if (workflow.skipDescribeEndpointValidation) " skipDescribeEndpointValidation is set to 'true'." else "") +
-            (if (workflow.data.zippedImports.nonEmpty) "zipped imports are not supported by /describe." else "")
-          logger.warn(logMessage)
           IO.pure(())
         } else {
           val timeout = 60.seconds

@@ -535,7 +535,6 @@ paths:
             When true, metadata for sub workflows will be fetched and inserted automatically in the metadata response.
           required: false
           type: boolean
-          default: false
           in: query
       tags:
         - Workflows

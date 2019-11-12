@@ -177,6 +177,31 @@ trait MetadataEntryComponent {
     } yield metadataEntry).sortBy(_.metadataTimestamp)
   }
 
+
+  def metadataEntriesWithOutputs(workflowIdList: Set[String], outputMetadataKey: List[String]) = {
+    for {
+      metadataEntry <- metadataEntries
+      if metadataEntryHasWorkflowId(metadataEntry, workflowIdList)
+      if metadataEntryHasMetadataKeysLike(metadataEntry, outputMetadataKey, List.empty[String])
+    } yield metadataEntry
+  }
+
+
+  def subworkflowIdsForRootWorkflow(rootWorkflowId: String) = {
+    for {
+      metadataEntry <- metadataEntries
+      if metadataEntry.metadataKey === "rootWorkflowId" && metadataEntry.metadataValue.map(clobToString) === rootWorkflowId
+    } yield metadataEntry.workflowExecutionUuid
+  }
+
+
+  private def metadataEntryHasWorkflowId(metadataEntry: MetadataEntries, workflowIdList: Set[String]): Rep[Boolean] = {
+    def containsId(id: String): Rep[Boolean] = metadataEntry.workflowExecutionUuid === id
+
+    workflowIdList.map(containsId).reduce(_ || _)
+  }
+
+
   private[this] def metadataEntryHasMetadataKeysLike(metadataEntry: MetadataEntries,
                                                      metadataKeysToFilterFor: List[String],
                                                      metadataKeysToFilterOut: List[String]): Rep[Boolean] = {

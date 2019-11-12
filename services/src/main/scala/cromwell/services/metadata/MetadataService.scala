@@ -110,6 +110,7 @@ object MetadataService {
   final case class QueryForWorkflowsMatchingParameters(parameters: Seq[(String, String)]) extends BuildMetadataJsonAction
   final case class WorkflowOutputs(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
   final case class GetLogs(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
+  final case class RootAndSubworkflowOutputs(rootWorkflowId: WorkflowId)
   case object RefreshSummary extends MetadataServiceAction
   trait ValidationCallback {
     def onMalformed(possibleWorkflowId: String): Unit

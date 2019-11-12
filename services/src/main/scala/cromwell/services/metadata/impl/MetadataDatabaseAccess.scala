@@ -330,4 +330,10 @@ trait MetadataDatabaseAccess {
 
     }).flatten
   }
+
+  def queryOutputsForRootAndSubWorkflows(id: WorkflowId)(implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
+    val rootWorkflowId = id.id.toString
+    metadataDatabaseInterface.getOutputsForRootAndSubWorkflows(rootWorkflowId, List(s"${WorkflowMetadataKeys.Outputs}:%"))
+      .map(metadataToMetadataEvents(id))
+  }
 }

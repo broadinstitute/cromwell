@@ -10,8 +10,8 @@ import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, MetadataJobQueryValue, WorkflowQuery}
 import cromwell.database.sql.tables.{CustomLabelEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 
 object MetadataSlickDatabase {
   def fromParentConfig(parentConfig: Config = ConfigFactory.load): MetadataSlickDatabase = {
@@ -103,6 +103,12 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
         dataAccess.metadataEntriesWithKeyConstraints(workflowExecutionUuid, metadataKeysToFilterFor, metadataKeysToFilterOut, requireEmptyJobKey = false).result
     }
     runTransaction(action, timeout = timeout)
+
+//    runTransaction(dataAccess.subworkflowIdsForRootWorkflow(workflowExecutionUuid).result) flatMap { seq =>
+//      val wfIdsToConsider = seq.toSet + workflowExecutionUuid
+//      val action = dataAccess.metadataEntriesWithOutputs(wfIdsToConsider, List("outputs:%")).result
+//      runTransaction(action)
+//    }
   }
 
   private def updateWorkflowMetadataSummaryEntry(buildUpdatedWorkflowMetadataSummaryEntry:
@@ -392,4 +398,12 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     )
   }
 
+  override def getOutputsForRootAndSubWorkflows(rootWorkflowId: String,
+                                                outputMetadataKey: List[String])(implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
+    runTransaction(dataAccess.subworkflowIdsForRootWorkflow(rootWorkflowId).result) flatMap { subWfIdsSeq =>
+      val workflowIdList = subWfIdsSeq.toSet + rootWorkflowId
+      val action = dataAccess.metadataEntriesWithOutputs(workflowIdList, outputMetadataKey).result
+      runTransaction(action)
+    }
+  }
 }

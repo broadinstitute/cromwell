@@ -54,7 +54,7 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
 
     val src = DefaultPathBuilder.createTempFile()
 
-    val writeCommand = DefaultIoWriteCommand(src, "hello", OpenOptions.default)
+    val writeCommand = DefaultIoWriteCommand(src, "hello", OpenOptions.default, compressPayload = false)
 
     testActor ! writeCommand
     expectMsgPF(5 seconds) {

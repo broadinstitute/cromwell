@@ -182,13 +182,17 @@ case class GcsPath private[gcs](nioPath: NioPath,
     s"${CloudStorageFileSystem.URI_SCHEME}://$host/$path"
   }
 
-  override def writeContent(content: String)(openOptions: OpenOptions, codec: Codec)(implicit ec: ExecutionContext) = {
+  override def writeContent(content: String)(openOptions: OpenOptions, codec: Codec, compressPayload: Boolean)(implicit ec: ExecutionContext) = {
     def request(withProject: Boolean) = {
+      val builder = BlobInfo.newBuilder(blob).setContentType(ContentTypes.`text/plain(UTF-8)`.value)
+      if (compressPayload) {
+        builder.setContentEncoding("gzip")
+      }
+
+      val contentByteArray = content.getBytes(codec.charSet)
       cloudStorage.create(
-        BlobInfo.newBuilder(blob)
-          .setContentType(ContentTypes.`text/plain(UTF-8)`.value)
-          .build(),
-        content.getBytes(codec.charSet),
+        builder.build(),
+        if (compressPayload) gzipByteArray(contentByteArray) else contentByteArray,
         withProject.option(userProjectBlobTarget).toList.flatten: _*
       )
       this

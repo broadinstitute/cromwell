@@ -422,23 +422,26 @@ object Operations extends StrictLogging {
     }
   }
 
+  /* Select only those metadata items whose keys begin with the specified prefix, removing the prefix from the keys. */
+  private def selectAndTrimMetadataHavingKeysWithPrefix(workflow: Workflow, prefix: String): List[(String, JsValue)] = {
+    for {
+      flat <- workflow.metadata.toList
+      selected <- flat.value.toList collect { case (k, v) if k.startsWith(prefix) => k.substring(prefix.length) -> v }
+    } yield selected
+  }
+
   def validateOutputs(submittedWorkflow: SubmittedWorkflow,
                       workflow: Workflow): Test[Unit] = new Test[Unit] {
 
-    val outputsPrefix = "outputs."
-
     override def run: IO[Unit] = {
       import centaur.test.metadata.WorkflowFlatOutputs._
-      val expectedOutputs = for {
-        flat <- workflow.metadata.toList
-        outputs <- flat.value.toList collect { case (k, v) if k.startsWith(outputsPrefix) => k.substring(outputsPrefix.length) -> v }
-      } yield outputs
 
-      val actualOutputs: IO[Map[String, JsValue]] = CentaurCromwellClient.outputs(submittedWorkflow) map { _.asFlat.value }
+      val expectedOutputs: List[(String, JsValue)] = selectAndTrimMetadataHavingKeysWithPrefix(workflow, "outputs.")
+      val ioActualOutputs: IO[Map[String, JsValue]] = CentaurCromwellClient.outputs(submittedWorkflow) map { _.asFlat.value }
 
-      actualOutputs flatMap { as =>
+      ioActualOutputs flatMap { actualOutputs =>
         val expected = expectedOutputs.toSet
-        val actual = as.toSet
+        val actual = actualOutputs.toSet
 
         lazy val inActualButNotInExpected = actual.diff(expected)
         lazy val inExpectedButNotInActual = expected.diff(actual)
@@ -457,8 +460,24 @@ object Operations extends StrictLogging {
   }
 
   def validateLabels(submittedWorkflow: SubmittedWorkflow,
-                     workflowSpec: Workflow): Test[Unit] = new Test[Unit] {
-    override def run: IO[Unit] = IO.unit
+                     workflow: Workflow): Test[Unit] = new Test[Unit] {
+    override def run: IO[Unit] = {
+      import centaur.test.metadata.WorkflowFlatLabels._
+
+      val workflowIdLabel = ("cromwell-workflow-id", JsString(s"cromwell-${submittedWorkflow.id}"))
+      val expectedLabels: List[(String, JsValue)] = workflowIdLabel :: selectAndTrimMetadataHavingKeysWithPrefix(workflow, "labels.")
+      val ioActualLabels: IO[Map[String, JsValue]] = CentaurCromwellClient.labels(submittedWorkflow) map { _.asFlat.value }
+
+      ioActualLabels flatMap { actualLabels =>
+        val diff = expectedLabels.toSet.diff(actualLabels.toSet)
+        if (diff.nonEmpty) {
+          val message = s"In expected labels but not in actual: ${diff.mkString(", ")}"
+          IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
+        } else {
+          IO.unit
+        }
+      }
+    }
   }
 
   def validateMetadata(submittedWorkflow: SubmittedWorkflow,

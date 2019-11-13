@@ -10,7 +10,7 @@ import common.validation.ErrorOr._
 import common.validation.Validation._
 import configs.Result
 import configs.syntax._
-import cromwell.api.model.{WorkflowMetadata, WorkflowOutputs}
+import cromwell.api.model.{WorkflowLabels, WorkflowMetadata, WorkflowOutputs}
 import mouse.all._
 import spray.json._
 
@@ -104,6 +104,14 @@ object WorkflowFlatOutputs {
   implicit class EnhancedWorkflowOutputs(val workflowOutputs: WorkflowOutputs) extends AnyVal {
     def asFlat: WorkflowFlatMetadata = {
       workflowOutputs.outputs.asMap map WorkflowFlatMetadata.apply unsafe
+    }
+  }
+}
+
+object WorkflowFlatLabels {
+  implicit class EnhancedWorkflowLabels(val workflowLabels: WorkflowLabels) extends AnyVal {
+    def asFlat: WorkflowFlatMetadata = {
+      workflowLabels.labels.asMap map WorkflowFlatMetadata.apply unsafe
     }
   }
 }

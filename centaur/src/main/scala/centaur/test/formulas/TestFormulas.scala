@@ -42,6 +42,8 @@ object TestFormulas {
     _ <- waitForArchive(submittedWorkflow.id)
     // Re-validate the metadata now that carboniting has completed
     _ <- validateMetadata(submittedWorkflow, workflowDefinition)
+    _ <- validateOutputs(submittedWorkflow, workflowDefinition)
+    _ <- validateLabels(submittedWorkflow, workflowDefinition)
   } yield SubmitResponse(submittedWorkflow)
 
   def runFailingWorkflowAndVerifyMetadata(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = for {

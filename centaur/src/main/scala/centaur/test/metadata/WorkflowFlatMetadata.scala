@@ -3,18 +3,20 @@ package centaur.test.metadata
 import java.util.UUID
 
 import cats.data.Validated._
-import centaur.json.JsonUtils.EnhancedJsValue
+import centaur.test.metadata.JsValueEnhancer._
 import com.typesafe.config.Config
 import common.collections.EnhancedCollections._
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import configs.Result
 import configs.syntax._
-import cromwell.api.model.WorkflowMetadata
+import cromwell.api.model.{WorkflowMetadata, WorkflowOutputs}
 import mouse.all._
 import spray.json._
 
+import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
+
 
 /**
   * Workflow metadata that has been flattened for Centaur test purposes. The keys are similar to the simpleton-syntax
@@ -79,17 +81,43 @@ object WorkflowFlatMetadata {
     }
   }
 
-  def fromMetadataJson(json: WorkflowMetadata): ErrorOr[WorkflowFlatMetadata] = {
-    import DefaultJsonProtocol._
-    Try(json.value.parseJson.asJsObject.flatten().convertTo[Map[String, JsValue]]) match {
-      case Success(m) => Valid(WorkflowFlatMetadata(m))
-      case Failure(e) => invalidNel(s"Unable to create Metadata from JSON: ${e.getMessage}")
+  def fromWorkflowMetadata(workflowMetadata: WorkflowMetadata): ErrorOr[WorkflowFlatMetadata] = {
+    val jsValue: ErrorOr[JsValue] = Try(workflowMetadata.value.parseJson) match {
+      case Success(jv) => Valid(jv)
+      case Failure(e) => invalidNel(s"Unable to create JsValue from String: ${e.getMessage}")
     }
+
+    for {
+      jv <- jsValue
+      map <- jv.asMap
+    } yield WorkflowFlatMetadata(map)
   }
 
-  implicit class EnhancedWorkflowMetadata(val json: WorkflowMetadata) {
+  implicit class EnhancedWorkflowMetadata(val workflowMetadata: WorkflowMetadata) {
     def asFlat: WorkflowFlatMetadata = {
-      WorkflowFlatMetadata.fromMetadataJson(json).unsafe
+      WorkflowFlatMetadata.fromWorkflowMetadata(workflowMetadata).unsafe
+    }
+  }
+}
+
+object WorkflowFlatOutputs {
+  implicit class EnhancedWorkflowOutputs(val workflowOutputs: WorkflowOutputs) extends AnyVal {
+    def asFlat: WorkflowFlatMetadata = {
+      workflowOutputs.outputs.asMap map WorkflowFlatMetadata.apply unsafe
+    }
+  }
+}
+
+object JsValueEnhancer {
+  implicit class EnhancedJsValueAsMap(val jsValue: JsValue) extends AnyVal {
+    import DefaultJsonProtocol._
+    import centaur.json.JsonUtils._
+
+    def asMap: ErrorOr[Map[String, JsValue]] = {
+      Try(jsValue.asJsObject.flatten().convertTo[Map[String, JsValue]]) match {
+        case Success(m) => Valid(m)
+        case Failure(e) => invalidNel(s"Unable to convert JsValue to JsObject: ${e.getMessage}")
+      }
     }
   }
 }

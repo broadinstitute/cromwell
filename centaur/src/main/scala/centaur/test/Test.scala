@@ -28,7 +28,7 @@ import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import io.circe.parser._
 import org.apache.commons.lang3.exception.ExceptionUtils
-import spray.json.JsString
+import spray.json.{JsString, JsValue}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.TimeoutException
@@ -128,7 +128,10 @@ object Operations extends StrictLogging {
 
   def submitWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = {
     new Test[SubmittedWorkflow] {
-      override def run: IO[SubmittedWorkflow] = CentaurCromwellClient.submit(workflow)
+      override def run: IO[SubmittedWorkflow] = for {
+        _ <- CentaurCromwellClient.version
+        id <- CentaurCromwellClient.submit(workflow)
+      } yield id
     }
   }
 
@@ -417,6 +420,45 @@ object Operations extends StrictLogging {
         case _ =>
       }
     }
+  }
+
+  def validateOutputs(submittedWorkflow: SubmittedWorkflow,
+                      workflow: Workflow): Test[Unit] = new Test[Unit] {
+
+    val outputsPrefix = "outputs."
+
+    override def run: IO[Unit] = {
+      import centaur.test.metadata.WorkflowFlatOutputs._
+      val expectedOutputs = for {
+        flat <- workflow.metadata.toList
+        outputs <- flat.value.toList collect { case (k, v) if k.startsWith(outputsPrefix) => k.substring(outputsPrefix.length) -> v }
+      } yield outputs
+
+      val actualOutputs: IO[Map[String, JsValue]] = CentaurCromwellClient.outputs(submittedWorkflow) map { _.asFlat.value }
+
+      actualOutputs flatMap { as =>
+        val expected = expectedOutputs.toSet
+        val actual = as.toSet
+
+        lazy val inActualButNotInExpected = actual.diff(expected)
+        lazy val inExpectedButNotInActual = expected.diff(actual)
+
+        if (!workflow.allowOtherOutputs && inActualButNotInExpected.nonEmpty) {
+          val message = s"In actual outputs but not in expected and other outputs not allowed: ${inActualButNotInExpected.mkString(", ")}"
+          IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
+        } else if (inExpectedButNotInActual.nonEmpty) {
+          val message = s"In expected outputs but not in actual: ${inExpectedButNotInActual.mkString(", ")}"
+          IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
+        } else {
+          IO.unit
+        }
+      }
+    }
+  }
+
+  def validateLabels(submittedWorkflow: SubmittedWorkflow,
+                     workflowSpec: Workflow): Test[Unit] = new Test[Unit] {
+    override def run: IO[Unit] = IO.unit
   }
 
   def validateMetadata(submittedWorkflow: SubmittedWorkflow,

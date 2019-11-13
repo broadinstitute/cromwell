@@ -1,0 +1,12 @@
+name: papi_preemptible_and_max_retries
+testFormat: workflowfailure
+backends: [Papi]
+
+files {
+  workflow: papi_preemptible_and_max_retries/papi_preemptible_and_max_retries.wdl
+}
+
+metadata {
+  workflowName: papi_preemptible_and_max_retries
+  status: Failed
+}

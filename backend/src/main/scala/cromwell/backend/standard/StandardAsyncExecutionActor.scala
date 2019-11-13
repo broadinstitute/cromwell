@@ -21,7 +21,7 @@ import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, J
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.OutputEvaluator._
 import cromwell.backend.SlowJobWarning.{WarnAboutSlownessAfter, WarnAboutSlownessIfNecessary}
-import cromwell.backend._
+import cromwell.backend.{BackendLifecycleActorFactory, _}
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async._
 import cromwell.backend.standard.StandardAdHocValue._
@@ -938,7 +938,7 @@ trait StandardAsyncExecutionActor
 
     val retryable = previousFailedRetries < maxRetries
 
-    backendExecutionStatus flatMap {
+    saveKvPairsForNextAttempt(backendExecutionStatus) flatMap {
       case failed: FailedNonRetryableExecutionHandle if retryable =>
         incrementFailedRetryCount map { _ =>
           val currentMemoryMultiplier = jobDescriptor.key.memoryMultiplier
@@ -949,6 +949,43 @@ trait StandardAsyncExecutionActor
             }
             case (_, _) => FailedRetryableExecutionHandle(failed.throwable, failed.returnCode, currentMemoryMultiplier)
           }
+        }
+      case _ => backendExecutionStatus
+    }
+  }
+
+  /**
+   * Merge key-value pairs from previous job execution attempt with incoming pairs from backend and store them in
+   * the database. In case when there are key-value pairs with the same key name among those from previous attempt and
+   * coming from backend, backend values have higher precedence.
+   * `FailedRetryCountKey` is handled separately outside of this method 
+   *
+   */
+  private def saveKvPairsForNextAttempt(backendExecutionStatus: Future[ExecutionHandle]): Future[ExecutionHandle] = {
+    val kvsFromPreviousAttempt = jobDescriptor.prefetchedKvStoreEntries
+      // We exclude FailedRetryCountKey here since it will be incremented and saved separately, after we ensure
+      // that the next retry will actually occur
+      .filter {
+        case (key, value) => key != BackendLifecycleActorFactory.FailedRetryCountKey && value.isInstanceOf[KvPair]
+      }
+      .map {
+        case (key, value) =>
+          val futureKvJobKey = KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)
+          val kvPairVal = value.asInstanceOf[KvPair]
+          key -> kvPairVal.copy(key = kvPairVal.key.copy(jobKey = futureKvJobKey))
+      }
+
+    backendExecutionStatus flatMap {
+      case failed: FailedExecutionHandle =>
+        failed.kvPairsToSave match {
+          case Some(kvPairs) =>
+            val kvsFromBackend = kvPairs.map(kvPair => kvPair.key.key -> kvPair).toMap
+            val mergedKvs = (kvsFromPreviousAttempt ++ kvsFromBackend) map {
+              case (_, value) => value
+            }
+            makeKvRequest(mergedKvs.map(KvPut).toSeq).map(_ => failed)
+          case None =>
+            makeKvRequest(kvsFromPreviousAttempt.map(entry => KvPut(entry._2)).toSeq).map(_ => failed)
         }
       case _ => backendExecutionStatus
     }

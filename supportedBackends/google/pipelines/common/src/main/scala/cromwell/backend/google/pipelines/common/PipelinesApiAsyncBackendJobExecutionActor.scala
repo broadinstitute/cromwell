@@ -684,7 +684,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     }
   }
 
-  private def futurePreemptedAndUnexpectedRetryCountsToKvPairs(p: Int, ur: Int): Seq[KvPair] = {
+  private def nextAttemptPreemptedAndUnexpectedRetryCountsToKvPairs(p: Int, ur: Int): Seq[KvPair] = {
     Seq(
       KvPair(ScopedKey(workflowId, futureKvJobKey, PipelinesApiBackendLifecycleActorFactory.unexpectedRetryCountKey), ur.toString),
       KvPair(ScopedKey(workflowId, futureKvJobKey, PipelinesApiBackendLifecycleActorFactory.preemptionCountKey), p.toString)
@@ -699,7 +699,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       case Valid(PreviousRetryReasons(p, ur)) =>
         val thisUnexpectedRetry = ur + 1
         if (thisUnexpectedRetry <= maxUnexpectedRetries) {
-          val preemptionAndUnexpectedRetryCountsKvPairs = futurePreemptedAndUnexpectedRetryCountsToKvPairs(p, thisUnexpectedRetry)
+          val preemptionAndUnexpectedRetryCountsKvPairs = nextAttemptPreemptedAndUnexpectedRetryCountsToKvPairs(p, thisUnexpectedRetry)
           // Increment unexpected retry count and preemption count stays the same
           Future.successful {
             FailedRetryableExecutionHandle(
@@ -731,7 +731,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         val baseMsg = s"Task $taskName was preempted for the ${thisPreemption.toOrdinal} time."
 
         Future.successful {
-          val preemptionAndUnexpectedRetryCountsKvPairs = futurePreemptedAndUnexpectedRetryCountsToKvPairs(thisPreemption, ur)
+          val preemptionAndUnexpectedRetryCountsKvPairs = nextAttemptPreemptedAndUnexpectedRetryCountsToKvPairs(thisPreemption, ur)
           if (thisPreemption < maxPreemption) {
             // Increment preemption count and unexpectedRetryCount stays the same
             val msg =

@@ -21,7 +21,7 @@ import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, J
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.OutputEvaluator._
 import cromwell.backend.SlowJobWarning.{WarnAboutSlownessAfter, WarnAboutSlownessIfNecessary}
-import cromwell.backend.{BackendLifecycleActorFactory, _}
+import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async._
 import cromwell.backend.standard.StandardAdHocValue._
@@ -963,16 +963,12 @@ trait StandardAsyncExecutionActor
    */
   private def saveKvPairsForNextAttempt(backendExecutionStatus: Future[ExecutionHandle]): Future[ExecutionHandle] = {
     val kvsFromPreviousAttempt = jobDescriptor.prefetchedKvStoreEntries
-      // We exclude FailedRetryCountKey here since it will be incremented and saved separately, after we ensure
-      // that the next retry will actually occur
-      .filter {
-        case (key, value) => key != BackendLifecycleActorFactory.FailedRetryCountKey && value.isInstanceOf[KvPair]
-      }
-      .map {
-        case (key, value) =>
+      .collect {
+        // We exclude FailedRetryCountKey here since it will be incremented and saved separately, after we ensure
+        // that the next retry will actually occur
+        case (key, kvPair: KvPair) if key != BackendLifecycleActorFactory.FailedRetryCountKey =>
           val futureKvJobKey = KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)
-          val kvPairVal = value.asInstanceOf[KvPair]
-          key -> kvPairVal.copy(key = kvPairVal.key.copy(jobKey = futureKvJobKey))
+          key -> kvPair.copy(key = kvPair.key.copy(jobKey = futureKvJobKey))
       }
 
     backendExecutionStatus flatMap {

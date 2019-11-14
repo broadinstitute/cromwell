@@ -89,6 +89,7 @@ nav:
         - Horizontal Cromwell ("Horicromtal"): developers/bitesize/horicromtal.md
         - General Topics:
             - Simpletons: developers/bitesize/general/simpletons.md
+        - Travis Centaur: developers/bitesize/ci/travis_centaur.md
 
 theme: readthedocs
 

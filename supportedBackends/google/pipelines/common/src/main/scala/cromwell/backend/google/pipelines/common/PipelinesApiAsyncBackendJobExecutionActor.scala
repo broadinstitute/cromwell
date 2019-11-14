@@ -735,8 +735,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           if (thisPreemption < maxPreemption) {
             // Increment preemption count and unexpectedRetryCount stays the same
             val msg =
-              s"""$baseMsg The call will be restarted with another preemptible VM (max preemptible attempts
-                 |number is $maxPreemption). Error code $errorCode.$prettyPrintedError""".stripMargin
+              s"$baseMsg The call will be restarted with another preemptible VM (max preemptible attempts number is " +
+                s"$maxPreemption). Error code $errorCode.$prettyPrintedError"
             FailedRetryableExecutionHandle(
               StandardException(errorCode, msg, jobTag, jobReturnCode, standardPaths.error),
               jobReturnCode,
@@ -744,9 +744,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
             )
           }
           else {
-            val msg = s"""$baseMsg The maximum number of preemptible attempts ($maxPreemption) has been reached. The
-                 |call will be restarted with a non-preemptible VM.
-                 |Error code $errorCode.$prettyPrintedError)""".stripMargin
+            val msg = s"$baseMsg The maximum number of preemptible attempts ($maxPreemption) has been reached. The " +
+              s"call will be restarted with a non-preemptible VM. Error code $errorCode.$prettyPrintedError)"
             FailedRetryableExecutionHandle(StandardException(
               errorCode, msg, jobTag, jobReturnCode, standardPaths.error), jobReturnCode, kvPairsToSave = Option(preemptionAndUnexpectedRetryCountsKvPairs))
           }

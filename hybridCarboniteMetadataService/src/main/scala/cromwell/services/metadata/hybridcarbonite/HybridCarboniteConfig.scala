@@ -24,7 +24,7 @@ object HybridCarboniteConfig {
   
   def parseConfig(carboniterConfig: Config)(implicit system: ActorSystem): Checked[HybridCarboniteConfig] = {
     val enable = carboniterConfig.as[Option[Boolean]]("enabled").getOrElse(false)
-    val carboniteDebugLogging = carboniterConfig.as[Option[Boolean]](path = "debug-logging").getOrElse(false)
+    val carboniteDebugLogging = carboniterConfig.as[Option[Boolean]](path = "debug-logging").getOrElse(true)
 
     for {
       _ <- Try(carboniterConfig.getConfig("filesystems.gcs")).toCheckedWithContext("parse Carboniter 'filesystems.gcs' field from config")

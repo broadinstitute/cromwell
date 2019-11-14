@@ -6,7 +6,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.services.MetadataJsonResponse
 import cromwell.services.metadata.MetadataService
-import cromwell.services.metadata.MetadataService.{MetadataQueryResponse, BuildMetadataJsonAction, MetadataServiceAction, MetadataServiceResponse, RootAndSubworkflowLabelsLookupResponse, BuildWorkflowMetadataJsonAction}
+import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, BuildWorkflowMetadataJsonAction, MetadataQueryResponse, MetadataServiceAction, MetadataServiceResponse, RootAndSubworkflowLabelsLookupResponse, RootAndSubworkflowOutputsLookupResponse}
 import cromwell.services.metadata.impl.ReadMetadataRegulatorActor.PropsMaker
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
 
@@ -48,7 +48,10 @@ class ReadMetadataRegulatorActor(metadataBuilderActorProps: PropsMaker, readMeta
       }
     case serviceResponse: MetadataServiceResponse =>
       serviceResponse match {
-        case response @ (_: MetadataJsonResponse | _: MetadataQueryResponse | _: RootAndSubworkflowLabelsLookupResponse) =>
+        case response @ (_: MetadataJsonResponse |
+                         _: MetadataQueryResponse |
+                         _: RootAndSubworkflowLabelsLookupResponse |
+                         _: RootAndSubworkflowOutputsLookupResponse) =>
           handleResponseFromMetadataWorker(response)
       }
     case other => log.error(s"Programmer Error: Unexpected message $other received from $sender")

@@ -27,7 +27,8 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration) extends Act
     case GetLogs(workflowId) => evaluateRespondAndStop(sender(), queryLogsAndRespond(workflowId))
     case query: QueryForWorkflowsMatchingParameters => evaluateRespondAndStop(sender(), queryWorkflowsAndRespond(query.parameters))
     case WorkflowOutputs(id) => evaluateRespondAndStop(sender(), queryWorkflowOutputsAndRespond(id))
-    case RootAndSubworkflowOutputs(id) => evaluateRespondAndStop(sender(), queryRootAndSubworkflowOutputsAndRespond(id))
+    case GetRootAndSubworkflowOutputs(id) =>
+      evaluateRespondAndStop(sender(), queryRootAndSubworkflowOutputsAndRespond(id))
     case unexpected => log.warning(s"Programmer Error! Unexpected message received by ${getClass.getSimpleName}: $unexpected")
   }
 
@@ -115,9 +116,9 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration) extends Act
 
   private def queryRootAndSubworkflowOutputsAndRespond(rootWorkflowId: WorkflowId): Future[MetadataServiceResponse] = {
     queryOutputsForRootAndSubWorkflows(rootWorkflowId) map {
-      v => WorkflowOutputsResponse(rootWorkflowId, v)
+      v => RootAndSubworkflowOutputsLookupResponse(rootWorkflowId, v)
     } recover {
-      case e => WorkflowOutputsFailure(rootWorkflowId, e)
+      case e => RootAndSubworkflowOutputsLookupFailure(rootWorkflowId, e)
     }
   }
 }

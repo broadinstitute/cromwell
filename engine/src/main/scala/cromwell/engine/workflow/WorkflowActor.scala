@@ -18,6 +18,8 @@ import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.instrumentation.WorkflowInstrumentation
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle._
+import cromwell.engine.workflow.lifecycle.deletion.DeleteWorkflowFilesActor
+import cromwell.engine.workflow.lifecycle.deletion.DeleteWorkflowFilesActor.StartWorkflowFilesDeletion
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowFinalizationActor.{StartFinalizationCommand, WorkflowFinalizationFailedResponse, WorkflowFinalizationSucceededResponse}
@@ -484,7 +486,22 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       case StateCheckpoint(_, None) => WorkflowSucceededState
     }
 
-    goto(finalState) using data.copy(currentLifecycleStateActor = None)
+    finalState match {
+      case WorkflowSucceededState => testThis(data)
+      case _ => goto(finalState) using data.copy(currentLifecycleStateActor = None)
+    }
+  }
+
+  private def testThis(data: WorkflowActorData) = {
+    val rootWorkflowId = data.workflowDescriptor.get.rootWorkflowId
+    val deleteActor = context.actorOf(DeleteWorkflowFilesActor.props(rootWorkflowId, serviceRegistryActor),
+      name = s"DeleteWorkflowFilesActor-${rootWorkflowId.id}")
+
+    deleteActor ! StartWorkflowFilesDeletion
+
+    Thread.sleep(200000)
+
+    goto(WorkflowSucceededState) using data.copy(currentLifecycleStateActor = None)
   }
 
   private[workflow] def makeFinalizationActor(workflowDescriptor: EngineWorkflowDescriptor, jobExecutionMap: JobExecutionMap, workflowOutputs: CallOutputs) = {

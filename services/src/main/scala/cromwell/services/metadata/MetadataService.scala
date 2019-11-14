@@ -2,12 +2,12 @@ package cromwell.services.metadata
 
 import java.time.OffsetDateTime
 
-import io.circe.Json
 import akka.actor.ActorRef
 import cats.data.NonEmptyList
+import common.exception.{MessageAggregation, ThrowableAggregation}
+import io.circe.Json
 import cromwell.core._
 import cromwell.services.ServiceRegistryActor.{ListenToMessage, ServiceRegistryMessage}
-import common.exception.{MessageAggregation, ThrowableAggregation}
 import wom.core._
 import wom.values._
 
@@ -110,7 +110,7 @@ object MetadataService {
   final case class QueryForWorkflowsMatchingParameters(parameters: Seq[(String, String)]) extends BuildMetadataJsonAction
   final case class WorkflowOutputs(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
   final case class GetLogs(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
-  final case class RootAndSubworkflowOutputs(rootWorkflowId: WorkflowId)
+  final case class GetRootAndSubworkflowOutputs(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
   case object RefreshSummary extends MetadataServiceAction
   trait ValidationCallback {
     def onMalformed(possibleWorkflowId: String): Unit
@@ -156,6 +156,9 @@ object MetadataService {
 
   final case class DeleteMetadataSuccessfulResponse(workflowId: WorkflowId) extends MetadataServiceResponse
   final case class DeleteMetadataFailedResponse(workflowId: WorkflowId, reason: Throwable) extends MetadataServiceFailure
+
+  final case class RootAndSubworkflowOutputsLookupResponse(id: WorkflowId, outputs: Seq[MetadataEvent]) extends MetadataServiceResponse
+  final case class RootAndSubworkflowOutputsLookupFailure(id: WorkflowId, reason: Throwable) extends MetadataServiceFailure
 
   sealed abstract class WorkflowValidationResponse extends MetadataServiceResponse
   case object RecognizedWorkflowId extends WorkflowValidationResponse

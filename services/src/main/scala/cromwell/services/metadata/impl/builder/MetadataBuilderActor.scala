@@ -284,6 +284,9 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props)
     case Event(response: RootAndSubworkflowLabelsLookupResponse, HasWorkData(target, _)) =>
       target ! response
       allDone()
+    case Event(response: RootAndSubworkflowOutputsLookupResponse, HasWorkData(target, _)) =>
+      target ! response
+      allDone()
   }
 
   when(WaitingForSubWorkflows) {

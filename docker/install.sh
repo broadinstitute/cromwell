@@ -4,7 +4,7 @@ set -e
 
 CROMWELL_DIR=$1
 cd $CROMWELL_DIR
-sbt --error assembly
+sbt --warn assembly
 CROMWELL_JAR=$(find target | grep 'cromwell.*\.jar')
 mv $CROMWELL_JAR ./cromwell.jar
-sbt --error clean
+sbt --warn clean

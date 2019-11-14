@@ -7,7 +7,7 @@
 # We only do sbt publish here because Travis runs against 2.11 and 2.12 in separate jobs, so each one publishes its version to Artifactory.
 cd codegen_java
 if [[ "$TRAVIS_PULL_REQUEST" == "false" && "$TRAVIS_BRANCH" == "develop" ]]; then
-	sbt --error -Dproject.isSnapshot=false "+ publish"
+	sbt --warn -Dproject.isSnapshot=false "+ publish"
 else
-	sbt --error -Dproject.isSnapshot=true "+ publish"
+	sbt --warn -Dproject.isSnapshot=true "+ publish"
 fi 

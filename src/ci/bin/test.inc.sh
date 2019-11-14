@@ -871,7 +871,7 @@ cromwell::private::vault_login() {
 
 cromwell::private::render_secure_resources() {
     # Copy the CI resources, then render the secure resources using Vault
-    sbt renderCiResources \
+    sbt --error renderCiResources \
     || if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
         echo
         echo "Continuing without rendering secure resources."
@@ -890,7 +890,7 @@ cromwell::private::render_secure_resources() {
 
 cromwell::private::copy_all_resources() {
     # Only copy the CI resources. Secure resources are not rendered.
-    sbt copyCiResources
+    sbt --error copyCiResources
 }
 
 cromwell::private::setup_secure_resources() {
@@ -986,8 +986,8 @@ cromwell::private::build_cromwell_docker() {
 }
 
 cromwell::private::generate_code_coverage() {
-    sbt coverageReport -warn
-    sbt coverageAggregate -warn
+    sbt --error coverageReport -warn
+    sbt --error coverageAggregate -warn
     bash <(curl -s https://codecov.io/bash) > /dev/null || true
 }
 
@@ -1000,7 +1000,7 @@ cromwell::private::publish_artifacts_and_docker() {
 }
 
 cromwell::private::publish_artifacts_check() {
-    sbt verifyArtifactoryCredentialsExist -warn
+    sbt --error verifyArtifactoryCredentialsExist -warn
 }
 
 # Some CI environments want to know when new docker images are published. They do not currently poll dockerhub but do

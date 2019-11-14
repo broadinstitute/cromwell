@@ -123,6 +123,7 @@ run_test() {
     fi
 
     sbt \
+      --error \
       -Dconfig.file=${CENTAUR_CONF_DIR}/centaur.conf \
       -Dcentaur.cromwell.mode="url" \
       -Dcentaur.cromwell.url="http://${CROMWELL_UNDER_TEST}:8000" \

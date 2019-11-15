@@ -1,14 +1,14 @@
-## Public versus Secure
+## Travis builds by category of user
 
 | Backend | Any User | Committers |
 |---------|:--------:|:----------:|
 | AWS     |          |     ✅     |
 | BCS     |          |     ✅     |
-| Local   |    ✅    |            |
+| Local   |    ✅    |     ✅     |
 | PAPI V1 |          |     ✅     |
 | PAPI V2 |          |     ✅     |
-| SLURM   |    ✅    |            |
-| TES     |    ✅    |            |
+| SLURM   |    ✅    |     ✅     |
+| TES     |    ✅    |     ✅     |
 
 On cloud infrastructures that require secured credentials, tests run for users who have commit access, and are skipped for all other users. Other backends run tests run for any user.
 

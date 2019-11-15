@@ -424,10 +424,18 @@ object Operations extends StrictLogging {
   }
 
   /* Select only those metadata items whose keys begin with the specified prefix, removing the prefix from the keys. */
-  private def selectAndTrimMetadataHavingKeysWithPrefix(workflow: Workflow, prefix: String): List[(String, JsValue)] = {
+  private def selectAndTrimMetadataHavingKeysWithPrefix(workflow: Workflow, prefix: String, workflowId: WorkflowId): List[(String, JsValue)] = {
+    def replaceVariables(value: JsValue): JsValue = value match {
+      case s: JsString => JsString(s.value.replaceAll("<<UUID>>", workflowId.toString))
+      case o => o
+    }
+    val filterLabels: PartialFunction[(String, JsValue), (String, JsValue)] = {
+      case (k, v) if k.startsWith(prefix) => k.substring(prefix.length) -> replaceVariables(v)
+    }
+
     for {
       flat <- workflow.metadata.toList
-      selected <- flat.value.toList collect { case (k, v) if k.startsWith(prefix) => k.substring(prefix.length) -> v }
+      selected <- flat.value.toList collect filterLabels
     } yield selected
   }
 
@@ -437,7 +445,7 @@ object Operations extends StrictLogging {
     override def run: IO[Unit] = {
       import centaur.test.metadata.WorkflowFlatOutputs._
 
-      val expectedOutputs: List[(String, JsValue)] = selectAndTrimMetadataHavingKeysWithPrefix(workflow, "outputs.")
+      val expectedOutputs: List[(String, JsValue)] = selectAndTrimMetadataHavingKeysWithPrefix(workflow, "outputs.", submittedWorkflow.id)
       val ioActualOutputs: IO[Map[String, JsValue]] = CentaurCromwellClient.outputs(submittedWorkflow) map { _.asFlat.stringifyValues }
 
       ioActualOutputs flatMap { actualOutputs =>
@@ -466,7 +474,7 @@ object Operations extends StrictLogging {
       import centaur.test.metadata.WorkflowFlatLabels._
 
       val workflowIdLabel = ("cromwell-workflow-id", JsString(s"cromwell-${submittedWorkflow.id}"))
-      val expectedLabels: List[(String, JsValue)] = workflowIdLabel :: selectAndTrimMetadataHavingKeysWithPrefix(workflow, "labels.")
+      val expectedLabels: List[(String, JsValue)] = workflowIdLabel :: selectAndTrimMetadataHavingKeysWithPrefix(workflow, "labels.", submittedWorkflow.id)
       val ioActualLabels: IO[Map[String, JsValue]] = CentaurCromwellClient.labels(submittedWorkflow) map { _.asFlat.stringifyValues }
 
       ioActualLabels flatMap { actualLabels =>

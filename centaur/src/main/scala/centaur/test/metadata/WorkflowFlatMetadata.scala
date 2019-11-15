@@ -104,6 +104,7 @@ object WorkflowFlatMetadata {
       import mouse.all._
       workflowFlatMetadata.value.map {
         case (k, v: JsString) => k -> v
+        case (k, JsNull) => k -> JsNull
         case (k, v) => k -> (v.toString |> JsString.apply)
       }
     }

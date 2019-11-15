@@ -28,6 +28,7 @@ import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import io.circe.parser._
 import org.apache.commons.lang3.exception.ExceptionUtils
+import mouse.all._
 import spray.json.{JsString, JsValue}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -437,7 +438,7 @@ object Operations extends StrictLogging {
       import centaur.test.metadata.WorkflowFlatOutputs._
 
       val expectedOutputs: List[(String, JsValue)] = selectAndTrimMetadataHavingKeysWithPrefix(workflow, "outputs.")
-      val ioActualOutputs: IO[Map[String, JsValue]] = CentaurCromwellClient.outputs(submittedWorkflow) map { _.asFlat.value }
+      val ioActualOutputs: IO[Map[String, JsValue]] = CentaurCromwellClient.outputs(submittedWorkflow) map { _.asFlat.stringifyValues }
 
       ioActualOutputs flatMap { actualOutputs =>
         val expected = expectedOutputs.toSet
@@ -466,7 +467,7 @@ object Operations extends StrictLogging {
 
       val workflowIdLabel = ("cromwell-workflow-id", JsString(s"cromwell-${submittedWorkflow.id}"))
       val expectedLabels: List[(String, JsValue)] = workflowIdLabel :: selectAndTrimMetadataHavingKeysWithPrefix(workflow, "labels.")
-      val ioActualLabels: IO[Map[String, JsValue]] = CentaurCromwellClient.labels(submittedWorkflow) map { _.asFlat.value }
+      val ioActualLabels: IO[Map[String, JsValue]] = CentaurCromwellClient.labels(submittedWorkflow) map { _.asFlat.stringifyValues }
 
       ioActualLabels flatMap { actualLabels =>
         val diff = expectedLabels.toSet.diff(actualLabels.toSet)
@@ -486,8 +487,6 @@ object Operations extends StrictLogging {
     def filterMetadata(flatMap: Map[String, JsValue]): Map[String, JsValue] = flatMap.filter {
       case (k, _) => k == "id" || suffixes.exists(s => k.endsWith("." + s))
     }
-
-    import mouse.all._
 
     override def run: IO[Unit] = {
       val ok = for {

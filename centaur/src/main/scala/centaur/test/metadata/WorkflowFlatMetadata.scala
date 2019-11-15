@@ -98,6 +98,16 @@ object WorkflowFlatMetadata {
       WorkflowFlatMetadata.fromWorkflowMetadata(workflowMetadata).unsafe
     }
   }
+
+  implicit class EnhancedWorkflowFlatMetadata(val workflowFlatMetadata: WorkflowFlatMetadata) {
+    def stringifyValues: Map[String, JsValue] = {
+      import mouse.all._
+      workflowFlatMetadata.value.map {
+        case (k, v: JsString) => k -> v
+        case (k, v) => k -> (v.toString |> JsString.apply)
+      }
+    }
+  }
 }
 
 object WorkflowFlatOutputs {

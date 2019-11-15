@@ -43,4 +43,4 @@ docker run --rm -v ${PWD}:/local openapitools/openapi-generator-cli generate \
 
 cd codegen_java
 
-sbt test
+sbt --warn test

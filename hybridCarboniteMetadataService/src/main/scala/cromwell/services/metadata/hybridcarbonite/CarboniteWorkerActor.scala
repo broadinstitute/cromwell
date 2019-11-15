@@ -64,13 +64,13 @@ class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
       recordTimeSinceStartAsMetric(CarboniteFreezingTimeMetricPath, carboniteFreezeStartTime)
       carboniteFreezeStartTime = None
 
-      log.info(s"Carboniting complete for workflow ${c.workflowId}")
+      if (carboniterConfig.debugLogging) { log.info(s"Carboniting complete for workflow ${c.workflowId}") }
 
       c.result match {
         case Archived =>
           increment(CarboniteSuccessesMetricPath, InstrumentationPrefix)
 
-          log.info(s"Starting deleting metadata from database for carbonited workflow: ${c.workflowId}")
+          if (carboniterConfig.debugLogging) { log.info(s"Starting deleting metadata from database for carbonited workflow: ${c.workflowId}") }
           serviceRegistryActor ! DeleteMetadataAction(c.workflowId, self)
         case ArchiveFailed =>
           increment(CarboniteFailuresMetricPath, InstrumentationPrefix)
@@ -82,7 +82,7 @@ class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
         resetBackoffAndFindNextWorkflowForCarboniting()
       }
     case DeleteMetadataSuccessfulResponse(workflowId) =>
-      log.info(s"Completed deleting metadata from database for carbonited workflow: $workflowId")
+      if (carboniterConfig.debugLogging) { log.info(s"Completed deleting metadata from database for carbonited workflow: $workflowId") }
       resetBackoffAndFindNextWorkflowForCarboniting()
     case DeleteMetadataFailedResponse(workflowId, reason) =>
       log.error(reason, s"All attempts to delete metadata from database for carbonited workflow $workflowId failed.")
@@ -116,7 +116,7 @@ class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
 
     Try(WorkflowId.fromString(workflowId)) match {
       case Success(id: WorkflowId) =>
-        log.info(s"Starting carboniting of workflow: $workflowId")
+        if (carboniterConfig.debugLogging) { log.info(s"Starting carboniting of workflow: $workflowId") }
         carboniteFreezerActor ! FreezeMetadata(id)
       case Failure(e) =>
         log.error(e, s"Cannot carbonite workflow $workflowId. Error while converting it to WorkflowId, will retry.")

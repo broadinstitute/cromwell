@@ -498,10 +498,8 @@ object Operations extends StrictLogging {
 
       override def run: IO[Unit] = {
         if (CentaurConfig.expectCarbonite) {
-          logger.info(s"Expecting carbonited status for $workflowId")
           eventuallyArchived().timeout(CentaurConfig.metadataConsistencyTimeout)
         } else {
-          logger.info(s"Not expecting carbonited status for $workflowId (because expectCarbonite is turned off)")
           IO.pure(())
         }
       }

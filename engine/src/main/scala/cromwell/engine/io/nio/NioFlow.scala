@@ -87,7 +87,7 @@ class NioFlow(parallelism: Int,
 
   private def write(write: IoWriteCommand) = IO {
     createDirectories(write.file)
-    write.file.writeContent(write.content)(write.openOptions, Codec.UTF8)
+    write.file.writeContent(write.content)(write.openOptions, Codec.UTF8, write.compressPayload)
     ()
   }
 

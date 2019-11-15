@@ -1,8 +1,9 @@
 package cromwell.core.path
 
-import java.io.{BufferedInputStream, BufferedReader, IOException, InputStream, InputStreamReader}
+import java.io.{BufferedInputStream, BufferedReader, ByteArrayOutputStream, IOException, InputStream, InputStreamReader}
 import java.nio.file.{FileAlreadyExistsException, Files}
 import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
+import java.util.zip.GZIPOutputStream
 
 import better.files.File.OpenOptions
 import cromwell.util.TryWithResource.tryWithResource
@@ -96,9 +97,20 @@ trait EvenBetterPathMethods {
     newInputStream
   }
 
-  def writeContent(content: String)(openOptions: OpenOptions, codec: Codec)(implicit ec: ExecutionContext): this.type = {
+  protected def gzipByteArray(byteArray: Array[Byte]): Array[Byte] = {
+    val byteStream = new ByteArrayOutputStream
+    tryWithResource(() => new GZIPOutputStream(byteStream)) {
+      _.write(byteArray)
+    }
+    byteStream.toByteArray
+  }
+
+  def writeContent(content: String)(openOptions: OpenOptions, codec: Codec, compressPayload: Boolean)(implicit ec: ExecutionContext): this.type = {
     locally(ec)
-    write(content)(openOptions, Codec.UTF8)
+    val contentByteArray = content.getBytes(codec.charSet)
+    writeByteArray {
+      if (compressPayload) gzipByteArray(contentByteArray) else contentByteArray
+    }(openOptions)
   }
 
   private def fileIoErrorPf[A]: PartialFunction[Throwable, Try[A]] = {

@@ -2,7 +2,7 @@ package cromwell.services.metadata.hybridcarbonite
 
 import akka.actor.ActorSystem
 import cats.data.NonEmptyList
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.TestKitSuite
 import org.scalatest.{FlatSpecLike, Matchers}
 
@@ -127,25 +127,26 @@ class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec"
     }
   }
 
-  it should "respect valid freeze-scan config settings" in {
-    val config = ConfigFactory.parseString(
-      """{
-        |   enabled = true
-        |   bucket = "my_test_bucket"
-        |   filesystems {
-        |     gcs {
-        |       auth = "application-default"
-        |     }
-        |   }
-        |   freeze-scan {
-        |     initial-interval = 1 second
-        |     max-interval = 5 seconds
-        |     multiplier = 1.2
-        |   }
-        |}
-      """.stripMargin
-    )
+  private def buildFreezeScanConfig(initInterval: Any, maxInterval: Any, multiplier: Any): Config = {
+    ConfigFactory.parseString(s"""{
+      |   enabled = true
+      |   bucket = "my_test_bucket"
+      |   filesystems {
+      |     gcs {
+      |       auth = "application-default"
+      |     }
+      |   }
+      |   freeze-scan {
+      |     initial-interval = $initInterval
+      |     max-interval = $maxInterval
+      |     multiplier = $multiplier
+      |   }
+      |}
+      """.stripMargin)
+  }
 
+  it should "respect valid freeze-scan config settings" in {
+    val config = buildFreezeScanConfig(initInterval = "1 second", maxInterval = "5 seconds", multiplier = "1.2")
     val carboniteConfig = HybridCarboniteConfig.parseConfig(config)
 
     carboniteConfig match {
@@ -161,24 +162,7 @@ class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec"
   }
 
   it should "reject max interval < initial interval in freeze-scan config settings" in {
-    val config = ConfigFactory.parseString(
-      """{
-        |   enabled = true
-        |   bucket = "my_test_bucket"
-        |   filesystems {
-        |     gcs {
-        |       auth = "application-default"
-        |     }
-        |   }
-        |   freeze-scan {
-        |     max-interval = 1 second
-        |     initial-interval = 5 seconds
-        |     multiplier = 1.2
-        |   }
-        |}
-      """.stripMargin
-    )
-
+    val config = buildFreezeScanConfig(initInterval = "5 seconds", maxInterval = "1 seconds", multiplier = "1.2")
     val carboniteConfig = HybridCarboniteConfig.parseConfig(config)
 
     carboniteConfig match {
@@ -189,24 +173,7 @@ class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec"
   }
 
   it should "reject invalid values in freeze-scan config" in {
-    val config = ConfigFactory.parseString(
-      """{
-        |   enabled = true
-        |   bucket = "my_test_bucket"
-        |   filesystems {
-        |     gcs {
-        |       auth = "application-default"
-        |     }
-        |   }
-        |   freeze-scan {
-        |     initial-interval = I
-        |     max-interval = like
-        |     multiplier = turtles
-        |   }
-        |}
-      """.stripMargin
-    )
-
+    val config = buildFreezeScanConfig(initInterval = "I", maxInterval = "like", multiplier = "turtles")
     val carboniteConfig = HybridCarboniteConfig.parseConfig(config)
 
     carboniteConfig match {

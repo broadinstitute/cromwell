@@ -44,6 +44,7 @@ object TestFormulas {
     _ <- validateMetadata(submittedWorkflow, workflowDefinition)
     _ <- validateOutputs(submittedWorkflow, workflowDefinition)
     _ <- validateLabels(submittedWorkflow, workflowDefinition)
+    _ <- validateLogs(submittedWorkflow, workflowDefinition)
   } yield SubmitResponse(submittedWorkflow)
 
   def runFailingWorkflowAndVerifyMetadata(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = for {

@@ -480,6 +480,30 @@ object Operations extends StrictLogging {
     }
   }
 
+  def validateLogs(submittedWorkflow: SubmittedWorkflow, workflow: Workflow): Test[Unit] = new Test[Unit] {
+    val suffixes = Set("stdout", "shardIndex", "stderr", "attempt", "backendLogs.log")
+
+    def filterMetadata(flatMap: Map[String, JsValue]): Map[String, JsValue] = flatMap.filter {
+      case (k, _) => k == "id" || suffixes.exists(s => k.endsWith("." + s))
+    }
+
+    import mouse.all._
+
+    override def run: IO[Unit] = {
+      val ok = for {
+        logs <- CentaurCromwellClient.logs(submittedWorkflow)
+        metadata <- CentaurCromwellClient.metadata(submittedWorkflow)
+        flatLogs = logs.asFlat.value
+        flatFilteredMetadata = metadata.asFlat.value |> filterMetadata
+      } yield flatLogs.equals(flatFilteredMetadata)
+
+      ok flatMap {
+        case true => IO.unit
+        case _ => IO.raiseError(CentaurTestException("actual logs endpoint output did not equal filtered metadata", workflow, submittedWorkflow))
+      }
+    }
+  }
+
   def validateMetadata(submittedWorkflow: SubmittedWorkflow,
                        workflowSpec: Workflow,
                        cacheHitUUID: Option[UUID] = None): Test[WorkflowMetadata] = {

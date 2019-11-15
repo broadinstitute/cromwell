@@ -82,7 +82,7 @@ object CentaurCromwellClient extends StrictLogging {
     sendReceiveFutureCompletion(() => cromwellClient.callCacheDiff(workflowA.id, callA, ShardIndex(None), workflowB.id, callB, ShardIndex(None)))
   }
 
-  def logs(workflow: SubmittedWorkflow): IO[WorkflowLogs] = {
+  def logs(workflow: SubmittedWorkflow): IO[WorkflowMetadata] = {
     sendReceiveFutureCompletion(() => cromwellClient.logs(workflow.id))
   }
 

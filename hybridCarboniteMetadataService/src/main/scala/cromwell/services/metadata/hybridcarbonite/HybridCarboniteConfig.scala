@@ -14,7 +14,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.util.Try
 
-final case class HybridCarboniteConfig(enabled: Boolean, pathBuilders: PathBuilders, bucket: String) {
+final case class HybridCarboniteConfig(enabled: Boolean, debugLogging: Boolean, pathBuilders: PathBuilders, bucket: String) {
   def makePath(workflowId: WorkflowId)= PathFactory.buildPath(HybridCarboniteConfig.pathForWorkflow(workflowId, bucket), pathBuilders)
 }
 
@@ -24,6 +24,7 @@ object HybridCarboniteConfig {
   
   def parseConfig(carboniterConfig: Config)(implicit system: ActorSystem): Checked[HybridCarboniteConfig] = {
     val enable = carboniterConfig.as[Option[Boolean]]("enabled").getOrElse(false)
+    val carboniteDebugLogging = carboniterConfig.as[Option[Boolean]](path = "debug-logging").getOrElse(true)
 
     for {
       _ <- Try(carboniterConfig.getConfig("filesystems.gcs")).toCheckedWithContext("parse Carboniter 'filesystems.gcs' field from config")
@@ -31,6 +32,6 @@ object HybridCarboniteConfig {
       pathBuilders <- Try(Await.result(PathBuilderFactory.instantiatePathBuilders(pathBuilderFactories.values.toList, WorkflowOptions.empty), 10.seconds))
         .toCheckedWithContext("construct Carboniter path builders from factories")
       bucket <- Try(carboniterConfig.getString("bucket")).toCheckedWithContext("parse Carboniter 'bucket' field from config")
-    } yield HybridCarboniteConfig(enable, pathBuilders, bucket)
+    } yield HybridCarboniteConfig(enable, carboniteDebugLogging, pathBuilders, bucket)
   }
 }

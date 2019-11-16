@@ -427,7 +427,7 @@ object Operations extends StrictLogging {
    * performing variable substitutions for UUID and WORKFLOW_ROOT. */
   private def selectAndProcessKeysWithPrefix(workflow: Workflow, prefix: String, workflowId: WorkflowId, workflowRoot: String): List[(String, JsValue)] = {
     def replaceVariables(value: JsValue): JsValue = value match {
-      case s: JsString => JsString(s.value.replaceAll("<<UUID>>", workflowId.toString).replaceAll("<<WORKFLOW_ROOT>>", workflowRoot))
+      case s: JsString => JsString(s.value.replaceAll("<<UUID>>", workflowId.toString).replaceAll("<<WORKFLOW_ROOT>>", workflowRoot).replaceFirst("^~>", ""))
       case o => o
     }
     val filterLabels: PartialFunction[(String, JsValue), (String, JsValue)] = {
@@ -502,7 +502,7 @@ object Operations extends StrictLogging {
     }
 
     def filterMetadata(flattened: Map[String, JsValue]): Map[String, JsValue] = removeSubworkflowKeys(flattened).filter {
-      case (k, _) => k == "id" || suffixes.exists(s => k.endsWith("." + s))
+      case (k, _) => k == "id" || suffixes.exists(s => k.endsWith("." + s) && !k.contains(".outputs.") && !k.startsWith("outputs."))
     }
 
     override def run: IO[Unit] = {

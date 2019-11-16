@@ -423,10 +423,11 @@ object Operations extends StrictLogging {
     }
   }
 
-  /* Select only those metadata items whose keys begin with the specified prefix, removing the prefix from the keys. */
-  private def selectAndTrimMetadataHavingKeysWithPrefix(workflow: Workflow, prefix: String, workflowId: WorkflowId): List[(String, JsValue)] = {
+  /* Select only those metadata items whose keys begin with the specified prefix, removing the prefix from the keys and
+   * performing variable substitutions for UUID and WORKFLOW_ROOT. */
+  private def selectAndProcessKeysWithPrefix(workflow: Workflow, prefix: String, workflowId: WorkflowId, workflowRoot: String): List[(String, JsValue)] = {
     def replaceVariables(value: JsValue): JsValue = value match {
-      case s: JsString => JsString(s.value.replaceAll("<<UUID>>", workflowId.toString))
+      case s: JsString => JsString(s.value.replaceAll("<<UUID>>", workflowId.toString).replaceAll("<<WORKFLOW_ROOT>>", workflowRoot))
       case o => o
     }
     val filterLabels: PartialFunction[(String, JsValue), (String, JsValue)] = {
@@ -440,12 +441,13 @@ object Operations extends StrictLogging {
   }
 
   def validateOutputs(submittedWorkflow: SubmittedWorkflow,
-                      workflow: Workflow): Test[Unit] = new Test[Unit] {
+                      workflow: Workflow,
+                      workflowRoot: String): Test[Unit] = new Test[Unit] {
 
     override def run: IO[Unit] = {
       import centaur.test.metadata.WorkflowFlatOutputs._
 
-      val expectedOutputs: List[(String, JsValue)] = selectAndTrimMetadataHavingKeysWithPrefix(workflow, "outputs.", submittedWorkflow.id)
+      val expectedOutputs: List[(String, JsValue)] = selectAndProcessKeysWithPrefix(workflow, "outputs.", submittedWorkflow.id, workflowRoot)
       val ioActualOutputs: IO[Map[String, JsValue]] = CentaurCromwellClient.outputs(submittedWorkflow) map { _.asFlat.stringifyValues }
 
       ioActualOutputs flatMap { actualOutputs =>
@@ -469,12 +471,14 @@ object Operations extends StrictLogging {
   }
 
   def validateLabels(submittedWorkflow: SubmittedWorkflow,
-                     workflow: Workflow): Test[Unit] = new Test[Unit] {
+                     workflow: Workflow,
+                     workflowRoot: String): Test[Unit] = new Test[Unit] {
     override def run: IO[Unit] = {
       import centaur.test.metadata.WorkflowFlatLabels._
 
       val workflowIdLabel = ("cromwell-workflow-id", JsString(s"cromwell-${submittedWorkflow.id}"))
-      val expectedLabels: List[(String, JsValue)] = workflowIdLabel :: selectAndTrimMetadataHavingKeysWithPrefix(workflow, "labels.", submittedWorkflow.id)
+      val expectedLabels: List[(String, JsValue)] = workflowIdLabel ::
+        selectAndProcessKeysWithPrefix(workflow, "labels.", submittedWorkflow.id, workflowRoot)
       val ioActualLabels: IO[Map[String, JsValue]] = CentaurCromwellClient.labels(submittedWorkflow) map { _.asFlat.stringifyValues }
 
       ioActualLabels flatMap { actualLabels =>

@@ -85,12 +85,10 @@ object ActionBuilder {
     * A fixed timeout is used to avoid hunting for monitoring PID.
     */
 
-  private val monitoringTerminationImage = "alpine"
   private val monitoringTerminationGraceTime = 10
 
   def monitoringTerminationAction(): Action =
-    new Action()
-      .setImageUri(monitoringTerminationImage)
+    cloudSdkAction
       .withCommand(s"/bin/sh", "-c", s"kill -TERM -1 && sleep $monitoringTerminationGraceTime")
       .withFlags(List(ActionFlag.AlwaysRun))
       .setPidNamespace(monitoringPidNamespace)

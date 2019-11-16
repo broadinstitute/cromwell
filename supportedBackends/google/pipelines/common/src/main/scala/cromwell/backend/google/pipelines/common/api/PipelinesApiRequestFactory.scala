@@ -56,7 +56,7 @@ object PipelinesApiRequestFactory {
                                     literalInputParameters: List[PipelinesApiLiteralInput]
                                   ) {
     lazy val fileInputParameters: List[PipelinesApiInput] = jobInputParameters ++ detritusInputParameters.all
-    lazy val fileOutputParameters: List[PipelinesApiOutput] = jobOutputParameters ++ detritusOutputParameters.all
+    lazy val fileOutputParameters: List[PipelinesApiOutput] = detritusOutputParameters.all ++ jobOutputParameters
   }
 
   case class CreatePipelineDockerKeyAndToken(key: String, encryptedToken: String)

@@ -492,7 +492,12 @@ object Operations extends StrictLogging {
   def validateLogs(submittedWorkflow: SubmittedWorkflow, workflow: Workflow): Test[Unit] = new Test[Unit] {
     val suffixes = Set("stdout", "shardIndex", "stderr", "attempt", "backendLogs.log")
 
-    def filterMetadata(flatMap: Map[String, JsValue]): Map[String, JsValue] = flatMap.filter {
+    def removeSubworkflowKeys(flattened: Map[String, JsValue]): Map[String, JsValue] = {
+      val subWorkflowIdPrefixes = flattened.keys.filter(_.endsWith(".subWorkflowId")).map(s => s.substring(0, s.lastIndexOf('.')))
+      flattened filter { case (k, _) => !subWorkflowIdPrefixes.exists(k.startsWith) }
+    }
+
+    def filterMetadata(flattened: Map[String, JsValue]): Map[String, JsValue] = removeSubworkflowKeys(flattened).filter {
       case (k, _) => k == "id" || suffixes.exists(s => k.endsWith("." + s))
     }
 
@@ -502,7 +507,8 @@ object Operations extends StrictLogging {
         metadata <- CentaurCromwellClient.metadata(submittedWorkflow)
         flatLogs = logs.asFlat.value
         flatFilteredMetadata = metadata.asFlat.value |> filterMetadata
-      } yield flatLogs.equals(flatFilteredMetadata)
+        ok = flatLogs.equals(flatFilteredMetadata)
+      } yield ok
 
       ok flatMap {
         case true => IO.unit

@@ -79,14 +79,16 @@ nav:
     - Contribute to docs: developers/Contribute.md
     - CWL Parsing: developers/CwlParsing.md
     - Bitesize Design Docs:
-      - Workflow Execution:
-        - Main Actors: developers/bitesize/workflowExecution/majorActors.md
-        - Workflow, Subworkflow and Job Stores: developers/bitesize/workflowExecution/workflowSubworkflowAndJobStores.md
-        - Job Key / Value Store: developers/bitesize/workflowExecution/jobKeyValueStore.md
-      - Horizontal Cromwell ("Horicromtal"): developers/bitesize/horicromtal.md
-      - IoActor: developers/bitesize/IoActor/IoActor.md
-      - General Topics:
-        - Simpletons: developers/bitesize/general/simpletons.md
+        - Cromwell Actor System:
+            - High level view: developers/bitesize/majorActorSystem/5000FtActorSystem.md
+            - Workflow Execution:
+                - Main Actors: developers/bitesize/workflowExecution/majorActors.md
+                - Workflow, Subworkflow and Job Stores: developers/bitesize/workflowExecution/workflowSubworkflowAndJobStores.md
+                - Job Key / Value Store: developers/bitesize/workflowExecution/jobKeyValueStore.md
+            - IoActor: developers/bitesize/IoActor/IoActor.md
+        - Horizontal Cromwell ("Horicromtal"): developers/bitesize/horicromtal.md
+        - General Topics:
+            - Simpletons: developers/bitesize/general/simpletons.md
 
 theme: readthedocs
 

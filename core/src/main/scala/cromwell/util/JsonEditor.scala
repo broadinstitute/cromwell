@@ -84,7 +84,8 @@ object JsonEditor {
 
   def outputs(json: Json): Json = includeJson(json, NonEmptyList.of("outputs")) |> (excludeJson(_, NonEmptyList.one("calls")))
 
-  def logs(json: Json): Json = includeJson(json, NonEmptyList.of("stdout", "stderr", "backendLogs"))
+  def logs(json: Json): Json =
+    excludeJson(json, NonEmptyList.of("subWorkflowMetadata")) |> (includeJson(_, NonEmptyList.of("stdout", "stderr", "backendLogs")))
 
   implicit class EnhancedJson(val json: Json) extends AnyVal {
     def workflowId: ErrorOr[WorkflowId] = {

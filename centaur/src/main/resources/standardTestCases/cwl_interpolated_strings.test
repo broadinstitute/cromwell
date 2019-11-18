@@ -3,6 +3,7 @@ testFormat: workflowsuccess
 workflowType: CWL
 workflowTypeVersion: v1.0
 workflowRoot: interpolatedStrings
+skipDescribeEndpointValidation: true
 
 files {
   workflow: cwl_interpolated_strings/cwl_interpolated_strings.cwl

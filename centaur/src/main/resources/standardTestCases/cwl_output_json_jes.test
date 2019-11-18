@@ -1,6 +1,7 @@
 name: cwl_output_json_jes
 testFormat: workflowsuccess
 backends: [Papi]
+skipDescribeEndpointValidation: true
 
 files {
   workflow: cwl_output_json/cwl_output_json.cwl

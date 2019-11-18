@@ -1,5 +1,6 @@
 name: invalid_workflow_url
 testFormat: workflowfailure
+skipDescribeEndpointValidation: true // Not just an invalid workflow, this is an invalid request (ie WAAS returns 400)
 
 files {
   workflowUrl: "https://raw.githubusercontent.com/broadinstitute/cromwell/path_to_url_doesnt_exist"

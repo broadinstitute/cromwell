@@ -1,6 +1,7 @@
 name: drs_usa_hca
 testFormat: WorkflowSuccess
 backends: ["papi-v2-usa"]
+skipDescribeEndpointValidation: true
 
 files {
   workflow: drs_usa_hca/drs_usa_hca.wdl

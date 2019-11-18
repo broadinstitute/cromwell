@@ -3,6 +3,7 @@ testFormat: workflowsuccess
 workflowType: CWL
 workflowTypeVersion: v1.0
 workflowRoot: relative_imports
+skipDescribeEndpointValidation: true
 
 files {
   workflowUrl: "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/cwl_relative_imports/workflow.cwl"

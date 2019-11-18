@@ -270,8 +270,9 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props)
     case Event(LabelLookupResponse(w, labels), HasWorkData(target, originalRequest)) =>
       target ! SuccessfulMetadataJsonResponse(originalRequest, processLabelsResponse(w, labels))
       allDone()
-    case Event(WorkflowOutputsResponse(id, events), HasWorkData(target, originalRequest)) =>
-      target ! SuccessfulMetadataJsonResponse(originalRequest, processOutputsResponse(id, events))
+    case Event(response: WorkflowOutputsResponse, HasWorkData(target, originalRequest: WorkflowOutputs)) =>
+      if (originalRequest.convertResponseToJson) target ! SuccessfulMetadataJsonResponse(originalRequest, processOutputsResponse(response.id, response.outputs))
+      else target ! response
       allDone()
     case Event(LogsResponse(w, l), HasWorkData(target, originalRequest)) =>
       target ! SuccessfulMetadataJsonResponse(originalRequest, workflowMetadataResponse(w, l, includeCallsIfEmpty = false, Map.empty))

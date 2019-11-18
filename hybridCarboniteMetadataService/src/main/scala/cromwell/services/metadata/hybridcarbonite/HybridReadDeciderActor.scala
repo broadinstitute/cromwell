@@ -89,7 +89,7 @@ object HybridReadDeciderActor {
   implicit class EnhancedMetadataReadAction(val action: BuildMetadataJsonAction) extends AnyVal {
     def requiresOnlyClassicMetadata: Boolean = action match {
       case _: GetLabels | _: GetRootAndSubworkflowLabels | _: GetStatus | _: QueryForWorkflowsMatchingParameters => true
-      case _: GetLogs | _: WorkflowOutputs | _: GetMetadataAction => false
+      case _: GetLogs | _: WorkflowOutputs | _: GetMetadataAction | _: GetRootAndSubworkflowOutputs => false
     }
   }
 }

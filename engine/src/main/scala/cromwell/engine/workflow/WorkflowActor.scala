@@ -499,7 +499,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
 
     deleteActor ! StartWorkflowFilesDeletion
 
-    Thread.sleep(200000)
+    Thread.sleep(60000)
 
     goto(WorkflowSucceededState) using data.copy(currentLifecycleStateActor = None)
   }

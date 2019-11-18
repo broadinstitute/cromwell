@@ -101,7 +101,7 @@ trait MetadataDatabaseAccess {
     metadataDatabaseInterface.addMetadataEntries(metadata)
   }
 
-  private def metadataToMetadataEvents(workflowId: WorkflowId)(metadata: Seq[MetadataEntry]): Seq[MetadataEvent] = {
+  private def metadataToMetadataEvents(metadata: Seq[MetadataEntry]): Seq[MetadataEvent] = {
     metadata map { m =>
       // If callFullyQualifiedName is non-null then attempt will also be non-null and there is a MetadataJobKey.
       val metadataJobKey: Option[MetadataJobKey] = for {
@@ -109,7 +109,7 @@ trait MetadataDatabaseAccess {
         attempt <- m.jobAttempt
       } yield MetadataJobKey(callFqn, m.jobIndex, attempt)
 
-      val key = MetadataKey(workflowId, metadataJobKey, m.metadataKey)
+      val key = MetadataKey(WorkflowId.fromString(m.workflowExecutionUuid), metadataJobKey, m.metadataKey)
       val value = m.metadataValueType.map(mType =>
         MetadataValue(m.metadataValue.toRawString, MetadataType.fromString(mType))
       )
@@ -143,7 +143,7 @@ trait MetadataDatabaseAccess {
       case _ => Future.failed(new IllegalArgumentException(s"Invalid MetadataQuery: $query"))
     }
 
-    futureMetadata map metadataToMetadataEvents(query.workflowId)
+    futureMetadata map metadataToMetadataEvents
   }
 
   def queryWorkflowOutputs(id: WorkflowId,
@@ -152,7 +152,7 @@ trait MetadataDatabaseAccess {
     val uuid = id.id.toString
     metadataDatabaseInterface.queryMetadataEntryWithKeyConstraints(
       uuid, List(s"${WorkflowMetadataKeys.Outputs}:%"), List.empty, WorkflowQuery, timeout).
-      map(metadataToMetadataEvents(id))
+      map(metadataToMetadataEvents)
   }
 
   def queryLogs(id: WorkflowId,
@@ -162,7 +162,7 @@ trait MetadataDatabaseAccess {
 
     val keys = List(Stdout, Stderr, BackendLogsPrefix + ":%")
     metadataDatabaseInterface.queryMetadataEntryWithKeyConstraints(id.id.toString, keys, List.empty, CallOrWorkflowQuery, timeout) map
-      metadataToMetadataEvents(id)
+      metadataToMetadataEvents
   }
 
   def refreshWorkflowMetadataSummaries(limit: Int)(implicit ec: ExecutionContext): Future[SummaryResult] = {
@@ -334,6 +334,6 @@ trait MetadataDatabaseAccess {
   def queryOutputsForRootAndSubWorkflows(id: WorkflowId)(implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
     val rootWorkflowId = id.id.toString
     metadataDatabaseInterface.getOutputsForRootAndSubWorkflows(rootWorkflowId, List(s"${WorkflowMetadataKeys.Outputs}:%"))
-      .map(metadataToMetadataEvents(id))
+      .map(metadataToMetadataEvents)
   }
 }

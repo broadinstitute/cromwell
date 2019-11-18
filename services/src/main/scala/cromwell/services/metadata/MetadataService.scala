@@ -108,7 +108,7 @@ object MetadataService {
   final case class GetLabels(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
   final case class GetRootAndSubworkflowLabels(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
   final case class QueryForWorkflowsMatchingParameters(parameters: Seq[(String, String)]) extends BuildMetadataJsonAction
-  final case class WorkflowOutputs(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
+  final case class WorkflowOutputs(workflowId: WorkflowId, convertResponseToJson: Boolean = true) extends BuildWorkflowMetadataJsonAction
   final case class GetLogs(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
   final case class GetRootAndSubworkflowOutputs(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
   case object RefreshSummary extends MetadataServiceAction

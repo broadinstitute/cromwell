@@ -103,12 +103,6 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
         dataAccess.metadataEntriesWithKeyConstraints(workflowExecutionUuid, metadataKeysToFilterFor, metadataKeysToFilterOut, requireEmptyJobKey = false).result
     }
     runTransaction(action, timeout = timeout)
-
-//    runTransaction(dataAccess.subworkflowIdsForRootWorkflow(workflowExecutionUuid).result) flatMap { seq =>
-//      val wfIdsToConsider = seq.toSet + workflowExecutionUuid
-//      val action = dataAccess.metadataEntriesWithOutputs(wfIdsToConsider, List("outputs:%")).result
-//      runTransaction(action)
-//    }
   }
 
   private def updateWorkflowMetadataSummaryEntry(buildUpdatedWorkflowMetadataSummaryEntry:

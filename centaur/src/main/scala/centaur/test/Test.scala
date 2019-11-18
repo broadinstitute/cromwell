@@ -130,6 +130,8 @@ object Operations extends StrictLogging {
   def submitWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = {
     new Test[SubmittedWorkflow] {
       override def run: IO[SubmittedWorkflow] = for {
+        // A smoke test of the version endpoint, this confirms that a) nothing explodes and b) the result must be a JSON object
+        // with a "cromwell" key. There is no sanity checking of the version value here.
         _ <- CentaurCromwellClient.version
         id <- CentaurCromwellClient.submit(workflow)
       } yield id
@@ -423,8 +425,8 @@ object Operations extends StrictLogging {
     }
   }
 
-  /* Select only those metadata items whose keys begin with the specified prefix, removing the prefix from the keys and
-   * performing variable substitutions for UUID and WORKFLOW_ROOT. */
+  /* Select only those metadata items whose keys begin with the specified prefix, removing the prefix from the keys. Also
+   * perform variable substitutions for UUID and WORKFLOW_ROOT and remove any ~> Centaur metadata expectation metacharacters. */
   private def selectAndProcessKeysWithPrefix(workflow: Workflow, prefix: String, workflowId: WorkflowId, workflowRoot: String): List[(String, JsValue)] = {
     def replaceVariables(value: JsValue): JsValue = value match {
       case s: JsString => JsString(s.value.replaceAll("<<UUID>>", workflowId.toString).replaceAll("<<WORKFLOW_ROOT>>", workflowRoot).replaceFirst("^~>", ""))
@@ -512,6 +514,10 @@ object Operations extends StrictLogging {
         flatLogs = logs.asFlat.value
         flatFilteredMetadata = metadata.asFlat.value |> filterMetadata
         ok = flatLogs.equals(flatFilteredMetadata)
+        _ = if (!ok) {
+          System.err.println(s"flat logs: ${flatLogs.mkString("\n")}")
+          System.err.println(s"flat filtered metadata: ${flatFilteredMetadata.mkString("\n")}")
+        }
       } yield ok
 
       ok flatMap {

@@ -34,12 +34,12 @@ def getOperationsMetadata(operationId):
             end = parsedate(metadata_field['endTime'])
             duration = (end - start).total_seconds()
             events = metadata_field['events']
-            for event in events:
-                if event['description'].startswith('Worker "google-pipelines-worker-'):
-                    machine_type = event['details']['machineType']
-                    instance = event['details']['instance']
-                    zone = event['details']['zone']
-                    break
+
+            assigned_worker_event = list(filter(lambda e: e['description'].startswith('Worker "google-pipelines-worker-'), events))[0]
+            machine_type = assigned_worker_event['details']['machineType']
+            instance = assigned_worker_event['details']['instance']
+            zone = assigned_worker_event['details']['zone']
+
             vm_spec = metadata_field['pipeline']['resources']['virtualMachine']
             disks = vm_spec['disks']
             disk_details = [ disk['name'] + ' ' + str(disk['sizeGb']) + 'GB ' + disk['type'] for disk in disks ]
@@ -54,48 +54,45 @@ def getOperationsMetadata(operationId):
         return [operationId, "???", "???", "???", "???", "???", "???"]
 
 
-# Read input CSV file name from command line:
-if len(sys.argv) < 2:
-    print('Usage: $ python3 ' + sys.argv[0] + ' <<operations_list.csv>> [<<project1>> <<project 2>> ...  <<project n>>]')
-    sys.exit(1)
-csv_in = sys.argv[1]
-requested_projects = sys.argv[2:]
-if len(requested_projects) == 0:
-    print('Examining all rows in input CSV')
-else:
-    print('Filtering for the following projects in input CSV: ' + str(requested_projects))
+if __name__ == "__main__":
+    # Read input CSV file name from command line:
+    if len(sys.argv) < 2:
+        print('Usage: $ python3 ' + sys.argv[0] + ' <<operations_list.csv>> [<<project1>> <<project 2>> ...  <<project n>>]')
+        sys.exit(1)
+    csv_in = sys.argv[1]
+    requested_projects = sys.argv[2:]
+    if len(requested_projects) == 0:
+        print('Examining all rows in input CSV')
+    else:
+        print('Filtering for the following projects in input CSV: ' + str(requested_projects))
 
-# Read in the project IDs:
-opids_by_project = {}
-with open(csv_in) as csv_file:
-    csv_reader = csv.reader(csv_file, delimiter=',')
-    for row in csv_reader:
-        if len(row) == 0:
-            break
-        operationId = row[0]
-        project_match = re.search('projects/([^/]*)/.*', operationId)
-        if project_match is None:
-            print('Skipping row ' + ', '.join(row) + ': ' + row[0] + ' does not match operation ID regex.')
-        else:
-            project = project_match.group(1)
-            if len(requested_projects) == 0 or project in requested_projects:
-                operations = opids_by_project.get(project, [])
-                opids_by_project[project] = operations + [operationId]
+    # Read in the project IDs:
+    opids_by_project = {}
+    with open(csv_in) as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=',')
+        for row in csv_reader:
+            if len(row) == 0:
+                break
+            operationId = row[0]
+            project_match = re.search('projects/([^/]*)/.*', operationId)
+            if project_match is None:
+                print('Skipping row ' + ', '.join(row) + ': ' + row[0] + ' does not match operation ID regex.')
+            else:
+                project = project_match.group(1)
+                if len(requested_projects) == 0 or project in requested_projects:
+                    operations = opids_by_project.get(project, [])
+                    opids_by_project[project] = operations + [operationId]
 
-for project in opids_by_project:
-    operations = opids_by_project[project]
-    print('Processing project ' + project + '. Total operations in this project: ' + str(len(operations)))
-    operation_details = [ getOperationsMetadata(operation) for operation in operations ]
+    for project in opids_by_project:
+        operations = opids_by_project[project]
+        print('Processing project ' + project + '. Total operations in this project: ' + str(len(operations)))
+        operation_details = [ getOperationsMetadata(operation) for operation in operations ]
 
-    output_file = 'duration_details_' + project + '.csv'
-    with open(output_file, 'w+') as csv_file:
-        csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        csv_writer.writerow(["Project", "OperationId", "MachineType", "Instance", "Zone", "DurationSeconds", "Preemptible", "Disks"])
-        for operation_details_entry in operation_details:
-            row = [project] + operation_details_entry
-            csv_writer.writerow(row)
-    print('*** Duration details for project ' + project + ' written to: ' + output_file)
-
-
-
-
+        output_file = 'duration_details_' + project + '.csv'
+        with open(output_file, 'w+') as csv_file:
+            csv_writer = csv.writer(csv_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            csv_writer.writerow(["Project", "OperationId", "MachineType", "Instance", "Zone", "DurationSeconds", "Preemptible", "Disks"])
+            for operation_details_entry in operation_details:
+                row = [project] + operation_details_entry
+                csv_writer.writerow(row)
+        print('*** Duration details for project ' + project + ' written to: ' + output_file)

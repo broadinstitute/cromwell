@@ -173,7 +173,8 @@ object CentaurCwlRunner extends StrictLogging {
       directoryContentCounts,
       backends,
       retryTestFailures = false,
-      allowOtherOutputs = true
+      allowOtherOutputs = true,
+      skipDescribeEndpointValidation = true
     )
 
     val testCase = CentaurTestCase(workflow, testFormat, testOptions, submitResponseOption)(cromwellTracker = None)

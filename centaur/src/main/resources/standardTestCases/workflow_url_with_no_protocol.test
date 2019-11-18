@@ -1,5 +1,6 @@
 name: workflow_url_with_no_protocol
 testFormat: submitfailure
+skipDescribeEndpointValidation: true // Not even an invalid workflow, this is an invalid request (ie WAAS returns 400)
 
 files {
   workflowUrl: "raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/path-to-wdl"

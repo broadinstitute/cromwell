@@ -3,6 +3,7 @@ testFormat: workflowsuccess
 backends: [Local]
 backendsMode: only
 tags: [localdockertest]
+skipDescribeEndpointValidation: true
 
 files {
   workflow: cwl_recursive_link_directories/cwl_recursive_link_directories.cwl

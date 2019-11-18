@@ -100,10 +100,10 @@ trait WorkflowMetadataSummaryEntryComponent {
     }
   )
 
-  val metadataArchiveStatusByWorkflowId = Compiled(
+  val metadataArchiveStatusByWorkflowIdOrRootWorkflowId = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
       workflowMetadataSummaryEntry <- workflowMetadataSummaryEntries
-      if workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid
+      if workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid || workflowMetadataSummaryEntry.rootWorkflowExecutionUuid === workflowExecutionUuid
     } yield workflowMetadataSummaryEntry.metadataArchiveStatus)
 
   def concat(a: SQLActionBuilder, b: SQLActionBuilder): SQLActionBuilder = {

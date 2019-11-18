@@ -3,6 +3,7 @@ testFormat: workflowsuccess
 workflowType: CWL
 workflowTypeVersion: v1.0
 workflowRoot: globSort
+skipDescribeEndpointValidation: true
 
 files {
   workflowUrl: "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/cwl_glob_sort/cwl_glob_sort.cwl"

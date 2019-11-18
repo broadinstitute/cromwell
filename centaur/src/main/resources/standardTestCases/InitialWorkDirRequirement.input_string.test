@@ -3,6 +3,7 @@ testFormat: workflowsuccess
 workflowType: CWL
 workflowRoot: iwdr_input_string
 workflowTypeVersion: v1.0
+skipDescribeEndpointValidation: true
 
 files {
   workflow: InitialWorkDirRequirement/input_string.cwl

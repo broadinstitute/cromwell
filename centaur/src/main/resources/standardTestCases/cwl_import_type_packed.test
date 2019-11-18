@@ -3,6 +3,7 @@ testFormat: workflowsuccess
 workflowType: CWL
 workflowTypeVersion: v1.0
 workflowRoot: main
+skipDescribeEndpointValidation: true
 
 files {
   workflow: cwl_import_type_packed/test_pack.cwl

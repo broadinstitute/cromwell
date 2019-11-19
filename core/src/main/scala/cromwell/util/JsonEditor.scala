@@ -204,4 +204,39 @@ object JsonEditor {
     }
     workflowWithUpdatedCalls
   }
+
+  def extractSubWorkflowsMetadata(workflowJson: Json): ErrorOr[Map[String, Json]] = {
+    extractJsonObjectByKey(workflowJson, "calls") match {
+      // If there were no calls just return the workflow JSON unmodified.
+      case None => Map.empty[String, Json].validNel
+      case Some((_, calls)) =>
+        calls.toMap.map {
+          // The Json (a JSON array, really) corresponding to the array of call objects for a call name.
+          case (_, callValue: Json) =>
+            // The object above converted to a Vector[Json].
+            val callArray: Vector[Json] = callValue.asArray.toVector.flatten
+
+            val subworkflowsArrayFromCalls: Vector[ErrorOr[Map[String, Json]]] = callArray map { callJson =>
+              // If there is no subworkflow object this will be None.
+              val callAndSubworkflowObjects: Option[(JsonObject, Json)] = extractJsonByKey(callJson, subWorkflowMetadataKey)
+
+              callAndSubworkflowObjects match {
+                case None => Map.empty[String, Json].validNel
+                case Some((_, subworkflowJson)) =>
+                  for {
+                    subWorkflowId <- subworkflowJson.workflowId
+                    innerSubworkflowsMap <- extractSubWorkflowsMetadata(subworkflowJson)
+                  } yield innerSubworkflowsMap + (subWorkflowId.toString -> subworkflowJson)
+              }
+            }
+            (subworkflowsArrayFromCalls.sequence[ErrorOr, Map[String, Json]]: ErrorOr[Vector[Map[String, Json]]]) map (_.reduce(_ ++ _))
+        }.reduce {
+          for {
+            map1 <- _
+            map2 <- _
+          } yield map1 ++ map2
+        }
+    }
+  }
+
 }

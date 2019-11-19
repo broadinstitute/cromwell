@@ -330,4 +330,6 @@ trait MetadataDatabaseAccess {
 
     }).flatten
   }
+
+  def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = metadataDatabaseInterface.getRootWorkflowId(workflowId)
 }

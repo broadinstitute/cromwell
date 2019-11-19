@@ -1,6 +1,9 @@
 package cromwell.util
 
+import java.util.UUID
+
 import cats.data.NonEmptyList
+import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.either._
 import cromwell.util.JsonEditor._
 import io.circe.parser._
@@ -99,6 +102,27 @@ class JsonEditorSpec extends FlatSpec with Matchers{
 
     val thirdArrayElement = newCallsArrayCursor.right.right
     assert(thirdArrayElement.isInstanceOf[FailedCursor])
+  }
+
+  it should "extract proper number of subworkflow metadata JSONs" in {
+    val metadataWithSubworkflows =
+      parse(Source
+        .fromInputStream(Thread
+          .currentThread
+          .getContextClassLoader
+          .getResourceAsStream("metadata_with_subworkflows.json")
+        ).mkString)
+    val subWorkflowsValidatedMap = metadataWithSubworkflows.map(extractSubWorkflowsMetadata).right.get
+    subWorkflowsValidatedMap match {
+      case Valid(subWorkflowsMap) =>
+        assert(14 === subWorkflowsMap.size)
+        subWorkflowsMap.foreach {
+          case (subWorkflowId, json) =>
+            noException should be thrownBy UUID.fromString(subWorkflowId)
+            assert(json.hcursor.keys.isDefined)
+        }
+      case Invalid(e) => fail(e.toList.mkString("\n"))
+    }
   }
 
   it should "remove subworkflow info" in {

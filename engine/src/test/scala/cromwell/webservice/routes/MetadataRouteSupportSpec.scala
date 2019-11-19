@@ -150,6 +150,20 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
       }
   }
 
+  it should "return with full metadata from the metadata route for workflow id which exists only in summary table" in {
+    Get(s"/workflows/$version/${CromwellApiServiceSpec.WorkflowIdExistingOnlyInSummaryTable}/metadata") ~>
+      akkaHttpService.metadataRoutes ~>
+      check {
+        status should be(StatusCodes.OK)
+        val result = responseAs[JsObject]
+        result.fields.keys should contain allOf("testKey1a", "testKey1b", "testKey2a")
+        result.fields.keys shouldNot contain("testKey3")
+        result.fields("testKey1a") should be(JsString("myValue1a"))
+        result.fields("testKey1b") should be(JsString("myValue1b"))
+        result.fields("testKey2a") should be(JsString("myValue2a"))
+      }
+  }
+
   it should "return with gzip encoding when requested" in {
     Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata").addHeader(`Accept-Encoding`(HttpEncodings.gzip)) ~>
       akkaHttpService.metadataRoutes ~>

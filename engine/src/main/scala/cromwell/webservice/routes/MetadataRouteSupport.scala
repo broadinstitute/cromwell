@@ -144,7 +144,7 @@ object MetadataRouteSupport {
                                   serviceRegistryActor: ActorRef)
                                  (implicit timeout: Timeout,
                                   ec: ExecutionContext): Future[MetadataJsonResponse] = {
-    validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor) flatMap { w => serviceRegistryActor.ask(request(w)).mapTo[MetadataJsonResponse] }
+    validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor, fallBackToValidationInMetadataSummary = true) flatMap { w => serviceRegistryActor.ask(request(w)).mapTo[MetadataJsonResponse] }
   }
 
   def completeMetadataBuilderResponse(response: Future[MetadataJsonResponse]): Route = {

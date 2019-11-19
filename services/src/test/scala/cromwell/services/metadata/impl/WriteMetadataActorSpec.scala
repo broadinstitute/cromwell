@@ -271,6 +271,10 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     override def isRootWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Option[Boolean]] = {
       notImplemented()
     }
+
+    override def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = {
+      notImplemented()
+    }
   }
 }
 

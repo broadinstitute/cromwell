@@ -88,7 +88,8 @@ object JsonEditor {
     def deleteSubworkflows(o: JsonObject, j: Json): Option[ErrorOr[Json]] = None
     for {
       wf <- updateWorkflowCallsJson(json, deleteSubworkflows)
-      inc = includeJson(wf, NonEmptyList.of("shardIndex", "attempt", "stdout", "stderr", "backendLogs"))
+      inc = excludeJson(wf, NonEmptyList.of("outputs", "inputs")) |>
+        (includeJson(_, NonEmptyList.of("shardIndex", "attempt", "stdout", "stderr", "backendLogs")))
     } yield inc
   }
 

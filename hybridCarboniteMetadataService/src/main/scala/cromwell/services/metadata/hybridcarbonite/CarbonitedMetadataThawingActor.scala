@@ -104,7 +104,7 @@ object CarbonitedMetadataThawingActor {
 
   implicit class EnhancedJson(val json: Json) extends AnyVal {
     def editFor(action: BuildWorkflowMetadataJsonAction): ErrorOr[Json] = action match {
-      case _: GetLogs => JsonEditor.logs(json).validNel
+      case _: GetLogs => JsonEditor.logs(json)
       case _: WorkflowOutputs => JsonEditor.outputs(json).validNel
       case get: GetMetadataAction =>
         val intermediate = get.key match {
@@ -119,7 +119,7 @@ object CarbonitedMetadataThawingActor {
           case wrong => throw new RuntimeException(s"Programmer Error: Invalid MetadataQuery: $wrong")
         }
         // For carbonited metadata, "expanded" subworkflows translates to not deleting subworkflows out of the root workflow that already
-        // contains them. So `_.validNel` for expanded subworkflows and `JsonEditor.removeSubworkflowMetadata` for unexpanded subworkflows.
+        // contains them. So `_.validNel` for expanded subworkflows and `JsonEditor.replaceSubworkflowMetadataWithId` for unexpanded subworkflows.
         val processSubworkflowMetadata: Json => ErrorOr[Json] = if (get.key.expandSubWorkflows) _.validNel else JsonEditor.replaceSubworkflowMetadataWithId
         processSubworkflowMetadata(intermediate)
       case other =>

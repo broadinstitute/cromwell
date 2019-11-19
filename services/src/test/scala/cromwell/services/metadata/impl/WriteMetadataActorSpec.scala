@@ -126,7 +126,7 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
 
     override def connectionDescription: String = "Mock Database"
 
-    override def existsMetadataEntries()(
+    override def existsMetadataEntries()(met
       implicit ec: ExecutionContext): Nothing = notImplemented()
 
     var requestsSinceLastSuccess = 0

@@ -231,9 +231,6 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
         // TODO: Add a logging framework to this 'database' project and log this weirdness.
         maximumMetadataEntryIdConsidered
       }
-      _ = if (maximumMetadataEntryIdConsidered > previousMaxMetadataEntryId ) {
-        println(s"Summary $summarizeNameIncreasing increased to $maximumMetadataEntryIdConsidered")
-      }
     } yield (maximumMetadataEntryIdConsidered - previousMaxMetadataEntryId, maximumMetadataEntryIdInTable - maximumMetadataEntryIdConsidered)
 
     runTransaction(action)

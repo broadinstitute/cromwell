@@ -76,14 +76,6 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
       }).reduce(_ || _)
     }
 
-//    if (finalOutputsEvents.nonEmpty) {
-//      allOutputsEvents.filterNot(x => x.value match {
-//        case Some(v) => existsInFinalOutputs(v.value)
-//        case None => true
-//      }).map(_.value.get.value).toSet
-//    }
-//    else allOutputsEvents.filter(x => x.value.nonEmpty).map(_.value.get.value).toSet
-
     if (finalOutputsEvents.nonEmpty) {
       allOutputsEvents.filterNot(o => o.value match {
         case Some(v) => existsInFinalOutputs(v.value)

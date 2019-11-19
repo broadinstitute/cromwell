@@ -272,8 +272,8 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
       notImplemented()
     }
 
-    override def getOutputsForRootAndSubWorkflows(workflowExecutionUuid: String,
-                                                  outputMetadataKey: List[String])(implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
+    override def getRootAndSubWorkflowsOutputs(workflowExecutionUuid: String,
+                                               outputMetadataKey: List[String])(implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
       notImplemented()
     }
   }

@@ -11,29 +11,16 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
                                serviceRegistryActor: ActorRef) extends LoggingFSM[DeleteWorkflowFilesActorState, DeleteWorkflowFilesActorStateData] {
 
-//  override def receive: Receive = {
-//    case StartWorkflowFilesDeletion =>
-//      serviceRegistryActor ! GetRootAndSubworkflowOutputs(rootWorkflowId)
-//    case o: RootAndSubworkflowOutputsLookupResponse =>
-//      println(s"received list of outputs!! Outputs: $o")
-//    case f: RootAndSubworkflowOutputsLookupFailure =>
-//      println(s"Something went wrong. Error ${f.reason}")
-//    case other =>
-//      log.error(s"Programmer Error! The DeleteWorkflowFilesActor for root workflow ${rootWorkflowId.id.toString} " +
-//      s"received unexpected message! ($sender sent $other})")
-//  }
-
   startWith(Pending, NoData)
 
   when(Pending) {
-    case Event(StartWorkflowFilesDeletion, NoData) => {
+    case Event(StartWorkflowFilesDeletion, NoData) =>
       serviceRegistryActor ! GetRootAndSubworkflowOutputs(rootWorkflowId)
       goto(FetchingAllOutputs) using NoData
-    }
   }
 
   when(FetchingAllOutputs) {
-    case Event(RootAndSubworkflowOutputsLookupResponse(_, metadataEvents), _) => {
+    case Event(RootAndSubworkflowOutputsLookupResponse(_, metadataEvents), _) =>
       if (metadataEvents.nonEmpty) {
         serviceRegistryActor ! WorkflowOutputs(rootWorkflowId, convertResponseToJson = false)
         goto(FetchingFinalOutputs) using FetchingFinalOutputsData(metadataEvents)
@@ -42,23 +29,20 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
         log.info(s"Root workflow ${rootWorkflowId.id} does not have any outputs to delete.")
         stopSelf()
       }
-    }
-    case Event(RootAndSubworkflowOutputsLookupFailure(_, reason), _) => {
+    case Event(RootAndSubworkflowOutputsLookupFailure(_, reason), _) =>
       log.error(s"Something went wrong while retrieving all outputs for root workflow ${rootWorkflowId.id} from database. " +
         s"Error: ${ExceptionUtils.getMessage(reason)}")
       stopSelf()
-    }
   }
 
   when(FetchingFinalOutputs) {
-    case Event(WorkflowOutputsResponse(_, metadataEvents), FetchingFinalOutputsData(allOutputs)) => {
+    case Event(WorkflowOutputsResponse(_, metadataEvents), FetchingFinalOutputsData(allOutputs)) =>
       val intermediateOutputs = gatherIntermediateOutputs(allOutputs, metadataEvents)
       if (intermediateOutputs.nonEmpty) goto(DeletingIntermediateFiles) using DeletingIntermediateFilesData(intermediateOutputs)
       else {
         log.info(s"Root workflow ${rootWorkflowId.id} does not have any intermediate output files to delete.")
         stopSelf()
       }
-    }
     case Event(WorkflowOutputsFailure(_, reason), _) =>
       log.error(s"Something went wrong while retrieving final outputs for root workflow ${rootWorkflowId.id} from database. " +
         s"Error: ${ExceptionUtils.getMessage(reason)}")
@@ -84,7 +68,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
   }
 
 
-  private def gatherIntermediateOutputs(allOutputsEvents: Seq[MetadataEvent], finalOutputsEvents: Seq[MetadataEvent]) = {
+  private def gatherIntermediateOutputs(allOutputsEvents: Seq[MetadataEvent], finalOutputsEvents: Seq[MetadataEvent]): Set[String] = {
     def existsInFinalOutputs(metadataValue: String) = {
       finalOutputsEvents.map(p => p.value match {
         case Some(v) => v.value.equals(metadataValue)
@@ -101,13 +85,13 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
 //    else allOutputsEvents.filter(x => x.value.nonEmpty).map(_.value.get.value).toSet
 
     if (finalOutputsEvents.nonEmpty) {
-      allOutputsEvents.filterNot(x => x.value match {
+      allOutputsEvents.filterNot(o => o.value match {
         case Some(v) => existsInFinalOutputs(v.value)
         case None => true
       }).map(_.value.get.value).toSet
     }
     else allOutputsEvents.collect {
-      case e if e.value.nonEmpty => e.value.get.value
+      case o if o.value.nonEmpty => o.value.get.value
     }.toSet
   }
 }

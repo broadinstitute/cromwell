@@ -7,6 +7,7 @@ import akka.testkit.{TestFSMRef, TestProbe}
 import cats.data.NonEmptyVector
 import com.typesafe.config.ConfigFactory
 import cromwell.core.{TestKitSuite, WorkflowId}
+import cromwell.database.sql.MetadataSqlDatabase.AddMetadataEntriesResponse
 import cromwell.database.sql.joins.MetadataJobQueryValue
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 import cromwell.database.sql.{MetadataSqlDatabase, SqlDatabase}
@@ -131,10 +132,12 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     var requestsSinceLastSuccess = 0
     // Return successful
     override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])
-                                   (implicit ec: ExecutionContext): Future[Unit] = {
+                                   (implicit ec: ExecutionContext): Future[AddMetadataEntriesResponse] = {
       if (requestsSinceLastSuccess == failuresBetweenEachSuccess) {
         requestsSinceLastSuccess = 0
-        Future.successful(())
+        val entryIds = metadataEntries.map(_.metadataEntryId)
+
+        Future.successful(AddMetadataEntriesResponse(entryIds.min.getOrElse(0), entryIds.max.getOrElse(0), metadataEntries.size, incorrectSummaryId = None))
       } else {
         requestsSinceLastSuccess += 1
         Future.failed(WriteMetadataActorSpec.IntermittentException)

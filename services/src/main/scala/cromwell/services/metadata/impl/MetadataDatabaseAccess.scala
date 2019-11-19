@@ -7,6 +7,7 @@ import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.semigroup._
 import cats.syntax.traverse._
+import com.typesafe.scalalogging.StrictLogging
 import common.validation.Validation._
 import cromwell.core._
 import cromwell.database.sql.SqlConverters._
@@ -84,7 +85,7 @@ object MetadataDatabaseAccess {
   case class SummaryResult(rowsProcessedIncreasing: Long, increasingGap: Long, rowsProcessedDecreasing: Long, decreasingGap: Long)
 }
 
-trait MetadataDatabaseAccess {
+trait MetadataDatabaseAccess extends StrictLogging {
   this: MetadataServicesStore =>
 
   def addMetadataEvents(metadataEvents: Iterable[MetadataEvent])(implicit ec: ExecutionContext): Future[Unit] = {
@@ -98,7 +99,12 @@ trait MetadataDatabaseAccess {
       MetadataEntry(workflowUuid, jobKey.map(_._1), jobKey.flatMap(_._2), jobKey.map(_._3),
         key.key, value.toClobOption, valueType, timestamp)
     }
-    metadataDatabaseInterface.addMetadataEntries(metadata)
+    metadataDatabaseInterface.addMetadataEntries(metadata).map { result =>
+      result.incorrectSummaryId foreach { incorrectSummaryId =>
+        logger.error(s"Metadata summary inconsistency detected! Metadata rows ${result.minIdAdded} to ${result.maxIdAdded} were added, summary was already at ${incorrectSummaryId}")
+      }
+      ()
+    }
   }
 
   private def metadataToMetadataEvents(workflowId: WorkflowId)(metadata: Seq[MetadataEntry]): Seq[MetadataEvent] = {

@@ -6,6 +6,7 @@ import cats.implicits._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.database.slick.tables.MetadataDataAccessComponent
 import cromwell.database.sql.MetadataSqlDatabase
+import cromwell.database.sql.MetadataSqlDatabase.AddMetadataEntriesResponse
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, MetadataJobQueryValue, WorkflowQuery}
 import cromwell.database.sql.tables.{CustomLabelEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
@@ -33,10 +34,27 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action)
   }
 
+
   override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])
-                                 (implicit ec: ExecutionContext): Future[Unit] = {
-    val action = DBIO.seq(metadataEntries.grouped(insertBatchSize).map(dataAccess.metadataEntries ++= _).toSeq:_*)
-    runLobAction(action)
+                                 (implicit ec: ExecutionContext): Future[AddMetadataEntriesResponse] = {
+    val batchesToWrite = metadataEntries.grouped(insertBatchSize).toList
+    val insertActions = batchesToWrite.map(dataAccess.metadataEntryIdsAutoInc ++= _)
+    val action = DBIO.sequence(insertActions.toSeq)
+
+
+    runLobAction(action).map(_.flatten).flatMap { ids =>
+      val minId = ids.min
+
+      runAction(getSummaryStatusIfAboveThreshold("WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING", minId)).map { incorrectSummaryStatusId =>
+        val result = if (ids.isEmpty) {
+          AddMetadataEntriesResponse(-1, -1, 0, incorrectSummaryStatusId)
+        }
+        else {
+          AddMetadataEntriesResponse(ids.min, ids.max, ids.size, incorrectSummaryStatusId)
+        }
+        result
+      }
+    }
   }
 
   override def metadataEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Boolean] = {
@@ -212,6 +230,9 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       maximumMetadataEntryIdInTable = maximumMetadataEntryIdInTableOption.getOrElse {
         // TODO: Add a logging framework to this 'database' project and log this weirdness.
         maximumMetadataEntryIdConsidered
+      }
+      _ = if (maximumMetadataEntryIdConsidered > previousMaxMetadataEntryId ) {
+        println(s"Summary $summarizeNameIncreasing increased to $maximumMetadataEntryIdConsidered")
       }
     } yield (maximumMetadataEntryIdConsidered - previousMaxMetadataEntryId, maximumMetadataEntryIdInTable - maximumMetadataEntryIdConsidered)
 

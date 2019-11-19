@@ -20,7 +20,7 @@ trait SummaryStatusEntryComponent {
     def ucSummaryStatusEntrySn = index("UC_SUMMARY_STATUS_ENTRY_SN", summaryName, unique = true)
   }
 
-  protected val summaryStatusEntries = TableQuery[SummaryStatusEntries]
+  val summaryStatusEntries = TableQuery[SummaryStatusEntries]
 
   val summaryStatusEntryIdsAutoInc = summaryStatusEntries returning summaryStatusEntries.map(_.summaryStatusEntryId)
 
@@ -28,6 +28,14 @@ trait SummaryStatusEntryComponent {
     (summaryName: Rep[String]) => for {
       summaryStatusEntry <- summaryStatusEntries
       if summaryStatusEntry.summaryName === summaryName
+    } yield summaryStatusEntry.summaryPosition
+  )
+
+  val summaryPositionForSummaryNameIfAboveThreshold = Compiled (
+    (summaryName: Rep[String], threshold: Rep[Long]) => for {
+      summaryStatusEntry <- summaryStatusEntries
+      if summaryStatusEntry.summaryName === summaryName
+      if summaryStatusEntry.summaryPosition >= threshold
     } yield summaryStatusEntry.summaryPosition
   )
 }

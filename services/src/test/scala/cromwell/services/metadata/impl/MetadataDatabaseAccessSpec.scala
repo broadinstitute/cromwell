@@ -2,6 +2,8 @@ package cromwell.services.metadata.impl
 
 import java.time.OffsetDateTime
 
+import cats.syntax.functor._
+import cats.instances.future._
 import common.util.TimeUtil._
 import cromwell.core.Tags.DbmsTest
 import cromwell.core._
@@ -56,7 +58,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       val events = keyValues map { case (k, v) =>
         MetadataEvent(baseKey.copy(key = k), MetadataValue(v))
       }
-      dataAccess.addMetadataEvents(events)
+      dataAccess.addMetadataEvents(events).void
     }
 
     def baseWorkflowMetadata(name: String, labels: Set[Label] = Set.empty, workflowId: WorkflowId = WorkflowId.randomId()): Future[WorkflowId] = {

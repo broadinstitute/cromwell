@@ -2,11 +2,16 @@ package cromwell.database.sql
 
 import java.sql.Timestamp
 
+import cromwell.database.sql.MetadataSqlDatabase.AddMetadataEntriesResponse
 import cromwell.database.sql.joins.MetadataJobQueryValue
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
+
+object MetadataSqlDatabase {
+  final case class AddMetadataEntriesResponse(minIdAdded: Long, maxIdAdded: Long, totalAdded: Int, incorrectSummaryId: Option[Long])
+}
 
 trait MetadataSqlDatabase extends SqlDatabase {
 
@@ -25,7 +30,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
   /**
     * Add metadata events to the database transactionally.
     */
-  def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])(implicit ec: ExecutionContext): Future[Unit]
+  def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])(implicit ec: ExecutionContext): Future[AddMetadataEntriesResponse]
 
   def metadataEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Boolean]
 

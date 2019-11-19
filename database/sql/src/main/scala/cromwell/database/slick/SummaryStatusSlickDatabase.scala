@@ -33,4 +33,20 @@ trait SummaryStatusSlickDatabase {
       } yield ()
     }
   }
+
+  def getSummaryStatusIfAboveThreshold(summaryName: String,
+                                       summaryPosition: Long)
+                                      (implicit ec: ExecutionContext): DBIO[Option[Long]] = {
+    for {
+      value <- dataAccess.summaryPositionForSummaryNameIfAboveThreshold((summaryName, summaryPosition)).result
+    } yield value.headOption
+  }
+
+  def ensureSummaryStatusAtOrBelowBelowThreshold(summaryName: String,
+                                                 summaryPosition: Long)
+                                                (implicit ec: ExecutionContext): DBIO[Boolean] = {
+    for {
+      update <- dataAccess.summaryPositionForSummaryNameIfAboveThreshold((summaryName, summaryPosition)).update(summaryPosition)
+    } yield update > 0
+  }
 }

@@ -1186,8 +1186,14 @@ trait StandardAsyncExecutionActor
               Future.successful(FailedNonRetryableExecutionHandle(ReturnCodeIsNotAnInt(jobDescriptor.key.tag, returnCodeAsString, stderrAsOption)))
           }
         } else {
-          val failureStatus = handleExecutionFailure(status, tryReturnCodeAsInt.toOption)
-          retryElseFail(status, failureStatus)
+          tryReturnCodeAsInt match {
+            case Success(returnCodeAsInt) if retryWithMoreMemory =>
+              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption), Option(returnCodeAsInt)))
+              retryElseFail(status, executionHandle, retryWithMoreMemory)
+            case _ =>
+              val failureStatus = handleExecutionFailure(status, tryReturnCodeAsInt.toOption)
+              retryElseFail(status, failureStatus)
+          }
         }
     } recoverWith {
       case exception =>

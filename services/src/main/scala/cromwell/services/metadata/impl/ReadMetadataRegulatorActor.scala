@@ -32,7 +32,6 @@ class ReadMetadataRegulatorActor(metadataBuilderActorProps: PropsMaker, readMeta
           val currentRequesters = apiRequests.getOrElse(singleWorkflowAction, Set.empty)
           apiRequests.put(singleWorkflowAction, currentRequesters + sender())
           if (currentRequesters.isEmpty) {
-
             val builderActor = context.actorOf(metadataBuilderActorProps().withDispatcher(ApiDispatcher), MetadataBuilderActor.uniqueActorName(singleWorkflowAction.workflowId.toString))
             builderRequests.put(builderActor, singleWorkflowAction)
             builderActor ! singleWorkflowAction

@@ -24,10 +24,11 @@ object MetadataDatabaseAccessSpec {
   val AllowFalse = Seq(QueryParameter("allow", "false"))
   val AllowTrue = Seq(QueryParameter("allow", "true"))
 
-  val Workflow1Name = "test1"
+  val  Workflow1Name = "test1"
   val Workflow2Name = "test2"
   val Workflow3Name = "test3"
 
+  val RootWorkflowName = "test_rootWorkflow"
   val ParentWorkflowName = "test_parentWorkflow"
   val ParentWorkflow2Name = "test_parentWorkflow_2"
   val SubworkflowName = "test_subworkflow"
@@ -503,6 +504,42 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       test
         .failed.futureValue(Timeout(10.seconds))
         .getMessage should be(s"""Metadata deletion precondition failed: workflow ID "33333333-3333-3333-3333-333333333333" was in non-terminal status "Submitted"""")
+    }
+
+    it should "fetch output entries for root and subworkflows" taggedAs DbmsTest in {
+      def finishWorkflowWithOutputs(id: WorkflowId): Future[Unit] = {
+        val workflowKey = MetadataKey(id, jobKey = None, key = null)
+
+        val outputKeyAndValue = Array(
+          (s"${WorkflowMetadataKeys.Outputs}:output-1", s"gs://my_bucket/${id.toString}/call-1/output1.txt"),
+          (s"${WorkflowMetadataKeys.Outputs}:output-2", s"gs://my_bucket/${id.toString}/call-2/output2.txt")
+        )
+        publishMetadataEvents(workflowKey, outputKeyAndValue)
+
+        val statusKeyAndValue = Array((WorkflowMetadataKeys.Status, WorkflowSucceeded.toString))
+        publishMetadataEvents(workflowKey, statusKeyAndValue)
+      }
+
+      def metadataKeyAndValueForId(workflowId: WorkflowId): Seq[((WorkflowId, String), String)] = {
+        Seq(((workflowId, "outputs:output-1"), s"gs://my_bucket/${workflowId.toString}/call-1/output1.txt"),
+        ((workflowId, "outputs:output-2"), s"gs://my_bucket/${workflowId.toString}/call-2/output2.txt"))
+      }
+
+      (for {
+        rootWorkflowId <- baseWorkflowMetadata(RootWorkflowName)
+        subworkflow1Id <- subworkflowMetadata(rootWorkflowId, SubworkflowName)
+        subworkflow2Id <- subworkflowMetadata(rootWorkflowId, Subworkflow2Name)
+        _ <- finishWorkflowWithOutputs(rootWorkflowId)
+        _ <- finishWorkflowWithOutputs(subworkflow1Id)
+        _ <- finishWorkflowWithOutputs(subworkflow2Id)
+        expectedOutputMetadataSeq = metadataKeyAndValueForId(rootWorkflowId) ++
+          metadataKeyAndValueForId(subworkflow1Id) ++
+          metadataKeyAndValueForId(subworkflow2Id)
+        _ <- dataAccess.queryRootAndSubWorkflowsOutputs(rootWorkflowId) map { response =>
+          val actualOutputMetadataSeq = response.map(m => ((m.key.workflowId, m.key.key), m.value.get.value))
+          actualOutputMetadataSeq.foreach(x => expectedOutputMetadataSeq should contain(x))
+        }
+      } yield()).futureValue
     }
 
     it should "close the database" taggedAs DbmsTest in {

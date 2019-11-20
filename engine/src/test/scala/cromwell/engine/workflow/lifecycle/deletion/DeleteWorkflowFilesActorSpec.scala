@@ -2,8 +2,11 @@ package cromwell.engine.workflow.lifecycle.deletion
 
 import akka.actor.ActorRef
 import akka.testkit.{TestFSMRef, TestProbe}
+import cromwell.core.path.Path
+import cromwell.core.path.PathFactory.PathBuilders
 import cromwell.core.{RootWorkflowId, TestKitSuite, WorkflowId}
 import cromwell.engine.workflow.lifecycle.deletion.DeleteWorkflowFilesActor.{DeletingIntermediateFiles, DeletingIntermediateFilesData, FetchingAllOutputs, FetchingFinalOutputs, StartWorkflowFilesDeletion}
+import cromwell.filesystems.gcs.{GcsPathBuilder, MockGcsPathBuilder}
 import cromwell.services.metadata.MetadataService.{GetRootAndSubworkflowOutputs, RootAndSubworkflowOutputsLookupResponse, WorkflowOutputs, WorkflowOutputsResponse}
 import cromwell.services.metadata._
 import org.scalatest.concurrent.Eventually.eventually
@@ -15,10 +18,13 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
 
   val serviceRegistryActor = TestProbe()
 
+  val mockPathBuilder: GcsPathBuilder = MockGcsPathBuilder.instance
+  val mockPathBuilders = List(mockPathBuilder)
+
   it should "follow the expected golden-path lifecycle" in {
     val rootWorkflowId = RootWorkflowId(WorkflowId.randomId().id)
     val subworkflowId = WorkflowId.randomId()
-    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, serviceRegistryActor.ref))
+    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, serviceRegistryActor.ref, mockPathBuilders))
 
     val allOutputsMetadataEvents = Vector(
       MetadataEvent(
@@ -50,7 +56,8 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
         Some(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/output_file.txt",MetadataString)))
     )
 
-    val intermediateFileList = Set(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/intermediate_file.txt")
+    val gcsFilePath: Path = mockPathBuilder.build(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/intermediate_file.txt").get
+    val intermediateFileList = Set(gcsFilePath)
 
     testDeleteWorkflowFilesActor ! StartWorkflowFilesDeletion
 
@@ -83,10 +90,66 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
   }
 
 
+  it should "remove any non-file intermediate outputs " in {
+    val rootWorkflowId = RootWorkflowId(WorkflowId.randomId().id)
+    val subworkflowId = WorkflowId.randomId()
+    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, serviceRegistryActor.ref, mockPathBuilders))
+
+    val allOutputsMetadataEvents = Vector(
+      MetadataEvent(
+        MetadataKey(subworkflowId, Some(MetadataJobKey("first_sub_workflow.first_task",None,1)), "outputs:first_task_output_1"),
+        Some(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/output_file.txt", MetadataString))),
+      MetadataEvent(
+        MetadataKey(subworkflowId, Some(MetadataJobKey("first_sub_workflow.first_task",None,1)), "outputs:first_task_output_2"),
+        Some(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/intermediate_file.txt", MetadataString))),
+      MetadataEvent(
+        MetadataKey(subworkflowId,None,"outputs:first_sub_workflow.second_output_file"),
+        Some(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/intermediate_file.txt",MetadataString))),
+      MetadataEvent(
+        MetadataKey(subworkflowId,None,"outputs:first_sub_workflow.first_output_file"),
+        Some(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/output_file.txt",MetadataString))),
+      MetadataEvent(
+        MetadataKey(rootWorkflowId,Some(MetadataJobKey("main_workflow.first_sub_workflow",None,1)),"outputs:second_output_file"),
+        Some(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/intermediate_file.txt",MetadataString))),
+      MetadataEvent(
+        MetadataKey(rootWorkflowId,Some(MetadataJobKey("main_workflow.first_sub_workflow",None,1)),"outputs:first_output_file"),
+        Some(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/output_file.txt",MetadataString))),
+      MetadataEvent(
+        MetadataKey(rootWorkflowId,None,"outputs:main_workflow.main_output"),
+        Some(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/output_file.txt",MetadataString))),
+      MetadataEvent(
+        MetadataKey(rootWorkflowId,Some(MetadataJobKey("main_workflow.first_sub_workflow",None,1)),"outputs:string_output"),
+        Some(MetadataValue("Hello World!",MetadataString))),
+      MetadataEvent(
+        MetadataKey(rootWorkflowId,None,"outputs:main_workflow.main_string_output"),
+        Some(MetadataValue("Hello World!",MetadataString))),
+      MetadataEvent(
+        MetadataKey(subworkflowId,None,"outputs:first_sub_workflow.string_output"),
+        Some(MetadataValue("Hello World!",MetadataString)))
+    )
+
+    val finalOutputsMetadataEvents = Vector(
+      MetadataEvent(
+        MetadataKey(rootWorkflowId,None,"outputs:main_workflow.main_output"),
+        Some(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/output_file.txt",MetadataString))),
+      MetadataEvent(
+        MetadataKey(rootWorkflowId,None,"outputs:main_workflow.main_string_output"),
+        Some(MetadataValue("Hello World!",MetadataString)))
+    )
+
+    val gcsFilePath: Path = mockPathBuilder.build(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/intermediate_file.txt").get
+    val expectedIntermediateFileList = Set(gcsFilePath)
+
+    val actualIntermediateFileList = testDeleteWorkflowFilesActor.underlyingActor.gatherIntermediateOutputFiles(allOutputsMetadataEvents, finalOutputsMetadataEvents)
+
+    actualIntermediateFileList shouldBe expectedIntermediateFileList
+  }
+
+
   it should "terminate if root workflow has no outputs" in {
     val testProbe = TestProbe()
     val rootWorkflowId = RootWorkflowId(WorkflowId.randomId().id)
-    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, serviceRegistryActor.ref))
+    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, serviceRegistryActor.ref, mockPathBuilders))
 
     testProbe watch testDeleteWorkflowFilesActor
 
@@ -109,7 +172,7 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
     val testProbe = TestProbe()
     val rootWorkflowId = RootWorkflowId(WorkflowId.randomId().id)
     val subworkflowId = WorkflowId.randomId()
-    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, serviceRegistryActor.ref))
+    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, serviceRegistryActor.ref, mockPathBuilders))
 
     val allOutputsMetadataEvents = Vector(
       MetadataEvent(
@@ -158,9 +221,8 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
 
     testProbe.expectTerminated(testDeleteWorkflowFilesActor, 10.seconds)
   }
-
 }
 
 
-class MockDeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId, serviceRegistryActor: ActorRef) extends
-  DeleteWorkflowFilesActor(rootWorkflowId, serviceRegistryActor) { }
+class MockDeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId, serviceRegistryActor: ActorRef, pathBuilders: PathBuilders) extends
+  DeleteWorkflowFilesActor(rootWorkflowId, serviceRegistryActor, pathBuilders) { }

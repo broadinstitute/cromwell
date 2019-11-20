@@ -2,14 +2,25 @@ package cromwell.engine.workflow.lifecycle.deletion
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
 import cromwell.core.RootWorkflowId
+import cromwell.core.path.{DefaultPathBuilder, Path, PathBuilder, PathFactory}
 import cromwell.engine.workflow.lifecycle.deletion.DeleteWorkflowFilesActor._
 import cromwell.services.metadata.MetadataEvent
 import cromwell.services.metadata.MetadataService.{GetRootAndSubworkflowOutputs, RootAndSubworkflowOutputsLookupFailure, RootAndSubworkflowOutputsLookupResponse, WorkflowOutputs, WorkflowOutputsFailure, WorkflowOutputsResponse}
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import org.apache.commons.lang3.exception.ExceptionUtils
 
+import scala.util.{Failure, Success, Try}
+
 class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
-                               serviceRegistryActor: ActorRef) extends LoggingFSM[DeleteWorkflowFilesActorState, DeleteWorkflowFilesActorStateData] {
+                               serviceRegistryActor: ActorRef,
+                               pathBuilders: List[PathBuilder]) extends LoggingFSM[DeleteWorkflowFilesActorState, DeleteWorkflowFilesActorStateData] {
+
+  /*
+  building a path for a string output such as 'Hello World' satisfies the conditions of a
+  being a relative file path for a DefaultPath which we don't want, so remove DefaultPathBuilder
+  (this is because we only want cloud backend paths like gs://, s3://, etc.)
+   */
+  val pathBuildersWithoutDefault = pathBuilders.filterNot(p => p == DefaultPathBuilder)
 
   startWith(Pending, NoData)
 
@@ -37,7 +48,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
 
   when(FetchingFinalOutputs) {
     case Event(WorkflowOutputsResponse(_, metadataEvents), FetchingFinalOutputsData(allOutputs)) =>
-      val intermediateOutputs = gatherIntermediateOutputs(allOutputs, metadataEvents)
+      val intermediateOutputs = gatherIntermediateOutputFiles(allOutputs, metadataEvents)
       if (intermediateOutputs.nonEmpty) goto(DeletingIntermediateFiles) using DeletingIntermediateFilesData(intermediateOutputs)
       else {
         log.info(s"Root workflow ${rootWorkflowId.id} does not have any intermediate output files to delete.")
@@ -67,27 +78,34 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
     stay()
   }
 
-  private def gatherIntermediateOutputs(allOutputsEvents: Seq[MetadataEvent], finalOutputsEvents: Seq[MetadataEvent]): Set[String] = {
+  def gatherIntermediateOutputFiles(allOutputsEvents: Seq[MetadataEvent], finalOutputsEvents: Seq[MetadataEvent]): Set[Path] = {
     val isFinalOutputsNonEmpty = finalOutputsEvents.nonEmpty
 
-    def existsInFinalOutputs(metadataValue: String) = {
+    def existsInFinalOutputs(metadataValue: String): Boolean = {
       finalOutputsEvents.map(p => p.value match {
         case Some(v) => v.value.equals(metadataValue)
         case None => false
       }).reduce(_ || _)
     }
 
-    def collectMetadataValue(metadataValue: String): Option[String] = {
+    def buildFilePath(name: String): Option[Path] = {
+      // this eliminates outputs which are not files
+      Try(PathFactory.buildPath(name, pathBuildersWithoutDefault)) match {
+        case Success(path) => Some(path)
+        case Failure(_) => None
+      }
+    }
+
+    def getFilePath(metadataValue: String): Option[Path] = {
       //if workflow has final outputs check if this output value does not exist in final outputs
       (isFinalOutputsNonEmpty, existsInFinalOutputs(metadataValue)) match {
         case (true, true) => None
-        case (true, false) => Some(metadataValue)
-        case (false, _) => Some(metadataValue)
+        case (true, false) | (false, _) => buildFilePath(metadataValue)
       }
     }
 
     allOutputsEvents.collect {
-      case o if o.value.nonEmpty => collectMetadataValue(o.value.get.value)
+      case o if o.value.nonEmpty => getFilePath(o.value.get.value)
     }.flatten.toSet
   }
 }
@@ -110,10 +128,10 @@ object DeleteWorkflowFilesActor {
   sealed trait DeleteWorkflowFilesActorStateData
   object NoData extends DeleteWorkflowFilesActorStateData
   case class FetchingFinalOutputsData(allOutputs: Seq[MetadataEvent]) extends DeleteWorkflowFilesActorStateData
-  case class DeletingIntermediateFilesData(intermediateFiles: Set[String]) extends DeleteWorkflowFilesActorStateData
+  case class DeletingIntermediateFilesData(intermediateFiles: Set[Path]) extends DeleteWorkflowFilesActorStateData
 
 
-  def props(rootWorkflowId: RootWorkflowId, serviceRegistryActor: ActorRef): Props = {
-    Props(new DeleteWorkflowFilesActor(rootWorkflowId, serviceRegistryActor))
+  def props(rootWorkflowId: RootWorkflowId, serviceRegistryActor: ActorRef, pathBuilders: List[PathBuilder]): Props = {
+    Props(new DeleteWorkflowFilesActor(rootWorkflowId, serviceRegistryActor, pathBuilders))
   }
 }

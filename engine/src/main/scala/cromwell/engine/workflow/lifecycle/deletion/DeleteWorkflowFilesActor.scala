@@ -67,8 +67,9 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
     stay()
   }
 
-
   private def gatherIntermediateOutputs(allOutputsEvents: Seq[MetadataEvent], finalOutputsEvents: Seq[MetadataEvent]): Set[String] = {
+    val isFinalOutputsNonEmpty = finalOutputsEvents.nonEmpty
+
     def existsInFinalOutputs(metadataValue: String) = {
       finalOutputsEvents.map(p => p.value match {
         case Some(v) => v.value.equals(metadataValue)
@@ -76,15 +77,18 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
       }).reduce(_ || _)
     }
 
-    if (finalOutputsEvents.nonEmpty) {
-      allOutputsEvents.filterNot(o => o.value match {
-        case Some(v) => existsInFinalOutputs(v.value)
-        case None => true
-      }).map(_.value.get.value).toSet
+    def collectMetadataValue(metadataValue: String): Option[String] = {
+      //if workflow has final outputs check if this output value does not exist in final outputs
+      (isFinalOutputsNonEmpty, existsInFinalOutputs(metadataValue)) match {
+        case (true, true) => None
+        case (true, false) => Some(metadataValue)
+        case (false, _) => Some(metadataValue)
+      }
     }
-    else allOutputsEvents.collect {
-      case o if o.value.nonEmpty => o.value.get.value
-    }.toSet
+
+    allOutputsEvents.collect {
+      case o if o.value.nonEmpty => collectMetadataValue(o.value.get.value)
+    }.flatten.toSet
   }
 }
 
@@ -95,12 +99,14 @@ object DeleteWorkflowFilesActor {
   sealed trait DeleteWorkflowFilesActorMessage
   object StartWorkflowFilesDeletion extends DeleteWorkflowFilesActorMessage
 
+  // Actor states
   sealed trait DeleteWorkflowFilesActorState
   object Pending extends DeleteWorkflowFilesActorState
   object FetchingAllOutputs extends DeleteWorkflowFilesActorState
   object FetchingFinalOutputs extends DeleteWorkflowFilesActorState
   object DeletingIntermediateFiles extends DeleteWorkflowFilesActorState
 
+  // State data
   sealed trait DeleteWorkflowFilesActorStateData
   object NoData extends DeleteWorkflowFilesActorStateData
   case class FetchingFinalOutputsData(allOutputs: Seq[MetadataEvent]) extends DeleteWorkflowFilesActorStateData

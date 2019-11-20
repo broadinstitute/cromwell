@@ -101,7 +101,16 @@ trait MetadataDatabaseAccess extends StrictLogging {
     }
     metadataDatabaseInterface.addMetadataEntries(metadata).map { result =>
       result.incorrectSummaryId foreach { incorrectSummaryId =>
-        logger.error(s"Metadata summary inconsistency detected! Metadata rows ${result.minIdAdded} to ${result.maxIdAdded} were added, summary was already at ${incorrectSummaryId}")
+
+        val missedSummarizableRows = (result.summarizableRows collect {
+          case (id, key) if id == incorrectSummaryId => s"Did we miss summarizing row $id (with key $key)?"
+        })
+
+        logger.error(s"Metadata summary inconsistency detected! Metadata rows ${result.minIdAdded} to ${result.maxIdAdded} were added, summary was already at ${incorrectSummaryId}. ${missedSummarizableRows.size} potentially unsummarized rows.")
+        if (missedSummarizableRows.nonEmpty) {
+          logger.error(s"Potentially unsummarized metadata rows: " + missedSummarizableRows.mkString(" "))
+        }
+
       }
       ()
     }

@@ -52,6 +52,7 @@ trait MetadataEntryComponent {
   val metadataEntries = TableQuery[MetadataEntries]
 
   val metadataEntryIdsAutoInc = metadataEntries returning metadataEntries.map(_.metadataEntryId)
+  val metadataEntryIdsAndKeysAndCallFqnsAutoInc = metadataEntries returning metadataEntries.map(x => (x.metadataEntryId, x.metadataKey, x.callFullyQualifiedName))
 
   val metadataEntriesExists = Compiled(metadataEntries.take(1).exists)
 

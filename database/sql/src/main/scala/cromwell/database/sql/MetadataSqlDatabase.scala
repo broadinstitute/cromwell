@@ -10,7 +10,7 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
 
 object MetadataSqlDatabase {
-  final case class AddMetadataEntriesResponse(minIdAdded: Long, maxIdAdded: Long, totalAdded: Int, incorrectSummaryId: Option[Long])
+  final case class AddMetadataEntriesResponse(minIdAdded: Long, maxIdAdded: Long, totalAdded: Int, incorrectSummaryId: Option[Long], summarizableRows: Map[Long, String])
 }
 
 trait MetadataSqlDatabase extends SqlDatabase {

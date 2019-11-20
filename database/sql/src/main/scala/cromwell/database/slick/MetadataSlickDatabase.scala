@@ -38,19 +38,34 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])
                                  (implicit ec: ExecutionContext): Future[AddMetadataEntriesResponse] = {
     val batchesToWrite = metadataEntries.grouped(insertBatchSize).toList
-    val insertActions = batchesToWrite.map(dataAccess.metadataEntryIdsAutoInc ++= _)
+    val insertActions = batchesToWrite.map(dataAccess.metadataEntryIdsAndKeysAndCallFqnsAutoInc ++= _)
     val action = DBIO.sequence(insertActions.toSeq)
 
 
-    runLobAction(action).map(_.flatten).flatMap { ids =>
+    runLobAction(action).map(_.flatten).flatMap { idsAndKeys =>
+
+      val ids = idsAndKeys.map(_._1)
+      val summarizable = (idsAndKeys collect {
+        case (id, key, callFqn) if callFqn.isEmpty && (List(
+          "start",
+          "end",
+          "name",
+          "status",
+          "submission",
+          "parentWorkflowId",
+          "rootWorkflowId",
+        ).contains(key) || key.startsWith("labels") ) => id -> key
+      }).toMap
+
       val minId = ids.min
 
       runAction(getSummaryStatusIfAboveThreshold("WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING", minId)).map { incorrectSummaryStatusId =>
+
         val result = if (ids.isEmpty) {
-          AddMetadataEntriesResponse(-1, -1, 0, incorrectSummaryStatusId)
+          AddMetadataEntriesResponse(-1, -1, 0, incorrectSummaryStatusId, summarizable)
         }
         else {
-          AddMetadataEntriesResponse(ids.min, ids.max, ids.size, incorrectSummaryStatusId)
+          AddMetadataEntriesResponse(ids.min, ids.max, ids.size, incorrectSummaryStatusId, summarizable)
         }
         result
       }

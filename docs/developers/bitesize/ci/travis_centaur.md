@@ -1,16 +1,18 @@
-## Travis builds by category of user
+## Travis builds by user access
 
-| Backend | Any User | Committers |
-|---------|:--------:|:----------:|
-| AWS     |          |     ✅     |
-| BCS     |          |     ✅     |
-| Local   |    ✅    |     ✅     |
-| PAPI V1 |          |     ✅     |
-| PAPI V2 |          |     ✅     |
-| SLURM   |    ✅    |     ✅     |
-| TES     |    ✅    |     ✅     |
+For infrastructures that require secured credentials, cloud backend tests only run for developers with write access to the broadinstitute/cromwell GitHub. Secure tests are skipped for all other users.
 
-On cloud infrastructures that require secured credentials, tests run for users who have commit access, and are skipped for all other users. Other backends run tests run for any user.
+Other backends run tests for any user.
+
+| Backend | Read-only users | Write/Admin users |
+|---------|:---------------:|:-----------------:|
+| AWS     |                 |        ✅         |
+| BCS     |                 |        ✅         |
+| Local   |       ✅        |        ✅         |
+| PAPI V1 |                 |        ✅         |
+| PAPI V2 |                 |        ✅         |
+| SLURM   |       ✅        |        ✅         |
+| TES     |       ✅        |        ✅         |
 
 ## Upgrade / Horicromtal / etc.
 

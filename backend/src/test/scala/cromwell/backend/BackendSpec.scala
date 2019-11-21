@@ -143,8 +143,10 @@ trait BackendSpec extends ScalaFutures with Matchers with Mockito with ScaledTim
       case (JobFailedNonRetryableResponse(_, failure, _), JobFailedNonRetryableResponse(_, expectedFailure, _)) =>
         failure.getClass shouldBe expectedFailure.getClass
         concatenateCauseMessages(failure) should include(expectedFailure.getMessage)
-      case (JobFailedRetryableResponse(_, failure, _, _, _, _, _), JobFailedRetryableResponse(_, expectedFailure, _, _, _, _, _)) =>
+      case (JobFailedRetryableResponse(_, failure, _, _, maxRetriesActual, _, _), JobFailedRetryableResponse(_, expectedFailure, _, _, maxRetriesExpected, _, _)) =>
         failure.getClass shouldBe expectedFailure.getClass
+        maxRetriesActual.isDefined shouldBe maxRetriesExpected.isDefined
+
       case (response, expectation) =>
         fail(s"Execution response $response wasn't conform to expectation $expectation")
     }

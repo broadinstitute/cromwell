@@ -11,7 +11,7 @@ import common.collections.EnhancedCollections._
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse}
 import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, ExecutionMode}
-import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle}
+import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedRetryableExecutionHandle}
 import cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor.JesPendingExecutionHandle
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.PAPIStatusPollRequest
@@ -52,6 +52,9 @@ import scala.util.Success
 
 class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackendJobExecutionActorSpec")
   with FlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter with DefaultJsonProtocol {
+
+  import PipelinesApiAsyncBackendJobExecutionActorSpec._
+
   val mockPathBuilder: GcsPathBuilder = MockGcsPathBuilder.instance
   import MockGcsPathBuilder._
   var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor))
@@ -299,7 +302,8 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
           case response: JobFailedNonRetryableResponse =>
             if(shouldRetry) fail(s"A should-be-retried job ($descriptor) was sent back to the engine with: $response")
           case response: JobFailedRetryableResponse =>
-            if(!shouldRetry) fail(s"A shouldn't-be-retried job ($descriptor) was sent back to the engine with $response")
+            // if `maxRetries' parameter is defined, engine will compare its value with `FailedRetryCount` counter and decide whether to restart the job or not
+            if(!shouldRetry && response.mayBeRestartedByEngine()) fail(s"A shouldn't-be-retried job ($descriptor) was sent back to the engine with $response")
           case huh => fail(s"Unexpected response: $huh")
         }
       }
@@ -315,8 +319,9 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val failedStatus = UnsuccessfulRunStatus(Status.ABORTED, Option("14: VM XXX shut down unexpectedly."), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), wasPreemptible = true)
     val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
     val result = Await.result(executionResult, timeout)
-    result.isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-    val failedHandle = result.asInstanceOf[FailedNonRetryableExecutionHandle]
+    result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    val failedHandle = result.asInstanceOf[FailedRetryableExecutionHandle]
+    failedHandle.mayBeRestartedByEngine() shouldBe  false
     failedHandle.returnCode shouldBe None
   }
 
@@ -406,13 +411,26 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
       Await.result(jesBackend.handleExecutionResult(failed, handle), timeout)
     }
 
-    checkFailedResult(Status.ABORTED, Option("15: Other type of error."))
-      .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-    checkFailedResult(Status.OUT_OF_RANGE, Option("14: Wrong errorCode.")).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-    checkFailedResult(Status.ABORTED, Option("Weird error message.")).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-    checkFailedResult(Status.ABORTED, Option("UnparsableInt: Even weirder error message."))
-      .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-    checkFailedResult(Status.ABORTED, None).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
+    val failed1 = checkFailedResult(Status.ABORTED, Option("15: Other type of error."))
+    failed1.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    failed1.asInstanceOf[FailedRetryableExecutionHandle].mayBeRestartedByEngine() shouldBe false
+
+    val failed2 = checkFailedResult(Status.OUT_OF_RANGE, Option("14: Wrong errorCode."))
+    failed2.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    failed2.asInstanceOf[FailedRetryableExecutionHandle].mayBeRestartedByEngine() shouldBe false
+
+    val failed3 = checkFailedResult(Status.ABORTED, Option("Weird error message."))
+    failed3.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    failed3.asInstanceOf[FailedRetryableExecutionHandle].mayBeRestartedByEngine() shouldBe false
+
+    val failed4 = checkFailedResult(Status.ABORTED, Option("UnparsableInt: Even weirder error message."))
+    failed4.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    failed4.asInstanceOf[FailedRetryableExecutionHandle].mayBeRestartedByEngine() shouldBe false
+
+    val failed5 = checkFailedResult(Status.ABORTED, None)
+    failed5.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    failed5.asInstanceOf[FailedRetryableExecutionHandle].mayBeRestartedByEngine() shouldBe false
+
     checkFailedResult(Status.CANCELLED, Option("Operation canceled at")) shouldBe AbortedExecutionHandle
 
     actorRef.stop()
@@ -983,5 +1001,15 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(job.callable.runtimeAttributes, null, Map.empty)
     RuntimeAttributeDefinition.addDefaultsToAttributes(
       runtimeAttributesBuilder.definitions.toSet, NoOptions)(evaluatedAttributes.getOrElse(fail("Failed to evaluate runtime attributes")))
+  }
+}
+
+object PipelinesApiAsyncBackendJobExecutionActorSpec {
+  implicit class EnhancedJobFailedRetryableResponse(val response: JobFailedRetryableResponse) extends AnyVal {
+    def mayBeRestartedByEngine(): Boolean = response.maxRetries.isEmpty || response.maxRetries.get != 0
+  }
+
+  implicit class EnhancedFailedRetryableExecutionHandle(val handle: FailedRetryableExecutionHandle) extends AnyVal {
+    def mayBeRestartedByEngine(): Boolean = handle.maxRetries.isEmpty || handle.maxRetries.get != 0
   }
 }

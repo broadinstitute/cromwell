@@ -6,7 +6,7 @@ import _root_.wdl.draft2.model.LocallyQualifiedName
 import akka.testkit.{TestDuration, TestProbe}
 import com.typesafe.config.ConfigFactory
 import common.collections.EnhancedCollections._
-import cromwell.backend.BackendJobExecutionActor.{JobAbortedResponse, JobFailedNonRetryableResponse, JobSucceededResponse, RunOnBackend}
+import cromwell.backend.BackendJobExecutionActor.{JobAbortedResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse, RunOnBackend}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
 import cromwell.backend.async.WrongReturnCode
@@ -62,9 +62,9 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     executeSpec(docker = true)
   }
 
-  it should "send back an execution failure if the task fails" in {
+  it should "send back a retryable execution failure with defined `maxRetries` parameter if the task fails" in {
     val expectedResponse =
-      JobFailedNonRetryableResponse(mockBackendJobDescriptorKey, WrongReturnCode("wf_goodbye.goodbye:NA:1", 1, None), Option(1))
+      JobFailedRetryableResponse(mockBackendJobDescriptorKey, WrongReturnCode("wf_goodbye.goodbye:NA:1", 1, None), returnCode = Option(1), maxRetries = Option(1), kvPairsFromPreviousAttempt = None, kvPairsForNextAttempt = None)
     val workflow = TestWorkflow(buildWdlWorkflowDescriptor(GoodbyeWorld), TestConfig.backendRuntimeConfigDescriptor, expectedResponse)
     val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflow.workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions), workflow.config)
     testWorkflow(workflow, backend)

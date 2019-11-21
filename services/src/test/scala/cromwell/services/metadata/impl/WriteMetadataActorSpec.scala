@@ -137,7 +137,7 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
         requestsSinceLastSuccess = 0
         val entryIds = metadataEntries.map(_.metadataEntryId)
 
-        Future.successful(AddMetadataEntriesResponse(entryIds.min.getOrElse(0), entryIds.max.getOrElse(0), metadataEntries.size, incorrectSummaryId = None, summarizableRows = Map.empty))
+        Future.successful(AddMetadataEntriesResponse(entryIds.min.getOrElse(0), entryIds.max.getOrElse(0), metadataEntries.size, incorrectSummaryId = None, rewindNecessary = false))
       } else {
         requestsSinceLastSuccess += 1
         Future.failed(WriteMetadataActorSpec.IntermittentException)

@@ -37,37 +37,25 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
 
   override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])
                                  (implicit ec: ExecutionContext): Future[AddMetadataEntriesResponse] = {
-    val batchesToWrite = metadataEntries.grouped(insertBatchSize).toList
-    val insertActions = batchesToWrite.map(dataAccess.metadataEntryIdsAndKeysAndCallFqnsAutoInc ++= _)
-    val action = DBIO.sequence(insertActions.toSeq)
 
+    if (metadataEntries.isEmpty) Future.successful(AddMetadataEntriesResponse(-1, -1, 0, false, None)) else {
 
-    runLobAction(action).map(_.flatten).flatMap { idsAndKeys =>
+      val batchesToWrite = metadataEntries.grouped(insertBatchSize).toList
+      val insertActions = batchesToWrite.map(dataAccess.metadataEntryIdsAutoInc ++= _)
+      val action = DBIO.sequence(insertActions.toSeq)
 
-      val ids = idsAndKeys.map(_._1)
-      val summarizable = (idsAndKeys collect {
-        case (id, key, callFqn) if callFqn.isEmpty && (List(
-          "start",
-          "end",
-          "name",
-          "status",
-          "submission",
-          "parentWorkflowId",
-          "rootWorkflowId",
-        ).contains(key) || key.startsWith("labels") ) => id -> key
-      }).toMap
+      runLobAction(action).map(_.flatten).flatMap { ids =>
 
-      val minId = ids.min
+        val minId = ids.min
 
-      runAction(getSummaryStatusIfAboveThreshold("WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING", minId)).map { incorrectSummaryStatusId =>
+        val summarizerRewindInfo = for {
+          incorrectSummaryStatusId <- runAction(getSummaryStatusIfNotBelowThreshold("WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING", minId))
+          rewind <- runAction(ensureSummaryStatusIsBelowThreshold("WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING", minId))
+        } yield (incorrectSummaryStatusId, rewind)
 
-        val result = if (ids.isEmpty) {
-          AddMetadataEntriesResponse(-1, -1, 0, incorrectSummaryStatusId, summarizable)
+        summarizerRewindInfo.map { case (incorrectSummaryStatusId, rewindNeeded) =>
+          AddMetadataEntriesResponse(ids.min, ids.max, ids.size, rewindNeeded, incorrectSummaryStatusId)
         }
-        else {
-          AddMetadataEntriesResponse(ids.min, ids.max, ids.size, incorrectSummaryStatusId, summarizable)
-        }
-        result
       }
     }
   }
@@ -335,7 +323,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       customLabelEntries = metadataEntries.filter(_.metadataKey.contains(labelMetadataKey))
       _ <- DBIO.sequence(metadataWithoutLabels map updateWorkflowMetadataSummaryEntry(buildUpdatedSummary))
       _ <- DBIO.sequence(customLabelEntries map toCustomLabelEntry map upsertCustomLabelEntry)
-      _ <- upsertSummaryStatusEntrySummaryPosition(summaryName, summaryPosition)
+      _ <- upsertSummaryStatusEntrySummaryPosition(summaryName, minMetadataEntryId - 1, summaryPosition)
     } yield summaryPosition
   }
 

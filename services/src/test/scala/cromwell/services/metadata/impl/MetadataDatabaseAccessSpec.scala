@@ -24,7 +24,7 @@ object MetadataDatabaseAccessSpec {
   val AllowFalse = Seq(QueryParameter("allow", "false"))
   val AllowTrue = Seq(QueryParameter("allow", "true"))
 
-  val  Workflow1Name = "test1"
+  val Workflow1Name = "test1"
   val Workflow2Name = "test2"
   val Workflow3Name = "test3"
 

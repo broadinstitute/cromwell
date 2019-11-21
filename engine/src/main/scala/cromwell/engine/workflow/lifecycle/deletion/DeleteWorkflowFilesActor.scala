@@ -9,7 +9,7 @@ import cromwell.services.metadata.MetadataService.{GetRootAndSubworkflowOutputs,
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-import scala.util.{Failure, Success, Try}
+import scala.util.Try
 
 class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
                                serviceRegistryActor: ActorRef,
@@ -88,19 +88,13 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
       }).reduce(_ || _)
     }
 
-    def buildFilePath(name: String): Option[Path] = {
-      // this eliminates outputs which are not files
-      Try(PathFactory.buildPath(name, pathBuildersWithoutDefault)) match {
-        case Success(path) => Some(path)
-        case Failure(_) => None
-      }
-    }
-
     def getFilePath(metadataValue: String): Option[Path] = {
       //if workflow has final outputs check if this output value does not exist in final outputs
       (isFinalOutputsNonEmpty, existsInFinalOutputs(metadataValue)) match {
         case (true, true) => None
-        case (true, false) | (false, _) => buildFilePath(metadataValue)
+        case (true, false) | (false, _) =>
+          // eliminate outputs which are not files
+          Try(PathFactory.buildPath(metadataValue, pathBuildersWithoutDefault)).toOption
       }
     }
 

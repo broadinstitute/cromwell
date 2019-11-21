@@ -394,10 +394,12 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
 
   override def getRootAndSubWorkflowsOutputs(rootWorkflowId: String,
                                              outputMetadataKey: List[String])(implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
-    runTransaction(dataAccess.subworkflowIdsForRootWorkflow(rootWorkflowId).result) flatMap { subWfIdSeq =>
-      val workflowIdList = subWfIdSeq.toSet + rootWorkflowId
-      val action = dataAccess.metadataEntriesForOutputs(workflowIdList, outputMetadataKey).result
-      runTransaction(action)
-    }
+    val action = for {
+      subWfIdSeq <- dataAccess.subworkflowIdsForRootWorkflow(rootWorkflowId).result
+      workflowIdList = subWfIdSeq.toSet + rootWorkflowId
+      entries <- dataAccess.metadataEntriesForOutputs(workflowIdList, outputMetadataKey).result
+    } yield entries
+
+    runTransaction(action)
   }
 }

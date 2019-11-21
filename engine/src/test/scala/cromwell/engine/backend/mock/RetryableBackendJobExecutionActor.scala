@@ -16,7 +16,7 @@ final case class RetryableBackendJobExecutionActor(override val jobDescriptor: B
 
   override def execute: Future[BackendJobExecutionResponse] = {
     if (jobDescriptor.key.attempt < attempts) {
-      Future.successful(JobFailedRetryableResponse(jobDescriptor.key, new RuntimeException("An apparent transient Exception!"), None))
+      Future.successful(JobFailedRetryableResponse(jobDescriptor.key, new RuntimeException("An apparent transient Exception!"), None, maxRetries = None, kvPairsFromPreviousAttempt = None, kvPairsForNextAttempt = None))
     }
     else {
       Future.successful(JobFailedNonRetryableResponse(jobDescriptor.key, new RuntimeException("A permanent Exception! Yikes, what a pickle!"), None))

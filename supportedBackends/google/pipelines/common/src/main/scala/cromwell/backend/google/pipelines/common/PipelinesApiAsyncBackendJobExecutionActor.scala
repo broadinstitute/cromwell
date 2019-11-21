@@ -578,7 +578,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       AbortedExecutionHandle
     case (oldHandle: JesPendingExecutionHandle@unchecked, e: GoogleJsonResponseException) if e.getStatusCode == 404 =>
       jobLogger.error(s"JES Job ID ${oldHandle.runInfo.get.job} has not been found, failing call")
-      FailedNonRetryableExecutionHandle(e)
+      FailedNonRetryableExecutionHandle(e, None, None, None)
   }
 
   override lazy val startMetadataKeyValues: Map[String, Any] = super[PipelinesApiJobCachingActorHelper].startMetadataKeyValues
@@ -651,14 +651,19 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     }
 
     // Inner function: Handles a 'Failed' runStatus (or Preempted if preemptible was false)
-    def handleFailedRunStatus(runStatus: RunStatus.UnsuccessfulRunStatus,
-                              returnCode: Option[Int]): Future[ExecutionHandle] = {
+    def handleFailedRunStatus(runStatus: RunStatus.UnsuccessfulRunStatus, returnCode: Option[Int]): ExecutionHandle = {
 
       lazy val prettyError = runStatus.prettyPrintedError
       def isDockerPullFailure: Boolean = prettyError.contains("not found: does not exist or no pull access")
 
       (runStatus.errorCode, runStatus.jesCode) match {
-        case (Status.NOT_FOUND, Some(JesFailedToDelocalize)) => Future.successful(FailedNonRetryableExecutionHandle(FailedToDelocalizeFailure(prettyError, jobTag, Option(standardPaths.error))))
+        case (Status.NOT_FOUND, Some(JesFailedToDelocalize)) =>
+          FailedNonRetryableExecutionHandle(
+            FailedToDelocalizeFailure(prettyError, jobTag, Option(standardPaths.error)),
+            None,
+            None,
+            None
+          )
         case (Status.ABORTED, Some(JesUnexpectedTermination)) => handleUnexpectedTermination(runStatus.errorCode, prettyError, returnCode)
         case _ if isDockerPullFailure =>
           val unable = s"Unable to pull Docker image '$jobDockerImage' "
@@ -667,19 +672,26 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
             "and there are effectively no Docker credentials present (one or more of token, authorization, or Google KMS key may be missing). " +
             "Please check your private Docker configuration and/or the pull access for this image. "
           val message = unable + details + prettyError
-          Future.successful(FailedNonRetryableExecutionHandle(StandardException(
-            runStatus.errorCode, message, jobTag, returnCode, standardPaths.error), returnCode))
+          FailedNonRetryableExecutionHandle(
+            StandardException(runStatus.errorCode, message, jobTag, returnCode, standardPaths.error),
+            returnCode,
+            None,
+            None
+          )
         case _ =>
           val finalPrettyPrintedError = generateBetterErrorMsg(runStatus, prettyError)
-          Future.successful(FailedNonRetryableExecutionHandle(StandardException(
-            runStatus.errorCode, finalPrettyPrintedError, jobTag, returnCode, standardPaths.error), returnCode))
+          FailedNonRetryableExecutionHandle(StandardException(runStatus.errorCode, finalPrettyPrintedError, jobTag, returnCode, standardPaths.error),
+            returnCode,
+            None,
+            None
+          )
       }
     }
 
     runStatus match {
-      case preemptedStatus: RunStatus.Preempted if preemptible => handlePreemption(preemptedStatus, returnCode)
+      case preemptedStatus: RunStatus.Preempted if preemptible => Future.successful(handlePreemption(preemptedStatus, returnCode))
       case _: RunStatus.Cancelled => Future.successful(AbortedExecutionHandle)
-      case failedStatus: RunStatus.UnsuccessfulRunStatus => handleFailedRunStatus(failedStatus, returnCode)
+      case failedStatus: RunStatus.UnsuccessfulRunStatus => Future.successful(handleFailedRunStatus(failedStatus, returnCode))
       case unknown => throw new RuntimeException(s"handleExecutionFailure not called with RunStatus.Failed or RunStatus.Preempted. Instead got $unknown")
     }
   }
@@ -691,7 +703,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     )
   }
 
-  private def handleUnexpectedTermination(errorCode: Status, errorMessage: String, jobReturnCode: Option[Int]): Future[ExecutionHandle] = {
+  private def handleUnexpectedTermination(errorCode: Status, errorMessage: String, jobReturnCode: Option[Int]): ExecutionHandle = {
 
     val msg = s"Retrying. $errorMessage"
 
@@ -701,25 +713,31 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         if (thisUnexpectedRetry <= maxUnexpectedRetries) {
           val preemptionAndUnexpectedRetryCountsKvPairs = nextAttemptPreemptedAndUnexpectedRetryCountsToKvPairs(p, thisUnexpectedRetry)
           // Increment unexpected retry count and preemption count stays the same
-          Future.successful {
             FailedRetryableExecutionHandle(
               StandardException(errorCode, msg, jobTag, jobReturnCode, standardPaths.error),
               jobReturnCode,
-              kvPairsToSave = Option(preemptionAndUnexpectedRetryCountsKvPairs)
+              kvPairsFromPreviousAttempt = None,
+              kvPairsForNextAttempt = Option(preemptionAndUnexpectedRetryCountsKvPairs)
             )
-          }
         }
         else {
-          Future.successful(FailedNonRetryableExecutionHandle(StandardException(
-            errorCode, errorMessage, jobTag, jobReturnCode, standardPaths.error), jobReturnCode))
+          FailedNonRetryableExecutionHandle(
+            StandardException(errorCode, errorMessage, jobTag, jobReturnCode, standardPaths.error),
+            jobReturnCode,
+            None, None
+          )
         }
       case Invalid(_) =>
-        Future.successful(FailedNonRetryableExecutionHandle(StandardException(
-          errorCode, errorMessage, jobTag, jobReturnCode, standardPaths.error), jobReturnCode))
+        FailedNonRetryableExecutionHandle(
+          StandardException(errorCode, errorMessage, jobTag, jobReturnCode, standardPaths.error),
+          jobReturnCode,
+          None,
+          None
+        )
     }
   }
 
-  private def handlePreemption(runStatus: RunStatus.Preempted, jobReturnCode: Option[Int]): Future[ExecutionHandle] = {
+  private def handlePreemption(runStatus: RunStatus.Preempted, jobReturnCode: Option[Int]): ExecutionHandle = {
     import common.numeric.IntegerUtil._
 
     val errorCode: Status = runStatus.errorCode
@@ -730,7 +748,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         val taskName = s"${workflowDescriptor.id}:${call.localName}"
         val baseMsg = s"Task $taskName was preempted for the ${thisPreemption.toOrdinal} time."
 
-        Future.successful {
           val preemptionAndUnexpectedRetryCountsKvPairs = nextAttemptPreemptedAndUnexpectedRetryCountsToKvPairs(thisPreemption, ur)
           if (thisPreemption < maxPreemption) {
             // Increment preemption count and unexpectedRetryCount stays the same
@@ -740,19 +757,27 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
             FailedRetryableExecutionHandle(
               StandardException(errorCode, msg, jobTag, jobReturnCode, standardPaths.error),
               jobReturnCode,
-              kvPairsToSave = Option(preemptionAndUnexpectedRetryCountsKvPairs)
+              kvPairsFromPreviousAttempt = None,
+              kvPairsForNextAttempt = Option(preemptionAndUnexpectedRetryCountsKvPairs)
             )
           }
           else {
             val msg = s"$baseMsg The maximum number of preemptible attempts ($maxPreemption) has been reached. The " +
               s"call will be restarted with a non-preemptible VM. Error code $errorCode.$prettyPrintedError)"
-            FailedRetryableExecutionHandle(StandardException(
-              errorCode, msg, jobTag, jobReturnCode, standardPaths.error), jobReturnCode, kvPairsToSave = Option(preemptionAndUnexpectedRetryCountsKvPairs))
+            FailedRetryableExecutionHandle(
+              StandardException(errorCode, msg, jobTag, jobReturnCode, standardPaths.error),
+              jobReturnCode,
+              kvPairsFromPreviousAttempt = None,
+              kvPairsForNextAttempt = Option(preemptionAndUnexpectedRetryCountsKvPairs)
+            )
           }
-        }
       case Invalid(_) =>
-        Future.successful(FailedNonRetryableExecutionHandle(StandardException(
-          errorCode, prettyPrintedError, jobTag, jobReturnCode, standardPaths.error), jobReturnCode))
+        FailedNonRetryableExecutionHandle(
+          StandardException(errorCode, prettyPrintedError, jobTag, jobReturnCode, standardPaths.error),
+          jobReturnCode,
+          None,
+          None
+        )
     }
   }
 

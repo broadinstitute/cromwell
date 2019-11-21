@@ -15,7 +15,7 @@ sealed trait JobResult {
     // problem since `saveJobCompletionToJobStore` in EJEA will already have sent this to metadata.
     case JobResultSuccess(returnCode, jobOutputs) => JobSucceededResponse(key, returnCode, jobOutputs, None, Seq.empty, None, resultGenerationMode = FetchedFromJobStore)
     case JobResultFailure(returnCode, reason, false) => JobFailedNonRetryableResponse(key, reason, returnCode)
-    case JobResultFailure(returnCode, reason, true) => JobFailedRetryableResponse(key, reason, returnCode)
+    case JobResultFailure(returnCode, reason, true) => JobFailedRetryableResponse(key, reason, returnCode, maxRetries = None, kvPairsFromPreviousAttempt = None, kvPairsForNextAttempt = None)
   }
 }
 case class JobResultSuccess(returnCode: Option[Int], jobOutputs: CallOutputs) extends JobResult

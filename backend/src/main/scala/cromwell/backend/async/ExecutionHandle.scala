@@ -37,13 +37,10 @@ final case class SuccessfulExecutionHandle(outputs: CallOutputs,
   override val result = SuccessfulExecution(outputs, returnCode, jobDetritusFiles, executionEvents, resultsClonedFrom)
 }
 
-sealed trait FailedExecutionHandle extends ExecutionHandle {
-  def kvPairsToSave: Option[Seq[KvPair]]
-}
-
 final case class FailedNonRetryableExecutionHandle(throwable: Throwable,
                                                    returnCode: Option[Int] = None,
-                                                   override val kvPairsToSave: Option[Seq[KvPair]] = None) extends FailedExecutionHandle {
+                                                   kvPairsFromPreviousAttempt: Option[Seq[KvPair]],
+                                                   kvPairsForNextAttempt: Option[Seq[KvPair]]) extends ExecutionHandle {
 
   override val isDone = true
   override val result = NonRetryableExecution(throwable, returnCode)
@@ -52,7 +49,9 @@ final case class FailedNonRetryableExecutionHandle(throwable: Throwable,
 final case class FailedRetryableExecutionHandle(throwable: Throwable,
                                                 returnCode: Option[Int] = None,
                                                 memoryMultiplier: GreaterEqualRefined = refineMV[GreaterEqualOne](1.0),
-                                                override val kvPairsToSave: Option[Seq[KvPair]] = None) extends FailedExecutionHandle {
+                                                maxRetries: Option[Int] = None,
+                                                kvPairsFromPreviousAttempt: Option[Seq[KvPair]],
+                                                kvPairsForNextAttempt: Option[Seq[KvPair]]) extends ExecutionHandle {
 
   override val isDone = true
   override val result = RetryableExecution(throwable, returnCode)

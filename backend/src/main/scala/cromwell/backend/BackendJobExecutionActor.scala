@@ -8,6 +8,7 @@ import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.OutputEvaluator.EvaluatedJobOutputs
 import cromwell.core._
 import cromwell.core.path.Path
+import cromwell.services.keyvalue.KeyValueServiceActor.KvPair
 import eu.timepit.refined.refineMV
 import wom.expression.IoFunctionSet
 import wom.values.WomValue
@@ -49,7 +50,10 @@ object BackendJobExecutionActor {
   case class JobFailedRetryableResponse(jobKey: BackendJobDescriptorKey,
                                         throwable: Throwable,
                                         returnCode: Option[Int],
-                                        memoryMultiplier: GreaterEqualRefined = refineMV[GreaterEqualOne](1.0)) extends BackendJobFailedResponse
+                                        memoryMultiplier: GreaterEqualRefined = refineMV[GreaterEqualOne](1.0),
+                                        maxRetries: Option[Int],
+                                        kvPairsFromPreviousAttempt: Option[Seq[KvPair]],
+                                        kvPairsForNextAttempt: Option[Seq[KvPair]]) extends BackendJobFailedResponse
   
   // Reconnection Exceptions
   case class JobReconnectionNotSupportedException(jobKey: BackendJobDescriptorKey) extends Exception(

@@ -16,7 +16,7 @@ import cromwell.docker.DockerInfoActor.{DockerInfoSuccessResponse, DockerInforma
 import cromwell.docker._
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.WorkflowDockerLookupActor.{WorkflowDockerLookupFailure, WorkflowDockerTerminalFailure}
-import cromwell.engine.workflow.lifecycle.execution.CallMetadataHelper
+import cromwell.engine.workflow.lifecycle.execution.{CallMetadataHelper, WorkflowExecutionActor}
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation._
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.JobPreparationActor._
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
@@ -105,7 +105,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
       stay()
   }
 
-  private[preparation] lazy val kvStoreKeysToPrefetch: Seq[String] = factory.requestedKeyValueStoreKeys ++ factory.defaultKeyValueStoreKeys
+  private[preparation] lazy val kvStoreKeysToPrefetch: Seq[String] = factory.requestedKeyValueStoreKeys :+ WorkflowExecutionActor.FailedRetryCountKey
   private[preparation] def scopedKey(key: String) = ScopedKey(workflowDescriptor.id, KvJobKey(jobKey), key)
   private[preparation] def lookupKeyValueEntries(inputs: WomEvaluatedCallInputs,
                                                  attributes: Map[LocallyQualifiedName, WomValue],

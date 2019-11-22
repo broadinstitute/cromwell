@@ -263,7 +263,9 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
 
   // Separate method to allow overriding in tests:
   private[api] def makeWorkerActor(): ActorRef = {
-    context.actorOf(papiRequestWorkerProps, s"PAPIQueryWorker-${UUID.randomUUID()}")
+    val result = context.actorOf(papiRequestWorkerProps, s"PAPIQueryWorker-${UUID.randomUUID()}")
+    log.info(s"Request manager ${self.path} created new PAPI request worker ${result.path} with batch interval of ${workerBatchInterval}")
+    result
   }
 }
 

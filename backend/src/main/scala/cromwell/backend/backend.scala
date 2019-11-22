@@ -146,6 +146,9 @@ object CommonBackendConfigurationAttributes {
     "dockerhub",
     "dockerhub.account",
     "dockerhub.token",
+    "dockerhub.auth",
+    "dockerhub.key-name",
+    "name-for-call-caching-purposes",
   )
 }
 

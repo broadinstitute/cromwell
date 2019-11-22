@@ -28,12 +28,15 @@ class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
 
   val carboniteFreezerActor = context.actorOf(CarbonitingMetadataFreezerActor.props(carboniterConfig, self, serviceRegistryActor, ioActor))
 
-  val backOff = SimpleExponentialBackoff(
-    initialInterval = 5.seconds,
-    maxInterval = 5.minutes,
-    multiplier = 1.1,
-    randomizationFactor = 0.0
-  )
+  val backOff = {
+    val scanConfig = carboniterConfig.freezeScanConfig
+    SimpleExponentialBackoff(
+      initialInterval = scanConfig.initialInterval,
+      maxInterval = scanConfig.maxInterval,
+      multiplier = scanConfig.multiplier,
+      randomizationFactor = 0.0
+    )
+  }
 
   scheduleNextCarbonitingQuery()
 

@@ -29,34 +29,34 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
     val allOutputsMetadataEvents = Vector(
       MetadataEvent(
         MetadataKey(subworkflowId, Option(MetadataJobKey("first_sub_workflow.first_task",None,1)), "outputs:first_task_output_1"),
-        Option(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/output_file.txt", MetadataString))),
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/output_file.txt", MetadataString))),
       MetadataEvent(
         MetadataKey(subworkflowId, Option(MetadataJobKey("first_sub_workflow.first_task",None,1)), "outputs:first_task_output_2"),
-        Option(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/intermediate_file.txt", MetadataString))),
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/intermediate_file.txt", MetadataString))),
       MetadataEvent(
         MetadataKey(subworkflowId,None,"outputs:first_sub_workflow.second_output_file"),
-        Option(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/intermediate_file.txt",MetadataString))),
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/intermediate_file.txt",MetadataString))),
       MetadataEvent(
         MetadataKey(subworkflowId,None,"outputs:first_sub_workflow.first_output_file"),
-        Option(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/output_file.txt",MetadataString))),
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/output_file.txt",MetadataString))),
       MetadataEvent(
         MetadataKey(rootWorkflowId,Option(MetadataJobKey("main_workflow.first_sub_workflow",None,1)),"outputs:second_output_file"),
-        Option(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/intermediate_file.txt",MetadataString))),
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/intermediate_file.txt",MetadataString))),
       MetadataEvent(
         MetadataKey(rootWorkflowId,Option(MetadataJobKey("main_workflow.first_sub_workflow",None,1)),"outputs:first_output_file"),
-        Option(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/output_file.txt",MetadataString))),
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/output_file.txt",MetadataString))),
       MetadataEvent(
         MetadataKey(rootWorkflowId,None,"outputs:main_workflow.main_output"),
-        Option(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/output_file.txt",MetadataString)))
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/output_file.txt",MetadataString)))
     )
 
     val finalOutputsMetadataEvents = Vector(
       MetadataEvent(
         MetadataKey(rootWorkflowId,None,"outputs:main_workflow.main_output"),
-        Option(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/output_file.txt",MetadataString)))
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/output_file.txt",MetadataString)))
     )
 
-    val gcsFilePath: Path = mockPathBuilder.build(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/intermediate_file.txt").get
+    val gcsFilePath: Path = mockPathBuilder.build(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/intermediate_file.txt").get
     val intermediateFileList = Set(gcsFilePath)
 
     testDeleteWorkflowFilesActor ! StartWorkflowFilesDeletion
@@ -90,7 +90,7 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
   }
 
 
-  it should "remove any non-file intermediate outputs " in {
+  it should "remove any non-file intermediate outputs" in {
     val rootWorkflowId = RootWorkflowId(WorkflowId.randomId().id)
     val subworkflowId = WorkflowId.randomId()
     val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, serviceRegistryActor.ref, mockPathBuilders))
@@ -98,25 +98,25 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
     val allOutputsMetadataEvents = Vector(
       MetadataEvent(
         MetadataKey(subworkflowId, Option(MetadataJobKey("first_sub_workflow.first_task",None,1)), "outputs:first_task_output_1"),
-        Option(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/output_file.txt", MetadataString))),
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/output_file.txt", MetadataString))),
       MetadataEvent(
         MetadataKey(subworkflowId, Option(MetadataJobKey("first_sub_workflow.first_task",None,1)), "outputs:first_task_output_2"),
-        Option(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/intermediate_file.txt", MetadataString))),
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/intermediate_file.txt", MetadataString))),
       MetadataEvent(
         MetadataKey(subworkflowId,None,"outputs:first_sub_workflow.second_output_file"),
-        Option(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/intermediate_file.txt",MetadataString))),
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/intermediate_file.txt",MetadataString))),
       MetadataEvent(
         MetadataKey(subworkflowId,None,"outputs:first_sub_workflow.first_output_file"),
-        Option(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/output_file.txt",MetadataString))),
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/output_file.txt",MetadataString))),
       MetadataEvent(
         MetadataKey(rootWorkflowId,Option(MetadataJobKey("main_workflow.first_sub_workflow",None,1)),"outputs:second_output_file"),
-        Option(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/intermediate_file.txt",MetadataString))),
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/intermediate_file.txt",MetadataString))),
       MetadataEvent(
         MetadataKey(rootWorkflowId,Option(MetadataJobKey("main_workflow.first_sub_workflow",None,1)),"outputs:first_output_file"),
-        Option(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/output_file.txt",MetadataString))),
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/output_file.txt",MetadataString))),
       MetadataEvent(
         MetadataKey(rootWorkflowId,None,"outputs:main_workflow.main_output"),
-        Option(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/output_file.txt",MetadataString))),
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/output_file.txt",MetadataString))),
       MetadataEvent(
         MetadataKey(rootWorkflowId,Option(MetadataJobKey("main_workflow.first_sub_workflow",None,1)),"outputs:string_output"),
         Option(MetadataValue("Hello World!",MetadataString))),
@@ -131,18 +131,83 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
     val finalOutputsMetadataEvents = Vector(
       MetadataEvent(
         MetadataKey(rootWorkflowId,None,"outputs:main_workflow.main_output"),
-        Option(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/output_file.txt",MetadataString))),
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/output_file.txt",MetadataString))),
       MetadataEvent(
         MetadataKey(rootWorkflowId,None,"outputs:main_workflow.main_string_output"),
         Option(MetadataValue("Hello World!",MetadataString)))
     )
 
-    val gcsFilePath: Path = mockPathBuilder.build(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/intermediate_file.txt").get
+    val gcsFilePath: Path = mockPathBuilder.build(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/intermediate_file.txt").get
     val expectedIntermediateFileList = Set(gcsFilePath)
 
     val actualIntermediateFileList = testDeleteWorkflowFilesActor.underlyingActor.gatherIntermediateOutputFiles(allOutputsMetadataEvents, finalOutputsMetadataEvents)
 
     actualIntermediateFileList shouldBe expectedIntermediateFileList
+  }
+
+
+  it should "delete all file outputs if there are no final outputs" in {
+    val rootWorkflowId = RootWorkflowId(WorkflowId.randomId().id)
+    val subworkflowId = WorkflowId.randomId()
+    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, serviceRegistryActor.ref, mockPathBuilders))
+
+    val allOutputsMetadataEvents = Vector(
+      MetadataEvent(
+        MetadataKey(subworkflowId, Option(MetadataJobKey("first_sub_workflow.first_task",None,1)), "outputs:first_task_output_1"),
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/output_file.txt", MetadataString))),
+      MetadataEvent(
+        MetadataKey(subworkflowId, Option(MetadataJobKey("first_sub_workflow.first_task",None,1)), "outputs:first_task_output_2"),
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/intermediate_file.txt", MetadataString))),
+      MetadataEvent(
+        MetadataKey(subworkflowId,None,"outputs:first_sub_workflow.second_output_file"),
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/intermediate_file.txt",MetadataString))),
+      MetadataEvent(
+        MetadataKey(subworkflowId,None,"outputs:first_sub_workflow.first_output_file"),
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/output_file.txt",MetadataString))),
+      MetadataEvent(
+        MetadataKey(rootWorkflowId,Option(MetadataJobKey("main_workflow.first_sub_workflow",None,1)),"outputs:second_output_file"),
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/intermediate_file.txt",MetadataString))),
+      MetadataEvent(
+        MetadataKey(rootWorkflowId,Option(MetadataJobKey("main_workflow.first_sub_workflow",None,1)),"outputs:first_output_file"),
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/output_file.txt",MetadataString))),
+      MetadataEvent(
+        MetadataKey(rootWorkflowId,Option(MetadataJobKey("main_workflow.first_sub_workflow",None,1)),"outputs:string_output"),
+        Option(MetadataValue("Hello World!",MetadataString))),
+      MetadataEvent(
+        MetadataKey(subworkflowId,None,"outputs:first_sub_workflow.string_output"),
+        Option(MetadataValue("Hello World!",MetadataString)))
+    )
+
+    val gcsFilePath1: Path = mockPathBuilder.build(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/intermediate_file.txt").get
+    val gcsFilePath2: Path = mockPathBuilder.build(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/output_file.txt").get
+    val intermediateFileList = Set(gcsFilePath1, gcsFilePath2)
+
+    testDeleteWorkflowFilesActor ! StartWorkflowFilesDeletion
+
+    serviceRegistryActor.expectMsgPF(10.seconds) {
+      case m: GetRootAndSubworkflowOutputs => m.workflowId shouldBe rootWorkflowId
+    }
+    eventually {
+      testDeleteWorkflowFilesActor.stateName shouldBe FetchingAllOutputs
+    }
+
+    serviceRegistryActor.send(testDeleteWorkflowFilesActor, RootAndSubworkflowOutputsLookupResponse(rootWorkflowId, allOutputsMetadataEvents))
+
+    serviceRegistryActor.expectMsgPF(10.seconds) {
+      case o: WorkflowOutputs =>
+        o.workflowId shouldBe rootWorkflowId
+        o.convertResponseToJson shouldBe false
+    }
+    eventually {
+      testDeleteWorkflowFilesActor.stateName shouldBe FetchingFinalOutputs
+    }
+
+    serviceRegistryActor.send(testDeleteWorkflowFilesActor, WorkflowOutputsResponse(rootWorkflowId, Vector.empty[MetadataEvent]))
+
+    eventually {
+      testDeleteWorkflowFilesActor.stateName shouldBe DeletingIntermediateFiles
+      testDeleteWorkflowFilesActor.stateData shouldBe DeletingIntermediateFilesData(intermediateFileList)
+    }
   }
 
 
@@ -177,22 +242,22 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
     val allOutputsMetadataEvents = Vector(
       MetadataEvent(
         MetadataKey(subworkflowId, Option(MetadataJobKey("first_sub_workflow.first_task",None,1)), "outputs:first_task_output_1"),
-        Option(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/output_file.txt", MetadataString))),
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/output_file.txt", MetadataString))),
       MetadataEvent(
         MetadataKey(subworkflowId,None,"outputs:first_sub_workflow.first_output_file"),
-        Option(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/output_file.txt",MetadataString))),
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/output_file.txt",MetadataString))),
       MetadataEvent(
         MetadataKey(rootWorkflowId,Option(MetadataJobKey("main_workflow.first_sub_workflow",None,1)),"outputs:first_output_file"),
-        Option(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/output_file.txt",MetadataString))),
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/output_file.txt",MetadataString))),
       MetadataEvent(
         MetadataKey(rootWorkflowId,None,"outputs:main_workflow.main_output"),
-        Option(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/output_file.txt",MetadataString)))
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/output_file.txt",MetadataString)))
     )
 
     val finalOutputsMetadataEvents = Vector(
       MetadataEvent(
         MetadataKey(rootWorkflowId,None,"outputs:main_workflow.main_output"),
-        Option(MetadataValue(s"gs://my-bucket/main_workflow/${rootWorkflowId.toString}/subworkflow-path/${subworkflowId.toString}/call-first_task/output_file.txt",MetadataString)))
+        Option(MetadataValue(s"gs://my-bucket/main_workflow/$rootWorkflowId/subworkflow-path/$subworkflowId/call-first_task/output_file.txt",MetadataString)))
     )
 
     testProbe watch testDeleteWorkflowFilesActor

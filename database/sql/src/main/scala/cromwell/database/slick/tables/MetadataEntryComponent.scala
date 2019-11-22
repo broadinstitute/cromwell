@@ -180,11 +180,11 @@ trait MetadataEntryComponent {
   /**
     * Returns metadata entries containing outputs metadata key for given workflow ids
     */
-  def metadataEntriesForOutputs(workflowIdList: Set[String], outputMetadataKey: List[String]) = {
+  def metadataEntriesForOutputs(workflowIds: Set[String], outputMetadataKeys: List[String]) = {
     for {
       metadataEntry <- metadataEntries
-      if metadataEntryHasWorkflowId(metadataEntry, workflowIdList)
-      if metadataEntryHasMetadataKeysLike(metadataEntry, outputMetadataKey, List.empty[String])
+      if metadataEntryHasWorkflowId(metadataEntry, workflowIds)
+      if metadataEntryHasMetadataKeysLike(metadataEntry, outputMetadataKeys, List.empty[String])
     } yield metadataEntry
   }
 
@@ -198,10 +198,10 @@ trait MetadataEntryComponent {
     } yield metadataEntry.workflowExecutionUuid
   }
 
-  private[this] def metadataEntryHasWorkflowId(metadataEntry: MetadataEntries, workflowIdList: Set[String]): Rep[Boolean] = {
+  private[this] def metadataEntryHasWorkflowId(metadataEntry: MetadataEntries, workflowIds: Set[String]): Rep[Boolean] = {
     def containsId(id: String): Rep[Boolean] = metadataEntry.workflowExecutionUuid === id
 
-    workflowIdList.map(containsId).reduce(_ || _)
+    workflowIds.map(containsId).reduce(_ || _)
   }
 
   private[this] def metadataEntryHasMetadataKeysLike(metadataEntry: MetadataEntries,

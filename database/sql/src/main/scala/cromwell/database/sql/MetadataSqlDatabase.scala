@@ -149,5 +149,5 @@ trait MetadataSqlDatabase extends SqlDatabase {
   def isRootWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Option[Boolean]]
 
   def getRootAndSubWorkflowsOutputs(rootWorkflowId: String,
-                                    outputMetadataKey: List[String])(implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
+                                    outputMetadataKeys: List[String])(implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 }

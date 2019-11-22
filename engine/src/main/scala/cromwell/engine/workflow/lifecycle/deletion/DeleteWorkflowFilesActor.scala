@@ -20,7 +20,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
   being a relative file path for a DefaultPath which we don't want, so remove DefaultPathBuilder
   (this is because we only want cloud backend paths like gs://, s3://, etc.)
    */
-  val pathBuildersWithoutDefault = pathBuilders.filterNot(p => p == DefaultPathBuilder)
+  val pathBuildersWithoutDefault = pathBuilders.filterNot(_ == DefaultPathBuilder)
 
   startWith(Pending, NoData)
 
@@ -81,18 +81,18 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
   def gatherIntermediateOutputFiles(allOutputsEvents: Seq[MetadataEvent], finalOutputsEvents: Seq[MetadataEvent]): Set[Path] = {
     val isFinalOutputsNonEmpty = finalOutputsEvents.nonEmpty
 
-    def existsInFinalOutputs(metadataValue: String): Boolean = {
+    def existsInFinalOutputs(metadataValue: String): Option[Boolean] = {
       finalOutputsEvents.map(p => p.value match {
         case Some(v) => v.value.equals(metadataValue)
         case None => false
-      }).reduce(_ || _)
+      }).reduceOption(_ || _)
     }
 
     def getFilePath(metadataValue: String): Option[Path] = {
       //if workflow has final outputs check if this output value does not exist in final outputs
       (isFinalOutputsNonEmpty, existsInFinalOutputs(metadataValue)) match {
-        case (true, true) => None
-        case (true, false) | (false, _) =>
+        case (true, Some(true)) => None
+        case (true, Some(false)) | (true, None) | (false, _) =>
           // eliminate outputs which are not files
           Try(PathFactory.buildPath(metadataValue, pathBuildersWithoutDefault)).toOption
       }

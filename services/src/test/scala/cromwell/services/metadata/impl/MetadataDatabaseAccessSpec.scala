@@ -511,8 +511,8 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         val workflowKey = MetadataKey(id, jobKey = None, key = null)
 
         val outputKeyAndValue = Array(
-          (s"${WorkflowMetadataKeys.Outputs}:output-1", s"gs://my_bucket/${id.toString}/call-1/output1.txt"),
-          (s"${WorkflowMetadataKeys.Outputs}:output-2", s"gs://my_bucket/${id.toString}/call-2/output2.txt")
+          (s"${WorkflowMetadataKeys.Outputs}:output-1", s"gs://my_bucket/$id/call-1/output1.txt"),
+          (s"${WorkflowMetadataKeys.Outputs}:output-2", s"gs://my_bucket/$id/call-2/output2.txt")
         )
         publishMetadataEvents(workflowKey, outputKeyAndValue)
 
@@ -521,8 +521,8 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       }
 
       def metadataKeyAndValueForId(workflowId: WorkflowId): Seq[((WorkflowId, String), String)] = {
-        Seq(((workflowId, "outputs:output-1"), s"gs://my_bucket/${workflowId.toString}/call-1/output1.txt"),
-        ((workflowId, "outputs:output-2"), s"gs://my_bucket/${workflowId.toString}/call-2/output2.txt"))
+        Seq(((workflowId, "outputs:output-1"), s"gs://my_bucket/$workflowId/call-1/output1.txt"),
+        ((workflowId, "outputs:output-2"), s"gs://my_bucket/$workflowId/call-2/output2.txt"))
       }
 
       (for {

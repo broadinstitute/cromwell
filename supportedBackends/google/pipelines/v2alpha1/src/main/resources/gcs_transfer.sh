@@ -316,7 +316,7 @@ delocalize() {
       fi
 
       if ${transfer_fn_name} "$cloud" "$container" "$rpflag" "$required" "$parallel_composite_upload_threshold" "$content_type"; then
-        if [[ "$required" = "false" && ! -e "$container" ]]; then
+        if [[ "$required" = "optional" && ! -e "$container" ]]; then
           # Do not set rp_status_certain=true if an optional file was absent and no transfer was attempted.
           break
         else

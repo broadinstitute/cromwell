@@ -520,7 +520,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           monitoringScriptInputParameter = monitoringScript
         ),
         generateInputs(jobDescriptor).toList,
-        generateOutputs(jobDescriptor).toList ++ standardStreams,
+        standardStreams ++ generateOutputs(jobDescriptor).toList,
         DetritusOutputParameters(
           monitoringScriptOutputParameter = monitoringOutput,
           rcFileOutputParameter = rcFileOutput,

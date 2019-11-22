@@ -3,6 +3,7 @@ testFormat: workflowsuccess
 workflowType: CWL
 workflowTypeVersion: v1.0
 workflowRoot: prefix-for-array
+skipDescribeEndpointValidation: true
 
 files {
   workflow: cwl_prefix_for_array/prefix_for_array.cwl

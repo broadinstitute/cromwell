@@ -6,6 +6,7 @@ workflowRoot: main
 backendsMode: "any"
 backends: [Local, LocalNoDocker]
 tags: [localdockertest]
+skipDescribeEndpointValidation: true
 
 files {
   workflow: cwl_docker_size/cwl_docker_size.cwl

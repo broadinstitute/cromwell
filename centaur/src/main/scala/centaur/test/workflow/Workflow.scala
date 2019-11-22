@@ -13,7 +13,7 @@ import common.validation.ErrorOr.ErrorOr
 import configs.Result
 import configs.syntax._
 import cromwell.api.CromwellClient
-import cromwell.api.model.WorkflowSingleSubmission
+import cromwell.api.model.{WorkflowDescribeRequest, WorkflowSingleSubmission}
 
 import scala.util.{Failure, Success, Try}
 
@@ -24,7 +24,8 @@ final case class Workflow private(testName: String,
                                   directoryContentCounts: Option[DirectoryContentCountCheck],
                                   backends: BackendsRequirement,
                                   retryTestFailures: Boolean,
-                                  allowOtherOutputs: Boolean) {
+                                  allowOtherOutputs: Boolean,
+                                  skipDescribeEndpointValidation: Boolean) {
   def toWorkflowSubmission(refreshToken: Option[String]) = WorkflowSingleSubmission(
     workflowSource = data.workflowContent,
     workflowUrl = data.workflowUrl,
@@ -35,6 +36,14 @@ final case class Workflow private(testName: String,
     options = CromwellClient.replaceJson(data.options.map(_.unsafeRunSync()), "refresh_token", refreshToken),
     labels = Option(data.labels),
     zippedImports = data.zippedImports)
+
+  def toWorkflowDescribeRequest = WorkflowDescribeRequest(
+    workflowSource = data.workflowContent,
+    workflowUrl = data.workflowUrl,
+    workflowType = data.workflowType,
+    workflowTypeVersion = data.workflowTypeVersion,
+    inputsJson = data.inputs.map(_.unsafeRunSync())
+  )
 
   def secondRun: Workflow = {
     copy(data = data.copy(options = data.secondOptions))
@@ -81,11 +90,13 @@ object Workflow {
           case Result.Failure(_) => true
         }
 
+        val validateDescription: Boolean = conf.get[Boolean]("skipDescribeEndpointValidation").valueOrElse(false)
+
         (files, directoryContentCheckValidation, metadata, retryTestFailuresErrorOr) mapN {
-          (f, d, m, retryTestFailures) => Workflow(n, f, m, absentMetadata, d, backendsRequirement, retryTestFailures, allowOtherOutputs)
+          (f, d, m, retryTestFailures) => Workflow(n, f, m, absentMetadata, d, backendsRequirement, retryTestFailures, allowOtherOutputs, validateDescription)
         }
 
-      case Result.Failure(_) => invalidNel(s"No name for: $configFile")
+      case Result.Failure(_) => invalidNel(s"No test 'name' for: $configFile")
     }
   }
 }

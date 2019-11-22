@@ -1,6 +1,7 @@
 name: cwl_resources_papiv1
 testFormat: workflowsuccess
 backends: [Papiv1]
+skipDescribeEndpointValidation: true
 
 files {
   workflow: cwl_resources/cwl_resources.cwl

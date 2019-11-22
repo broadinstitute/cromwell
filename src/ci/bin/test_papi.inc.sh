@@ -71,6 +71,7 @@ cromwell::private::papi::gcr_image_push() {
     echo "${docker_image}" >> "${CROMWELL_BUILD_PAPI_GCR_IMAGES}"
 
     sbt \
+        --error \
         "set \`${executable_name}\`/docker/imageNames := List(ImageName(\"${docker_image}\"))" \
         "${executable_name}/dockerBuildAndPush"
 }

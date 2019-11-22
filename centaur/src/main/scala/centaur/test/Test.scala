@@ -23,13 +23,15 @@ import com.typesafe.scalalogging.StrictLogging
 import common.validation.Validation._
 import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
-import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, Succeeded, TerminalStatus, WorkflowId, WorkflowMetadata, WorkflowStatus}
+import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, Succeeded, TerminalStatus, WaasDescription, WorkflowId, WorkflowMetadata, WorkflowStatus}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import io.circe.parser._
+import org.apache.commons.lang3.exception.ExceptionUtils
 import spray.json.JsString
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 import scala.util.Failure
 
@@ -121,9 +123,38 @@ object Operations extends StrictLogging {
     storageOptions.getService
   }
 
+  implicit private val timer = IO.timer(global)
+  implicit private val contextShift = IO.contextShift(global)
+
   def submitWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = {
     new Test[SubmittedWorkflow] {
       override def run: IO[SubmittedWorkflow] = CentaurCromwellClient.submit(workflow)
+    }
+  }
+
+  def checkDescription(workflow: Workflow, validityExpectation: Option[Boolean]): Test[Unit] = {
+    new Test[Unit] {
+      override def run: IO[Unit] = {
+        // We can't describe workflows based on zipped imports, so don't try:
+        if (workflow.skipDescribeEndpointValidation || workflow.data.zippedImports.nonEmpty) {
+          IO.pure(())
+        } else {
+          val timeout = 60.seconds
+          val timeoutStackTraceString = ExceptionUtils.getStackTrace(new Exception)
+
+          (CentaurCromwellClient.describe(workflow) flatMap { d: WaasDescription =>
+            validityExpectation match {
+              case None => IO.pure(())
+              case Some(d.valid) => IO.pure(())
+              case Some(otherExpectation) =>
+                logger.error(s"Unexpected 'valid=${d.valid}' response when expecting $otherExpectation. Full unexpected description:${System.lineSeparator()}$d")
+                IO.raiseError(new Exception(s"Expected this workflow's /describe validity to be '$otherExpectation' but got: '${d.valid}'"))
+            }
+          }).timeoutTo(timeout, {
+            IO.raiseError(new TimeoutException("Timeout from checkDescription 60 seconds: " + timeoutStackTraceString))
+          })
+        }
+      }
     }
   }
 
@@ -164,9 +195,6 @@ object Operations extends StrictLogging {
       override def run: IO[WorkflowStatus] = CentaurCromwellClient.abort(workflow)
     }
   }
-
-  implicit private val timer = IO.timer(global)
-  implicit private val contextShift = IO.contextShift(global)
 
   def waitFor(duration: FiniteDuration) = {
     new Test[Unit] {
@@ -498,10 +526,8 @@ object Operations extends StrictLogging {
 
       override def run: IO[Unit] = {
         if (CentaurConfig.expectCarbonite) {
-          logger.info(s"Expecting carbonited status for $workflowId")
           eventuallyArchived().timeout(CentaurConfig.metadataConsistencyTimeout)
         } else {
-          logger.info(s"Not expecting carbonited status for $workflowId (because expectCarbonite is turned off)")
           IO.pure(())
         }
       }

@@ -1,6 +1,7 @@
 package cromwell.util
 
 import cats.data.NonEmptyList
+import cats.data.Validated.{Invalid, Valid}
 import cats.instances.vector._
 import cats.syntax.traverse._
 import cats.syntax.validated._
@@ -205,10 +206,9 @@ object JsonEditor {
     workflowWithUpdatedCalls
   }
 
-  def extractSubWorkflowsMetadata(workflowJson: Json): ErrorOr[Map[String, Json]] = {
+  def extractSubWorkflowsMetadata(subworkflowId: String, workflowJson: Json): ErrorOr[Option[Json]] = {
     extractJsonObjectByKey(workflowJson, "calls") match {
-      // If there were no calls just return the workflow JSON unmodified.
-      case None => Map.empty[String, Json].validNel
+      case None => None.validNel
       case Some((_, calls)) =>
         calls.toMap.map {
           // The Json (a JSON array, really) corresponding to the array of call objects for a call name.
@@ -216,26 +216,27 @@ object JsonEditor {
             // The object above converted to a Vector[Json].
             val callArray: Vector[Json] = callValue.asArray.toVector.flatten
 
-            val subworkflowsArrayFromCalls: Vector[ErrorOr[Map[String, Json]]] = callArray map { callJson =>
+            // actually while this vector will contain one element per each object from `calls` array, only at most one
+            // of those elements will be `Valid[Some[Json]]' (if subworkflow was found), while others should be `Valid[None]`
+            val subworkflowsArrayFromCalls: Vector[ErrorOr[Option[Json]]] = callArray map { callJson =>
               // If there is no subworkflow object this will be None.
               val callAndSubworkflowObjects: Option[(JsonObject, Json)] = extractJsonByKey(callJson, subWorkflowMetadataKey)
 
               callAndSubworkflowObjects match {
-                case None => Map.empty[String, Json].validNel
+                case None => None.validNel
                 case Some((_, subworkflowJson)) =>
-                  for {
-                    subWorkflowId <- subworkflowJson.workflowId
-                    innerSubworkflowsMap <- extractSubWorkflowsMetadata(subworkflowJson)
-                  } yield innerSubworkflowsMap + (subWorkflowId.toString -> subworkflowJson)
+                  subworkflowJson.workflowId match {
+                    case Valid(currentSubworkflowId) if currentSubworkflowId.toString == subworkflowId => Option(subworkflowJson).validNel
+                    case Valid(_) => extractSubWorkflowsMetadata(subworkflowId, subworkflowJson)
+                    case err@Invalid(_) => err
+                  }
               }
             }
-            (subworkflowsArrayFromCalls.sequence[ErrorOr, Map[String, Json]]: ErrorOr[Vector[Map[String, Json]]]) map (_.reduce(_ ++ _))
-        }.reduce {
-          for {
-            map1 <- _
-            map2 <- _
-          } yield map1 ++ map2
+            (subworkflowsArrayFromCalls.sequence[ErrorOr, Option[Json]]: ErrorOr[Vector[Option[Json]]]) map (_.flatten.headOption)
         }
+          .toVector
+          .sequence[ErrorOr, Option[Json]]
+          .map(_.flatten.headOption)
     }
   }
 

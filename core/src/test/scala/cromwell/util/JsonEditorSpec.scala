@@ -1,7 +1,5 @@
 package cromwell.util
 
-import java.util.UUID
-
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.either._
@@ -112,16 +110,32 @@ class JsonEditorSpec extends FlatSpec with Matchers{
           .getContextClassLoader
           .getResourceAsStream("metadata_with_subworkflows.json")
         ).mkString)
-    val subWorkflowsValidatedMap = metadataWithSubworkflows.map(extractSubWorkflowsMetadata).right.get
-    subWorkflowsValidatedMap match {
-      case Valid(subWorkflowsMap) =>
-        assert(14 === subWorkflowsMap.size)
-        subWorkflowsMap.foreach {
-          case (subWorkflowId, json) =>
-            noException should be thrownBy UUID.fromString(subWorkflowId)
-            assert(json.hcursor.keys.isDefined)
-        }
-      case Invalid(e) => fail(e.toList.mkString("\n"))
+
+    val workflowIds = Seq(
+      "ba56c1ab-02e0-45f2-97cf-5f91a9138a31",
+      "22c6faba-a95a-4e8d-86c3-9a246d7db19b",
+      "9e1a2146-f48a-4c04-a589-d66a50dde39b",
+      "7d6fba3d-d8e5-43aa-b580-2ace8675ffbd",
+      "210b9e04-5606-4231-9cb5-43355d60197d",
+      "0e299e7a-bddc-4367-92e2-3e1a61283ca7",
+      "be186a2f-b52c-4c6d-96dd-b9a7f16ac526",
+      "6382fcbb-fa69-4a6d-bc0f-871013226ad3",
+      "55383be2-9a7a-4004-8623-f1cf5a539433",
+      "bc649e17-418d-40f6-a145-5a6a8d0c2c5d",
+      "0571a73e-1485-4b28-9320-e87036685d61",
+      "d9ce3320-727f-42f5-a946-e11177ebd7dd",
+      "ffa835a7-68de-4c9d-a777-89f3f7b286dc",
+      "540d2d9b-eccc-4e4f-8478-574e4e48f98d"
+    )
+    workflowIds.foreach { subworkflowId =>
+      val extractedSubworkflowJson = extractSubWorkflowsMetadata(subworkflowId, metadataWithSubworkflows.right.get)
+      extractedSubworkflowJson match {
+        case Valid(Some(subWorkflowJson)) =>
+          assert(true === subWorkflowJson.isInstanceOf[Json])
+          assert(subworkflowId === subWorkflowJson.workflowId.get.toString)
+        case Valid(None) => fail(s"Subworkflow not found for id $subworkflowId")
+        case Invalid(e) => fail(e.toList.mkString("\n"))
+      }
     }
   }
 

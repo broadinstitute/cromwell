@@ -292,8 +292,8 @@ object CromwellApiService {
         serviceRegistryActor.ask(ValidateWorkflowIdInMetadata(w)).mapTo[WorkflowValidationResponse] flatMap {
           case RecognizedWorkflowId => Future.successful(w)
           case UnrecognizedWorkflowId if fallBackToValidationInMetadataSummary => validateWorkflowIdInMetadataSummaries(possibleWorkflowId, serviceRegistryActor)
-          case UnrecognizedWorkflowId => throw UnrecognizedWorkflowException(w)
-          case FailedToCheckWorkflowId(t) => throw t
+          case UnrecognizedWorkflowId => Future.failed(UnrecognizedWorkflowException(w))
+          case FailedToCheckWorkflowId(t) => Future.failed(t)
         }
       case Failure(_) => Future.failed(InvalidWorkflowException(possibleWorkflowId))
     }

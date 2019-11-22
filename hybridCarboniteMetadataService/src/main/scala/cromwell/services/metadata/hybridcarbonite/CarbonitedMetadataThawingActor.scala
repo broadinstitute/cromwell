@@ -131,7 +131,7 @@ object CarbonitedMetadataThawingActor {
             case wrong => throw new RuntimeException(s"Programmer Error: Invalid MetadataQuery: $wrong")
           }
           // For carbonited metadata, "expanded" subworkflows translates to not deleting subworkflows out of the root workflow that already
-          // contains them. So `_.validNel` for expanded subworkflows and `JsonEditor.removeSubworkflowMetadata` for unexpanded subworkflows.
+          // contains them. So `inpJson` for expanded subworkflows and `JsonEditor.replaceSubworkflowMetadataWithId` for unexpanded subworkflows.
           val processSubworkflowMetadata: ErrorOr[Json] => ErrorOr[Json] = {
             inpJson => if (get.key.expandSubWorkflows) inpJson else inpJson.flatMap(JsonEditor.replaceSubworkflowMetadataWithId)
           }
@@ -144,12 +144,9 @@ object CarbonitedMetadataThawingActor {
     def updateLabels(labels: Map[WorkflowId, Map[String, String]]): ErrorOr[Json] = JsonEditor.updateLabels(json, labels)
 
     def extractSubworkflowMetadata(subWorkflowId: String): ErrorOr[Json] = {
-      JsonEditor.extractSubWorkflowsMetadata(json).flatMap { subWorkflowsMetadataMap =>
-        val subworkflowMetadataOpt = subWorkflowsMetadataMap.get(subWorkflowId)
-        subworkflowMetadataOpt match {
-          case Some(subworkflowMetadata) => subworkflowMetadata.validNel
-          case None => s"Metadata for subworkflow $subWorkflowId was not found".invalidNel
-        }
+      JsonEditor.extractSubWorkflowsMetadata(subWorkflowId, json).flatMap {
+        case Some(subworkflowMetadata) => subworkflowMetadata.validNel
+        case None => s"Metadata for subworkflow $subWorkflowId was not found".invalidNel
       }
     }
 

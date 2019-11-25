@@ -56,7 +56,8 @@ graph <WDL file>
 
   Reads a WDL file against the grammar and prints out a
   .dot of the DAG if it is valid, and a syntax error
-  otherwise.
+  otherwise. Note that graph currently DOES NOT WORK on
+  version 1.0 workflows.
 
 womgraph <WDL or CWL file> [ancillary files]
 

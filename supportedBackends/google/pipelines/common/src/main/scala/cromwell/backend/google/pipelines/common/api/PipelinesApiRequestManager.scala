@@ -251,8 +251,8 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
   }
 
   private[api] def resetAllWorkers(): Vector[ActorRef] = {
-    val pollers = Vector.fill(nbWorkers) { makeAndWatchWorkerActor() }
-    pollers
+    log.info("'resetAllWorkers()' called to fill vector with {} new workers", nbWorkers)
+    Vector.fill(nbWorkers) { makeAndWatchWorkerActor() }
   }
 
   private[api] def makeAndWatchWorkerActor(): ActorRef = {
@@ -264,7 +264,7 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
   // Separate method to allow overriding in tests:
   private[api] def makeWorkerActor(): ActorRef = {
     val result = context.actorOf(papiRequestWorkerProps, s"PAPIQueryWorker-${UUID.randomUUID()}")
-    log.info(s"Request manager ${self.path} created new PAPI request worker ${result.path} with batch interval of ${workerBatchInterval}")
+    log.info(s"Request manager ${self.path.name} created new PAPI request worker ${result.path.name} with batch interval of ${workerBatchInterval}")
     result
   }
 }

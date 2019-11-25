@@ -1,6 +1,6 @@
 name: papi_preemptible_and_max_retries
 testFormat: workflowfailure
-backends: [Papiv2]
+backends: [Papi]
 
 files {
   workflow: papi_preemptible_and_max_retries/papi_preemptible_and_max_retries.wdl
@@ -9,5 +9,4 @@ files {
 metadata {
   workflowName: papi_preemptible_and_max_retries
   status: Failed
-  "papi_preemptible_and_max_retries.delete_self_if_preemptible.-1.attempt": 3
 }

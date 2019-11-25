@@ -110,7 +110,7 @@ private[ejea] trait HasJobFailureResponses { self: EngineJobExecutionActorSpec =
   val failedRc = Option(12)
   val failureReason = new Exception("Deliberate failure for test case: job run failed!") with NoStackTrace
   // Need to delay making the response because job descriptors come from the per-test "helper", which is null outside tests!
-  def failureRetryableResponse = JobFailedRetryableResponse(helper.jobDescriptorKey, failureReason, failedRc, maxRetries = None, kvPairsFromPreviousAttempt = None, kvPairsForNextAttempt = None)
+  def failureRetryableResponse = JobFailedRetryableResponse(helper.jobDescriptorKey, failureReason, failedRc)
   def failureNonRetryableResponse = JobFailedNonRetryableResponse(helper.jobDescriptorKey, failureReason, Option(12))
   def abortedResponse = JobAbortedResponse(helper.jobDescriptorKey)
 }

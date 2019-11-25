@@ -162,7 +162,7 @@ trait SharedFileSystemAsyncJobExecutionActor
         val exitValue = runner.run()
         if (exitValue != 0) {
           FailedNonRetryableExecutionHandle(new RuntimeException("Unable to start job. " +
-            s"Check the stderr file for possible errors: ${runner.stderrPath}"), None, None, None)
+            s"Check the stderr file for possible errors: ${runner.stderrPath}"))
         } else {
           val runningJob = getJob(exitValue, runner.stdoutPath, runner.stderrPath)
           PendingExecutionHandle(jobDescriptor, runningJob, None, None)
@@ -173,7 +173,7 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   def writeScriptContents(): Either[ExecutionHandle, Unit] =
     commandScriptContents.fold(
-      errors => Left(FailedNonRetryableExecutionHandle(new RuntimeException("Unable to start job due to: " + errors.toList.mkString(", ")), None, None, None)),
+      errors => Left(FailedNonRetryableExecutionHandle(new RuntimeException("Unable to start job due to: " + errors.toList.mkString(", ")))),
       {script => jobPaths.script.write(script); Right(())} )
 
   lazy val standardPaths = jobPaths.standardPaths
@@ -216,9 +216,9 @@ trait SharedFileSystemAsyncJobExecutionActor
         } else {
           // Could start executeScript(), but for now fail because we shouldn't be in this state.
           FailedNonRetryableExecutionHandle(new RuntimeException(
-            s"Unable to determine that ${job.jobId} is alive, and ${jobPaths.returnCode} does not exist."), None, None, None)
+            s"Unable to determine that ${job.jobId} is alive, and ${jobPaths.returnCode} does not exist."), None)
         }
-      case Failure(f) => FailedNonRetryableExecutionHandle(f, None, None, None)
+      case Failure(f) => FailedNonRetryableExecutionHandle(f, None)
     }
   }
 

@@ -4,7 +4,6 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import _root_.wdl.draft2.model._
 import akka.actor.{Scope => _, _}
-import akka.pattern.pipe
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import cats.instances.list._
@@ -35,8 +34,6 @@ import cromwell.engine.workflow.lifecycle.execution.stores.{ActiveExecutionStore
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
 import cromwell.engine.workflow.workflowstore.{RestartableAborting, StartableState}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
-import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, KvPair, KvPut, KvPutSuccess, KvResponse, ScopedKey}
-import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{CallMetadataKeys, MetadataEvent, MetadataValue}
 import cromwell.util.StopAndLogSupervisor
@@ -52,12 +49,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
-  extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData]
-    with KvClient
-    with WorkflowLogging
-    with CallMetadataHelper
-    with StopAndLogSupervisor
-    with Timers {
+  extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] with WorkflowLogging with CallMetadataHelper with StopAndLogSupervisor with Timers {
 
   implicit val ec = context.dispatcher
   override val serviceRegistryActor = params.serviceRegistryActor
@@ -136,16 +128,6 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     case Event(EngineLifecycleActorAbortCommand, _) =>
       context.parent ! WorkflowExecutionAbortedResponse(Map.empty)
       goto(WorkflowExecutionAbortedState)
-  }
-
-  when(WorkflowExecutionRestartingState) {
-    case Event(resp: KvResponse, _) =>
-      kvClientReceive(resp)
-      stay()
-    case Event(ExecutionHeartBeat, _) =>
-      sendHeartBeat()
-      stay()
-    case Event(kvRespReceivedEvent: KvResponseReceived, _) => handleKvClientResponse(kvRespReceivedEvent)
   }
 
   /* ********************* */
@@ -259,8 +241,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     case Event(JobFailedNonRetryableResponse(jobKey, reason, returnCode), stateData) =>
       handleNonRetryableFailure(stateData, jobKey, reason, returnCode)
     // Job Retryable
-    case Event(JobFailedRetryableResponse(jobKey, reason, returnCode, memoryMultiplier, maxRetries, kvPairsPrev, kvPairsNext), _) =>
-      handleRetryableFailure(jobKey, reason, returnCode, memoryMultiplier, maxRetries, kvPairsPrev, kvPairsNext)
+    case Event(JobFailedRetryableResponse(jobKey, reason, returnCode, memoryMultiplier), _) =>
+      handleRetryableFailure(jobKey, reason, returnCode, memoryMultiplier)
     // Aborted? But we're outside of the AbortingState!?? Could happen if
     // - The job was aborted by something external to Cromwell
     // - The job lasted too long (eg PAPI 6 day timeout)
@@ -463,93 +445,16 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     serviceRegistryActor ! PutMetadataAction(unknownBackendStatus)
   }
 
-  /**
-   *
-   * When 'maxRetriesOpt' is None it means that backend decided to retry this job and this retry won't affect engine's
-   * `FailedRetryCount` counter. Otherwise we need check if it reached 'maxRetries' and increment `FailedRetryCount`
-   */
-  private def handleRetryableFailure(jobKey: BackendJobDescriptorKey,
-                                     reason: Throwable,
-                                     returnCode: Option[Int],
-                                     memoryMultiplier: GreaterEqualRefined,
-                                     maxRetriesOpt: Option[Int],
-                                     kvPairsFromPreviousAttempt: Option[Seq[KvPair]],
-                                     kvPairsForNextAttempt: Option[Seq[KvPair]]) = {
+  private def handleRetryableFailure(jobKey: BackendJobDescriptorKey, reason: Throwable, returnCode: Option[Int], memoryMultiplier: GreaterEqualRefined) = {
+    pushFailedCallMetadata(jobKey, returnCode, reason, retryableFailure = true)
 
     val newJobKey = jobKey.copy(attempt = jobKey.attempt + 1, memoryMultiplier = memoryMultiplier)
-    val newKvJobKey = KvJobKey(newJobKey.call.fullyQualifiedName, newJobKey.index, newJobKey.attempt)
-    val (retryable, newFailedRetryCount) = maxRetriesOpt match {
-      case Some(maxRetries) =>
-        val failedRetryCount = kvPairsFromPreviousAttempt
-          .getOrElse(Seq.empty)
-          .collectFirst {
-            case KvPair(ScopedKey(_, _, key), value) if key == FailedRetryCountKey => value.toInt
-          }
-          .getOrElse(0)
+    workflowLogger.info(s"Retrying job execution for ${newJobKey.tag}")
 
-        (failedRetryCount < maxRetries,
-          Option(
-            KvPair(
-              ScopedKey(workflowDescriptor.id, newKvJobKey, FailedRetryCountKey),
-              (failedRetryCount + 1).toString)
-          )
-        )
-      case None => (true, None)
-    }
+    // Update current key to RetryableFailure status and add new key with attempt incremented and NotStarted status
+    val executionDiff = WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.RetryableFailure, newJobKey -> ExecutionStatus.NotStarted))
 
-    if (retryable) {
-      workflowLogger.info(s"Retrying job execution for ${jobKey.tag}")
-      pushFailedCallMetadata(jobKey, returnCode, reason, retryableFailure = true)
-      saveKvPairsForNextAttempt(newJobKey, newKvJobKey, kvPairsFromPreviousAttempt, kvPairsForNextAttempt, newFailedRetryCount)
-
-      // Update current key to RetryableFailure status and add new key with attempt incremented and NotStarted status
-      val executionDiff = WorkflowExecutionDiff(Map(jobKey -> ExecutionStatus.RetryableFailure, newJobKey -> ExecutionStatus.NotStarted))
-      goto(WorkflowExecutionRestartingState) using stateData.mergeExecutionDiff(executionDiff)
-    } else {
-      handleNonRetryableFailure(stateData, jobKey, reason, returnCode)
-    }
-  }
-
-  private def handleKvClientResponse(kvResponseReceived: KvResponseReceived) = {
-    if (kvResponseReceived.kvResponses.forall(_.isInstanceOf[KvPutSuccess])) {
-      goto(WorkflowExecutionInProgressState)
-    } else {
-      handleNonRetryableFailure(stateData, kvResponseReceived.job, new RuntimeException(s"Unable to save key-value pairs for workflow $workflowIdForLogging"))
-    }
-  }
-
-  /**
-   * Merge key-value pairs from previous job execution attempt with incoming pairs from backend and with the pair for
-   * `FailedRetryCount` and store them in the database. In case when there are key-value pairs with the same key name
-   * among those from previous attempt and coming from backend, backend values have higher precedence.
-   *
-   */
-  private def saveKvPairsForNextAttempt(jobKey: BackendJobDescriptorKey,
-                                        newKvJobKey: KvJobKey,
-                                        kvPairsFromPreviousAttemptOpt: Option[Seq[KvPair]],
-                                        kvPairsForNextAttemptOpt: Option[Seq[KvPair]],
-                                        kvPairFailedAttemptsOpt: Option[KvPair]): Unit = {
-
-    val optSeqKvPairToMap: Option[Seq[KvPair]] => Map[String, KvPair] = optSeq =>
-      optSeq map { seq =>
-        seq map { case kvPair@KvPair(ScopedKey(_, _, key), _) => key -> kvPair } toMap
-      } getOrElse Map.empty
-
-    val kvPairsPrevMap = optSeqKvPairToMap(kvPairsFromPreviousAttemptOpt) map {
-      case (key, KvPair(scopedKey, value)) => key -> KvPair(scopedKey.copy(jobKey = newKvJobKey), value)
-    }
-    val kvPairsNextMap = optSeqKvPairToMap(kvPairsForNextAttemptOpt)
-
-    val mergedKvsMap = kvPairFailedAttemptsOpt match {
-      case Some(kvFailedAttempts@KvPair(ScopedKey(_, _, key), _)) =>
-        kvPairsPrevMap ++ kvPairsNextMap + (key -> kvFailedAttempts)
-      case None =>
-        kvPairsPrevMap ++ kvPairsNextMap
-    }
-
-    makeKvRequest(mergedKvsMap.values.map(KvPut).toSeq).map(KvResponseReceived(jobKey, _)) pipeTo self
-
-    ()
+    stay() using stateData.mergeExecutionDiff(executionDiff)
   }
 
   private def handleCallSuccessful(jobKey: JobKey, outputs: CallOutputs, returnCode: Option[Int], data: WorkflowExecutionActorData, jobExecutionMap: JobExecutionMap) = {
@@ -775,8 +680,6 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
 object WorkflowExecutionActor {
 
-  val FailedRetryCountKey = "FailedRetryCount"
-
   /**
     * Rate at which ExecutionHeartBeat events are sent to the the WEA
     */
@@ -796,8 +699,6 @@ object WorkflowExecutionActor {
   case object WorkflowExecutionPendingState extends WorkflowExecutionActorState
 
   case object WorkflowExecutionInProgressState extends WorkflowExecutionActorState
-
-  case object WorkflowExecutionRestartingState extends WorkflowExecutionActorState
 
   case object WorkflowExecutionAbortingState extends WorkflowExecutionActorState
 
@@ -856,8 +757,6 @@ object WorkflowExecutionActor {
     * See https://doc.akka.io/docs/akka/2.5/scala/actors.html#timers-scheduled-messages
     */
   private case object ExecutionHeartBeatKey
-
-  private case class KvResponseReceived(job: BackendJobDescriptorKey, kvResponses: Seq[KvResponse])
 
   case class SubWorkflowSucceededResponse(key: SubWorkflowKey, jobExecutionMap: JobExecutionMap, outputs: CallOutputs)
 

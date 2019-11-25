@@ -145,7 +145,7 @@ object Operations extends StrictLogging {
     } yield ()
   }
 
-  def checkDescription(workflow: Workflow, validityExpectation: Option[Boolean], retries: Int): Test[Unit] = {
+  def checkDescription(workflow: Workflow, validityExpectation: Option[Boolean], retries: Int = 3): Test[Unit] = {
     new Test[Unit] {
 
       val timeout = 60.seconds

@@ -1251,11 +1251,11 @@ trait StandardAsyncExecutionActor
         } else {
           tryReturnCodeAsInt match {
             case Success(returnCodeAsInt) if retryWithMoreMemory =>
-              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption), Option(returnCodeAsInt)))
-              retryElseFail(status, executionHandle, retryWithMoreMemory)
+              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption), Option(returnCodeAsInt), None))
+              retryElseFail(executionHandle, retryWithMoreMemory)
             case _ =>
               val failureStatus = handleExecutionFailure(status, tryReturnCodeAsInt.toOption)
-              retryElseFail(status, failureStatus)
+              retryElseFail(failureStatus)
           }
         }
     } recoverWith {

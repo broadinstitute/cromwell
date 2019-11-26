@@ -85,14 +85,13 @@ object JsonEditor {
   def outputs(json: Json): Json = includeJson(json, NonEmptyList.of("outputs")) |> (excludeJson(_, NonEmptyList.one("calls")))
 
   def logs(json: Json): ErrorOr[Json] = {
-    // Deletes all subworkflows found in the input by always returning `None`.
-    def deleteSubworkflows(o: JsonObject, j: Json): Option[ErrorOr[Json]] = None
+    val inputsAndOutputs = NonEmptyList.of("outputs", "inputs")
+    val shardAttemptAndLogsFields = NonEmptyList.of("shardIndex", "attempt", "stdout", "stderr", "backendLogs")
     for {
-      wf <- updateWorkflowCallsJson(json, deleteSubworkflows)
+      wf <- updateWorkflowCallsJson(json, (_, _) => None) // Deletes all subworkflows found in the input by always returning `None`.
       // exclude outputs and inputs since variables can be named anything including internally reserved words like
       // `stdout` and `stderr` which would be erroneously included among the logs.
-      inc = excludeJson(wf, NonEmptyList.of("outputs", "inputs")) |>
-        (includeJson(_, NonEmptyList.of("shardIndex", "attempt", "stdout", "stderr", "backendLogs")))
+      inc = excludeJson(wf, inputsAndOutputs) |> (includeJson(_, shardAttemptAndLogsFields))
     } yield inc
   }
 

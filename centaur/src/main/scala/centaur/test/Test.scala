@@ -130,12 +130,19 @@ object Operations extends StrictLogging {
   def submitWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = {
     new Test[SubmittedWorkflow] {
       override def run: IO[SubmittedWorkflow] = for {
-        // A smoke test of the version endpoint, this confirms that a) nothing explodes and b) the result must be a JSON object
-        // with a "cromwell" key. There is no sanity checking of the version value here.
-        _ <- CentaurCromwellClient.version
         id <- CentaurCromwellClient.submit(workflow)
       } yield id
     }
+  }
+
+  /**
+    * A smoke test of the version endpoint, this confirms that a) nothing explodes and b) the result must be a JSON object
+    * with a "cromwell" key. There is no sanity checking of the version value here.
+    */
+  def checkVersion(): Test[Unit] = new Test[Unit] {
+    override def run: IO[Unit] = for {
+      _ <- CentaurCromwellClient.version
+    } yield ()
   }
 
   def checkDescription(workflow: Workflow, validityExpectation: Option[Boolean]): Test[Unit] = {
@@ -427,9 +434,10 @@ object Operations extends StrictLogging {
 
   /* Select only those flat metadata items whose keys begin with the specified prefix, removing the prefix from the keys. Also
    * perform variable substitutions for UUID and WORKFLOW_ROOT and remove any ~> Centaur metadata expectation metacharacters. */
-  private def selectAndProcessExpectationFlatMetadata(workflow: Workflow, prefix: String, workflowId: WorkflowId, workflowRoot: String): List[(String, JsValue)] = {
+  private def selectMetadataExpectationSubsetByPrefix(workflow: Workflow, prefix: String, workflowId: WorkflowId, workflowRoot: String): List[(String, JsValue)] = {
+    import WorkflowFlatMetadata._
     def replaceVariables(value: JsValue): JsValue = value match {
-      case s: JsString => JsString(s.value.replaceAll("<<UUID>>", workflowId.toString).replaceAll("<<WORKFLOW_ROOT>>", workflowRoot).replaceFirst("^~>", ""))
+      case s: JsString => JsString(s.value.replaceExpectationVariables(workflowId, workflowRoot).replaceFirst("^~>", ""))
       case o => o
     }
     val filterLabels: PartialFunction[(String, JsValue), (String, JsValue)] = {
@@ -446,29 +454,31 @@ object Operations extends StrictLogging {
                       workflow: Workflow,
                       workflowRoot: String): Test[Unit] = new Test[Unit] {
 
+    def checkOutputs(expectedOutputs: List[(String, JsValue)])(actualOutputs: Map[String, JsValue]): IO[Unit] = {
+      val expected = expectedOutputs.toSet
+      val actual = actualOutputs.toSet
+
+      lazy val inActualButNotInExpected = actual.diff(expected)
+      lazy val inExpectedButNotInActual = expected.diff(actual)
+
+      if (!workflow.allowOtherOutputs && inActualButNotInExpected.nonEmpty) {
+        val message = s"In actual outputs but not in expected and other outputs not allowed: ${inActualButNotInExpected.mkString(", ")}"
+        IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
+      } else if (inExpectedButNotInActual.nonEmpty) {
+        val message = s"In expected outputs but not in actual: ${inExpectedButNotInActual.mkString(", ")}"
+        IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
+      } else {
+        IO.unit
+      }
+    }
+
     override def run: IO[Unit] = {
       import centaur.test.metadata.WorkflowFlatOutputs._
 
-      val expectedOutputs: List[(String, JsValue)] = selectAndProcessExpectationFlatMetadata(workflow, "outputs.", submittedWorkflow.id, workflowRoot)
+      val expectedOutputs: List[(String, JsValue)] = selectMetadataExpectationSubsetByPrefix(workflow, "outputs.", submittedWorkflow.id, workflowRoot)
       val ioActualOutputs: IO[Map[String, JsValue]] = CentaurCromwellClient.outputs(submittedWorkflow) map { _.asFlat.stringifyValues }
 
-      ioActualOutputs flatMap { actualOutputs =>
-        val expected = expectedOutputs.toSet
-        val actual = actualOutputs.toSet
-
-        lazy val inActualButNotInExpected = actual.diff(expected)
-        lazy val inExpectedButNotInActual = expected.diff(actual)
-
-        if (!workflow.allowOtherOutputs && inActualButNotInExpected.nonEmpty) {
-          val message = s"In actual outputs but not in expected and other outputs not allowed: ${inActualButNotInExpected.mkString(", ")}"
-          IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
-        } else if (inExpectedButNotInActual.nonEmpty) {
-          val message = s"In expected outputs but not in actual: ${inExpectedButNotInActual.mkString(", ")}"
-          IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
-        } else {
-          IO.unit
-        }
-      }
+      ioActualOutputs flatMap checkOutputs(expectedOutputs)
     }
   }
 
@@ -480,7 +490,7 @@ object Operations extends StrictLogging {
 
       val workflowIdLabel = ("cromwell-workflow-id", JsString(s"cromwell-${submittedWorkflow.id}"))
       val expectedLabels: List[(String, JsValue)] = workflowIdLabel ::
-        selectAndProcessExpectationFlatMetadata(workflow, "labels.", submittedWorkflow.id, workflowRoot)
+        selectMetadataExpectationSubsetByPrefix(workflow, "labels.", submittedWorkflow.id, workflowRoot)
       val ioActualLabels: IO[Map[String, JsValue]] = CentaurCromwellClient.labels(submittedWorkflow) map { _.asFlat.stringifyValues }
 
       ioActualLabels flatMap { actualLabels =>
@@ -496,7 +506,7 @@ object Operations extends StrictLogging {
   }
 
   /** Compares logs filtered from the raw `metadata` endpoint with the `logs` endpoint. */
-  def validateLogs(submittedWorkflow: SubmittedWorkflow, workflow: Workflow): Test[Unit] = new Test[Unit] {
+  def validateLogs(metadata: WorkflowMetadata, submittedWorkflow: SubmittedWorkflow, workflow: Workflow): Test[Unit] = new Test[Unit] {
     val suffixes = Set("stdout", "shardIndex", "stderr", "attempt", "backendLogs.log")
 
     def removeSubworkflowKeys(flattened: Map[String, JsValue]): Map[String, JsValue] = {
@@ -504,21 +514,27 @@ object Operations extends StrictLogging {
       flattened filter { case (k, _) => !subWorkflowIdPrefixes.exists(k.startsWith) }
     }
 
-    def filterMetadata(flattened: Map[String, JsValue]): Map[String, JsValue] = removeSubworkflowKeys(flattened).filter {
+    // Filter to only include the fields in the flattened metadata that should appear in the logs endpoint.
+    def filterForLogsFields(flattened: Map[String, JsValue]): Map[String, JsValue] = removeSubworkflowKeys(flattened).filter {
       case (k, _) => k == "id" || suffixes.exists(s => k.endsWith("." + s) && !k.contains(".outputs.") && !k.startsWith("outputs."))
     }
 
     override def run: IO[Unit] = {
-      for {
-        logs <- CentaurCromwellClient.logs(submittedWorkflow)
-        metadata <- CentaurCromwellClient.metadata(submittedWorkflow)
-        flatLogs = logs.asFlat.value
-        flatFilteredMetadata = metadata.asFlat.value |> filterMetadata
-        _ <- if (flatLogs.equals(flatFilteredMetadata)) IO.unit else {
+
+      def validateLogsMetadata(flatLogs: Map[String, JsValue], flatFilteredMetadata: Map[String, JsValue]): IO[Unit] =
+        if (flatLogs.equals(flatFilteredMetadata)) {
+          IO.unit
+        } else {
           val message = (List("actual logs endpoint output did not equal filtered metadata", "flat logs: ") ++
             flatLogs.toList :+ "flat filtered metadata: " ++ flatFilteredMetadata.toList).mkString("\n")
           IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
         }
+
+      for {
+        logs <- CentaurCromwellClient.logs(submittedWorkflow)
+        flatLogs = logs.asFlat.value
+        flatFilteredMetadata = metadata.asFlat.value |> filterForLogsFields
+        _ <- validateLogsMetadata(flatLogs, flatFilteredMetadata)
       } yield ()
     }
   }

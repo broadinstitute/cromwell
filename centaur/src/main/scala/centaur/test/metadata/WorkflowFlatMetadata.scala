@@ -10,7 +10,7 @@ import common.validation.ErrorOr._
 import common.validation.Validation._
 import configs.Result
 import configs.syntax._
-import cromwell.api.model.{WorkflowLabels, WorkflowMetadata, WorkflowOutputs}
+import cromwell.api.model.{WorkflowId, WorkflowLabels, WorkflowMetadata, WorkflowOutputs}
 import mouse.all._
 import spray.json._
 
@@ -44,8 +44,9 @@ case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
       JsString, JsNumber and JsBoolean for comparison so this is a hacky way of handling that situation. It's
       entirely likely that it won't survive long term.
      */
+    import WorkflowFlatMetadata._
 
-    lazy val substitutedValue = expected.toString.replace("<<UUID>>", workflowID.toString).replace("<<WORKFLOW_ROOT>>", workflowRoot)
+    lazy val substitutedValue = expected.toString.replaceExpectationVariables(WorkflowId(workflowID), workflowRoot)
     lazy val cacheSubstitutions = cacheHitUUID match {
       case Some(uuid) => substitutedValue.replace("<<CACHE_HIT_UUID>>", uuid.toString)
       case None => substitutedValue
@@ -107,6 +108,12 @@ object WorkflowFlatMetadata {
         case (k, JsNull) => k -> JsNull
         case (k, v) => k -> (v.toString |> JsString.apply)
       }
+    }
+  }
+
+  implicit class EnhancedExpectation(val expectation: String) extends AnyVal {
+    def replaceExpectationVariables(workflowId: WorkflowId, workflowRoot: String): String = {
+      expectation.replaceAll("<<UUID>>", workflowId.toString).replaceAll("<<WORKFLOW_ROOT>>", workflowRoot)
     }
   }
 }

@@ -25,6 +25,7 @@ object TestFormulas {
   private def runWorkflowUntilTerminalStatus(workflow: Workflow, status: TerminalStatus): Test[SubmittedWorkflow] = {
     val workflowProgressTimeout = ConfigFactory.load().getOrElse("centaur.workflow-progress-timeout", 1 minute)
     for {
+      _ <- checkVersion()
       s <- submitWorkflow(workflow)
       _ <- expectSomeProgress(s, workflow, Set(Running, status), workflowProgressTimeout)
       _ <- pollUntilStatus(s, workflow, status)
@@ -47,7 +48,7 @@ object TestFormulas {
     workflowRoot = flatMetadata.value.get("workflowRoot").collectFirst { case JsString(r) => r } getOrElse "No Workflow Root"
     _ <- validateOutputs(submittedWorkflow, workflowDefinition, workflowRoot)
     _ <- validateLabels(submittedWorkflow, workflowDefinition, workflowRoot)
-    _ <- validateLogs(submittedWorkflow, workflowDefinition)
+    _ <- validateLogs(metadata, submittedWorkflow, workflowDefinition)
   } yield SubmitResponse(submittedWorkflow)
 
   def runFailingWorkflowAndVerifyMetadata(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = for {

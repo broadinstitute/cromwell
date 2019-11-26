@@ -19,6 +19,7 @@ object JsonEditor {
 
   private val subWorkflowMetadataKey = "subWorkflowMetadata"
   private val subWorkflowIdKey = "subWorkflowId"
+  private val keysToIncludeInCallsOrWorkflows = NonEmptyList.of("id", "shardIndex", "attempt")
 
   def includeExcludeJson(json: Json, includeKeys: Option[NonEmptyList[String]], excludeKeys: Option[NonEmptyList[String]]): Json =
     (includeKeys, excludeKeys) match {
@@ -30,7 +31,7 @@ object JsonEditor {
     }
 
   def includeJson(json: Json, keys: NonEmptyList[String]): Json = {
-    val keysWithId = "id" :: keys
+    val keysWithId = keysToIncludeInCallsOrWorkflows ::: keys
     def folder: Folder[(Json, Boolean)] = new Folder[(Json, Boolean)] {
       override def onNull: (Json, Boolean) = (Json.Null, false)
       override def onBoolean(value: Boolean): (Json, Boolean) = (Json.fromBoolean(value), false)
@@ -45,7 +46,7 @@ object JsonEditor {
       override def onObject(value: JsonObject): (Json, Boolean) = {
         val modified: immutable.List[(String, Json)] = value.toList.flatMap{
           case (key, value) =>
-            val keep = keysWithId.foldLeft(false)(_ || key.startsWith(_))
+            val keep = keysWithId.foldLeft(false)(_ || key.equals(_))
             if (keep)
               List[(String,Json)]((key,value))
             else {

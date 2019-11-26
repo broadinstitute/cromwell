@@ -1,6 +1,6 @@
 version 1.0
 
-task delete_self_if_preemptible {
+task delete_self {
 
   command {
       fully_qualified_zone=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/zone)
@@ -17,5 +17,5 @@ task delete_self_if_preemptible {
 }
 
 workflow papi_preemptible_and_max_retries {
-  call delete_self_if_preemptible
+  call delete_self
 }

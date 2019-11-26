@@ -43,7 +43,7 @@ sealed trait FailedExecutionHandle extends ExecutionHandle {
 
 final case class FailedNonRetryableExecutionHandle(throwable: Throwable,
                                                    returnCode: Option[Int] = None,
-                                                   override val kvPairsToSave: Option[Seq[KvPair]] = None) extends FailedExecutionHandle {
+                                                   override val kvPairsToSave: Option[Seq[KvPair]]) extends FailedExecutionHandle {
 
   override val isDone = true
   override val result = NonRetryableExecution(throwable, returnCode)
@@ -52,7 +52,7 @@ final case class FailedNonRetryableExecutionHandle(throwable: Throwable,
 final case class FailedRetryableExecutionHandle(throwable: Throwable,
                                                 returnCode: Option[Int] = None,
                                                 memoryMultiplier: GreaterEqualRefined = refineMV[GreaterEqualOne](1.0),
-                                                override val kvPairsToSave: Option[Seq[KvPair]] = None) extends FailedExecutionHandle {
+                                                override val kvPairsToSave: Option[Seq[KvPair]]) extends FailedExecutionHandle {
 
   override val isDone = true
   override val result = RetryableExecution(throwable, returnCode)

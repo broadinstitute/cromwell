@@ -102,7 +102,7 @@ class JsonEditorSpec extends FlatSpec with Matchers{
     assert(thirdArrayElement.isInstanceOf[FailedCursor])
   }
 
-  it should "extract proper number of subworkflow metadata JSONs" in {
+  it should "properly extract metadata JSON of each subworkflow by id" in {
     val metadataWithSubworkflows =
       parse(Source
         .fromInputStream(Thread
@@ -128,7 +128,7 @@ class JsonEditorSpec extends FlatSpec with Matchers{
       "540d2d9b-eccc-4e4f-8478-574e4e48f98d"
     )
     workflowIds.foreach { subworkflowId =>
-      val extractedSubworkflowJson = extractSubWorkflowsMetadata(subworkflowId, metadataWithSubworkflows.right.get)
+      val extractedSubworkflowJson = extractSubWorkflowMetadata(subworkflowId, metadataWithSubworkflows.right.get)
       extractedSubworkflowJson match {
         case Valid(Some(subWorkflowJson)) =>
           assert(true === subWorkflowJson.isInstanceOf[Json])

@@ -144,9 +144,10 @@ object CarbonitedMetadataThawingActor {
     def updateLabels(labels: Map[WorkflowId, Map[String, String]]): ErrorOr[Json] = JsonEditor.updateLabels(json, labels)
 
     def extractSubworkflowMetadata(subWorkflowId: String): ErrorOr[Json] = {
-      JsonEditor.extractSubWorkflowsMetadata(subWorkflowId, json).flatMap {
+      JsonEditor.extractSubWorkflowMetadata(subWorkflowId, json).flatMap {
         case Some(subworkflowMetadata) => subworkflowMetadata.validNel
-        case None => s"Metadata for subworkflow $subWorkflowId was not found".invalidNel
+        case None => (s"Metadata for subworkflow $subWorkflowId was unexpectedly not found in the carbonited metadata " +
+          s"JSON of the root workflow").invalidNel
       }
     }
 

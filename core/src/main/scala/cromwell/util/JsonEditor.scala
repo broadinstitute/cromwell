@@ -206,7 +206,7 @@ object JsonEditor {
     workflowWithUpdatedCalls
   }
 
-  def extractSubWorkflowsMetadata(subworkflowId: String, workflowJson: Json): ErrorOr[Option[Json]] = {
+  def extractSubWorkflowMetadata(subworkflowId: String, workflowJson: Json): ErrorOr[Option[Json]] = {
     extractJsonObjectByKey(workflowJson, "calls") match {
       case None => None.validNel
       case Some((_, calls)) =>
@@ -227,7 +227,7 @@ object JsonEditor {
                 case Some((_, subworkflowJson)) =>
                   subworkflowJson.workflowId match {
                     case Valid(currentSubworkflowId) if currentSubworkflowId.toString == subworkflowId => Option(subworkflowJson).validNel
-                    case Valid(_) => extractSubWorkflowsMetadata(subworkflowId, subworkflowJson)
+                    case Valid(_) => extractSubWorkflowMetadata(subworkflowId, subworkflowJson)
                     case err@Invalid(_) => err
                   }
               }

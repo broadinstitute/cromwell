@@ -6,6 +6,7 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.instances.string._
 import cats.syntax.validated._
 import cats.syntax.eq._
+import mouse.boolean._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.ErrorOr._
 import cromwell.core.WorkflowId
@@ -42,26 +43,7 @@ class CarbonitedMetadataThawingActor(carboniterConfig: HybridCarboniteConfig, se
         parsedResponse <- Future.fromTry(parse(rawResponseFromIoActor).toTry)
       } yield (rootWorkflowId, parsedResponse)
 
-      rootWorkflowIdAndJson map {
-        case (rootWorkflowId, rootWorkflowJson) =>
-          val isRootWorkflowIdInRequest = rootWorkflowId === action.workflowId.toString
-          if (isRootWorkflowIdInRequest) {
-            val labelsRequestOpt = if (action.requiresLabels) {
-              Option(GetRootAndSubworkflowLabels(WorkflowId.fromString(rootWorkflowId)))
-            } else {
-              None
-            }
-            (GcsMetadataResponse(rootWorkflowJson), labelsRequestOpt)
-          } else {
-            rootWorkflowJson.extractSubworkflowMetadata(action.workflowId.toString, rootWorkflowId) match {
-              case Valid(subworkflowJson) =>
-                val labelsRequestOpt = if (action.requiresLabels) Option(GetRootAndSubworkflowLabels(action.workflowId)) else None
-                (GcsMetadataResponse(subworkflowJson), labelsRequestOpt)
-              case Invalid(errors) =>
-                throw new Throwable(errors.toList.mkString("\n"))
-            }
-          }
-      } andThen {
+      rootWorkflowIdAndJson.map { rootWorkflowIdAndJsonToGcsResponseAndLabelsRequest(action, _) } andThen {
         case Success((gcsMetadataResp, labelsReqOpt)) =>
           self ! gcsMetadataResp
           labelsReqOpt.foreach { serviceRegistry ! _ }
@@ -108,6 +90,26 @@ class CarbonitedMetadataThawingActor(carboniterConfig: HybridCarboniteConfig, se
     case other =>
       log.error(s"Programmer Error: Unexpected message to ${getClass.getSimpleName} ${self.path.name}: $other")
       stay()
+  }
+
+  private def rootWorkflowIdAndJsonToGcsResponseAndLabelsRequest(action: BuildWorkflowMetadataJsonAction,
+                                                                 rootWorkflowIdAndJson: (String, Json)): (GcsMetadataResponse, Option[GetRootAndSubworkflowLabels]) = {
+    rootWorkflowIdAndJson match {
+      case (rootWorkflowId, rootWorkflowJson) =>
+        val isRootWorkflowIdInRequest = rootWorkflowId === action.workflowId.toString
+        if (isRootWorkflowIdInRequest) {
+          val labelsRequestOpt = action.requiresLabels.option(GetRootAndSubworkflowLabels(WorkflowId.fromString(rootWorkflowId)))
+          (GcsMetadataResponse(rootWorkflowJson), labelsRequestOpt)
+        } else {
+          rootWorkflowJson.extractSubworkflowMetadata(action.workflowId.toString, rootWorkflowId) match {
+            case Valid(subworkflowJson) =>
+              val labelsRequestOpt = action.requiresLabels.option(GetRootAndSubworkflowLabels(action.workflowId))
+              (GcsMetadataResponse(subworkflowJson), labelsRequestOpt)
+            case Invalid(errors) =>
+              throw new Throwable(errors.toList.mkString("\n"))
+          }
+        }
+    }
   }
 }
 

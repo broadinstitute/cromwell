@@ -49,7 +49,7 @@ class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadat
 
     val clientProbe = TestProbe()
     val actorUnderTest = TestActorRef(new CarbonitedMetadataThawingActor(carboniterConfig, serviceRegistryActor.ref, ioActor.ref) {
-      override def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = Future.successful(Some(workflowId))
+      override def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = Future.successful(Option(workflowId))
     }, "ThawingActor")
 
     clientProbe.send(actorUnderTest, GetMetadataAction(
@@ -110,7 +110,7 @@ class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadat
 
     val clientProbe = TestProbe()
     val actorUnderTest = TestActorRef(new CarbonitedMetadataThawingActor(carboniterConfig, serviceRegistryActor.ref, ioActor.ref) {
-      override def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = Future.successful(Some(rootWorkflowId.toString))
+      override def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = Future.successful(Option(rootWorkflowId.toString))
     }, "ThawingActor")
 
     val metadataWithSubworkflows = Source.fromInputStream(Thread.currentThread.getContextClassLoader.getResourceAsStream("metadata_with_subworkflows.json")).mkString

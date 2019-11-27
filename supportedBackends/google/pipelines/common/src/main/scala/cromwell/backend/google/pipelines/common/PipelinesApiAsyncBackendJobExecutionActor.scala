@@ -671,7 +671,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           val details = if (hasDockerCredentials)
             "but Docker credentials are present; is this Docker account authorized to pull the image? " else
             "and there are effectively no Docker credentials present (one or more of token, authorization, or Google KMS key may be missing). " +
-              "Please check your private Docker configuration and/or the pull access for this image. "
+            "Please check your private Docker configuration and/or the pull access for this image. "
           val message = unable + details + prettyError
           FailedNonRetryableExecutionHandle(
             StandardException(runStatus.errorCode, message, jobTag, returnCode, standardPaths.error),

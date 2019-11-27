@@ -110,7 +110,7 @@ class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
 
   def findWorkflowToCarbonite(): Unit = {
     workflowQueryStartTime = Option(System.currentTimeMillis())
-    serviceRegistryActor ! QueryForWorkflowsMatchingParameters(CarboniteWorkerActor.findWorkflowToCarboniteQueryParameters)
+    serviceRegistryActor ! QueryForWorkflowsMatchingParameters(CarboniteWorkerActor.buildQueryParametersForWorkflowToCarboniteQuery(carboniterConfig.minimumSummaryEntryId))
   }
 
 
@@ -141,8 +141,7 @@ object CarboniteWorkerActor {
   sealed trait CarboniteWorkerMessage
   case class CarboniteWorkflowComplete(workflowId: WorkflowId, result: cromwell.services.metadata.MetadataArchiveStatus) extends CarboniteWorkerMessage
 
-
-  val findWorkflowToCarboniteQueryParameters: Seq[(String, String)] = Seq(
+  def buildQueryParametersForWorkflowToCarboniteQuery(minimumSummaryEntryId: Option[Long]): Seq[(String, String)] = Seq(
     IncludeSubworkflows.name -> "false",
     Status.name -> WorkflowSucceeded.toString,
     Status.name -> WorkflowFailed.toString,
@@ -150,8 +149,7 @@ object CarboniteWorkerActor {
     MetadataArchiveStatus.name -> Unarchived.toString,
     Page.name -> "1",
     PageSize.name -> "1"
-  )
-
+  ) ++ minimumSummaryEntryId.map(id => MinimumSummaryEntryId.name -> s"$id")
 
   def props(carboniterConfig: HybridCarboniteConfig, serviceRegistryActor: ActorRef, ioActor: ActorRef) =
     Props(new CarboniteWorkerActor(carboniterConfig, serviceRegistryActor, ioActor))

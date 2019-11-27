@@ -13,6 +13,7 @@ import cromwell.services.metadata.hybridcarbonite.CarboniteWorkerActor.Carbonite
 import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActor.FreezeMetadata
 import org.scalatest.{FlatSpecLike, Matchers}
 
+import scala.Option
 import scala.concurrent.duration._
 
 class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") with FlatSpecLike with Matchers {
@@ -59,8 +60,9 @@ class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") 
   it should "carbonite workflow at intervals and delete data from DB after carboniting finished" in {
     10.times {
       // We might get noise from instrumentation. We can ignore that, but we expect the query to come through eventually:
+      val expectedQueryParams = CarboniteWorkerActor.buildQueryParametersForWorkflowToCarboniteQuery(carboniterConfig.minimumSummaryEntryId)
       serviceRegistryActor.fishForSpecificMessage(10.seconds) {
-        case QueryForWorkflowsMatchingParameters(CarboniteWorkerActor.findWorkflowToCarboniteQueryParameters) => true
+        case QueryForWorkflowsMatchingParameters(`expectedQueryParams`) => true
       }
 
       serviceRegistryActor.send(carboniteWorkerActor, querySuccessResponse)
@@ -83,7 +85,7 @@ class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") 
     10.times {
       // We might get noise from instrumentation. We can ignore that, but we expect the query to come through eventually:
       serviceRegistryActor.fishForSpecificMessage(10.seconds) {
-        case QueryForWorkflowsMatchingParameters(CarboniteWorkerActor.findWorkflowToCarboniteQueryParameters) => true
+        case QueryForWorkflowsMatchingParameters(params) => params == CarboniteWorkerActor.buildQueryParametersForWorkflowToCarboniteQuery(Option(0))
       }
 
       serviceRegistryActor.send(carboniteWorkerActor, querySuccessResponse)

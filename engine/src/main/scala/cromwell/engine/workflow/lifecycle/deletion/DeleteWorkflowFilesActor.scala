@@ -77,7 +77,6 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
       }
     }
 
-
     allOutputs.collect {
       case o if checkOutputIsFile(o._1, o._2) => getFilePath(o._2.valueString)
     }.flatten.toSet

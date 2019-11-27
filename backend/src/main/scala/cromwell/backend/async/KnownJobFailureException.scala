@@ -31,7 +31,7 @@ final case class RetryWithMoreMemory(jobTag: String, stderrPath: Option[Path]) e
     "Job might have run out of memory."
 }
 
-final case class MemoryMultiplierNotPositive(jobTag: String,
+final case class MemoryMultiplierLessThanOne(jobTag: String,
                                              stderrPath: Option[Path],
                                              currentMultiplier: GreaterEqualRefined,
                                              memoryRetryFactor: GreaterEqualRefined) extends KnownJobFailureException {

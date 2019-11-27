@@ -32,7 +32,7 @@ import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker,
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
-import eu.timepit.refined.refineV
+import eu.timepit.refined.refineMV
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.StringUtils
@@ -951,16 +951,9 @@ trait StandardAsyncExecutionActor
           case failed: FailedNonRetryableExecutionHandle if maxRetriesNotReachedYet =>
             val currentMemoryMultiplier = jobDescriptor.key.memoryMultiplier
             (retryWithMoreMemory, memoryRetryFactor) match {
-              case (true, Some(multiplier)) => refineV[GreaterEqualOne](currentMemoryMultiplier.value * multiplier.value) match {
-                case Left(_) => Future.successful(
-                  FailedNonRetryableExecutionHandle(
-                    MemoryMultiplierNotPositive(jobDescriptor.key.tag, None, currentMemoryMultiplier, multiplier),
-                    failed.returnCode,
-                    None
-                  )
-                )
-                case Right(newMultiplier) => saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true, Option(newMultiplier))
-              }
+              case (true, Some(multiplier)) =>
+                val newMultiplier = refineMV[GreaterEqualOne](currentMemoryMultiplier.value * multiplier.value)
+                saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true, Option(newMultiplier))
               case (_, _) => saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true)
             }
           case failedNonRetryable: FailedNonRetryableExecutionHandle => Future.successful(failedNonRetryable)
@@ -1012,7 +1005,7 @@ trait StandardAsyncExecutionActor
         respSeq
       } else {
         throw new RuntimeException("Failed to save one or more job execution attributes to the database between " +
-          "attempts:\n " + respSeq.mkString("\n"))
+          "attempts:\n " + failures.mkString("\n"))
       }
     }
   }

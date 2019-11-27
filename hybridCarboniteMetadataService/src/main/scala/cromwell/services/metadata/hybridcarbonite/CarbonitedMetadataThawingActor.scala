@@ -94,21 +94,19 @@ class CarbonitedMetadataThawingActor(carboniterConfig: HybridCarboniteConfig, se
 
   private def rootWorkflowIdAndJsonToGcsResponseAndLabelsRequest(action: BuildWorkflowMetadataJsonAction,
                                                                  rootWorkflowIdAndJson: (String, Json)): (GcsMetadataResponse, Option[GetRootAndSubworkflowLabels]) = {
-    rootWorkflowIdAndJson match {
-      case (rootWorkflowId, rootWorkflowJson) =>
-        val isRootWorkflowIdInRequest = rootWorkflowId === action.workflowId.toString
-        if (isRootWorkflowIdInRequest) {
-          val labelsRequestOpt = action.requiresLabels.option(GetRootAndSubworkflowLabels(WorkflowId.fromString(rootWorkflowId)))
-          (GcsMetadataResponse(rootWorkflowJson), labelsRequestOpt)
-        } else {
-          rootWorkflowJson.extractSubworkflowMetadata(action.workflowId.toString, rootWorkflowId) match {
-            case Valid(subworkflowJson) =>
-              val labelsRequestOpt = action.requiresLabels.option(GetRootAndSubworkflowLabels(action.workflowId))
-              (GcsMetadataResponse(subworkflowJson), labelsRequestOpt)
-            case Invalid(errors) =>
-              throw new Throwable(errors.toList.mkString("\n"))
-          }
-        }
+    val (rootWorkflowId, rootWorkflowJson) = rootWorkflowIdAndJson
+    val isRootWorkflowIdInRequest = rootWorkflowId === action.workflowId.toString
+    if (isRootWorkflowIdInRequest) {
+      val labelsRequestOpt = action.requiresLabels.option(GetRootAndSubworkflowLabels(WorkflowId.fromString(rootWorkflowId)))
+      (GcsMetadataResponse(rootWorkflowJson), labelsRequestOpt)
+    } else {
+      rootWorkflowJson.extractSubworkflowMetadata(action.workflowId.toString, rootWorkflowId) match {
+        case Valid(subworkflowJson) =>
+          val labelsRequestOpt = action.requiresLabels.option(GetRootAndSubworkflowLabels(action.workflowId))
+          (GcsMetadataResponse(subworkflowJson), labelsRequestOpt)
+        case Invalid(errors) =>
+          throw new Throwable(errors.toList.mkString("\n"))
+      }
     }
   }
 }

@@ -134,32 +134,30 @@ object CarbonitedMetadataThawingActor {
   final case class WorkingWithGcsData(requester: ActorRef, action: BuildWorkflowMetadataJsonAction, gcsResponse: Json) extends WorkingData
 
   implicit class EnhancedJson(val json: Json) extends AnyVal {
-    def editFor(action: BuildWorkflowMetadataJsonAction): ErrorOr[Json] = {
-      action match {
-        case _: GetLogs => JsonEditor.logs(json).validNel
-        case _: WorkflowOutputs => JsonEditor.outputs(json).validNel
-        case get: GetMetadataAction =>
-          val intermediate = get.key match {
-            case MetadataQuery(_, None, None, None, None, _) => json
-            case MetadataQuery(_, None, Some(key), None, None, _) => JsonEditor.includeJson(json, NonEmptyList.of(key))
-            case MetadataQuery(_, None, None, includeKeys, excludeKeys, _) => JsonEditor.includeExcludeJson(json, includeKeys, excludeKeys)
-            // The following three don't bother with exclusions or inclusions since they are only used internally
-            // and the existing client code is robust to superfluous data.
-            case MetadataQuery(_, Some(_), None, None, None, _) => json
-            case MetadataQuery(_, Some(_), Some(_), None, None, _) => json
-            case MetadataQuery(_, Some(_), None, _, _, _) => json
-            case wrong => throw new RuntimeException(s"Programmer Error: Invalid MetadataQuery: $wrong")
-          }
-          // For carbonited metadata, "expanded" subworkflows translates to not deleting subworkflows out of the root workflow that already
-          // contains them. So `intermediate.validNel` for expanded subworkflows and `JsonEditor.replaceSubworkflowMetadataWithId` for unexpanded subworkflows.
-            if (get.key.expandSubWorkflows) {
-              intermediate.validNel
-            } else {
-              JsonEditor.replaceSubworkflowMetadataWithId(intermediate)
-            }
-        case other =>
-          throw new RuntimeException(s"Programmer Error: Unexpected BuildWorkflowMetadataJsonAction message of type '${other.getClass.getSimpleName}': $other")
-      }
+    def editFor(action: BuildWorkflowMetadataJsonAction): ErrorOr[Json] = action match {
+      case _: GetLogs => JsonEditor.logs(json).validNel
+      case _: WorkflowOutputs => JsonEditor.outputs(json).validNel
+      case get: GetMetadataAction =>
+        val intermediate = get.key match {
+          case MetadataQuery(_, None, None, None, None, _) => json
+          case MetadataQuery(_, None, Some(key), None, None, _) => JsonEditor.includeJson(json, NonEmptyList.of(key))
+          case MetadataQuery(_, None, None, includeKeys, excludeKeys, _) => JsonEditor.includeExcludeJson(json, includeKeys, excludeKeys)
+          // The following three don't bother with exclusions or inclusions since they are only used internally
+          // and the existing client code is robust to superfluous data.
+          case MetadataQuery(_, Some(_), None, None, None, _) => json
+          case MetadataQuery(_, Some(_), Some(_), None, None, _) => json
+          case MetadataQuery(_, Some(_), None, _, _, _) => json
+          case wrong => throw new RuntimeException(s"Programmer Error: Invalid MetadataQuery: $wrong")
+        }
+        // For carbonited metadata, "expanded" subworkflows translates to not deleting subworkflows out of the root workflow that already
+        // contains them. So `intermediate.validNel` for expanded subworkflows and `JsonEditor.replaceSubworkflowMetadataWithId` for unexpanded subworkflows.
+        if (get.key.expandSubWorkflows) {
+          intermediate.validNel
+        } else {
+          JsonEditor.replaceSubworkflowMetadataWithId(intermediate)
+        }
+      case other =>
+        throw new RuntimeException(s"Programmer Error: Unexpected BuildWorkflowMetadataJsonAction message of type '${other.getClass.getSimpleName}': $other")
     }
 
     def updateLabels(labels: Map[WorkflowId, Map[String, String]]): ErrorOr[Json] = JsonEditor.updateLabels(json, labels)
@@ -203,9 +201,7 @@ object CarbonitedMetadataThawingActor {
     def respondWith(action: BuildWorkflowMetadataJsonAction, gcsResponse: Json, labels: Map[WorkflowId, Map[String, String]]): Unit = {
       val responseJson = for {
         edited <- gcsResponse.editFor(action)
-        updated <- {
-          edited.updateLabels(labels)
-        }
+        updated <- edited.updateLabels(labels)
       } yield updated.toSpray
 
       requester.respondWith(action, responseJson)

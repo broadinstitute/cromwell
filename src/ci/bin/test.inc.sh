@@ -136,17 +136,20 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
             CROMWELL_BUILD_GENERATE_COVERAGE=true
 
-            # For pure documentation updates only run on checkPublish. Otherwise, always run on sbt, even for 'push'.
+            # For solely documentation updates run only checkPublish. Otherwise always run sbt, even for 'push'.
             # This allows quick sanity checks before starting PRs *and* publishing after merges into develop.
-            if  [[ "${CROMWELL_BUILD_ONLY_DOCS_CHANGED}" == "true" ]] && \
-                [[ "${BUILD_TYPE}" != "checkPublish" ]]; then
-              CROMWELL_BUILD_RUN_TESTS=false
-            elif [[ "${TRAVIS_EVENT_TYPE}" == "push" ]] && \
-                 [[ "${BUILD_TYPE}" != "sbt" ]] && \
-                 [[ "${CROMWELL_BUILD_FORCE_TESTS}" != "true" ]]; then
-                CROMWELL_BUILD_RUN_TESTS=false
-            else
+            if [[ "${CROMWELL_BUILD_FORCE_TESTS}" == "true" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=true
+            else
+                if [[ "${CROMWELL_BUILD_ONLY_DOCS_CHANGED}" == "true" ]] && \
+                    [[ "${BUILD_TYPE}" != "checkPublish" ]]; then
+                    CROMWELL_BUILD_RUN_TESTS=false
+                elif [[ "${TRAVIS_EVENT_TYPE}" == "push" ]] && \
+                    [[ "${BUILD_TYPE}" != "sbt" ]]; then
+                    CROMWELL_BUILD_RUN_TESTS=false
+                else
+                    CROMWELL_BUILD_RUN_TESTS=true
+                fi
             fi
             ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")

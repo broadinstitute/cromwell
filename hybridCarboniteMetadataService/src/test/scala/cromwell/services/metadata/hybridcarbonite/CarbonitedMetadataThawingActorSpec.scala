@@ -220,8 +220,8 @@ class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadat
       case command @ IoCommandWithPromise(iocasc: IoContentAsStringCommand, _) if iocasc.file.pathAsString.contains(rootWorkflowId.toString) =>
         command.promise.success(metadataWithSubworkflows)
     }
-    serviceRegistryActor.expectMsg(GetRootAndSubworkflowLabels(rootWorkflowId))
-    serviceRegistryActor.send(actorUnderTest, RootAndSubworkflowLabelsLookupResponse(rootWorkflowId, labelsForUpdate))
+    serviceRegistryActor.expectMsg(GetRootAndSubworkflowLabels(requestedSubworkflowId))
+    serviceRegistryActor.send(actorUnderTest, RootAndSubworkflowLabelsLookupResponse(requestedSubworkflowId, labelsForUpdate))
 
     def outputBuilder(buf: ArrayBuffer[JsonNode]): Output = out => buf.append(out)
     val workflowLabelsQuery = JsonQuery.compile(".labels", Versions.JQ_1_5)

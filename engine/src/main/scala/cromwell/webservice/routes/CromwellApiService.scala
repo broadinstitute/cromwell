@@ -284,15 +284,13 @@ object CromwellApiService {
   }
 
   def validateWorkflowIdInMetadata(possibleWorkflowId: String,
-                                   serviceRegistryActor: ActorRef,
-                                   fallBackToValidationInMetadataSummary: Boolean = false)
+                                   serviceRegistryActor: ActorRef)
                                   (implicit timeout: Timeout, executor: ExecutionContext): Future[WorkflowId] = {
     Try(WorkflowId.fromString(possibleWorkflowId)) match {
       case Success(w) =>
         serviceRegistryActor.ask(ValidateWorkflowIdInMetadata(w)).mapTo[WorkflowValidationResponse] flatMap {
           case RecognizedWorkflowId => Future.successful(w)
-          case UnrecognizedWorkflowId if fallBackToValidationInMetadataSummary => validateWorkflowIdInMetadataSummaries(possibleWorkflowId, serviceRegistryActor)
-          case UnrecognizedWorkflowId => Future.failed(UnrecognizedWorkflowException(w))
+          case UnrecognizedWorkflowId => validateWorkflowIdInMetadataSummaries(possibleWorkflowId, serviceRegistryActor)
           case FailedToCheckWorkflowId(t) => Future.failed(t)
         }
       case Failure(_) => Future.failed(InvalidWorkflowException(possibleWorkflowId))

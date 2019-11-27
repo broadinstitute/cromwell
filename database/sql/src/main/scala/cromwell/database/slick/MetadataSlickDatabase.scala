@@ -393,7 +393,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   }
 
   override def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = {
-    runTransaction(
+    runAction(
       dataAccess.rootWorkflowId(workflowId).result.headOption
     )
   }

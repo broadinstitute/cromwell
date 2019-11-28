@@ -150,12 +150,9 @@ object CarbonitedMetadataThawingActor {
           case wrong => throw new RuntimeException(s"Programmer Error: Invalid MetadataQuery: $wrong")
         }
         // For carbonited metadata, "expanded" subworkflows translates to not deleting subworkflows out of the root workflow that already
-        // contains them. So `intermediate.validNel` for expanded subworkflows and `JsonEditor.replaceSubworkflowMetadataWithId` for unexpanded subworkflows.
-        if (get.key.expandSubWorkflows) {
-          intermediate.validNel
-        } else {
-          JsonEditor.replaceSubworkflowMetadataWithId(intermediate)
-        }
+        // contains them. So `intermediate.validNel` for expanded subworkflows and `JsonEditor.replaceSubworkflowMetadataWithId`
+        // for unexpanded subworkflows.
+        if (get.key.expandSubWorkflows) intermediate.validNel else JsonEditor.unexpandSubworkflows(intermediate)
       case other =>
         throw new RuntimeException(s"Programmer Error: Unexpected BuildWorkflowMetadataJsonAction message of type '${other.getClass.getSimpleName}': $other")
     }

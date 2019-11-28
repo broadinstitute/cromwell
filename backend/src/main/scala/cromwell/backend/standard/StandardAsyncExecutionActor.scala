@@ -32,7 +32,7 @@ import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker,
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
-import eu.timepit.refined.refineMV
+import eu.timepit.refined.api._
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.StringUtils
@@ -952,7 +952,7 @@ trait StandardAsyncExecutionActor
             val currentMemoryMultiplier = jobDescriptor.key.memoryMultiplier
             (retryWithMoreMemory, memoryRetryFactor) match {
               case (true, Some(multiplier)) =>
-                val newMultiplier = refineMV[GreaterEqualOne](currentMemoryMultiplier.value * multiplier.value)
+                val newMultiplier = Refined.unsafeApply[Double, GreaterEqualOne](currentMemoryMultiplier.value * multiplier.value)
                 saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true, Option(newMultiplier))
               case (_, _) => saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true)
             }

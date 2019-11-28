@@ -957,7 +957,7 @@ trait StandardAsyncExecutionActor
               case (_, _) => saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true)
             }
           case failedNonRetryable: FailedNonRetryableExecutionHandle => Future.successful(failedNonRetryable)
-          case failedRetryable: FailedRetryableExecutionHandle => saveAttrsAndRetry(failedRetryable, kvsForNextAttempt, kvsForNextAttempt, incFailedCount = false)
+          case failedRetryable: FailedRetryableExecutionHandle => saveAttrsAndRetry(failedRetryable, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = false)
         }
       case _ => backendExecutionStatus
     }

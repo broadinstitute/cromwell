@@ -88,11 +88,22 @@ object JsonEditor {
   def logs(json: Json): ErrorOr[Json] = {
     val inputsAndOutputs = NonEmptyList.of("outputs", "inputs")
     val shardAttemptAndLogsFields = NonEmptyList.of("shardIndex", "attempt", "stdout", "stderr", "backendLogs")
+
+    def removeSubworkflowCalls(calls: JsonObject): JsonObject = calls.filter {
+      case (_, json) => ! json.asArray.get.head.asObject.exists(_.contains(subWorkflowIdKey))
+    }
+
     for {
-      wf <- updateWorkflowCallsJson(json, (_, _) => None) // Deletes all subworkflows found in the input by always returning `None`.
+      workflowWithSubworkflowsUnexpanded <- unexpandSubworkflows(json)
+      calls <- callsObject(workflowWithSubworkflowsUnexpanded)
+      callsWithSubworkflowsRemoved = calls map removeSubworkflowCalls
+      workflowWithSubworkflowsRemoved = callsWithSubworkflowsRemoved match {
+        case None => workflowWithSubworkflowsUnexpanded // Not having calls is fine, just return the unexpanded workflow.
+        case Some(cs) => Json.fromJsonObject(workflowWithSubworkflowsUnexpanded.asObject.get.add("calls", Json.fromJsonObject(cs)))
+      }
       // exclude outputs and inputs since variables can be named anything including internally reserved words like
       // `stdout` and `stderr` which would be erroneously included among the logs.
-      inc = excludeJson(wf, inputsAndOutputs) |> (includeJson(_, shardAttemptAndLogsFields))
+      inc = excludeJson(workflowWithSubworkflowsRemoved, inputsAndOutputs) |> (includeJson(_, shardAttemptAndLogsFields))
     } yield inc
   }
 
@@ -169,6 +180,24 @@ object JsonEditor {
     doUpdateWorkflow(workflowJson = json)
   }
 
+  private def callsObject(workflowObject: JsonObject): ErrorOr[Option[JsonObject]] = {
+    workflowObject("calls") match {
+      case None => None.validNel
+      case Some(callsJson) =>
+        callsJson.asObject match {
+          case None => s"'calls' member unexpectedly not a JSON object: $callsJson".invalidNel
+          case Some(calls) => Option(calls).validNel
+        }
+    }
+  }
+
+  private def callsObject(workflowJson: Json): ErrorOr[Option[JsonObject]] = {
+    workflowJson.asObject match {
+      case None => s"Workflow JSON unexpectedly not an object: $workflowJson".invalidNel
+      case Some(obj) => callsObject(obj)
+    }
+  }
+
   /**
     * Update workflow json, replacing "subWorkflowMetadata" elements of root workflow's "calls" object by "subWorkflowId"
     *
@@ -177,17 +206,6 @@ object JsonEditor {
     */
   def unexpandSubworkflows(workflowJson: Json): ErrorOr[Json] = {
     import common.validation.ErrorOr._
-
-    def callsObject(workflowObject: JsonObject): ErrorOr[Option[JsonObject]] = {
-      workflowObject("calls") match {
-        case None => None.validNel
-        case Some(callsJson) =>
-          callsJson.asObject match {
-            case None => s"'calls' member unexpectedly not a JSON object: $callsJson".invalidNel
-            case Some(calls) => Option(calls).validNel
-          }
-      }
-    }
 
     def workflowObject(workflowJson: Json): ErrorOr[JsonObject] =
       workflowJson.asObject.toErrorOr(s"Workflow JSON unexpectedly not a JSON object: $workflowJson")

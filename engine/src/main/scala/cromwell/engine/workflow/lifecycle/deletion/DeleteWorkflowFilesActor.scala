@@ -58,7 +58,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
     val isFinalOutputsNonEmpty = finalOutputs.nonEmpty
 
     def existsInFinalOutputs(value: String): Option[Boolean] = {
-      finalOutputs.map(p => value.equals(p._2.valueString)).reduceOption(_ || _)
+      finalOutputs.map{ case (_, output) => value.equals(output.valueString)}.reduceOption(_ || _)
     }
 
     def getFilePathForSingleFile(value: String): Option[Path] = {
@@ -74,7 +74,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
     def getFilePath(value: WomValue): Seq[Path] = {
       val seqOfPaths = value match {
         case v: WomArray => v.value.map(a => getFilePathForSingleFile(a.valueString))
-        case a => Seq(getFilePathForSingleFile(a.valueString))
+        case s => Seq(getFilePathForSingleFile(s.valueString))
       }
       seqOfPaths.flatten
     }
@@ -89,7 +89,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
     }
 
     allOutputs.collect {
-      case o if checkOutputIsFile(o._1, o._2) => getFilePath(o._2)
+      case (port, output) if checkOutputIsFile(port, output) => getFilePath(output)
     }.flatten.toSet
   }
 }

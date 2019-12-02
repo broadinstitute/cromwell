@@ -114,10 +114,14 @@ cromwell::private::create_build_variables() {
         CROMWELL_BUILD_GIT_HASH_SUFFIX="gUNKNOWN"
     fi
 
-    if git diff --name-only "${TRAVIS_BRANCH}" 2>&1 | grep -q --invert-match ^docs/; then
-        CROMWELL_BUILD_ONLY_DOCS_CHANGED=false
+    if [[ "${TRAVIS_EVENT_TYPE}" == "pull_request" ]]; then
+        if git diff --name-only "${TRAVIS_BRANCH}" 2>&1 | grep -q --invert-match ^docs/; then
+            CROMWELL_BUILD_ONLY_DOCS_CHANGED=false
+        else
+            CROMWELL_BUILD_ONLY_DOCS_CHANGED=true
+        fi
     else
-        CROMWELL_BUILD_ONLY_DOCS_CHANGED=true
+        CROMWELL_BUILD_ONLY_DOCS_CHANGED=false
     fi
 
     case "${CROMWELL_BUILD_PROVIDER}" in

@@ -15,7 +15,8 @@ import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
-
+import centaur.test.metadata.WorkflowFlatMetadata._
+import spray.json.JsString
 /**
   * A collection of test formulas which can be used, building upon operations by chaining them together via a
   * for comprehension. These assembled formulas can then be run by a client
@@ -24,6 +25,7 @@ object TestFormulas {
   private def runWorkflowUntilTerminalStatus(workflow: Workflow, status: TerminalStatus): Test[SubmittedWorkflow] = {
     val workflowProgressTimeout = ConfigFactory.load().getOrElse("centaur.workflow-progress-timeout", 1 minute)
     for {
+      _ <- checkVersion()
       s <- submitWorkflow(workflow)
       _ <- expectSomeProgress(s, workflow, Set(Running, status), workflowProgressTimeout)
       _ <- pollUntilStatus(s, workflow, status)
@@ -42,6 +44,11 @@ object TestFormulas {
     _ <- waitForArchive(submittedWorkflow.id)
     // Re-validate the metadata now that carboniting has completed
     _ <- validateMetadata(submittedWorkflow, workflowDefinition)
+    flatMetadata = metadata.asFlat
+    workflowRoot = flatMetadata.value.get("workflowRoot").collectFirst { case JsString(r) => r } getOrElse "No Workflow Root"
+    _ <- validateOutputs(submittedWorkflow, workflowDefinition, workflowRoot)
+    _ <- validateLabels(submittedWorkflow, workflowDefinition, workflowRoot)
+    _ <- validateLogs(metadata, submittedWorkflow, workflowDefinition)
   } yield SubmitResponse(submittedWorkflow)
 
   def runFailingWorkflowAndVerifyMetadata(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = for {

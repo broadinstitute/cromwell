@@ -153,7 +153,8 @@ trait WorkflowMetadataSummaryEntryComponent {
                        startTimestampOption: Option[Timestamp],
                        endTimestampOption: Option[Timestamp],
                        metadataArchiveStatus: Set[Option[String]],
-                       includeSubworkflows: Boolean): SQLActionBuilder = {
+                       includeSubworkflows: Boolean,
+                       minimumSummaryEntryId: Option[Long]): SQLActionBuilder = {
 
     val customLabelEntryTable = quoted("CUSTOM_LABEL_ENTRY")
     val workflowMetadataSummaryEntryTable = quoted("WORKFLOW_METADATA_SUMMARY_ENTRY")
@@ -162,6 +163,7 @@ trait WorkflowMetadataSummaryEntryComponent {
     val customLabelKeyColumn = quoted("CUSTOM_LABEL_KEY")
     val customLabelValueColumn = quoted("CUSTOM_LABEL_VALUE")
     val parentWorkflowExecutionUuidColumn = quoted("PARENT_WORKFLOW_EXECUTION_UUID")
+    val summaryEntryIdColumn = quoted("WORKFLOW_METADATA_SUMMARY_ENTRY_ID")
 
     val summaryTableAlias = quoted("summaryTable")
     val labelsOrTableAlias = quoted("labelsOrMixin")
@@ -288,6 +290,11 @@ trait WorkflowMetadataSummaryEntryComponent {
       List(sql"""#$summaryTableAlias.#$parentWorkflowExecutionUuidColumn IS NULL""".stripMargin)
     }
 
+    val minimumSummaryEntryConstraint = minimumSummaryEntryId match {
+      case Some(value) => List(sql"""#$summaryTableAlias.#$summaryEntryIdColumn >= $value""")
+      case None => List.empty
+    }
+
     val constraintList =
       statusConstraint ++
         nameConstraint ++
@@ -300,7 +307,8 @@ trait WorkflowMetadataSummaryEntryComponent {
         labelsAndConstraint ++
         excludeLabelsOrConstraint ++
         excludeLabelsAndConstraint ++
-        includeSubworkflowsConstraint
+        includeSubworkflowsConstraint ++
+        minimumSummaryEntryConstraint
 
     val where = NonEmptyList.fromList(constraintList) match {
       case Some(constraints) => List(sql"WHERE ", and(constraints))
@@ -324,7 +332,8 @@ trait WorkflowMetadataSummaryEntryComponent {
                                           startTimestampOption: Option[Timestamp],
                                           endTimestampOption: Option[Timestamp],
                                           metadataArchiveStatus: Set[Option[String]],
-                                          includeSubworkflows: Boolean) = {
+                                          includeSubworkflows: Boolean,
+                                          minimumSummaryEntryId: Option[Long]) = {
     buildQueryAction(
       selectOrCount = Count,
       parentIdWorkflowMetadataKey,
@@ -339,7 +348,8 @@ trait WorkflowMetadataSummaryEntryComponent {
       startTimestampOption,
       endTimestampOption,
       metadataArchiveStatus,
-      includeSubworkflows = includeSubworkflows
+      includeSubworkflows = includeSubworkflows,
+      minimumSummaryEntryId
     ).as[Int].head
   }
 
@@ -358,6 +368,7 @@ trait WorkflowMetadataSummaryEntryComponent {
                                           endTimestampOption: Option[Timestamp],
                                           metadataArchiveStatus: Set[Option[String]],
                                           includeSubworkflows: Boolean,
+                                          minimumSummaryEntryId: Option[Long],
                                           page: Option[Int],
                                           pageSize: Option[Int]) = {
     val mainQuery = buildQueryAction(
@@ -374,7 +385,8 @@ trait WorkflowMetadataSummaryEntryComponent {
       startTimestampOption,
       endTimestampOption,
       metadataArchiveStatus,
-      includeSubworkflows = includeSubworkflows
+      includeSubworkflows = includeSubworkflows,
+      minimumSummaryEntryId
     )
 
     val paginationAddendum: List[SQLActionBuilder] = (page, pageSize) match {

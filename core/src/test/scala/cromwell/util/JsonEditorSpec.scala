@@ -174,6 +174,29 @@ class JsonEditorSpec extends FlatSpec with Matchers{
     assert(keys_nested2.get.toSet.contains("keepme") === true) // simple nested key "deep" removed
     assert(keys_nested2.get.size === 1) // simple nested key "deep" removed
   }
+
+  it should "start including and excluding keys from both (but only!) workflow- and call-roots" in {
+    val newJson = realJson.map(includeJson(_, NonEmptyList.of("start"))).right.get
+    val expectedJsonRaw =
+      """
+        |{
+        |  "calls": {
+        |    "main_workflow.wf_hello": [
+        |      {
+        |        "shardIndex": -1,
+        |        "attempt": 1,
+        |        "start": "2019-07-22T13:32:24.133-04:00"
+        |      }
+        |    ]
+        |  },
+        |  "id": "757d0bcc-b636-4658-99d4-9b4b3767f1d1",
+        |  "start": "2019-07-22T13:32:20.434-04:00"
+        |}
+      """.stripMargin
+    val expectedJson = parse(expectedJsonRaw)
+
+    newJson should be(expectedJson.right.get)
+  }
 }
 
 object JsonEditorSpec {

@@ -126,6 +126,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
                              endTimestampOption: Option[Timestamp],
                              metadataArchiveStatus: Set[Option[String]],
                              includeSubworkflows: Boolean,
+                             minimumSummaryEntryId: Option[Long],
                              page: Option[Int],
                              pageSize: Option[Int])
                              (implicit ec: ExecutionContext): Future[Traversable[WorkflowMetadataSummaryEntry]]
@@ -141,7 +142,8 @@ trait MetadataSqlDatabase extends SqlDatabase {
                              startTimestampOption: Option[Timestamp],
                              endTimestampOption: Option[Timestamp],
                              metadataArchiveStatus: Set[Option[String]],
-                             includeSubworkflows: Boolean)
+                             includeSubworkflows: Boolean,
+                             minimumSummaryEntryId: Option[Long])
                              (implicit ec: ExecutionContext): Future[Int]
 
   def deleteNonLabelMetadataForWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Int]

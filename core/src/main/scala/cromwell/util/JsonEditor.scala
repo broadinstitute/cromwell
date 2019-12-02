@@ -20,6 +20,7 @@ object JsonEditor {
 
   private val subWorkflowMetadataKey = "subWorkflowMetadata"
   private val subWorkflowIdKey = "subWorkflowId"
+  private val keysToIncludeInCallsOrWorkflows = NonEmptyList.of("id", "shardIndex", "attempt")
 
   def includeExcludeJson(json: Json, includeKeys: Option[NonEmptyList[String]], excludeKeys: Option[NonEmptyList[String]]): Json =
     (includeKeys, excludeKeys) match {
@@ -31,7 +32,7 @@ object JsonEditor {
     }
 
   def includeJson(json: Json, keys: NonEmptyList[String]): Json = {
-    val keysWithId = "id" :: keys
+    val keysWithId = keysToIncludeInCallsOrWorkflows ::: keys
     def folder: Folder[(Json, Boolean)] = new Folder[(Json, Boolean)] {
       override def onNull: (Json, Boolean) = (Json.Null, false)
       override def onBoolean(value: Boolean): (Json, Boolean) = (Json.fromBoolean(value), false)
@@ -46,7 +47,7 @@ object JsonEditor {
       override def onObject(value: JsonObject): (Json, Boolean) = {
         val modified: immutable.List[(String, Json)] = value.toList.flatMap{
           case (key, value) =>
-            val keep = keysWithId.foldLeft(false)(_ || key.startsWith(_))
+            val keep = keysWithId.foldLeft(false)(_ || key.equals(_))
             if (keep)
               List[(String,Json)]((key,value))
             else {
@@ -84,7 +85,16 @@ object JsonEditor {
 
   def outputs(json: Json): Json = includeJson(json, NonEmptyList.of("outputs")) |> (excludeJson(_, NonEmptyList.one("calls")))
 
-  def logs(json: Json): Json = includeJson(json, NonEmptyList.of("stdout", "stderr", "backendLogs"))
+  def logs(json: Json): ErrorOr[Json] = {
+    val inputsAndOutputs = NonEmptyList.of("outputs", "inputs")
+    val shardAttemptAndLogsFields = NonEmptyList.of("shardIndex", "attempt", "stdout", "stderr", "backendLogs")
+    for {
+      wf <- updateWorkflowCallsJson(json, (_, _) => None) // Deletes all subworkflows found in the input by always returning `None`.
+      // exclude outputs and inputs since variables can be named anything including internally reserved words like
+      // `stdout` and `stderr` which would be erroneously included among the logs.
+      inc = excludeJson(wf, inputsAndOutputs) |> (includeJson(_, shardAttemptAndLogsFields))
+    } yield inc
+  }
 
   implicit class EnhancedJson(val json: Json) extends AnyVal {
     def workflowId: ErrorOr[WorkflowId] = {
@@ -133,12 +143,14 @@ object JsonEditor {
     */
   def updateLabels(json: Json, databaseLabels: Map[WorkflowId, Map[String, String]]): ErrorOr[Json] = {
 
-    def updateLabelsInCalls(callObject: JsonObject, subworkflowJson: Json): ErrorOr[Json] = {
+    def updateLabelsInCalls(callObject: JsonObject, subworkflowJson: Json): Option[ErrorOr[Json]] = {
       // If the call contains a subWorkflowMetadata key, return a copy of the call with
       // its subworkflowMetadata updated via a recursive call to `doUpdateWorkflow`.
-      doUpdateWorkflow(subworkflowJson) map { updatedSubworkflow =>
-        Json.fromJsonObject(callObject.add(subWorkflowMetadataKey, updatedSubworkflow))
-      }
+      Option(
+        doUpdateWorkflow(subworkflowJson) map { updatedSubworkflow =>
+          Json.fromJsonObject(callObject.add(subWorkflowMetadataKey, updatedSubworkflow))
+        }
+      )
     }
 
     def doUpdateWorkflow(workflowJson: Json): ErrorOr[Json] = {
@@ -164,17 +176,19 @@ object JsonEditor {
     * @return updated json
     */
   def replaceSubworkflowMetadataWithId(workflowJson: Json): ErrorOr[Json] = {
-    def replaceSubworkflowMetadataObjectWithSubworkflowIdInCalls(callObject: JsonObject, subworkflowJson: Json): ErrorOr[Json] = {
-      for {
-        subWorkflowId <- subworkflowJson.workflowId
-        updatedCallObj = callObject.remove(subWorkflowMetadataKey).add(subWorkflowIdKey, Json.fromString(subWorkflowId.toString))
-      } yield Json.fromJsonObject(updatedCallObj)
+    def replaceSubworkflowMetadataObjectWithSubworkflowIdInCalls(callObject: JsonObject, subworkflowJson: Json): Option[ErrorOr[Json]] = {
+      Option(
+        for {
+          subWorkflowId <- subworkflowJson.workflowId
+          updatedCallObj = callObject.remove(subWorkflowMetadataKey).add(subWorkflowIdKey, Json.fromString(subWorkflowId.toString))
+        } yield Json.fromJsonObject(updatedCallObj)
+      )
     }
 
     updateWorkflowCallsJson(workflowJson, replaceSubworkflowMetadataObjectWithSubworkflowIdInCalls)
   }
 
-  private def updateWorkflowCallsJson(workflowJson: Json, updateCallsFunc: (JsonObject, Json) => ErrorOr[Json]): ErrorOr[Json] = {
+  private def updateWorkflowCallsJson(workflowJson: Json, updateCallsFunc: (JsonObject, Json) => Option[ErrorOr[Json]]): ErrorOr[Json] = {
     val workflowWithUpdatedCalls: ErrorOr[Json] = extractJsonObjectByKey(workflowJson, "calls") match {
       // If there were no calls just return the workflow JSON unmodified.
       case None => workflowJson.validNel
@@ -185,16 +199,17 @@ object JsonEditor {
             // The object above converted to a Vector[Json].
             val callArray: Vector[Json] = callValue.asArray.toVector.flatten
 
-            val updatedCallArray: Vector[ErrorOr[Json]] = callArray map { callJson =>
+            val updatedCallArray: Vector[Option[ErrorOr[Json]]] = callArray map { callJson =>
               // If there is no subworkflow object this will be None.
               val callAndSubworkflowObjects: Option[(JsonObject, Json)] = extractJsonByKey(callJson, subWorkflowMetadataKey)
 
               callAndSubworkflowObjects match {
-                case None => callJson.validNel
+                case None => Option(callJson.validNel)
                 case Some((callObject, subworkflowJson)) => updateCallsFunc(callObject, subworkflowJson)
               }
             }
-            (updatedCallArray.sequence[ErrorOr, Json]: ErrorOr[Vector[Json]]) map Json.fromValues
+            val includedCallsOnly = updatedCallArray.flatten
+            (includedCallsOnly.sequence[ErrorOr, Json]: ErrorOr[Vector[Json]]) map Json.fromValues
         }
 
         for {

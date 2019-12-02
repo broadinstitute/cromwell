@@ -50,7 +50,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
 
         val summarizerRewindInfo = for {
           incorrectSummaryStatusId <- runAction(getSummaryStatusIfNotBelowThreshold("WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING", minId))
-          rewind <- runAction(ensureSummaryStatusIsBelowThreshold("WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING", minId))
+          rewind <- runTransaction(ensureSummaryStatusIsBelowThreshold("WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING", minId))
         } yield (incorrectSummaryStatusId, rewind)
 
         summarizerRewindInfo.map { case (incorrectSummaryStatusId, rewindNeeded) =>

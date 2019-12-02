@@ -220,7 +220,10 @@ object JsonEditor {
         }
         updatedCallArray map Json.fromValues
       }
-      updatedCallsObject map Json.fromJsonObject
+
+      for {
+        updatedCallsJson <- updatedCallsObject map Json.fromJsonObject
+      } yield Json.fromJsonObject(workflowObject.add("calls", updatedCallsJson))
     }
 
     for {

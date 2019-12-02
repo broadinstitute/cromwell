@@ -10,8 +10,8 @@ import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.{FlatSpecLike, Matchers}
 import wom.graph.GraphNodePort.{ExpressionBasedOutputPort, GraphNodeOutputPort}
 import wom.graph.{FullyQualifiedName, LocalName, WomIdentifier}
-import wom.types.{WomSingleFileType, WomStringType}
-import wom.values.{WomSingleFile, WomString}
+import wom.types.{WomMaybeEmptyArrayType, WomSingleFileType, WomStringType}
+import wom.values.{WomArray, WomSingleFile, WomString}
 
 import scala.concurrent.duration._
 
@@ -206,6 +206,48 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
       testDeleteWorkflowFilesActor.stateName shouldBe DeletingIntermediateFiles
       testDeleteWorkflowFilesActor.stateData shouldBe DeletingIntermediateFilesData(intermediateFileList)
     }
+  }
+
+
+  it should "identify and gather glob files" in {
+    val rootWorkflowId = RootWorkflowId(WorkflowId.randomId().id)
+    val subworkflowId = WorkflowId.randomId()
+
+    val allOutputs = CallOutputs(Map(
+      GraphNodeOutputPort(WomIdentifier(LocalName("main_output"),FullyQualifiedName("main_workflow.main_output")), WomSingleFileType, null)
+        -> WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt"),
+      ExpressionBasedOutputPort(WomIdentifier(LocalName("first_task.first_task_output_2"),FullyQualifiedName("first_sub_workflow.first_task.first_task_output_2")), WomSingleFileType, null, null)
+        -> WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file2.txt"),
+      GraphNodeOutputPort(WomIdentifier(LocalName("first_output_file"),FullyQualifiedName("first_sub_workflow.first_output_file")), WomSingleFileType, null)
+        -> WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt"),
+      ExpressionBasedOutputPort(WomIdentifier(LocalName("first_task.first_task_output_1"),FullyQualifiedName("first_sub_workflow.first_task.first_task_output_1")), WomSingleFileType, null, null)
+        -> WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt"),
+      GraphNodeOutputPort(WomIdentifier(LocalName("second_output_file"),FullyQualifiedName("first_sub_workflow.second_output_file")), WomSingleFileType, null)
+        -> WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file2.txt"),
+      GraphNodeOutputPort(WomIdentifier(LocalName("glob_output"),FullyQualifiedName("first_sub_workflow.glob_output")), WomMaybeEmptyArrayType(WomSingleFileType), null)
+        -> WomArray(Seq(WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/glob-random_id/intermediate_file1.txt"),
+        WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/glob-random_id/intermediate_file2.txt"))),
+      ExpressionBasedOutputPort(WomIdentifier(LocalName("first_task.first_task_glob"),FullyQualifiedName("first_sub_workflow.first_task.first_task_glob")), WomMaybeEmptyArrayType(WomSingleFileType), null, null)
+        -> WomArray(Seq(WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/glob-random_id/intermediate_file1.txt"),
+        WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/glob-random_id/intermediate_file2.txt")))
+    ))
+
+    val finalOutputs = CallOutputs(Map(
+      GraphNodeOutputPort(WomIdentifier(LocalName("main_output"),FullyQualifiedName("main_workflow.main_output")), WomSingleFileType, null)
+        -> WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file2.txt")
+    ))
+
+    val gcsFilePath1: Path = mockPathBuilder.build(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt").get
+    val gcsGlobFilePath1: Path = mockPathBuilder.build(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/glob-random_id/intermediate_file1.txt").get
+    val gcsGlobFilePath2: Path = mockPathBuilder.build(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/glob-random_id/intermediate_file2.txt").get
+
+    val expectedIntermediateFileList = Set(gcsFilePath1, gcsGlobFilePath1, gcsGlobFilePath2)
+
+    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, finalOutputs, allOutputs, mockPathBuilders))
+
+    val actualIntermediateFileList = testDeleteWorkflowFilesActor.underlyingActor.gatherIntermediateOutputFiles(allOutputs.outputs, finalOutputs.outputs)
+
+    actualIntermediateFileList shouldBe expectedIntermediateFileList
   }
 }
 

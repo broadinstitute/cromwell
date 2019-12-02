@@ -6,7 +6,8 @@ import cromwell.core.{CallOutputs, RootWorkflowId}
 import cromwell.engine.workflow.lifecycle.deletion.DeleteWorkflowFilesActor._
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
-import wom.values.{WomSingleFile, WomValue}
+import wom.types.WomSingleFileType
+import wom.values.{WomArray, WomSingleFile, WomValue}
 
 import scala.util.Try
 
@@ -60,7 +61,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
       finalOutputs.map(p => value.equals(p._2.valueString)).reduceOption(_ || _)
     }
 
-    def getFilePath(value: String): Option[Path] = {
+    def getFilePathForSingleFile(value: String): Option[Path] = {
       //if workflow has final outputs check if this output value does not exist in final outputs
       (isFinalOutputsNonEmpty, existsInFinalOutputs(value)) match {
         case (true, Some(true)) => None
@@ -70,15 +71,25 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
       }
     }
 
+    def getFilePath(value: WomValue): Seq[Path] = {
+      val seqOfPaths = value match {
+        case v: WomArray => v.value.map(a => getFilePathForSingleFile(a.valueString))
+        case a => Seq(getFilePathForSingleFile(a.valueString))
+      }
+      seqOfPaths.flatten
+    }
+
     def checkOutputIsFile(port: OutputPort, value: WomValue): Boolean = {
       (port, value) match {
         case (_: GraphNodeOutputPort, _: WomSingleFile) => true
+        // handles glob files
+        case (_: GraphNodeOutputPort, w: WomArray) => w.arrayType.memberType.isCoerceableFrom(WomSingleFileType)
         case _ => false
       }
     }
 
     allOutputs.collect {
-      case o if checkOutputIsFile(o._1, o._2) => getFilePath(o._2.valueString)
+      case o if checkOutputIsFile(o._1, o._2) => getFilePath(o._2)
     }.flatten.toSet
   }
 }

@@ -32,7 +32,7 @@ import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker,
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
-import eu.timepit.refined.refineV
+import eu.timepit.refined.api._
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.StringUtils
@@ -917,40 +917,96 @@ trait StandardAsyncExecutionActor
           override def exceptionContext: String = "Failed to evaluate job outputs"
           override def errorMessages: Traversable[String] = errors.toList
         }
-        FailedNonRetryableExecutionHandle(exception)
+        FailedNonRetryableExecutionHandle(exception, kvPairsToSave = None)
       case JobOutputsEvaluationException(exception: Exception) if retryEvaluateOutputsAggregated(exception) =>
         // Return the execution handle in this case to retry the operation
         handle
-      case JobOutputsEvaluationException(ex) => FailedNonRetryableExecutionHandle(ex)
+      case JobOutputsEvaluationException(ex) => FailedNonRetryableExecutionHandle(ex, kvPairsToSave = None)
     }
   }
-
 
   /**
     * Process an unsuccessful run, as interpreted by `handleExecutionFailure`.
     *
-    * @param runStatus The run status.
     * @return The execution handle.
     */
-  def retryElseFail(runStatus: StandardAsyncRunState,
-                    backendExecutionStatus: Future[ExecutionHandle],
+  def retryElseFail(backendExecutionStatus: Future[ExecutionHandle],
                     retryWithMoreMemory: Boolean = false): Future[ExecutionHandle] = {
 
-    val retryable = previousFailedRetries < maxRetries
-
     backendExecutionStatus flatMap {
-      case failed: FailedNonRetryableExecutionHandle if retryable =>
-        incrementFailedRetryCount map { _ =>
-          val currentMemoryMultiplier = jobDescriptor.key.memoryMultiplier
-          (retryWithMoreMemory, memoryRetryFactor) match {
-            case (true, Some(multiplier)) => refineV[GreaterEqualOne](currentMemoryMultiplier.value * multiplier.value) match {
-              case Left(_) => FailedNonRetryableExecutionHandle(MemoryMultiplierNotPositive(jobDescriptor.key.tag, None, currentMemoryMultiplier, multiplier), failed.returnCode)
-              case Right(newMultiplier) => FailedRetryableExecutionHandle(failed.throwable, failed.returnCode, newMultiplier)
+      case failedRetryableOrNonRetryable: FailedExecutionHandle =>
+
+        val kvsFromPreviousAttempt = jobDescriptor.prefetchedKvStoreEntries.collect {
+          case (key: String, kvPair: KvPair) => key -> kvPair
+        }
+        val kvsForNextAttempt = failedRetryableOrNonRetryable.kvPairsToSave match {
+          case Some(kvPairs) => kvPairs.map {
+            case kvPair@KvPair(ScopedKey(_, _, key), _) => key -> kvPair
+          }.toMap
+          case None => Map.empty[String, KvPair]
+        }
+
+        val maxRetriesNotReachedYet = previousFailedRetries < maxRetries
+        failedRetryableOrNonRetryable match {
+          case failed: FailedNonRetryableExecutionHandle if maxRetriesNotReachedYet =>
+            val currentMemoryMultiplier = jobDescriptor.key.memoryMultiplier
+            (retryWithMoreMemory, memoryRetryFactor) match {
+              case (true, Some(multiplier)) =>
+                val newMultiplier = Refined.unsafeApply[Double, GreaterEqualOne](currentMemoryMultiplier.value * multiplier.value)
+                saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true, Option(newMultiplier))
+              case (_, _) => saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true)
             }
-            case (_, _) => FailedRetryableExecutionHandle(failed.throwable, failed.returnCode, currentMemoryMultiplier)
-          }
+          case failedNonRetryable: FailedNonRetryableExecutionHandle => Future.successful(failedNonRetryable)
+          case failedRetryable: FailedRetryableExecutionHandle => saveAttrsAndRetry(failedRetryable, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = false)
         }
       case _ => backendExecutionStatus
+    }
+  }
+
+  private def saveAttrsAndRetry(failedExecHandle: FailedExecutionHandle,
+                        kvPrev: Map[String, KvPair],
+                        kvNext: Map[String, KvPair],
+                        incFailedCount: Boolean,
+                        memoryMultiplier: Option[GreaterEqualRefined] = None): Future[FailedRetryableExecutionHandle] = {
+    failedExecHandle match {
+      case failedNonRetryable: FailedNonRetryableExecutionHandle =>
+        saveKvPairsForNextAttempt(kvPrev, kvNext, incFailedCount) map { _ =>
+          val currentMemoryMultiplier = jobDescriptor.key.memoryMultiplier
+          FailedRetryableExecutionHandle(failedNonRetryable.throwable, failedNonRetryable.returnCode, memoryMultiplier.getOrElse(currentMemoryMultiplier), None)
+        }
+      case failedRetryable: FailedRetryableExecutionHandle =>
+        saveKvPairsForNextAttempt(kvPrev, kvNext, incFailedCount) map (_ => failedRetryable)
+    }
+  }
+
+  /**
+   * Merge key-value pairs from previous job execution attempt with incoming pairs from current attempt, which has just
+   * failed, and store them in the database. In case when there are key-value pairs with the same key name among those
+   * from previous attempt and coming from backend, backend values have higher precedence.
+   *
+   */
+  private def saveKvPairsForNextAttempt(kvsFromPreviousAttempt: Map[String, KvPair],
+                                        kvsForNextAttempt: Map[String, KvPair],
+                                        incrementFailedRetryCount: Boolean): Future[Seq[KvResponse]] = {
+    val nextKvJobKey = KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)
+    val kvsFromPreviousAttemptUpd = kvsFromPreviousAttempt.mapValues(kvPair => kvPair.copy(key = kvPair.key.copy(jobKey = nextKvJobKey)))
+    val mergedKvs = if (incrementFailedRetryCount) {
+      val failedRetryCountScopedKey = ScopedKey(jobDescriptor.workflowDescriptor.id, nextKvJobKey, BackendLifecycleActorFactory.FailedRetryCountKey)
+      val failedRetryCountKvPair = KvPair(failedRetryCountScopedKey, (previousFailedRetries + 1).toString)
+
+      kvsFromPreviousAttemptUpd ++ kvsForNextAttempt + (BackendLifecycleActorFactory.FailedRetryCountKey -> failedRetryCountKvPair)
+    } else {
+      kvsFromPreviousAttemptUpd ++ kvsForNextAttempt
+    }
+
+    makeKvRequest(mergedKvs.values.map(KvPut).toSeq) map { respSeq =>
+      val failures = respSeq.filter(_.isInstanceOf[KvFailure])
+      if (failures.isEmpty) {
+        respSeq
+      } else {
+        throw new RuntimeException("Failed to save one or more job execution attributes to the database between " +
+          "attempts:\n " + failures.mkString("\n"))
+      }
     }
   }
 
@@ -963,7 +1019,7 @@ trait StandardAsyncExecutionActor
   def handleExecutionFailure(runStatus: StandardAsyncRunState,
                              returnCode: Option[Int]): Future[ExecutionHandle] = {
     val exception = new RuntimeException(s"Task ${jobDescriptor.key.tag} failed for unknown reason: $runStatus")
-    Future.successful(FailedNonRetryableExecutionHandle(exception, returnCode))
+    Future.successful(FailedNonRetryableExecutionHandle(exception, returnCode, None))
   }
 
   // See executeOrRecoverSuccess
@@ -1096,7 +1152,7 @@ trait StandardAsyncExecutionActor
             case (_: ExecutionHandle, exception: Exception) if isFatal(exception) =>
               // Log exceptions and return the original handle to try again.
               jobLogger.warn(s"Fatal exception polling for status. Job will fail.", exception)
-              FailedNonRetryableExecutionHandle(exception)
+              FailedNonRetryableExecutionHandle(exception, kvPairsToSave = None)
             case (handle: ExecutionHandle, exception: Exception) =>
               // Log exceptions and return the original handle to try again.
               jobLogger.warn(s"Caught non-fatal ${exception.getClass.getSimpleName} exception trying to poll, retrying", exception)
@@ -1106,7 +1162,7 @@ trait StandardAsyncExecutionActor
       case error: Error => throw error // JVM-ending calamity.
       case _: Throwable =>
         // Someone has subclassed or instantiated Throwable directly. Kill the job. They should be using an Exception.
-        FailedNonRetryableExecutionHandle(throwable)
+        FailedNonRetryableExecutionHandle(throwable, kvPairsToSave = None)
     }
   }
 
@@ -1170,37 +1226,37 @@ trait StandardAsyncExecutionActor
         if (isDone(status)) {
           tryReturnCodeAsInt match {
             case Success(returnCodeAsInt) if failOnStdErr && stderrSize.intValue > 0 =>
-              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(StderrNonEmpty(jobDescriptor.key.tag, stderrSize, stderrAsOption), Option(returnCodeAsInt)))
-              retryElseFail(status, executionHandle)
+              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(StderrNonEmpty(jobDescriptor.key.tag, stderrSize, stderrAsOption), Option(returnCodeAsInt), None))
+              retryElseFail(executionHandle)
             case Success(returnCodeAsInt) if isAbort(returnCodeAsInt) =>
               Future.successful(AbortedExecutionHandle)
             case Success(returnCodeAsInt) if !continueOnReturnCode.continueFor(returnCodeAsInt) =>
-              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption), Option(returnCodeAsInt)))
-              retryElseFail(status, executionHandle)
+              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption), Option(returnCodeAsInt), None))
+              retryElseFail(executionHandle)
             case Success(returnCodeAsInt) if retryWithMoreMemory  =>
-              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption), Option(returnCodeAsInt)))
-              retryElseFail(status, executionHandle, retryWithMoreMemory)
+              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption), Option(returnCodeAsInt), None))
+              retryElseFail(executionHandle, retryWithMoreMemory)
             case Success(returnCodeAsInt) =>
               handleExecutionSuccess(status, oldHandle, returnCodeAsInt)
             case Failure(_) =>
-              Future.successful(FailedNonRetryableExecutionHandle(ReturnCodeIsNotAnInt(jobDescriptor.key.tag, returnCodeAsString, stderrAsOption)))
+              Future.successful(FailedNonRetryableExecutionHandle(ReturnCodeIsNotAnInt(jobDescriptor.key.tag, returnCodeAsString, stderrAsOption), kvPairsToSave = None))
           }
         } else {
           tryReturnCodeAsInt match {
             case Success(returnCodeAsInt) if retryWithMoreMemory =>
-              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption), Option(returnCodeAsInt)))
-              retryElseFail(status, executionHandle, retryWithMoreMemory)
+              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption), Option(returnCodeAsInt), None))
+              retryElseFail(executionHandle, retryWithMoreMemory)
             case _ =>
               val failureStatus = handleExecutionFailure(status, tryReturnCodeAsInt.toOption)
-              retryElseFail(status, failureStatus)
+              retryElseFail(failureStatus)
           }
         }
     } recoverWith {
       case exception =>
-        if (isDone(status)) Future.successful(FailedNonRetryableExecutionHandle(exception))
+        if (isDone(status)) Future.successful(FailedNonRetryableExecutionHandle(exception, kvPairsToSave = None))
         else {
           val failureStatus = handleExecutionFailure(status, None)
-          retryElseFail(status, failureStatus)
+          retryElseFail(failureStatus)
         }
     }
   }
@@ -1215,19 +1271,6 @@ trait StandardAsyncExecutionActor
       KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt)
     val scopedKey = ScopedKey(jobDescriptor.workflowDescriptor.id, kvJobKey, jobIdKey)
     val kvValue = runningJob.jobId
-    val kvPair = KvPair(scopedKey, kvValue)
-    val kvPut = KvPut(kvPair)
-    makeKvRequest(Seq(kvPut)).map(_.head)
-  }
-
-  /**
-    * Increment the retry count for this failed job in the key value store.
-    */
-  def incrementFailedRetryCount: Future[KvResponse] = {
-    val futureKvJobKey =
-      KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)
-    val scopedKey = ScopedKey(jobDescriptor.workflowDescriptor.id, futureKvJobKey, BackendLifecycleActorFactory.FailedRetryCountKey)
-    val kvValue = (previousFailedRetries + 1).toString
     val kvPair = KvPair(scopedKey, kvValue)
     val kvPut = KvPut(kvPair)
     makeKvRequest(Seq(kvPut)).map(_.head)

@@ -96,10 +96,10 @@ trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging with SlowJob
     case Finish(SuccessfulExecutionHandle(outputs, returnCode, jobDetritusFiles, executionEvents, _)) =>
       completionPromise.success(JobSucceededResponse(jobDescriptor.key, Some(returnCode), outputs, Option(jobDetritusFiles), executionEvents, dockerImageUsed, resultGenerationMode = RunOnBackend))
       context.stop(self)
-    case Finish(FailedNonRetryableExecutionHandle(throwable, returnCode)) =>
+    case Finish(FailedNonRetryableExecutionHandle(throwable, returnCode, _)) =>
       completionPromise.success(JobFailedNonRetryableResponse(jobDescriptor.key, throwable, returnCode))
       context.stop(self)
-    case Finish(FailedRetryableExecutionHandle(throwable, returnCode, memoryMultiplier)) =>
+    case Finish(FailedRetryableExecutionHandle(throwable, returnCode, memoryMultiplier, _)) =>
       completionPromise.success(JobFailedRetryableResponse(jobDescriptor.key, throwable, returnCode, memoryMultiplier))
       context.stop(self)
     case Finish(cromwell.backend.async.AbortedExecutionHandle) =>

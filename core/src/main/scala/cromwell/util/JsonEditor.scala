@@ -2,6 +2,7 @@ package cromwell.util
 
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
+import cats.instances.list._
 import cats.instances.vector._
 import cats.syntax.traverse._
 import cats.syntax.validated._
@@ -85,23 +86,45 @@ object JsonEditor {
 
   def outputs(json: Json): Json = includeJson(json, NonEmptyList.of("outputs")) |> (excludeJson(_, NonEmptyList.one("calls")))
 
+  private def isCallSubworkflow(callArrayJson: Json): ErrorOr[Boolean] = {
+    for {
+      array <- callArrayJson.asArray map (_.validNel) getOrElse s"call array unexpectedly not an array: $callArrayJson".invalidNel
+      // All calls within this array are assumed to have the same "shape": either they are subworkflows or regular jobs.
+      // So this only looks at the first element of the call array to determine whether this member of the containing
+      // object should be filtered as a subworkflow. There should always be at least one element in this calls array.
+      callJson <- array.headOption map (_.validNel) getOrElse "call array unexpectedly empty".invalidNel
+      call <- callJson.asObject map (_.validNel) getOrElse s"Call JSON unexpectedly not an object: $callJson".invalidNel
+    } yield call.contains(subWorkflowMetadataKey)
+  }
+
+  private def subworkflowCallNames(callsObject: JsonObject): ErrorOr[Set[String]] = {
+    callsObject.toList.flatTraverse[ErrorOr, String] {
+      case (key, json) => isCallSubworkflow(json) map { _.option(key).toList }
+    } map { _.toSet }
+  }
+
   def logs(workflowJson: Json): ErrorOr[Json] = {
     val inputsAndOutputs = NonEmptyList.of("outputs", "inputs")
     val shardAttemptAndLogsFields = NonEmptyList.of("shardIndex", "attempt", "stdout", "stderr", "backendLogs")
 
-    def removeSubworkflowCalls(calls: JsonObject): JsonObject = calls.filter {
-      // All calls within this array are assumed to have the same "shape": either they are subworkflows or regular jobs.
-      // So this only looks at the first element of the call array to determine whether this member of the containing
-      // object should be filtered as a subworkflow.
-      case (_, json) => ! json.asArray.get.head.asObject.exists(_.contains(subWorkflowMetadataKey))
+    def callsObjectJsonWithSubworkflowsRemoved(calls: JsonObject): ErrorOr[Json] = {
+      for {
+        callsToRemove <- subworkflowCallNames(calls)
+        workflowObject = calls.filterKeys(!callsToRemove.contains(_))
+      } yield Json.fromJsonObject(workflowObject)
+    }
+
+    def updatedWorkflowJson(updatedCallsObject: JsonObject): ErrorOr[Json] = {
+      callsObjectJsonWithSubworkflowsRemoved(updatedCallsObject) map {
+        updatedCallsObject => Json.fromJsonObject(workflowJson.asObject.get.add("calls", updatedCallsObject))
+      }
     }
 
     for {
       calls <- callsObject(workflowJson)
-      callsWithSubworkflowsRemoved = calls map removeSubworkflowCalls
-      workflowWithSubworkflowsRemoved = callsWithSubworkflowsRemoved match {
-        case None => workflowJson // Not having calls is fine, just return the workflow.
-        case Some(cs) => Json.fromJsonObject(workflowJson.asObject.get.add("calls", Json.fromJsonObject(cs)))
+      workflowWithSubworkflowsRemoved <- calls match {
+        case None => workflowJson.validNel
+        case Some(cs) => updatedWorkflowJson(cs)
       }
       // exclude outputs and inputs since variables can be named anything including internally reserved words like
       // `stdout` and `stderr` which would be erroneously included among the logs.

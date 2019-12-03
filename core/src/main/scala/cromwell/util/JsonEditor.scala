@@ -1,6 +1,7 @@
 package cromwell.util
 
 import cats.data.NonEmptyList
+import cats.data.Validated.{Invalid, Valid}
 import cats.instances.vector._
 import cats.syntax.traverse._
 import cats.syntax.validated._
@@ -219,4 +220,39 @@ object JsonEditor {
     }
     workflowWithUpdatedCalls
   }
+
+  def extractSubWorkflowMetadata(subworkflowId: String, workflowJson: Json): ErrorOr[Option[Json]] = {
+    extractJsonObjectByKey(workflowJson, "calls") match {
+      case None => None.validNel
+      case Some((_, calls)) =>
+        calls.toMap.map {
+          // The Json (a JSON array, really) corresponding to the array of call objects for a call name.
+          case (_, callValue: Json) =>
+            // The object above converted to a Vector[Json].
+            val callArray: Vector[Json] = callValue.asArray.toVector.flatten
+
+            // actually while this vector will contain one element per each object from `calls` array, only at most one
+            // of those elements will be `Valid[Some[Json]]' (if subworkflow was found), while others should be `Valid[None]`
+            val subworkflowsArrayFromCalls: Vector[ErrorOr[Option[Json]]] = callArray map { callJson =>
+              // If there is no subworkflow object this will be None.
+              val callAndSubworkflowObjects: Option[(JsonObject, Json)] = extractJsonByKey(callJson, subWorkflowMetadataKey)
+
+              callAndSubworkflowObjects match {
+                case None => None.validNel
+                case Some((_, subworkflowJson)) =>
+                  subworkflowJson.workflowId match {
+                    case Valid(currentSubworkflowId) if currentSubworkflowId.toString == subworkflowId => Option(subworkflowJson).validNel
+                    case Valid(_) => extractSubWorkflowMetadata(subworkflowId, subworkflowJson)
+                    case err@Invalid(_) => err
+                  }
+              }
+            }
+            (subworkflowsArrayFromCalls.sequence[ErrorOr, Option[Json]]: ErrorOr[Vector[Option[Json]]]) map (_.flatten.headOption)
+        }
+          .toVector
+          .sequence[ErrorOr, Option[Json]]
+          .map(_.flatten.headOption)
+    }
+  }
+
 }

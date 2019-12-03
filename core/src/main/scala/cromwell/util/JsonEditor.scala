@@ -85,7 +85,7 @@ object JsonEditor {
 
   def outputs(json: Json): Json = includeJson(json, NonEmptyList.of("outputs")) |> (excludeJson(_, NonEmptyList.one("calls")))
 
-  def logs(json: Json): ErrorOr[Json] = {
+  def logs(workflowJson: Json): ErrorOr[Json] = {
     val inputsAndOutputs = NonEmptyList.of("outputs", "inputs")
     val shardAttemptAndLogsFields = NonEmptyList.of("shardIndex", "attempt", "stdout", "stderr", "backendLogs")
 
@@ -93,16 +93,15 @@ object JsonEditor {
       // All calls within this array are assumed to have the same "shape": either they are subworkflows or regular jobs.
       // So this only looks at the first element of the call array to determine whether this member of the containing
       // object should be filtered as a subworkflow.
-      case (_, json) => ! json.asArray.get.head.asObject.exists(_.contains(subWorkflowIdKey))
+      case (_, json) => ! json.asArray.get.head.asObject.exists(_.contains(subWorkflowMetadataKey))
     }
 
     for {
-      workflowWithSubworkflowsUnexpanded <- unexpandSubworkflows(json)
-      calls <- callsObject(workflowWithSubworkflowsUnexpanded)
+      calls <- callsObject(workflowJson)
       callsWithSubworkflowsRemoved = calls map removeSubworkflowCalls
       workflowWithSubworkflowsRemoved = callsWithSubworkflowsRemoved match {
-        case None => workflowWithSubworkflowsUnexpanded // Not having calls is fine, just return the unexpanded workflow.
-        case Some(cs) => Json.fromJsonObject(workflowWithSubworkflowsUnexpanded.asObject.get.add("calls", Json.fromJsonObject(cs)))
+        case None => workflowJson // Not having calls is fine, just return the workflow.
+        case Some(cs) => Json.fromJsonObject(workflowJson.asObject.get.add("calls", Json.fromJsonObject(cs)))
       }
       // exclude outputs and inputs since variables can be named anything including internally reserved words like
       // `stdout` and `stderr` which would be erroneously included among the logs.

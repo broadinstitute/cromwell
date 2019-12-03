@@ -288,10 +288,10 @@ object CromwellApiService {
                                   (implicit timeout: Timeout, executor: ExecutionContext): Future[WorkflowId] = {
     Try(WorkflowId.fromString(possibleWorkflowId)) match {
       case Success(w) =>
-        serviceRegistryActor.ask(ValidateWorkflowIdInMetadata(w)).mapTo[WorkflowValidationResponse] map {
-          case RecognizedWorkflowId => w
-          case UnrecognizedWorkflowId => throw UnrecognizedWorkflowException(w)
-          case FailedToCheckWorkflowId(t) => throw t
+        serviceRegistryActor.ask(ValidateWorkflowIdInMetadata(w)).mapTo[WorkflowValidationResponse] flatMap {
+          case RecognizedWorkflowId => Future.successful(w)
+          case UnrecognizedWorkflowId => validateWorkflowIdInMetadataSummaries(possibleWorkflowId, serviceRegistryActor)
+          case FailedToCheckWorkflowId(t) => Future.failed(t)
         }
       case Failure(_) => Future.failed(InvalidWorkflowException(possibleWorkflowId))
     }

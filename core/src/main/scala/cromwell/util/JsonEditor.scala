@@ -90,6 +90,9 @@ object JsonEditor {
     val shardAttemptAndLogsFields = NonEmptyList.of("shardIndex", "attempt", "stdout", "stderr", "backendLogs")
 
     def removeSubworkflowCalls(calls: JsonObject): JsonObject = calls.filter {
+      // All calls within this array are assumed to have the same "shape": either they are subworkflows or regular jobs.
+      // So this only looks at the first element of the call array to determine whether this member of the containing
+      // object should be filtered as a subworkflow.
       case (_, json) => ! json.asArray.get.head.asObject.exists(_.contains(subWorkflowIdKey))
     }
 

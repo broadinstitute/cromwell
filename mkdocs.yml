@@ -89,6 +89,7 @@ nav:
                 - Main Actors: developers/bitesize/workflowExecution/majorActors.md
                 - Workflow, Subworkflow and Job Stores: developers/bitesize/workflowExecution/workflowSubworkflowAndJobStores.md
                 - Job Key / Value Store: developers/bitesize/workflowExecution/jobKeyValueStore.md
+                - Job retry decision logic: developers/bitesize/jobRetryLogic/jobRetryLogic.md
             - IoActor: developers/bitesize/IoActor/IoActor.md
         - Horizontal Cromwell ("Horicromtal"): developers/bitesize/horicromtal.md
         - General Topics:

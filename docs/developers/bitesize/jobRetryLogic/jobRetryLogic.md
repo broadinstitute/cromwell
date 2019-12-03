@@ -1,4 +1,4 @@
-# Workflow jobs: restart decision logic
+# Workflow jobs: retry decision logic
 
 * **Word count:** 132
 

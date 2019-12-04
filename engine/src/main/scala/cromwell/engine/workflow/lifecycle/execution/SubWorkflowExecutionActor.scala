@@ -110,8 +110,8 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
   }
 
   when(SubWorkflowRunningState) {
-    case Event(WorkflowExecutionSucceededResponse(executedJobKeys, outputs), _) =>
-      context.parent ! SubWorkflowSucceededResponse(key, executedJobKeys, outputs)
+    case Event(WorkflowExecutionSucceededResponse(executedJobKeys, outputs, cumulativeOutputs), _) =>
+      context.parent ! SubWorkflowSucceededResponse(key, executedJobKeys, outputs, cumulativeOutputs)
       goto(SubWorkflowSucceededState)
     case Event(WorkflowExecutionFailedResponse(executedJobKeys, reason), _) =>
       context.parent ! SubWorkflowFailedResponse(key, executedJobKeys, reason)

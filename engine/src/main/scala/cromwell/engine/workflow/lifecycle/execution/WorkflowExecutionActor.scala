@@ -210,7 +210,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       }
       handleCallSuccessful(r.jobKey, r.jobOutputs, r.returnCode, stateData, Map.empty)
     // Sub Workflow
-    case Event(SubWorkflowSucceededResponse(jobKey, descendantJobKeys, callOutputs), currentStateData) =>
+    case Event(SubWorkflowSucceededResponse(jobKey, descendantJobKeys, callOutputs, cumulativeOutputs), currentStateData) =>
       // Update call outputs to come from sub-workflow output ports:
       val subworkflowOutputs: Map[OutputPort, WomValue] = callOutputs.outputs flatMap { case (port, value) =>
         jobKey.node.subworkflowCallOutputPorts collectFirst {
@@ -219,7 +219,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       }
 
       if(subworkflowOutputs.size == callOutputs.outputs.size) {
-        handleCallSuccessful(jobKey, CallOutputs(subworkflowOutputs), None, currentStateData, descendantJobKeys)
+        handleCallSuccessful(jobKey, CallOutputs(subworkflowOutputs), None, currentStateData, descendantJobKeys, cumulativeOutputs)
       } else {
         handleNonRetryableFailure(currentStateData, jobKey, new Exception(s"Subworkflow produced outputs: [${callOutputs.outputs.keys.mkString(", ")}], but we expected all of [${jobKey.node.subworkflowCallOutputPorts.map(_.internalName)}]"))
       }
@@ -334,7 +334,11 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
         case (outputNode, value) => outputNode.graphOutputPort -> value
       })
 
-      context.parent ! WorkflowExecutionSucceededResponse(data.jobExecutionMap, localOutputs)
+      val currentCumulativeOutputs = data.cumulativeOutputs.copy(
+        outputs = data.cumulativeOutputs.outputs ++ localOutputs.outputs
+      )
+
+      context.parent ! WorkflowExecutionSucceededResponse(data.jobExecutionMap, localOutputs, currentCumulativeOutputs)
       goto(WorkflowExecutionSuccessfulState) using data
     }
 
@@ -457,9 +461,14 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     stay() using stateData.mergeExecutionDiff(executionDiff)
   }
 
-  private def handleCallSuccessful(jobKey: JobKey, outputs: CallOutputs, returnCode: Option[Int], data: WorkflowExecutionActorData, jobExecutionMap: JobExecutionMap) = {
+  private def handleCallSuccessful(jobKey: JobKey,
+                                   outputs: CallOutputs,
+                                   returnCode: Option[Int],
+                                   data: WorkflowExecutionActorData,
+                                   jobExecutionMap: JobExecutionMap,
+                                   cumulativeOutputs: CallOutputs = CallOutputs.empty) = {
     pushSuccessfulCallMetadata(jobKey, returnCode, outputs)
-    stay() using data.callExecutionSuccess(jobKey, outputs).addExecutions(jobExecutionMap)
+    stay() using data.callExecutionSuccess(jobKey, outputs, cumulativeOutputs).addExecutions(jobExecutionMap)
   }
 
   private def handleDeclarationEvaluationSuccessful(key: ExpressionKey, values: Map[OutputPort, WomValue], data: WorkflowExecutionActorData) = {
@@ -726,7 +735,7 @@ object WorkflowExecutionActor {
     def jobExecutionMap: JobExecutionMap
   }
 
-  case class WorkflowExecutionSucceededResponse(jobExecutionMap: JobExecutionMap, outputs: CallOutputs)
+  case class WorkflowExecutionSucceededResponse(jobExecutionMap: JobExecutionMap, outputs: CallOutputs, cumulativeOutputs: CallOutputs = CallOutputs.empty)
     extends WorkflowExecutionActorResponse {
     override def toString = "WorkflowExecutionSucceededResponse"
   }
@@ -758,7 +767,7 @@ object WorkflowExecutionActor {
     */
   private case object ExecutionHeartBeatKey
 
-  case class SubWorkflowSucceededResponse(key: SubWorkflowKey, jobExecutionMap: JobExecutionMap, outputs: CallOutputs)
+  case class SubWorkflowSucceededResponse(key: SubWorkflowKey, jobExecutionMap: JobExecutionMap, outputs: CallOutputs, cumulativeOutputs: CallOutputs = CallOutputs.empty)
 
   case class SubWorkflowFailedResponse(key: SubWorkflowKey, jobExecutionMap: JobExecutionMap, reason: Throwable)
 

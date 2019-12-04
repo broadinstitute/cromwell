@@ -86,18 +86,19 @@ object JsonEditor {
 
   def outputs(json: Json): Json = includeJson(json, NonEmptyList.of("outputs")) |> (excludeJson(_, NonEmptyList.one("calls")))
 
-  private def isCallSubworkflow(callArrayJson: Json): ErrorOr[Boolean] = {
-    for {
-      array <- callArrayJson.asArray map (_.validNel) getOrElse s"call array unexpectedly not an array: $callArrayJson".invalidNel
-      // All calls within this array are assumed to have the same "shape": either they are subworkflows or regular jobs.
-      // So this only looks at the first element of the call array to determine whether this member of the containing
-      // object should be filtered as a subworkflow. There should always be at least one element in this calls array.
-      callJson <- array.headOption map (_.validNel) getOrElse "call array unexpectedly empty".invalidNel
-      call <- callJson.asObject map (_.validNel) getOrElse s"Call JSON unexpectedly not an object: $callJson".invalidNel
-    } yield call.contains(subWorkflowMetadataKey)
-  }
-
+  // Return a Set of the call names which in the "calls" object which are subworkflows.
   private def subworkflowCallNames(callsObject: JsonObject): ErrorOr[Set[String]] = {
+    def isCallSubworkflow(callArrayJson: Json): ErrorOr[Boolean] = {
+      for {
+        array <- callArrayJson.asArray map (_.validNel) getOrElse s"call array unexpectedly not an array: $callArrayJson".invalidNel
+        // All calls within this array are assumed to have the same "shape": either they are subworkflows or regular jobs.
+        // So this only looks at the first element of the call array to determine whether this member of the containing
+        // object should be filtered as a subworkflow. There should always be at least one element in this calls array.
+        callJson <- array.headOption map (_.validNel) getOrElse "call array unexpectedly empty".invalidNel
+        call <- callJson.asObject map (_.validNel) getOrElse s"Call JSON unexpectedly not an object: $callJson".invalidNel
+      } yield call.contains(subWorkflowMetadataKey)
+    }
+
     callsObject.toList.flatTraverse[ErrorOr, String] {
       case (key, json) => isCallSubworkflow(json) map { _.option(key).toList }
     } map { _.toSet }

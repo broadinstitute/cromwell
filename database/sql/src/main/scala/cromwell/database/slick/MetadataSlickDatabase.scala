@@ -35,9 +35,28 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   }
 
   override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])
-                                 (implicit ec: ExecutionContext): Future[Unit] = {
-    val action = DBIO.seq(metadataEntries.grouped(insertBatchSize).map(dataAccess.metadataEntries ++= _).toSeq:_*)
-    runLobAction(action)
+                                 (implicit ec: ExecutionContext): Future[AddMetadataEntriesResponse] = {
+
+    if (metadataEntries.isEmpty) Future.successful(AddMetadataEntriesResponse(-1, -1, 0, false, None)) else {
+
+      val batchesToWrite = metadataEntries.grouped(insertBatchSize).toList
+      val insertActions = batchesToWrite.map(dataAccess.metadataEntryIdsAutoInc ++= _)
+      val action = DBIO.sequence(insertActions.toSeq)
+
+      runLobAction(action).map(_.flatten).flatMap { ids =>
+
+        val minId = ids.min
+
+        val summarizerRewindInfo = for {
+          incorrectSummaryStatusId <- runAction(getSummaryStatusIfNotBelowThreshold("WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING", minId))
+          rewind <- runTransaction(ensureSummaryStatusIsBelowThreshold("WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING", minId))
+        } yield (incorrectSummaryStatusId, rewind)
+
+        summarizerRewindInfo.map { case (incorrectSummaryStatusId, rewindNeeded) =>
+          AddMetadataEntriesResponse(ids.min, ids.max, ids.size, rewindNeeded, incorrectSummaryStatusId)
+        }
+      }
+    }
   }
 
   override def metadataEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Boolean] = {

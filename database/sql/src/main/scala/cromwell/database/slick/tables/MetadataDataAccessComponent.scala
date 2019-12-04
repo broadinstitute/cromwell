@@ -6,6 +6,7 @@ class MetadataDataAccessComponent(val driver: JdbcProfile) extends DataAccessCom
   with CustomLabelEntryComponent
   with MetadataEntryComponent
   with SummaryStatusEntryComponent
+  with SummaryQueueEntryComponent
   with WorkflowMetadataSummaryEntryComponent {
 
   import driver.api._

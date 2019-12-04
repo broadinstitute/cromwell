@@ -23,7 +23,8 @@ object MetadataSlickDatabase {
 class MetadataSlickDatabase(originalDatabaseConfig: Config)
   extends SlickDatabase(originalDatabaseConfig)
     with MetadataSqlDatabase
-    with SummaryStatusSlickDatabase {
+    with SummaryStatusSlickDatabase
+    with SummaryQueueSlickDatabase {
   override lazy val dataAccess = new MetadataDataAccessComponent(slickConfig.profile)
 
   import dataAccess.driver.api._

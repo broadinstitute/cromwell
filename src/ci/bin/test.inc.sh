@@ -118,7 +118,7 @@ cromwell::private::create_build_variables() {
     # will be the name of the branch targeted by the pull request, and for push builds it will be the name of the
     # branch. So, in case of push builds `git diff` will always return empty result. This is why we only use this short
     # circuiting logic for pull request builds
-    if [[ "${TRAVIS_EVENT_TYPE}" != "pull_request" ]]; then
+    if [[ "${TRAVIS_EVENT_TYPE:-unset}" != "pull_request" ]]; then
         CROMWELL_BUILD_ONLY_DOCS_CHANGED=false
     elif git diff --name-only "${TRAVIS_BRANCH}" 2>&1 | grep -q --invert-match ^docs/; then
         CROMWELL_BUILD_ONLY_DOCS_CHANGED=false

@@ -1,6 +1,7 @@
 package cromwell.database.slick
 
 import java.sql.Timestamp
+import java.time.OffsetDateTime
 
 import cats.implicits._
 import com.typesafe.config.{Config, ConfigFactory}
@@ -35,26 +36,17 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   }
 
   override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])
-                                 (implicit ec: ExecutionContext): Future[AddMetadataEntriesResponse] = {
+                                 (implicit ec: ExecutionContext): Future[Unit] = {
 
-    if (metadataEntries.isEmpty) Future.successful(AddMetadataEntriesResponse(-1, -1, 0, false, None)) else {
+    if (metadataEntries.isEmpty) Future.successful(()) else {
 
       val batchesToWrite = metadataEntries.grouped(insertBatchSize).toList
       val insertActions = batchesToWrite.map(dataAccess.metadataEntryIdsAutoInc ++= _)
       val action = DBIO.sequence(insertActions.toSeq)
 
       runLobAction(action).map(_.flatten).flatMap { ids =>
-
-        val minId = ids.min
-
-        val summarizerRewindInfo = for {
-          incorrectSummaryStatusId <- runAction(getSummaryStatusIfNotBelowThreshold("WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING", minId))
-          rewind <- runTransaction(ensureSummaryStatusIsBelowThreshold("WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING", minId))
-        } yield (incorrectSummaryStatusId, rewind)
-
-        summarizerRewindInfo.map { case (incorrectSummaryStatusId, rewindNeeded) =>
-          AddMetadataEntriesResponse(ids.min, ids.max, ids.size, rewindNeeded, incorrectSummaryStatusId)
-        }
+        val summaryQueueInsertActions = writeSummaryQueueEntry(ids, OffsetDateTime.now().toSystemTimestamp)
+        runAction(summaryQueueInsertActions).void
       }
     }
   }
@@ -323,6 +315,8 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       _ <- DBIO.sequence(metadataWithoutLabels map updateWorkflowMetadataSummaryEntry(buildUpdatedSummary))
       _ <- DBIO.sequence(customLabelEntries map toCustomLabelEntry map upsertCustomLabelEntry)
       _ <- upsertSummaryStatusEntrySummaryPosition(summaryName, summaryPosition)
+      summarizedMetadataEntryIds = rawMetadataEntries.flatMap(_.metadataEntryId.toSeq)
+      _ <- markSummaryQueueEntriesAsSummarizedForMetadataEntryIds(summarizedMetadataEntryIds)
     } yield summaryPosition
   }
 

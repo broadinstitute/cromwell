@@ -101,8 +101,7 @@ object JsonEditor {
 
     callsObject.toList.flatTraverse[ErrorOr, (String, Json)] {
       case (key, json) => isCallSubworkflow(json) map { isSubworkflow =>
-        // If the value is true return a single-element List containing the (key, json) pair,
-        // otherwise return an empty List.
+        // If the value is true return an empty List, otherwise return a single-element List containing the (key, json) pair.
         if (isSubworkflow) List.empty else List((key, json))
       }
     } map { Json.fromFields }

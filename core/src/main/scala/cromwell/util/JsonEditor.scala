@@ -96,13 +96,14 @@ object JsonEditor {
         // object should be filtered as a subworkflow. There should always be at least one element in this calls array.
         callJson <- array.headOption map (_.validNel) getOrElse "call array unexpectedly empty".invalidNel
         call <- callJson.asObject map (_.validNel) getOrElse s"Call JSON unexpectedly not an object: $callJson".invalidNel
-      } yield call.contains(subWorkflowMetadataKey)
+      } yield call.contains(subWorkflowMetadataKey) || call.contains(subWorkflowIdKey)
     }
 
     callsObject.toList.flatTraverse[ErrorOr, (String, Json)] {
-      case (key, json) => isCallSubworkflow(json) map {
-        _.option((key, json)).toList // If the value is true return a single-element List containing the (key, json) pair,
-                                     // otherwise return an empty List.
+      case (key, json) => isCallSubworkflow(json) map { isSubworkflow =>
+        // If the value is true return a single-element List containing the (key, json) pair,
+        // otherwise return an empty List.
+        if (isSubworkflow) List.empty else List((key, json))
       }
     } map { Json.fromFields }
   }

@@ -86,8 +86,8 @@ object JsonEditor {
 
   def outputs(json: Json): Json = includeJson(json, NonEmptyList.of("outputs")) |> (excludeJson(_, NonEmptyList.one("calls")))
 
-  // Return a Set of the call names which in the "calls" object which are subworkflows.
-  private def subworkflowCallNames(callsObject: JsonObject): ErrorOr[Set[String]] = {
+  // Return the calls object with subworkflows removed.
+  private def removeSubworkflowCalls(callsObject: JsonObject): ErrorOr[Json] = {
     def isCallSubworkflow(callArrayJson: Json): ErrorOr[Boolean] = {
       for {
         array <- callArrayJson.asArray map (_.validNel) getOrElse s"call array unexpectedly not an array: $callArrayJson".invalidNel
@@ -99,26 +99,22 @@ object JsonEditor {
       } yield call.contains(subWorkflowMetadataKey)
     }
 
-    callsObject.toList.flatTraverse[ErrorOr, String] {
-      case (key, json) => isCallSubworkflow(json) map { _.option(key).toList }
-    } map { _.toSet }
+    callsObject.toList.flatTraverse[ErrorOr, (String, Json)] {
+      case (key, json) => isCallSubworkflow(json) map {
+        _.option((key, json)).toList // If the value is true return a single-element List containing the (key, json) pair,
+                                     // otherwise return an empty List.
+      }
+    } map { Json.fromFields }
   }
 
   def logs(workflowJson: Json): ErrorOr[Json] = {
     val inputsAndOutputs = NonEmptyList.of("outputs", "inputs")
     val shardAttemptAndLogsFields = NonEmptyList.of("shardIndex", "attempt", "stdout", "stderr", "backendLogs")
 
-    def callsObjectJsonWithSubworkflowsRemoved(calls: JsonObject): ErrorOr[Json] = {
+    def updatedWorkflowJson(calls: JsonObject): ErrorOr[Json] = {
       for {
-        callsToRemove <- subworkflowCallNames(calls)
-        workflowObject = calls.filterKeys(!callsToRemove.contains(_))
-      } yield Json.fromJsonObject(workflowObject)
-    }
-
-    def updatedWorkflowJson(updatedCallsObject: JsonObject): ErrorOr[Json] = {
-      callsObjectJsonWithSubworkflowsRemoved(updatedCallsObject) map {
-        updatedCallsObject => Json.fromJsonObject(workflowJson.asObject.get.add("calls", updatedCallsObject))
-      }
+        updatedCallsJson <- removeSubworkflowCalls(calls)
+      } yield Json.fromJsonObject(workflowJson.asObject.get.add("calls", updatedCallsJson))
     }
 
     for {
@@ -231,8 +227,6 @@ object JsonEditor {
     * @return updated json
     */
   def unexpandSubworkflows(workflowJson: Json): ErrorOr[Json] = {
-    import common.validation.ErrorOr._
-
     def workflowObject(workflowJson: Json): ErrorOr[JsonObject] =
       workflowJson.asObject.toErrorOr(s"Workflow JSON unexpectedly not a JSON object: $workflowJson")
 
@@ -246,7 +240,7 @@ object JsonEditor {
         } yield Json.fromJsonObject(updated)
       }
 
-      def processCallEntry(entry: Json): ErrorOr[Json] = {
+      def possiblyUnexpandCallEntry(entry: Json): ErrorOr[Json] = {
         entry.asObject match {
           case None => s"call entry unexpectedly not an object: $entry".invalidNel
           case Some(entryObject) =>
@@ -259,7 +253,7 @@ object JsonEditor {
 
       val updatedCallsObject = callsObject.traverse { json =>
         val updatedCallArray: ErrorOr[Vector[Json]] = json.asArray match {
-          case Some(array) => array traverse processCallEntry
+          case Some(array) => array traverse possiblyUnexpandCallEntry
           case None => s"value unexpectedly not an array: $json".invalidNel
         }
         updatedCallArray map Json.fromValues
@@ -273,6 +267,8 @@ object JsonEditor {
     for {
       workflowObject <- workflowObject(workflowJson)
       callsObject <- callsObject(workflowObject)
+      // `callsObject` is of type `Option[JsonObject]`, so the `map` has a return type of `Option[ErrorOr[Json]]`.
+      // The `getOrElse` will return an expression of `ErrorOr[Json]`.
       updated <- callsObject map { workflowObjectWithUpdatedCalls(workflowObject, _) } getOrElse workflowJson.validNel
     } yield updated
   }

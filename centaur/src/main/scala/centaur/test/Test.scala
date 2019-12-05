@@ -34,7 +34,7 @@ import spray.json.{JsString, JsValue}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
-import scala.util.Failure
+import scala.util.{Failure, Try}
 
 /**
   * A simplified riff on the final tagless pattern where the interpreter (monad & related bits) are fixed. Operation
@@ -539,6 +539,41 @@ object Operations extends StrictLogging {
     }
   }
 
+  private def checkDiff(diffs: Iterable[String],
+                        actualMetadata: WorkflowMetadata,
+                        errorMessage: String,
+                        submittedWorkflow: SubmittedWorkflow,
+                        workflowSpec: Workflow): Option[CentaurTestException] = {
+    if (diffs.nonEmpty) {
+      val message = s"$errorMessage:\n -${diffs.mkString("\n -")}\n"
+      Option(CentaurTestException(message, workflowSpec, submittedWorkflow, actualMetadata))
+    } else {
+      None
+    }
+  }
+
+  def compareMetadataIO(expectedMetadataIO: IO[WorkflowMetadata],
+                      actualMetadataIO: IO[WorkflowMetadata],
+                      errorMessage: String,
+                      submittedWorkflow: SubmittedWorkflow,
+                      workflowSpec: Workflow,
+                      cacheHitUUID: Option[UUID] = None): Test[Unit] = {
+    new Test[Unit] {
+      override def run: IO[Unit] = {
+        for {
+          expectedMetadata <- expectedMetadataIO
+          actualMetadata <- actualMetadataIO
+          diff = expectedMetadata.asFlat.diff(actualMetadata.asFlat, submittedWorkflow.id.id, cacheHitUUID, compareTyped = true)
+        } yield {
+          checkDiff(diff, actualMetadata, errorMessage, submittedWorkflow, workflowSpec) match {
+            case Some(ex) => throw ex
+            case None => ()
+          }
+        }
+      }
+    }
+  }
+
   def validateMetadata(submittedWorkflow: SubmittedWorkflow,
                        workflowSpec: Workflow,
                        cacheHitUUID: Option[UUID] = None): Test[WorkflowMetadata] = {
@@ -555,14 +590,6 @@ object Operations extends StrictLogging {
 
       def validateMetadata(workflow: SubmittedWorkflow,
                            expectedMetadata: WorkflowFlatMetadata): IO[WorkflowMetadata] = {
-        def checkDiff(diffs: Iterable[String], actualMetadata: WorkflowMetadata): IO[Unit] = {
-          if (diffs.nonEmpty) {
-            val message = s"Invalid metadata response:\n -${diffs.mkString("\n -")}\n"
-            IO.raiseError(CentaurTestException(message, workflowSpec, workflow, actualMetadata))
-          } else {
-            IO.unit
-          }
-        }
 
         def validateUnwantedMetadata(actualMetadata: WorkflowMetadata): IO[Unit] = {
           if (workflowSpec.notInMetadata.nonEmpty) {
@@ -601,7 +628,8 @@ object Operations extends StrictLogging {
           _ <- validateUnwantedMetadata(actualMetadata)
           _ <- validateAllowOtherOutputs(actualMetadata)
           diffs = expectedMetadata.diff(actualMetadata.asFlat, workflow.id.id, cacheHitUUID)
-          _ <- checkDiff(diffs, actualMetadata)
+          checkDiffResult = checkDiff(diffs, actualMetadata, "Invalid metadata response", submittedWorkflow, workflowSpec)
+          _ <- IO.fromTry(Try(checkDiffResult.foreach(throw _)))
         } yield actualMetadata
       }
 

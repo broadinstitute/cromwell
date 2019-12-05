@@ -2,6 +2,7 @@ package centaur.test.formulas
 
 import cats.syntax.flatMap._
 import cats.syntax.functor._
+import centaur.api.CentaurCromwellClient
 import centaur.test.Operations._
 import centaur.test.Test.testMonad
 import centaur.test.markers.CallMarker
@@ -22,6 +23,35 @@ import spray.json.JsString
   * for comprehension. These assembled formulas can then be run by a client
   */
 object TestFormulas {
+
+  private val jobManagerMetadataRequestArgs = Map(
+    "includeKey" -> List(
+      "attempt",
+      "backendLogs:log",
+      "callCaching:hit",
+      "callRoot",
+      "end",
+      "executionStatus",
+      "failures",
+      "inputs",
+      "jobId",
+      "outputs",
+      "shardIndex",
+      "start",
+      "calls",
+      "description",
+      "executionEvents",
+      "labels",
+      "parentWorkflowId",
+      "returnCode",
+      "status",
+      "submission",
+      "subWorkflowId",
+      "workflowName"
+    ),
+    "excludeKey" -> List("callCaching:hitFailures")
+  )
+
   private def runWorkflowUntilTerminalStatus(workflow: Workflow, status: TerminalStatus): Test[SubmittedWorkflow] = {
     val workflowProgressTimeout = ConfigFactory.load().getOrElse("centaur.workflow-progress-timeout", 1 minute)
     for {
@@ -39,11 +69,17 @@ object TestFormulas {
     _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
     submittedWorkflow <- runSuccessfulWorkflow(workflowDefinition)
     metadata <- validateMetadata(submittedWorkflow, workflowDefinition)
+    metadataForJobManagerBeforeCarboniting = CentaurCromwellClient.metadata(submittedWorkflow, Option(jobManagerMetadataRequestArgs))
     _ = cromwellTracker.track(metadata)
     _ <- validateDirectoryContentsCounts(workflowDefinition, submittedWorkflow, metadata)
     _ <- waitForArchive(submittedWorkflow.id)
     // Re-validate the metadata now that carboniting has completed
     _ <- validateMetadata(submittedWorkflow, workflowDefinition)
+
+    metadataForJobManageAfterCarboniting = CentaurCromwellClient.metadata(submittedWorkflow, Option(jobManagerMetadataRequestArgs))
+    jobManagerMetadataError = "Metadata for JobManager differs before and after carboniting"
+    _ <- compareMetadataIO(metadataForJobManagerBeforeCarboniting, metadataForJobManageAfterCarboniting, jobManagerMetadataError, submittedWorkflow, workflowDefinition)
+
     flatMetadata = metadata.asFlat
     workflowRoot = flatMetadata.value.get("workflowRoot").collectFirst { case JsString(r) => r } getOrElse "No Workflow Root"
     _ <- validateOutputs(submittedWorkflow, workflowDefinition, workflowRoot)

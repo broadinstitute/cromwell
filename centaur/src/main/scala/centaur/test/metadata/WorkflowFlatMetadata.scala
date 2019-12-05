@@ -24,14 +24,18 @@ import scala.util.{Failure, Success, Try}
   */
 case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
 
-  def diff(actual: WorkflowFlatMetadata, workflowID: UUID, cacheHitUUID: Option[UUID] = None): Iterable[String] = {
+  def diff(actual: WorkflowFlatMetadata, workflowID: UUID, cacheHitUUID: Option[UUID] = None, compareTyped: Boolean = false): Iterable[String] = {
     // If the test fails in initialization there wouldn't be workflow root metadata, and if that's the expectation
     // then that's ok.
     val workflowRoot = actual.value.get("workflowRoot").collectFirst { case JsString(r) => r } getOrElse "No Workflow Root"
     val missingErrors = value.keySet.diff(actual.value.keySet) map { k => s"Missing key: $k" }
-    val mismatchErrors = value.keySet.intersect(actual.value.keySet) flatMap { k => diffValues(k, value(k), actual.value(k),
-      workflowID, workflowRoot, cacheHitUUID)}
-
+    val mismatchErrors = value.keySet.intersect(actual.value.keySet) flatMap { k =>
+      if (compareTyped) {
+        diffValuesTyped(k, value(k), actual.value(k))
+      } else {
+        diffValues(k, value(k), actual.value(k), workflowID, workflowRoot, cacheHitUUID)
+      }
+    }
     mismatchErrors ++ missingErrors
   }
 
@@ -68,6 +72,16 @@ case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
       case o: JsArray => (expected != JsString(o.toString)).option(s"expected: $cacheSubstitutions but got: $actual")
       case JsNull => (expected != JsNull).option(s"expected: $cacheSubstitutions but got: $actual")
       case _ => Option(s"expected: $cacheSubstitutions but got: $actual")
+    }
+
+    matchError.map(s"Metadata mismatch for $key - " + _)
+  }
+
+  private def diffValuesTyped(key: String, expected: JsValue, actual: JsValue): Option[String] = {
+    val matchError = if (expected.getClass == actual.getClass) {
+      (expected != actual).option(s"expected: $expected but got: $actual")
+    } else {
+      Option(s"expected type: ${expected.getClass.getSimpleName} but got type: ${actual.getClass.getSimpleName}")
     }
 
     matchError.map(s"Metadata mismatch for $key - " + _)

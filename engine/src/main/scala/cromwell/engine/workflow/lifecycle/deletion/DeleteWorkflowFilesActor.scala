@@ -47,7 +47,6 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
       if (intermediateOutputs.nonEmpty) {
         self ! DeleteFiles
         goto(DeleteIntermediateFiles) using DeletingIntermediateFilesData(intermediateOutputs)
-//        stopSelf()
       }
       else {
         log.info(s"Root workflow ${rootWorkflowId.id} does not have any intermediate output files to delete.")
@@ -110,14 +109,6 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
   }
 
 
-  private def metadataEventForDeletionStatus(status: FileDeletionStatus): MetadataEvent = {
-    val key = MetadataKey(rootWorkflowId, None, WorkflowMetadataKeys.FileDeletionStatus)
-    val value = MetadataValue(FileDeletionStatus.toDatabaseValue(status))
-
-    MetadataEvent(key, value)
-  }
-
-
   private def respondAndStop(errors: List[Throwable], filesNotFound: List[Path]) = {
     val (metadataEvent, response) =
       if (errors.isEmpty) (metadataEventForDeletionStatus(Succeeded), DeleteWorkflowFilesSucceededResponse(filesNotFound))
@@ -126,6 +117,14 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
     serviceRegistryActor ! PutMetadataAction(metadataEvent)
     context.parent ! response
     stopSelf()
+  }
+
+
+  private def metadataEventForDeletionStatus(status: FileDeletionStatus): MetadataEvent = {
+    val key = MetadataKey(rootWorkflowId, None, WorkflowMetadataKeys.FileDeletionStatus)
+    val value = MetadataValue(FileDeletionStatus.toDatabaseValue(status))
+
+    MetadataEvent(key, value)
   }
 
 

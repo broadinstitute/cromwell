@@ -407,10 +407,9 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
     }
   }
 
-  // Let these messages fall through to the whenUnhandled handler:
-  when(WorkflowAbortedState) { FSM.NullFunction }
-  when(WorkflowFailedState) { FSM.NullFunction }
-  when(WorkflowSucceededState) { FSM.NullFunction }
+  /* **************************** */
+  /* ****** Deleting files ****** */
+  /* **************************** */
 
   // TODO: Instead of simply logging to Kibana, figure out a way to tell the user what were the errors somehow (maybe through metadata?)
   // since deletion happens only if the workflow and finalization succeeded we can directly goto Succeeded state
@@ -423,6 +422,11 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
         filesNotFoundErrorMsg(filesNotFound) + s"Errors: ${errors.map(ExceptionUtils.getMessage)}")
       goto(WorkflowSucceededState) using data.copy(currentLifecycleStateActor = None)
   }
+
+  // Let these messages fall through to the whenUnhandled handler:
+  when(WorkflowAbortedState) { FSM.NullFunction }
+  when(WorkflowFailedState) { FSM.NullFunction }
+  when(WorkflowSucceededState) { FSM.NullFunction }
 
   whenUnhandled {
     case Event(SendWorkflowHeartbeatCommand, _) =>
@@ -520,33 +524,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
        are being copied to another location.
      */
 
-    finalState match {
-      case WorkflowSucceededState => testThis(data)
-      case _ => goto(finalState) using data.copy(currentLifecycleStateActor = None)
-    }
-
-    //        goto(finalState) using data.copy(currentLifecycleStateActor = None)
-  }
-
-  private def testThis(data: WorkflowActorData) = {
-    val rootWorkflowId = data.workflowDescriptor.get.rootWorkflowId
-    val deleteActor = context.actorOf(DeleteWorkflowFilesActor.props(
-      rootWorkflowId = rootWorkflowId,
-      workflowFinalOutputs = data.workflowFinalOutputs,
-      workflowAllOutputs = data.workflowAllOutputs,
-      pathBuilders = data.workflowDescriptor.get.pathBuilders,
-      serviceRegistryActor = serviceRegistryActor,
-      ioActor = ioActor),
-      name = s"DeleteWorkflowFilesActor-${rootWorkflowId.id}")
-
-    deleteActor ! StartWorkflowFilesDeletion
-
-    goto(DeletingFilesState) using data
-
-    //    Thread.sleep(60000)
-    //
-    //    goto(WorkflowSucceededState) using data.copy(currentLifecycleStateActor = None)
-    //    goto(finalState) using data.copy(currentLifecycleStateActor = None)
+    goto(finalState) using data.copy(currentLifecycleStateActor = None)
   }
 
   private[workflow] def makeFinalizationActor(workflowDescriptor: EngineWorkflowDescriptor, jobExecutionMap: JobExecutionMap, workflowOutputs: CallOutputs) = {

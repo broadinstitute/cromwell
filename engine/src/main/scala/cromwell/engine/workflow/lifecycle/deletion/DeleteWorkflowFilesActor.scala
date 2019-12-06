@@ -206,8 +206,7 @@ object DeleteWorkflowFilesActor {
       else {
         val updatedCommandsSet = commandsToWaitFor - command
         if (updatedCommandsSet.isEmpty) (this.copy(commandsToWaitFor = Set.empty), AllDeleteCommandsDone)
-        else
-          (this.copy(updatedCommandsSet), StillWaiting)
+        else (this.copy(updatedCommandsSet), StillWaiting)
       }
     }
   }

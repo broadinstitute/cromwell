@@ -520,7 +520,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       TODO: In reference to WA-65: https://broadworkbench.atlassian.net/browse/WA-65, once finalization succeeds,
        check if workflowFinalOutputs is nonEmpty and then create the DeleteWorkflowFilesActor here. After that
        WorkflowActor should transition to DeletingFiles state and wait for update from DeleteWorkflowFilesActor.
-       We can't start deleting files before finalization succeeds as we don't want to start deleting files as they
+       We can't start deleting files before finalization succeeds as we don't want to start deleting them as they
        are being copied to another location.
      */
 

@@ -22,6 +22,13 @@ trait SummaryQueueSlickDatabase {
     })
   }
 
+  private[slick] def fetchUnsummarizedMetadataEntryIds(maxResults: Long) = {
+    dataAccess.unsummarizedMetadataEntryIds(maxResults).result
+  }
+
+  private[slick] def countUnsummarizedMetadataEntryIds() = {
+    dataAccess.countUnsummarizedMetadataEntryIds().result
+  }
 
 
 }

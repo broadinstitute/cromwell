@@ -33,12 +33,18 @@ trait SummaryQueueEntryComponent {
     } yield entry.summarizationTimestamp
   )
 
-  val unsummarizedMetadataEntryIds = Compiled(
+  def unsummarizedMetadataEntryIds(maxResults: Long) = (
+    for {
+      entry <- summaryQueueEntries
+      if entry.summarizationTimestamp.isEmpty
+    } yield entry.metadataEntryId).sortBy(identity).take(maxResults)
+
+  def countUnsummarizedMetadataEntryIds() = {
     (for {
       entry <- summaryQueueEntries
       if entry.summarizationTimestamp.isEmpty
-    } yield entry.metadataEntryId).sortBy(identity)
-  )
+    } yield entry).length
+  }
 }
 
 /**

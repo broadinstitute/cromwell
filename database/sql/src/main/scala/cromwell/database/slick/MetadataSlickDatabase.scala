@@ -195,12 +195,13 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                      => WorkflowMetadataSummaryEntry)
                                   (implicit ec: ExecutionContext): Future[(Long, Long)] = {
     val action = for {
-      previousMetadataEntryIdOption <- getSummaryStatusEntrySummaryPosition(summarizeNameIncreasing)
-      previousMaxMetadataEntryId = previousMetadataEntryIdOption.getOrElse(-1L)
-      nextMaxMetadataEntryId = previousMaxMetadataEntryId + limit
-      maximumMetadataEntryIdConsidered <- summarizeMetadata(
-        minMetadataEntryId = previousMaxMetadataEntryId + 1L,
-        maxMetadataEntryId = nextMaxMetadataEntryId,
+
+      metadataEntryIdsToSummarize <- fetchUnsummarizedMetadataEntryIds(limit.toLong)
+
+      metadataEntriesToSummarize <- dataAccess.metadataEntriesForIds(metadataEntryIdsToSummarize).result
+
+      summarizedEntryIds <- summarizeRawMetadata(
+        metadataEntriesToSummarize,
         startMetadataKey = startMetadataKey,
         endMetadataKey = endMetadataKey,
         nameMetadataKey = nameMetadataKey,
@@ -209,23 +210,12 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
         parentWorkflowIdKey = parentWorkflowIdKey,
         rootWorkflowIdKey = rootWorkflowIdKey,
         labelMetadataKey = labelMetadataKey,
-        buildUpdatedSummary = buildUpdatedSummary,
-        summaryPositionFunction =
-          metadataEntries => {
-            if (metadataEntries.nonEmpty) {
-              metadataEntries.map(_.metadataEntryId.get).max
-            } else {
-              previousMaxMetadataEntryId
-            }
-          },
-        summaryName = summarizeNameIncreasing
+        buildUpdatedSummary = buildUpdatedSummary
       )
-      maximumMetadataEntryIdInTableOption <- dataAccess.metadataEntries.map(_.metadataEntryId).max.result
-      maximumMetadataEntryIdInTable = maximumMetadataEntryIdInTableOption.getOrElse {
-        // TODO: Add a logging framework to this 'database' project and log this weirdness.
-        maximumMetadataEntryIdConsidered
-      }
-    } yield (maximumMetadataEntryIdConsidered - previousMaxMetadataEntryId, maximumMetadataEntryIdInTable - maximumMetadataEntryIdConsidered)
+      _ <- markSummaryQueueEntriesAsSummarizedForMetadataEntryIds(summarizedEntryIds)
+      unsummarizedTotal <- countUnsummarizedMetadataEntryIds()
+
+    } yield (summarizedEntryIds.length.toLong, unsummarizedTotal.toLong)
 
     runTransaction(action)
   }
@@ -275,6 +265,40 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     } yield (rowsProcessed, newMinimumMetadataEntryId)
 
     runTransaction(action)
+  }
+
+  private def summarizeRawMetadata(rawMetadataEntries: Seq[MetadataEntry],
+                                   startMetadataKey: String,
+                                   endMetadataKey: String,
+                                   nameMetadataKey: String,
+                                   statusMetadataKey: String,
+                                   submissionMetadataKey: String,
+                                   parentWorkflowIdKey: String,
+                                   rootWorkflowIdKey: String,
+                                   labelMetadataKey: String,
+                                   buildUpdatedSummary: (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry]) => WorkflowMetadataSummaryEntry
+                                  )(implicit ec: ExecutionContext) = {
+    val exactMatchMetadataKeys = Set(
+      startMetadataKey, endMetadataKey, nameMetadataKey, statusMetadataKey, submissionMetadataKey, parentWorkflowIdKey, rootWorkflowIdKey)
+    val startsWithMetadataKeys = Set(labelMetadataKey)
+
+    val metadataEntries = rawMetadataEntries filter { entry =>
+      entry.callFullyQualifiedName.isEmpty && entry.jobIndex.isEmpty && entry.jobAttempt.isEmpty &&
+        (exactMatchMetadataKeys.contains(entry.metadataKey) || startsWithMetadataKeys.exists(entry.metadataKey.startsWith))
+    }
+
+    val metadataWithoutLabels = metadataEntries
+      .filterNot(_.metadataKey.contains(labelMetadataKey)) // Why are these "contains" while the filtering is "starts with"?
+      .groupBy(_.workflowExecutionUuid)
+
+    val customLabelEntries = metadataEntries.filter(_.metadataKey.contains(labelMetadataKey))
+
+    for {
+      _ <- DBIO.sequence(metadataWithoutLabels map updateWorkflowMetadataSummaryEntry(buildUpdatedSummary))
+      _ <- DBIO.sequence(customLabelEntries map toCustomLabelEntry map upsertCustomLabelEntry)
+
+      summarizedMetadataEntryIds = rawMetadataEntries.flatMap(_.metadataEntryId.toSeq)
+    } yield rawMetadataEntries.flatMap(_.metadataEntryId)
   }
 
   private def summarizeMetadata(minMetadataEntryId: Long,

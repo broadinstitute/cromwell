@@ -45,7 +45,6 @@ class MetadataSummaryRefreshActor(override val serviceRegistryActor: ActorRef)
   private val summaryMetricsGapsPath: NonEmptyList[String] = MetadataServiceActor.MetadataInstrumentationPrefix :+ "summarizer" :+ "gap"
   private val summaryMetricsProcessedPath: NonEmptyList[String] = MetadataServiceActor.MetadataInstrumentationPrefix :+ "summarizer" :+ "processed"
 
-
   val increasingGapPath = summaryMetricsGapsPath :+ "increasing"
   val decreasingGapPath = summaryMetricsGapsPath :+ "decreasing"
 

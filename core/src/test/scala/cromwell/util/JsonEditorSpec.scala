@@ -96,7 +96,7 @@ class JsonEditorSpec extends FlatSpec with Matchers {
     actual shouldEqual expected
   }
 
-  // CARBON FIXING Broken in the current Carbonite implementation, this recurses down inappropriately and finds a bogus 'labels' match.
+  // CARBONITE FIXING Broken in the current Carbonite implementation, this recurses down inappropriately and finds a bogus 'labels' match.
   it should "keep includes in workflows, tragically broken" ignore {
     val actual = includeJson(helloWorldJson, NonEmptyList.of("workflowName", "labels", "outputs")).get
     val expectedMetadata = """
@@ -155,7 +155,7 @@ class JsonEditorSpec extends FlatSpec with Matchers {
     actual shouldEqual expected
   }
 
-  // CARBON FIXING it should be easy to write a currently-broken version of this like in the Hello World example above.
+  // CARBONITE FIXING it should be easy to write a currently-broken version of this like in the Hello World example above.
   it should "keep includes in calls and workflows and subworkflows" in {
     val actual = includeJson(gratuitiousSubworkflowJson, NonEmptyList.of("workflowName", "executionStatus", "outputs")).get
     val expected = parseMetadata("included_gratuitous_subworkflows.json")
@@ -177,7 +177,7 @@ class JsonEditorSpec extends FlatSpec with Matchers {
     actual shouldEqual expected
   }
 
-  // CARBON FIXING a subworkflow version of this like the CarboniteMetadataThawingActorSpec would be nice.
+  // CARBONITE FIXING a subworkflow version of this like the CarboniteMetadataThawingActorSpec would be nice.
   it should "add labels" in {
     val labels = Map(helloWorldJson.workflowId.get -> Map(("new", "label")))
     val newJson = updateLabels(helloWorldJson, labels).get

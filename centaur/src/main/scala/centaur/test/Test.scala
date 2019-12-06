@@ -526,7 +526,7 @@ object Operations extends StrictLogging {
           IO.unit
         } else {
           val message = (List("actual logs endpoint output did not equal filtered metadata", "flat logs: ") ++
-            flatLogs.toList :+ "flat filtered metadata: " ++ flatFilteredMetadata.toList).mkString("\n")
+            flatLogs.toList ++ List("flat filtered metadata: ") ++ flatFilteredMetadata.toList).mkString("\n")
           IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
         }
 

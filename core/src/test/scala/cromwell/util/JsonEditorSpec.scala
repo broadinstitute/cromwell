@@ -83,7 +83,7 @@ class JsonEditorSpec extends FlatSpec with Matchers{
           .getContextClassLoader
           .getResourceAsStream("metadata_with_subworkflows.json")
         ).mkString)
-    val newJson = metadataWithSubworkflows.map(replaceSubworkflowMetadataWithId).right.get
+    val newJson = metadataWithSubworkflows.map(unexpandSubworkflows).right.get
     val keys = newJson.get.hcursor.downField("calls").downField("wf.wf").downArray.keys
     assert(keys.exists(_.exists(_ == "subWorkflowMetadata")) === false)
 

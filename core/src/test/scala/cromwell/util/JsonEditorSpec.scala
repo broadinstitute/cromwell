@@ -91,7 +91,7 @@ class JsonEditorSpec extends FlatSpec with Matchers {
   }
 
   it should "remove excludes in subworkflows" in {
-    val actual = excludeJson(gratuitiousSubworkflowJson, NonEmptyList.of("executionEvents", "workflowName")).get
+    val actual = excludeJson(gratuitousSubworkflowJson, NonEmptyList.of("executionEvents", "workflowName")).get
     val expected = parseMetadata("excluded_gratuitous_subworkflow.json")
     actual shouldEqual expected
   }
@@ -157,7 +157,7 @@ class JsonEditorSpec extends FlatSpec with Matchers {
 
   // CARBONITE FIXING it should be easy to write a currently-broken version of this like in the Hello World example above.
   it should "keep includes in calls and workflows and subworkflows" in {
-    val actual = includeJson(gratuitiousSubworkflowJson, NonEmptyList.of("workflowName", "executionStatus", "outputs")).get
+    val actual = includeJson(gratuitousSubworkflowJson, NonEmptyList.of("workflowName", "executionStatus", "outputs")).get
     val expected = parseMetadata("included_gratuitous_subworkflows.json")
     actual shouldEqual expected
   }
@@ -186,11 +186,11 @@ class JsonEditorSpec extends FlatSpec with Matchers {
   }
 
   it should "replace subworkflow metadata with subworkflow id" in {
-    val actualJson = unexpandSubworkflows(gratuitiousSubworkflowJson).get
+    val actualJson = unexpandSubworkflows(gratuitousSubworkflowJson).get
     val keys = actualJson.hcursor.downField("calls").downField("wf.wf").downArray.keys
     assert(keys.exists(_.exists(_ == "subWorkflowMetadata")) === false)
 
-    val oldCallsArrayCursor = gratuitiousSubworkflowJson.hcursor.downField("calls").downField("wf.wf").downArray
+    val oldCallsArrayCursor = gratuitousSubworkflowJson.hcursor.downField("calls").downField("wf.wf").downArray
     val oldSubWorkflowId1 = oldCallsArrayCursor.downField("subWorkflowMetadata").get[String]("id").asInstanceOf[Right[DecodingFailure, String]].value
     val oldSubWorkflowId2 = oldCallsArrayCursor.right.downField("subWorkflowMetadata").get[String]("id").asInstanceOf[Right[DecodingFailure, String]].value
 
@@ -223,7 +223,7 @@ class JsonEditorSpec extends FlatSpec with Matchers {
       "540d2d9b-eccc-4e4f-8478-574e4e48f98d"
     )
     workflowIds.foreach { subworkflowId =>
-      val extractedSubworkflowJson = extractSubWorkflowMetadata(subworkflowId, gratuitiousSubworkflowJson)
+      val extractedSubworkflowJson = extractSubWorkflowMetadata(subworkflowId, gratuitousSubworkflowJson)
       extractedSubworkflowJson match {
         case Valid(Some(subWorkflowJson)) =>
           assert(true === subWorkflowJson.isInstanceOf[Json])
@@ -275,7 +275,7 @@ object JsonEditorSpec {
         ).mkString)
   }
 
-  val gratuitiousSubworkflowJson: Json = parseMetadata("gratuitous_subworkflows.json")
+  val gratuitousSubworkflowJson: Json = parseMetadata("gratuitous_subworkflows.json")
   val helloWorldJson: Json = parseMetadata("hello_world.json")
 
   implicit class EnhancedErrorOr[A](val e: ErrorOr[A]) extends AnyVal {

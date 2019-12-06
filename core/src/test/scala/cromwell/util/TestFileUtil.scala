@@ -35,7 +35,7 @@ trait HashUtil extends TestFileUtil {
 }
 
 object ErrorOrUtil {
-  implicit class EnhancedErrorOr[A](val value: ErrorOr[A]) extends AnyVal {
+  implicit class EnhancedErrorOr[+A](val value: ErrorOr[A]) extends AnyVal {
     /** Extract a value from an `ErrorOr` box if the box is `Valid`, throw an exception if the box is `Invalid`.
       * For test code only. */
     def get: A = value match {

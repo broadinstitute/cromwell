@@ -13,7 +13,6 @@ import common.validation.Validation._
 import cromwell.core.WorkflowId
 import io.circe.Json.Folder
 import io.circe.{Json, JsonNumber, JsonObject, Printer}
-import mouse.all._
 
 import scala.collection.immutable
 
@@ -23,16 +22,16 @@ object JsonEditor {
   private val subWorkflowIdKey = "subWorkflowId"
   private val keysToIncludeInCallsOrWorkflows = NonEmptyList.of("id", "shardIndex", "attempt")
 
-  def includeExcludeJson(json: Json, includeKeys: Option[NonEmptyList[String]], excludeKeys: Option[NonEmptyList[String]]): Json =
+  def includeExcludeJson(json: Json, includeKeys: Option[NonEmptyList[String]], excludeKeys: Option[NonEmptyList[String]]): ErrorOr[Json] =
     (includeKeys, excludeKeys) match {
       // Take includes, and then remove excludes
-      case (Some(includeKeys), Some(excludeKeys)) => includeJson(json, includeKeys) |> (excludeJson(_, excludeKeys))
+      case (Some(includeKeys), Some(excludeKeys)) => includeJson(json, includeKeys) flatMap (excludeJson(_, excludeKeys))
       case (None, Some(excludeKeys)) => excludeJson(json, excludeKeys)
       case (Some(includeKeys), None) => includeJson(json, includeKeys)
-      case _ => json
+      case _ => json.validNel
     }
 
-  def includeJson(json: Json, keys: NonEmptyList[String]): Json = {
+  def includeJson(json: Json, keys: NonEmptyList[String]): ErrorOr[Json] = {
     val keysWithId = keysToIncludeInCallsOrWorkflows ::: keys
     def folder: Folder[(Json, Boolean)] = new Folder[(Json, Boolean)] {
       override def onNull: (Json, Boolean) = (Json.Null, false)
@@ -67,24 +66,61 @@ object JsonEditor {
       }
     }
     val (newJson,_) = json.foldWith(folder)
-    newJson
+    newJson.validNel
   }
 
-  def excludeJson(json: Json, keys: NonEmptyList[String]): Json = {
-    json.withObject{obj =>
-      val keysFiltered = obj.filterKeys(key => !keys.foldLeft(false)(_ || key.startsWith(_)))
-      val childrenMapped = keysFiltered.mapValues(excludeJson(_, keys))
-      Json.fromJsonObject(childrenMapped)
-    }.withArray{
-      array =>
-        val newArray = array.map(excludeJson(_, keys))
-        Json.fromValues(newArray)
+  def excludeJson(json: Json, keys: NonEmptyList[String]): ErrorOr[Json] = excludeWorkflowJson(json, keys)
+
+  def excludeWorkflowJson(workflowJson: Json, keys: NonEmptyList[String]): ErrorOr[Json] = {
+    // Always include 'id' in the workflow.
+    val workflowKeysToExclude = keys.toList.toSet - "id"
+
+    def excludeJob(job: JsonObject): ErrorOr[JsonObject] = {
+      // Always include 'shardIndex' and 'attempt' in the job.
+      val jobKeysToExclude = keys.toList.toSet - "shardIndex" - "attempt"
+      job.filterKeys(!jobKeysToExclude.contains(_)).validNel
     }
+
+    def excludeCall(callJson: Json): ErrorOr[Json] = {
+      def excludeSubworkflowCall(parentWorkflowCall: JsonObject)(subworkflow: Json): ErrorOr[JsonObject] = {
+        excludeWorkflowJson(subworkflow, keys) map { excludedSubworkflow => parentWorkflowCall.add(subWorkflowMetadataKey, excludedSubworkflow) }
+      }
+
+      for {
+        callObject <- callJson.asObject.map(_.validNel).getOrElse(s"call JSON unexpectedly not an object: $callJson".invalidNel)
+        excludedJob <- excludeJob(callObject)
+        excludedCall <- excludedJob(subWorkflowMetadataKey) map excludeSubworkflowCall(excludedJob) getOrElse excludedJob.validNel
+      } yield Json.fromJsonObject(excludedCall)
+    }
+
+    def excludeJsonArray(callsArrayJson: Json): ErrorOr[Json] = {
+      for {
+        array <- callsArrayJson.asArray.map(_.validNel).getOrElse(s"calls JSON unexpectedly not an array: $callsArrayJson".invalidNel)
+        updatedCalls <- array.traverse[ErrorOr, Json](excludeCall)
+      } yield Json.fromValues(updatedCalls)
+    }
+
+    def excludeCallsObject(jsonObject: JsonObject): ErrorOr[Json] =
+      (jsonObject traverse excludeJsonArray) map Json.fromJsonObject
+
+    for {
+      workflowObject <- workflowJson.asObject.map(_.validNel).getOrElse(s"Workflow JSON unexpectedly not an object: $workflowJson".invalidNel)
+      workflowObjectWithKeysFiltered = workflowObject filterKeys { key => !workflowKeysToExclude.contains(key) }
+      updatedWorkflowJsonObject <- workflowObjectWithKeysFiltered("calls") match {
+        case None => workflowObjectWithKeysFiltered.validNel
+        case Some(calls) => calls.asObject match {
+          case None => s"calls JSON unexpectedly not an object: $calls".invalidNel
+          case Some(callsObject) => excludeCallsObject(callsObject) map {
+            updatedCallsObject => workflowObjectWithKeysFiltered.add("calls", updatedCallsObject)
+          }
+        }
+      }
+    } yield Json.fromJsonObject(updatedWorkflowJsonObject)
   }
 
   def extractCall(json: Json, callFqn: String, index: Option[Int], attempt: Option[Int]): Json = json // ??? // FIXME
 
-  def outputs(json: Json): Json = includeJson(json, NonEmptyList.of("outputs")) |> (excludeJson(_, NonEmptyList.one("calls")))
+  def outputs(json: Json): ErrorOr[Json] = includeJson(json, NonEmptyList.of("outputs")) flatMap (excludeJson(_, NonEmptyList.one("calls")))
 
   // Return the calls object with subworkflows removed.
   private def removeSubworkflowCalls(callsObject: JsonObject): ErrorOr[Json] = {
@@ -125,7 +161,8 @@ object JsonEditor {
       }
       // exclude outputs and inputs since variables can be named anything including internally reserved words like
       // `stdout` and `stderr` which would be erroneously included among the logs.
-      inc = excludeJson(workflowWithSubworkflowsRemoved, inputsAndOutputs) |> (includeJson(_, shardAttemptAndLogsFields))
+      excluded <- excludeJson(workflowWithSubworkflowsRemoved, inputsAndOutputs)
+      inc <- includeJson(excluded, shardAttemptAndLogsFields)
     } yield inc
   }
 

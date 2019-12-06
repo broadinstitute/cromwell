@@ -95,9 +95,72 @@ class JsonEditorSpec extends FlatSpec with Matchers {
     val expected = parseMetadata("excluded_gratuitous_subworkflow.json")
     actual shouldEqual expected
   }
-  // FIXME it should "keep includes" in {
-  // FIXME it should "keep nested includes" in {
-  // FIXME it should "keep multiple nested includes" in {
+
+  // CARBON FIXING Broken in the current Carbonite implementation, this recurses down inappropriately and finds a bogus 'labels' match.
+  it should "keep includes in workflows, tragically broken" ignore {
+    val actual = includeJson(helloWorldJson, NonEmptyList.of("workflowName", "labels", "outputs")).get
+    val expectedMetadata = """
+      |{
+      |  "workflowName" : "main_workflow",
+      |  "calls" : {
+      |    "main_workflow.wf_hello" : [
+      |      {
+      |        "shardIndex" : -1,
+      |        "outputs" : {
+      |          "salutation" : "Hello sub world!"
+      |        },
+      |        "attempt" : 1
+      |      }
+      |    ]
+      |  },
+      |  "outputs" : {
+      |    "main_workflow.main_output" : "Hello sub world!"
+      |  },
+      |  "id" : "757d0bcc-b636-4658-99d4-9b4b3767f1d1",
+      |  "labels" : {
+      |    "cromwell-workflow-id" : "cromwell-757d0bcc-b636-4658-99d4-9b4b3767f1d1"
+      |  }
+      |}
+      |""".stripMargin
+
+    val expected = parseString(expectedMetadata)
+    actual shouldEqual expected
+  }
+
+  it should "keep includes in calls and workflows" in {
+    val actual = includeJson(helloWorldJson, NonEmptyList.of("workflowName", "executionStatus", "outputs")).get
+    val expectedMetadata = """
+                             |{
+                             |  "workflowName" : "main_workflow",
+                             |  "calls" : {
+                             |    "main_workflow.wf_hello" : [
+                             |      {
+                             |        "executionStatus": "Done",
+                             |        "shardIndex" : -1,
+                             |        "outputs" : {
+                             |          "salutation" : "Hello sub world!"
+                             |        },
+                             |        "attempt" : 1
+                             |      }
+                             |    ]
+                             |  },
+                             |  "outputs" : {
+                             |    "main_workflow.main_output" : "Hello sub world!"
+                             |  },
+                             |  "id" : "757d0bcc-b636-4658-99d4-9b4b3767f1d1"
+                             |}
+                             |""".stripMargin
+
+    val expected = parseString(expectedMetadata)
+    actual shouldEqual expected
+  }
+
+  // CARBON FIXING it should be easy to write a currently-broken version of this like in the Hello World example above.
+  it should "keep includes in calls and workflows and subworkflows" in {
+    val actual = includeJson(gratuitiousSubworkflowJson, NonEmptyList.of("workflowName", "executionStatus", "outputs")).get
+    val expected = parseMetadata("included_gratuitous_subworkflows.json")
+    actual shouldEqual expected
+  }
 
   it should "keep outputs only" in {
     val actual = outputs(helloWorldJson).get
@@ -114,7 +177,7 @@ class JsonEditorSpec extends FlatSpec with Matchers {
     actual shouldEqual expected
   }
 
-  // TODO a subworkflow version of this like the CarboniteMetadataThawingActorSpec would be nice.
+  // CARBON FIXING a subworkflow version of this like the CarboniteMetadataThawingActorSpec would be nice.
   it should "add labels" in {
     val labels = Map(helloWorldJson.workflowId.get -> Map(("new", "label")))
     val newJson = updateLabels(helloWorldJson, labels).get

@@ -118,9 +118,7 @@ object JsonEditor {
     } yield Json.fromJsonObject(updatedWorkflowJsonObject)
   }
 
-  def extractCall(json: Json, callFqn: String, index: Option[Int], attempt: Option[Int]): Json = json // ??? // FIXME
-
-  def outputs(json: Json): ErrorOr[Json] = includeJson(json, NonEmptyList.of("outputs")) flatMap (excludeJson(_, NonEmptyList.one("calls")))
+  def outputs(json: Json): ErrorOr[Json] = excludeJson(json, NonEmptyList.one("calls")) flatMap (includeJson(_, NonEmptyList.of("outputs")))
 
   // Return the calls object with subworkflows removed.
   private def removeSubworkflowCalls(callsObject: JsonObject): ErrorOr[Json] = {

@@ -1,20 +1,34 @@
 package cromwell.engine.workflow.lifecycle.deletion
 
-import akka.actor.{LoggingFSM, Props}
+import java.io.FileNotFoundException
+
+import akka.actor.{ActorRef, LoggingFSM, Props}
+import cromwell.core.io._
 import cromwell.core.path.{DefaultPathBuilder, Path, PathBuilder, PathFactory}
-import cromwell.core.{CallOutputs, RootWorkflowId}
+import cromwell.core.{CallOutputs, RootWorkflowId, WorkflowMetadataKeys}
+import cromwell.engine.io.IoAttempts.EnhancedCromwellIoException
 import cromwell.engine.workflow.lifecycle.deletion.DeleteWorkflowFilesActor._
+import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
+import cromwell.services.metadata.MetadataService.PutMetadataAction
+import cromwell.services.metadata.impl.FileDeletionStatus
+import cromwell.services.metadata.impl.FileDeletionStatus.{Failed, InProgress, Succeeded}
+import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
-import wom.graph.GraphNodePort.{GraphNodeOutputPort, OutputPort}
+import wom.graph.GraphNodePort.OutputPort
 import wom.types.WomSingleFileType
 import wom.values.{WomArray, WomSingleFile, WomValue}
 
+import scala.concurrent.ExecutionContext
 import scala.util.Try
 
 class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
                                workflowFinalOutputs: CallOutputs,
                                workflowAllOutputs: CallOutputs,
-                               pathBuilders: List[PathBuilder]) extends LoggingFSM[DeleteWorkflowFilesActorState, DeleteWorkflowFilesActorStateData] {
+                               pathBuilders: List[PathBuilder],
+                               serviceRegistryActor: ActorRef,
+                               ioActorRef: ActorRef) extends LoggingFSM[DeleteWorkflowFilesActorState, DeleteWorkflowFilesActorStateData] with IoClientHelper {
+
+  implicit val ec: ExecutionContext = context.dispatcher
 
   /*
   building a path for a string output such as 'Hello World' satisfies the conditions of a
@@ -22,23 +36,64 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
   (this is because we only want cloud backend paths like gs://, s3://, etc.)
    */
   val pathBuildersWithoutDefault = pathBuilders.filterNot(_ == DefaultPathBuilder)
+  val gcsCommandBuilder = GcsBatchCommandBuilder
+  val asyncIO = new AsyncIo(ioActorRef, gcsCommandBuilder)
 
   startWith(Pending, NoData)
 
   when(Pending) {
     case Event(StartWorkflowFilesDeletion, NoData) =>
       val intermediateOutputs = gatherIntermediateOutputFiles(workflowAllOutputs.outputs, workflowFinalOutputs.outputs)
-      if (intermediateOutputs.nonEmpty) goto(DeletingIntermediateFiles) using DeletingIntermediateFilesData(intermediateOutputs)
+      if (intermediateOutputs.nonEmpty) {
+        self ! DeleteFiles
+        goto(DeleteIntermediateFiles) using DeletingIntermediateFilesData(intermediateOutputs)
+//        stopSelf()
+      }
       else {
         log.info(s"Root workflow ${rootWorkflowId.id} does not have any intermediate output files to delete.")
         stopSelf()
       }
   }
 
+  when(DeleteIntermediateFiles) {
+    case Event(DeleteFiles, DeletingIntermediateFilesData(intermediateFiles)) =>
+      // update deletion status in metadata
+      val deletionInProgressEvent = metadataEventForDeletionStatus(InProgress)
+      serviceRegistryActor ! PutMetadataAction(deletionInProgressEvent)
 
-  //TODO: To be done as part of WA-41 (https://broadworkbench.atlassian.net/browse/WA-41)
-  when(DeletingIntermediateFiles) {
-    case Event(_, _) => stopSelf()
+      // send delete IoCommand for each file to ioActor
+      val deleteCommands: Set[IoDeleteCommand] = intermediateFiles.map(gcsCommandBuilder.deleteCommand(_, swallowIoExceptions = false))
+      deleteCommands foreach sendIoCommand
+
+      goto(WaitingForIoResponses) using WaitingForIoResponsesData(deleteCommands)
+  }
+
+  when(WaitingForIoResponses) {
+    case Event(IoSuccess(command: IoDeleteCommand, _), data: WaitingForIoResponsesData) =>
+      val (newData, commandState) = data.deleteCommandComplete(command)
+      commandState match {
+        case StillWaiting => stay() using newData
+        case AllDeleteCommandsDone => respondAndStop(newData.deleteErrors, newData.filesNotFound)
+      }
+    case Event(IoFailure(command: IoDeleteCommand, error: Throwable), data: WaitingForIoResponsesData) =>
+      val (newData, commandState) = data.deleteCommandComplete(command)
+
+      /*
+        FileNotFound exception might be because of:
+          - file does not exist because of some reason (maybe user deleted it?)
+          - it was deleted by Cromwell, but before the status of the workflow could be updated by WorkflowActor,
+            Cromwell was restarted. So upon restart the deletion process is ran again entirely and hence now previously
+            deleted files will not exist.
+         In both these cases, we consider the deletion process a success, but warn the users of such files not found.
+       */
+      val newDataWithErrorUpdates = error match {
+        case EnhancedCromwellIoException(_, _: FileNotFoundException) => newData.copy(filesNotFound = newData.filesNotFound :+ command.file)
+        case _ => newData.copy(deleteErrors = newData.deleteErrors :+ error)
+      }
+      commandState match {
+        case StillWaiting => stay() using newDataWithErrorUpdates
+        case AllDeleteCommandsDone => respondAndStop(newDataWithErrorUpdates.deleteErrors, newDataWithErrorUpdates.filesNotFound)
+      }
   }
 
   whenUnhandled {
@@ -53,6 +108,26 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
     context stop self
     stay()
   }
+
+
+  private def metadataEventForDeletionStatus(status: FileDeletionStatus): MetadataEvent = {
+    val key = MetadataKey(rootWorkflowId, None, WorkflowMetadataKeys.FileDeletionStatus)
+    val value = MetadataValue(FileDeletionStatus.toDatabaseValue(status))
+
+    MetadataEvent(key, value)
+  }
+
+
+  private def respondAndStop(errors: List[Throwable], filesNotFound: List[Path]) = {
+    val (metadataEvent, response) =
+      if (errors.isEmpty) (metadataEventForDeletionStatus(Succeeded), DeleteWorkflowFilesSucceededResponse(filesNotFound))
+      else (metadataEventForDeletionStatus(Failed), DeleteWorkflowFilesFailedResponse(errors, filesNotFound))
+
+    serviceRegistryActor ! PutMetadataAction(metadataEvent)
+    context.parent ! response
+    stopSelf()
+  }
+
 
   def gatherIntermediateOutputFiles(allOutputs: Map[OutputPort, WomValue], finalOutputs: Map[OutputPort, WomValue]): Set[Path] = {
     val isFinalOutputsNonEmpty = finalOutputs.nonEmpty
@@ -79,18 +154,30 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
       seqOfPaths.flatten
     }
 
-    def checkOutputIsFile(port: OutputPort, value: WomValue): Boolean = {
-      (port, value) match {
-        case (_: GraphNodeOutputPort, _: WomSingleFile) => true
-        // handles glob files
-        case (_: GraphNodeOutputPort, w: WomArray) => w.arrayType.memberType.isCoerceableFrom(WomSingleFileType)
+    def checkOutputIsFile(value: WomValue): Boolean = {
+      value match {
+        case _: WomSingleFile => true
+        case w: WomArray => w.arrayType.memberType.isCoerceableFrom(WomSingleFileType)
         case _ => false
       }
     }
 
     allOutputs.collect {
-      case (port, output) if checkOutputIsFile(port, output) => getFilePath(output)
+      case (_, output) if checkOutputIsFile(output) => getFilePath(output)
     }.flatten.toSet
+  }
+
+
+  override def ioActor: ActorRef = ioActorRef
+
+
+  override protected def onTimeout(message: Any, to: ActorRef): Unit = {
+    message match {
+      case delete: IoDeleteCommand => log.error(s"The DeleteWorkflowFilesActor for root workflow $rootWorkflowId timed out " +
+        s"waiting for a response for deleting file ${delete.file}.")
+      case other => log.error(s"The DeleteWorkflowFilesActor for root workflow $rootWorkflowId timed out " +
+        s"waiting for a response for unknown operation: $other.")
+    }
   }
 }
 
@@ -100,22 +187,49 @@ object DeleteWorkflowFilesActor {
   // Commands
   sealed trait DeleteWorkflowFilesActorMessage
   object StartWorkflowFilesDeletion extends DeleteWorkflowFilesActorMessage
+  object DeleteFiles extends DeleteWorkflowFilesActorMessage
 
   // Actor states
   sealed trait DeleteWorkflowFilesActorState
   object Pending extends DeleteWorkflowFilesActorState
-  object DeletingIntermediateFiles extends DeleteWorkflowFilesActorState
+  object DeleteIntermediateFiles extends DeleteWorkflowFilesActorState
+  object WaitingForIoResponses extends DeleteWorkflowFilesActorState
 
   // State data
   sealed trait DeleteWorkflowFilesActorStateData
   object NoData extends DeleteWorkflowFilesActorStateData
   case class DeletingIntermediateFilesData(intermediateFiles: Set[Path]) extends DeleteWorkflowFilesActorStateData
 
+  case class WaitingForIoResponsesData(commandsToWaitFor: Set[IoDeleteCommand], deleteErrors: List[Throwable] = List.empty, filesNotFound: List[Path] = List.empty) extends DeleteWorkflowFilesActorStateData {
+
+    def deleteCommandComplete(command: IoDeleteCommand): (WaitingForIoResponsesData, DeleteFilesState) = {
+      if (commandsToWaitFor.isEmpty) (this, AllDeleteCommandsDone)
+      else {
+        val updatedCommandsSet = commandsToWaitFor - command
+        if (updatedCommandsSet.isEmpty) (this.copy(commandsToWaitFor = Set.empty), AllDeleteCommandsDone)
+        else
+          (this.copy(updatedCommandsSet), StillWaiting)
+      }
+    }
+  }
+
+  // Responses
+  sealed trait DeleteWorkflowFilesResponse
+  case class DeleteWorkflowFilesSucceededResponse(filesNotFound: List[Path]) extends DeleteWorkflowFilesResponse
+  case class DeleteWorkflowFilesFailedResponse(errors: List[Throwable], filesNotFound: List[Path]) extends DeleteWorkflowFilesResponse
+
+  // internal state to keep track of file deletion
+  sealed trait DeleteFilesState
+  private[deletion] case object StillWaiting extends DeleteFilesState
+  private[deletion] case object AllDeleteCommandsDone extends DeleteFilesState
+
 
   def props(rootWorkflowId: RootWorkflowId,
             workflowFinalOutputs: CallOutputs,
             workflowAllOutputs: CallOutputs,
-            pathBuilders: List[PathBuilder]): Props = {
-    Props(new DeleteWorkflowFilesActor(rootWorkflowId, workflowFinalOutputs, workflowAllOutputs, pathBuilders))
+            pathBuilders: List[PathBuilder],
+            serviceRegistryActor: ActorRef,
+            ioActor: ActorRef): Props = {
+    Props(new DeleteWorkflowFilesActor(rootWorkflowId, workflowFinalOutputs, workflowAllOutputs, pathBuilders, serviceRegistryActor, ioActor))
   }
 }

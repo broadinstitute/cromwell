@@ -28,9 +28,10 @@ object SwaggerUiHttpServiceSpec {
     """
       |<!DOCTYPE html>
       |<html lang="en">
-      |<head>
-      |  <meta charset="UTF-8">
-      |  <title>Swagger UI</title>""".stripMargin.trim // workaround IDEA's weird formatting of interpolated strings
+      |  <head>
+      |    <meta charset="UTF-8">
+      |    <title>Swagger UI</title>
+      |""".stripMargin.trim // workaround IDEA's weird formatting of interpolated strings
 
   /**
     * Strips out an HTML comment at the front of the string and then tries to whittle it down to the same length as '

@@ -18,8 +18,7 @@ import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.instrumentation.WorkflowInstrumentation
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle._
-import cromwell.engine.workflow.lifecycle.deletion.DeleteWorkflowFilesActor
-import cromwell.engine.workflow.lifecycle.deletion.DeleteWorkflowFilesActor.{DeleteWorkflowFilesFailedResponse, DeleteWorkflowFilesSucceededResponse, StartWorkflowFilesDeletion}
+import cromwell.engine.workflow.lifecycle.deletion.DeleteWorkflowFilesActor.{DeleteWorkflowFilesFailedResponse, DeleteWorkflowFilesSucceededResponse}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowFinalizationActor.{StartFinalizationCommand, WorkflowFinalizationFailedResponse, WorkflowFinalizationSucceededResponse}

@@ -69,21 +69,117 @@ object JsonEditor {
     newJson.validNel
   }
 
-  def excludeJson(json: Json, keys: NonEmptyList[String]): ErrorOr[Json] = excludeWorkflowJson(json, keys)
-
-  def excludeWorkflowJson(workflowJson: Json, keys: NonEmptyList[String]): ErrorOr[Json] = {
-    // Always include 'id' in the workflow.
-    val workflowKeysToExclude = keys.toList.toSet - "id"
-
-    def excludeJob(job: JsonObject): ErrorOr[JsonObject] = {
-      // Always include 'shardIndex' and 'attempt' in the job.
-      val jobKeysToExclude = keys.toList.toSet - "shardIndex" - "attempt"
-      job.filterKeys(!jobKeysToExclude.contains(_)).validNel
+  case class Filter(components: NonEmptyList[String]) {
+    def isSameOrMoreSpecificThan(that: Filter): Boolean = {
+      // A request to remove a filter of 'outputs' should also remove a more specific 'outputs:foo' filter if present.
+      // This algorithm effectively converts `Filter`s to representations in classic metadata syntax to see if `that`
+      // filter is a prefix of `this` filter, i.e. if `this` is a more specific filter of `that`.
+      def toClassic(filter: Filter): String = filter.components.toList.mkString("", ":", ":")
+      val List(thisComponents, thatComponents) = List(this, that) map toClassic
+      thisComponents startsWith thatComponents
     }
+  }
+
+  object Filter {
+    def fromString(string: String): Filter = {
+      string.split(':').toList match {
+        case Nil => throw new RuntimeException("Programmer error: unpossible Nil result from split")
+        case h :: t => Filter(NonEmptyList.of(h, t: _*))
+      }
+    }
+  }
+
+  sealed trait FilterResult
+  case object Keep extends FilterResult
+  case object Discard extends FilterResult
+  case class Replace(updatedJson: Json) extends FilterResult
+
+  /** A `FilterGroup` represents all the `Filter`s for include xor exclude. The argument is intentionally not a NEL
+    * since `FilterGroup`s should start out non-empty but then become empty after `remove`s. e.g. excludeKey 'id'. */
+  case class FilterGroup(filters: List[Filter]) {
+
+    def remove(head: String, tail: String*): FilterGroup = {
+      remove(Filter.fromString(head), tail map Filter.fromString: _*)
+    }
+
+    /** Return a copy of this `FilterGroup` with all of the specified filters removed. */
+    def remove(head: Filter, tail: Filter*): FilterGroup = {
+      (head :: tail.toList).foldLeft(this) { case (acc, f) =>
+        // Copy the `acc` `FilterGroup` with any filters that are the same or more specific than `f` removed.
+        acc.copy(acc.filters.filterNot { _.isSameOrMoreSpecificThan(f) })
+      }
+    }
+
+    def filter(jsonObject: JsonObject): JsonObject = {
+      // If at the top level there is a perfect match, discard.
+      // If at the top level there are no matches at all, keep.
+      // Otherwise fold.
+      def filtersMatchingKey(objectKey: String): List[Filter] = filters.filter(_.components.head == objectKey)
+
+      def descend(json: Json, remainingComponents: NonEmptyList[String]): Json = {
+        json.asObject match {
+          case None => json
+          case Some(jsonObject) =>
+            val component = remainingComponents.head
+            jsonObject(component) match {
+              case None => json
+              case Some(inner) =>
+                val updatedObject = remainingComponents.tail match {
+                  case Nil => jsonObject.remove(component)
+                  case h :: t => jsonObject.add(component, descend(inner, NonEmptyList.of(h, t: _*)))
+                }
+                Json.fromJsonObject(updatedObject)
+            }
+        }
+      }
+
+      val updatedKeyValues: List[(String, Json)] = jsonObject.toList flatMap { case (key, json) =>
+        filtersMatchingKey(key) match {
+          case Nil =>
+            // No filters matched this object key, return the key/value unmodified.
+            List((key, json))
+          case fs if fs.exists(_.components.tail == Nil) =>
+            // If there is a filter that has no other components and thus matches the object key completely,
+            // return a Nil List to delete the key/value pair from the object.
+            Nil
+          case fs =>
+            // The JSON value will not be deleted but may need to be edited. Fold the JSON through all the
+            // `fs` filters.
+            val possiblyUpdatedJson = fs.foldLeft(json) { case (j, f) =>
+              f.components.tail match {
+                // We know all of these filters did not have have "tails", i.e. did not
+                // match the object key and thus signal that the key/value should be removed.
+                case Nil => throw new RuntimeException("Programmer error: filter components tail should not be empty")
+                case c :: cs => descend(j, NonEmptyList.of(c, cs: _*))
+              }
+            }
+            List((key, possiblyUpdatedJson))
+        }
+      }
+      JsonObject.fromIterable(updatedKeyValues)
+    }
+  }
+
+  def excludeJson(json: Json, keys: NonEmptyList[String]): ErrorOr[Json] = {
+    val filters: ErrorOr[List[Filter]] = keys.toList traverse { key => key.split(':').toList match {
+      case Nil => s"Programmer error: string split resulting in empty array: $key".invalidNel
+      case h :: t => Filter(NonEmptyList.of(h, t: _*)).validNel
+    }}
+
+    filters map FilterGroup.apply flatMap excludeWorkflowJson(json)
+  }
+
+  def excludeWorkflowJson(workflowJson: Json)(filters: FilterGroup): ErrorOr[Json] = {
+    // Always include 'id' in workflows, 'shardIndex' and 'attempt' in jobs. i.e. make sure these keys are excluded
+    // from the excludes.
+    val workflowKeysToExclude = filters.remove("id")
+    val jobKeysToExclude = filters.remove("shardIndex", "attempt")
+
+    def excludeJob(job: JsonObject): ErrorOr[JsonObject] = jobKeysToExclude.filter(job).validNel
 
     def excludeCall(callJson: Json): ErrorOr[Json] = {
       def excludeSubworkflowCall(parentWorkflowCall: JsonObject)(subworkflow: Json): ErrorOr[JsonObject] = {
-        excludeWorkflowJson(subworkflow, keys) map { excludedSubworkflow => parentWorkflowCall.add(subWorkflowMetadataKey, excludedSubworkflow) }
+        excludeWorkflowJson(subworkflow)(filters) map { excludedSubworkflow => parentWorkflowCall.add(subWorkflowMetadataKey, excludedSubworkflow) }
       }
 
       for {
@@ -105,7 +201,7 @@ object JsonEditor {
 
     for {
       workflowObject <- workflowJson.asObject.map(_.validNel).getOrElse(s"Workflow JSON unexpectedly not an object: $workflowJson".invalidNel)
-      workflowObjectWithKeysFiltered = workflowObject filterKeys { key => !workflowKeysToExclude.contains(key) }
+      workflowObjectWithKeysFiltered = workflowKeysToExclude.filter(workflowObject)
       updatedWorkflowJsonObject <- workflowObjectWithKeysFiltered("calls") match {
         case None => workflowObjectWithKeysFiltered.validNel
         case Some(calls) => calls.asObject match {

@@ -39,6 +39,52 @@ class JsonEditorSpec extends FlatSpec with Matchers {
     actual shouldEqual expected
   }
 
+  it should "remove nested excludes in workflows" in {
+    // This test intentionally applies multiple colon separated filters with the same outermost term.
+    val actual = excludeJson(helloWorldJson, NonEmptyList.of("calls", "submittedFiles:workflowUrl", "submittedFiles:imports:sub_workflow_hello_world_import.wdl", "actualWorkflowLanguage")).get
+    val expectedMetadata =
+      """
+        |{
+        |  "workflowName": "main_workflow",
+        |  "actualWorkflowLanguageVersion": "draft-2",
+        |  "submittedFiles": {
+        |    "workflow": "import \"sub_workflow_hello_world_import.wdl\" as sub\n\nworkflow main_workflow {\n    call sub.wf_hello { input: wf_hello_input = \"sub world\" }\n    output {\n        String main_output = wf_hello.salutation\n    }\n}",
+        |    "root": "",
+        |    "options": "{\n\n}",
+        |    "inputs": "{}",
+        |    "labels": "{}",
+        |    "imports": {
+        |    }
+        |  },
+        |  "outputs": {
+        |    "main_workflow.main_output": "Hello sub world!"
+        |  },
+        |  "workflowRoot": "/home/dan/cromwell/cromwell-executions/main_workflow/757d0bcc-b636-4658-99d4-9b4b3767f1d1",
+        |  "id": "757d0bcc-b636-4658-99d4-9b4b3767f1d1",
+        |  "inputs": {},
+        |  "labels": {
+        |    "cromwell-workflow-id": "cromwell-757d0bcc-b636-4658-99d4-9b4b3767f1d1"
+        |  },
+        |  "submission": "2019-07-22T13:32:02.123-04:00",
+        |  "status": "Succeeded",
+        |  "end": "2019-07-22T13:32:41.529-04:00",
+        |  "start": "2019-07-22T13:32:20.434-04:00"
+        |}
+        |
+        |""".stripMargin
+    val expected = parseString(expectedMetadata)
+    actual shouldEqual expected
+  }
+
+  it should "remove nested excludes in workflows, calls and subworkflows" in {
+    // jq -M 'del(..|.callCaching? //empty | .hashes["runtime attribute"]["docker"]) | del(..|.executionStatus? //empty)' gratuitous_subworkflows.json > nested_excludes_gratuitous_subworkflows.json
+    // That jq one-liner knows nothing about workflows, calls or subworkflows; it just happens to get the right answer in this case.
+    val actual = excludeJson(gratuitousSubworkflowJson, NonEmptyList.of("callCaching:hashes:runtime attribute:docker", "executionStatus")).get
+    val expected = parseMetadata("nested_excludes_gratuitous_subworkflows.json")
+
+    actual shouldEqual expected
+  }
+
   it should "remove excludes from jobs and workflows" in {
     val actual = excludeJson(helloWorldJson, NonEmptyList.of("outputs", "executionEvents")).get
     val expectedMetadata =

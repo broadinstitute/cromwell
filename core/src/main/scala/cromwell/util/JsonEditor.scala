@@ -89,11 +89,6 @@ object JsonEditor {
     }
   }
 
-  sealed trait FilterResult
-  case object Keep extends FilterResult
-  case object Discard extends FilterResult
-  case class Replace(updatedJson: Json) extends FilterResult
-
   /** A `FilterGroup` represents all the `Filter`s for include xor exclude. The argument is intentionally not a NEL
     * since `FilterGroup`s should start out non-empty but then become empty after `remove`s. e.g. excludeKey 'id'. */
   case class FilterGroup(filters: List[Filter]) {

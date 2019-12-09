@@ -1,5 +1,13 @@
 # Cromwell Change Log
 
+## 48 Release Notes
+
+### Bug fixes
+
++ Fix a bug where zip files with directories could not be imported. 
+  For example a zip with `a.wdl` and `b.wdl` could be imported but one with `sub_workflows/a.wdl` 
+  and `imports/b.wdl` could not.
+  
 ## 47 Release Notes
 
 ### Retry with more memory on Papiv2 [(#5180)](https://github.com/broadinstitute/cromwell/pull/5180)

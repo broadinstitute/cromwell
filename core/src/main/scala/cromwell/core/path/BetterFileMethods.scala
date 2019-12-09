@@ -491,11 +491,6 @@ trait BetterFileMethods {
     destination
   }
 
-  final def unzipTo(destination: Option[Path])(implicit codec: Codec): Path = destination match {
-    case Some(path) => unzipTo(path)
-    case None => unzip()
-  }
-
   final def unzip()(implicit charset: Charset = DefaultCharset): Path = newPath(betterFile.unzip()(charset))
 }
 
@@ -575,10 +570,9 @@ object BetterFileMethods {
     def unzip(zipFile: Path)(destination: Path)(implicit charset: Charset = DefaultCharset): destination.type =
       zipFile.unzipTo(destination)(charset)
 
-    def zip(files: Path*)(destination: Path, compressionLevel: Int = Deflater.DEFAULT_COMPRESSION)
-           (implicit codec: Codec): destination.type = {
-      files.map(_.betterFile).foreach(_.zipTo(destination.betterFile, compressionLevel))
-      destination
+    def zip(files: better.files.File*)(destination: better.files.File, compressionLevel: Int = Deflater.DEFAULT_COMPRESSION)
+           (implicit charset: Charset = DefaultCharset): destination.type = {
+      destination.zipIn(files.toIterator, compressionLevel)(charset)
     }
   }
 

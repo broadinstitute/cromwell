@@ -88,7 +88,7 @@ object JsonEditor {
       this.copy(filters filterNot { f => componentSet.contains(f.components.head) })
     }
 
-    def filter(jsonObject: JsonObject): JsonObject = {
+    def applyExcludes(jsonObject: JsonObject): JsonObject = {
       // If at the top level there is a perfect match, discard.
       // If at the top level there are no matches at all, keep.
       // Otherwise fold.
@@ -143,52 +143,53 @@ object JsonEditor {
       case h :: t => Filter(NonEmptyList.of(h, t: _*)).validNel
     }}
 
-    filters map FilterGroup.apply flatMap excludeWorkflowJson(json)
+    filters map FilterGroup.apply flatMap applyExcludes(json)
   }
 
-  def excludeWorkflowJson(workflowJson: Json)(filterGroup: FilterGroup): ErrorOr[Json] = {
-    // Always include 'id' in workflows, 'shardIndex' and 'attempt' in jobs. i.e. make sure these keys are excluded
+  private def applyExcludes(workflowJson: Json)(filterGroup: FilterGroup): ErrorOr[Json] = {
+    // Always include 'id' in workflows, 'shardIndex' and 'attempt' in calls. i.e. make sure these keys are excluded
     // from the excludes.
-    val workflowKeysToExclude = filterGroup.removeFilters("id")
-    val jobKeysToExclude = filterGroup.removeFilters("shardIndex", "attempt")
+    val workflowExcludeFilters = filterGroup.removeFilters("id")
+    val callExcludeFilters = filterGroup.removeFilters("shardIndex", "attempt")
 
-    def excludeJob(job: JsonObject): ErrorOr[JsonObject] = jobKeysToExclude.filter(job).validNel
-
-    def excludeCall(callJson: Json): ErrorOr[Json] = {
-      def excludeSubworkflowCall(parentWorkflowCall: JsonObject)(subworkflow: Json): ErrorOr[JsonObject] = {
-        excludeWorkflowJson(subworkflow)(filterGroup) map { excludedSubworkflow => parentWorkflowCall.add(subWorkflowMetadataKey, excludedSubworkflow) }
+    def filterCallArrayElement(callArrayElementJson: Json): ErrorOr[Json] = {
+      def filterSubworkflowCall(parentWorkflowCall: JsonObject)(subworkflow: Json): ErrorOr[JsonObject] = {
+        applyExcludes(subworkflow)(filterGroup) map { excludedSubworkflow => parentWorkflowCall.add(subWorkflowMetadataKey, excludedSubworkflow) }
       }
 
       for {
-        callObject <- callJson.asObject.map(_.validNel).getOrElse(s"call JSON unexpectedly not an object: $callJson".invalidNel)
-        excludedJob <- excludeJob(callObject)
-        excludedCall <- excludedJob(subWorkflowMetadataKey) map excludeSubworkflowCall(excludedJob) getOrElse excludedJob.validNel
-      } yield Json.fromJsonObject(excludedCall)
+        callArrayElement <- callArrayElementJson.asObject.map(_.validNel).getOrElse(s"call JSON unexpectedly not an object: $callArrayElementJson".invalidNel)
+        // This performs only a shallow filtering of the call array element.
+        filteredCallArrayElement = callExcludeFilters.applyExcludes(callArrayElement)
+        // If the call array element represents a subworkflow call this will recursively apply workflow and call filters as appropriate.
+        filteredCall <- filteredCallArrayElement(subWorkflowMetadataKey) map filterSubworkflowCall(filteredCallArrayElement) getOrElse filteredCallArrayElement.validNel
+      } yield Json.fromJsonObject(filteredCall)
     }
 
-    def excludeJsonArray(callsArrayJson: Json): ErrorOr[Json] = {
+    def filterCallsArray(callsArrayJson: Json): ErrorOr[Json] = {
       for {
         array <- callsArrayJson.asArray.map(_.validNel).getOrElse(s"calls JSON unexpectedly not an array: $callsArrayJson".invalidNel)
-        updatedCalls <- array.traverse[ErrorOr, Json](excludeCall)
+        updatedCalls <- array.traverse[ErrorOr, Json](filterCallArrayElement)
       } yield Json.fromValues(updatedCalls)
     }
 
-    def excludeCallsObject(jsonObject: JsonObject): ErrorOr[Json] =
-      (jsonObject traverse excludeJsonArray) map Json.fromJsonObject
+    def filterCallsObject(jsonObject: JsonObject): ErrorOr[Json] =
+      (jsonObject traverse filterCallsArray) map Json.fromJsonObject
 
     for {
       workflowObject <- workflowJson.asObject.map(_.validNel).getOrElse(s"Workflow JSON unexpectedly not an object: $workflowJson".invalidNel)
-      workflowObjectWithKeysFiltered = workflowKeysToExclude.filter(workflowObject)
-      updatedWorkflowJsonObject <- workflowObjectWithKeysFiltered("calls") match {
-        case None => workflowObjectWithKeysFiltered.validNel
+      // This performs only a shallow filtering of the workflow.
+      shallowFilteredWorkflowObject = workflowExcludeFilters.applyExcludes(workflowObject)
+      deepFilteredWorkflowObject <- shallowFilteredWorkflowObject("calls") match {
+        case None => shallowFilteredWorkflowObject.validNel
         case Some(calls) => calls.asObject match {
           case None => s"calls JSON unexpectedly not an object: $calls".invalidNel
-          case Some(callsObject) => excludeCallsObject(callsObject) map {
-            updatedCallsObject => workflowObjectWithKeysFiltered.add("calls", updatedCallsObject)
+          case Some(callsObject) => filterCallsObject(callsObject) map {
+            filteredCallsObject => shallowFilteredWorkflowObject.add("calls", filteredCallsObject)
           }
         }
       }
-    } yield Json.fromJsonObject(updatedWorkflowJsonObject)
+    } yield Json.fromJsonObject(deepFilteredWorkflowObject)
   }
 
   def outputs(json: Json): ErrorOr[Json] = excludeJson(json, NonEmptyList.one("calls")) flatMap (includeJson(_, NonEmptyList.of("outputs")))

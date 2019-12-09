@@ -71,15 +71,6 @@ object JsonEditor {
 
   case class Filter(components: NonEmptyList[String])
 
-  object Filter {
-    def fromString(string: String): Filter = {
-      string.split(':').toList match {
-        case Nil => throw new RuntimeException("Programmer error: unpossible Nil result from split")
-        case h :: t => Filter(NonEmptyList.of(h, t: _*))
-      }
-    }
-  }
-
   /** A `FilterGroup` represents all the `Filter`s for include xor exclude. The argument is intentionally not a NEL
     * since `FilterGroup`s should start out non-empty but may become empty after `remove`s. e.g. excludeKey 'id' in
     * a workflow `FilterGroup`. */

@@ -3,9 +3,9 @@ package cromwell.core
 import akka.actor.{Actor, Props}
 import cromwell.core.io.IoPromiseProxyActor.IoCommandWithPromise
 import cromwell.core.io._
+import sun.nio.cs.UTF_8
 
 import scala.concurrent.Promise
-import scala.io.Codec
 import scala.util.{Failure, Success, Try}
 
 object SimpleIoActor {
@@ -24,7 +24,7 @@ class SimpleIoActor extends Actor {
       
     case command: IoWriteCommand =>
       
-      Try(command.file.write(command.content)(command.openOptions, Codec.UTF8)) match {
+      Try(command.file.write(command.content)(command.openOptions, UTF_8)) match {
         case Success(_) => sender() ! IoSuccess(command, ())
         case Failure(failure) => sender() ! IoFailure(command, failure)
       }

@@ -47,6 +47,7 @@ import wom.values._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.util.control.NoStackTrace
 
 case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] with WorkflowLogging with CallMetadataHelper with StopAndLogSupervisor with Timers {
@@ -152,7 +153,9 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
     // A job not found here means we were trying to reconnect to a job that was likely never started. Indicate this in the message.
     case Event(JobFailedNonRetryableResponse(jobKey, _: JobNotFoundException, _), _) if restarting =>
-      val benignException = new Exception("Cromwell server was restarted while this workflow was running. As part of the restart process, Cromwell attempted to reconnect to this job, however it was never started in the first place. This is a benign failure and not the cause of failure for this workflow, it can be safely ignored.")
+      val benignException =
+        new Exception("Cromwell server was restarted while this workflow was running. As part of the restart process, Cromwell attempted to reconnect to this job, however it was never started in the first place. This is a benign failure and not the cause of failure for this workflow, it can be safely ignored.")
+          with NoStackTrace
       handleNonRetryableFailure(stateData, jobKey, benignException)
   }
 

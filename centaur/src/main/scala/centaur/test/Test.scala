@@ -145,27 +145,40 @@ object Operations extends StrictLogging {
     } yield ()
   }
 
-  def checkDescription(workflow: Workflow, validityExpectation: Option[Boolean]): Test[Unit] = {
+  def checkDescription(workflow: Workflow, validityExpectation: Option[Boolean], retries: Int = 3): Test[Unit] = {
     new Test[Unit] {
+
+      val timeout = 60.seconds
+
+      def checkDescriptionInner(alreadyTried: Int): IO[Unit] = {
+        val timeoutStackTraceString = ExceptionUtils.getStackTrace(new Exception)
+        (CentaurCromwellClient.describe(workflow) flatMap { d: WaasDescription =>
+          validityExpectation match {
+            case None => IO.pure(())
+            case Some(d.valid) => IO.pure(())
+            case Some(otherExpectation) =>
+              logger.error(s"Unexpected 'valid=${d.valid}' response when expecting $otherExpectation. Full unexpected description:${System.lineSeparator()}$d")
+              IO.raiseError(new Exception(s"Expected this workflow's /describe validity to be '$otherExpectation' but got: '${d.valid}'"))
+          }
+        }).timeoutTo(timeout, {
+          if (alreadyTried + 1 >= retries) {
+            IO.raiseError(new TimeoutException("Timeout from checkDescription 60 seconds: " + timeoutStackTraceString))
+          } else {
+            logger.warn(s"checkDescription failed on attempt ${alreadyTried + 1}. ")
+            checkDescriptionInner(alreadyTried + 1)
+          }
+        })
+      }
+
+
       override def run: IO[Unit] = {
+
+
         // We can't describe workflows based on zipped imports, so don't try:
         if (workflow.skipDescribeEndpointValidation || workflow.data.zippedImports.nonEmpty) {
           IO.pure(())
         } else {
-          val timeout = 60.seconds
-          val timeoutStackTraceString = ExceptionUtils.getStackTrace(new Exception)
-
-          (CentaurCromwellClient.describe(workflow) flatMap { d: WaasDescription =>
-            validityExpectation match {
-              case None => IO.pure(())
-              case Some(d.valid) => IO.pure(())
-              case Some(otherExpectation) =>
-                logger.error(s"Unexpected 'valid=${d.valid}' response when expecting $otherExpectation. Full unexpected description:${System.lineSeparator()}$d")
-                IO.raiseError(new Exception(s"Expected this workflow's /describe validity to be '$otherExpectation' but got: '${d.valid}'"))
-            }
-          }).timeoutTo(timeout, {
-            IO.raiseError(new TimeoutException("Timeout from checkDescription 60 seconds: " + timeoutStackTraceString))
-          })
+          checkDescriptionInner(0)
         }
       }
     }

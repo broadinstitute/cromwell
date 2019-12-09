@@ -254,7 +254,7 @@ class TestPipelinesApiRequestManager(qps: Int Refined Positive,
   override private[api] lazy val nbWorkers = 1
   override private[api] def resetAllWorkers() = {
     val pollers = Vector.fill(1) { makeAndWatchWorkerActor() }
-    pollers
+    statusPollers = pollers
   }
 
   override private[api] def makeWorkerActor(): ActorRef = {

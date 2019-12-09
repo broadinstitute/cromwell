@@ -89,11 +89,11 @@ object JsonEditor {
     }
 
     def applyExcludes(jsonObject: JsonObject): JsonObject = {
-      // If at the top level there is a perfect match, discard.
-      // If at the top level there are no matches at all, keep.
-      // Otherwise fold.
       def filtersMatchingKey(objectKey: String): List[Filter] = filters.filter(_.components.head == objectKey)
-
+      // If at the top level there are no matches at all, either because there is no object to be drilled into or
+      // there is no object key matching the current filter component, keep the original JSON.
+      // If the key has matched completely, remove the key/value from the object and return the modified object.
+      // Otherwise recursively descend into the object attempting to continue to match.
       def descend(json: Json, remainingComponents: NonEmptyList[String]): Json = {
         json.asObject match {
           case None => json
@@ -152,25 +152,25 @@ object JsonEditor {
     val workflowExcludeFilters = filterGroup.removeFilters("id")
     val callExcludeFilters = filterGroup.removeFilters("shardIndex", "attempt")
 
-    def filterCallArrayElement(callArrayElementJson: Json): ErrorOr[Json] = {
+    def filterCall(callJson: Json): ErrorOr[Json] = {
       def filterSubworkflowCall(parentWorkflowCall: JsonObject)(subworkflow: Json): ErrorOr[JsonObject] = {
         applyExcludes(subworkflow)(filterGroup) map { excludedSubworkflow => parentWorkflowCall.add(subWorkflowMetadataKey, excludedSubworkflow) }
       }
 
       for {
-        callArrayElement <- callArrayElementJson.asObject.map(_.validNel).getOrElse(s"call JSON unexpectedly not an object: $callArrayElementJson".invalidNel)
-        // This performs only a shallow filtering of the call array element.
-        filteredCallArrayElement = callExcludeFilters.applyExcludes(callArrayElement)
+        callObject <- callJson.asObject.map(_.validNel).getOrElse(s"call JSON unexpectedly not an object: $callJson".invalidNel)
+        // This applies filters based only on the call's keys, not looking for subworkflows.
+        shallowFilteredCallObject = callExcludeFilters.applyExcludes(callObject)
         // If the call array element represents a subworkflow call this will recursively apply workflow and call filters as appropriate.
-        filteredCall <- filteredCallArrayElement(subWorkflowMetadataKey) map filterSubworkflowCall(filteredCallArrayElement) getOrElse filteredCallArrayElement.validNel
-      } yield Json.fromJsonObject(filteredCall)
+        deepFilteredCall <- shallowFilteredCallObject(subWorkflowMetadataKey) map filterSubworkflowCall(shallowFilteredCallObject) getOrElse shallowFilteredCallObject.validNel
+      } yield Json.fromJsonObject(deepFilteredCall)
     }
 
     def filterCallsArray(callsArrayJson: Json): ErrorOr[Json] = {
       for {
-        array <- callsArrayJson.asArray.map(_.validNel).getOrElse(s"calls JSON unexpectedly not an array: $callsArrayJson".invalidNel)
-        updatedCalls <- array.traverse[ErrorOr, Json](filterCallArrayElement)
-      } yield Json.fromValues(updatedCalls)
+        callsArray <- callsArrayJson.asArray.map(_.validNel).getOrElse(s"calls JSON unexpectedly not an array: $callsArrayJson".invalidNel)
+        filteredCalls <- callsArray.traverse[ErrorOr, Json](filterCall)
+      } yield Json.fromValues(filteredCalls)
     }
 
     def filterCallsObject(jsonObject: JsonObject): ErrorOr[Json] =
@@ -178,7 +178,7 @@ object JsonEditor {
 
     for {
       workflowObject <- workflowJson.asObject.map(_.validNel).getOrElse(s"Workflow JSON unexpectedly not an object: $workflowJson".invalidNel)
-      // This performs only a shallow filtering of the workflow.
+      // This applies filters based only on the workflow's keys.
       shallowFilteredWorkflowObject = workflowExcludeFilters.applyExcludes(workflowObject)
       deepFilteredWorkflowObject <- shallowFilteredWorkflowObject("calls") match {
         case None => shallowFilteredWorkflowObject.validNel

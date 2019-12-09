@@ -6,11 +6,11 @@ import java.nio.channels.{AsynchronousFileChannel, FileChannel}
 import java.nio.charset.Charset
 import java.nio.file.attribute._
 import java.nio.file.{FileSystem, PathMatcher}
+import java.security.MessageDigest
 import java.time.Instant
 import java.util.zip.Deflater
-import java.security.MessageDigest
 
-import better.files.{DefaultCharset, Dispose, DisposeableExtensions, StringSplitter}
+import better.files.{Dispose, DisposeableExtensions, StringSplitter}
 
 import scala.collection.JavaConverters._
 import scala.io.{BufferedSource, Codec, Source}
@@ -505,6 +505,8 @@ object BetterFileMethods {
   def temp: Path = DefaultPath(better.files.File.temp.path)
 
   def currentWorkingDirectory: Path = DefaultPath(better.files.File.currentWorkingDirectory.path)
+
+  def DefaultCharset: Charset = Charset.defaultCharset()
 
   object Cmds {
     def ~ : Path = BetterFileMethods.home

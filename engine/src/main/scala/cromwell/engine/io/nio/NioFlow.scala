@@ -17,7 +17,6 @@ import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.oss.OssPath
 import cromwell.filesystems.s3.S3Path
 import cromwell.util.TryWithResource._
-import sun.nio.cs.UTF_8
 
 import scala.concurrent.ExecutionContext
 object NioFlow {
@@ -87,7 +86,7 @@ class NioFlow(parallelism: Int,
 
   private def write(write: IoWriteCommand) = IO {
     createDirectories(write.file)
-    write.file.writeContent(write.content)(write.openOptions, UTF_8, write.compressPayload)
+    write.file.writeContent(write.content)(write.openOptions, StandardCharsets.UTF_8, write.compressPayload)
     ()
   }
 

@@ -81,7 +81,8 @@ object JsonEditor {
   }
 
   /** A `FilterGroup` represents all the `Filter`s for include xor exclude. The argument is intentionally not a NEL
-    * since `FilterGroup`s should start out non-empty but then become empty after `remove`s. e.g. excludeKey 'id'. */
+    * since `FilterGroup`s should start out non-empty but may become empty after `remove`s. e.g. excludeKey 'id' in
+    * a workflow `FilterGroup`. */
   case class FilterGroup(filters: List[Filter]) {
     def removeFilters(h: String, t: String*): FilterGroup = {
       val componentSet = (h :: t.toList).toSet
@@ -154,7 +155,7 @@ object JsonEditor {
 
     def filterCall(callJson: Json): ErrorOr[Json] = {
       def filterSubworkflowCall(parentWorkflowCall: JsonObject)(subworkflow: Json): ErrorOr[JsonObject] = {
-        applyExcludes(subworkflow)(filterGroup) map { excludedSubworkflow => parentWorkflowCall.add(subWorkflowMetadataKey, excludedSubworkflow) }
+        applyExcludes(subworkflow)(filterGroup) map { filteredSubworkflow => parentWorkflowCall.add(subWorkflowMetadataKey, filteredSubworkflow) }
       }
 
       for {
@@ -162,8 +163,8 @@ object JsonEditor {
         // This applies filters based only on the call's keys, not looking for subworkflows.
         shallowFilteredCallObject = callExcludeFilters.applyExcludes(callObject)
         // If the call array element represents a subworkflow call this will recursively apply workflow and call filters as appropriate.
-        deepFilteredCall <- shallowFilteredCallObject(subWorkflowMetadataKey) map filterSubworkflowCall(shallowFilteredCallObject) getOrElse shallowFilteredCallObject.validNel
-      } yield Json.fromJsonObject(deepFilteredCall)
+        deepFilteredCallObject <- shallowFilteredCallObject(subWorkflowMetadataKey) map filterSubworkflowCall(shallowFilteredCallObject) getOrElse shallowFilteredCallObject.validNel
+      } yield Json.fromJsonObject(deepFilteredCallObject)
     }
 
     def filterCallsArray(callsArrayJson: Json): ErrorOr[Json] = {

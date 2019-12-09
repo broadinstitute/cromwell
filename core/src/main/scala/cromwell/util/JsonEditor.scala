@@ -69,16 +69,7 @@ object JsonEditor {
     newJson.validNel
   }
 
-  case class Filter(components: NonEmptyList[String]) {
-    def isSameOrMoreSpecificThan(that: Filter): Boolean = {
-      // A request to remove a filter of 'outputs' should also remove a more specific 'outputs:foo' filter if present.
-      // This algorithm effectively converts `Filter`s to representations in classic metadata syntax to see if `that`
-      // filter is a prefix of `this` filter, i.e. if `this` is a more specific filter of `that`.
-      def toClassic(filter: Filter): String = filter.components.toList.mkString("", ":", ":")
-      val List(thisComponents, thatComponents) = List(this, that) map toClassic
-      thisComponents startsWith thatComponents
-    }
-  }
+  case class Filter(components: NonEmptyList[String])
 
   object Filter {
     def fromString(string: String): Filter = {
@@ -92,17 +83,9 @@ object JsonEditor {
   /** A `FilterGroup` represents all the `Filter`s for include xor exclude. The argument is intentionally not a NEL
     * since `FilterGroup`s should start out non-empty but then become empty after `remove`s. e.g. excludeKey 'id'. */
   case class FilterGroup(filters: List[Filter]) {
-
-    def remove(head: String, tail: String*): FilterGroup = {
-      remove(Filter.fromString(head), tail map Filter.fromString: _*)
-    }
-
-    /** Return a copy of this `FilterGroup` with all of the specified filters removed. */
-    def remove(head: Filter, tail: Filter*): FilterGroup = {
-      (head :: tail.toList).foldLeft(this) { case (acc, f) =>
-        // Copy the `acc` `FilterGroup` with any filters that are the same or more specific than `f` removed.
-        acc.copy(acc.filters.filterNot { _.isSameOrMoreSpecificThan(f) })
-      }
+    def removeFilters(h: String, t: String*): FilterGroup = {
+      val componentSet = (h :: t.toList).toSet
+      this.copy(filters filterNot { f => componentSet.contains(f.components.head) })
     }
 
     def filter(jsonObject: JsonObject): JsonObject = {
@@ -163,17 +146,17 @@ object JsonEditor {
     filters map FilterGroup.apply flatMap excludeWorkflowJson(json)
   }
 
-  def excludeWorkflowJson(workflowJson: Json)(filters: FilterGroup): ErrorOr[Json] = {
+  def excludeWorkflowJson(workflowJson: Json)(filterGroup: FilterGroup): ErrorOr[Json] = {
     // Always include 'id' in workflows, 'shardIndex' and 'attempt' in jobs. i.e. make sure these keys are excluded
     // from the excludes.
-    val workflowKeysToExclude = filters.remove("id")
-    val jobKeysToExclude = filters.remove("shardIndex", "attempt")
+    val workflowKeysToExclude = filterGroup.removeFilters("id")
+    val jobKeysToExclude = filterGroup.removeFilters("shardIndex", "attempt")
 
     def excludeJob(job: JsonObject): ErrorOr[JsonObject] = jobKeysToExclude.filter(job).validNel
 
     def excludeCall(callJson: Json): ErrorOr[Json] = {
       def excludeSubworkflowCall(parentWorkflowCall: JsonObject)(subworkflow: Json): ErrorOr[JsonObject] = {
-        excludeWorkflowJson(subworkflow)(filters) map { excludedSubworkflow => parentWorkflowCall.add(subWorkflowMetadataKey, excludedSubworkflow) }
+        excludeWorkflowJson(subworkflow)(filterGroup) map { excludedSubworkflow => parentWorkflowCall.add(subWorkflowMetadataKey, excludedSubworkflow) }
       }
 
       for {

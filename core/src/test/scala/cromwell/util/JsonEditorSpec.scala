@@ -280,9 +280,6 @@ class JsonEditorSpec extends FlatSpec with Matchers {
     }
   }
 
-  // FIXME it should "remove multiple nested keys excludes in array" in {
-  // FIXME it should "keep multiple nested keys includes in array" in {
-
   it should "start including and excluding keys from both (but only!) workflow- and call-roots" in {
     val newJson = includeJson(helloWorldJson, NonEmptyList.of("start")).get
     val expectedJsonRaw =

@@ -142,8 +142,7 @@ object JsonEditor {
             // `fs` filters.
             val possiblyUpdatedJson = fs.foldLeft(json) { case (j, f) =>
               f.components.tail match {
-                // We know all of these filters did not have have "tails", i.e. did not
-                // match the object key and thus signal that the key/value should be removed.
+                // We know all of these filters had "tails". i.e. they did not match completely.
                 case Nil => throw new RuntimeException("Programmer error: filter components tail should not be empty")
                 case c :: cs => descend(j, NonEmptyList.of(c, cs: _*))
               }

@@ -75,8 +75,6 @@ class JsonEditorSpec extends FlatSpec with Matchers {
   }
 
   it should "remove nested excludes in workflows, calls and subworkflows" in {
-    // jq -M 'del(..|.callCaching? //empty | .hashes["runtime attribute"]["docker"]) | del(..|.executionStatus? //empty)' gratuitous_subworkflows.json > nested_excludes_gratuitous_subworkflows.json
-    // That jq one-liner knows nothing about workflows, calls or subworkflows; it just happens to get the right answer in this case.
     val actual = excludeJson(gratuitousSubworkflowJson, NonEmptyList.of("callCaching:hashes:runtime attribute:docker", "executionStatus")).get
     val expected = parseMetadata("nested_excludes_gratuitous_subworkflows.json")
 
@@ -84,7 +82,9 @@ class JsonEditorSpec extends FlatSpec with Matchers {
   }
 
   it should "remove excluded keys from both calls and workflows" in {
-    val actual = excludeJson(helloWorldJson, NonEmptyList.of("outputs", "executionEvents")).get
+    // "wf_hello_input" and "cromwell-workflow-id" check against overfiltering: keys should only be filtered relative to
+    // workflow and call roots and not relative to arbitrary parts of the JSON object.
+    val actual = excludeJson(helloWorldJson, NonEmptyList.of("outputs", "executionEvents", "wf_hello_input", "cromwell-workflow-id")).get
     val expectedMetadata =
       """
         |{

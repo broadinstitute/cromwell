@@ -11,9 +11,10 @@ import wdl.draft2.model.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter,
 import wdl.draft2.model.{AstTools, WdlNamespace}
 import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
 import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.fileElementWriter
+import wom.views.GraphPrint
 import womtool.cmdline.HighlightMode.{ConsoleHighlighting, HtmlHighlighting, UnrecognizedHighlightingMode}
 import womtool.cmdline._
-import womtool.graph.{GraphPrint, WomGraph}
+import womtool.graph.WomGraph
 import womtool.input.WomGraphMaker
 import womtool.inputs.Inputs
 import womtool.validate.Validate
@@ -51,7 +52,7 @@ object WomtoolMain extends App {
     case p: ParseCommandLine => parse(p.workflowSource.pathAsString)
     case h: HighlightCommandLine => highlight(h.workflowSource.pathAsString, h.highlightMode)
     case i: InputsCommandLine => Inputs.inputsJson(i.workflowSource, i.showOptionals)
-    case g: WomtoolGraphCommandLine => graph(g.workflowSource.pathAsString)
+    case g: WomtoolGraphCommandLine => graph(g.workflowSource)
     case g: WomtoolWomGraphCommandLine => womGraph(g.workflowSource)
     case u: WomtoolWdlUpgradeCommandLine => upgrade(u.workflowSource.pathAsString)
     case _ => BadUsageTermination(WomtoolCommandLineParser.instance.usage)
@@ -126,17 +127,11 @@ object WomtoolMain extends App {
     }
   }
 
-  def graph(workflowSourcePath: String): Termination = {
-
-      val workflowDigraph = GraphPrint.generateWorkflowDigraph(workflowSourcePath)
-
-      val result = s"""|digraph ${workflowDigraph.workflowName} {
-                       |  compound=true;
-                       |  ${workflowDigraph.digraph.links.mkString(System.lineSeparator + "  ")}
-                       |  ${workflowDigraph.digraph.nodes.mkString(System.lineSeparator + "  ")}
-                       |}
-                       |"""
-      SuccessfulTermination(result.stripMargin)
+  def graph(workflowSourcePath: Path): Termination = {
+    WomGraphMaker.getBundle(workflowSourcePath).flatMap(_.toExecutableCallable).contextualizeErrors("create wom bundle") match {
+      case Right(executable) => SuccessfulTermination (new GraphPrint(executable).dotString)
+      case Left(errors) => UnsuccessfulTermination(errors.toList.mkString(System.lineSeparator, System.lineSeparator, System.lineSeparator))
+    }
   }
 
   def womGraph(workflowSourcePath: Path): Termination = {

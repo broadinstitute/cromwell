@@ -83,7 +83,7 @@ class JsonEditorSpec extends FlatSpec with Matchers {
     actual shouldEqual expected
   }
 
-  it should "remove excludes from jobs and workflows" in {
+  it should "remove excluded keys from both calls and workflows" in {
     val actual = excludeJson(helloWorldJson, NonEmptyList.of("outputs", "executionEvents")).get
     val expectedMetadata =
       """
@@ -134,7 +134,7 @@ class JsonEditorSpec extends FlatSpec with Matchers {
     actual shouldEqual expected
   }
 
-  it should "remove excludes in subworkflows" in {
+  it should "remove excluded keys in subworkflows" in {
     val actual = excludeJson(gratuitousSubworkflowJson, NonEmptyList.of("executionEvents", "workflowName")).get
     val expected = parseMetadata("excluded_gratuitous_subworkflow.json")
     actual shouldEqual expected

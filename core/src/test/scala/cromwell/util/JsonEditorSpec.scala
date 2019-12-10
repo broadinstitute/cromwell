@@ -52,9 +52,7 @@ class JsonEditorSpec extends FlatSpec with Matchers {
         |    "root": "",
         |    "options": "{\n\n}",
         |    "inputs": "{}",
-        |    "labels": "{}",
-        |    "imports": {
-        |    }
+        |    "labels": "{}"
         |  },
         |  "outputs": {
         |    "main_workflow.main_output": "Hello sub world!"

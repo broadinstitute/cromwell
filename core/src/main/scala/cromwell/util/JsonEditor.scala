@@ -95,8 +95,20 @@ object JsonEditor {
               case None => json
               case Some(inner) =>
                 val updatedObject = remainingComponents.tail match {
-                  case Nil => jsonObject.remove(component)
-                  case h :: t => jsonObject.add(component, descend(inner, NonEmptyList.of(h, t: _*)))
+                  case Nil =>
+                    jsonObject.remove(component)
+                  case h :: t =>
+                    val descentResult = descend(inner, NonEmptyList.of(h, t: _*))
+                    val innerObjectBecameEmpty = for {
+                      innerObject <- inner.asObject
+                      descentResultObject <- descentResult.asObject
+                    } yield innerObject.nonEmpty && descentResultObject.isEmpty
+
+                    // Special case: if the JSON object has become empty as a result of editing, delete it.
+                    if (innerObjectBecameEmpty.contains(true))
+                      jsonObject.remove(component)
+                    else
+                      jsonObject.add(component, descentResult)
                 }
                 Json.fromJsonObject(updatedObject)
             }

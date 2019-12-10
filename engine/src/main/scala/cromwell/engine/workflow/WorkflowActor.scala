@@ -418,7 +418,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       goto(WorkflowSucceededState) using data.copy(currentLifecycleStateActor = None)
     case Event(DeleteWorkflowFilesFailedResponse(errors, filesNotFound), data) =>
       workflowLogger.info(s"Failed to delete ${errors.size} intermediate output file(s) for root workflow $rootWorkflowIdForLogging." +
-        filesNotFoundErrorMsg(filesNotFound) + s"Errors: ${errors.map(ExceptionUtils.getMessage)}")
+        filesNotFoundErrorMsg(filesNotFound) + s" Errors: ${errors.map(ExceptionUtils.getMessage)}")
       goto(WorkflowSucceededState) using data.copy(currentLifecycleStateActor = None)
   }
 

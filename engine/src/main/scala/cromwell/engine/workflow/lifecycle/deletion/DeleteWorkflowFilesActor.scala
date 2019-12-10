@@ -205,6 +205,12 @@ object DeleteWorkflowFilesActor {
       if (commandsToWaitFor.isEmpty) (this, AllDeleteCommandsDone)
       else {
         val updatedCommandsSet = commandsToWaitFor - command
+
+        val expectedCommandSetSize = updatedCommandsSet.size
+        val requiredCommandSetSize = commandsToWaitFor.size - 1
+        require(expectedCommandSetSize == requiredCommandSetSize, s"Found updated command set size as $expectedCommandSetSize instead of $requiredCommandSetSize." +
+          s" The updated set of commands that DeleteWorkflowFilesActor has to wait for should be 1 less after removing a completed command.")
+
         if (updatedCommandsSet.isEmpty) (this.copy(commandsToWaitFor = Set.empty), AllDeleteCommandsDone)
         else (this.copy(updatedCommandsSet), StillWaiting)
       }

@@ -112,7 +112,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
     )(cromwellTracker)
 
     rootWorkflowFile.delete(true)
-    upgradedImportsDir.delete(true)
+    //upgradedImportsDir.delete(true)
     workingDir.delete(true)
 
     newCase

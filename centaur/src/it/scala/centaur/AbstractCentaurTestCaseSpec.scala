@@ -10,6 +10,7 @@ import centaur.reporting.{ErrorReporters, SuccessReporters, TestEnvironment}
 import centaur.test.CentaurTestException
 import centaur.test.standard.CentaurTestCase
 import centaur.test.submit.{SubmitResponse, SubmitWorkflowResponse}
+import centaur.test.workflow.WorkflowData
 import org.scalatest._
 
 import scala.concurrent.Future
@@ -93,9 +94,22 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
     val newCase = testCase.copy(
       workflow = testCase.workflow.copy(
         testName = testCase.workflow.testName + " (draft-2 to 1.0 upgrade)",
-        data = testCase.workflow.data.copy(
-          workflowContent = Option(upgradeResult.stdout.get), // this '.get' catches an error if upgrade fails
-          zippedImports = Option(upgradedImportsDir.zip()))))(cromwellTracker) // An empty zip appears to be completely harmless, so no special handling
+        data = new WorkflowData(
+          Option(upgradeResult.stdout.get), // this '.get' catches an error if upgrade fails
+          testCase.workflow.data.workflowUrl,
+          testCase.workflow.data.workflowRoot,
+          testCase.workflow.data.workflowType,
+          testCase.workflow.data.workflowTypeVersion,
+          testCase.workflow.data.inputs,
+          testCase.workflow.data.options,
+          testCase.workflow.data.labels,
+          testCase.workflow.data.secondOptions,
+          testCase.workflow.data.thirdOptions
+        ) {
+          override def zippedImports: Option[File] = Option(upgradedImportsDir.zip()) // An empty zip appears to be completely harmless, so no special handling
+        }
+      )
+    )(cromwellTracker)
 
     rootWorkflowFile.delete(true)
     upgradedImportsDir.delete(true)

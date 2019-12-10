@@ -2,6 +2,13 @@
 
 ## 47 Release Notes
 
+### WDL
++ Namespaces in inputs JSON files are handled differently. This only affects inputs for
+  tasks (or subworkflows) in subworkflows. For example `my_workflow.sub_wf_file.sub_wf_name.my_task.my_input`
+  will change to `my_workflow.sub_wf_name.my_task.my_input`.
+
+## 47 Release Notes
+
 ### Retry with more memory on Papiv2 [(#5180)](https://github.com/broadinstitute/cromwell/pull/5180)
 
 Cromwell now allows user defined retries. With `memory-retry` config you can specify an array of strings which when encountered in the `stderr` 

@@ -1,6 +1,6 @@
 # Cromwell Change Log
 
-## 47 Release Notes
+## 48 Release Notes
 
 ### WDL
 + Namespaces in inputs JSON files are handled differently. This only affects inputs for

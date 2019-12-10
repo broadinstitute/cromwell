@@ -145,7 +145,7 @@ object CentaurCwlRunner extends StrictLogging {
       JsObject("cwl_outdir" -> JsString(outdir)).compactPrint
     }
     val labels = List.empty
-    val zippedImports = Option(zipSiblings(workflowPath)) // TODO: Zipping all the things! Be more selective.
+    val zippedImportsVal = Option(zipSiblings(workflowPath)) // TODO: Zipping all the things! Be more selective.
     val backends = AllBackendsRequired(List.empty)
     val workflowMetadata = None
     val notInMetadata = List.empty
@@ -154,7 +154,7 @@ object CentaurCwlRunner extends StrictLogging {
     val testOptions = TestOptions(List.empty, ignore = false)
     val submitResponseOption = None
 
-    val workflowData = WorkflowData(
+    val workflowData = new WorkflowData(
       Option(workflowContents),
       None,
       None,
@@ -162,9 +162,10 @@ object CentaurCwlRunner extends StrictLogging {
       workflowTypeVersion,
       inputContents.map(IO.pure),
       optionsContents.map(IO.pure),
-      labels,
-      zippedImports
-    )
+      labels
+    ) {
+      override def zippedImports: Option[File] = zippedImportsVal
+    }
     val workflow = Workflow(
       testName,
       workflowData,
@@ -217,7 +218,7 @@ object CentaurCwlRunner extends StrictLogging {
           }
       }
     } finally {
-      zippedImports map { zipFile =>
+      zippedImportsVal map { zipFile =>
         if (!args.quiet) {
           logger.info(s"Deleting $zipFile")
         }

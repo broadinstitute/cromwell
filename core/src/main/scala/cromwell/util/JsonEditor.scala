@@ -69,13 +69,13 @@ object JsonEditor {
     newJson.validNel
   }
 
-  case class Filter(components: NonEmptyList[String])
+  final case class Filter(components: NonEmptyList[String])
 
   /** A `FilterGroup` represents all the `Filter`s for include xor exclude. The argument is intentionally not a NEL
     * since `FilterGroup`s should start out non-empty but may become empty after `remove`s. e.g. excludeKey 'id' in
     * a workflow `FilterGroup`. */
-  case class FilterGroup(filters: List[Filter]) {
-    def removeFilters(h: String, t: String*): FilterGroup = {
+  final case class FilterGroup(filters: List[Filter]) {
+    def withoutFilters(h: String, t: String*): FilterGroup = {
       val componentSet = (h :: t.toList).toSet
       this.copy(filters filterNot { f => componentSet.contains(f.components.head) })
     }
@@ -141,8 +141,8 @@ object JsonEditor {
   private def applyExcludes(workflowJson: Json)(filterGroup: FilterGroup): ErrorOr[Json] = {
     // Always include 'id' in workflows, 'shardIndex' and 'attempt' in calls. i.e. make sure these keys are excluded
     // from the excludes.
-    val workflowExcludeFilters = filterGroup.removeFilters("id")
-    val callExcludeFilters = filterGroup.removeFilters("shardIndex", "attempt")
+    val workflowExcludeFilters = filterGroup.withoutFilters("id")
+    val callExcludeFilters = filterGroup.withoutFilters("shardIndex", "attempt")
 
     def filterCall(callJson: Json): ErrorOr[Json] = {
       def filterSubworkflowCall(parentWorkflowCall: JsonObject)(subworkflow: Json): ErrorOr[JsonObject] = {
@@ -184,7 +184,7 @@ object JsonEditor {
     } yield Json.fromJsonObject(deepFilteredWorkflowObject)
   }
 
-  def outputs(json: Json): ErrorOr[Json] = excludeJson(json, NonEmptyList.one("calls")) flatMap (includeJson(_, NonEmptyList.of("outputs")))
+  def outputs(json: Json): ErrorOr[Json] = includeExcludeJson(json, Option(NonEmptyList.of("outputs")), Option(NonEmptyList.one("calls")))
 
   // Return the calls object with subworkflows removed.
   private def removeSubworkflowCalls(callsObject: JsonObject): ErrorOr[Json] = {

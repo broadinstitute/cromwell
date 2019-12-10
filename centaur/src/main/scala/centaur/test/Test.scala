@@ -761,10 +761,4 @@ object Operations extends StrictLogging {
     }
   }
 
-  // FIXME: Should be abstracted w/ validateMetadata - ATM still used by the unused caching tests
-  def retrieveMetadata(workflow: SubmittedWorkflow): Test[WorkflowMetadata] = {
-    new Test[WorkflowMetadata] {
-      override def run: IO[WorkflowMetadata] = CentaurCromwellClient.metadata(workflow)
-    }
-  }
 }

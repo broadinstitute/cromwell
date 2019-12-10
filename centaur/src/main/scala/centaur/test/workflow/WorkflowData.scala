@@ -32,9 +32,13 @@ case class WorkflowData(workflowContent: Option[String],
                         inputs: Option[IO[String]],
                         options: Option[IO[String]],
                         labels: List[Label],
-                        zippedImports: Option[File],
                         secondOptions: Option[IO[String]] = None,
-                        thirdOptions: Option[IO[String]] = None)
+                        thirdOptions: Option[IO[String]] = None) {
+
+  // declared as function in order to enforce creation of zipped archive from scratch on each retry of Centaur test
+  def zippedImports: Option[File] = None
+
+}
 
 object WorkflowData {
   val blockingEC = ExecutionContext.fromExecutorService(Executors.newFixedThreadPool(5))
@@ -81,7 +85,7 @@ object WorkflowData {
       filesConfig.getAs[String](name).map(slurp)
     }
 
-    def getImports = filesConfig.get[List[String]]("imports") match {
+    def getImports: Option[File] = filesConfig.get[List[String]]("imports") match {
       case Success(paths) => zipImports(paths map basePath./)
       case Failure(_) => None
     }
@@ -121,7 +125,7 @@ object WorkflowData {
     val workflowTypeVersion = fullConfig.get[Option[String]]("workflowTypeVersion").value
     val workflowRoot = fullConfig.get[Option[String]]("workflowRoot").value
 
-    WorkflowData(
+    new WorkflowData(
       workflowContent = workflowSource,
       workflowUrl = workflowUrl,
       workflowRoot = workflowRoot,
@@ -131,8 +135,9 @@ object WorkflowData {
       options = getOptionalFileContent("options"),
       secondOptions = getOptionalFileContent(name = "second-options").orElse(getOptionalFileContent("options")),
       thirdOptions = getOptionalFileContent(name = "third-options").orElse(getOptionalFileContent("options")),
-      labels = getLabels,
-      zippedImports = getImports
-    )
+      labels = getLabels
+    ) {
+      override def zippedImports: Option[File] = getImports
+    }
   }
 }

@@ -5,7 +5,8 @@
 ### WDL
 + Namespaces in inputs JSON files are handled differently. This only affects inputs for
   tasks (or subworkflows) in subworkflows. For example `my_workflow.sub_wf_file.sub_wf_name.my_task.my_input`
-  will change to `my_workflow.sub_wf_name.my_task.my_input`.
+  will change to `my_workflow.sub_wf_name.my_task.my_input`. More information can be 
+  found in [the documentation on inputs](https://cromwell.readthedocs.io/en/stable/Inputs).
 
 ## 47 Release Notes
 

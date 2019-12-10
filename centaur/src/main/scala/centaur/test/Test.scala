@@ -127,11 +127,12 @@ object Operations extends StrictLogging {
   implicit private val timer = IO.timer(global)
   implicit private val contextShift = IO.contextShift(global)
 
-  def submitWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = {
+  def submitWorkflowAndDeleteZippedImports(workflow: Workflow): Test[SubmittedWorkflow] = {
     new Test[SubmittedWorkflow] {
       override def run: IO[SubmittedWorkflow] = for {
-        id <- CentaurCromwellClient.submit(workflow)
-      } yield id
+        submittedWorkflow <- CentaurCromwellClient.submit(workflow)
+        _ = cleanUpImports(submittedWorkflow)
+      } yield submittedWorkflow
     }
   }
 
@@ -608,7 +609,6 @@ object Operations extends StrictLogging {
           }
         }
 
-        cleanUpImports(workflow)
         for {
           actualMetadata <- CentaurCromwellClient.metadata(workflow)
           _ <- validateUnwantedMetadata(actualMetadata)

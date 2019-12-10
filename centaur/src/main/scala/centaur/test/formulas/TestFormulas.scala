@@ -29,7 +29,7 @@ object TestFormulas extends StrictLogging {
   private def runWorkflowUntilTerminalStatus(workflow: Workflow, status: TerminalStatus): Test[SubmittedWorkflow] = {
     for {
       _ <- checkVersion()
-      s <- submitWorkflow(workflow)
+      s <- submitWorkflowAndDeleteZippedImports(workflow)
       _ <- expectSomeProgress(s, workflow, Set(Running, status), workflowProgressTimeout)
       _ <- pollUntilStatus(s, workflow, status)
     } yield s
@@ -127,7 +127,7 @@ object TestFormulas extends StrictLogging {
       case ManagedCromwellServer(_, postRestart, withRestart) if withRestart =>
         for {
           _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
-          submittedWorkflow <- submitWorkflow(workflowDefinition)
+          submittedWorkflow <- submitWorkflowAndDeleteZippedImports(workflowDefinition)
           jobId <- pollUntilCallIsRunning(workflowDefinition, submittedWorkflow, callMarker.callKey)
           _ = CromwellManager.stopCromwell(s"Scheduled restart from ${workflowDefinition.testName}")
           _ = CromwellManager.startCromwell(postRestart)
@@ -151,7 +151,7 @@ object TestFormulas extends StrictLogging {
 
   def instantAbort(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = for {
     _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
-    submittedWorkflow <- submitWorkflow(workflowDefinition)
+    submittedWorkflow <- submitWorkflowAndDeleteZippedImports(workflowDefinition)
     _ <- abortWorkflow(submittedWorkflow)
     _ <- expectSomeProgress(submittedWorkflow, workflowDefinition, Set(Running, Aborting, Aborted), workflowProgressTimeout)
     _ <- pollUntilStatus(submittedWorkflow, workflowDefinition, Aborted)
@@ -170,7 +170,7 @@ object TestFormulas extends StrictLogging {
     
     for {
       _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
-      submittedWorkflow <- submitWorkflow(workflowDefinition)
+      submittedWorkflow <- submitWorkflowAndDeleteZippedImports(workflowDefinition)
       jobId <- pollUntilCallIsRunning(workflowDefinition, submittedWorkflow, callMarker.callKey)
       // The Cromwell call status could be running but the backend job might not have started yet, give it some time
       _ <- waitFor(30.seconds)
@@ -208,7 +208,7 @@ object TestFormulas extends StrictLogging {
       case ManagedCromwellServer(_, postRestart, withRestart) if withRestart =>
         for {
           _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
-          first <- submitWorkflow(workflowDefinition)
+          first <- submitWorkflowAndDeleteZippedImports(workflowDefinition)
           _ <- pollUntilCallIsRunning(workflowDefinition, first, callMarker.callKey)
           _ = CromwellManager.stopCromwell(s"Scheduled restart from ${workflowDefinition.testName}")
           _ = CromwellManager.startCromwell(postRestart)

@@ -11,16 +11,12 @@ import common.util.StringUtil._
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.core.WorkflowId
-import io.circe.Json.Folder
-import io.circe.{Json, JsonNumber, JsonObject, Printer}
-
-import scala.collection.immutable
+import io.circe.{Json, JsonObject, Printer}
 
 object JsonEditor {
 
   private val subWorkflowMetadataKey = "subWorkflowMetadata"
   private val subWorkflowIdKey = "subWorkflowId"
-  private val keysToIncludeInCallsOrWorkflows = NonEmptyList.of("id", "shardIndex", "attempt")
 
   def includeExcludeJson(json: Json, includeKeys: Option[NonEmptyList[String]], excludeKeys: Option[NonEmptyList[String]]): ErrorOr[Json] =
     (includeKeys, excludeKeys) match {
@@ -30,44 +26,6 @@ object JsonEditor {
       case (Some(includeKeys), None) => includeJson(json, includeKeys)
       case _ => json.validNel
     }
-
-  def includeJson(json: Json, keys: NonEmptyList[String]): ErrorOr[Json] = {
-    val keysWithId = keysToIncludeInCallsOrWorkflows ::: keys
-    def folder: Folder[(Json, Boolean)] = new Folder[(Json, Boolean)] {
-      override def onNull: (Json, Boolean) = (Json.Null, false)
-      override def onBoolean(value: Boolean): (Json, Boolean) = (Json.fromBoolean(value), false)
-      override def onNumber(value: JsonNumber): (Json, Boolean) = (Json.fromJsonNumber(value), false)
-      override def onString(value: String): (Json, Boolean) = (Json.fromString(value), false)
-      override def onArray(value: Vector[Json]): (Json, Boolean) = {
-        val newArrayAndKeeps: immutable.Seq[(Json, Boolean)] = value.map(_.foldWith(folder))
-        val keep: Boolean = newArrayAndKeeps.map{ case (_, keep) => keep}.foldLeft(false)(_ || _)
-        (Json.fromValues(newArrayAndKeeps.map{ case (newJson, _) => newJson}), keep)
-      }
-
-      override def onObject(value: JsonObject): (Json, Boolean) = {
-        val modified: immutable.List[(String, Json)] = value.toList.flatMap{
-          case (key, value) =>
-            val keep = keysWithId.foldLeft(false)(_ || key.equals(_))
-            if (keep)
-              List[(String,Json)]((key,value))
-            else {
-              //run against children, if none of the children need it we can throw it away
-              val newJsonAndKeep: (Json, Boolean) = value.foldWith(folder)
-              val (newJson, keepChildren) = newJsonAndKeep
-              if (keepChildren)
-                List((key,newJson))
-              else
-                List.empty[(String,Json)]
-            }
-        }
-        val jsonObject = Json.fromJsonObject(JsonObject.fromIterable(modified))
-        val keep = modified.nonEmpty
-        (jsonObject, keep)
-      }
-    }
-    val (newJson,_) = json.foldWith(folder)
-    newJson.validNel
-  }
 
   final case class Filter(components: NonEmptyList[String])
 
@@ -80,8 +38,9 @@ object JsonEditor {
       this.copy(filters filterNot { f => componentSet.contains(f.components.head) })
     }
 
+    private def filtersMatchingKey(objectKey: String): List[Filter] = filters.filter(_.components.head == objectKey)
+
     def applyExcludes(jsonObject: JsonObject): JsonObject = {
-      def filtersMatchingKey(objectKey: String): List[Filter] = filters.filter(_.components.head == objectKey)
       // If at the top level there are no matches at all, either because there is no object to be drilled into or
       // there is no object key matching the current filter component, keep the original JSON.
       // If the key has matched completely, remove the key/value from the object and return the modified object.
@@ -127,27 +86,175 @@ object JsonEditor {
           case fs =>
             // The JSON value will not be deleted but may need to be edited. Fold the JSON through all the
             // `fs` filters.
-            val possiblyUpdatedJson = fs.foldLeft(json) { case (j, f) =>
+            val filteredJson = fs.foldLeft(json) { case (j, f) =>
               f.components.tail match {
                 // We know all of these filters had "tails". i.e. they did not match completely.
                 case Nil => throw new RuntimeException("Programmer error: filter components tail should not be empty")
                 case c :: cs => descend(j, NonEmptyList.of(c, cs: _*))
               }
             }
-            List((key, possiblyUpdatedJson))
+            List((key, filteredJson))
+        }
+      }
+      JsonObject.fromIterable(updatedKeyValues)
+    }
+
+    def applyIncludes(jsonObject: JsonObject): JsonObject = {
+      // If the JSON is not an object or there is no key in the object matching the head of the remaining components,
+      // the search has failed so return `None`. If there is a matching key and there are no more components,
+      // the search has succeeded so return a result. Otherwise continue the search deeper into the inner JSON value.
+      def descend(json: Json, remainingComponents: NonEmptyList[String]): Option[Json] = {
+        json.asObject match {
+          case None => None
+          case Some(jsonObject) =>
+            val component = remainingComponents.head
+            jsonObject(component) match {
+              case None => None
+              case Some(inner) =>
+                remainingComponents.tail match {
+                  case Nil =>
+                    // Pick out the matching key / value pair from the query object and return that as a
+                    // JSON object with a single key / value.
+                    Option(Json.fromFields(List((component, inner))))
+                  case h :: t =>
+                    val descentResult = descend(inner, NonEmptyList.of(h, t: _*))
+                    // If there is a result, wrap it in a single field JSON object using the head of the filter
+                    // components as the key. This rebuilds the object structure from the inside out as the
+                    // recursion backs out.
+                    descentResult map { j => Json.fromFields(List((h, j)))}
+                }
+            }
+        }
+      }
+
+      val updatedKeyValues: List[(String, Json)] = jsonObject.toList flatMap { case (key, json) =>
+        filtersMatchingKey(key) match {
+          case Nil =>
+            // No filters matched this object key, return an empty List.
+            Nil
+          case fs if fs.exists(_.components.tail == Nil) =>
+            // If there is a filter that has no other components and thus matches the object key completely,
+            // return the (key, value).
+            List((key, json))
+          case fs =>
+            // The search continues. Fold an empty JsonObject through all the `fs` filters to include everything that matches.
+            val emptyJson = Json.fromJsonObject(JsonObject.empty)
+            val filteredJson = fs.foldLeft(emptyJson) { case (j, f) =>
+              f.components.tail match {
+                // We know all of these filters had "tails". i.e. they did not match completely.
+                case Nil => throw new RuntimeException("Programmer error: filter components tail should not be empty")
+                case c :: cs =>
+                  descend(json, NonEmptyList.of(c, cs: _*)) match {
+                    case None =>
+                      // If the descent doesn't find anything return the object under construction unmodified.
+                      j
+                    case Some(descentResult) =>
+                      // If the descent does find a value it should be merged to the object under construction.
+                      // Merge is required to properly handle nested structure if there are multiple semi-overlapping
+                      // include filter keys.
+                      j deepMerge descentResult
+                  }
+              }
+            }
+            List((key, filteredJson))
         }
       }
       JsonObject.fromIterable(updatedKeyValues)
     }
   }
 
-  def excludeJson(json: Json, keys: NonEmptyList[String]): ErrorOr[Json] = {
-    val filters: ErrorOr[List[Filter]] = keys.toList traverse { key => key.split(':').toList match {
-      case Nil => s"Programmer error: string split resulting in empty array: $key".invalidNel
-      case h :: t => Filter(NonEmptyList.of(h, t: _*)).validNel
-    }}
+  object FilterGroup {
+    def build(keys: NonEmptyList[String]): ErrorOr[FilterGroup] = {
+      val filters: ErrorOr[List[Filter]] = keys.toList traverse { key => key.split(':').toList match {
+        case Nil => s"Programmer error: string split resulting in empty array: $key".invalidNel
+        case h :: t => Filter(NonEmptyList.of(h, t: _*)).validNel
+      }}
+      filters map FilterGroup.apply
+    }
+  }
 
-    filters map FilterGroup.apply flatMap applyExcludes(json)
+  def excludeJson(json: Json, keys: NonEmptyList[String]): ErrorOr[Json] = FilterGroup.build(keys) flatMap applyExcludes(json)
+
+  def includeJson(json: Json, keys: NonEmptyList[String]): ErrorOr[Json] = FilterGroup.build(keys) flatMap applyIncludes(json, forceWorkflowId = true)
+
+  private def applyIncludes(workflowJson: Json, forceWorkflowId: Boolean = false)(filterGroup: FilterGroup): ErrorOr[Json] = {
+    // Returns an empty JsonObject if all calls have been filtered out or if there were never any calls to begin with.
+    def filterCalls(workflowObject: JsonObject): ErrorOr[JsonObject] = {
+      def buildCallObject(unfilteredCallObject: JsonObject, shallowFilteredCallObject: JsonObject, filteredSubworkflow: JsonObject): JsonObject = {
+        // Add in the subworkflow if it is nonempty after filtering, add in `shardIndex` and `attempt` if anything is nonempty.
+        val transforms: List[JsonObject => JsonObject] = List(
+          obj =>
+            if (filteredSubworkflow.nonEmpty)
+              obj.add(subWorkflowMetadataKey, Json.fromJsonObject(filteredSubworkflow)) else obj,
+          obj =>
+            if (shallowFilteredCallObject.nonEmpty || filteredSubworkflow.nonEmpty)
+              obj.add("shardIndex", unfilteredCallObject("shardIndex").get).add("attempt", unfilteredCallObject("attempt").get) else obj
+        )
+        Function.chain(transforms)(shallowFilteredCallObject)
+      }
+
+      def filterCallEntry(json: Json): ErrorOr[JsonObject] = {
+        for {
+          callObject <- json.asObject.map(_.validNel).getOrElse(s"Call entry unexpectedly not an object: $json".invalidNel)
+          shallowFilteredCallObject = filterGroup.applyIncludes(callObject)
+          subworkflow = callObject(subWorkflowMetadataKey).getOrElse(Json.fromJsonObject(JsonObject.empty))
+          shallowFilteredSubworkflow <- applyIncludes(subworkflow)(filterGroup)
+          shallowFilteredSubworkflowObject <- shallowFilteredSubworkflow.asObject.map(_.validNel).getOrElse(s"subworkflow unexpectedly not an object: $subworkflow ".invalidNel)
+          builtCallObject = buildCallObject(callObject, shallowFilteredCallObject, shallowFilteredSubworkflowObject)
+        } yield builtCallObject
+      }
+
+      def filterCallsArray(json: Json): ErrorOr[Json] = {
+        json.asArray match {
+          case None => s"Calls array unexpectedly not an array: $json".invalidNel
+          case Some(array) =>
+            val filteredCalls: ErrorOr[Vector[JsonObject]] = array traverse filterCallEntry
+            // Remove empty call objects from the call array.
+            val nonEmptyObjects: ErrorOr[Vector[JsonObject]] = filteredCalls map { _.filter(_.nonEmpty) }
+            nonEmptyObjects map { objs => Json.fromValues(objs map Json.fromJsonObject) }
+        }
+      }
+
+      val callsAsObject: ErrorOr[JsonObject] = workflowObject("calls") match {
+        case None => JsonObject.empty.validNel
+        case Some(cs) =>
+         cs.asObject map { _.validNel } getOrElse s"calls JSON unexpectedly not an object: $cs".invalidNel
+      }
+
+      for {
+        callsObject <- callsAsObject
+        // Empty calls filtered out of call arrays.
+        emptyCallsRemoved <- callsObject traverse filterCallsArray
+        // Empty call arrays removed from the containing calls object.
+        emptyCallArraysRemoved = emptyCallsRemoved filter { case (_, json) => json.asArray.exists(_.nonEmpty) }
+      } yield emptyCallArraysRemoved
+    }
+
+    def buildWorkflowObject(workflowObject: JsonObject,
+                            filteredCalls: JsonObject,
+                            filteredWorkflow: JsonObject,
+                            forceWorkflowId: Boolean): JsonObject = {
+
+      // Add in `calls` if they are nonempty, add in `id` if anything is nonempty or the workflow ID is being forced
+      // in as a result of being the query workflow ID.
+      val transforms: List[JsonObject => JsonObject] = List(
+        obj =>
+          if (filteredCalls.nonEmpty)
+            obj.add("calls", Json.fromJsonObject(filteredCalls)) else obj,
+        obj =>
+          if (filteredCalls.nonEmpty || filteredWorkflow.nonEmpty || forceWorkflowId)
+            obj.add("id", workflowObject("id").get) else obj
+      )
+      Function.chain(transforms)(filteredWorkflow)
+    }
+
+    import common.validation.ErrorOr._
+    for {
+      workflowObject <- workflowJson.asObject.map(_.validNel).getOrElse(s"Workflow JSON unexpectedly not an object: $workflowJson".invalidNel)
+      filteredCalls <- filterCalls(workflowObject)
+      filteredWorkflow = filterGroup.applyIncludes(workflowObject)
+      builtWorkflowObject = buildWorkflowObject(workflowObject, filteredCalls, filteredWorkflow, forceWorkflowId)
+    } yield Json.fromJsonObject(builtWorkflowObject)
   }
 
   private def applyExcludes(workflowJson: Json)(filterGroup: FilterGroup): ErrorOr[Json] = {
@@ -196,50 +303,15 @@ object JsonEditor {
     } yield Json.fromJsonObject(deepFilteredWorkflowObject)
   }
 
-  def outputs(json: Json): ErrorOr[Json] = includeExcludeJson(json, Option(NonEmptyList.of("outputs")), Option(NonEmptyList.one("calls")))
-
-  // Return the calls object with subworkflows removed.
-  private def removeSubworkflowCalls(callsObject: JsonObject): ErrorOr[Json] = {
-    def isCallSubworkflow(callArrayJson: Json): ErrorOr[Boolean] = {
-      for {
-        array <- callArrayJson.asArray map (_.validNel) getOrElse s"call array unexpectedly not an array: $callArrayJson".invalidNel
-        // All calls within this array are assumed to have the same "shape": either they are subworkflows or regular jobs.
-        // So this only looks at the first element of the call array to determine whether this member of the containing
-        // object should be filtered as a subworkflow. There should always be at least one element in this calls array.
-        callJson <- array.headOption map (_.validNel) getOrElse "call array unexpectedly empty".invalidNel
-        call <- callJson.asObject map (_.validNel) getOrElse s"Call JSON unexpectedly not an object: $callJson".invalidNel
-      } yield call.contains(subWorkflowMetadataKey) || call.contains(subWorkflowIdKey)
-    }
-
-    callsObject.toList.flatTraverse[ErrorOr, (String, Json)] {
-      case (key, json) => isCallSubworkflow(json) map { isSubworkflow =>
-        // If the value is true return an empty List, otherwise return a single-element List containing the (key, json) pair.
-        if (isSubworkflow) List.empty else List((key, json))
-      }
-    } map { Json.fromFields }
+  def outputs(json: Json): ErrorOr[Json] = {
+    includeExcludeJson(json, Option(NonEmptyList.one("outputs")), Option(NonEmptyList.one("calls")))
   }
 
   def logs(workflowJson: Json): ErrorOr[Json] = {
-    val inputsAndOutputs = NonEmptyList.of("outputs", "inputs")
-    val shardAttemptAndLogsFields = NonEmptyList.of("shardIndex", "attempt", "stdout", "stderr", "backendLogs")
-
-    def updatedWorkflowJson(calls: JsonObject): ErrorOr[Json] = {
-      for {
-        updatedCallsJson <- removeSubworkflowCalls(calls)
-      } yield Json.fromJsonObject(workflowJson.asObject.get.add("calls", updatedCallsJson))
-    }
-
     for {
-      calls <- callsObject(workflowJson)
-      workflowWithSubworkflowsRemoved <- calls match {
-        case None => workflowJson.validNel
-        case Some(cs) => updatedWorkflowJson(cs)
-      }
-      // exclude outputs and inputs since variables can be named anything including internally reserved words like
-      // `stdout` and `stderr` which would be erroneously included among the logs.
-      excluded <- excludeJson(workflowWithSubworkflowsRemoved, inputsAndOutputs)
-      inc <- includeJson(excluded, shardAttemptAndLogsFields)
-    } yield inc
+      unexpanded <- unexpandSubworkflows(workflowJson)
+      logs <- includeJson(unexpanded, NonEmptyList.of("stdout", "stderr", "backendLogs"))
+    } yield logs
   }
 
   implicit class EnhancedJson(val json: Json) extends AnyVal {
@@ -260,11 +332,10 @@ object JsonEditor {
   /**
     * Look for an optional JsonObject by its key
     * @param workflowJson - workflow Json to look in
-    * @param key - key to look for
     * @return - optional tuple of workflow JsonObject and found element JsonObject
     */
-  private def extractJsonObjectByKey(workflowJson: Json, key: String): Option[(JsonObject, JsonObject)] =
-    extractJsonByKey(workflowJson, key) flatMap {
+  private def extractCallsKeyValue(workflowJson: Json): Option[(JsonObject, JsonObject)] =
+    extractJsonByKey(workflowJson, "calls") flatMap {
       case (jsonObj, json) => json.asObject.flatMap(jo => Option((jsonObj, jo)))
     }
 
@@ -326,13 +397,6 @@ object JsonEditor {
     }
   }
 
-  private def callsObject(workflowJson: Json): ErrorOr[Option[JsonObject]] = {
-    workflowJson.asObject match {
-      case None => s"Workflow JSON unexpectedly not an object: $workflowJson".invalidNel
-      case Some(obj) => callsObject(obj)
-    }
-  }
-
   /**
     * Update workflow json, replacing "subWorkflowMetadata" elements of root workflow's "calls" object by "subWorkflowId"
     *
@@ -387,7 +451,7 @@ object JsonEditor {
   }
 
   private def updateWorkflowCallsJson(workflowJson: Json, updateCallsFunc: (JsonObject, Json) => Option[ErrorOr[Json]]): ErrorOr[Json] = {
-    val workflowWithUpdatedCalls: ErrorOr[Json] = extractJsonObjectByKey(workflowJson, "calls") match {
+    val workflowWithUpdatedCalls: ErrorOr[Json] = extractCallsKeyValue(workflowJson) match {
       // If there were no calls just return the workflow JSON unmodified.
       case None => workflowJson.validNel
       case Some((_, calls)) =>
@@ -420,7 +484,7 @@ object JsonEditor {
   }
 
   def extractSubWorkflowMetadata(subworkflowId: String, workflowJson: Json): ErrorOr[Option[Json]] = {
-    extractJsonObjectByKey(workflowJson, "calls") match {
+    extractCallsKeyValue(workflowJson) match {
       case None => None.validNel
       case Some((_, calls)) =>
         calls.toMap.map {
@@ -452,5 +516,4 @@ object JsonEditor {
           .map(_.flatten.headOption)
     }
   }
-
 }

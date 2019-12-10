@@ -140,8 +140,7 @@ class JsonEditorSpec extends FlatSpec with Matchers {
     actual shouldEqual expected
   }
 
-  // CARBONITE FIXING Broken in the current Carbonite implementation, this recurses down inappropriately and finds a bogus 'labels' match.
-  it should "keep includes in workflows, tragically broken" ignore {
+  it should "keep includes in workflows, paying no mind to that 'labels' field in 'submittedFiles'" in {
     val actual = includeJson(helloWorldJson, NonEmptyList.of("workflowName", "labels", "outputs")).get
     val expectedMetadata = """
       |{
@@ -215,6 +214,32 @@ class JsonEditorSpec extends FlatSpec with Matchers {
         |    "main_workflow.main_output": "Hello sub world!"
         |  },
         |  "id": "757d0bcc-b636-4658-99d4-9b4b3767f1d1"
+        |}
+        |""".stripMargin
+    val expected = parseString(expectedMetadata)
+    actual shouldEqual expected
+  }
+
+  it should "always return a workflow ID on the query workflow" in {
+    val expectedMetadata =
+      """
+        |{
+        |  "id" : "757d0bcc-b636-4658-99d4-9b4b3767f1d1"
+        |}
+        |""".stripMargin
+
+    val expected = parseString(expectedMetadata)
+    val actual = includeJson(helloWorldJson, NonEmptyList.of("foo")).toEither.right.get
+    actual shouldEqual expected
+  }
+
+  it should "do the right thing with logs" in {
+    // this actually has no legit logs since its one call is a subworkflow, but we should at least get the workflow ID back.
+    val actual = logs(helloWorldJson).get
+    val expectedMetadata =
+      """
+        |{
+        |  "id" : "757d0bcc-b636-4658-99d4-9b4b3767f1d1"
         |}
         |""".stripMargin
     val expected = parseString(expectedMetadata)
@@ -300,6 +325,22 @@ class JsonEditorSpec extends FlatSpec with Matchers {
 
     newJson shouldEqual expectedJson.right.get
   }
+
+  it should "support a Job Manageresque query on a simple workflow" in {
+    import JobManagerKeys._
+
+    val actual = includeExcludeJson(helloWorldJson, Option(includeKeys), Option(excludeKeys)).toEither.right.get
+    val expected = parseMetadata("jmui_hello_world.json")
+    actual shouldEqual expected
+  }
+
+  it should "support a Job Manageresque query on a gratuitously nested workflow" in {
+    import JobManagerKeys._
+
+    val actual = includeExcludeJson(parseMetadata("gratuitous_subworkflow_papiv2_cached.json"), Option(includeKeys), Option(excludeKeys)).toEither.right.get
+    val expected = parseMetadata("sub_sub_jmuiesque.json")
+    actual shouldEqual expected
+  }
 }
 
 object JsonEditorSpec {
@@ -317,9 +358,39 @@ object JsonEditorSpec {
   }
 
   val gratuitousSubworkflowJson: Json = parseMetadata("gratuitous_subworkflows.json")
+  val gratuitousSubworkflowCachedJson: Json = parseMetadata("gratuitous_subworkflow_papiv2_cached.json")
   val helloWorldJson: Json = parseMetadata("hello_world.json")
 
   implicit class EnhancedErrorOr[A](val e: ErrorOr[A]) extends AnyVal {
     def get: A = e.toEither.right.get
+  }
+
+  object JobManagerKeys {
+    val includeKeys = NonEmptyList.of(
+      "attempt",
+      "backendLogs:log",
+      "callCaching:hit",
+      "callRoot",
+      "end",
+      "executionStatus",
+      "failures",
+      "inputs",
+      "jobId",
+      "outputs",
+      "shardIndex",
+      "start",
+      "calls",
+      "description",
+      "executionEvents",
+      "labels",
+      "parentWorkflowId",
+      "returnCode",
+      "status",
+      "submission",
+      "subWorkflowId",
+      "workflowName"
+    )
+
+    val excludeKeys = NonEmptyList.of("callCaching:hitFailures")
   }
 }

@@ -53,8 +53,7 @@ object CallElementToGraphNode {
       }
 
     def supplyableInput(definition: Callable.InputDefinition): Boolean = {
-        !definition.isInstanceOf[FixedInputDefinitionWithDefault] &&
-        !definition.name.contains(".") // NB: Remove this check when sub-workflows allow pass-through task inputs
+        !definition.isInstanceOf[FixedInputDefinitionWithDefault]
     }
 
     def validInput(name: String, definition: Callable.InputDefinition): Boolean = {

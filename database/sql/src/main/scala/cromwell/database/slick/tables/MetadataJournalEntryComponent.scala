@@ -119,14 +119,11 @@ trait MetadataJournalEntryComponent {
     } yield metadataEntry).sortBy(_.metadataTimestamp)
   )
 
-  val metadataJournalEntriesForIdRange = Compiled(
-    (minMetadataEntryId: Rep[Long], maxMetadataEntryId: Rep[Long]) => {
-      for {
-        metadataEntry <- metadataJournalEntries
-        if metadataEntry.metadataJournalId >= minMetadataEntryId
-        if metadataEntry.metadataJournalId <= maxMetadataEntryId
-      } yield metadataEntry
-    }
+  def entriesInNeedOfSummarization(limit: Int) = Compiled(
+    () => (for {
+      entry <- metadataJournalEntries
+      if entry.needsSummarization
+    } yield entry).sortBy(_.metadataJournalId).take(limit)
   )
 
   /**

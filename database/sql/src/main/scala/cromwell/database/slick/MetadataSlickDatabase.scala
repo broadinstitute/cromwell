@@ -8,7 +8,7 @@ import cromwell.database.slick.tables.MetadataDataAccessComponent
 import cromwell.database.sql.MetadataSqlDatabase
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, MetadataJobQueryValue, WorkflowQuery}
-import cromwell.database.sql.tables.{CustomLabelEntry, MetadataEntry, MetadataJournalEntry, WorkflowMetadataSummaryEntry}
+import cromwell.database.sql.tables.{CustomLabelEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
@@ -35,9 +35,9 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     Future.sequence(List(runTransaction(oldAction), runTransaction(newAction))).map { booleans => booleans.reduce(_ || _) }
   }
 
-  override def addMetadataJournalEntries(metadataJournalEntries: Iterable[MetadataJournalEntry])
+  override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])
                                  (implicit ec: ExecutionContext): Future[Unit] = {
-    val action = DBIO.seq(metadataJournalEntries.grouped(insertBatchSize).map(dataAccess.metadataJournalEntries ++= _).toSeq:_*)
+    val action = DBIO.seq(metadataEntries.map(_.asMetadataJournalEntry).grouped(insertBatchSize).map(dataAccess.metadataJournalEntries ++= _).toSeq:_*)
     runLobAction(action)
   }
 
@@ -203,7 +203,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       previousMetadataEntryIdOption <- getSummaryStatusEntrySummaryPosition(summarizeNameIncreasing)
       previousMaxMetadataEntryId = previousMetadataEntryIdOption.getOrElse(-1L)
       nextMaxMetadataEntryId = previousMaxMetadataEntryId + limit
-      maximumMetadataEntryIdConsidered <- summarizeMetadata(
+      maximumMetadataEntryIdConsidered <- summarizeMetadataTheOldWay(
         minMetadataEntryId = previousMaxMetadataEntryId + 1L,
         maxMetadataEntryId = nextMaxMetadataEntryId,
         startMetadataKey = startMetadataKey,
@@ -260,7 +260,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
         case None => DBIO.successful(0L)
         case Some(startingValue) =>
           val minimumMetadataEntryId = 0L max (startingValue - limit)
-          summarizeMetadata(
+          summarizeMetadataTheOldWay(
             minMetadataEntryId = minimumMetadataEntryId,
             maxMetadataEntryId = startingValue - 1L,
             startMetadataKey = startMetadataKey,
@@ -282,22 +282,22 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action)
   }
 
-  private def summarizeMetadata(minMetadataEntryId: Long,
-                                maxMetadataEntryId: Long,
-                                startMetadataKey: String,
-                                endMetadataKey: String,
-                                nameMetadataKey: String,
-                                statusMetadataKey: String,
-                                submissionMetadataKey: String,
-                                parentWorkflowIdKey: String,
-                                rootWorkflowIdKey: String,
-                                labelMetadataKey: String,
-                                buildUpdatedSummary:
-                                (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
-                                  => WorkflowMetadataSummaryEntry,
-                                summaryPositionFunction: Seq[MetadataEntry] => Long,
-                                summaryName: String
-                               )(implicit ec: ExecutionContext): DBIO[Long] = {
+  private def summarizeMetadataTheOldWay(minMetadataEntryId: Long,
+                                         maxMetadataEntryId: Long,
+                                         startMetadataKey: String,
+                                         endMetadataKey: String,
+                                         nameMetadataKey: String,
+                                         statusMetadataKey: String,
+                                         submissionMetadataKey: String,
+                                         parentWorkflowIdKey: String,
+                                         rootWorkflowIdKey: String,
+                                         labelMetadataKey: String,
+                                         buildUpdatedSummary:
+                                         (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
+                                           => WorkflowMetadataSummaryEntry,
+                                         summaryPositionFunction: Seq[MetadataEntry] => Long,
+                                         summaryName: String
+                                        )(implicit ec: ExecutionContext): DBIO[Long] = {
 
     val exactMatchMetadataKeys = Set(
       startMetadataKey, endMetadataKey, nameMetadataKey, statusMetadataKey, submissionMetadataKey, parentWorkflowIdKey, rootWorkflowIdKey)
@@ -402,9 +402,12 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   }
 
   override def deleteNonLabelMetadataForWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Int] = {
-    runTransaction(
-      dataAccess.metadataEntriesWithoutLabelsForRootWorkflowId(rootWorkflowId).delete
+    val actions = List(
+      dataAccess.metadataEntriesWithoutLabelsForRootWorkflowId(rootWorkflowId).delete,
+      dataAccess.metadataJournalEntriesWithoutLabelsForRootWorkflowId(rootWorkflowId).delete
     )
+
+    Future.sequence(actions.map(runTransaction(_))).map(_.sum)
   }
 
   override def isRootWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Option[Boolean]] = {

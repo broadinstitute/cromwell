@@ -3,7 +3,7 @@ package cromwell.database.sql
 import java.sql.Timestamp
 
 import cromwell.database.sql.joins.MetadataJobQueryValue
-import cromwell.database.sql.tables.{MetadataEntry, MetadataJournalEntry, WorkflowMetadataSummaryEntry}
+import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
@@ -25,7 +25,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
   /**
     * Add metadata events to the database transactionally.
     */
-  def addMetadataJournalEntries(metadataJournalEntries: Iterable[MetadataJournalEntry])(implicit ec: ExecutionContext): Future[Unit]
+  def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])(implicit ec: ExecutionContext): Future[Unit]
 
   def metadataEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Boolean]
 

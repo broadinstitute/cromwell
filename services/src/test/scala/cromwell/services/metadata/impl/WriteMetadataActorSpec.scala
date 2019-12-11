@@ -212,6 +212,18 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
                                        => WorkflowMetadataSummaryEntry)
                                     (implicit ec: ExecutionContext): Nothing = notImplemented()
 
+    override def summarizeMetadataBasedOnNeed(startMetadataKey: String,
+                                              endMetadataKey: String,
+                                              nameMetadataKey: String,
+                                              statusMetadataKey: String,
+                                              submissionMetadataKey: String,
+                                              parentWorkflowIdKey: String,
+                                              rootWorkflowIdKey: String,
+                                              labelMetadataKey: String,
+                                              limit: Int,
+                                              buildUpdatedSummary: (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry]) => WorkflowMetadataSummaryEntry
+                                             )(implicit ec: ExecutionContext): Future[Int] = notImplemented()
+
     override def getWorkflowStatus(workflowExecutionUuid: String)
                                   (implicit ec: ExecutionContext): Nothing = notImplemented()
 

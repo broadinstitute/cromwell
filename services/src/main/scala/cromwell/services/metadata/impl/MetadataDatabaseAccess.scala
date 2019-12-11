@@ -192,7 +192,17 @@ trait MetadataDatabaseAccess {
         labelMetadataKey = WorkflowMetadataKeys.Labels,
         limit = limit,
         buildUpdatedSummary = MetadataDatabaseAccess.buildUpdatedSummary)
-    } yield SummaryResult(increasingProcessed, increasingGap, decreasingProcessed, decreasingGap)
+      summarizedBasedOnNeed <- metadataDatabaseInterface.summarizeMetadataBasedOnNeed(startMetadataKey = WorkflowMetadataKeys.StartTime,
+        endMetadataKey = WorkflowMetadataKeys.EndTime,
+        nameMetadataKey = WorkflowMetadataKeys.Name,
+        statusMetadataKey = WorkflowMetadataKeys.Status,
+        submissionMetadataKey = WorkflowMetadataKeys.SubmissionTime,
+        parentWorkflowIdKey = WorkflowMetadataKeys.ParentWorkflowId,
+        rootWorkflowIdKey = WorkflowMetadataKeys.RootWorkflowId,
+        labelMetadataKey = WorkflowMetadataKeys.Labels,
+        limit = limit,
+        buildUpdatedSummary = MetadataDatabaseAccess.buildUpdatedSummary)
+    } yield SummaryResult(increasingProcessed + summarizedBasedOnNeed, increasingGap, decreasingProcessed, decreasingGap)
   }
 
   def updateMetadataArchiveStatus(workflowId: WorkflowId, newStatus: MetadataArchiveStatus): Future[Int] = {

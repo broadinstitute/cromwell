@@ -11,7 +11,7 @@ trait MetadataJournalEntryComponent {
 
   import driver.api._
 
-  class MetadataJournalEntries(tag: Tag) extends Table[MetadataJournalEntry](tag, "METADATA_ENTRY") {
+  class MetadataJournalEntries(tag: Tag) extends Table[MetadataJournalEntry](tag, "METADATA_JOURNAL_ENTRY") {
 
     def metadataJournalId = column[Long]("METADATA_JOURNAL_ID", O.PrimaryKey, O.AutoInc)
 
@@ -120,11 +120,17 @@ trait MetadataJournalEntryComponent {
   )
 
   def entriesInNeedOfSummarization(limit: Int) = Compiled(
-    () => (for {
+    (for {
       entry <- metadataJournalEntries
       if entry.needsSummarization
-    } yield entry).sortBy(_.metadataJournalId).take(limit)
-  )
+    } yield entry).sortBy(_.metadataJournalId).take(limit))
+
+  def needSummarizationByJournalId(ids: Seq[Long]) = {
+    (for {
+      entry <- metadataJournalEntries
+      if entry.metadataJournalId.inSetBind(ids)
+    } yield entry.needsSummarization)
+  }
 
   /**
     * Returns metadata entries that are "like" metadataKeys for the specified workflow.

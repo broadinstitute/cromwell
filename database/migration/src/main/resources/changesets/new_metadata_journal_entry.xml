@@ -21,9 +21,7 @@
             <column name="METADATA_VALUE" type="LONGTEXT">
                 <constraints nullable="true"/>
             </column>
-            <column name="METADATA_VALUE_TYPE" type="VARCHAR(10)" >
-                <constraints nullable="false"/>
-            </column>
+            <column name="METADATA_VALUE_TYPE" type="VARCHAR(10)" />
             <column name="METADATA_TIMESTAMP" type="DATETIME(6)">
                 <constraints nullable="false"/>
             </column>

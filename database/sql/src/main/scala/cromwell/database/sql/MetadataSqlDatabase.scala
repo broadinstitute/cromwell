@@ -105,6 +105,18 @@ trait MetadataSqlDatabase extends SqlDatabase {
                             => WorkflowMetadataSummaryEntry)
                          (implicit ec: ExecutionContext): Future[(Long, Long)]
 
+  def summarizeMetadataBasedOnNeed(startMetadataKey: String,
+                                   endMetadataKey: String,
+                                   nameMetadataKey: String,
+                                   statusMetadataKey: String,
+                                   submissionMetadataKey: String,
+                                   parentWorkflowIdKey: String,
+                                   rootWorkflowIdKey: String,
+                                   labelMetadataKey: String,
+                                   limit: Int,
+                                   buildUpdatedSummary: (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry]) => WorkflowMetadataSummaryEntry
+                                  )(implicit ec: ExecutionContext): Future[Int]
+
   def updateMetadataArchiveStatus(workflowExecutionUuid: String, newArchiveStatus: Option[String]): Future[Int]
 
   def getWorkflowStatus(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Option[String]]

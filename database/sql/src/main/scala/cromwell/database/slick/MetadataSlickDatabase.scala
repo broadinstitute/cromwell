@@ -323,6 +323,44 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     } yield summaryPosition
   }
 
+  override def summarizeMetadataBasedOnNeed(startMetadataKey: String,
+                                            endMetadataKey: String,
+                                            nameMetadataKey: String,
+                                            statusMetadataKey: String,
+                                            submissionMetadataKey: String,
+                                            parentWorkflowIdKey: String,
+                                            rootWorkflowIdKey: String,
+                                            labelMetadataKey: String,
+                                            limit: Int,
+                                            buildUpdatedSummary: (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry]) => WorkflowMetadataSummaryEntry
+                                           )(implicit ec: ExecutionContext): Future[Int] = {
+
+    val action = {
+      val exactMatchMetadataKeys = Set(
+        startMetadataKey, endMetadataKey, nameMetadataKey, statusMetadataKey, submissionMetadataKey, parentWorkflowIdKey, rootWorkflowIdKey)
+      val startsWithMetadataKeys = Set(labelMetadataKey)
+
+      for {
+        metadataJournalEntries <- dataAccess.entriesInNeedOfSummarization(limit).result
+        rawMetadataEntries = metadataJournalEntries.map(_.asMetadataEntry)
+
+        metadataEntries = rawMetadataEntries filter { entry =>
+          entry.callFullyQualifiedName.isEmpty && entry.jobIndex.isEmpty && entry.jobAttempt.isEmpty &&
+            (exactMatchMetadataKeys.contains(entry.metadataKey) || startsWithMetadataKeys.exists(entry.metadataKey.startsWith))
+        }
+        metadataWithoutLabels = metadataEntries
+          .filterNot(_.metadataKey.contains(labelMetadataKey)) // Why are these "contains" while the filtering is "starts with"?
+          .groupBy(_.workflowExecutionUuid)
+        customLabelEntries = metadataEntries.filter(_.metadataKey.contains(labelMetadataKey))
+        _ <- DBIO.sequence(metadataWithoutLabels map updateWorkflowMetadataSummaryEntry(buildUpdatedSummary))
+        _ <- DBIO.sequence(customLabelEntries map toCustomLabelEntry map upsertCustomLabelEntry)
+        _ <- dataAccess.needSummarizationByJournalId(metadataJournalEntries.flatMap(_.metadataJournalId)).update(value = false)
+      } yield rawMetadataEntries.length
+    }
+
+    runTransaction(action)
+  }
+
   override def updateMetadataArchiveStatus(workflowExecutionUuid: String, newArchiveStatus: Option[String]): Future[Int] = {
     val action = dataAccess.metadataArchiveStatusByWorkflowIdOrRootWorkflowId(workflowExecutionUuid).update(newArchiveStatus)
     runTransaction(action)

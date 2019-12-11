@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet author="chrisl" id="new_metadata_journal_entry" dbms="mysql,hsqldb">
+        <createTable tableName="METADATA_JOURNAL_ENTRY">
+            <column autoIncrement="true" name="METADATA_JOURNAL_ID" type="INT">
+                <constraints primaryKey="true" primaryKeyName="PK_METADATA_JOURNAL_ENTRY"/>
+            </column>
+            <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="CALL_FQN" type="VARCHAR(255)"/>
+            <column name="JOB_SCATTER_INDEX" type="INT"/>
+            <column name="JOB_RETRY_ATTEMPT" type="INT"/>
+
+            <column name="METADATA_KEY" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="METADATA_VALUE" type="LONGTEXT">
+                <constraints nullable="true"/>
+            </column>
+            <column name="METADATA_VALUE_TYPE" type="VARCHAR(10)" >
+                <constraints nullable="false"/>
+            </column>
+            <column name="METADATA_TIMESTAMP" type="DATETIME(6)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="NEEDS_SUMMARIZATION" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+
+        </createTable>
+
+        <modifySql dbms="mysql">
+            <append value=" ENGINE=INNODB"/>
+        </modifySql>
+    </changeSet>
+
+    <changeSet id="metadata_workflow_index" author="chrisl" dbms="mysql,hsqldb">
+        <createIndex indexName="IX_METADATA_JOURNAL_ENTRY_WEU"
+                     tableName="METADATA_JOURNAL_ENTRY" unique="false">
+            <column name="WORKFLOW_EXECUTION_UUID"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="metadata_summarization_index" author="chrisl" dbms="mysql,hsqldb">
+        <createIndex indexName="IX_METADATA_JOURNAL_ENTRY_NS"
+                     tableName="METADATA_JOURNAL_ENTRY" unique="false">
+            <column name="NEEDS_SUMMARIZATION"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

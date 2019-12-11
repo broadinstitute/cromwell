@@ -2,7 +2,7 @@ package cromwell.database.slick.tables
 
 import java.sql.Timestamp
 
-import cromwell.database.sql.tables.{MetadataEntry, MetadataJournalEntry}
+import cromwell.database.sql.tables.MetadataJournalEntry
 import javax.sql.rowset.serial.SerialClob
 
 trait MetadataJournalEntryComponent {
@@ -12,27 +12,16 @@ trait MetadataJournalEntryComponent {
   import driver.api._
 
   class MetadataJournalEntries(tag: Tag) extends Table[MetadataJournalEntry](tag, "METADATA_ENTRY") {
-    /*
-    DO NOT COPY/PASTE THIS CLASS!
 
-    This class was unable to be standardized due to its size. The time to rewrite the rows/indexes was too large.
+    def metadataJournalId = column[Long]("METADATA_JOURNAL_ID", O.PrimaryKey, O.AutoInc)
 
-    http://stackoverflow.com/questions/2086105/why-does-it-take-so-long-to-rename-a-column-in-mysql
+    def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID", O.Length(255))
 
-    Therefore, the scala database and sql database names DO NOT match, for now.
+    def callFqn = column[Option[String]]("CALL_FQN", O.Length(255))
 
-    Copy/paste another standardized table, and not this one.
-     */
+    def jobScatterIndex = column[Option[Int]]("JOB_SCATTER_INDEX")
 
-    def metadataJournalEntryId = column[Long]("METADATA_JOURNAL_ID", O.PrimaryKey, O.AutoInc)
-
-    def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID", O.Length(255)) // TODO: rename column via liquibase
-
-    def callFullyQualifiedName = column[Option[String]]("CALL_FQN", O.Length(255)) // TODO: rename column via liquibase
-
-    def jobIndex = column[Option[Int]]("JOB_SCATTER_INDEX") // TODO: rename column via liquibase
-
-    def jobAttempt = column[Option[Int]]("JOB_RETRY_ATTEMPT") // TODO: rename column via liquibase
+    def jobRetryAttempt = column[Option[Int]]("JOB_RETRY_ATTEMPT")
 
     def metadataKey = column[String]("METADATA_KEY", O.Length(255))
 
@@ -40,22 +29,21 @@ trait MetadataJournalEntryComponent {
 
     def metadataValueType = column[Option[String]]("METADATA_VALUE_TYPE", O.Length(10))
 
-    def metadataGenerationTimestamp = column[Timestamp]("METADATA_GENERATION_TIMESTAMP")
+    def metadataTimestamp = column[Timestamp]("METADATA_TIMESTAMP")
 
-    def metadataWriteTimestamp = column[Timestamp]("METADATA_WRITE_TIMESTAMP")
+    def needsSummarization = column[Boolean]("NEEDS_SUMMARIZATION")
 
-    def summarizationTimestamp = column[Option[Timestamp]]("SUMMARIZATION_TIMESTAMP")
+    override def * = (workflowExecutionUuid, callFqn, jobScatterIndex, jobRetryAttempt, metadataKey, metadataValue,
+      metadataValueType, metadataTimestamp, needsSummarization, metadataJournalId.?) <> (MetadataJournalEntry.tupled, MetadataJournalEntry.unapply)
 
-    override def * = (workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt, metadataKey, metadataValue,
-      metadataValueType, metadataGenerationTimestamp, metadataWriteTimestamp, summarizationTimestamp, metadataJournalEntryId.?) <> (MetadataJournalEntry.tupled, MetadataJournalEntry.unapply)
 
-    // TODO: rename index via liquibase
-    def ixMetadataEntryWeu = index("METADATA_WORKFLOW_IDX", workflowExecutionUuid, unique = false)
+    def ixMetadataJournalEntryWeu = index("IX_METADATA_JOURNAL_ENTRY_WEU", workflowExecutionUuid, unique = false)
+    def ixMetadataJournalEntryNs = index("IX_METADATA_JOURNAL_ENTRY_NS", needsSummarization, unique = false)
   }
 
   val metadataJournalEntries = TableQuery[MetadataJournalEntries]
 
-  val metadataJournalEntryIdsAutoInc = metadataJournalEntries returning metadataJournalEntries.map(_.metadataJournalEntryId)
+  val metadataJournalEntryIdsAutoInc = metadataJournalEntries returning metadataJournalEntries.map(_.metadataJournalId)
 
   val metadataJournalEntriesExists = Compiled(metadataJournalEntries.take(1).exists)
 
@@ -63,7 +51,7 @@ trait MetadataJournalEntryComponent {
     (workflowExecutionUuid: Rep[String]) => (for {
       metadataEntry <- metadataJournalEntries
       if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
-    } yield metadataEntry).sortBy(_.metadataGenerationTimestamp)
+    } yield metadataEntry).sortBy(_.metadataTimestamp)
   )
 
   val metadataJournalEntriesWithoutLabelsForRootWorkflowId = Compiled(
@@ -102,10 +90,10 @@ trait MetadataJournalEntryComponent {
       metadataEntry <- metadataJournalEntries
       if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
       if metadataEntry.metadataKey === metadataKey
-      if metadataEntry.callFullyQualifiedName.isEmpty
-      if metadataEntry.jobIndex.isEmpty
-      if metadataEntry.jobAttempt.isEmpty
-    } yield metadataEntry).sortBy(_.metadataGenerationTimestamp)
+      if metadataEntry.callFqn.isEmpty
+      if metadataEntry.jobScatterIndex.isEmpty
+      if metadataEntry.jobRetryAttempt.isEmpty
+    } yield metadataEntry).sortBy(_.metadataTimestamp)
   )
 
   val metadataJournalEntriesForJobKey = Compiled(
@@ -113,10 +101,10 @@ trait MetadataJournalEntryComponent {
      jobAttempt: Rep[Option[Int]]) => (for {
       metadataEntry <- metadataJournalEntries
       if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
-      if metadataEntry.callFullyQualifiedName === callFullyQualifiedName
+      if metadataEntry.callFqn === callFullyQualifiedName
       if hasSameIndex(metadataEntry, jobIndex)
       if hasSameAttempt(metadataEntry, jobAttempt)
-    } yield metadataEntry).sortBy(_.metadataGenerationTimestamp)
+    } yield metadataEntry).sortBy(_.metadataTimestamp)
   )
 
   val metadataJournalEntriesForJobKeyAndMetadataKey = Compiled(
@@ -125,18 +113,18 @@ trait MetadataJournalEntryComponent {
       metadataEntry <- metadataJournalEntries
       if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
       if metadataEntry.metadataKey === metadataKey
-      if metadataEntry.callFullyQualifiedName === callFullyQualifiedName
+      if metadataEntry.callFqn === callFullyQualifiedName
       if hasSameIndex(metadataEntry, jobIndex)
       if hasSameAttempt(metadataEntry, jobAttempt)
-    } yield metadataEntry).sortBy(_.metadataGenerationTimestamp)
+    } yield metadataEntry).sortBy(_.metadataTimestamp)
   )
 
   val metadataJournalEntriesForIdRange = Compiled(
     (minMetadataEntryId: Rep[Long], maxMetadataEntryId: Rep[Long]) => {
       for {
         metadataEntry <- metadataJournalEntries
-        if metadataEntry.metadataJournalEntryId >= minMetadataEntryId
-        if metadataEntry.metadataJournalEntryId <= maxMetadataEntryId
+        if metadataEntry.metadataJournalId >= minMetadataEntryId
+        if metadataEntry.metadataJournalId <= maxMetadataEntryId
       } yield metadataEntry
     }
   )
@@ -155,7 +143,7 @@ trait MetadataJournalEntryComponent {
       if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
       if metadataJournalEntryHasMetadataKeysLike(metadataEntry, metadataKeysToFilterFor, metadataKeysToFilterOut)
       if metadataEntryHasEmptyJobKey(metadataEntry, requireEmptyJobKey)
-    } yield metadataEntry).sortBy(_.metadataGenerationTimestamp)
+    } yield metadataEntry).sortBy(_.metadataTimestamp)
   }
 
   /**
@@ -172,13 +160,13 @@ trait MetadataJournalEntryComponent {
       metadataEntry <- metadataJournalEntries
       if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
       if metadataJournalEntryHasMetadataKeysLike(metadataEntry, metadataKeysToFilterFor, metadataKeysToFilterOut)
-      if metadataEntry.callFullyQualifiedName === callFqn
+      if metadataEntry.callFqn === callFqn
       if hasSameIndex(metadataEntry, jobIndex)
       // Assume that every metadata entry for a call should have a non null attempt value
       // Because of that, if the jobAttempt parameter is Some(_), make sure it matches, otherwise take all entries
       // regardless of the attempt
-      if (metadataEntry.jobAttempt === jobAttempt) || jobAttempt.isEmpty
-    } yield metadataEntry).sortBy(_.metadataGenerationTimestamp)
+      if (metadataEntry.jobRetryAttempt === jobAttempt) || jobAttempt.isEmpty
+    } yield metadataEntry).sortBy(_.metadataTimestamp)
   }
 
   private[this] def metadataJournalEntryHasMetadataKeysLike(metadataEntry: MetadataJournalEntries,
@@ -202,18 +190,18 @@ trait MetadataJournalEntryComponent {
   }
 
   private[this] def hasSameIndex(metadataEntry: MetadataJournalEntries, jobIndex: Rep[Option[Int]]) = {
-    (metadataEntry.jobIndex.isEmpty && jobIndex.isEmpty) || (metadataEntry.jobIndex === jobIndex)
+    (metadataEntry.jobScatterIndex.isEmpty && jobIndex.isEmpty) || (metadataEntry.jobScatterIndex === jobIndex)
   }
 
   private[this] def hasSameAttempt(metadataEntry: MetadataJournalEntries, jobAttempt: Rep[Option[Int]]) = {
-    (metadataEntry.jobAttempt.isEmpty && jobAttempt.isEmpty) || (metadataEntry.jobAttempt === jobAttempt)
+    (metadataEntry.jobRetryAttempt.isEmpty && jobAttempt.isEmpty) || (metadataEntry.jobRetryAttempt === jobAttempt)
   }
 
   private[this] def metadataEntryHasEmptyJobKey(metadataEntry: MetadataJournalEntries,
                                                 requireEmptyJobKey: Rep[Boolean]): Rep[Boolean] = {
     !requireEmptyJobKey ||
-      (metadataEntry.callFullyQualifiedName.isEmpty &&
-        metadataEntry.jobIndex.isEmpty &&
-        metadataEntry.jobAttempt.isEmpty)
+      (metadataEntry.callFqn.isEmpty &&
+        metadataEntry.jobScatterIndex.isEmpty &&
+        metadataEntry.jobRetryAttempt.isEmpty)
   }
 }

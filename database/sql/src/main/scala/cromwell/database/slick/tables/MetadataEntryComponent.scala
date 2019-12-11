@@ -51,8 +51,6 @@ trait MetadataEntryComponent {
 
   val metadataEntries = TableQuery[MetadataEntries]
 
-  val metadataEntryIdsAutoInc = metadataEntries returning metadataEntries.map(_.metadataEntryId)
-
   val metadataEntriesExists = Compiled(metadataEntries.take(1).exists)
 
   val metadataEntriesForWorkflowExecutionUuid = Compiled(
@@ -62,36 +60,36 @@ trait MetadataEntryComponent {
     } yield metadataEntry).sortBy(_.metadataTimestamp)
   )
 
-  val metadataEntriesWithoutLabelsForRootWorkflowId = Compiled(
-    (rootWorkflowId: Rep[String]) => {
-      val targetWorkflowIds = for {
-        summary <- workflowMetadataSummaryEntries
-        // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
-        if summary.rootWorkflowExecutionUuid === rootWorkflowId || summary.workflowExecutionUuid === rootWorkflowId
-      } yield summary.workflowExecutionUuid
-
-      for {
-        metadata <- metadataEntries
-        if metadata.workflowExecutionUuid in targetWorkflowIds // Uses `METADATA_WORKFLOW_IDX`
-        if !(metadata.metadataKey like "labels:%")
-      } yield metadata
-    }
-  )
-
+//  val metadataEntriesWithoutLabelsForRootWorkflowId = Compiled(
+//    (rootWorkflowId: Rep[String]) => {
+//      val targetWorkflowIds = for {
+//        summary <- workflowMetadataSummaryEntries
+//        // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
+//        if summary.rootWorkflowExecutionUuid === rootWorkflowId || summary.workflowExecutionUuid === rootWorkflowId
+//      } yield summary.workflowExecutionUuid
+//
+//      for {
+//        metadata <- metadataEntries
+//        if metadata.workflowExecutionUuid in targetWorkflowIds // Uses `METADATA_WORKFLOW_IDX`
+//        if !(metadata.metadataKey like "labels:%")
+//      } yield metadata
+//    }
+//  )
+//
   val metadataEntryExistsForWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => (for {
       metadataEntry <- metadataEntries
       if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
     } yield metadataEntry).exists
   )
-
-  def metadataEntryExistsForWorkflowExecutionUuid(workflowId: Rep[String], key: Rep[String]): Rep[Boolean] = {
-    metadataEntries.filter( metadataEntry =>
-      metadataEntry.workflowExecutionUuid === workflowId &&
-      metadataEntry.metadataKey === key &&
-      metadataEntry.metadataValue.isDefined
-    ).exists
-  }
+//
+//  def metadataEntryExistsForWorkflowExecutionUuid(workflowId: Rep[String], key: Rep[String]): Rep[Boolean] = {
+//    metadataEntries.filter( metadataEntry =>
+//      metadataEntry.workflowExecutionUuid === workflowId &&
+//      metadataEntry.metadataKey === key &&
+//      metadataEntry.metadataValue.isDefined
+//    ).exists
+//  }
 
   val metadataEntriesForWorkflowExecutionUuidAndMetadataKey = Compiled(
     (workflowExecutionUuid: Rep[String], metadataKey: Rep[String]) => (for {
@@ -127,15 +125,15 @@ trait MetadataEntryComponent {
     } yield metadataEntry).sortBy(_.metadataTimestamp)
   )
 
-  val metadataEntriesForIdRange = Compiled(
-    (minMetadataEntryId: Rep[Long], maxMetadataEntryId: Rep[Long]) => {
-      for {
-        metadataEntry <- metadataEntries
-        if metadataEntry.metadataEntryId >= minMetadataEntryId
-        if metadataEntry.metadataEntryId <= maxMetadataEntryId
-      } yield metadataEntry
-    }
-  )
+//  val metadataEntriesForIdRange = Compiled(
+//    (minMetadataEntryId: Rep[Long], maxMetadataEntryId: Rep[Long]) => {
+//      for {
+//        metadataEntry <- metadataEntries
+//        if metadataEntry.metadataEntryId >= minMetadataEntryId
+//        if metadataEntry.metadataEntryId <= maxMetadataEntryId
+//      } yield metadataEntry
+//    }
+//  )
 
   /**
     * Returns metadata entries that are "like" metadataKeys for the specified workflow.

@@ -5,6 +5,7 @@ import slick.jdbc.JdbcProfile
 class MetadataDataAccessComponent(val driver: JdbcProfile) extends DataAccessComponent
   with CustomLabelEntryComponent
   with MetadataEntryComponent
+  with MetadataJournalEntryComponent
   with SummaryStatusEntryComponent
   with WorkflowMetadataSummaryEntryComponent {
 
@@ -13,6 +14,7 @@ class MetadataDataAccessComponent(val driver: JdbcProfile) extends DataAccessCom
   override lazy val schema: driver.SchemaDescription =
       customLabelEntries.schema ++
       metadataEntries.schema ++
+      metadataJournalEntries.schema ++
       summaryStatusEntries.schema ++
       workflowMetadataSummaryEntries.schema
 }

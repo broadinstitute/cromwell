@@ -608,7 +608,6 @@ object Operations extends StrictLogging {
           }
         }
 
-        cleanUpImports(workflow)
         for {
           actualMetadata <- CentaurCromwellClient.metadata(workflow)
           _ <- validateUnwantedMetadata(actualMetadata)
@@ -751,20 +750,4 @@ object Operations extends StrictLogging {
     }
   }
 
-  /**
-    * Clean up temporary zip files created for Imports testing.
-    */
-  def cleanUpImports(submittedWF: SubmittedWorkflow) = {
-    submittedWF.workflow.zippedImports match {
-      case Some(zipFile) => zipFile.delete(swallowIOExceptions = true)
-      case None => //
-    }
-  }
-
-  // FIXME: Should be abstracted w/ validateMetadata - ATM still used by the unused caching tests
-  def retrieveMetadata(workflow: SubmittedWorkflow): Test[WorkflowMetadata] = {
-    new Test[WorkflowMetadata] {
-      override def run: IO[WorkflowMetadata] = CentaurCromwellClient.metadata(workflow)
-    }
-  }
 }

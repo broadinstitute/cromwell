@@ -28,12 +28,15 @@ class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
 
   val carboniteFreezerActor = context.actorOf(CarbonitingMetadataFreezerActor.props(carboniterConfig, self, serviceRegistryActor, ioActor))
 
-  val backOff = SimpleExponentialBackoff(
-    initialInterval = 5.seconds,
-    maxInterval = 5.minutes,
-    multiplier = 1.1,
-    randomizationFactor = 0.0
-  )
+  val backOff = {
+    val scanConfig = carboniterConfig.freezeScanConfig
+    SimpleExponentialBackoff(
+      initialInterval = scanConfig.initialInterval,
+      maxInterval = scanConfig.maxInterval,
+      multiplier = scanConfig.multiplier,
+      randomizationFactor = 0.0
+    )
+  }
 
   scheduleNextCarbonitingQuery()
 
@@ -107,7 +110,7 @@ class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
 
   def findWorkflowToCarbonite(): Unit = {
     workflowQueryStartTime = Option(System.currentTimeMillis())
-    serviceRegistryActor ! QueryForWorkflowsMatchingParameters(CarboniteWorkerActor.findWorkflowToCarboniteQueryParameters)
+    serviceRegistryActor ! QueryForWorkflowsMatchingParameters(CarboniteWorkerActor.buildQueryParametersForWorkflowToCarboniteQuery(carboniterConfig.minimumSummaryEntryId))
   }
 
 
@@ -138,8 +141,7 @@ object CarboniteWorkerActor {
   sealed trait CarboniteWorkerMessage
   case class CarboniteWorkflowComplete(workflowId: WorkflowId, result: cromwell.services.metadata.MetadataArchiveStatus) extends CarboniteWorkerMessage
 
-
-  val findWorkflowToCarboniteQueryParameters: Seq[(String, String)] = Seq(
+  def buildQueryParametersForWorkflowToCarboniteQuery(minimumSummaryEntryId: Option[Long]): Seq[(String, String)] = Seq(
     IncludeSubworkflows.name -> "false",
     Status.name -> WorkflowSucceeded.toString,
     Status.name -> WorkflowFailed.toString,
@@ -147,8 +149,7 @@ object CarboniteWorkerActor {
     MetadataArchiveStatus.name -> Unarchived.toString,
     Page.name -> "1",
     PageSize.name -> "1"
-  )
-
+  ) ++ minimumSummaryEntryId.map(id => MinimumSummaryEntryId.name -> s"$id")
 
   def props(carboniterConfig: HybridCarboniteConfig, serviceRegistryActor: ActorRef, ioActor: ActorRef) =
     Props(new CarboniteWorkerActor(carboniterConfig, serviceRegistryActor, ioActor))

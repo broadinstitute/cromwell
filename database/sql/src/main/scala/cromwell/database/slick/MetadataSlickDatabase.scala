@@ -352,12 +352,14 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       endTimestampOption: Option[Timestamp],
                                       metadataArchiveStatus: Set[Option[String]],
                                       includeSubworkflows: Boolean,
+                                      minimumSummaryEntryId: Option[Long],
                                       page: Option[Int],
                                       pageSize: Option[Int])
                                      (implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = {
 
     val action = dataAccess.queryWorkflowMetadataSummaryEntries(parentIdWorkflowMetadataKey, workflowStatuses, workflowNames, workflowExecutionUuids,
-      labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption, endTimestampOption, metadataArchiveStatus, includeSubworkflows, page, pageSize)
+      labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption,
+      endTimestampOption, metadataArchiveStatus, includeSubworkflows, minimumSummaryEntryId, page, pageSize)
     runTransaction(action)
   }
 
@@ -373,10 +375,12 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       startTimestampOption: Option[Timestamp],
                                       endTimestampOption: Option[Timestamp],
                                       metadataArchiveStatus: Set[Option[String]],
-                                      includeSubworkflows: Boolean)
+                                      includeSubworkflows: Boolean,
+                                      minimumSummaryEntryId: Option[Long])
                                      (implicit ec: ExecutionContext): Future[Int] = {
     val action = dataAccess.countWorkflowMetadataSummaryEntries(parentIdWorkflowMetadataKey, workflowStatuses, workflowNames, workflowExecutionUuids,
-      labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption, endTimestampOption, metadataArchiveStatus, includeSubworkflows)
+      labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption,
+      endTimestampOption, metadataArchiveStatus, includeSubworkflows, minimumSummaryEntryId)
     runTransaction(action)
   }
 
@@ -389,6 +393,12 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   override def isRootWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Option[Boolean]] = {
     runTransaction(
       dataAccess.isRootWorkflow(rootWorkflowId).result.headOption
+    )
+  }
+
+  override def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = {
+    runAction(
+      dataAccess.rootWorkflowId(workflowId).result.headOption
     )
   }
 

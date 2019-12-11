@@ -8,6 +8,7 @@ import cats.syntax.validated._
 import cromwell.core.labels.Label
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
 import common.validation.ErrorOr._
+import common.validation.Validation._
 import cats.data.Validated._
 import cats.instances.list._
 import mouse.boolean._
@@ -31,7 +32,8 @@ object WorkflowQueryKey {
     AdditionalQueryResultFields,
     SubmissionTime,
     IncludeSubworkflows,
-    MetadataArchiveStatus
+    MetadataArchiveStatus,
+    MinimumSummaryEntryId
   ) map { _.name }
 
   case object StartDate extends DateTimeWorkflowQueryKey {
@@ -138,6 +140,21 @@ object WorkflowQueryKey {
       val values = valuesFromMap(grouped).toList
       val nels = values map { v => MetadataArchiveStatusImported.withName(v) }
       sequenceListOfValidatedNels("Unrecognized 'metadata archive status' value(s)", nels)
+    }
+  }
+
+  case object MinimumSummaryEntryId extends WorkflowQueryKey[Option[Long]] {
+    override val name = "Minimumsummaryentryid"
+
+    override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Option[Long]] = {
+      val values = valuesFromMap(grouped).toList
+      if (values.isEmpty) {
+        None.validNel
+      } else if (values.length == 1) {
+        Try(Option(values.head.toLong)).toErrorOr
+      } else {
+        "Cannot specify more than one minimum summary entry ID".invalidNel
+      }
     }
   }
 

@@ -1,6 +1,7 @@
 package cromwell.util
 
 import cats.data.NonEmptyList
+import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.either._
 import cromwell.util.JsonEditor._
 import io.circe.parser._
@@ -82,7 +83,7 @@ class JsonEditorSpec extends FlatSpec with Matchers{
           .getContextClassLoader
           .getResourceAsStream("metadata_with_subworkflows.json")
         ).mkString)
-    val newJson = metadataWithSubworkflows.map(replaceSubworkflowMetadataWithId).right.get
+    val newJson = metadataWithSubworkflows.map(unexpandSubworkflows).right.get
     val keys = newJson.get.hcursor.downField("calls").downField("wf.wf").downArray.keys
     assert(keys.exists(_.exists(_ == "subWorkflowMetadata")) === false)
 
@@ -99,6 +100,43 @@ class JsonEditorSpec extends FlatSpec with Matchers{
 
     val thirdArrayElement = newCallsArrayCursor.right.right
     assert(thirdArrayElement.isInstanceOf[FailedCursor])
+  }
+
+  it should "properly extract metadata JSON of each subworkflow by id" in {
+    val metadataWithSubworkflows =
+      parse(Source
+        .fromInputStream(Thread
+          .currentThread
+          .getContextClassLoader
+          .getResourceAsStream("metadata_with_subworkflows.json")
+        ).mkString)
+
+    val workflowIds = Seq(
+      "ba56c1ab-02e0-45f2-97cf-5f91a9138a31",
+      "22c6faba-a95a-4e8d-86c3-9a246d7db19b",
+      "9e1a2146-f48a-4c04-a589-d66a50dde39b",
+      "7d6fba3d-d8e5-43aa-b580-2ace8675ffbd",
+      "210b9e04-5606-4231-9cb5-43355d60197d",
+      "0e299e7a-bddc-4367-92e2-3e1a61283ca7",
+      "be186a2f-b52c-4c6d-96dd-b9a7f16ac526",
+      "6382fcbb-fa69-4a6d-bc0f-871013226ad3",
+      "55383be2-9a7a-4004-8623-f1cf5a539433",
+      "bc649e17-418d-40f6-a145-5a6a8d0c2c5d",
+      "0571a73e-1485-4b28-9320-e87036685d61",
+      "d9ce3320-727f-42f5-a946-e11177ebd7dd",
+      "ffa835a7-68de-4c9d-a777-89f3f7b286dc",
+      "540d2d9b-eccc-4e4f-8478-574e4e48f98d"
+    )
+    workflowIds.foreach { subworkflowId =>
+      val extractedSubworkflowJson = extractSubWorkflowMetadata(subworkflowId, metadataWithSubworkflows.right.get)
+      extractedSubworkflowJson match {
+        case Valid(Some(subWorkflowJson)) =>
+          assert(true === subWorkflowJson.isInstanceOf[Json])
+          assert(subworkflowId === subWorkflowJson.workflowId.get.toString)
+        case Valid(None) => fail(s"Subworkflow not found for id $subworkflowId")
+        case Invalid(e) => fail(e.toList.mkString("\n"))
+      }
+    }
   }
 
   it should "remove subworkflow info" in {
@@ -135,6 +173,29 @@ class JsonEditorSpec extends FlatSpec with Matchers{
     val keys_nested2 = arrayCursor.right.keys
     assert(keys_nested2.get.toSet.contains("keepme") === true) // simple nested key "deep" removed
     assert(keys_nested2.get.size === 1) // simple nested key "deep" removed
+  }
+
+  it should "start including and excluding keys from both (but only!) workflow- and call-roots" in {
+    val newJson = realJson.map(includeJson(_, NonEmptyList.of("start"))).right.get
+    val expectedJsonRaw =
+      """
+        |{
+        |  "calls": {
+        |    "main_workflow.wf_hello": [
+        |      {
+        |        "shardIndex": -1,
+        |        "attempt": 1,
+        |        "start": "2019-07-22T13:32:24.133-04:00"
+        |      }
+        |    ]
+        |  },
+        |  "id": "757d0bcc-b636-4658-99d4-9b4b3767f1d1",
+        |  "start": "2019-07-22T13:32:20.434-04:00"
+        |}
+      """.stripMargin
+    val expectedJson = parse(expectedJsonRaw)
+
+    newJson should be(expectedJson.right.get)
   }
 }
 

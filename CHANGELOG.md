@@ -1,5 +1,12 @@
 # Cromwell Change Log
 
+## 48 Release Notes
+
+### Documentation
+
++ Documented the use of a HSQLDB file-based database so users can try call-caching without needing a database server.
+  Please checkout [the database documentation](https://cromwell.readthedocs.io/en/stable/Configuring#database).
+
 ## 47 Release Notes
 
 ### Retry with more memory on Papiv2 [(#5180)](https://github.com/broadinstitute/cromwell/pull/5180)

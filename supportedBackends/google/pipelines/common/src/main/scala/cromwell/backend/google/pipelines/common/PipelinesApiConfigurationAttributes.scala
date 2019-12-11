@@ -9,6 +9,7 @@ import com.typesafe.config.{Config, ConfigValue}
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import common.validation.Validation._
+import cromwell.backend.CommonBackendConfigurationAttributes
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{BatchRequestTimeoutConfiguration, GcsTransferConfiguration, MemoryRetryConfiguration, VirtualPrivateCloudConfiguration}
 import cromwell.backend.google.pipelines.common.authentication.PipelinesApiAuths
 import cromwell.backend.google.pipelines.common.callcaching.{CopyCachedOutputs, PipelinesCacheHitDuplicationStrategy, UseOriginalCachedOutputs}
@@ -60,7 +61,7 @@ object PipelinesApiConfigurationAttributes {
 
   lazy val DefaultMemoryRetryFactor: GreaterEqualRefined = refineMV[GreaterEqualOne](2.0)
 
-  private val papiKeys = Set(
+  private val papiKeys = CommonBackendConfigurationAttributes.commonValidConfigurationAttributeKeys ++ Set(
     "project",
     "root",
     "maximum-polling-interval",
@@ -72,24 +73,16 @@ object PipelinesApiConfigurationAttributes {
     "genomics-api-queries-per-100-seconds",
     "genomics.localization-attempts",
     "genomics.parallel-composite-upload-threshold",
-    "dockerhub",
-    "dockerhub.account",
-    "dockerhub.token",
     "filesystems",
+    "filesystems.drs.auth",
     "filesystems.gcs.auth",
+    "filesystems.gcs.project",
     "filesystems.gcs.caching.duplication-strategy",
     "concurrent-job-limit",
     "request-workers",
     "batch-requests.timeouts.read",
     "batch-requests.timeouts.connect",
-    "default-runtime-attributes",
-    "default-runtime-attributes.cpu",
-    "default-runtime-attributes.failOnStderr",
-    "default-runtime-attributes.continueOnReturnCode",
-    "default-runtime-attributes.docker",
-    "default-runtime-attributes.memory",
     "default-runtime-attributes.bootDiskSizeGb",
-    "default-runtime-attributes.disks",
     "default-runtime-attributes.noAddress",
     "default-runtime-attributes.preemptible",
     "default-runtime-attributes.zones",

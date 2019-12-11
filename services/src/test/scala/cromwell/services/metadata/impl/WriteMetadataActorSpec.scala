@@ -234,6 +234,7 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
                                         endTimestampOption: Option[Timestamp],
                                         metadataArchiveStatus: Set[Option[String]],
                                         includeSubworkflows: Boolean,
+                                        minimumSummaryEntryId: Option[Long],
                                         page: Option[Int],
                                         pageSize: Option[Int])
                                        (implicit ec: ExecutionContext): Nothing = {
@@ -252,7 +253,9 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
                                         startTimestampOption: Option[Timestamp],
                                         endTimestampOption: Option[Timestamp],
                                         metadataArchiveStatus: Set[Option[String]],
-                                        includeSubworkflows: Boolean)(implicit ec: ExecutionContext): Nothing = {
+                                        includeSubworkflows: Boolean,
+                                        minimumSummaryEntryId: Option[Long])
+                                       (implicit ec: ExecutionContext): Nothing = {
       notImplemented()
     }
 
@@ -269,6 +272,10 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     }
 
     override def isRootWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Option[Boolean]] = {
+      notImplemented()
+    }
+
+    override def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = {
       notImplemented()
     }
   }

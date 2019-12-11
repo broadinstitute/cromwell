@@ -20,7 +20,7 @@ import org.scalatest.{FlatSpecLike, Matchers}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.io.Source
 import scala.language.postfixOps
@@ -48,7 +48,10 @@ class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadat
   it should "receive a message from GCS" in {
 
     val clientProbe = TestProbe()
-    val actorUnderTest = TestActorRef(new CarbonitedMetadataThawingActor(carboniterConfig, serviceRegistryActor.ref, ioActor.ref), "ThawingActor")
+    val actorUnderTest = TestActorRef(new CarbonitedMetadataThawingActor(carboniterConfig, serviceRegistryActor.ref, ioActor.ref) {
+      override def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = Future.successful(Option(workflowId))
+    }, "ThawingActor")
+
     clientProbe.send(actorUnderTest, GetMetadataAction(
       MetadataQuery(
         workflowId = workflowId,
@@ -59,13 +62,13 @@ class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadat
         expandSubWorkflows = true
       )))
 
-    serviceRegistryActor.expectMsg(GetRootAndSubworkflowLabels(workflowId))
-    serviceRegistryActor.send(actorUnderTest, RootAndSubworkflowLabelsLookupResponse(workflowId, Map(WorkflowId(workflowId.id) -> Map("bob loblaw" -> "law blog"))))
-
     ioActor.expectMsgPF(max = 5.seconds) {
       case command @ IoCommandWithPromise(iocasc: IoContentAsStringCommand, _) if iocasc.file.pathAsString.contains(workflowId.toString) =>
         command.promise.success(rawMetadataSample)
     }
+
+    serviceRegistryActor.expectMsg(GetRootAndSubworkflowLabels(workflowId))
+    serviceRegistryActor.send(actorUnderTest, RootAndSubworkflowLabelsLookupResponse(workflowId, Map(WorkflowId(workflowId.id) -> Map("bob loblaw" -> "law blog"))))
 
     clientProbe.expectMsgPF(max = 5.seconds) {
       case SuccessfulMetadataJsonResponse(_, jsObject) => parse(jsObject.compactPrint) should be(parse(augmentedMetadataSample))
@@ -106,11 +109,9 @@ class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadat
       ))
 
     val clientProbe = TestProbe()
-    val actorUnderTest = TestActorRef(new CarbonitedMetadataThawingActor(carboniterConfig, serviceRegistryActor.ref, ioActor.ref), "ThawingActor")
-
-    clientProbe.send(actorUnderTest, action)
-    serviceRegistryActor.expectMsg(GetRootAndSubworkflowLabels(rootWorkflowId))
-    serviceRegistryActor.send(actorUnderTest, RootAndSubworkflowLabelsLookupResponse(rootWorkflowId, labelsForUpdate))
+    val actorUnderTest = TestActorRef(new CarbonitedMetadataThawingActor(carboniterConfig, serviceRegistryActor.ref, ioActor.ref) {
+      override def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = Future.successful(Option(rootWorkflowId.toString))
+    }, "ThawingActor")
 
     val metadataWithSubworkflows = Source.fromInputStream(Thread.currentThread.getContextClassLoader.getResourceAsStream("metadata_with_subworkflows.json")).mkString
 
@@ -132,10 +133,13 @@ class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadat
     val expectedRootLabelsBeforeUpdate = Map("cromwell-workflow-id" -> ("cromwell-" + rootWorkflowId.toString))
     actualRootLabelsBeforeUpdate shouldEqual expectedRootLabelsBeforeUpdate
 
+    clientProbe.send(actorUnderTest, action)
     ioActor.expectMsgPF(max = 5.seconds) {
       case command @ IoCommandWithPromise(iocasc: IoContentAsStringCommand, _) if iocasc.file.pathAsString.contains(rootWorkflowId.toString) =>
         command.promise.success(metadataWithSubworkflows)
     }
+    serviceRegistryActor.expectMsg(GetRootAndSubworkflowLabels(rootWorkflowId))
+    serviceRegistryActor.send(actorUnderTest, RootAndSubworkflowLabelsLookupResponse(rootWorkflowId, labelsForUpdate))
 
     clientProbe.expectMsgPF(max = 5.seconds) {
       case SuccessfulMetadataJsonResponse(_, metadataAfterThawing) =>
@@ -160,6 +164,79 @@ class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadat
         val actual = subworkflowNodesAfterUpdate.toList map { _.textValue() }
         val expected = subWorkflowIds map { _.shortString }
         actual shouldEqual expected
+
+      case FailedMetadataJsonResponse(_, reason) => fail(reason)
+    }
+  }
+
+  it should "correctly extract subworkflow metadata when subworkflow id was passed in the request" in {
+
+    val rootWorkflowId = WorkflowId.fromString("e0c918bb-695e-458a-ab37-be33db7bf721")
+    // The subworkflow IDs in the order they appear in the metadata JSON.
+    val subWorkflowIds = List(
+      "be186a2f-b52c-4c6d-96dd-b9a7f16ac526",
+      "9e1a2146-f48a-4c04-a589-d66a50dde39b",
+      "ba56c1ab-02e0-45f2-97cf-5f91a9138a31",
+      "22c6faba-a95a-4e8d-86c3-9a246d7db19b",
+      "0e299e7a-bddc-4367-92e2-3e1a61283ca7",
+      "7d6fba3d-d8e5-43aa-b580-2ace8675ffbd",
+      "210b9e04-5606-4231-9cb5-43355d60197d",
+      "540d2d9b-eccc-4e4f-8478-574e4e48f98d",
+      "bc649e17-418d-40f6-a145-5a6a8d0c2c5d",
+      "6382fcbb-fa69-4a6d-bc0f-871013226ad3",
+      "55383be2-9a7a-4004-8623-f1cf5a539433",
+      "ffa835a7-68de-4c9d-a777-89f3f7b286dc",
+      "0571a73e-1485-4b28-9320-e87036685d61",
+      "d9ce3320-727f-42f5-a946-e11177ebd7dd") map WorkflowId.fromString
+
+    val requestedSubworkflowId = subWorkflowIds.head
+
+    val labelsForUpdate: Map[WorkflowId, Map[String, String]] = (rootWorkflowId :: subWorkflowIds) map { id => id -> Map("short_id" -> id.shortString) } toMap
+
+    val action = GetMetadataAction(
+      MetadataQuery(
+        workflowId = requestedSubworkflowId,
+        jobKey = None,
+        key = None,
+        includeKeysOption = None,
+        excludeKeysOption = None,
+        expandSubWorkflows = true
+      ))
+
+    val clientProbe = TestProbe()
+    val actorUnderTest = TestActorRef(new CarbonitedMetadataThawingActor(carboniterConfig, serviceRegistryActor.ref, ioActor.ref) {
+      override def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] =
+        Future.successful(if (workflowId == requestedSubworkflowId.toString) Some(rootWorkflowId.toString) else None)
+    }, "ThawingActor")
+
+    val scope = Scope.newEmptyScope()
+    BuiltinFunctionLoader.getInstance.loadFunctions(Versions.JQ_1_5, scope)
+    val objectMapper = new ObjectMapper()
+
+    val metadataWithSubworkflows = Source.fromInputStream(Thread.currentThread.getContextClassLoader.getResourceAsStream("metadata_with_subworkflows.json")).mkString
+
+    clientProbe.send(actorUnderTest, action)
+    ioActor.expectMsgPF(max = 5.seconds) {
+      case command @ IoCommandWithPromise(iocasc: IoContentAsStringCommand, _) if iocasc.file.pathAsString.contains(rootWorkflowId.toString) =>
+        command.promise.success(metadataWithSubworkflows)
+    }
+    serviceRegistryActor.expectMsg(GetRootAndSubworkflowLabels(requestedSubworkflowId))
+    serviceRegistryActor.send(actorUnderTest, RootAndSubworkflowLabelsLookupResponse(requestedSubworkflowId, labelsForUpdate))
+
+    def outputBuilder(buf: ArrayBuffer[JsonNode]): Output = out => buf.append(out)
+    val workflowLabelsQuery = JsonQuery.compile(".labels", Versions.JQ_1_5)
+    clientProbe.expectMsgPF(max = 5.seconds) {
+      case SuccessfulMetadataJsonResponse(_, metadataAfterThawing) =>
+        val jsonNodesAfterUpdate = new ArrayBuffer[JsonNode]()
+        val jsonOutputAfterUpdate = outputBuilder(jsonNodesAfterUpdate)
+
+        val jsonNodeAfterUpdate = objectMapper.readTree(metadataAfterThawing.compactPrint)
+        workflowLabelsQuery.apply(scope, jsonNodeAfterUpdate, jsonOutputAfterUpdate)
+        val actualWorkflowLabelsAfterUpdate = jsonNodesAfterUpdate.head.fields().asScala.toList map { e => e.getKey -> e.getValue.textValue() } toMap
+        val expectedWorkflowLabelsAfterUpdate = Map(
+          "short_id" -> requestedSubworkflowId.shortString
+        )
+        actualWorkflowLabelsAfterUpdate shouldEqual expectedWorkflowLabelsAfterUpdate
 
       case FailedMetadataJsonResponse(_, reason) => fail(reason)
     }

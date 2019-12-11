@@ -79,12 +79,17 @@ nav:
     - Contribute to docs: developers/Contribute.md
     - CWL Parsing: developers/CwlParsing.md
     - Bitesize Design Docs:
+        - Workflow Parsing & Graph Construction:
+            - What is WOM?: developers/bitesize/workflowParsing/whatIsWom.md
+            - From WDL Source to WOM: developers/bitesize/workflowParsing/wdlParsingOverview.md
+            - From CWL Source to WOM: developers/bitesize/workflowParsing/cwlParsingOverview.md
         - Cromwell Actor System:
             - High level view: developers/bitesize/majorActorSystem/5000FtActorSystem.md
             - Workflow Execution:
                 - Main Actors: developers/bitesize/workflowExecution/majorActors.md
                 - Workflow, Subworkflow and Job Stores: developers/bitesize/workflowExecution/workflowSubworkflowAndJobStores.md
                 - Job Key / Value Store: developers/bitesize/workflowExecution/jobKeyValueStore.md
+                - Job retry decision logic: developers/bitesize/jobRetryLogic/jobRetryLogic.md
             - IoActor: developers/bitesize/IoActor/IoActor.md
         - Horizontal Cromwell ("Horicromtal"): developers/bitesize/horicromtal.md
         - General Topics:

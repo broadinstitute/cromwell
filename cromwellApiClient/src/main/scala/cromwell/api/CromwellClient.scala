@@ -65,7 +65,6 @@ class CromwellClient(val cromwellUrl: URL,
   import model.CromwellStatusJsonSupport._
   import model.CromwellVersionJsonSupport._
   import model.WorkflowLabelsJsonSupport._
-  import model.WorkflowLogsJsonSupport._
   import model.WorkflowOutputsJsonSupport._
   import model.WorkflowDescriptionJsonSupport._
   import model.CromwellQueryResultJsonSupport._
@@ -135,8 +134,8 @@ class CromwellClient(val cromwellUrl: URL,
     simpleRequest[WorkflowLabels](labelsEndpoint(workflowId), headers=headers)
   }
 
-  def logs(workflowId: WorkflowId)(implicit ec: ExecutionContext): FailureResponseOrT[WorkflowLogs] = {
-    simpleRequest[WorkflowLogsStruct](outputsEndpoint(workflowId)) map WorkflowLogs.apply
+  def logs(workflowId: WorkflowId)(implicit ec: ExecutionContext): FailureResponseOrT[WorkflowMetadata] = {
+    simpleRequest[String](logsEndpoint(workflowId)) map WorkflowMetadata
   }
 
   def query(workflowId: WorkflowId)(implicit ec: ExecutionContext): FailureResponseOrT[CromwellQueryResults] = {

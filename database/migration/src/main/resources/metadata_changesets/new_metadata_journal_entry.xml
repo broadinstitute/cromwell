@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
     <changeSet author="chrisl" id="new_metadata_journal_entry" dbms="mysql,hsqldb">
         <createTable tableName="METADATA_JOURNAL_ENTRY">
-            <column autoIncrement="true" name="METADATA_JOURNAL_ID" type="INT">
+            <column autoIncrement="true" name="METADATA_JOURNAL_ID" type="BIGINT">
                 <constraints primaryKey="true" primaryKeyName="PK_METADATA_JOURNAL_ENTRY"/>
             </column>
             <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(255)">

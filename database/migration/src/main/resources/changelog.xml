@@ -81,9 +81,9 @@
     <include file="changesets/add_hog_group_in_workflow_store.xml" relativeToChangelogFile="true" />
     <include file="changesets/mariadb_engine_schema.xml" relativeToChangelogFile="true" />
     <include file="changesets/resync_engine_schema.xml" relativeToChangelogFile="true" />
-    <include file="changesets/new_metadata_journal_entry.xml" relativeToChangelogFile="true" />
-    <!-- REMINDER!
-      Before appending here, did you remember to include the 'objectQuotingStrategy="QUOTE_ALL_OBJECTS"' line in your changeset/xyz.xml...?
+    <!-- REMINDERS!
+      * Before appending here, did you remember to include the 'objectQuotingStrategy="QUOTE_ALL_OBJECTS"' line in your changeset/xyz.xml...?
+      * If you're changing any METADATA tables, append your change to the sql_metadata_changelog.xml instead of here
     -->
 
 </databaseChangeLog>

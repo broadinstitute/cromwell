@@ -53,7 +53,11 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
     // Make tags, but enforce lowercase:
     val tags = (testCase.testOptions.tags :+ testCase.workflow.testName :+ testCase.testFormat.name) map { x => Tag(x.toLowerCase) }
     val isIgnored = testCase.isIgnored(cromwellBackends)
-    val retries = if (testCase.workflow.retryTestFailures) ErrorReporters.retryAttempts else 0
+    val retries =
+      // in this case retrying may end up to be waste of time if some tasks have been cached on previous test attempts
+      if (testCase.reliesOnCallCachingMetadataVerification) 0
+      else if (testCase.workflow.retryTestFailures) ErrorReporters.retryAttempts
+      else 0
 
     runOrDont(nameTest, tags, isIgnored, retries, runTestAndDeleteZippedImports())
   }

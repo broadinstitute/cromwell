@@ -368,7 +368,7 @@ Explanation of the options (see also http://hsqldb.org/doc/2.0/guide/dbpropertie
    The script can still be opened normally after decompressing with gzip.
 * `connectionTimeout = 120000` opening the large database files again when running cromwell will 
   take some time. The default timeout of 3000 ms (3s) is not enough. So it is set to 120000ms (120s).
-* `numThreads = 1` 
+* `numThreads = 1`. This will limit the CPU usage of Cromwell, which can be useful in HPC environments.
 
 Comparison to MySQL (or PostgreSQL) server:
 Advantages:

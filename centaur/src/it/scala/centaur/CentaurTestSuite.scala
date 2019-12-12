@@ -79,5 +79,4 @@ trait CentaurTestSuiteShutdown extends Suite with BeforeAndAfterAll {
   */
 class CentaurTestSuite
   extends Suites(new SequentialTestCaseSpec(), new ParallelTestCaseSpec())
-    with ParallelTestExecution
     with CentaurTestSuiteShutdown

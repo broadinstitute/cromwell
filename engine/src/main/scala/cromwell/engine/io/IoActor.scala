@@ -179,7 +179,7 @@ object IoActor {
     case _ => false
   }
 
-  def is500ServerError(failure: Throwable): Boolean = {
+  def is5xxServerError(failure: Throwable): Boolean = {
     val serverErrorPattern = "^.*5\\d{2} \\w+(.*)?"
     Option(failure.getMessage).exists(_.matches(serverErrorPattern))
   }
@@ -216,7 +216,7 @@ object IoActor {
     case _: SocketException => true
     case _: SocketTimeoutException => true
     case ioE: IOException if Option(ioE.getMessage).exists(_.contains("Error getting access token for service account")) => true
-    case ioE: IOException => is500ServerError(ioE)
+    case ioE: IOException => is5xxServerError(ioE)
     case other => isTransient(other)
   }
 

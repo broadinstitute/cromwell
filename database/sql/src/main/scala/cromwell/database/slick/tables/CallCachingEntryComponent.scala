@@ -57,4 +57,11 @@ trait CallCachingEntryComponent {
         if callCachingEntry.jobIndex === jobIndex
       } yield callCachingEntry
   )
+
+  def callCachingEntryIdsForWorkflowId(workflowId: String) = {
+    for {
+      callCachingEntry <- callCachingEntries
+      if callCachingEntry.workflowExecutionUuid === workflowId
+    } yield callCachingEntry.callCachingEntryId
+  }
 }

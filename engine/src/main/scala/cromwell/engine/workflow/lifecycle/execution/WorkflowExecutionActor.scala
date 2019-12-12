@@ -211,9 +211,9 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       if (r.resultGenerationMode != RunOnBackend) {
         workflowLogger.info(s"Job results retrieved (${r.resultGenerationMode}): '${r.jobKey.call.fullyQualifiedName}' (scatter index: ${r.jobKey.index}, attempt ${r.jobKey.attempt})")
       }
-      handleCallSuccessful(r.jobKey, r.jobOutputs, r.returnCode, stateData, Map.empty)
+      handleCallSuccessful(r.jobKey, r.jobOutputs, r.returnCode, stateData, Map.empty, Set(workflowDescriptor.id))
     // Sub Workflow
-    case Event(SubWorkflowSucceededResponse(jobKey, descendantJobKeys, callOutputs, cumulativeOutputs), currentStateData) =>
+    case Event(SubWorkflowSucceededResponse(jobKey, descendantJobKeys, rootAndSubworklowIds, callOutputs, cumulativeOutputs), currentStateData) =>
       // Update call outputs to come from sub-workflow output ports:
       val subworkflowOutputs: Map[OutputPort, WomValue] = callOutputs.outputs flatMap { case (port, value) =>
         jobKey.node.subworkflowCallOutputPorts collectFirst {
@@ -222,7 +222,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       }
 
       if(subworkflowOutputs.size == callOutputs.outputs.size) {
-        handleCallSuccessful(jobKey, CallOutputs(subworkflowOutputs), None, currentStateData, descendantJobKeys, cumulativeOutputs)
+        handleCallSuccessful(jobKey, CallOutputs(subworkflowOutputs), None, currentStateData, descendantJobKeys, rootAndSubworklowIds, cumulativeOutputs)
       } else {
         handleNonRetryableFailure(currentStateData, jobKey, new Exception(s"Subworkflow produced outputs: [${callOutputs.outputs.keys.mkString(", ")}], but we expected all of [${jobKey.node.subworkflowCallOutputPorts.map(_.internalName)}]"))
       }
@@ -341,7 +341,9 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
         outputs = data.cumulativeOutputs.outputs ++ localOutputs.outputs
       )
 
-      context.parent ! WorkflowExecutionSucceededResponse(data.jobExecutionMap, localOutputs, currentCumulativeOutputs)
+      val currentRootAndSubworkflowIds = data.rootAndSubworkflowIds + workflowDescriptor.id
+
+      context.parent ! WorkflowExecutionSucceededResponse(data.jobExecutionMap, currentRootAndSubworkflowIds, localOutputs, currentCumulativeOutputs)
       goto(WorkflowExecutionSuccessfulState) using data
     }
 
@@ -469,9 +471,10 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
                                    returnCode: Option[Int],
                                    data: WorkflowExecutionActorData,
                                    jobExecutionMap: JobExecutionMap,
+                                   rootAndSubworkflowIds: Set[WorkflowId],
                                    cumulativeOutputs: CallOutputs = CallOutputs.empty) = {
     pushSuccessfulCallMetadata(jobKey, returnCode, outputs)
-    stay() using data.callExecutionSuccess(jobKey, outputs, cumulativeOutputs).addExecutions(jobExecutionMap)
+    stay() using data.callExecutionSuccess(jobKey, outputs, cumulativeOutputs, rootAndSubworkflowIds).addExecutions(jobExecutionMap)
   }
 
   private def handleDeclarationEvaluationSuccessful(key: ExpressionKey, values: Map[OutputPort, WomValue], data: WorkflowExecutionActorData) = {
@@ -738,7 +741,10 @@ object WorkflowExecutionActor {
     def jobExecutionMap: JobExecutionMap
   }
 
-  case class WorkflowExecutionSucceededResponse(jobExecutionMap: JobExecutionMap, outputs: CallOutputs, cumulativeOutputs: CallOutputs = CallOutputs.empty)
+  case class WorkflowExecutionSucceededResponse(jobExecutionMap: JobExecutionMap,
+                                                rootAndSubworklowIds: Set[WorkflowId],
+                                                outputs: CallOutputs,
+                                                cumulativeOutputs: CallOutputs = CallOutputs.empty)
     extends WorkflowExecutionActorResponse {
     override def toString = "WorkflowExecutionSucceededResponse"
   }
@@ -770,7 +776,11 @@ object WorkflowExecutionActor {
     */
   private case object ExecutionHeartBeatKey
 
-  case class SubWorkflowSucceededResponse(key: SubWorkflowKey, jobExecutionMap: JobExecutionMap, outputs: CallOutputs, cumulativeOutputs: CallOutputs = CallOutputs.empty)
+  case class SubWorkflowSucceededResponse(key: SubWorkflowKey,
+                                          jobExecutionMap: JobExecutionMap,
+                                          rootAndSubworklowIds: Set[WorkflowId],
+                                          outputs: CallOutputs,
+                                          cumulativeOutputs: CallOutputs = CallOutputs.empty)
 
   case class SubWorkflowFailedResponse(key: SubWorkflowKey, jobExecutionMap: JobExecutionMap, reason: Throwable)
 

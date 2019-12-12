@@ -5,7 +5,7 @@ import centaur.test.standard.CentaurTestCase
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.StrictLogging
 import net.ceedubs.ficus.Ficus._
-import org.scalatest.{BeforeAndAfterAll, ParallelTestExecution, Suite, Suites}
+import org.scalatest.{BeforeAndAfterAll, Suite, Suites}
 
 import scala.sys.ShutdownHookThread
 

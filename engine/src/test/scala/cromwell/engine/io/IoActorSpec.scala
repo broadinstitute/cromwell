@@ -227,9 +227,6 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
       new IOException("Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 500 Internal Server Error Backend Error"),
       new IOException("Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 503 Service Unavailable Backend Error"),
       new IOException("message: 500 Internal Server Error Backend Error"),
-//      new Exception("500 Internal Server Error"),
-//      new Exception("501 Not Implemented"),
-//      new Exception("510 Extensions are Missing")
     )
 
     retryables foreach { IoActor.isRetryable(_) shouldBe true }

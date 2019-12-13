@@ -78,10 +78,11 @@ trait MetadataSqlDatabase extends SqlDatabase {
                           rootWorkflowIdKey: String,
                           labelMetadataKey: String,
                           limit: Int,
+                          nextSummaryPointerUpdateCeiling: Option[Long],
                           buildUpdatedSummary:
                           (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                             => WorkflowMetadataSummaryEntry)
-                         (implicit ec: ExecutionContext): Future[(Long, Long)]
+                         (implicit ec: ExecutionContext): Future[(Long, Long, Long)]
 
   /**
     * Retrieves a window of summarizable metadata satisfying the specified criteria.

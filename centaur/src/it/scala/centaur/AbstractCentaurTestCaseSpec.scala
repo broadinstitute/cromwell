@@ -14,6 +14,7 @@ import centaur.test.workflow.WorkflowData
 import org.scalatest._
 
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
 @DoNotDiscover
 abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromwellTracker: Option[CromwellTracker] = None) extends AsyncFlatSpec with Matchers {
@@ -176,6 +177,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
 
     val runTestIo = IO(runTest).flatten
 
+    import TestContext._
     runTestIo.redeemWith(
       {
         case centaurTestException: CentaurTestException => maybeRetry(centaurTestException)
@@ -185,7 +187,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
         case workflowResponse: SubmitWorkflowResponse => SuccessReporters.logSuccessfulRun(workflowResponse)
         case other => IO.pure(other)
       }
-    )
+    ).timeoutTo(2.hours, IO.raiseError(new RuntimeException("Test " + testName + " timeouted")))
   }
 
   /**

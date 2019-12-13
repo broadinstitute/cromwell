@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import cats.implicits._
 import cats.Monoid
 import wom.callable.ExecutableCallable
-import wom.graph.GraphNodePort.{OutputPort, ScatterGathererPort}
+import wom.graph.GraphNodePort.{ConditionalOutputPort, OutputPort, ScatterGathererPort}
 import wom.graph.expression.ExpressionNode
 import wom.graph._
 import wom.types.WomType
@@ -176,8 +176,8 @@ object GraphPrint {
     }
 
     def upstreamPortToRelevantNodes(p: OutputPort) = p match {
-      case gatherPort: ScatterGathererPort =>
-        relevantAsUpstream(gatherPort.outputToGather.singleUpstreamNode)
+      case gatherPort: ScatterGathererPort => relevantAsUpstream(gatherPort.outputToGather.singleUpstreamNode)
+      case conditionalOutputPort: ConditionalOutputPort => relevantAsUpstream(conditionalOutputPort.outputToExpose.singleUpstreamNode)
       case other =>
         relevantAsUpstream(other.graphNode)
     }

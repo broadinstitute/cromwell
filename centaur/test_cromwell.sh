@@ -156,7 +156,7 @@ fi
 
 
 TEST_DESCRIPTION="Running Centaur with sbt test"
-TEST_COMMAND="java ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R centaur/target/scala-2.12/it-classes -oD -u target/test-reports -PS${TEST_THREAD_COUNT}"
+TEST_COMMAND="java ${CENTAUR_CONF} -cp $CP org.scalatest.tools.Runner -R centaur/target/scala-2.12/it-classes -oD -u target/test-reports -T7200 -PS${TEST_THREAD_COUNT}"
 
 if [[ -n ${EXCLUDE_TAG[*]} ]]; then
     TEST_DESCRIPTION=${TEST_DESCRIPTION}" excluding ${EXCLUDE_TAG[*]} tests"

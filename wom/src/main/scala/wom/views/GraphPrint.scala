@@ -167,6 +167,7 @@ object GraphPrint {
                     availableScatterVariables: Map[ScatterVariableNode, DotScatterVariableNode]): Set[DotLink] = {
     def relevantAsUpstream(nodeToLink: GraphNode): Set[DotNode] = nodeToLink match {
       case ccn: CommandCallNode => Set(DotCallNode(ccn))
+      case scn: WorkflowCallNode => Set(DotSubworkflowCallNode(scn))
       case en: ExpressionNode => upstreamLinksforNode(en)
       case svn: ScatterVariableNode => Set(availableScatterVariables(svn))
       case ogin: OuterGraphInputNode => upstreamPortToRelevantNodes(ogin.linkToOuterGraph)

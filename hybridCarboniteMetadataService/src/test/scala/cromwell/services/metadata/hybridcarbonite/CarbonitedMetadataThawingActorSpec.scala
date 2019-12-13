@@ -113,7 +113,7 @@ class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadat
       override def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = Future.successful(Option(rootWorkflowId.toString))
     }, "ThawingActor")
 
-    val metadataWithSubworkflows = Source.fromInputStream(Thread.currentThread.getContextClassLoader.getResourceAsStream("metadata_with_subworkflows.json")).mkString
+    val metadataWithSubworkflows = Source.fromInputStream(Thread.currentThread.getContextClassLoader.getResourceAsStream("gratuitous_subworkflows.json")).mkString
 
     val scope = Scope.newEmptyScope()
     BuiltinFunctionLoader.getInstance.loadFunctions(Versions.JQ_1_5, scope)
@@ -213,7 +213,7 @@ class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadat
     BuiltinFunctionLoader.getInstance.loadFunctions(Versions.JQ_1_5, scope)
     val objectMapper = new ObjectMapper()
 
-    val metadataWithSubworkflows = Source.fromInputStream(Thread.currentThread.getContextClassLoader.getResourceAsStream("metadata_with_subworkflows.json")).mkString
+    val metadataWithSubworkflows = Source.fromInputStream(Thread.currentThread.getContextClassLoader.getResourceAsStream("gratuitous_subworkflows.json")).mkString
 
     clientProbe.send(actorUnderTest, action)
     ioActor.expectMsgPF(max = 5.seconds) {

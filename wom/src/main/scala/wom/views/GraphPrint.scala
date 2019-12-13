@@ -24,7 +24,7 @@ final class GraphPrint(executableCallable: ExecutableCallable) {
                                 clusterCounter: AtomicInteger,
                                 availableScatterVariables: Map[ScatterVariableNode, DotScatterVariableNode]): NodesAndLinks = {
 
-    graph.nodes.toList foldMap {
+    graph.nodes.toList.filter(worthDisplaying).foldMap {
       case ccn: CommandCallNode => NodesAndLinks(Set(DotCallNode(ccn)), upstreamLinks(ccn, DotCallNode(ccn), availableScatterVariables))
       case scn: WorkflowCallNode => NodesAndLinks(Set(DotSubworkflowCallNode(scn)), upstreamLinks(scn, DotSubworkflowCallNode(scn), availableScatterVariables))
       case s: ScatterNode => handleScatter(s, clusterCounter, availableScatterVariables)
@@ -189,4 +189,12 @@ object GraphPrint {
   def hasCallAncestor(g: GraphNode) = g.upstreamAncestry.exists(_.isInstanceOf[CommandCallNode])
 
   def escapeQuotes(s: String) = s.replace("\"", "\\\"")
+
+  def worthDisplaying(node: GraphNode): Boolean = node match {
+    case _: CommandCallNode => true
+    case _: WorkflowCallNode => true
+    case s: ScatterNode => s.innerGraph.nodes.exists(worthDisplaying)
+    case c: ConditionalNode => c.innerGraph.nodes.exists(worthDisplaying)
+    case _ => false
+  }
 }

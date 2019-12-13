@@ -26,7 +26,9 @@ final class GraphPrint(executableCallable: ExecutableCallable) {
 
     graph.nodes.toList foldMap {
       case ccn: CommandCallNode => NodesAndLinks(Set(DotCallNode(ccn)), upstreamLinks(ccn, DotCallNode(ccn), availableScatterVariables))
+      case scn: WorkflowCallNode => NodesAndLinks(Set(DotSubworkflowCallNode(scn)), upstreamLinks(scn, DotSubworkflowCallNode(scn), availableScatterVariables))
       case s: ScatterNode => handleScatter(s, clusterCounter, availableScatterVariables)
+      case c: ConditionalNode => handleConditional(c, clusterCounter, availableScatterVariables)
       case _ => nodeAndLinkMonoid.empty
     }
   }
@@ -62,6 +64,29 @@ final class GraphPrint(executableCallable: ExecutableCallable) {
       links = scatterExpressionNodesAndLinks.links ++ innerGraphNodesAndLinks.links
     )
   }
+
+  def handleConditional(conditionalNode: ConditionalNode,
+                        clusterCounter: AtomicInteger,
+                        knownScatterVariables: Map[ScatterVariableNode, DotScatterVariableNode]): NodesAndLinks = {
+    val clusterNumber = clusterCounter.getAndIncrement()
+    val id = s"cluster_$clusterNumber"
+
+    def handleConditionalExpressionNode(conditionalExpression: ExpressionNode): NodesAndLinks = {
+      val dotNode = DotConditionalExpressionNode(conditionalExpression, clusterNumber)
+      val links = upstreamLinks(conditionalExpression, dotNode, Map.empty)
+      NodesAndLinks(Set(dotNode), links)
+    }
+
+    val conditionalExpressionNodesAndLinks = handleConditionalExpressionNode(conditionalNode.conditionExpression)
+
+    val innerGraphNodesAndLinks = listAllGraphNodes(conditionalNode.innerGraph, clusterCounter, knownScatterVariables)
+
+    NodesAndLinks(
+      nodes = Set(DotConditionalNode(id, innerGraphNodesAndLinks.nodes ++ conditionalExpressionNodesAndLinks.nodes)) ,
+      links = innerGraphNodesAndLinks.links ++ conditionalExpressionNodesAndLinks.links
+    )
+  }
+
 }
 
 object GraphPrint {
@@ -86,12 +111,21 @@ object GraphPrint {
   }
 
   sealed trait DotNode { def id: String; def dotString: String }
+
   final case class DotCallNode(callName: String) extends DotNode {
     override def id: String = s"CALL_$callName"
     def dotString = s"""$id [label="call $callName"]"""
   }
   object DotCallNode {
     def apply(ccn: CommandCallNode): DotCallNode = DotCallNode(ccn.localName)
+  }
+
+  final case class DotSubworkflowCallNode(callName: String) extends DotNode {
+    override def id: String = s"CALL_$callName"
+    def dotString = s"""$id [label="call $callName";shape="oval";peripheries=2]"""
+  }
+  object DotSubworkflowCallNode {
+    def apply(scn: WorkflowCallNode): DotSubworkflowCallNode = DotSubworkflowCallNode(scn.localName)
   }
 
   final case class DotScatterVariableNode(womType: WomType, valueName: String, clusterNumber: Int) extends DotNode {
@@ -102,6 +136,14 @@ object GraphPrint {
     def apply(svn: ScatterVariableNode, clusterNumber: Int): DotScatterVariableNode = DotScatterVariableNode(svn.womType, svn.identifier.localName.value, clusterNumber)
   }
 
+  final case class DotConditionalExpressionNode(womType: WomType, expressionString: String, clusterNumber: Int) extends DotNode {
+    override def id: String = s"CONDITIONAL_${clusterNumber}_EXPRESSION"
+    def dotString = s"""$id [shape="hexagon" label="if ($expressionString)" style="dashed" ]"""
+  }
+  object DotConditionalExpressionNode {
+    def apply(en: ExpressionNode, clusterNumber: Int): DotConditionalExpressionNode = DotConditionalExpressionNode(en.womType, escapeQuotes(en.womExpression.sourceString), clusterNumber)
+  }
+
   final case class DotScatterNode(id: String, nodes: Set[DotNode]) extends DotNode {
     override def dotString: String =
       s"""subgraph $id {
@@ -109,6 +151,15 @@ object GraphPrint {
           |  fillcolor=white;
           |  ${nodes.toList.flatMap(_.dotString.lines).mkString(System.lineSeparator() + "  ")}
           |}""".stripMargin
+  }
+
+  final case class DotConditionalNode(id: String, nodes: Set[DotNode]) extends DotNode {
+    override def dotString: String =
+      s"""subgraph $id {
+         |  style="filled,dashed";
+         |  fillcolor=white;
+         |  ${nodes.toList.flatMap(_.dotString.lines).mkString(System.lineSeparator() + "  ")}
+         |}""".stripMargin
   }
 
   def upstreamLinks(originNode: GraphNode,
@@ -135,4 +186,6 @@ object GraphPrint {
   }
 
   def hasCallAncestor(g: GraphNode) = g.upstreamAncestry.exists(_.isInstanceOf[CommandCallNode])
+
+  def escapeQuotes(s: String) = s.replace("\"", "\\\"")
 }

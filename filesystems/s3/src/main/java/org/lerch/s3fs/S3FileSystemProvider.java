@@ -43,6 +43,13 @@ import static org.lerch.s3fs.AmazonS3Factory.*;
 import static java.lang.String.format;
 
 /**
+ * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ * !!!!! Cromwell should only use `public FileSystem getFileSystem(URI uri, Map<String, ?> env, S3Client client)` !!!!!
+ * !!!!! to initialize S3 filesystem. Usage of other methods is not thread-safe !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ *
  * Spec:
  * <p>
  * URI: s3://[endpoint]/{bucket}/{key} If endpoint is missing, it's assumed to
@@ -268,6 +275,8 @@ public class S3FileSystemProvider extends FileSystemProvider {
     }
 
     /**
+     * !! Use only this method to initialize S3 filesystem from Cromwell. Other methods are not thread-safe. !!
+     *
      * Get existing filesystem based on a combination of URI and env settings. Create new filesystem otherwise.
      *
      * @param uri URI of existing, or to be created filesystem.
@@ -278,9 +287,12 @@ public class S3FileSystemProvider extends FileSystemProvider {
         validateUri(uri);
         Properties props = getProperties(uri, env);
         String key = this.getFileSystemKey(uri, props); // s3fs_access_key is part of the key here.
-        if (fileSystems.containsKey(key))
-            return fileSystems.get(key);
-        return newFileSystem(uri, env, client);
+        if (!fileSystems.containsKey(key)) {
+            synchronized (fileSystems) {
+                fileSystems.computeIfAbsent(key, k -> (S3FileSystem) newFileSystem(uri, env, client));
+            }
+        }
+        return fileSystems.get(key);
     }
 
     @Override

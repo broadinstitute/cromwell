@@ -289,7 +289,9 @@ public class S3FileSystemProvider extends FileSystemProvider {
         String key = this.getFileSystemKey(uri, props); // s3fs_access_key is part of the key here.
         if (!fileSystems.containsKey(key)) {
             synchronized (fileSystems) {
-                fileSystems.computeIfAbsent(key, k -> (S3FileSystem) newFileSystem(uri, env, client));
+                if (!fileSystems.containsKey(key)) {
+                    newFileSystem(uri, env, client);
+                }
             }
         }
         return fileSystems.get(key);

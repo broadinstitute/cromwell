@@ -18,6 +18,9 @@ object JsonEditor {
   private val subWorkflowMetadataKey = "subWorkflowMetadata"
   private val subWorkflowIdKey = "subWorkflowId"
 
+  def includeExcludeJson(json: Json, includeKeys: NonEmptyList[String], excludeKeys: NonEmptyList[String]): ErrorOr[Json] =
+    includeExcludeJson(json, Option(includeKeys), Option(excludeKeys))
+
   def includeExcludeJson(json: Json, includeKeys: Option[NonEmptyList[String]], excludeKeys: Option[NonEmptyList[String]]): ErrorOr[Json] =
     (includeKeys, excludeKeys) match {
       // Take includes, and then remove excludes
@@ -112,10 +115,7 @@ object JsonEditor {
               case None => None
               case Some(inner) =>
                 remainingComponents.tail match {
-                  case Nil =>
-                    // Pick out the matching key / value pair from the query object and return that as a
-                    // JSON object with a single key / value.
-                    Option(Json.fromFields(List((component, inner))))
+                  case Nil => Option(inner)
                   case h :: t =>
                     val descentResult = descend(inner, NonEmptyList.of(h, t: _*))
                     // If there is a result, wrap it in a single field JSON object using the head of the filter
@@ -149,14 +149,21 @@ object JsonEditor {
                       // If the descent doesn't find anything return the object under construction unmodified.
                       j
                     case Some(descentResult) =>
-                      // If the descent does find a value it should be merged to the object under construction.
-                      // Merge is required to properly handle nested structure if there are multiple semi-overlapping
-                      // include filter keys.
-                      j deepMerge descentResult
+                      // If the descent does find a value, it will first need to be "wrapped" in a single-entry object keyed by
+                      // the first include key component.
+                      val wrapped = Json.fromFields(List((c, descentResult)))
+                      // Merge this to the object under construction. Merge is required to handle nested structure if there
+                      // are multiple semi-overlapping include keys.
+                      j deepMerge wrapped
                   }
               }
             }
-            List((key, filteredJson))
+
+            // Only return a key / value if the value is a non-empty object.
+            filteredJson.asObject.map(_.nonEmpty) match {
+              case Some(true) => List((key, filteredJson))
+              case _ => Nil
+            }
         }
       }
       JsonObject.fromIterable(updatedKeyValues)
@@ -304,7 +311,7 @@ object JsonEditor {
   }
 
   def outputs(json: Json): ErrorOr[Json] = {
-    includeExcludeJson(json, Option(NonEmptyList.one("outputs")), Option(NonEmptyList.one("calls")))
+    includeExcludeJson(json, NonEmptyList.one("outputs"), NonEmptyList.one("calls"))
   }
 
   def logs(workflowJson: Json): ErrorOr[Json] = {
@@ -323,7 +330,7 @@ object JsonEditor {
       } yield WorkflowId.fromString(s)
 
       workflowIdOpt match {
-        case Some(workflowId) => workflowId.validNel
+        case Some(id) => id.validNel
         case None => s"did not find workflow id in ${json.printWith(Printer.spaces2).elided(100)}".invalidNel
       }
     }

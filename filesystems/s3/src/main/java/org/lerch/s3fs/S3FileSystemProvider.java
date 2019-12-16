@@ -43,12 +43,6 @@ import static org.lerch.s3fs.AmazonS3Factory.*;
 import static java.lang.String.format;
 
 /**
- * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- * !!!!! Cromwell should only use `public FileSystem getFileSystem(URI uri, Map<String, ?> env, S3Client client)` !!!!!
- * !!!!! to initialize S3 filesystem. Usage of other methods is not thread-safe !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  *
  * Spec:
  * <p>
@@ -97,27 +91,49 @@ public class S3FileSystemProvider extends FileSystemProvider {
 
     @Override
     public FileSystem newFileSystem(URI uri, Map<String, ?> env) {
-        return newFileSystem(uri, env, props -> createFileSystem(uri, props));
+        return newFileSystem(uri, env, props -> createFileSystem(uri, props), true);
     }
 
-    public FileSystem newFileSystem(URI uri, Map<String, ?> env, S3Client client) {
-        return newFileSystem(uri, env, props -> createFileSystem(uri, props, client));
+    /**
+     * Get existing filesystem based on a combination of URI and env settings. Create new filesystem otherwise.
+     *
+     * @param uri URI of existing, or to be created filesystem.
+     * @param env environment settings.
+     * @return new or existing filesystem.
+     */
+    public FileSystem getFileSystem(URI uri, Map<String, ?> env, S3Client client) {
+        return newFileSystem(uri, env, props -> createFileSystem(uri, props, client), false);
     }
 
-    private FileSystem newFileSystem(URI uri, Map<String, ?> env, Function<Properties, S3FileSystem> createFileSystemFunc) {
+    private FileSystem newFileSystem(URI uri, Map<String, ?> env,
+                                     Function<Properties, S3FileSystem> createFileSystemFunc,
+                                     boolean throwExceptionIfAlreadyExists) {
         validateUri(uri);
         // get properties for the env or properties or system
         Properties props = getProperties(uri, env);
         validateProperties(props);
         // try to get the filesystem by the key
         String key = getFileSystemKey(uri, props);
-        if (fileSystems.containsKey(key)) {
-            throw new FileSystemAlreadyExistsException("File system " + uri.getScheme() + ':' + key + " already exists");
+        FileSystemAlreadyExistsException alreadyExistsException = new FileSystemAlreadyExistsException("File system " + uri.getScheme() + ':' + key + " already exists");
+        if (!fileSystems.containsKey(key)) {
+            synchronized (fileSystems) {
+                if (!fileSystems.containsKey(key)) {
+                    // create the filesystem with the final properties, store and return
+                    S3FileSystem fileSystem = createFileSystemFunc.apply(props);
+                    fileSystems.put(fileSystem.getKey(), fileSystem);
+                } else {
+                    if (throwExceptionIfAlreadyExists) {
+                        throw alreadyExistsException;
+                    }
+                }
+            }
+        } else {
+            if (throwExceptionIfAlreadyExists) {
+                throw alreadyExistsException;
+            }
         }
-        // create the filesystem with the final properties, store and return
-        S3FileSystem fileSystem = createFileSystemFunc.apply(props);
-        fileSystems.put(fileSystem.getKey(), fileSystem);
-        return fileSystem;
+
+        return fileSystems.get(key);
     }
 
     private void validateProperties(Properties props) {
@@ -272,29 +288,6 @@ public class S3FileSystemProvider extends FileSystemProvider {
      */
     public String systemGetEnv(String key) {
         return System.getenv(key);
-    }
-
-    /**
-     * !! Use only this method to initialize S3 filesystem from Cromwell. Other methods are not thread-safe. !!
-     *
-     * Get existing filesystem based on a combination of URI and env settings. Create new filesystem otherwise.
-     *
-     * @param uri URI of existing, or to be created filesystem.
-     * @param env environment settings.
-     * @return new or existing filesystem.
-     */
-    public FileSystem getFileSystem(URI uri, Map<String, ?> env, S3Client client) {
-        validateUri(uri);
-        Properties props = getProperties(uri, env);
-        String key = this.getFileSystemKey(uri, props); // s3fs_access_key is part of the key here.
-        if (!fileSystems.containsKey(key)) {
-            synchronized (fileSystems) {
-                if (!fileSystems.containsKey(key)) {
-                    newFileSystem(uri, env, client);
-                }
-            }
-        }
-        return fileSystems.get(key);
     }
 
     @Override

@@ -373,8 +373,7 @@ class JsonEditorSpec extends FlatSpec with Matchers {
   }
 
   it should "handle includes specifying nonexistent keys" in {
-//    val includeKeys = NonEmptyList.of("callCaching:hashes:nonExistent", "callCaching:phonyKey")
-    val includeKeys = NonEmptyList.of("callCaching:phonyKey")
+    val includeKeys = NonEmptyList.of("callCaching:hashes:nonExistent", "callCaching:phonyKey")
     val actual = includeJson(helloWorldPapiV2, includeKeys).get
     val expectedJson =
       """
@@ -409,6 +408,49 @@ class JsonEditorSpec extends FlatSpec with Matchers {
         |  }
         |}
         |""".stripMargin
+    val expected = parseString(expectedJson)
+    actual shouldEqual expected
+  }
+
+  it should "be able to deal with some nested include / exclude stuff" in {
+    val includeKeys = NonEmptyList.of("callCaching")
+    val excludeKeys = NonEmptyList.of("callCaching:hashes:input:String addressee", "callCaching:hashes:runtime attribute:docker")
+
+    val actual = includeExcludeJson(helloWorldPapiV2, includeKeys, excludeKeys).get
+    val expectedJson =
+      """
+        |{
+        |  "calls": {
+        |    "wf_hello.hello": [
+        |      {
+        |        "callCaching": {
+        |          "allowResultReuse": true,
+        |          "effectiveCallCachingMode": "ReadAndWriteCache",
+        |          "hashes": {
+        |            "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+        |            "command template": "4EAADE3CD5D558C5A6CFA4FD101A1486",
+        |            "input count": "C4CA4238A0B923820DCC509A6F75849B",
+        |            "output count": "C4CA4238A0B923820DCC509A6F75849B",
+        |            "output expression": {
+        |              "String salutation": "0183144CF6617D5341681C6B2F756046"
+        |            },
+        |            "runtime attribute": {
+        |              "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+        |              "failOnStderr": "68934A3E9455FA72420237EB05902327"
+        |            }
+        |          },
+        |          "hit": false,
+        |          "result": "Cache Miss"
+        |        },
+        |        "attempt": 1,
+        |        "shardIndex": -1
+        |      }
+        |    ]
+        |  },
+        |  "id": "d53a063a-e8b7-403f-a400-a85f089a8928"
+        |}
+        |""".stripMargin
+
     val expected = parseString(expectedJson)
     actual shouldEqual expected
   }

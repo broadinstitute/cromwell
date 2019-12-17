@@ -15,6 +15,8 @@ class WomtoolValidateSpec extends FlatSpec with Matchers {
   val validationTestCases = File("womtool/src/test/resources/validate")
   val languageVersions = Option(validationTestCases.list).toList.flatten
 
+  val knownUngraphableTests = List(("wdl_draft2", "task_only"))
+
   behavior of "womtool validate"
 
   it should "test at least one version" in {
@@ -45,14 +47,24 @@ class WomtoolValidateSpec extends FlatSpec with Matchers {
     listFilesAndFilterDSFile(validTestCases) foreach { validCase =>
       val inputsFile = ifExists(validTestCases.resolve(validCase).resolve(validCase + ".inputs.json").toFile)
       val withInputsAddition = if (inputsFile.isDefined) " and inputs file" else ""
-      it should s"successfully validate $versionName workflow: '$validCase'$withInputsAddition" in {
-        val wdl = mustExist(validTestCases.resolve(validCase).resolve(validCase + ".wdl").toFile)
-        val inputsArgs = inputsFile match {
-          case Some(path) => Seq("-i", path.getAbsolutePath)
-          case None => Seq.empty[String]
-        }
 
+      val wdl = mustExist(validTestCases.resolve(validCase).resolve(validCase + ".wdl").toFile)
+      val inputsArgs = inputsFile match {
+        case Some(path) => Seq("-i", path.getAbsolutePath)
+        case None => Seq.empty[String]
+      }
+
+      it should s"successfully validate $versionName workflow: '$validCase'$withInputsAddition" in {
         WomtoolMain.runWomtool(Seq("validate", wdl.getAbsolutePath) ++ inputsArgs) should be(SuccessfulTermination("Success!"))
+      }
+
+      it should s"be able to output a graph for $versionName workflow: '$validCase'$withInputsAddition" in {
+        WomtoolMain.runWomtool(Seq("graph", wdl.getAbsolutePath)) match {
+          case SuccessfulTermination(_) if !knownUngraphableTests.contains((versionName, validCase)) => // woohoo!
+          case UnsuccessfulTermination(_) if knownUngraphableTests.contains((versionName, validCase)) => // woohoo!
+          case other =>
+            fail(s"Unexpected termination value: $other")
+        }
       }
     }
 

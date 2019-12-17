@@ -136,23 +136,23 @@ object CarbonitedMetadataThawingActor {
   implicit class EnhancedJson(val json: Json) extends AnyVal {
     def editFor(action: BuildWorkflowMetadataJsonAction): ErrorOr[Json] = action match {
       case _: GetLogs => JsonEditor.logs(json)
-      case _: WorkflowOutputs => JsonEditor.outputs(json).validNel
+      case _: WorkflowOutputs => JsonEditor.outputs(json)
       case get: GetMetadataAction =>
-        val intermediate = get.key match {
-          case MetadataQuery(_, None, None, None, None, _) => json
+        val intermediate: ErrorOr[Json] = get.key match {
+          case MetadataQuery(_, None, None, None, None, _) => json.validNel
           case MetadataQuery(_, None, Some(key), None, None, _) => JsonEditor.includeJson(json, NonEmptyList.of(key))
           case MetadataQuery(_, None, None, includeKeys, excludeKeys, _) => JsonEditor.includeExcludeJson(json, includeKeys, excludeKeys)
           // The following three don't bother with exclusions or inclusions since they are only used internally
           // and the existing client code is robust to superfluous data.
-          case MetadataQuery(_, Some(_), None, None, None, _) => json
-          case MetadataQuery(_, Some(_), Some(_), None, None, _) => json
-          case MetadataQuery(_, Some(_), None, _, _, _) => json
+          case MetadataQuery(_, Some(_), None, None, None, _) => json.validNel
+          case MetadataQuery(_, Some(_), Some(_), None, None, _) => json.validNel
+          case MetadataQuery(_, Some(_), None, _, _, _) => json.validNel
           case wrong => throw new RuntimeException(s"Programmer Error: Invalid MetadataQuery: $wrong")
         }
         // For carbonited metadata, "expanded" subworkflows translates to not deleting subworkflows out of the root workflow that already
         // contains them. So `intermediate.validNel` for expanded subworkflows and `JsonEditor.replaceSubworkflowMetadataWithId`
         // for unexpanded subworkflows.
-        if (get.key.expandSubWorkflows) intermediate.validNel else JsonEditor.unexpandSubworkflows(intermediate)
+        if (get.key.expandSubWorkflows) intermediate else intermediate flatMap JsonEditor.unexpandSubworkflows
       case other =>
         throw new RuntimeException(s"Programmer Error: Unexpected BuildWorkflowMetadataJsonAction message of type '${other.getClass.getSimpleName}': $other")
     }

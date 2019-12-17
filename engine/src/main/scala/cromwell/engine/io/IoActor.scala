@@ -179,8 +179,13 @@ object IoActor {
     case _ => false
   }
 
-  def is5xxServerError(failure: Throwable): Boolean = {
-    val serverErrorPattern = "^.*5\\d{2} \\w+(.*)?"
+  def isGCS500(failure: Throwable): Boolean = {
+    val serverErrorPattern = ".*Could not read from gs.+500 Internal Server Error.*"
+    Option(failure.getMessage).exists(_.matches(serverErrorPattern))
+  }
+
+  def isGCS503(failure: Throwable): Boolean = {
+    val serverErrorPattern = ".*Could not read from gs.+503 Service Unavailable.*"
     Option(failure.getMessage).exists(_.matches(serverErrorPattern))
   }
 
@@ -201,22 +206,22 @@ object IoActor {
   val AdditionalRetryableErrorMessages = List(
     "Connection closed prematurely"
   ).map(_.toLowerCase)
-  
+
   /**
     * Failures that are considered retryable.
     * Retrying them should increase the "retry counter"
     */
   def isRetryable(failure: Throwable): Boolean = failure match {
-    case gcs: StorageException => gcs.isRetryable || 
+    case gcs: StorageException => gcs.isRetryable ||
       isRetryable(gcs.getCause) ||
-      AdditionalRetryableHttpCodes.contains(gcs.getCode) || 
+      AdditionalRetryableHttpCodes.contains(gcs.getCode) ||
       AdditionalRetryableErrorMessages.exists(gcs.getMessage.toLowerCase.contains)
     case _: SSLException => true
     case _: BatchFailedException => true
     case _: SocketException => true
     case _: SocketTimeoutException => true
     case ioE: IOException if Option(ioE.getMessage).exists(_.contains("Error getting access token for service account")) => true
-    case ioE: IOException => is5xxServerError(ioE)
+    case ioE: IOException => isGCS500(ioE) || isGCS503(ioE)
     case other => isTransient(other)
   }
 

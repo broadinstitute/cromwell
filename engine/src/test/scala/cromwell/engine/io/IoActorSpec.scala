@@ -237,6 +237,8 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
     val nonRetryables = List(
       new IOException("message: 500 Internal Server Error Backend Error"),
       new IOException("404 File Not Found"),
+      new IOException("502 HTTP Status Code"),
+      new Exception("502 HTTP Status Code"),
       new Exception("5xx HTTP Status Code"),
       new IOException("Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-500/rc: 404 File Not Found")
     )

@@ -118,7 +118,7 @@ object JsonEditor {
       // the search has failed so return `None`. If there is a matching key and there are no more components,
       // the search has succeeded so return a result. Otherwise continue the search deeper into the inner JSON value.
       def descend(json: Json, remainingComponents: NonEmptyList[String]): Option[Json] = {
-        def valueForObjectWithKey(json: Json): Option[Json] = {
+        def valueForObjectWithKey: Option[Json] = {
           // If `json` is not a JSON Object or does not a key matching the search return `None`, otherwise return `Option(value)`.
           for {
             jsonObject <- json.asObject
@@ -126,7 +126,7 @@ object JsonEditor {
           } yield value
         }
 
-        valueForObjectWithKey(json) flatMap { inner =>
+        valueForObjectWithKey flatMap { inner =>
           remainingComponents.tail match {
             case Nil => Option(inner) // No more search components, the search has succeeded.
             case h :: t =>

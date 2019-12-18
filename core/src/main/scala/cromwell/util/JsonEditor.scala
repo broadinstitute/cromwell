@@ -118,23 +118,25 @@ object JsonEditor {
       // the search has failed so return `None`. If there is a matching key and there are no more components,
       // the search has succeeded so return a result. Otherwise continue the search deeper into the inner JSON value.
       def descend(json: Json, remainingComponents: NonEmptyList[String]): Option[Json] = {
-        json.asObject match {
-          case None => None
-          case Some(jsonObject) =>
-            val component = remainingComponents.head
-            jsonObject(component) match {
-              case None => None
-              case Some(inner) =>
-                remainingComponents.tail match {
-                  case Nil => Option(inner)
-                  case h :: t =>
-                    val descentResult = descend(inner, NonEmptyList.of(h, t: _*))
-                    // If there is a result, wrap it in a single field JSON object using the head of the filter
-                    // components as the key. This rebuilds the object structure from the inside out as the
-                    // recursion backs out.
-                    descentResult map { j => Json.fromFields(List((h, j)))}
-                }
-            }
+        def valueForObjectWithKey(json: Json): Option[Json] = {
+          // If `json` is not a JSON Object or does not a key matching the search return `None`, otherwise return `Option(value)`.
+          for {
+            jsonObject <- json.asObject
+            value <- jsonObject(remainingComponents.head)
+          } yield value
+        }
+
+        valueForObjectWithKey(json) flatMap { inner =>
+          remainingComponents.tail match {
+            case Nil => Option(inner) // No more search components, the search has succeeded.
+            case h :: t =>
+              // The search must continue, recurse.
+              val descentResult = descend(inner, NonEmptyList.of(h, t: _*))
+              // If there is a result, wrap it in a single field JSON object using the head of the filter
+              // components as the key. This rebuilds the object structure from the inside out as the
+              // recursion backs out.
+              descentResult map { j => Json.fromFields(List((h, j))) }
+          }
         }
       }
 

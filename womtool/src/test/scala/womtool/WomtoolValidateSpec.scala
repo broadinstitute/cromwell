@@ -1,7 +1,7 @@
 package womtool
 
-import java.nio.file.Path
-
+import java.nio.file.{Files, Path}
+import scala.collection.JavaConverters._
 import better.files.File
 import cromwell.core.path.DefaultPathBuilder
 import org.scalatest.{FlatSpec, Matchers}
@@ -15,7 +15,7 @@ class WomtoolValidateSpec extends FlatSpec with Matchers {
   val validationTestCases = File("womtool/src/test/resources/validate")
   val languageVersions = Option(validationTestCases.list).toList.flatten
 
-  val knownUngraphableTests = List(("wdl_draft2", "task_only"))
+  val knownUngraphableTests = List("task_only")
 
   behavior of "womtool validate"
 
@@ -58,12 +58,34 @@ class WomtoolValidateSpec extends FlatSpec with Matchers {
         WomtoolMain.runWomtool(Seq("validate", wdl.getAbsolutePath) ++ inputsArgs) should be(SuccessfulTermination("Success!"))
       }
 
-      it should s"be able to output a graph for $versionName workflow: '$validCase'$withInputsAddition" in {
-        WomtoolMain.runWomtool(Seq("graph", wdl.getAbsolutePath)) match {
-          case SuccessfulTermination(_) if !knownUngraphableTests.contains((versionName, validCase)) => // woohoo!
-          case UnsuccessfulTermination(_) if knownUngraphableTests.contains((versionName, validCase)) => // woohoo!
-          case other =>
-            fail(s"Unexpected termination value: $other")
+      if (!knownUngraphableTests.contains(validCase)) {
+        it should s"be able to output a graph for $versionName workflow: '$validCase'$withInputsAddition" in {
+
+          val WdlCallRegex = "^[^#]*call ([a-zA-Z0-9_]+)(\\.([a-zA-Z0-9_]+))?(.*as ([a-zA-Z0-9_]+))?.*$".r
+          val WomtoolGraphCallRegex = "^.*CALL_([a-zA-Z0-9_]+) \\[.*$".r
+
+          WomtoolMain.runWomtool(Seq("graph", wdl.getAbsolutePath)) match {
+            case SuccessfulTermination(womtoolGraph) =>
+
+              // Check that every call in the WDL is represented in the 'womtool graph' output, and vice versa:
+              val callsInWdl = (Files.readAllLines(wdl.toPath).asScala.collect {
+                case WdlCallRegex(taskName, null, null, null, null) => taskName
+                case WdlCallRegex(_, _, taskName, null, null) =>
+                  taskName
+                case WdlCallRegex(_, _, _, _, callAlias) => callAlias
+              }).toSet
+
+              val callsInWomtoolGraph = (womtoolGraph.lines.collect {
+                case WomtoolGraphCallRegex(call) => call
+              }).toSet
+
+              if (!callsInWomtoolGraph.exists(_.startsWith("ScatterAt"))) {
+                withClue(s"In WDL not in Graph: ${callsInWdl -- callsInWomtoolGraph}; In Graph not in WDL: ${callsInWomtoolGraph -- callsInWdl}") {
+                  callsInWdl should be(callsInWomtoolGraph)
+                }
+              }
+            case other => fail(s"Unexpected unsuccessful termination: $other")
+          }
         }
       }
     }

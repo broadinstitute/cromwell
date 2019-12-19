@@ -454,6 +454,75 @@ class JsonEditorSpec extends FlatSpec with Matchers {
     val expected = parseString(expectedJson)
     actual shouldEqual expected
   }
+
+  it should "exclude keys which are listed to both 'include' and 'exclude'" in {
+    val includeKeys = NonEmptyList.of("callCaching", "backendStatus")
+    val excludeKeys = NonEmptyList.of("callCaching", "callCaching:hashes:runtime attribute:docker")
+
+    val actual = includeExcludeJson(helloWorldPapiV2, includeKeys, excludeKeys).get
+    val expectedJson =
+      """
+        |{
+        |  "calls": {
+        |    "wf_hello.hello": [
+        |      {
+        |        "backendStatus": "Success",
+        |        "attempt": 1,
+        |        "shardIndex": -1
+        |      }
+        |    ]
+        |  },
+        |  "id": "d53a063a-e8b7-403f-a400-a85f089a8928"
+        |}
+        |""".stripMargin
+
+    val expected = parseString(expectedJson)
+    actual shouldEqual expected
+  }
+
+  it should "remove excluded sections even if a sub-section was included" in {
+    val includeKeys = NonEmptyList.of("callCaching:hashes", "backendStatus")
+    val excludeKeys = NonEmptyList.of("callCaching")
+
+    val actual = includeExcludeJson(helloWorldPapiV2, includeKeys, excludeKeys).get
+    val expectedJson =
+      """
+        |{
+        |  "calls": {
+        |    "wf_hello.hello": [
+        |      {
+        |        "backendStatus": "Success",
+        |        "attempt": 1,
+        |        "shardIndex": -1
+        |      }
+        |    ]
+        |  },
+        |  "id": "d53a063a-e8b7-403f-a400-a85f089a8928"
+        |}
+        |""".stripMargin
+
+    val expected = parseString(expectedJson)
+    actual shouldEqual expected
+  }
+
+  it should "ignore attempts to exclude ids, attempts, and shard indices" in {
+    val includeKeys = None
+    val excludeKeys = Option(NonEmptyList.of("id", "attempt", "shardIndex"))
+
+    val actual = includeExcludeJson(helloWorldPapiV2, includeKeys, excludeKeys).get
+    val expected = helloWorldPapiV2
+
+    actual shouldEqual expected
+  }
+
+  it should "be able to exclude calls, if so asked" in {
+    val includeKeys = None
+    val excludeKeys = Option(NonEmptyList.of("calls"))
+
+    val actual = includeExcludeJson(helloWorldPapiV2, includeKeys, excludeKeys).get
+    val expected = helloWorldPapiV2.mapObject(_.remove("calls"))
+    actual shouldEqual expected
+  }
 }
 
 object JsonEditorSpec {

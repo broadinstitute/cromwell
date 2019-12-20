@@ -2,6 +2,11 @@
 
 ## 48 Release Notes
 
+### Womtool Graph for WDL 1.0
+
+The `womtool graph` command now supports WDL 1.0 workflows. 
+* **Note:** Generated graphs - including in WDL draft 2 - may look slightly different than they did in version 47.
+
 ### Documentation
 
 + Documented the use of a HSQLDB file-based database so users can try call-caching without needing a database server.

@@ -34,6 +34,7 @@ cromwell::build::run_centaur \
     -e abort.scheduled_abort \
     -e relative_output_paths \
     -e relative_output_paths_colliding \
-    -e standard_output_paths_colliding_prevented
+    -e standard_output_paths_colliding_prevented \
+    -e space
 
 cromwell::build::generate_code_coverage

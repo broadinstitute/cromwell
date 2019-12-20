@@ -1,6 +1,6 @@
 package cromwell.database.slick
 
-import java.sql.{Connection, PreparedStatement, Statement}
+import java.sql.Connection
 import java.util.concurrent.{ExecutorService, Executors}
 
 import com.mysql.cj.jdbc.exceptions.MySQLTransactionRollbackException
@@ -238,36 +238,5 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
           }
       }
     }(actionExecutionContext)
-  }
-
-  /*
-    * Upsert the provided values in batch.
-    * Fails the query if one or more upsert failed.
-    * Adapted from https://github.com/slick/slick/issues/1781
-   */
-  protected[this] def createBatchUpsert[T](description: String,
-                                           compiled: dataAccess.driver.JdbcCompiledInsert,
-                                           values: Iterable[T]
-                                          )(implicit ec: ExecutionContext): DBIO[Unit] = {
-    SimpleDBIO { context =>
-      context.session.withPreparedStatement[Array[Int]](compiled.upsert.sql) { st: PreparedStatement =>
-        values.foreach { update =>
-          st.clearParameters()
-          compiled.upsert.converter.set(update, st)
-          st.addBatch()
-        }
-        st.executeBatch()
-      }
-    } flatMap { upsertCounts =>
-      val failures = upsertCounts.filter(_ == Statement.EXECUTE_FAILED)
-      if (failures.isEmpty) DBIO.successful(())
-      else {
-        val valueList = values.toList
-        val failedRequests = failures.map(valueList(_))
-        DBIO.failed(new RuntimeException(
-          s"$description failed to upsert the following rows: ${failedRequests.mkString(", ")}"
-        ))
-      }
-    }
   }
 }

@@ -1,6 +1,6 @@
 package cromwell.services.keyvalue.impl
 
-import java.sql.{BatchUpdateException, SQLIntegrityConstraintViolationException}
+import java.sql.SQLIntegrityConstraintViolationException
 
 import cromwell.core.Tags.DbmsTest
 import cromwell.core.WorkflowId
@@ -96,6 +96,8 @@ class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with
       } yield ()
 
       (futureEx map { ex =>
+        println(ex)
+
         ex.getMessage should fullyMatch regex getFailureRegex(databaseSystem)
         ex.getClass should be(getFailureClass(databaseSystem))
       }).flatMap(_ => verifyValues).futureValue
@@ -121,8 +123,8 @@ object KeyValueDatabaseSpec {
   private def getFailureClass(databaseSystem: DatabaseSystem): Class[_ <: Exception] = {
     databaseSystem.platform match {
       case HsqldbDatabasePlatform => classOf[SQLIntegrityConstraintViolationException]
-      case MariadbDatabasePlatform => classOf[BatchUpdateException]
-      case MysqlDatabasePlatform => classOf[BatchUpdateException]
+      case MariadbDatabasePlatform => classOf[SQLIntegrityConstraintViolationException]
+      case MysqlDatabasePlatform => classOf[SQLIntegrityConstraintViolationException]
       case PostgresqlDatabasePlatform => classOf[PSQLException]
     }
   }

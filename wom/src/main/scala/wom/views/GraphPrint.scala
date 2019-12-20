@@ -15,6 +15,11 @@ final class GraphPrint(executableCallable: ExecutableCallable) {
 
   def dotString = WorkflowDigraph(executableCallable.name, listAllGraphNodes(executableCallable.graph, new AtomicInteger(0), Map.empty)).dotString
 
+  // A "monoid" is just a fancy way of saying "thing you can add together".
+  // The cats library makes it easy to turn case classes into Monoids - ie into "things you can add together".
+  // Adding one NodesAndLinks collection to another is the same as adding together the nodes set, and the links set, of each,
+  //  and making a new NodesAndLinks out of the combined results.
+  // This line uses cats to allow NodesAndLinks to be added together, which is then used later on by calls to "foldMap".
   implicit val nodeAndLinkMonoid: Monoid[NodesAndLinks] = cats.derived.MkMonoid[NodesAndLinks]
 
   /*

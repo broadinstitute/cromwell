@@ -86,7 +86,7 @@ object Dependencies {
   private val simulacrumV = "0.15.0"
   private val slf4jV = "1.7.25"
   private val slickCatsV = "0.9.0"
-  private val slickV = "3.2.3"
+  private val slickV = "3.3.2"
   private val snakeyamlV = "1.23"
   private val specs2MockV = "4.4.1"
   private val sprayJsonV = "1.3.5"

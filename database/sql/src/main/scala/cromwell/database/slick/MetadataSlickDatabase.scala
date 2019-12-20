@@ -217,7 +217,6 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
         // TODO: Add a logging framework to this 'database' project and log this weirdness.
         updatedSummaryPosition
       }
-      _ = println(s"maximumMetadataEntryIdInTable=$maximumMetadataEntryIdInTable; updatedSummaryPosition=$updatedSummaryPosition")
     } yield (updatedSummaryPosition - previousMaxMetadataEntryId, maximumMetadataEntryIdInTable - updatedSummaryPosition, maximumMetadataEntryIdInTable)
 
     runTransaction(action)

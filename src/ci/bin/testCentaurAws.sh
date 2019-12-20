@@ -17,6 +17,8 @@ cromwell::build::pip_install awscli --upgrade
 export AWS_SHARED_CREDENTIALS_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_credentials
 export AWS_CONFIG_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_config
 
+# "space" and "scatter" tests are disabled because hey intermittently fail on AWS
+# https://broadworkbench.atlassian.net/browse/BA-6152
 cromwell::build::run_centaur \
     -p 100 \
     -e smartseq2singlesample \

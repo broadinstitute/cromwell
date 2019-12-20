@@ -96,8 +96,6 @@ class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with
       } yield ()
 
       (futureEx map { ex =>
-        println(ex)
-
         ex.getMessage should fullyMatch regex getFailureRegex(databaseSystem)
         ex.getClass should be(getFailureClass(databaseSystem))
       }).flatMap(_ => verifyValues).futureValue

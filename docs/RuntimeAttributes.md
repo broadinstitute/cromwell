@@ -52,6 +52,7 @@ There are a number of additional runtime attributes that apply to the Google Clo
 - [bootDiskSizeGb](#bootdisksizegb)
 - [noAddress](#noaddress)
 - [gpuCount and gpuType](#gpucount-and-gputype)
+- [cpuPlatform](#cpuPlatform)
 
 
 
@@ -405,3 +406,17 @@ runtime {
     zones: ["us-central1-c"]
 }
 ```
+
+### `cpuPlatform`
+
+This option is specific to the Google Cloud backend, specifically [this](https://cloud.google.com/compute/docs/instances/specify-min-cpu-platform) feature when a certain minimum CPU platform is desired.
+
+A usage example:
+
+```
+runtime {
+    cpu: 2
+    cpuPlatform: "Intel Skylake"
+}
+```
+Note that when this options is specified, make sure the requested CPU platform is [available](https://cloud.google.com/compute/docs/regions-zones/#available) in the `zones` you selected.

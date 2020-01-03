@@ -29,6 +29,18 @@ object BiscayneExpressionValueConsumers {
     }
   }
 
+  implicit val minExpressionValueConsumer: ExpressionValueConsumer[Min] = new ExpressionValueConsumer[Min] {
+    override def expressionConsumedValueHooks(a: Min)(implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): Set[UnlinkedConsumedValueHook] = {
+      expressionValueConsumer.expressionConsumedValueHooks(a.arg1)(expressionValueConsumer) ++ expressionValueConsumer.expressionConsumedValueHooks(a.arg2)(expressionValueConsumer)
+    }
+  }
+
+  implicit val maxExpressionValueConsumer: ExpressionValueConsumer[Max] = new ExpressionValueConsumer[Max] {
+    override def expressionConsumedValueHooks(a: Max)(implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): Set[UnlinkedConsumedValueHook] = {
+      expressionValueConsumer.expressionConsumedValueHooks(a.arg1)(expressionValueConsumer) ++ expressionValueConsumer.expressionConsumedValueHooks(a.arg2)(expressionValueConsumer)
+    }
+  }
+
   implicit val noneLiteralExpressionValueConsumer: ExpressionValueConsumer[NoneLiteralElement.type] = new ExpressionValueConsumer[NoneLiteralElement.type] {
     override def expressionConsumedValueHooks(a: NoneLiteralElement.type)(implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): Set[UnlinkedConsumedValueHook] = {
       // None literals consume no values:

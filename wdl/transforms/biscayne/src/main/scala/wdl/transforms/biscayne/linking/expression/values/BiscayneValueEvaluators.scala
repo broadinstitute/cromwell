@@ -12,7 +12,7 @@ import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiatio
 import wdl.transforms.base.linking.expression.values.EngineFunctionEvaluators.processValidatedSingleValue
 import wom.expression.IoFunctionSet
 import wom.types._
-import wom.values.{WomArray, WomMap, WomOptionalValue, WomPair, WomValue}
+import wom.values.{WomArray, WomInteger, WomFloat, WomMap, WomOptionalValue, WomPair, WomValue}
 import wom.types.coercion.defaults._
 
 object BiscayneValueEvaluators {
@@ -104,6 +104,51 @@ object BiscayneValueEvaluators {
         case WomArray(womType@WomArrayType(WomPairType(x, _)), _) => s"Cannot evaluate 'collect_by_key' on type ${womType.stableName}. Keys must be primitive but got ${x.stableName}.".invalidNel
         case other => s"Invalid call of 'collect_by_key' on parameter of type '${other.womType.stableName}' (expected Map[X, Y])".invalidNel
       } (coercer = WomArrayType(WomPairType(WomAnyType, WomAnyType)))
+    }
+  }
+
+  implicit val minFunctionEvaluator: ValueEvaluator[Min] = new ValueEvaluator[Min] {
+    override def evaluateValue(a: Min,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                              (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomValue]] = {
+      val value1 = expressionValueEvaluator.evaluateValue(a.arg1, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
+      val value2 = expressionValueEvaluator.evaluateValue(a.arg2, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
+
+      (value1, value2) flatMapN {
+        case (v1, v2) =>
+          val newValue = (v1.value, v2.value) match {
+            case (WomInteger(i1), WomInteger(i2)) => WomInteger(Math.min(i1, i2)).validNel
+            case (WomInteger(i1), WomFloat(l2)) => WomFloat(Math.min(i1.doubleValue, l2)).validNel
+            case (WomFloat(l1), WomInteger(i2)) => WomFloat(Math.min(l1, i2.doubleValue)).validNel
+            case (WomFloat(l1), WomFloat(l2)) => WomFloat(Math.min(l1, l2)).validNel
+            case (other1, other2) => s"Invalid arguments to 'min':(${other1.typeName}, ${other2.typeName})".invalidNel
+          }
+          newValue map { v => EvaluatedValue(v, v1.sideEffectFiles ++ v2.sideEffectFiles) }
+      }
+    }
+  }
+
+  implicit val maxFunctionEvaluator: ValueEvaluator[Max] = new ValueEvaluator[Max] {
+    override def evaluateValue(a: Max,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomValue]] = {
+      val value1 = expressionValueEvaluator.evaluateValue(a.arg1, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
+      val value2 = expressionValueEvaluator.evaluateValue(a.arg2, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
+
+      (value1, value2) flatMapN {
+        case (v1, v2) =>
+          val newValue = (v1.value, v2.value) match {
+            case (WomInteger(i1), WomInteger(i2)) => WomInteger(Math.max(i1, i2)).validNel
+            case (WomInteger(i1), WomFloat(l2)) => WomFloat(Math.max(i1.doubleValue, l2)).validNel
+            case (WomFloat(l1), WomInteger(i2)) => WomFloat(Math.max(l1, i2.doubleValue)).validNel
+            case (WomFloat(l1), WomFloat(l2)) => WomFloat(Math.max(l1, l2)).validNel
+            case (other1, other2) => s"Invalid arguments to 'max':(${other1.typeName}, ${other2.typeName})".invalidNel
+          }
+          newValue map { v => EvaluatedValue(v, v1.sideEffectFiles ++ v2.sideEffectFiles) }
+      }
     }
   }
 }

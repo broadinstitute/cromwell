@@ -100,6 +100,9 @@ package object consumed {
       case a: AsPairs => a.expressionConsumedValueHooks(expressionValueConsumer)
       case a: CollectByKey => a.expressionConsumedValueHooks(expressionValueConsumer)
 
+      case a: Min => a.expressionConsumedValueHooks(expressionValueConsumer)
+      case a: Max => a.expressionConsumedValueHooks(expressionValueConsumer)
+
       case other => throw new Exception(s"Cannot generate consumed values for ExpressionElement ${other.getClass.getSimpleName}")
     }
   }

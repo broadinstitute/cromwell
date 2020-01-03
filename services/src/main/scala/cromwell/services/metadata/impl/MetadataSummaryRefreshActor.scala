@@ -32,7 +32,7 @@ object MetadataSummaryRefreshActor {
 
   sealed trait SummaryRefreshData
   case object EmptySummaryRefreshData extends SummaryRefreshData
-  final case class PreviousMaximumMetadataEntryId(value: Long) extends AnyVal with SummaryRefreshData
+  final case class PreviousMaximumMetadataEntryId(value: Long) extends SummaryRefreshData
 
   // Internal message to self
   case class MetadataSummaryComplete(nextState: SummaryRefreshData)

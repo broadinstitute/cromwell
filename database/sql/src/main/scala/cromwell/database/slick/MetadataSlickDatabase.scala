@@ -178,7 +178,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                    rootWorkflowIdKey: String,
                                    labelMetadataKey: String,
                                    limit: Int,
-                                   nextSummaryPointerUpdateCeiling: Option[Long],
+                                   permittedSummaryStatusPointerUpdate: Option[Long],
                                    buildUpdatedSummary:
                                    (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                                      => WorkflowMetadataSummaryEntry)
@@ -202,7 +202,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
         summaryPositionFunction =
           metadataEntries => {
             if (metadataEntries.nonEmpty) {
-              nextSummaryPointerUpdateCeiling match {
+              permittedSummaryStatusPointerUpdate match {
                 case Some(ceiling) => Math.min(metadataEntries.map(_.metadataEntryId.get).max, ceiling)
                 case None => previousMaxMetadataEntryId // ie don't move the pointer
               }

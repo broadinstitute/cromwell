@@ -66,6 +66,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
     * Retrieves next summarizable block of metadata satisfying the specified criteria.
     *
     * @param buildUpdatedSummary Takes in the optional existing summary and the metadata, returns the new summary.
+    * @param permittedSummaryStatusPointerUpdate If provided, the highest value to which the summary status pointer can be updated. If not set, the pointer will not move.
     * @return A `Future` with the number of rows summarized by the invocation, and the number of rows still to summarize.
     */
   def summarizeIncreasing(summaryNameIncreasing: String,
@@ -78,7 +79,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
                           rootWorkflowIdKey: String,
                           labelMetadataKey: String,
                           limit: Int,
-                          nextSummaryPointerUpdateCeiling: Option[Long],
+                          permittedSummaryStatusPointerUpdate: Option[Long],
                           buildUpdatedSummary:
                           (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                             => WorkflowMetadataSummaryEntry)

@@ -32,7 +32,7 @@ object MetadataSummaryRefreshActor {
 
   sealed trait SummaryRefreshData
   case object EmptySummaryRefreshData extends SummaryRefreshData
-  final case class KnownNextSummaryStatusPointerCeiling(ceiling: Long) extends SummaryRefreshData
+  final case class PreviousMaximumMetadataEntryId(value: Long) extends AnyVal with SummaryRefreshData
 
   // Internal message to self
   case class MetadataSummaryComplete(nextState: SummaryRefreshData)
@@ -62,12 +62,12 @@ class MetadataSummaryRefreshActor(override val serviceRegistryActor: ActorRef)
   when (WaitingForRequest) {
     case Event(SummarizeMetadata(limit, respondTo), data) =>
 
-      val summaryPointerUpdateCeiling: Option[Long] = data match {
+      val permittedSummaryStatusPointerUpdate: Option[Long] = data match {
         case EmptySummaryRefreshData => None
-        case KnownNextSummaryStatusPointerCeiling(value) => Option(value)
+        case PreviousMaximumMetadataEntryId(value) => Option(value)
       }
 
-      refreshWorkflowMetadataSummaries(limit, summaryPointerUpdateCeiling) onComplete {
+      refreshWorkflowMetadataSummaries(limit, permittedSummaryStatusPointerUpdate) onComplete {
         case Success(summaryResult) =>
           sendGauge(increasingGapPath, summaryResult.increasingGap, instrumentationPrefix)
           sendGauge(decreasingGapPath, summaryResult.decreasingGap, instrumentationPrefix)
@@ -75,7 +75,7 @@ class MetadataSummaryRefreshActor(override val serviceRegistryActor: ActorRef)
           count(increasingProcessedPath, summaryResult.rowsProcessedIncreasing, instrumentationPrefix)
           count(decreasingProcessedPath, summaryResult.rowsProcessedDecreasing, instrumentationPrefix)
 
-          self ! MetadataSummaryComplete(KnownNextSummaryStatusPointerCeiling(summaryResult.maximumKnownMetadataEntryId))
+          self ! MetadataSummaryComplete(PreviousMaximumMetadataEntryId(summaryResult.maximumKnownMetadataEntryId))
           respondTo ! MetadataSummarySuccess
         case Failure(t) =>
           log.error(t, "Failed to summarize metadata")

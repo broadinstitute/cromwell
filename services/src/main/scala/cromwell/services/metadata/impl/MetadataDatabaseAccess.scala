@@ -165,7 +165,7 @@ trait MetadataDatabaseAccess {
       metadataToMetadataEvents(id)
   }
 
-  def refreshWorkflowMetadataSummaries(limit: Int, nextSummaryPointerUpdateCeiling: Option[Long])(implicit ec: ExecutionContext): Future[SummaryResult] = {
+  def refreshWorkflowMetadataSummaries(limit: Int, permittedSummaryStatusPointerUpdate: Option[Long])(implicit ec: ExecutionContext): Future[SummaryResult] = {
     for {
       (increasingProcessed, increasingGap, maximumMetadataEntryIdInTable) <- metadataDatabaseInterface.summarizeIncreasing(
         summaryNameIncreasing = WorkflowMetadataKeys.SummaryNameIncreasing,
@@ -178,7 +178,7 @@ trait MetadataDatabaseAccess {
         rootWorkflowIdKey = WorkflowMetadataKeys.RootWorkflowId,
         labelMetadataKey = WorkflowMetadataKeys.Labels,
         limit = limit,
-        nextSummaryPointerUpdateCeiling: Option[Long],
+        permittedSummaryStatusPointerUpdate = permittedSummaryStatusPointerUpdate,
         buildUpdatedSummary = MetadataDatabaseAccess.buildUpdatedSummary)
       (decreasingProcessed, decreasingGap) <- metadataDatabaseInterface.summarizeDecreasing(
         summaryNameDecreasing = WorkflowMetadataKeys.SummaryNameDecreasing,

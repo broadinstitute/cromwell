@@ -41,7 +41,16 @@ object JsonEditor {
       case _ => json.validNel
     }
 
-  final case class Filter(components: NonEmptyList[String])
+  /** A `Filter` represents a list of one or more components corresponding to a single `includeKey` or `excludeKey` parameter.
+    * If an `includeKey` or `excludeKey` parameter specifies a nested term such as `foo:bar`, the `Filter`'s `components`
+    * would be the two element list `[foo, bar]`.
+    */
+  final case class Filter(components: NonEmptyList[String]) {
+    // Does the first component match the specified object key.
+    def firstComponentMatches(objectKey: String): Boolean = components.head == objectKey
+
+    def hasTrailingComponents: Boolean = components.tail != Nil
+  }
 
   /** A `FilterGroup` represents all the `Filter`s for include xor exclude. The argument is intentionally not a NEL
     * since `FilterGroup`s should start out non-empty but may become empty after `remove`s. e.g. excludeKey 'id' in
@@ -52,11 +61,12 @@ object JsonEditor {
       this.copy(filters filterNot { f => componentSet.contains(f.components.head) })
     }
 
-    private def filtersMatchingKey(objectKey: String): List[Filter] = filters.filter(_.components.head == objectKey)
+    private def filtersWithMatchingFirstComponents(objectKey: String): List[Filter] = filters.filter(_.firstComponentMatches(objectKey))
 
+    // Apply the excludes specified by this `FilterGroup` to the specified `jsonObject`.
     def applyExcludes(jsonObject: JsonObject): JsonObject = {
-      // If at the top level there are no matches at all, either because there is no object to be drilled into or
-      // there is no object key matching the current filter component, keep the original JSON.
+      // If there are no matches at all, either because there is no object to be drilled into or
+      // there is no object key matching the current filter component, keep the original JSON (i.e. exclude nothing).
       // If the key has matched completely, remove the key/value from the object and return the modified object.
       // Otherwise recursively descend into the object attempting to continue to match.
       def descend(json: Json, remainingComponents: NonEmptyList[String]): Json = {
@@ -68,16 +78,16 @@ object JsonEditor {
               case None => json
               case Some(inner) =>
                 val updatedObject = remainingComponents.tail match {
-                  case Nil =>
+                  case Nil => // An exact match, remove this key/value.
                     jsonObject.remove(component)
-                  case h :: t =>
+                  case h :: t => // The first component matches but there are more components so recurse.
                     val descentResult = descend(inner, NonEmptyList.of(h, t: _*))
+                    // Special case: if the JSON object has become empty as a result of editing, delete it.
                     val innerObjectBecameEmpty = for {
                       innerObject <- inner.asObject
                       descentResultObject <- descentResult.asObject
                     } yield innerObject.nonEmpty && descentResultObject.isEmpty
 
-                    // Special case: if the JSON object has become empty as a result of editing, delete it.
                     if (innerObjectBecameEmpty.contains(true))
                       jsonObject.remove(component)
                     else
@@ -88,13 +98,15 @@ object JsonEditor {
         }
       }
 
+      // Process the key/value entries of the specified `jsonObject`: remove entries exactly matching a filter,
+      // pass through entries not matching any filter, and potentially edit entries for filters with multiple components.
       val updatedKeyValues: List[(String, Json)] = jsonObject.toList flatMap { case (key, json) =>
-        filtersMatchingKey(key) match {
+        filtersWithMatchingFirstComponents(key) match {
           case Nil =>
             // No filters matched this object key, return the key/value unmodified.
             List((key, json))
-          case fs if fs.exists(_.components.tail == Nil) =>
-            // If there is a filter that has no other components and thus matches the object key completely,
+          case fs if fs.exists(! _.hasTrailingComponents) =>
+            // If there is a filter that has no trailing components and thus matches the object key completely,
             // return a Nil List to delete the key/value pair from the object.
             Nil
           case fs =>
@@ -118,8 +130,8 @@ object JsonEditor {
       // the search has failed so return `None`. If there is a matching key and there are no more components,
       // the search has succeeded so return a result. Otherwise continue the search deeper into the inner JSON value.
       def descend(json: Json, remainingComponents: NonEmptyList[String]): Option[Json] = {
-        def valueForObjectWithKey: Option[Json] = {
-          // If `json` is not a JSON Object or does not a key matching the search return `None`, otherwise return `Option(value)`.
+        // If `json` is not a JSON Object or does not contain a matching key return `None`, otherwise return `Option(value)`.
+        val valueForObjectWithKey: Option[Json] = {
           for {
             jsonObject <- json.asObject
             value <- jsonObject(remainingComponents.head)
@@ -140,8 +152,11 @@ object JsonEditor {
         }
       }
 
+      // Process the specified key/value pair per the specified include filters. If no filters match return an empty List,
+      // if there is an exact match return the key/value pair wrapped in a List, otherwise recurse into the object
+      // structure looking for matches.
       def updateKeyValue(key: String, json: Json): List[(String, Json)] =
-        filtersMatchingKey(key) match {
+        filtersWithMatchingFirstComponents(key) match {
           case Nil =>
             // No filters matched this object key, return an empty List.
             Nil
@@ -198,10 +213,14 @@ object JsonEditor {
 
   def includeJson(json: Json, keys: NonEmptyList[String]): ErrorOr[Json] = FilterGroup.build(keys) flatMap applyIncludes(json, forceWorkflowId = true)
 
+  // Apply the specified `filterGroup` to this `workflowJson`, including only key/values in workflows and calls where the
+  // key matches a filter.
   private def applyIncludes(workflowJson: Json, forceWorkflowId: Boolean = false)(filterGroup: FilterGroup): ErrorOr[Json] = {
     // Returns an empty JsonObject if all calls have been filtered out or if there were never any calls to begin with.
     def filterCalls(workflowObject: JsonObject): ErrorOr[JsonObject] = {
-      def buildCallObject(unfilteredCallObject: JsonObject, shallowFilteredCallObject: JsonObject, filteredSubworkflow: JsonObject): JsonObject = {
+      // Construct a call object as appropriate for include filtering: take into account the possible emptiness of a subworkflow object
+      // or the call itself, adding in `shardIndex` and `attempt` if either is non-empty.
+      def buildCallObject(_shardIndex: Option[Json], _attempt: Option[Json], shallowFilteredCallObject: JsonObject, filteredSubworkflow: JsonObject): JsonObject = {
         // Add in the subworkflow if it is nonempty after filtering, add in `shardIndex` and `attempt` if anything is nonempty.
         val transforms: List[JsonObject => JsonObject] = List(
           obj =>
@@ -212,8 +231,8 @@ object JsonEditor {
               // If either the `shallowFilteredCallObject` or `filteredSubworkflow` object are nonempty and the
               // `shardIndex` and `attempt` fields are present, add those fields to the output object.
               _ <- (shallowFilteredCallObject.nonEmpty || filteredSubworkflow.nonEmpty).option(())
-              shardIndex <- unfilteredCallObject(Keys.shardIndex)
-              attempt <- unfilteredCallObject(Keys.attempt)
+              shardIndex <- _shardIndex
+              attempt <- _attempt
             } yield obj.add(Keys.shardIndex, shardIndex).add(Keys.attempt, attempt)
 
             updatedObject.getOrElse(obj)
@@ -225,11 +244,12 @@ object JsonEditor {
       def filterCallEntry(json: Json): ErrorOr[JsonObject] = {
         for {
           callObject <- json.asObject.map(_.validNel).getOrElse(s"Call entry unexpectedly not an object: $json".invalidNel)
+          // Filter the call object itself, no recursing for subworkflows.
           shallowFilteredCallObject = filterGroup.applyIncludes(callObject)
           subworkflow = callObject(Keys.subWorkflowMetadata).getOrElse(Json.fromJsonObject(JsonObject.empty))
-          shallowFilteredSubworkflow <- applyIncludes(subworkflow)(filterGroup)
-          shallowFilteredSubworkflowObject <- shallowFilteredSubworkflow.asObject.map(_.validNel).getOrElse(s"subworkflow unexpectedly not an object: $subworkflow ".invalidNel)
-          builtCallObject = buildCallObject(callObject, shallowFilteredCallObject, shallowFilteredSubworkflowObject)
+          filteredSubworkflow <- applyIncludes(subworkflow)(filterGroup)
+          filteredSubworkflowObject <- filteredSubworkflow.asObject.map(_.validNel).getOrElse(s"subworkflow unexpectedly not an object: $subworkflow ".invalidNel)
+          builtCallObject = buildCallObject(callObject(Keys.shardIndex), callObject(Keys.attempt), shallowFilteredCallObject, filteredSubworkflowObject)
         } yield builtCallObject
       }
 
@@ -237,13 +257,16 @@ object JsonEditor {
         json.asArray match {
           case None => s"Calls array unexpectedly not an array: $json".invalidNel
           case Some(array) =>
+            // Apply the include filters to every call in the calls array.
             val filteredCalls: ErrorOr[Vector[JsonObject]] = array traverse filterCallEntry
             // Remove empty call objects from the call array.
             val nonEmptyObjects: ErrorOr[Vector[JsonObject]] = filteredCalls map { _.filter(_.nonEmpty) }
+            // Make a JSON array from any objects that are left after filtering.
             nonEmptyObjects map { objs => Json.fromValues(objs map Json.fromJsonObject) }
         }
       }
 
+      // Return the value for "calls" as a JsonObject, returning an empty JsonObject if missing.
       val callsAsObject: ErrorOr[JsonObject] = workflowObject(Keys.calls) match {
         case None => JsonObject.empty.validNel
         case Some(cs) =>
@@ -290,6 +313,8 @@ object JsonEditor {
     } yield Json.fromJsonObject(builtWorkflowObject)
   }
 
+  // Apply the specified `filterGroup` to this `workflowJson`, excluding all key/values in workflows and calls where the
+  // key matches a filter.
   private def applyExcludes(workflowJson: Json)(filterGroup: FilterGroup): ErrorOr[Json] = {
     // Always include 'id' in workflows, 'shardIndex' and 'attempt' in calls. i.e. make sure these keys are excluded
     // from the excludes.

@@ -30,8 +30,7 @@ trait JobKeyValueEntryComponent {
       (workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt, storeKey), unique = true)
   }
 
-  val jobKeyValueEntries = TableQuery[JobKeyValueEntries]
-  lazy val jobKeyValueTableQueryCompiled = driver.compileInsert(jobKeyValueEntries.toNode)
+  protected val jobKeyValueEntries = TableQuery[JobKeyValueEntries]
 
   val jobKeyValueEntryIdsAutoInc = jobKeyValueEntries returning jobKeyValueEntries.map(_.jobKeyValueEntryId)
 

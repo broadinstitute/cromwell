@@ -261,8 +261,7 @@ object JsonEditor {
 
     def buildWorkflowObject(workflowObject: JsonObject,
                             filteredCalls: JsonObject,
-                            filteredWorkflow: JsonObject,
-                            forceWorkflowId: Boolean): JsonObject = {
+                            filteredWorkflow: JsonObject): JsonObject = {
 
       // Add in `calls` if they are nonempty, add in `id` if anything is nonempty or the workflow ID is being forced
       // in as a result of being the query workflow ID.
@@ -287,7 +286,7 @@ object JsonEditor {
       workflowObject <- workflowJson.asObject.map(_.validNel).getOrElse(s"Workflow JSON unexpectedly not an object: $workflowJson".invalidNel)
       filteredCalls <- filterCalls(workflowObject)
       filteredWorkflow = filterGroup.applyIncludes(workflowObject)
-      builtWorkflowObject = buildWorkflowObject(workflowObject, filteredCalls, filteredWorkflow, forceWorkflowId)
+      builtWorkflowObject = buildWorkflowObject(workflowObject, filteredCalls, filteredWorkflow)
     } yield Json.fromJsonObject(builtWorkflowObject)
   }
 

@@ -179,12 +179,12 @@ object IoActor {
     case _ => false
   }
 
-  def isGCS500(failure: Throwable): Boolean = {
+  def isGcs500(failure: Throwable): Boolean = {
     val serverErrorPattern = ".*Could not read from gs.+500 Internal Server Error.*"
     Option(failure.getMessage).exists(_.matches(serverErrorPattern))
   }
 
-  def isGCS503(failure: Throwable): Boolean = {
+  def isGcs503(failure: Throwable): Boolean = {
     val serverErrorPattern = ".*Could not read from gs.+503 Service Unavailable.*"
     Option(failure.getMessage).exists(_.matches(serverErrorPattern))
   }
@@ -221,7 +221,7 @@ object IoActor {
     case _: SocketException => true
     case _: SocketTimeoutException => true
     case ioE: IOException if Option(ioE.getMessage).exists(_.contains("Error getting access token for service account")) => true
-    case ioE: IOException => isGCS500(ioE) || isGCS503(ioE)
+    case ioE: IOException => isGcs500(ioE) || isGcs503(ioE)
     case other => isTransient(other)
   }
 

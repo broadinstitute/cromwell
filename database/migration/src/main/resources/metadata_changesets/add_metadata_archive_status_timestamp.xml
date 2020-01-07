@@ -14,9 +14,9 @@
 
     <changeSet id="update_metadata_archive_status_timestamp" author="gsterin" dbms="hsqldb,mariadb,mysql,postgresql">
         <sql>
-            update workflow_metadata_summary_entry set metadata_archive_status_timestamp = end_timestamp
-            where lower(metadata_archive_status) = 'archived'
-              and metadata_archive_status_timestamp is null
+            update "WORKFLOW_METADATA_SUMMARY_ENTRY" set "METADATA_ARCHIVE_STATUS_TIMESTAMP" = "END_TIMESTAMP"
+            where lower("METADATA_ARCHIVE_STATUS") = 'archived'
+              and "METADATA_ARCHIVE_STATUS_TIMESTAMP" is null
         </sql>
     </changeSet>
 

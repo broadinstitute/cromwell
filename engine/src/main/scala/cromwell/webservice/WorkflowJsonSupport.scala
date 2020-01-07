@@ -74,6 +74,6 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
     }
   }
 
-  implicit val workflowQueryResult = jsonFormat10(WorkflowQueryResult)
+  implicit val workflowQueryResult = jsonFormat11(WorkflowQueryResult)
   implicit val workflowQueryResponse = jsonFormat2(WorkflowQueryResponse)
 }

@@ -9,6 +9,7 @@ import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.{LoadConfig, WorkflowId}
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService._
+import cromwell.services.metadata.impl.DeleteMetadataActor.DeleteMetadataAction
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.{MetadataSummaryFailure, MetadataSummarySuccess, SummarizeMetadata}
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
 import cromwell.util.GracefulShutdownHelper
@@ -47,6 +48,12 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
 
   private val metadataSummaryRefreshLimit = serviceConfig.getOrElse("metadata-summary-refresh-limit", default = 5000)
 
+  private val metadataDeletionInterval: Option[FiniteDuration] = {
+    val duration = serviceConfig.getOrElse("metadata-deletion-interval", default = 24 hours)
+    if (duration.isFinite()) Option(duration.asInstanceOf[FiniteDuration]) else None
+  }
+  private val metadataDeletionAfterCarbonationDelay = serviceConfig.getOrElse("metadata-deletion-after-carbonation-delay", default = 24 hours)
+
   private val metadataReadTimeout: Duration =
     serviceConfig.getOrElse[Duration]("metadata-read-query-timeout", Duration.Inf)
 
@@ -58,14 +65,21 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
   val dbFlushRate = serviceConfig.getOrElse("db-flush-rate", 5.seconds)
   val dbBatchSize = serviceConfig.getOrElse("db-batch-size", 200)
   val writeActor = context.actorOf(WriteMetadataActor.props(dbBatchSize, dbFlushRate, serviceRegistryActor, LoadConfig.MetadataWriteThreshold), "WriteMetadataActor")
-  val deleteActor = context.actorOf(DeleteMetadataActor.props(), "DeleteMetadataActor")
+
   implicit val ec = context.dispatcher
   //noinspection ActorMutableStateInspection
   private var summaryRefreshCancellable: Option[Cancellable] = None
 
   private val summaryActor: Option[ActorRef] = buildSummaryActor
-
   summaryActor foreach { _ => self ! RefreshSummary }
+
+  private val metadataDeletionActor: Option[ActorRef] =
+    summaryActor.map(_ => context.actorOf(DeleteMetadataActor.props(timeToWaitAfterArchiving = metadataDeletionAfterCarbonationDelay)))
+  metadataDeletionActor foreach { deletionActor =>
+    metadataDeletionInterval foreach { interval =>
+      context.system.scheduler.schedule(5 minutes, interval, deletionActor, DeleteMetadataAction)
+    }
+  }
 
   private def scheduleSummary(): Unit = {
     metadataSummaryRefreshInterval foreach { interval =>
@@ -120,7 +134,6 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
     case action: PutMetadataActionAndRespond => writeActor forward action
     // Assume that listen messages are directed to the write metadata actor
     case listen: Listen => writeActor forward listen
-    case action: DeleteMetadataAction => deleteActor forward action
     case v: ValidateWorkflowIdInMetadata => validateWorkflowIdInMetadata(v.possibleWorkflowId, sender())
     case v: ValidateWorkflowIdInMetadataSummaries => validateWorkflowIdInMetadataSummaries(v.possibleWorkflowId, sender())
     case action: BuildMetadataJsonAction => readActor forward action

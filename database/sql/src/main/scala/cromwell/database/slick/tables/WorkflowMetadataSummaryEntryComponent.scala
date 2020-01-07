@@ -38,8 +38,10 @@ trait WorkflowMetadataSummaryEntryComponent {
 
     def metadataArchiveStatus: Rep[Option[String]] = column[Option[String]]("METADATA_ARCHIVE_STATUS", O.Length(30))
 
+    def metadataArchiveStatusTimestamp = column[Option[Timestamp]]("METADATA_ARCHIVE_STATUS_TIMESTAMP")
+
     def baseProjection = (workflowExecutionUuid, workflowName, workflowStatus, startTimestamp, endTimestamp,
-      submissionTimestamp, parentWorkflowExecutionUuid, rootWorkflowExecutionUuid, metadataArchiveStatus)
+      submissionTimestamp, parentWorkflowExecutionUuid, rootWorkflowExecutionUuid, metadataArchiveStatus, metadataArchiveStatusTimestamp)
 
     override def * = baseProjection ~ workflowMetadataSummaryEntryId.? <> (WorkflowMetadataSummaryEntry.tupled, WorkflowMetadataSummaryEntry.unapply)
 
@@ -64,12 +66,23 @@ trait WorkflowMetadataSummaryEntryComponent {
 
     def ixWorkflowMetadataSummaryEntryMas =
       index("IX_WORKFLOW_METADATA_SUMMARY_ENTRY_MAS", metadataArchiveStatus, unique = false)
+
+    def ixWorkflowMetadataSummaryEntryMast =
+      index("IX_WORKFLOW_METADATA_SUMMARY_ENTRY_MAST", metadataArchiveStatusTimestamp, unique = false)
   }
 
   val workflowMetadataSummaryEntries = TableQuery[WorkflowMetadataSummaryEntries]
 
   val workflowMetadataSummaryEntryIdsAutoInc = workflowMetadataSummaryEntries returning
     workflowMetadataSummaryEntries.map(_.workflowMetadataSummaryEntryId)
+
+  val rootWorkflowMetadataSummaryEntriesByArchiveStatusAndTimestamp = Compiled(
+    (metadataArchiveStatus: Rep[Option[String]], metadataArchiveStatusTimestampThreshold: Rep[Timestamp]) => for {
+      summary <- workflowMetadataSummaryEntries
+      if summary.rootWorkflowExecutionUuid.isEmpty && summary.parentWorkflowExecutionUuid.isEmpty // is root workflow entry
+      if summary.metadataArchiveStatus === metadataArchiveStatus
+      if summary.metadataArchiveStatusTimestamp <= metadataArchiveStatusTimestampThreshold
+    } yield summary)
 
   val workflowMetadataSummaryEntriesForWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
@@ -109,11 +122,11 @@ trait WorkflowMetadataSummaryEntryComponent {
     }
   )
 
-  val metadataArchiveStatusByWorkflowIdOrRootWorkflowId = Compiled(
+  val metadataArchiveStatusAndTimestampByWorkflowIdOrRootWorkflowId = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
       workflowMetadataSummaryEntry <- workflowMetadataSummaryEntries
       if workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid || workflowMetadataSummaryEntry.rootWorkflowExecutionUuid === workflowExecutionUuid
-    } yield workflowMetadataSummaryEntry.metadataArchiveStatus)
+    } yield (workflowMetadataSummaryEntry.metadataArchiveStatus, workflowMetadataSummaryEntry.metadataArchiveStatusTimestamp))
 
   def concat(a: SQLActionBuilder, b: SQLActionBuilder): SQLActionBuilder = {
     SQLActionBuilder(a.queryParts ++ b.queryParts, (p: Unit, pp: PositionedParameters) => {
@@ -181,6 +194,7 @@ trait WorkflowMetadataSummaryEntryComponent {
       "PARENT_WORKFLOW_EXECUTION_UUID",
       "ROOT_WORKFLOW_EXECUTION_UUID",
       "METADATA_ARCHIVE_STATUS",
+      "METADATA_ARCHIVE_STATUS_TIMESTAMP",
       "WORKFLOW_METADATA_SUMMARY_ENTRY_ID",
     )
       .map(quoted)
@@ -404,7 +418,7 @@ trait WorkflowMetadataSummaryEntryComponent {
     val fullQuery = concatNel(NonEmptyList(mainQuery, orderByAddendum :: paginationAddendum))
 
     fullQuery.as[WorkflowMetadataSummaryEntry](rconv = GetResult { r =>
-      WorkflowMetadataSummaryEntry(r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<)
+      WorkflowMetadataSummaryEntry(r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<, r.<<)
     })
   }
 }

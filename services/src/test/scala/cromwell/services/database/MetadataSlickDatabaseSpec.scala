@@ -48,31 +48,31 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
 
       database.runTestTransaction(
         database.dataAccess.workflowMetadataSummaryEntries ++= Seq(
-          WorkflowMetadataSummaryEntry("workflow id: 3 to delete, 1 label", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), None, None, None),
+          WorkflowMetadataSummaryEntry("workflow id: 3 to delete, 1 label", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), None, None, None, None),
 
-          WorkflowMetadataSummaryEntry("workflow id: I am a root workflow with a subworkflow", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), None, None, None),
-          WorkflowMetadataSummaryEntry("workflow id: I am the subworkflow", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option("workflow id: I am a root workflow with a subworkflow"), Option("workflow id: I am a root workflow with a subworkflow"), None),
+          WorkflowMetadataSummaryEntry("workflow id: I am a root workflow with a subworkflow", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), None, None, None, None),
+          WorkflowMetadataSummaryEntry("workflow id: I am the subworkflow", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option("workflow id: I am a root workflow with a subworkflow"), Option("workflow id: I am a root workflow with a subworkflow"), None, None),
 
-          WorkflowMetadataSummaryEntry("nested subworkflows: root", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), None, None, None),
-          WorkflowMetadataSummaryEntry("nested subworkflows: first nesting", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option("nested subworkflows: root"), Option("nested subworkflows: root"), None),
-          WorkflowMetadataSummaryEntry("nested subworkflows: second nesting", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option("nested subworkflows: first nesting"), Option("nested subworkflows: root"), None),
-          WorkflowMetadataSummaryEntry("nested subworkflows: third nesting", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option("nested subworkflows: second nesting"), Option("nested subworkflows: root"), None),
+          WorkflowMetadataSummaryEntry("nested subworkflows: root", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), None, None, None, None),
+          WorkflowMetadataSummaryEntry("nested subworkflows: first nesting", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option("nested subworkflows: root"), Option("nested subworkflows: root"), None, None),
+          WorkflowMetadataSummaryEntry("nested subworkflows: second nesting", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option("nested subworkflows: first nesting"), Option("nested subworkflows: root"), None, None),
+          WorkflowMetadataSummaryEntry("nested subworkflows: third nesting", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option("nested subworkflows: second nesting"), Option("nested subworkflows: root"), None, None),
         )
       ).futureValue(Timeout(10.seconds))
     }
 
     it should "delete the right number of rows for a root workflow without subworkflows" taggedAs DbmsTest in {
-      val delete = database.deleteNonLabelMetadataForWorkflow("workflow id: 3 to delete, 1 label")
+      val delete = database.deleteNonLabelMetadataForWorkflowAndUpdateArchiveStatus("workflow id: 3 to delete, 1 label", None)
       delete.futureValue(Timeout(10.seconds)) should be(3)
     }
 
     it should "delete the right number of rows for a root workflow with subworkflows" taggedAs DbmsTest in {
-      val delete = database.deleteNonLabelMetadataForWorkflow("workflow id: I am a root workflow with a subworkflow")
+      val delete = database.deleteNonLabelMetadataForWorkflowAndUpdateArchiveStatus("workflow id: I am a root workflow with a subworkflow", None)
       delete.futureValue(Timeout(10.seconds)) should be(2)
     }
 
     it should "delete the right number of rows for a nested subworkflow" taggedAs DbmsTest in {
-      val delete = database.deleteNonLabelMetadataForWorkflow("nested subworkflows: root")
+      val delete = database.deleteNonLabelMetadataForWorkflowAndUpdateArchiveStatus("nested subworkflows: root", None)
       delete.futureValue(Timeout(10.seconds)) should be(4)
     }
 

@@ -1,6 +1,7 @@
 package cromwell.database.slick
 
 import java.sql.Timestamp
+import java.time.OffsetDateTime
 
 import cats.implicits._
 import com.typesafe.config.{Config, ConfigFactory}
@@ -311,7 +312,8 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   }
 
   override def updateMetadataArchiveStatus(workflowExecutionUuid: String, newArchiveStatus: Option[String]): Future[Int] = {
-    val action = dataAccess.metadataArchiveStatusByWorkflowIdOrRootWorkflowId(workflowExecutionUuid).update(newArchiveStatus)
+    val action = dataAccess.metadataArchiveStatusAndTimestampByWorkflowIdOrRootWorkflowId(workflowExecutionUuid)
+      .update((newArchiveStatus, Option(OffsetDateTime.now().toSystemTimestamp)))
     runTransaction(action)
   }
 
@@ -388,10 +390,13 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action)
   }
 
-  override def deleteNonLabelMetadataForWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Int] = {
-    runTransaction(
-      dataAccess.metadataEntriesWithoutLabelsForRootWorkflowId(rootWorkflowId).delete
-    )
+  override def deleteNonLabelMetadataForWorkflowAndUpdateArchiveStatus(rootWorkflowId: String, newArchiveStatus: Option[String])(implicit ec: ExecutionContext): Future[Int] = {
+    runTransaction {
+      for {
+        numDeleted <- dataAccess.metadataEntriesWithoutLabelsForRootWorkflowId(rootWorkflowId).delete
+        _ <- dataAccess.metadataArchiveStatusAndTimestampByWorkflowIdOrRootWorkflowId(rootWorkflowId).update((newArchiveStatus, Option(OffsetDateTime.now().toSystemTimestamp)))
+      } yield numDeleted
+    }
   }
 
   override def isRootWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Option[Boolean]] = {
@@ -404,6 +409,10 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runAction(
       dataAccess.rootWorkflowId(workflowId).result.headOption
     )
+  }
+
+  override def queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp)(implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = {
+    runAction(dataAccess.rootWorkflowMetadataSummaryEntriesByArchiveStatusAndTimestamp((archiveStatus, thresholdTimestamp)).result)
   }
 
 }

@@ -95,7 +95,7 @@ class CarbonitingMetadataFreezerActor(carboniterConfig: HybridCarboniteConfig,
   def scheduleDatabaseUpdateAndAwaitResult(workflowId: WorkflowId, newStatus: MetadataArchiveStatus, delay: Option[FiniteDuration] = None) = {
 
     def updateDatabase() = {
-      val dbUpdateFuture = updateMetadataArchiveStatus(workflowId, newStatus)
+      val dbUpdateFuture = updateMetadataArchiveStatusAndTimestamp(workflowId, newStatus)
       dbUpdateFuture onComplete { dbUpdateResult => self ! DatabaseUpdateCompleted(dbUpdateResult) }
     }
     delay match {

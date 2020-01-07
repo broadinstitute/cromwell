@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet id="add_metadata_archive_status_timestamp" author="gsterin" dbms="hsqldb,mariadb,mysql,postgresql">
+        <addColumn tableName="WORKFLOW_METADATA_SUMMARY_ENTRY">
+            <column name="METADATA_ARCHIVE_STATUS_TIMESTAMP" type="DATETIME(6)">
+                <constraints nullable="true" />
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="update_metadata_archive_status_timestamp" author="gsterin" dbms="hsqldb,mariadb,mysql,postgresql">
+        <sql>
+            update WORKFLOW_METADATA_SUMMARY_ENTRY set METADATA_ARCHIVE_STATUS_TIMESTAMP = END_TIMESTAMP
+            where lower(METADATA_ARCHIVE_STATUS) = 'archived'
+              and METADATA_ARCHIVE_STATUS_TIMESTAMP is null
+        </sql>
+    </changeSet>
+
+    <changeSet id="metadata_archive_status_timestamp_index" author="gsterin" dbms="hsqldb,mariadb,mysql,postgresql">
+        <createIndex indexName="IX_WORKFLOW_METADATA_SUMMARY_ENTRY_MAST"
+                     tableName="WORKFLOW_METADATA_SUMMARY_ENTRY" unique="false">
+            <column name="METADATA_ARCHIVE_STATUS_TIMESTAMP"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

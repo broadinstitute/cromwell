@@ -93,7 +93,7 @@ object CarbonitingMetadataFreezerActorSpec {
     var updateArchiveStatusCall: (WorkflowId, MetadataArchiveStatus) = (null, null)
     val updateArchiveStatusPromise = Promise[Int]()
 
-    override def updateMetadataArchiveStatus(workflowId: WorkflowId, newStatus: MetadataArchiveStatus): Future[Int] = {
+    override def updateMetadataArchiveStatusAndTimestamp(workflowId: WorkflowId, newStatus: MetadataArchiveStatus): Future[Int] = {
       updateArchiveStatusCall = (workflowId, newStatus)
       updateArchiveStatusPromise.future
     }

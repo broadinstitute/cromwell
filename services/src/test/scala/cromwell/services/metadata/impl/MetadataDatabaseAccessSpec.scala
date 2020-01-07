@@ -87,6 +87,16 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       publishMetadataEvents(workflowKey, metadataKeys).map(_ => workflowId)
     }
 
+    def succeededWorkflowMetadata(id: WorkflowId): Future[WorkflowId] = {
+      val workflowKey = MetadataKey(id, jobKey = None, key = null)
+      val keyAndValue = Array(
+        (WorkflowMetadataKeys.Status, WorkflowRunning.toString),
+        (WorkflowMetadataKeys.Status, WorkflowSucceeded.toString),
+        (WorkflowMetadataKeys.EndTime, OffsetDateTime.now.toUtcMilliString))
+
+      publishMetadataEvents(workflowKey, keyAndValue).map(_ => id)
+    }
+
     it should "return pagination metadata only when page and pagesize query params are specified" taggedAs DbmsTest in {
       (for {
         _ <- baseWorkflowMetadata(Workflow1Name)
@@ -153,16 +163,6 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       val testLabel1 = Label("testing-key-1", "testing-value-1")
       val testLabel2 = Label("testing-key-2", "testing-value-2")
       val testLabel3 = Label("testing-key-3", "testing-value-3")
-
-      def succeededWorkflowMetadata(id: WorkflowId): Future[Unit] = {
-        val workflowKey = MetadataKey(id, jobKey = None, key = null)
-        val keyAndValue = Array(
-          (WorkflowMetadataKeys.Status, WorkflowRunning.toString),
-          (WorkflowMetadataKeys.Status, WorkflowSucceeded.toString),
-          (WorkflowMetadataKeys.EndTime, OffsetDateTime.now.toUtcMilliString))
-
-        publishMetadataEvents(workflowKey, keyAndValue)
-      }
 
       (for {
         workflow1Id <- baseWorkflowMetadata(Workflow1Name, Set(testLabel1, testLabel2))
@@ -473,9 +473,40 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       } yield()).futureValue
     }
 
+    it should "update archive status timestamp in metadata summary table when updating archived status" taggedAs DbmsTest in {
+      (for {
+        rootWorkflowId <- baseWorkflowMetadata("root workflow name", workflowId = WorkflowId.fromString("11111111-1111-1111-1111-111111111111"))
+        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000, Option(Long.MaxValue))
+        _ <- dataAccess.updateMetadataArchiveStatusAndTimestamp(rootWorkflowId, MetadataArchiveStatus.Archived)
+        response <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(WorkflowQueryKey.Id.name -> rootWorkflowId.toString)))
+        _ = response._1.results should not be empty
+        _ = response._1.results.head.metadataArchiveStatusTimestamp shouldBe defined
+      } yield ()).futureValue
+    }
+
+    it should "properly query metadata summaries based on archived status and timestamp and update archive status after metadata deletion" taggedAs DbmsTest in {
+      (for {
+        workflowId1 <- succeededWorkflowMetadata(WorkflowId.fromString("11111111-1111-1111-1111-111111111112"))
+        workflowId2 <- succeededWorkflowMetadata(WorkflowId.fromString("11111111-1111-1111-1111-111111111113"))
+        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000, Option(Long.MaxValue))
+        _ <- dataAccess.updateMetadataArchiveStatusAndTimestamp(workflowId1, MetadataArchiveStatus.Archived)
+        responseEmpty <- dataAccess.queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(Option("Archived"), OffsetDateTime.now().minusMinutes(1))
+        _ = responseEmpty shouldBe empty
+        _ = Thread.sleep(60000)
+        responseNonEmpty <- dataAccess.queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(Option("Archived"), OffsetDateTime.now().minusMinutes(1))
+        _ = responseNonEmpty should not be empty
+        _ = responseNonEmpty should contain allElementsOf Seq(workflowId1.toString)
+        _ = responseNonEmpty should contain noElementsOf Seq(workflowId2.toString)
+        _ <- dataAccess.deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(workflowId1, Option("ArchivedAndPurged"))
+        summaryResponse <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(WorkflowQueryKey.Id.name -> workflowId1.toString)))
+        _ = summaryResponse._1.results should not be empty
+        _ = summaryResponse._1.results.head.metadataArchiveStatus.toString shouldBe "ArchivedAndPurged"
+      } yield ()).futureValue(timeout = Timeout(3.minutes))
+    }
+
     it should "error when deleting metadata for a root workflow that does not exist" taggedAs DbmsTest in {
       dataAccess
-        .deleteNonLabelMetadataEntriesForWorkflow(WorkflowId.fromString("00000000-0000-0000-0000-000000000000"))
+        .deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(WorkflowId.fromString("00000000-0000-0000-0000-000000000000"), None)
         .failed.futureValue(Timeout(10.seconds))
         .getMessage should be("""Metadata deletion precondition failed: workflow ID "00000000-0000-0000-0000-000000000000" not found in summary table""")
     }
@@ -485,7 +516,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         rootWorkflowId <- baseWorkflowMetadata("root workflow name", workflowId = WorkflowId.fromString("11111111-1111-1111-1111-111111111111"))
         subworkflowId <- subworkflowMetadata(rootWorkflowId, "subworkflow name", workflowId = WorkflowId.fromString("22222222-2222-2222-2222-222222222222"))
         _ <- dataAccess.refreshWorkflowMetadataSummaries(1000, Option(Long.MaxValue))
-        _ <- dataAccess.deleteNonLabelMetadataEntriesForWorkflow(subworkflowId)
+        _ <- dataAccess.deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(subworkflowId, None)
       } yield ()
 
       test
@@ -497,7 +528,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       val test = for {
         rootWorkflowId <- baseWorkflowMetadata("root workflow name", workflowId = WorkflowId.fromString("33333333-3333-3333-3333-333333333333"))
         _ <- dataAccess.refreshWorkflowMetadataSummaries(1000, Option(Long.MaxValue))
-        _ <- dataAccess.deleteNonLabelMetadataEntriesForWorkflow(rootWorkflowId)
+        _ <- dataAccess.deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(rootWorkflowId, None)
       } yield ()
 
       test

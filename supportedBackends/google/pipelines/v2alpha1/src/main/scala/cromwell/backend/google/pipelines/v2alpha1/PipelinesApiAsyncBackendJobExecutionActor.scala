@@ -163,7 +163,11 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   }
 
   private def bracketTransfersWithMessages(activity: String)(transferBody: String): String = {
-    List(s"echo '$activity script starting...'", transferBody, s"echo '$activity script complete.'") mkString "\n"
+    List(
+      s"timestamped_message '$activity script execution started...'",
+      transferBody,
+      s"timestamped_message '$activity script execution complete.'"
+    ) mkString "\n"
   }
 
   import mouse.all._

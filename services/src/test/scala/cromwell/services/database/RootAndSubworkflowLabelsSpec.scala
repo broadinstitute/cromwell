@@ -53,7 +53,8 @@ class RootAndSubworkflowLabelsSpec extends FlatSpec with Matchers with ScalaFutu
         submissionTimestamp = None,
         parentWorkflowExecutionUuid = parent,
         rootWorkflowExecutionUuid = root,
-        metadataArchiveStatus = None
+        metadataArchiveStatus = None,
+        metadataArchiveStatusTimestamp = None
       )
     }
 

@@ -12,11 +12,19 @@
         </addColumn>
     </changeSet>
 
-    <changeSet id="update_metadata_archive_status_timestamp" author="gsterin" dbms="hsqldb,mariadb,mysql,postgresql">
+    <changeSet id="update_metadata_archive_status_timestamp_except_postgresql" author="gsterin" dbms="hsqldb,mariadb,mysql">
+        <sql>
+            update WORKFLOW_METADATA_SUMMARY_ENTRY set METADATA_ARCHIVE_STATUS_TIMESTAMP = END_TIMESTAMP
+            where lower(METADATA_ARCHIVE_STATUS) = 'archived'
+              and METADATA_ARCHIVE_STATUS_TIMESTAMP is null
+        </sql>
+    </changeSet>
+
+    <changeSet id="update_metadata_archive_status_timestamp_postgresql" author="gsterin" dbms="postgresql">
         <sql>
             update "WORKFLOW_METADATA_SUMMARY_ENTRY" set "METADATA_ARCHIVE_STATUS_TIMESTAMP" = "END_TIMESTAMP"
             where lower("METADATA_ARCHIVE_STATUS") = 'archived'
-              and "METADATA_ARCHIVE_STATUS_TIMESTAMP" is null
+            and "METADATA_ARCHIVE_STATUS_TIMESTAMP" is null
         </sql>
     </changeSet>
 

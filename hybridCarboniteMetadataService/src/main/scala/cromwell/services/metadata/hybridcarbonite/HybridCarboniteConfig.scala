@@ -3,7 +3,6 @@ package cromwell.services.metadata.hybridcarbonite
 import akka.actor.ActorSystem
 import cats.syntax.apply._
 import com.typesafe.config.Config
-import com.typesafe.scalalogging.StrictLogging
 import common.Checked
 import common.validation.Checked._
 import common.validation.ErrorOr._
@@ -17,7 +16,7 @@ import net.ceedubs.ficus.Ficus._
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.{Failure, Try}
+import scala.util.Try
 
 final case class HybridCarboniteConfig(enabled: Boolean,
                                        minimumSummaryEntryId: Option[Long],
@@ -30,7 +29,7 @@ final case class HybridCarboniteConfig(enabled: Boolean,
 
 final case class HybridCarboniteFreezeScanConfig(initialInterval: FiniteDuration = 5 seconds, maxInterval: FiniteDuration = 5 minutes, multiplier: Double = 1.1)
 
-object HybridCarboniteConfig extends StrictLogging {
+object HybridCarboniteConfig {
 
   def pathForWorkflow(id: WorkflowId, bucket: String) = s"gs://$bucket/$id/$id.json"
   
@@ -64,18 +63,10 @@ object HybridCarboniteConfig extends StrictLogging {
       }
     }
 
-    val pathBuilderTimeout = 60.seconds
     for {
       _ <- Try(carboniterConfig.getConfig("filesystems.gcs")).toCheckedWithContext("parse Carboniter 'filesystems.gcs' field from config")
       pathBuilderFactories <- CromwellFileSystems.instance.factoriesFromConfig(carboniterConfig)
-      _ = logger.info(s"Starting path builder initialization process with a timeout of ${pathBuilderTimeout}")
-      pathBuilders <- Try(Await.result(PathBuilderFactory.instantiatePathBuilders(pathBuilderFactories.values.toList, WorkflowOptions.empty), pathBuilderTimeout))
-          .recoverWith {
-            case e =>
-              logger.error("*** PATH BUILDER ERROR ***")
-              e.printStackTrace()
-              Failure(e)
-          }
+      pathBuilders <- Try(Await.result(PathBuilderFactory.instantiatePathBuilders(pathBuilderFactories.values.toList, WorkflowOptions.empty), 60.seconds))
         .toCheckedWithContext("construct Carboniter path builders from factories")
       bucket <- Try(carboniterConfig.getString("bucket")).toCheckedWithContext("parse Carboniter 'bucket' field from config")
       minimumSummaryEntryId <- minimumSummaryEntryIdCheck

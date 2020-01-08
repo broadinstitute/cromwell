@@ -49,11 +49,11 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
 
   // Credentials object for the GCS API
   private lazy val gcsCredentials: Future[Credentials] = pipelinesConfiguration.papiAttributes.auths.gcs
-      .getCredentialsWithRetries(workflowOptions, List(StorageScopes.DEVSTORAGE_FULL_CONTROL))
+      .retryCredentials(workflowOptions, List(StorageScopes.DEVSTORAGE_FULL_CONTROL))
 
   // Credentials object for the Genomics API
   private lazy val genomicsCredentials: Future[Credentials] = pipelinesConfiguration.papiAttributes.auths.genomics
-    .getCredentialsWithRetries(workflowOptions, List(
+    .retryCredentials(workflowOptions, List(
       GenomicsScopes.GENOMICS,
       /*
       Genomics Pipelines API v1alpha2 requires the COMPUTE scope. Does not seem to be required for v2alpha1.

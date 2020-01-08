@@ -45,7 +45,7 @@ final case class GcsPathBuilderFactory(globalConfig: Config, instanceConfig: Con
   }
 
   def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[GcsPathBuilder] = {
-    val result = GcsPathBuilder.fromAuthMode(
+    GcsPathBuilder.fromAuthMode(
       authMode,
       applicationName,
       defaultRetrySettings,
@@ -53,7 +53,6 @@ final case class GcsPathBuilderFactory(globalConfig: Config, instanceConfig: Con
       options,
       defaultProject
     )
-    result
   }
 }
 

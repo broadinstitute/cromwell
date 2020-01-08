@@ -1,7 +1,5 @@
 package cromwell.filesystems.gcs
 
-import java.time.OffsetDateTime
-
 import akka.actor.ActorSystem
 import com.google.api.client.http.HttpResponseException
 import com.google.auth.Credentials
@@ -31,17 +29,12 @@ object GoogleUtil {
       * There is nothing GCS specific about this method. This package just happens to be the lowest level with access
       * to core's version of Retry + cloudSupport's implementation of GoogleAuthMode.
       */
-    def getCredentialsWithRetries(options: WorkflowOptions, scopes: Iterable[String])
-                                 (implicit actorSystem: ActorSystem, executionContext: ExecutionContext): Future[Credentials] = {
-      def credential(): Future[Credentials] = Future {
+    def retryCredentials(options: WorkflowOptions, scopes: Iterable[String])
+                        (implicit actorSystem: ActorSystem, executionContext: ExecutionContext): Future[Credentials] = {
+      def credential(): Credentials = {
 
         try {
-          println(s"${OffsetDateTime.now()} *** Delaying path builder startup")
-//          Thread.sleep(80000)
-          println(s"${OffsetDateTime.now()} *** Running path builder startup")
-          val result = googleAuthMode.credentials(options.get(_).get, scopes)
-          println(s"${OffsetDateTime.now()} *** Finished path builder startup")
-          result
+          googleAuthMode.credentials(options.get(_).get, scopes)
         } catch {
           case exception: OptionLookupException =>
             throw new IllegalArgumentException(s"Missing parameters in workflow options: ${exception.key}", exception)
@@ -57,7 +50,7 @@ object GoogleUtil {
       }
 
       Retry.withRetry(
-        () => credential(),
+        () => Future(credential()),
         isFatal = isFatal,
         maxRetries = Option(3)
       )

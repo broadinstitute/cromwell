@@ -162,14 +162,24 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
       """.stripMargin
   }
 
+  private def bracketTransfersWithMessages(activity: String)(transferBody: String): String = {
+    List(
+      s"timestamped_message '$activity script execution started...'",
+      transferBody,
+      s"timestamped_message '$activity script execution complete.'"
+    ) mkString "\n"
+  }
+
+  import mouse.all._
+
   private def generateGcsLocalizationScript(inputs: List[PipelinesApiInput])(implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
     val bundleFunction = (gcsLocalizationTransferBundle(gcsTransferConfiguration) _).tupled
-    generateGcsTransferScript(inputs, bundleFunction)
+    generateGcsTransferScript(inputs, bundleFunction) |> bracketTransfersWithMessages("Localization")
   }
 
   private def generateGcsDelocalizationScript(outputs: List[PipelinesApiOutput])(implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
     val bundleFunction = (gcsDelocalizationTransferBundle(gcsTransferConfiguration) _).tupled
-    generateGcsTransferScript(outputs, bundleFunction)
+    generateGcsTransferScript(outputs, bundleFunction) |> bracketTransfersWithMessages("Delocalization")
   }
 
   private def generateGcsTransferScript[T <: PipelinesParameter](items: List[T], bundleFunction: ((String, NonEmptyList[T])) => String): String = {

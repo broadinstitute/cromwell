@@ -473,17 +473,6 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       } yield()).futureValue
     }
 
-    it should "update archive status timestamp in metadata summary table when updating archived status" taggedAs DbmsTest in {
-      (for {
-        rootWorkflowId <- baseWorkflowMetadata("root workflow name", workflowId = WorkflowId.fromString("11111111-1111-1111-1111-111111111111"))
-        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000, Option(Long.MaxValue))
-        _ <- dataAccess.updateMetadataArchiveStatusAndTimestamp(rootWorkflowId, MetadataArchiveStatus.Archived)
-        response <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(WorkflowQueryKey.Id.name -> rootWorkflowId.toString)))
-        _ = response._1.results should not be empty
-        _ = response._1.results.head.metadataArchiveStatusTimestamp shouldBe defined
-      } yield ()).futureValue
-    }
-
     it should "properly query metadata summaries based on archived status and timestamp and update archive status after metadata deletion" taggedAs DbmsTest in {
       (for {
         workflowId1 <- succeededWorkflowMetadata(WorkflowId.fromString("11111111-1111-1111-1111-111111111112"))

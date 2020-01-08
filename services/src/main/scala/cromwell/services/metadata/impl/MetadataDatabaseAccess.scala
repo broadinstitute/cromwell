@@ -45,7 +45,6 @@ object MetadataDatabaseAccess {
         parentWorkflowExecutionUuid = summary1.parentWorkflowExecutionUuid orElse summary2.parentWorkflowExecutionUuid,
         rootWorkflowExecutionUuid = summary1.rootWorkflowExecutionUuid orElse summary2.rootWorkflowExecutionUuid,
         metadataArchiveStatus = summary1.metadataArchiveStatus,
-        metadataArchiveStatusTimestamp = summary1.metadataArchiveStatusTimestamp orElse summary2.metadataArchiveStatusTimestamp
       )
     }
   }
@@ -307,8 +306,7 @@ trait MetadataDatabaseAccess {
           labels = labels.nonEmpty.option(labels),
           parentWorkflowId = workflow.parentWorkflowExecutionUuid,
           rootWorkflowId = workflow.rootWorkflowExecutionUuid,
-          metadataArchiveStatus = archived,
-          metadataArchiveStatusTimestamp = workflow.metadataArchiveStatusTimestamp map {_.toSystemOffsetDateTime}
+          metadataArchiveStatus = archived
         )
     }
 

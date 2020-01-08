@@ -52,7 +52,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
     val duration = serviceConfig.getOrElse("metadata-deletion-interval", default = 24 hours)
     if (duration.isFinite()) Option(duration.asInstanceOf[FiniteDuration]) else None
   }
-  private val metadataDeletionAfterCarbonationDelay = serviceConfig.getOrElse("metadata-deletion-after-carbonation-delay", default = 24 hours)
+  private val metadataDeletionDelay = serviceConfig.getOrElse("metadata-deletion-delay", default = 24 hours)
 
   private val metadataReadTimeout: Duration =
     serviceConfig.getOrElse[Duration]("metadata-read-query-timeout", Duration.Inf)
@@ -74,7 +74,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
   summaryActor foreach { _ => self ! RefreshSummary }
 
   private val metadataDeletionActor: Option[ActorRef] =
-    summaryActor.map(_ => context.actorOf(DeleteMetadataActor.props(timeToWaitAfterArchiving = metadataDeletionAfterCarbonationDelay)))
+    summaryActor.map(_ => context.actorOf(DeleteMetadataActor.props(timeToWaitAfterWorkflowFinish = metadataDeletionDelay)))
   metadataDeletionActor foreach { deletionActor =>
     metadataDeletionInterval foreach { interval =>
       context.system.scheduler.schedule(5 minutes, interval, deletionActor, DeleteMetadataAction)

@@ -1,7 +1,6 @@
 package cromwell.database.slick
 
 import java.sql.Timestamp
-import java.time.OffsetDateTime
 
 import cats.implicits._
 import com.typesafe.config.{Config, ConfigFactory}
@@ -312,8 +311,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   }
 
   override def updateMetadataArchiveStatus(workflowExecutionUuid: String, newArchiveStatus: Option[String]): Future[Int] = {
-    val action = dataAccess.metadataArchiveStatusAndTimestampByWorkflowIdOrRootWorkflowId(workflowExecutionUuid)
-      .update((newArchiveStatus, Option(OffsetDateTime.now().toSystemTimestamp)))
+    val action = dataAccess.metadataArchiveStatusByWorkflowIdOrRootWorkflowId(workflowExecutionUuid).update(newArchiveStatus)
     runTransaction(action)
   }
 
@@ -394,7 +392,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction {
       for {
         numDeleted <- dataAccess.metadataEntriesWithoutLabelsForRootWorkflowId(rootWorkflowId).delete
-        _ <- dataAccess.metadataArchiveStatusAndTimestampByWorkflowIdOrRootWorkflowId(rootWorkflowId).update((newArchiveStatus, Option(OffsetDateTime.now().toSystemTimestamp)))
+        _ <- dataAccess.metadataArchiveStatusByWorkflowIdOrRootWorkflowId(rootWorkflowId).update(newArchiveStatus)
       } yield numDeleted
     }
   }
@@ -412,7 +410,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   }
 
   override def queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp)(implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = {
-    runAction(dataAccess.rootWorkflowMetadataSummaryEntriesByArchiveStatusAndTimestamp((archiveStatus, thresholdTimestamp)).result)
+    runAction(dataAccess.rootWorkflowMetadataSummaryEntriesByArchiveStatusAndWorkflowEndTimestamp((archiveStatus, thresholdTimestamp)).result)
   }
 
 }

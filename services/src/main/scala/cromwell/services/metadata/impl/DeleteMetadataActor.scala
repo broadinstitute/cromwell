@@ -12,7 +12,7 @@ import cromwell.services.metadata.impl.DeleteMetadataActor.DeleteMetadataAction
 import scala.util.{Failure, Success}
 import scala.concurrent.duration._
 
-class DeleteMetadataActor(timeToWaitAfterArchiving: Duration) extends Actor
+class DeleteMetadataActor(timeToWaitAfterWorkflowFinish: Duration) extends Actor
   with ActorLogging
   with MetadataDatabaseAccess
   with MetadataServicesStore {
@@ -23,7 +23,7 @@ class DeleteMetadataActor(timeToWaitAfterArchiving: Duration) extends Actor
     case DeleteMetadataAction =>
       val workflowIdsForMetadataDeletionFuture = queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(
         MetadataArchiveStatus.toDatabaseValue(Archived),
-        OffsetDateTime.now().minusSeconds(timeToWaitAfterArchiving.toSeconds)
+        OffsetDateTime.now().minusSeconds(timeToWaitAfterWorkflowFinish.toSeconds)
       )
       workflowIdsForMetadataDeletionFuture onComplete {
         case Success(workflowIds) =>
@@ -42,7 +42,7 @@ class DeleteMetadataActor(timeToWaitAfterArchiving: Duration) extends Actor
 
 object DeleteMetadataActor {
 
-  def props(timeToWaitAfterArchiving: Duration) = Props(new DeleteMetadataActor(timeToWaitAfterArchiving))
+  def props(timeToWaitAfterWorkflowFinish: Duration) = Props(new DeleteMetadataActor(timeToWaitAfterWorkflowFinish))
 
   case object DeleteMetadataAction
 

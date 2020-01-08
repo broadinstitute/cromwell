@@ -26,8 +26,7 @@ object MetadataService {
                                        labels: Option[Map[String, String]],
                                        parentWorkflowId: Option[String],
                                        rootWorkflowId: Option[String],
-                                       metadataArchiveStatus: MetadataArchiveStatus,
-                                       metadataArchiveStatusTimestamp: Option[OffsetDateTime] = None)
+                                       metadataArchiveStatus: MetadataArchiveStatus)
 
   final case class WorkflowQueryResponse(results: Seq[WorkflowQueryResult], totalResultsCount: Int)
 

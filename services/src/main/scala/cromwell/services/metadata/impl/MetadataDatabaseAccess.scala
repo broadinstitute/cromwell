@@ -198,7 +198,7 @@ trait MetadataDatabaseAccess {
     } yield SummaryResult(increasingProcessed, increasingGap, decreasingProcessed, decreasingGap, maximumMetadataEntryIdInTable)
   }
 
-  def updateMetadataArchiveStatusAndTimestamp(workflowId: WorkflowId, newStatus: MetadataArchiveStatus): Future[Int] = {
+  def updateMetadataArchiveStatus(workflowId: WorkflowId, newStatus: MetadataArchiveStatus): Future[Int] = {
     val databaseStatusValue = MetadataArchiveStatus.toDatabaseValue(newStatus)
     metadataDatabaseInterface.updateMetadataArchiveStatus(workflowId.toString, databaseStatusValue)
   }

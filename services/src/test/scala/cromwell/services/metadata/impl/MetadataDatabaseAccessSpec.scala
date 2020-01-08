@@ -478,7 +478,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         workflowId1 <- succeededWorkflowMetadata(WorkflowId.fromString("11111111-1111-1111-1111-111111111112"))
         workflowId2 <- succeededWorkflowMetadata(WorkflowId.fromString("11111111-1111-1111-1111-111111111113"))
         _ <- dataAccess.refreshWorkflowMetadataSummaries(1000, Option(Long.MaxValue))
-        _ <- dataAccess.updateMetadataArchiveStatusAndTimestamp(workflowId1, MetadataArchiveStatus.Archived)
+        _ <- dataAccess.updateMetadataArchiveStatus(workflowId1, MetadataArchiveStatus.Archived)
         responseEmpty <- dataAccess.queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(Option("Archived"), OffsetDateTime.now().minusMinutes(1))
         _ = responseEmpty shouldBe empty
         _ = Thread.sleep(60000)

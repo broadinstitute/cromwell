@@ -2,6 +2,7 @@ package cromwell.services.keyvalue.impl
 
 import java.sql.SQLIntegrityConstraintViolationException
 
+import com.typesafe.scalalogging.StrictLogging
 import cromwell.core.Tags.DbmsTest
 import cromwell.core.WorkflowId
 import cromwell.database.sql.tables.JobKeyValueEntry
@@ -15,15 +16,22 @@ import org.specs2.mock.Mockito
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito with RecoverMethods {
+class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito with RecoverMethods with StrictLogging {
 
   implicit val ec = ExecutionContext.global
   implicit val defaultPatience = PatienceConfig(scaled(Span(5, Seconds)), scaled(Span(100, Millis)))
 
-  DatabaseSystem.All foreach { databaseSystem =>
+  // Pre-calculate the configs for the side effect of printing out the setup/reset instructions all in one place.
+  val databaseSystemConfigs = DatabaseSystem.All map { databaseSystem =>
+    (databaseSystem, DatabaseTestKit.getConfig(databaseSystem))
+  }
+
+  databaseSystemConfigs foreach { case (databaseSystem, databaseConfig) =>
+    logger.info(s"Database setup/reset: For information on setting up (and resetting) databases for local testing, see ${this.getClass.getSimpleName}'s top-level log output'")
+
     behavior of s"KeyValueDatabase on ${databaseSystem.name}"
 
-    lazy val dataAccess = DatabaseTestKit.initializedDatabaseFromSystem(EngineDatabaseType, databaseSystem)
+    lazy val dataAccess = DatabaseTestKit.initializedDatabaseFromConfig(EngineDatabaseType, databaseConfig)
     val workflowId = WorkflowId.randomId().toString
     val callFqn = "AwesomeWorkflow.GoodJob"
 

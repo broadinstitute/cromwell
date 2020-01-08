@@ -75,8 +75,8 @@ class JsonEditorSpec extends FlatSpec with Matchers {
   }
 
   it should "remove nested excludes in workflows, calls and subworkflows" in {
-    val actual = excludeJson(gratuitousSubworkflowJson, NonEmptyList.of("callCaching:hashes:runtime attribute:docker", "executionStatus")).get
-    val expected = parseMetadata("nested_excludes_gratuitous_subworkflows.json")
+    val actual = excludeJson(treblyNestedSubworkflowJson, NonEmptyList.of("callCaching:hashes:runtime attribute:docker", "executionStatus")).get
+    val expected = parseMetadata("nested_excludes_trebly_nested_subworkflows.json")
 
     actual shouldEqual expected
   }
@@ -135,8 +135,8 @@ class JsonEditorSpec extends FlatSpec with Matchers {
   }
 
   it should "remove excluded keys in subworkflows" in {
-    val actual = excludeJson(gratuitousSubworkflowJson, NonEmptyList.of("executionEvents", "workflowName")).get
-    val expected = parseMetadata("excluded_gratuitous_subworkflow.json")
+    val actual = excludeJson(treblyNestedSubworkflowJson, NonEmptyList.of("executionEvents", "workflowName")).get
+    val expected = parseMetadata("excluded_trebly_nested_subworkflow.json")
     actual shouldEqual expected
   }
 
@@ -200,8 +200,8 @@ class JsonEditorSpec extends FlatSpec with Matchers {
 
   // CARBONITE FIXING it should be easy to write a currently-broken version of this like in the Hello World example above.
   it should "keep includes in calls and workflows and subworkflows" in {
-    val actual = includeJson(gratuitousSubworkflowJson, NonEmptyList.of("workflowName", "executionStatus", "outputs")).get
-    val expected = parseMetadata("included_gratuitous_subworkflows.json")
+    val actual = includeJson(treblyNestedSubworkflowJson, NonEmptyList.of("workflowName", "executionStatus", "outputs")).get
+    val expected = parseMetadata("included_trebly_nested_subworkflows.json")
     actual shouldEqual expected
   }
 
@@ -255,11 +255,11 @@ class JsonEditorSpec extends FlatSpec with Matchers {
   }
 
   it should "replace subworkflow metadata with subworkflow id" in {
-    val actualJson = unexpandSubworkflows(gratuitousSubworkflowJson).get
+    val actualJson = unexpandSubworkflows(treblyNestedSubworkflowJson).get
     val keys = actualJson.hcursor.downField("calls").downField("wf.wf").downArray.keys
     assert(keys.exists(_.exists(_ == "subWorkflowMetadata")) === false)
 
-    val oldCallsArrayCursor = gratuitousSubworkflowJson.hcursor.downField("calls").downField("wf.wf").downArray
+    val oldCallsArrayCursor = treblyNestedSubworkflowJson.hcursor.downField("calls").downField("wf.wf").downArray
     val oldSubWorkflowId1 = oldCallsArrayCursor.downField("subWorkflowMetadata").get[String]("id").asInstanceOf[Right[DecodingFailure, String]].value
     val oldSubWorkflowId2 = oldCallsArrayCursor.right.downField("subWorkflowMetadata").get[String]("id").asInstanceOf[Right[DecodingFailure, String]].value
 
@@ -292,7 +292,7 @@ class JsonEditorSpec extends FlatSpec with Matchers {
       "540d2d9b-eccc-4e4f-8478-574e4e48f98d"
     )
     workflowIds.foreach { subworkflowId =>
-      val extractedSubworkflowJson = extractSubWorkflowMetadata(subworkflowId, gratuitousSubworkflowJson)
+      val extractedSubworkflowJson = extractSubWorkflowMetadata(subworkflowId, treblyNestedSubworkflowJson)
       extractedSubworkflowJson match {
         case Valid(Some(subWorkflowJson)) =>
           assert(true === subWorkflowJson.isInstanceOf[Json])
@@ -334,11 +334,11 @@ class JsonEditorSpec extends FlatSpec with Matchers {
     actual shouldEqual expected
   }
 
-  it should "support a Job Manageresque query on a gratuitously nested workflow" in {
+  it should "support a Job Manageresque query on a workflow having trebly nested subworkflows" in {
     import JobManagerKeys._
 
-    val actual = includeExcludeJson(parseMetadata("gratuitous_subworkflow_papiv2_cached.json"), includeKeys, excludeKeys).toEither.right.get
-    val expected = parseMetadata("sub_sub_jmuiesque.json")
+    val actual = includeExcludeJson(parseMetadata("trebly_nested_subworkflow_papiv2_cached.json"), includeKeys, excludeKeys).toEither.right.get
+    val expected = parseMetadata("trebly_nested_jmuiesque.json")
     actual shouldEqual expected
   }
 
@@ -539,8 +539,8 @@ object JsonEditorSpec {
         ).mkString)
   }
 
-  val gratuitousSubworkflowJson: Json = parseMetadata("gratuitous_subworkflows.json")
-  val gratuitousSubworkflowCachedJson: Json = parseMetadata("gratuitous_subworkflow_papiv2_cached.json")
+  val treblyNestedSubworkflowJson: Json = parseMetadata("trebly_nested_subworkflows.json")
+  val treblyNestedSubworkflowCachedJson: Json = parseMetadata("trebly_nested_subworkflow_papiv2_cached.json")
   val helloWorldJson: Json = parseMetadata("hello_world.json")
   val helloWorldPapiV2: Json = parseMetadata("hello_papiv2.json")
 

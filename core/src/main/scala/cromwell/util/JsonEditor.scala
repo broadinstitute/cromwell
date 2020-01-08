@@ -105,14 +105,14 @@ object JsonEditor {
           case Nil =>
             // No filters matched this object key, return the key/value unmodified.
             List((key, json))
-          case fs if fs.exists(! _.hasTrailingComponents) =>
+          case filters if filters.exists(! _.hasTrailingComponents) =>
             // If there is a filter that has no trailing components and thus matches the object key completely,
             // return a Nil List to delete the key/value pair from the object.
             Nil
-          case fs =>
+          case filters =>
             // The JSON value will not be deleted but may need to be edited. Fold the JSON through all the
             // `fs` filters.
-            val filteredJson = fs.foldLeft(json) { case (j, f) =>
+            val filteredJson = filters.foldLeft(json) { case (j, f) =>
               f.components.tail match {
                 // We know all of these filters had "tails". i.e. they did not match completely.
                 case Nil => throw new RuntimeException("Programmer error: filter components tail should not be empty")
@@ -160,14 +160,14 @@ object JsonEditor {
           case Nil =>
             // No filters matched this object key, return an empty List.
             Nil
-          case fs if fs.exists(_.components.tail == Nil) =>
+          case filters if filters.exists(_.components.tail == Nil) =>
             // If there is a filter that has no other components and thus matches the object key completely,
             // return the (key, value).
             List((key, json))
-          case fs =>
+          case filters =>
             // The search continues. Fold an empty JsonObject through all the `fs` filters to include everything that matches.
             val emptyJson = Json.fromJsonObject(JsonObject.empty)
-            val filteredJson = fs.foldLeft(emptyJson) { case (j, f) =>
+            val filteredJson = filters.foldLeft(emptyJson) { case (j, f) =>
               f.components.tail match {
                 // We know all of these filters had "tails". i.e. they did not match completely.
                 case Nil => throw new RuntimeException("Programmer error: filter components tail should not be empty")

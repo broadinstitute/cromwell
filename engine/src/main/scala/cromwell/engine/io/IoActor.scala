@@ -189,6 +189,11 @@ object IoActor {
     Option(failure.getMessage).exists(_.matches(serverErrorPattern))
   }
 
+  def isGcs504(failure: Throwable): Boolean = {
+    val serverErrorPattern = ".*Could not read from gs.+504 Gateway Timeout.*"
+    Option(failure.getMessage).exists(_.matches(serverErrorPattern))
+  }
+
   val AdditionalRetryableHttpCodes = List(
     // HTTP 410: Gone
     // From Google doc (https://cloud.google.com/storage/docs/json_api/v1/status-codes):
@@ -221,7 +226,7 @@ object IoActor {
     case _: SocketException => true
     case _: SocketTimeoutException => true
     case ioE: IOException if Option(ioE.getMessage).exists(_.contains("Error getting access token for service account")) => true
-    case ioE: IOException => isGcs500(ioE) || isGcs503(ioE)
+    case ioE: IOException => isGcs500(ioE) || isGcs503(ioE) || isGcs504(ioE)
     case other => isTransient(other)
   }
 

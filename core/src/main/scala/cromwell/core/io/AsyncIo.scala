@@ -34,8 +34,8 @@ class AsyncIo(ioEndpoint: ActorRef, ioCommandBuilder: IoCommandBuilder) {
     asyncCommand(ioCommandBuilder.contentAsStringCommand(path, maxBytes, failOnOverflow))
   }
 
-  def writeAsync(path: Path, content: String, options: OpenOptions): Future[Unit] = {
-    asyncCommand(ioCommandBuilder.writeCommand(path, content, options))
+  def writeAsync(path: Path, content: String, options: OpenOptions, compressPayload: Boolean = false): Future[Unit] = {
+    asyncCommand(ioCommandBuilder.writeCommand(path, content, options, compressPayload))
   }
 
   def sizeAsync(path: Path): Future[Long] = {

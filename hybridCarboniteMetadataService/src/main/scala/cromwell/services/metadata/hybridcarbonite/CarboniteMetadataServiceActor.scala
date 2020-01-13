@@ -1,12 +1,15 @@
 package cromwell.services.metadata.hybridcarbonite
 
+import java.util.concurrent.atomic.AtomicLong
+
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
+import cromwell.services.FailedMetadataJsonResponse
 import cromwell.services.ServiceRegistryActor.{IoActorRef, NoIoActorRefAvailable, RequestIoActorRef}
-import cromwell.services.metadata.MetadataService.{MetadataReadAction, MetadataWriteAction, MetadataWriteFailure}
-import cromwell.services.metadata.hybridcarbonite.CarbonitedMetadataThawingActor.ThawCarboniteFailed
+import cromwell.services.metadata.MetadataService.{BuildWorkflowMetadataJsonAction, MetadataWriteAction, MetadataWriteFailure}
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
+import mouse.boolean._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -18,19 +21,18 @@ class CarboniteMetadataServiceActor(carboniteConfig: HybridCarboniteConfig, serv
   var ioActorOption: Option[ActorRef] = None
   scheduleIoActorLookup()
 
-  // TODO: [CARBONITE] Validate the carbonite config
   def thawingActorProps(ioActor: ActorRef): Props = CarbonitedMetadataThawingActor.props(carboniteConfig, serviceRegistryActor, ioActor)
 
   var carboniteWorker: Option[ActorRef] = None
 
   override def receive: Receive = {
-    case read: MetadataReadAction =>
+    case read: BuildWorkflowMetadataJsonAction =>
       ioActorOption match {
         case Some(ioActor) =>
-          val worker = context.actorOf(thawingActorProps(ioActor))
+          val worker = context.actorOf(thawingActorProps(ioActor), s"ThawingActor-${saltNumber.incrementAndGet()}-for-${read.workflowId}")
           worker forward read
         case None =>
-          sender ! ThawCarboniteFailed(new Exception("Cannot create CarbonitedMetadataThawingActor: no IoActor reference available"))
+          sender ! FailedMetadataJsonResponse(read, new Exception("Cannot create CarbonitedMetadataThawingActor: no IoActor reference available"))
       }
     case write: MetadataWriteAction =>
       val error = new UnsupportedOperationException(s"Programmer Error! Carboniter Worker should never be sent write requests (but got $write from $sender)")
@@ -38,10 +40,7 @@ class CarboniteMetadataServiceActor(carboniteConfig: HybridCarboniteConfig, serv
     case IoActorRef(ref) =>
       log.info(s"${getClass.getSimpleName} has received an IoActor reference")
       ioActorOption = Option(ref)
-      carboniteWorker = carboniteConfig.carboniteInterval map { interval =>
-        log.info(s"Initializing carbonite worker actor with an interval of $interval")
-        context.actorOf(CarboniteWorkerActor.props(interval, ref))
-      }
+      carboniteWorker = carboniteConfig.enabled.option(context.actorOf(CarboniteWorkerActor.props(carboniteConfig, serviceRegistryActor, ref)))
     case NoIoActorRefAvailable =>
       log.warning(s"${getClass.getSimpleName} is still waiting for an IoActor reference")
       scheduleIoActorLookup()
@@ -58,6 +57,11 @@ class CarboniteMetadataServiceActor(carboniteConfig: HybridCarboniteConfig, serv
     }
     ()
   }
+
+  // For naming:
+  // - Makes sure we don't accidentally duplicate sub-actor names
+  // - We don't actually need the thread-safety, this class just has a convenient incrementAndGet method
+  val saltNumber = new AtomicLong(0)
 }
 
 object CarboniteMetadataServiceActor {

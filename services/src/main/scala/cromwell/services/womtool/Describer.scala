@@ -15,13 +15,15 @@ object Describer {
 
   def describeWorkflow(wsfc: WorkflowSourceFilesCollection): DescribeResult = {
 
+    val initialResolvers = List(HttpResolver(None, Map.empty))
+
     // The HTTP resolver is used to pull down workflows submitted by URL
-    LanguageFactoryUtil.findWorkflowSource(wsfc.workflowSource, wsfc.workflowUrl, List(HttpResolver(None, Map.empty))) match {
-      case Right(sourceAndResolvers: (WorkflowSource, List[ImportResolver.ImportResolver])) =>
-        LanguageFactoryUtil.chooseFactory(sourceAndResolvers._1, wsfc) match {
+    LanguageFactoryUtil.findWorkflowSource(wsfc.workflowSource, wsfc.workflowUrl, initialResolvers) match {
+      case Right((workflowSource: WorkflowSource, importResolvers: List[ImportResolver.ImportResolver])) =>
+        LanguageFactoryUtil.chooseFactory(workflowSource, wsfc) match {
           case Valid(factory: LanguageFactory) =>
             DescribeSuccess(
-              description = describeWorkflowInner(factory, sourceAndResolvers._1, wsfc)
+              description = describeWorkflowInner(factory, workflowSource, importResolvers, wsfc)
             )
           case Invalid(e) =>
             // `chooseFactory` generally should not fail, because we still choose the default factory even if `looksParsable`
@@ -41,12 +43,15 @@ object Describer {
   }
 
   // By this point there are no "out of band" errors that can occur (i.e. those that would indicate a BadRequest, versus just showing up in the `errors` list)
-  private def describeWorkflowInner(factory: LanguageFactory, workflow: WorkflowSource, workflowSourceFilesCollection: WorkflowSourceFilesCollection): WorkflowDescription = {
+  private def describeWorkflowInner(factory: LanguageFactory,
+                                    workflowSource: WorkflowSource,
+                                    importResolvers: List[ImportResolver.ImportResolver],
+                                    workflowSourceFilesCollection: WorkflowSourceFilesCollection): WorkflowDescription = {
 
     // Mirror of the inputs/no inputs fork in womtool.validate.Validate
     if (workflowSourceFilesCollection.inputsJson.isEmpty) {
       // No inputs: just load up the WomBundle
-      factory.getWomBundle(workflow, workflowSourceOrigin = None, workflowOptionsJson = "{}", List(HttpResolver(None, Map.empty)), List(factory)) match {
+      factory.getWomBundle(workflowSource, workflowSourceOrigin = None, workflowOptionsJson = "{}", importResolvers, List(factory)) match {
         case Right(bundle: WomBundle) =>
           WorkflowDescription.fromBundle(bundle, factory.languageName, factory.languageVersionName, List.empty)
         case Left(workflowErrors) =>
@@ -54,7 +59,7 @@ object Describer {
       }
     } else {
       // Inputs: load up the WomBundle and then try creating an executable with WomBundle + inputs
-      factory.getWomBundle(workflow, workflowSourceOrigin = None, workflowOptionsJson = "{}", List(HttpResolver(None, Map.empty)), List(factory)) match {
+      factory.getWomBundle(workflowSource, workflowSourceOrigin = None, workflowOptionsJson = "{}", importResolvers, List(factory)) match {
         case Right(bundle) =>
           factory.createExecutable(bundle, workflowSourceFilesCollection.inputsJson, NoIoFunctionSet) match {
             // Throw away the executable, all we care about is whether it created successfully (i.e. the inputs are valid)

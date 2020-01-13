@@ -27,21 +27,37 @@ class CromwellClient(val cromwellUrl: URL,
   lazy val defaultHeaders: List[HttpHeader] = defaultAuthorization.toList
 
   lazy val engineEndpoint = s"$cromwellUrl/engine/$apiVersion"
-  lazy val submitEndpoint = s"$cromwellUrl/api/workflows/$apiVersion"
+  lazy val workflowsEndpoint = s"$cromwellUrl/api/workflows/$apiVersion"
+  lazy val womtoolEndpoint = s"$cromwellUrl/api/womtool/$apiVersion"
   // Everything else is a suffix off the submit endpoint:
-  lazy val batchSubmitEndpoint = s"$submitEndpoint/batch"
 
-  def abortEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(submitEndpoint, workflowId, "abort")
-  def statusEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(submitEndpoint, workflowId, "status")
-  def metadataEndpoint(workflowId: WorkflowId, args: Option[Map[String, List[String]]] = None): Uri = workflowSpecificGetEndpoint(submitEndpoint, workflowId, "metadata", args)
-  def outputsEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(submitEndpoint, workflowId, "outputs")
-  def labelsEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(submitEndpoint, workflowId, "labels")
-  def logsEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(submitEndpoint, workflowId, "logs")
+  lazy val submitEndpoint = workflowsEndpoint
+  lazy val batchSubmitEndpoint = s"$submitEndpoint/batch"
+  def describeEndpoint= s"$womtoolEndpoint/describe"
+
+  def queryEndpoint(args: List[(String, String)]): Uri = {
+    val base = s"$workflowsEndpoint/query"
+
+    val argString = if (args.isEmpty) {
+      ""
+    } else {
+      (args map { case (key, value) => s"$key=$value" }).mkString("?", "&", "")
+    }
+
+    base + argString
+  }
+
+  def abortEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(workflowsEndpoint, workflowId, "abort")
+  def statusEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(workflowsEndpoint, workflowId, "status")
+  def metadataEndpoint(workflowId: WorkflowId, args: Option[Map[String, List[String]]] = None): Uri = workflowSpecificGetEndpoint(workflowsEndpoint, workflowId, "metadata", args)
+  def outputsEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(workflowsEndpoint, workflowId, "outputs")
+  def labelsEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(workflowsEndpoint, workflowId, "labels")
+  def logsEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(workflowsEndpoint, workflowId, "logs")
   def diffEndpoint(workflowA: WorkflowId, callA: String, indexA: ShardIndex, workflowB: WorkflowId, callB: String, indexB: ShardIndex): String = {
     def shardParam(aOrB: String, s: ShardIndex) = s.index.map(i => s"&index$aOrB=$i.toString").getOrElse("")
-    s"$submitEndpoint/callcaching/diff?workflowA=$workflowA&callA=$callA&workflowB=$workflowB&callB=$callB${shardParam("A", indexA)}${shardParam("B", indexB)}"
+    s"$workflowsEndpoint/callcaching/diff?workflowA=$workflowA&callA=$callA&workflowB=$workflowB&callB=$callB${shardParam("A", indexA)}${shardParam("B", indexB)}"
   }
-  lazy val backendsEndpoint = s"$submitEndpoint/backends"
+  lazy val backendsEndpoint = s"$workflowsEndpoint/backends"
   lazy val versionEndpoint = s"$engineEndpoint/version"
 
   import model.CallCacheDiffJsonSupport._
@@ -49,8 +65,9 @@ class CromwellClient(val cromwellUrl: URL,
   import model.CromwellStatusJsonSupport._
   import model.CromwellVersionJsonSupport._
   import model.WorkflowLabelsJsonSupport._
-  import model.WorkflowLogsJsonSupport._
   import model.WorkflowOutputsJsonSupport._
+  import model.WorkflowDescriptionJsonSupport._
+  import model.CromwellQueryResultJsonSupport._
 
   def submit(workflow: WorkflowSubmission)
             (implicit ec: ExecutionContext): FailureResponseOrT[SubmittedWorkflow] = {
@@ -59,6 +76,12 @@ class CromwellClient(val cromwellUrl: URL,
     makeRequest[CromwellStatus](HttpRequest(HttpMethods.POST, submitEndpoint, List.empty[HttpHeader], requestEntity)) map { status =>
       SubmittedWorkflow(WorkflowId.fromString(status.id), cromwellUrl, workflow)
     }
+  }
+
+  def describe(workflow: WorkflowDescribeRequest)
+              (implicit ec: ExecutionContext): FailureResponseOrT[WaasDescription] = {
+    val requestEntity = requestEntityForDescribe(workflow)
+    makeRequest[WaasDescription](HttpRequest(HttpMethods.POST, describeEndpoint, List.empty[HttpHeader], requestEntity))
   }
 
   def submitBatch(workflow: WorkflowBatchSubmission)
@@ -111,8 +134,12 @@ class CromwellClient(val cromwellUrl: URL,
     simpleRequest[WorkflowLabels](labelsEndpoint(workflowId), headers=headers)
   }
 
-  def logs(workflowId: WorkflowId)(implicit ec: ExecutionContext): FailureResponseOrT[WorkflowLogs] = {
-    simpleRequest[WorkflowLogsStruct](outputsEndpoint(workflowId)) map WorkflowLogs.apply
+  def logs(workflowId: WorkflowId)(implicit ec: ExecutionContext): FailureResponseOrT[WorkflowMetadata] = {
+    simpleRequest[String](logsEndpoint(workflowId)) map WorkflowMetadata
+  }
+
+  def query(workflowId: WorkflowId)(implicit ec: ExecutionContext): FailureResponseOrT[CromwellQueryResults] = {
+    simpleRequest[CromwellQueryResults](queryEndpoint(List(("id", workflowId.id.toString))))
   }
 
   def callCacheDiff(workflowA: WorkflowId,
@@ -250,6 +277,23 @@ object CromwellClient {
     }
 
     val multipartFormData = Multipart.FormData((sourceBodyParts ++ zipBodyParts).toSeq : _*)
+    multipartFormData.toEntity()
+  }
+
+  private[api] def requestEntityForDescribe(describeRequest: WorkflowDescribeRequest): MessageEntity = {
+
+    val sourceBodyParts = Map(
+      "workflowSource" -> describeRequest.workflowSource,
+      "workflowUrl" -> describeRequest.workflowUrl,
+      "workflowType" -> describeRequest.workflowType,
+      "workflowTypeVersion" -> describeRequest.workflowTypeVersion,
+      "workflowInputs" -> describeRequest.inputsJson
+    ) collect {
+      case (name, Some(source: String)) =>
+        Multipart.FormData.BodyPart(name, HttpEntity(MediaTypes.`application/json`, ByteString(source)))
+    }
+
+    val multipartFormData = Multipart.FormData(sourceBodyParts.toSeq : _*)
     multipartFormData.toEntity()
   }
 

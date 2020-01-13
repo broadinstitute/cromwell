@@ -6,6 +6,7 @@ workflowRoot: main
 backendsMode: "any"
 backends: [Local, LocalNoDocker]
 tags: [localdockertest]
+skipDescribeEndpointValidation: true
 
 files {
   workflowUrl: "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/cwl_format/cwl_format_url.cwl"

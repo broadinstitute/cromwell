@@ -87,7 +87,7 @@ class NioFlow(parallelism: Int,
 
   private def write(write: IoWriteCommand) = IO {
     createDirectories(write.file)
-    write.file.writeContent(write.content)(write.openOptions, Codec.UTF8)
+    write.file.writeContent(write.content)(write.openOptions, Codec.UTF8, write.compressPayload)
     ()
   }
 
@@ -101,6 +101,7 @@ class NioFlow(parallelism: Int,
       read.file.limitFileContent(read.options.maxBytes, read.options.failOnOverflow),
       StandardCharsets.UTF_8
     )
+      .replaceAll("\\r\\n", "\\\n")
   }
 
   private def size(size: IoSizeCommand) = IO {

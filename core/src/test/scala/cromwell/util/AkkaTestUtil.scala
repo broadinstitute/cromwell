@@ -2,7 +2,6 @@ package cromwell.util
 
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Kill, PoisonPill, Props, SupervisorStrategy}
 import akka.testkit.TestProbe
-
 import scala.util.control.NoStackTrace
 
 object AkkaTestUtil {

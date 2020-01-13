@@ -1,0 +1,55 @@
+{
+  "workflowName": "main_workflow",
+  "calls": {
+    "main_workflow.wf_hello": [
+      {
+        "executionStatus": "Done",
+        "shardIndex": -1,
+        "outputs": {
+          "salutation": "Hello sub world!"
+        },
+        "inputs": {
+          "wf_hello_input": "sub world"
+        },
+        "end": "2019-07-22T13:32:39.610-04:00",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2019-07-22T13:32:24.140-04:00",
+            "endTime": "2019-07-22T13:32:24.147-04:00",
+            "description": "WaitingForValueStore"
+          },
+          {
+            "startTime": "2019-07-22T13:32:24.147-04:00",
+            "endTime": "2019-07-22T13:32:24.196-04:00",
+            "description": "SubWorkflowPreparingState"
+          },
+          {
+            "startTime": "2019-07-22T13:32:24.134-04:00",
+            "description": "SubWorkflowPendingState",
+            "endTime": "2019-07-22T13:32:24.140-04:00"
+          },
+          {
+            "startTime": "2019-07-22T13:32:24.196-04:00",
+            "description": "SubWorkflowRunningState",
+            "endTime": "2019-07-22T13:32:39.609-04:00"
+          }
+        ],
+        "start": "2019-07-22T13:32:24.133-04:00",
+        "subWorkflowId": "ba4a8cec-889e-4cce-9f89-d7df2a12d8d4"
+      }
+    ]
+  },
+  "outputs": {
+    "main_workflow.main_output": "Hello sub world!"
+  },
+  "id": "757d0bcc-b636-4658-99d4-9b4b3767f1d1",
+  "inputs": {},
+  "labels": {
+    "cromwell-workflow-id": "cromwell-757d0bcc-b636-4658-99d4-9b4b3767f1d1"
+  },
+  "submission": "2019-07-22T13:32:02.123-04:00",
+  "status": "Succeeded",
+  "end": "2019-07-22T13:32:41.529-04:00",
+  "start": "2019-07-22T13:32:20.434-04:00"
+}

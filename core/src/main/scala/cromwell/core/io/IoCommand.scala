@@ -86,7 +86,10 @@ abstract class IoSizeCommand(val file: Path) extends SingleFileIoCommand[Long] {
   * Write content in file
   * Will create the destination directory if it doesn't exist.
   */
-abstract class IoWriteCommand(val file: Path, val content: String, val openOptions: OpenOptions) extends SingleFileIoCommand[Unit] {
+abstract class IoWriteCommand(val file: Path,
+                              val content: String,
+                              val openOptions: OpenOptions,
+                              val compressPayload: Boolean) extends SingleFileIoCommand[Unit] {
   override def toString = s"write to ${file.pathAsString}"
   override lazy val name = "write"
 }

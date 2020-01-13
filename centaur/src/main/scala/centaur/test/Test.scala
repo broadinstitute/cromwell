@@ -23,14 +23,18 @@ import com.typesafe.scalalogging.StrictLogging
 import common.validation.Validation._
 import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
-import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, Succeeded, TerminalStatus, WorkflowId, WorkflowMetadata, WorkflowStatus}
+import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, Succeeded, TerminalStatus, WaasDescription, WorkflowId, WorkflowMetadata, WorkflowStatus}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import io.circe.parser._
-import spray.json.JsString
+import org.apache.commons.lang3.exception.ExceptionUtils
+import mouse.all._
+import spray.json.{JsString, JsValue}
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
+import scala.util.Failure
 
 /**
   * A simplified riff on the final tagless pattern where the interpreter (monad & related bits) are fixed. Operation
@@ -120,9 +124,63 @@ object Operations extends StrictLogging {
     storageOptions.getService
   }
 
+  implicit private val timer = IO.timer(global)
+  implicit private val contextShift = IO.contextShift(global)
+
   def submitWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = {
     new Test[SubmittedWorkflow] {
-      override def run: IO[SubmittedWorkflow] = CentaurCromwellClient.submit(workflow)
+      override def run: IO[SubmittedWorkflow] = for {
+        id <- CentaurCromwellClient.submit(workflow)
+      } yield id
+    }
+  }
+
+  /**
+    * A smoke test of the version endpoint, this confirms that a) nothing explodes and b) the result must be a JSON object
+    * with a "cromwell" key. There is no sanity checking of the version value here.
+    */
+  def checkVersion(): Test[Unit] = new Test[Unit] {
+    override def run: IO[Unit] = for {
+      _ <- CentaurCromwellClient.version
+    } yield ()
+  }
+
+  def checkDescription(workflow: Workflow, validityExpectation: Option[Boolean], retries: Int = 3): Test[Unit] = {
+    new Test[Unit] {
+
+      val timeout = 60.seconds
+
+      def checkDescriptionInner(alreadyTried: Int): IO[Unit] = {
+        val timeoutStackTraceString = ExceptionUtils.getStackTrace(new Exception)
+        (CentaurCromwellClient.describe(workflow) flatMap { d: WaasDescription =>
+          validityExpectation match {
+            case None => IO.pure(())
+            case Some(d.valid) => IO.pure(())
+            case Some(otherExpectation) =>
+              logger.error(s"Unexpected 'valid=${d.valid}' response when expecting $otherExpectation. Full unexpected description:${System.lineSeparator()}$d")
+              IO.raiseError(new Exception(s"Expected this workflow's /describe validity to be '$otherExpectation' but got: '${d.valid}'"))
+          }
+        }).timeoutTo(timeout, {
+          if (alreadyTried + 1 >= retries) {
+            IO.raiseError(new TimeoutException("Timeout from checkDescription 60 seconds: " + timeoutStackTraceString))
+          } else {
+            logger.warn(s"checkDescription failed on attempt ${alreadyTried + 1}. ")
+            checkDescriptionInner(alreadyTried + 1)
+          }
+        })
+      }
+
+
+      override def run: IO[Unit] = {
+
+
+        // We can't describe workflows based on zipped imports, so don't try:
+        if (workflow.skipDescribeEndpointValidation || workflow.data.zippedImports.nonEmpty) {
+          IO.pure(())
+        } else {
+          checkDescriptionInner(0)
+        }
+      }
     }
   }
 
@@ -163,9 +221,6 @@ object Operations extends StrictLogging {
       override def run: IO[WorkflowStatus] = CentaurCromwellClient.abort(workflow)
     }
   }
-
-  implicit private val timer = IO.timer(global)
-  implicit private val contextShift = IO.contextShift(global)
 
   def waitFor(duration: FiniteDuration) = {
     new Test[Unit] {
@@ -390,6 +445,113 @@ object Operations extends StrictLogging {
     }
   }
 
+  /* Select only those flat metadata items whose keys begin with the specified prefix, removing the prefix from the keys. Also
+   * perform variable substitutions for UUID and WORKFLOW_ROOT and remove any ~> Centaur metadata expectation metacharacters. */
+  private def selectMetadataExpectationSubsetByPrefix(workflow: Workflow, prefix: String, workflowId: WorkflowId, workflowRoot: String): List[(String, JsValue)] = {
+    import WorkflowFlatMetadata._
+    def replaceVariables(value: JsValue): JsValue = value match {
+      case s: JsString => JsString(s.value.replaceExpectationVariables(workflowId, workflowRoot).replaceFirst("^~>", ""))
+      case o => o
+    }
+    val filterLabels: PartialFunction[(String, JsValue), (String, JsValue)] = {
+      case (k, v) if k.startsWith(prefix) => k.substring(prefix.length) -> replaceVariables(v)
+    }
+
+    for {
+      flat <- workflow.metadata.toList
+      selected <- flat.value.toList collect filterLabels
+    } yield selected
+  }
+
+  def validateOutputs(submittedWorkflow: SubmittedWorkflow,
+                      workflow: Workflow,
+                      workflowRoot: String): Test[Unit] = new Test[Unit] {
+
+    def checkOutputs(expectedOutputs: List[(String, JsValue)])(actualOutputs: Map[String, JsValue]): IO[Unit] = {
+      val expected = expectedOutputs.toSet
+      val actual = actualOutputs.toSet
+
+      lazy val inActualButNotInExpected = actual.diff(expected)
+      lazy val inExpectedButNotInActual = expected.diff(actual)
+
+      if (!workflow.allowOtherOutputs && inActualButNotInExpected.nonEmpty) {
+        val message = s"In actual outputs but not in expected and other outputs not allowed: ${inActualButNotInExpected.mkString(", ")}"
+        IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
+      } else if (inExpectedButNotInActual.nonEmpty) {
+        val message = s"In expected outputs but not in actual: ${inExpectedButNotInActual.mkString(", ")}"
+        IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
+      } else {
+        IO.unit
+      }
+    }
+
+    override def run: IO[Unit] = {
+      import centaur.test.metadata.WorkflowFlatOutputs._
+
+      val expectedOutputs: List[(String, JsValue)] = selectMetadataExpectationSubsetByPrefix(workflow, "outputs.", submittedWorkflow.id, workflowRoot)
+      val ioActualOutputs: IO[Map[String, JsValue]] = CentaurCromwellClient.outputs(submittedWorkflow) map { _.asFlat.stringifyValues }
+
+      ioActualOutputs flatMap checkOutputs(expectedOutputs)
+    }
+  }
+
+  def validateLabels(submittedWorkflow: SubmittedWorkflow,
+                     workflow: Workflow,
+                     workflowRoot: String): Test[Unit] = new Test[Unit] {
+    override def run: IO[Unit] = {
+      import centaur.test.metadata.WorkflowFlatLabels._
+
+      val workflowIdLabel = ("cromwell-workflow-id", JsString(s"cromwell-${submittedWorkflow.id}"))
+      val expectedLabels: List[(String, JsValue)] = workflowIdLabel ::
+        selectMetadataExpectationSubsetByPrefix(workflow, "labels.", submittedWorkflow.id, workflowRoot)
+      val ioActualLabels: IO[Map[String, JsValue]] = CentaurCromwellClient.labels(submittedWorkflow) map { _.asFlat.stringifyValues }
+
+      ioActualLabels flatMap { actualLabels =>
+        val diff = expectedLabels.toSet.diff(actualLabels.toSet)
+        if (diff.nonEmpty) {
+          val message = s"In expected labels but not in actual: ${diff.mkString(", ")}"
+          IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
+        } else {
+          IO.unit
+        }
+      }
+    }
+  }
+
+  /** Compares logs filtered from the raw `metadata` endpoint with the `logs` endpoint. */
+  def validateLogs(metadata: WorkflowMetadata, submittedWorkflow: SubmittedWorkflow, workflow: Workflow): Test[Unit] = new Test[Unit] {
+    val suffixes = Set("stdout", "shardIndex", "stderr", "attempt", "backendLogs.log")
+
+    def removeSubworkflowKeys(flattened: Map[String, JsValue]): Map[String, JsValue] = {
+      val subWorkflowIdPrefixes = flattened.keys.filter(_.endsWith(".subWorkflowId")).map(s => s.substring(0, s.lastIndexOf('.')))
+      flattened filter { case (k, _) => !subWorkflowIdPrefixes.exists(k.startsWith) }
+    }
+
+    // Filter to only include the fields in the flattened metadata that should appear in the logs endpoint.
+    def filterForLogsFields(flattened: Map[String, JsValue]): Map[String, JsValue] = removeSubworkflowKeys(flattened).filter {
+      case (k, _) => k == "id" || suffixes.exists(s => k.endsWith("." + s) && !k.contains(".outputs.") && !k.startsWith("outputs."))
+    }
+
+    override def run: IO[Unit] = {
+
+      def validateLogsMetadata(flatLogs: Map[String, JsValue], flatFilteredMetadata: Map[String, JsValue]): IO[Unit] =
+        if (flatLogs.equals(flatFilteredMetadata)) {
+          IO.unit
+        } else {
+          val message = (List("actual logs endpoint output did not equal filtered metadata", "flat logs: ") ++
+            flatLogs.toList ++ List("flat filtered metadata: ") ++ flatFilteredMetadata.toList).mkString("\n")
+          IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
+        }
+
+      for {
+        logs <- CentaurCromwellClient.logs(submittedWorkflow)
+        flatLogs = logs.asFlat.value
+        flatFilteredMetadata = metadata.asFlat.value |> filterForLogsFields
+        _ <- validateLogsMetadata(flatLogs, flatFilteredMetadata)
+      } yield ()
+    }
+  }
+
   def validateMetadata(submittedWorkflow: SubmittedWorkflow,
                        workflowSpec: Workflow,
                        cacheHitUUID: Option[UUID] = None): Test[WorkflowMetadata] = {
@@ -446,7 +608,6 @@ object Operations extends StrictLogging {
           }
         }
 
-        cleanUpImports(workflow)
         for {
           actualMetadata <- CentaurCromwellClient.metadata(workflow)
           _ <- validateUnwantedMetadata(actualMetadata)
@@ -462,6 +623,45 @@ object Operations extends StrictLogging {
             .timeoutTo(CentaurConfig.metadataConsistencyTimeout, validateMetadata(submittedWorkflow, expectedMetadata))
         // Nothing to wait for, so just return the first metadata we get back:
         case None => CentaurCromwellClient.metadata(submittedWorkflow)
+      }
+    }
+  }
+
+  def waitForArchive(workflowId: WorkflowId): Test[Unit] = {
+    new Test[Unit] {
+
+      def validateMetadataArchiveStatus(status: String): IO[Boolean] = {
+        logger.info(s"Validating archive status '$status for workflow ID: $workflowId'")
+        if (status == "Archived") {
+          IO.pure(true)
+        }  else if (status == "Unarchived" ) {
+          IO.pure(false)
+        } else {
+          IO.fromTry(Failure(new Exception(s"Expected Archived but got $status")))
+        }
+      }
+
+      def checkArchived(): IO[Boolean] = for {
+          archiveStatus <- CentaurCromwellClient.archiveStatus(workflowId)
+          isArchived <- validateMetadataArchiveStatus(archiveStatus)
+      } yield isArchived
+
+      def eventuallyArchived(): IO[Unit] = {
+          checkArchived() flatMap {
+            case true => IO.pure(())
+            case false => for {
+              _ <- IO.sleep(2.seconds)
+              recurse <- eventuallyArchived()
+            } yield recurse
+          }
+      }
+
+      override def run: IO[Unit] = {
+        if (CentaurConfig.expectCarbonite) {
+          eventuallyArchived().timeout(CentaurConfig.metadataConsistencyTimeout)
+        } else {
+          IO.pure(())
+        }
       }
     }
   }
@@ -550,20 +750,4 @@ object Operations extends StrictLogging {
     }
   }
 
-  /**
-    * Clean up temporary zip files created for Imports testing.
-    */
-  def cleanUpImports(submittedWF: SubmittedWorkflow) = {
-    submittedWF.workflow.zippedImports match {
-      case Some(zipFile) => zipFile.delete(swallowIOExceptions = true)
-      case None => //
-    }
-  }
-
-  // FIXME: Should be abstracted w/ validateMetadata - ATM still used by the unused caching tests
-  def retrieveMetadata(workflow: SubmittedWorkflow): Test[WorkflowMetadata] = {
-    new Test[WorkflowMetadata] {
-      override def run: IO[WorkflowMetadata] = CentaurCromwellClient.metadata(workflow)
-    }
-  }
 }

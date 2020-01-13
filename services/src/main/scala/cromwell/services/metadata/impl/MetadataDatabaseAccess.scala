@@ -4,6 +4,7 @@ import cats.Semigroup
 import cats.data.NonEmptyList
 import cats.instances.future._
 import cats.instances.list._
+import cats.syntax.apply._
 import cats.syntax.semigroup._
 import cats.syntax.traverse._
 import common.validation.Validation._
@@ -80,7 +81,7 @@ object MetadataDatabaseAccess {
     }
   }
 
-  case class SummaryResult(rowsProcessedIncreasing: Long, increasingGap: Long, rowsProcessedDecreasing: Long, decreasingGap: Long)
+  case class SummaryResult(rowsProcessedIncreasing: Long, increasingGap: Long, rowsProcessedDecreasing: Long, decreasingGap: Long, maximumKnownMetadataEntryId: Long)
 }
 
 trait MetadataDatabaseAccess {
@@ -164,9 +165,9 @@ trait MetadataDatabaseAccess {
       metadataToMetadataEvents(id)
   }
 
-  def refreshWorkflowMetadataSummaries(limit: Int)(implicit ec: ExecutionContext): Future[SummaryResult] = {
+  def refreshWorkflowMetadataSummaries(limit: Int, permittedSummaryStatusPointerUpdate: Option[Long])(implicit ec: ExecutionContext): Future[SummaryResult] = {
     for {
-      (increasingProcessed, increasingGap) <- metadataDatabaseInterface.summarizeIncreasing(
+      (increasingProcessed, increasingGap, maximumMetadataEntryIdInTable) <- metadataDatabaseInterface.summarizeIncreasing(
         summaryNameIncreasing = WorkflowMetadataKeys.SummaryNameIncreasing,
         startMetadataKey = WorkflowMetadataKeys.StartTime,
         endMetadataKey = WorkflowMetadataKeys.EndTime,
@@ -177,6 +178,7 @@ trait MetadataDatabaseAccess {
         rootWorkflowIdKey = WorkflowMetadataKeys.RootWorkflowId,
         labelMetadataKey = WorkflowMetadataKeys.Labels,
         limit = limit,
+        permittedSummaryStatusPointerUpdate = permittedSummaryStatusPointerUpdate,
         buildUpdatedSummary = MetadataDatabaseAccess.buildUpdatedSummary)
       (decreasingProcessed, decreasingGap) <- metadataDatabaseInterface.summarizeDecreasing(
         summaryNameDecreasing = WorkflowMetadataKeys.SummaryNameDecreasing,
@@ -191,7 +193,7 @@ trait MetadataDatabaseAccess {
         labelMetadataKey = WorkflowMetadataKeys.Labels,
         limit = limit,
         buildUpdatedSummary = MetadataDatabaseAccess.buildUpdatedSummary)
-    } yield SummaryResult(increasingProcessed, increasingGap, decreasingProcessed, decreasingGap)
+    } yield SummaryResult(increasingProcessed, increasingGap, decreasingProcessed, decreasingGap, maximumMetadataEntryIdInTable)
   }
 
   def updateMetadataArchiveStatus(workflowId: WorkflowId, newStatus: MetadataArchiveStatus): Future[Int] = {
@@ -207,6 +209,12 @@ trait MetadataDatabaseAccess {
 
   def getWorkflowLabels(id: WorkflowId)(implicit ec: ExecutionContext): Future[Map[String, String]] = {
     metadataDatabaseInterface.getWorkflowLabels(id.toString)
+  }
+
+  def getRootAndSubworkflowLabels(rootWorkflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Map[WorkflowId, Map[String, String]]] = {
+    metadataDatabaseInterface.getRootAndSubworkflowLabels(rootWorkflowId.toString) map {
+      _ map { case (id, labelsForId) => WorkflowId.fromString(id) -> labelsForId }
+    }
   }
 
   def workflowWithIdExistsInMetadata(possibleWorkflowId: String)(implicit ec: ExecutionContext): Future[Boolean] = {
@@ -240,6 +248,7 @@ trait MetadataDatabaseAccess {
       queryParameters.endDate.map(_.toSystemTimestamp),
       queryParameters.metadataArchiveStatus.map(MetadataArchiveStatus.toDatabaseValue),
       queryParameters.includeSubworkflows,
+      queryParameters.minimumSummaryEntryId,
       queryParameters.page,
       queryParameters.pageSize
     )
@@ -257,7 +266,8 @@ trait MetadataDatabaseAccess {
       queryParameters.startDate.map(_.toSystemTimestamp),
       queryParameters.endDate.map(_.toSystemTimestamp),
       queryParameters.metadataArchiveStatus.map(MetadataArchiveStatus.toDatabaseValue),
-      queryParameters.includeSubworkflows
+      queryParameters.includeSubworkflows,
+      queryParameters.minimumSummaryEntryId
     )
 
     def queryMetadata(count: Int): Option[QueryMetadata] = {
@@ -304,4 +314,25 @@ trait MetadataDatabaseAccess {
       queryResults <- summariesToQueryResults(workflows)
     } yield (WorkflowQueryResponse(queryResults, count), queryMetadata(count))
   }
+
+  def deleteNonLabelMetadataEntriesForWorkflow(rootWorkflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int] = {
+    import cromwell.core.WorkflowState
+
+    ((metadataDatabaseInterface.isRootWorkflow(rootWorkflowId.toString), metadataDatabaseInterface.getWorkflowStatus(rootWorkflowId.toString)) mapN {
+      case (None, _) =>
+        Future.failed(new Exception(s"""Metadata deletion precondition failed: workflow ID "$rootWorkflowId" not found in summary table"""))
+      case (Some(false), _) =>
+        Future.failed(new Exception(s"""Metadata deletion precondition failed: workflow ID "$rootWorkflowId" is not a root workflow"""))
+      case (_, None) =>
+        Future.failed(new Exception(s"""Metadata deletion precondition failed: workflow ID "$rootWorkflowId" did not have a status in the summary table"""))
+      case (Some(true), Some(status)) =>
+        if (WorkflowState.withName(status).isTerminal)
+          metadataDatabaseInterface.deleteNonLabelMetadataForWorkflow(rootWorkflowId.toString)
+        else
+          Future.failed(new Exception(s"""Metadata deletion precondition failed: workflow ID "$rootWorkflowId" was in non-terminal status "$status""""))
+
+    }).flatten
+  }
+
+  def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = metadataDatabaseInterface.getRootWorkflowId(workflowId)
 }

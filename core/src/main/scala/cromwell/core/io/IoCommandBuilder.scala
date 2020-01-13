@@ -10,7 +10,7 @@ import cromwell.core.path.Path
   */
 abstract class PartialIoCommandBuilder {
   def contentAsStringCommand: PartialFunction[(Path, Option[Int], Boolean), IoContentAsStringCommand] = PartialFunction.empty
-  def writeCommand: PartialFunction[(Path, String, OpenOptions), IoWriteCommand] = PartialFunction.empty
+  def writeCommand: PartialFunction[(Path, String, OpenOptions, Boolean), IoWriteCommand] = PartialFunction.empty
   def sizeCommand: PartialFunction[Path, IoSizeCommand] = PartialFunction.empty
   def deleteCommand: PartialFunction[(Path, Boolean), IoDeleteCommand] = PartialFunction.empty
   def copyCommand: PartialFunction[(Path, Path, Boolean), IoCopyCommand] = PartialFunction.empty
@@ -55,8 +55,8 @@ class IoCommandBuilder(partialBuilders: List[PartialIoCommandBuilder] = List.emp
     buildOrDefault(_.contentAsStringCommand, (path, maxBytes, failOnOverflow), DefaultIoContentAsStringCommand(path, IoReadOptions(maxBytes, failOnOverflow)))
   }
   
-  def writeCommand(path: Path, content: String, options: OpenOptions): IoWriteCommand = {
-    buildOrDefault(_.writeCommand, (path, content, options), DefaultIoWriteCommand(path, content, options))
+  def writeCommand(path: Path, content: String, options: OpenOptions, compressPayload: Boolean = false): IoWriteCommand = {
+    buildOrDefault(_.writeCommand, (path, content, options, compressPayload), DefaultIoWriteCommand(path, content, options, compressPayload))
   }
   
   def sizeCommand(path: Path): IoSizeCommand = {

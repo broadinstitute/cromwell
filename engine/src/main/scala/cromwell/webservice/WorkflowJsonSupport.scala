@@ -47,6 +47,13 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
 
   implicit val workflowSourceDataWithImports = jsonFormat11(WorkflowSourceFilesWithDependenciesZip)
   implicit val errorResponse = jsonFormat3(FailureResponse)
+
+  // By default the formatter for JsValues prints them out ADT-style.
+  // In the case of SuccessResponses, we just want raw JsValues to be included in our output verbatim.
+  private implicit val identityJsValueFormatter = new RootJsonFormat[JsValue] {
+    override def read(json: JsValue): JsValue = json
+    override def write(obj: JsValue): JsValue = obj
+  }
   implicit val successResponse = jsonFormat3(SuccessResponse)
 
   implicit object DateJsonFormat extends RootJsonFormat[OffsetDateTime] {

@@ -3,6 +3,7 @@ testFormat: runtwiceexpectingcallcaching
 workflowRoot: cwl-cache-between-workflows
 workflowType: CWL
 workflowTypeVersion: v1.0
+skipDescribeEndpointValidation: true
 
 files {
   workflow: cwl_cache_between_workflows/cwl_cache_between_workflows.cwl

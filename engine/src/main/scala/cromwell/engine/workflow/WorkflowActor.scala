@@ -12,12 +12,13 @@ import cromwell.core.WorkflowOptions.FinalWorkflowLogDir
 import cromwell.core.WorkflowProcessingEvents.DescriptionEventValue.Finished
 import cromwell.core._
 import cromwell.core.logging.{WorkflowLogger, WorkflowLogging}
-import cromwell.core.path.{PathBuilder, PathBuilderFactory, PathFactory}
+import cromwell.core.path.{Path, PathBuilder, PathBuilderFactory, PathFactory}
 import cromwell.engine._
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.instrumentation.WorkflowInstrumentation
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle._
+import cromwell.engine.workflow.lifecycle.deletion.DeleteWorkflowFilesActor.{DeleteWorkflowFilesFailedResponse, DeleteWorkflowFilesSucceededResponse}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowFinalizationActor.{StartFinalizationCommand, WorkflowFinalizationFailedResponse, WorkflowFinalizationSucceededResponse}
@@ -30,6 +31,7 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.WorkflowStoreWr
 import cromwell.engine.workflow.workflowstore.{RestartableAborting, StartableState, WorkflowHeartbeatConfig, WorkflowToStart}
 import cromwell.subworkflowstore.SubWorkflowStoreActor.WorkflowComplete
 import cromwell.webservice.EngineStatsActor
+import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -43,6 +45,7 @@ object WorkflowActor {
   sealed trait WorkflowActorCommand
   case object StartWorkflowCommand extends WorkflowActorCommand
   case object AbortWorkflowCommand extends WorkflowActorCommand
+  final case class AbortWorkflowWithExceptionCommand(exception: Throwable) extends WorkflowActorCommand
   case object SendWorkflowHeartbeatCommand extends WorkflowActorCommand
 
   case class WorkflowFailedResponse(workflowId: WorkflowId, inState: WorkflowActorState, reasons: Seq[Throwable])
@@ -86,6 +89,12 @@ object WorkflowActor {
   case object FinalizingWorkflowState extends WorkflowActorRunningState
 
   /**
+    * The workflow and finalization has succeeded and wants to delete intermediate files. So we are now in deleting
+    * those files state.
+    */
+  case object DeletingFilesState extends WorkflowActorRunningState
+
+  /**
     * The WorkflowActor is aborting. We're just waiting for everything to finish up then we'll respond back to the
     * manager.
     */
@@ -123,7 +132,9 @@ object WorkflowActor {
                                workflowDescriptor: Option[EngineWorkflowDescriptor],
                                initializationData: AllBackendInitializationData,
                                lastStateReached: StateCheckpoint,
-                               effectiveStartableState: StartableState)
+                               effectiveStartableState: StartableState,
+                               workflowFinalOutputs: CallOutputs = CallOutputs.empty,
+                               workflowAllOutputs: CallOutputs = CallOutputs.empty)
   object WorkflowActorData {
     def apply(startableState: StartableState): WorkflowActorData = WorkflowActorData(
       currentLifecycleStateActor = None,
@@ -142,6 +153,8 @@ object WorkflowActor {
 
   def props(workflowToStart: WorkflowToStart,
             conf: Config,
+            callCachingEnabled: Boolean,
+            invalidateBadCacheResults: Boolean,
             ioActor: ActorRef,
             serviceRegistryActor: ActorRef,
             workflowLogCopyRouter: ActorRef,
@@ -162,6 +175,8 @@ object WorkflowActor {
       new WorkflowActor(
         workflowToStart = workflowToStart,
         conf = conf,
+        callCachingEnabled = callCachingEnabled,
+        invalidateBadCacheResults = invalidateBadCacheResults,
         ioActor = ioActor,
         serviceRegistryActor = serviceRegistryActor,
         workflowLogCopyRouter = workflowLogCopyRouter,
@@ -186,6 +201,8 @@ object WorkflowActor {
   */
 class WorkflowActor(workflowToStart: WorkflowToStart,
                     conf: Config,
+                    callCachingEnabled: Boolean,
+                    invalidateBadCacheResults:Boolean,
                     ioActor: ActorRef,
                     override val serviceRegistryActor: ActorRef,
                     workflowLogCopyRouter: ActorRef,
@@ -235,7 +252,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       self ! WorkflowInitializationFailedResponse(List(exception))
       Stop
     case exception if stateName == ExecutingWorkflowState =>
-      self ! WorkflowExecutionFailedResponse(Map.empty, exception)
+      self ! AbortWorkflowWithExceptionCommand(exception)
       Stop
     case exception if stateName == FinalizingWorkflowState =>
       self ! WorkflowFinalizationFailedResponse(List(exception))
@@ -251,7 +268,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       val actor = context.actorOf(MaterializeWorkflowDescriptorActor.props(serviceRegistryActor, workflowId, importLocalFilesystem = !serverMode, ioActorProxy = ioActor, hogGroup = hogGroup),
         "MaterializeWorkflowDescriptorActor")
       pushWorkflowStart(workflowId)
-      actor ! MaterializeWorkflowDescriptorCommand(sources, conf)
+      actor ! MaterializeWorkflowDescriptorCommand(sources, conf, callCachingEnabled, invalidateBadCacheResults)
       goto(MaterializingWorkflowDescriptorState) using stateData.copy(currentLifecycleStateActor = Option(actor))
     // If the workflow is not being restarted then we can abort it immediately as nothing happened yet
     case Event(AbortWorkflowCommand, _) if !restarting => goto(WorkflowAbortedState)
@@ -286,7 +303,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
   /* ************************** */
 
   when(InitializingWorkflowState) {
-    case Event(WorkflowInitializationSucceededResponse(initializationData), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) =>
+    case Event(WorkflowInitializationSucceededResponse(initializationData), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _)) =>
       val executionActor = context.actorOf(WorkflowExecutionActor.props(
         workflowDescriptor,
         ioActor = ioActor,
@@ -312,11 +329,11 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
         case _ => ExecutingWorkflowState
       }
       goto(nextState) using data.copy(currentLifecycleStateActor = Option(executionActor), initializationData = initializationData)
-    case Event(WorkflowInitializationFailedResponse(reason), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) =>
+    case Event(WorkflowInitializationFailedResponse(reason), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, Map.empty, CallOutputs.empty, Option(reason.toList))
 
     // If the workflow is not restarting, handle the Abort command normally and send an abort message to the init actor
-    case Event(AbortWorkflowCommand, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) if !restarting =>
+    case Event(AbortWorkflowCommand, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _)) if !restarting =>
       handleAbortCommand(data, workflowDescriptor)
   }
   
@@ -327,19 +344,21 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
   // Handles workflow completion events from the WEA and abort command
   val executionResponseHandler: StateFunction = {
     // Workflow responses
-    case Event(WorkflowExecutionSucceededResponse(jobKeys, outputs),
-    data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) =>
-      finalizeWorkflow(data, workflowDescriptor, jobKeys, outputs, None)
+    case Event(WorkflowExecutionSucceededResponse(jobKeys, finalOutputs, allOutputs),
+    data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _)) =>
+      finalizeWorkflow(data, workflowDescriptor, jobKeys, finalOutputs, None, allOutputs)
     case Event(WorkflowExecutionFailedResponse(jobKeys, failures),
-    data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) =>
+    data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, jobKeys, CallOutputs.empty, Option(List(failures)))
     case Event(WorkflowExecutionAbortedResponse(jobKeys),
-    data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) =>
-      finalizeWorkflow(data, workflowDescriptor, jobKeys, CallOutputs.empty, None)
+    data @ WorkflowActorData(_, Some(workflowDescriptor), _, StateCheckpoint(_, failures), _, _, _)) =>
+      finalizeWorkflow(data, workflowDescriptor, jobKeys, CallOutputs.empty, failures)
 
     // Whether we're running or aborting, restarting or not, pass along the abort command.
     // Note that aborting a workflow multiple times will result in as many abort commands sent to the execution actor
-    case Event(AbortWorkflowCommand, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) => 
+    case Event(AbortWorkflowWithExceptionCommand(ex), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _)) =>
+      handleAbortCommand(data, workflowDescriptor, Option(ex))
+    case Event(AbortWorkflowCommand, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _)) =>
       handleAbortCommand(data, workflowDescriptor)
   }
 
@@ -352,11 +371,11 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
   // Handles initialization responses we can get if the abort came in when we were initializing the workflow
   val abortHandler: StateFunction = {
     // If the initialization failed, record the failure in the data and finalize the workflow
-    case Event(WorkflowInitializationFailedResponse(reason), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) =>
+    case Event(WorkflowInitializationFailedResponse(reason), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, Map.empty, CallOutputs.empty, Option(reason.toList))
 
     // Otherwise (success or abort), finalize the workflow without failures
-    case Event(_: WorkflowInitializationResponse, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _)) =>
+    case Event(_: WorkflowInitializationResponse, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, Map.empty, CallOutputs.empty, failures = None)
   }
   
@@ -376,15 +395,31 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
     case Event(AbortWorkflowCommand, _) => stay()
   }
   
-  def handleAbortCommand(data: WorkflowActorData, workflowDescriptor: EngineWorkflowDescriptor) = {
+  def handleAbortCommand(data: WorkflowActorData, workflowDescriptor: EngineWorkflowDescriptor, exceptionCausedAbortOpt: Option[Throwable] = None) = {
     data.currentLifecycleStateActor match {
-      case Some(currentActor) => 
+      case Some(currentActor) =>
         currentActor ! EngineLifecycleActorAbortCommand
-        goto(WorkflowAbortingState)
+        goto(WorkflowAbortingState) using data.copy(lastStateReached = StateCheckpoint(stateName, exceptionCausedAbortOpt.map(List(_))))
       case None => 
         workflowLogger.warn(s"Received an abort command in state $stateName but there's no lifecycle actor associated. This is an abnormal state, finalizing the workflow anyway.")
         finalizeWorkflow(data, workflowDescriptor, Map.empty, CallOutputs.empty, None)
     }
+  }
+
+  /* **************************** */
+  /* ****** Deleting files ****** */
+  /* **************************** */
+
+  // TODO: Instead of simply logging to Kibana, figure out a way to tell the user what were the errors somehow (maybe through metadata?)
+  // since deletion happens only if the workflow and finalization succeeded we can directly goto Succeeded state
+  when(DeletingFilesState) {
+    case Event(DeleteWorkflowFilesSucceededResponse(filesNotFound), data) =>
+      workflowLogger.info(s"Successfully deleted intermediate output file(s) for root workflow $rootWorkflowIdForLogging." + filesNotFoundErrorMsg(filesNotFound))
+      goto(WorkflowSucceededState) using data.copy(currentLifecycleStateActor = None)
+    case Event(DeleteWorkflowFilesFailedResponse(errors, filesNotFound), data) =>
+      workflowLogger.info(s"Failed to delete ${errors.size} intermediate output file(s) for root workflow $rootWorkflowIdForLogging." +
+        filesNotFoundErrorMsg(filesNotFound) + s" Errors: ${errors.map(ExceptionUtils.getMessage)}")
+      goto(WorkflowSucceededState) using data.copy(currentLifecycleStateActor = None)
   }
 
   // Let these messages fall through to the whenUnhandled handler:
@@ -468,12 +503,25 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       }
   }
 
+  private def filesNotFoundErrorMsg(files: List[Path]) = {
+    if(files.nonEmpty) s" File(s) not found during deletion: ${files.mkString(",")}"
+    else ""
+  }
+
   private def finalizationSucceeded(data: WorkflowActorData) = {
     val finalState = data.lastStateReached match {
       case StateCheckpoint(WorkflowAbortingState, None) => WorkflowAbortedState
       case StateCheckpoint(_, Some(_)) => WorkflowFailedState
       case StateCheckpoint(_, None) => WorkflowSucceededState
     }
+
+    /*
+      TODO: In reference to WA-65: https://broadworkbench.atlassian.net/browse/WA-65, once finalization succeeds,
+       check if workflowFinalOutputs is nonEmpty and then create the DeleteWorkflowFilesActor here. After that
+       WorkflowActor should transition to DeletingFiles state and wait for update from DeleteWorkflowFilesActor.
+       We can't start deleting files before finalization succeeds as we don't want to start deleting them as they
+       are being copied to another location.
+     */
 
     goto(finalState) using data.copy(currentLifecycleStateActor = None)
   }
@@ -493,15 +541,22 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       copyWorkflowOutputsActor = copyWorkflowOutputsActorProps
     ), name = s"WorkflowFinalizationActor")
   }
+
   /**
     * Run finalization actor and transition to FinalizingWorkflowState.
     */
-  private def finalizeWorkflow(data: WorkflowActorData, workflowDescriptor: EngineWorkflowDescriptor,
-                               jobExecutionMap: JobExecutionMap, workflowOutputs: CallOutputs,
-                               failures: Option[List[Throwable]]) = {
-    val finalizationActor = makeFinalizationActor(workflowDescriptor, jobExecutionMap, workflowOutputs)
+  private def finalizeWorkflow(data: WorkflowActorData,
+                               workflowDescriptor: EngineWorkflowDescriptor,
+                               jobExecutionMap: JobExecutionMap,
+                               workflowFinalOutputs: CallOutputs,
+                               failures: Option[List[Throwable]],
+                               workflowAllOutputs: CallOutputs = CallOutputs.empty) = {
+    val finalizationActor = makeFinalizationActor(workflowDescriptor, jobExecutionMap, workflowFinalOutputs)
     finalizationActor ! StartFinalizationCommand
-    goto(FinalizingWorkflowState) using data.copy(lastStateReached = StateCheckpoint (stateName, failures))
+    goto(FinalizingWorkflowState) using data.copy(
+      lastStateReached = StateCheckpoint (stateName, failures),
+      workflowFinalOutputs = workflowFinalOutputs,
+      workflowAllOutputs = workflowAllOutputs)
   }
 
   private def sendHeartbeat(): Unit = workflowStoreActor ! WorkflowStoreWriteHeartbeatCommand(workflowId, submissionTime)

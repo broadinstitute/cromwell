@@ -3,14 +3,13 @@ package cromwell.engine.workflow
 import java.time.OffsetDateTime
 import java.util.concurrent.atomic.AtomicInteger
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Kill, Props}
 import akka.testkit.{EventFilter, TestActorRef, TestFSMRef, TestProbe}
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell._
 import cromwell.backend.{AllBackendInitializationData, JobExecutionMap}
 import cromwell.core._
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder, PathBuilderFactory}
-import cromwell.engine.{EngineFilesystems, EngineWorkflowDescriptor}
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
@@ -20,12 +19,13 @@ import cromwell.engine.workflow.lifecycle.finalization.WorkflowFinalizationActor
 import cromwell.engine.workflow.lifecycle.initialization.WorkflowInitializationActor.{WorkflowInitializationAbortedResponse, WorkflowInitializationFailedResponse}
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor.MaterializeWorkflowDescriptorFailureResponse
 import cromwell.engine.workflow.workflowstore.{StartableState, Submitted, WorkflowHeartbeatConfig, WorkflowToStart}
+import cromwell.engine.{EngineFilesystems, EngineWorkflowDescriptor}
 import cromwell.util.SampleWdl.ThreeStep
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 
 class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorBuilderForSpecs with BeforeAndAfter with Eventually {
 
@@ -54,6 +54,8 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
   var copyWorkflowLogsProbe: TestProbe = _
   val AwaitAlmostNothing = 100.milliseconds
   val initialJobCtByRootWf = new AtomicInteger()
+  val сallCachingEnabled = true
+  val invalidateBadCacheResults = true
 
   before {
     currentWorkflowId = WorkflowId.randomId()
@@ -70,6 +72,8 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
         workflowId = currentWorkflowId,
         startState = Submitted,
         workflowSources = workflowSources,
+        сallCachingEnabled = сallCachingEnabled,
+        invalidateBadCacheResults = invalidateBadCacheResults,
         conf = ConfigFactory.load,
         ioActor = system.actorOf(SimpleIoActor.props),
         serviceRegistryActor = mockServiceRegistryActor,
@@ -187,6 +191,27 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       deathwatch.expectTerminated(actor)
     }
 
+    "abort execution before escalating failure if one of its child actors crashed" in {
+      val workflowActor = createWorkflowActor(ExecutingWorkflowState)
+      deathwatch watch workflowActor
+
+      workflowActor.children.head ! Kill
+
+      eventually { workflowActor.stateName should be(WorkflowAbortingState) }
+      currentLifecycleActor.expectMsgPF(TimeoutDuration) {
+        case EngineLifecycleActorAbortCommand =>
+          workflowActor ! WorkflowExecutionAbortedResponse(Map.empty)
+      }
+      finalizationProbe.expectMsg(StartFinalizationCommand)
+      workflowActor.stateName should be(FinalizingWorkflowState)
+      workflowActor ! WorkflowFinalizationSucceededResponse
+      supervisorProbe.expectMsgPF(TimeoutDuration) {
+        case _: WorkflowFailedResponse => // success
+      }
+
+      deathwatch.expectTerminated(workflowActor)
+    }
+
     "log an error when a path builder factory initialization fails" in {
       EventFilter.error(start = "Failed to copy workflow log", pattern = ".*Failing as requested.*", occurrences = 1).intercept {
         val _ = createWorkflowActor(WorkflowSucceededState, Option(new FailingPathBuilderFactory()))
@@ -218,6 +243,8 @@ class WorkflowActorWithTestAddons(val finalizationProbe: TestProbe,
                                   startState: StartableState,
                                   workflowSources: WorkflowSourceFilesCollection,
                                   conf: Config,
+                                  сallCachingEnabled: Boolean,
+                                  invalidateBadCacheResults: Boolean,
                                   ioActor: ActorRef,
                                   serviceRegistryActor: ActorRef,
                                   workflowLogCopyRouter: ActorRef,
@@ -237,6 +264,8 @@ class WorkflowActorWithTestAddons(val finalizationProbe: TestProbe,
     sources = workflowSources,
     hogGroup = HogGroup("foo")),
   conf = conf,
+  callCachingEnabled = сallCachingEnabled,
+  invalidateBadCacheResults = invalidateBadCacheResults,
   ioActor = ioActor,
   serviceRegistryActor = serviceRegistryActor,
   workflowLogCopyRouter = workflowLogCopyRouter,

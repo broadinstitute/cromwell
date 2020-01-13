@@ -5,6 +5,7 @@ import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.async.AsyncBackendJobExecutionActor.JobId
 import cromwell.core.path.Path
 import cromwell.core.{CallOutputs, ExecutionEvent}
+import cromwell.services.keyvalue.KeyValueServiceActor.KvPair
 import eu.timepit.refined.refineMV
 
 /**
@@ -27,19 +28,32 @@ final case class PendingExecutionHandle[BackendJobId <: JobId, BackendRunInfo, B
   override val result = NonRetryableExecution(new IllegalStateException("PendingExecutionHandle cannot yield a result"))
 }
 
-final case class SuccessfulExecutionHandle(outputs: CallOutputs, returnCode: Int, jobDetritusFiles: Map[String, Path], executionEvents: Seq[ExecutionEvent], resultsClonedFrom: Option[BackendJobDescriptor] = None) extends ExecutionHandle {
+final case class SuccessfulExecutionHandle(outputs: CallOutputs,
+                                           returnCode: Int,
+                                           jobDetritusFiles: Map[String, Path],
+                                           executionEvents: Seq[ExecutionEvent],
+                                           resultsClonedFrom: Option[BackendJobDescriptor] = None) extends ExecutionHandle {
   override val isDone = true
   override val result = SuccessfulExecution(outputs, returnCode, jobDetritusFiles, executionEvents, resultsClonedFrom)
 }
 
-final case class FailedNonRetryableExecutionHandle(throwable: Throwable, returnCode: Option[Int] = None) extends ExecutionHandle {
+sealed trait FailedExecutionHandle extends ExecutionHandle {
+  def kvPairsToSave: Option[Seq[KvPair]]
+}
+
+final case class FailedNonRetryableExecutionHandle(throwable: Throwable,
+                                                   returnCode: Option[Int] = None,
+                                                   override val kvPairsToSave: Option[Seq[KvPair]]) extends FailedExecutionHandle {
+
   override val isDone = true
   override val result = NonRetryableExecution(throwable, returnCode)
 }
 
 final case class FailedRetryableExecutionHandle(throwable: Throwable,
                                                 returnCode: Option[Int] = None,
-                                                memoryMultiplier: GreaterEqualRefined = refineMV[GreaterEqualOne](1.0)) extends ExecutionHandle {
+                                                memoryMultiplier: GreaterEqualRefined = refineMV[GreaterEqualOne](1.0),
+                                                override val kvPairsToSave: Option[Seq[KvPair]]) extends FailedExecutionHandle {
+
   override val isDone = true
   override val result = RetryableExecution(throwable, returnCode)
 }

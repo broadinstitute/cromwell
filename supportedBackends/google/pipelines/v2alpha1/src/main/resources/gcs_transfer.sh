@@ -89,7 +89,7 @@ private::delocalize_file_or_directory() {
 }
 
 
-private::timestamped_message() {
+timestamped_message() {
   printf '%s %s\n' "$(date -u '+%Y/%m/%d %H:%M:%S')" "$1"
 }
 
@@ -98,7 +98,7 @@ private::localize_message() {
   local cloud="$1"
   local container="$2"
   local message=$(printf "Localizing input %s -> %s" "$cloud" "$container")
-  private::timestamped_message "${message}"
+  timestamped_message "${message}"
 }
 
 
@@ -106,7 +106,7 @@ private::delocalize_message() {
   local cloud="$1"
   local container="$2"
   local message=$(printf "Delocalizing output %s -> %s" "$container" "$cloud")
-  private::timestamped_message "${message}"
+  timestamped_message "${message}"
 }
 
 
@@ -316,7 +316,7 @@ delocalize() {
       fi
 
       if ${transfer_fn_name} "$cloud" "$container" "$rpflag" "$required" "$parallel_composite_upload_threshold" "$content_type"; then
-        if [[ "$required" = "false" && ! -e "$container" ]]; then
+        if [[ "$required" = "optional" && ! -e "$container" ]]; then
           # Do not set rp_status_certain=true if an optional file was absent and no transfer was attempted.
           break
         else
@@ -324,7 +324,7 @@ delocalize() {
           break
         fi
       else
-        private::timestamped_message "${transfer_fn_name} \"$cloud\" \"$container\" \"$rpflag\" \"$required\" \"$content_type\" failed"
+        timestamped_message "${transfer_fn_name} \"$cloud\" \"$container\" \"$rpflag\" \"$required\" \"$content_type\" failed"
 
         # Print the reason of the failure.
         cat "${gsutil_log}"
@@ -332,7 +332,7 @@ delocalize() {
         # If the requester pays status of the GCS bucket is not certain look for requester pays errors.
         if [[ ${rp_status_certain} = false ]]; then
           if grep -q "Bucket is requester pays bucket but no user project provided." "${gsutil_log}"; then
-            private::timestamped_message "Retrying with user project"
+            timestamped_message "Retrying with user project"
             use_requester_pays=true
             # Do not increment the attempt number, a requester pays failure does not count against retries.
             # Do mark that the bucket in question is certain to have requester pays status.

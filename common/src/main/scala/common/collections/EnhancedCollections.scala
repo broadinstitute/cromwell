@@ -1,5 +1,7 @@
 package common.collections
 
+import cats.data.NonEmptyList
+
 import scala.annotation.tailrec
 import scala.collection.TraversableLike
 import scala.collection.generic.CanBuildFrom
@@ -99,5 +101,11 @@ object EnhancedCollections {
       * evaluate the supplied function once on each value and at the time this method is called.
       */
     def safeMapValues[C](f: B => C): Map[A, C] = mapLike map { case (k, v) => k -> f(v) }
+  }
+
+  implicit class EnhancedNonEmptyList[A](val nel: NonEmptyList[A]) extends AnyVal {
+    def foreach(f: A => Unit): Unit = {
+      nel.toList foreach f
+    }
   }
 }

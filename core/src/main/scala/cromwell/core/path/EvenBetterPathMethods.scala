@@ -1,8 +1,9 @@
 package cromwell.core.path
 
-import java.io.{BufferedReader, IOException, InputStream, InputStreamReader}
+import java.io.{BufferedInputStream, BufferedReader, ByteArrayOutputStream, IOException, InputStream, InputStreamReader}
 import java.nio.file.{FileAlreadyExistsException, Files}
 import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
+import java.util.zip.GZIPOutputStream
 
 import better.files.File.OpenOptions
 import cromwell.util.TryWithResource.tryWithResource
@@ -10,7 +11,7 @@ import cromwell.util.TryWithResource.tryWithResource
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext
 import scala.io.Codec
-import scala.util.Failure
+import scala.util.{Failure, Try}
 
 /**
   * Implements methods beyond those implemented in NioPathMethods and BetterFileMethods
@@ -96,29 +97,50 @@ trait EvenBetterPathMethods {
     newInputStream
   }
 
-  def writeContent(content: String)(openOptions: OpenOptions, codec: Codec)(implicit ec: ExecutionContext): this.type = {
-    locally(ec)
-    write(content)(openOptions, Codec.UTF8)
+  protected def gzipByteArray(byteArray: Array[Byte]): Array[Byte] = {
+    val byteStream = new ByteArrayOutputStream
+    tryWithResource(() => new GZIPOutputStream(byteStream)) {
+      _.write(byteArray)
+    }
+    byteStream.toByteArray
   }
 
-  /*
-   * The input stream will be closed when this method returns, which means the f function
-   * cannot leak an open stream.
-   */
-  def withReader[A](f: BufferedReader => A)(implicit ec: ExecutionContext): A = {
+  def writeContent(content: String)(openOptions: OpenOptions, codec: Codec, compressPayload: Boolean)(implicit ec: ExecutionContext): this.type = {
+    locally(ec)
+    val contentByteArray = content.getBytes(codec.charSet)
+    writeByteArray {
+      if (compressPayload) gzipByteArray(contentByteArray) else contentByteArray
+    }(openOptions)
+  }
 
+  private def fileIoErrorPf[A]: PartialFunction[Throwable, Try[A]] = {
+    case ex: Throwable => Failure(new IOException(s"Could not read from ${this.pathAsString}: ${ex.getMessage}", ex))
+  }
+
+  /**
+    * BufferedReader can be used to read UTF-8 characters from the input stream.
+    * The input stream will be closed when this method returns, which means the f function
+    * cannot leak an open stream.
+    */
+  def withReader[A](f: BufferedReader => A)(implicit ec: ExecutionContext): A = {
     // Use an input reader to convert the byte stream to character stream. Buffered reader for efficiency.
-    tryWithResource(() => new BufferedReader(new InputStreamReader(this.mediaInputStream, Codec.UTF8.name)))(f).recoverWith({
-      case failure => Failure(new IOException(s"Could not read from ${this.pathAsString}: ${failure.getMessage}", failure))
-    }).get
+    tryWithResource(() => new BufferedReader(new InputStreamReader(this.mediaInputStream, Codec.UTF8.name)))(f).recoverWith(fileIoErrorPf).get
+  }
+
+  /**
+    * InputStream's read method reads bytes, whereas InputStreamReader's read method reads characters.
+    * BufferedInputStream can be used to read bytes directly from input stream, without conversion to characters.
+    */
+  def withBufferedStream[A](f: BufferedInputStream => A)(implicit ec: ExecutionContext): A = {
+    tryWithResource(() => new BufferedInputStream(this.mediaInputStream))(f).recoverWith(fileIoErrorPf).get
   }
 
   /**
     * Returns an Array[Byte] from a Path. Limit the array size to "limit" byte if defined.
     * @throws IOException if failOnOverflow is true and the file is larger than limit
     */
-  def limitFileContent(limit: Option[Int], failOnOverflow: Boolean)(implicit ec: ExecutionContext) = withReader { reader =>
-    val bytesIterator = Iterator.continually(reader.read).takeWhile(_ != -1).map(_.toByte)
+  def limitFileContent(limit: Option[Int], failOnOverflow: Boolean)(implicit ec: ExecutionContext) = withBufferedStream { bufferedStream =>
+    val bytesIterator = Iterator.continually(bufferedStream.read).takeWhile(_ != -1).map(_.toByte)
     // Take 1 more than the limit so that we can look at the size and know if it's overflowing
     val bytesArray = limit.map(l => bytesIterator.take(l + 1)).getOrElse(bytesIterator).toArray
 

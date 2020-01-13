@@ -26,13 +26,14 @@ TableDrivenPropertyChecks with SwaggerResourceHttpService {
 trait SwaggerUiResourceHttpServiceSpec extends SwaggerUiHttpServiceSpec with SwaggerResourceHttpServiceSpec with SwaggerUiResourceHttpService
 
 object SwaggerUiHttpServiceSpec {
-  val TestSwaggerUiVersion = "3.2.2" // TODO: Re-common-ize swagger out of cromwell's engine and reuse.
+  val TestSwaggerUiVersion = "3.23.11" // TODO: Re-common-ize swagger out of cromwell's engine and reuse.
   val SwaggerIndexPreamble =
-    """|<!-- HTML for static distribution bundle build -->
-       |<!DOCTYPE html>
-       |<html lang="en">
-       |<head>
-       |""".stripMargin
+    """
+      |<!-- HTML for static distribution bundle build -->
+      |<!DOCTYPE html>
+      |<html lang="en">
+      |  <head>
+      |""".stripMargin.trim
 }
 
 class BasicSwaggerUiHttpServiceSpec extends SwaggerUiHttpServiceSpec {

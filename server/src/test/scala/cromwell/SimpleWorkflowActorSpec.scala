@@ -1,3 +1,4 @@
+
 package cromwell
 
 import java.time.OffsetDateTime
@@ -50,14 +51,19 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
       labelsJson = "{}",
       warnings = Vector.empty
     )
+
     val promise = Promise[Unit]()
     val watchActor = system.actorOf(MetadataWatchActor.props(promise, matchers: _*), s"service-registry-$workflowId-${UUID.randomUUID()}")
     val supervisor = TestProbe()
     val config = ConfigFactory.load()
     val workflowToStart = WorkflowToStart(workflowId, OffsetDateTime.now(), workflowSources, Submitted, HogGroup("foo"))
+    val callCachingEnabled =false
+    val invalidateBadCacheResults =false
     val workflowActor = TestFSMRef(
       factory = new WorkflowActor(workflowToStart, config,
         ioActor = system.actorOf(SimpleIoActor.props),
+        callCachingEnabled = callCachingEnabled,
+        invalidateBadCacheResults = invalidateBadCacheResults,
         serviceRegistryActor = watchActor,
         workflowLogCopyRouter = system.actorOf(Props.empty, s"workflow-copy-log-router-$workflowId-${UUID.randomUUID()}"),
         jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props),
@@ -199,3 +205,4 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
     }
   }
 }
+

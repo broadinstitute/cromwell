@@ -1,0 +1,46 @@
+{
+  "valid" : true,
+  "errors" : [
+  ],
+  "validWorkflow" : true,
+  "name" : "forkjoin",
+  "inputs" : [
+    {
+      "name" : "grep.pattern",
+      "valueType" : {
+        "typeName" : "String"
+      },
+      "typeDisplayName" : "String",
+      "optional" : false,
+      "default" : null
+    }
+  ],
+  "outputs" : [
+    {
+      "name" : "join.proportion",
+      "valueType" : {
+        "typeName" : "Int"
+      },
+      "typeDisplayName" : "Int"
+    }
+  ],
+  "images" : [
+    "\"ubuntu:latest\"",
+    "\"ubuntu:latest\"",
+    "\"ubuntu:latest\"",
+    "\"ubuntu:latest\""
+  ],
+  "submittedDescriptorType" : {
+    "descriptorType" : "WDL",
+    "descriptorTypeVersion" : "draft-2"
+  },
+  "importedDescriptorTypes" : [
+  ],
+  "meta" : {
+
+  },
+  "parameterMeta" : {
+
+  },
+  "isRunnableWorkflow" : true
+}

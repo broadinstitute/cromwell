@@ -31,7 +31,7 @@ import cromwell.server.CromwellShutdown
 import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse}
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice._
-import cromwell.services.metadata.impl.builder.MetadataBuilderActor.{BuiltMetadataResponse, FailedMetadataResponse, MetadataBuilderActorResponse}
+import cromwell.services._
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.WebServiceUtils
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
@@ -158,16 +158,16 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
   } ~ metadataRoutes
 
 
-  private def metadataLookupForTimingRoute(workflowId: WorkflowId): Future[MetadataBuilderActorResponse] = {
+  private def metadataLookupForTimingRoute(workflowId: WorkflowId): Future[MetadataJsonResponse] = {
     val includeKeys = NonEmptyList.of("start", "end", "executionStatus", "executionEvents", "subWorkflowMetadata")
     val readMetadataRequest = (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, Option(includeKeys), None, expandSubWorkflows = true)
 
-    serviceRegistryActor.ask(readMetadataRequest(workflowId)).mapTo[MetadataBuilderActorResponse]
+    serviceRegistryActor.ask(readMetadataRequest(workflowId)).mapTo[MetadataJsonResponse]
   }
 
-  private def completeTimingRouteResponse(metadataResponse: Future[MetadataBuilderActorResponse]) = {
+  private def completeTimingRouteResponse(metadataResponse: Future[MetadataJsonResponse]) = {
     onComplete(metadataResponse) {
-      case Success(r: BuiltMetadataResponse) =>
+      case Success(r: SuccessfulMetadataJsonResponse) =>
 
         Try(Source.fromResource("workflowTimings/workflowTimings.html").mkString) match {
           case Success(wfTimingsContent) =>
@@ -175,7 +175,7 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
             complete(response.withEntity(response.entity.withContentType(`text/html(UTF-8)`)))
           case Failure(e) => completeResponse(StatusCodes.InternalServerError, APIResponse.fail(new RuntimeException("Error while loading workflowTimings.html", e)), Seq.empty)
         }
-      case Success(r: FailedMetadataResponse) => r.reason.errorRequest(StatusCodes.InternalServerError)
+      case Success(r: FailedMetadataJsonResponse) => r.reason.errorRequest(StatusCodes.InternalServerError)
       case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
       case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
       case Failure(e) => e.failRequest(StatusCodes.InternalServerError)
@@ -288,10 +288,10 @@ object CromwellApiService {
                                   (implicit timeout: Timeout, executor: ExecutionContext): Future[WorkflowId] = {
     Try(WorkflowId.fromString(possibleWorkflowId)) match {
       case Success(w) =>
-        serviceRegistryActor.ask(ValidateWorkflowIdInMetadata(w)).mapTo[WorkflowValidationResponse] map {
-          case RecognizedWorkflowId => w
-          case UnrecognizedWorkflowId => throw UnrecognizedWorkflowException(w)
-          case FailedToCheckWorkflowId(t) => throw t
+        serviceRegistryActor.ask(ValidateWorkflowIdInMetadata(w)).mapTo[WorkflowValidationResponse] flatMap {
+          case RecognizedWorkflowId => Future.successful(w)
+          case UnrecognizedWorkflowId => validateWorkflowIdInMetadataSummaries(possibleWorkflowId, serviceRegistryActor)
+          case FailedToCheckWorkflowId(t) => Future.failed(t)
         }
       case Failure(_) => Future.failed(InvalidWorkflowException(possibleWorkflowId))
     }

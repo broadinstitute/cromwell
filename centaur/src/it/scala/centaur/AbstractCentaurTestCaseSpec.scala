@@ -10,6 +10,7 @@ import centaur.reporting.{ErrorReporters, SuccessReporters, TestEnvironment}
 import centaur.test.CentaurTestException
 import centaur.test.standard.CentaurTestCase
 import centaur.test.submit.{SubmitResponse, SubmitWorkflowResponse}
+import centaur.test.workflow.WorkflowData
 import org.scalatest._
 
 import scala.concurrent.Future
@@ -44,14 +45,21 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
   def executeStandardTest(testCase: CentaurTestCase): Unit = {
     def nameTest = s"${testCase.testFormat.testSpecString} ${testCase.workflow.testName}"
 
-    def runTest(): IO[SubmitResponse] = testCase.testFunction.run
+    def runTestAndDeleteZippedImports(): IO[SubmitResponse] = for {
+      submitResponse <- testCase.testFunction.run
+      _ = cleanUpImports(testCase.workflow.data) // cleanup imports in the end of test
+    } yield submitResponse
 
     // Make tags, but enforce lowercase:
     val tags = (testCase.testOptions.tags :+ testCase.workflow.testName :+ testCase.testFormat.name) map { x => Tag(x.toLowerCase) }
     val isIgnored = testCase.isIgnored(cromwellBackends)
-    val retries = if (testCase.workflow.retryTestFailures) ErrorReporters.retryAttempts else 0
+    val retries =
+      // in this case retrying may end up to be waste of time if some tasks have been cached on previous test attempts
+      if (testCase.reliesOnCallCachingMetadataVerification) 0
+      else if (testCase.workflow.retryTestFailures) ErrorReporters.retryAttempts
+      else 0
 
-    runOrDont(nameTest, tags, isIgnored, retries, runTest())
+    runOrDont(nameTest, tags, isIgnored, retries, runTestAndDeleteZippedImports())
   }
 
   def executeWdlUpgradeTest(testCase: CentaurTestCase): Unit =
@@ -178,6 +186,16 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
         case other => IO.pure(other)
       }
     )
+  }
+
+  /**
+   * Clean up temporary zip files created for Imports testing.
+   */
+  private def cleanUpImports(wfData: WorkflowData) = {
+    wfData.zippedImports match {
+      case Some(zipFile) => zipFile.delete(swallowIOExceptions = true)
+      case None => //
+    }
   }
 
 }

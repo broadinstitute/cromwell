@@ -85,7 +85,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
 
   /*
     * ! Hot Potato Warning !
-    * We ask explicitly for the output store so we can use it on the fly and more importantly not store it as a
+    * We ask explicitly for the `ValueStore` so we can use it on the fly and more importantly not store it as a
     * variable in this actor, which would prevent it from being garbage collected for the duration of the
     * subworkflow and would lead to memory leaks.
     */
@@ -110,8 +110,8 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
   }
 
   when(SubWorkflowRunningState) {
-    case Event(WorkflowExecutionSucceededResponse(executedJobKeys, outputs), _) =>
-      context.parent ! SubWorkflowSucceededResponse(key, executedJobKeys, outputs)
+    case Event(WorkflowExecutionSucceededResponse(executedJobKeys, outputs, cumulativeOutputs), _) =>
+      context.parent ! SubWorkflowSucceededResponse(key, executedJobKeys, outputs, cumulativeOutputs)
       goto(SubWorkflowSucceededState)
     case Event(WorkflowExecutionFailedResponse(executedJobKeys, reason), _) =>
       context.parent ! SubWorkflowFailedResponse(key, executedJobKeys, reason)

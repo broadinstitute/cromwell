@@ -80,8 +80,8 @@ import scala.util.Success
 
 class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAsyncBackendJobExecutionActorSpec")
   with FlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter with DefaultJsonProtocol {
-  lazy val mockPathBuilder: S3PathBuilder = S3PathBuilder.fromCredentials(
-    AnonymousCredentialsProvider.create.resolveCredentials(),
+  lazy val mockPathBuilder: S3PathBuilder = S3PathBuilder.fromProvider(
+    AnonymousCredentialsProvider.create,
     S3Storage.DefaultConfiguration,
     WorkflowOptions.empty,
     Option(Region.US_EAST_1)
@@ -135,7 +135,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
   private def buildInitializationData(jobDescriptor: BackendJobDescriptor, configuration: AwsBatchConfiguration) = {
     val workflowPaths = AwsBatchWorkflowPaths(
       jobDescriptor.workflowDescriptor,
-      AnonymousCredentialsProvider.create.resolveCredentials(),
+      AnonymousCredentialsProvider.create,
       configuration
     )
     val runtimeAttributesBuilder = AwsBatchRuntimeAttributes.runtimeAttributesBuilder(configuration)

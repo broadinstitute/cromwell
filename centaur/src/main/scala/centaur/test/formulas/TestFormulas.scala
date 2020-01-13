@@ -10,20 +10,25 @@ import centaur.test.workflow.Workflow
 import centaur.test.{Operations, Test}
 import centaur.{CentaurConfig, CromwellManager, CromwellTracker, ManagedCromwellServer}
 import com.typesafe.config.ConfigFactory
+import com.typesafe.scalalogging.StrictLogging
 import cromwell.api.model.{Aborted, Aborting, Failed, Running, SubmittedWorkflow, Succeeded, TerminalStatus, WorkflowMetadata}
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
-
+import centaur.test.metadata.WorkflowFlatMetadata._
+import spray.json.JsString
 /**
   * A collection of test formulas which can be used, building upon operations by chaining them together via a
   * for comprehension. These assembled formulas can then be run by a client
   */
-object TestFormulas {
+object TestFormulas extends StrictLogging {
+  val workflowProgressTimeout = ConfigFactory.load().getOrElse("centaur.workflow-progress-timeout", 1 minute)
+  logger.info(s"Running with a workflow progress timeout of $workflowProgressTimeout")
+
   private def runWorkflowUntilTerminalStatus(workflow: Workflow, status: TerminalStatus): Test[SubmittedWorkflow] = {
-    val workflowProgressTimeout = ConfigFactory.load().getOrElse("centaur.workflow-progress-timeout", 1 minute)
     for {
+      _ <- checkVersion()
       s <- submitWorkflow(workflow)
       _ <- expectSomeProgress(s, workflow, Set(Running, status), workflowProgressTimeout)
       _ <- pollUntilStatus(s, workflow, status)
@@ -34,21 +39,35 @@ object TestFormulas {
   private def runFailingWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = runWorkflowUntilTerminalStatus(workflow, Failed)
 
   def runSuccessfulWorkflowAndVerifyMetadata(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = for {
+    _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
     submittedWorkflow <- runSuccessfulWorkflow(workflowDefinition)
     metadata <- validateMetadata(submittedWorkflow, workflowDefinition)
     _ = cromwellTracker.track(metadata)
     _ <- validateDirectoryContentsCounts(workflowDefinition, submittedWorkflow, metadata)
+    _ <- waitForArchive(submittedWorkflow.id)
+    // Re-validate the metadata now that carboniting has completed
+    _ <- validateMetadata(submittedWorkflow, workflowDefinition)
+    flatMetadata = metadata.asFlat
+    workflowRoot = flatMetadata.value.get("workflowRoot").collectFirst { case JsString(r) => r } getOrElse "No Workflow Root"
+    _ <- validateOutputs(submittedWorkflow, workflowDefinition, workflowRoot)
+    _ <- validateLabels(submittedWorkflow, workflowDefinition, workflowRoot)
+    _ <- validateLogs(metadata, submittedWorkflow, workflowDefinition)
   } yield SubmitResponse(submittedWorkflow)
 
   def runFailingWorkflowAndVerifyMetadata(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = for {
+    _ <- checkDescription(workflowDefinition, validityExpectation = None)
     submittedWorkflow <- runFailingWorkflow(workflowDefinition)
     metadata <- validateMetadata(submittedWorkflow, workflowDefinition)
     _ = cromwellTracker.track(metadata)
     _ <- validateDirectoryContentsCounts(workflowDefinition, submittedWorkflow, metadata)
+    _ <- waitForArchive(submittedWorkflow.id)
+    // Re-validate the metadata now that carboniting has completed
+    _ <- validateMetadata(submittedWorkflow, workflowDefinition)
   } yield SubmitResponse(submittedWorkflow)
 
   def runWorkflowTwiceExpectingCaching(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = {
     for {
+      _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
       firstWF <- runSuccessfulWorkflow(workflowDefinition)
       secondWf <- runSuccessfulWorkflow(workflowDefinition.secondRun)
       _ <- printHashDifferential(firstWF, secondWf)
@@ -61,6 +80,7 @@ object TestFormulas {
 
   def runWorkflowThriceExpectingCaching(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = {
     for {
+      _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
       firstWf <- runSuccessfulWorkflow(workflowDefinition)
       secondWf <- runSuccessfulWorkflow(workflowDefinition.secondRun)
       metadataTwo <- validateMetadata(secondWf, workflowDefinition, Option(firstWf.id.id))
@@ -76,6 +96,7 @@ object TestFormulas {
 
   def runWorkflowTwiceExpectingNoCaching(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = {
     for {
+      _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
       _ <- runSuccessfulWorkflow(workflowDefinition) // Build caches
       testWf <- runSuccessfulWorkflow(workflowDefinition.secondRun)
       metadata <- validateMetadata(testWf, workflowDefinition)
@@ -87,6 +108,7 @@ object TestFormulas {
 
   def runFailingWorkflowTwiceExpectingNoCaching(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = {
     for {
+      _ <- checkDescription(workflowDefinition, validityExpectation = None)
       _ <- runFailingWorkflow(workflowDefinition) // Build caches
       testWf <- runFailingWorkflow(workflowDefinition)
       metadata <- validateMetadata(testWf, workflowDefinition)
@@ -104,11 +126,12 @@ object TestFormulas {
     CentaurConfig.runMode match {
       case ManagedCromwellServer(_, postRestart, withRestart) if withRestart =>
         for {
+          _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
           submittedWorkflow <- submitWorkflow(workflowDefinition)
           jobId <- pollUntilCallIsRunning(workflowDefinition, submittedWorkflow, callMarker.callKey)
           _ = CromwellManager.stopCromwell(s"Scheduled restart from ${workflowDefinition.testName}")
           _ = CromwellManager.startCromwell(postRestart)
-          _ <- expectSomeProgress(submittedWorkflow, workflowDefinition, Set(Running, finalStatus), 1.minute)
+          _ <- expectSomeProgress(submittedWorkflow, workflowDefinition, Set(Running, finalStatus), workflowProgressTimeout)
           _ <- pollUntilStatus(submittedWorkflow, workflowDefinition, finalStatus)
           metadata <- validateMetadata(submittedWorkflow, workflowDefinition)
           _ = cromwellTracker.track(metadata)
@@ -127,9 +150,10 @@ object TestFormulas {
   }
 
   def instantAbort(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = for {
+    _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
     submittedWorkflow <- submitWorkflow(workflowDefinition)
     _ <- abortWorkflow(submittedWorkflow)
-    _ <- expectSomeProgress(submittedWorkflow, workflowDefinition, Set(Running, Aborting, Aborted), 1.minute)
+    _ <- expectSomeProgress(submittedWorkflow, workflowDefinition, Set(Running, Aborting, Aborted), workflowProgressTimeout)
     _ <- pollUntilStatus(submittedWorkflow, workflowDefinition, Aborted)
     metadata <- validateMetadata(submittedWorkflow, workflowDefinition)
     _ = cromwellTracker.track(metadata)
@@ -145,13 +169,14 @@ object TestFormulas {
     }
     
     for {
+      _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
       submittedWorkflow <- submitWorkflow(workflowDefinition)
       jobId <- pollUntilCallIsRunning(workflowDefinition, submittedWorkflow, callMarker.callKey)
       // The Cromwell call status could be running but the backend job might not have started yet, give it some time
       _ <- waitFor(30.seconds)
       _ <- abortWorkflow(submittedWorkflow)
       _ = if(restart) withRestart()
-      _ <- expectSomeProgress(submittedWorkflow, workflowDefinition, Set(Running, Aborting, Aborted), 1.minute)
+      _ <- expectSomeProgress(submittedWorkflow, workflowDefinition, Set(Running, Aborting, Aborted), workflowProgressTimeout)
       _ <- pollUntilStatus(submittedWorkflow, workflowDefinition, Aborted)
       _ <- validatePAPIAborted(workflowDefinition, submittedWorkflow, jobId)
       // Wait a little to make sure that if the abort didn't work and calls start running we see them in the metadata
@@ -172,6 +197,7 @@ object TestFormulas {
 
   def submitInvalidWorkflow(workflow: Workflow, expectedSubmitResponse: SubmitHttpResponse): Test[SubmitResponse] = {
     for {
+      _ <- checkDescription(workflow, validityExpectation = None)
       actualSubmitResponse <- Operations.submitInvalidWorkflow(workflow)
       _ <- validateSubmitFailure(workflow, expectedSubmitResponse, actualSubmitResponse)
     } yield actualSubmitResponse
@@ -181,12 +207,14 @@ object TestFormulas {
     CentaurConfig.runMode match {
       case ManagedCromwellServer(_, postRestart, withRestart) if withRestart =>
         for {
+          _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
           first <- submitWorkflow(workflowDefinition)
           _ <- pollUntilCallIsRunning(workflowDefinition, first, callMarker.callKey)
           _ = CromwellManager.stopCromwell(s"Scheduled restart from ${workflowDefinition.testName}")
           _ = CromwellManager.startCromwell(postRestart)
-          _ <- expectSomeProgress(first, workflowDefinition, Set(Running, Succeeded), 1.minute)
+          _ <- expectSomeProgress(first, workflowDefinition, Set(Running, Succeeded), workflowProgressTimeout)
           _ <- pollUntilStatus(first, workflowDefinition, Succeeded)
+          _ <- checkDescription(workflowDefinition.secondRun, validityExpectation = Option(true))
           second <- runSuccessfulWorkflow(workflowDefinition.secondRun) // Same WDL and config but a "backend" runtime option targeting PAPI v2.
           _ <- printHashDifferential(first, second)
           metadata <- validateMetadata(second, workflowDefinition, Option(first.id.id))

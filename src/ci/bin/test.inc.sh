@@ -114,6 +114,18 @@ cromwell::private::create_build_variables() {
         CROMWELL_BUILD_GIT_HASH_SUFFIX="gUNKNOWN"
     fi
 
+    # Value of the `TRAVIS_BRANCH` variable depends on type of Travis build: if it is pull request build, the value
+    # will be the name of the branch targeted by the pull request, and for push builds it will be the name of the
+    # branch. So, in case of push builds `git diff` will always return empty result. This is why we only use this short
+    # circuiting logic for pull request builds
+    if [[ "${TRAVIS_EVENT_TYPE:-unset}" != "pull_request" ]]; then
+        CROMWELL_BUILD_ONLY_DOCS_CHANGED=false
+    elif git diff --name-only "${TRAVIS_BRANCH}" 2>&1 | grep -q --invert-match ^docs/; then
+        CROMWELL_BUILD_ONLY_DOCS_CHANGED=false
+    else
+        CROMWELL_BUILD_ONLY_DOCS_CHANGED=true
+    fi
+
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
             CROMWELL_BUILD_IS_CI=true
@@ -130,11 +142,15 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
             CROMWELL_BUILD_GENERATE_COVERAGE=true
 
-            # Always run on sbt, even for 'push'.
+            # For solely documentation updates run only checkPublish. Otherwise always run sbt, even for 'push'.
             # This allows quick sanity checks before starting PRs *and* publishing after merges into develop.
-            if [[ "${TRAVIS_EVENT_TYPE}" == "push" ]] && \
-                [[ "${BUILD_TYPE}" != "sbt" ]] && \
-                [[ "${CROMWELL_BUILD_FORCE_TESTS}" != "true" ]]; then
+            if [[ "${CROMWELL_BUILD_FORCE_TESTS}" == "true" ]]; then
+                CROMWELL_BUILD_RUN_TESTS=true
+            elif [[ "${CROMWELL_BUILD_ONLY_DOCS_CHANGED}" == "true" ]] && \
+                [[ "${BUILD_TYPE}" != "checkPublish" ]]; then
+                CROMWELL_BUILD_RUN_TESTS=false
+            elif [[ "${TRAVIS_EVENT_TYPE}" == "push" ]] && \
+                [[ "${BUILD_TYPE}" != "sbt" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=false
             else
                 CROMWELL_BUILD_RUN_TESTS=true
@@ -452,7 +468,12 @@ cromwell::private::create_centaur_variables() {
             ;;
         *)
             CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY="${CROMWELL_BUILD_CENTAUR_RESOURCES}/${CROMWELL_BUILD_CENTAUR_TYPE}TestCases"
-            CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application.conf"
+            if test "${CROMWELL_BUILD_BACKEND_TYPE}" = "papi_v2"
+            then
+              CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2_centaur_application.conf"
+            else
+              CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application.conf"
+            fi
             ;;
     esac
 
@@ -866,7 +887,7 @@ cromwell::private::vault_login() {
 
 cromwell::private::render_secure_resources() {
     # Copy the CI resources, then render the secure resources using Vault
-    sbt renderCiResources \
+    sbt --warn renderCiResources \
     || if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
         echo
         echo "Continuing without rendering secure resources."
@@ -885,7 +906,7 @@ cromwell::private::render_secure_resources() {
 
 cromwell::private::copy_all_resources() {
     # Only copy the CI resources. Secure resources are not rendered.
-    sbt copyCiResources
+    sbt --warn copyCiResources
 }
 
 cromwell::private::setup_secure_resources() {
@@ -934,7 +955,7 @@ cromwell::private::assemble_jars() {
     # CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND allows for an override of the default `assembly` command for assembly.
     # This can be useful to reduce time and memory that might otherwise be spent assembling unused subprojects.
     # shellcheck disable=SC2086
-    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=error sbt coverage ${CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND} -error
+    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=error sbt --warn coverage ${CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND} -error
 }
 
 cromwell::private::setup_prior_version_resources() {
@@ -981,8 +1002,8 @@ cromwell::private::build_cromwell_docker() {
 }
 
 cromwell::private::generate_code_coverage() {
-    sbt coverageReport -warn
-    sbt coverageAggregate -warn
+    sbt --warn coverageReport -warn
+    sbt --warn coverageAggregate -warn
     bash <(curl -s https://codecov.io/bash) > /dev/null || true
 }
 
@@ -995,7 +1016,7 @@ cromwell::private::publish_artifacts_and_docker() {
 }
 
 cromwell::private::publish_artifacts_check() {
-    sbt verifyArtifactoryCredentialsExist -warn
+    sbt --warn verifyArtifactoryCredentialsExist -warn
 }
 
 # Some CI environments want to know when new docker images are published. They do not currently poll dockerhub but do

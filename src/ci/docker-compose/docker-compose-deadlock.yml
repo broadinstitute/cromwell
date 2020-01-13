@@ -27,7 +27,7 @@ services:
     volumes:
       - ${CROMWELL_BUILD_DOCKER_DIRECTORY}/mysql-conf.d:/etc/mysql/conf.d
     healthcheck:
-      test: ["CMD", "service", "mysql", "status"]
+      test: "/usr/bin/mysql --user=cromwell --password=test --execute \"SELECT 1;\""
       interval: 2s
       timeout: 30s
       retries: 15

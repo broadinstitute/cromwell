@@ -140,7 +140,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       val memoryRetryAction: List[Action] = checkForMemoryRetryActions(createPipelineParameters, mounts)
       val deLocalization: List[Action] = deLocalizeActions(createPipelineParameters, mounts)
       val monitoring: List[Action] = monitoringActions(createPipelineParameters, mounts)
-      val remoteAccess: List[Action] = remoteAccessActions(createPipelineParameters)
+      val remoteAccess: List[Action] = remoteAccessActions(createPipelineParameters, mounts)
       val allActions = containerSetup ++ localization ++ userAction ++ memoryRetryAction ++ deLocalization ++ monitoring ++ remoteAccess
 
       // adding memory as environment variables makes it easy for a user to retrieve the new value of memory

@@ -81,14 +81,14 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
     val backendConfig = ConfigFactory.parseString(configString(customContent = "pipeline-timeout = 3 days"))
     val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig, "papi")
 
-    pipelinesApiAttributes.pipelineTimeout should be("259200s")
+    pipelinesApiAttributes.pipelineTimeout should be(Option(3.days))
   }
 
   it should "parse an undefined pipeline-timeout" in {
     val backendConfig = ConfigFactory.parseString(configString())
     val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig, "papi")
 
-    pipelinesApiAttributes.pipelineTimeout should be(null)
+    pipelinesApiAttributes.pipelineTimeout should be(Option(7.days))
   }
 
   it should "parse compute service account" in {

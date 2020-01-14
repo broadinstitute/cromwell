@@ -36,7 +36,7 @@ case class PipelinesApiConfigurationAttributes(project: String,
                                                qps: Int Refined Positive,
                                                cacheHitDuplicationStrategy: PipelinesCacheHitDuplicationStrategy,
                                                requestWorkers: Int Refined Positive,
-                                               pipelineTimeout: String,
+                                               pipelineTimeout: Option[FiniteDuration],
                                                logFlushPeriod: Option[FiniteDuration],
                                                gcsTransferConfiguration: GcsTransferConfiguration,
                                                virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
@@ -152,10 +152,10 @@ object PipelinesApiConfigurationAttributes {
     } }
     val requestWorkers: ErrorOr[Int Refined Positive] = validatePositiveInt(backendConfig.as[Option[Int]]("request-workers").getOrElse(3), "request-workers")
 
-    val pipelineTimeout: String = backendConfig.as[Option[FiniteDuration]]("pipeline-timeout") match {
-      case Some(duration) if (duration.isFinite() && duration > 0.seconds) => duration.toSeconds.toString() + "s"
-      // defaults to Google's defined default (7d)
-      case None => null
+    val pipelineTimeout: Option[FiniteDuration] = backendConfig.as[Option[FiniteDuration]]("pipeline-timeout") match {
+      case Some(duration) if duration.isFinite() => Option(duration)
+      // Defaults to Google's defined default (7d)
+      case None => Option(7.days)
     }
 
     val logFlushPeriod: Option[FiniteDuration] = backendConfig.as[Option[FiniteDuration]]("log-flush-period") match {

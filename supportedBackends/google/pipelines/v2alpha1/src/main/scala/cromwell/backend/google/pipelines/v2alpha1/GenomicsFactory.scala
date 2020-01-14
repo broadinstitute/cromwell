@@ -37,7 +37,8 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
   with Localization
   with UserAction
   with Delocalization
-  with MemoryRetryCheckAction {
+  with MemoryRetryCheckAction
+  with RemoteAccessAction {
 
   override def build(initializer: HttpRequestInitializer): PipelinesApiRequestFactory = new PipelinesApiRequestFactory {
     implicit lazy val googleProjectMetadataLabelDecoder: Decoder[ProjectLabels] = deriveDecoder
@@ -139,7 +140,8 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       val memoryRetryAction: List[Action] = checkForMemoryRetryActions(createPipelineParameters, mounts)
       val deLocalization: List[Action] = deLocalizeActions(createPipelineParameters, mounts)
       val monitoring: List[Action] = monitoringActions(createPipelineParameters, mounts)
-      val allActions = containerSetup ++ localization ++ userAction ++ memoryRetryAction ++ deLocalization ++ monitoring
+      val remoteAccess: List[Action] = remoteAccessActions(createPipelineParameters)
+      val allActions = containerSetup ++ localization ++ userAction ++ memoryRetryAction ++ deLocalization ++ monitoring ++ remoteAccess
 
       // adding memory as environment variables makes it easy for a user to retrieve the new value of memory
       // on the machine to utilize in their command blocks if needed

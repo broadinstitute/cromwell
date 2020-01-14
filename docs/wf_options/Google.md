@@ -19,7 +19,7 @@ Keys | Possible Values | Description
   "jes_gcs_root": "gs://my-bucket/workflows",
   "google_project": "my_google_project",
   "refresh_token": "1/Fjf8gfJr5fdfNf9dk26fdn23FDm4x",
-  "google_compute_service_account": " my-new-svcacct@my-google-project.iam.gserviceaccount.com"
+  "google_compute_service_account": " my-new-svcacct@my-google-project.iam.gserviceaccount.com",
   "auth_bucket": "gs://my-auth-bucket/private",
   "monitoring_script": "gs://bucket/script.sh",
   "monitoring_image": "quay.io/broadinstitute/cromwell-monitor",

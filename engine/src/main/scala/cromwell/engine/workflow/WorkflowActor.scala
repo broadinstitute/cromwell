@@ -218,8 +218,8 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
                     workflowHeartbeatConfig: WorkflowHeartbeatConfig,
                     totalJobsByRootWf: AtomicInteger,
                     // `Props` and not an `ActorRef` since the `RootWorkflowFileHashCacheActor` should be created as a
-                    // child of this actor. The package of the `RootWorkflowFileHashCacheActor` is not visible from the
-                    // package of this class so the `Props` are passed in.
+                    // child of this actor. The sbt subproject of `RootWorkflowFileHashCacheActor` is not visible from
+                    // the subproject this class belongs to so the `Props` are passed in.
                     fileHashCacheActorProps: Option[Props],
                     blacklistCache: Option[BlacklistCache])
   extends LoggingFSM[WorkflowActorState, WorkflowActorData] with WorkflowLogging with WorkflowMetadataHelper

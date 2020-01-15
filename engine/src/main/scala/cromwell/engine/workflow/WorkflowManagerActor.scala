@@ -291,7 +291,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     }
 
     val fileHashCacheActor: Option[ActorRef] =
-      if (fileHashCacheEnabled) Option(context.system.actorOf(RootWorkflowFileHashCacheActor.props(params.ioActor))) else None
+      if (fileHashCacheEnabled) Option(context.system.actorOf(RootWorkflowFileHashCacheActor.props(params.ioActor, workflowId))) else None
 
     val callCachingBlacklistCache: Option[BlacklistCache] = for {
       config <- config.as[Option[Config]]("call-caching.blacklist-cache")

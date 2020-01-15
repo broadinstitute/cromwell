@@ -6,11 +6,12 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import cromwell.backend.standard.callcaching.RootWorkflowFileHashCacheActor.IoHashCommandWithContext
+import cromwell.core.WorkflowId
 import cromwell.core.actor.RobustClientHelper.RequestTimeout
 import cromwell.core.io._
 
 
-class RootWorkflowFileHashCacheActor private(override val ioActor: ActorRef) extends Actor with ActorLogging with IoClientHelper {
+class RootWorkflowFileHashCacheActor private(override val ioActor: ActorRef, workflowId: WorkflowId) extends Actor with ActorLogging with IoClientHelper {
   case class FileHashRequester(replyTo: ActorRef, fileHashContext: FileHashContext, ioCommand: IoCommand[_])
 
   sealed trait FileHashValue
@@ -93,17 +94,22 @@ class RootWorkflowFileHashCacheActor private(override val ioActor: ActorRef) ext
             cache.put(fileHashContext.file, FileHashValueNotRequested)
           case FileHashValueNotRequested =>
             log.error(s"Programmer error! Not expecting a hash request timeout when a hash value has not been requested: ${fileHashContext.file}")
-          case _ =>
-            log.error(s"Programmer error! Not expecting a hash request timeout when a hash value is already in the cache: ${fileHashContext.file}")
+          case v =>
+            log.error(s"Programmer error! Not expecting a hash request timeout when hash value '$v' is already in the cache: ${fileHashContext.file}")
         }
       case other =>
         log.error(s"Programmer error! Root workflow file hash caching actor received unexpected timeout message: $other")
     }
+  }
+
+  override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
+    log.error(reason, s"RootWorkflowFileHashCacheActor for workflow '$workflowId' is unexpectedly being restarted")
+    super.preRestart(reason, message)
   }
 }
 
 object RootWorkflowFileHashCacheActor {
   case class IoHashCommandWithContext(ioHashCommand: IoHashCommand, fileHashContext: FileHashContext)
 
-  def props(ioActor: ActorRef): Props = Props(new RootWorkflowFileHashCacheActor(ioActor))
+  def props(ioActor: ActorRef, workflowId: WorkflowId): Props = Props(new RootWorkflowFileHashCacheActor(ioActor, workflowId))
 }

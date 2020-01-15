@@ -178,15 +178,16 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                    rootWorkflowIdKey: String,
                                    labelMetadataKey: String,
                                    limit: Int,
+                                   permittedSummaryStatusPointerUpdate: Option[Long],
                                    buildUpdatedSummary:
                                    (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                                      => WorkflowMetadataSummaryEntry)
-                                  (implicit ec: ExecutionContext): Future[(Long, Long)] = {
+                                  (implicit ec: ExecutionContext): Future[(Long, Long, Long)] = {
     val action = for {
       previousMetadataEntryIdOption <- getSummaryStatusEntrySummaryPosition(summarizeNameIncreasing)
       previousMaxMetadataEntryId = previousMetadataEntryIdOption.getOrElse(-1L)
       nextMaxMetadataEntryId = previousMaxMetadataEntryId + limit
-      maximumMetadataEntryIdConsidered <- summarizeMetadata(
+      updatedSummaryPosition <- summarizeMetadata(
         minMetadataEntryId = previousMaxMetadataEntryId + 1L,
         maxMetadataEntryId = nextMaxMetadataEntryId,
         startMetadataKey = startMetadataKey,
@@ -201,7 +202,10 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
         summaryPositionFunction =
           metadataEntries => {
             if (metadataEntries.nonEmpty) {
-              metadataEntries.map(_.metadataEntryId.get).max
+              permittedSummaryStatusPointerUpdate match {
+                case Some(ceiling) => Math.min(metadataEntries.map(_.metadataEntryId.get).max, ceiling)
+                case None => previousMaxMetadataEntryId // ie don't move the pointer
+              }
             } else {
               previousMaxMetadataEntryId
             }
@@ -211,9 +215,9 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       maximumMetadataEntryIdInTableOption <- dataAccess.metadataEntries.map(_.metadataEntryId).max.result
       maximumMetadataEntryIdInTable = maximumMetadataEntryIdInTableOption.getOrElse {
         // TODO: Add a logging framework to this 'database' project and log this weirdness.
-        maximumMetadataEntryIdConsidered
+        updatedSummaryPosition
       }
-    } yield (maximumMetadataEntryIdConsidered - previousMaxMetadataEntryId, maximumMetadataEntryIdInTable - maximumMetadataEntryIdConsidered)
+    } yield (updatedSummaryPosition - previousMaxMetadataEntryId, maximumMetadataEntryIdInTable - updatedSummaryPosition, maximumMetadataEntryIdInTable)
 
     runTransaction(action)
   }
@@ -352,12 +356,14 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       endTimestampOption: Option[Timestamp],
                                       metadataArchiveStatus: Set[Option[String]],
                                       includeSubworkflows: Boolean,
+                                      minimumSummaryEntryId: Option[Long],
                                       page: Option[Int],
                                       pageSize: Option[Int])
                                      (implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = {
 
     val action = dataAccess.queryWorkflowMetadataSummaryEntries(parentIdWorkflowMetadataKey, workflowStatuses, workflowNames, workflowExecutionUuids,
-      labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption, endTimestampOption, metadataArchiveStatus, includeSubworkflows, page, pageSize)
+      labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption,
+      endTimestampOption, metadataArchiveStatus, includeSubworkflows, minimumSummaryEntryId, page, pageSize)
     runTransaction(action)
   }
 
@@ -373,10 +379,12 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       startTimestampOption: Option[Timestamp],
                                       endTimestampOption: Option[Timestamp],
                                       metadataArchiveStatus: Set[Option[String]],
-                                      includeSubworkflows: Boolean)
+                                      includeSubworkflows: Boolean,
+                                      minimumSummaryEntryId: Option[Long])
                                      (implicit ec: ExecutionContext): Future[Int] = {
     val action = dataAccess.countWorkflowMetadataSummaryEntries(parentIdWorkflowMetadataKey, workflowStatuses, workflowNames, workflowExecutionUuids,
-      labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption, endTimestampOption, metadataArchiveStatus, includeSubworkflows)
+      labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption,
+      endTimestampOption, metadataArchiveStatus, includeSubworkflows, minimumSummaryEntryId)
     runTransaction(action)
   }
 
@@ -389,6 +397,12 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   override def isRootWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Option[Boolean]] = {
     runTransaction(
       dataAccess.isRootWorkflow(rootWorkflowId).result.headOption
+    )
+  }
+
+  override def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = {
+    runAction(
+      dataAccess.rootWorkflowId(workflowId).result.headOption
     )
   }
 

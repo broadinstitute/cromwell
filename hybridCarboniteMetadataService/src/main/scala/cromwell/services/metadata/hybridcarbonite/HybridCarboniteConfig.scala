@@ -18,7 +18,12 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Try
 
-final case class HybridCarboniteConfig(enabled: Boolean, debugLogging: Boolean, pathBuilders: PathBuilders, bucket: String, freezeScanConfig: HybridCarboniteFreezeScanConfig) {
+final case class HybridCarboniteConfig(enabled: Boolean,
+                                       minimumSummaryEntryId: Option[Long],
+                                       debugLogging: Boolean,
+                                       pathBuilders: PathBuilders,
+                                       bucket: String,
+                                       freezeScanConfig: HybridCarboniteFreezeScanConfig) {
   def makePath(workflowId: WorkflowId)= PathFactory.buildPath(HybridCarboniteConfig.pathForWorkflow(workflowId, bucket), pathBuilders)
 }
 
@@ -30,6 +35,10 @@ object HybridCarboniteConfig {
   
   def parseConfig(carboniterConfig: Config)(implicit system: ActorSystem): Checked[HybridCarboniteConfig] = {
     val enable = carboniterConfig.getOrElse("enabled", false)
+    val minimumSummaryEntryIdCheck = carboniterConfig.as[Option[Long]]("minimum-summary-entry-id") match {
+      case Some(l) if l < 0 => "Minimum summary entry ID must be above 0. Omit or set to 0 to allow all entries to be summarized.".invalidNelCheck
+      case other => other.validNelCheck
+    }
     val carboniteDebugLogging = carboniterConfig.getOrElse("debug-logging", true)
 
     def freezeScanConfig: Checked[HybridCarboniteFreezeScanConfig] = {
@@ -57,10 +66,11 @@ object HybridCarboniteConfig {
     for {
       _ <- Try(carboniterConfig.getConfig("filesystems.gcs")).toCheckedWithContext("parse Carboniter 'filesystems.gcs' field from config")
       pathBuilderFactories <- CromwellFileSystems.instance.factoriesFromConfig(carboniterConfig)
-      pathBuilders <- Try(Await.result(PathBuilderFactory.instantiatePathBuilders(pathBuilderFactories.values.toList, WorkflowOptions.empty), 10.seconds))
+      pathBuilders <- Try(Await.result(PathBuilderFactory.instantiatePathBuilders(pathBuilderFactories.values.toList, WorkflowOptions.empty), 60.seconds))
         .toCheckedWithContext("construct Carboniter path builders from factories")
       bucket <- Try(carboniterConfig.getString("bucket")).toCheckedWithContext("parse Carboniter 'bucket' field from config")
+      minimumSummaryEntryId <- minimumSummaryEntryIdCheck
       freezeScan <- freezeScanConfig
-    } yield HybridCarboniteConfig(enable, carboniteDebugLogging, pathBuilders, bucket, freezeScan)
+    } yield HybridCarboniteConfig(enable, minimumSummaryEntryId, carboniteDebugLogging, pathBuilders, bucket, freezeScan)
   }
 }

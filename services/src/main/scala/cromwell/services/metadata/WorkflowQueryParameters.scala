@@ -25,7 +25,8 @@ case class WorkflowQueryParameters private(statuses: Set[String],
                                            page: Option[Int],
                                            pageSize: Option[Int],
                                            additionalQueryResultFields: Set[String],
-                                           includeSubworkflows: Boolean)
+                                           includeSubworkflows: Boolean,
+                                           minimumSummaryEntryId: Option[Long])
 
 object WorkflowQueryParameters {
 
@@ -96,6 +97,8 @@ object WorkflowQueryParameters {
       case _ => ().validNel[String]
     }
 
+    val minimumSummaryEntryIdValidation: ErrorOr[Option[Long]] = WorkflowQueryKey.MinimumSummaryEntryId.validate(valuesByCanonicalCapitalization)
+
     (onlyRecognizedKeysValidation,
       startBeforeEndValidation,
       submissionBeforeStartValidation,
@@ -113,9 +116,10 @@ object WorkflowQueryParameters {
       pageSizeValidation,
       additionalQueryResultFieldsValidation,
       includeSubworkflowsValidation,
-      metadataArchiveStatusValidation
+      metadataArchiveStatusValidation,
+      minimumSummaryEntryIdValidation
     ) mapN {
-      (_, _, _, statuses, names, ids, labelsAnd, labelsOr, excludeLabelsAnd, excludeLabelsOr, submissionTime, startDate, endDate, page, pageSize, additionalQueryResultFields, includeSubworkflows, metadataArchiveStatus) =>
+      (_, _, _, statuses, names, ids, labelsAnd, labelsOr, excludeLabelsAnd, excludeLabelsOr, submissionTime, startDate, endDate, page, pageSize, additionalQueryResultFields, includeSubworkflows, metadataArchiveStatus, minimumSummaryEntryId) =>
         WorkflowQueryParameters(
           statuses,
           names,
@@ -131,7 +135,8 @@ object WorkflowQueryParameters {
           page,
           pageSize,
           additionalQueryResultFields,
-          includeSubworkflows
+          includeSubworkflows,
+          minimumSummaryEntryId
         )
     }
   }

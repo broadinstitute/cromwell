@@ -523,8 +523,9 @@ object CromwellApiServiceSpec {
   val SucceededWorkflowId = WorkflowId.fromString("0cb43b8c-0259-4a19-b7fe-921ced326738")
   val FailedWorkflowId = WorkflowId.fromString("df501790-cef5-4df7-9b48-8760533e3136")
   val SummarizedWorkflowId = WorkflowId.fromString("f0000000-0000-0000-0000-000000000000")
+  val WorkflowIdExistingOnlyInSummaryTable = WorkflowId.fromString("f0000000-0000-0000-0000-000000000011")
   val RecognizedWorkflowIds = Set(ExistingWorkflowId, AbortedWorkflowId, OnHoldWorkflowId, RunningWorkflowId, AbortingWorkflowId, SucceededWorkflowId, FailedWorkflowId, SummarizedWorkflowId)
-  val SummarizedWorkflowIds = Set(SummarizedWorkflowId)
+  val SummarizedWorkflowIds = Set(SummarizedWorkflowId, WorkflowIdExistingOnlyInSummaryTable)
 
   class MockApiService()(implicit val system: ActorSystem) extends CromwellApiService {
     override def actorRefFactory = system

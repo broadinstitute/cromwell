@@ -81,7 +81,7 @@ object MetadataDatabaseAccess {
     }
   }
 
-  case class SummaryResult(rowsProcessedIncreasing: Long, increasingGap: Long, rowsProcessedDecreasing: Long, decreasingGap: Long)
+  case class SummaryResult(rowsProcessedIncreasing: Long, increasingGap: Long, rowsProcessedDecreasing: Long, decreasingGap: Long, maximumKnownMetadataEntryId: Long)
 }
 
 trait MetadataDatabaseAccess {
@@ -165,9 +165,9 @@ trait MetadataDatabaseAccess {
       metadataToMetadataEvents(id)
   }
 
-  def refreshWorkflowMetadataSummaries(limit: Int)(implicit ec: ExecutionContext): Future[SummaryResult] = {
+  def refreshWorkflowMetadataSummaries(limit: Int, permittedSummaryStatusPointerUpdate: Option[Long])(implicit ec: ExecutionContext): Future[SummaryResult] = {
     for {
-      (increasingProcessed, increasingGap) <- metadataDatabaseInterface.summarizeIncreasing(
+      (increasingProcessed, increasingGap, maximumMetadataEntryIdInTable) <- metadataDatabaseInterface.summarizeIncreasing(
         summaryNameIncreasing = WorkflowMetadataKeys.SummaryNameIncreasing,
         startMetadataKey = WorkflowMetadataKeys.StartTime,
         endMetadataKey = WorkflowMetadataKeys.EndTime,
@@ -178,6 +178,7 @@ trait MetadataDatabaseAccess {
         rootWorkflowIdKey = WorkflowMetadataKeys.RootWorkflowId,
         labelMetadataKey = WorkflowMetadataKeys.Labels,
         limit = limit,
+        permittedSummaryStatusPointerUpdate = permittedSummaryStatusPointerUpdate,
         buildUpdatedSummary = MetadataDatabaseAccess.buildUpdatedSummary)
       (decreasingProcessed, decreasingGap) <- metadataDatabaseInterface.summarizeDecreasing(
         summaryNameDecreasing = WorkflowMetadataKeys.SummaryNameDecreasing,
@@ -192,7 +193,7 @@ trait MetadataDatabaseAccess {
         labelMetadataKey = WorkflowMetadataKeys.Labels,
         limit = limit,
         buildUpdatedSummary = MetadataDatabaseAccess.buildUpdatedSummary)
-    } yield SummaryResult(increasingProcessed, increasingGap, decreasingProcessed, decreasingGap)
+    } yield SummaryResult(increasingProcessed, increasingGap, decreasingProcessed, decreasingGap, maximumMetadataEntryIdInTable)
   }
 
   def updateMetadataArchiveStatus(workflowId: WorkflowId, newStatus: MetadataArchiveStatus): Future[Int] = {
@@ -247,6 +248,7 @@ trait MetadataDatabaseAccess {
       queryParameters.endDate.map(_.toSystemTimestamp),
       queryParameters.metadataArchiveStatus.map(MetadataArchiveStatus.toDatabaseValue),
       queryParameters.includeSubworkflows,
+      queryParameters.minimumSummaryEntryId,
       queryParameters.page,
       queryParameters.pageSize
     )
@@ -264,7 +266,8 @@ trait MetadataDatabaseAccess {
       queryParameters.startDate.map(_.toSystemTimestamp),
       queryParameters.endDate.map(_.toSystemTimestamp),
       queryParameters.metadataArchiveStatus.map(MetadataArchiveStatus.toDatabaseValue),
-      queryParameters.includeSubworkflows
+      queryParameters.includeSubworkflows,
+      queryParameters.minimumSummaryEntryId
     )
 
     def queryMetadata(count: Int): Option[QueryMetadata] = {
@@ -330,4 +333,6 @@ trait MetadataDatabaseAccess {
 
     }).flatten
   }
+
+  def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = metadataDatabaseInterface.getRootWorkflowId(workflowId)
 }

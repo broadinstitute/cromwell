@@ -82,6 +82,18 @@ object CentaurCromwellClient extends StrictLogging {
     sendReceiveFutureCompletion(() => cromwellClient.callCacheDiff(workflowA.id, callA, ShardIndex(None), workflowB.id, callB, ShardIndex(None)))
   }
 
+  def logs(workflow: SubmittedWorkflow): IO[WorkflowMetadata] = {
+    sendReceiveFutureCompletion(() => cromwellClient.logs(workflow.id))
+  }
+
+  def labels(workflow: SubmittedWorkflow): IO[WorkflowLabels] = {
+    sendReceiveFutureCompletion(() => cromwellClient.labels(workflow.id))
+  }
+
+  def version: IO[CromwellVersion] = {
+    sendReceiveFutureCompletion(() => cromwellClient.version)
+  }
+
   /*
     Sends a quick ping to the Cromwell query endpoint. The query endpoint is the only one which both hits the
     database w/o requiring a workflow id and does not modify server state. Not using CromwellClient here as it

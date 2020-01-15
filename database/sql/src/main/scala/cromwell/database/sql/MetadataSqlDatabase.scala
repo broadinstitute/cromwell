@@ -66,6 +66,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
     * Retrieves next summarizable block of metadata satisfying the specified criteria.
     *
     * @param buildUpdatedSummary Takes in the optional existing summary and the metadata, returns the new summary.
+    * @param permittedSummaryStatusPointerUpdate If provided, the highest value to which the summary status pointer can be updated. If not set, the pointer will not move.
     * @return A `Future` with the number of rows summarized by the invocation, and the number of rows still to summarize.
     */
   def summarizeIncreasing(summaryNameIncreasing: String,
@@ -78,10 +79,11 @@ trait MetadataSqlDatabase extends SqlDatabase {
                           rootWorkflowIdKey: String,
                           labelMetadataKey: String,
                           limit: Int,
+                          permittedSummaryStatusPointerUpdate: Option[Long],
                           buildUpdatedSummary:
                           (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                             => WorkflowMetadataSummaryEntry)
-                         (implicit ec: ExecutionContext): Future[(Long, Long)]
+                         (implicit ec: ExecutionContext): Future[(Long, Long, Long)]
 
   /**
     * Retrieves a window of summarizable metadata satisfying the specified criteria.
@@ -126,6 +128,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
                              endTimestampOption: Option[Timestamp],
                              metadataArchiveStatus: Set[Option[String]],
                              includeSubworkflows: Boolean,
+                             minimumSummaryEntryId: Option[Long],
                              page: Option[Int],
                              pageSize: Option[Int])
                              (implicit ec: ExecutionContext): Future[Traversable[WorkflowMetadataSummaryEntry]]
@@ -141,10 +144,13 @@ trait MetadataSqlDatabase extends SqlDatabase {
                              startTimestampOption: Option[Timestamp],
                              endTimestampOption: Option[Timestamp],
                              metadataArchiveStatus: Set[Option[String]],
-                             includeSubworkflows: Boolean)
+                             includeSubworkflows: Boolean,
+                             minimumSummaryEntryId: Option[Long])
                              (implicit ec: ExecutionContext): Future[Int]
 
   def deleteNonLabelMetadataForWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Int]
 
   def isRootWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Option[Boolean]]
+
+  def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]]
 }

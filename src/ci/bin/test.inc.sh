@@ -120,7 +120,7 @@ cromwell::private::create_build_variables() {
     # circuiting logic for pull request builds
     if [[ "${TRAVIS_EVENT_TYPE:-unset}" != "pull_request" ]]; then
         CROMWELL_BUILD_ONLY_DOCS_CHANGED=false
-    elif git diff --name-only "${TRAVIS_BRANCH}" 2>&1 | grep -q --invert-match ^docs/; then
+    elif git diff --name-only "origin/${TRAVIS_BRANCH}" 2>&1 | grep -q --invert-match ^docs/; then
         CROMWELL_BUILD_ONLY_DOCS_CHANGED=false
     else
         CROMWELL_BUILD_ONLY_DOCS_CHANGED=true

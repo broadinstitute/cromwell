@@ -142,6 +142,12 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
             CROMWELL_BUILD_GENERATE_COVERAGE=true
 
+            echo "LET THE DUMPING OF THE VARIABLES BEGIN"
+            for var in CROMWELL_BUILD_FORCE_TESTS BUILD_TYPE TRAVIS_EVENT_TYPE TRAVIS_BRANCH CROMWELL_BUILD_RUN_TESTS CROMWELL_BUILD_ONLY_DOCS_CHANGED;
+            do
+              echo "$var is ${!var}"
+            done
+            echo "AND SO THE DUMPING OF THE VARIABLES ENDS"
             # For solely documentation updates run only checkPublish. Otherwise always run sbt, even for 'push'.
             # This allows quick sanity checks before starting PRs *and* publishing after merges into develop.
             if [[ "${CROMWELL_BUILD_FORCE_TESTS}" == "true" ]]; then

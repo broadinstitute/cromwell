@@ -506,7 +506,7 @@ object BetterFileMethods {
 
   def currentWorkingDirectory: Path = DefaultPath(better.files.File.currentWorkingDirectory.path)
 
-  def DefaultCharset: Charset = Charset.defaultCharset()
+  val DefaultCharset: Charset = Charset.defaultCharset()
 
   object Cmds {
     def ~ : Path = BetterFileMethods.home

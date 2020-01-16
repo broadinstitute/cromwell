@@ -206,7 +206,7 @@ class ImportResolverSpec extends FlatSpec with Matchers {
     pathToLookup shouldBeInvalid "../file.wdl is not an allowed import path"
   }
 
-  it should "resolve a paths in zips" in {
+  it should "resolve paths in zips" in {
     val zipResource = getClass.getResource("/QC.zip").toURI
     val zipBytes = Files.readAllBytes(Paths.get(zipResource))
     val resolvers = ImportResolver.zippedImportResolver(zipBytes, WorkflowId.randomId())

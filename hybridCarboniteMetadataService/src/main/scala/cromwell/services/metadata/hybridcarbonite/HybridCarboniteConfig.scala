@@ -30,7 +30,7 @@ final case class HybridCarboniteConfig(enabled: Boolean,
 
 final case class HybridCarboniteFreezeScanConfig(initialInterval: FiniteDuration = 5 seconds, maxInterval: FiniteDuration = 5 minutes, multiplier: Double = 1.1)
 
-final case class MetadataDeletionConfig(intervalOpt: Option[FiniteDuration] = Option(1 minute), batchSize: Long = 200L, delayAfterWorkflowCompletion: FiniteDuration = 1 minute)
+final case class MetadataDeletionConfig(intervalOpt: Option[FiniteDuration] = None, batchSize: Long = 200L, delayAfterWorkflowCompletion: FiniteDuration = 24 hours)
 
 object HybridCarboniteConfig {
 

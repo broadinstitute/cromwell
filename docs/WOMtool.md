@@ -11,7 +11,7 @@ The following is the toolchain used for development of womtool.  Other versions 
 
 ## Building
 
-`sbt assembly` will build a runnable JAR in `target/scala-2.11/`
+`sbt assembly` will build a runnable JAR in `womtool/target/scala-2.12/`
 
 Tests are run via `sbt test`.  Note that the tests do require Docker to be running.  To test this out while downloading the Ubuntu image that is required for tests, run `docker pull ubuntu:latest` prior to running `sbt test`
 
@@ -56,7 +56,8 @@ graph <WDL file>
 
   Reads a WDL file against the grammar and prints out a
   .dot of the DAG if it is valid, and a syntax error
-  otherwise.
+  otherwise. Note that graph currently DOES NOT WORK on
+  version 1.0 workflows.
 
 womgraph <WDL or CWL file> [ancillary files]
 

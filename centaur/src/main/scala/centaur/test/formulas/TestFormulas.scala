@@ -10,6 +10,7 @@ import centaur.test.workflow.Workflow
 import centaur.test.{Operations, Test}
 import centaur.{CentaurConfig, CromwellManager, CromwellTracker, ManagedCromwellServer}
 import com.typesafe.config.ConfigFactory
+import com.typesafe.scalalogging.StrictLogging
 import cromwell.api.model.{Aborted, Aborting, Failed, Running, SubmittedWorkflow, Succeeded, TerminalStatus, WorkflowMetadata}
 import net.ceedubs.ficus.Ficus._
 
@@ -21,9 +22,11 @@ import spray.json.JsString
   * A collection of test formulas which can be used, building upon operations by chaining them together via a
   * for comprehension. These assembled formulas can then be run by a client
   */
-object TestFormulas {
+object TestFormulas extends StrictLogging {
+  val workflowProgressTimeout = ConfigFactory.load().getOrElse("centaur.workflow-progress-timeout", 1 minute)
+  logger.info(s"Running with a workflow progress timeout of $workflowProgressTimeout")
+
   private def runWorkflowUntilTerminalStatus(workflow: Workflow, status: TerminalStatus): Test[SubmittedWorkflow] = {
-    val workflowProgressTimeout = ConfigFactory.load().getOrElse("centaur.workflow-progress-timeout", 1 minute)
     for {
       _ <- checkVersion()
       s <- submitWorkflow(workflow)
@@ -128,7 +131,7 @@ object TestFormulas {
           jobId <- pollUntilCallIsRunning(workflowDefinition, submittedWorkflow, callMarker.callKey)
           _ = CromwellManager.stopCromwell(s"Scheduled restart from ${workflowDefinition.testName}")
           _ = CromwellManager.startCromwell(postRestart)
-          _ <- expectSomeProgress(submittedWorkflow, workflowDefinition, Set(Running, finalStatus), 1.minute)
+          _ <- expectSomeProgress(submittedWorkflow, workflowDefinition, Set(Running, finalStatus), workflowProgressTimeout)
           _ <- pollUntilStatus(submittedWorkflow, workflowDefinition, finalStatus)
           metadata <- validateMetadata(submittedWorkflow, workflowDefinition)
           _ = cromwellTracker.track(metadata)
@@ -150,7 +153,7 @@ object TestFormulas {
     _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
     submittedWorkflow <- submitWorkflow(workflowDefinition)
     _ <- abortWorkflow(submittedWorkflow)
-    _ <- expectSomeProgress(submittedWorkflow, workflowDefinition, Set(Running, Aborting, Aborted), 1.minute)
+    _ <- expectSomeProgress(submittedWorkflow, workflowDefinition, Set(Running, Aborting, Aborted), workflowProgressTimeout)
     _ <- pollUntilStatus(submittedWorkflow, workflowDefinition, Aborted)
     metadata <- validateMetadata(submittedWorkflow, workflowDefinition)
     _ = cromwellTracker.track(metadata)
@@ -173,7 +176,7 @@ object TestFormulas {
       _ <- waitFor(30.seconds)
       _ <- abortWorkflow(submittedWorkflow)
       _ = if(restart) withRestart()
-      _ <- expectSomeProgress(submittedWorkflow, workflowDefinition, Set(Running, Aborting, Aborted), 1.minute)
+      _ <- expectSomeProgress(submittedWorkflow, workflowDefinition, Set(Running, Aborting, Aborted), workflowProgressTimeout)
       _ <- pollUntilStatus(submittedWorkflow, workflowDefinition, Aborted)
       _ <- validatePAPIAborted(workflowDefinition, submittedWorkflow, jobId)
       // Wait a little to make sure that if the abort didn't work and calls start running we see them in the metadata
@@ -209,7 +212,7 @@ object TestFormulas {
           _ <- pollUntilCallIsRunning(workflowDefinition, first, callMarker.callKey)
           _ = CromwellManager.stopCromwell(s"Scheduled restart from ${workflowDefinition.testName}")
           _ = CromwellManager.startCromwell(postRestart)
-          _ <- expectSomeProgress(first, workflowDefinition, Set(Running, Succeeded), 1.minute)
+          _ <- expectSomeProgress(first, workflowDefinition, Set(Running, Succeeded), workflowProgressTimeout)
           _ <- pollUntilStatus(first, workflowDefinition, Succeeded)
           _ <- checkDescription(workflowDefinition.secondRun, validityExpectation = Option(true))
           second <- runSuccessfulWorkflow(workflowDefinition.secondRun) // Same WDL and config but a "backend" runtime option targeting PAPI v2.

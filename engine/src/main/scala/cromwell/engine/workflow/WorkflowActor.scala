@@ -12,12 +12,13 @@ import cromwell.core.WorkflowOptions.FinalWorkflowLogDir
 import cromwell.core.WorkflowProcessingEvents.DescriptionEventValue.Finished
 import cromwell.core._
 import cromwell.core.logging.{WorkflowLogger, WorkflowLogging}
-import cromwell.core.path.{PathBuilder, PathBuilderFactory, PathFactory}
+import cromwell.core.path.{Path, PathBuilder, PathBuilderFactory, PathFactory}
 import cromwell.engine._
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.instrumentation.WorkflowInstrumentation
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle._
+import cromwell.engine.workflow.lifecycle.deletion.DeleteWorkflowFilesActor.{DeleteWorkflowFilesFailedResponse, DeleteWorkflowFilesSucceededResponse}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowFinalizationActor.{StartFinalizationCommand, WorkflowFinalizationFailedResponse, WorkflowFinalizationSucceededResponse}
@@ -30,6 +31,7 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.WorkflowStoreWr
 import cromwell.engine.workflow.workflowstore.{RestartableAborting, StartableState, WorkflowHeartbeatConfig, WorkflowToStart}
 import cromwell.subworkflowstore.SubWorkflowStoreActor.WorkflowComplete
 import cromwell.webservice.EngineStatsActor
+import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -85,6 +87,12 @@ object WorkflowActor {
     * The WorkflowActor has completed. So we're now finalizing whatever needs to be finalized on the backends
     */
   case object FinalizingWorkflowState extends WorkflowActorRunningState
+
+  /**
+    * The workflow and finalization has succeeded and wants to delete intermediate files. So we are now in deleting
+    * those files state.
+    */
+  case object DeletingFilesState extends WorkflowActorRunningState
 
   /**
     * The WorkflowActor is aborting. We're just waiting for everything to finish up then we'll respond back to the
@@ -398,6 +406,22 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
     }
   }
 
+  /* **************************** */
+  /* ****** Deleting files ****** */
+  /* **************************** */
+
+  // TODO: Instead of simply logging to Kibana, figure out a way to tell the user what were the errors somehow (maybe through metadata?)
+  // since deletion happens only if the workflow and finalization succeeded we can directly goto Succeeded state
+  when(DeletingFilesState) {
+    case Event(DeleteWorkflowFilesSucceededResponse(filesNotFound), data) =>
+      workflowLogger.info(s"Successfully deleted intermediate output file(s) for root workflow $rootWorkflowIdForLogging." + filesNotFoundErrorMsg(filesNotFound))
+      goto(WorkflowSucceededState) using data.copy(currentLifecycleStateActor = None)
+    case Event(DeleteWorkflowFilesFailedResponse(errors, filesNotFound), data) =>
+      workflowLogger.info(s"Failed to delete ${errors.size} intermediate output file(s) for root workflow $rootWorkflowIdForLogging." +
+        filesNotFoundErrorMsg(filesNotFound) + s" Errors: ${errors.map(ExceptionUtils.getMessage)}")
+      goto(WorkflowSucceededState) using data.copy(currentLifecycleStateActor = None)
+  }
+
   // Let these messages fall through to the whenUnhandled handler:
   when(WorkflowAbortedState) { FSM.NullFunction }
   when(WorkflowFailedState) { FSM.NullFunction }
@@ -479,6 +503,11 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       }
   }
 
+  private def filesNotFoundErrorMsg(files: List[Path]) = {
+    if(files.nonEmpty) s" File(s) not found during deletion: ${files.mkString(",")}"
+    else ""
+  }
+
   private def finalizationSucceeded(data: WorkflowActorData) = {
     val finalState = data.lastStateReached match {
       case StateCheckpoint(WorkflowAbortingState, None) => WorkflowAbortedState
@@ -488,7 +517,10 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
 
     /*
       TODO: In reference to WA-65: https://broadworkbench.atlassian.net/browse/WA-65, once finalization succeeds,
-       check if workflowFinalOutputs is nonEmpty and then create the DeleteWorkflowFilesActor here.
+       check if workflowFinalOutputs is nonEmpty and then create the DeleteWorkflowFilesActor here. After that
+       WorkflowActor should transition to DeletingFiles state and wait for update from DeleteWorkflowFilesActor.
+       We can't start deleting files before finalization succeeds as we don't want to start deleting them as they
+       are being copied to another location.
      */
 
     goto(finalState) using data.copy(currentLifecycleStateActor = None)

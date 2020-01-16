@@ -1,0 +1,224 @@
+{
+  "actualWorkflowLanguage": "WDL",
+  "actualWorkflowLanguageVersion": "draft-2",
+  "calls": {
+    "wf_hello.hello": [
+      {
+        "attempt": 1,
+        "backend": "Papi",
+        "backendLabels": {
+          "cromwell-workflow-id": "cromwell-d53a063a-e8b7-403f-a400-a85f089a8928",
+          "wdl-task-name": "hello"
+        },
+        "backendLogs": {
+          "log": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf_hello/d53a063a-e8b7-403f-a400-a85f089a8928/call-hello/hello.log"
+        },
+        "backendStatus": "Success",
+        "callCaching": {
+          "allowResultReuse": true,
+          "effectiveCallCachingMode": "ReadAndWriteCache",
+          "hashes": {
+            "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+            "command template": "4EAADE3CD5D558C5A6CFA4FD101A1486",
+            "input": {
+              "String addressee": "FF3B11B1B0C96178D517D6EAF44F5519"
+            },
+            "input count": "C4CA4238A0B923820DCC509A6F75849B",
+            "output count": "C4CA4238A0B923820DCC509A6F75849B",
+            "output expression": {
+              "String salutation": "0183144CF6617D5341681C6B2F756046"
+            },
+            "runtime attribute": {
+              "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+              "docker": "09F611634147800124391D34D57A3A9F",
+              "failOnStderr": "68934A3E9455FA72420237EB05902327"
+            }
+          },
+          "hit": false,
+          "result": "Cache Miss"
+        },
+        "callRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf_hello/d53a063a-e8b7-403f-a400-a85f089a8928/call-hello",
+        "commandLine": "echo \"Hello m'Lord!\"",
+        "compressedDockerSize": 50310356,
+        "dockerImageUsed": "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950",
+        "end": "2019-12-16T18:46:31.362Z",
+        "executionEvents": [
+          {
+            "description": "RequestingExecutionToken",
+            "endTime": "2019-12-16T18:44:04.748Z",
+            "startTime": "2019-12-16T18:44:04.242Z"
+          },
+          {
+            "description": "Complete in GCE / Cromwell Poll Interval",
+            "endTime": "2019-12-16T18:46:29.845Z",
+            "startTime": "2019-12-16T18:45:53.082Z"
+          },
+          {
+            "description": "Worker released",
+            "endTime": "2019-12-16T18:45:53.082Z",
+            "startTime": "2019-12-16T18:45:53.082Z"
+          },
+          {
+            "description": "Pulling \"gcr.io/google.com/cloudsdktool/cloud-sdk:264.0.0-slim\"",
+            "endTime": "2019-12-16T18:45:13.025Z",
+            "startTime": "2019-12-16T18:44:52.729Z"
+          },
+          {
+            "description": "Worker \"google-pipelines-worker-6a33e92ebde34fa9cf760d349e8224c0\" assigned in \"us-central1-b\"",
+            "endTime": "2019-12-16T18:44:52.729Z",
+            "startTime": "2019-12-16T18:44:16.560Z"
+          },
+          {
+            "description": "PreparingJob",
+            "endTime": "2019-12-16T18:44:05.319Z",
+            "startTime": "2019-12-16T18:44:04.768Z"
+          },
+          {
+            "description": "Delocalization",
+            "endTime": "2019-12-16T18:45:53.082Z",
+            "startTime": "2019-12-16T18:45:39.323Z"
+          },
+          {
+            "description": "ContainerSetup",
+            "endTime": "2019-12-16T18:45:27.185Z",
+            "startTime": "2019-12-16T18:45:21.269Z"
+          },
+          {
+            "description": "UpdatingCallCache",
+            "endTime": "2019-12-16T18:46:30.386Z",
+            "startTime": "2019-12-16T18:46:29.845Z"
+          },
+          {
+            "description": "UserAction",
+            "endTime": "2019-12-16T18:45:39.323Z",
+            "startTime": "2019-12-16T18:45:37.747Z"
+          },
+          {
+            "description": "WaitingForValueStore",
+            "endTime": "2019-12-16T18:44:04.768Z",
+            "startTime": "2019-12-16T18:44:04.748Z"
+          },
+          {
+            "description": "waiting for quota",
+            "endTime": "2019-12-16T18:44:16.560Z",
+            "startTime": "2019-12-16T18:44:11.573Z"
+          },
+          {
+            "description": "Localization",
+            "endTime": "2019-12-16T18:45:37.747Z",
+            "startTime": "2019-12-16T18:45:27.185Z"
+          },
+          {
+            "description": "UpdatingJobStore",
+            "endTime": "2019-12-16T18:46:31.362Z",
+            "startTime": "2019-12-16T18:46:30.386Z"
+          },
+          {
+            "description": "Pending",
+            "endTime": "2019-12-16T18:44:04.242Z",
+            "startTime": "2019-12-16T18:44:04.218Z"
+          },
+          {
+            "description": "RunningJob",
+            "endTime": "2019-12-16T18:44:11.573Z",
+            "startTime": "2019-12-16T18:44:05.403Z"
+          },
+          {
+            "description": "Background",
+            "endTime": "2019-12-16T18:45:20.641Z",
+            "startTime": "2019-12-16T18:45:19.970Z"
+          },
+          {
+            "description": "CallCacheReading",
+            "endTime": "2019-12-16T18:44:05.403Z",
+            "startTime": "2019-12-16T18:44:05.319Z"
+          },
+          {
+            "description": "Pulling \"ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950\"",
+            "endTime": "2019-12-16T18:45:19.970Z",
+            "startTime": "2019-12-16T18:45:13.025Z"
+          }
+        ],
+        "executionStatus": "Done",
+        "inputs": {
+          "addressee": "m'Lord"
+        },
+        "jes": {
+          "endpointUrl": "https://genomics.googleapis.com/",
+          "executionBucket": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci",
+          "googleProject": "broad-dsde-cromwell-dev",
+          "instanceName": "google-pipelines-worker-6a33e92ebde34fa9cf760d349e8224c0",
+          "machineType": "custom-1-2048",
+          "zone": "us-central1-b"
+        },
+        "jobId": "projects/broad-dsde-cromwell-dev/operations/14005956750079195607",
+        "labels": {
+          "cromwell-workflow-id": "cromwell-d53a063a-e8b7-403f-a400-a85f089a8928",
+          "wdl-task-name": "hello"
+        },
+        "outputs": {
+          "salutation": "Hello m'Lord!"
+        },
+        "preemptible": false,
+        "returnCode": 0,
+        "runtimeAttributes": {
+          "bootDiskSizeGb": "10",
+          "continueOnReturnCode": "0",
+          "cpu": "1",
+          "cpuMin": "1",
+          "disks": "local-disk 10 SSD",
+          "docker": "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950",
+          "failOnStderr": "false",
+          "maxRetries": "0",
+          "memory": "2 GB",
+          "memoryMin": "2 GB",
+          "noAddress": "false",
+          "preemptible": "0",
+          "zones": "us-central1-b"
+        },
+        "shardIndex": -1,
+        "start": "2019-12-16T18:44:04.192Z",
+        "stderr": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf_hello/d53a063a-e8b7-403f-a400-a85f089a8928/call-hello/stderr",
+        "stdout": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf_hello/d53a063a-e8b7-403f-a400-a85f089a8928/call-hello/stdout"
+      }
+    ]
+  },
+  "end": "2019-12-16T18:46:33.200Z",
+  "id": "d53a063a-e8b7-403f-a400-a85f089a8928",
+  "inputs": {
+    "wf_hello.hello.addressee": "m'Lord"
+  },
+  "labels": {
+    "cromwell-workflow-id": "cromwell-d53a063a-e8b7-403f-a400-a85f089a8928"
+  },
+  "outputs": {
+    "wf_hello.hello.salutation": "Hello m'Lord!"
+  },
+  "start": "2019-12-16T18:44:01.875Z",
+  "status": "Succeeded",
+  "submission": "2019-12-16T18:44:01.100Z",
+  "submittedFiles": {
+    "inputs": "{\"wf_hello.hello.addressee\":\"m'Lord\"}",
+    "labels": "{}",
+    "options": "{\n\n}",
+    "root": "",
+    "workflow": "task hello {\n  String addressee\n  command {\n    echo \"Hello ${addressee}!\"\n  }\n  output {\n    String salutation = read_string(stdout())\n  }\n  runtime {\n    docker: \"ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950\"\n  }\n}\n\nworkflow wf_hello {\n  call hello\n  output {\n     hello.salutation\n  }\n}\n",
+    "workflowUrl": ""
+  },
+  "workflowName": "wf_hello",
+  "workflowProcessingEvents": [
+    {
+      "cromwellId": "cromid-7747562",
+      "cromwellVersion": "48-c3ad98c-SNAP",
+      "description": "PickedUp",
+      "timestamp": "2019-12-16T18:44:01.758Z"
+    },
+    {
+      "cromwellId": "cromid-7747562",
+      "cromwellVersion": "48-c3ad98c-SNAP",
+      "description": "Finished",
+      "timestamp": "2019-12-16T18:46:33.201Z"
+    }
+  ],
+  "workflowRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf_hello/d53a063a-e8b7-403f-a400-a85f089a8928/"
+}

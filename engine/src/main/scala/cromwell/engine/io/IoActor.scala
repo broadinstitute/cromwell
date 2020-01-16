@@ -179,6 +179,21 @@ object IoActor {
     case _ => false
   }
 
+  def isGcs500(failure: Throwable): Boolean = {
+    val serverErrorPattern = ".*Could not read from gs.+500 Internal Server Error.*"
+    Option(failure.getMessage).exists(_.matches(serverErrorPattern))
+  }
+
+  def isGcs503(failure: Throwable): Boolean = {
+    val serverErrorPattern = ".*Could not read from gs.+503 Service Unavailable.*"
+    Option(failure.getMessage).exists(_.matches(serverErrorPattern))
+  }
+
+  def isGcs504(failure: Throwable): Boolean = {
+    val serverErrorPattern = ".*Could not read from gs.+504 Gateway Timeout.*"
+    Option(failure.getMessage).exists(_.matches(serverErrorPattern))
+  }
+
   val AdditionalRetryableHttpCodes = List(
     // HTTP 410: Gone
     // From Google doc (https://cloud.google.com/storage/docs/json_api/v1/status-codes):
@@ -191,26 +206,27 @@ object IoActor {
     // For now explicitly lists 503 as a retryable code here to work around that.
     503
   )
-  
+
   // Error messages not included in the list of built-in GCS retryable errors (com.google.cloud.storage.StorageException) but that we still want to retry
   val AdditionalRetryableErrorMessages = List(
     "Connection closed prematurely"
   ).map(_.toLowerCase)
-  
+
   /**
     * Failures that are considered retryable.
     * Retrying them should increase the "retry counter"
     */
   def isRetryable(failure: Throwable): Boolean = failure match {
-    case gcs: StorageException => gcs.isRetryable || 
+    case gcs: StorageException => gcs.isRetryable ||
       isRetryable(gcs.getCause) ||
-      AdditionalRetryableHttpCodes.contains(gcs.getCode) || 
+      AdditionalRetryableHttpCodes.contains(gcs.getCode) ||
       AdditionalRetryableErrorMessages.exists(gcs.getMessage.toLowerCase.contains)
     case _: SSLException => true
     case _: BatchFailedException => true
     case _: SocketException => true
     case _: SocketTimeoutException => true
     case ioE: IOException if Option(ioE.getMessage).exists(_.contains("Error getting access token for service account")) => true
+    case ioE: IOException => isGcs500(ioE) || isGcs503(ioE) || isGcs504(ioE)
     case other => isTransient(other)
   }
 

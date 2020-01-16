@@ -58,7 +58,9 @@ startup_funnel
 # write_lines_files:         all inputs are read-only in TES
 # read_file_limits:          Fail only in Travis for unknown reason (Note that the draft 3 version does not fail)
 
+# Limiting Centaur to 4 threads here in order to try to prevent exceeding the OS's max open files limit: BA-6153
 cromwell::build::run_centaur \
+    -p 4 \
     -e call_cache_capoeira_local \
     -e draft3_call_cache_capoeira_local \
     -e read_file_limits \

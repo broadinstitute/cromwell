@@ -1,4 +1,4 @@
-package cromwell.services.metadata.impl
+package cromwell.services.metadata.hybridcarbonite
 
 import java.time.OffsetDateTime
 
@@ -7,23 +7,30 @@ import cromwell.core.WorkflowId
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataArchiveStatus._
-import cromwell.services.metadata.impl.DeleteMetadataActor.DeleteMetadataAction
+import cromwell.services.metadata.hybridcarbonite.DeleteMetadataActor.DeleteMetadataAction
+import cromwell.services.metadata.impl.MetadataDatabaseAccess
 
 import scala.util.{Failure, Success}
 import scala.concurrent.duration._
 
-class DeleteMetadataActor(timeToWaitAfterWorkflowFinish: Duration) extends Actor
+class DeleteMetadataActor(metadataDeletionConfig: MetadataDeletionConfig) extends Actor
   with ActorLogging
   with MetadataDatabaseAccess
   with MetadataServicesStore {
 
   implicit val ec = context.dispatcher
 
+  metadataDeletionConfig.intervalOpt.map { interval =>
+    context.system.scheduler.schedule(5.minutes, interval, self, DeleteMetadataAction)
+  }
+
   override def receive: Receive = {
     case DeleteMetadataAction =>
+      val currentTimestampMinusDelay = OffsetDateTime.now().minusSeconds(metadataDeletionConfig.delayAfterWorkflowCompletion.toSeconds)
       val workflowIdsForMetadataDeletionFuture = queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(
         MetadataArchiveStatus.toDatabaseValue(Archived),
-        OffsetDateTime.now().minusSeconds(timeToWaitAfterWorkflowFinish.toSeconds)
+        currentTimestampMinusDelay,
+        metadataDeletionConfig.batchSize
       )
       workflowIdsForMetadataDeletionFuture onComplete {
         case Success(workflowIds) =>
@@ -36,13 +43,13 @@ class DeleteMetadataActor(timeToWaitAfterWorkflowFinish: Duration) extends Actor
         case Failure(ex) =>
           log.error(ex, "Cannot delete metadata: unable to query list of workflow ids for metadata deletion from metadata summary table.")
       }
-    case unknown@_ => throw new RuntimeException(s"Programmer's error: unknown message $unknown received from $sender")
+    case unexpected => throw new RuntimeException(s"Programmer error: unexpected message $unexpected received from $sender")
   }
 }
 
 object DeleteMetadataActor {
 
-  def props(timeToWaitAfterWorkflowFinish: Duration) = Props(new DeleteMetadataActor(timeToWaitAfterWorkflowFinish))
+  def props(metadataDeletionConfig: MetadataDeletionConfig) = Props(new DeleteMetadataActor(metadataDeletionConfig))
 
   case object DeleteMetadataAction
 

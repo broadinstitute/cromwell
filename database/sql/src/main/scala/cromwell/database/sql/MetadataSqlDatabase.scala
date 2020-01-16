@@ -154,5 +154,5 @@ trait MetadataSqlDatabase extends SqlDatabase {
 
   def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]]
 
-  def queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp)(implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]]
+  def queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp, batchSizeOpt: Long)(implicit ec: ExecutionContext): Future[Seq[String]]
 }

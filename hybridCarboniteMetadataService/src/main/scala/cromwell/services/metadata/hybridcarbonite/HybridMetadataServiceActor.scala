@@ -41,6 +41,8 @@ class HybridMetadataServiceActor(serviceConfig: Config, globalConfig: Config, se
 
   val readRegulatorActor = context.actorOf(ReadMetadataRegulatorActor.props(readDeciderActorProps, readDeciderActorProps), "ReadMetadataRegulatorActor_for_HMSA")
 
+  context.actorOf(DeleteMetadataActor.props(carboniteMetadataServiceActorConfig.metadataDeletionConfig))
+
   override def receive = {
     case action: MetadataServiceAction => action match {
       case read: BuildMetadataJsonAction => readRegulatorActor forward read

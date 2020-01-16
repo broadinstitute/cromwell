@@ -409,8 +409,10 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     )
   }
 
-  override def queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp)(implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = {
-    runAction(dataAccess.rootWorkflowMetadataSummaryEntriesByArchiveStatusAndWorkflowEndTimestamp((archiveStatus, thresholdTimestamp)).result)
+  override def queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp, batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[String]] = {
+    runAction(
+      dataAccess.rootWorkflowIdsByArchiveStatusAndWorkflowEndTimestamp((archiveStatus, thresholdTimestamp, batchSize)).result
+    )
   }
 
 }

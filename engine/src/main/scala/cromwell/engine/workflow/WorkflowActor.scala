@@ -169,7 +169,7 @@ object WorkflowActor {
             serverMode: Boolean,
             workflowHeartbeatConfig: WorkflowHeartbeatConfig,
             totalJobsByRootWf: AtomicInteger,
-            fileHashCacheActor: Option[ActorRef],
+            fileHashCacheActorProps: Option[Props],
             blacklistCache: Option[BlacklistCache]): Props = {
     Props(
       new WorkflowActor(
@@ -191,7 +191,7 @@ object WorkflowActor {
         serverMode = serverMode,
         workflowHeartbeatConfig = workflowHeartbeatConfig,
         totalJobsByRootWf = totalJobsByRootWf,
-        fileHashCacheActor = fileHashCacheActor,
+        fileHashCacheActorProps = fileHashCacheActorProps,
         blacklistCache = blacklistCache)).withDispatcher(EngineDispatcher)
   }
 }
@@ -217,7 +217,10 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
                     serverMode: Boolean,
                     workflowHeartbeatConfig: WorkflowHeartbeatConfig,
                     totalJobsByRootWf: AtomicInteger,
-                    fileHashCacheActor: Option[ActorRef],
+                    // `Props` and not an `ActorRef` since the `RootWorkflowFileHashCacheActor` should be created as a
+                    // child of this actor. The sbt subproject of `RootWorkflowFileHashCacheActor` is not visible from
+                    // the subproject this class belongs to so the `Props` are passed in.
+                    fileHashCacheActorProps: Option[Props],
                     blacklistCache: Option[BlacklistCache])
   extends LoggingFSM[WorkflowActorState, WorkflowActorData] with WorkflowLogging with WorkflowMetadataHelper
   with WorkflowInstrumentation with Timers {
@@ -228,7 +231,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
   override val rootWorkflowIdForLogging = workflowId.toRoot
 
   private val restarting = initialStartableState.restarted
-  
+
   private val startTime = System.currentTimeMillis()
 
   private val workflowDockerLookupActor = context.actorOf(
@@ -319,7 +322,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
         startState = data.effectiveStartableState,
         rootConfig = conf,
         totalJobsByRootWf = totalJobsByRootWf,
-        fileHashCacheActor = fileHashCacheActor,
+        fileHashCacheActor = fileHashCacheActorProps map context.system.actorOf,
         blacklistCache = blacklistCache), name = s"WorkflowExecutionActor-$workflowId")
 
       executionActor ! ExecuteWorkflowCommand

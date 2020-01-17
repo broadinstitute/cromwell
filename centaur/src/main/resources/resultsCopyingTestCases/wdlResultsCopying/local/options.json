@@ -1,0 +1,6 @@
+{
+  "use_relative_output_paths":false,
+  "final_workflow_outputs_dir":"<<local-path-placeholder>>/wf_results",
+  "final_workflow_log_dir":"<<local-path-placeholder>>/wf_logs",
+  "final_call_logs_dir":"<<local-path-placeholder>>/cl_logs"
+}

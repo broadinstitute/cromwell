@@ -5,6 +5,8 @@ services:
 language: scala
 scala:
   - 2.12.9
+git:
+  depth: false
 jdk:
   - openjdk8
 cache:

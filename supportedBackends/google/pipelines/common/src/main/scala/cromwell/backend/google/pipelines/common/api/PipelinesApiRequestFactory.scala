@@ -75,7 +75,7 @@ object PipelinesApiRequestFactory {
                                       computeServiceAccount: String,
                                       googleLabels: Seq[GoogleLabel],
                                       preemptible: Boolean,
-                                      pipelineTimeout: Option[FiniteDuration],
+                                      pipelineTimeout: FiniteDuration,
                                       jobShell: String,
                                       privateDockerKeyAndEncryptedToken: Option[CreatePipelineDockerKeyAndToken],
                                       womOutputRuntimeExtractor: Option[WomOutputRuntimeExtractor],

@@ -1,13 +1,25 @@
 # Cromwell Change Log
 
-## 48 Release Notes
+## 49 Release Notes
 
 ### Bug fixes
 
-+ Fix a bug where zip files with directories could not be imported. 
++ Fixed a bug where zip files with directories could not be imported. 
   For example a zip with `a.wdl` and `b.wdl` could be imported but one with `sub_workflows/a.wdl` 
   and `imports/b.wdl` could not.
-  
+
+## 48 Release Notes
+
+### Womtool Graph for WDL 1.0
+
+The `womtool graph` command now supports WDL 1.0 workflows. 
+* **Note:** Generated graphs - including in WDL draft 2 - may look slightly different than they did in version 47.
+
+### Documentation
+
++ Documented the use of a HSQLDB file-based database so users can try call-caching without needing a database server.
+  Please checkout [the database documentation](https://cromwell.readthedocs.io/en/stable/Configuring#database).
+
 ## 47 Release Notes
 
 ### Retry with more memory on Papiv2 [(#5180)](https://github.com/broadinstitute/cromwell/pull/5180)

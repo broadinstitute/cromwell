@@ -51,6 +51,14 @@ case class CentaurTestCase(workflow: Workflow,
   }
 
   def containsTag(tag: String): Boolean = testOptions.tags.contains(tag)
+
+  def reliesOnCallCachingMetadataVerification: Boolean = {
+    val callCachingMetadataKey = "callCaching"
+    workflow.metadata match {
+      case Some(flatMetadata) => flatMetadata.value.keySet.exists(_.contains(callCachingMetadataKey))
+      case None => false
+    }
+  }
 }
 
 object CentaurTestCase {

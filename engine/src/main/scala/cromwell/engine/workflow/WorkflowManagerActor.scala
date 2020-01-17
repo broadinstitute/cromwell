@@ -19,6 +19,7 @@ import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.engine.workflow.workflowstore.{WorkflowHeartbeatConfig, WorkflowStoreActor, WorkflowStoreEngineActor}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess, RegisterWorkflowCompleted}
 import cromwell.webservice.EngineStatsActor
+import mouse.boolean._
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.exception.ExceptionUtils
 
@@ -290,8 +291,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       logger.info(s"$tag Starting workflow UUID($workflowId)")
     }
 
-    val fileHashCacheActor: Option[ActorRef] =
-      if (fileHashCacheEnabled) Option(context.system.actorOf(RootWorkflowFileHashCacheActor.props(params.ioActor))) else None
+    val fileHashCacheActorProps: Option[Props] = fileHashCacheEnabled.option(RootWorkflowFileHashCacheActor.props(params.ioActor, workflowId))
 
     val callCachingBlacklistCache: Option[BlacklistCache] = for {
       config <- config.as[Option[Config]]("call-caching.blacklist-cache")
@@ -317,7 +317,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       serverMode = params.serverMode,
       workflowHeartbeatConfig = params.workflowHeartbeatConfig,
       totalJobsByRootWf = new AtomicInteger(),
-      fileHashCacheActor = fileHashCacheActor,
+      fileHashCacheActorProps = fileHashCacheActorProps,
       blacklistCache = callCachingBlacklistCache)
     val wfActor = context.actorOf(wfProps, name = s"WorkflowActor-$workflowId")
 

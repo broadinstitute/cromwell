@@ -75,8 +75,8 @@ class JsonEditorSpec extends FlatSpec with Matchers {
   }
 
   it should "remove nested excludes in workflows, calls and subworkflows" in {
-    val actual = excludeJson(gratuitousSubworkflowJson, NonEmptyList.of("callCaching:hashes:runtime attribute:docker", "executionStatus")).get
-    val expected = parseMetadata("nested_excludes_gratuitous_subworkflows.json")
+    val actual = excludeJson(treblyNestedSubworkflowJson, NonEmptyList.of("callCaching:hashes:runtime attribute:docker", "executionStatus")).get
+    val expected = parseMetadata("nested_excludes_trebly_nested_subworkflows.json")
 
     actual shouldEqual expected
   }
@@ -135,13 +135,12 @@ class JsonEditorSpec extends FlatSpec with Matchers {
   }
 
   it should "remove excluded keys in subworkflows" in {
-    val actual = excludeJson(gratuitousSubworkflowJson, NonEmptyList.of("executionEvents", "workflowName")).get
-    val expected = parseMetadata("excluded_gratuitous_subworkflow.json")
+    val actual = excludeJson(treblyNestedSubworkflowJson, NonEmptyList.of("executionEvents", "workflowName")).get
+    val expected = parseMetadata("excluded_trebly_nested_subworkflow.json")
     actual shouldEqual expected
   }
 
-  // CARBONITE FIXING Broken in the current Carbonite implementation, this recurses down inappropriately and finds a bogus 'labels' match.
-  it should "keep includes in workflows, tragically broken" ignore {
+  it should "keep includes in workflows, paying no mind to that 'labels' field in 'submittedFiles'" in {
     val actual = includeJson(helloWorldJson, NonEmptyList.of("workflowName", "labels", "outputs")).get
     val expectedMetadata = """
       |{
@@ -201,8 +200,8 @@ class JsonEditorSpec extends FlatSpec with Matchers {
 
   // CARBONITE FIXING it should be easy to write a currently-broken version of this like in the Hello World example above.
   it should "keep includes in calls and workflows and subworkflows" in {
-    val actual = includeJson(gratuitousSubworkflowJson, NonEmptyList.of("workflowName", "executionStatus", "outputs")).get
-    val expected = parseMetadata("included_gratuitous_subworkflows.json")
+    val actual = includeJson(treblyNestedSubworkflowJson, NonEmptyList.of("workflowName", "executionStatus", "outputs")).get
+    val expected = parseMetadata("included_trebly_nested_subworkflows.json")
     actual shouldEqual expected
   }
 
@@ -221,6 +220,32 @@ class JsonEditorSpec extends FlatSpec with Matchers {
     actual shouldEqual expected
   }
 
+  it should "always return a workflow ID on the query workflow" in {
+    val expectedMetadata =
+      """
+        |{
+        |  "id" : "757d0bcc-b636-4658-99d4-9b4b3767f1d1"
+        |}
+        |""".stripMargin
+
+    val expected = parseString(expectedMetadata)
+    val actual = includeJson(helloWorldJson, NonEmptyList.of("foo")).toEither.right.get
+    actual shouldEqual expected
+  }
+
+  it should "do the right thing with logs" in {
+    // this actually has no legit logs since its one call is a subworkflow, but we should at least get the workflow ID back.
+    val actual = logs(helloWorldJson).get
+    val expectedMetadata =
+      """
+        |{
+        |  "id" : "757d0bcc-b636-4658-99d4-9b4b3767f1d1"
+        |}
+        |""".stripMargin
+    val expected = parseString(expectedMetadata)
+    actual shouldEqual expected
+  }
+
   // CARBONITE FIXING a subworkflow version of this like the CarboniteMetadataThawingActorSpec would be nice.
   it should "add labels" in {
     val labels = Map(helloWorldJson.workflowId.get -> Map(("new", "label")))
@@ -230,11 +255,11 @@ class JsonEditorSpec extends FlatSpec with Matchers {
   }
 
   it should "replace subworkflow metadata with subworkflow id" in {
-    val actualJson = unexpandSubworkflows(gratuitousSubworkflowJson).get
+    val actualJson = unexpandSubworkflows(treblyNestedSubworkflowJson).get
     val keys = actualJson.hcursor.downField("calls").downField("wf.wf").downArray.keys
     assert(keys.exists(_.exists(_ == "subWorkflowMetadata")) === false)
 
-    val oldCallsArrayCursor = gratuitousSubworkflowJson.hcursor.downField("calls").downField("wf.wf").downArray
+    val oldCallsArrayCursor = treblyNestedSubworkflowJson.hcursor.downField("calls").downField("wf.wf").downArray
     val oldSubWorkflowId1 = oldCallsArrayCursor.downField("subWorkflowMetadata").get[String]("id").asInstanceOf[Right[DecodingFailure, String]].value
     val oldSubWorkflowId2 = oldCallsArrayCursor.right.downField("subWorkflowMetadata").get[String]("id").asInstanceOf[Right[DecodingFailure, String]].value
 
@@ -267,7 +292,7 @@ class JsonEditorSpec extends FlatSpec with Matchers {
       "540d2d9b-eccc-4e4f-8478-574e4e48f98d"
     )
     workflowIds.foreach { subworkflowId =>
-      val extractedSubworkflowJson = extractSubWorkflowMetadata(subworkflowId, gratuitousSubworkflowJson)
+      val extractedSubworkflowJson = extractSubWorkflowMetadata(subworkflowId, treblyNestedSubworkflowJson)
       extractedSubworkflowJson match {
         case Valid(Some(subWorkflowJson)) =>
           assert(true === subWorkflowJson.isInstanceOf[Json])
@@ -300,6 +325,204 @@ class JsonEditorSpec extends FlatSpec with Matchers {
 
     newJson shouldEqual expectedJson.right.get
   }
+
+  it should "support a Job Manageresque query on a simple workflow" in {
+    import JobManagerKeys._
+
+    val actual = includeExcludeJson(helloWorldJson, includeKeys, excludeKeys).toEither.right.get
+    val expected = parseMetadata("jmui_hello_world.json")
+    actual shouldEqual expected
+  }
+
+  it should "support a Job Manageresque query on a workflow having trebly nested subworkflows" in {
+    import JobManagerKeys._
+
+    val actual = includeExcludeJson(parseMetadata("trebly_nested_subworkflow_papiv2_cached.json"), includeKeys, excludeKeys).toEither.right.get
+    val expected = parseMetadata("trebly_nested_jmuiesque.json")
+    actual shouldEqual expected
+  }
+
+  it should "handle includes nested multiple levels" in {
+    val includeKeys = NonEmptyList.of("callCaching:hashes:backend name", "callCaching:hashes:input:String addressee")
+    val actual = includeJson(helloWorldPapiV2, includeKeys).get
+    val expectedJson =
+      """
+        |{
+        |  "calls" : {
+        |    "wf_hello.hello" : [
+        |      {
+        |        "callCaching" : {
+        |          "hashes": {
+        |            "input" : {
+        |              "String addressee" : "FF3B11B1B0C96178D517D6EAF44F5519"
+        |            },
+        |            "backend name" : "36EF4A8AB268D1A1C74D8108C93D48ED"
+        |          }
+        |        },
+        |        "shardIndex" : -1,
+        |        "attempt" : 1
+        |      }
+        |    ]
+        |  },
+        |  "id" : "d53a063a-e8b7-403f-a400-a85f089a8928"
+        |}
+        |""".stripMargin
+
+    val expected = parseString(expectedJson)
+    actual shouldEqual expected
+  }
+
+  it should "handle includes specifying nonexistent keys" in {
+    val includeKeys = NonEmptyList.of("callCaching:hashes:nonExistent", "callCaching:phonyKey")
+    val actual = includeJson(helloWorldPapiV2, includeKeys).get
+    val expectedJson =
+      """
+        |{
+        |  "id": "d53a063a-e8b7-403f-a400-a85f089a8928"
+        |}
+        |""".stripMargin
+    val expected = parseString(expectedJson)
+    actual shouldEqual expected
+  }
+
+  it should "handle excludes specifying nonexistent keys" in {
+    val includeKeys = NonEmptyList.of("backendLabels")
+    val excludeKeys = NonEmptyList.of("backendLabels:foo")
+
+    val actual = includeExcludeJson(helloWorldPapiV2, includeKeys, excludeKeys).get
+    val expectedJson =
+      """
+        |{
+        |  "id": "d53a063a-e8b7-403f-a400-a85f089a8928",
+        |  "calls" : {
+        |    "wf_hello.hello" : [
+        |      {
+        |        "backendLabels": {
+        |          "cromwell-workflow-id": "cromwell-d53a063a-e8b7-403f-a400-a85f089a8928",
+        |          "wdl-task-name": "hello"
+        |        },
+        |        "shardIndex" : -1,
+        |        "attempt" : 1
+        |      }
+        |    ]
+        |  }
+        |}
+        |""".stripMargin
+    val expected = parseString(expectedJson)
+    actual shouldEqual expected
+  }
+
+  it should "be able to deal with some nested include / exclude stuff" in {
+    val includeKeys = NonEmptyList.of("callCaching")
+    val excludeKeys = NonEmptyList.of("callCaching:hashes:input:String addressee", "callCaching:hashes:runtime attribute:docker")
+
+    val actual = includeExcludeJson(helloWorldPapiV2, includeKeys, excludeKeys).get
+    val expectedJson =
+      """
+        |{
+        |  "calls": {
+        |    "wf_hello.hello": [
+        |      {
+        |        "callCaching": {
+        |          "allowResultReuse": true,
+        |          "effectiveCallCachingMode": "ReadAndWriteCache",
+        |          "hashes": {
+        |            "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+        |            "command template": "4EAADE3CD5D558C5A6CFA4FD101A1486",
+        |            "input count": "C4CA4238A0B923820DCC509A6F75849B",
+        |            "output count": "C4CA4238A0B923820DCC509A6F75849B",
+        |            "output expression": {
+        |              "String salutation": "0183144CF6617D5341681C6B2F756046"
+        |            },
+        |            "runtime attribute": {
+        |              "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+        |              "failOnStderr": "68934A3E9455FA72420237EB05902327"
+        |            }
+        |          },
+        |          "hit": false,
+        |          "result": "Cache Miss"
+        |        },
+        |        "attempt": 1,
+        |        "shardIndex": -1
+        |      }
+        |    ]
+        |  },
+        |  "id": "d53a063a-e8b7-403f-a400-a85f089a8928"
+        |}
+        |""".stripMargin
+
+    val expected = parseString(expectedJson)
+    actual shouldEqual expected
+  }
+
+  it should "exclude keys which are listed to both 'include' and 'exclude'" in {
+    val includeKeys = NonEmptyList.of("callCaching", "backendStatus")
+    val excludeKeys = NonEmptyList.of("callCaching", "callCaching:hashes:runtime attribute:docker")
+
+    val actual = includeExcludeJson(helloWorldPapiV2, includeKeys, excludeKeys).get
+    val expectedJson =
+      """
+        |{
+        |  "calls": {
+        |    "wf_hello.hello": [
+        |      {
+        |        "backendStatus": "Success",
+        |        "attempt": 1,
+        |        "shardIndex": -1
+        |      }
+        |    ]
+        |  },
+        |  "id": "d53a063a-e8b7-403f-a400-a85f089a8928"
+        |}
+        |""".stripMargin
+
+    val expected = parseString(expectedJson)
+    actual shouldEqual expected
+  }
+
+  it should "remove excluded sections even if a sub-section was included" in {
+    val includeKeys = NonEmptyList.of("callCaching:hashes", "backendStatus")
+    val excludeKeys = NonEmptyList.of("callCaching")
+
+    val actual = includeExcludeJson(helloWorldPapiV2, includeKeys, excludeKeys).get
+    val expectedJson =
+      """
+        |{
+        |  "calls": {
+        |    "wf_hello.hello": [
+        |      {
+        |        "backendStatus": "Success",
+        |        "attempt": 1,
+        |        "shardIndex": -1
+        |      }
+        |    ]
+        |  },
+        |  "id": "d53a063a-e8b7-403f-a400-a85f089a8928"
+        |}
+        |""".stripMargin
+
+    val expected = parseString(expectedJson)
+    actual shouldEqual expected
+  }
+
+  it should "ignore attempts to exclude ids, attempts, and shard indices" in {
+    val includeKeys = None
+    val excludeKeys = Option(NonEmptyList.of("id", "attempt", "shardIndex"))
+
+    val actual = includeExcludeJson(helloWorldPapiV2, includeKeys, excludeKeys).get
+    val expected = helloWorldPapiV2
+
+    actual shouldEqual expected
+  }
+
+  it should "be able to exclude calls, if so asked" in {
+    val includeKeys = None
+    val excludeKeys = Option(NonEmptyList.of("calls"))
+
+    val actual = includeExcludeJson(helloWorldPapiV2, includeKeys, excludeKeys).get
+    val expected = helloWorldPapiV2.mapObject(_.remove("calls"))
+    actual shouldEqual expected
+  }
 }
 
 object JsonEditorSpec {
@@ -316,10 +539,41 @@ object JsonEditorSpec {
         ).mkString)
   }
 
-  val gratuitousSubworkflowJson: Json = parseMetadata("gratuitous_subworkflows.json")
+  val treblyNestedSubworkflowJson: Json = parseMetadata("trebly_nested_subworkflows.json")
+  val treblyNestedSubworkflowCachedJson: Json = parseMetadata("trebly_nested_subworkflow_papiv2_cached.json")
   val helloWorldJson: Json = parseMetadata("hello_world.json")
+  val helloWorldPapiV2: Json = parseMetadata("hello_papiv2.json")
 
   implicit class EnhancedErrorOr[A](val e: ErrorOr[A]) extends AnyVal {
     def get: A = e.toEither.right.get
+  }
+
+  object JobManagerKeys {
+    val includeKeys = NonEmptyList.of(
+      "attempt",
+      "backendLogs:log",
+      "callCaching:hit",
+      "callRoot",
+      "end",
+      "executionStatus",
+      "failures",
+      "inputs",
+      "jobId",
+      "outputs",
+      "shardIndex",
+      "start",
+      "calls",
+      "description",
+      "executionEvents",
+      "labels",
+      "parentWorkflowId",
+      "returnCode",
+      "status",
+      "submission",
+      "subWorkflowId",
+      "workflowName"
+    )
+
+    val excludeKeys = NonEmptyList.of("callCaching:hitFailures")
   }
 }

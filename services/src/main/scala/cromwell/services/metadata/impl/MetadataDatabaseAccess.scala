@@ -339,5 +339,5 @@ trait MetadataDatabaseAccess {
   def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = metadataDatabaseInterface.getRootWorkflowId(workflowId)
 
   def queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(archiveStatus: Option[String], thresholdTimestamp: OffsetDateTime, batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[String]] =
-    metadataDatabaseInterface.queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(archiveStatus, thresholdTimestamp.toSystemTimestamp, batchSize)
+    metadataDatabaseInterface.queryRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus, thresholdTimestamp.toSystemTimestamp, batchSize)
 }

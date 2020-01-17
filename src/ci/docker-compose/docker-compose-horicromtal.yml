@@ -30,7 +30,7 @@ services:
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080"]
       interval: 2s
-      timeout: 30s
+      timeout: 120s
       retries: 60
   # Runs the summarizer and is also a regular Cromwell workflow-running backend.
   cromwell-summarizer-plus-backend:
@@ -60,7 +60,7 @@ services:
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8000"]
       interval: 2s
-      timeout: 30s
+      timeout: 120s
       retries: 60
   # Talks to Centaur (i.e. is a frontend) and is also a regular Cromwell workflow-running backend.
   cromwell-frontend-plus-backend:
@@ -92,5 +92,5 @@ services:
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:${MANAGED_CROMWELL_PORT-8008}"]
       interval: 2s
-      timeout: 30s
+      timeout: 120s
       retries: 60

@@ -5,7 +5,7 @@
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
 
-    <changeSet author="mcovarr" id="drop_fk_job_store_simpleton_entry_job_store_entry_id_constraint" dbms="mysql,hsqldb,postgresql,mariadb">
+    <changeSet author="mcovarr" id="drop_job_store_simpleton_entry_fk" dbms="mysql,hsqldb,postgresql,mariadb">
       <dropForeignKeyConstraint baseTableName="JOB_STORE_SIMPLETON_ENTRY"
                                 constraintName="FK_JOB_STORE_SIMPLETON_ENTRY_JOB_STORE_ENTRY_ID" />
     </changeSet>
@@ -17,7 +17,13 @@
                           tableName="JOB_STORE_ENTRY"/>
     </changeSet>
 
-    <changeSet author="mcovarr" id="pg_enlarge_job_store_entry_id" dbms="postgresql">
+    <changeSet author="mcovarr" id="postgresql_enlarge_job_store_entry_id" dbms="postgresql">
+        <modifyDataType tableName="JOB_STORE_ENTRY"
+                        columnName="JOB_STORE_ENTRY_ID"
+                        newDataType="BIGINT"/>
+    </changeSet>
+
+    <changeSet author="mcovarr" id="postgres_enlarge_job_store_entry_id_seq" dbms="postgresql">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT count(*)
@@ -36,7 +42,13 @@
                           tableName="JOB_STORE_SIMPLETON_ENTRY"/>
     </changeSet>
 
-    <changeSet author="mcovarr" id="pg_enlarge_job_store_simpleton_entry_id" dbms="postgresql">
+    <changeSet author="mcovarr" id="postgresql_enlarge_job_store_simpleton_entry_id" dbms="postgresql">
+        <modifyDataType tableName="JOB_STORE_SIMPLETON_ENTRY"
+                        columnName="JOB_STORE_SIMPLETON_ENTRY_ID"
+                        newDataType="BIGINT"/>
+    </changeSet>
+
+    <changeSet author="mcovarr" id="postgresql_recreate_job_store_simpleton_entry_id_seq" dbms="postgresql">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT count(*)
@@ -48,7 +60,13 @@
         <sql>alter sequence "JOB_STORE_SIMPLETON_ENTRY_JOB_STORE_SIMPLETON_ENTRY_ID_seq" as bigint;</sql>
     </changeSet>
 
-    <changeSet author="mcovarr" id="recreate_job_store_simpleton_entry_fk_mariadb" dbms="mariadb">
+    <changeSet author="mcovarr" id="enlarge_job_store_simpleton_entry_fk" dbms="mysql,hsqldb,postgresql,mariadb">
+        <modifyDataType tableName="JOB_STORE_SIMPLETON_ENTRY"
+                        columnName="JOB_STORE_ENTRY_ID"
+                        newDataType="BIGINT"/>
+    </changeSet>
+
+    <changeSet author="mcovarr" id="mariadb_recreate_job_store_simpleton_entry_fk" dbms="mariadb">
         <addForeignKeyConstraint
                 baseColumnNames="JOB_STORE_ENTRY_ID"
                 baseTableName="JOB_STORE_SIMPLETON_ENTRY"
@@ -58,7 +76,7 @@
                 referencedTableName="JOB_STORE_ENTRY"/>
     </changeSet>
 
-    <changeSet author="mcovarr" id="recreate_job_store_simpleton_entry_fk_postgres" dbms="postgresql">
+    <changeSet author="mcovarr" id="postgresql_recreate_job_store_simpleton_entry_fk" dbms="postgresql">
         <addForeignKeyConstraint baseColumnNames="JOB_STORE_ENTRY_ID"
                                  baseTableName="JOB_STORE_SIMPLETON_ENTRY"
                                  constraintName="FK_JOB_STORE_SIMPLETON_ENTRY_JOB_STORE_ENTRY_ID"
@@ -67,7 +85,7 @@
                                  referencedTableName="JOB_STORE_ENTRY"/>
     </changeSet>
 
-    <changeSet author="mcovarr" id="recreate_job_store_simpleton_entry_fk_others" dbms="mysql,hsqldb">
+    <changeSet author="mcovarr" id="recreate_job_store_simpleton_entry_fk" dbms="mysql,hsqldb">
         <addForeignKeyConstraint constraintName="FK_JOB_STORE_SIMPLETON_ENTRY_JOB_STORE_ENTRY_ID" onDelete="CASCADE"
                                  baseTableName="JOB_STORE_SIMPLETON_ENTRY"
                                  baseColumnNames="JOB_STORE_ENTRY_ID"

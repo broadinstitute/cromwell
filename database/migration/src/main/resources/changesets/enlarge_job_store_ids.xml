@@ -82,6 +82,7 @@
         <addNotNullConstraint
                 tableName="JOB_STORE_SIMPLETON_ENTRY"
                 columnName="JOB_STORE_ENTRY_ID"
+                columnDataType="BIGINT"
         />
     </changeSet>
 

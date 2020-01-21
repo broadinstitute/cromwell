@@ -4,7 +4,8 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-
+    <!-- Drop the foreign key constraint from JOB_STORE_SIMPLETON_ENTRY to JOB_STORE_ENTRY to allow for the latter's PK
+         to be widened. -->
     <changeSet author="mcovarr" id="drop_job_store_simpleton_entry_fk" dbms="mysql,hsqldb,postgresql,mariadb">
         <dropForeignKeyConstraint
                 baseTableName="JOB_STORE_SIMPLETON_ENTRY"
@@ -12,6 +13,7 @@
         />
     </changeSet>
 
+    <!-- BEGIN JOB_STORE_ENTRY PK widening -->
     <changeSet author="mcovarr" id="enlarge_job_store_entry_id" dbms="mysql,hsqldb,mariadb">
         <addAutoIncrement
                 columnName="JOB_STORE_ENTRY_ID"
@@ -23,13 +25,13 @@
 
     <changeSet author="mcovarr" id="postgresql_enlarge_job_store_entry_id" dbms="postgresql">
         <modifyDataType
-                tableName="JOB_STORE_ENTRY"
                 columnName="JOB_STORE_ENTRY_ID"
+                tableName="JOB_STORE_ENTRY"
                 newDataType="BIGINT"
         />
     </changeSet>
 
-    <changeSet author="mcovarr" id="postgres_enlarge_job_store_entry_id_seq" dbms="postgresql">
+    <changeSet author="mcovarr" id="postgresql_enlarge_job_store_entry_id_seq" dbms="postgresql">
         <preConditions onFail="MARK_RAN">
             <sqlCheck expectedResult="0">
                 SELECT count(*)
@@ -40,7 +42,9 @@
         </preConditions>
         <sql>alter sequence "JOB_STORE_ENTRY_JOB_STORE_ENTRY_ID_seq" as bigint;</sql>
     </changeSet>
+    <!-- END JOB_STORE_ENTRY PK widening -->
 
+    <!-- BEGIN JOB_STORE_SIMPLETON ENTRY PK widening -->
     <changeSet author="mcovarr" id="enlarge_job_store_simpleton_entry_id" dbms="mysql,hsqldb,mariadb">
         <addAutoIncrement
                 columnName="JOB_STORE_SIMPLETON_ENTRY_ID"
@@ -69,7 +73,9 @@
         </preConditions>
         <sql>alter sequence "JOB_STORE_SIMPLETON_ENTRY_JOB_STORE_SIMPLETON_ENTRY_ID_seq" as bigint;</sql>
     </changeSet>
+    <!-- END JOB_STORE_SIMPLETON ENTRY PK widening -->
 
+    <!-- Widen FK to match PK. -->
     <changeSet author="mcovarr" id="enlarge_job_store_simpleton_entry_fk" dbms="mysql,hsqldb,postgresql,mariadb">
         <modifyDataType
                 tableName="JOB_STORE_SIMPLETON_ENTRY"
@@ -78,7 +84,8 @@
         />
     </changeSet>
 
-    <changeSet author="mcovarr" id="not_null_constraint_job_store_simpleton_entry_fk" dbms="mariadb">
+    <!-- MariaDB's FK not null constraint does not survive the widening above and must be recreated explicitly. -->
+    <changeSet author="mcovarr" id="mariadb_not_null_constraint_job_store_simpleton_entry_fk" dbms="mariadb">
         <addNotNullConstraint
                 tableName="JOB_STORE_SIMPLETON_ENTRY"
                 columnName="JOB_STORE_ENTRY_ID"
@@ -86,6 +93,7 @@
         />
     </changeSet>
 
+    <!-- Restore the FK. -->
     <changeSet author="mcovarr" id="recreate_job_store_simpleton_entry_fk" dbms="mysql,hsqldb,postgresql,mariadb">
         <addForeignKeyConstraint
                 constraintName="FK_JOB_STORE_SIMPLETON_ENTRY_JOB_STORE_ENTRY_ID"

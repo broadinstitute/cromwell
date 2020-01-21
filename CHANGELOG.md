@@ -1,5 +1,13 @@
 # Cromwell Change Log
 
+## 49 Release Notes
+
+### Bug fixes
+
++ Fix a bug where zip files with directories could not be imported. 
+  For example a zip with `a.wdl` and `b.wdl` could be imported but one with `sub_workflows/a.wdl` 
+  and `imports/b.wdl` could not.
+  
 ## 48 Release Notes
 
 ### Womtool Graph for WDL 1.0

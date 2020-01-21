@@ -10,26 +10,6 @@
                                 constraintName="FK_JOB_STORE_SIMPLETON_ENTRY_JOB_STORE_ENTRY_ID" />
     </changeSet>
 
-
-    <changeSet author="mcovarr" id="enlarge_job_store_simpleton_entry_id" dbms="mysql,hsqldb,mariadb">
-        <addAutoIncrement columnName="JOB_STORE_SIMPLETON_ENTRY_ID"
-                          columnDataType="BIGINT"
-                          incrementBy="1"
-                          tableName="JOB_STORE_SIMPLETON_ENTRY"/>
-    </changeSet>
-
-    <changeSet author="mcovarr" id="pg_enlarge_job_store_simpleton_entry_id" dbms="postgresql">
-        <preConditions onFail="MARK_RAN">
-            <sqlCheck expectedResult="0">
-                SELECT count(*)
-                FROM information_schema.sequences
-                WHERE sequence_name = 'JOB_STORE_SIMPLETON_ENTRY_JOB_STORE_SIMPLETON_ENTRY_ID_seq'
-                AND data_type = 'bigint';
-            </sqlCheck>
-        </preConditions>
-        <sql>alter sequence "JOB_STORE_SIMPLETON_ENTRY_JOB_STORE_SIMPLETON_ENTRY_ID_seq" as bigint;</sql>
-    </changeSet>
-
     <changeSet author="mcovarr" id="enlarge_job_store_entry_id" dbms="mysql,hsqldb,mariadb">
         <addAutoIncrement columnName="JOB_STORE_ENTRY_ID"
                           columnDataType="BIGINT"
@@ -49,10 +29,23 @@
         <sql>alter sequence "JOB_STORE_ENTRY_JOB_STORE_ENTRY_ID_seq" as bigint;</sql>
     </changeSet>
 
-    <changeSet author="mcovarr" id="enlarge_job_store_simpleton_entry_fk" dbms="mysql,hsqldb,postgresql,mariadb">
-        <modifyDataType tableName="JOB_STORE_SIMPLETON_ENTRY"
-                        columnName="JOB_STORE_ENTRY_ID"
-                        newDataType="BIGINT"/>
+    <changeSet author="mcovarr" id="enlarge_job_store_simpleton_entry_id" dbms="mysql,hsqldb,mariadb">
+        <addAutoIncrement columnName="JOB_STORE_SIMPLETON_ENTRY_ID"
+                          columnDataType="BIGINT"
+                          incrementBy="1"
+                          tableName="JOB_STORE_SIMPLETON_ENTRY"/>
+    </changeSet>
+
+    <changeSet author="mcovarr" id="pg_enlarge_job_store_simpleton_entry_id" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*)
+                FROM information_schema.sequences
+                WHERE sequence_name = 'JOB_STORE_SIMPLETON_ENTRY_JOB_STORE_SIMPLETON_ENTRY_ID_seq'
+                AND data_type = 'bigint';
+            </sqlCheck>
+        </preConditions>
+        <sql>alter sequence "JOB_STORE_SIMPLETON_ENTRY_JOB_STORE_SIMPLETON_ENTRY_ID_seq" as bigint;</sql>
     </changeSet>
 
     <changeSet author="mcovarr" id="recreate_job_store_simpleton_entry_fk_mariadb" dbms="mariadb">

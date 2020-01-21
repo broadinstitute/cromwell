@@ -19,6 +19,14 @@
     </changeSet>
 
     <changeSet author="mcovarr" id="pg_enlarge_job_store_simpleton_entry_id" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*)
+                FROM information_schema.sequences
+                WHERE sequence_name = 'JOB_STORE_SIMPLETON_ENTRY_JOB_STORE_SIMPLETON_ENTRY_ID_seq'
+                AND data_type = 'bigint';
+            </sqlCheck>
+        </preConditions>
         <sql>alter sequence "JOB_STORE_SIMPLETON_ENTRY_JOB_STORE_SIMPLETON_ENTRY_ID_seq" as bigint;</sql>
     </changeSet>
 
@@ -30,6 +38,14 @@
     </changeSet>
 
     <changeSet author="mcovarr" id="pg_enlarge_job_store_entry_id" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                SELECT count(*)
+                FROM information_schema.sequences
+                WHERE sequence_name = 'JOB_STORE_ENTRY_JOB_STORE_ENTRY_ID_seq'
+                AND data_type = 'bigint';
+            </sqlCheck>
+        </preConditions>
         <sql>alter sequence "JOB_STORE_ENTRY_JOB_STORE_ENTRY_ID_seq" as bigint;</sql>
     </changeSet>
 

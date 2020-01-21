@@ -18,7 +18,7 @@
                           tableName="JOB_STORE_SIMPLETON_ENTRY"/>
     </changeSet>
 
-    <changeSet author="mcovarr" id="pg_enlarge_job_store_simpleton_entry_id" dbms="postgres">
+    <changeSet author="mcovarr" id="pg_enlarge_job_store_simpleton_entry_id" dbms="postgresql">
         <sql>alter sequence "JOB_STORE_SIMPLETON_ENTRY_JOB_STORE_SIMPLETON_ENTRY_ID_seq" as bigint;</sql>
     </changeSet>
 
@@ -29,7 +29,7 @@
                           tableName="JOB_STORE_ENTRY"/>
     </changeSet>
 
-    <changeSet author="mcovarr" id="pg_enlarge_job_store_entry_id" dbms="postgres">
+    <changeSet author="mcovarr" id="pg_enlarge_job_store_entry_id" dbms="postgresql">
         <sql>alter sequence "JOB_STORE_ENTRY_JOB_STORE_ENTRY_ID_seq" as bigint;</sql>
     </changeSet>
 

@@ -217,6 +217,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         .setResources(resources)
         .setActions(sortedActions.asJava)
         .setEnvironment(environment)
+        .setTimeout(createPipelineParameters.pipelineTimeout.toSeconds.toString() + "s")
 
       val pipelineRequest = new RunPipelineRequest()
         .setPipeline(pipeline)
@@ -257,7 +258,7 @@ object GenomicsFactory {
     *
     * When updating this value, also consider updating the CromwellImagesSizeRoundedUpInGB below.
     */
-  val CloudSdkImage = "gcr.io/google.com/cloudsdktool/cloud-sdk:264.0.0-slim"
+  val CloudSdkImage = "gcr.io/google.com/cloudsdktool/cloud-sdk:276.0.0-slim"
 
   /*
    * At the moment, the cloud-sdk:slim (727MB on 2019-09-26) and possibly stedolan/jq (182MB) decompressed ~= 1 GB

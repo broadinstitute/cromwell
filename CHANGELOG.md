@@ -1,12 +1,31 @@
 # Cromwell Change Log
 
-## 48 Release Notes
+## 49 Release Notes
+
+### Bug fixes
+
++ Fix a bug where zip files with directories could not be imported. 
+  For example a zip with `a.wdl` and `b.wdl` could be imported but one with `sub_workflows/a.wdl` 
+  and `imports/b.wdl` could not.
 
 ### WDL
 + Namespaces in inputs JSON files are handled differently. This only affects inputs for
   tasks (or subworkflows) in subworkflows. For example `my_workflow.sub_wf_file.sub_wf_name.my_task.my_input`
   will change to `my_workflow.sub_wf_name.my_task.my_input`. More information can be 
   found in [the documentation on inputs](https://cromwell.readthedocs.io/en/stable/Inputs).
+
+
+## 48 Release Notes
+
+### Womtool Graph for WDL 1.0
+
+The `womtool graph` command now supports WDL 1.0 workflows. 
+* **Note:** Generated graphs - including in WDL draft 2 - may look slightly different than they did in version 47.
+
+### Documentation
+
++ Documented the use of a HSQLDB file-based database so users can try call-caching without needing a database server.
+  Please checkout [the database documentation](https://cromwell.readthedocs.io/en/stable/Configuring#database).
 
 ## 47 Release Notes
 

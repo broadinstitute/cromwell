@@ -324,6 +324,74 @@ database {
 }
 ```
 
+**Using Cromwell with file-based database (No server required)**
+
+SQLite is currently not supported. However, HSQLDB does support running with a persistence file.
+To set this up the following configuration can be used:
+```hocon
+database {
+  profile = "slick.jdbc.HsqldbProfile$"
+  db {
+    driver = "org.hsqldb.jdbcDriver"
+    url = """
+    jdbc:hsqldb:file:cromwell-executions/cromwell-db/cromwell-db;
+    shutdown=false;
+    hsqldb.default_table_type=cached;hsqldb.tx=mvcc;
+    hsqldb.result_max_memory_rows=10000;
+    hsqldb.large_data=true;
+    hsqldb.applog=1;
+    hsqldb.lob_compressed=true;
+    hsqldb.script_format=3
+    """
+    connectionTimeout = 120000
+    numThreads = 1
+   }
+}
+```
+
+Explanation of the options (see also http://hsqldb.org/doc/2.0/guide/dbproperties-chapt.html):
+
+* `jdbc:hsqldb:file:cromwell-executions/cromwell-db/cromwell-db;` This will make sure
+   all persistence files will end up in a folder `cromwell-db` inside `cromwell-executions`.
+* `shutdown=false`. This makes sure the database will not be shutdown unless Cromwell explicitly does so.
+* `hsqlldb.default_table_type=cached`. 
+   By default hsqldb uses in memory tables, this will ensure data is written to disk and 
+   decrease memory usage.
+* `hsqldb.result_max_memory_rows=10000` . Limits the amount of rows in memory for temp tables. 
+* `hsqldb.tx=mvcc` this is a  cromwell default for running with hsqldb.
+* `hsqldb.large_data=true`. Cromwell creates huge DBs that need to be opened.
+* `hsqldb.applog=1`. Log errors relating to the database.
+* `hsqldb.lob_compressed=true`. Compress lobs. This saves some space. Do note that lobs are 
+  compressed individually. The total database will still contain a lot of redundancy because a
+  lot of lobs will be similar.
+* `hsqldb.script_format=3`. Compress script. (uses gzip internally). 
+   The script can still be opened normally after decompressing with gzip.
+* `connectionTimeout = 120000` opening the large database files again when running cromwell will 
+  take some time. The default timeout of 3000 ms (3s) is not enough. So it is set to 120000ms (120s).
+* `numThreads = 1`. This will limit the CPU usage of Cromwell, which can be useful in HPC environments.
+
+Comparison to MySQL (or PostgreSQL) server:
+Advantages:
+
+* No need to set up a server
+* No worries about database users, passwords and permissions. This will be handled by filesystem permissions.
+
+Disadvantages:
+
+* Cromwell requires more memory
+* The database files will consume a lot of disk space (multiple gigabytes are not uncommon)
+* Cromwell's interaction with the database is slower.
+
+Comparison to the default in-memory database:
+Advantages:
+
+* Much less memory needed.
+* Call-caching enabled
+
+Disadvantages:
+
+* Slower.
+
 ### Abort
 
 **Control-C (SIGINT) abort handler**

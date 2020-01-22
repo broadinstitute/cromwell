@@ -36,6 +36,7 @@ case class PipelinesApiConfigurationAttributes(project: String,
                                                qps: Int Refined Positive,
                                                cacheHitDuplicationStrategy: PipelinesCacheHitDuplicationStrategy,
                                                requestWorkers: Int Refined Positive,
+                                               pipelineTimeout: FiniteDuration,
                                                logFlushPeriod: Option[FiniteDuration],
                                                gcsTransferConfiguration: GcsTransferConfiguration,
                                                virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
@@ -80,6 +81,7 @@ object PipelinesApiConfigurationAttributes {
     "filesystems.gcs.caching.duplication-strategy",
     "concurrent-job-limit",
     "request-workers",
+    "pipeline-timeout",
     "batch-requests.timeouts.read",
     "batch-requests.timeouts.connect",
     "default-runtime-attributes.bootDiskSizeGb",
@@ -149,6 +151,9 @@ object PipelinesApiConfigurationAttributes {
       case other => throw new IllegalArgumentException(s"Unrecognized caching duplication strategy: $other. Supported strategies are copy and reference. See reference.conf for more details.")
     } }
     val requestWorkers: ErrorOr[Int Refined Positive] = validatePositiveInt(backendConfig.as[Option[Int]]("request-workers").getOrElse(3), "request-workers")
+
+    val pipelineTimeout: FiniteDuration = backendConfig.getOrElse("pipeline-timeout", 7.days)
+
     val logFlushPeriod: Option[FiniteDuration] = backendConfig.as[Option[FiniteDuration]]("log-flush-period") match {
       case Some(duration) if duration.isFinite() => Option(duration)
       // "Inf" disables upload
@@ -218,6 +223,7 @@ object PipelinesApiConfigurationAttributes {
             qps = qps,
             cacheHitDuplicationStrategy = cacheHitDuplicationStrategy,
             requestWorkers = requestWorkers,
+            pipelineTimeout = pipelineTimeout,
             logFlushPeriod = logFlushPeriod,
             gcsTransferConfiguration = gcsTransferConfiguration,
             virtualPrivateCloudConfiguration = virtualPrivateCloudConfiguration,

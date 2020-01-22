@@ -275,6 +275,81 @@ database {
 
 If no override is found for `metadata`, Cromwell falls back to using the settings under the root `database` configuration.
 
+####Hybrid Metadata Storage (Classic + Carbonite)
+
+While a workflow is running its metadata is always stored in Cromwell's relational metadata database as described above,
+but Cromwell now supports "Carbonite" metadata archival for terminal workflows in Google Cloud Storage (GCS).
+
+Hybrid metadata storage is configured first by choosing `cromwell.services.metadata.hybridcarbonite.HybridMetadataServiceActor` 
+as the `class` for `MetadataService`. The "classic" part of Hybrid Metadata Storage requires no configuration, but the "carbonite"
+part has its own `carbonite-metadata-service` stanza (sample configuration with default values show below).
+ 
+`enabled = true` for any Carboniting to actually happen, and a `bucket` and `filesystems.gcs.auth` must be specified.
+The `freeze-scan` stanza controls the frequency and backoff with which Cromwell searches for metadata to Carbonite, while
+the `metadata-deletion` stanza controls the parameters around Cromwell's deletion of successfully archived metadata rows
+from the "classic" metadata database.
+
+```
+services {
+  MetadataService {
+    class = "cromwell.services.metadata.hybridcarbonite.HybridMetadataServiceActor"
+    config {
+      # This section can also contain the same set of options as would be present in the 'config' section of the
+      # default (cromwell.services.metadata.impl.MetadataServiceActor) config
+    
+      # The carbonite section contains carbonite-specific options
+      carbonite-metadata-service {
+        # Enables carboniting process
+        enabled = false
+    
+        # Only carbonite workflows whose summary entry IDs are greater than or equal to this value:
+        minimum-summary-entry-id = 0
+    
+        # Output log messages whenever carboniting activity is started or completed?
+        debug-logging = true
+    
+        # Which bucket to use for storing the generated metadata JSON
+        bucket = "carbonite-test-bucket"
+    
+        # A filesytem able to access the specified bucket:
+        filesystems {
+          gcs {
+            # A reference to the auth to use for storing and retrieving metadata:
+            auth = "application-default"
+          }
+        }
+    
+        # Freeze scan configuration. This controls the intervals at which the `CarboniteWorkerActor` looks for terminal
+        # workflows to carbonite. All of these entries are optional and default to the values shown below. Any supplied
+        # values will be sanity checked: intervals must be durations, max greater than initial, multiplier must
+        # be a number greater than 1.
+        freeze-scan {
+          initial-interval = 5 seconds,
+          max-interval = 5 minutes,
+          multiplier = 1.1
+        }
+
+        # Metadata deletion configuration.
+        metadata-deletion {
+          # How often Cromwell should check for metadata ready for deletion. Set this value to "Inf" to turn off metadata deletion.
+          # The default value is currently "Inf".
+          interval = Inf
+        
+          # Upper limit for the number of workflows which Cromwell will process during a single scheduled metadata deletion event.
+          # The default value is currently "200".
+          batch-size = 200
+        
+          # Minimum time between a workflow completion and deletion of its metadata from the database.
+          # Note: Metadata is only eligible for deletion if it has already been carbonited.
+          # The default value is currently "24 hours".
+          delay-after-workflow-completion = 24 hours
+        }
+      }
+    }
+  }
+}
+```  
+
 **Database Time Zones**
 
 Cromwell's default configuration assumes that its MySQL database is set to UTC.

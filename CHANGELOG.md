@@ -9,6 +9,12 @@ intermediate `File` objects will be deleted when the workflow completes. See the
 documentation](https://cromwell.readthedocs.io/en/stable/wf_options/Google#google-pipelines-api-workflow-options)
 for more information.
 
+### Metadata Archival Support
+
+Cromwell 49 now offers the option to archive metadata to GCS and remove archived metadata from relational
+database storage. Please see 
+[the documentation](https://cromwell.readthedocs.io/en/stable/Configuring#hybrid-metadata-storage-classic-carbonite) for more details.
+
 ### Bug fixes
 
 + Fix a bug where zip files with directories could not be imported. 

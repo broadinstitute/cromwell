@@ -48,14 +48,19 @@ object Describer {
                                     importResolvers: List[ImportResolver.ImportResolver],
                                     workflowSourceFilesCollection: WorkflowSourceFilesCollection): WorkflowDescription = {
 
+    val submittedDescriptorType = Map(
+      "descriptorType" -> factory.languageName,
+      "descriptorTypeVersion" -> factory.languageVersionName
+    )
+
     // Mirror of the inputs/no inputs fork in womtool.validate.Validate
     if (workflowSourceFilesCollection.inputsJson.isEmpty) {
       // No inputs: just load up the WomBundle
       factory.getWomBundle(workflowSource, workflowSourceOrigin = None, workflowOptionsJson = "{}", importResolvers, List(factory)) match {
         case Right(bundle: WomBundle) =>
-          WorkflowDescription.fromBundle(bundle, factory.languageName, factory.languageVersionName, List.empty)
+          WorkflowDescription.fromBundle(bundle, submittedDescriptorType, List.empty)
         case Left(workflowErrors) =>
-          WorkflowDescription.withErrors(workflowErrors.toList)
+          WorkflowDescription.withErrors(workflowErrors.toList, submittedDescriptorType)
       }
     } else {
       // Inputs: load up the WomBundle and then try creating an executable with WomBundle + inputs
@@ -64,12 +69,12 @@ object Describer {
           factory.createExecutable(bundle, workflowSourceFilesCollection.inputsJson, NoIoFunctionSet) match {
             // Throw away the executable, all we care about is whether it created successfully (i.e. the inputs are valid)
             case Right(_: ValidatedWomNamespace) =>
-              WorkflowDescription.fromBundle(bundle, factory.languageName, factory.languageVersionName)
+              WorkflowDescription.fromBundle(bundle, submittedDescriptorType)
             case Left(inputErrors) =>
-              WorkflowDescription.fromBundle(bundle, factory.languageName, factory.languageVersionName, inputErrors.toList)
+              WorkflowDescription.fromBundle(bundle, submittedDescriptorType, inputErrors.toList)
           }
         case Left(workflowErrors) =>
-          WorkflowDescription.withErrors(workflowErrors.toList)
+          WorkflowDescription.withErrors(workflowErrors.toList, submittedDescriptorType)
       }
     }
 

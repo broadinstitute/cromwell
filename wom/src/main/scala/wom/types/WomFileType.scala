@@ -43,7 +43,7 @@ case object WomSingleFileType extends WomPrimitiveFileType {
   override protected def coercion: PartialFunction[Any, WomSingleFile] = {
     case s: String =>
       if (s != "")
-        WomSingleFile(s)
+        WomSingleFile(s.trim)
       else
         throw new IllegalArgumentException("""Cannot coerce the empty String value "" into a File.""")
     case s: JsString => WomSingleFile(s.value.trim)

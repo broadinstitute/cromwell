@@ -221,7 +221,7 @@ trait SwaggerUiResourceHttpService extends SwaggerUiHttpService with SwaggerReso
   override protected def rewriteSwaggerIndex(data: String): String = {
     // via https://github.com/swagger-api/swagger-ui/tree/v3.2.2#swaggeruibundle
 
-    val bundleOriginal = """url: "http://petstore.swagger.io/v2/swagger.json","""
+    val bundleOriginal = """url: "https://petstore.swagger.io/v2/swagger.json","""
 
     val bundleReplacement =
       s"""|url: "/$swaggerDocsPath",

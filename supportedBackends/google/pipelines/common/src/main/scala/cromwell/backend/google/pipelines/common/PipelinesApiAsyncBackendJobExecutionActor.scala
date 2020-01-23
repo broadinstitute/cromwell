@@ -351,6 +351,22 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     )
   }
 
+  lazy val jesInitParamName: String = PipelinesApiJobPaths.JesInitKey
+  lazy val localInitLogPath: Path = DefaultPathBuilder.get(pipelinesApiCallPaths.jesInitLogFilename)
+  lazy val localInitScriptPath: Path = DefaultPathBuilder.get(pipelinesApiCallPaths.jesInitScriptFilename)
+
+  lazy val initScript: Option[PipelinesApiFileInput] = {
+    pipelinesApiCallPaths.workflowPaths.initScriptPath map { path =>
+      PipelinesApiFileInput(s"$jesInitParamName-in", path, localInitScriptPath, workingDisk)
+    }
+  }
+
+  lazy val initOutput: Option[PipelinesApiFileOutput] = initScript map { _ =>
+    PipelinesApiFileOutput(s"$jesInitParamName-out",
+      pipelinesApiCallPaths.jesInitLogPath, localInitLogPath, workingDisk, optional = false, secondary = false,
+      contentType = plainTextContentType)
+  }
+
   lazy val jesMonitoringParamName: String = PipelinesApiJobPaths.JesMonitoringKey
   lazy val localMonitoringLogPath: Path = DefaultPathBuilder.get(pipelinesApiCallPaths.jesMonitoringLogFilename)
   lazy val localMonitoringScriptPath: Path = DefaultPathBuilder.get(pipelinesApiCallPaths.jesMonitoringScriptFilename)
@@ -369,16 +385,28 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override lazy val commandDirectory: Path = PipelinesApiWorkingDisk.MountPoint
 
+  private val DockerInitLogPath: Path = PipelinesApiWorkingDisk.MountPoint.resolve(pipelinesApiCallPaths.jesInitLogFilename)
+  private val DockerInitScriptPath: Path = PipelinesApiWorkingDisk.MountPoint.resolve(pipelinesApiCallPaths.jesInitScriptFilename)
   private val DockerMonitoringLogPath: Path = PipelinesApiWorkingDisk.MountPoint.resolve(pipelinesApiCallPaths.jesMonitoringLogFilename)
   private val DockerMonitoringScriptPath: Path = PipelinesApiWorkingDisk.MountPoint.resolve(pipelinesApiCallPaths.jesMonitoringScriptFilename)
   private var hasDockerCredentials: Boolean = false
 
   override def scriptPreamble: String = {
+    var preamble = ""
     if (monitoringOutput.isDefined) {
-      s"""|touch $DockerMonitoringLogPath
-          |chmod u+x $DockerMonitoringScriptPath
-          |$DockerMonitoringScriptPath > $DockerMonitoringLogPath &""".stripMargin
-    } else ""
+      preamble += s"""|touch $DockerMonitoringLogPath
+                      |chmod u+x $DockerMonitoringScriptPath
+                      |$DockerMonitoringScriptPath > $DockerMonitoringLogPath &""".stripMargin
+    }
+    if (initOutput.isDefined) {
+      if (monitoringOutput.isDefined) {
+        preamble += "\n"
+      }
+      preamble += s"""|touch $DockerInitLogPath
+                      |chmod u+x $DockerInitScriptPath
+                      |$DockerInitScriptPath > $DockerInitLogPath""".stripMargin
+    }
+    preamble
   }
 
   override def globParentDirectory(womGlobFile: WomGlobFile): Path = {
@@ -521,12 +549,14 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       InputOutputParameters(
         DetritusInputParameters(
           executionScriptInputParameter = cmdInput,
-          monitoringScriptInputParameter = monitoringScript
+          monitoringScriptInputParameter = monitoringScript,
+          initScriptInputParameter = initScript
         ),
         generateInputs(jobDescriptor).toList,
         standardStreams ++ generateOutputs(jobDescriptor).toList,
         DetritusOutputParameters(
           monitoringScriptOutputParameter = monitoringOutput,
+          initScriptOutputParameter = initOutput,
           rcFileOutputParameter = rcFileOutput,
           memoryRetryRCFileOutputParameter = memoryRetryRCFileOutput
         ),

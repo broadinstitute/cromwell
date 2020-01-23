@@ -8,6 +8,7 @@ import cromwell.services.metadata.CallMetadataKeys
 object PipelinesApiJobPaths {
   val JesLogPathKey = "jesLog"
   val JesMonitoringKey = "monitoring"
+  val JesInitKey = "init"
   val JesExecParamName = "exec"
   val GcsTransferLibraryName = "gcs_transfer.sh"
   val GcsLocalizationScriptName = "gcs_localization.sh"
@@ -27,6 +28,11 @@ final case class PipelinesApiJobPaths(override val workflowPaths: PipelinesApiWo
   val jesLogFilename: String = s"$jesLogBasename.log"
   lazy val jesLogPath: Path = callExecutionRoot.resolve(jesLogFilename)
 
+  val jesInitLogFilename: String = s"${PipelinesApiJobPaths.JesInitKey}.log"
+  lazy val jesInitLogPath: Path = callExecutionRoot.resolve(jesInitLogFilename)
+
+  val jesInitScriptFilename: String = s"${PipelinesApiJobPaths.JesInitKey}.sh"
+
   val jesMonitoringLogFilename: String = s"${PipelinesApiJobPaths.JesMonitoringKey}.log"
   lazy val jesMonitoringLogPath: Path = callExecutionRoot.resolve(jesMonitoringLogFilename)
 
@@ -37,6 +43,9 @@ final case class PipelinesApiJobPaths(override val workflowPaths: PipelinesApiWo
   ) ++ (
     workflowPaths.monitoringScriptPath map { p => Map(PipelinesApiMetadataKeys.MonitoringScript -> p,
                                                       PipelinesApiMetadataKeys.MonitoringLog -> jesMonitoringLogPath) } getOrElse Map.empty
+  ) ++ (
+    workflowPaths.initScriptPath map { p => Map(PipelinesApiMetadataKeys.InitScript -> p,
+                                                PipelinesApiMetadataKeys.InitLog -> jesInitLogPath) } getOrElse Map.empty
   )
 
   override lazy val customDetritusPaths: Map[String, Path] = Map(

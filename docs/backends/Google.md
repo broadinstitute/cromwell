@@ -215,6 +215,18 @@ In order to monitor metrics (CPU, Memory, Disk usage...) about the VM during Cal
 
 The output of this script will be written to a `monitoring.log` file that will be available in the call gcs bucket when the call completes.  This feature is meant to run a script in the background during long-running processes.  It's possible that if the task is very short that the log file does not flush before de-localization happens and you will end up with a zero byte file.
 
+**Common initialization**
+
+In order to add common initialization script for all submitted calls the corresponding workflow option can be used. If specified then the initialization script will be executed exactly after the monitoring script was invoked and before the task commands. It is guaranteed that a task command execution won't start until the init script has not finished or failed.
+
+```
+{
+  "init_script": "gs://cromwell/initialization/script.sh"
+}
+```
+
+The output of the initialization script will be written to an `init.log` file which will be delocalized just like the monitoring script log file. 
+
 **Google Cloud Storage Filesystem**
 
 On the Google Pipelines backend the GCS (Google Cloud Storage) filesystem is used for the root of the workflow execution.

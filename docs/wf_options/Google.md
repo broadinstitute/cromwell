@@ -9,7 +9,8 @@ Keys | Possible Values | Description
 `google_project` | `string` |  Google project used to execute this workflow.
 `refresh_token` |`string` |   Only used if `localizeWithRefreshToken` is specified in the [Configuration](../Configuring).
 `auth_bucket` |`string` |     A GCS URL that only Cromwell can write to.  The Cromwell account is determined by the `google.authScheme` (and the corresponding `google.userAuth` and `google.serviceAuth`). Defaults to the the value in [jes_gcs_root](#jes_gcs_root).
-`monitoring_script` |`string` |   Specifies a GCS URL to a script that will be invoked prior to the user command being run.  For example, if the value for monitoring_script is `"gs://bucket/script.sh"`, it will be invoked as `./script.sh > monitoring.log &`.  The value `monitoring.log` file will be automatically de-localized.
+`monitoring_script` |`string` |   Specifies a GCS URL to a script that will be invoked prior to the user command being run.  For example, if the value for monitoring_script is `"gs://bucket/monitor.sh"`, it will be invoked as `./monitor.sh > monitoring.log &`.  The value `monitoring.log` file will be automatically de-localized.
+`init_script` |`string` |   Specifies a GCS URL to a script that will be executed prior to the user command. The difference between monitoring_script and init_script lies in the fact that user command won't start until init_script is finished. Corresponding log file `init.log` will be automatically de-localized.
 `monitoring_image` |`string` |   Specifies a Docker image to monitor the task. This image will run concurrently with the task container, and provides an alternative mechanism to `monitoring_script` (the latter runs *inside* the task container). For example, one can use `quay.io/broadinstitute/cromwell-monitor`, which reports cpu/memory/disk utilization metrics to [Stackdriver](https://cloud.google.com/monitoring/).
 `google_labels` | `object` | An object containing only string values. Represent custom labels to send with PAPI job requests. Per the PAPI specification, each key and value must conform to the regex `[a-z]([-a-z0-9]*[a-z0-9])?`.
 
@@ -19,9 +20,10 @@ Keys | Possible Values | Description
   "jes_gcs_root": "gs://my-bucket/workflows",
   "google_project": "my_google_project",
   "refresh_token": "1/Fjf8gfJr5fdfNf9dk26fdn23FDm4x",
-  "google_compute_service_account": " my-new-svcacct@my-google-project.iam.gserviceaccount.com"
+  "google_compute_service_account": " my-new-svcacct@my-google-project.iam.gserviceaccount.com",
   "auth_bucket": "gs://my-auth-bucket/private",
-  "monitoring_script": "gs://bucket/script.sh",
+  "monitoring_script": "gs://bucket/monitor.sh",
+  "init_script": "gs://bucket/init.sh",
   "monitoring_image": "quay.io/broadinstitute/cromwell-monitor",
   "google_labels": {
     "custom-label": "custom-value"

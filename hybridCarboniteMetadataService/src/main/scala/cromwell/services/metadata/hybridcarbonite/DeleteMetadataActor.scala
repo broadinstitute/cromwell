@@ -43,7 +43,7 @@ class DeleteMetadataActor(metadataDeletionConfig: MetadataDeletionConfig) extend
         case Failure(ex) =>
           log.error(ex, "Cannot delete metadata: unable to query list of workflow ids for metadata deletion from metadata summary table.")
       }
-    case unexpected => throw new RuntimeException(s"Programmer error: unexpected message $unexpected received from $sender")
+    case unexpected => log.warning(s"Programmer error: unexpected message $unexpected received from $sender")
   }
 }
 

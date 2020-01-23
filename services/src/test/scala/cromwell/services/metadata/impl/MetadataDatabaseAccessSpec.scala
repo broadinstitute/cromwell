@@ -491,7 +491,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       val responseEmpty = Await.result(responseEmptyFuture, defaultTimeout)
       responseEmpty shouldBe empty
 
-      eventually(Timeout(defaultTimeout), Interval(2.seconds)) {
+      eventually(Timeout(2.minutes)) {
         val responseNonEmptyFuture = dataAccess.queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp (Option ("Archived"), OffsetDateTime.now().minusMinutes(1), 200)
         val responseNonEmpty = Await.result(responseNonEmptyFuture, 10.seconds)
         responseNonEmpty should not be empty

@@ -14,6 +14,8 @@
     </changeSet>
 
     <!-- BEGIN JOB_STORE_ENTRY PK widening -->
+    <!-- For Postgresql there are 2 changesets: one for modifying the table column type, and another one for altering the autoincrementing sequence.
+         The other DBs can be refactored similarly with a single addAutoIncrement changeset. -->
     <changeSet author="mcovarr" id="enlarge_job_store_entry_id" dbms="mysql,hsqldb,mariadb">
         <addAutoIncrement
                 columnName="JOB_STORE_ENTRY_ID"
@@ -33,6 +35,7 @@
 
     <changeSet author="mcovarr" id="postgresql_enlarge_job_store_entry_id_seq" dbms="postgresql">
         <preConditions onFail="MARK_RAN">
+            <!-- idempotency check (noop if the sequence is present and already consistent what the alter would do) -->
             <sqlCheck expectedResult="0">
                 SELECT count(*)
                 FROM information_schema.sequences
@@ -45,6 +48,8 @@
     <!-- END JOB_STORE_ENTRY PK widening -->
 
     <!-- BEGIN JOB_STORE_SIMPLETON ENTRY PK widening -->
+    <!-- For Postgresql there are 2 changesets: one for modifying the table column type, and another one for altering the autoincrementing sequence.
+         The other DBs can be refactored similarly with a single addAutoIncrement changeset. -->
     <changeSet author="mcovarr" id="enlarge_job_store_simpleton_entry_id" dbms="mysql,hsqldb,mariadb">
         <addAutoIncrement
                 columnName="JOB_STORE_SIMPLETON_ENTRY_ID"
@@ -64,6 +69,7 @@
 
     <changeSet author="mcovarr" id="postgresql_recreate_job_store_simpleton_entry_id_seq" dbms="postgresql">
         <preConditions onFail="MARK_RAN">
+            <!-- idempotency check (noop if the sequence is present and already consistent what the alter would do) -->
             <sqlCheck expectedResult="0">
                 SELECT count(*)
                 FROM information_schema.sequences
@@ -84,7 +90,7 @@
         />
     </changeSet>
 
-    <!-- MariaDB's FK not null constraint does not survive the widening above and must be recreated explicitly. -->
+    <!-- MariaDB's FK NotNull constraint does not survive the widening above and must be recreated explicitly. -->
     <changeSet author="mcovarr" id="mariadb_not_null_constraint_job_store_simpleton_entry_fk" dbms="mariadb">
         <addNotNullConstraint
                 tableName="JOB_STORE_SIMPLETON_ENTRY"

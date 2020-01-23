@@ -281,11 +281,12 @@ While a workflow is running its metadata is always stored in Cromwell's relation
 but Cromwell now supports "Carbonite" metadata archival for terminal workflows in Google Cloud Storage (GCS).
 
 Hybrid metadata storage is configured first by choosing `cromwell.services.metadata.hybridcarbonite.HybridMetadataServiceActor` 
-as the `class` for `MetadataService`. The "classic" part of Hybrid Metadata Storage requires no configuration, but the "carbonite"
-part has its own `carbonite-metadata-service` stanza (sample configuration with default values show below).
+as the `class` for `MetadataService`. The "classic" (i.e. relational database) aspect of Hybrid Metadata Storage requires no 
+additional configuration, but the "Carbonite" aspect has its own `carbonite-metadata-service` stanza. A sample configuration
+with default values is shown below.
  
-`enabled = true` for any Carboniting to actually happen, and a `bucket` and `filesystems.gcs.auth` must be specified.
-The `freeze-scan` stanza controls the frequency and backoff with which Cromwell searches for metadata to Carbonite, while
+`enabled = true` is required for any Carboniting to actually happen, and a `bucket` and `filesystems.gcs.auth` must also be specified.
+The `freeze-scan` stanza controls the frequency and backoff with which Cromwell searches for "classic" metadata to Carbonite, while
 the `metadata-deletion` stanza controls the parameters around Cromwell's deletion of successfully archived metadata rows
 from the "classic" metadata database.
 

@@ -8,7 +8,8 @@ import cats.instances.future._
 import cats.syntax.functor._
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import com.google.api.gax.retrying.RetrySettings
-import com.google.api.services.genomics.v2alpha1.GenomicsScopes
+import com.google.api.services.lifesciences.v2beta.CloudLifeSciencesScopes
+import com.google.api.services.lifesciences.v2beta.CloudLifeSciences
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
 import com.google.auth.http.HttpCredentialsAdapter
@@ -74,11 +75,13 @@ abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, glo
     val papiProjectId = papiConfig.as[String]("project")
 
     val check = for {
-      credentials <- Future(googleAuth.credentials(List(GenomicsScopes.GENOMICS)))
-      genomicsChecker = if (papiProviderConfig.as[String]("actor-factory").contains("v2alpha1"))
-        GenomicsCheckerV2(googleConfig.applicationName, googleAuth, endpointUrl, credentials, papiProjectId)
-      else
+      credentials <- Future(googleAuth.credentials(List(CloudLifeSciencesScopes.CLOUD_PLATFORM)))
+      genomicsChecker = if (papiProviderConfig.as[String]("actor-factory").contains("v2beta")) {
+        val location = papiConfig.as[String]("genomics.location")
+        GenomicsCheckerV2(googleConfig.applicationName, googleAuth, endpointUrl, location, credentials, papiProjectId)
+      } else {
         GenomicsCheckerV1(googleConfig.applicationName, googleAuth, endpointUrl, credentials, papiProjectId)
+      }
       checked <- genomicsChecker.check
     } yield checked
 
@@ -122,9 +125,10 @@ object WorkbenchHealthMonitorServiceActor {
   case class GenomicsCheckerV2(applicationName: String,
                                authMode: GoogleAuthMode,
                                endpointUrl: URL,
+                               location: String,
                                credentials: Credentials,
                                papiProjectId: String)(implicit val ec: ExecutionContext) extends GenomicsChecker {
-    val genomics = new com.google.api.services.genomics.v2alpha1.Genomics.Builder(
+    val lifeSciences = new CloudLifeSciences.Builder(
       GoogleAuthMode.httpTransport,
       GoogleAuthMode.jsonFactory,
       httpInitializer(credentials))
@@ -133,8 +137,8 @@ object WorkbenchHealthMonitorServiceActor {
       .build
 
     override def check = Future {
-      // https://cloud.google.com/genomics/reference/rest/#rest-resource-v2alpha1projectsoperations
-      genomics.projects().operations().list(s"projects/$papiProjectId/operations").setPageSize(1).execute()
+      // https://cloud.google.com/life-sciences/docs/reference/rest/v2beta/projects.locations.operations
+      lifeSciences.projects().locations().operations().list(s"projects/$papiProjectId/locations/$location").setPageSize(1).execute()
       ()
     }
   }

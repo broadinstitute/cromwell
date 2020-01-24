@@ -19,11 +19,7 @@ trait JobKeyValueSlickDatabase extends JobKeyValueSqlDatabase {
 
   override def addJobKeyValueEntry(jobKeyValueEntry: JobKeyValueEntry)
                                   (implicit ec: ExecutionContext): Future[Unit] = {
-    val action = if (useSlickUpserts) {
-      for {
-        _ <- dataAccess.jobKeyValueEntryIdsAutoInc.insertOrUpdate(jobKeyValueEntry)
-      } yield ()
-    } else manualUpsertQuery(jobKeyValueEntry)
+    val action = manualUpsertQuery(jobKeyValueEntry)
     runTransaction(action)
   }
   
@@ -45,12 +41,7 @@ trait JobKeyValueSlickDatabase extends JobKeyValueSqlDatabase {
 
   def addJobKeyValueEntries(jobKeyValueEntries: Iterable[JobKeyValueEntry])
                            (implicit ec: ExecutionContext): Future[Unit] = {
-    val action = if (useSlickUpserts) {
-      val toBeInserted = jobKeyValueEntries.map(dataAccess.jobKeyValueEntryIdsAutoInc.insertOrUpdate)
-      DBIO.sequence(toBeInserted)
-    } else {
-      DBIO.sequence(jobKeyValueEntries.map(manualUpsertQuery))
-    }
+    val action = DBIO.sequence(jobKeyValueEntries.map(manualUpsertQuery))
     runTransaction(action).void
   }
 

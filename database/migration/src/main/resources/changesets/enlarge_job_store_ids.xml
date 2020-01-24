@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <!-- Drop the foreign key constraint from JOB_STORE_SIMPLETON_ENTRY to JOB_STORE_ENTRY to allow for the latter's PK
+         to be widened. -->
+    <changeSet author="mcovarr" id="drop_job_store_simpleton_entry_fk" dbms="mysql,hsqldb,postgresql,mariadb">
+        <dropForeignKeyConstraint
+                baseTableName="JOB_STORE_SIMPLETON_ENTRY"
+                constraintName="FK_JOB_STORE_SIMPLETON_ENTRY_JOB_STORE_ENTRY_ID"
+        />
+    </changeSet>
+
+    <!-- BEGIN JOB_STORE_ENTRY PK widening -->
+    <!-- For Postgresql there are 2 changesets: one for modifying the table column type, and another one for altering the autoincrementing sequence.
+         The other DBs can be refactored similarly with a single addAutoIncrement changeset. -->
+    <changeSet author="mcovarr" id="enlarge_job_store_entry_id" dbms="mysql,hsqldb,mariadb">
+        <addAutoIncrement
+                columnName="JOB_STORE_ENTRY_ID"
+                columnDataType="BIGINT"
+                incrementBy="1"
+                tableName="JOB_STORE_ENTRY"
+        />
+    </changeSet>
+
+    <changeSet author="mcovarr" id="postgresql_enlarge_job_store_entry_id" dbms="postgresql">
+        <modifyDataType
+                columnName="JOB_STORE_ENTRY_ID"
+                tableName="JOB_STORE_ENTRY"
+                newDataType="BIGINT"
+        />
+    </changeSet>
+
+    <changeSet author="mcovarr" id="postgresql_enlarge_job_store_entry_id_seq" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <!-- idempotency check (noop if the sequence is present and already consistent what the alter would do) -->
+            <sqlCheck expectedResult="0">
+                SELECT count(*)
+                FROM information_schema.sequences
+                WHERE sequence_name = 'JOB_STORE_ENTRY_JOB_STORE_ENTRY_ID_seq'
+                AND data_type = 'bigint';
+            </sqlCheck>
+        </preConditions>
+        <sql>alter sequence "JOB_STORE_ENTRY_JOB_STORE_ENTRY_ID_seq" as bigint;</sql>
+    </changeSet>
+    <!-- END JOB_STORE_ENTRY PK widening -->
+
+    <!-- BEGIN JOB_STORE_SIMPLETON ENTRY PK widening -->
+    <!-- For Postgresql there are 2 changesets: one for modifying the table column type, and another one for altering the autoincrementing sequence.
+         The other DBs can be refactored similarly with a single addAutoIncrement changeset. -->
+    <changeSet author="mcovarr" id="enlarge_job_store_simpleton_entry_id" dbms="mysql,hsqldb,mariadb">
+        <addAutoIncrement
+                columnName="JOB_STORE_SIMPLETON_ENTRY_ID"
+                columnDataType="BIGINT"
+                incrementBy="1"
+                tableName="JOB_STORE_SIMPLETON_ENTRY"
+        />
+    </changeSet>
+
+    <changeSet author="mcovarr" id="postgresql_enlarge_job_store_simpleton_entry_id" dbms="postgresql">
+        <modifyDataType
+                tableName="JOB_STORE_SIMPLETON_ENTRY"
+                columnName="JOB_STORE_SIMPLETON_ENTRY_ID"
+                newDataType="BIGINT"
+        />
+    </changeSet>
+
+    <changeSet author="mcovarr" id="postgresql_recreate_job_store_simpleton_entry_id_seq" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <!-- idempotency check (noop if the sequence is present and already consistent what the alter would do) -->
+            <sqlCheck expectedResult="0">
+                SELECT count(*)
+                FROM information_schema.sequences
+                WHERE sequence_name = 'JOB_STORE_SIMPLETON_ENTRY_JOB_STORE_SIMPLETON_ENTRY_ID_seq'
+                AND data_type = 'bigint';
+            </sqlCheck>
+        </preConditions>
+        <sql>alter sequence "JOB_STORE_SIMPLETON_ENTRY_JOB_STORE_SIMPLETON_ENTRY_ID_seq" as bigint;</sql>
+    </changeSet>
+    <!-- END JOB_STORE_SIMPLETON ENTRY PK widening -->
+
+    <!-- Widen FK to match PK. -->
+    <changeSet author="mcovarr" id="enlarge_job_store_simpleton_entry_fk" dbms="mysql,hsqldb,postgresql,mariadb">
+        <modifyDataType
+                tableName="JOB_STORE_SIMPLETON_ENTRY"
+                columnName="JOB_STORE_ENTRY_ID"
+                newDataType="BIGINT"
+        />
+    </changeSet>
+
+    <!-- MariaDB's FK NotNull constraint does not survive the widening above and must be recreated explicitly. -->
+    <changeSet author="mcovarr" id="mariadb_not_null_constraint_job_store_simpleton_entry_fk" dbms="mariadb">
+        <addNotNullConstraint
+                tableName="JOB_STORE_SIMPLETON_ENTRY"
+                columnName="JOB_STORE_ENTRY_ID"
+                columnDataType="BIGINT"
+        />
+    </changeSet>
+
+    <!-- Restore the FK. -->
+    <changeSet author="mcovarr" id="recreate_job_store_simpleton_entry_fk" dbms="mysql,hsqldb,postgresql,mariadb">
+        <addForeignKeyConstraint
+                constraintName="FK_JOB_STORE_SIMPLETON_ENTRY_JOB_STORE_ENTRY_ID"
+                baseColumnNames="JOB_STORE_ENTRY_ID"
+                baseTableName="JOB_STORE_SIMPLETON_ENTRY"
+                referencedTableName="JOB_STORE_ENTRY"
+                referencedColumnNames="JOB_STORE_ENTRY_ID"
+                onDelete="CASCADE"
+        />
+    </changeSet>
+
+</databaseChangeLog>

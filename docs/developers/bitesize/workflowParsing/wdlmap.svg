@@ -31,8 +31,8 @@
 <!-- wdldraft2model -->
 <g id="node3" class="node">
 <title>wdldraft2model</title>
-<ellipse fill="none" stroke="#000000" cx="141.8631" cy="-379.3675" rx="86.3233" ry="18"/>
-<text text-anchor="middle" x="141.8631" y="-375.1675" font-family="Times,serif" font-size="14.00" fill="#000000">WDL Draft 2 Classes</text>
+<ellipse fill="none" stroke="#000000" cx="141.8631" cy="-379.3675" rx="100.2708" ry="18"/>
+<text text-anchor="middle" x="141.8631" y="-375.1675" font-family="Times,serif" font-size="14.00" fill="#000000">WDL Draft 2 Namespace</text>
 </g>
 <!-- wdldraft2ast&#45;&gt;wdldraft2model -->
 <g id="edge2" class="edge">

@@ -32,7 +32,7 @@ digraph "WDL_MAP"
 	# Draft 2 model
 	wdldraft2 [shape=invtriangle label="WDL Draft 2 file" ];
 	wdldraft2ast [shape=oval label="WDL Draft 2 AST"];
-	wdldraft2model [shape=oval label="WDL Draft 2 Classes"];
+	wdldraft2model [shape=oval label="WDL Draft 2 Namespace"];
 
 	# 1.0 model
 	wdl1_0 [shape=invtriangle label="WDL 1.0 file"];

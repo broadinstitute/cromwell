@@ -33,6 +33,12 @@ database storage. Please see
 + Fix a bug where zip files with directories could not be imported. 
   For example a zip with `a.wdl` and `b.wdl` could be imported but one with `sub_workflows/a.wdl` 
   and `imports/b.wdl` could not.
+
+### Migration from Google Cloud Genomics v2alpha1 to Google Cloud Life Sciences v2beta
+Cromwell now supports running workflows using Google Cloud Life Sciences v2beta API. Google Cloud Genomics v2alpha1 API 
+is no longer supported. Some configuration changes are required. More information 
+[here](https://cromwell.readthedocs.io/en/stable/backends/Google#migration-from-google-cloud-genomics-v2alpha1-to-google-cloud-life-sciences-v2beta). 
+* **Note** Google Cloud Life Sciences is the new name for newer versions of Google Cloud Genomics
   
 ## 48 Release Notes
 
@@ -707,7 +713,7 @@ Please update your configuration accordingly.
 | PAPI Version |                                 actor-factory                                |
 |--------------|:----------------------------------------------------------------------------:|
 |      V1      | cromwell.backend.google.pipelines.v1alpha2.PipelinesApiLifecycleActorFactory |
-|      V2      | cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory |
+|      V2      | cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory |
 
 If you don't update the `actor-factory` value, you'll get a deprecation warning in the logs, and Cromwell will default back to **PAPI V1**
 

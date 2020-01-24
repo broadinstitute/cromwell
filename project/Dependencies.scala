@@ -35,7 +35,7 @@ object Dependencies {
   private val googleCloudMonitoringV = "1.70.0"
   private val googleCloudNioV = "0.61.0-alpha"
   private val googleGenomicsServicesV1ApiV = "v1alpha2-rev495-1.23.0"
-  private val googleGenomicsServicesV2ApiV = "v2alpha1-rev31-1.25.0"
+  private val googleGenomicsServicesV2ApiV = "v2beta-rev5-1.25.0"
   private val googleHttpClientApacheV = "2.1.1"
   private val googleHttpClientV = "1.29.1"
   private val googleOauth2V = "0.13.0"
@@ -246,7 +246,7 @@ object Dependencies {
   )
 
   private val googleGenomicsV2Dependency = List(
-    "com.google.apis" % "google-api-services-genomics" % googleGenomicsServicesV2ApiV
+    "com.google.apis" % "google-api-services-lifesciences" % googleGenomicsServicesV2ApiV
       exclude("com.google.guava", "guava-jdk5")
   )
 

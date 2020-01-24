@@ -14,8 +14,11 @@ You can think of WDL parsing in Cromwell in terms of the following major steps:
 1. Lexing: Converting the raw WDL string into a 1D stream of "tokens".
 2. Parsing: Converting the stream of tokens into an abstract syntax tree (AST).
 3. Transliteration: Transforming the language-specific AST into a standard set of scala objects
-4. Linking: Discovering, resolving and recording all references within the AST.
-5. WOM Building: Creating a set of WOM objects
+4. Import Resolution: Recursively processing any import statements into WOM bundles.
+5. Linking: Discovering, resolving and recording all references within the AST and imports.
+6. WOM Building: Creating a set of WOM objects
+7. Input Validation: Link any provided inputs to inputs on the WOM objects.
+
 
 #### Intermediate Data Formats
 

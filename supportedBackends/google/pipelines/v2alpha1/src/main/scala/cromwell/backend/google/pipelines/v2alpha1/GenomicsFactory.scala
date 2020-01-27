@@ -201,7 +201,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         .setLabels(createPipelineParameters.googleLabels.map(label => label.key -> label.value).toMap.asJava)
         .setNetwork(network)
         .setAccelerators(accelerators)
-        .setBootImage("projects/cos-cloud/global/images/family/cos-77-12371-114-0") // Aaron Kemp suggestion
+        .setBootImage("projects/cos-cloud/global/images/family/cos-77-lts") // Adam idea test
 
       createPipelineParameters.runtimeAttributes.gpuResource foreach { resource =>
         virtualMachine.setNvidiaDriverVersion(resource.nvidiaDriverVersion)

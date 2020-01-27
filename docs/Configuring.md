@@ -309,8 +309,8 @@ services {
         # Output log messages whenever carboniting activity is started or completed?
         debug-logging = true
     
-        # Which bucket to use for storing the generated metadata JSON
-        bucket = "carbonite-test-bucket"
+        # Which GCS bucket to use for storing the generated metadata JSON
+        bucket = "<<A private bucket, *without* the gs:// prefix>>"
     
         # A filesytem able to access the specified bucket:
         filesystems {

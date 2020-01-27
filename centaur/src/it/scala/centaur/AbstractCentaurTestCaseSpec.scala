@@ -39,7 +39,16 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
   def allTestCases: List[CentaurTestCase] = {
     val optionalTestCases = CentaurConfig.optionalTestPath map (File(_)) map testCases getOrElse List.empty
     val standardTestCases = testCases(CentaurConfig.standardTestCasePath)
-    optionalTestCases ++ standardTestCases
+    val allTestsCases = optionalTestCases ++ standardTestCases
+    val duplicateTestNames = allTestsCases
+      .map(_.workflow.testName)
+      .groupBy(identity)
+      .collect({ case (key, values) if values.lengthCompare(1) > 0 => key })
+    if (duplicateTestNames.nonEmpty) {
+      throw new RuntimeException("The following test names are duplicated in more than one test file: " +
+        duplicateTestNames.mkString(", "))
+    }
+    allTestsCases
   }
 
   def executeStandardTest(testCase: CentaurTestCase): Unit = {

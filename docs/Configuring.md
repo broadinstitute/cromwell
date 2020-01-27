@@ -307,7 +307,7 @@ services {
         minimum-summary-entry-id = 0
     
         # Output log messages whenever carboniting activity is started or completed?
-        debug-logging = true
+        debug-logging = false
     
         # Which GCS bucket to use for storing the generated metadata JSON
         bucket = "<<A private bucket, *without* the gs:// prefix>>"

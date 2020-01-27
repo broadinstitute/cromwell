@@ -1,0 +1,10 @@
+name: gcp_path_ending_with_newline
+testFormat: workflowsuccess
+
+files {
+  workflow: gcp_path_ending_with_newline/gcp_path_ending_with_newline.wdl
+}
+
+metadata {
+    status: Succeeded
+}

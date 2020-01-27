@@ -280,7 +280,7 @@ class WorkflowActorWithTestAddons(val finalizationProbe: TestProbe,
   serverMode = true,
   workflowHeartbeatConfig = workflowHeartbeatConfig,
   totalJobsByRootWf = totalJobsByRootWf,
-  fileHashCacheActor = None,
+  fileHashCacheActorProps = None,
   blacklistCache = None) {
 
   override val pathBuilderFactories: List[PathBuilderFactory] = extraPathBuilderFactory match {

@@ -1,0 +1,2145 @@
+{
+  "actualWorkflowLanguage": "WDL",
+  "actualWorkflowLanguageVersion": "draft-2",
+  "calls": {
+    "wf.wf": [
+      {
+        "attempt": 1,
+        "end": "2019-12-11T18:42:30.473Z",
+        "executionEvents": [
+          {
+            "description": "WaitingForValueStore",
+            "endTime": "2019-12-11T18:42:08.021Z",
+            "startTime": "2019-12-11T18:42:08.010Z"
+          },
+          {
+            "description": "SubWorkflowRunningState",
+            "endTime": "2019-12-11T18:42:30.472Z",
+            "startTime": "2019-12-11T18:42:08.043Z"
+          },
+          {
+            "description": "SubWorkflowPreparingState",
+            "endTime": "2019-12-11T18:42:08.043Z",
+            "startTime": "2019-12-11T18:42:08.021Z"
+          },
+          {
+            "description": "SubWorkflowPendingState",
+            "endTime": "2019-12-11T18:42:08.010Z",
+            "startTime": "2019-12-11T18:42:07.996Z"
+          }
+        ],
+        "executionStatus": "Done",
+        "inputs": {},
+        "outputs": {},
+        "shardIndex": 0,
+        "start": "2019-12-11T18:42:07.991Z",
+        "subWorkflowMetadata": {
+          "calls": {
+            "wf.wf": [
+              {
+                "attempt": 1,
+                "end": "2019-12-11T18:42:28.431Z",
+                "executionEvents": [
+                  {
+                    "description": "WaitingForValueStore",
+                    "endTime": "2019-12-11T18:42:11.095Z",
+                    "startTime": "2019-12-11T18:42:11.094Z"
+                  },
+                  {
+                    "description": "SubWorkflowRunningState",
+                    "endTime": "2019-12-11T18:42:28.431Z",
+                    "startTime": "2019-12-11T18:42:11.107Z"
+                  },
+                  {
+                    "description": "SubWorkflowPreparingState",
+                    "endTime": "2019-12-11T18:42:11.107Z",
+                    "startTime": "2019-12-11T18:42:11.095Z"
+                  },
+                  {
+                    "description": "SubWorkflowPendingState",
+                    "endTime": "2019-12-11T18:42:11.094Z",
+                    "startTime": "2019-12-11T18:42:11.094Z"
+                  }
+                ],
+                "executionStatus": "Done",
+                "inputs": {},
+                "outputs": {},
+                "shardIndex": 0,
+                "start": "2019-12-11T18:42:11.094Z",
+                "subWorkflowMetadata": {
+                  "calls": {
+                    "wf.wf": [
+                      {
+                        "attempt": 1,
+                        "end": "2019-12-11T18:42:26.450Z",
+                        "executionEvents": [
+                          {
+                            "description": "SubWorkflowRunningState",
+                            "endTime": "2019-12-11T18:42:26.450Z",
+                            "startTime": "2019-12-11T18:42:14.155Z"
+                          },
+                          {
+                            "description": "SubWorkflowPendingState",
+                            "endTime": "2019-12-11T18:42:14.151Z",
+                            "startTime": "2019-12-11T18:42:14.151Z"
+                          },
+                          {
+                            "description": "SubWorkflowPreparingState",
+                            "endTime": "2019-12-11T18:42:14.155Z",
+                            "startTime": "2019-12-11T18:42:14.151Z"
+                          },
+                          {
+                            "description": "WaitingForValueStore",
+                            "endTime": "2019-12-11T18:42:14.151Z",
+                            "startTime": "2019-12-11T18:42:14.151Z"
+                          }
+                        ],
+                        "executionStatus": "Done",
+                        "inputs": {},
+                        "outputs": {},
+                        "shardIndex": 0,
+                        "start": "2019-12-11T18:42:14.151Z",
+                        "subWorkflowMetadata": {
+                          "calls": {
+                            "wf.foo": [
+                              {
+                                "attempt": 1,
+                                "backend": "Papi",
+                                "backendLogs": {
+                                  "log": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-0/sub_sub.wf/7dfdd667-ea94-4ba4-8bf0-abf79a5d91bf/call-wf/shard-0/sub_sub_sub.wf/41e44cfa-3c20-425e-9810-c0abce08a88a/call-foo/shard-0/foo-0.log"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "effectiveCallCachingMode": "ReadAndWriteCache",
+                                  "hashes": {
+                                    "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E",
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "docker": "7C554A50D0473F2C781670682C027660",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    }
+                                  },
+                                  "hit": true,
+                                  "result": "Cache Hit: aa3c5bd0-377f-4bab-818a-e20e3ec4c2f7:wf.foo:0",
+                                  "hitFailures": {
+                                    "this": "should not appear in filtered output"
+                                  }
+                                },
+                                "callRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-0/sub_sub.wf/7dfdd667-ea94-4ba4-8bf0-abf79a5d91bf/call-wf/shard-0/sub_sub_sub.wf/41e44cfa-3c20-425e-9810-c0abce08a88a/call-foo/shard-0",
+                                "compressedDockerSize": 26725216,
+                                "end": "2019-12-11T18:42:24.846Z",
+                                "executionEvents": [
+                                  {
+                                    "description": "UpdatingCallCache",
+                                    "endTime": "2019-12-11T18:42:23.947Z",
+                                    "startTime": "2019-12-11T18:42:21.071Z"
+                                  },
+                                  {
+                                    "description": "WaitingForValueStore",
+                                    "endTime": "2019-12-11T18:42:17.440Z",
+                                    "startTime": "2019-12-11T18:42:17.421Z"
+                                  },
+                                  {
+                                    "description": "RequestingExecutionToken",
+                                    "endTime": "2019-12-11T18:42:17.421Z",
+                                    "startTime": "2019-12-11T18:42:17.328Z"
+                                  },
+                                  {
+                                    "description": "PreparingJob",
+                                    "endTime": "2019-12-11T18:42:18.823Z",
+                                    "startTime": "2019-12-11T18:42:17.440Z"
+                                  },
+                                  {
+                                    "description": "Pending",
+                                    "endTime": "2019-12-11T18:42:17.328Z",
+                                    "startTime": "2019-12-11T18:42:17.295Z"
+                                  },
+                                  {
+                                    "description": "UpdatingJobStore",
+                                    "endTime": "2019-12-11T18:42:24.846Z",
+                                    "startTime": "2019-12-11T18:42:23.947Z"
+                                  },
+                                  {
+                                    "description": "CallCacheReading",
+                                    "endTime": "2019-12-11T18:42:21.071Z",
+                                    "startTime": "2019-12-11T18:42:18.823Z"
+                                  }
+                                ],
+                                "executionStatus": "Done",
+                                "inputs": {},
+                                "outputs": {},
+                                "returnCode": 0,
+                                "runtimeAttributes": {
+                                  "bootDiskSizeGb": "10",
+                                  "continueOnReturnCode": "0",
+                                  "cpu": "1",
+                                  "cpuMin": "1",
+                                  "disks": "local-disk 10 SSD",
+                                  "docker": "ubuntu:latest",
+                                  "failOnStderr": "false",
+                                  "maxRetries": "0",
+                                  "memory": "2 GB",
+                                  "memoryMin": "2 GB",
+                                  "noAddress": "false",
+                                  "preemptible": "0",
+                                  "zones": "us-central1-b"
+                                },
+                                "shardIndex": 0,
+                                "start": "2019-12-11T18:42:17.261Z",
+                                "stderr": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-0/sub_sub.wf/7dfdd667-ea94-4ba4-8bf0-abf79a5d91bf/call-wf/shard-0/sub_sub_sub.wf/41e44cfa-3c20-425e-9810-c0abce08a88a/call-foo/shard-0/stderr",
+                                "stdout": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-0/sub_sub.wf/7dfdd667-ea94-4ba4-8bf0-abf79a5d91bf/call-wf/shard-0/sub_sub_sub.wf/41e44cfa-3c20-425e-9810-c0abce08a88a/call-foo/shard-0/stdout"
+                              },
+                              {
+                                "attempt": 1,
+                                "backend": "Papi",
+                                "backendLogs": {
+                                  "log": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-0/sub_sub.wf/7dfdd667-ea94-4ba4-8bf0-abf79a5d91bf/call-wf/shard-0/sub_sub_sub.wf/41e44cfa-3c20-425e-9810-c0abce08a88a/call-foo/shard-1/foo-1.log"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "effectiveCallCachingMode": "ReadAndWriteCache",
+                                  "hashes": {
+                                    "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E",
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "docker": "7C554A50D0473F2C781670682C027660",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    }
+                                  },
+                                  "hit": true,
+                                  "result": "Cache Hit: aa3c5bd0-377f-4bab-818a-e20e3ec4c2f7:wf.foo:0",
+                                  "hitFailures": {
+                                    "this": "should not appear in filtered output"
+                                  }
+                                },
+                                "callRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-0/sub_sub.wf/7dfdd667-ea94-4ba4-8bf0-abf79a5d91bf/call-wf/shard-0/sub_sub_sub.wf/41e44cfa-3c20-425e-9810-c0abce08a88a/call-foo/shard-1",
+                                "compressedDockerSize": 26725216,
+                                "end": "2019-12-11T18:42:24.852Z",
+                                "executionEvents": [
+                                  {
+                                    "description": "UpdatingJobStore",
+                                    "endTime": "2019-12-11T18:42:24.846Z",
+                                    "startTime": "2019-12-11T18:42:23.947Z"
+                                  },
+                                  {
+                                    "description": "PreparingJob",
+                                    "endTime": "2019-12-11T18:42:18.292Z",
+                                    "startTime": "2019-12-11T18:42:17.439Z"
+                                  },
+                                  {
+                                    "description": "RequestingExecutionToken",
+                                    "endTime": "2019-12-11T18:42:17.421Z",
+                                    "startTime": "2019-12-11T18:42:17.328Z"
+                                  },
+                                  {
+                                    "description": "Pending",
+                                    "endTime": "2019-12-11T18:42:17.328Z",
+                                    "startTime": "2019-12-11T18:42:17.296Z"
+                                  },
+                                  {
+                                    "description": "UpdatingCallCache",
+                                    "endTime": "2019-12-11T18:42:23.947Z",
+                                    "startTime": "2019-12-11T18:42:20.948Z"
+                                  },
+                                  {
+                                    "description": "WaitingForValueStore",
+                                    "endTime": "2019-12-11T18:42:17.439Z",
+                                    "startTime": "2019-12-11T18:42:17.421Z"
+                                  },
+                                  {
+                                    "description": "CallCacheReading",
+                                    "endTime": "2019-12-11T18:42:20.948Z",
+                                    "startTime": "2019-12-11T18:42:18.292Z"
+                                  }
+                                ],
+                                "executionStatus": "Done",
+                                "inputs": {},
+                                "outputs": {},
+                                "returnCode": 0,
+                                "runtimeAttributes": {
+                                  "bootDiskSizeGb": "10",
+                                  "continueOnReturnCode": "0",
+                                  "cpu": "1",
+                                  "cpuMin": "1",
+                                  "disks": "local-disk 10 SSD",
+                                  "docker": "ubuntu:latest",
+                                  "failOnStderr": "false",
+                                  "maxRetries": "0",
+                                  "memory": "2 GB",
+                                  "memoryMin": "2 GB",
+                                  "noAddress": "false",
+                                  "preemptible": "0",
+                                  "zones": "us-central1-b"
+                                },
+                                "shardIndex": 1,
+                                "start": "2019-12-11T18:42:17.262Z",
+                                "stderr": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-0/sub_sub.wf/7dfdd667-ea94-4ba4-8bf0-abf79a5d91bf/call-wf/shard-0/sub_sub_sub.wf/41e44cfa-3c20-425e-9810-c0abce08a88a/call-foo/shard-1/stderr",
+                                "stdout": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-0/sub_sub.wf/7dfdd667-ea94-4ba4-8bf0-abf79a5d91bf/call-wf/shard-0/sub_sub_sub.wf/41e44cfa-3c20-425e-9810-c0abce08a88a/call-foo/shard-1/stdout"
+                              }
+                            ]
+                          },
+                          "end": "2019-12-11T18:42:26.449Z",
+                          "id": "41e44cfa-3c20-425e-9810-c0abce08a88a",
+                          "inputs": {},
+                          "outputs": {},
+                          "parentWorkflowId": "7dfdd667-ea94-4ba4-8bf0-abf79a5d91bf",
+                          "rootWorkflowId": "03a7491c-76c1-40f4-93d5-222d0ac2be70",
+                          "start": "2019-12-11T18:42:14.151Z",
+                          "status": "Succeeded",
+                          "workflowName": "wf",
+                          "workflowRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/"
+                        }
+                      },
+                      {
+                        "attempt": 1,
+                        "end": "2019-12-11T18:42:26.451Z",
+                        "executionEvents": [
+                          {
+                            "description": "WaitingForValueStore",
+                            "endTime": "2019-12-11T18:42:14.151Z",
+                            "startTime": "2019-12-11T18:42:14.151Z"
+                          },
+                          {
+                            "description": "SubWorkflowRunningState",
+                            "endTime": "2019-12-11T18:42:26.451Z",
+                            "startTime": "2019-12-11T18:42:14.157Z"
+                          },
+                          {
+                            "description": "SubWorkflowPendingState",
+                            "endTime": "2019-12-11T18:42:14.151Z",
+                            "startTime": "2019-12-11T18:42:14.150Z"
+                          },
+                          {
+                            "description": "SubWorkflowPreparingState",
+                            "endTime": "2019-12-11T18:42:14.157Z",
+                            "startTime": "2019-12-11T18:42:14.151Z"
+                          }
+                        ],
+                        "executionStatus": "Done",
+                        "inputs": {},
+                        "outputs": {},
+                        "shardIndex": 1,
+                        "start": "2019-12-11T18:42:14.150Z",
+                        "subWorkflowMetadata": {
+                          "calls": {
+                            "wf.foo": [
+                              {
+                                "attempt": 1,
+                                "backend": "Papi",
+                                "backendLogs": {
+                                  "log": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-0/sub_sub.wf/7dfdd667-ea94-4ba4-8bf0-abf79a5d91bf/call-wf/shard-1/sub_sub_sub.wf/5d40bdc7-c951-4d51-bb13-2a6fe0c6ab12/call-foo/shard-0/foo-0.log"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "effectiveCallCachingMode": "ReadAndWriteCache",
+                                  "hashes": {
+                                    "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E",
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "docker": "7C554A50D0473F2C781670682C027660",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    }
+                                  },
+                                  "hit": true,
+                                  "result": "Cache Hit: aa3c5bd0-377f-4bab-818a-e20e3ec4c2f7:wf.foo:0",
+                                  "hitFailures": {
+                                    "this": "should not appear in filtered output"
+                                  }
+                                },
+                                "callRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-0/sub_sub.wf/7dfdd667-ea94-4ba4-8bf0-abf79a5d91bf/call-wf/shard-1/sub_sub_sub.wf/5d40bdc7-c951-4d51-bb13-2a6fe0c6ab12/call-foo/shard-0",
+                                "compressedDockerSize": 26725216,
+                                "end": "2019-12-11T18:42:24.851Z",
+                                "executionEvents": [
+                                  {
+                                    "description": "PreparingJob",
+                                    "endTime": "2019-12-11T18:42:18.713Z",
+                                    "startTime": "2019-12-11T18:42:17.440Z"
+                                  },
+                                  {
+                                    "description": "WaitingForValueStore",
+                                    "endTime": "2019-12-11T18:42:17.440Z",
+                                    "startTime": "2019-12-11T18:42:17.421Z"
+                                  },
+                                  {
+                                    "description": "RequestingExecutionToken",
+                                    "endTime": "2019-12-11T18:42:17.421Z",
+                                    "startTime": "2019-12-11T18:42:17.327Z"
+                                  },
+                                  {
+                                    "description": "Pending",
+                                    "endTime": "2019-12-11T18:42:17.327Z",
+                                    "startTime": "2019-12-11T18:42:17.296Z"
+                                  },
+                                  {
+                                    "description": "UpdatingJobStore",
+                                    "endTime": "2019-12-11T18:42:24.846Z",
+                                    "startTime": "2019-12-11T18:42:23.946Z"
+                                  },
+                                  {
+                                    "description": "CallCacheReading",
+                                    "endTime": "2019-12-11T18:42:20.960Z",
+                                    "startTime": "2019-12-11T18:42:18.713Z"
+                                  },
+                                  {
+                                    "description": "UpdatingCallCache",
+                                    "endTime": "2019-12-11T18:42:23.946Z",
+                                    "startTime": "2019-12-11T18:42:20.960Z"
+                                  }
+                                ],
+                                "executionStatus": "Done",
+                                "inputs": {},
+                                "outputs": {},
+                                "returnCode": 0,
+                                "runtimeAttributes": {
+                                  "bootDiskSizeGb": "10",
+                                  "continueOnReturnCode": "0",
+                                  "cpu": "1",
+                                  "cpuMin": "1",
+                                  "disks": "local-disk 10 SSD",
+                                  "docker": "ubuntu:latest",
+                                  "failOnStderr": "false",
+                                  "maxRetries": "0",
+                                  "memory": "2 GB",
+                                  "memoryMin": "2 GB",
+                                  "noAddress": "false",
+                                  "preemptible": "0",
+                                  "zones": "us-central1-b"
+                                },
+                                "shardIndex": 0,
+                                "start": "2019-12-11T18:42:17.260Z",
+                                "stderr": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-0/sub_sub.wf/7dfdd667-ea94-4ba4-8bf0-abf79a5d91bf/call-wf/shard-1/sub_sub_sub.wf/5d40bdc7-c951-4d51-bb13-2a6fe0c6ab12/call-foo/shard-0/stderr",
+                                "stdout": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-0/sub_sub.wf/7dfdd667-ea94-4ba4-8bf0-abf79a5d91bf/call-wf/shard-1/sub_sub_sub.wf/5d40bdc7-c951-4d51-bb13-2a6fe0c6ab12/call-foo/shard-0/stdout"
+                              },
+                              {
+                                "attempt": 1,
+                                "backend": "Papi",
+                                "backendLogs": {
+                                  "log": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-0/sub_sub.wf/7dfdd667-ea94-4ba4-8bf0-abf79a5d91bf/call-wf/shard-1/sub_sub_sub.wf/5d40bdc7-c951-4d51-bb13-2a6fe0c6ab12/call-foo/shard-1/foo-1.log"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "effectiveCallCachingMode": "ReadAndWriteCache",
+                                  "hashes": {
+                                    "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E",
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "docker": "7C554A50D0473F2C781670682C027660",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    }
+                                  },
+                                  "hit": true,
+                                  "result": "Cache Hit: aa3c5bd0-377f-4bab-818a-e20e3ec4c2f7:wf.foo:0",
+                                  "hitFailures": {
+                                    "this": "should not appear in filtered output"
+                                  }
+                                },
+                                "callRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-0/sub_sub.wf/7dfdd667-ea94-4ba4-8bf0-abf79a5d91bf/call-wf/shard-1/sub_sub_sub.wf/5d40bdc7-c951-4d51-bb13-2a6fe0c6ab12/call-foo/shard-1",
+                                "compressedDockerSize": 26725216,
+                                "end": "2019-12-11T18:42:24.850Z",
+                                "executionEvents": [
+                                  {
+                                    "description": "CallCacheReading",
+                                    "endTime": "2019-12-11T18:42:20.961Z",
+                                    "startTime": "2019-12-11T18:42:19.713Z"
+                                  },
+                                  {
+                                    "description": "PreparingJob",
+                                    "endTime": "2019-12-11T18:42:19.713Z",
+                                    "startTime": "2019-12-11T18:42:17.440Z"
+                                  },
+                                  {
+                                    "description": "UpdatingCallCache",
+                                    "endTime": "2019-12-11T18:42:23.946Z",
+                                    "startTime": "2019-12-11T18:42:20.961Z"
+                                  },
+                                  {
+                                    "description": "WaitingForValueStore",
+                                    "endTime": "2019-12-11T18:42:17.440Z",
+                                    "startTime": "2019-12-11T18:42:17.416Z"
+                                  },
+                                  {
+                                    "description": "Pending",
+                                    "endTime": "2019-12-11T18:42:17.328Z",
+                                    "startTime": "2019-12-11T18:42:17.296Z"
+                                  },
+                                  {
+                                    "description": "RequestingExecutionToken",
+                                    "endTime": "2019-12-11T18:42:17.416Z",
+                                    "startTime": "2019-12-11T18:42:17.328Z"
+                                  },
+                                  {
+                                    "description": "UpdatingJobStore",
+                                    "endTime": "2019-12-11T18:42:24.846Z",
+                                    "startTime": "2019-12-11T18:42:23.946Z"
+                                  }
+                                ],
+                                "executionStatus": "Done",
+                                "inputs": {},
+                                "outputs": {},
+                                "returnCode": 0,
+                                "runtimeAttributes": {
+                                  "bootDiskSizeGb": "10",
+                                  "continueOnReturnCode": "0",
+                                  "cpu": "1",
+                                  "cpuMin": "1",
+                                  "disks": "local-disk 10 SSD",
+                                  "docker": "ubuntu:latest",
+                                  "failOnStderr": "false",
+                                  "maxRetries": "0",
+                                  "memory": "2 GB",
+                                  "memoryMin": "2 GB",
+                                  "noAddress": "false",
+                                  "preemptible": "0",
+                                  "zones": "us-central1-b"
+                                },
+                                "shardIndex": 1,
+                                "start": "2019-12-11T18:42:17.262Z",
+                                "stderr": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-0/sub_sub.wf/7dfdd667-ea94-4ba4-8bf0-abf79a5d91bf/call-wf/shard-1/sub_sub_sub.wf/5d40bdc7-c951-4d51-bb13-2a6fe0c6ab12/call-foo/shard-1/stderr",
+                                "stdout": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-0/sub_sub.wf/7dfdd667-ea94-4ba4-8bf0-abf79a5d91bf/call-wf/shard-1/sub_sub_sub.wf/5d40bdc7-c951-4d51-bb13-2a6fe0c6ab12/call-foo/shard-1/stdout"
+                              }
+                            ]
+                          },
+                          "end": "2019-12-11T18:42:26.451Z",
+                          "id": "5d40bdc7-c951-4d51-bb13-2a6fe0c6ab12",
+                          "inputs": {},
+                          "outputs": {},
+                          "parentWorkflowId": "7dfdd667-ea94-4ba4-8bf0-abf79a5d91bf",
+                          "rootWorkflowId": "03a7491c-76c1-40f4-93d5-222d0ac2be70",
+                          "start": "2019-12-11T18:42:14.151Z",
+                          "status": "Succeeded",
+                          "workflowName": "wf",
+                          "workflowRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/"
+                        }
+                      }
+                    ]
+                  },
+                  "end": "2019-12-11T18:42:28.431Z",
+                  "id": "7dfdd667-ea94-4ba4-8bf0-abf79a5d91bf",
+                  "inputs": {},
+                  "outputs": {},
+                  "parentWorkflowId": "120e1ad4-be70-437b-ace4-5fd28f7f313e",
+                  "rootWorkflowId": "03a7491c-76c1-40f4-93d5-222d0ac2be70",
+                  "start": "2019-12-11T18:42:11.095Z",
+                  "status": "Succeeded",
+                  "workflowName": "wf",
+                  "workflowRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/"
+                }
+              },
+              {
+                "attempt": 1,
+                "end": "2019-12-11T18:42:28.442Z",
+                "executionEvents": [
+                  {
+                    "description": "WaitingForValueStore",
+                    "endTime": "2019-12-11T18:42:11.095Z",
+                    "startTime": "2019-12-11T18:42:11.095Z"
+                  },
+                  {
+                    "description": "SubWorkflowRunningState",
+                    "endTime": "2019-12-11T18:42:28.442Z",
+                    "startTime": "2019-12-11T18:42:11.099Z"
+                  },
+                  {
+                    "description": "SubWorkflowPendingState",
+                    "endTime": "2019-12-11T18:42:11.095Z",
+                    "startTime": "2019-12-11T18:42:11.094Z"
+                  },
+                  {
+                    "description": "SubWorkflowPreparingState",
+                    "endTime": "2019-12-11T18:42:11.099Z",
+                    "startTime": "2019-12-11T18:42:11.095Z"
+                  }
+                ],
+                "executionStatus": "Done",
+                "inputs": {},
+                "outputs": {},
+                "shardIndex": 1,
+                "start": "2019-12-11T18:42:11.094Z",
+                "subWorkflowMetadata": {
+                  "calls": {
+                    "wf.wf": [
+                      {
+                        "attempt": 1,
+                        "end": "2019-12-11T18:42:26.450Z",
+                        "executionEvents": [
+                          {
+                            "description": "SubWorkflowPendingState",
+                            "endTime": "2019-12-11T18:42:14.161Z",
+                            "startTime": "2019-12-11T18:42:14.161Z"
+                          },
+                          {
+                            "description": "SubWorkflowRunningState",
+                            "endTime": "2019-12-11T18:42:26.450Z",
+                            "startTime": "2019-12-11T18:42:14.163Z"
+                          },
+                          {
+                            "description": "WaitingForValueStore",
+                            "endTime": "2019-12-11T18:42:14.162Z",
+                            "startTime": "2019-12-11T18:42:14.161Z"
+                          },
+                          {
+                            "description": "SubWorkflowPreparingState",
+                            "endTime": "2019-12-11T18:42:14.163Z",
+                            "startTime": "2019-12-11T18:42:14.162Z"
+                          }
+                        ],
+                        "executionStatus": "Done",
+                        "inputs": {},
+                        "outputs": {},
+                        "shardIndex": 0,
+                        "start": "2019-12-11T18:42:14.161Z",
+                        "subWorkflowMetadata": {
+                          "calls": {
+                            "wf.foo": [
+                              {
+                                "attempt": 1,
+                                "backend": "Papi",
+                                "backendLogs": {
+                                  "log": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-1/sub_sub.wf/9d28be16-6a82-456d-942c-7a758f9faa73/call-wf/shard-0/sub_sub_sub.wf/d1a4717e-39e6-41ff-b764-3ff2a3a77581/call-foo/shard-0/foo-0.log"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "effectiveCallCachingMode": "ReadAndWriteCache",
+                                  "hashes": {
+                                    "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E",
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "docker": "7C554A50D0473F2C781670682C027660",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    }
+                                  },
+                                  "hit": true,
+                                  "result": "Cache Hit: aa3c5bd0-377f-4bab-818a-e20e3ec4c2f7:wf.foo:0",
+                                  "hitFailures": {
+                                    "this": "should not appear in filtered output"
+                                  }
+                                },
+                                "callRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-1/sub_sub.wf/9d28be16-6a82-456d-942c-7a758f9faa73/call-wf/shard-0/sub_sub_sub.wf/d1a4717e-39e6-41ff-b764-3ff2a3a77581/call-foo/shard-0",
+                                "compressedDockerSize": 26725216,
+                                "end": "2019-12-11T18:42:24.846Z",
+                                "executionEvents": [
+                                  {
+                                    "description": "WaitingForValueStore",
+                                    "endTime": "2019-12-11T18:42:17.439Z",
+                                    "startTime": "2019-12-11T18:42:17.421Z"
+                                  },
+                                  {
+                                    "description": "CallCacheReading",
+                                    "endTime": "2019-12-11T18:42:21.071Z",
+                                    "startTime": "2019-12-11T18:42:19.683Z"
+                                  },
+                                  {
+                                    "description": "PreparingJob",
+                                    "endTime": "2019-12-11T18:42:19.683Z",
+                                    "startTime": "2019-12-11T18:42:17.439Z"
+                                  },
+                                  {
+                                    "description": "RequestingExecutionToken",
+                                    "endTime": "2019-12-11T18:42:17.421Z",
+                                    "startTime": "2019-12-11T18:42:17.328Z"
+                                  },
+                                  {
+                                    "description": "UpdatingCallCache",
+                                    "endTime": "2019-12-11T18:42:23.947Z",
+                                    "startTime": "2019-12-11T18:42:21.071Z"
+                                  },
+                                  {
+                                    "description": "UpdatingJobStore",
+                                    "endTime": "2019-12-11T18:42:24.846Z",
+                                    "startTime": "2019-12-11T18:42:23.947Z"
+                                  },
+                                  {
+                                    "description": "Pending",
+                                    "endTime": "2019-12-11T18:42:17.328Z",
+                                    "startTime": "2019-12-11T18:42:17.296Z"
+                                  }
+                                ],
+                                "executionStatus": "Done",
+                                "inputs": {},
+                                "outputs": {},
+                                "returnCode": 0,
+                                "runtimeAttributes": {
+                                  "bootDiskSizeGb": "10",
+                                  "continueOnReturnCode": "0",
+                                  "cpu": "1",
+                                  "cpuMin": "1",
+                                  "disks": "local-disk 10 SSD",
+                                  "docker": "ubuntu:latest",
+                                  "failOnStderr": "false",
+                                  "maxRetries": "0",
+                                  "memory": "2 GB",
+                                  "memoryMin": "2 GB",
+                                  "noAddress": "false",
+                                  "preemptible": "0",
+                                  "zones": "us-central1-b"
+                                },
+                                "shardIndex": 0,
+                                "start": "2019-12-11T18:42:17.261Z",
+                                "stderr": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-1/sub_sub.wf/9d28be16-6a82-456d-942c-7a758f9faa73/call-wf/shard-0/sub_sub_sub.wf/d1a4717e-39e6-41ff-b764-3ff2a3a77581/call-foo/shard-0/stderr",
+                                "stdout": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-1/sub_sub.wf/9d28be16-6a82-456d-942c-7a758f9faa73/call-wf/shard-0/sub_sub_sub.wf/d1a4717e-39e6-41ff-b764-3ff2a3a77581/call-foo/shard-0/stdout"
+                              },
+                              {
+                                "attempt": 1,
+                                "backend": "Papi",
+                                "backendLogs": {
+                                  "log": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-1/sub_sub.wf/9d28be16-6a82-456d-942c-7a758f9faa73/call-wf/shard-0/sub_sub_sub.wf/d1a4717e-39e6-41ff-b764-3ff2a3a77581/call-foo/shard-1/foo-1.log"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "effectiveCallCachingMode": "ReadAndWriteCache",
+                                  "hashes": {
+                                    "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E",
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "docker": "7C554A50D0473F2C781670682C027660",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    }
+                                  },
+                                  "hit": true,
+                                  "result": "Cache Hit: aa3c5bd0-377f-4bab-818a-e20e3ec4c2f7:wf.foo:0",
+                                  "hitFailures": {
+                                    "this": "should not appear in filtered output"
+                                  }
+                                },
+                                "callRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-1/sub_sub.wf/9d28be16-6a82-456d-942c-7a758f9faa73/call-wf/shard-0/sub_sub_sub.wf/d1a4717e-39e6-41ff-b764-3ff2a3a77581/call-foo/shard-1",
+                                "compressedDockerSize": 26725216,
+                                "end": "2019-12-11T18:42:24.852Z",
+                                "executionEvents": [
+                                  {
+                                    "description": "RequestingExecutionToken",
+                                    "endTime": "2019-12-11T18:42:17.421Z",
+                                    "startTime": "2019-12-11T18:42:17.327Z"
+                                  },
+                                  {
+                                    "description": "WaitingForValueStore",
+                                    "endTime": "2019-12-11T18:42:17.439Z",
+                                    "startTime": "2019-12-11T18:42:17.421Z"
+                                  },
+                                  {
+                                    "description": "UpdatingJobStore",
+                                    "endTime": "2019-12-11T18:42:24.841Z",
+                                    "startTime": "2019-12-11T18:42:23.946Z"
+                                  },
+                                  {
+                                    "description": "CallCacheReading",
+                                    "endTime": "2019-12-11T18:42:20.960Z",
+                                    "startTime": "2019-12-11T18:42:18.459Z"
+                                  },
+                                  {
+                                    "description": "PreparingJob",
+                                    "endTime": "2019-12-11T18:42:18.459Z",
+                                    "startTime": "2019-12-11T18:42:17.439Z"
+                                  },
+                                  {
+                                    "description": "UpdatingCallCache",
+                                    "endTime": "2019-12-11T18:42:23.946Z",
+                                    "startTime": "2019-12-11T18:42:20.960Z"
+                                  },
+                                  {
+                                    "description": "Pending",
+                                    "endTime": "2019-12-11T18:42:17.327Z",
+                                    "startTime": "2019-12-11T18:42:17.295Z"
+                                  }
+                                ],
+                                "executionStatus": "Done",
+                                "inputs": {},
+                                "outputs": {},
+                                "returnCode": 0,
+                                "runtimeAttributes": {
+                                  "bootDiskSizeGb": "10",
+                                  "continueOnReturnCode": "0",
+                                  "cpu": "1",
+                                  "cpuMin": "1",
+                                  "disks": "local-disk 10 SSD",
+                                  "docker": "ubuntu:latest",
+                                  "failOnStderr": "false",
+                                  "maxRetries": "0",
+                                  "memory": "2 GB",
+                                  "memoryMin": "2 GB",
+                                  "noAddress": "false",
+                                  "preemptible": "0",
+                                  "zones": "us-central1-b"
+                                },
+                                "shardIndex": 1,
+                                "start": "2019-12-11T18:42:17.262Z",
+                                "stderr": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-1/sub_sub.wf/9d28be16-6a82-456d-942c-7a758f9faa73/call-wf/shard-0/sub_sub_sub.wf/d1a4717e-39e6-41ff-b764-3ff2a3a77581/call-foo/shard-1/stderr",
+                                "stdout": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-1/sub_sub.wf/9d28be16-6a82-456d-942c-7a758f9faa73/call-wf/shard-0/sub_sub_sub.wf/d1a4717e-39e6-41ff-b764-3ff2a3a77581/call-foo/shard-1/stdout"
+                              }
+                            ]
+                          },
+                          "end": "2019-12-11T18:42:26.449Z",
+                          "id": "d1a4717e-39e6-41ff-b764-3ff2a3a77581",
+                          "inputs": {},
+                          "outputs": {},
+                          "parentWorkflowId": "9d28be16-6a82-456d-942c-7a758f9faa73",
+                          "rootWorkflowId": "03a7491c-76c1-40f4-93d5-222d0ac2be70",
+                          "start": "2019-12-11T18:42:14.162Z",
+                          "status": "Succeeded",
+                          "workflowName": "wf",
+                          "workflowRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/"
+                        }
+                      },
+                      {
+                        "attempt": 1,
+                        "end": "2019-12-11T18:42:26.450Z",
+                        "executionEvents": [
+                          {
+                            "description": "SubWorkflowPendingState",
+                            "endTime": "2019-12-11T18:42:14.161Z",
+                            "startTime": "2019-12-11T18:42:14.161Z"
+                          },
+                          {
+                            "description": "WaitingForValueStore",
+                            "endTime": "2019-12-11T18:42:14.162Z",
+                            "startTime": "2019-12-11T18:42:14.161Z"
+                          },
+                          {
+                            "description": "SubWorkflowPreparingState",
+                            "endTime": "2019-12-11T18:42:14.162Z",
+                            "startTime": "2019-12-11T18:42:14.162Z"
+                          },
+                          {
+                            "description": "SubWorkflowRunningState",
+                            "endTime": "2019-12-11T18:42:26.450Z",
+                            "startTime": "2019-12-11T18:42:14.162Z"
+                          }
+                        ],
+                        "executionStatus": "Done",
+                        "inputs": {},
+                        "outputs": {},
+                        "shardIndex": 1,
+                        "start": "2019-12-11T18:42:14.160Z",
+                        "subWorkflowMetadata": {
+                          "calls": {
+                            "wf.foo": [
+                              {
+                                "attempt": 1,
+                                "backend": "Papi",
+                                "backendLogs": {
+                                  "log": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-1/sub_sub.wf/9d28be16-6a82-456d-942c-7a758f9faa73/call-wf/shard-1/sub_sub_sub.wf/19452e1f-1de9-498b-9ee7-6e3d2a0ea028/call-foo/shard-0/foo-0.log"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "effectiveCallCachingMode": "ReadAndWriteCache",
+                                  "hashes": {
+                                    "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E",
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "docker": "7C554A50D0473F2C781670682C027660",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    }
+                                  },
+                                  "hit": true,
+                                  "result": "Cache Hit: aa3c5bd0-377f-4bab-818a-e20e3ec4c2f7:wf.foo:0",
+                                  "hitFailures": {
+                                    "this": "should not appear in filtered output"
+                                  }
+                                },
+                                "callRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-1/sub_sub.wf/9d28be16-6a82-456d-942c-7a758f9faa73/call-wf/shard-1/sub_sub_sub.wf/19452e1f-1de9-498b-9ee7-6e3d2a0ea028/call-foo/shard-0",
+                                "compressedDockerSize": 26725216,
+                                "end": "2019-12-11T18:42:24.846Z",
+                                "executionEvents": [
+                                  {
+                                    "description": "WaitingForValueStore",
+                                    "endTime": "2019-12-11T18:42:17.439Z",
+                                    "startTime": "2019-12-11T18:42:17.421Z"
+                                  },
+                                  {
+                                    "description": "CallCacheReading",
+                                    "endTime": "2019-12-11T18:42:20.960Z",
+                                    "startTime": "2019-12-11T18:42:19.603Z"
+                                  },
+                                  {
+                                    "description": "Pending",
+                                    "endTime": "2019-12-11T18:42:17.327Z",
+                                    "startTime": "2019-12-11T18:42:17.296Z"
+                                  },
+                                  {
+                                    "description": "UpdatingCallCache",
+                                    "endTime": "2019-12-11T18:42:23.947Z",
+                                    "startTime": "2019-12-11T18:42:20.960Z"
+                                  },
+                                  {
+                                    "description": "UpdatingJobStore",
+                                    "endTime": "2019-12-11T18:42:24.841Z",
+                                    "startTime": "2019-12-11T18:42:23.947Z"
+                                  },
+                                  {
+                                    "description": "RequestingExecutionToken",
+                                    "endTime": "2019-12-11T18:42:17.421Z",
+                                    "startTime": "2019-12-11T18:42:17.327Z"
+                                  },
+                                  {
+                                    "description": "PreparingJob",
+                                    "endTime": "2019-12-11T18:42:19.603Z",
+                                    "startTime": "2019-12-11T18:42:17.439Z"
+                                  }
+                                ],
+                                "executionStatus": "Done",
+                                "inputs": {},
+                                "outputs": {},
+                                "returnCode": 0,
+                                "runtimeAttributes": {
+                                  "bootDiskSizeGb": "10",
+                                  "continueOnReturnCode": "0",
+                                  "cpu": "1",
+                                  "cpuMin": "1",
+                                  "disks": "local-disk 10 SSD",
+                                  "docker": "ubuntu:latest",
+                                  "failOnStderr": "false",
+                                  "maxRetries": "0",
+                                  "memory": "2 GB",
+                                  "memoryMin": "2 GB",
+                                  "noAddress": "false",
+                                  "preemptible": "0",
+                                  "zones": "us-central1-b"
+                                },
+                                "shardIndex": 0,
+                                "start": "2019-12-11T18:42:17.260Z",
+                                "stderr": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-1/sub_sub.wf/9d28be16-6a82-456d-942c-7a758f9faa73/call-wf/shard-1/sub_sub_sub.wf/19452e1f-1de9-498b-9ee7-6e3d2a0ea028/call-foo/shard-0/stderr",
+                                "stdout": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-1/sub_sub.wf/9d28be16-6a82-456d-942c-7a758f9faa73/call-wf/shard-1/sub_sub_sub.wf/19452e1f-1de9-498b-9ee7-6e3d2a0ea028/call-foo/shard-0/stdout"
+                              },
+                              {
+                                "attempt": 1,
+                                "backend": "Papi",
+                                "backendLogs": {
+                                  "log": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-1/sub_sub.wf/9d28be16-6a82-456d-942c-7a758f9faa73/call-wf/shard-1/sub_sub_sub.wf/19452e1f-1de9-498b-9ee7-6e3d2a0ea028/call-foo/shard-1/foo-1.log"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "effectiveCallCachingMode": "ReadAndWriteCache",
+                                  "hashes": {
+                                    "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E",
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "docker": "7C554A50D0473F2C781670682C027660",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    }
+                                  },
+                                  "hit": true,
+                                  "result": "Cache Hit: aa3c5bd0-377f-4bab-818a-e20e3ec4c2f7:wf.foo:0",
+                                  "hitFailures": {
+                                    "this": "should not appear in filtered output"
+                                  }
+                                },
+                                "callRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-1/sub_sub.wf/9d28be16-6a82-456d-942c-7a758f9faa73/call-wf/shard-1/sub_sub_sub.wf/19452e1f-1de9-498b-9ee7-6e3d2a0ea028/call-foo/shard-1",
+                                "compressedDockerSize": 26725216,
+                                "end": "2019-12-11T18:42:24.852Z",
+                                "executionEvents": [
+                                  {
+                                    "description": "UpdatingCallCache",
+                                    "endTime": "2019-12-11T18:42:23.947Z",
+                                    "startTime": "2019-12-11T18:42:21.071Z"
+                                  },
+                                  {
+                                    "description": "PreparingJob",
+                                    "endTime": "2019-12-11T18:42:18.615Z",
+                                    "startTime": "2019-12-11T18:42:17.440Z"
+                                  },
+                                  {
+                                    "description": "RequestingExecutionToken",
+                                    "endTime": "2019-12-11T18:42:17.421Z",
+                                    "startTime": "2019-12-11T18:42:17.328Z"
+                                  },
+                                  {
+                                    "description": "UpdatingJobStore",
+                                    "endTime": "2019-12-11T18:42:24.842Z",
+                                    "startTime": "2019-12-11T18:42:23.947Z"
+                                  },
+                                  {
+                                    "description": "CallCacheReading",
+                                    "endTime": "2019-12-11T18:42:21.071Z",
+                                    "startTime": "2019-12-11T18:42:18.615Z"
+                                  },
+                                  {
+                                    "description": "WaitingForValueStore",
+                                    "endTime": "2019-12-11T18:42:17.440Z",
+                                    "startTime": "2019-12-11T18:42:17.421Z"
+                                  },
+                                  {
+                                    "description": "Pending",
+                                    "endTime": "2019-12-11T18:42:17.328Z",
+                                    "startTime": "2019-12-11T18:42:17.295Z"
+                                  }
+                                ],
+                                "executionStatus": "Done",
+                                "inputs": {},
+                                "outputs": {},
+                                "returnCode": 0,
+                                "runtimeAttributes": {
+                                  "bootDiskSizeGb": "10",
+                                  "continueOnReturnCode": "0",
+                                  "cpu": "1",
+                                  "cpuMin": "1",
+                                  "disks": "local-disk 10 SSD",
+                                  "docker": "ubuntu:latest",
+                                  "failOnStderr": "false",
+                                  "maxRetries": "0",
+                                  "memory": "2 GB",
+                                  "memoryMin": "2 GB",
+                                  "noAddress": "false",
+                                  "preemptible": "0",
+                                  "zones": "us-central1-b"
+                                },
+                                "shardIndex": 1,
+                                "start": "2019-12-11T18:42:17.262Z",
+                                "stderr": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-1/sub_sub.wf/9d28be16-6a82-456d-942c-7a758f9faa73/call-wf/shard-1/sub_sub_sub.wf/19452e1f-1de9-498b-9ee7-6e3d2a0ea028/call-foo/shard-1/stderr",
+                                "stdout": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-0/sub.wf/120e1ad4-be70-437b-ace4-5fd28f7f313e/call-wf/shard-1/sub_sub.wf/9d28be16-6a82-456d-942c-7a758f9faa73/call-wf/shard-1/sub_sub_sub.wf/19452e1f-1de9-498b-9ee7-6e3d2a0ea028/call-foo/shard-1/stdout"
+                              }
+                            ]
+                          },
+                          "end": "2019-12-11T18:42:26.450Z",
+                          "id": "19452e1f-1de9-498b-9ee7-6e3d2a0ea028",
+                          "inputs": {},
+                          "outputs": {},
+                          "parentWorkflowId": "9d28be16-6a82-456d-942c-7a758f9faa73",
+                          "rootWorkflowId": "03a7491c-76c1-40f4-93d5-222d0ac2be70",
+                          "start": "2019-12-11T18:42:14.162Z",
+                          "status": "Succeeded",
+                          "workflowName": "wf",
+                          "workflowRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/"
+                        }
+                      }
+                    ]
+                  },
+                  "end": "2019-12-11T18:42:28.442Z",
+                  "id": "9d28be16-6a82-456d-942c-7a758f9faa73",
+                  "inputs": {},
+                  "outputs": {},
+                  "parentWorkflowId": "120e1ad4-be70-437b-ace4-5fd28f7f313e",
+                  "rootWorkflowId": "03a7491c-76c1-40f4-93d5-222d0ac2be70",
+                  "start": "2019-12-11T18:42:11.095Z",
+                  "status": "Succeeded",
+                  "workflowName": "wf",
+                  "workflowRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/"
+                }
+              }
+            ]
+          },
+          "end": "2019-12-11T18:42:30.472Z",
+          "id": "120e1ad4-be70-437b-ace4-5fd28f7f313e",
+          "inputs": {},
+          "outputs": {},
+          "parentWorkflowId": "03a7491c-76c1-40f4-93d5-222d0ac2be70",
+          "rootWorkflowId": "03a7491c-76c1-40f4-93d5-222d0ac2be70",
+          "start": "2019-12-11T18:42:08.020Z",
+          "status": "Succeeded",
+          "workflowName": "wf",
+          "workflowRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/"
+        }
+      },
+      {
+        "attempt": 1,
+        "end": "2019-12-11T18:42:30.472Z",
+        "executionEvents": [
+          {
+            "description": "SubWorkflowPendingState",
+            "endTime": "2019-12-11T18:42:08.010Z",
+            "startTime": "2019-12-11T18:42:07.996Z"
+          },
+          {
+            "description": "WaitingForValueStore",
+            "endTime": "2019-12-11T18:42:08.021Z",
+            "startTime": "2019-12-11T18:42:08.010Z"
+          },
+          {
+            "description": "SubWorkflowPreparingState",
+            "endTime": "2019-12-11T18:42:08.043Z",
+            "startTime": "2019-12-11T18:42:08.021Z"
+          },
+          {
+            "description": "SubWorkflowRunningState",
+            "endTime": "2019-12-11T18:42:30.472Z",
+            "startTime": "2019-12-11T18:42:08.043Z"
+          }
+        ],
+        "executionStatus": "Done",
+        "inputs": {},
+        "outputs": {},
+        "shardIndex": 1,
+        "start": "2019-12-11T18:42:07.994Z",
+        "subWorkflowMetadata": {
+          "calls": {
+            "wf.wf": [
+              {
+                "attempt": 1,
+                "end": "2019-12-11T18:42:28.442Z",
+                "executionEvents": [
+                  {
+                    "description": "SubWorkflowPendingState",
+                    "endTime": "2019-12-11T18:42:11.094Z",
+                    "startTime": "2019-12-11T18:42:11.094Z"
+                  },
+                  {
+                    "description": "SubWorkflowRunningState",
+                    "endTime": "2019-12-11T18:42:28.442Z",
+                    "startTime": "2019-12-11T18:42:11.097Z"
+                  },
+                  {
+                    "description": "SubWorkflowPreparingState",
+                    "endTime": "2019-12-11T18:42:11.097Z",
+                    "startTime": "2019-12-11T18:42:11.095Z"
+                  },
+                  {
+                    "description": "WaitingForValueStore",
+                    "endTime": "2019-12-11T18:42:11.095Z",
+                    "startTime": "2019-12-11T18:42:11.094Z"
+                  }
+                ],
+                "executionStatus": "Done",
+                "inputs": {},
+                "outputs": {},
+                "shardIndex": 0,
+                "start": "2019-12-11T18:42:11.094Z",
+                "subWorkflowMetadata": {
+                  "calls": {
+                    "wf.wf": [
+                      {
+                        "attempt": 1,
+                        "end": "2019-12-11T18:42:26.451Z",
+                        "executionEvents": [
+                          {
+                            "description": "WaitingForValueStore",
+                            "endTime": "2019-12-11T18:42:14.163Z",
+                            "startTime": "2019-12-11T18:42:14.162Z"
+                          },
+                          {
+                            "description": "SubWorkflowPendingState",
+                            "endTime": "2019-12-11T18:42:14.162Z",
+                            "startTime": "2019-12-11T18:42:14.161Z"
+                          },
+                          {
+                            "description": "SubWorkflowPreparingState",
+                            "endTime": "2019-12-11T18:42:14.164Z",
+                            "startTime": "2019-12-11T18:42:14.163Z"
+                          },
+                          {
+                            "description": "SubWorkflowRunningState",
+                            "endTime": "2019-12-11T18:42:26.451Z",
+                            "startTime": "2019-12-11T18:42:14.164Z"
+                          }
+                        ],
+                        "executionStatus": "Done",
+                        "inputs": {},
+                        "outputs": {},
+                        "shardIndex": 0,
+                        "start": "2019-12-11T18:42:14.161Z",
+                        "subWorkflowMetadata": {
+                          "calls": {
+                            "wf.foo": [
+                              {
+                                "attempt": 1,
+                                "backend": "Papi",
+                                "backendLogs": {
+                                  "log": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-0/sub_sub.wf/1ba511a2-c7c4-414b-a20d-0e4176f884e9/call-wf/shard-0/sub_sub_sub.wf/92691525-779e-43b5-9b1c-5ad871dda37e/call-foo/shard-0/foo-0.log"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "effectiveCallCachingMode": "ReadAndWriteCache",
+                                  "hashes": {
+                                    "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E",
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "docker": "7C554A50D0473F2C781670682C027660",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    }
+                                  },
+                                  "hit": true,
+                                  "result": "Cache Hit: aa3c5bd0-377f-4bab-818a-e20e3ec4c2f7:wf.foo:0",
+                                  "hitFailures": {
+                                    "this": "should not appear in filtered output"
+                                  }
+                                },
+                                "callRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-0/sub_sub.wf/1ba511a2-c7c4-414b-a20d-0e4176f884e9/call-wf/shard-0/sub_sub_sub.wf/92691525-779e-43b5-9b1c-5ad871dda37e/call-foo/shard-0",
+                                "compressedDockerSize": 26725216,
+                                "end": "2019-12-11T18:42:24.846Z",
+                                "executionEvents": [
+                                  {
+                                    "description": "UpdatingCallCache",
+                                    "endTime": "2019-12-11T18:42:23.946Z",
+                                    "startTime": "2019-12-11T18:42:20.960Z"
+                                  },
+                                  {
+                                    "description": "WaitingForValueStore",
+                                    "endTime": "2019-12-11T18:42:17.440Z",
+                                    "startTime": "2019-12-11T18:42:17.416Z"
+                                  },
+                                  {
+                                    "description": "Pending",
+                                    "endTime": "2019-12-11T18:42:17.327Z",
+                                    "startTime": "2019-12-11T18:42:17.296Z"
+                                  },
+                                  {
+                                    "description": "CallCacheReading",
+                                    "endTime": "2019-12-11T18:42:20.960Z",
+                                    "startTime": "2019-12-11T18:42:18.909Z"
+                                  },
+                                  {
+                                    "description": "PreparingJob",
+                                    "endTime": "2019-12-11T18:42:18.909Z",
+                                    "startTime": "2019-12-11T18:42:17.440Z"
+                                  },
+                                  {
+                                    "description": "RequestingExecutionToken",
+                                    "endTime": "2019-12-11T18:42:17.416Z",
+                                    "startTime": "2019-12-11T18:42:17.327Z"
+                                  },
+                                  {
+                                    "description": "UpdatingJobStore",
+                                    "endTime": "2019-12-11T18:42:24.841Z",
+                                    "startTime": "2019-12-11T18:42:23.946Z"
+                                  }
+                                ],
+                                "executionStatus": "Done",
+                                "inputs": {},
+                                "outputs": {},
+                                "returnCode": 0,
+                                "runtimeAttributes": {
+                                  "bootDiskSizeGb": "10",
+                                  "continueOnReturnCode": "0",
+                                  "cpu": "1",
+                                  "cpuMin": "1",
+                                  "disks": "local-disk 10 SSD",
+                                  "docker": "ubuntu:latest",
+                                  "failOnStderr": "false",
+                                  "maxRetries": "0",
+                                  "memory": "2 GB",
+                                  "memoryMin": "2 GB",
+                                  "noAddress": "false",
+                                  "preemptible": "0",
+                                  "zones": "us-central1-b"
+                                },
+                                "shardIndex": 0,
+                                "start": "2019-12-11T18:42:17.261Z",
+                                "stderr": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-0/sub_sub.wf/1ba511a2-c7c4-414b-a20d-0e4176f884e9/call-wf/shard-0/sub_sub_sub.wf/92691525-779e-43b5-9b1c-5ad871dda37e/call-foo/shard-0/stderr",
+                                "stdout": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-0/sub_sub.wf/1ba511a2-c7c4-414b-a20d-0e4176f884e9/call-wf/shard-0/sub_sub_sub.wf/92691525-779e-43b5-9b1c-5ad871dda37e/call-foo/shard-0/stdout"
+                              },
+                              {
+                                "attempt": 1,
+                                "backend": "Papi",
+                                "backendLogs": {
+                                  "log": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-0/sub_sub.wf/1ba511a2-c7c4-414b-a20d-0e4176f884e9/call-wf/shard-0/sub_sub_sub.wf/92691525-779e-43b5-9b1c-5ad871dda37e/call-foo/shard-1/foo-1.log"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "effectiveCallCachingMode": "ReadAndWriteCache",
+                                  "hashes": {
+                                    "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E",
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "docker": "7C554A50D0473F2C781670682C027660",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    }
+                                  },
+                                  "hit": true,
+                                  "result": "Cache Hit: aa3c5bd0-377f-4bab-818a-e20e3ec4c2f7:wf.foo:0",
+                                  "hitFailures": {
+                                    "this": "should not appear in filtered output"
+                                  }
+                                },
+                                "callRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-0/sub_sub.wf/1ba511a2-c7c4-414b-a20d-0e4176f884e9/call-wf/shard-0/sub_sub_sub.wf/92691525-779e-43b5-9b1c-5ad871dda37e/call-foo/shard-1",
+                                "compressedDockerSize": 26725216,
+                                "end": "2019-12-11T18:42:24.852Z",
+                                "executionEvents": [
+                                  {
+                                    "description": "PreparingJob",
+                                    "endTime": "2019-12-11T18:42:18.232Z",
+                                    "startTime": "2019-12-11T18:42:17.439Z"
+                                  },
+                                  {
+                                    "description": "UpdatingJobStore",
+                                    "endTime": "2019-12-11T18:42:24.846Z",
+                                    "startTime": "2019-12-11T18:42:23.946Z"
+                                  },
+                                  {
+                                    "description": "Pending",
+                                    "endTime": "2019-12-11T18:42:17.328Z",
+                                    "startTime": "2019-12-11T18:42:17.296Z"
+                                  },
+                                  {
+                                    "description": "WaitingForValueStore",
+                                    "endTime": "2019-12-11T18:42:17.439Z",
+                                    "startTime": "2019-12-11T18:42:17.416Z"
+                                  },
+                                  {
+                                    "description": "CallCacheReading",
+                                    "endTime": "2019-12-11T18:42:21.071Z",
+                                    "startTime": "2019-12-11T18:42:18.232Z"
+                                  },
+                                  {
+                                    "description": "UpdatingCallCache",
+                                    "endTime": "2019-12-11T18:42:23.946Z",
+                                    "startTime": "2019-12-11T18:42:21.071Z"
+                                  },
+                                  {
+                                    "description": "RequestingExecutionToken",
+                                    "endTime": "2019-12-11T18:42:17.416Z",
+                                    "startTime": "2019-12-11T18:42:17.328Z"
+                                  }
+                                ],
+                                "executionStatus": "Done",
+                                "inputs": {},
+                                "outputs": {},
+                                "returnCode": 0,
+                                "runtimeAttributes": {
+                                  "bootDiskSizeGb": "10",
+                                  "continueOnReturnCode": "0",
+                                  "cpu": "1",
+                                  "cpuMin": "1",
+                                  "disks": "local-disk 10 SSD",
+                                  "docker": "ubuntu:latest",
+                                  "failOnStderr": "false",
+                                  "maxRetries": "0",
+                                  "memory": "2 GB",
+                                  "memoryMin": "2 GB",
+                                  "noAddress": "false",
+                                  "preemptible": "0",
+                                  "zones": "us-central1-b"
+                                },
+                                "shardIndex": 1,
+                                "start": "2019-12-11T18:42:17.262Z",
+                                "stderr": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-0/sub_sub.wf/1ba511a2-c7c4-414b-a20d-0e4176f884e9/call-wf/shard-0/sub_sub_sub.wf/92691525-779e-43b5-9b1c-5ad871dda37e/call-foo/shard-1/stderr",
+                                "stdout": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-0/sub_sub.wf/1ba511a2-c7c4-414b-a20d-0e4176f884e9/call-wf/shard-0/sub_sub_sub.wf/92691525-779e-43b5-9b1c-5ad871dda37e/call-foo/shard-1/stdout"
+                              }
+                            ]
+                          },
+                          "end": "2019-12-11T18:42:26.451Z",
+                          "id": "92691525-779e-43b5-9b1c-5ad871dda37e",
+                          "inputs": {},
+                          "outputs": {},
+                          "parentWorkflowId": "1ba511a2-c7c4-414b-a20d-0e4176f884e9",
+                          "rootWorkflowId": "03a7491c-76c1-40f4-93d5-222d0ac2be70",
+                          "start": "2019-12-11T18:42:14.162Z",
+                          "status": "Succeeded",
+                          "workflowName": "wf",
+                          "workflowRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/"
+                        }
+                      },
+                      {
+                        "attempt": 1,
+                        "end": "2019-12-11T18:42:26.450Z",
+                        "executionEvents": [
+                          {
+                            "description": "WaitingForValueStore",
+                            "endTime": "2019-12-11T18:42:14.162Z",
+                            "startTime": "2019-12-11T18:42:14.161Z"
+                          },
+                          {
+                            "description": "SubWorkflowPendingState",
+                            "endTime": "2019-12-11T18:42:14.161Z",
+                            "startTime": "2019-12-11T18:42:14.161Z"
+                          },
+                          {
+                            "description": "SubWorkflowRunningState",
+                            "endTime": "2019-12-11T18:42:26.450Z",
+                            "startTime": "2019-12-11T18:42:14.163Z"
+                          },
+                          {
+                            "description": "SubWorkflowPreparingState",
+                            "endTime": "2019-12-11T18:42:14.163Z",
+                            "startTime": "2019-12-11T18:42:14.162Z"
+                          }
+                        ],
+                        "executionStatus": "Done",
+                        "inputs": {},
+                        "outputs": {},
+                        "shardIndex": 1,
+                        "start": "2019-12-11T18:42:14.161Z",
+                        "subWorkflowMetadata": {
+                          "calls": {
+                            "wf.foo": [
+                              {
+                                "attempt": 1,
+                                "backend": "Papi",
+                                "backendLogs": {
+                                  "log": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-0/sub_sub.wf/1ba511a2-c7c4-414b-a20d-0e4176f884e9/call-wf/shard-1/sub_sub_sub.wf/4836d6f8-c5ab-47aa-9e10-063fba33168b/call-foo/shard-0/foo-0.log"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "effectiveCallCachingMode": "ReadAndWriteCache",
+                                  "hashes": {
+                                    "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E",
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "docker": "7C554A50D0473F2C781670682C027660",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    }
+                                  },
+                                  "hit": true,
+                                  "result": "Cache Hit: aa3c5bd0-377f-4bab-818a-e20e3ec4c2f7:wf.foo:0",
+                                  "hitFailures": {
+                                    "this": "should not appear in filtered output"
+                                  }
+                                },
+                                "callRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-0/sub_sub.wf/1ba511a2-c7c4-414b-a20d-0e4176f884e9/call-wf/shard-1/sub_sub_sub.wf/4836d6f8-c5ab-47aa-9e10-063fba33168b/call-foo/shard-0",
+                                "compressedDockerSize": 26725216,
+                                "end": "2019-12-11T18:42:24.846Z",
+                                "executionEvents": [
+                                  {
+                                    "description": "UpdatingCallCache",
+                                    "endTime": "2019-12-11T18:42:23.947Z",
+                                    "startTime": "2019-12-11T18:42:20.960Z"
+                                  },
+                                  {
+                                    "description": "UpdatingJobStore",
+                                    "endTime": "2019-12-11T18:42:24.841Z",
+                                    "startTime": "2019-12-11T18:42:23.947Z"
+                                  },
+                                  {
+                                    "description": "RequestingExecutionToken",
+                                    "endTime": "2019-12-11T18:42:17.421Z",
+                                    "startTime": "2019-12-11T18:42:17.327Z"
+                                  },
+                                  {
+                                    "description": "WaitingForValueStore",
+                                    "endTime": "2019-12-11T18:42:17.440Z",
+                                    "startTime": "2019-12-11T18:42:17.421Z"
+                                  },
+                                  {
+                                    "description": "PreparingJob",
+                                    "endTime": "2019-12-11T18:42:19.121Z",
+                                    "startTime": "2019-12-11T18:42:17.440Z"
+                                  },
+                                  {
+                                    "description": "Pending",
+                                    "endTime": "2019-12-11T18:42:17.327Z",
+                                    "startTime": "2019-12-11T18:42:17.295Z"
+                                  },
+                                  {
+                                    "description": "CallCacheReading",
+                                    "endTime": "2019-12-11T18:42:20.960Z",
+                                    "startTime": "2019-12-11T18:42:19.121Z"
+                                  }
+                                ],
+                                "executionStatus": "Done",
+                                "inputs": {},
+                                "outputs": {},
+                                "returnCode": 0,
+                                "runtimeAttributes": {
+                                  "bootDiskSizeGb": "10",
+                                  "continueOnReturnCode": "0",
+                                  "cpu": "1",
+                                  "cpuMin": "1",
+                                  "disks": "local-disk 10 SSD",
+                                  "docker": "ubuntu:latest",
+                                  "failOnStderr": "false",
+                                  "maxRetries": "0",
+                                  "memory": "2 GB",
+                                  "memoryMin": "2 GB",
+                                  "noAddress": "false",
+                                  "preemptible": "0",
+                                  "zones": "us-central1-b"
+                                },
+                                "shardIndex": 0,
+                                "start": "2019-12-11T18:42:17.260Z",
+                                "stderr": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-0/sub_sub.wf/1ba511a2-c7c4-414b-a20d-0e4176f884e9/call-wf/shard-1/sub_sub_sub.wf/4836d6f8-c5ab-47aa-9e10-063fba33168b/call-foo/shard-0/stderr",
+                                "stdout": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-0/sub_sub.wf/1ba511a2-c7c4-414b-a20d-0e4176f884e9/call-wf/shard-1/sub_sub_sub.wf/4836d6f8-c5ab-47aa-9e10-063fba33168b/call-foo/shard-0/stdout"
+                              },
+                              {
+                                "attempt": 1,
+                                "backend": "Papi",
+                                "backendLogs": {
+                                  "log": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-0/sub_sub.wf/1ba511a2-c7c4-414b-a20d-0e4176f884e9/call-wf/shard-1/sub_sub_sub.wf/4836d6f8-c5ab-47aa-9e10-063fba33168b/call-foo/shard-1/foo-1.log"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "effectiveCallCachingMode": "ReadAndWriteCache",
+                                  "hashes": {
+                                    "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E",
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "docker": "7C554A50D0473F2C781670682C027660",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    }
+                                  },
+                                  "hit": true,
+                                  "result": "Cache Hit: aa3c5bd0-377f-4bab-818a-e20e3ec4c2f7:wf.foo:0",
+                                  "hitFailures": {
+                                    "this": "should not appear in filtered output"
+                                  }
+                                },
+                                "callRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-0/sub_sub.wf/1ba511a2-c7c4-414b-a20d-0e4176f884e9/call-wf/shard-1/sub_sub_sub.wf/4836d6f8-c5ab-47aa-9e10-063fba33168b/call-foo/shard-1",
+                                "compressedDockerSize": 26725216,
+                                "end": "2019-12-11T18:42:24.852Z",
+                                "executionEvents": [
+                                  {
+                                    "description": "PreparingJob",
+                                    "endTime": "2019-12-11T18:42:18.352Z",
+                                    "startTime": "2019-12-11T18:42:17.439Z"
+                                  },
+                                  {
+                                    "description": "CallCacheReading",
+                                    "endTime": "2019-12-11T18:42:21.071Z",
+                                    "startTime": "2019-12-11T18:42:18.352Z"
+                                  },
+                                  {
+                                    "description": "UpdatingCallCache",
+                                    "endTime": "2019-12-11T18:42:23.947Z",
+                                    "startTime": "2019-12-11T18:42:21.071Z"
+                                  },
+                                  {
+                                    "description": "UpdatingJobStore",
+                                    "endTime": "2019-12-11T18:42:24.846Z",
+                                    "startTime": "2019-12-11T18:42:23.947Z"
+                                  },
+                                  {
+                                    "description": "Pending",
+                                    "endTime": "2019-12-11T18:42:17.327Z",
+                                    "startTime": "2019-12-11T18:42:17.296Z"
+                                  },
+                                  {
+                                    "description": "WaitingForValueStore",
+                                    "endTime": "2019-12-11T18:42:17.439Z",
+                                    "startTime": "2019-12-11T18:42:17.421Z"
+                                  },
+                                  {
+                                    "description": "RequestingExecutionToken",
+                                    "endTime": "2019-12-11T18:42:17.421Z",
+                                    "startTime": "2019-12-11T18:42:17.327Z"
+                                  }
+                                ],
+                                "executionStatus": "Done",
+                                "inputs": {},
+                                "outputs": {},
+                                "returnCode": 0,
+                                "runtimeAttributes": {
+                                  "bootDiskSizeGb": "10",
+                                  "continueOnReturnCode": "0",
+                                  "cpu": "1",
+                                  "cpuMin": "1",
+                                  "disks": "local-disk 10 SSD",
+                                  "docker": "ubuntu:latest",
+                                  "failOnStderr": "false",
+                                  "maxRetries": "0",
+                                  "memory": "2 GB",
+                                  "memoryMin": "2 GB",
+                                  "noAddress": "false",
+                                  "preemptible": "0",
+                                  "zones": "us-central1-b"
+                                },
+                                "shardIndex": 1,
+                                "start": "2019-12-11T18:42:17.262Z",
+                                "stderr": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-0/sub_sub.wf/1ba511a2-c7c4-414b-a20d-0e4176f884e9/call-wf/shard-1/sub_sub_sub.wf/4836d6f8-c5ab-47aa-9e10-063fba33168b/call-foo/shard-1/stderr",
+                                "stdout": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-0/sub_sub.wf/1ba511a2-c7c4-414b-a20d-0e4176f884e9/call-wf/shard-1/sub_sub_sub.wf/4836d6f8-c5ab-47aa-9e10-063fba33168b/call-foo/shard-1/stdout"
+                              }
+                            ]
+                          },
+                          "end": "2019-12-11T18:42:26.450Z",
+                          "id": "4836d6f8-c5ab-47aa-9e10-063fba33168b",
+                          "inputs": {},
+                          "outputs": {},
+                          "parentWorkflowId": "1ba511a2-c7c4-414b-a20d-0e4176f884e9",
+                          "rootWorkflowId": "03a7491c-76c1-40f4-93d5-222d0ac2be70",
+                          "start": "2019-12-11T18:42:14.162Z",
+                          "status": "Succeeded",
+                          "workflowName": "wf",
+                          "workflowRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/"
+                        }
+                      }
+                    ]
+                  },
+                  "end": "2019-12-11T18:42:28.442Z",
+                  "id": "1ba511a2-c7c4-414b-a20d-0e4176f884e9",
+                  "inputs": {},
+                  "outputs": {},
+                  "parentWorkflowId": "ed5aad2c-57b8-48a6-9332-8364f0f07215",
+                  "rootWorkflowId": "03a7491c-76c1-40f4-93d5-222d0ac2be70",
+                  "start": "2019-12-11T18:42:11.095Z",
+                  "status": "Succeeded",
+                  "workflowName": "wf",
+                  "workflowRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/"
+                }
+              },
+              {
+                "attempt": 1,
+                "end": "2019-12-11T18:42:28.431Z",
+                "executionEvents": [
+                  {
+                    "description": "WaitingForValueStore",
+                    "endTime": "2019-12-11T18:42:11.095Z",
+                    "startTime": "2019-12-11T18:42:11.095Z"
+                  },
+                  {
+                    "description": "SubWorkflowPendingState",
+                    "endTime": "2019-12-11T18:42:11.095Z",
+                    "startTime": "2019-12-11T18:42:11.094Z"
+                  },
+                  {
+                    "description": "SubWorkflowRunningState",
+                    "endTime": "2019-12-11T18:42:28.431Z",
+                    "startTime": "2019-12-11T18:42:11.097Z"
+                  },
+                  {
+                    "description": "SubWorkflowPreparingState",
+                    "endTime": "2019-12-11T18:42:11.097Z",
+                    "startTime": "2019-12-11T18:42:11.095Z"
+                  }
+                ],
+                "executionStatus": "Done",
+                "inputs": {},
+                "outputs": {},
+                "shardIndex": 1,
+                "start": "2019-12-11T18:42:11.094Z",
+                "subWorkflowMetadata": {
+                  "calls": {
+                    "wf.wf": [
+                      {
+                        "attempt": 1,
+                        "end": "2019-12-11T18:42:26.450Z",
+                        "executionEvents": [
+                          {
+                            "description": "SubWorkflowPendingState",
+                            "endTime": "2019-12-11T18:42:14.151Z",
+                            "startTime": "2019-12-11T18:42:14.151Z"
+                          },
+                          {
+                            "description": "WaitingForValueStore",
+                            "endTime": "2019-12-11T18:42:14.151Z",
+                            "startTime": "2019-12-11T18:42:14.151Z"
+                          },
+                          {
+                            "description": "SubWorkflowRunningState",
+                            "endTime": "2019-12-11T18:42:26.450Z",
+                            "startTime": "2019-12-11T18:42:14.158Z"
+                          },
+                          {
+                            "description": "SubWorkflowPreparingState",
+                            "endTime": "2019-12-11T18:42:14.158Z",
+                            "startTime": "2019-12-11T18:42:14.151Z"
+                          }
+                        ],
+                        "executionStatus": "Done",
+                        "inputs": {},
+                        "outputs": {},
+                        "shardIndex": 0,
+                        "start": "2019-12-11T18:42:14.151Z",
+                        "subWorkflowMetadata": {
+                          "calls": {
+                            "wf.foo": [
+                              {
+                                "attempt": 1,
+                                "backend": "Papi",
+                                "backendLogs": {
+                                  "log": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-1/sub_sub.wf/38584ba8-32cb-4a0c-b967-43d8d891c5ea/call-wf/shard-0/sub_sub_sub.wf/4c976c4f-5f86-4c00-bc37-759cca59e8c8/call-foo/shard-0/foo-0.log"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "effectiveCallCachingMode": "ReadAndWriteCache",
+                                  "hashes": {
+                                    "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E",
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "docker": "7C554A50D0473F2C781670682C027660",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    }
+                                  },
+                                  "hit": true,
+                                  "result": "Cache Hit: aa3c5bd0-377f-4bab-818a-e20e3ec4c2f7:wf.foo:0",
+                                  "hitFailures": {
+                                    "this": "should not appear in filtered output"
+                                  }
+                                },
+                                "callRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-1/sub_sub.wf/38584ba8-32cb-4a0c-b967-43d8d891c5ea/call-wf/shard-0/sub_sub_sub.wf/4c976c4f-5f86-4c00-bc37-759cca59e8c8/call-foo/shard-0",
+                                "compressedDockerSize": 26725216,
+                                "end": "2019-12-11T18:42:24.852Z",
+                                "executionEvents": [
+                                  {
+                                    "description": "WaitingForValueStore",
+                                    "endTime": "2019-12-11T18:42:17.439Z",
+                                    "startTime": "2019-12-11T18:42:17.421Z"
+                                  },
+                                  {
+                                    "description": "RequestingExecutionToken",
+                                    "endTime": "2019-12-11T18:42:17.421Z",
+                                    "startTime": "2019-12-11T18:42:17.327Z"
+                                  },
+                                  {
+                                    "description": "PreparingJob",
+                                    "endTime": "2019-12-11T18:42:19.019Z",
+                                    "startTime": "2019-12-11T18:42:17.439Z"
+                                  },
+                                  {
+                                    "description": "UpdatingJobStore",
+                                    "endTime": "2019-12-11T18:42:24.846Z",
+                                    "startTime": "2019-12-11T18:42:23.946Z"
+                                  },
+                                  {
+                                    "description": "CallCacheReading",
+                                    "endTime": "2019-12-11T18:42:21.071Z",
+                                    "startTime": "2019-12-11T18:42:19.019Z"
+                                  },
+                                  {
+                                    "description": "Pending",
+                                    "endTime": "2019-12-11T18:42:17.327Z",
+                                    "startTime": "2019-12-11T18:42:17.295Z"
+                                  },
+                                  {
+                                    "description": "UpdatingCallCache",
+                                    "endTime": "2019-12-11T18:42:23.946Z",
+                                    "startTime": "2019-12-11T18:42:21.071Z"
+                                  }
+                                ],
+                                "executionStatus": "Done",
+                                "inputs": {},
+                                "outputs": {},
+                                "returnCode": 0,
+                                "runtimeAttributes": {
+                                  "bootDiskSizeGb": "10",
+                                  "continueOnReturnCode": "0",
+                                  "cpu": "1",
+                                  "cpuMin": "1",
+                                  "disks": "local-disk 10 SSD",
+                                  "docker": "ubuntu:latest",
+                                  "failOnStderr": "false",
+                                  "maxRetries": "0",
+                                  "memory": "2 GB",
+                                  "memoryMin": "2 GB",
+                                  "noAddress": "false",
+                                  "preemptible": "0",
+                                  "zones": "us-central1-b"
+                                },
+                                "shardIndex": 0,
+                                "start": "2019-12-11T18:42:17.260Z",
+                                "stderr": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-1/sub_sub.wf/38584ba8-32cb-4a0c-b967-43d8d891c5ea/call-wf/shard-0/sub_sub_sub.wf/4c976c4f-5f86-4c00-bc37-759cca59e8c8/call-foo/shard-0/stderr",
+                                "stdout": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-1/sub_sub.wf/38584ba8-32cb-4a0c-b967-43d8d891c5ea/call-wf/shard-0/sub_sub_sub.wf/4c976c4f-5f86-4c00-bc37-759cca59e8c8/call-foo/shard-0/stdout"
+                              },
+                              {
+                                "attempt": 1,
+                                "backend": "Papi",
+                                "backendLogs": {
+                                  "log": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-1/sub_sub.wf/38584ba8-32cb-4a0c-b967-43d8d891c5ea/call-wf/shard-0/sub_sub_sub.wf/4c976c4f-5f86-4c00-bc37-759cca59e8c8/call-foo/shard-1/foo-1.log"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "effectiveCallCachingMode": "ReadAndWriteCache",
+                                  "hashes": {
+                                    "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E",
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "docker": "7C554A50D0473F2C781670682C027660",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    }
+                                  },
+                                  "hit": true,
+                                  "result": "Cache Hit: aa3c5bd0-377f-4bab-818a-e20e3ec4c2f7:wf.foo:0",
+                                  "hitFailures": {
+                                    "this": "should not appear in filtered output"
+                                  }
+                                },
+                                "callRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-1/sub_sub.wf/38584ba8-32cb-4a0c-b967-43d8d891c5ea/call-wf/shard-0/sub_sub_sub.wf/4c976c4f-5f86-4c00-bc37-759cca59e8c8/call-foo/shard-1",
+                                "compressedDockerSize": 26725216,
+                                "end": "2019-12-11T18:42:24.846Z",
+                                "executionEvents": [
+                                  {
+                                    "description": "UpdatingJobStore",
+                                    "endTime": "2019-12-11T18:42:24.842Z",
+                                    "startTime": "2019-12-11T18:42:23.947Z"
+                                  },
+                                  {
+                                    "description": "PreparingJob",
+                                    "endTime": "2019-12-11T18:42:19.360Z",
+                                    "startTime": "2019-12-11T18:42:17.440Z"
+                                  },
+                                  {
+                                    "description": "WaitingForValueStore",
+                                    "endTime": "2019-12-11T18:42:17.440Z",
+                                    "startTime": "2019-12-11T18:42:17.421Z"
+                                  },
+                                  {
+                                    "description": "RequestingExecutionToken",
+                                    "endTime": "2019-12-11T18:42:17.421Z",
+                                    "startTime": "2019-12-11T18:42:17.328Z"
+                                  },
+                                  {
+                                    "description": "CallCacheReading",
+                                    "endTime": "2019-12-11T18:42:20.961Z",
+                                    "startTime": "2019-12-11T18:42:19.360Z"
+                                  },
+                                  {
+                                    "description": "UpdatingCallCache",
+                                    "endTime": "2019-12-11T18:42:23.947Z",
+                                    "startTime": "2019-12-11T18:42:20.961Z"
+                                  },
+                                  {
+                                    "description": "Pending",
+                                    "endTime": "2019-12-11T18:42:17.328Z",
+                                    "startTime": "2019-12-11T18:42:17.295Z"
+                                  }
+                                ],
+                                "executionStatus": "Done",
+                                "inputs": {},
+                                "outputs": {},
+                                "returnCode": 0,
+                                "runtimeAttributes": {
+                                  "bootDiskSizeGb": "10",
+                                  "continueOnReturnCode": "0",
+                                  "cpu": "1",
+                                  "cpuMin": "1",
+                                  "disks": "local-disk 10 SSD",
+                                  "docker": "ubuntu:latest",
+                                  "failOnStderr": "false",
+                                  "maxRetries": "0",
+                                  "memory": "2 GB",
+                                  "memoryMin": "2 GB",
+                                  "noAddress": "false",
+                                  "preemptible": "0",
+                                  "zones": "us-central1-b"
+                                },
+                                "shardIndex": 1,
+                                "start": "2019-12-11T18:42:17.262Z",
+                                "stderr": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-1/sub_sub.wf/38584ba8-32cb-4a0c-b967-43d8d891c5ea/call-wf/shard-0/sub_sub_sub.wf/4c976c4f-5f86-4c00-bc37-759cca59e8c8/call-foo/shard-1/stderr",
+                                "stdout": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-1/sub_sub.wf/38584ba8-32cb-4a0c-b967-43d8d891c5ea/call-wf/shard-0/sub_sub_sub.wf/4c976c4f-5f86-4c00-bc37-759cca59e8c8/call-foo/shard-1/stdout"
+                              }
+                            ]
+                          },
+                          "end": "2019-12-11T18:42:26.449Z",
+                          "id": "4c976c4f-5f86-4c00-bc37-759cca59e8c8",
+                          "inputs": {},
+                          "outputs": {},
+                          "parentWorkflowId": "38584ba8-32cb-4a0c-b967-43d8d891c5ea",
+                          "rootWorkflowId": "03a7491c-76c1-40f4-93d5-222d0ac2be70",
+                          "start": "2019-12-11T18:42:14.151Z",
+                          "status": "Succeeded",
+                          "workflowName": "wf",
+                          "workflowRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/"
+                        }
+                      },
+                      {
+                        "attempt": 1,
+                        "end": "2019-12-11T18:42:26.450Z",
+                        "executionEvents": [
+                          {
+                            "description": "SubWorkflowPendingState",
+                            "endTime": "2019-12-11T18:42:14.151Z",
+                            "startTime": "2019-12-11T18:42:14.150Z"
+                          },
+                          {
+                            "description": "WaitingForValueStore",
+                            "endTime": "2019-12-11T18:42:14.151Z",
+                            "startTime": "2019-12-11T18:42:14.151Z"
+                          },
+                          {
+                            "description": "SubWorkflowRunningState",
+                            "endTime": "2019-12-11T18:42:26.451Z",
+                            "startTime": "2019-12-11T18:42:14.155Z"
+                          },
+                          {
+                            "description": "SubWorkflowPreparingState",
+                            "endTime": "2019-12-11T18:42:14.155Z",
+                            "startTime": "2019-12-11T18:42:14.151Z"
+                          }
+                        ],
+                        "executionStatus": "Done",
+                        "inputs": {},
+                        "outputs": {},
+                        "shardIndex": 1,
+                        "start": "2019-12-11T18:42:14.150Z",
+                        "subWorkflowMetadata": {
+                          "calls": {
+                            "wf.foo": [
+                              {
+                                "attempt": 1,
+                                "backend": "Papi",
+                                "backendLogs": {
+                                  "log": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-1/sub_sub.wf/38584ba8-32cb-4a0c-b967-43d8d891c5ea/call-wf/shard-1/sub_sub_sub.wf/6e4807a7-eea3-4a1d-9113-7c47a49c53d7/call-foo/shard-0/foo-0.log"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "effectiveCallCachingMode": "ReadAndWriteCache",
+                                  "hashes": {
+                                    "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E",
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "docker": "7C554A50D0473F2C781670682C027660",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    }
+                                  },
+                                  "hit": true,
+                                  "result": "Cache Hit: aa3c5bd0-377f-4bab-818a-e20e3ec4c2f7:wf.foo:0",
+                                  "hitFailures": {
+                                    "this": "should not appear in filtered output"
+                                  }
+                                },
+                                "callRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-1/sub_sub.wf/38584ba8-32cb-4a0c-b967-43d8d891c5ea/call-wf/shard-1/sub_sub_sub.wf/6e4807a7-eea3-4a1d-9113-7c47a49c53d7/call-foo/shard-0",
+                                "compressedDockerSize": 26725216,
+                                "end": "2019-12-11T18:42:24.844Z",
+                                "executionEvents": [
+                                  {
+                                    "description": "CallCacheReading",
+                                    "endTime": "2019-12-11T18:42:21.071Z",
+                                    "startTime": "2019-12-11T18:42:19.234Z"
+                                  },
+                                  {
+                                    "description": "WaitingForValueStore",
+                                    "endTime": "2019-12-11T18:42:17.440Z",
+                                    "startTime": "2019-12-11T18:42:17.421Z"
+                                  },
+                                  {
+                                    "description": "PreparingJob",
+                                    "endTime": "2019-12-11T18:42:19.234Z",
+                                    "startTime": "2019-12-11T18:42:17.440Z"
+                                  },
+                                  {
+                                    "description": "RequestingExecutionToken",
+                                    "endTime": "2019-12-11T18:42:17.421Z",
+                                    "startTime": "2019-12-11T18:42:17.327Z"
+                                  },
+                                  {
+                                    "description": "UpdatingJobStore",
+                                    "endTime": "2019-12-11T18:42:24.842Z",
+                                    "startTime": "2019-12-11T18:42:23.947Z"
+                                  },
+                                  {
+                                    "description": "Pending",
+                                    "endTime": "2019-12-11T18:42:17.327Z",
+                                    "startTime": "2019-12-11T18:42:17.296Z"
+                                  },
+                                  {
+                                    "description": "UpdatingCallCache",
+                                    "endTime": "2019-12-11T18:42:23.947Z",
+                                    "startTime": "2019-12-11T18:42:21.071Z"
+                                  }
+                                ],
+                                "executionStatus": "Done",
+                                "inputs": {},
+                                "outputs": {},
+                                "returnCode": 0,
+                                "runtimeAttributes": {
+                                  "bootDiskSizeGb": "10",
+                                  "continueOnReturnCode": "0",
+                                  "cpu": "1",
+                                  "cpuMin": "1",
+                                  "disks": "local-disk 10 SSD",
+                                  "docker": "ubuntu:latest",
+                                  "failOnStderr": "false",
+                                  "maxRetries": "0",
+                                  "memory": "2 GB",
+                                  "memoryMin": "2 GB",
+                                  "noAddress": "false",
+                                  "preemptible": "0",
+                                  "zones": "us-central1-b"
+                                },
+                                "shardIndex": 0,
+                                "start": "2019-12-11T18:42:17.261Z",
+                                "stderr": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-1/sub_sub.wf/38584ba8-32cb-4a0c-b967-43d8d891c5ea/call-wf/shard-1/sub_sub_sub.wf/6e4807a7-eea3-4a1d-9113-7c47a49c53d7/call-foo/shard-0/stderr",
+                                "stdout": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-1/sub_sub.wf/38584ba8-32cb-4a0c-b967-43d8d891c5ea/call-wf/shard-1/sub_sub_sub.wf/6e4807a7-eea3-4a1d-9113-7c47a49c53d7/call-foo/shard-0/stdout"
+                              },
+                              {
+                                "attempt": 1,
+                                "backend": "Papi",
+                                "backendLogs": {
+                                  "log": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-1/sub_sub.wf/38584ba8-32cb-4a0c-b967-43d8d891c5ea/call-wf/shard-1/sub_sub_sub.wf/6e4807a7-eea3-4a1d-9113-7c47a49c53d7/call-foo/shard-1/foo-1.log"
+                                },
+                                "callCaching": {
+                                  "allowResultReuse": true,
+                                  "effectiveCallCachingMode": "ReadAndWriteCache",
+                                  "hashes": {
+                                    "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+                                    "command template": "28AC999D4F0514B0944A1EC46613714E",
+                                    "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "output count": "CFCD208495D565EF66E7DFF9F98764DA",
+                                    "runtime attribute": {
+                                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                                      "docker": "7C554A50D0473F2C781670682C027660",
+                                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                                    }
+                                  },
+                                  "hit": true,
+                                  "result": "Cache Hit: aa3c5bd0-377f-4bab-818a-e20e3ec4c2f7:wf.foo:0",
+                                  "hitFailures": {
+                                    "this": "should not appear in filtered output"
+                                  }
+                                },
+                                "callRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-1/sub_sub.wf/38584ba8-32cb-4a0c-b967-43d8d891c5ea/call-wf/shard-1/sub_sub_sub.wf/6e4807a7-eea3-4a1d-9113-7c47a49c53d7/call-foo/shard-1",
+                                "compressedDockerSize": 26725216,
+                                "end": "2019-12-11T18:42:24.850Z",
+                                "executionEvents": [
+                                  {
+                                    "description": "Pending",
+                                    "endTime": "2019-12-11T18:42:17.328Z",
+                                    "startTime": "2019-12-11T18:42:17.296Z"
+                                  },
+                                  {
+                                    "description": "PreparingJob",
+                                    "endTime": "2019-12-11T18:42:19.464Z",
+                                    "startTime": "2019-12-11T18:42:17.440Z"
+                                  },
+                                  {
+                                    "description": "RequestingExecutionToken",
+                                    "endTime": "2019-12-11T18:42:17.421Z",
+                                    "startTime": "2019-12-11T18:42:17.328Z"
+                                  },
+                                  {
+                                    "description": "UpdatingCallCache",
+                                    "endTime": "2019-12-11T18:42:23.947Z",
+                                    "startTime": "2019-12-11T18:42:21.071Z"
+                                  },
+                                  {
+                                    "description": "WaitingForValueStore",
+                                    "endTime": "2019-12-11T18:42:17.440Z",
+                                    "startTime": "2019-12-11T18:42:17.421Z"
+                                  },
+                                  {
+                                    "description": "CallCacheReading",
+                                    "endTime": "2019-12-11T18:42:21.071Z",
+                                    "startTime": "2019-12-11T18:42:19.464Z"
+                                  },
+                                  {
+                                    "description": "UpdatingJobStore",
+                                    "endTime": "2019-12-11T18:42:24.846Z",
+                                    "startTime": "2019-12-11T18:42:23.947Z"
+                                  }
+                                ],
+                                "executionStatus": "Done",
+                                "inputs": {},
+                                "outputs": {},
+                                "returnCode": 0,
+                                "runtimeAttributes": {
+                                  "bootDiskSizeGb": "10",
+                                  "continueOnReturnCode": "0",
+                                  "cpu": "1",
+                                  "cpuMin": "1",
+                                  "disks": "local-disk 10 SSD",
+                                  "docker": "ubuntu:latest",
+                                  "failOnStderr": "false",
+                                  "maxRetries": "0",
+                                  "memory": "2 GB",
+                                  "memoryMin": "2 GB",
+                                  "noAddress": "false",
+                                  "preemptible": "0",
+                                  "zones": "us-central1-b"
+                                },
+                                "shardIndex": 1,
+                                "start": "2019-12-11T18:42:17.262Z",
+                                "stderr": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-1/sub_sub.wf/38584ba8-32cb-4a0c-b967-43d8d891c5ea/call-wf/shard-1/sub_sub_sub.wf/6e4807a7-eea3-4a1d-9113-7c47a49c53d7/call-foo/shard-1/stderr",
+                                "stdout": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/call-wf/shard-1/sub.wf/ed5aad2c-57b8-48a6-9332-8364f0f07215/call-wf/shard-1/sub_sub.wf/38584ba8-32cb-4a0c-b967-43d8d891c5ea/call-wf/shard-1/sub_sub_sub.wf/6e4807a7-eea3-4a1d-9113-7c47a49c53d7/call-foo/shard-1/stdout"
+                              }
+                            ]
+                          },
+                          "end": "2019-12-11T18:42:26.450Z",
+                          "id": "6e4807a7-eea3-4a1d-9113-7c47a49c53d7",
+                          "inputs": {},
+                          "outputs": {},
+                          "parentWorkflowId": "38584ba8-32cb-4a0c-b967-43d8d891c5ea",
+                          "rootWorkflowId": "03a7491c-76c1-40f4-93d5-222d0ac2be70",
+                          "start": "2019-12-11T18:42:14.151Z",
+                          "status": "Succeeded",
+                          "workflowName": "wf",
+                          "workflowRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/"
+                        }
+                      }
+                    ]
+                  },
+                  "end": "2019-12-11T18:42:28.431Z",
+                  "id": "38584ba8-32cb-4a0c-b967-43d8d891c5ea",
+                  "inputs": {},
+                  "outputs": {},
+                  "parentWorkflowId": "ed5aad2c-57b8-48a6-9332-8364f0f07215",
+                  "rootWorkflowId": "03a7491c-76c1-40f4-93d5-222d0ac2be70",
+                  "start": "2019-12-11T18:42:11.095Z",
+                  "status": "Succeeded",
+                  "workflowName": "wf",
+                  "workflowRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/"
+                }
+              }
+            ]
+          },
+          "end": "2019-12-11T18:42:30.472Z",
+          "id": "ed5aad2c-57b8-48a6-9332-8364f0f07215",
+          "inputs": {},
+          "outputs": {},
+          "parentWorkflowId": "03a7491c-76c1-40f4-93d5-222d0ac2be70",
+          "rootWorkflowId": "03a7491c-76c1-40f4-93d5-222d0ac2be70",
+          "start": "2019-12-11T18:42:08.020Z",
+          "status": "Succeeded",
+          "workflowName": "wf",
+          "workflowRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/"
+        }
+      }
+    ]
+  },
+  "end": "2019-12-11T18:42:32.508Z",
+  "id": "03a7491c-76c1-40f4-93d5-222d0ac2be70",
+  "inputs": {},
+  "labels": {
+    "cromwell-workflow-id": "cromwell-03a7491c-76c1-40f4-93d5-222d0ac2be70"
+  },
+  "outputs": {},
+  "start": "2019-12-11T18:42:02.756Z",
+  "status": "Succeeded",
+  "submission": "2019-12-11T18:42:01.779Z",
+  "submittedFiles": {
+    "imports": {
+      "sub.wdl": "import \"sub_sub.wdl\" as sub_sub\n\nworkflow wf {\n  scatter (i in range(2)) {\n    call sub_sub.wf\n  }\n}\n",
+      "sub_sub.wdl": "import \"sub_sub_sub.wdl\" as sub_sub_sub\n\nworkflow wf {\n  scatter (i in range(2)) {\n    call sub_sub_sub.wf\n  }\n}\n",
+      "sub_sub_sub.wdl": "\ntask foo {\n  command {\n    echo \"foo\"\n  }\n  runtime {\n    docker: \"ubuntu:latest\"\n  }\n}\n\nworkflow wf {\n  scatter (i in range(2)) {\n    call foo\n  }\n}\n"
+    },
+    "inputs": "{}",
+    "labels": "{}",
+    "options": "{\n\n}",
+    "root": "",
+    "workflow": "import \"sub.wdl\" as sub\n\nworkflow wf {\n  scatter (i in range(2)) {\n    call sub.wf\n  }\n}\n",
+    "workflowUrl": ""
+  },
+  "workflowName": "wf",
+  "workflowProcessingEvents": [
+    {
+      "cromwellId": "cromid-b18a574",
+      "cromwellVersion": "48-ac3de73-SNAP",
+      "description": "PickedUp",
+      "timestamp": "2019-12-11T18:42:02.675Z"
+    },
+    {
+      "cromwellId": "cromid-b18a574",
+      "cromwellVersion": "48-ac3de73-SNAP",
+      "description": "Finished",
+      "timestamp": "2019-12-11T18:42:32.509Z"
+    }
+  ],
+  "workflowRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf/03a7491c-76c1-40f4-93d5-222d0ac2be70/"
+}

@@ -3,6 +3,9 @@ task foo {
   command {
     echo "foo"
   }
+  runtime {
+    docker: "ubuntu:latest"
+  }
 }
 
 workflow wf {

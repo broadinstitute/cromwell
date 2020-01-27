@@ -89,7 +89,7 @@ private::delocalize_file_or_directory() {
 }
 
 
-private::timestamped_message() {
+timestamped_message() {
   printf '%s %s\n' "$(date -u '+%Y/%m/%d %H:%M:%S')" "$1"
 }
 
@@ -98,7 +98,7 @@ private::localize_message() {
   local cloud="$1"
   local container="$2"
   local message=$(printf "Localizing input %s -> %s" "$cloud" "$container")
-  private::timestamped_message "${message}"
+  timestamped_message "${message}"
 }
 
 
@@ -106,7 +106,7 @@ private::delocalize_message() {
   local cloud="$1"
   local container="$2"
   local message=$(printf "Delocalizing output %s -> %s" "$container" "$cloud")
-  private::timestamped_message "${message}"
+  timestamped_message "${message}"
 }
 
 
@@ -158,8 +158,8 @@ localize_files() {
   fi
 
   # We need to determine requester pays status of the first file attempting at most `max_attempts` times.
-  NO_REQUESTER_PAYS_COMMAND="mkdir -p '$container_parent' && gsutil -o 'GSUtil:parallel_thread_count=1' -o 'GSUtil:sliced_object_download_max_components=${num_cpus}' cp '$first_cloud_file' '$container_parent'"
-  REQUESTER_PAYS_COMMAND="gsutil -o 'GSUtil:parallel_thread_count=1' -o 'GSUtil:sliced_object_download_max_components=${num_cpus}' -u $project cp '$first_cloud_file' '$container_parent'"
+  NO_REQUESTER_PAYS_COMMAND="mkdir -p '$container_parent' && rm -f "$HOME/.config/gcloud/gce" && gsutil -o 'GSUtil:parallel_thread_count=1' -o 'GSUtil:sliced_object_download_max_components=${num_cpus}' cp '$first_cloud_file' '$container_parent'"
+  REQUESTER_PAYS_COMMAND="rm -f "$HOME/.config/gcloud/gce" && gsutil -o 'GSUtil:parallel_thread_count=1' -o 'GSUtil:sliced_object_download_max_components=${num_cpus}' -u $project cp '$first_cloud_file' '$container_parent'"
 
   basefile=$(basename "$first_cloud_file")
   private::localize_message "$first_cloud_file" "${container_parent}${basefile}"
@@ -189,6 +189,7 @@ localize_files() {
     attempt=1
     while [[ ${attempt} -le ${max_attempts} ]]; do
       # parallel transfer the remaining files
+      rm -f "$HOME/.config/gcloud/gce"
       if cat files_to_localize.txt | gsutil -o "GSUtil:parallel_thread_count=1" -o "GSUtil:sliced_object_download_max_components=${num_cpus}" -m ${rpflag} cp -I "$container_parent"; then
         break
       else
@@ -324,7 +325,7 @@ delocalize() {
           break
         fi
       else
-        private::timestamped_message "${transfer_fn_name} \"$cloud\" \"$container\" \"$rpflag\" \"$required\" \"$content_type\" failed"
+        timestamped_message "${transfer_fn_name} \"$cloud\" \"$container\" \"$rpflag\" \"$required\" \"$content_type\" failed"
 
         # Print the reason of the failure.
         cat "${gsutil_log}"
@@ -332,7 +333,7 @@ delocalize() {
         # If the requester pays status of the GCS bucket is not certain look for requester pays errors.
         if [[ ${rp_status_certain} = false ]]; then
           if grep -q "Bucket is requester pays bucket but no user project provided." "${gsutil_log}"; then
-            private::timestamped_message "Retrying with user project"
+            timestamped_message "Retrying with user project"
             use_requester_pays=true
             # Do not increment the attempt number, a requester pays failure does not count against retries.
             # Do mark that the bucket in question is certain to have requester pays status.
@@ -367,8 +368,8 @@ localize_singleton_file() {
   local container_parent=$(dirname "$container")
 
   private::localize_message "$cloud" "$container"
-  NO_REQUESTER_PAYS_COMMAND="mkdir -p '$container_parent' && gsutil cp '$cloud' '$container'"
-  REQUESTER_PAYS_COMMAND="gsutil -u $project cp '$cloud' '$container'"
+  NO_REQUESTER_PAYS_COMMAND="mkdir -p '$container_parent' && rm -f "$HOME/.config/gcloud/gce" && gsutil cp '$cloud' '$container'"
+  REQUESTER_PAYS_COMMAND="rm -f "$HOME/.config/gcloud/gce" && gsutil -u $project cp '$cloud' '$container'"
   # As a side effect of determining requester pays this one file will be localized.
   private::determine_requester_pays ${max_attempts}
 }

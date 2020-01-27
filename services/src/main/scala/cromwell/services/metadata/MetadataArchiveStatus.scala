@@ -7,7 +7,7 @@ sealed trait MetadataArchiveStatus
 
 object MetadataArchiveStatus {
 
-  lazy val MetadataArchiveStatusValues = Seq(Unarchived, Archived, ArchiveFailed)
+  lazy val MetadataArchiveStatusValues = Seq(Unarchived, Archived, ArchivedAndPurged, ArchiveFailed)
 
   def toDatabaseValue(status: MetadataArchiveStatus): Option[String] = status match {
     case Unarchived => None
@@ -26,6 +26,7 @@ object MetadataArchiveStatus {
 
   case object Unarchived extends MetadataArchiveStatus
   case object Archived extends MetadataArchiveStatus
+  case object ArchivedAndPurged extends MetadataArchiveStatus // `purged` means that original data is deleted from METADATA_ENTRY table
   case object ArchiveFailed extends MetadataArchiveStatus
 
 }

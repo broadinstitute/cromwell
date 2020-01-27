@@ -296,7 +296,7 @@ services {
     class = "cromwell.services.metadata.hybridcarbonite.HybridMetadataServiceActor"
     config {
       # This section can also contain the same set of options as would be present in the 'config' section of the
-      # default (cromwell.services.metadata.impl.MetadataServiceActor) config
+      # classic (cromwell.services.metadata.impl.MetadataServiceActor) config
     
       # The carbonite section contains carbonite-specific options
       carbonite-metadata-service {

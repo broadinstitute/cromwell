@@ -33,6 +33,7 @@ import cromwell.engine.workflow.workflowstore.{RestartableAborting, StartableSta
 import cromwell.subworkflowstore.SubWorkflowStoreActor.WorkflowComplete
 import cromwell.webservice.EngineStatsActor
 import org.apache.commons.lang3.exception.ExceptionUtils
+import wom.values.WomValue
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -134,8 +135,8 @@ object WorkflowActor {
                                initializationData: AllBackendInitializationData,
                                lastStateReached: StateCheckpoint,
                                effectiveStartableState: StartableState,
-                               workflowFinalOutputs: CallOutputs = CallOutputs.empty,
-                               workflowAllOutputs: CallOutputs = CallOutputs.empty,
+                               workflowFinalOutputs: Set[WomValue] = Set.empty,
+                               workflowAllOutputs: Set[WomValue] = Set.empty,
                                rootAndSubworkflowIds: Set[WorkflowId] = Set.empty)
   object WorkflowActorData {
     def apply(startableState: StartableState): WorkflowActorData = WorkflowActorData(
@@ -236,7 +237,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
 
   private val startTime = System.currentTimeMillis()
 
-  private val DeleteWorkflowFiles = conf.getBoolean("system.delete-workflow-files")
+  private val deleteWorkflowFiles = conf.getBoolean("system.delete-workflow-files")
 
   private val workflowDockerLookupActor = context.actorOf(
     WorkflowDockerLookupActor.props(workflowId, dockerHashActor, initialStartableState.restarted), s"WorkflowDockerLookupActor-$workflowId")
@@ -419,7 +420,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
 
   // TODO: Instead of simply logging to Kibana, figure out a way to tell the user what were the errors somehow (maybe through metadata?)
   // since deletion happens only if the workflow and finalization succeeded we can directly goto Succeeded state
-  when( DeletingFilesState) {
+  when(DeletingFilesState) {
     case Event(DeleteWorkflowFilesSucceededResponse(filesNotFound, callCacheInvalidationErrors), data) =>
       workflowLogger.info(s"Successfully deleted intermediate output file(s) for root workflow $rootWorkflowIdForLogging." +
         deleteFilesAdditionalError(filesNotFound, callCacheInvalidationErrors))
@@ -512,9 +513,19 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
   }
 
   private def deleteFilesAdditionalError(filesNotFound: List[Path], callCacheInvalidationErrors: List[Throwable]): String = {
-    val filesNotFoundMsg = if(filesNotFound.nonEmpty) s" File(s) not found during deletion: ${filesNotFound.mkString(",")}" else ""
-    val invalidationErrorMsg = if(callCacheInvalidationErrors.nonEmpty) s" Call cache invalidation error(s): ${callCacheInvalidationErrors.map(ExceptionUtils.getMessage)}"
-    else ""
+    val filesNotFoundMsg =
+      if (filesNotFound.nonEmpty) {
+        s" File(s) not found during deletion: ${filesNotFound.mkString(",")}"
+      } else {
+        ""
+      }
+
+    val invalidationErrorMsg =
+      if (callCacheInvalidationErrors.nonEmpty) {
+        s" Call cache invalidation error(s): ${callCacheInvalidationErrors.map(ExceptionUtils.getMessage)}"
+      } else {
+        ""
+      }
 
     filesNotFoundMsg + invalidationErrorMsg
   }
@@ -540,7 +551,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
   */
   private def deleteFilesOrGotoFinalState(data: WorkflowActorData) = {
 
-    def deleteWorkflowFiles() = {
+    def deleteFiles() = {
       val rootWorkflowId = data.workflowDescriptor.get.rootWorkflowId
       val deleteActor = context.actorOf(DeleteWorkflowFilesActor.props(
         rootWorkflowId = rootWorkflowId,
@@ -557,12 +568,12 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       goto(DeletingFilesState) using data
     }
 
-    val userDeleteFileWfOption = data.workflowDescriptor.flatMap(d =>
-      d.backendDescriptor.workflowOptions.getBoolean("delete_intermediate_output_files").toOption
+    val userDeleteFileWfOption = data.workflowDescriptor.flatMap(
+      _.backendDescriptor.workflowOptions.getBoolean("delete_intermediate_output_files").toOption
     ).getOrElse(false)
 
-    (DeleteWorkflowFiles, userDeleteFileWfOption, data.workflowAllOutputs.outputs.nonEmpty) match {
-      case (true, true, true) => deleteWorkflowFiles()
+    (deleteWorkflowFiles, userDeleteFileWfOption, data.workflowAllOutputs.nonEmpty) match {
+      case (true, true, true) => deleteFiles()
       case (true, true, false) =>
         log.info(s"Workflow does not have any outputs. No intermediate files to delete.")
         goto(WorkflowSucceededState) using data.copy(currentLifecycleStateActor = None)
@@ -600,13 +611,13 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
                                jobExecutionMap: JobExecutionMap,
                                workflowFinalOutputs: CallOutputs,
                                failures: Option[List[Throwable]],
-                               workflowAllOutputs: CallOutputs = CallOutputs.empty,
+                               workflowAllOutputs: Set[WomValue] = Set.empty,
                                rootAndSubworkflowIds: Set[WorkflowId] = Set.empty) = {
     val finalizationActor = makeFinalizationActor(workflowDescriptor, jobExecutionMap, workflowFinalOutputs)
     finalizationActor ! StartFinalizationCommand
     goto(FinalizingWorkflowState) using data.copy(
       lastStateReached = StateCheckpoint (stateName, failures),
-      workflowFinalOutputs = workflowFinalOutputs,
+      workflowFinalOutputs = workflowFinalOutputs.outputs.values.toSet,
       workflowAllOutputs = workflowAllOutputs,
       rootAndSubworkflowIds = rootAndSubworkflowIds
     )

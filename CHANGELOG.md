@@ -2,6 +2,13 @@
 
 ## 49 Release Notes
 
+### Delete Intermediate Outputs on PapiV2
+
+* **Experimental:** When a new workflow option `delete_intermediate_output_files` is submitted with the workflow,
+intermediate `File` objects will be deleted when the workflow completes. See the [Google Pipelines API Workflow Options
+documentation](https://cromwell.readthedocs.io/en/stable/wf_options/Google#google-pipelines-api-workflow-options)
+for more information.
+
 ### Bug fixes
 
 + Fix a bug where zip files with directories could not be imported. 

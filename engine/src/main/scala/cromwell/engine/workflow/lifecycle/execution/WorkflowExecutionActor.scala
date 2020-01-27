@@ -337,9 +337,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
         case (outputNode, value) => outputNode.graphOutputPort -> value
       })
 
-      val currentCumulativeOutputs = data.cumulativeOutputs.copy(
-        outputs = data.cumulativeOutputs.outputs ++ localOutputs.outputs
-      )
+      val currentCumulativeOutputs = data.cumulativeOutputs ++ localOutputs.outputs.values
 
       val currentRootAndSubworkflowIds = data.rootAndSubworkflowIds + workflowDescriptor.id
 
@@ -472,7 +470,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
                                    data: WorkflowExecutionActorData,
                                    jobExecutionMap: JobExecutionMap,
                                    rootAndSubworkflowIds: Set[WorkflowId],
-                                   cumulativeOutputs: CallOutputs = CallOutputs.empty) = {
+                                   cumulativeOutputs: Set[WomValue] = Set.empty) = {
     pushSuccessfulCallMetadata(jobKey, returnCode, outputs)
     stay() using data.callExecutionSuccess(jobKey, outputs, cumulativeOutputs, rootAndSubworkflowIds).addExecutions(jobExecutionMap)
   }
@@ -744,7 +742,7 @@ object WorkflowExecutionActor {
   case class WorkflowExecutionSucceededResponse(jobExecutionMap: JobExecutionMap,
                                                 rootAndSubworklowIds: Set[WorkflowId],
                                                 outputs: CallOutputs,
-                                                cumulativeOutputs: CallOutputs = CallOutputs.empty)
+                                                cumulativeOutputs: Set[WomValue] = Set.empty)
     extends WorkflowExecutionActorResponse {
     override def toString = "WorkflowExecutionSucceededResponse"
   }
@@ -780,7 +778,7 @@ object WorkflowExecutionActor {
                                           jobExecutionMap: JobExecutionMap,
                                           rootAndSubworklowIds: Set[WorkflowId],
                                           outputs: CallOutputs,
-                                          cumulativeOutputs: CallOutputs = CallOutputs.empty)
+                                          cumulativeOutputs: Set[WomValue] = Set.empty)
 
   case class SubWorkflowFailedResponse(key: SubWorkflowKey, jobExecutionMap: JobExecutionMap, reason: Throwable)
 

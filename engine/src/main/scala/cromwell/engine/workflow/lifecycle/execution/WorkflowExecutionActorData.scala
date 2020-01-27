@@ -24,7 +24,7 @@ object WorkflowExecutionDiff {
 final case class WorkflowExecutionDiff(executionStoreChanges: Map[JobKey, ExecutionStatus],
                                        jobKeyActorMappings: Map[ActorRef, JobKey] = Map.empty,
                                        valueStoreAdditions: Map[ValueKey, WomValue] = Map.empty,
-                                       cumulativeOutputsChanges: Map[OutputPort, WomValue] = Map.empty,
+                                       cumulativeOutputsChanges: Set[WomValue] = Set.empty,
                                        rootAndSubworkflowIds: Set[WorkflowId] = Set.empty) {
   def containsNewEntry: Boolean = {
     executionStoreChanges.exists(esc => esc._2 == NotStarted) || valueStoreAdditions.nonEmpty
@@ -56,7 +56,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
                                       jobFailures: Map[JobKey, Throwable] = Map.empty,
                                       downstreamExecutionMap: JobExecutionMap = Map.empty,
                                       totalJobsByRootWf: AtomicInteger,
-                                      cumulativeOutputs: CallOutputs = CallOutputs.empty,
+                                      cumulativeOutputs: Set[WomValue] = Set.empty,
                                       rootAndSubworkflowIds: Set[WorkflowId]) {
 
   val expressionLanguageFunctions = new EngineIoFunctions(workflowDescriptor.pathBuilders, asyncIo, ec)
@@ -65,11 +65,11 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
     executionStore = executionStore.seal
   )
 
-  def callExecutionSuccess(jobKey: JobKey, outputs: CallOutputs, cumulativeOutputs: CallOutputs, rootAndSubworkflowIds: Set[WorkflowId]): WorkflowExecutionActorData = {
+  def callExecutionSuccess(jobKey: JobKey, outputs: CallOutputs, cumulativeOutputs: Set[WomValue], rootAndSubworkflowIds: Set[WorkflowId]): WorkflowExecutionActorData = {
     mergeExecutionDiff(WorkflowExecutionDiff(
       executionStoreChanges = Map(jobKey -> Done),
       valueStoreAdditions = toValuesMap(jobKey, outputs),
-      cumulativeOutputsChanges = outputs.outputs ++ cumulativeOutputs.outputs,
+      cumulativeOutputsChanges = cumulativeOutputs ++ outputs.outputs.values,
       rootAndSubworkflowIds = rootAndSubworkflowIds
     ))
   }
@@ -117,7 +117,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
       executionStore = executionStore.updateKeys(diff.executionStoreChanges),
       valueStore = valueStore.add(diff.valueStoreAdditions),
       jobKeyActorMappings = jobKeyActorMappings ++ diff.jobKeyActorMappings,
-      cumulativeOutputs = CallOutputs(cumulativeOutputs.outputs ++ diff.cumulativeOutputsChanges),
+      cumulativeOutputs = cumulativeOutputs ++ diff.cumulativeOutputsChanges,
       rootAndSubworkflowIds = rootAndSubworkflowIds ++ diff.rootAndSubworkflowIds
     )
   }

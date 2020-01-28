@@ -1,8 +1,8 @@
-### WDL File to WOM Conversion
+### WDL Source to WOM Conversion
 
 #### Parsing Flowchart
 
-For the various version of WDL supported in Cromwell, the conversion to WOM follows
+For the various versions of WDL supported in Cromwell, the conversion to WOM follows
 these paths: 
 
 ![Parsing Flowchart](wdlmap.svg)
@@ -11,9 +11,9 @@ these paths:
 
 You can think of WDL parsing in Cromwell in terms of the following major steps:
 
-1. Lexing: Converting the raw WDL string into a 1D stream of "tokens".
+1. Lexing: Converting the raw WDL string into a one dimensional stream of "tokens".
 2. Parsing: Converting the stream of tokens into an abstract syntax tree (AST).
-3. Transliteration: Transforming the language-specific AST into a standard set of scala objects
+3. Transliteration: Transforming the language-specific AST into a standard set of Scala objects
 4. Import Resolution: Recursively processing any import statements into WOM bundles.
 5. Linking: Discovering, resolving and recording all references within the AST and imports.
 6. WOM Building: Creating a set of WOM objects
@@ -23,9 +23,9 @@ You can think of WDL parsing in Cromwell in terms of the following major steps:
 #### Intermediate Data Formats
 
 * **WDL Object Model (WDLOM)**:
-    * A scala case class representation of WDL grammar ASTs.
+    * A Scala case class representation of WDL grammar ASTs.
 * **Linked inputs**:
-    * The original file's WDLOM representation
+    * The original WDL source's WDLOM representation
     * And WOM bundles imported
     * Links from any references to their definitions
         * Including custom type references, variable references, task calls, subworkflow calls 

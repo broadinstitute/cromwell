@@ -310,6 +310,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
 }
 
 object PipelinesApiAsyncBackendJobExecutionActor {
+  // (?s) option makes '.' expression to match any symbol, including \n
   private val gcsPathMatcher = "(?s)^gs://?([^/]+)/.*$".r
 
   private [v2alpha1] def groupParametersByGcsBucket[T <: PipelinesParameter](parameters: List[T]): Map[String, NonEmptyList[T]] = {

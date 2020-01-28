@@ -310,7 +310,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
 }
 
 object PipelinesApiAsyncBackendJobExecutionActor {
-  private val gcsPathMatcher = "^gs://?([^/]+)/.*".r
+  private val gcsPathMatcher = "(?s)^gs://?([^/]+)/.*$".r
 
   private [v2alpha1] def groupParametersByGcsBucket[T <: PipelinesParameter](parameters: List[T]): Map[String, NonEmptyList[T]] = {
     parameters.map { param =>

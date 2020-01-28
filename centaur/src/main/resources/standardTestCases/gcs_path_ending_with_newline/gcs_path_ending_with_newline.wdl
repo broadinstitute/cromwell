@@ -24,7 +24,7 @@ task read_file_with_newline_added_to_the_end_of_the_path {
   }
 }
 
-workflow gcp_path_ending_with_newline {
+workflow gcs_path_ending_with_newline {
   call create_file
   call read_file_with_newline_added_to_the_end_of_the_path { input: inputFile = create_file.testFile }
 

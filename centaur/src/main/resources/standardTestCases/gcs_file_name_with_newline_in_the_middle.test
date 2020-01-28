@@ -1,0 +1,11 @@
+name: gcs_file_name_with_spaces_in_the_middle
+testFormat: workflowsuccess
+backends: [Papiv2]
+
+files {
+  workflow: gcs_file_name_with_newline_in_the_middle/gcs_file_name_with_newline_in_the_middle.wdl
+}
+
+metadata {
+  status: Succeeded
+}

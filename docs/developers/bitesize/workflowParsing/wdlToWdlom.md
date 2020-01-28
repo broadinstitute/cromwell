@@ -38,7 +38,7 @@ This allows us to see how Hermes interprets our line of WDL:
 
 In graphical form this is (with string hashes replaced by values, for convenience):
 
-![Hermes AST Graph](WdlToWdlom_hermes.svg)
+![Hermes AST Graph](wdlToWdlom_hermes.svg)
 
 #### How WDLOM represents WDL
 
@@ -62,7 +62,7 @@ InputDeclarationElement(
 
 Again, attempting to show this graphically:
 
-![WDLOM AST Graph](WdlToWdlom_wdlom.svg)
+![WDLOM AST Graph](wdlToWdlom_wdlom.svg)
 
 #### Transliteration functions from Hermes ASTs to WDLOM
 

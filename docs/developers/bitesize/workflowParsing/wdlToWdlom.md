@@ -10,7 +10,7 @@ Int foo = min(100, max(1,2))
 
 Hermes can be asked to show its parse tree for a valid WDL file by running:
 
-```
+```bash
 $ hermes analyze grammar.hgr <WDL FILE>
 ```
 
@@ -46,10 +46,10 @@ WDLOM tries to be a programmer-friendlier, WDL version agnostic data model to ho
 
 It would use the following data structure to represent this declaration:
 
-```
+```scala
 InputDeclarationElement(
     typeElement = PrimitiveTypeElement(WomIntegerType),
-    name = "foo" 
+    name = "foo",
     expression = Min(
         arg1 = PrimitiveLiteralExpressionElement(WomInteger(100)),
         arg2 = Max(

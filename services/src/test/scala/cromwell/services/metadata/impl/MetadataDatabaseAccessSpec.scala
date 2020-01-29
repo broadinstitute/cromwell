@@ -12,13 +12,13 @@ import cromwell.services.database._
 import cromwell.services.metadata._
 import cromwell.services.metadata.impl.MetadataDatabaseAccess.SummaryResult
 import org.scalatest.concurrent.PatienceConfiguration.{Interval, Timeout}
-import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 
 import scala.concurrent.duration._
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
 
 object MetadataDatabaseAccessSpec {
   val AllowFalse = Seq(QueryParameter("allow", "false"))
@@ -34,7 +34,7 @@ object MetadataDatabaseAccessSpec {
   val Subworkflow2Name = "test_subworkflow_2"
 }
 
-class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
+class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Eventually with Mockito {
   import MetadataDatabaseAccessSpec._
 
   implicit val ec = ExecutionContext.global
@@ -85,6 +85,16 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       )
 
       publishMetadataEvents(workflowKey, metadataKeys).map(_ => workflowId)
+    }
+
+    def succeededWorkflowMetadata(id: WorkflowId): Future[WorkflowId] = {
+      val workflowKey = MetadataKey(id, jobKey = None, key = null)
+      val keyAndValue = Array(
+        (WorkflowMetadataKeys.Status, WorkflowRunning.toString),
+        (WorkflowMetadataKeys.Status, WorkflowSucceeded.toString),
+        (WorkflowMetadataKeys.EndTime, OffsetDateTime.now.toUtcMilliString))
+
+      publishMetadataEvents(workflowKey, keyAndValue).map(_ => id)
     }
 
     it should "return pagination metadata only when page and pagesize query params are specified" taggedAs DbmsTest in {
@@ -153,16 +163,6 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       val testLabel1 = Label("testing-key-1", "testing-value-1")
       val testLabel2 = Label("testing-key-2", "testing-value-2")
       val testLabel3 = Label("testing-key-3", "testing-value-3")
-
-      def succeededWorkflowMetadata(id: WorkflowId): Future[Unit] = {
-        val workflowKey = MetadataKey(id, jobKey = None, key = null)
-        val keyAndValue = Array(
-          (WorkflowMetadataKeys.Status, WorkflowRunning.toString),
-          (WorkflowMetadataKeys.Status, WorkflowSucceeded.toString),
-          (WorkflowMetadataKeys.EndTime, OffsetDateTime.now.toUtcMilliString))
-
-        publishMetadataEvents(workflowKey, keyAndValue)
-      }
 
       (for {
         workflow1Id <- baseWorkflowMetadata(Workflow1Name, Set(testLabel1, testLabel2))
@@ -473,9 +473,44 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       } yield()).futureValue
     }
 
+    it should "properly query metadata summaries based on archived status and timestamp and update archive status after metadata deletion" taggedAs DbmsTest in {
+      val defaultTimeout: FiniteDuration = 60.seconds
+
+      val workflowId1Future = succeededWorkflowMetadata(WorkflowId.fromString("11111111-1111-1111-1111-111111111112"))
+      val workflowId2Future = succeededWorkflowMetadata(WorkflowId.fromString("11111111-1111-1111-1111-111111111113"))
+      val workflowId1 = Await.result(workflowId1Future, defaultTimeout)
+      val workflowId2 = Await.result(workflowId2Future, defaultTimeout)
+
+      val refreshSummariesFuture = dataAccess.refreshWorkflowMetadataSummaries(1000, Option(Long.MaxValue))
+      Await.result(refreshSummariesFuture, defaultTimeout)
+
+      val updateMetadataArchiveStatusFuture = dataAccess.updateMetadataArchiveStatus(workflowId1, MetadataArchiveStatus.Archived)
+      Await.result(updateMetadataArchiveStatusFuture, defaultTimeout)
+
+      val responseEmptyFuture = dataAccess.queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(Option("Archived"), OffsetDateTime.now().minusMinutes(1), 200)
+      val responseEmpty = Await.result(responseEmptyFuture, defaultTimeout)
+      responseEmpty shouldBe empty
+
+      eventually(Timeout(2.minutes)) {
+        val responseNonEmptyFuture = dataAccess.queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp (Option ("Archived"), OffsetDateTime.now().minusMinutes(1), 200)
+        val responseNonEmpty = Await.result(responseNonEmptyFuture, 10.seconds)
+        responseNonEmpty should not be empty
+        responseNonEmpty should contain allElementsOf Seq(workflowId1.toString)
+        responseNonEmpty should contain noElementsOf Seq(workflowId2.toString)
+      }
+
+      val deleteMetadataFuture = dataAccess.deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(workflowId1, Option("ArchivedAndPurged"))
+      Await.result(deleteMetadataFuture, defaultTimeout)
+
+      val summaryResponseFuture = dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(WorkflowQueryKey.Id.name -> workflowId1.toString)))
+      val summaryResponse = Await.result(summaryResponseFuture, defaultTimeout)
+      summaryResponse._1.results should not be empty
+      summaryResponse._1.results.head.metadataArchiveStatus.toString shouldBe "ArchivedAndPurged"
+    }
+
     it should "error when deleting metadata for a root workflow that does not exist" taggedAs DbmsTest in {
       dataAccess
-        .deleteNonLabelMetadataEntriesForWorkflow(WorkflowId.fromString("00000000-0000-0000-0000-000000000000"))
+        .deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(WorkflowId.fromString("00000000-0000-0000-0000-000000000000"), None)
         .failed.futureValue(Timeout(10.seconds))
         .getMessage should be("""Metadata deletion precondition failed: workflow ID "00000000-0000-0000-0000-000000000000" not found in summary table""")
     }
@@ -485,7 +520,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         rootWorkflowId <- baseWorkflowMetadata("root workflow name", workflowId = WorkflowId.fromString("11111111-1111-1111-1111-111111111111"))
         subworkflowId <- subworkflowMetadata(rootWorkflowId, "subworkflow name", workflowId = WorkflowId.fromString("22222222-2222-2222-2222-222222222222"))
         _ <- dataAccess.refreshWorkflowMetadataSummaries(1000, Option(Long.MaxValue))
-        _ <- dataAccess.deleteNonLabelMetadataEntriesForWorkflow(subworkflowId)
+        _ <- dataAccess.deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(subworkflowId, None)
       } yield ()
 
       test
@@ -497,7 +532,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       val test = for {
         rootWorkflowId <- baseWorkflowMetadata("root workflow name", workflowId = WorkflowId.fromString("33333333-3333-3333-3333-333333333333"))
         _ <- dataAccess.refreshWorkflowMetadataSummaries(1000, Option(Long.MaxValue))
-        _ <- dataAccess.deleteNonLabelMetadataEntriesForWorkflow(rootWorkflowId)
+        _ <- dataAccess.deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(rootWorkflowId, None)
       } yield ()
 
       test

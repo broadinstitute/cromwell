@@ -656,8 +656,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     }
 
     response match {
-      case CallCacheInvalidatedFailure(failure) => log.error(failure, "Failed to invalidate cache entry for job: {}", jobDescriptorKey)
-      case CallCacheInvalidatedSuccess(Some(entry)) => updateMetadataForInvalidatedEntry(entry)
+      case CallCacheInvalidatedFailure(_, failure) => log.error(failure, "Failed to invalidate cache entry for job: {}", jobDescriptorKey)
+      case CallCacheInvalidatedSuccess(_, Some(entry)) => updateMetadataForInvalidatedEntry(entry)
       case _ =>
     }
 

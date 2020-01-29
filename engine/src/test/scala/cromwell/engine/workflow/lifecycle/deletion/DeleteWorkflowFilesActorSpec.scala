@@ -31,6 +31,8 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
   val serviceRegistryActor = TestProbe()
   val ioActor = TestProbe()
 
+  val emptyWorkflowIdSet = Set.empty[WorkflowId]
+
   it should "follow the expected golden-path lifecycle" in {
     val testProbe = TestProbe()
     val rootWorkflowId = RootWorkflowId(WorkflowId.randomId().id)
@@ -54,7 +56,7 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
         -> WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file2.txt")
     ))
 
-    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
+    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, emptyWorkflowIdSet, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
     testProbe watch testDeleteWorkflowFilesActor
 
     val gcsFilePath: GcsPath = mockPathBuilder.build(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt").get
@@ -116,7 +118,7 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
         -> WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file2.txt")
     ))
 
-    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
+    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, emptyWorkflowIdSet, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
     testProbe watch testDeleteWorkflowFilesActor
 
     val gcsFilePath: GcsPath = mockPathBuilder.build(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt").get
@@ -178,7 +180,7 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
         -> WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file2.txt")
     ))
 
-    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
+    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, emptyWorkflowIdSet, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
     testProbe watch testDeleteWorkflowFilesActor
 
     val gcsFilePath: GcsPath = mockPathBuilder.build(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt").get
@@ -247,13 +249,16 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
     ))
 
     val gcsFilePath: Path = mockPathBuilder.build(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt").get
-    val expectedIntermediateFileList = Set(gcsFilePath)
+    val expectedIntermediateFiles = Set(gcsFilePath)
 
-    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
+    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, emptyWorkflowIdSet, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
 
-    val actualIntermediateFileList = testDeleteWorkflowFilesActor.underlyingActor.gatherIntermediateOutputFiles(allOutputs.outputs, finalOutputs.outputs)
+    val actualIntermediateFiles = testDeleteWorkflowFilesActor.underlyingActor.gatherIntermediateOutputFiles(
+      allOutputs.outputs.values.toSet,
+      finalOutputs.outputs.values.toSet
+    )
 
-    actualIntermediateFileList shouldBe expectedIntermediateFileList
+    actualIntermediateFiles shouldBe expectedIntermediateFiles
   }
 
 
@@ -278,13 +283,16 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
 
     val gcsFilePath1: Path = mockPathBuilder.build(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt").get
     val gcsFilePath2: Path = mockPathBuilder.build(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file2.txt").get
-    val expectedIntermediateFileList = Set(gcsFilePath1, gcsFilePath2)
+    val expectedIntermediateFiles = Set(gcsFilePath1, gcsFilePath2)
 
-    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
+    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, emptyWorkflowIdSet, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
 
-    val actualIntermediateFileList = testDeleteWorkflowFilesActor.underlyingActor.gatherIntermediateOutputFiles(allOutputs.outputs, finalOutputs.outputs)
+    val actualIntermediateFiles = testDeleteWorkflowFilesActor.underlyingActor.gatherIntermediateOutputFiles(
+      allOutputs.outputs.values.toSet,
+      finalOutputs.outputs.values.toSet
+    )
 
-    actualIntermediateFileList shouldBe expectedIntermediateFileList
+    actualIntermediateFiles shouldBe expectedIntermediateFiles
   }
 
 
@@ -315,7 +323,7 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
         -> WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file2.txt")
     ))
 
-    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
+    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, emptyWorkflowIdSet, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
 
     testProbe watch testDeleteWorkflowFilesActor
 
@@ -353,13 +361,16 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
 
     val gcsFilePath1: Path = mockPathBuilder.build(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt").get
     val gcsFilePath2: Path = mockPathBuilder.build(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/file_with_file_path.txt").get
-    val expectedIntermediateFileList = Set(gcsFilePath1, gcsFilePath2)
+    val expectedIntermediateFiles = Set(gcsFilePath1, gcsFilePath2)
 
-    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
+    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, emptyWorkflowIdSet, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
 
-    val actualIntermediateFileList = testDeleteWorkflowFilesActor.underlyingActor.gatherIntermediateOutputFiles(allOutputs.outputs, finalOutputs.outputs)
+    val actualIntermediateFiles = testDeleteWorkflowFilesActor.underlyingActor.gatherIntermediateOutputFiles(
+      allOutputs.outputs.values.toSet,
+      finalOutputs.outputs.values.toSet
+    )
 
-    actualIntermediateFileList shouldBe expectedIntermediateFileList
+    actualIntermediateFiles shouldBe expectedIntermediateFiles
   }
 
 
@@ -395,18 +406,31 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
     val gcsGlobFilePath1: Path = mockPathBuilder.build(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/glob-random_id/intermediate_file1.txt").get
     val gcsGlobFilePath2: Path = mockPathBuilder.build(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/glob-random_id/intermediate_file2.txt").get
 
-    val expectedIntermediateFileList = Set(gcsFilePath1, gcsGlobFilePath1, gcsGlobFilePath2)
+    val expectedIntermediateFiles = Set(gcsFilePath1, gcsGlobFilePath1, gcsGlobFilePath2)
 
-    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
+    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, emptyWorkflowIdSet, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
 
-    val actualIntermediateFileList = testDeleteWorkflowFilesActor.underlyingActor.gatherIntermediateOutputFiles(allOutputs.outputs, finalOutputs.outputs)
+    val actualIntermediateFiles = testDeleteWorkflowFilesActor.underlyingActor.gatherIntermediateOutputFiles(
+      allOutputs.outputs.values.toSet,
+      finalOutputs.outputs.values.toSet
+    )
 
-    actualIntermediateFileList shouldBe expectedIntermediateFileList
+    actualIntermediateFiles shouldBe expectedIntermediateFiles
   }
 }
 
 
-class MockDeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId, workflowFinalOutputs: CallOutputs,
+class MockDeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
+                                   rootAndSubworkflowIds: Set[WorkflowId],
+                                   workflowFinalOutputs: CallOutputs,
                                    workflowAllOutputs: CallOutputs, pathBuilders: PathBuilders,
                                    serviceRegistryActor: ActorRef, ioActor: ActorRef) extends
-  DeleteWorkflowFilesActor(rootWorkflowId, workflowFinalOutputs, workflowAllOutputs, pathBuilders, serviceRegistryActor, ioActor) { }
+  DeleteWorkflowFilesActor(
+    rootWorkflowId,
+    rootAndSubworkflowIds,
+    workflowFinalOutputs.outputs.values.toSet,
+    workflowAllOutputs.outputs.values.toSet,
+    pathBuilders,
+    serviceRegistryActor,
+    ioActor
+  )

@@ -156,4 +156,9 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
 
     runTransaction(action)
   }
+
+  override def callCacheEntryIdsForWorkflowId(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Seq[Int]] = {
+    val action = dataAccess.callCachingEntryIdsForWorkflowId(workflowExecutionUuid).result
+    runTransaction(action)
+  }
 }

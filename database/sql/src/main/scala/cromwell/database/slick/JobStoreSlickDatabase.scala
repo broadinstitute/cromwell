@@ -14,7 +14,7 @@ trait JobStoreSlickDatabase extends JobStoreSqlDatabase {
   override def addJobStores(jobStoreJoins: Seq[JobStoreJoin], batchSize: Int)
                            (implicit ec: ExecutionContext): Future[Unit] = {
 
-    def assignJobStoreIdsToSimpletons(jobStoreIds: Seq[Int]): Seq[JobStoreSimpletonEntry] = {
+    def assignJobStoreIdsToSimpletons(jobStoreIds: Seq[Long]): Seq[JobStoreSimpletonEntry] = {
       val simpletonsByJobStoreEntry = jobStoreJoins map { _.jobStoreSimpletonEntries }
       val jobStoreIdsAndSimpletons = jobStoreIds.toList zip simpletonsByJobStoreEntry
       jobStoreIdsAndSimpletons flatMap { case (id, simpletons) => simpletons.map(_.copy(jobStoreEntryId = Option(id))) }

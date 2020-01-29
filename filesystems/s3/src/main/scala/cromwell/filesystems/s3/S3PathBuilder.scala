@@ -39,7 +39,7 @@ import cromwell.core.WorkflowOptions
 import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.s3.S3PathBuilder._
 import org.lerch.s3fs.S3FileSystemProvider
-import org.lerch.s3fs.util.S3Utils
+import org.lerch.s3fs.util.{AmazonS3ClientProvider, S3Utils}
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
@@ -130,6 +130,7 @@ object S3PathBuilder {
                    configuration: S3Configuration,
                    options: WorkflowOptions,
                    storageRegion: Option[Region]): S3PathBuilder = {
+    AmazonS3ClientProvider.init(provider, storageRegion.getOrElse(Region.US_EAST_2))
     new S3PathBuilder(S3Storage.s3Client(provider, storageRegion), configuration)
   }
 }

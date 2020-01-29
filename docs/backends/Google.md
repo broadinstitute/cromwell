@@ -251,6 +251,16 @@ standards for memory for a VM. So it's possible that even though the request say
 Two environment variables called `${MEM_UNIT}` and `${MEM_SIZE}` are also available inside the command block of a task,
 making it easy to retrieve the new value of memory on the machine.
 
+**Pipeline timeout**
+
+Google sets a default pipeline timeout of 7 days, after which the pipeline will abort. Setting `pipeline-timeout` overrides this limit to a maximum of 30 days.
+
+```hocon
+backend.providers.PAPIv2.config {
+    pipeline-timeout: 14 days
+}
+```
+
 
 #### Google Labels
 

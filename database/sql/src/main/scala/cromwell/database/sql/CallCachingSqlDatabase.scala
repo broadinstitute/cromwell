@@ -22,4 +22,6 @@ trait CallCachingSqlDatabase {
 
   def invalidateCall(callCachingEntryId: Int)
                     (implicit ec: ExecutionContext): Future[Option[CallCachingEntry]]
+
+  def callCacheEntryIdsForWorkflowId(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Seq[Int]]
 }

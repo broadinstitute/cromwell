@@ -155,7 +155,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
     "run Finalization actor if Execution succeeds" in {
       val actor = createWorkflowActor(ExecutingWorkflowState)
       deathwatch watch actor
-      actor ! WorkflowExecutionSucceededResponse(Map.empty, CallOutputs.empty)
+      actor ! WorkflowExecutionSucceededResponse(Map.empty, Set(WorkflowId.randomId()), CallOutputs.empty)
       finalizationProbe.expectMsg(StartFinalizationCommand)
       actor.stateName should be(FinalizingWorkflowState)
       actor ! WorkflowFinalizationSucceededResponse
@@ -280,7 +280,7 @@ class WorkflowActorWithTestAddons(val finalizationProbe: TestProbe,
   serverMode = true,
   workflowHeartbeatConfig = workflowHeartbeatConfig,
   totalJobsByRootWf = totalJobsByRootWf,
-  fileHashCacheActor = None,
+  fileHashCacheActorProps = None,
   blacklistCache = None) {
 
   override val pathBuilderFactories: List[PathBuilderFactory] = extraPathBuilderFactory match {

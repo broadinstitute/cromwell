@@ -97,6 +97,10 @@ class CallCache(database: CallCachingSqlDatabase) {
   def invalidate(callCachingEntryId: CallCachingEntryId)(implicit ec: ExecutionContext) = {
     database.invalidateCall(callCachingEntryId.id)
   }
+
+  def callCacheEntryIdsForWorkflowId(workflowId: String)(implicit ec: ExecutionContext) = {
+    database.callCacheEntryIdsForWorkflowId(workflowId)
+  }
 }
 
 object CallCache {

@@ -1,6 +1,12 @@
 #!/bin/bash
 
 # setup_test_dbs.sh:
+#
+# UPFRONT DISCLAIMER:
+#     This script was made in January 2020 by copy/pasting output from DatabaseTestKit.scala. The longer ago
+#     that is from your current mad alternative-future version of "today" (seriously, what *were* we thinking...),
+#     the more likely something will have diverged and you will want to double-check these startup commands.
+#
 # The tests in KeyValueDatabaseSpec assume a number of test databases will be running locally. The
 # tests print out a message on how to set these up: This script just runs all of them in sequence
 # with some retries in case the docker images aren't available when the DB reset is run.

@@ -86,6 +86,11 @@ object Dependencies {
   private val simulacrumV = "0.15.0"
   private val slf4jV = "1.7.25"
   private val slickCatsV = "0.9.0"
+
+  /* If you're about to update our slick version:
+    * See https://github.com/broadinstitute/cromwell/pull/5332 which removed upserts because of failing tests in Slick 3.3.2
+    * Consider checking whether the new slick version passes tests with upserts enabled (eg KeyValueDatabaseSpec)
+  */
   private val slickV = "3.3.2"
   private val snakeyamlV = "1.23"
   private val specs2MockV = "4.4.1"

@@ -66,7 +66,7 @@ Again, attempting to show this graphically:
 
 #### Transliteration functions from Hermes ASTs to WDLOM
 
-The various classes in the `wdl.transforms.base.ast2wdlom` package implement conversions from various types of Ast element into various types of WDLOM.
+The various classes in the `wdl.transforms.base.ast2wdlom` package implement conversions from various types of AST element into various types of WDLOM.
 
 Let's look at [`AstToInputDeclarationElement`](https://github.com/broadinstitute/cromwell/blob/master/wdl/transforms/new-base/src/main/scala/wdl/transforms/base/ast2wdlom/AstToInputDeclarationElement.scala):
 

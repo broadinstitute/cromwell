@@ -24,5 +24,6 @@ cromwell::build::run_centaur \
     -e relative_output_paths \
     -e relative_output_paths_colliding \
     -e standard_output_paths_colliding_prevented \
+    -e papi_v2beta_gcsa \
 
 cromwell::build::generate_code_coverage

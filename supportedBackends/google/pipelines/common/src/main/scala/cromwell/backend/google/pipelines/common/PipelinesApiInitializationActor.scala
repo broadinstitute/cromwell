@@ -58,7 +58,7 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
       CloudLifeSciencesScopes.CLOUD_PLATFORM,
       GenomicsScopes.GENOMICS,
       /*
-      Genomics Pipelines API v1alpha2 requires the COMPUTE scope. Does not seem to be required for v2beta.
+      Genomics Pipelines API v1alpha2 requires the COMPUTE scope. Does not seem to be required for either v2alpha1 or v2beta.
        */
       GenomicsScopes.COMPUTE,
       /*

@@ -118,10 +118,10 @@ cromwell::private::papi::setup_papi_refresh_token() {
 }
 
 cromwell::private::papi::setup_papi_endpoint_url() {
-    if [[ "${CROMWELL_BUILD_TYPE}" == "centaurPapiV1" ]]; then
-        PAPI_ENDPOINT_URL="https://genomics.googleapis.com/"
-    else
+    if [[ "${CROMWELL_BUILD_TYPE}" == "centaurPapiV2" ]]; then
         PAPI_ENDPOINT_URL="https://lifesciences.googleapis.com/"
+    else
+        PAPI_ENDPOINT_URL="https://genomics.googleapis.com/"
     fi
 
     export PAPI_ENDPOINT_URL

@@ -1,4 +1,4 @@
-package cromwell.backend.google.pipelines.v2beta
+package cromwell.backend.google.pipelines.v2alpha1
 
 import java.net.URL
 
@@ -7,16 +7,16 @@ import com.google.api.client.http.{HttpRequest, HttpRequestInitializer, HttpResp
 import com.google.api.services.bigquery.BigqueryScopes
 import com.google.api.services.cloudresourcemanager.CloudResourceManager
 import com.google.api.services.compute.ComputeScopes
-import com.google.api.services.lifesciences.v2beta.model._
-import com.google.api.services.lifesciences.v2beta.{CloudLifeSciences, CloudLifeSciencesScopes}
+import com.google.api.services.genomics.v2alpha1.model._
+import com.google.api.services.genomics.v2alpha1.{Genomics, GenomicsScopes}
 import com.google.api.services.oauth2.Oauth2Scopes
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.http.HttpCredentialsAdapter
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{GcsTransferConfiguration, VirtualPrivateCloudConfiguration}
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiFactoryInterface, PipelinesApiRequestFactory}
-import cromwell.backend.google.pipelines.v2beta.PipelinesConversions._
-import cromwell.backend.google.pipelines.v2beta.api._
+import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
+import cromwell.backend.google.pipelines.v2alpha1.api._
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.core.DockerConfiguration
@@ -31,7 +31,7 @@ import wom.format.MemorySize
 
 import scala.collection.JavaConverters._
 
-case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode, endpointUrl: URL, location: String)(implicit gcsTransferConfiguration: GcsTransferConfiguration) extends PipelinesApiFactoryInterface
+case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, endpointUrl: URL)(implicit gcsTransferConfiguration: GcsTransferConfiguration) extends PipelinesApiFactoryInterface
   with ContainerSetup
   with MonitoringAction
   with Localization
@@ -42,10 +42,10 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
   override def build(initializer: HttpRequestInitializer): PipelinesApiRequestFactory = new PipelinesApiRequestFactory {
     implicit lazy val googleProjectMetadataLabelDecoder: Decoder[ProjectLabels] = deriveDecoder
 
-    val ResourceManagerAuthScopes = List(CloudLifeSciencesScopes.CLOUD_PLATFORM)
+    val ResourceManagerAuthScopes = List(GenomicsScopes.CLOUD_PLATFORM)
     val VirtualPrivateCloudNetworkPath = "projects/%s/global/networks/%s/"
 
-    val lifeSciences = new CloudLifeSciences.Builder(
+    val genomics = new Genomics.Builder(
       GoogleAuthMode.httpTransport,
       GoogleAuthMode.jsonFactory,
       initializer)
@@ -54,11 +54,11 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
       .build
 
     override def cancelRequest(job: StandardAsyncJob) = {
-      lifeSciences.projects().locations().operations().cancel(job.jobId, new CancelOperationRequest()).buildHttpRequest()
+      genomics.projects().operations().cancel(job.jobId, new CancelOperationRequest()).buildHttpRequest()
     }
 
     override def getRequest(job: StandardAsyncJob) = {
-      lifeSciences.projects().locations().operations().get(job.jobId).buildHttpRequest()
+      genomics.projects().operations().get(job.jobId).buildHttpRequest()
     }
 
     override def runRequest(createPipelineParameters: CreatePipelineParameters, jobLogger: JobLogger): HttpRequest = {
@@ -96,7 +96,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
           case Some(networkLabel) =>
             val network = new Network()
               .setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)
-              .setNetwork(VirtualPrivateCloudNetworkPath.format(createPipelineParameters.projectId, networkLabel._2))
+              .setName(VirtualPrivateCloudNetworkPath.format(createPipelineParameters.projectId, networkLabel._2))
 
             subnetworkLabelOption foreach { case(_, subnet) => network.setSubnetwork(subnet) }
             network
@@ -148,21 +148,22 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
 
       // Start background actions first, leave the rest as is
       val sortedActions = allActions.sortWith({
-        case (a1, _) => a1.getRunInBackground
+        case (a1, _) => Option(a1.getFlags).map(_.asScala).toList.flatten.contains(ActionFlag.RunInBackground.toString)
       })
 
       val serviceAccount = new ServiceAccount()
         .setEmail(createPipelineParameters.computeServiceAccount)
         .setScopes(
           List(
+            GenomicsScopes.GENOMICS,
             ComputeScopes.COMPUTE,
             StorageScopes.DEVSTORAGE_FULL_CONTROL,
-            LifeSciencesFactory.KmsScope,
+            GenomicsFactory.KmsScope,
             // Profile and Email scopes are requirements for interacting with Martha v2
             Oauth2Scopes.USERINFO_EMAIL,
             Oauth2Scopes.USERINFO_PROFILE,
             // Monitoring scope as POC
-            LifeSciencesFactory.MonitoringWrite,
+            GenomicsFactory.MonitoringWrite,
             // Allow read/write with BigQuery
             BigqueryScopes.BIGQUERY
           ).asJava
@@ -188,7 +189,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
           jobLogger.info(s"Adjusting boot disk size to $actualSizeRoundedUpInGB GB to account for docker image size")
         }
 
-        Math.max(fromRuntimeAttributes, actualSizeRoundedUpInGB) + LifeSciencesFactory.CromwellImagesSizeRoundedUpInGB
+        Math.max(fromRuntimeAttributes, actualSizeRoundedUpInGB) + GenomicsFactory.CromwellImagesSizeRoundedUpInGB
       }
 
       val virtualMachine = new VirtualMachine()
@@ -208,6 +209,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
       createPipelineParameters.runtimeAttributes.cpuPlatform.map(virtualMachine.setCpuPlatform)
 
       val resources = new Resources()
+        .setProjectId(createPipelineParameters.projectId)
         .setZones(createPipelineParameters.runtimeAttributes.zones.asJava)
         .setVirtualMachine(virtualMachine)
 
@@ -215,21 +217,20 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
         .setResources(resources)
         .setActions(sortedActions.asJava)
         .setEnvironment(environment)
-        .setTimeout(createPipelineParameters.pipelineTimeout.toSeconds.toString + "s")
+        .setTimeout(createPipelineParameters.pipelineTimeout.toSeconds.toString() + "s")
 
       val pipelineRequest = new RunPipelineRequest()
         .setPipeline(pipeline)
         .setLabels(createPipelineParameters.googleLabels.map(label => label.key -> label.value).toMap.asJava)
 
-      val parent = s"projects/${createPipelineParameters.projectId}/locations/$location"
-      lifeSciences.projects().locations().pipelines().run(parent, pipelineRequest).buildHttpRequest()
+      genomics.pipelines().run(pipelineRequest).buildHttpRequest()
     }
   }
 
   override def usesEncryptedDocker: Boolean = true
 }
 
-object LifeSciencesFactory {
+object GenomicsFactory {
   /**
     * More restricted version of com.google.api.services.cloudkms.v1.CloudKMSScopes.CLOUD_PLATFORM
     * Could use that scope to keep things simple, but docs say to use a more restricted scope:

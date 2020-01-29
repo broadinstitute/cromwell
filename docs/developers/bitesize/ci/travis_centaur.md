@@ -4,27 +4,28 @@ For infrastructures that require secured credentials, cloud backend tests only r
 
 Other backends run tests for any user.
 
-| Backend | Read-only users | Write/Admin users |
-|---------|:---------------:|:-----------------:|
-| AWS     |                 |        ✅         |
-| BCS     |                 |        ✅         |
-| Local   |       ✅        |        ✅         |
-| PAPI V1 |                 |        ✅         |
-| PAPI V2 |                 |        ✅         |
-| SLURM   |       ✅        |        ✅         |
-| TES     |       ✅        |        ✅         |
+| Backend       | Read-only users | Write/Admin users |
+|---------------|:---------------:|:-----------------:|
+| AWS           |                 |        ✅         |
+| BCS           |                 |        ✅         |
+| Local         |       ✅        |        ✅         |
+| PAPI V1       |                 |        ✅         |
+| PAPI V2alpha1 |                 |        ✅         |
+| PAPI V2beta   |                 |        ✅         |
+| SLURM         |       ✅        |        ✅         |
+| TES           |       ✅        |        ✅         |
 
 ## Upgrade / Horicromtal / etc.
 
-| CI Test Type                  | Cromwell Config                          | Centaur Config                                         |
-|-------------------------------|------------------------------------------|--------------------------------------------------------|
-| Engine Upgrade                | `(backend)_application.conf`             | `centaur_application.conf`*                            |
-| Horicromtal                   | `papi_v2_horicromtal_application.conf`** | `centaur_application_`<br>`horicromtal.conf`           |
-| Horicromtal<br>Engine Upgrade | `papi_v2_application.conf`**             | `centaur_application_`<br>`horicromtal_no_assert.conf` |
-| Papi Upgrade                  | `papi_v1_v2_upgrade_application.conf`**  | `centaur_application.conf`*                            |
-| Papi Upgrade<br>New Workflows | `(backend)_application.conf`             | `centaur_application.conf`*                            |
-| WDL Upgrade                   | `(backend)_application.conf`             | `centaur_application.conf`*                            |
-| (other)                       | `(backend)_application.conf`             | `centaur_application.conf`*                            |
+| CI Test Type                  | Cromwell Config                                                  | Centaur Config                                         |
+|-------------------------------|------------------------------------------------------------------|--------------------------------------------------------|
+| Engine Upgrade                | `(backend)_application.conf`                                     | `centaur_application.conf`*                            |
+| Horicromtal                   | `papi_[v2beta or v2alpha1]_horicromtal_application.conf`**       | `centaur_application_`<br>`horicromtal.conf`           |
+| Horicromtal<br>Engine Upgrade | `papi_v2beta_application.conf`**                                 | `centaur_application_`<br>`horicromtal_no_assert.conf` |
+| Papi Upgrade                  | `papi_v1_v2alpha1_upgrade_application.conf`**                    | `centaur_application.conf`*                            |
+| Papi Upgrade<br>New Workflows | `(backend)_application.conf`                                     | `centaur_application.conf`*                            |
+| WDL Upgrade                   | `(backend)_application.conf`                                     | `centaur_application.conf`*                            |
+| (other)                       | `(backend)_application.conf`                                     | `centaur_application.conf`*                            |
 
 | CI Test Type                  | ScalaTest Spec              | Test Directory                      |
 |-------------------------------|-----------------------------|-------------------------------------|
@@ -37,7 +38,8 @@ Other backends run tests for any user.
 | (other)                       | `CentaurTestSuite`          | `standardTestCases`                 |
 
 <small>
-\* Centaur Config always uses `centaur_application.conf` except when overridden with `papi_v2_centaur_application.conf`
+\* Centaur Config always uses `centaur_application.conf` except when overridden with `papi_v2alpha1_centaur_application.conf`
+or `papi_v2beta_centaur_application.conf`
   ([48 preview link](https://github.com/broadinstitute/cromwell/blob/a7d0601/src/ci/bin/test.inc.sh#L455-L457))  
 \*\* Cromwell Config overrides
   ([47 link](https://github.com/broadinstitute/cromwell/blob/47/src/ci/bin/test.inc.sh#L213-L221))  

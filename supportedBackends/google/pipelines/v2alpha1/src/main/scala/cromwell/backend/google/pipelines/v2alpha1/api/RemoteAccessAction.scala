@@ -12,7 +12,7 @@ trait RemoteAccessAction {
     val workflowOptions = createPipelineParameters.jobDescriptor.workflowDescriptor.workflowOptions
 
     workflowOptions.getBoolean(WorkflowOptionKeys.EnableRemoteAccess).toOption match {
-      case Some(enable) if enable => remoteAccessAction(mounts)
+      case Some(true) => remoteAccessAction(mounts)
       case _ => List.empty
     }
   }

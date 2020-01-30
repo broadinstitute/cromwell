@@ -2,7 +2,7 @@
 
 #### Expressions in WOM
 
-Expressions in the WOM model all expose the following methods:
+Expressions in WOM expose the following methods:
 
 * List the names of inputs which the expression will need in order to evaluate.
 * List the files which would need to be available in order to evaluate.
@@ -17,7 +17,7 @@ Relating back to the [WDL parsing](../workflowParsing/wdlParsingOverview.md) pro
 * Reference resolution between WDLOM elements occurs during the linking phase. 
 * WDLOM `ExpressionElement`s are wrapped into `WdlomWomExpression`s during the graph building phase.
 
-It is during the graph construction phase that static expression elements are mixed together with evaluation functions
+During the graph construction phase static expression elements are mixed together with evaluation functions
 to produce the final WOM expressions, and any differences between language versions are baked in. 
 
 #### Where evaluation functions are coded

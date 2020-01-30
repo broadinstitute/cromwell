@@ -6,18 +6,18 @@ import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.C
 
 import scala.collection.JavaConverters._
 
-trait RemoteAccessAction {
+trait SSHAccessAction {
 
-  def remoteAccessActions(createPipelineParameters: CreatePipelineParameters, mounts: List[Mount]) : List[Action] = {
+  def sshAccessActions(createPipelineParameters: CreatePipelineParameters, mounts: List[Mount]) : List[Action] = {
     val workflowOptions = createPipelineParameters.jobDescriptor.workflowDescriptor.workflowOptions
 
-    workflowOptions.getBoolean(WorkflowOptionKeys.EnableRemoteAccess).toOption match {
-      case Some(true) => remoteAccessAction(mounts)
+    workflowOptions.getBoolean(WorkflowOptionKeys.EnableSSHAccess).toOption match {
+      case Some(true) => sshAccessAction(mounts)
       case _ => List.empty
     }
   }
 
-  private def remoteAccessAction(mounts: List[Mount]): List[Action] = {
+  private def sshAccessAction(mounts: List[Mount]): List[Action] = {
     val ports = Map("22" -> new Integer(22))
 
     val sshAction = ActionBuilder.withImage("gcr.io/cloud-genomics-pipelines/tools")

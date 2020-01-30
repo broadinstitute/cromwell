@@ -110,7 +110,7 @@ object DatabaseTestKit extends StrictLogging {
   /**
     * Returns a config for a DatabaseSystem.
     */
-  def getConfig(databaseSystem: DatabaseSystem): Config = {
+  private def getConfig(databaseSystem: DatabaseSystem): Config = {
     databaseSystem match {
       case HsqldbDatabaseSystem => hsqldbDatabaseConfig
       case networkDatabaseSystem: NetworkDatabaseSystem =>

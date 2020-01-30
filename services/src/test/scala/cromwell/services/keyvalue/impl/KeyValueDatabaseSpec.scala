@@ -20,12 +20,7 @@ class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with
   implicit val ec = ExecutionContext.global
   implicit val defaultPatience = PatienceConfig(scaled(Span(5, Seconds)), scaled(Span(100, Millis)))
 
-  val databaseSystemConfigs = DatabaseSystem.All map { databaseSystem =>
-    (databaseSystem, DatabaseTestKit.getConfig(databaseSystem))
-  }
-
   DatabaseSystem.All foreach { databaseSystem =>
-
     behavior of s"KeyValueDatabase on ${databaseSystem.name}"
 
     lazy val dataAccess = DatabaseTestKit.initializedDatabaseFromSystem(EngineDatabaseType, databaseSystem)

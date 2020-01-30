@@ -121,8 +121,8 @@ object KeyValueDatabaseSpec {
   private def getFailureClass(databaseSystem: DatabaseSystem): Class[_ <: Exception] = {
     databaseSystem.platform match {
       case HsqldbDatabasePlatform => classOf[SQLIntegrityConstraintViolationException]
-      case MariadbDatabasePlatform => classOf[BatchUpdateException]
-      case MysqlDatabasePlatform => classOf[BatchUpdateException]
+      case MariadbDatabasePlatform => classOf[SQLIntegrityConstraintViolationException]
+      case MysqlDatabasePlatform => classOf[SQLIntegrityConstraintViolationException]
       case PostgresqlDatabasePlatform => classOf[PSQLException]
     }
   }

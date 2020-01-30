@@ -135,16 +135,22 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
  */
   private def upsertCustomLabelEntry(customLabelEntry: CustomLabelEntry)
                                     (implicit ec: ExecutionContext): DBIO[Unit] = {
-    for {
-      updateCount <- dataAccess.
-        customLabelEntriesForWorkflowExecutionUuidAndLabelKey(
-          (customLabelEntry.workflowExecutionUuid, customLabelEntry.customLabelKey)
-        ).update(customLabelEntry)
-      _ <- updateCount match {
-        case 0 => dataAccess.customLabelEntryIdsAutoInc += customLabelEntry
-        case _ => assertUpdateCount("upsertCustomLabelEntry", updateCount, 1)
-      }
-    } yield ()
+    if (useSlickUpserts) {
+      for {
+        _ <- dataAccess.customLabelEntryIdsAutoInc.insertOrUpdate(customLabelEntry)
+      } yield ()
+    } else {
+      for {
+        updateCount <- dataAccess.
+          customLabelEntriesForWorkflowExecutionUuidAndLabelKey(
+            (customLabelEntry.workflowExecutionUuid, customLabelEntry.customLabelKey)
+          ).update(customLabelEntry)
+        _ <- updateCount match {
+          case 0 => dataAccess.customLabelEntryIdsAutoInc += customLabelEntry
+          case _ => assertUpdateCount("upsertCustomLabelEntry", updateCount, 1)
+        }
+      } yield ()
+    }
   }
 
   /* If you're about to (re-)introduce slick upserts (or insertOrUpdates):
@@ -153,15 +159,21 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
    */
   private def upsertWorkflowMetadataSummaryEntry(workflowMetadataSummaryEntry: WorkflowMetadataSummaryEntry)
                                                 (implicit ec: ExecutionContext): DBIO[Unit] = {
-    for {
-      updateCount <- dataAccess.
-        workflowMetadataSummaryEntriesForWorkflowExecutionUuid(workflowMetadataSummaryEntry.workflowExecutionUuid).
-        update(workflowMetadataSummaryEntry)
-      _ <- updateCount match {
-        case 0 => dataAccess.workflowMetadataSummaryEntryIdsAutoInc += workflowMetadataSummaryEntry
-        case _ => assertUpdateCount("upsertWorkflowMetadataSummaryEntry", updateCount, 1)
-      }
-    } yield ()
+    if (useSlickUpserts) {
+      for {
+        _ <- dataAccess.workflowMetadataSummaryEntryIdsAutoInc.insertOrUpdate(workflowMetadataSummaryEntry)
+      } yield ()
+    } else {
+      for {
+        updateCount <- dataAccess.
+          workflowMetadataSummaryEntriesForWorkflowExecutionUuid(workflowMetadataSummaryEntry.workflowExecutionUuid).
+          update(workflowMetadataSummaryEntry)
+        _ <- updateCount match {
+          case 0 => dataAccess.workflowMetadataSummaryEntryIdsAutoInc += workflowMetadataSummaryEntry
+          case _ => assertUpdateCount("upsertWorkflowMetadataSummaryEntry", updateCount, 1)
+        }
+      } yield ()
+    }
   }
 
   override def summarizeIncreasing(summarizeNameIncreasing: String,

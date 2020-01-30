@@ -1,6 +1,6 @@
 package cromwell.services.keyvalue.impl
 
-import java.sql.{BatchUpdateException, SQLIntegrityConstraintViolationException}
+import java.sql.SQLIntegrityConstraintViolationException
 
 import cromwell.core.Tags.DbmsTest
 import cromwell.core.WorkflowId

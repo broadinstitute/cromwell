@@ -1,0 +1,39 @@
+digraph "Hermes ASTs" {
+  compound=true;
+  #rankdir=LR;
+
+  declarationAst [shape=oval label="AST\nname='Declaration'"];
+  declarationTypeTerminal [shape=box label="Terminal\ntokentype='type'\nvalue=\"Int\""]
+  declarationNameTerminal [shape=box label="Terminal\ntokentype='identifier'\nvalue=\"foo\""]
+
+  minExpressionAst [shape=oval label="AST\nname='FunctionCall'"]
+  minExpressionName [shape=box label="Terminal\ntokentype='identifier'\nvalue=\"min\""]
+  minExpressionParams [shape=record label="<f0>|<f1> Array|<f2>"]
+
+  literal100 [shape=box label="Terminal\ntokentype='integer'\nvalue=\"100\""]
+  maxExpressionAst [shape=oval label="AST\nname='FunctionCall'"]
+
+  maxExpressionName [shape=box label="Terminal\nvalue=\"max\""]
+  maxExpressionParams [shape=record label="<f0>|<f1> Array|<f2>"]
+
+  literal1 [shape=box label="Terminal\ntokentype='integer'\nvalue=\"1\""]
+  literal2 [shape=box label="Terminal\ntokentype='integer'\nvalue=\"2\""]
+
+
+  declarationAst -> declarationTypeTerminal [label="['type']"]
+  declarationAst -> declarationNameTerminal [label="['name']"]
+  declarationAst -> minExpressionAst [label="['expression']"]
+
+  minExpressionAst -> minExpressionName [label="['name']"]
+  minExpressionAst -> minExpressionParams [label="['params']"]
+
+  minExpressionParams -> literal100 [label="[0]"]
+  minExpressionParams -> maxExpressionAst [label="[1]"]
+
+  maxExpressionAst -> maxExpressionName [label="['name']"]
+  maxExpressionAst -> maxExpressionParams [label="['params']"]
+
+  maxExpressionParams -> literal1 [label="[0]"]
+  maxExpressionParams -> literal2 [label="[1]"]
+
+}

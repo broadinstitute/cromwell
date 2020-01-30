@@ -13,10 +13,6 @@ trait SummaryStatusSlickDatabase {
     dataAccess.summaryPositionForSummaryName(summaryName).result.headOption
   }
 
-  /* If you're about to (re-)introduce slick upserts (or insertOrUpdates):
-    * See https://github.com/broadinstitute/cromwell/pull/5332 which removed them for failing tests in Slick 3.3.2
-    * Make sure the new slick version you're using passes KeyValueDatabaseSpec (and all the others, of course)
- */
   private[slick] def upsertSummaryStatusEntrySummaryPosition(summaryName: String,
                                                              summaryPosition: Long)
                                                             (implicit ec: ExecutionContext): DBIO[Unit] = {

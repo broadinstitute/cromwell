@@ -129,10 +129,6 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     customLabelEntry
   }
 
-  /* If you're about to (re-)introduce slick upserts (or insertOrUpdates):
-    * See https://github.com/broadinstitute/cromwell/pull/5332 which removed them for failing tests in Slick 3.3.2
-    * Make sure the new slick version you're using passes KeyValueDatabaseSpec (and all the others, of course)
- */
   private def upsertCustomLabelEntry(customLabelEntry: CustomLabelEntry)
                                     (implicit ec: ExecutionContext): DBIO[Unit] = {
     if (useSlickUpserts) {
@@ -153,10 +149,6 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     }
   }
 
-  /* If you're about to (re-)introduce slick upserts (or insertOrUpdates):
-      * See https://github.com/broadinstitute/cromwell/pull/5332 which removed them for failing tests in Slick 3.3.2
-      * Make sure the new slick version you're using passes KeyValueDatabaseSpec (and all the others, of course)
-   */
   private def upsertWorkflowMetadataSummaryEntry(workflowMetadataSummaryEntry: WorkflowMetadataSummaryEntry)
                                                 (implicit ec: ExecutionContext): DBIO[Unit] = {
     if (useSlickUpserts) {

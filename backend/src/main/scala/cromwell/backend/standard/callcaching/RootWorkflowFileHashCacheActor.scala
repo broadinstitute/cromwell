@@ -78,7 +78,7 @@ class RootWorkflowFileHashCacheActor private[callcaching](override val ioActor: 
       case FileHashValueRequested(requesters) => notifyRequestersAndCacheValue(requesters.toList)
       case FileHashValueNotRequested =>
         log.info(s"Got reply from IoActor for the file ${fileHashContext.file} after the timeout. " +
-          s"Will put it in cache just in case. None of the previous requesters will be notified.")
+          "Will put it in cache just in case. None of the previous requesters will be notified.")
         notifyRequestersAndCacheValue(List.empty[FileHashRequester])
       case _ =>
         log.error(s"Programmer error! Not expecting message type ${ioAck.getClass.getSimpleName} when the hash value has already been received: $fileHashContext")

@@ -98,7 +98,7 @@ class RootWorkflowFileHashCacheActor private[callcaching](override val ioActor: 
             log.error(s"Programmer error! Not expecting a hash request timeout when a hash value has not been requested: ${fileHashContext.file}")
           case v =>
             log.info(s"Received hash request timeout when hash value '$v' was already in the cache: ${fileHashContext.file}." +
-              s"This is normal and happens due to race condition between scheduler thread responsible for firing timeouts and actor's message processing thread.")
+              "This is normal and happens due to race condition between scheduler thread responsible for firing timeouts and actor's message processing thread.")
         }
       case other =>
         log.error(s"Programmer error! Root workflow file hash caching actor received unexpected timeout message: $other")

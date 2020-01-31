@@ -40,7 +40,7 @@ class RootWorkflowHashCacheActorSpec extends TestKitSuite("RootWorkflowHashCache
   it should "properly handle the situation when timeout occurs when response from IoActor has already been received, but timer has not yet been disabled" in {
     val ioActorProbe = TestProbe()
     val rootWorkflowFileHashCacheActor = system.actorOf(Props(new RootWorkflowFileHashCacheActor(ioActorProbe.ref, fakeWorkflowId) {
-      // Effectively disabling automatic timeout handling here. We'll send RequestTimeout ourselves
+      // Effectively disabling automatic timeout firing here. We'll send RequestTimeout ourselves
       override lazy val defaultIoTimeout = 1.hour
     }))
 

@@ -9,12 +9,12 @@ import cromwell.core.callcaching.HashKey
 import cromwell.core.io.DefaultIoCommand.DefaultIoHashCommand
 import cromwell.core.io.IoSuccess
 import cromwell.core.path.DefaultPathBuilder
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.FlatSpecLike
 
 import scala.concurrent.duration._
 
 class RootWorkflowHashCacheActorSpec extends TestKitSuite("RootWorkflowHashCacheActorSpec") with ImplicitSender
-  with FlatSpecLike with Matchers {
+  with FlatSpecLike {
 
   private val fakeWorkflowId = WorkflowId.randomId()
   private val fakeFileName = "fakeFileName"

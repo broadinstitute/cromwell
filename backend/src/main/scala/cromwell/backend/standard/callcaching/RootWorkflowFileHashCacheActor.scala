@@ -11,7 +11,7 @@ import cromwell.core.actor.RobustClientHelper.RequestTimeout
 import cromwell.core.io._
 
 
-class RootWorkflowFileHashCacheActor private(override val ioActor: ActorRef, workflowId: WorkflowId) extends Actor with ActorLogging with IoClientHelper {
+class RootWorkflowFileHashCacheActor private[callcaching](override val ioActor: ActorRef, workflowId: WorkflowId) extends Actor with ActorLogging with IoClientHelper {
   case class FileHashRequester(replyTo: ActorRef, fileHashContext: FileHashContext, ioCommand: IoCommand[_])
 
   sealed trait FileHashValue
@@ -54,7 +54,7 @@ class RootWorkflowFileHashCacheActor private(override val ioActor: ActorRef, wor
     // Hash Success
     case (hashContext: FileHashContext, success @ IoSuccess(_, value: String)) =>
       handleHashResult(success, hashContext) { requesters =>
-        requesters.toList foreach { case FileHashRequester(replyTo, fileHashContext, ioCommand) =>
+        requesters foreach { case FileHashRequester(replyTo, fileHashContext, ioCommand) =>
           replyTo ! Tuple2(fileHashContext, IoSuccess(ioCommand, success.result))
         }
         cache.put(hashContext.file, FileHashSuccess(value))
@@ -62,7 +62,7 @@ class RootWorkflowFileHashCacheActor private(override val ioActor: ActorRef, wor
     // Hash Failure
     case (hashContext: FileHashContext, failure: IoFailAck[_]) =>
       handleHashResult(failure, hashContext) { requesters =>
-        requesters.toList foreach { case FileHashRequester(replyTo, fileHashContext, ioCommand) =>
+        requesters foreach { case FileHashRequester(replyTo, fileHashContext, ioCommand) =>
           replyTo ! Tuple2(fileHashContext, IoFailure(ioCommand, failure.failure))
         }
         cache.put(hashContext.file, FileHashFailure(s"Error hashing file '${hashContext.file}': ${failure.failure.getMessage}"))
@@ -73,11 +73,13 @@ class RootWorkflowFileHashCacheActor private(override val ioActor: ActorRef, wor
 
   // Invoke the supplied block on the happy path, handle unexpected states for IoSuccess and IoFailure with common code.
   private def handleHashResult(ioAck: IoAck[_], fileHashContext: FileHashContext)
-                              (notifyRequestersAndCacheValue: NonEmptyList[FileHashRequester] => Unit): Unit = {
+                              (notifyRequestersAndCacheValue: List[FileHashRequester] => Unit): Unit = {
     cache.get(fileHashContext.file) match {
-      case FileHashValueRequested(requesters) => notifyRequestersAndCacheValue(requesters)
+      case FileHashValueRequested(requesters) => notifyRequestersAndCacheValue(requesters.toList)
       case FileHashValueNotRequested =>
-        log.error(s"Programmer error! Not expecting message type ${ioAck.getClass.getSimpleName} with no requesters for the hash: $fileHashContext")
+        log.info(s"Got reply from IoActor for the file ${fileHashContext.file} after the timeout. " +
+          s"Will put it in cache just in case. None of the previous requesters will be notified.")
+        notifyRequestersAndCacheValue(List.empty[FileHashRequester])
       case _ =>
         log.error(s"Programmer error! Not expecting message type ${ioAck.getClass.getSimpleName} when the hash value has already been received: $fileHashContext")
     }
@@ -95,7 +97,8 @@ class RootWorkflowFileHashCacheActor private(override val ioActor: ActorRef, wor
           case FileHashValueNotRequested =>
             log.error(s"Programmer error! Not expecting a hash request timeout when a hash value has not been requested: ${fileHashContext.file}")
           case v =>
-            log.error(s"Programmer error! Not expecting a hash request timeout when hash value '$v' is already in the cache: ${fileHashContext.file}")
+            log.info(s"Received hash request timeout when hash value '$v' was already in the cache: ${fileHashContext.file}." +
+              s"This is normal and happens due to race condition between scheduler thread responsible for firing timeouts and actor's message processing thread.")
         }
       case other =>
         log.error(s"Programmer error! Root workflow file hash caching actor received unexpected timeout message: $other")

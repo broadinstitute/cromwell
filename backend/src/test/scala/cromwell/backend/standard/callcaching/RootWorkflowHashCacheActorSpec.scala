@@ -3,6 +3,7 @@ package cromwell.backend.standard.callcaching
 import akka.actor.Props
 import akka.testkit._
 import cromwell.backend.standard.callcaching.RootWorkflowFileHashCacheActor.IoHashCommandWithContext
+import cromwell.backend.standard.callcaching.RootWorkflowFileHashCacheActor._
 import cromwell.core.actor.RobustClientHelper.RequestTimeout
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.core.callcaching.HashKey
@@ -31,9 +32,8 @@ class RootWorkflowHashCacheActorSpec extends TestKitSuite("RootWorkflowHashCache
     //wait for timeout
     Thread.sleep(2000)
 
-    EventFilter.info(s"Received a hash value for the file $fakeFileName with no requesters. This may be due to a benign race condition between hash value receipt and timeout. " +
-      s"The received hash value will be added to the cache. No previous requesters will be notified.", occurrences = 1).intercept {
-      ioActorProbe.send(rootWorkflowFileHashCacheActor, (ioHashCommandWithContext.fileHashContext, IoSuccess(ioHashCommandWithContext.ioHashCommand, "Successful result")))
+    EventFilter.info(msgIoAckWithNoRequesters.format(fakeFileName), occurrences = 1).intercept {
+      ioActorProbe.send(rootWorkflowFileHashCacheActor, ioHashCommandWithContext.fileHashContext -> IoSuccess(ioHashCommandWithContext.ioHashCommand, "Successful result"))
     }
   }
 
@@ -48,12 +48,10 @@ class RootWorkflowHashCacheActorSpec extends TestKitSuite("RootWorkflowHashCache
     rootWorkflowFileHashCacheActor ! ioHashCommandWithContext
 
     val hashVal = "Success"
-    ioActorProbe.send(rootWorkflowFileHashCacheActor, (ioHashCommandWithContext.fileHashContext, IoSuccess(ioHashCommandWithContext.ioHashCommand, hashVal)))
-    EventFilter.info(s"Received hash request timeout when hash value 'FileHashSuccess($hashVal)' was" +
-      s" already in the cache: ${ioHashCommandWithContext.fileHashContext.file}. " +
-      s"This is normal and happens due to race condition between scheduler thread responsible for firing timeouts and actor's message processing thread.", occurrences = 1).intercept {
+    EventFilter.info(msgTimeoutAfterIoAck.format(s"FileHashSuccess($hashVal)", ioHashCommandWithContext.fileHashContext.file), occurrences = 1).intercept {
+      ioActorProbe.send(rootWorkflowFileHashCacheActor, (ioHashCommandWithContext.fileHashContext, IoSuccess(ioHashCommandWithContext.ioHashCommand, hashVal)))
       Thread.sleep(2000) // wait for actor to put value into cache
-      ioActorProbe.send(rootWorkflowFileHashCacheActor, RequestTimeout((ioHashCommandWithContext.fileHashContext, ioHashCommandWithContext.ioHashCommand), rootWorkflowFileHashCacheActor))
+      ioActorProbe.send(rootWorkflowFileHashCacheActor, RequestTimeout(ioHashCommandWithContext.fileHashContext -> ioHashCommandWithContext.ioHashCommand, rootWorkflowFileHashCacheActor))
     }
   }
 }

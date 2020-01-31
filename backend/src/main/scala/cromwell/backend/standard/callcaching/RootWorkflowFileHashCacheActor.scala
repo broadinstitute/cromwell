@@ -6,6 +6,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import cromwell.backend.standard.callcaching.RootWorkflowFileHashCacheActor.IoHashCommandWithContext
+import cromwell.backend.standard.callcaching.RootWorkflowFileHashCacheActor._
 import cromwell.core.WorkflowId
 import cromwell.core.actor.RobustClientHelper.RequestTimeout
 import cromwell.core.io._
@@ -77,8 +78,7 @@ class RootWorkflowFileHashCacheActor private[callcaching](override val ioActor: 
     cache.get(fileHashContext.file) match {
       case FileHashValueRequested(requesters) => notifyRequestersAndCacheValue(requesters.toList)
       case FileHashValueNotRequested =>
-        log.info(s"Received a hash value for the file ${fileHashContext.file} with no requesters. This may be due to a benign race condition between hash value receipt and timeout. " +
-          "The received hash value will be added to the cache. No previous requesters will be notified.")
+        log.info(msgIoAckWithNoRequesters.format(fileHashContext.file))
         notifyRequestersAndCacheValue(List.empty[FileHashRequester])
       case _ =>
         log.error(s"Programmer error! Not expecting message type ${ioAck.getClass.getSimpleName} when the hash value has already been received: $fileHashContext")
@@ -97,8 +97,7 @@ class RootWorkflowFileHashCacheActor private[callcaching](override val ioActor: 
           case FileHashValueNotRequested =>
             log.error(s"Programmer error! Not expecting a hash request timeout when a hash value has not been requested: ${fileHashContext.file}")
           case v =>
-            log.info(s"Received hash request timeout when hash value '$v' was already in the cache: ${fileHashContext.file}. " +
-              "This is normal and happens due to race condition between scheduler thread responsible for firing timeouts and actor's message processing thread.")
+            log.info(msgTimeoutAfterIoAck.format(v, fileHashContext.file))
         }
       case other =>
         log.error(s"Programmer error! Root workflow file hash caching actor received unexpected timeout message: $other")
@@ -112,6 +111,13 @@ class RootWorkflowFileHashCacheActor private[callcaching](override val ioActor: 
 }
 
 object RootWorkflowFileHashCacheActor {
+  private[callcaching] val msgIoAckWithNoRequesters = "Received a hash value for the file %s with no requesters. " +
+    "This may be due to a benign race condition between hash value receipt and timeout. The received hash value will be " +
+    "added to the cache. No previous requesters will be notified."
+
+  private[callcaching] val msgTimeoutAfterIoAck = "Received hash request timeout when hash value '%s' was already in " +
+    "the cache: %s. This may happen due to benign race condition between hash value receipt and timeout."
+
   case class IoHashCommandWithContext(ioHashCommand: IoHashCommand, fileHashContext: FileHashContext)
 
   def props(ioActor: ActorRef, workflowId: WorkflowId): Props = Props(new RootWorkflowFileHashCacheActor(ioActor, workflowId))

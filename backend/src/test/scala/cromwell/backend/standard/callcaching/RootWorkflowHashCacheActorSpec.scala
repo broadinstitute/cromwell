@@ -31,8 +31,8 @@ class RootWorkflowHashCacheActorSpec extends TestKitSuite("RootWorkflowHashCache
     //wait for timeout
     Thread.sleep(2000)
 
-    EventFilter.info(s"Got reply from IoActor for the file $fakeFileName after the timeout. " +
-      s"Will put it in cache just in case. None of the previous requesters will be notified.", occurrences = 1).intercept {
+    EventFilter.info(s"Received a hash value for the file $fakeFileName with no requesters. This may be due to a benign race condition between hash value receipt and timeout. " +
+      s"The received hash value will be added to the cache. No previous requesters will be notified.", occurrences = 1).intercept {
       ioActorProbe.send(rootWorkflowFileHashCacheActor, (ioHashCommandWithContext.fileHashContext, IoSuccess(ioHashCommandWithContext.ioHashCommand, "Successful result")))
     }
   }
@@ -48,10 +48,10 @@ class RootWorkflowHashCacheActorSpec extends TestKitSuite("RootWorkflowHashCache
     rootWorkflowFileHashCacheActor ! ioHashCommandWithContext
 
     val hashVal = "Success"
+    ioActorProbe.send(rootWorkflowFileHashCacheActor, (ioHashCommandWithContext.fileHashContext, IoSuccess(ioHashCommandWithContext.ioHashCommand, hashVal)))
     EventFilter.info(s"Received hash request timeout when hash value 'FileHashSuccess($hashVal)' was" +
-      s" already in the cache: ${ioHashCommandWithContext.fileHashContext.file}." +
+      s" already in the cache: ${ioHashCommandWithContext.fileHashContext.file}. " +
       s"This is normal and happens due to race condition between scheduler thread responsible for firing timeouts and actor's message processing thread.", occurrences = 1).intercept {
-      ioActorProbe.send(rootWorkflowFileHashCacheActor, (ioHashCommandWithContext.fileHashContext, IoSuccess(ioHashCommandWithContext.ioHashCommand, hashVal)))
       Thread.sleep(2000) // wait for actor to put value into cache
       ioActorProbe.send(rootWorkflowFileHashCacheActor, RequestTimeout((ioHashCommandWithContext.fileHashContext, ioHashCommandWithContext.ioHashCommand), rootWorkflowFileHashCacheActor))
     }

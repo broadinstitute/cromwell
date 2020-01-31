@@ -77,7 +77,7 @@ class RootWorkflowFileHashCacheActor private[callcaching](override val ioActor: 
     cache.get(fileHashContext.file) match {
       case FileHashValueRequested(requesters) => notifyRequestersAndCacheValue(requesters.toList)
       case FileHashValueNotRequested =>
-        log.info(s"Got reply from IoActor for the file ${fileHashContext.file} after the timeout. " +
+        log.info(s"Got file hash from IoActor for the file ${fileHashContext.file} after the timeout. " +
           "Will put it in cache just in case. None of the previous requesters will be notified.")
         notifyRequestersAndCacheValue(List.empty[FileHashRequester])
       case _ =>

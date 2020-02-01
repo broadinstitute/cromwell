@@ -189,15 +189,16 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
   
   it should "Relay Workflow Successful message" in {
     val ewea = buildEWEA()
-    ewea.setState(SubWorkflowRunningState, SubWorkflowExecutionActorData(Some(WorkflowId.randomId()), None))
+    val subworkflowId = WorkflowId.randomId()
+    ewea.setState(SubWorkflowRunningState, SubWorkflowExecutionActorData(Some(subworkflowId), None))
 
     deathWatch watch ewea
 
     val jobExecutionMap: JobExecutionMap = Map.empty
     val outputs: CallOutputs = CallOutputs.empty
-    val workflowSuccessfulMessage = WorkflowExecutionSucceededResponse(jobExecutionMap, outputs)
+    val workflowSuccessfulMessage = WorkflowExecutionSucceededResponse(jobExecutionMap, Set.empty[WorkflowId], outputs)
     ewea ! workflowSuccessfulMessage
-    parentProbe.expectMsg(SubWorkflowSucceededResponse(subKey, jobExecutionMap, outputs))
+    parentProbe.expectMsg(SubWorkflowSucceededResponse(subKey, jobExecutionMap, Set.empty[WorkflowId], outputs))
     deathWatch.expectTerminated(ewea, awaitTimeout)
   }
 

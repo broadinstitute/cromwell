@@ -2,6 +2,32 @@
 
 ## 49 Release Notes
 
+### Job store database refactoring
+
+The primary keys of Cromwell's job store tables have been refactored to use a `BIGINT` datatype in place of the previous
+`INT` datatype. Cromwell will not be usable during the time the Liquibase migration for this refactor is running.
+In the Google Cloud SQL with SSD environment this migration runs at a rate of approximately 40,000 `JOB_STORE_SIMPLETON_ENTRY`
+rows per second. In deployments with millions or billions of `JOB_STORE_SIMPLETON_ENTRY` rows the migration may require
+a significant amount of downtime so please plan accordingly. The following SQL could be used to estimate the number of
+rows in this table:
+
+```
+SELECT table_rows FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'cromwell' AND table_name = 'JOB_STORE_SIMPLETON_ENTRY';
+```
+
+### Delete Intermediate Outputs on PapiV2
+
+* **Experimental:** When a new workflow option `delete_intermediate_output_files` is submitted with the workflow,
+intermediate `File` objects will be deleted when the workflow completes. See the [Google Pipelines API Workflow Options
+documentation](https://cromwell.readthedocs.io/en/stable/wf_options/Google#google-pipelines-api-workflow-options)
+for more information.
+
+### Metadata Archival Support
+
+Cromwell 49 now offers the option to archive metadata to GCS and remove the equivalent metadata from relational
+database storage. Please see 
+[the documentation](https://cromwell.readthedocs.io/en/stable/Configuring#hybrid-metadata-storage-classic-carbonite) for more details.
+
 ### Bug fixes
 
 + Fix a bug where zip files with directories could not be imported. 

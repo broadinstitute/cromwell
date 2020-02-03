@@ -25,7 +25,6 @@ object BiscayneValueEvaluators {
     }
   }
 
-
   implicit val asMapFunctionEvaluator: ValueEvaluator[AsMap] = new ValueEvaluator[AsMap] {
     override def evaluateValue(a: AsMap, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
@@ -107,6 +106,20 @@ object BiscayneValueEvaluators {
     }
   }
 
+  private def resultOfIntVsFloat(functionName: String,
+                                 intFunc: (Int, Int) => Int,
+                                 doubleFunc: (Double, Double) => Double)
+                                (value1: EvaluatedValue[_], value2: EvaluatedValue[_]): ErrorOr[EvaluatedValue[WomValue]] = {
+    val newValue = (value1.value, value2.value) match {
+      case (WomInteger(i1), WomInteger(i2)) => WomInteger(intFunc(i1, i2)).validNel
+      case (WomInteger(i1), WomFloat(l2)) => WomFloat(doubleFunc(i1.doubleValue, l2)).validNel
+      case (WomFloat(l1), WomInteger(i2)) => WomFloat(doubleFunc(l1, i2.doubleValue)).validNel
+      case (WomFloat(l1), WomFloat(l2)) => WomFloat(doubleFunc(l1, l2)).validNel
+      case (other1, other2) => s"Invalid arguments to '$functionName':(${other1.typeName}, ${other2.typeName})".invalidNel
+    }
+    newValue map { v => EvaluatedValue(v, value1.sideEffectFiles ++ value2.sideEffectFiles) }
+  }
+
   implicit val minFunctionEvaluator: ValueEvaluator[Min] = new ValueEvaluator[Min] {
     override def evaluateValue(a: Min,
                                inputs: Map[String, WomValue],
@@ -116,17 +129,10 @@ object BiscayneValueEvaluators {
       val value1 = expressionValueEvaluator.evaluateValue(a.arg1, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
       val value2 = expressionValueEvaluator.evaluateValue(a.arg2, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
 
-      (value1, value2) flatMapN {
-        case (v1, v2) =>
-          val newValue = (v1.value, v2.value) match {
-            case (WomInteger(i1), WomInteger(i2)) => WomInteger(Math.min(i1, i2)).validNel
-            case (WomInteger(i1), WomFloat(l2)) => WomFloat(Math.min(i1.doubleValue, l2)).validNel
-            case (WomFloat(l1), WomInteger(i2)) => WomFloat(Math.min(l1, i2.doubleValue)).validNel
-            case (WomFloat(l1), WomFloat(l2)) => WomFloat(Math.min(l1, l2)).validNel
-            case (other1, other2) => s"Invalid arguments to 'min':(${other1.typeName}, ${other2.typeName})".invalidNel
-          }
-          newValue map { v => EvaluatedValue(v, v1.sideEffectFiles ++ v2.sideEffectFiles) }
-      }
+      val intFunc = (i1: Int, i2: Int) => Math.min(i1, i2)
+      val doubleFunc = (l1: Double, l2: Double) => Math.min(l1, l2)
+
+      (value1, value2) flatMapN resultOfIntVsFloat("min", intFunc, doubleFunc)
     }
   }
 
@@ -138,17 +144,10 @@ object BiscayneValueEvaluators {
       val value1 = expressionValueEvaluator.evaluateValue(a.arg1, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
       val value2 = expressionValueEvaluator.evaluateValue(a.arg2, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
 
-      (value1, value2) flatMapN {
-        case (v1, v2) =>
-          val newValue = (v1.value, v2.value) match {
-            case (WomInteger(i1), WomInteger(i2)) => WomInteger(Math.max(i1, i2)).validNel
-            case (WomInteger(i1), WomFloat(l2)) => WomFloat(Math.max(i1.doubleValue, l2)).validNel
-            case (WomFloat(l1), WomInteger(i2)) => WomFloat(Math.max(l1, i2.doubleValue)).validNel
-            case (WomFloat(l1), WomFloat(l2)) => WomFloat(Math.max(l1, l2)).validNel
-            case (other1, other2) => s"Invalid arguments to 'max':(${other1.typeName}, ${other2.typeName})".invalidNel
-          }
-          newValue map { v => EvaluatedValue(v, v1.sideEffectFiles ++ v2.sideEffectFiles) }
-      }
+      val intFunc = (i1: Int, i2: Int) => Math.max(i1, i2)
+      val doubleFunc = (l1: Double, l2: Double) => Math.max(l1, l2)
+
+      (value1, value2) flatMapN resultOfIntVsFloat("max", intFunc, doubleFunc)
     }
   }
 }

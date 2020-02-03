@@ -49,13 +49,13 @@ import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
 import cromwell.core.path.{DefaultPathBuilder, Path}
-import cromwell.core.io.DefaultIoCommandBuilder
+import cromwell.core.io.{DefaultIoCommandBuilder, IoCommandBuilder}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.s3.S3Path
 import cromwell.filesystems.s3.batch.S3BatchCommandBuilder
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
-import org.slf4j.LoggerFactory
+import org.slf4j.{Logger, LoggerFactory}
 import software.amazon.awssdk.services.batch.model.{BatchException, SubmitJobResponse}
 import wom.callable.Callable.OutputDefinition
 import wom.core.FullyQualifiedName
@@ -69,6 +69,10 @@ import scala.language.postfixOps
 import scala.util.control.NoStackTrace
 import scala.util.{Success, Try}
 
+/**
+  * The `AwsBatchAsyncBackendJobExecutionActor` creates and manages a job. The job itself is encapsulated by the
+  * functionality in `AwsBatchJob`
+  */
 object AwsBatchAsyncBackendJobExecutionActor {
   val AwsBatchOperationIdKey = "__aws_batch_operation_id"
 
@@ -79,7 +83,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   extends BackendJobLifecycleActor with StandardAsyncExecutionActor with AwsBatchJobCachingActorHelper
     with KvClient with AskSupport {
 
-  override lazy val ioCommandBuilder = configuration.fileSystem match  {
+  override lazy val ioCommandBuilder: IoCommandBuilder = configuration.fileSystem match  {
     case AWSBatchStorageSystems.s3 => S3BatchCommandBuilder
     case _ =>  DefaultIoCommandBuilder
   }
@@ -90,7 +94,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   import AwsBatchAsyncBackendJobExecutionActor._
 
-  val Log = LoggerFactory.getLogger(AwsBatchAsyncBackendJobExecutionActor.getClass)
+  val Log: Logger = LoggerFactory.getLogger(AwsBatchAsyncBackendJobExecutionActor.getClass)
 
   override type StandardAsyncRunInfo = AwsBatchJob
 
@@ -98,9 +102,9 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
 
-  override lazy val pollBackOff = SimpleExponentialBackoff(1.second, 5.minutes, 1.1)
+  override lazy val pollBackOff: SimpleExponentialBackoff = SimpleExponentialBackoff(1.second, 5.minutes, 1.1)
 
-  override lazy val executeOrRecoverBackOff = SimpleExponentialBackoff(
+  override lazy val executeOrRecoverBackOff: SimpleExponentialBackoff = SimpleExponentialBackoff(
     initialInterval = 3 seconds, maxInterval = 20 seconds, multiplier = 1.1)
 
   private lazy val jobDockerImage = jobDescriptor.maybeCallCachingEligible.dockerHash.getOrElse(runtimeAttributes.dockerImage)
@@ -150,7 +154,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
    * needs to push stuff out to S3. This is why we will eventually need
    * commandScriptContents here
    */
-  lazy val batchJob = {
+  lazy val batchJob: AwsBatchJob = {
     AwsBatchJob(
       jobDescriptor,
       runtimeAttributes,
@@ -201,12 +205,11 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override protected def relativeLocalizationPath(file: WomFile): WomFile = {
     file.mapFile(value =>
       getPath(value) match {
-        case Success(path) => {
+        case Success(path) =>
           configuration.fileSystem match  {
             case AWSBatchStorageSystems.s3 => path.pathWithoutScheme
             case _ =>  path.toString
           }
-        }
         case _ => value
       }
     )
@@ -362,10 +365,9 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override def globParentDirectory(womGlobFile: WomGlobFile): Path =
     configuration.fileSystem match {
-      case  AWSBatchStorageSystems.s3 => {
+      case  AWSBatchStorageSystems.s3 =>
         val (_, disk) = relativePathAndVolume(womGlobFile.value, runtimeAttributes.disks)
         disk.mountPoint
-      }
       case _ => commandDirectory
     }
 
@@ -395,7 +397,9 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(submitJobResponse.jobId), Option(batchJob), previousState = None)
   }
 
-  val futureKvJobKey = KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)
+  val futureKvJobKey: KvJobKey = KvJobKey(jobDescriptor.key.call.fullyQualifiedName,
+                                          jobDescriptor.key.index,
+                                          jobDescriptor.key.attempt + 1)
 
   // This is called by Cromwell after initial execution (see executeAsync above)
   // It expects a Future[RunStatus]. In this case we'll simply call the

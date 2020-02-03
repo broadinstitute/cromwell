@@ -20,6 +20,9 @@ workflow biscayne_new_engine_functions {
   Float bigFloat = 3.141
   Int biggestInt = 10
 
+  Int maxInt = 2147483647
+  Float maxFloat = 1.7976931348623157E308
+
   output {
 
     # keys(), as_map(), as_pairs(), collect_by_key():
@@ -43,6 +46,7 @@ workflow biscayne_new_engine_functions {
     Float smallIntFloatComparison = min(smallestInt, smallFloat) # 1.0
     Float bigIntFloatComparison = max(bigFloat, biggestInt) # 10.0
     Float minMaxIntFloatComposition = min(max(biggestInt, smallFloat), smallestInt) # 1.0
+    Float maxIntVsMaxFloat = max(maxInt, maxFloat)
   }
 }
 

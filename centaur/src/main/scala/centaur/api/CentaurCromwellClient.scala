@@ -107,6 +107,21 @@ object CentaurCromwellClient extends StrictLogging {
     Try(Await.result(successOrFailure, CentaurConfig.sendReceiveTimeout)).isSuccess
   }
 
+  /*
+      includeKey = [
+      "id",
+      "%shardIndex%",
+      "%hitFailures%",
+      "%executionEvents%",
+      "status",
+      "workflowName",
+      "submission",
+      "start",
+      "end",
+      "failures"
+    ]
+   */
+
   def metadata(workflow: SubmittedWorkflow, args: Option[Map[String, List[String]]] = defaultMetadataArgs): IO[WorkflowMetadata] = metadataWithId(workflow.id, args)
 
   def metadataWithId(id: WorkflowId, args: Option[Map[String, List[String]]] = defaultMetadataArgs): IO[WorkflowMetadata] = {

@@ -28,18 +28,17 @@ import cromwell.cloudsupport.aws.AwsConfiguration
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import io.circe.parser._
-import org.apache.commons.lang3.exception.ExceptionUtils
 import mouse.all._
-import spray.json.{JsString, JsValue}
+import org.apache.commons.lang3.exception.ExceptionUtils
 import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3Client
-import spray.json.JsString
+import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
-import scala.util.Failure
+import scala.util.{Failure, Try}
 
 /**
   * A simplified riff on the final tagless pattern where the interpreter (monad & related bits) are fixed. Operation
@@ -645,6 +644,58 @@ object Operations extends StrictLogging {
         case None => CentaurCromwellClient.metadata(submittedWorkflow)
       }
     }
+  }
+
+  def validateJobManagerStyleMetadata(submittedWorkflow: SubmittedWorkflow,
+                                      originalMetadata: String): Test[Unit] = new Test[Unit] {
+
+    val oneWordIncludeKeys = List(
+      "attempt", "callRoot", "end",
+      "executionStatus", "failures", "inputs", "jobId",
+      "outputs", "shardIndex", "start", "stderr", "stdout",
+      "calls", "description", "executionEvents", "labels", "parentWorkflowId",
+      "returnCode", "status", "submission", "subWorkflowId", "workflowName"
+    )
+
+    val jmArgs = Map(
+      "includeKey" -> (oneWordIncludeKeys :+ "callCaching:hit"),
+      "excludeKey" -> List("callCaching:hitFailures")
+    )
+
+    def setUpExpectation(): JsObject = {
+      val originalMetadataJson = originalMetadata.parseJson.asJsObject
+
+      val withOneWordIncludes = oneWordIncludeKeys.foldRight(JsObject.empty) { (toInclude, current) =>
+        originalMetadataJson.fields.get(toInclude) match {
+          case Some(jsonToInclude) => JsObject(current.fields + (toInclude -> jsonToInclude))
+          case None => current
+        }
+      }
+
+      val callCacheField = for {
+        originalCallCachingField <- originalMetadataJson.fields.get("callCaching")
+        originalHitField <- originalCallCachingField.asJsObject.fields.get("hit")
+      } yield "callCaching" -> JsObject(Map("hit" -> originalHitField))
+
+      JsObject(withOneWordIncludes.fields ++ callCacheField)
+    }
+
+    def validate(expectation: JsObject, actual: JsObject): IO[Unit] = {
+      if(actual.equals(expectation)) {
+        IO.pure(())
+      } else {
+        logger.error(s"Bad JM style metadata.\nExpectation: $expectation\nActual: $actual\n")
+        IO.raiseError(new Exception(s"Bad JM style metadata. See error log output"))
+      }
+    }
+
+    override def run: IO[Unit] = for {
+      jmMetadata <- CentaurCromwellClient.metadata(workflow = submittedWorkflow, Option(CentaurCromwellClient.defaultMetadataArgs.getOrElse(Map.empty) ++ jmArgs))
+      jmMetadataObject <- IO.fromTry(Try(jmMetadata.value.parseJson.asJsObject))
+      expectation <- IO.fromTry(Try(setUpExpectation()))
+
+      validationUnit <- validate(expectation, jmMetadataObject)
+    } yield validationUnit
   }
 
   def waitForArchive(workflowId: WorkflowId): Test[Unit] = {

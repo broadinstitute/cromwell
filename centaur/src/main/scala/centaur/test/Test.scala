@@ -652,39 +652,63 @@ object Operations extends StrictLogging {
     val oneWordIncludeKeys = List(
       "attempt", "callRoot", "end",
       "executionStatus", "failures", "inputs", "jobId",
-      "outputs", "shardIndex", "start", "stderr", "stdout",
-      "calls", "description", "executionEvents", "labels", "parentWorkflowId",
+      "calls", "outputs", "shardIndex", "start", "stderr", "stdout",
+      "description", "executionEvents", "labels", "parentWorkflowId",
       "returnCode", "status", "submission", "subWorkflowId", "workflowName"
     )
 
     val jmArgs = Map(
       "includeKey" -> (oneWordIncludeKeys :+ "callCaching:hit"),
-      "excludeKey" -> List("callCaching:hitFailures")
+      "excludeKey" -> List("callCaching:hitFailures"),
+      "expandSubWorkflows" -> List("false")
     )
 
+    // I chose to re-implement "process metadata for job manager's includeKeys/excludeKeys" rather than re-use production.
+    // Reasoning is:
+    //  1. the ultra-specific JM case is a lot simpler to reason about and can be done in a few lines
+    //  2. it's nice to be able to assert general cases rather than singular specific examples
+    //  3. its hopefully unlikely that the same bug will show up in two separate implementations
     def setUpExpectation(): JsObject = {
-      val originalMetadataJson = originalMetadata.parseJson.asJsObject
+      val originalWorkflowMetadataJson = originalMetadata.parseJson.asJsObject
+      val originalCallMetadataJson = originalWorkflowMetadataJson.fields.get("calls").map(_.asJsObject)
 
-      val withOneWordIncludes = oneWordIncludeKeys.foldRight(JsObject.empty) { (toInclude, current) =>
-        originalMetadataJson.fields.get(toInclude) match {
+      // NB: this filter to remove "calls" is because - although it is a single word in the JM request,
+      // it gets treated specially by the API (so has to be treated specially here too)
+      def processOneWordIncludes(json: JsObject) = (oneWordIncludeKeys.filterNot(_ == "calls") :+ "id").foldRight(JsObject.empty) { (toInclude, current) =>
+        json.fields.get(toInclude) match {
           case Some(jsonToInclude) => JsObject(current.fields + (toInclude -> jsonToInclude))
           case None => current
         }
       }
 
-      val callCacheField = for {
-        originalCallCachingField <- originalMetadataJson.fields.get("callCaching")
+      def processCallCacheField(callJson: JsObject) = for {
+        originalCallCachingField <- originalWorkflowMetadataJson.fields.get("callCaching")
         originalHitField <- originalCallCachingField.asJsObject.fields.get("hit")
       } yield "callCaching" -> JsObject(Map("hit" -> originalHitField))
 
-      JsObject(withOneWordIncludes.fields ++ callCacheField)
+      def processCallsSection(calls: JsObject): JsObject = {
+        val newFields = calls.fields.map { case (callName, callsArray) =>
+          val newElements = callsArray.asInstanceOf[spray.json.JsArray].elements.map(_.asJsObject).map { call =>
+            val callWithOneWordIncludes = processOneWordIncludes(call)
+            val callCacheField = processCallCacheField(call)
+            JsObject(callWithOneWordIncludes.fields ++ callCacheField)
+          }
+          callName -> JsArray(newElements)
+        }
+        JsObject(newFields)
+      }
+
+      val workflowLevelWithOneWordIncludes = processOneWordIncludes(originalWorkflowMetadataJson)
+      val callsField = originalCallMetadataJson map { calls => Map("calls" -> processCallsSection(calls)) } getOrElse Map.empty
+
+      JsObject(workflowLevelWithOneWordIncludes.fields ++ callsField)
     }
 
     def validate(expectation: JsObject, actual: JsObject): IO[Unit] = {
       if(actual.equals(expectation)) {
         IO.pure(())
       } else {
-        logger.error(s"Bad JM style metadata.\nExpectation: $expectation\nActual: $actual\n")
+        logger.error(s"Bad JM style metadata.\nExpectation: ${expectation.prettyPrint}\nActual: ${actual.prettyPrint}\n")
         IO.raiseError(new Exception(s"Bad JM style metadata. See error log output"))
       }
     }
@@ -713,18 +737,18 @@ object Operations extends StrictLogging {
       }
 
       def checkArchived(): IO[Boolean] = for {
-          archiveStatus <- CentaurCromwellClient.archiveStatus(workflowId)
-          isArchived <- validateMetadataArchiveStatus(archiveStatus)
+        archiveStatus <- CentaurCromwellClient.archiveStatus(workflowId)
+        isArchived <- validateMetadataArchiveStatus(archiveStatus)
       } yield isArchived
 
       def eventuallyArchived(): IO[Unit] = {
-          checkArchived() flatMap {
-            case true => IO.pure(())
-            case false => for {
-              _ <- IO.sleep(2.seconds)
-              recurse <- eventuallyArchived()
-            } yield recurse
-          }
+        checkArchived() flatMap {
+          case true => IO.pure(())
+          case false => for {
+            _ <- IO.sleep(2.seconds)
+            recurse <- eventuallyArchived()
+          } yield recurse
+        }
       }
 
       override def run: IO[Unit] = {
@@ -820,5 +844,4 @@ object Operations extends StrictLogging {
       }
     }
   }
-
 }

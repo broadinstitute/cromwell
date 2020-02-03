@@ -53,4 +53,5 @@ metadata {
   "outputs.biscayne_new_engine_functions.smallIntFloatComparison": 1.0
   "outputs.biscayne_new_engine_functions.bigIntFloatComparison": 10.0
   "outputs.biscayne_new_engine_functions.minMaxIntFloatComposition": 1.0
+  "outputs.biscayne_new_engine_functions.maxIntVsMaxFloat": 1.79769313E+308
 }

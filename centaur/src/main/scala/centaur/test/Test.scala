@@ -663,7 +663,7 @@ object Operations extends StrictLogging {
       "expandSubWorkflows" -> List("false")
     )
 
-    // I chose to re-implement "process metadata for job manager's includeKeys/excludeKeys" rather than re-use production.
+    // I chose to re-implement "process metadata for job manager's includeKeys/excludeKeys" and not re-use production.
     // Reasoning is:
     //  1. the ultra-specific JM case is a lot simpler to reason about and can be done in a few lines
     //  2. it's nice to be able to assert general cases rather than singular specific examples

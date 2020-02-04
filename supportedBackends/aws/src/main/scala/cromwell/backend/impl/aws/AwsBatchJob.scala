@@ -195,7 +195,12 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                                                             jobPaths,
                                                             inputs,
                                                             outputs)
+
+    Log.info(s"Creating job definition for task ${taskId}")
+
     val jobDefinition = jobDefinitionBuilder.build(jobDefinitionContext)
+
+    Log.info(s"Created definition: ${jobDefinition.toString}")
 
     // See:
     //
@@ -207,7 +212,10 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                               .`type`(JobDefinitionType.CONTAINER)
                               .build
 
+    Log.info(s"Submitting definition request: ${definitionRequest}")
     val submit = async.delay(client.registerJobDefinition(definitionRequest).jobDefinitionArn)
+
+    Log.info(s"Submitted: ${submit}")
 
     val retry: F[String] = Stream.retry(submit, 0.millis, _ * 2, awsBatchAttributes.createDefinitionAttempts.value, {
       // RegisterJobDefinition throws 404s every once in a while
@@ -224,7 +232,9 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
         async.
           delay(client.describeJobDefinitions(DescribeJobDefinitionsRequest.builder().jobDefinitionName(sanitize(name)).build())).
           map(_.jobDefinitions().asScala).
-          map(_.last.jobDefinitionArn())
+          map(definitions => {
+            Log.info(s"Latest job definition revision is: ${definitions.last.jobDefinitionName()} with arn: ${definitions.last.jobDefinitionArn()}")
+            definitions.last.jobDefinitionArn()})
     }
   }
 

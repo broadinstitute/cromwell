@@ -708,7 +708,14 @@ object Operations extends StrictLogging {
       if(actual.equals(expectation)) {
         IO.pure(())
       } else {
-        logger.error(s"Bad JM style metadata.\nExpectation: ${expectation.prettyPrint}\nActual: ${actual.prettyPrint}\n")
+
+        import diffson._
+        import diffson.sprayJson._
+        import diffson.jsonpatch.simplediff._
+
+        val jsonDiff = diff(expectation: JsValue, actual: JsValue)
+
+        logger.error(s"Bad JM style metadata: $jsonDiff")
         IO.raiseError(new Exception(s"Bad JM style metadata. See error log output"))
       }
     }

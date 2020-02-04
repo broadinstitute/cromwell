@@ -710,12 +710,51 @@ object Operations extends StrictLogging {
       } else {
 
         import diffson._
+        import diffson.lcs._
         import diffson.sprayJson._
-        import diffson.jsonpatch.simplediff._
+        import diffson.jsonpatch._
+        import diffson.jsonpatch.lcsdiff._
+
+//        import cats._
+//        import cats.implicits._
+
+        implicit val lcs = new Patience[JsValue]
+
+        implicit val writer: JsonWriter[JsonPatch[JsValue]] = new JsonWriter[JsonPatch[JsValue]] {
+          def processOperation(op: Operation[JsValue]): JsValue = op match {
+            case Add(path, value) => JsObject(Map[String, JsValue](
+              "op" -> JsString("add"),
+              "path" -> JsString(path.toString),
+              "value" -> value))
+            case Copy(from, path) => JsObject(Map[String, JsValue](
+              "op" -> JsString("copy"),
+              "from" -> JsString(from.toString),
+              "path" -> JsString(path.toString)))
+            case Move(from, path) => JsObject(Map[String, JsValue](
+              "op" -> JsString("move"),
+              "from" -> JsString(from.toString),
+              "path" -> JsString(path.toString)))
+            case Remove(path, old) => JsObject(Map[String, JsValue](
+              "op" -> JsString("remove"),
+              "path" -> JsString(path.toString)) ++ old.map(o => "old" -> o) )
+            case Replace(path, value, old) => JsObject(Map[String, JsValue](
+              "op" -> JsString("replace"),
+              "path" -> JsString(path.toString),
+              "value" -> value) ++ old.map(o => "old" -> o) )
+            case diffson.jsonpatch.Test(path, value) => JsObject(Map[String, JsValue](
+              "op" -> JsString("test"),
+              "path" -> JsString(path.toString),
+              "value" -> value))
+          }
+
+          override def write(obj: JsonPatch[JsValue]): JsValue = {
+            JsArray(obj.ops.toVector.map(processOperation))
+          }
+        }
 
         val jsonDiff = diff(expectation: JsValue, actual: JsValue)
 
-        logger.error(s"Bad JM style metadata: $jsonDiff")
+        logger.error(s"Bad JM style metadata: ${jsonDiff.toJson.prettyPrint}")
         IO.raiseError(new Exception(s"Bad JM style metadata. See error log output"))
       }
     }

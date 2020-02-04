@@ -43,17 +43,21 @@ import scala.collection.JavaConverters._
 import java.io.ByteArrayOutputStream
 import java.util.zip.GZIPOutputStream
 import com.google.common.io.BaseEncoding
-/*
- * This whole file might seem like a *lot* of ceremony just to build
- * the container properties. All this ceremony has been put in place for the
- * following two reasons:
- *
- * 1. It is consistent with other back ends
- * 2. It will allow for the possibility of builders other than the
- *    StandardAwsBatchJobDefinitionBuilder, which may prove useful in the
- *    future.
- *
- */
+
+/**
+  * Responsible for the creation of the job definition.
+  *
+  * In AWS Batch, every job must have a definition.
+  * In the current backend, the job definition is a 1:1 with a job.
+  * This whole file might seem like a '''lot''' of ceremony just to build
+  * the container properties. All this ceremony has been put in place for the
+  * following two reasons:
+  *
+  *   1. It is consistent with other back ends
+  *   2. It will allow for the possibility of builders other than the `StandardAwsBatchJobDefinitionBuilder`,
+  *      which may prove useful in the future.
+  *
+  */
 sealed trait AwsBatchJobDefinition {
   def containerProperties: ContainerProperties
 }
@@ -62,7 +66,6 @@ trait AwsBatchJobDefinitionBuilder {
 
   /** Gets a builder, seeded with appropriate portions of the container properties
    *
-   *  @param commandLine command line to execute within the container. Will be run in a shell context
    *  @param dockerImage docker image with which to run
    *  @return ContainerProperties builder ready for modification
    *

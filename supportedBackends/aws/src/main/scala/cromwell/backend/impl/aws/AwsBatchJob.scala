@@ -33,11 +33,10 @@ package cromwell.backend.impl.aws
 import java.security.MessageDigest
 
 import cats.data.{Kleisli, ReaderT}
-import cats.data.Kleisli._
 import cats.data.ReaderT._
 import cats.implicits._
-
 import cromwell.core.ExecutionIndex._
+
 import scala.language.higherKinds
 import cats.effect.{Async, Timer}
 import software.amazon.awssdk.services.batch.BatchClient
@@ -47,7 +46,7 @@ import software.amazon.awssdk.services.cloudwatchlogs.model.{GetLogEventsRequest
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.JobPaths
 import cromwell.cloudsupport.aws.auth.AwsAuthMode
-import org.slf4j.LoggerFactory
+import org.slf4j.{Logger, LoggerFactory}
 import fs2.Stream
 import software.amazon.awssdk.regions.Region
 
@@ -55,15 +54,18 @@ import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.util.Try
 
-/** The actual job for submission in AWS batch. Currently, each job will
- *  have its own job definition and queue. Support for separation and reuse of job
- *  definitions will be provided later.
- *
- *  @constructor Create an AwsBatchJob object capable of submitting, aborting and monitoring itself
- *  @param jobDescriptor create a new person with a name and age.
- *  @param runtimeAttributes runtime attributes class (which subsequently pulls from config)
- *  @param commandLine command line to be passed to the job
- */
+/**
+  *  The actual job for submission in AWS batch. `AwsBatchJob` is the primary interface to AWS Batch. It creates the
+  *  necessary `AwsBatchJobDefinition`, then submits the job using the SubmitJob API.
+  *
+  *  Currently, each job will have its own job definition and queue. Support for separation and reuse of job
+  *  definitions will be provided later.
+  *
+  *  @constructor Create an `AwsBatchJob` object capable of submitting, aborting and monitoring itself
+  *  @param jobDescriptor the `BackendJobDescriptor` that is passed to the BackendWorkflowActor
+  *  @param runtimeAttributes runtime attributes class (which subsequently pulls from config)
+  *  @param commandLine command line to be passed to the job
+  */
 final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                              runtimeAttributes: AwsBatchRuntimeAttributes, // config or WDL/CWL
                              commandLine: String, // WDL/CWL
@@ -79,9 +81,9 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                              optAwsAuthMode: Option[AwsAuthMode] = None
                              ) {
 
-  val Log = LoggerFactory.getLogger(AwsBatchJob.getClass)
+  val Log: Logger = LoggerFactory.getLogger(AwsBatchJob.getClass)
   // TODO: Auth, endpoint
-  lazy val client = {
+  lazy val client: BatchClient = {
     val builder = BatchClient.builder()
     optAwsAuthMode.foreach { awsAuthMode =>
       builder.credentialsProvider(awsAuthMode.provider())
@@ -89,13 +91,13 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     configRegion.foreach(builder.region)
     builder.build
   }
-  lazy val logsclient = {
+  lazy val logsclient: CloudWatchLogsClient = {
     val builder = CloudWatchLogsClient.builder()
     configRegion.foreach(builder.region)
     builder.build
   }
 
-  lazy val reconfiguredScript = {
+  lazy val reconfiguredScript: String = {
     // We'll use the MD5 of the dockerRc so the boundary is "random" but consistent
     val boundary = MessageDigest.getInstance("MD5").digest(dockerRc.getBytes).map("%02x".format(_)).mkString
 
@@ -131,9 +133,9 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     |exit 0
     """).stripMargin
   }
-  def submitJob[F[_]]()(
-                       implicit timer: Timer[F],
-                       async: Async[F]): Aws[F, SubmitJobResponse] = {
+
+  def submitJob[F[_]]()( implicit timer: Timer[F], async: Async[F]): Aws[F, SubmitJobResponse] = {
+
     val taskId = jobDescriptor.key.call.fullyQualifiedName + "-" + jobDescriptor.key.index + "-" + jobDescriptor.key.attempt
     val workflow = jobDescriptor.workflowDescriptor
     val uniquePath = workflow.callable.name + "/" +
@@ -148,7 +150,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     Log.info(s"""hostpath root: $uniquePath""")
 
     def callClient(definitionArn: String, awsBatchAttributes: AwsBatchAttributes): Aws[F, SubmitJobResponse] = {
-      val submit =
+      val submit: F[SubmitJobResponse] =
         async.delay(client.submitJob(
           SubmitJobRequest.builder()
             .jobName(sanitize(jobDescriptor.taskCall.fullyQualifiedName))
@@ -268,7 +270,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                                             .logGroupName("/aws/batch/job")
                                             .logStreamName(detail.container.logStreamName)
                                             .startFromHead(true)
-                                            .build).events.asScala.toSeq
+                                            .build).events.asScala
      val eventMessages = for ( event <- events ) yield event.message
      eventMessages mkString "\n"
   }

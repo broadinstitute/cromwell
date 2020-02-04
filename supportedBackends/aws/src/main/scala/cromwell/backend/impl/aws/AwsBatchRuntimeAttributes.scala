@@ -47,14 +47,14 @@ import wom.values._
 
 
 case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
-                                zones: Vector[String],
-                                memory: MemorySize,
-                                disks: Seq[AwsBatchVolume],
-                                dockerImage: String,
-                                queueArn: String,
-                                failOnStderr: Boolean,
-                                continueOnReturnCode: ContinueOnReturnCode,
-                                noAddress: Boolean,
+                                     zones: Vector[String],
+                                     memory: MemorySize,
+                                     disks: Seq[AwsBatchVolume],
+                                     dockerImage: String,
+                                     queueArn: String,
+                                     failOnStderr: Boolean,
+                                     continueOnReturnCode: ContinueOnReturnCode,
+                                     noAddress: Boolean,
                                      fileSystem:String= "s3")
 
 object AwsBatchRuntimeAttributes {

@@ -33,6 +33,13 @@ database storage. Please see
 + Fix a bug where zip files with directories could not be imported. 
   For example a zip with `a.wdl` and `b.wdl` could be imported but one with `sub_workflows/a.wdl` 
   and `imports/b.wdl` could not.
+
+### Adding support for Google Cloud Life Sciences v2beta
+Cromwell now supports running workflows using Google Cloud Life Sciences v2beta API in addition to Google Cloud Genomics v2alpha1. 
+More information about migration to the new API from v2alpha1 
+[here](https://cromwell.readthedocs.io/en/stable/backends/Google#migration-from-google-cloud-genomics-v2alpha1-to-google-cloud-life-sciences-v2beta). 
+* **Note** Google Cloud Life Sciences is the new name for newer versions of Google Cloud Genomics.
+* **Note** Support for Google Cloud Genomics v2alpha1 will be removed in a future version of Cromwell. Advance notice will be provided.
   
 ## 48 Release Notes
 
@@ -704,10 +711,11 @@ In addition, the following changes are to be expected:
 The `actor-factory` value for the google backend (`cromwell.backend.impl.jes.JesBackendLifecycleActorFactory`) is being deprecated.
 Please update your configuration accordingly.
 
-| PAPI Version |                                 actor-factory                                |
-|--------------|:----------------------------------------------------------------------------:|
-|      V1      | cromwell.backend.google.pipelines.v1alpha2.PipelinesApiLifecycleActorFactory |
-|      V2      | cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory |
+| PAPI Version  |                                 actor-factory                                |
+|---------------|:----------------------------------------------------------------------------:|
+|      V1       | cromwell.backend.google.pipelines.v1alpha2.PipelinesApiLifecycleActorFactory |
+|      V2alpha1 | cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory |
+|      V2beta   | cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory   |
 
 If you don't update the `actor-factory` value, you'll get a deprecation warning in the logs, and Cromwell will default back to **PAPI V1**
 

@@ -35,7 +35,8 @@ object Dependencies {
   private val googleCloudMonitoringV = "1.70.0"
   private val googleCloudNioV = "0.61.0-alpha"
   private val googleGenomicsServicesV1ApiV = "v1alpha2-rev495-1.23.0"
-  private val googleGenomicsServicesV2ApiV = "v2alpha1-rev31-1.25.0"
+  private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev31-1.25.0"
+  private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev5-1.25.0"
   private val googleHttpClientApacheV = "2.1.1"
   private val googleHttpClientV = "1.29.1"
   private val googleOauth2V = "0.13.0"
@@ -86,7 +87,12 @@ object Dependencies {
   private val simulacrumV = "0.15.0"
   private val slf4jV = "1.7.25"
   private val slickCatsV = "0.9.0"
-  private val slickV = "3.2.3"
+
+  /* If you're about to update our slick version:
+    * See https://github.com/broadinstitute/cromwell/pull/5332 which removed upserts because of failing tests in Slick 3.3.2
+    * Consider checking whether the new slick version passes tests with upserts enabled (eg KeyValueDatabaseSpec)
+  */
+  private val slickV = "3.3.2"
   private val snakeyamlV = "1.23"
   private val specs2MockV = "4.4.1"
   private val sprayJsonV = "1.3.5"
@@ -245,8 +251,13 @@ object Dependencies {
       exclude("com.google.guava", "guava-jdk5")
   )
 
-  private val googleGenomicsV2Dependency = List(
-    "com.google.apis" % "google-api-services-genomics" % googleGenomicsServicesV2ApiV
+  private val googleGenomicsV2Alpha1Dependency = List(
+    "com.google.apis" % "google-api-services-genomics" % googleGenomicsServicesV2Alpha1ApiV
+      exclude("com.google.guava", "guava-jdk5")
+  )
+
+  private val googleLifeSciencesV2BetaDependency = List(
+    "com.google.apis" % "google-api-services-lifesciences" % googleLifeSciencesServicesV2BetaApiV
       exclude("com.google.guava", "guava-jdk5")
   )
 
@@ -286,7 +297,7 @@ object Dependencies {
     "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV,
     "com.google.apis" % "google-api-services-cloudkms" % googleCloudKmsV
       exclude("com.google.guava", "guava-jdk5")
-  ) ++ googleGenomicsV1Dependency ++ googleGenomicsV2Dependency
+  ) ++ googleGenomicsV1Dependency ++ googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency
 
   private val aliyunOssDependencies = List(
     "com.aliyun.oss" % "aliyun-sdk-oss" % aliyunOssV

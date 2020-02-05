@@ -1,4 +1,4 @@
-name: papi_v2_gcsa
+name: papi_v2alpha1_gcsa
 testFormat: WorkflowSuccess
 backends: [papi-v2-gcsa]
 

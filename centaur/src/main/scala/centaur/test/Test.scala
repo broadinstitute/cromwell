@@ -178,7 +178,7 @@ object Operations extends StrictLogging {
             case Some(d.valid) => IO.pure(())
             case Some(otherExpectation) =>
               logger.error(s"Unexpected 'valid=${d.valid}' response when expecting $otherExpectation. Full unexpected description:${System.lineSeparator()}$d")
-              IO.raiseError(new Exception(s"Expected this workflow's /describe validity to be '$otherExpectation' but got: '${d.valid}'"))
+              IO.raiseError(new Exception(s"Expected this workflow's /describe validity to be '$otherExpectation' but got: '${d.valid}' (errors: ${d.errors.mkString(", ")})"))
           }
         }).timeoutTo(timeout, {
           if (alreadyTried + 1 >= retries) {

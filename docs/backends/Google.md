@@ -1,4 +1,3 @@
-
 **Google Cloud Backend**
 
 Google Genomics Pipelines API is a Docker-as-a-service from Google. It was formerly called JES (Job Execution Service);
@@ -147,7 +146,7 @@ backend {
 
 `token` is the standard base64-encoded username:password for the appropriate Docker Hub account.
 
-For PAPI version 2:
+For PAPI version 2 alpha 1:
 
 ```
 backend {
@@ -155,6 +154,26 @@ backend {
   providers {
     PAPIv2 {
       actor-factory = "cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory"
+      config {
+        dockerhub {
+          token = "base64-encoded-docker-hub-username:password"
+          key-name = "name/of/the/kms/key/used/for/encrypting/and/decrypting/the/docker/hub/token"
+          auth = "reference-to-the-auth-cromwell-should-use-for-kms-encryption"
+        }
+      }
+    }
+  }
+}
+```
+
+For PAPI version 2 beta:
+
+```
+backend {
+  default = "PAPIv2"
+  providers {
+    PAPIv2 {
+      actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
       config {
         dockerhub {
           token = "base64-encoded-docker-hub-username:password"
@@ -278,7 +297,7 @@ Any custom labels provided as '`google_labels`' in the [workflow options](../wf_
 
 ## Using NCBI Sequence Read Archive (SRA) Data
 
-The v2alpha1 backend supports accessing [NCBI
+The v2alpha1 and v2beta backends support accessing [NCBI
 SRA](https://www.ncbi.nlm.nih.gov/sra) accessions natively.  To configure this
 support you'll need to enable it in your config file like so:
 
@@ -313,7 +332,7 @@ backend {
   providers {
   	...
   	PapiV2 {
-  	  actor-factory = "cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory"
+  	  actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
   	  config {
   		...
   		virtual-private-cloud {
@@ -356,7 +375,7 @@ backend {
   providers {
     ...
     PapiV2 {
-      actor-factory = "cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory"
+      actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
       config {
         ...
         genomics {
@@ -415,3 +434,13 @@ Because the parallel composite upload threshold is not considered part of the ha
 which would be expected to generate non-composite outputs may call cache to results that did generate composite
 outputs. Calls which are executed and not cached will always honor the parallel composite upload setting at the time of
 their execution.
+
+### Migration from Google Cloud Genomics v2alpha1 to Google Cloud Life Sciences v2beta
+
+1. If you currently run your workflows using Cloud Genomics v2alpha1 and would like to switch to Google Cloud Life 
+Sciences v2beta, you will need to do a few changes to your configuration file: `actor-factory` value should be changed 
+from `cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory` to `cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory`.
+2. Parameter `genomics.endpoint-url` value should be changed from `https://genomics.googleapis.com/` to 
+`https://lifesciences.googleapis.com/`.
+3. Also you should add a new mandatory parameter `genomics.location` to your backend configuration. Currently Google Cloud 
+Life Sciences API is available only in `us-central1` and `europe-west2` locations.

@@ -113,6 +113,9 @@ package object values {
         case a: AsPairs => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
         case a: CollectByKey => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
 
+        case a: Min => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
+        case a: Max => a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
+
         case other => s"Unable to process ${other.toWdlV1}: No evaluateValue exists for that type in WDL 1.1".invalidNel
       }
     }

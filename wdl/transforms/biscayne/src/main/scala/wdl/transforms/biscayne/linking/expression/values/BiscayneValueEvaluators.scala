@@ -12,7 +12,7 @@ import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiatio
 import wdl.transforms.base.linking.expression.values.EngineFunctionEvaluators.processValidatedSingleValue
 import wom.expression.IoFunctionSet
 import wom.types._
-import wom.values.{WomArray, WomMap, WomOptionalValue, WomPair, WomValue}
+import wom.values.{WomArray, WomInteger, WomFloat, WomMap, WomOptionalValue, WomPair, WomValue}
 import wom.types.coercion.defaults._
 
 object BiscayneValueEvaluators {
@@ -24,7 +24,6 @@ object BiscayneValueEvaluators {
         sideEffectFiles = Seq.empty).validNel
     }
   }
-
 
   implicit val asMapFunctionEvaluator: ValueEvaluator[AsMap] = new ValueEvaluator[AsMap] {
     override def evaluateValue(a: AsMap, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
@@ -104,6 +103,51 @@ object BiscayneValueEvaluators {
         case WomArray(womType@WomArrayType(WomPairType(x, _)), _) => s"Cannot evaluate 'collect_by_key' on type ${womType.stableName}. Keys must be primitive but got ${x.stableName}.".invalidNel
         case other => s"Invalid call of 'collect_by_key' on parameter of type '${other.womType.stableName}' (expected Map[X, Y])".invalidNel
       } (coercer = WomArrayType(WomPairType(WomAnyType, WomAnyType)))
+    }
+  }
+
+  private def resultOfIntVsFloat(functionName: String,
+                                 intFunc: (Int, Int) => Int,
+                                 doubleFunc: (Double, Double) => Double)
+                                (value1: EvaluatedValue[_], value2: EvaluatedValue[_]): ErrorOr[EvaluatedValue[WomValue]] = {
+    val newValue = (value1.value, value2.value) match {
+      case (WomInteger(i1), WomInteger(i2)) => WomInteger(intFunc(i1, i2)).validNel
+      case (WomInteger(i1), WomFloat(l2)) => WomFloat(doubleFunc(i1.doubleValue, l2)).validNel
+      case (WomFloat(l1), WomInteger(i2)) => WomFloat(doubleFunc(l1, i2.doubleValue)).validNel
+      case (WomFloat(l1), WomFloat(l2)) => WomFloat(doubleFunc(l1, l2)).validNel
+      case (other1, other2) => s"Invalid arguments to '$functionName':(${other1.typeName}, ${other2.typeName})".invalidNel
+    }
+    newValue map { v => EvaluatedValue(v, value1.sideEffectFiles ++ value2.sideEffectFiles) }
+  }
+
+  implicit val minFunctionEvaluator: ValueEvaluator[Min] = new ValueEvaluator[Min] {
+    override def evaluateValue(a: Min,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                              (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomValue]] = {
+      val value1 = expressionValueEvaluator.evaluateValue(a.arg1, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
+      val value2 = expressionValueEvaluator.evaluateValue(a.arg2, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
+
+      val intFunc = (i1: Int, i2: Int) => Math.min(i1, i2)
+      val doubleFunc = (l1: Double, l2: Double) => Math.min(l1, l2)
+
+      (value1, value2) flatMapN resultOfIntVsFloat("min", intFunc, doubleFunc)
+    }
+  }
+
+  implicit val maxFunctionEvaluator: ValueEvaluator[Max] = new ValueEvaluator[Max] {
+    override def evaluateValue(a: Max,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomValue]] = {
+      val value1 = expressionValueEvaluator.evaluateValue(a.arg1, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
+      val value2 = expressionValueEvaluator.evaluateValue(a.arg2, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
+
+      val intFunc = (i1: Int, i2: Int) => Math.max(i1, i2)
+      val doubleFunc = (l1: Double, l2: Double) => Math.max(l1, l2)
+
+      (value1, value2) flatMapN resultOfIntVsFloat("max", intFunc, doubleFunc)
     }
   }
 }

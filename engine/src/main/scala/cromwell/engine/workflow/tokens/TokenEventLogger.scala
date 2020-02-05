@@ -28,7 +28,7 @@ class CachingTokenEventLogger(log: LoggingAdapter,
 
   override def flagTokenHog(hogGroup: String): Unit = {
     if (Option(cache.getIfPresent("HOG_" + hogGroup)).isEmpty) {
-      log.info(s"Token Dispenser: The hog group $hogGroup is starting too many jobs. It is being hog limited.")
+      log.info(s"Token Dispenser: The group $hogGroup has reached its job limit and is being rate-limited.")
       cache.put("HOG_" + hogGroup, new Object())
     }
   }

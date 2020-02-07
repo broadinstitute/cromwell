@@ -140,6 +140,7 @@ private::determine_requester_pays() {
   if [[ ${attempt} -gt ${max_attempts} ]]; then
     echo "Error attempting to localize file with command: '$command'"
     cat ${gsutil_log}
+    exit 1
   fi
 }
 
@@ -167,11 +168,8 @@ localize_files() {
 
   if [[ ${USE_REQUESTER_PAYS} = true ]]; then
     rpflag="-u $project"
-  elif [[ ${USE_REQUESTER_PAYS} = false ]]; then
-    rpflag=""
   else
-    # error
-    exit 1
+    rpflag=""
   fi
 
 
@@ -246,10 +244,8 @@ localize_directories() {
 
   if [[ ${USE_REQUESTER_PAYS} = true ]]; then
     rpflag="-u $project"
-  elif [[ ${USE_REQUESTER_PAYS} = false ]]; then
-    rpflag=""
   else
-    exit 1
+    rpflag=""
   fi
 
   while [[ $# -gt 0 ]]; do

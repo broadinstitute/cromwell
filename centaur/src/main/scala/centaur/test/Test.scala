@@ -660,9 +660,6 @@ object Operations extends StrictLogging {
         import diffson.jsonpatch._
         import diffson.jsonpatch.lcsdiff._
 
-//        import cats._
-//        import cats.implicits._
-
         implicit val lcs = new Patience[JsValue]
 
         implicit val writer: JsonWriter[JsonPatch[JsValue]] = new JsonWriter[JsonPatch[JsValue]] {
@@ -731,7 +728,7 @@ object Operations extends StrictLogging {
   // Reasoning is:
   //  1. the ultra-specific JM case is a lot simpler to reason about and can be done in a few lines
   //  2. it's nice to be able to assert general cases rather than singular specific examples
-  //  3. its hopefully unlikely that the same bug will show up in two separate implementations
+  //  3. it's hopefully unlikely that the same bug will show up in two separate implementations
   def setUpJmStyleMetadataExpectation(originalWorkflowMetadataJson: JsObject): JsObject = {
     val originalCallMetadataJson = originalWorkflowMetadataJson.fields.get("calls").map(_.asJsObject)
 

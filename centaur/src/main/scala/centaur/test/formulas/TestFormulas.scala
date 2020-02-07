@@ -59,6 +59,7 @@ object TestFormulas extends StrictLogging {
     _ <- checkDescription(workflowDefinition, validityExpectation = None)
     submittedWorkflow <- runFailingWorkflow(workflowDefinition)
     metadata <- validateMetadata(submittedWorkflow, workflowDefinition)
+    _ <- validateJobManagerStyleMetadata(submittedWorkflow, metadata.value)
     _ = cromwellTracker.track(metadata)
     _ <- validateDirectoryContentsCounts(workflowDefinition, submittedWorkflow, metadata)
     _ <- waitForArchive(submittedWorkflow.id)
@@ -73,6 +74,7 @@ object TestFormulas extends StrictLogging {
       secondWf <- runSuccessfulWorkflow(workflowDefinition.secondRun)
       _ <- printHashDifferential(firstWF, secondWf)
       metadata <- validateMetadata(secondWf, workflowDefinition, Option(firstWF.id.id))
+      _ <- validateJobManagerStyleMetadata(secondWf, metadata.value)
       _ = cromwellTracker.track(metadata)
       _ <- validateNoCacheMisses(secondWf, metadata, workflowDefinition)
       _ <- validateDirectoryContentsCounts(workflowDefinition, secondWf, metadata)
@@ -101,6 +103,7 @@ object TestFormulas extends StrictLogging {
       _ <- runSuccessfulWorkflow(workflowDefinition) // Build caches
       testWf <- runSuccessfulWorkflow(workflowDefinition.secondRun)
       metadata <- validateMetadata(testWf, workflowDefinition)
+      _ <- validateJobManagerStyleMetadata(testWf, metadata.value)
       _ = cromwellTracker.track(metadata)
       _ <- validateNoCacheHits(testWf, metadata, workflowDefinition)
       _ <- validateDirectoryContentsCounts(workflowDefinition, testWf, metadata)
@@ -113,6 +116,7 @@ object TestFormulas extends StrictLogging {
       _ <- runFailingWorkflow(workflowDefinition) // Build caches
       testWf <- runFailingWorkflow(workflowDefinition)
       metadata <- validateMetadata(testWf, workflowDefinition)
+      _ <- validateJobManagerStyleMetadata(testWf, metadata.value)
       _ = cromwellTracker.track(metadata)
       _ <- validateNoCacheHits(testWf, metadata, workflowDefinition)
       _ <- validateDirectoryContentsCounts(workflowDefinition, testWf, metadata)
@@ -135,6 +139,7 @@ object TestFormulas extends StrictLogging {
           _ <- expectSomeProgress(submittedWorkflow, workflowDefinition, Set(Running, finalStatus), workflowProgressTimeout)
           _ <- pollUntilStatus(submittedWorkflow, workflowDefinition, finalStatus)
           metadata <- validateMetadata(submittedWorkflow, workflowDefinition)
+          _ <- validateJobManagerStyleMetadata(submittedWorkflow, metadata.value)
           _ = cromwellTracker.track(metadata)
           _ <- if (testRecover) {
             validateRecovered(workflowDefinition, submittedWorkflow, metadata, callMarker.callKey, jobId)
@@ -157,6 +162,7 @@ object TestFormulas extends StrictLogging {
     _ <- expectSomeProgress(submittedWorkflow, workflowDefinition, Set(Running, Aborting, Aborted), workflowProgressTimeout)
     _ <- pollUntilStatus(submittedWorkflow, workflowDefinition, Aborted)
     metadata <- validateMetadata(submittedWorkflow, workflowDefinition)
+    _ <- validateJobManagerStyleMetadata(submittedWorkflow, metadata.value)
     _ = cromwellTracker.track(metadata)
     _ <- validateDirectoryContentsCounts(workflowDefinition, submittedWorkflow, metadata)
   } yield SubmitResponse(submittedWorkflow)
@@ -183,6 +189,7 @@ object TestFormulas extends StrictLogging {
       // Wait a little to make sure that if the abort didn't work and calls start running we see them in the metadata
       _ <- waitFor(30.seconds)
       metadata <- validateMetadata(submittedWorkflow, workflowDefinition)
+      _ <- validateJobManagerStyleMetadata(submittedWorkflow, metadata.value)
       _ = cromwellTracker.track(metadata)
       _ <- validateDirectoryContentsCounts(workflowDefinition, submittedWorkflow, metadata)
     } yield SubmitResponse(submittedWorkflow)
@@ -219,6 +226,7 @@ object TestFormulas extends StrictLogging {
           second <- runSuccessfulWorkflow(workflowDefinition.secondRun) // Same WDL and config but a "backend" runtime option targeting PAPI v2.
           _ <- printHashDifferential(first, second)
           metadata <- validateMetadata(second, workflowDefinition, Option(first.id.id))
+          _ <- validateJobManagerStyleMetadata(second, metadata.value)
           _ = cromwellTracker.track(metadata)
           _ <- validateNoCacheMisses(second, metadata, workflowDefinition)
           _ <- validateDirectoryContentsCounts(workflowDefinition, second, metadata)

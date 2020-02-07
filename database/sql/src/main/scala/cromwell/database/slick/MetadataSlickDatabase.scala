@@ -1,7 +1,6 @@
 package cromwell.database.slick
 
 import java.sql.Timestamp
-import java.time.OffsetDateTime
 
 import cats.implicits._
 import com.typesafe.config.{Config, ConfigFactory}
@@ -43,7 +42,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       val batchesToWrite = metadataEntries.grouped(insertBatchSize).toList
       val insertActions = batchesToWrite.map { batch =>
         val insertMetadata = dataAccess.metadataEntryIdsAutoInc ++= batch
-        insertMetadata flatMap { ids =>  writeSummaryQueueEntry(ids, OffsetDateTime.now().toSystemTimestamp) }
+        insertMetadata.flatMap(ids => writeSummaryQueueEntries(ids))
       }
 //      val action = DBIO.sequence(insertActions.toSeq) flatMap { x =>
 //        val ids = x.flatten
@@ -199,7 +198,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                   (implicit ec: ExecutionContext): Future[(Long, Long)] = {
     val action = for {
 
-      metadataEntryIdsToSummarize <- fetchUnsummarizedMetadataEntryIds(limit.toLong)
+      metadataEntryIdsToSummarize <- fetchMetadataJournalIdsFromSummaryQueue(limit.toLong)
 
       metadataEntriesToSummarize <- dataAccess.metadataEntriesForIds(metadataEntryIdsToSummarize).result
 
@@ -215,8 +214,8 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
         labelMetadataKey = labelMetadataKey,
         buildUpdatedSummary = buildUpdatedSummary
       )
-      _ <- markSummaryQueueEntriesAsSummarizedForMetadataEntryIds(summarizedEntryIds)
-      unsummarizedTotal <- countUnsummarizedMetadataEntryIds()
+      _ <- deleteSummaryQueueEntriesByMetadataJournalIds(summarizedEntryIds)
+      unsummarizedTotal <- countSummaryQueueEntries()
 
     } yield (summarizedEntryIds.length.toLong, unsummarizedTotal.toLong)
 
@@ -343,7 +342,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       _ <- DBIO.sequence(customLabelEntries map toCustomLabelEntry map upsertCustomLabelEntry)
       _ <- upsertSummaryStatusEntrySummaryPosition(summaryName, summaryPosition)
       summarizedMetadataEntryIds = rawMetadataEntries.flatMap(_.metadataEntryId.toSeq)
-      _ <- markSummaryQueueEntriesAsSummarizedForMetadataEntryIds(summarizedMetadataEntryIds)
+      _ <- deleteSummaryQueueEntriesByMetadataJournalIds(summarizedMetadataEntryIds)
     } yield summaryPosition
   }
 

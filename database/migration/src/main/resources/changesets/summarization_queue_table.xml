@@ -4,31 +4,16 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet author="chrisl" id="summary_queue_table" dbms="hsqldb,mariadb,mysql,postgresql">
+    <changeSet author="gsterin" id="summary_queue_table" dbms="hsqldb,mariadb,mysql,postgresql">
         <createTable tableName="SUMMARY_QUEUE_ENTRY">
-            <column name="SUMMARY_QUEUE_ID" type="BIGINT" autoIncrement="true">
-                <constraints primaryKey="true" primaryKeyName="PK_SUMMARY_QUEUE"/>
-            </column>
-            <column name="METADATA_ENTRY_ID" type="BIGINT">
+            <column name="METADATA_JOURNAL_ID" type="BIGINT">
                 <constraints nullable="false"/>
-            </column>
-            <column name="METADATA_ENTRY_WRITE_TIMESTAMP" type="DATETIME(6)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="SUMMARIZATION_TIMESTAMP" type="DATETIME(6)">
-                <constraints nullable="true"/>
             </column>
         </createTable>
 
         <modifySql dbms="mysql">
             <append value=" ENGINE=INNODB"/>
         </modifySql>
-    </changeSet>
-
-    <changeSet author="chrisl" id="summary_queue_metadata_entry_id_index" dbms="hsqldb,mariadb,mysql,postgresql">
-        <addUniqueConstraint tableName="SUMMARY_QUEUE_ENTRY"
-                             columnNames="METADATA_ENTRY_ID"
-                             constraintName="UC_SUMMARY_QUEUE_ENTRY_METADATA_ENTRY_ID"/>
     </changeSet>
 
 </databaseChangeLog>

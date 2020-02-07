@@ -15,5 +15,6 @@ class MetadataDataAccessComponent(val driver: JdbcProfile) extends DataAccessCom
       customLabelEntries.schema ++
       metadataEntries.schema ++
       summaryStatusEntries.schema ++
-      workflowMetadataSummaryEntries.schema
+      workflowMetadataSummaryEntries.schema ++
+      summaryQueueEntries.schema
 }

@@ -1,8 +1,5 @@
 package cromwell.database.slick
 
-import java.sql.Timestamp
-import java.time.OffsetDateTime
-import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.tables.SummaryQueueEntry
 
 trait SummaryQueueSlickDatabase {
@@ -10,25 +7,20 @@ trait SummaryQueueSlickDatabase {
 
   import dataAccess.driver.api._
 
-  private[slick] def writeSummaryQueueEntry(metadataEntryIds: Seq[Long], timestamp: Timestamp) = {
-    dataAccess.summaryQueueEntryIdsAutoInc ++= metadataEntryIds.map(id => SummaryQueueEntry(id, timestamp, None, None))
+  private[slick] def writeSummaryQueueEntries(metadataJournalIds: Seq[Long]) = {
+    dataAccess.summaryQueueEntries ++= metadataJournalIds.map(id => SummaryQueueEntry(id))
   }
 
-  private[slick] def markSummaryQueueEntriesAsSummarizedForMetadataEntryIds(metadataEntryIds: Seq[Long]) = {
-    val updateTimestamp = OffsetDateTime.now.toSystemTimestamp
-
-    DBIO.sequence(metadataEntryIds map { id =>
-      dataAccess.summaryQueueSummarizationTimestampForId(id).update(Option(updateTimestamp))
-    })
+  private[slick] def fetchMetadataJournalIdsFromSummaryQueue(maxResults: Long) = {
+    dataAccess.summaryQueueEntries.map(_.metadataJournalId).sortBy(identity).take(maxResults).result
   }
 
-  private[slick] def fetchUnsummarizedMetadataEntryIds(maxResults: Long) = {
-    dataAccess.unsummarizedMetadataEntryIds(maxResults).result
+  private[slick] def deleteSummaryQueueEntriesByMetadataJournalIds(metadataJournalIds: Seq[Long]) = {
+    dataAccess.summaryQueueEntries.filter(_.metadataJournalId.inSet(metadataJournalIds)).delete
   }
 
-  private[slick] def countUnsummarizedMetadataEntryIds() = {
-    dataAccess.countUnsummarizedMetadataEntryIds().result
+  private[slick] def countSummaryQueueEntries() = {
+    dataAccess.summaryQueueEntries.length.result
   }
-
 
 }

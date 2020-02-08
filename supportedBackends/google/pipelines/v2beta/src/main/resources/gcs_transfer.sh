@@ -137,7 +137,8 @@ private::determine_requester_pays() {
     fi
   done
 
-  if [[ ${attempt} -gt ${max_attempts} ]]; then
+  # If we are unable to make a requester pays determination then exit with an error.
+  if [[ "$USE_REQUESTER_PAYS" != "true" ]] && [[ "$USE_REQUESTER_PAYS" != "false" ]]; then
     echo "Error attempting to localize file with command: '$command'"
     cat ${gsutil_log}
     exit 1

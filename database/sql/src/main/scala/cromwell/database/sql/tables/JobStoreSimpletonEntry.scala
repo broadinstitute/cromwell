@@ -7,6 +7,6 @@ case class JobStoreSimpletonEntry
   simpletonKey: String,
   simpletonValue: Option[SerialClob],
   wdlType: String,
-  jobStoreEntryId: Option[Int] = None,
-  jobStoreSimpletonEntryId: Option[Int] = None
+  jobStoreEntryId: Option[Long] = None,
+  jobStoreSimpletonEntryId: Option[Long] = None
 )

@@ -1,0 +1,25 @@
+# Tests one of the simplest versions of intermediate file deletion
+
+name: hello_delete
+testFormat: workflowsuccess
+backends: [Papiv2]
+
+files {
+  workflow: delete_intermediates/hello_delete.wdl
+  options: delete_intermediates/delete_intermediates.options
+}
+
+metadata {
+  workflowName: hello_delete
+  status: Succeeded
+  fileDeletionStatus: Succeeded
+}
+
+fileSystemCheck: "gcs"
+outputExpectations: {
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/hello_delete/<<UUID>>/call-hello/stdout": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/hello_delete/<<UUID>>/call-hello/stderr": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/hello_delete/<<UUID>>/call-hello/rc": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/hello_delete/<<UUID>>/call-hello/delete.txt": 0
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/hello_delete/<<UUID>>/call-hello/keep.txt": 1
+}

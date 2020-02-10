@@ -196,6 +196,16 @@ class WomFileSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks 
       ) should be(Success(expectedSuffix))
     }
 
+    it should s"add a string suffix to $description, trimming that suffix before addition" in {
+      womFile.add(WomString("  \n\r\t /suffix  \n\r\t ")) should be(Success(expectedSuffix))
+    }
+
+    it should s"add an optional string suffix to $description, trimming that suffix before addition" in {
+      WomOptionalValue(womFile.womType, Option(womFile)).add(
+        WomOptionalValue(WomStringType, Option(WomString("  \n\r\t /suffix  \n\r\t ")))
+      ) should be(Success(expectedSuffix))
+    }
+
   }
 
   val addFailures = Table(

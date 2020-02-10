@@ -1,0 +1,22 @@
+name: gcpWdlResultsCopying
+testFormat: workflowsuccess
+backends: [Papiv2]
+tags: ["copyGcp"]
+
+files {
+  workflow: wdlResultsCopying/simpleWorkflow.wdl
+  options: wdlResultsCopying/gcp/options.json
+}
+
+metadata {
+  status: Succeeded
+}
+
+fileSystemCheck: "gcs"
+outputExpectations: {
+    "gs://<<bucket-name-placeholder>>/wf_results/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/output.txt": 1
+    "gs://<<bucket-name-placeholder>>/wf_logs/workflow.<<UUID>>.log": 1
+    "gs://<<bucket-name-placeholder>>/cl_logs/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/stderr": 1
+    "gs://<<bucket-name-placeholder>>/cl_logs/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/stdout": 1
+    "gs://<<bucket-name-placeholder>>/cl_logs/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/simpleStdoutTask.log": 1
+}

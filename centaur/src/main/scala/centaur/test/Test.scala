@@ -24,12 +24,17 @@ import common.validation.Validation._
 import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
 import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, Succeeded, TerminalStatus, WaasDescription, WorkflowId, WorkflowMetadata, WorkflowStatus}
+import cromwell.cloudsupport.aws.AwsConfiguration
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import io.circe.parser._
 import org.apache.commons.lang3.exception.ExceptionUtils
 import mouse.all._
 import spray.json.{JsString, JsValue}
+import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
+import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.s3.S3Client
+import spray.json.JsString
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.TimeoutException
@@ -127,6 +132,21 @@ object Operations extends StrictLogging {
   implicit private val timer = IO.timer(global)
   implicit private val contextShift = IO.contextShift(global)
 
+  lazy val awsConfiguration: AwsConfiguration = AwsConfiguration(CentaurConfig.conf)
+  lazy val awsConf: Config = CentaurConfig.conf.getConfig("aws")
+  lazy val awsAuthName: String = awsConf.getString("auths")
+  lazy val region: String  = awsConf.getString("region")
+  lazy val accessKeyId: String  = awsConf.getString("access-key")
+  lazy val secretAccessKey: String = awsConf.getString("secret-key")
+
+  def buildAmazonS3Client: S3Client = {
+    val basicAWSCredentials = AwsBasicCredentials.create(accessKeyId, secretAccessKey)
+    S3Client.builder()
+      .region(Region.of(region))
+      .credentialsProvider(StaticCredentialsProvider.create(basicAWSCredentials))
+      .build()
+  }
+
   def submitWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = {
     new Test[SubmittedWorkflow] {
       override def run: IO[SubmittedWorkflow] = for {
@@ -145,27 +165,40 @@ object Operations extends StrictLogging {
     } yield ()
   }
 
-  def checkDescription(workflow: Workflow, validityExpectation: Option[Boolean]): Test[Unit] = {
+  def checkDescription(workflow: Workflow, validityExpectation: Option[Boolean], retries: Int = 3): Test[Unit] = {
     new Test[Unit] {
+
+      val timeout = 60.seconds
+
+      def checkDescriptionInner(alreadyTried: Int): IO[Unit] = {
+        val timeoutStackTraceString = ExceptionUtils.getStackTrace(new Exception)
+        (CentaurCromwellClient.describe(workflow) flatMap { d: WaasDescription =>
+          validityExpectation match {
+            case None => IO.pure(())
+            case Some(d.valid) => IO.pure(())
+            case Some(otherExpectation) =>
+              logger.error(s"Unexpected 'valid=${d.valid}' response when expecting $otherExpectation. Full unexpected description:${System.lineSeparator()}$d")
+              IO.raiseError(new Exception(s"Expected this workflow's /describe validity to be '$otherExpectation' but got: '${d.valid}' (errors: ${d.errors.mkString(", ")})"))
+          }
+        }).timeoutTo(timeout, {
+          if (alreadyTried + 1 >= retries) {
+            IO.raiseError(new TimeoutException("Timeout from checkDescription 60 seconds: " + timeoutStackTraceString))
+          } else {
+            logger.warn(s"checkDescription failed on attempt ${alreadyTried + 1}. ")
+            checkDescriptionInner(alreadyTried + 1)
+          }
+        })
+      }
+
+
       override def run: IO[Unit] = {
+
+
         // We can't describe workflows based on zipped imports, so don't try:
         if (workflow.skipDescribeEndpointValidation || workflow.data.zippedImports.nonEmpty) {
           IO.pure(())
         } else {
-          val timeout = 60.seconds
-          val timeoutStackTraceString = ExceptionUtils.getStackTrace(new Exception)
-
-          (CentaurCromwellClient.describe(workflow) flatMap { d: WaasDescription =>
-            validityExpectation match {
-              case None => IO.pure(())
-              case Some(d.valid) => IO.pure(())
-              case Some(otherExpectation) =>
-                logger.error(s"Unexpected 'valid=${d.valid}' response when expecting $otherExpectation. Full unexpected description:${System.lineSeparator()}$d")
-                IO.raiseError(new Exception(s"Expected this workflow's /describe validity to be '$otherExpectation' but got: '${d.valid}'"))
-            }
-          }).timeoutTo(timeout, {
-            IO.raiseError(new TimeoutException("Timeout from checkDescription 60 seconds: " + timeoutStackTraceString))
-          })
+          checkDescriptionInner(0)
         }
       }
     }
@@ -526,7 +559,7 @@ object Operations extends StrictLogging {
           IO.unit
         } else {
           val message = (List("actual logs endpoint output did not equal filtered metadata", "flat logs: ") ++
-            flatLogs.toList :+ "flat filtered metadata: " ++ flatFilteredMetadata.toList).mkString("\n")
+            flatLogs.toList ++ List("flat filtered metadata: ") ++ flatFilteredMetadata.toList).mkString("\n")
           IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
         }
 
@@ -595,7 +628,6 @@ object Operations extends StrictLogging {
           }
         }
 
-        cleanUpImports(workflow)
         for {
           actualMetadata <- CentaurCromwellClient.metadata(workflow)
           _ <- validateUnwantedMetadata(actualMetadata)
@@ -686,7 +718,7 @@ object Operations extends StrictLogging {
     override def run: IO[Unit] = workflowDefinition.directoryContentCounts match {
       case None => IO.unit
       case Some(directoryContentCountCheck) =>
-        val counts = directoryContentCountCheck.expectedDrectoryContentsCounts map {
+        val counts = directoryContentCountCheck.expectedDirectoryContentsCounts map {
           case (directory, count) =>
             val substitutedDir = directory.replaceAll("<<UUID>>", workflowId)
             (substitutedDir, count, directoryContentCountCheck.checkFiles.countObjectsAtPath(substitutedDir))
@@ -738,20 +770,4 @@ object Operations extends StrictLogging {
     }
   }
 
-  /**
-    * Clean up temporary zip files created for Imports testing.
-    */
-  def cleanUpImports(submittedWF: SubmittedWorkflow) = {
-    submittedWF.workflow.zippedImports match {
-      case Some(zipFile) => zipFile.delete(swallowIOExceptions = true)
-      case None => //
-    }
-  }
-
-  // FIXME: Should be abstracted w/ validateMetadata - ATM still used by the unused caching tests
-  def retrieveMetadata(workflow: SubmittedWorkflow): Test[WorkflowMetadata] = {
-    new Test[WorkflowMetadata] {
-      override def run: IO[WorkflowMetadata] = CentaurCromwellClient.metadata(workflow)
-    }
-  }
 }

@@ -185,6 +185,7 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
                                      rootWorkflowIdKey: String,
                                      labelMetadataKey: String,
                                      limit: Int,
+                                     permittedSummaryStatusPointerUpdate: Option[Long],
                                      buildUpdatedSummary:
                                      (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                                        => WorkflowMetadataSummaryEntry)
@@ -267,7 +268,7 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
 
     override def close(): Nothing = notImplemented()
 
-    override def deleteNonLabelMetadataForWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Int] = {
+    override def deleteNonLabelMetadataForWorkflowAndUpdateArchiveStatus(rootWorkflowId: String, newArchiveStatus: Option[String])(implicit ec: ExecutionContext): Future[Int] = {
       notImplemented()
     }
 
@@ -276,6 +277,10 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     }
 
     override def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = {
+      notImplemented()
+    }
+
+    override def queryRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp, batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[String]] = {
       notImplemented()
     }
   }

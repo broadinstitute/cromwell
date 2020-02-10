@@ -9,6 +9,7 @@ import com.typesafe.config.{Config, ConfigValue}
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import common.validation.Validation._
+import cromwell.backend.CommonBackendConfigurationAttributes
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{BatchRequestTimeoutConfiguration, GcsTransferConfiguration, MemoryRetryConfiguration, VirtualPrivateCloudConfiguration}
 import cromwell.backend.google.pipelines.common.authentication.PipelinesApiAuths
 import cromwell.backend.google.pipelines.common.callcaching.{CopyCachedOutputs, PipelinesCacheHitDuplicationStrategy, UseOriginalCachedOutputs}
@@ -31,10 +32,12 @@ case class PipelinesApiConfigurationAttributes(project: String,
                                                restrictMetadataAccess: Boolean,
                                                executionBucket: String,
                                                endpointUrl: URL,
+                                               location: String,
                                                maxPollingInterval: Int,
                                                qps: Int Refined Positive,
                                                cacheHitDuplicationStrategy: PipelinesCacheHitDuplicationStrategy,
                                                requestWorkers: Int Refined Positive,
+                                               pipelineTimeout: FiniteDuration,
                                                logFlushPeriod: Option[FiniteDuration],
                                                gcsTransferConfiguration: GcsTransferConfiguration,
                                                virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
@@ -60,11 +63,12 @@ object PipelinesApiConfigurationAttributes {
 
   lazy val DefaultMemoryRetryFactor: GreaterEqualRefined = refineMV[GreaterEqualOne](2.0)
 
-  private val papiKeys = Set(
+  private val papiKeys = CommonBackendConfigurationAttributes.commonValidConfigurationAttributeKeys ++ Set(
     "project",
     "root",
     "maximum-polling-interval",
     "genomics",
+    "genomics.location",
     "genomics.compute-service-account",
     "genomics.auth",
     "genomics.restrict-metadata-access",
@@ -72,24 +76,17 @@ object PipelinesApiConfigurationAttributes {
     "genomics-api-queries-per-100-seconds",
     "genomics.localization-attempts",
     "genomics.parallel-composite-upload-threshold",
-    "dockerhub",
-    "dockerhub.account",
-    "dockerhub.token",
     "filesystems",
+    "filesystems.drs.auth",
     "filesystems.gcs.auth",
+    "filesystems.gcs.project",
     "filesystems.gcs.caching.duplication-strategy",
     "concurrent-job-limit",
     "request-workers",
+    "pipeline-timeout",
     "batch-requests.timeouts.read",
     "batch-requests.timeouts.connect",
-    "default-runtime-attributes",
-    "default-runtime-attributes.cpu",
-    "default-runtime-attributes.failOnStderr",
-    "default-runtime-attributes.continueOnReturnCode",
-    "default-runtime-attributes.docker",
-    "default-runtime-attributes.memory",
     "default-runtime-attributes.bootDiskSizeGb",
-    "default-runtime-attributes.disks",
     "default-runtime-attributes.noAddress",
     "default-runtime-attributes.preemptible",
     "default-runtime-attributes.zones",
@@ -144,6 +141,7 @@ object PipelinesApiConfigurationAttributes {
     val project: ErrorOr[String] = validate { backendConfig.as[String]("project") }
     val executionBucket: ErrorOr[String] = validate { backendConfig.as[String]("root") }
     val endpointUrl: ErrorOr[URL] = validate { backendConfig.as[URL]("genomics.endpoint-url") }
+    val location: ErrorOr[String] = validateGenomicsLocation(endpointUrl, backendConfig.as[Option[String]]("genomics.location"))
     val maxPollingInterval: Int = backendConfig.as[Option[Int]]("maximum-polling-interval").getOrElse(600)
     val computeServiceAccount: String = backendConfig.as[Option[String]]("genomics.compute-service-account").getOrElse("default")
     val genomicsAuthName: ErrorOr[String] = validate { backendConfig.as[String]("genomics.auth") }
@@ -156,6 +154,9 @@ object PipelinesApiConfigurationAttributes {
       case other => throw new IllegalArgumentException(s"Unrecognized caching duplication strategy: $other. Supported strategies are copy and reference. See reference.conf for more details.")
     } }
     val requestWorkers: ErrorOr[Int Refined Positive] = validatePositiveInt(backendConfig.as[Option[Int]]("request-workers").getOrElse(3), "request-workers")
+
+    val pipelineTimeout: FiniteDuration = backendConfig.getOrElse("pipeline-timeout", 7.days)
+
     val logFlushPeriod: Option[FiniteDuration] = backendConfig.as[Option[FiniteDuration]]("log-flush-period") match {
       case Some(duration) if duration.isFinite() => Option(duration)
       // "Inf" disables upload
@@ -203,6 +204,7 @@ object PipelinesApiConfigurationAttributes {
                                                        bucket: String,
                                                        endpointUrl: URL,
                                                        genomicsName: String,
+                                                       location: String,
                                                        restrictMetadata: Boolean,
                                                        gcsName: String,
                                                        qps: Int Refined Positive,
@@ -221,10 +223,12 @@ object PipelinesApiConfigurationAttributes {
             restrictMetadataAccess = restrictMetadata,
             executionBucket = bucket,
             endpointUrl = endpointUrl,
+            location = location,
             maxPollingInterval = maxPollingInterval,
             qps = qps,
             cacheHitDuplicationStrategy = cacheHitDuplicationStrategy,
             requestWorkers = requestWorkers,
+            pipelineTimeout = pipelineTimeout,
             logFlushPeriod = logFlushPeriod,
             gcsTransferConfiguration = gcsTransferConfiguration,
             virtualPrivateCloudConfiguration = virtualPrivateCloudConfiguration,
@@ -237,6 +241,7 @@ object PipelinesApiConfigurationAttributes {
       executionBucket,
       endpointUrl,
       genomicsAuthName,
+      location,
       genomicsRestrictMetadataAccess,
       gcsFilesystemAuthName,
       qpsValidation,
@@ -265,6 +270,17 @@ object PipelinesApiConfigurationAttributes {
     refineV[Positive](qpsCandidate) match {
       case Left(_) => s"Calculated QPS for Google Genomics API ($qpsCandidate/s) was not a positive integer (supplied value was $qp100s per 100s)".invalidNel
       case Right(refined) => refined.validNel
+    }
+  }
+
+  def validateGenomicsLocation(genomicsUrl: ErrorOr[URL], location: Option[String]): ErrorOr[String] = {
+    genomicsUrl match {
+      case Valid(url) if url.toString.contains("lifesciences") =>
+        location match {
+          case Some(location) => location.validNel
+          case None => "Missing mandatory attribute `genomics.location` for Google Cloud Life Sciences API".invalidNel
+        }
+      case _ => location.getOrElse("").validNel
     }
   }
 

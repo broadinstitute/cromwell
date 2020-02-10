@@ -275,6 +275,82 @@ database {
 
 If no override is found for `metadata`, Cromwell falls back to using the settings under the root `database` configuration.
 
+####Hybrid Metadata Storage (Classic + Carbonite)
+
+While a workflow is running its metadata is always stored in Cromwell's relational metadata database as described above,
+but Cromwell now supports "Carbonite" metadata archival for terminal workflows in Google Cloud Storage (GCS).
+
+Hybrid metadata storage is configured first by choosing `cromwell.services.metadata.hybridcarbonite.HybridMetadataServiceActor` 
+as the `class` for `MetadataService`. The "classic" (i.e. relational database) aspect of Hybrid Metadata Storage requires no 
+additional configuration, but the "Carbonite" aspect has its own `carbonite-metadata-service` stanza. A sample configuration
+with default values is shown below.
+ 
+`enabled = true` is required for any Carboniting to actually happen, and a `bucket` and `filesystems.gcs.auth` must also be specified.
+The `freeze-scan` stanza controls the frequency and backoff with which Cromwell searches for "classic" metadata to Carbonite, while
+the `metadata-deletion` stanza controls the parameters around Cromwell's deletion of successfully archived metadata rows
+from the "classic" metadata database.
+
+```
+services {
+  MetadataService {
+    class = "cromwell.services.metadata.hybridcarbonite.HybridMetadataServiceActor"
+    config {
+      # This section can also contain the same set of options as would be present in the 'config' section of the
+      # classic (cromwell.services.metadata.impl.MetadataServiceActor) config
+    
+      # The carbonite section contains carbonite-specific options
+      carbonite-metadata-service {
+        # Enables carboniting process
+        enabled = false
+    
+        # Only carbonite workflows whose summary entry IDs are greater than or equal to this value:
+        minimum-summary-entry-id = 0
+    
+        # Output log messages whenever carboniting activity is started or completed?
+        debug-logging = false
+    
+        # Which GCS bucket to use for storing the generated metadata JSON
+        bucket = "<<A private bucket, *without* the gs:// prefix>>"
+    
+        # A filesytem able to access the specified bucket:
+        filesystems {
+          gcs {
+            # A reference to the auth to use for storing and retrieving metadata:
+            auth = "application-default"
+          }
+        }
+    
+        # Freeze scan configuration. This controls the intervals at which the `CarboniteWorkerActor` looks for terminal
+        # workflows to carbonite. All of these entries are optional and default to the values shown below. Any supplied
+        # values will be sanity checked: intervals must be durations, max greater than initial, multiplier must
+        # be a number greater than 1.
+        freeze-scan {
+          initial-interval = 5 seconds,
+          max-interval = 5 minutes,
+          multiplier = 1.1
+        }
+
+        # Metadata deletion configuration.
+        metadata-deletion {
+          # How often Cromwell should check for metadata ready for deletion. Set this value to "Inf" to turn off metadata deletion.
+          # The default value is currently "Inf".
+          interval = Inf
+        
+          # Upper limit for the number of workflows which Cromwell will process during a single scheduled metadata deletion event.
+          # The default value is currently "200".
+          batch-size = 200
+        
+          # Minimum time between a workflow completion and deletion of its metadata from the database.
+          # Note: Metadata is only eligible for deletion if it has already been carbonited.
+          # The default value is currently "24 hours".
+          delay-after-workflow-completion = 24 hours
+        }
+      }
+    }
+  }
+}
+```  
+
 **Database Time Zones**
 
 Cromwell's default configuration assumes that its MySQL database is set to UTC.
@@ -323,6 +399,74 @@ database {
   }
 }
 ```
+
+**Using Cromwell with file-based database (No server required)**
+
+SQLite is currently not supported. However, HSQLDB does support running with a persistence file.
+To set this up the following configuration can be used:
+```hocon
+database {
+  profile = "slick.jdbc.HsqldbProfile$"
+  db {
+    driver = "org.hsqldb.jdbcDriver"
+    url = """
+    jdbc:hsqldb:file:cromwell-executions/cromwell-db/cromwell-db;
+    shutdown=false;
+    hsqldb.default_table_type=cached;hsqldb.tx=mvcc;
+    hsqldb.result_max_memory_rows=10000;
+    hsqldb.large_data=true;
+    hsqldb.applog=1;
+    hsqldb.lob_compressed=true;
+    hsqldb.script_format=3
+    """
+    connectionTimeout = 120000
+    numThreads = 1
+   }
+}
+```
+
+Explanation of the options (see also http://hsqldb.org/doc/2.0/guide/dbproperties-chapt.html):
+
+* `jdbc:hsqldb:file:cromwell-executions/cromwell-db/cromwell-db;` This will make sure
+   all persistence files will end up in a folder `cromwell-db` inside `cromwell-executions`.
+* `shutdown=false`. This makes sure the database will not be shutdown unless Cromwell explicitly does so.
+* `hsqlldb.default_table_type=cached`. 
+   By default hsqldb uses in memory tables, this will ensure data is written to disk and 
+   decrease memory usage.
+* `hsqldb.result_max_memory_rows=10000` . Limits the amount of rows in memory for temp tables. 
+* `hsqldb.tx=mvcc` this is a  cromwell default for running with hsqldb.
+* `hsqldb.large_data=true`. Cromwell creates huge DBs that need to be opened.
+* `hsqldb.applog=1`. Log errors relating to the database.
+* `hsqldb.lob_compressed=true`. Compress lobs. This saves some space. Do note that lobs are 
+  compressed individually. The total database will still contain a lot of redundancy because a
+  lot of lobs will be similar.
+* `hsqldb.script_format=3`. Compress script. (uses gzip internally). 
+   The script can still be opened normally after decompressing with gzip.
+* `connectionTimeout = 120000` opening the large database files again when running cromwell will 
+  take some time. The default timeout of 3000 ms (3s) is not enough. So it is set to 120000ms (120s).
+* `numThreads = 1`. This will limit the CPU usage of Cromwell, which can be useful in HPC environments.
+
+Comparison to MySQL (or PostgreSQL) server:
+Advantages:
+
+* No need to set up a server
+* No worries about database users, passwords and permissions. This will be handled by filesystem permissions.
+
+Disadvantages:
+
+* Cromwell requires more memory
+* The database files will consume a lot of disk space (multiple gigabytes are not uncommon)
+* Cromwell's interaction with the database is slower.
+
+Comparison to the default in-memory database:
+Advantages:
+
+* Much less memory needed.
+* Call-caching enabled
+
+Disadvantages:
+
+* Slower.
 
 ### Abort
 

@@ -1,0 +1,35 @@
+# Test deleting from scattered calls
+
+name: scatter_delete
+testFormat: workflowsuccess
+backends: [Papiv2]
+
+files {
+  workflow: delete_intermediates/scatter_delete.wdl
+  options: delete_intermediates/delete_intermediates.options
+}
+
+metadata {
+  workflowName: scatter_delete
+  status: Succeeded
+  fileDeletionStatus: Succeeded
+}
+
+fileSystemCheck: "gcs"
+outputExpectations: {
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/scatter_delete/<<UUID>>/call-scatterer/shard-0/stdout": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/scatter_delete/<<UUID>>/call-scatterer/shard-0/stderr": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/scatter_delete/<<UUID>>/call-scatterer/shard-0/rc": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/scatter_delete/<<UUID>>/call-scatterer/shard-0/delete.txt": 0
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/scatter_delete/<<UUID>>/call-scatterer/shard-0/keep.txt": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/scatter_delete/<<UUID>>/call-scatterer/shard-1/stdout": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/scatter_delete/<<UUID>>/call-scatterer/shard-1/stderr": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/scatter_delete/<<UUID>>/call-scatterer/shard-1/rc": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/scatter_delete/<<UUID>>/call-scatterer/shard-1/delete.txt": 0
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/scatter_delete/<<UUID>>/call-scatterer/shard-1/keep.txt": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/scatter_delete/<<UUID>>/call-scatterer/shard-2/stdout": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/scatter_delete/<<UUID>>/call-scatterer/shard-2/stderr": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/scatter_delete/<<UUID>>/call-scatterer/shard-2/rc": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/scatter_delete/<<UUID>>/call-scatterer/shard-2/delete.txt": 0
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/scatter_delete/<<UUID>>/call-scatterer/shard-2/keep.txt": 1
+}

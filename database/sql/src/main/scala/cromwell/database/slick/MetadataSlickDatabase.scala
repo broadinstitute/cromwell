@@ -44,11 +44,6 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
         val insertMetadata = dataAccess.metadataEntryIdsAutoInc ++= batch
         insertMetadata.flatMap(ids => writeSummaryQueueEntries(ids))
       }
-//      val action = DBIO.sequence(insertActions.toSeq) flatMap { x =>
-//        val ids = x.flatten
-//        writeSummaryQueueEntry(ids, OffsetDateTime.now().toSystemTimestamp)
-//      }
-
       runTransaction(DBIO.sequence(insertActions)).void
     }
   }
@@ -192,10 +187,11 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                    rootWorkflowIdKey: String,
                                    labelMetadataKey: String,
                                    limit: Int,
+                                   permittedSummaryStatusPointerUpdate: Option[Long],
                                    buildUpdatedSummary:
                                    (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                                      => WorkflowMetadataSummaryEntry)
-                                  (implicit ec: ExecutionContext): Future[(Long, Long)] = {
+                                  (implicit ec: ExecutionContext): Future[(Long, Long, Long)] = {
     val action = for {
 
       metadataEntryIdsToSummarize <- fetchMetadataJournalIdsFromSummaryQueue(limit.toLong)
@@ -424,10 +420,13 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action)
   }
 
-  override def deleteNonLabelMetadataForWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Int] = {
-    runTransaction(
-      dataAccess.metadataEntriesWithoutLabelsForRootWorkflowId(rootWorkflowId).delete
-    )
+  override def deleteNonLabelMetadataForWorkflowAndUpdateArchiveStatus(rootWorkflowId: String, newArchiveStatus: Option[String])(implicit ec: ExecutionContext): Future[Int] = {
+    runTransaction {
+      for {
+        numDeleted <- dataAccess.metadataEntriesWithoutLabelsForRootWorkflowId(rootWorkflowId).delete
+        _ <- dataAccess.metadataArchiveStatusByWorkflowIdOrRootWorkflowId(rootWorkflowId).update(newArchiveStatus)
+      } yield numDeleted
+    }
   }
 
   override def isRootWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Option[Boolean]] = {
@@ -439,6 +438,12 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   override def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = {
     runAction(
       dataAccess.rootWorkflowId(workflowId).result.headOption
+    )
+  }
+
+  override def queryRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp, batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[String]] = {
+    runAction(
+      dataAccess.rootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp((archiveStatus, thresholdTimestamp, batchSize)).result
     )
   }
 

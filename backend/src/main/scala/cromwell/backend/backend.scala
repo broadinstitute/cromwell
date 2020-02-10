@@ -130,6 +130,28 @@ case class BackendConfigurationDescriptor(backendConfig: Config, globalConfig: C
   lazy val slowJobWarningAfter = backendConfig.as[Option[FiniteDuration]](path="slow-job-warning-time")
 }
 
+object CommonBackendConfigurationAttributes {
+  val commonValidConfigurationAttributeKeys = Set(
+    "default-runtime-attributes",
+    "default-runtime-attributes.disks",
+    "default-runtime-attributes.memory",
+    "default-runtime-attributes.zones",
+    "default-runtime-attributes.continueOnReturnCode",
+    "default-runtime-attributes.cpu",
+    "default-runtime-attributes.noAddress",
+    "default-runtime-attributes.docker",
+    "default-runtime-attributes.queueArn",
+    "default-runtime-attributes.failOnStderr",
+    "slow-job-warning-time",
+    "dockerhub",
+    "dockerhub.account",
+    "dockerhub.token",
+    "dockerhub.auth",
+    "dockerhub.key-name",
+    "name-for-call-caching-purposes",
+  )
+}
+
 final case class AttemptedLookupResult(name: String, value: Try[WomValue]) {
   def toPair = name -> value
 }

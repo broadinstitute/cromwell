@@ -23,11 +23,14 @@ final case class HybridCarboniteConfig(enabled: Boolean,
                                        debugLogging: Boolean,
                                        pathBuilders: PathBuilders,
                                        bucket: String,
-                                       freezeScanConfig: HybridCarboniteFreezeScanConfig) {
+                                       freezeScanConfig: HybridCarboniteFreezeScanConfig,
+                                       metadataDeletionConfig: MetadataDeletionConfig) {
   def makePath(workflowId: WorkflowId)= PathFactory.buildPath(HybridCarboniteConfig.pathForWorkflow(workflowId, bucket), pathBuilders)
 }
 
 final case class HybridCarboniteFreezeScanConfig(initialInterval: FiniteDuration = 5 seconds, maxInterval: FiniteDuration = 5 minutes, multiplier: Double = 1.1)
+
+final case class MetadataDeletionConfig(intervalOpt: Option[FiniteDuration] = None, batchSize: Long = 200L, delayAfterWorkflowCompletion: FiniteDuration = 24 hours)
 
 object HybridCarboniteConfig {
 
@@ -63,14 +66,37 @@ object HybridCarboniteConfig {
       }
     }
 
+    def metadataDeletionConfig: Checked[MetadataDeletionConfig] = {
+      if (carboniterConfig.hasPath("metadata-deletion")) {
+        val metadataDeletion = carboniterConfig.getConfig("metadata-deletion")
+
+        val interval = Try { metadataDeletion.getOrElse[Duration]("interval", Duration.Inf) } toErrorOr
+        val batchSize = Try { metadataDeletion.getOrElse("batchSize", default = 200L) } toErrorOr
+        val delayAfterWorkflowCompletion = Try { metadataDeletion.getOrElse("delay-after-workflow-completion", 24 hours) } toErrorOr
+
+        val errorOrMetadataDeletionConfig = (interval, batchSize, delayAfterWorkflowCompletion) mapN {
+          case (i, b, d) =>
+            MetadataDeletionConfig(
+              if (i.isFinite()) Option(i.asInstanceOf[FiniteDuration]) else None,
+              b,
+              d)
+        } contextualizeErrors "parse Carboniter 'metadata-deletion' stanza"
+
+        errorOrMetadataDeletionConfig.toEither
+      } else {
+        MetadataDeletionConfig().validNelCheck
+      }
+    }
+
     for {
       _ <- Try(carboniterConfig.getConfig("filesystems.gcs")).toCheckedWithContext("parse Carboniter 'filesystems.gcs' field from config")
       pathBuilderFactories <- CromwellFileSystems.instance.factoriesFromConfig(carboniterConfig)
-      pathBuilders <- Try(Await.result(PathBuilderFactory.instantiatePathBuilders(pathBuilderFactories.values.toList, WorkflowOptions.empty), 10.seconds))
+      pathBuilders <- Try(Await.result(PathBuilderFactory.instantiatePathBuilders(pathBuilderFactories.values.toList, WorkflowOptions.empty), 60.seconds))
         .toCheckedWithContext("construct Carboniter path builders from factories")
       bucket <- Try(carboniterConfig.getString("bucket")).toCheckedWithContext("parse Carboniter 'bucket' field from config")
       minimumSummaryEntryId <- minimumSummaryEntryIdCheck
       freezeScan <- freezeScanConfig
-    } yield HybridCarboniteConfig(enable, minimumSummaryEntryId, carboniteDebugLogging, pathBuilders, bucket, freezeScan)
+      metadataDeletion <- metadataDeletionConfig
+    } yield HybridCarboniteConfig(enable, minimumSummaryEntryId, carboniteDebugLogging, pathBuilders, bucket, freezeScan, metadataDeletion)
   }
 }

@@ -29,13 +29,17 @@ object MetadataSummaryRefreshActor {
   sealed trait SummaryRefreshState
   case object WaitingForRequest extends SummaryRefreshState
   case object SummarizingMetadata extends SummaryRefreshState
-  case object MetadataSummaryComplete extends SummaryRefreshState
 
-  case object SummaryRefreshData
+  sealed trait SummaryRefreshData
+  case object EmptySummaryRefreshData extends SummaryRefreshData
+  final case class PreviousMaximumMetadataEntryId(value: Long) extends SummaryRefreshData
+
+  // Internal message to self
+  case class MetadataSummaryComplete(nextState: SummaryRefreshData)
 }
 
 class MetadataSummaryRefreshActor(override val serviceRegistryActor: ActorRef)
-  extends LoggingFSM[SummaryRefreshState, SummaryRefreshData.type]
+  extends LoggingFSM[SummaryRefreshState, SummaryRefreshData]
     with MetadataDatabaseAccess
     with MetadataServicesStore
     with CromwellInstrumentation {
@@ -53,11 +57,17 @@ class MetadataSummaryRefreshActor(override val serviceRegistryActor: ActorRef)
 
   private val instrumentationPrefix: Option[String] = InstrumentationPrefixes.ServicesPrefix
 
-  startWith(WaitingForRequest, SummaryRefreshData)
+  startWith(WaitingForRequest, EmptySummaryRefreshData)
 
   when (WaitingForRequest) {
-    case Event(SummarizeMetadata(limit, respondTo), _) =>
-      refreshWorkflowMetadataSummaries(limit) onComplete {
+    case Event(SummarizeMetadata(limit, respondTo), data) =>
+
+      val permittedSummaryStatusPointerUpdate: Option[Long] = data match {
+        case EmptySummaryRefreshData => None
+        case PreviousMaximumMetadataEntryId(value) => Option(value)
+      }
+
+      refreshWorkflowMetadataSummaries(limit, permittedSummaryStatusPointerUpdate) onComplete {
         case Success(summaryResult) =>
           sendGauge(increasingGapPath, summaryResult.increasingGap, instrumentationPrefix)
           sendGauge(decreasingGapPath, summaryResult.decreasingGap, instrumentationPrefix)
@@ -65,19 +75,19 @@ class MetadataSummaryRefreshActor(override val serviceRegistryActor: ActorRef)
           count(increasingProcessedPath, summaryResult.rowsProcessedIncreasing, instrumentationPrefix)
           count(decreasingProcessedPath, summaryResult.rowsProcessedDecreasing, instrumentationPrefix)
 
+          self ! MetadataSummaryComplete(PreviousMaximumMetadataEntryId(summaryResult.maximumKnownMetadataEntryId))
           respondTo ! MetadataSummarySuccess
-          self ! MetadataSummaryComplete
         case Failure(t) =>
           log.error(t, "Failed to summarize metadata")
+          self ! MetadataSummaryComplete(data)
           respondTo ! MetadataSummaryFailure(t)
-          self ! MetadataSummaryComplete
       }
       goto(SummarizingMetadata)
   }
 
   when (SummarizingMetadata) {
-    case Event(MetadataSummaryComplete, _) =>
-      goto(WaitingForRequest) using SummaryRefreshData
+    case Event(MetadataSummaryComplete(nextData: SummaryRefreshData), _) =>
+      goto(WaitingForRequest) using nextData
   }
 
   whenUnhandled {

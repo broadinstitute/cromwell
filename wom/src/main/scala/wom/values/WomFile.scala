@@ -151,14 +151,14 @@ final case class WomUnlistedDirectory(value: String) extends WomPrimitiveFile {
   override def toWomString = s""""$value""""
 
   override def add(rhs: WomValue): Try[WomValue] = rhs match {
-    case r: WomString => Success(this.copy(value = value + r.value))
+    case r: WomString => Success(this.copy(value = value + r.value.trim))
     case r: WomOptionalValue => evaluateIfDefined("+", r, add)
     case _ => invalid(s"$value + $rhs")
   }
 
   override def equals(rhs: WomValue): Try[WomBoolean] = rhs match {
     case r: WomUnlistedDirectory => Success(WomBoolean(this.equals(r)))
-    case r: WomString => Success(WomBoolean(value.equals(r.value)))
+    case r: WomString => Success(WomBoolean(value.equals(r.value.trim)))
     case r: WomOptionalValue => evaluateIfDefined("==", r, equals)
     case _ => invalid(s"$value == $rhs")
   }
@@ -185,14 +185,14 @@ final case class WomSingleFile(value: String) extends WomPrimitiveFile {
   override def toWomString = s""""$value""""
 
   override def add(rhs: WomValue): Try[WomValue] = rhs match {
-    case r: WomString => Success(this.copy(value = value + r.value))
+    case r: WomString => Success(this.copy(value = value + r.value.trim))
     case r: WomOptionalValue => evaluateIfDefined("+", r, add)
     case _ => invalid(s"$value + $rhs")
   }
 
   override def equals(rhs: WomValue): Try[WomBoolean] = rhs match {
     case r: WomSingleFile => Success(WomBoolean(this.equals(r)))
-    case r: WomString => Success(WomBoolean(value.equals(r.value)))
+    case r: WomString => Success(WomBoolean(value.equals(r.value.trim)))
     case r: WomOptionalValue => evaluateIfDefined("==", r, equals)
     case _ => invalid(s"$value == $rhs")
   }
@@ -234,14 +234,14 @@ final case class WomGlobFile(value: String) extends WomPrimitiveFile {
   override def toWomString = s"""glob("$value")"""
 
   override def add(rhs: WomValue): Try[WomValue] = rhs match {
-    case r: WomString => Success(this.copy(value + r.value))
+    case r: WomString => Success(this.copy(value + r.value.trim))
     case r: WomOptionalValue => evaluateIfDefined("+", r, add)
     case _ => invalid(s"$value + $rhs")
   }
 
   override def equals(rhs: WomValue): Try[WomBoolean] = rhs match {
     case r: WomGlobFile => Success(WomBoolean(value.equals(r.value) && womType.equals(r.womType)))
-    case r: WomString => Success(WomBoolean(value.toString.equals(r.value.toString)))
+    case r: WomString => Success(WomBoolean(value.toString.equals(r.value.toString.trim)))
     case r: WomOptionalValue => evaluateIfDefined("==", r, equals)
     case _ => invalid(s"$value == $rhs")
   }

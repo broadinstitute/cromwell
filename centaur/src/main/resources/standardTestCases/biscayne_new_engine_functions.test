@@ -1,0 +1,57 @@
+name: biscayne_new_engine_functions
+testFormat: workflowsuccess
+tags: ["wdl_biscayne"]
+
+files {
+  workflow: wdl_biscayne/biscayne_new_engine_functions/biscayne_new_engine_functions.wdl
+}
+
+metadata {
+  workflowName: biscayne_new_engine_functions
+  status: Succeeded
+
+  "outputs.biscayne_new_engine_functions.x_map_keys_out.0": "a"
+  "outputs.biscayne_new_engine_functions.x_map_keys_out.1": "b"
+  "outputs.biscayne_new_engine_functions.x_map_keys_out.2": "c"
+
+  "outputs.biscayne_new_engine_functions.y_map_keys_out.0": "a"
+  "outputs.biscayne_new_engine_functions.y_map_keys_out.1": "b"
+
+  "outputs.biscayne_new_engine_functions.x_as_pairs_out.0.left": "a"
+  "outputs.biscayne_new_engine_functions.x_as_pairs_out.0.right": 1
+  "outputs.biscayne_new_engine_functions.x_as_pairs_out.1.left": "b"
+  "outputs.biscayne_new_engine_functions.x_as_pairs_out.1.right": 2
+  "outputs.biscayne_new_engine_functions.x_as_pairs_out.2.left": "c"
+  "outputs.biscayne_new_engine_functions.x_as_pairs_out.2.right": 3
+
+  "outputs.biscayne_new_engine_functions.y_as_pairs_out.0.left": "a"
+  "outputs.biscayne_new_engine_functions.y_as_pairs_out.0.right.left": "a.bam"
+  "outputs.biscayne_new_engine_functions.y_as_pairs_out.0.right.right": "a.bai"
+  "outputs.biscayne_new_engine_functions.y_as_pairs_out.1.left": "b"
+  "outputs.biscayne_new_engine_functions.y_as_pairs_out.1.right.left": "b.bam"
+  "outputs.biscayne_new_engine_functions.y_as_pairs_out.1.right.right": "b.bai"
+
+  "outputs.biscayne_new_engine_functions.x_as_map_out.a": 1
+  "outputs.biscayne_new_engine_functions.x_as_map_out.b": 2
+  "outputs.biscayne_new_engine_functions.x_as_map_out.c": 3
+
+  "outputs.biscayne_new_engine_functions.y_as_map_out.a.left": "a.bam"
+  "outputs.biscayne_new_engine_functions.y_as_map_out.a.right": "a.bai"
+  "outputs.biscayne_new_engine_functions.y_as_map_out.b.left": "b.bam"
+  "outputs.biscayne_new_engine_functions.y_as_map_out.b.right": "b.bai"
+
+  "outputs.biscayne_new_engine_functions.x_collect_by_key_out.a.0": 1
+  "outputs.biscayne_new_engine_functions.x_collect_by_key_out.b.0": 2
+  "outputs.biscayne_new_engine_functions.x_collect_by_key_out.c.0": 3
+
+  "outputs.biscayne_new_engine_functions.z_collect_by_key_out.a.0": 1
+  "outputs.biscayne_new_engine_functions.z_collect_by_key_out.a.1": 3
+  "outputs.biscayne_new_engine_functions.z_collect_by_key_out.b.0": 2
+
+  "outputs.biscayne_new_engine_functions.smallerInt": 1
+  "outputs.biscayne_new_engine_functions.biggerInt": 10
+  "outputs.biscayne_new_engine_functions.smallIntFloatComparison": 1.0
+  "outputs.biscayne_new_engine_functions.bigIntFloatComparison": 10.0
+  "outputs.biscayne_new_engine_functions.minMaxIntFloatComposition": 1.0
+  "outputs.biscayne_new_engine_functions.maxIntVsMaxFloat": 1.79769313E+308
+}

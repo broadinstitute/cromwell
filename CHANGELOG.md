@@ -1,5 +1,58 @@
 # Cromwell Change Log
 
+## 49 Release Notes
+
+### Job store database refactoring
+
+The primary keys of Cromwell's job store tables have been refactored to use a `BIGINT` datatype in place of the previous
+`INT` datatype. Cromwell will not be usable during the time the Liquibase migration for this refactor is running.
+In the Google Cloud SQL with SSD environment this migration runs at a rate of approximately 40,000 `JOB_STORE_SIMPLETON_ENTRY`
+rows per second. In deployments with millions or billions of `JOB_STORE_SIMPLETON_ENTRY` rows the migration may require
+a significant amount of downtime so please plan accordingly. The following SQL could be used to estimate the number of
+rows in this table:
+
+```
+SELECT table_rows FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'cromwell' AND table_name = 'JOB_STORE_SIMPLETON_ENTRY';
+```
+
+### Delete Intermediate Outputs on PapiV2
+
+* **Experimental:** When a new workflow option `delete_intermediate_output_files` is submitted with the workflow,
+intermediate `File` objects will be deleted when the workflow completes. See the [Google Pipelines API Workflow Options
+documentation](https://cromwell.readthedocs.io/en/stable/wf_options/Google#google-pipelines-api-workflow-options)
+for more information.
+
+### Metadata Archival Support
+
+Cromwell 49 now offers the option to archive metadata to GCS and remove the equivalent metadata from relational
+database storage. Please see 
+[the documentation](https://cromwell.readthedocs.io/en/stable/Configuring#hybrid-metadata-storage-classic-carbonite) for more details.
+
+### Bug fixes
+
++ Fix a bug where zip files with directories could not be imported. 
+  For example a zip with `a.wdl` and `b.wdl` could be imported but one with `sub_workflows/a.wdl` 
+  and `imports/b.wdl` could not.
+
+### Adding support for Google Cloud Life Sciences v2beta
+Cromwell now supports running workflows using Google Cloud Life Sciences v2beta API in addition to Google Cloud Genomics v2alpha1. 
+More information about migration to the new API from v2alpha1 
+[here](https://cromwell.readthedocs.io/en/stable/backends/Google#migration-from-google-cloud-genomics-v2alpha1-to-google-cloud-life-sciences-v2beta). 
+* **Note** Google Cloud Life Sciences is the new name for newer versions of Google Cloud Genomics.
+* **Note** Support for Google Cloud Genomics v2alpha1 will be removed in a future version of Cromwell. Advance notice will be provided.
+  
+## 48 Release Notes
+
+### Womtool Graph for WDL 1.0
+
+The `womtool graph` command now supports WDL 1.0 workflows. 
+* **Note:** Generated graphs - including in WDL draft 2 - may look slightly different than they did in version 47.
+
+### Documentation
+
++ Documented the use of a HSQLDB file-based database so users can try call-caching without needing a database server.
+  Please checkout [the database documentation](https://cromwell.readthedocs.io/en/stable/Configuring#database).
+
 ## 47 Release Notes
 
 ### Retry with more memory on Papiv2 [(#5180)](https://github.com/broadinstitute/cromwell/pull/5180)
@@ -658,10 +711,11 @@ In addition, the following changes are to be expected:
 The `actor-factory` value for the google backend (`cromwell.backend.impl.jes.JesBackendLifecycleActorFactory`) is being deprecated.
 Please update your configuration accordingly.
 
-| PAPI Version |                                 actor-factory                                |
-|--------------|:----------------------------------------------------------------------------:|
-|      V1      | cromwell.backend.google.pipelines.v1alpha2.PipelinesApiLifecycleActorFactory |
-|      V2      | cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory |
+| PAPI Version  |                                 actor-factory                                |
+|---------------|:----------------------------------------------------------------------------:|
+|      V1       | cromwell.backend.google.pipelines.v1alpha2.PipelinesApiLifecycleActorFactory |
+|      V2alpha1 | cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory |
+|      V2beta   | cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory   |
 
 If you don't update the `actor-factory` value, you'll get a deprecation warning in the logs, and Cromwell will default back to **PAPI V1**
 

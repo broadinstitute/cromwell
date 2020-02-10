@@ -15,10 +15,10 @@ class CallCacheInvalidateActor(callCache: CallCache, cacheId: CallCachingEntryId
 
   callCache.invalidate(cacheId) onComplete {
     case Success(maybeEntry) =>
-      receiver ! CallCacheInvalidatedSuccess(maybeEntry)
+      receiver ! CallCacheInvalidatedSuccess(cacheId, maybeEntry)
       context.stop(self)
     case Failure(t) =>
-      receiver ! CallCacheInvalidatedFailure(t)
+      receiver ! CallCacheInvalidatedFailure(cacheId, t)
       context.stop(self)
   }
 
@@ -34,6 +34,6 @@ object CallCacheInvalidateActor {
 }
 
 sealed trait CallCacheInvalidatedResponse
-case class CallCacheInvalidatedSuccess(maybeEntry: Option[CallCachingEntry]) extends CallCacheInvalidatedResponse
+case class CallCacheInvalidatedSuccess(cacheId: CallCachingEntryId, maybeEntry: Option[CallCachingEntry]) extends CallCacheInvalidatedResponse
 case object CallCacheInvalidationUnnecessary extends CallCacheInvalidatedResponse
-case class CallCacheInvalidatedFailure(t: Throwable) extends CallCacheInvalidatedResponse
+case class CallCacheInvalidatedFailure(cacheId: CallCachingEntryId, t: Throwable) extends CallCacheInvalidatedResponse

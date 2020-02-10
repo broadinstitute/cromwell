@@ -4,10 +4,10 @@ import centaur.test.Operations
 import org.scalatest.{FlatSpec, Matchers}
 import spray.json._
 
-class JobManagerExpectationSetupSpec extends FlatSpec with Matchers {
-  behavior of "Job Manager expectation setup"
+class ExtractJobManagerStyleMetadataFieldsSpec extends FlatSpec with Matchers {
+  behavior of "extracting Job Manager style metadata fields"
 
-  it should "preserve fields, including call caching hits, correctly" in {
+  it should "preserve the right set of fields, including call caching hits, correctly" in {
     val originalMetadata =
       """{
         |	"id": "blah",
@@ -42,6 +42,6 @@ class JobManagerExpectationSetupSpec extends FlatSpec with Matchers {
         |	}
         |}""".stripMargin
 
-    Operations.setUpJmStyleMetadataExpectation(originalMetadata.parseJson.asJsObject) should be(expectedExpectedMetadata.parseJson.asJsObject)
+    Operations.extractJmStyleMetadataFields(originalMetadata.parseJson.asJsObject) should be(expectedExpectedMetadata.parseJson.asJsObject)
   }
 }

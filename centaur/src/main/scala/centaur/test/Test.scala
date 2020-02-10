@@ -704,7 +704,7 @@ object Operations extends StrictLogging {
     override def run: IO[Unit] = for {
       jmMetadata <- CentaurCromwellClient.metadata(workflow = submittedWorkflow, Option(CentaurCromwellClient.defaultMetadataArgs.getOrElse(Map.empty) ++ jmArgs))
       jmMetadataObject <- IO.fromTry(Try(jmMetadata.value.parseJson.asJsObject))
-      expectation <- IO.fromTry(Try(setUpJmStyleMetadataExpectation(originalMetadata.parseJson.asJsObject)))
+      expectation <- IO.fromTry(Try(extractJmStyleMetadataFields(originalMetadata.parseJson.asJsObject)))
 
       validationUnit <- validate(expectation, jmMetadataObject)
     } yield validationUnit
@@ -729,7 +729,7 @@ object Operations extends StrictLogging {
   //  1. the ultra-specific JM case is a lot simpler to reason about and can be done in a few lines
   //  2. it's nice to be able to assert general cases rather than singular specific examples
   //  3. it's hopefully unlikely that the same bug will show up in two separate implementations
-  def setUpJmStyleMetadataExpectation(originalWorkflowMetadataJson: JsObject): JsObject = {
+  def extractJmStyleMetadataFields(originalWorkflowMetadataJson: JsObject): JsObject = {
     val originalCallMetadataJson = originalWorkflowMetadataJson.fields.get("calls").map(_.asJsObject)
 
     // NB: this filter to remove "calls" is because - although it is a single word in the JM request,

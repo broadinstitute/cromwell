@@ -82,7 +82,6 @@
     <include file="changesets/mariadb_engine_schema.xml" relativeToChangelogFile="true" />
     <include file="changesets/resync_engine_schema.xml" relativeToChangelogFile="true" />
     <include file="changesets/enlarge_job_store_ids.xml" relativeToChangelogFile="true" />
-    <include file="changesets/summarization_queue_table.xml" relativeToChangelogFile="true" />
     <!-- REMINDER!
       Before appending here, did you remember to include the 'objectQuotingStrategy="QUOTE_ALL_OBJECTS"' line in your changeset/xyz.xml...?
     -->

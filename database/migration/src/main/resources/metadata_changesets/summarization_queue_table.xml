@@ -4,7 +4,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet id="summary_queue_table" author="gsterin" dbms="mariadb,mysql">
+    <changeSet id="summary_queue_table" author="gsterin" dbms="hsqldb,mariadb,mysql">
         <createTable tableName="SUMMARY_QUEUE_ENTRY">
             <column name="METADATA_JOURNAL_ID" type="BIGINT">
                 <constraints nullable="false"/>
@@ -16,7 +16,7 @@
         </modifySql>
     </changeSet>
 
-    <changeSet id="summary_queue_table_postgresql" author="gsterin" dbms="hsqldb,postgresql" objectQuotingStrategy="QUOTE_ALL_OBJECTS">
+    <changeSet id="summary_queue_table_postgresql" author="gsterin" dbms="postgresql" objectQuotingStrategy="QUOTE_ALL_OBJECTS">
         <createTable tableName="SUMMARY_QUEUE_ENTRY">
             <column name="METADATA_JOURNAL_ID" type="BIGINT">
                 <constraints nullable="false"/>
@@ -24,7 +24,7 @@
         </createTable>
     </changeSet>
 
-    <changeSet id="summary_queue_initialization" author="gsterin" dbms="hsqldb,mariadb,mysql,postgresql">
+    <changeSet id="summary_queue_initialization" author="gsterin" dbms="hsqldb,mariadb,mysql">
         <preConditions onFail="CONTINUE">
             <!-- if METADATA_ENTRY table not exists yet, then skip this changeset -->
             <tableExists tableName="METADATA_ENTRY"/>
@@ -45,7 +45,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="summary_queue_initialization_postgresql" author="gsterin" dbms="hsqldb,postgresql" objectQuotingStrategy="QUOTE_ALL_OBJECTS">
+    <changeSet id="summary_queue_initialization_postgresql" author="gsterin" dbms="postgresql" objectQuotingStrategy="QUOTE_ALL_OBJECTS">
         <preConditions onFail="CONTINUE">
             <!-- if METADATA_ENTRY table not exists yet, then skip this changeset -->
             <tableExists tableName="METADATA_ENTRY"/>

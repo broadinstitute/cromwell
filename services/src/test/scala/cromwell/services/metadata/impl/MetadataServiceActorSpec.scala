@@ -24,7 +24,7 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
   def actorName: String = "MetadataServiceActor"
 
   val config = ConfigFactory.parseString(Config)
-  lazy val actor = system.actorOf(MetadataServiceActor.props(config, globalConfigToMetadataServiceConfig(config), TestProbe().ref), "MetadataServiceActor-for-MetadataServiceActorSpec")
+  lazy val actor = system.actorOf(MetadataServiceActor.props(globalConfigToMetadataServiceConfig(config), config, TestProbe().ref), "MetadataServiceActor-for-MetadataServiceActorSpec")
 
     val workflowId = WorkflowId.randomId()
 
@@ -174,12 +174,12 @@ object MetadataServiceActorSpec {
     """.stripMargin
 
   val ConfigWithoutSummarizer = Config + """
-      |services.MetadataService.config.metadata-summary-refresh-interval = "Inf"
+      |services.MetadataService.metadata-summary-refresh-interval = "Inf"
     """.stripMargin
 
   // Use this to convert the above "global" configs into metadata service specific "service config"s:
-  def globalConfigToMetadataServiceConfig(config: Config): Config = if (config.hasPath("services.MetadataService.config")) {
-    config.getConfig("services.MetadataService.config")
+  def globalConfigToMetadataServiceConfig(config: Config): Config = if (config.hasPath("services.MetadataService")) {
+    config.getConfig("services.MetadataService")
   } else {
     ConfigFactory.empty()
   }

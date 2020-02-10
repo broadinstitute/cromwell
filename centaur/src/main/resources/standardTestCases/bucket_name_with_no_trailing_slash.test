@@ -4,7 +4,11 @@ testFormat: workflowfailure
 files {
   workflow: attempt_to_localize_bucket_as_file/attempt_to_localize_bucket_as_file.wdl
   inputs: attempt_to_localize_bucket_as_file/bucket_name_with_no_trailing_slash.json
-  # succeeds with call caching turned off, but should also succeed with call caching on
-  # options: attempt_to_localize_bucket_as_file/call_caching_off.options
 
+  metadata {
+    "calls.localizer_workflow.localizer_task.callCaching.allowResultReuse": false
+    "calls.localizer_workflow.localizer_task.callCaching.effectiveCallCachingMode": "CallCachingOff"
+    "calls.localizer_workflow.localizer_task.callCaching.hashFailures.0.message": "Hash function supposedly succeeded but responded with 'null' instead of a string hashe."
+    "calls.localizer_workflow.localizer_task.callCaching.hit": false
+  }
 }

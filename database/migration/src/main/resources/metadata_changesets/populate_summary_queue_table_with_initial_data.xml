@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet id="SUMMARY_QUEUE_INITIALIZATION" author="gsterin"  dbms="hsqldb,mariadb,mysql,postgresql">
+        <comment>
+            Populate SUMMARY_QUEUE_ENTRY with not-yet-summarized metadata entry ids
+        </comment>
+        <sql>
+            INSERT INTO SUMMARY_QUEUE_ENTRY(
+            METADATA_JOURNAL_ID
+            )
+            SELECT
+            me.METADATA_JOURNAL_ID
+            FROM
+            METADATA_ENTRY me
+            WHERE
+            me.METADATA_JOURNAL_ID >= (SELECT SUMMARY_POSITION FROM SUMMARY_STATUS_ENTRY WHERE upper(SUMMARY_NAME) = 'WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING')
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

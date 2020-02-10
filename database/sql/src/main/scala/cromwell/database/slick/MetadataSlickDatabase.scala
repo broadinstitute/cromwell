@@ -187,11 +187,10 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                    rootWorkflowIdKey: String,
                                    labelMetadataKey: String,
                                    limit: Int,
-                                   permittedSummaryStatusPointerUpdate: Option[Long],
                                    buildUpdatedSummary:
                                    (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                                      => WorkflowMetadataSummaryEntry)
-                                  (implicit ec: ExecutionContext): Future[(Long, Long, Long)] = {
+                                  (implicit ec: ExecutionContext): Future[(Long, Long)] = {
     val action = for {
 
       metadataEntryIdsToSummarize <- fetchMetadataJournalIdsFromSummaryQueue(limit.toLong)
@@ -295,8 +294,8 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       _ <- DBIO.sequence(metadataWithoutLabels map updateWorkflowMetadataSummaryEntry(buildUpdatedSummary))
       _ <- DBIO.sequence(customLabelEntries map toCustomLabelEntry map upsertCustomLabelEntry)
 
-      summarizedMetadataEntryIds = rawMetadataEntries.flatMap(_.metadataEntryId.toSeq)
-    } yield rawMetadataEntries.flatMap(_.metadataEntryId)
+      summarizedMetadataEntryIds = rawMetadataEntries.flatMap(_.metadataEntryId)
+    } yield summarizedMetadataEntryIds
   }
 
   private def summarizeMetadata(minMetadataEntryId: Long,
@@ -337,8 +336,6 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       _ <- DBIO.sequence(metadataWithoutLabels map updateWorkflowMetadataSummaryEntry(buildUpdatedSummary))
       _ <- DBIO.sequence(customLabelEntries map toCustomLabelEntry map upsertCustomLabelEntry)
       _ <- upsertSummaryStatusEntrySummaryPosition(summaryName, summaryPosition)
-      summarizedMetadataEntryIds = rawMetadataEntries.flatMap(_.metadataEntryId.toSeq)
-      _ <- deleteSummaryQueueEntriesByMetadataJournalIds(summarizedMetadataEntryIds)
     } yield summaryPosition
   }
 

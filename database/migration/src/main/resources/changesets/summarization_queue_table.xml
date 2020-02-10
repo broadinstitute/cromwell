@@ -16,21 +16,4 @@
         </modifySql>
     </changeSet>
 
-    <changeSet id="SUMMARY_QUEUE_INITIALIZATION" author="gsterin"  dbms="hsqldb,mariadb,mysql,postgresql">
-        <comment>
-            Populate SUMMARY_QUEUE_TABLE with not-yet-summarized metadata entry ids
-        </comment>
-        <sql>
-            INSERT INTO SUMMARY_QUEUE_TABLE(
-                METADATA_JOURNAL_ID
-            )
-            SELECT
-                me.METADATA_JOURNAL_ID
-            FROM
-                METADATA_ENTRY me
-            WHERE
-                me.METADATA_JOURNAL_ID >= (SELECT SUMMARY_POSITION FROM SUMMARY_STATUS_ENTRY WHERE lower(SUMMARY_NAME) = 'increasing'
-        </sql>
-    </changeSet>
-
 </databaseChangeLog>

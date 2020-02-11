@@ -200,7 +200,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                   (implicit ec: ExecutionContext): Future[(Long, Long)] = {
     val action = for {
 
-      metadataEntriesToSummarize <- metadataEntriesToSummarizeQuery(limit).result
+      metadataEntriesToSummarize <- metadataEntriesToSummarizeQuery(limit.toLong).result
 
       summarizedEntryIds <- summarizeRawMetadata(
         metadataEntriesToSummarize,

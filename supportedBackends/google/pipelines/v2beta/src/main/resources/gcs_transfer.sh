@@ -137,8 +137,11 @@ private::determine_requester_pays() {
     fi
   done
 
-  # If we are unable to make a requester pays determination then exit with an error.
-  if [[ "$USE_REQUESTER_PAYS" != "true" ]] && [[ "$USE_REQUESTER_PAYS" != "false" ]]; then
+  # The initial value of the USE_REQUESTER_PAYS variable is "error". If this function was able to run either the
+  # NO_REQUESTER_PAYS_COMMAND or REQUESTER_PAYS_COMMAND successfully then USE_REQUESTER_PAYS should have been reassigned
+  # a value of "false" or "true" as appropriate. But if this function was not able to execute either of those commands
+  # successfully then the value of USE_REQUESTER_PAYS will not be "false" or "true", so exit with an error.
+  if [[ "$USE_REQUESTER_PAYS" != "false" ]] && [[ "$USE_REQUESTER_PAYS" != "true" ]]; then
     echo "Error attempting to localize file with command: '$command'"
     cat ${gsutil_log}
     exit 1

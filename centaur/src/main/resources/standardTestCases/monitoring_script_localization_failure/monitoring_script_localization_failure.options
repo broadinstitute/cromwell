@@ -1,0 +1,3 @@
+{
+  "monitoring_script": "gs://cloud-cromwell-dev/nonexistent_monitoring_script.sh"
+}

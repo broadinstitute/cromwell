@@ -169,17 +169,17 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
 object MetadataServiceActorSpec {
   val Config =
     """
-      |services.MetadataService.db-batch-size = 3
-      |services.MetadataService.db-flush-rate = 100 millis
+      |services.MetadataService.config.db-batch-size = 3
+      |services.MetadataService.config.db-flush-rate = 100 millis
     """.stripMargin
 
   val ConfigWithoutSummarizer = Config + """
-      |services.MetadataService.metadata-summary-refresh-interval = "Inf"
+      |services.MetadataService.config.metadata-summary-refresh-interval = "Inf"
     """.stripMargin
 
   // Use this to convert the above "global" configs into metadata service specific "service config"s:
-  def globalConfigToMetadataServiceConfig(config: Config): Config = if (config.hasPath("services.MetadataService")) {
-    config.getConfig("services.MetadataService")
+  def globalConfigToMetadataServiceConfig(config: Config): Config = if (config.hasPath("services.MetadataService.config")) {
+    config.getConfig("services.MetadataService.config")
   } else {
     ConfigFactory.empty()
   }

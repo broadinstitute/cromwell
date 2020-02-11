@@ -11,10 +11,6 @@ trait SummaryQueueSlickDatabase {
     dataAccess.summaryQueueEntries ++= metadataJournalIds.map(id => SummaryQueueEntry(id))
   }
 
-  private[slick] def fetchMetadataJournalIdsFromSummaryQueue(maxResults: Long) = {
-    dataAccess.summaryQueueEntries.map(_.metadataJournalId).sortBy(identity).take(maxResults).result
-  }
-
   private[slick] def deleteSummaryQueueEntriesByMetadataJournalIds(metadataJournalIds: Seq[Long]) = {
     dataAccess.summaryQueueEntries.filter(_.metadataJournalId.inSet(metadataJournalIds)).delete
   }

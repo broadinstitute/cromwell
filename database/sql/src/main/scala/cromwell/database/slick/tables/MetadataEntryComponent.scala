@@ -137,13 +137,6 @@ trait MetadataEntryComponent {
     }
   )
 
-  def metadataEntriesForIds(ids: Seq[Long]) = {
-    for {
-      entry <- metadataEntries
-      if entry.metadataEntryId.inSetBind(ids)
-    } yield entry
-  }
-
   /**
     * Returns metadata entries that are "like" metadataKeys for the specified workflow.
     * If requireEmptyJobKey is true, only workflow level keys are returned, otherwise both workflow and call level

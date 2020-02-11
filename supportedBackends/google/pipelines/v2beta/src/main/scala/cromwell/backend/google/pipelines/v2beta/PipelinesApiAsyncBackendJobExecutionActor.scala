@@ -24,6 +24,7 @@ import wom.values.{GlobFunctions, WomFile, WomGlobFile, WomMaybeListedDirectory,
 import scala.concurrent.Future
 import scala.io.Source
 import scala.language.postfixOps
+import scala.util.control.NoStackTrace
 
 class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExecutionActorParams) extends cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor(standardParams) {
 
@@ -311,15 +312,19 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
 
 object PipelinesApiAsyncBackendJobExecutionActor {
   // (?s) option makes '.' expression to match any symbol, including \n
-  private val gcsPathMatcher = "(?s)^gs://?([^/]+)/.*$".r
+  private val gcsFilePathMatcher = "(?s)^gs://([a-zA-Z0-9][^/]+)/.+$".r
+  private val gcsDirectoryPathMatcher = "(?s)^gs://([a-zA-Z0-9][^/]+)(/.+)*/?$".r
 
-  private [v2beta] def groupParametersByGcsBucket[T <: PipelinesParameter](parameters: List[T]): Map[String, NonEmptyList[T]] = {
+  private [v2alpha1] def groupParametersByGcsBucket[T <: PipelinesParameter](parameters: List[T]): Map[String, NonEmptyList[T]] = {
     parameters.map { param =>
+      def pathTypeString = if (param.isFileParameter) "File" else "Directory"
+      val regexToUse = if (param.isFileParameter) gcsFilePathMatcher else gcsDirectoryPathMatcher
+
       param.cloudPath.toString match {
-        case gcsPathMatcher(bucket) =>
-          Map(bucket -> NonEmptyList.of(param))
+        case regexToUse(bucket) => Map(bucket -> NonEmptyList.of(param))
+        case regexToUse(bucket, _) => Map(bucket -> NonEmptyList.of(param))
         case other =>
-          throw new RuntimeException(s"Programmer error: Path '$other' did not match the expected regex. This should have been impossible")
+          throw new Exception(s"$pathTypeString path '$other' did not match the expected regex: ${regexToUse.pattern.toString}") with NoStackTrace
       }
     } combineAll
   }

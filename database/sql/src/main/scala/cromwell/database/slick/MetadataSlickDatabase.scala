@@ -177,13 +177,6 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     }
   }
 
-  private val metadataEntriesToSummarizeQuery = Compiled(
-    (limit: ConstColumn[Long]) => (for {
-      (_, metadataEntry) <-
-        dataAccess.summaryQueueEntries join dataAccess.metadataEntries on (_.metadataJournalId === _.metadataEntryId)
-    } yield metadataEntry).sortBy(_.metadataEntryId).take(limit)
-  )
-
   override def summarizeIncreasing(summarizeNameIncreasing: String,
                                    startMetadataKey: String,
                                    endMetadataKey: String,
@@ -200,7 +193,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                   (implicit ec: ExecutionContext): Future[(Long, Long)] = {
     val action = for {
 
-      metadataEntriesToSummarize <- metadataEntriesToSummarizeQuery(limit.toLong).result
+      metadataEntriesToSummarize <- dataAccess.metadataEntriesToSummarizeQuery(limit.toLong).result
 
       summarizedEntryIds <- summarizeRawMetadata(
         metadataEntriesToSummarize,

@@ -27,7 +27,7 @@
   "Arrays.ref_dict": "gs://gcp-public-data--broad-references/hg19/v0/Homo_sapiens_assembly19.dict",
   "Arrays.dbSNP_vcf": "gs://gcp-public-data--broad-references/hg19/v0/dbsnp_138.b37.vcf.gz",
   "Arrays.dbSNP_vcf_index": "gs://gcp-public-data--broad-references/hg19/v0/dbsnp_138.b37.vcf.gz.tbi",
-  "Arrays.haplotype_database_file": "gs://gcp-public-data--broad-references-private/hg19/v0/Homo_sapiens_assembly19.haplotype_database.txt",
-  "Arrays.variant_rsids_file": "gs://gcp-public-data--broad-references-private/fingerprinting_variant_rsids_v1.list",
+  "Arrays.haplotype_database_file": "gs://broad-references-private/hg19/v0/Homo_sapiens_assembly19.haplotype_database.txt",
+  "Arrays.variant_rsids_file": "gs://broad-references-private/fingerprinting_variant_rsids_v1.list",
   "Arrays.preemptible_tries": 0
 }

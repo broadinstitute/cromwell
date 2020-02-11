@@ -315,7 +315,7 @@ object PipelinesApiAsyncBackendJobExecutionActor {
   private val gcsFilePathMatcher = "(?s)^gs://([a-zA-Z0-9][^/]+)/.+$".r
   private val gcsDirectoryPathMatcher = "(?s)^gs://([a-zA-Z0-9][^/]+)(/.+)*/?$".r
 
-  private [v2alpha1] def groupParametersByGcsBucket[T <: PipelinesParameter](parameters: List[T]): Map[String, NonEmptyList[T]] = {
+  private [v2beta] def groupParametersByGcsBucket[T <: PipelinesParameter](parameters: List[T]): Map[String, NonEmptyList[T]] = {
     parameters.map { param =>
       def pathTypeString = if (param.isFileParameter) "File" else "Directory"
       val regexToUse = if (param.isFileParameter) gcsFilePathMatcher else gcsDirectoryPathMatcher

@@ -331,7 +331,7 @@ object PipelinesApiAsyncBackendJobExecutionActor {
       def pathTypeString = if (param.isFileParameter) "File" else "Directory"
       val regexToUse = if (param.isFileParameter) gcsFilePathMatcher else gcsDirectoryPathMatcher
 
-      param.cloudPath.toString match {
+      param.cloudPath.pathAsString match {
         case regexToUse(bucket) => Map(bucket -> NonEmptyList.of(param))
         case regexToUse(bucket, _) => Map(bucket -> NonEmptyList.of(param))
         case other =>

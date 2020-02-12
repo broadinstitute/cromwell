@@ -51,7 +51,7 @@ import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
 import cromwell.core.path.{DefaultPathBuilder, Path, PathBuilder, PathFactory}
-import cromwell.core.io.{DefaultIoCommandBuilder, IoCommandBuilder}
+import cromwell.core.io.DefaultIoCommandBuilder
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.s3.S3Path
 import cromwell.filesystems.s3.batch.S3BatchCommandBuilder

@@ -32,6 +32,7 @@
 package cromwell.backend.impl.aws
 
 import java.net.SocketTimeoutException
+import java.io.FileNotFoundException
 
 import akka.actor.ActorRef
 import akka.pattern.AskSupport
@@ -46,9 +47,10 @@ import cromwell.backend.impl.aws.OccasionalStatusPollingActor.{NotifyOfStatus, W
 import cromwell.backend.impl.aws.RunStatus.{Initializing, TerminalRunStatus}
 import cromwell.backend.impl.aws.io._
 import cromwell.backend.io.DirectoryFunctions
+import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
-import cromwell.core.path.{DefaultPathBuilder, Path}
+import cromwell.core.path.{DefaultPath, DefaultPathBuilder, Path, PathFactory,PathBuilder}
 import cromwell.core.io.DefaultIoCommandBuilder
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.s3.S3Path
@@ -460,9 +462,28 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       case unknown => throw new RuntimeException(s"Attempt to get terminal metadata from non terminal status: $unknown")
     }
   }
+  def hostAbsoluteFilePath(jobPaths: JobPaths, pathString: String): Path = {
+
+    val pathBuilders:List[PathBuilder]  = List(DefaultPathBuilder)
+    val path = PathFactory.buildPath(pathString, pathBuilders)
+    path match {
+      case _: DefaultPath if !path.isAbsolute => jobPaths.callExecutionRoot.resolve(path).toAbsolutePath
+      case _: DefaultPath if jobPaths.isInExecution(path.pathAsString) => jobPaths.hostPathFromContainerPath(path.pathAsString)
+      case _: DefaultPath => jobPaths.hostPathFromContainerInputs(path.pathAsString)
+    }
+  }
 
   override def mapOutputWomFile(womFile: WomFile): WomFile = {
-    womFileToPath(generateAwsBatchOutputs(jobDescriptor))(womFile)
+    configuration.fileSystem match {
+      case  AWSBatchStorageSystems.s3 =>
+        womFileToPath(generateAwsBatchOutputs(jobDescriptor))(womFile)
+      case _ =>
+        val hostPath = hostAbsoluteFilePath(jobPaths, womFile.valueString)
+        def hostAbsolute(pathString: String): String = hostAbsoluteFilePath(jobPaths, pathString).pathAsString
+        if (!hostPath.exists) throw new FileNotFoundException(s"Could not process output, file not found: ${hostAbsolute(womFile.valueString)}")
+        val wfile = womFile mapFile hostAbsolute
+        womFileToPath(generateAwsBatchOutputs(jobDescriptor))(wfile)
+    }
   }
 
   private[aws] def womFileToPath(outputs: Set[AwsBatchFileOutput])(womFile: WomFile): WomFile = {

@@ -68,8 +68,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
     * @param buildUpdatedSummary Takes in the optional existing summary and the metadata, returns the new summary.
     * @return A `Future` with the number of rows summarized by the invocation, and the number of rows still to summarize.
     */
-  def summarizeIncreasing(summaryNameIncreasing: String,
-                          startMetadataKey: String,
+  def summarizeIncreasing(startMetadataKey: String,
                           endMetadataKey: String,
                           nameMetadataKey: String,
                           statusMetadataKey: String,

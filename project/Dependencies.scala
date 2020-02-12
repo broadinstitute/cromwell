@@ -482,7 +482,8 @@ object Dependencies {
   val centaurDependencies = List(
     "org.apache.commons" % "commons-math3" % commonsMathV,
     "com.github.kxbmap" %% "configs" % configsV,
-    "com.google.cloud" % "google-cloud-bigquery" % googleCloudCoreV % IntegrationTest
+    "com.google.cloud" % "google-cloud-bigquery" % googleCloudCoreV % IntegrationTest,
+    "org.gnieh" %% "diffson-spray-json" % "4.0.1"
   ) ++ circeDependencies ++ slf4jBindingDependencies ++ cloudSupportDependencies ++ http4sDependencies
 
   val engineDependencies = List(

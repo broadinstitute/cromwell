@@ -46,8 +46,7 @@ object Dependencies {
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.4.1"
   private val http4sVersion = "0.20.0-M5"
-  private val jacksonDatabindV = "2.9.9.3"
-  private val jacksonV = "2.9.9" // NOTE: On the next version, please remove jacksonDatabindV and just use this!
+  private val jacksonV = "2.10.0"
   private val jacksonJqV = "1.0.0-preview.20190925"
   private val janinoV = "3.0.12"
   private val javaxActivationV = "1.2.0"
@@ -493,7 +492,7 @@ object Dependencies {
       exclude("com.fasterxml.jackson.core", "jackson-databind")
       exclude("com.fasterxml.jackson.module", "jackson-module-scala")
       exclude("org.scala-tools.testing", "test-interface"),
-    "com.fasterxml.jackson.core" % "jackson-databind" % jacksonDatabindV,
+    "com.fasterxml.jackson.core" % "jackson-databind" % jacksonV,
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV
   ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ akkaHttpCirceIntegrationDependency ++ circeDependencies
 

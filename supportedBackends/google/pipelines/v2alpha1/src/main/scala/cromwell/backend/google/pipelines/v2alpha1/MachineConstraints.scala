@@ -1,10 +1,12 @@
 package cromwell.backend.google.pipelines.v2alpha1
 
+import com.typesafe.config.ConfigFactory
 import common.util.IntUtil._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineV
 import mouse.all._
+import net.ceedubs.ficus.Ficus._
 import org.slf4j.Logger
 import wdl4s.parser.MemoryUnit
 import wom.format.MemorySize
@@ -20,6 +22,8 @@ object MachineConstraints {
   private val minMemoryPerCpu = MemorySize(0.9, MemoryUnit.GB)
   private val maxMemoryPerCpu = MemorySize(6.5, MemoryUnit.GB)
   private val memoryFactor = MemorySize(256, MemoryUnit.MB)
+
+  private lazy val usePredefinedMachineTypes: Boolean = ConfigFactory.load().getOrElse("google.use-v1-machine-types", false)
 
   private def validateCpu(cpu: Int Refined Positive) = cpu.value match {
     // One CPU is cool
@@ -70,8 +74,12 @@ object MachineConstraints {
   }
 
   def machineType(memory: MemorySize, cpu: Int Refined Positive, jobLogger: Logger) = {
-    val (validCpu, validMemory) = balanceMemoryAndCpu(memory |> validateMemory, cpu |> validateCpu)
-    logAdjustment(cpu.value, validCpu, memory, validMemory, jobLogger)
-    s"custom-$validCpu-${validMemory.to(MemoryUnit.MB).amount.intValue()}"
+    if (usePredefinedMachineTypes) {
+      s"predefined-$cpu-${memory.to(MemoryUnit.MB).amount.toInt}"
+    } else {
+      val (validCpu, validMemory) = balanceMemoryAndCpu(memory |> validateMemory, cpu |> validateCpu)
+      logAdjustment(cpu.value, validCpu, memory, validMemory, jobLogger)
+      s"custom-$validCpu-${validMemory.to(MemoryUnit.MB).amount.intValue()}"
+    }
   }
 }

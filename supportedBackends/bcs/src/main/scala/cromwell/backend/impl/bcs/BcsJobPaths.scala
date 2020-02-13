@@ -16,7 +16,7 @@ object BcsJobPaths {
 	val BcsStderrRedirectPath = "bcs-stderr"
 }
 
-final case class BcsJobPaths(workflowPaths: BcsWorkflowPaths, jobKey: BackendJobDescriptorKey) extends JobPaths {
+final case class BcsJobPaths(workflowPaths: BcsWorkflowPaths, jobKey: BackendJobDescriptorKey, override val isCallCacheCopyAttempt: Boolean = false) extends JobPaths {
 
 	import BcsJobPaths._
 
@@ -24,4 +24,6 @@ final case class BcsJobPaths(workflowPaths: BcsWorkflowPaths, jobKey: BackendJob
 	val workerPath = callRoot.resolve(workerFileName)
 	val bcsStdoutPath = callRoot.resolve(BcsStdoutRedirectPath)
 	val bcsStderrPath = callRoot.resolve(BcsStderrRedirectPath)
+
+	override def forCallCacheCopyAttempts: JobPaths = this.copy(isCallCacheCopyAttempt = true)
 }

@@ -46,7 +46,7 @@ custom_wait_for_cromwell() {
 
   RESULT=1
   ATTEMPTS=0
-  MAX_ATTEMPTS=20
+  MAX_ATTEMPTS=50
 
   while [ "${ATTEMPTS}" -le "${MAX_ATTEMPTS}" -a "${RESULT}" -gt "0" ]
   do

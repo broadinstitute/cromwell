@@ -61,7 +61,7 @@ they will also get their own subdirectory:
 
 ```
 [...]/callRoot/
-  -callCacheCopy/
+  - cacheCopy/
     - script
     - stdout
     - output.file

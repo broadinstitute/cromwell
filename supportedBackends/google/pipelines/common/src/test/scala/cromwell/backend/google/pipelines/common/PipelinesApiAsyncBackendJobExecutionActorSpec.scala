@@ -879,14 +879,11 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val jesBackend = testActorRef.underlyingActor
 
     jesBackend.pipelinesApiCallPaths.stdout should be(a[GcsPath])
-    jesBackend.pipelinesApiCallPaths.stdout.pathAsString shouldBe
-      "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/stdout"
+    jesBackend.pipelinesApiCallPaths.stdout.pathAsString shouldBe "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/attempt-1/stdout"
     jesBackend.pipelinesApiCallPaths.stderr should be(a[GcsPath])
-    jesBackend.pipelinesApiCallPaths.stderr.pathAsString shouldBe
-      "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/stderr"
+    jesBackend.pipelinesApiCallPaths.stderr.pathAsString shouldBe "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/attempt-1/stderr"
     jesBackend.pipelinesApiCallPaths.jesLogPath should be(a[GcsPath])
-    jesBackend.pipelinesApiCallPaths.jesLogPath.pathAsString shouldBe
-      "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello.log"
+    jesBackend.pipelinesApiCallPaths.jesLogPath.pathAsString shouldBe "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/attempt-1/hello.log"
   }
 
   it should "return JES log paths for scattered call" taggedAs PostWomTest ignore {
@@ -991,8 +988,8 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val actual = jesBackend.startMetadataKeyValues.safeMapValues(_.toString)
     actual should be(
       Map(
-        "backendLogs:log" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/goodbye.log",
-        "callRoot" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye",
+        "backendLogs:log" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/attempt-1/goodbye.log",
+        "callRoot" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/attempt-1",
         "jes:endpointUrl" -> "https://lifesciences.googleapis.com/",
         "jes:executionBucket" -> jesGcsRoot,
         "jes:googleProject" -> googleProject,
@@ -1012,8 +1009,8 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         "runtimeAttributes:preemptible" -> "0",
         "runtimeAttributes:zones" -> "us-central1-b,us-central1-a",
         "runtimeAttributes:maxRetries" -> "0",
-        "stderr" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/stderr",
-        "stdout" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/stdout"
+        "stderr" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/attempt-1/stderr",
+        "stdout" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/attempt-1/stdout"
       )
     )
 

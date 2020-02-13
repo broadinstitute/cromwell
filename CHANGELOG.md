@@ -2,12 +2,9 @@
 
 ## 49 Release Notes
 
-### Installation methods
+### Changes and Warnings
 
-Links to the conda package and docker container are now available in 
-[the install documentation](https://cromwell.readthedocs.io/en/stable/Getting/).
-
-### Job store database refactoring
+#### Job store database refactoring
 
 The primary keys of Cromwell's job store tables have been refactored to use a `BIGINT` datatype in place of the previous
 `INT` datatype. Cromwell will not be usable during the time the Liquibase migration for this refactor is running.
@@ -20,36 +17,108 @@ rows in this table:
 SELECT table_rows FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'cromwell' AND table_name = 'JOB_STORE_SIMPLETON_ENTRY';
 ```
 
-### Disable call-caching for tasks
+#### Execution Directory Layout
+
+Execution directories are now consistently subdirectories of the call root for all attempts. 
+
+* Previously, `attempt-2/` became a subdirectory of the first attempt to run a job if it failed:
+
+```
+[...]/callRoot/
+  - script [for attempt 1]
+  - stdout [for attempt 1]
+  - output.file [for attempt 1]
+  - attempt-2/
+    - script
+    - stdout
+    - output.file
+  - attempt-3/
+    - script
+    - stdout
+    - output.file
+```
+
+* Now, `attempt-1` gets its own subdirectory and, if necessary, `attempt-2` is a sibling of it:
+
+```
+[...]/callRoot/
+  - attempt-1/
+    - script
+    - stdout
+    - output.file
+  - attempt-2/
+    - script
+    - stdout
+    - output.file
+  - attempt-3/
+    - script
+    - stdout
+    - output.file
+```
+
+* Furthermore, attempts to copy call cached results will no longer occupy the same directory as the first attempt. Instead
+they will also get their own subdirectory:
+
+```
+[...]/callRoot/
+  - cacheCopy/
+    - script
+    - stdout
+    - output.file
+  - attempt-1/
+    - script
+    - stdout
+    - output.file
+  - attempt-2/
+    - script
+    - stdout
+    - output.file
+  - attempt-3/
+    - script
+    - stdout
+    - output.file
+```
+
+### New Functionality
+
+#### Disable call-caching for tasks
 
 It is now possible to indicate in a workflow that a task should not be call-cached. See details 
 [here](https://cromwell.readthedocs.io/en/stable/optimizations/VolatileTasks).
 
-### Delete Intermediate Outputs on PapiV2
+#### Delete Intermediate Outputs on PapiV2
 
 * **Experimental:** When a new workflow option `delete_intermediate_output_files` is submitted with the workflow,
 intermediate `File` objects will be deleted when the workflow completes. See the [Google Pipelines API Workflow Options
 documentation](https://cromwell.readthedocs.io/en/stable/wf_options/Google#google-pipelines-api-workflow-options)
 for more information.
 
-### Metadata Archival Support
+#### Metadata Archival Support
 
 Cromwell 49 now offers the option to archive metadata to GCS and remove the equivalent metadata from relational
 database storage. Please see 
-[the documentation](https://cromwell.readthedocs.io/en/stable/Configuring#hybrid-metadata-storage-classic-carbonite) for more details.
+[the documentation](https://cromwell.readthedocs.io/en/stable/Configuring#hybrid-metadata-storage-classic-carbonite) for more details. 
 
-### Bug fixes
-
-+ Fix a bug where zip files with directories could not be imported. 
-  For example a zip with `a.wdl` and `b.wdl` could be imported but one with `sub_workflows/a.wdl` 
-  and `imports/b.wdl` could not.
-
-### Adding support for Google Cloud Life Sciences v2beta
+#### Adding support for Google Cloud Life Sciences v2beta
 Cromwell now supports running workflows using Google Cloud Life Sciences v2beta API in addition to Google Cloud Genomics v2alpha1. 
 More information about migration to the new API from v2alpha1 
 [here](https://cromwell.readthedocs.io/en/stable/backends/Google#migration-from-google-cloud-genomics-v2alpha1-to-google-cloud-life-sciences-v2beta). 
 * **Note** Google Cloud Life Sciences is the new name for newer versions of Google Cloud Genomics.
 * **Note** Support for Google Cloud Genomics v2alpha1 will be removed in a future version of Cromwell. Advance notice will be provided.
+
+### New Docs
+
+#### Installation methods
+
+Links to the conda package and docker container are now available in 
+[the install documentation](https://cromwell.readthedocs.io/en/stable/Getting/).
+
+
+### Bug Fixes
+
++ Fix a bug where zip files with directories could not be imported. 
+  For example a zip with `a.wdl` and `b.wdl` could be imported but one with `sub_workflows/a.wdl` 
+  and `imports/b.wdl` could not.
   
 ## 48 Release Notes
 

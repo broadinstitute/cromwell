@@ -3,6 +3,7 @@ testFormat: workflowsuccess
 
 files {
   workflow: scatter_simples/scatter.wdl
+  options: scatter_simples/nocallcache.options
   imports: [
     scatter_simples/bag_of_tasks.wdl
   ]

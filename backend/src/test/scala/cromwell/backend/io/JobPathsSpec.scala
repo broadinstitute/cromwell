@@ -36,35 +36,35 @@ class JobPathsSpec extends FlatSpec with Matchers with BackendSpec {
     val jobPaths = new JobPathsWithDocker(workflowPaths, jobKey)
     val id = wd.id
     jobPaths.callRoot.pathAsString shouldBe
-      fullPath(s"local-cromwell-executions/wf_hello/$id/call-hello")
+      fullPath(s"local-cromwell-executions/wf_hello/$id/call-hello/attempt-1/")
     jobPaths.callExecutionRoot.pathAsString shouldBe
-      fullPath(s"local-cromwell-executions/wf_hello/$id/call-hello/execution")
+      fullPath(s"local-cromwell-executions/wf_hello/$id/call-hello/attempt-1/execution")
     jobPaths.returnCode.pathAsString shouldBe
-      fullPath(s"local-cromwell-executions/wf_hello/$id/call-hello/execution/rc")
+      fullPath(s"local-cromwell-executions/wf_hello/$id/call-hello/attempt-1/execution/rc")
     jobPaths.script.pathAsString shouldBe
-      fullPath(s"local-cromwell-executions/wf_hello/$id/call-hello/execution/script")
+      fullPath(s"local-cromwell-executions/wf_hello/$id/call-hello/attempt-1/execution/script")
     jobPaths.stderr.pathAsString shouldBe
-      fullPath(s"local-cromwell-executions/wf_hello/$id/call-hello/execution/stderr")
+      fullPath(s"local-cromwell-executions/wf_hello/$id/call-hello/attempt-1/execution/stderr")
     jobPaths.stdout.pathAsString shouldBe
-      fullPath(s"local-cromwell-executions/wf_hello/$id/call-hello/execution/stdout")
+      fullPath(s"local-cromwell-executions/wf_hello/$id/call-hello/attempt-1/execution/stdout")
     jobPaths.callExecutionRoot.pathAsString shouldBe
-      fullPath(s"local-cromwell-executions/wf_hello/$id/call-hello/execution")
+      fullPath(s"local-cromwell-executions/wf_hello/$id/call-hello/attempt-1/execution")
     jobPaths.callDockerRoot.pathAsString shouldBe
-      fullPath(s"/cromwell-executions/wf_hello/$id/call-hello")
+      fullPath(s"/cromwell-executions/wf_hello/$id/call-hello/attempt-1")
     jobPaths.callExecutionDockerRoot.pathAsString shouldBe
-      fullPath(s"/cromwell-executions/wf_hello/$id/call-hello/execution")
+      fullPath(s"/cromwell-executions/wf_hello/$id/call-hello/attempt-1/execution")
     jobPaths.toDockerPath(DefaultPathBuilder.get(
-      s"local-cromwell-executions/wf_hello/$id/call-hello/execution/stdout")).pathAsString shouldBe
-      fullPath(s"/cromwell-executions/wf_hello/$id/call-hello/execution/stdout")
+      s"local-cromwell-executions/wf_hello/$id/call-hello/attempt-1/execution/stdout")).pathAsString shouldBe
+      fullPath(s"/cromwell-executions/wf_hello/$id/call-hello/attempt-1/execution/stdout")
     jobPaths.toDockerPath(DefaultPathBuilder.get("/cromwell-executions/dock/path")).pathAsString shouldBe
       fullPath("/cromwell-executions/dock/path")
     jobPaths.memoryRetryRC.pathAsString shouldBe
-      fullPath(s"local-cromwell-executions/wf_hello/$id/call-hello/execution/memory_retry_rc")
+      fullPath(s"local-cromwell-executions/wf_hello/$id/call-hello/attempt-1/execution/memory_retry_rc")
 
     val jobKeySharded: BackendJobDescriptorKey = BackendJobDescriptorKey(call, Option(0), 1)
     val jobPathsSharded = new JobPathsWithDocker(workflowPaths, jobKeySharded)
     jobPathsSharded.callExecutionRoot.pathAsString shouldBe
-      fullPath(s"local-cromwell-executions/wf_hello/$id/call-hello/shard-0/execution")
+      fullPath(s"local-cromwell-executions/wf_hello/$id/call-hello/shard-0/attempt-1/execution")
 
     val jobKeyAttempt: BackendJobDescriptorKey = BackendJobDescriptorKey(call, None, 2)
     val jobPathsAttempt = new JobPathsWithDocker(workflowPaths, jobKeyAttempt)

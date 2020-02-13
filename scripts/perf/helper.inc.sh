@@ -46,7 +46,8 @@ custom_wait_for_cromwell() {
 
   RESULT=1
   ATTEMPTS=0
-  MAX_ATTEMPTS=20
+  # increase max tries from 20 to 60 to allow more time for cromwell instance to deploy
+  MAX_ATTEMPTS=60
 
   while [ "${ATTEMPTS}" -le "${MAX_ATTEMPTS}" -a "${RESULT}" -gt "0" ]
   do

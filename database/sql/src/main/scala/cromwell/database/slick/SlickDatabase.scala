@@ -136,8 +136,14 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
 
   protected[this] lazy val insertBatchSize = databaseConfig.getOrElse("insert-batch-size", 2000)
 
-  protected[this] lazy val useSlickUpserts =
-    dataAccess.driver.capabilities.contains(JdbcCapabilities.insertOrUpdate)
+  /*
+   * If you're about to (re-)introduce slick upserts (or insertOrUpdates):
+   *  See https://github.com/broadinstitute/cromwell/pull/5332 which removed them (due to failing tests in Slick 3.3.2)
+   *  Make sure the new slick version you're using passes KeyValueDatabaseSpec (and all the others, of course)
+   * Note: Before the removal, this line used to be:
+   *  = dataAccess.driver.capabilities.contains(JdbcCapabilities.insertOrUpdate)
+   */
+  protected[this] lazy val useSlickUpserts = dataAccess.driver.capabilities.contains(JdbcCapabilities.insertOrUpdate)
 
   protected[this] def assertUpdateCount(description: String, updates: Int, expected: Int): DBIO[Unit] = {
     if (updates == expected) {

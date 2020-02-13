@@ -24,7 +24,7 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
   def actorName: String = "MetadataServiceActor"
 
   val config = ConfigFactory.parseString(Config)
-  lazy val actor = system.actorOf(MetadataServiceActor.props(config, globalConfigToMetadataServiceConfig(config), TestProbe().ref), "MetadataServiceActor-for-MetadataServiceActorSpec")
+  lazy val actor = system.actorOf(MetadataServiceActor.props(globalConfigToMetadataServiceConfig(config), config, TestProbe().ref), "MetadataServiceActor-for-MetadataServiceActorSpec")
 
     val workflowId = WorkflowId.randomId()
 
@@ -169,8 +169,8 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
 object MetadataServiceActorSpec {
   val Config =
     """
-      |services.MetadataService.db-batch-size = 3
-      |services.MetadataService.db-flush-rate = 100 millis
+      |services.MetadataService.config.db-batch-size = 3
+      |services.MetadataService.config.db-flush-rate = 100 millis
     """.stripMargin
 
   val ConfigWithoutSummarizer = Config + """

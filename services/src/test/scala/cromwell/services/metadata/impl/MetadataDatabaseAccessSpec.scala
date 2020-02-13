@@ -172,7 +172,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         workflow2Id <- baseWorkflowMetadata(Workflow2Name, Set(testLabel2, testLabel3))
 
         // refresh the metadata
-        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000, Option(Long.MaxValue)) map assertRowsProcessedAndSummarizationComplete
+        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000) map assertRowsProcessedAndSummarizationComplete
 
         // Query with no filters
         (workflowQueryResult, workflowQueryResult2) <-
@@ -363,7 +363,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         _ <- baseWorkflowMetadata(uniqueWorkflow3Name)
         _ <- baseWorkflowMetadata(uniqueWorkflow3Name)
         // refresh the metadata
-        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000, Option(Long.MaxValue)) map assertRowsProcessedAndSummarizationComplete
+        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000) map assertRowsProcessedAndSummarizationComplete
         //get totalResultsCount when page and pagesize are specified
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(
           // name being added to the query parameters so as to exclude workflows being populated by the other tests in this spec
@@ -385,7 +385,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
           MetadataEvent.labelsToMetadataEvents(Labels(customLabelKey -> customLabelValue), workflowId)
         for {
           _ <- dataAccess.addMetadataEvents(metadataEvents)
-          _ <- dataAccess.refreshWorkflowMetadataSummaries(1000, Option(Long.MaxValue)) map assertRowsProcessedAndSummarizationComplete
+          _ <- dataAccess.refreshWorkflowMetadataSummaries(1000) map assertRowsProcessedAndSummarizationComplete
           _ <- dataAccess.getWorkflowLabels(workflowId).map(_.toList should contain(customLabelKey -> customLabelValue))
         } yield ()
       }
@@ -420,7 +420,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         // associate subworkflow 2 to parent
         _ <- subworkflowMetadata(parentWorkflow2, Subworkflow2Name)
         // refresh metadata
-        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000, Option(Long.MaxValue))
+        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000)
         // include subworkflows
         _ <- dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(WorkflowQueryKey.IncludeSubworkflows.name -> true.toString))) map { case (resp, _) =>
           val resultByName = resp.results groupBy (_.name)
@@ -481,7 +481,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       val workflowId1 = Await.result(workflowId1Future, defaultTimeout)
       val workflowId2 = Await.result(workflowId2Future, defaultTimeout)
 
-      val refreshSummariesFuture = dataAccess.refreshWorkflowMetadataSummaries(1000, Option(Long.MaxValue))
+      val refreshSummariesFuture = dataAccess.refreshWorkflowMetadataSummaries(1000)
       Await.result(refreshSummariesFuture, defaultTimeout)
 
       val updateMetadataArchiveStatusFuture = dataAccess.updateMetadataArchiveStatus(workflowId1, MetadataArchiveStatus.Archived)
@@ -519,7 +519,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
       val test = for {
         rootWorkflowId <- baseWorkflowMetadata("root workflow name", workflowId = WorkflowId.fromString("11111111-1111-1111-1111-111111111111"))
         subworkflowId <- subworkflowMetadata(rootWorkflowId, "subworkflow name", workflowId = WorkflowId.fromString("22222222-2222-2222-2222-222222222222"))
-        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000, Option(Long.MaxValue))
+        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000)
         _ <- dataAccess.deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(subworkflowId, None)
       } yield ()
 
@@ -531,7 +531,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
     it should "refuse to delete a non-terminal workflow" taggedAs DbmsTest in {
       val test = for {
         rootWorkflowId <- baseWorkflowMetadata("root workflow name", workflowId = WorkflowId.fromString("33333333-3333-3333-3333-333333333333"))
-        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000, Option(Long.MaxValue))
+        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000)
         _ <- dataAccess.deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(rootWorkflowId, None)
       } yield ()
 

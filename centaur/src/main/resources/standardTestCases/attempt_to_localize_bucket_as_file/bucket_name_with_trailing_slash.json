@@ -1,0 +1,3 @@
+{
+  "localizer_workflow.input_file": "gs://gcp-public-data-landsat/"
+}

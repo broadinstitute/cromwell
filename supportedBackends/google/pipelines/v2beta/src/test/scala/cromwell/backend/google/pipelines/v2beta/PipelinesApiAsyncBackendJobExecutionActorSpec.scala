@@ -5,17 +5,22 @@ import java.nio.file.Paths
 import cats.data.NonEmptyList
 import cromwell.backend.google.pipelines.common.PipelinesApiFileInput
 import cromwell.core.path.DefaultPathBuilder
+import org.mockito.Mockito._
+import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{FlatSpec, Matchers}
 
-class PipelinesApiAsyncBackendJobExecutionActorSpec extends FlatSpec with Matchers {
+class PipelinesApiAsyncBackendJobExecutionActorSpec extends FlatSpec with Matchers with MockitoSugar {
   behavior of "PipelinesParameterConversions"
 
   it should "group files by bucket" in {
 
     def makeInput(bucket: String, name: String): PipelinesApiFileInput = {
+      val mockCloudPath = mock[cromwell.core.path.Path]
+      when(mockCloudPath.pathAsString) thenReturn s"gs://$bucket/$name"
+
       PipelinesApiFileInput(
         name = name,
-        cloudPath = DefaultPathBuilder.build(Paths.get(s"gs://$bucket/$name")),
+        cloudPath = mockCloudPath,
         relativeHostPath = DefaultPathBuilder.build(Paths.get(s"$bucket/$name")),
         mount = null
       )

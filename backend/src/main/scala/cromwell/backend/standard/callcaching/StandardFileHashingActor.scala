@@ -90,6 +90,9 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
     case (fileHashRequest: FileHashContext, IoSuccess(_, result: String)) =>
       context.parent ! FileHashResponse(HashResult(fileHashRequest.hashKey, HashValue(result)))
 
+    case (fileHashRequest: FileHashContext, IoSuccess(_, other)) =>
+      context.parent ! HashingFailedMessage(fileHashRequest.file, new Exception(s"Hash function supposedly succeeded but responded with '${other}' instead of a string hash"))
+
     // Hash Failure
     case (fileHashRequest: FileHashContext, IoFailAck(_, failure: Throwable)) =>
       context.parent ! HashingFailedMessage(fileHashRequest.file, failure)

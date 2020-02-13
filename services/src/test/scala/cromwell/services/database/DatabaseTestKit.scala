@@ -169,8 +169,7 @@ object DatabaseTestKit extends StrictLogging {
       case HsqldbDatabasePlatform => throw new UnsupportedOperationException
       case MariadbDatabasePlatform => (
         s"""|docker run \\
-            |  --rm \\
-            |  --detach --name cromwell_test_mariadb_database_$jdbcPort \\
+            |  --detach --name cromwell_database_$jdbcPort \\
             |  --env MYSQL_ROOT_PASSWORD=private \\
             |  --env MYSQL_USER=$jdbcUsername \\
             |  --env MYSQL_PASSWORD=$jdbcPassword \\
@@ -190,8 +189,7 @@ object DatabaseTestKit extends StrictLogging {
       )
       case MysqlDatabasePlatform => (
         s"""|docker run \\
-            |  --rm \\
-            |  --detach --name cromwell_test_mysql_database_$jdbcPort \\
+            |  --detach --name cromwell_database_$jdbcPort \\
             |  --env MYSQL_ROOT_PASSWORD=private \\
             |  --env MYSQL_USER=$jdbcUsername \\
             |  --env MYSQL_PASSWORD=$jdbcPassword \\
@@ -217,8 +215,7 @@ object DatabaseTestKit extends StrictLogging {
       )
       case PostgresqlDatabasePlatform => (
         s"""|docker run \\
-            |  --rm \\
-            |  --detach --name cromwell_test_postgresql_database_$jdbcPort \\
+            |  --detach --name cromwell_database_$jdbcPort \\
             |  --env POSTGRES_USER=$jdbcUsername \\
             |  --env POSTGRES_PASSWORD=$jdbcPassword \\
             |  --env POSTGRES_DB=$jdbcSchema \\

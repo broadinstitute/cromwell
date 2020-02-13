@@ -48,7 +48,7 @@ trait JobKeyValueSlickDatabase extends JobKeyValueSqlDatabase {
     val action = if (useSlickUpserts) {
       createBatchUpsert("KeyValueStore", dataAccess.jobKeyValueTableQueryCompiled, jobKeyValueEntries)
     } else {
-      DBIO.sequence(jobKeyValueEntries.map(manualUpsertQuery))
+      DBIO.sequence(jobKeyValueEntries.toSeq.sortBy(_.toString).map(manualUpsertQuery))
     }
     runTransaction(action).void
   }

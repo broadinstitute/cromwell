@@ -209,6 +209,7 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
         case rollbackException: MySQLTransactionRollbackException =>
           debugExitStatusCodeOption match {
             case Some(status) =>
+              Thread.currentThread().getStackTrace.foreach(el => println(el + "\n"))
               SlickDatabase.log.error("Got a rollback!", rollbackException)
               System.err.println(s"Exiting with code $status as $debugExitConfigPath is set")
               System.exit(status)

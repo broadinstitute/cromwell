@@ -23,7 +23,7 @@ object MachineConstraints {
   private val maxMemoryPerCpu = MemorySize(6.5, MemoryUnit.GB)
   private val memoryFactor = MemorySize(256, MemoryUnit.MB)
 
-  private lazy val usePredefinedMachineTypes: Boolean = ConfigFactory.load().getOrElse("google.use-v1-machine-types", false)
+  private lazy val usePredefinedMachineTypes: Boolean = ConfigFactory.load().getOrElse("google.papiv2-use-v1-style-machine-types", false)
 
   private def validateCpu(cpu: Int Refined Positive) = cpu.value match {
     // One CPU is cool

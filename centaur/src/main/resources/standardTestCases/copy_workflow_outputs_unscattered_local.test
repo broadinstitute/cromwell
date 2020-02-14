@@ -10,23 +10,23 @@ files {
 
 fileSystemCheck: "local"
 outputExpectations: {
-  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/execution/stdout": 1
-  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/execution/stderr": 1
-  "/tmp/call_logs/wfoutputs/<<UUID>>/call-B/execution/stdout": 1
-  "/tmp/call_logs/wfoutputs/<<UUID>>/call-B/execution/stderr": 1
-  "/tmp/call_logs/wfoutputs/<<UUID>>/call-C/execution/stdout": 1
-  "/tmp/call_logs/wfoutputs/<<UUID>>/call-C/execution/stderr": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/execution/attempt-1/stdout": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/execution/attempt-1/stderr": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-B/execution/attempt-1/stdout": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-B/execution/attempt-1/stderr": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-C/execution/attempt-1/stdout": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-C/execution/attempt-1/stderr": 1
   "/tmp/logs/workflow.<<UUID>>.log": 1
-  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/execution/out": 1
-  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/execution/out2": 1
-  "/tmp/outputs/wfoutputs/<<UUID>>/call-B/execution/out": 1
-  "/tmp/outputs/wfoutputs/<<UUID>>/call-B/execution/out2": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/execution/attempt-1/out": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/execution/attempt-1/out2": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-B/execution/attempt-1/out": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-B/execution/attempt-1/out2": 1
 }
 
 allowOtherOutputs = false
 metadata {
-  "outputs.wfoutputs.A.out": "<<WORKFLOW_ROOT>>/call-A/execution/out"
-  "outputs.wfoutputs.A.out2": "<<WORKFLOW_ROOT>>/call-A/execution/out2"
-  "outputs.wfoutputs.B.outs.0": "<<WORKFLOW_ROOT>>/call-B/execution/out"
-  "outputs.wfoutputs.B.outs.1": "<<WORKFLOW_ROOT>>/call-B/execution/out2"
+  "outputs.wfoutputs.A.out": "<<WORKFLOW_ROOT>>/call-A/attempt-1/execution/out"
+  "outputs.wfoutputs.A.out2": "<<WORKFLOW_ROOT>>/call-A/attempt-1/execution/out2"
+  "outputs.wfoutputs.B.outs.0": "<<WORKFLOW_ROOT>>/call-B/attempt-1/execution/out"
+  "outputs.wfoutputs.B.outs.1": "<<WORKFLOW_ROOT>>/call-B/attempt-1/execution/out2"
 }

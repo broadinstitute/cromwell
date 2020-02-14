@@ -144,6 +144,8 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
    *    `insert ignore into table() values() on duplicate key update ...`
    *  which makes MySql to ignore any errors which may occur during statement execution. The proper sql code should be
    *  without `ignore`.
+   *  https://github.com/slick/slick/issues/2045
+   *  https://github.com/slick/slick/issues/2076
    *
    * Note: Before the removal, this line used to be:
    *  = dataAccess.driver.capabilities.contains(JdbcCapabilities.insertOrUpdate)

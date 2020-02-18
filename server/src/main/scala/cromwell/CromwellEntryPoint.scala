@@ -68,6 +68,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
     val runnerProps = SingleWorkflowRunnerActor.props(
       source = sources,
       metadataOutputFile = args.metadataOutput,
+      workflowOutputFile = args.workflowOutput,
       terminator = cromwellSystem,
       gracefulShutdown = gracefulShutdown,
       abortJobsOnTerminate = abortJobsOnTerminate.getOrElse(true),

@@ -44,6 +44,7 @@ case class CommandLineArguments(command: Option[Command] = None,
                                 workflowLabels: Option[Path] = None,
                                 imports: Option[Path] = None,
                                 metadataOutput: Option[Path] = None,
+                                workflowOutput: Option[Path] = None,
                                 host: URL = CommandLineArguments.DefaultCromwellHost
                                ) {
   private lazy val cwlPreProcessor = new CwlPreProcessor()

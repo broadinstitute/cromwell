@@ -31,6 +31,8 @@ object CommandLineParser {
 //  -p, --imports <value>    A directory or zipfile to search for workflow imports.
 //  -m, --metadata-output <value>
 //                           An optional JSON file path to output metadata.
+//  -w, --workflow-output <value>
+//                           An optional JSON file path to declared workflow outputs.
 //  -h, --host               Cromwell server URL
 class CommandLineParser extends scopt.OptionParser[CommandLineArguments]("java -jar /path/to/cromwell.jar") {
   
@@ -79,7 +81,11 @@ class CommandLineParser extends scopt.OptionParser[CommandLineArguments]("java -
         opt[String]('m', "metadata-output").text(
           "An optional JSON file path to output metadata.").
           action((s, c) =>
-            c.copy(metadataOutput = Option(DefaultPathBuilder.get(s))))
+            c.copy(metadataOutput = Option(DefaultPathBuilder.get(s)))),
+        opt[String]('w', "workflow-output").text(
+          "An optional JSON file path to declared workflow outputs.").
+          action((s, c) =>
+            c.copy(workflowOutput = Option(DefaultPathBuilder.get(s))))
       ): _*
     )
 

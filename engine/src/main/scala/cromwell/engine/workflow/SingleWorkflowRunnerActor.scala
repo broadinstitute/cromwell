@@ -36,6 +36,7 @@ import scala.util.{Failure, Try}
  */
 class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
                                 metadataOutputPath: Option[Path],
+                                workflowOutputPath: Option[Path],
                                 terminator: CromwellTerminator,
                                 gracefulShutdown: Boolean,
                                 abortJobsOnTerminate: Boolean,
@@ -197,10 +198,19 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
   }
 
   /**
-    * Outputs the outputs to stdout, and then requests the metadata.
+    * Outputs the outputs to stdout or a file, based on whether an output json path was specified
     */
   private def outputOutputs(outputs: JsObject): Unit = {
-    println(outputs.prettyPrint)
+    workflowOutputPath match {
+      case Some(p: Path) =>
+        if (p.isDirectory) {
+          log.error("Specified metadata path is a directory, should be a file: " + p)
+        } else {
+          log.info(s"$Tag writing output to $p")
+          p.createIfNotExists(createParents = true).write(outputs.prettyPrint)
+        }
+    }
+      case _ => println(outputs.prettyPrint)
   }
 
   private def outputMetadata(metadata: JsObject): Try[Unit] = {
@@ -219,6 +229,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
 object SingleWorkflowRunnerActor {
   def props(source: WorkflowSourceFilesCollection,
             metadataOutputFile: Option[Path],
+            workflowOutputFile: Option[Path],
             terminator: CromwellTerminator,
             gracefulShutdown: Boolean,
             abortJobsOnTerminate: Boolean,
@@ -228,6 +239,7 @@ object SingleWorkflowRunnerActor {
       new SingleWorkflowRunnerActor(
         source = source,
         metadataOutputPath = metadataOutputFile,
+        workflowOutputPath = workflowOutputFile,
         terminator = terminator,
         gracefulShutdown = gracefulShutdown,
         abortJobsOnTerminate = abortJobsOnTerminate,

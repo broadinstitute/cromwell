@@ -26,7 +26,12 @@ trait JobKeyValueSlickDatabase extends JobKeyValueSqlDatabase {
     } else manualUpsertQuery(jobKeyValueEntry)
     runTransaction(action)
   }
-  
+
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  // !!!!!!! Be careful using this function with multiple        !!!!!!!!
+  // !!!!!!! updates running in a single transaction.            !!!!!!!!
+  // !!!!!!! https://broadworkbench.atlassian.net/browse/BA-6262 !!!!!!!!
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   private def manualUpsertQuery(jobKeyValueEntry: JobKeyValueEntry)
                        (implicit ec: ExecutionContext) = for {
     updateCount <- dataAccess.
@@ -48,7 +53,9 @@ trait JobKeyValueSlickDatabase extends JobKeyValueSqlDatabase {
     val action = if (useSlickUpserts) {
       createBatchUpsert("KeyValueStore", dataAccess.jobKeyValueTableQueryCompiled, jobKeyValueEntries)
     } else {
-      DBIO.sequence(jobKeyValueEntries.map(manualUpsertQuery))
+      // sorting is essential here, otherwise deadlocks are possible
+      // https://broadworkbench.atlassian.net/browse/BA-6262
+      DBIO.sequence(jobKeyValueEntries.toSeq.sortBy(_.toString).map(manualUpsertQuery))
     }
     runTransaction(action).void
   }

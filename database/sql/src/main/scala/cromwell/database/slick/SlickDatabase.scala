@@ -140,6 +140,13 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
    * If you're about to (re-)introduce slick upserts (or insertOrUpdates):
    *  See https://github.com/broadinstitute/cromwell/pull/5332 which removed them (due to failing tests in Slick 3.3.2)
    *  Make sure the new slick version you're using passes KeyValueDatabaseSpec (and all the others, of course)
+   *  The problem with Slick upserts was that for MySql it generates wrong sql code:
+   *    `insert ignore into table() values() on duplicate key update ...`
+   *  which makes MySql to ignore any errors which may occur during statement execution. The proper sql code should be
+   *  without `ignore`.
+   *  https://github.com/slick/slick/issues/2045
+   *  https://github.com/slick/slick/issues/2076
+   *
    * Note: Before the removal, this line used to be:
    *  = dataAccess.driver.capabilities.contains(JdbcCapabilities.insertOrUpdate)
    */

@@ -209,8 +209,8 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
           log.info(s"$Tag writing output to $p")
           p.createIfNotExists(createParents = true).write(outputs.prettyPrint)
         }
-    }
       case _ => println(outputs.prettyPrint)
+    }
   }
 
   private def outputMetadata(metadata: JsObject): Try[Unit] = {

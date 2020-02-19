@@ -223,7 +223,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     cpu_cores = runtimeAttributes.cpu.map(_.value),
     ram_gb = ram,
     disk_gb = disk,
-    preemptible = Option(false),
+    preemptible = Option(runtimeAttributes.preemptible),
     zones = None
   )
 

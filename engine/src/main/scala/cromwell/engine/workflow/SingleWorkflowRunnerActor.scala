@@ -201,13 +201,16 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
     * Outputs the outputs to stdout or a file, based on whether an output json path was specified
     */
   private def outputOutputs(outputs: JsObject): Unit = {
+
     workflowOutputPath match {
-      case Some(p: Path) =>
+      case Some(p) =>
         if (p.isDirectory) {
           log.error("Specified metadata path is a directory, should be a file: " + p)
         } else {
+          //The extract outputs stanza entirely
+          val purelyOutputs = outputs.fields("outputs")
+          p.createIfNotExists(createParents = true).write(purelyOutputs.prettyPrint)
           log.info(s"$Tag writing output to $p")
-          p.createIfNotExists(createParents = true).write(outputs.prettyPrint)
         }
       case _ => println(outputs.prettyPrint)
     }

@@ -231,8 +231,10 @@ object CromwellEntryPoint extends GracefulStopSupport {
 
   def validateRunArguments(args: CommandLineArguments): WorkflowSourceFilesCollection = {
 
-    val sourceFileCollection = (args.validateSubmission(EntryPointLogger), writeableMetadataPath(args.metadataOutput)) mapN {
-      case (ValidSubmission(s, u, r, i, o, l, Some(z)), _) =>
+    val sourceFileCollection = (args.validateSubmission(EntryPointLogger),
+      validateWriteablePaths(args.metadataOutput, "metadata"),
+      validateWriteablePaths(args.workflowOutput, "output"))  mapN {
+      case (ValidSubmission(s, u, r, i, o, l, Some(z)), _, _) =>
         //noinspection RedundantDefaultArgument
         WorkflowSourceFilesWithDependenciesZip.apply(
           workflowSource = s,
@@ -246,7 +248,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
           importsZip = z.loadBytes,
           warnings = Vector.empty,
           workflowOnHold = false)
-      case (ValidSubmission(s, u, r, i, o, l, None), _) =>
+      case (ValidSubmission(s, u, r, i, o, l, None), _, _) =>
         //noinspection RedundantDefaultArgument
         WorkflowSourceFilesWithoutImports.apply(
           workflowSource = s,
@@ -263,7 +265,8 @@ object CromwellEntryPoint extends GracefulStopSupport {
 
     val sourceFiles = for {
       sources <- sourceFileCollection
-      _ <- writeableMetadataPath(args.metadataOutput)
+      _ <- validateWriteablePaths(args.metadataOutput, "metadata")
+      _ <- validateWriteablePaths(args.workflowOutput, "output")
     } yield sources
 
     validOrFailSubmission(sourceFiles)
@@ -276,13 +279,14 @@ object CromwellEntryPoint extends GracefulStopSupport {
     })
   }
 
-  private def writeableMetadataPath(path: Option[Path]): ErrorOr[Unit] = {
+  private def validateWriteablePaths(path: Option[Path], typeOfPath: String): ErrorOr[Unit] = {
     path match {
-      case Some(p) if !metadataPathIsWriteable(p) => s"Unable to write to metadata directory: $p".invalidNel
+      case Some(p) if !pathIsWriteable(p) => s"Unable to write $typeOfPath json to directory: $p".invalidNel
       case _ => ().validNel
     }
   }
 
-  private def metadataPathIsWriteable(metadataPath: Path): Boolean =
+  private def pathIsWriteable(metadataPath: Path): Boolean =
     Try(metadataPath.createIfNotExists(createParents = true).append("")).isSuccess
+
 }

@@ -4,7 +4,7 @@ import cromwell.CromwellApp.{Run, Server, Submit}
 import cromwell.CromwellCommandLineSpec.WdlAndInputs
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.util.SampleWdl
-import cromwell.util.SampleWdl.{FileClobber, FilePassingWorkflow, ThreeStep}
+import cromwell.util.SampleWdl.{FileClobber, FilePassingWorkflow, ThreeStep, ThreeStepWithOutputsSection}
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
 
 import scala.util.Try
@@ -175,8 +175,19 @@ class CromwellCommandLineSpec extends FlatSpec with Matchers with BeforeAndAfter
     threeStep.metadataFile setPermissions Set.empty
     val ccl = Try(CromwellEntryPoint.validateRunArguments(parsedArgs))
     ccl.isFailure shouldBe true
-    ccl.failed.get.getMessage should include("Unable to write to metadata directory:")
+    ccl.failed.get.getMessage should include("Unable to write metadata json to directory:")
   }
+
+  it should "fail if workflow output path is not writeable" in {
+    val threeStep = WdlAndInputs(ThreeStepWithOutputsSection)
+    val parsedArgs = parser.parse(Array("run", threeStep.wdl, "--inputs", threeStep.inputs, "--workflow-output", threeStep.output), CommandLineArguments()).get
+    threeStep.outputFile write "{ 'foo': 'bar' }"
+    threeStep.outputFile setPermissions Set.empty
+    val ccl = Try(CromwellEntryPoint.validateRunArguments(parsedArgs))
+    ccl.isFailure shouldBe true
+    ccl.failed.get.getMessage should include("Unable to write output json to directory:")
+  }
+
 
   it should "run if the imports path is a .zip file" in {
     val wdlDir = DefaultPathBuilder.createTempDirectory("wdlDirectory")
@@ -253,6 +264,15 @@ object CromwellCommandLineSpec {
     }
 
     lazy val metadata = metadataFile.pathAsString
+
+    lazy val outputFile = {
+      val path = wdlFile.swapExt("wdl", "output.json")
+      tempFiles :+= path
+      path
+    }
+
+    lazy val output = outputFile.pathAsString
+
 
     def deleteTempFiles() = tempFiles.foreach(_.delete(swallowIOExceptions = true))
   }

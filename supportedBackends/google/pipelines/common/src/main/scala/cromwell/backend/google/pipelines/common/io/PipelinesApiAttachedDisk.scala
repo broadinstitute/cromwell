@@ -67,11 +67,19 @@ trait PipelinesApiAttachedDisk {
   def diskType: DiskType
   def sizeGb: Int
   def mountPoint: Path
+  def sourceImage: Option[String]
+}
+
+case class PipelinesApiMountedReferencesDisk(diskType: DiskType, sizeGb: Int, mountPoint: Path, sourceImageName: String) extends PipelinesApiAttachedDisk {
+  val name = s"d-${mountPoint.pathAsString.md5Sum}"
+  override def toString: String = s"$mountPoint $sizeGb ${diskType.diskTypeName}"
+  override def sourceImage: Option[String] = Option(sourceImageName)
 }
 
 case class PipelinesApiEmptyMountedDisk(diskType: DiskType, sizeGb: Int, mountPoint: Path) extends PipelinesApiAttachedDisk {
   val name = s"d-${mountPoint.pathAsString.md5Sum}"
   override def toString: String = s"$mountPoint $sizeGb ${diskType.diskTypeName}"
+  override def sourceImage: Option[String] = None
 }
 
 object PipelinesApiWorkingDisk {
@@ -84,4 +92,5 @@ case class PipelinesApiWorkingDisk(diskType: DiskType, sizeGb: Int) extends Pipe
   val mountPoint = PipelinesApiWorkingDisk.MountPoint
   val name = PipelinesApiWorkingDisk.Name
   override def toString: String = s"$name $sizeGb ${diskType.diskTypeName}"
+  override def sourceImage: Option[String] = None
 }

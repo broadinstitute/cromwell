@@ -422,12 +422,20 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         val inputFileSize = Option(callInputFiles.values.flatMap(_.flatMap(_.sizeOption)).sum)
 
         // Attempt to adjust the disk size by taking into account the size of input files
-        val adjustedSizeDisks = inputFileSize.map(size => MemorySize.apply(size.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB)) map { inputFileSizeInformation =>
-          runtimeAttributes.disks.adjustWorkingDiskWithNewMin(
-            inputFileSizeInformation,
-            jobLogger.info(s"Adjusted working disk size to ${inputFileSizeInformation.amount} GB to account for input files")
-          )
-        } getOrElse runtimeAttributes.disks
+        val adjustedSizeDisks = {
+          val realAnswer = inputFileSize.map(size => MemorySize.apply(size.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB)) map { inputFileSizeInformation =>
+            runtimeAttributes.disks.adjustWorkingDiskWithNewMin(
+              inputFileSizeInformation,
+              jobLogger.info(s"Adjusted working disk size to ${inputFileSizeInformation.amount} GB to account for input files")
+            )
+          } getOrElse runtimeAttributes.disks
+
+          if (jobDescriptor.taskCall.localName.endsWith("mount")) {
+            realAnswer :+ PipelinesApiMountedReferencesDisk(DiskType.HDD, 500, DefaultPathBuilder.get("/mnt/disks/cjl-genomic-references"), "https://www.googleapis.com/compute/v1/projects/broad-dsde-cromwell-dev/global/images/cjl-genomic-references-image")
+          } else {
+            realAnswer
+          }
+        }
 
         CreatePipelineParameters(
           jobDescriptor = jobDescriptor,

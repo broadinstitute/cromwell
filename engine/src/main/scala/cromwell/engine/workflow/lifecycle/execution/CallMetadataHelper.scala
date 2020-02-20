@@ -120,6 +120,8 @@ trait CallMetadataHelper {
       val events = tailedEventList.sliding(2) flatMap {
         case Seq(eventCurrent, eventNext) =>
           val eventKey = s"${CallMetadataKeys.ExecutionEvents}[$randomNumberString]"
+          if ((eventNext.offsetDateTime.minus(eventCurrent.offsetDateTime))
+
           List(
             metadataEvent(s"$eventKey:description", eventCurrent.name),
             metadataEvent(s"$eventKey:startTime", eventCurrent.offsetDateTime),

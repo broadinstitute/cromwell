@@ -21,10 +21,17 @@ trait PipelinesUtilityConversions {
   def toMount(disk: PipelinesApiAttachedDisk) = new Mount()
     .setDisk(disk.name)
     .setPath(disk.mountPoint.pathAsString)
-  def toDisk(disk: PipelinesApiAttachedDisk) = new Disk()
-    .setName(disk.name)
-    .setSizeGb(disk.sizeGb)
-    .setType(disk.diskType |> toV2DiskType)
+  def toDisk(disk: PipelinesApiAttachedDisk) = {
+    val d = new Disk()
+      .setName(disk.name)
+      .setSizeGb(disk.sizeGb)
+      .setType(disk.diskType |> toV2DiskType)
+
+    disk.sourceImage match {
+      case Some(image) => d.setSourceImage(image)
+      case _ => d
+    }
+  }
 
   def toExecutionEvent(actionIndexToEventType: Map[Int, String])(event: Event): ExecutionEvent = {
     val groupingFromAction = for {

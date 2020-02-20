@@ -11,7 +11,7 @@ import net.ceedubs.ficus.Ficus._
 import org.postgresql.util.{PSQLException, ServerErrorMessage}
 import org.slf4j.LoggerFactory
 import slick.basic.DatabaseConfig
-import slick.jdbc.{JdbcCapabilities, JdbcProfile, PostgresProfile, TransactionIsolation}
+import slick.jdbc.{JdbcProfile, PostgresProfile, TransactionIsolation}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -152,7 +152,7 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
    * Note: Before the removal, this line used to be:
    *  = dataAccess.driver.capabilities.contains(JdbcCapabilities.insertOrUpdate)
    */
-  protected[this] lazy val useSlickUpserts = dataAccess.driver.capabilities.contains(JdbcCapabilities.insertOrUpdate)
+  protected[this] lazy val useSlickUpserts = false
 
   protected[this] def assertUpdateCount(description: String, updates: Int, expected: Int): DBIO[Unit] = {
     if (updates == expected) {

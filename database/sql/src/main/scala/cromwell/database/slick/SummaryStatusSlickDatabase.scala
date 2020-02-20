@@ -16,12 +16,12 @@ trait SummaryStatusSlickDatabase {
   private[slick] def upsertSummaryStatusEntrySummaryPosition(summaryName: String,
                                                              summaryPosition: Long)
                                                             (implicit ec: ExecutionContext): DBIO[Unit] = {
-    if (useSlickUpserts) {
+    //if (useSlickUpserts) {
       for {
         _ <- dataAccess.summaryStatusEntryIdsAutoInc.
           insertOrUpdate(SummaryStatusEntry(summaryName, summaryPosition))
       } yield ()
-    } else {
+    /*} else {
       for {
         updateCount <- dataAccess.summaryPositionForSummaryName(summaryName).update(summaryPosition)
         _ <- updateCount match {
@@ -31,6 +31,6 @@ trait SummaryStatusSlickDatabase {
           case _ => assertUpdateCount("upsertSummaryStatusEntrySummaryPosition", updateCount, 1)
         }
       } yield ()
-    }
+    }*/
   }
 }

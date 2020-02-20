@@ -140,11 +140,11 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
 
   private def upsertCustomLabelEntry(customLabelEntry: CustomLabelEntry)
                                     (implicit ec: ExecutionContext): DBIO[Unit] = {
-    if (useSlickUpserts) {
+    //if (useSlickUpserts) {
       for {
         _ <- dataAccess.customLabelEntryIdsAutoInc.insertOrUpdate(customLabelEntry)
       } yield ()
-    } else {
+    /*} else {
       for {
         updateCount <- dataAccess.
           customLabelEntriesForWorkflowExecutionUuidAndLabelKey(
@@ -155,16 +155,16 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
           case _ => assertUpdateCount("upsertCustomLabelEntry", updateCount, 1)
         }
       } yield ()
-    }
+    }*/
   }
 
   private def upsertWorkflowMetadataSummaryEntry(workflowMetadataSummaryEntry: WorkflowMetadataSummaryEntry)
                                                 (implicit ec: ExecutionContext): DBIO[Unit] = {
-    if (useSlickUpserts) {
+    //if (useSlickUpserts) {
       for {
         _ <- dataAccess.workflowMetadataSummaryEntryIdsAutoInc.insertOrUpdate(workflowMetadataSummaryEntry)
       } yield ()
-    } else {
+    /*} else {
       for {
         updateCount <- dataAccess.
           workflowMetadataSummaryEntriesForWorkflowExecutionUuid(workflowMetadataSummaryEntry.workflowExecutionUuid).
@@ -174,7 +174,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
           case _ => assertUpdateCount("upsertWorkflowMetadataSummaryEntry", updateCount, 1)
         }
       } yield ()
-    }
+    }*/
   }
 
   override def summarizeIncreasing(startMetadataKey: String,

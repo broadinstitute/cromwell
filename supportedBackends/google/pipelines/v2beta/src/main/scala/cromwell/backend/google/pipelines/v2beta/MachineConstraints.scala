@@ -7,7 +7,7 @@ import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineV
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
-import org.slf4j.Logger
+import org.slf4j.{Logger, LoggerFactory}
 import wdl4s.parser.MemoryUnit
 import wom.format.MemorySize
 
@@ -23,7 +23,12 @@ object MachineConstraints {
   private val maxMemoryPerCpu = MemorySize(6.5, MemoryUnit.GB)
   private val memoryFactor = MemorySize(256, MemoryUnit.MB)
 
-  private lazy val usePredefinedMachineTypes: Boolean = ConfigFactory.load().getOrElse("google.papiv2-use-v1-style-machine-types", false)
+  private lazy val log = LoggerFactory.getLogger("MachineConstraints")
+  private lazy val usePredefinedMachineTypes: Boolean = {
+    val predefinedMachineTypes = ConfigFactory.load().getOrElse("google.papiv2-use-v1-style-machine-types", false)
+    log.info("PAPI v2 beta using PAPI v1-style predefined machine types? " + predefinedMachineTypes)
+    predefinedMachineTypes
+  }
 
   private def validateCpu(cpu: Int Refined Positive) = cpu.value match {
     // One CPU is cool

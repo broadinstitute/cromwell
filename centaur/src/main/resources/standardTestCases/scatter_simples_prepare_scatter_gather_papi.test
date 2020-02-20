@@ -5,6 +5,7 @@ backends: [Papi]
 files {
   workflow: scatter_simples/prepare_scatter_gather.wdl
   inputs: scatter_simples/prepare_scatter_gather.inputs
+  options: scatter_simples/nocallcache.options
 }
 
 metadata {

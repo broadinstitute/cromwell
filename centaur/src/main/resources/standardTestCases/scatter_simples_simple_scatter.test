@@ -3,6 +3,7 @@ testFormat: workflowsuccess
 
 files {
   workflow: scatter_simples/simple_scatter.wdl
+  options: scatter_simples/nocallcache.options
 }
 
 metadata {

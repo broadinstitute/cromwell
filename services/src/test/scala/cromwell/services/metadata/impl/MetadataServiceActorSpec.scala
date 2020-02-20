@@ -70,12 +70,14 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
     ("query1", query1, s"""{
                           |  "key1": "value2",
                           |  "calls": {},
-                          |  "id": "$workflowId"
+                          |  "id": "$workflowId",
+                          |  "metadataSource": "Unarchived"
                           |}""".stripMargin),
     ("query2", query2, s"""{
                           |  "key2": "value1",
                           |  "calls": {},
-                          |  "id": "$workflowId"
+                          |  "id": "$workflowId",
+                          |  "metadataSource": "Unarchived"
                           |}""".stripMargin),
     ("query3", query3, s"""{
                           |  "calls": {
@@ -85,7 +87,8 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
                           |      "shardIndex": -1
                           |    }]
                           |  },
-                          |  "id": "$workflowId"
+                          |  "id": "$workflowId",
+                          |  "metadataSource": "Unarchived"
                           |}""".stripMargin),
     ("query4", query4, s"""{
                           |  "key1": "value2",
@@ -97,7 +100,8 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
                           |      "shardIndex": -1
                           |    }]
                           |  },
-                          |  "id": "$workflowId"
+                          |  "id": "$workflowId",
+                          |  "metadataSource": "Unarchived"
                           |}""".stripMargin),
     ("query5", query5, s"""{
                           |  "calls": {
@@ -107,7 +111,8 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
                           |      "shardIndex": -1
                           |    }]
                           |  },
-                          |  "id": "$workflowId"
+                          |  "id": "$workflowId",
+                          |  "metadataSource": "Unarchived"
                           |}""".stripMargin),
 
   )

@@ -71,7 +71,35 @@ class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadat
     serviceRegistryActor.send(actorUnderTest, RootAndSubworkflowLabelsLookupResponse(workflowId, Map(WorkflowId(workflowId.id) -> Map("bob loblaw" -> "law blog"))))
 
     clientProbe.expectMsgPF(max = 5.seconds) {
-      case SuccessfulMetadataJsonResponse(_, jsObject) => parse(jsObject.compactPrint) should be(parse(augmentedMetadataSample))
+      case SuccessfulMetadataJsonResponse(_, jsObject) => parse(jsObject.compactPrint) should be(parse(augmentedMetadataSampleWithLabelsAndMetadataSource))
+      case FailedMetadataJsonResponse(_, reason) => fail(reason)
+    }
+  }
+
+  it should "not include metadataSource field in response if includeKeys field is defined in request" in {
+
+    val clientProbe = TestProbe()
+    val actorUnderTest = TestActorRef(new CarbonitedMetadataThawingActor(carboniterConfig, serviceRegistryActor.ref, ioActor.ref) {
+      override def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = Future.successful(Option(workflowId))
+    }, "ThawingActor")
+
+    clientProbe.send(actorUnderTest, GetMetadataAction(
+      MetadataQuery(
+        workflowId = workflowId,
+        jobKey = None,
+        key = None,
+        includeKeysOption = Option(NonEmptyList.of("workflowName")),
+        excludeKeysOption = None,
+        expandSubWorkflows = true
+      )))
+
+    ioActor.expectMsgPF(max = 5.seconds) {
+      case command @ IoCommandWithPromise(iocasc: IoContentAsStringCommand, _) if iocasc.file.pathAsString.contains(workflowId.toString) =>
+        command.promise.success(rawMetadataSample)
+    }
+
+    clientProbe.expectMsgPF(max = 5.seconds) {
+      case SuccessfulMetadataJsonResponse(_, jsObject) => parse(jsObject.compactPrint) should be(parse(shortenedMetadataContent))
       case FailedMetadataJsonResponse(_, reason) => fail(reason)
     }
   }
@@ -268,14 +296,32 @@ class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadat
 object CarbonitedMetadataThawingActorSpec {
   val workflowId = WorkflowId.fromString("2ce544a0-4c0d-4cc9-8a0b-b412bb1e5f82")
 
-  val rawMetadataSample = sampleMetadataContent("")
-  val augmentedMetadataSample = sampleMetadataContent("""
-                                          |"labels" : {
-                                          |    "bob loblaw" : "law blog"
-                                          |},
-                                          |  """.stripMargin)
+  val rawMetadataSample = sampleMetadataContent("", "")
+  val augmentedMetadataSampleWithLabelsWithoutMetadataSource = sampleMetadataContent(
+    """
+      |"labels" : {
+      |    "bob loblaw" : "law blog"
+      |},
+      |  """.stripMargin,
+    "")
+  val augmentedMetadataSampleWithLabelsAndMetadataSource = sampleMetadataContent(
+    """
+      |"labels" : {
+      |    "bob loblaw" : "law blog"
+      |},
+      |  """.stripMargin,
+    """,
+      |"metadataSource": "Archived"""".stripMargin)
 
-  def sampleMetadataContent(labelsContent: String) = s"""{$labelsContent
+  val shortenedMetadataContent =
+    s"""
+       |{
+       |  "id" : "$workflowId",
+       |  "workflowName" : "helloWorldWf"
+       |}
+       |""".stripMargin
+
+  def sampleMetadataContent(labelsContent: String, metadataSource: String) = s"""{$labelsContent
                                                         |  "workflowName": "helloWorldWf",
                                                         |  "workflowProcessingEvents": [
                                                         |    {
@@ -403,7 +449,7 @@ object CarbonitedMetadataThawingActorSpec {
                                                         |  "submission": "2019-07-31T20:19:02.067Z",
                                                         |  "status": "Succeeded",
                                                         |  "end": "2019-07-31T20:19:35.057Z",
-                                                        |  "start": "2019-07-31T20:19:02.228Z"
+                                                        |  "start": "2019-07-31T20:19:02.228Z"$metadataSource
                                                         |}""".stripMargin
 
 }

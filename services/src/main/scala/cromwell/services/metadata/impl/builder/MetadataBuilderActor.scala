@@ -43,8 +43,8 @@ object MetadataBuilderActor {
     def isComplete = subWorkflowsMetadata.size == waitFor
   }
 
-  def props(readMetadataWorkerMaker: () => Props) = {
-    Props(new MetadataBuilderActor(readMetadataWorkerMaker))
+  def props(readMetadataWorkerMaker: () => Props, isForSubworkflows: Boolean = false) = {
+    Props(new MetadataBuilderActor(readMetadataWorkerMaker, isForSubworkflows))
   }
 
   val log = LoggerFactory.getLogger("MetadataBuilder")
@@ -241,7 +241,7 @@ object MetadataBuilderActor {
   }
 }
 
-class MetadataBuilderActor(readMetadataWorkerMaker: () => Props)
+class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, isForSubworkflows: Boolean)
   extends LoggingFSM[MetadataBuilderActorState, MetadataBuilderActorData] with DefaultJsonProtocol {
 
   import MetadataBuilderActor._
@@ -337,7 +337,13 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props)
 
   def buildAndStop(query: MetadataQuery, eventsList: Seq[MetadataEvent], expandedValues: Map[String, JsValue], target: ActorRef, originalRequest: BuildMetadataJsonAction) = {
     val groupedEvents = groupEvents(eventsList)
-    target ! SuccessfulMetadataJsonResponse(originalRequest, processMetadataEvents(query, groupedEvents, expandedValues))
+    val intermediate = processMetadataEvents(query, groupedEvents, expandedValues).fields
+    val res =
+      if (query.includeKeysOption.isDefined || isForSubworkflows)
+        intermediate
+      else
+        intermediate + (WorkflowMetadataKeys.MetadataSource -> JsString("Unarchived"))
+    target ! SuccessfulMetadataJsonResponse(originalRequest, JsObject(res))
     allDone()
   }
 
@@ -353,7 +359,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props)
       else {
         // Otherwise spin up a metadata builder actor for each sub workflow
         subWorkflowIds foreach { subId =>
-          val subMetadataBuilder = context.actorOf(MetadataBuilderActor.props(readMetadataWorkerMaker), uniqueActorName(subId))
+          val subMetadataBuilder = context.actorOf(MetadataBuilderActor.props(readMetadataWorkerMaker, isForSubworkflows = true), uniqueActorName(subId))
           subMetadataBuilder ! GetMetadataAction(query.copy(workflowId = WorkflowId.fromString(subId)))
         }
         goto(WaitingForSubWorkflows) using HasReceivedEventsData(target, originalRequest, query, eventsList, Map.empty, subWorkflowIds.size)

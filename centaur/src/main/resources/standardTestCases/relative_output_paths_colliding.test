@@ -8,8 +8,6 @@ files {
 
 metadata {
   status: Failed
-  "calls.Gutenburg.set_type.callCaching.hit": "false"
-  "calls.Gutenburg.great_press.callCaching.hit": "false"
   "failures.0.message":"Cannot copy output files to given final_workflow_outputs_dir as multiple files will be copied to the same path: \n<<WORKFLOW_ROOT>>/call-great_press/attempt-1/execution/typeset.txt -> /tmp/outputs/relative_output_paths_colliding/typeset.txt\n<<WORKFLOW_ROOT>>/call-set_type/attempt-1/execution/typeset.txt -> /tmp/outputs/relative_output_paths_colliding/typeset.txt"
 }
 

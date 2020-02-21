@@ -87,12 +87,12 @@ object Dependencies {
   private val slf4jV = "1.7.25"
   private val slickCatsV = "0.9.0"
 
-  /* If you're about to update our slick version:
-    * Consider checking whether the new slick version passes tests with upserts enabled (eg KeyValueDatabaseSpec)
+  /* If you're about to update our Slick version:
+    * Consider checking whether the new Slick version passes tests with upserts enabled (eg KeyValueDatabaseSpec)
     *
     * Current version 3.3.2-2076hotfix was built locally from https://github.com/grsterin/slick/tree/v3.3.2-2076hotfix
     * and manually uploaded to the Broad Institute artifactory at https://broadinstitute.jfrog.io/broadinstitute/.
-    * Consider updating to the official newer slick version once they fix issue #2076
+    * Consider updating to the official newer Slick version once they fix issue #2076
   */
   private val slickV = "3.3.2-2076hotfix"
   private val snakeyamlV = "1.23"

@@ -10,17 +10,17 @@ files {
 
 fileSystemCheck: "local"
 outputExpectations: {
-  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/execution/attempt-1/stdout": 1
-  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/execution/attempt-1/stderr": 1
-  "/tmp/call_logs/wfoutputs/<<UUID>>/call-B/execution/attempt-1/stdout": 1
-  "/tmp/call_logs/wfoutputs/<<UUID>>/call-B/execution/attempt-1/stderr": 1
-  "/tmp/call_logs/wfoutputs/<<UUID>>/call-C/execution/attempt-1/stdout": 1
-  "/tmp/call_logs/wfoutputs/<<UUID>>/call-C/execution/attempt-1/stderr": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/attempt-1/execution/stdout": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-A/attempt-1/execution/stderr": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-B/attempt-1/execution/stdout": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-B/attempt-1/execution/stderr": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-C/attempt-1/execution/stdout": 1
+  "/tmp/call_logs/wfoutputs/<<UUID>>/call-C/attempt-1/execution/stderr": 1
   "/tmp/logs/workflow.<<UUID>>.log": 1
-  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/execution/attempt-1/out": 1
-  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/execution/attempt-1/out2": 1
-  "/tmp/outputs/wfoutputs/<<UUID>>/call-B/execution/attempt-1/out": 1
-  "/tmp/outputs/wfoutputs/<<UUID>>/call-B/execution/attempt-1/out2": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/attempt-1/execution/out": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-A/attempt-1/execution/out2": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-B/attempt-1/execution/out": 1
+  "/tmp/outputs/wfoutputs/<<UUID>>/call-B/attempt-1/execution/out2": 1
 }
 
 allowOtherOutputs = false

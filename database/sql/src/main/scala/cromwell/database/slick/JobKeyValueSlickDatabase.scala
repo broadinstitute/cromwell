@@ -19,11 +19,11 @@ trait JobKeyValueSlickDatabase extends JobKeyValueSqlDatabase {
 
   override def addJobKeyValueEntry(jobKeyValueEntry: JobKeyValueEntry)
                                   (implicit ec: ExecutionContext): Future[Unit] = {
-    //val action = if (useSlickUpserts) {
-      val action = for {
+    val action = if (useSlickUpserts) {
+      for {
         _ <- dataAccess.jobKeyValueEntryIdsAutoInc.insertOrUpdate(jobKeyValueEntry)
       } yield ()
-    //} else manualUpsertQuery(jobKeyValueEntry)
+    } else manualUpsertQuery(jobKeyValueEntry)
     runTransaction(action)
   }
 
@@ -50,13 +50,13 @@ trait JobKeyValueSlickDatabase extends JobKeyValueSqlDatabase {
 
   def addJobKeyValueEntries(jobKeyValueEntries: Iterable[JobKeyValueEntry])
                            (implicit ec: ExecutionContext): Future[Unit] = {
-    val action = if (useSlickUpserts) {
-      createBatchUpsert("KeyValueStore", dataAccess.jobKeyValueTableQueryCompiled, jobKeyValueEntries)
-    } else {
+    //val action = if (useSlickUpserts) {
+      val action = createBatchUpsert("KeyValueStore", dataAccess.jobKeyValueTableQueryCompiled, jobKeyValueEntries)
+    /*} else {
       // sorting is essential here, otherwise deadlocks are possible
       // https://broadworkbench.atlassian.net/browse/BA-6262
       DBIO.sequence(jobKeyValueEntries.toSeq.sortBy(_.toString).map(manualUpsertQuery))
-    }
+    }*/
     runTransaction(action).void
   }
 

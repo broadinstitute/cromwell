@@ -31,7 +31,7 @@ object JobPaths {
     val newStyleResult = List(call, shard, retryOrCallCache).foldLeft(root)((path, dir) => path.resolve(dir))
     if (newStyleResult.exists) {
       newStyleResult
-    } else if (pre49Result.exists) {
+    } else if (pre49Result.pathAsString != newStyleResult.pathAsString && pre49Result.exists) {
       pre49Result
     } else {
       newStyleResult

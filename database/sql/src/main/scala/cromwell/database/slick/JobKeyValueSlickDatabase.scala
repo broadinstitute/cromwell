@@ -19,11 +19,11 @@ trait JobKeyValueSlickDatabase extends JobKeyValueSqlDatabase {
 
   override def addJobKeyValueEntry(jobKeyValueEntry: JobKeyValueEntry)
                                   (implicit ec: ExecutionContext): Future[Unit] = {
-    val action = if (useSlickUpserts) {
-      for {
+    //val action = if (useSlickUpserts) {
+      val action = for {
         _ <- dataAccess.jobKeyValueEntryIdsAutoInc.insertOrUpdate(jobKeyValueEntry)
       } yield ()
-    } else manualUpsertQuery(jobKeyValueEntry)
+    //} else manualUpsertQuery(jobKeyValueEntry)
     runTransaction(action)
   }
 

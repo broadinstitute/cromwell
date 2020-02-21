@@ -6,7 +6,12 @@ You are strongly encouraged to use the latest release of Cromwell whenever possi
 Cromwell is distributed is a conda package on [conda-forge](https://conda-forge.org/).
 These instructions need to be followed for [installing the miniconda distribution](https://docs.conda.io/en/latest/miniconda.html) and 
 [activating the conda-forge channel](https://conda-forge.org/#about). After this Cromwell can be installed in the 
-base environt with `conda install cromwell` or a separate environment for Cromwell can be created with `conda create -n cromwell cromwell`. If you are using Cromwell for bioinformatics workflows it is recommended you take a look at [bioconda](http://bioconda.github.io)  as well. The conda installation of Cromwell comes with a wrapper that eliminates the need for using a `java -jar /path/to/jar` type of command. Conda also installs the required Java dependency fot you.
+base environment with `conda install cromwell` or a separate environment for Cromwell can be created with 
+`conda create -n cromwell cromwell`. If you are using Cromwell for bioinformatics workflows it is recommended you take 
+a look at [bioconda](http://bioconda.github.io)  as well. 
+The conda installation of Cromwell comes with a wrapper that eliminates the need for using 
+a `java -jar /path/to/jar` type of command. Conda also installs the required Java dependency 
+in the environment automatically.
 
 Mac users with Homebrew can also get Cromwell with the command `brew install cromwell`.
 

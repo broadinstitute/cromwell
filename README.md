@@ -11,6 +11,8 @@ First time to Cromwell? Get started with [Tutorials](http://cromwell.readthedocs
 
 Thinking about contributing to Cromwell? Get started by reading our [Contributor Guide](CONTRIBUTING.md).
 
+Cromwell has a growing ecosystem of community-backed projects to make your experience even better! Check out our [Ecosystem](https://cromwell.readthedocs.io/en/develop/Ecosystem/) page to learn more.
+
 ### Issue tracking is now on JIRA
 
 Need to file an issue? Head over to [our JIRA](https://broadworkbench.atlassian.net/projects/BA/issues). You can sign in with any Google account. 

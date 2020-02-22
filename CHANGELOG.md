@@ -15,6 +15,11 @@ rows in this table:
 SELECT table_rows FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'cromwell' AND table_name = 'JOB_STORE_SIMPLETON_ENTRY';
 ```
 
+### Disable call-caching for tasks
+
+It is now possible to indicate in a workflow that a task should not be call-cached. See details 
+[here](https://cromwell.readthedocs.io/en/stable/optimizations/VolatileTasks).
+
 ### Delete Intermediate Outputs on PapiV2
 
 * **Experimental:** When a new workflow option `delete_intermediate_output_files` is submitted with the workflow,

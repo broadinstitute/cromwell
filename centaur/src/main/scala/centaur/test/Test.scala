@@ -179,12 +179,13 @@ object Operations extends StrictLogging {
               logger.error(s"Unexpected 'valid=${d.valid}' response when expecting $otherExpectation. Full unexpected description:${System.lineSeparator()}$d")
               IO.raiseError(new Exception(s"Expected this workflow's /describe validity to be '$otherExpectation' but got: '${d.valid}' (errors: ${d.errors.mkString(", ")})"))
           }
-        }).timeoutTo(timeout, {
+        }).timeoutTo(timeout, IO {
           if (alreadyTried + 1 >= retries) {
-            IO.raiseError(new TimeoutException("Timeout from checkDescription 60 seconds: " + timeoutStackTraceString))
+            throw new TimeoutException("Timeout from checkDescription 60 seconds: " + timeoutStackTraceString)
           } else {
-            logger.warn(s"checkDescription failed on attempt ${alreadyTried + 1}. ")
+            logger.warn(s"checkDescription timeout on attempt ${alreadyTried + 1}. ")
             checkDescriptionInner(alreadyTried + 1)
+            ()
           }
         })
       }

@@ -1,5 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
+import com.dimafeng.testcontainers.{Container, JdbcDatabaseContainer}
 import cromwell.core.Tags.DbmsTest
 import cromwell.core.WorkflowId
 import cromwell.database.sql.SqlConverters._
@@ -32,7 +33,21 @@ class CallCachingSlickDatabaseSpec
   DatabaseSystem.All foreach { databaseSystem =>
     behavior of s"CallCachingSlickDatabase on ${databaseSystem.name}"
 
-    lazy val dataAccess = DatabaseTestKit.initializedDatabaseFromSystem(EngineDatabaseType, databaseSystem)
+    val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
+
+    lazy val dataAccess = containerOpt match {
+      case None => DatabaseTestKit.initializedDatabaseFromSystem(EngineDatabaseType, databaseSystem)
+      case Some(cont) if cont.isInstanceOf[JdbcDatabaseContainer] =>
+        DatabaseTestKit.initializedDatabaseFromConfig(
+          EngineDatabaseType,
+          DatabaseTestKit.getConfig(databaseSystem, cont.asInstanceOf[JdbcDatabaseContainer])
+        )
+      case Some(_) => throw new RuntimeException("ERROR: container is not a JdbcDatabaseContainer.")
+    }
+
+    it should "start container if required" taggedAs DbmsTest in {
+      containerOpt.foreach { _.start }
+    }
 
     forAll(allowResultReuseTests) { (description, prefixOption) =>
 
@@ -128,6 +143,10 @@ class CallCachingSlickDatabaseSpec
 
     it should "close the database" taggedAs DbmsTest in {
       dataAccess.close()
+    }
+
+    it should "stop container if required" taggedAs DbmsTest in {
+      containerOpt.foreach { _.stop }
     }
   }
 }

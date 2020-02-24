@@ -1,5 +1,6 @@
 package cromwell.services.database
 
+import com.dimafeng.testcontainers.{Container, JdbcDatabaseContainer}
 import cromwell.core.Tags._
 import cromwell.database.slick.SlickDatabase
 import cromwell.services.database.LiquibaseComparisonSpec._
@@ -38,7 +39,18 @@ class LiquibaseComparisonSpec extends FlatSpec with Matchers with ScalaFutures {
 
       behavior of s"Liquibase Comparison for ${databaseType.name} ${databaseSystem.name}"
 
-      lazy val liquibasedDatabase = DatabaseTestKit.initializedDatabaseFromSystem(databaseType, databaseSystem)
+      val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
+
+      lazy val liquibasedDatabase = containerOpt match {
+        case None => DatabaseTestKit.initializedDatabaseFromSystem(databaseType, databaseSystem)
+        case Some(cont) if cont.isInstanceOf[JdbcDatabaseContainer] =>
+          DatabaseTestKit.initializedDatabaseFromConfig(
+            databaseType,
+            DatabaseTestKit.getConfig(databaseSystem, cont.asInstanceOf[JdbcDatabaseContainer])
+          )
+        case Some(_) => throw new RuntimeException("ERROR: container is not a JdbcDatabaseContainer.")
+      }
+
       lazy val connectionMetadata = DatabaseTestKit.connectionMetadata(liquibasedDatabase)
 
       lazy val actualSnapshot = DatabaseTestKit.liquibaseSnapshot(liquibasedDatabase)
@@ -49,6 +61,10 @@ class LiquibaseComparisonSpec extends FlatSpec with Matchers with ScalaFutures {
       lazy val actualIndexes = get[Index](actualSnapshot)
 
       lazy val columnMapping = getColumnMapping(databaseSystem)
+
+      it should "start container if required" taggedAs DbmsTest in {
+        containerOpt.foreach { _.start }
+      }
 
       expectedColumns foreach { expectedColumn =>
         val description = s"column ${expectedColumn.getRelation.getName}.${expectedColumn.getName}"
@@ -206,6 +222,10 @@ class LiquibaseComparisonSpec extends FlatSpec with Matchers with ScalaFutures {
 
       it should "close the database" taggedAs DbmsTest in {
         liquibasedDatabase.close()
+      }
+
+      it should "stop container if required" taggedAs DbmsTest in {
+        containerOpt.foreach { _.stop }
       }
     }
   }

@@ -4,6 +4,7 @@ import java.net.URLEncoder
 import java.sql.Connection
 
 import better.files._
+import com.dimafeng.testcontainers.{Container, JdbcDatabaseContainer, MariaDBContainer, MySQLContainer, PostgreSQLContainer}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.database.migration.liquibase.LiquibaseUtils
@@ -137,11 +138,64 @@ object DatabaseTestKit extends StrictLogging {
       case MariadbEarliestDatabaseSystem => DatabaseSystemSettings("MARIADB", 23306, "5.5")
       case MariadbLatestDatabaseSystem => DatabaseSystemSettings("MARIADB_LATEST", 33306, "latest")
       case MysqlEarliestDatabaseSystem => DatabaseSystemSettings("MYSQL", 3306, "5.6")
-      case MysqlLatestDatabaseSystem => DatabaseSystemSettings("MYSQL_LATEST", 13306, "latest")
+      case MysqlLatestDatabaseSystem => DatabaseSystemSettings("MYSQL_LATEST", 3306, "latest")
       case PostgresqlEarliestDatabaseSystem => DatabaseSystemSettings("POSTGRESQL", 5432, "9.6")
       case PostgresqlLatestDatabaseSystem => DatabaseSystemSettings("POSTGRESQL_LATEST", 15432, "latest")
       // The list above of docker tags should be synced with the tags under "BUILD_TYPE=dbms" in .travis.yml
     }
+  }
+
+  def getDatabaseTestContainer(databaseSystem: DatabaseSystem): Option[Container] = {
+    databaseSystem match {
+      case HsqldbDatabaseSystem => None
+      case networkDbSystem: NetworkDatabaseSystem =>
+        val databaseSystemSettings = getDatabaseSystemSettings(networkDbSystem)
+        val dockerTag = databaseSystemSettings.dockerTag
+        networkDbSystem.platform match {
+          case MariadbDatabasePlatform =>
+            Option(MariaDBContainer(
+              dockerImageName = s"mariadb:$dockerTag",
+              dbName = "cromwell_test",
+              dbUsername = "cromwell",
+              dbPassword = "test"
+            ))
+          case MysqlDatabasePlatform =>
+            Option(MySQLContainer(
+              mysqlImageVersion = s"mysql:$dockerTag",
+              databaseName = "cromwell_test",
+              username = "cromwell",
+              password = "test"))
+          case PostgresqlDatabasePlatform =>
+            Option(PostgreSQLContainer(
+              dockerImageNameOverride =  s"postgres:$dockerTag",
+              databaseName = "cromwell_test",
+              username = "cromwell",
+              password = "test"))
+          case _ => None
+        }
+    }
+  }
+
+  def getConfig(databaseSystem: DatabaseSystem, dbContainer: JdbcDatabaseContainer): Config = {
+    val (slickProfile, jdbcDriver) = databaseSystem.platform match {
+      case HsqldbDatabasePlatform =>
+        throw new RuntimeException("ERROR: this `getConfig` method is defined only for dockerized test databases, not for HsqlDB.")
+      case MariadbDatabasePlatform => ("slick.jdbc.MySQLProfile$", "org.mariadb.jdbc.Driver")
+      case MysqlDatabasePlatform => ("slick.jdbc.MySQLProfile$", "com.mysql.cj.jdbc.Driver")
+      case PostgresqlDatabasePlatform => ("slick.jdbc.PostgresProfile$", "org.postgresql.Driver")
+    }
+
+    ConfigFactory.parseString(
+      s"""|profile = "$slickProfile"
+          |db {
+          |  driver = "$jdbcDriver"
+          |  url = "${dbContainer.jdbcUrl}"
+          |  user = "${dbContainer.username}"
+          |  password = "${dbContainer.password}"
+          |  connectionTimeout = 5000
+          |}
+          |""".stripMargin
+    )
   }
 
   /**

@@ -23,19 +23,12 @@ object JobPaths {
     val call = s"$CallPrefix-$callName"
     val shard = jobKey.index map { s => s"$ShardPrefix-$s" } getOrElse ""
 
-    val retryOrCallCache = if (isCallCacheCopyAttempt) CacheCopyPrefix else s"$AttemptPrefix-${jobKey.attempt}"
-    val pre49Attempt = if (jobKey.attempt > 1) s"$AttemptPrefix-${jobKey.attempt}" else ""
+    val retryOrCallCache =
+      if (isCallCacheCopyAttempt) CacheCopyPrefix
+      else if (jobKey.attempt > 1) s"$AttemptPrefix-${jobKey.attempt}"
+      else ""
 
-
-    val pre49Result = List(call, shard, pre49Attempt).foldLeft(root)((path, dir) => path.resolve(dir))
-    val newStyleResult = List(call, shard, retryOrCallCache).foldLeft(root)((path, dir) => path.resolve(dir))
-    if (newStyleResult.exists) {
-      newStyleResult
-    } else if (pre49Result.pathAsString != newStyleResult.pathAsString && pre49Result.exists) {
-      pre49Result
-    } else {
-      newStyleResult
-    }
+    List(call, shard, retryOrCallCache).foldLeft(root)((path, dir) => path.resolve(dir))
   }
 }
 

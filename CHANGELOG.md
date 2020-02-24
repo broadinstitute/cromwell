@@ -19,9 +19,9 @@ SELECT table_rows FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'cromwell'
 
 #### Execution Directory Layout
 
-Execution directories are now consistently subdirectories of the call root for all attempts. 
+Call cached copies of execution directories are now subdirectories of the call root 
 
-* Previously, `attempt-2/` became a subdirectory of the first attempt to run a job if it failed:
+* Already in Cromwell, `attempt-2/` becomes a subdirectory of the first attempt to run a job if the first attempt fails:
 
 ```
 [...]/callRoot/
@@ -38,26 +38,8 @@ Execution directories are now consistently subdirectories of the call root for a
     - output.file
 ```
 
-* Now, `attempt-1` gets its own subdirectory and, if necessary, `attempt-2` is a sibling of it:
-
-```
-[...]/callRoot/
-  - attempt-1/
-    - script
-    - stdout
-    - output.file
-  - attempt-2/
-    - script
-    - stdout
-    - output.file
-  - attempt-3/
-    - script
-    - stdout
-    - output.file
-```
-
-* Furthermore, attempts to copy call cached results will no longer occupy the same directory as the first attempt. Instead
-they will also get their own subdirectory:
+* Now,  attempts to copy call cached results will no longer occupy the same directory as the first attempt. Instead
+they will also get their own subdirectory of the call root:
 
 ```
 [...]/callRoot/
@@ -65,10 +47,9 @@ they will also get their own subdirectory:
     - script
     - stdout
     - output.file
-  - attempt-1/
-    - script
-    - stdout
-    - output.file
+  - script [for attempt 1]
+  - stdout [for attempt 1]
+  - output.file [for attempt 1]
   - attempt-2/
     - script
     - stdout

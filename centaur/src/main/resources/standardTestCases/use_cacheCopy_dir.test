@@ -1,0 +1,18 @@
+name: use_cacheCopy_dir
+testFormat: runtwiceexpectingcallcaching
+backends: [Papi]
+
+files {
+  workflow: use_cacheCopy_dir/use_cacheCopy_dir.wdl
+}
+
+metadata {
+  workflowName: wf_hello
+  status: Succeeded
+  "calls.wf_hello.hello": "Cache Hit: <<CACHE_HIT_UUID>>:call_cache_hit_prefixes.yo:-1"
+  "outputs.wf_hello.hello_file": gs://<<bucket-name-placeholder>>/wf_hello/<<UUID>>/call-hello/cacheCopy/hello_file.txt"
+}
+
+outputExpectations: {
+  gs://<<bucket-name-placeholder>>/wf_hello/<<UUID>>/call-hello/cacheCopy/hello_file.txt": 1
+}

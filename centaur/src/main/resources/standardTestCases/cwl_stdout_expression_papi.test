@@ -14,5 +14,5 @@ files {
 metadata {
   "submittedFiles.workflowType": CWL
   "submittedFiles.workflowTypeVersion": v1.0
-  "calls.cwl_stdout_expression.stdout": "<<WORKFLOW_ROOT>>call-cwl_stdout_expression/attempt-1/stdout-baz-qux.txt"
+  "calls.cwl_stdout_expression.stdout": "<<WORKFLOW_ROOT>>call-cwl_stdout_expression/stdout-baz-qux.txt"
 }

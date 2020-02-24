@@ -24,7 +24,7 @@ class WorkflowManagerActorSpec extends CromwellTestKitWordSpec with WorkflowDesc
       val outputName = "wf_whereami.whereami.pwd"
       val salutation = outputs(outputName)
       val actualOutput = salutation.valueString.trim
-      actualOutput should endWith("/call-whereami/attempt-1/execution")
+      actualOutput should endWith("/call-whereami/execution")
     }
 
     "pick up workflows" in {

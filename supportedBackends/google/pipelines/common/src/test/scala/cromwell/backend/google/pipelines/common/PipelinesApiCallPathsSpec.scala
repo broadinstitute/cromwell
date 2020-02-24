@@ -50,13 +50,13 @@ class PipelinesApiCallPathsSpec extends TestKitSuite with FlatSpecLike with Matc
     val callPaths = PipelinesApiJobPaths(workflowPaths, jobDescriptorKey)
     
     callPaths.returnCode.pathAsString should
-      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/attempt-1/rc")
+      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/rc")
     callPaths.stdout.pathAsString should
-      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/attempt-1/stdout")
+      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/stdout")
     callPaths.stderr.pathAsString should
-      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/attempt-1/stderr")
+      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/stderr")
     callPaths.jesLogPath.pathAsString should
-      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/attempt-1/hello.log")
+      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello.log")
   }
 
   it should "map the correct call context" in {
@@ -72,11 +72,11 @@ class PipelinesApiCallPathsSpec extends TestKitSuite with FlatSpecLike with Matc
     val callPaths = PipelinesApiJobPaths(workflowPaths, jobDescriptorKey)
     
     callPaths.callContext.root.pathAsString should
-      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/attempt-1")
+      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/")
     callPaths.callContext.stdout should
-      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/attempt-1/stdout")
+      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/stdout")
     callPaths.callContext.stderr should
-      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/attempt-1/stderr")
+      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/stderr")
   }
 
 }

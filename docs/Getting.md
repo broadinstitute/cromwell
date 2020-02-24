@@ -3,7 +3,7 @@
 Cromwell releases are available at the [GitHub Releases](https://github.com/broadinstitute/cromwell/releases/latest) page. 
 You are strongly encouraged to use the latest release of Cromwell whenever possible.
 
-Cromwell is distributed is a conda package on [conda-forge](https://conda-forge.org/).
+Cromwell is distributed as a conda package on [conda-forge](https://conda-forge.org/).
 These instructions need to be followed for [installing the miniconda distribution](https://docs.conda.io/en/latest/miniconda.html) and 
 [activating the conda-forge channel](https://conda-forge.org/#about). After this Cromwell can be installed in the 
 base environment with `conda install cromwell` or a separate environment for Cromwell can be created with 

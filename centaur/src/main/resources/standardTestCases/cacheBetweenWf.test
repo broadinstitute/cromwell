@@ -12,5 +12,3 @@ metadata {
   "calls.cacheBetweenWF.heightProduct.callCaching.result": "Cache Hit: <<CACHE_HIT_UUID>>:cacheBetweenWF.heightProduct:-1"
   "outputs.cacheBetweenWF.heightProduct.trapezoidalArea": 406.0
 }
-
-outputExpectation

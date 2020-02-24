@@ -36,7 +36,7 @@ class JobPathsSpec extends FlatSpec with Matchers with BackendSpec {
     val jobPaths = new JobPathsWithDocker(workflowPaths, jobKey)
     val id = wd.id
     jobPaths.callRoot.pathAsString shouldBe
-      fullPath(s"local-cromwell-executions/wf_hello/$id/call-hello/")
+      fullPath(s"local-cromwell-executions/wf_hello/$id/call-hello")
     jobPaths.callExecutionRoot.pathAsString shouldBe
       fullPath(s"local-cromwell-executions/wf_hello/$id/call-hello/execution")
     jobPaths.returnCode.pathAsString shouldBe
@@ -50,7 +50,7 @@ class JobPathsSpec extends FlatSpec with Matchers with BackendSpec {
     jobPaths.callExecutionRoot.pathAsString shouldBe
       fullPath(s"local-cromwell-executions/wf_hello/$id/call-hello/execution")
     jobPaths.callDockerRoot.pathAsString shouldBe
-      fullPath(s"/cromwell-executions/wf_hello/$id/call-hello/")
+      fullPath(s"/cromwell-executions/wf_hello/$id/call-hello")
     jobPaths.callExecutionDockerRoot.pathAsString shouldBe
       fullPath(s"/cromwell-executions/wf_hello/$id/call-hello/execution")
     jobPaths.toDockerPath(DefaultPathBuilder.get(

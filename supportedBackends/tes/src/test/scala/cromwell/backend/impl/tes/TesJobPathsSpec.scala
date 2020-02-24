@@ -16,7 +16,7 @@ class TesJobPathsSpec extends FlatSpec with Matchers with BackendSpec {
     val jobPaths = TesJobPaths(jobKey, wd, TesTestConfig.backendConfig)
     val id = wd.id
     jobPaths.callRoot.toString shouldBe
-      File(s"local-cromwell-executions/wf_hello/$id/call-hello/").pathAsString
+      File(s"local-cromwell-executions/wf_hello/$id/call-hello").pathAsString
     jobPaths.callExecutionRoot.toString shouldBe
       File(s"local-cromwell-executions/wf_hello/$id/call-hello/execution").pathAsString
     jobPaths.returnCode.toString shouldBe
@@ -30,7 +30,7 @@ class TesJobPathsSpec extends FlatSpec with Matchers with BackendSpec {
     jobPaths.callExecutionRoot.toString shouldBe
       File(s"local-cromwell-executions/wf_hello/$id/call-hello/execution").pathAsString
     jobPaths.callDockerRoot.toString shouldBe
-      File(s"/cromwell-executions/wf_hello/$id/call-hello/").pathAsString
+      File(s"/cromwell-executions/wf_hello/$id/call-hello").pathAsString
     jobPaths.callExecutionDockerRoot.toString shouldBe
       File(s"/cromwell-executions/wf_hello/$id/call-hello/execution").pathAsString
 

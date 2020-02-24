@@ -17,29 +17,10 @@ rows in this table:
 SELECT table_rows FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'cromwell' AND table_name = 'JOB_STORE_SIMPLETON_ENTRY';
 ```
 
-#### Execution Directory Layout
+#### Execution Directory Layout (cache copies)
 
-Call cached copies of execution directories are now subdirectories of the call root 
-
-* Already in Cromwell, `attempt-2/` becomes a subdirectory of the first attempt to run a job if the first attempt fails:
-
-```
-[...]/callRoot/
-  - script [for attempt 1]
-  - stdout [for attempt 1]
-  - output.file [for attempt 1]
-  - attempt-2/
-    - script
-    - stdout
-    - output.file
-  - attempt-3/
-    - script
-    - stdout
-    - output.file
-```
-
-* Now,  attempts to copy call cached results will no longer occupy the same directory as the first attempt. Instead
-they will also get their own subdirectory of the call root:
+Attempts to copy call cached results will no longer occupy the same directory as the first attempt to run the task, should the cache copy fail. 
+Instead they will get their own subdirectory of the call root, eg:
 
 ```
 [...]/callRoot/

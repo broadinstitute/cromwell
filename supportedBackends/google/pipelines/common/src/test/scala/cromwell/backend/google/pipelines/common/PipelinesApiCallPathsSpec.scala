@@ -72,7 +72,7 @@ class PipelinesApiCallPathsSpec extends TestKitSuite with FlatSpecLike with Matc
     val callPaths = PipelinesApiJobPaths(workflowPaths, jobDescriptorKey)
     
     callPaths.callContext.root.pathAsString should
-      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/")
+      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello")
     callPaths.callContext.stdout should
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/stdout")
     callPaths.callContext.stderr should

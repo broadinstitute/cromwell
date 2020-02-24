@@ -879,11 +879,14 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val jesBackend = testActorRef.underlyingActor
 
     jesBackend.pipelinesApiCallPaths.stdout should be(a[GcsPath])
-    jesBackend.pipelinesApiCallPaths.stdout.pathAsString shouldBe "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/stdout"
+    jesBackend.pipelinesApiCallPaths.stdout.pathAsString shouldBe
+      "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/stdout"
     jesBackend.pipelinesApiCallPaths.stderr should be(a[GcsPath])
-    jesBackend.pipelinesApiCallPaths.stderr.pathAsString shouldBe "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/stderr"
+    jesBackend.pipelinesApiCallPaths.stderr.pathAsString shouldBe
+      "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/stderr"
     jesBackend.pipelinesApiCallPaths.jesLogPath should be(a[GcsPath])
-    jesBackend.pipelinesApiCallPaths.jesLogPath.pathAsString shouldBe "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello.log"
+    jesBackend.pipelinesApiCallPaths.jesLogPath.pathAsString shouldBe
+      "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello.log"
   }
 
   it should "return JES log paths for scattered call" taggedAs PostWomTest ignore {
@@ -989,7 +992,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     actual should be(
       Map(
         "backendLogs:log" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/goodbye.log",
-        "callRoot" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/",
+        "callRoot" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye",
         "jes:endpointUrl" -> "https://lifesciences.googleapis.com/",
         "jes:executionBucket" -> jesGcsRoot,
         "jes:googleProject" -> googleProject,

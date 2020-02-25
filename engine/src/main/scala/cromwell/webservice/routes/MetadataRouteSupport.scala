@@ -69,8 +69,6 @@ trait MetadataRouteSupport extends HttpInstrumentation {
             val excludeKeysOption = NonEmptyList.fromList(excludeKeys.toList)
             val expandSubWorkflows = expandSubWorkflowsOption.getOrElse(false)
 
-            println(s"Running metadata query with metadataSource=$metadataSourceOverride")
-
             metadataLookup(
               possibleWorkflowId,
               (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, includeKeysOption, excludeKeysOption, expandSubWorkflows, metadataSourceOverride),

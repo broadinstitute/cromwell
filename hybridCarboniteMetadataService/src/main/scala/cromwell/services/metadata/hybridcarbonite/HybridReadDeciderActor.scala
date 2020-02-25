@@ -16,9 +16,7 @@ class HybridReadDeciderActor(classicMetadataServiceActor: ActorRef, carboniteMet
   implicit val ec: ExecutionContext = context.dispatcher
 
   when(Pending) {
-    case Event(action: BuildMetadataJsonAction, NoData) =>
-      println(s"HRDA Matching metadata request: $action")
-      action match {
+    case Event(action: BuildMetadataJsonAction, NoData) => action match {
       case action if action.requiresOnlyClassicMetadata =>
         classicMetadataServiceActor ! action
         goto(WaitingForMetadataResponse) using WorkingData(sender(), action)

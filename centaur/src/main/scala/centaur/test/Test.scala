@@ -804,7 +804,7 @@ object Operations extends StrictLogging {
 
       def eventuallyArchived(): IO[Unit] = {
         checkArchived() flatMap {
-          case (true, true) => IO.pure()
+          case (true, true) => IO.pure(())
           case (true, false) =>
             IO.raiseError(CentaurTestException(
               "`Query` endpoint returns metadata status \"Archived\" but `metadata` endpoint returns metadata source \"Unarchived\"",

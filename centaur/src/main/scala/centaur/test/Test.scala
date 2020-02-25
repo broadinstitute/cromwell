@@ -811,13 +811,7 @@ object Operations extends StrictLogging {
               workflowDefinition,
               submittedWorkflow
             ))
-          case (false, true) =>
-            IO.raiseError(CentaurTestException(
-              "`Query` endpoint returns metadata status \"Unarchived\" but `metadata` endpoint returns metadata source \"Archived\"",
-              workflowDefinition,
-              submittedWorkflow
-            ))
-          case (false, false) => for {
+          case (false, true) | (false, false) => for {
             _ <- IO.sleep(2.seconds)
             recurse <- eventuallyArchived()
           } yield recurse

@@ -19,8 +19,23 @@ SELECT table_rows FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'cromwell'
 
 #### Execution Directory Layout (cache copies)
 
-Attempts to copy call cached results will no longer occupy the same directory as the first attempt to run the task, should the cache copy fail. 
-Instead they will get their own subdirectory of the call root, eg:
+When an attempt to copy a cache result is made, you'll now see a `cacheCopy` directory in the call root directory. 
+This prevents them occupying the same directory as the files for attempt 1 (see also: Bug Fixes).
+
+The directory layout used to be:
+
+```
+[...]/callRoot/
+  - script [from the cache copy attempt, or for execution attempt 1 if the cache copy fails]
+  - stdout [from the cache copy attempt, or for execution attempt 1 if the cache copy fails]
+  - output.file [from the cache copy attempt, or for execution attempt 1 if the cache copy fails]
+  - attempt-2/ [if attempt 1 fails]
+    - script
+    - stdout
+    - output.file
+```
+
+but is now:
 
 ```
 [...]/callRoot/
@@ -28,14 +43,10 @@ Instead they will get their own subdirectory of the call root, eg:
     - script
     - stdout
     - output.file
-  - script [for attempt 1]
-  - stdout [for attempt 1]
-  - output.file [for attempt 1]
-  - attempt-2/
-    - script
-    - stdout
-    - output.file
-  - attempt-3/
+  - script [for attempt 1 if the cache copy fails]
+  - stdout [for attempt 1 if the cache copy fails]
+  - output.file [for attempt 1 if the cache copy fails]
+  - attempt-2/ [if attempt 1 fails]
     - script
     - stdout
     - output.file
@@ -81,6 +92,8 @@ Links to the conda package and docker container are now available in
 + Fix a bug where zip files with directories could not be imported. 
   For example a zip with `a.wdl` and `b.wdl` could be imported but one with `sub_workflows/a.wdl` 
   and `imports/b.wdl` could not.
++ Fix a bug which sometimes allowed an execution script copied across by a failed cache-copy attempt to be run instead
+  of the script staged for the first real job execution attempt, due to a race condition between the cache copy, and attempt staging. 
   
 ## 48 Release Notes
 

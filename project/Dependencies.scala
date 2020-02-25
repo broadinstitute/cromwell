@@ -87,11 +87,15 @@ object Dependencies {
   private val slf4jV = "1.7.25"
   private val slickCatsV = "0.9.0"
 
-  /* If you're about to update our slick version:
-    * See https://github.com/broadinstitute/cromwell/pull/5332 which removed upserts because of failing tests in Slick 3.3.2
-    * Consider checking whether the new slick version passes tests with upserts enabled (eg KeyValueDatabaseSpec)
+  /* If you're about to update our Slick version:
+    * Consider checking whether the new Slick version passes tests with upserts enabled (eg KeyValueDatabaseSpec)
+    *
+    * Current version 3.3.2-2076hotfix was built locally from https://github.com/grsterin/slick/tree/v3.3.2-2076hotfix
+    * and manually uploaded to the Broad Institute artifactory at https://broadinstitute.jfrog.io/broadinstitute/.
+    * Consider updating to the official newer Slick version once they fix issue #2076
+    * Related Slick PR: https://github.com/slick/slick/pull/2101
   */
-  private val slickV = "3.3.2"
+  private val slickV = "3.3.2-2076hotfix"
   private val snakeyamlV = "1.23"
   private val specs2MockV = "4.4.1"
   private val sprayJsonV = "1.3.5"

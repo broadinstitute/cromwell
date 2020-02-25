@@ -536,6 +536,17 @@ paths:
           required: false
           type: boolean
           in: query
+        - name: metadataSource
+          description: >
+            [Not-for-production!] Force Cromwell to ignore the archive status of a workflow and return either the json-archived
+            or database-backed unarchived version of the metadata. Note 1: If the workflow has not yet been archived, then specifying
+            "Archived" will cause an error. Note 2: If an archived workflow has already been removed from the database, then specifying
+            "Unarchived" will cause an empty response.
+          required: false
+          type: string
+          enum: ["Unarchived", "Archived"]
+          in: query
+
       tags:
         - Workflows
       responses:

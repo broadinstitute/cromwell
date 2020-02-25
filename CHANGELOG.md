@@ -2,6 +2,11 @@
 
 ## 49 Release Notes
 
+### Installation methods
+
+Links to the conda package and docker container are now available in 
+[the install documentation](https://cromwell.readthedocs.io/en/stable/Getting/).
+
 ### Job store database refactoring
 
 The primary keys of Cromwell's job store tables have been refactored to use a `BIGINT` datatype in place of the previous

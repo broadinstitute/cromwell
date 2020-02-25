@@ -5,11 +5,13 @@
 
 Cromwell is a Workflow Management System geared towards scientific workflows. Cromwell is open sourced under the [BSD 3-Clause license](LICENSE.txt).
 
-The Cromwell documentation has a new home, [click here to check it out](http://cromwell.readthedocs.io/en/develop)!
+The Cromwell documentation has a new home, [click here to check it out](https://cromwell.readthedocs.io/en/stable)!
 
-First time to Cromwell? Get started with [Tutorials](http://cromwell.readthedocs.io/en/develop/tutorials/FiveMinuteIntro/)!
+First time to Cromwell? Get started with [Tutorials](https://cromwell.readthedocs.io/en/stable/tutorials/FiveMinuteIntro/)!
 
 Thinking about contributing to Cromwell? Get started by reading our [Contributor Guide](CONTRIBUTING.md).
+
+Cromwell has a growing ecosystem of community-backed projects to make your experience even better! Check out our [Ecosystem](https://cromwell.readthedocs.io/en/stable/Ecosystem/) page to learn more.
 
 ### Issue tracking is now on JIRA
 

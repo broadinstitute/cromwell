@@ -42,6 +42,7 @@ nav:
   - Optimizations: optimizations/optimizations.md
   - "Task inputs: localization_optional": optimizations/FileLocalization.md
 - Configuration: Configuring.md
+- Ecosystem: Ecosystem.md
 - WOMtool: WOMtool.md
 - Imports: Imports.md
 - Sub-Workflows: SubWorkflows.md

@@ -20,7 +20,7 @@ SELECT table_rows FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'cromwell'
 #### Execution Directory Layout (cache copies)
 
 When an attempt to copy a cache result is made, you'll now see a `cacheCopy` directory in the call root directory. 
-This prevents them occupying the same directory as the files for attempt 1 (see also: Bug Fixes).
+This prevents them clashing with the files staged to the same directory for attempt 1 if the cache copy fails (see also: Bug Fixes).
 
 The directory layout used to be:
 
@@ -92,8 +92,8 @@ Links to the conda package and docker container are now available in
 + Fix a bug where zip files with directories could not be imported. 
   For example a zip with `a.wdl` and `b.wdl` could be imported but one with `sub_workflows/a.wdl` 
   and `imports/b.wdl` could not.
-+ Fix a bug which sometimes allowed an execution script copied across by a failed cache-copy attempt to be run instead
-  of the script staged for the first real job execution attempt, due to a race condition between the cache copy, and attempt staging. 
++ Fix a bug which sometimes allowed execution scripts copied by a failed cache-copy to be run instead
+  of the attempt-1 script for a live job execution. 
   
 ## 48 Release Notes
 

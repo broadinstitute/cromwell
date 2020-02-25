@@ -779,41 +779,45 @@ object Operations extends StrictLogging {
         }
       }
 
-      def checkArchived(): IO[Boolean] = for {
+      def checkArchived(): IO[(Boolean, Boolean)] = for {
         archiveStatus <- CentaurCromwellClient.archiveStatus(submittedWorkflow.id)
         isArchived <- validateMetadataArchiveStatus(archiveStatus)
-      } yield isArchived
+        isMetadataSourceArchived <- validateMetadataSourceArchived()
+      } yield (isArchived, isMetadataSourceArchived)
 
-      def validateMetadataSourceArchived(): IO[Boolean]  = for {
+      def validateMetadataSourceArchived(): IO[Boolean] = for {
         metadataSource <- CentaurCromwellClient.metadataWithId(submittedWorkflow.id).map(_.asFlat.stringifyValues.get("metadataSource"))
         isMetadataSourceArchived <- {
-          if (metadataSource == Option(JsString("Archived"))) {
+          if (metadataSource.contains(JsString("Archived"))) {
             IO.pure(true)
-          } else if (metadataSource == Option(JsString("Unarchived"))) {
+          } else if (metadataSource.contains(JsString("Unarchived"))) {
             IO.pure(false)
           } else {
-            throw CentaurTestException(
+            IO.raiseError(CentaurTestException(
               s"`Metadata` endpoint returned unknown value for `metadataSource`: $metadataSource",
               workflowDefinition,
               submittedWorkflow
-            )
+            ))
           }
         }
       } yield isMetadataSourceArchived
 
       def eventuallyArchived(): IO[Unit] = {
         checkArchived() flatMap {
-          case true =>
-            validateMetadataSourceArchived() flatMap {
-              case true => IO.pure(())
-              case false =>
-                throw CentaurTestException(
-                  "`Query` endpoint returns metadata status \"Archived\" but `metadata` endpoint returns metadata source \"Unarchived\"",
-                  workflowDefinition,
-                  submittedWorkflow
-                )
-            }
-          case false => for {
+          case (true, true) => IO.pure()
+          case (true, false) =>
+            IO.raiseError(CentaurTestException(
+              "`Query` endpoint returns metadata status \"Archived\" but `metadata` endpoint returns metadata source \"Unarchived\"",
+              workflowDefinition,
+              submittedWorkflow
+            ))
+          case (false, true) =>
+            IO.raiseError(CentaurTestException(
+              "`Query` endpoint returns metadata status \"Unarchived\" but `metadata` endpoint returns metadata source \"Archived\"",
+              workflowDefinition,
+              submittedWorkflow
+            ))
+          case (false, false) => for {
             _ <- IO.sleep(2.seconds)
             recurse <- eventuallyArchived()
           } yield recurse

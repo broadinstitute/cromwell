@@ -1,8 +1,8 @@
 package cromwell.services.keyvalue.impl
 
-import java.sql.SQLIntegrityConstraintViolationException
+import java.sql.{BatchUpdateException, SQLIntegrityConstraintViolationException}
 
-import com.dimafeng.testcontainers.{Container, JdbcDatabaseContainer}
+import com.dimafeng.testcontainers.Container
 import cromwell.core.Tags.DbmsTest
 import cromwell.core.WorkflowId
 import cromwell.database.sql.tables.JobKeyValueEntry
@@ -25,15 +25,7 @@ class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with
 
     val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
 
-    lazy val dataAccess = containerOpt match {
-      case None => DatabaseTestKit.initializedDatabaseFromSystem(EngineDatabaseType, databaseSystem)
-      case Some(cont) if cont.isInstanceOf[JdbcDatabaseContainer] =>
-        DatabaseTestKit.initializedDatabaseFromConfig(
-          EngineDatabaseType,
-          DatabaseTestKit.getConfig(databaseSystem, cont.asInstanceOf[JdbcDatabaseContainer])
-        )
-      case Some(_) => throw new RuntimeException("ERROR: container is not a JdbcDatabaseContainer.")
-    }
+    lazy val dataAccess = DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, EngineDatabaseType, databaseSystem)
 
     val workflowId = WorkflowId.randomId().toString
     val callFqn = "AwesomeWorkflow.GoodJob"
@@ -140,8 +132,8 @@ object KeyValueDatabaseSpec {
   private def getFailureClass(databaseSystem: DatabaseSystem): Class[_ <: Exception] = {
     databaseSystem.platform match {
       case HsqldbDatabasePlatform => classOf[SQLIntegrityConstraintViolationException]
-      case MariadbDatabasePlatform => classOf[SQLIntegrityConstraintViolationException]
-      case MysqlDatabasePlatform => classOf[SQLIntegrityConstraintViolationException]
+      case MariadbDatabasePlatform => classOf[BatchUpdateException]
+      case MysqlDatabasePlatform => classOf[BatchUpdateException]
       case PostgresqlDatabasePlatform => classOf[PSQLException]
     }
   }

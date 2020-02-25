@@ -2,7 +2,7 @@ package cromwell.services.database
 
 import java.time.OffsetDateTime
 
-import com.dimafeng.testcontainers.{Container, JdbcDatabaseContainer}
+import com.dimafeng.testcontainers.Container
 import cromwell.core.Tags.DbmsTest
 import cromwell.database.slick.MetadataSlickDatabase
 import cromwell.database.sql.tables.{CustomLabelEntry, WorkflowMetadataSummaryEntry}
@@ -21,15 +21,8 @@ class RootAndSubworkflowLabelsSpec extends FlatSpec with Matchers with ScalaFutu
 
     val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
 
-    lazy val database: MetadataSlickDatabase with TestSlickDatabase = containerOpt match {
-      case None => DatabaseTestKit.initializedDatabaseFromSystem(MetadataDatabaseType, databaseSystem)
-      case Some(cont) if cont.isInstanceOf[JdbcDatabaseContainer] =>
-        DatabaseTestKit.initializedDatabaseFromConfig(
-          MetadataDatabaseType,
-          DatabaseTestKit.getConfig(databaseSystem, cont.asInstanceOf[JdbcDatabaseContainer])
-        )
-      case Some(_) => throw new RuntimeException("ERROR: container is not a JdbcDatabaseContainer.")
-    }
+    lazy val database: MetadataSlickDatabase with TestSlickDatabase =
+      DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, MetadataDatabaseType, databaseSystem)
 
     import database.dataAccess.driver.api._
 

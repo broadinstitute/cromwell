@@ -3,7 +3,7 @@ package cromwell.engine.workflow.workflowstore
 import java.time.OffsetDateTime
 
 import cats.data.NonEmptyList
-import com.dimafeng.testcontainers.{Container, JdbcDatabaseContainer}
+import com.dimafeng.testcontainers.Container
 import cromwell.core.Tags.DbmsTest
 import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{WorkflowStoreAbortResponse, WorkflowStoreState}
@@ -27,15 +27,7 @@ class SqlWorkflowStoreSpec extends FlatSpec with Matchers with ScalaFutures with
 
     val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
 
-    lazy val dataAccess = containerOpt match {
-      case None => DatabaseTestKit.initializedDatabaseFromSystem(EngineDatabaseType, databaseSystem)
-      case Some(cont) if cont.isInstanceOf[JdbcDatabaseContainer] =>
-        DatabaseTestKit.initializedDatabaseFromConfig(
-          EngineDatabaseType,
-          DatabaseTestKit.getConfig(databaseSystem, cont.asInstanceOf[JdbcDatabaseContainer])
-        )
-      case Some(_) => throw new RuntimeException("ERROR: container is not a JdbcDatabaseContainer.")
-    }
+    lazy val dataAccess = DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, EngineDatabaseType, databaseSystem)
 
     lazy val workflowStore = SqlWorkflowStore(dataAccess)
 

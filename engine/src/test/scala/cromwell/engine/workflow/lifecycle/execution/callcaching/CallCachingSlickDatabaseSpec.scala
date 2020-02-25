@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
-import com.dimafeng.testcontainers.{Container, JdbcDatabaseContainer}
+import com.dimafeng.testcontainers.Container
 import cromwell.core.Tags.DbmsTest
 import cromwell.core.WorkflowId
 import cromwell.database.sql.SqlConverters._
@@ -35,15 +35,7 @@ class CallCachingSlickDatabaseSpec
 
     val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
 
-    lazy val dataAccess = containerOpt match {
-      case None => DatabaseTestKit.initializedDatabaseFromSystem(EngineDatabaseType, databaseSystem)
-      case Some(cont) if cont.isInstanceOf[JdbcDatabaseContainer] =>
-        DatabaseTestKit.initializedDatabaseFromConfig(
-          EngineDatabaseType,
-          DatabaseTestKit.getConfig(databaseSystem, cont.asInstanceOf[JdbcDatabaseContainer])
-        )
-      case Some(_) => throw new RuntimeException("ERROR: container is not a JdbcDatabaseContainer.")
-    }
+    lazy val dataAccess = DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, EngineDatabaseType, databaseSystem)
 
     it should "start container if required" taggedAs DbmsTest in {
       containerOpt.foreach { _.start }

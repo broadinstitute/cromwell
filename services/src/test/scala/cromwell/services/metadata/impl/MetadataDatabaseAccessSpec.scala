@@ -2,7 +2,7 @@ package cromwell.services.metadata.impl
 
 import java.time.OffsetDateTime
 
-import com.dimafeng.testcontainers.{Container, JdbcDatabaseContainer}
+import com.dimafeng.testcontainers.Container
 import common.util.TimeUtil._
 import cromwell.core.Tags.DbmsTest
 import cromwell.core._
@@ -49,23 +49,7 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
 
     lazy val dataAccess = new MetadataDatabaseAccess with MetadataServicesStore {
       override val metadataDatabaseInterface: MetadataSlickDatabase = {
-        containerOpt match {
-          case None =>
-            // NOTE: EngineLiquibaseSettings **MUST** always run before the MetadataLiquibaseSettings
-            DatabaseTestKit.initializedDatabaseFromSystem(EngineDatabaseType, databaseSystem).close()
-            DatabaseTestKit.initializedDatabaseFromSystem(MetadataDatabaseType, databaseSystem)
-          case Some(cont) if cont.isInstanceOf[JdbcDatabaseContainer] =>
-            // NOTE: EngineLiquibaseSettings **MUST** always run before the MetadataLiquibaseSettings
-            DatabaseTestKit.initializedDatabaseFromConfig(
-              EngineDatabaseType,
-              DatabaseTestKit.getConfig(databaseSystem, cont.asInstanceOf[JdbcDatabaseContainer])
-            ).close()
-            DatabaseTestKit.initializedDatabaseFromConfig(
-              MetadataDatabaseType,
-              DatabaseTestKit.getConfig(databaseSystem, cont.asInstanceOf[JdbcDatabaseContainer])
-            )
-          case Some(_) => throw new RuntimeException("ERROR: container is not a JdbcDatabaseContainer.")
-        }
+        DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, MetadataDatabaseType, databaseSystem)
       }
     }
 

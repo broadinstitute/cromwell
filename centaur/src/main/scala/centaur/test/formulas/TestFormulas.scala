@@ -45,7 +45,7 @@ object TestFormulas extends StrictLogging {
     _ <- validateJobManagerStyleMetadata(submittedWorkflow, metadata.value)
     _ = cromwellTracker.track(metadata)
     _ <- validateDirectoryContentsCounts(workflowDefinition, submittedWorkflow, metadata)
-    _ <- waitForArchive(submittedWorkflow.id)
+    _ <- waitForArchive(submittedWorkflow, workflowDefinition)
     // Re-validate the metadata now that carboniting has completed
     _ <- validateMetadata(submittedWorkflow, workflowDefinition)
     flatMetadata = metadata.asFlat
@@ -62,7 +62,7 @@ object TestFormulas extends StrictLogging {
     _ <- validateJobManagerStyleMetadata(submittedWorkflow, metadata.value)
     _ = cromwellTracker.track(metadata)
     _ <- validateDirectoryContentsCounts(workflowDefinition, submittedWorkflow, metadata)
-    _ <- waitForArchive(submittedWorkflow.id)
+    _ <- waitForArchive(submittedWorkflow, workflowDefinition)
     // Re-validate the metadata now that carboniting has completed
     _ <- validateMetadata(submittedWorkflow, workflowDefinition)
   } yield SubmitResponse(submittedWorkflow)

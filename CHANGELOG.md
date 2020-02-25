@@ -2,6 +2,11 @@
 
 ## 49 Release Notes
 
+### Installation methods
+
+Links to the conda package and docker container are now available in 
+[the install documentation](https://cromwell.readthedocs.io/en/stable/Getting/).
+
 ### Job store database refactoring
 
 The primary keys of Cromwell's job store tables have been refactored to use a `BIGINT` datatype in place of the previous
@@ -14,6 +19,11 @@ rows in this table:
 ```
 SELECT table_rows FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'cromwell' AND table_name = 'JOB_STORE_SIMPLETON_ENTRY';
 ```
+
+### Disable call-caching for tasks
+
+It is now possible to indicate in a workflow that a task should not be call-cached. See details 
+[here](https://cromwell.readthedocs.io/en/stable/optimizations/VolatileTasks).
 
 ### Delete Intermediate Outputs on PapiV2
 

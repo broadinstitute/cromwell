@@ -41,7 +41,9 @@ nav:
 - Workflow Optimizations:
   - Optimizations: optimizations/optimizations.md
   - "Task inputs: localization_optional": optimizations/FileLocalization.md
+  - "Volatile Tasks: volatile": optimizations/VolatileTasks.md
 - Configuration: Configuring.md
+- Ecosystem: Ecosystem.md
 - WOMtool: WOMtool.md
 - Imports: Imports.md
 - Sub-Workflows: SubWorkflows.md

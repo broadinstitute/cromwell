@@ -1,6 +1,6 @@
 package cromwell.services.database
 
-import com.dimafeng.testcontainers.{Container, JdbcDatabaseContainer}
+import com.dimafeng.testcontainers.Container
 import cromwell.core.Tags._
 import cromwell.database.slick.SlickDatabase
 import cromwell.services.database.LiquibaseComparisonSpec._
@@ -41,15 +41,7 @@ class LiquibaseComparisonSpec extends FlatSpec with Matchers with ScalaFutures {
 
       val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
 
-      lazy val liquibasedDatabase = containerOpt match {
-        case None => DatabaseTestKit.initializedDatabaseFromSystem(databaseType, databaseSystem)
-        case Some(cont) if cont.isInstanceOf[JdbcDatabaseContainer] =>
-          DatabaseTestKit.initializedDatabaseFromConfig(
-            databaseType,
-            DatabaseTestKit.getConfig(databaseSystem, cont.asInstanceOf[JdbcDatabaseContainer])
-          )
-        case Some(_) => throw new RuntimeException("ERROR: container is not a JdbcDatabaseContainer.")
-      }
+      lazy val liquibasedDatabase = DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, databaseType, databaseSystem)
 
       lazy val connectionMetadata = DatabaseTestKit.connectionMetadata(liquibasedDatabase)
 

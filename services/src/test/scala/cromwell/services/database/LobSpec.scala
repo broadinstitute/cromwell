@@ -2,7 +2,7 @@ package cromwell.services.database
 
 import java.time.OffsetDateTime
 
-import com.dimafeng.testcontainers.{Container, JdbcDatabaseContainer}
+import com.dimafeng.testcontainers.Container
 import cromwell.core.Tags._
 import cromwell.core.WorkflowId
 import cromwell.database.sql.SqlConverters._
@@ -27,15 +27,7 @@ class LobSpec extends FlatSpec with Matchers with ScalaFutures {
 
     val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
 
-    lazy val database = containerOpt match {
-      case None => DatabaseTestKit.initializedDatabaseFromSystem(EngineDatabaseType, databaseSystem)
-      case Some(cont) if cont.isInstanceOf[JdbcDatabaseContainer] =>
-        DatabaseTestKit.initializedDatabaseFromConfig(
-          EngineDatabaseType,
-          DatabaseTestKit.getConfig(databaseSystem, cont.asInstanceOf[JdbcDatabaseContainer])
-        )
-      case Some(_) => throw new RuntimeException("ERROR: container is not a JdbcDatabaseContainer.")
-    }
+    lazy val database = DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, EngineDatabaseType, databaseSystem)
 
     it should "start container if required" taggedAs DbmsTest in {
       containerOpt.foreach { _.start }

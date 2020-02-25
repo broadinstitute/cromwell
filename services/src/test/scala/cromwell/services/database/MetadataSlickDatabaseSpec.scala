@@ -2,7 +2,7 @@ package cromwell.services.database
 
 import java.time.OffsetDateTime
 
-import com.dimafeng.testcontainers.{Container, JdbcDatabaseContainer}
+import com.dimafeng.testcontainers.Container
 import cromwell.core.Tags.DbmsTest
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
@@ -22,15 +22,7 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
 
     val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
 
-    lazy val database = containerOpt match {
-      case None => DatabaseTestKit.initializedDatabaseFromSystem(MetadataDatabaseType, databaseSystem)
-      case Some(cont) if cont.isInstanceOf[JdbcDatabaseContainer] =>
-        DatabaseTestKit.initializedDatabaseFromConfig(
-          MetadataDatabaseType,
-          DatabaseTestKit.getConfig(databaseSystem, cont.asInstanceOf[JdbcDatabaseContainer])
-        )
-      case Some(_) => throw new RuntimeException("ERROR: container is not a JdbcDatabaseContainer.")
-    }
+    lazy val database = DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, MetadataDatabaseType, databaseSystem)
     import database.dataAccess.driver.api._
 
     import cromwell.database.migration.metadata.table.symbol.MetadataStatement.OffsetDateTimeToSystemTimestamp

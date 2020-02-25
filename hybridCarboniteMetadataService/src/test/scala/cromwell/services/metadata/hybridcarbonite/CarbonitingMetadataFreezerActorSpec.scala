@@ -11,7 +11,7 @@ import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataService.GetMetadataAction
 import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActor.{Fetching, FreezeMetadata, Freezing, Pending, UpdatingDatabase}
 import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActorSpec.TestableCarbonitingMetadataFreezerActor
-import cromwell.services.SuccessfulMetadataJsonResponse
+import cromwell.services.{FailedMetadataJsonResponse, SuccessfulMetadataJsonResponse}
 import org.scalatest.{FlatSpecLike, Matchers}
 import spray.json._
 import org.scalatest.concurrent.Eventually._
@@ -74,6 +74,79 @@ class CarbonitingMetadataFreezerActorSpec extends TestKitSuite("CarbonitedMetada
     ioCommandPromise.success(())
     eventually {
       actor.underlyingActor.updateArchiveStatusCall should be((workflowIdToFreeze, MetadataArchiveStatus.Archived))
+      actor.stateName should be(UpdatingDatabase)
+    }
+
+    // Finally, when the database responds appropriately, the actor should shut itself down:
+    watch(actor)
+    actor.underlyingActor.updateArchiveStatusPromise.success(1)
+    actor.stateName should be(Pending)
+  }
+
+  it should "correctly handle failure received from IOActor" in {
+    val actor = TestFSMRef(new TestableCarbonitingMetadataFreezerActor(carboniterConfig, carboniteWorkerActor.ref, serviceRegistryActor.ref, ioActor.ref))
+    val workflowIdToFreeze = WorkflowId.randomId()
+
+    actor ! FreezeMetadata(workflowIdToFreeze)
+
+    serviceRegistryActor.expectMsgPF(10.seconds) {
+      case gma: GetMetadataAction => gma.workflowId should be(workflowIdToFreeze)
+    }
+    eventually {
+      actor.stateName should be(Fetching)
+    }
+
+    val jsonValue =
+      s"""{
+         |  "id": "$workflowIdToFreeze",
+         |  "status": "Successful"
+         |}""".stripMargin.parseJson
+
+    serviceRegistryActor.send(actor, SuccessfulMetadataJsonResponse(null, jsonValue.asJsObject))
+
+    var ioCommandPromise: Promise[Any] = null
+    ioActor.expectMsgPF(10.seconds) {
+      case command @ IoCommandWithPromise(ioCommand: IoWriteCommand, _) =>
+        ioCommand.file.pathAsString should be(HybridCarboniteConfig.pathForWorkflow(workflowIdToFreeze, "carbonite-test-bucket"))
+        ioCommand.content should be(jsonValue.prettyPrint)
+        ioCommand.compressPayload should be(true)
+        ioCommandPromise = command.promise
+    }
+    eventually {
+      actor.stateName should be(Freezing)
+    }
+
+    // Simulates the IoActor completing the IO command successfully:
+    ioCommandPromise.failure(new RuntimeException("Cannot write metadata to GCS bucket"))
+    eventually {
+      actor.underlyingActor.updateArchiveStatusCall should be((workflowIdToFreeze, MetadataArchiveStatus.ArchiveFailed))
+      actor.stateName should be(UpdatingDatabase)
+    }
+
+    // Finally, when the database responds appropriately, the actor should shut itself down:
+    watch(actor)
+    actor.underlyingActor.updateArchiveStatusPromise.success(1)
+    actor.stateName should be(Pending)
+  }
+
+  it should "correctly handle failure received on attempt to produce metadata json for Carboniting" in {
+    val actor = TestFSMRef(new TestableCarbonitingMetadataFreezerActor(carboniterConfig, carboniteWorkerActor.ref, serviceRegistryActor.ref, ioActor.ref))
+    val workflowIdToFreeze = WorkflowId.randomId()
+
+    actor ! FreezeMetadata(workflowIdToFreeze)
+
+    serviceRegistryActor.expectMsgPF(10.seconds) {
+      case gma: GetMetadataAction => gma.workflowId should be(workflowIdToFreeze)
+    }
+    eventually {
+      actor.stateName should be(Fetching)
+    }
+
+    // Freezer actor will receive `FailedMetadataJsonResponse` from service registry actor on any failure, including DB read timeout
+    serviceRegistryActor.send(actor, FailedMetadataJsonResponse(null, new RuntimeException("Cannot read classic metadata from DB")))
+
+    eventually {
+      actor.underlyingActor.updateArchiveStatusCall should be((workflowIdToFreeze, MetadataArchiveStatus.ArchiveFailed))
       actor.stateName should be(UpdatingDatabase)
     }
 

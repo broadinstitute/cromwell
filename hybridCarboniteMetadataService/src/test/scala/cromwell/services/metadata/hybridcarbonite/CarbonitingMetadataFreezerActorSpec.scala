@@ -129,7 +129,7 @@ class CarbonitingMetadataFreezerActorSpec extends TestKitSuite("CarbonitedMetada
     actor.stateName should be(Pending)
   }
 
-  it should "correctly handle failure received on attempt to produce metadata json for Carboniting" in {
+  it should "correctly handle failure received on attempt to fetch metadata json for Carboniting" in {
     val actor = TestFSMRef(new TestableCarbonitingMetadataFreezerActor(carboniterConfig, carboniteWorkerActor.ref, serviceRegistryActor.ref, ioActor.ref))
     val workflowIdToFreeze = WorkflowId.randomId()
 

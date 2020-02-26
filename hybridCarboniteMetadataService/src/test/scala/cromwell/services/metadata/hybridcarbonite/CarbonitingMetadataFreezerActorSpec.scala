@@ -116,7 +116,7 @@ class CarbonitingMetadataFreezerActorSpec extends TestKitSuite("CarbonitedMetada
       actor.stateName should be(Freezing)
     }
 
-    // Simulates the IoActor completing the IO command successfully:
+    // Simulates the IoActor failing to complete the IO command successfully:
     ioCommandPromise.failure(new RuntimeException("Cannot write metadata to GCS bucket"))
     eventually {
       actor.underlyingActor.updateArchiveStatusCall should be((workflowIdToFreeze, MetadataArchiveStatus.ArchiveFailed))

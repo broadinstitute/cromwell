@@ -140,7 +140,7 @@ object DatabaseTestKit extends StrictLogging {
                                                                         databaseType: CromwellDatabaseType[A],
                                                                         databaseSystem: DatabaseSystem): A with TestSlickDatabase = {
     containerOpt match {
-      case None => initializedDatabaseFromSystem(databaseType, databaseSystem)
+      case None => initializedDatabaseFromConfig(databaseType, getConfig(databaseSystem, None))
       case Some(cont) if cont.isInstanceOf[JdbcDatabaseContainer] =>
         initializedDatabaseFromConfig(databaseType, getConfig(databaseSystem, Option(cont.asInstanceOf[JdbcDatabaseContainer])))
       case Some(_) => throw new RuntimeException("ERROR: container is not a JdbcDatabaseContainer.")

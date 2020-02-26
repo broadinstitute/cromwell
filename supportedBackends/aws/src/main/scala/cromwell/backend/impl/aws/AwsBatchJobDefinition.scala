@@ -35,14 +35,20 @@ import scala.language.postfixOps
 import scala.collection.mutable.ListBuffer
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.JobPaths
-import software.amazon.awssdk.services.batch.model.{ContainerProperties, KeyValuePair}
+import software.amazon.awssdk.services.batch.model.{ContainerProperties, Host, KeyValuePair, MountPoint, Volume}
 import wdl4s.parser.MemoryUnit
 import cromwell.backend.impl.aws.io.AwsBatchVolume
 
 import scala.collection.JavaConverters._
 import java.io.ByteArrayOutputStream
+import java.security.MessageDigest
 import java.util.zip.GZIPOutputStream
+
 import com.google.common.io.BaseEncoding
+import org.slf4j.{Logger, LoggerFactory}
+import software.amazon.awssdk.core.sync.RequestBody
+import software.amazon.awssdk.services.s3.S3Client
+import software.amazon.awssdk.services.s3.model.{HeadObjectRequest, PutObjectRequest}
 
 /**
   * Responsible for the creation of the job definition.
@@ -63,6 +69,8 @@ sealed trait AwsBatchJobDefinition {
 }
 
 trait AwsBatchJobDefinitionBuilder {
+  val Log: Logger = LoggerFactory.getLogger(StandardAwsBatchJobDefinitionBuilder.getClass)
+
 
   /** Gets a builder, seeded with appropriate portions of the container properties
    *
@@ -90,7 +98,7 @@ trait AwsBatchJobDefinitionBuilder {
 
     val environment =
       context.runtimeAttributes.disks.collect{
-        case d if d.name == "local-disk" =>  // this has s3 fiel system, needs all the env for the ecs-proxy
+        case d if d.name == "local-disk" =>  // this has s3 file system, needs all the env for the ecs-proxy
           List(buildKVPair("AWS_CROMWELL_LOCAL_DISK", d.mountPoint.toString),
           buildKVPair("AWS_CROMWELL_PATH",context.uniquePath),
           buildKVPair("AWS_CROMWELL_RC_FILE",context.dockerRcPath),
@@ -110,11 +118,31 @@ trait AwsBatchJobDefinitionBuilder {
     }
 
     builder
-      .command(packCommand("/bin/bash", "-c", context.commandText).asJava)
+       .command(packCommand("/bin/bash", "-c", "/var/scratch/fetch_and_run.sh").asJava)
       .memory(context.runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt)
       .vcpus(context.runtimeAttributes.cpu##)
       .volumes(context.runtimeAttributes.disks.map(d => d.toVolume(getVolPath(d))).asJava)
       .mountPoints(context.runtimeAttributes.disks.map(_.toMountPoint).asJava)
+      //add additional mount points and volumes for fetch_and_run.sh and for aws cli v2
+      .volumes(Volume.builder()
+        .name("fetchAndRunScript")
+        .host(Host.builder().sourcePath("/usr/local/bin/fetch_and_run.sh").build())
+        .build())
+      .mountPoints(MountPoint.builder()
+        .readOnly(true)
+        .sourceVolume("fetchAndRunScript")
+        .containerPath("/var/scratch/fetch_and_run.sh")
+        .build())
+      //mount the aws cli v2 distribution so the container can access it
+      .volumes(Volume.builder()
+        .name("awsCliHome")
+        .host(Host.builder().sourcePath("/usr/local/aws-cli").build())
+        .build())
+      .mountPoints(MountPoint.builder()
+        .readOnly(true)
+        .sourceVolume("awsCliHome")
+        .containerPath("/usr/local/aws-cli")
+        .build())
       .environment(environment.asJava)
   }
 

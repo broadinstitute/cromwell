@@ -39,16 +39,21 @@ import cromwell.core.ExecutionIndex._
 
 import scala.language.higherKinds
 import cats.effect.{Async, Timer}
+import com.amazonaws.services.s3.AmazonS3Client
 import software.amazon.awssdk.services.batch.BatchClient
 import software.amazon.awssdk.services.batch.model._
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient
 import software.amazon.awssdk.services.cloudwatchlogs.model.{GetLogEventsRequest, OutputLogEvent}
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.JobPaths
+import cromwell.cloudsupport.aws.AwsConfiguration
 import cromwell.cloudsupport.aws.auth.AwsAuthMode
 import org.slf4j.{Logger, LoggerFactory}
 import fs2.Stream
+import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.s3.S3Client
+import software.amazon.awssdk.services.s3.model.{HeadObjectRequest, ListObjectsV2Request, PutObjectRequest}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -95,6 +100,10 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     val builder = CloudWatchLogsClient.builder()
     configRegion.foreach(builder.region)
     builder.build
+  }
+
+  lazy val s3Client: S3Client = {
+    val s3Client = AmazonS3Client.builder.build
   }
 
   lazy val reconfiguredScript: String = {
@@ -149,15 +158,24 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     Log.info(s"""taskId: $taskId""")
     Log.info(s"""hostpath root: $uniquePath""")
 
+    //find or create the script in s3 to execute
+    val scriptKey = findOrCreateS3Script(commandLine, runtimeAttributes.scriptS3BucketName)
+
     def callClient(definitionArn: String, awsBatchAttributes: AwsBatchAttributes): Aws[F, SubmitJobResponse] = {
       val submit: F[SubmitJobResponse] =
         async.delay(client.submitJob(
           SubmitJobRequest.builder()
             .jobName(sanitize(jobDescriptor.taskCall.fullyQualifiedName))
             .parameters(parameters.collect({ case i: AwsBatchInput => i.toStringString }).toMap.asJava)
+            .containerOverrides( ContainerOverrides.builder.environment(
+                KeyValuePair.builder.name("BATCH_FILE_TYPE").value("script").build,
+                KeyValuePair.builder.name("BATCH_FILE_S3_URL").value(s"""s3://${runtimeAttributes.scriptS3BucketName}/$scriptKey""").build
+              ).build
+            )
             .jobQueue(runtimeAttributes.queueArn)
             .jobDefinition(definitionArn).build
         ))
+
       ReaderT.liftF(
         Stream.retry(submit, 0.millis, duration => duration.plus(duration), awsBatchAttributes.submitAttempts.value, {
           // RegisterJobDefinition is eventually consistent, so it may not be there
@@ -170,6 +188,152 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
       flatMap((callClient _).tupled)
   }
 
+  /**
+    * is there an existing appropriate definition that I can use, if not create one
+    */
+  private def findOrRegisterJobDefinition(): Unit ={
+
+    //is there an active definition of the same name?
+    val jobDefinitionName = s"""cromwell_def_${runtimeAttributes.dockerImage}"""
+
+    val jobDefinitionRequest = DescribeJobDefinitionsRequest.builder()
+      .jobDefinitionName( sanitize(jobDefinitionName) )
+      .status( "ACTIVE" )
+      .build()
+
+    val existingJobDefinitions = client.describeJobDefinitions(jobDefinitionRequest).jobDefinitions()
+
+    if( existingJobDefinitions.isEmpty ) {
+      //can't find one of the same name so make it
+      Log.info(s"Creating $jobDefinitionName job definition")
+
+      val jobRegistrationResult: RegisterJobDefinitionResponse = registerJobDefinition(jobDefinitionName)
+
+      Log.info(s"Created job definition named ${jobRegistrationResult.jobDefinitionName()} " +
+        s"with arn ${jobRegistrationResult.jobDefinitionArn}")
+
+    } else {
+      //get the latest revision
+      val jobDef = existingJobDefinitions.asScala.toList.sortWith( _.revision > _.revision ).head
+
+      println(s"Found job definition ${ jobDef.jobDefinitionName } revision ${ jobDef.revision}")
+
+      //todo check that the definition that was found by name matches what would have been created in code??
+
+      // the definition should have the same name and the latest version should have the expected:
+      // 1. image
+      // 2. command (fetch and run)
+      // 3. volumes:
+      //   "volumes": [
+      //            {
+      //                "host": {
+      //                    "sourcePath": "/usr/local/bin/fetch_and_run.sh"
+      //                },
+      //                "name": "fetchAndRunScript"
+      //            },
+      //            {
+      //                "host": {
+      //                    "sourcePath": "/usr/local/aws-cli"
+      //                },
+      //                "name": "awsCliHome"
+      //            }
+      //   ]
+      // 4. mount points:
+      //   "mountPoints": [
+      //            {
+      //                "containerPath": "/var/scratch/fetch_and_run.sh",
+      //                "readOnly": true,
+      //                "sourceVolume": "fetchAndRunScript"
+      //            },
+      //            {
+      //                "containerPath": "/usr/local/aws-cli",
+      //                "readOnly": true,
+      //                "sourceVolume": "awsCliHome"
+      //            }
+      //   ]
+
+    }
+  }
+
+//  private def registerJobDefinition( jobDefinitionName: String ): RegisterJobDefinitionResponse = {
+//    val registerJobDefinitionRequest = RegisterJobDefinitionRequest.builder()
+//      .jobDefinitionName(jobDefinitionName)
+//      // type is reserved in scala so java methods called type() need to be escaped
+//      .`type`(JobDefinitionType.CONTAINER)
+//      .containerProperties(ContainerProperties.builder()
+//        //.jobRoleArn( jobRoleArn )
+//        .image(runtimeAttributes.dockerImage)
+//        // mount the fetch and run script. The script is made available by the launch template user data
+//        .volumes(Volume.builder()
+//          .name("fetchAndRunScript")
+//          .host(Host.builder().sourcePath("/usr/local/bin/fetch_and_run.sh").build())
+//          .build())
+//        .mountPoints(MountPoint.builder()
+//          .readOnly(true)
+//          .sourceVolume("fetchAndRunScript")
+//          .containerPath("/var/scratch/fetch_and_run.sh")
+//          .build())
+//        //mount the aws cli v2 distribution so the container can access it
+//        .volumes(Volume.builder()
+//          .name("awsCliHome")
+//          .host(Host.builder().sourcePath("/usr/local/aws-cli").build())
+//          .build())
+//        .mountPoints(MountPoint.builder()
+//          .readOnly(true)
+//          .sourceVolume("awsCliHome")
+//          .containerPath("/usr/local/aws-cli")
+//          .build())
+//        //the command the container should run
+//        .command("/var/scratch/fetch_and_run.sh")
+//        .build()
+//      )
+//      .build()
+//
+//    client.registerJobDefinition(registerJobDefinitionRequest)
+//  }
+
+
+  /**
+    * Performs an md5 digest the command line, checks in s3 bucket for that script, if it's not already there then persists it.
+    *
+    * @param commandLine the command line script to be executed
+    * @param scriptS3BucketName the bucket that stores the scripts
+    */
+  private def findOrCreateS3Script(commandLine :String, scriptS3BucketName: String) :String = {
+
+    val s3Client = S3Client.create()
+
+    val key = MessageDigest.getInstance("MD5")
+      .digest(commandLine.getBytes())
+      .foldLeft("")(_ + "%02x".format(_))
+
+    val bucketName = scriptS3BucketName;
+
+    if (s3Client.headObject(HeadObjectRequest.builder()
+      .bucket(bucketName)
+      .ifMatch(key)
+      .build()
+    ).eTag().equals(key)) {
+      //the script already exists
+      Log.info(s"""Found script s3://$bucketName/$key""")
+
+    } else {
+
+      Log.info(s"Script $key not found in bucket $bucketName. Creating script with content:\n$commandLine")
+      s3Client.putObject(PutObjectRequest.builder()
+        .bucket(bucketName)
+        .key(key)
+        .contentMD5(key)
+        .build(),
+        RequestBody.fromString(commandLine))
+
+      Log.info(s"Created script $key")
+
+    }
+
+    key
+  }
+
   /** Creates a job definition in AWS Batch
    *
    *  @param name Job definition name
@@ -180,6 +344,8 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                                      taskId: String)(
                                      implicit async: Async[F],
                                      timer: Timer[F]): Aws[F, String] = ReaderT { awsBatchAttributes =>
+    //todo check if there is already a suitable definition
+
     val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder
     val commandStr = awsBatchAttributes.fileSystem match {
       case AWSBatchStorageSystems.s3  => reconfiguredScript
@@ -196,11 +362,9 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                                                             inputs,
                                                             outputs)
 
-    Log.info(s"Creating job definition for task ${taskId}")
+    Log.info(s"Creating job definition for task: ${taskId} with command: ${commandStr}")
 
     val jobDefinition = jobDefinitionBuilder.build(jobDefinitionContext)
-
-    Log.info(s"Created definition: ${jobDefinition.toString}")
 
     // See:
     //
@@ -215,7 +379,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     Log.info(s"Submitting definition request: ${definitionRequest}")
     val submit = async.delay(client.registerJobDefinition(definitionRequest).jobDefinitionArn)
 
-    Log.info(s"Submitted: ${submit}")
+    //Log.info(s"Submitted: ${submit.show}")
 
     val retry: F[String] = Stream.retry(submit, 0.millis, _ * 2, awsBatchAttributes.createDefinitionAttempts.value, {
       // RegisterJobDefinition throws 404s every once in a while

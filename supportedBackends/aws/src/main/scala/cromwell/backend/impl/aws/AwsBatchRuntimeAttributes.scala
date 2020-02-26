@@ -55,7 +55,8 @@ case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                      failOnStderr: Boolean,
                                      continueOnReturnCode: ContinueOnReturnCode,
                                      noAddress: Boolean,
-                                     fileSystem:String= "s3")
+                                     fileSystem:String= "s3",
+                                     scriptS3BucketName: String)
 
 object AwsBatchRuntimeAttributes {
 
@@ -136,6 +137,7 @@ object AwsBatchRuntimeAttributes {
     val failOnStderr: Boolean = RuntimeAttributesValidation.extract(failOnStderrValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val continueOnReturnCode: ContinueOnReturnCode = RuntimeAttributesValidation.extract(continueOnReturnCodeValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val noAddress: Boolean = RuntimeAttributesValidation.extract(noAddressValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val scriptS3BucketName = RuntimeAttributesValidation.extract( , validatedRuntimeAttributes)
 
     new AwsBatchRuntimeAttributes(
       cpu,
@@ -146,7 +148,8 @@ object AwsBatchRuntimeAttributes {
       queueArn,
       failOnStderr,
       continueOnReturnCode,
-      noAddress
+      noAddress,
+      scriptS3BucketName
     )
   }
 }

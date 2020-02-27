@@ -19,7 +19,7 @@ Third: Run through the "How to Deploy Cromwell in CAAS prod" process.
 
 The release WDL uses a github token to perform actions on your behalf.
 * Follow the directions [here](https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line).
-    * When asked, give the token the full set of `repo` permissions. This will allow it to manipulate the Cromwell repository on your behalf.
+    * When asked, give the token the full set of `repo` permissions and also one of either `user` or `user:email`.
 * Copy the token and save it to a file on your local machine. You'll use it in a second.
 
 #### Prepare a temporary `release` directory

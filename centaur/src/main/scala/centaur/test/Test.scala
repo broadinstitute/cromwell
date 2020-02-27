@@ -24,17 +24,21 @@ import common.validation.Validation._
 import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
 import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, Succeeded, TerminalStatus, WaasDescription, WorkflowId, WorkflowMetadata, WorkflowStatus}
+import cromwell.cloudsupport.aws.AwsConfiguration
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import io.circe.parser._
-import org.apache.commons.lang3.exception.ExceptionUtils
 import mouse.all._
-import spray.json.{JsString, JsValue}
+import org.apache.commons.lang3.exception.ExceptionUtils
+import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
+import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.s3.S3Client
+import spray.json._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
-import scala.util.Failure
+import scala.util.{Failure, Try}
 
 /**
   * A simplified riff on the final tagless pattern where the interpreter (monad & related bits) are fixed. Operation
@@ -127,6 +131,21 @@ object Operations extends StrictLogging {
   implicit private val timer = IO.timer(global)
   implicit private val contextShift = IO.contextShift(global)
 
+  lazy val awsConfiguration: AwsConfiguration = AwsConfiguration(CentaurConfig.conf)
+  lazy val awsConf: Config = CentaurConfig.conf.getConfig("aws")
+  lazy val awsAuthName: String = awsConf.getString("auths")
+  lazy val region: String  = awsConf.getString("region")
+  lazy val accessKeyId: String  = awsConf.getString("access-key")
+  lazy val secretAccessKey: String = awsConf.getString("secret-key")
+
+  def buildAmazonS3Client: S3Client = {
+    val basicAWSCredentials = AwsBasicCredentials.create(accessKeyId, secretAccessKey)
+    S3Client.builder()
+      .region(Region.of(region))
+      .credentialsProvider(StaticCredentialsProvider.create(basicAWSCredentials))
+      .build()
+  }
+
   def submitWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = {
     new Test[SubmittedWorkflow] {
       override def run: IO[SubmittedWorkflow] = for {
@@ -158,14 +177,15 @@ object Operations extends StrictLogging {
             case Some(d.valid) => IO.pure(())
             case Some(otherExpectation) =>
               logger.error(s"Unexpected 'valid=${d.valid}' response when expecting $otherExpectation. Full unexpected description:${System.lineSeparator()}$d")
-              IO.raiseError(new Exception(s"Expected this workflow's /describe validity to be '$otherExpectation' but got: '${d.valid}'"))
+              IO.raiseError(new Exception(s"Expected this workflow's /describe validity to be '$otherExpectation' but got: '${d.valid}' (errors: ${d.errors.mkString(", ")})"))
           }
-        }).timeoutTo(timeout, {
+        }).timeoutTo(timeout, IO {
           if (alreadyTried + 1 >= retries) {
-            IO.raiseError(new TimeoutException("Timeout from checkDescription 60 seconds: " + timeoutStackTraceString))
+            throw new TimeoutException("Timeout from checkDescription 60 seconds: " + timeoutStackTraceString)
           } else {
-            logger.warn(s"checkDescription failed on attempt ${alreadyTried + 1}. ")
+            logger.warn(s"checkDescription timeout on attempt ${alreadyTried + 1}. ")
             checkDescriptionInner(alreadyTried + 1)
+            ()
           }
         })
       }
@@ -627,11 +647,129 @@ object Operations extends StrictLogging {
     }
   }
 
-  def waitForArchive(workflowId: WorkflowId): Test[Unit] = {
+  def validateJobManagerStyleMetadata(submittedWorkflow: SubmittedWorkflow,
+                                      originalMetadata: String): Test[Unit] = new Test[Unit] {
+
+    def validate(expectation: JsObject, actual: JsObject): IO[Unit] = {
+      if(actual.equals(expectation)) {
+        IO.pure(())
+      } else {
+
+        import diffson._
+        import diffson.lcs._
+        import diffson.sprayJson._
+        import diffson.jsonpatch._
+        import diffson.jsonpatch.lcsdiff._
+
+        implicit val lcs = new Patience[JsValue]
+
+        implicit val writer: JsonWriter[JsonPatch[JsValue]] = new JsonWriter[JsonPatch[JsValue]] {
+          def processOperation(op: Operation[JsValue]): JsValue = op match {
+            case Add(path, value) => JsObject(Map[String, JsValue](
+              "op" -> JsString("add"),
+              "path" -> JsString(path.toString),
+              "value" -> value))
+            case Copy(from, path) => JsObject(Map[String, JsValue](
+              "op" -> JsString("copy"),
+              "from" -> JsString(from.toString),
+              "path" -> JsString(path.toString)))
+            case Move(from, path) => JsObject(Map[String, JsValue](
+              "op" -> JsString("move"),
+              "from" -> JsString(from.toString),
+              "path" -> JsString(path.toString)))
+            case Remove(path, old) => JsObject(Map[String, JsValue](
+              "op" -> JsString("remove"),
+              "path" -> JsString(path.toString)) ++ old.map(o => "old" -> o) )
+            case Replace(path, value, old) => JsObject(Map[String, JsValue](
+              "op" -> JsString("replace"),
+              "path" -> JsString(path.toString),
+              "value" -> value) ++ old.map(o => "old" -> o) )
+            case diffson.jsonpatch.Test(path, value) => JsObject(Map[String, JsValue](
+              "op" -> JsString("test"),
+              "path" -> JsString(path.toString),
+              "value" -> value))
+          }
+
+          override def write(obj: JsonPatch[JsValue]): JsValue = {
+            JsArray(obj.ops.toVector.map(processOperation))
+          }
+        }
+
+        val jsonDiff = diff(expectation: JsValue, actual: JsValue)
+
+        logger.error(s"Bad JM style metadata: ${jsonDiff.toJson.prettyPrint}")
+        IO.raiseError(new Exception(s"Bad JM style metadata. See error log output"))
+      }
+    }
+
+    override def run: IO[Unit] = for {
+      jmMetadata <- CentaurCromwellClient.metadata(workflow = submittedWorkflow, Option(CentaurCromwellClient.defaultMetadataArgs.getOrElse(Map.empty) ++ jmArgs))
+      jmMetadataObject <- IO.fromTry(Try(jmMetadata.value.parseJson.asJsObject))
+      expectation <- IO.fromTry(Try(extractJmStyleMetadataFields(originalMetadata.parseJson.asJsObject)))
+
+      validationUnit <- validate(expectation, jmMetadataObject)
+    } yield validationUnit
+  }
+
+  val oneWordIncludeKeys = List(
+    "attempt", "callRoot", "end",
+    "executionStatus", "failures", "inputs", "jobId",
+    "calls", "outputs", "shardIndex", "start", "stderr", "stdout",
+    "description", "executionEvents", "labels", "parentWorkflowId",
+    "returnCode", "status", "submission", "subWorkflowId", "workflowName"
+  )
+
+  val jmArgs = Map(
+    "includeKey" -> (oneWordIncludeKeys :+ "callCaching:hit"),
+    "excludeKey" -> List("callCaching:hitFailures"),
+    "expandSubWorkflows" -> List("false")
+  )
+
+  // I chose to re-implement "process metadata for job manager's includeKeys/excludeKeys" and not re-use production.
+  // Reasoning is:
+  //  1. the ultra-specific JM case is a lot simpler to reason about and can be done in a few lines
+  //  2. it's nice to be able to assert general cases rather than singular specific examples
+  //  3. it's hopefully unlikely that the same bug will show up in two separate implementations
+  def extractJmStyleMetadataFields(originalWorkflowMetadataJson: JsObject): JsObject = {
+    val originalCallMetadataJson = originalWorkflowMetadataJson.fields.get("calls").map(_.asJsObject)
+
+    // NB: this filter to remove "calls" is because - although it is a single word in the JM request,
+    // it gets treated specially by the API (so has to be treated specially here too)
+    def processOneWordIncludes(json: JsObject) = (oneWordIncludeKeys.filterNot(_ == "calls") :+ "id").foldRight(JsObject.empty) { (toInclude, current) =>
+      json.fields.get(toInclude) match {
+        case Some(jsonToInclude) => JsObject(current.fields + (toInclude -> jsonToInclude))
+        case None => current
+      }
+    }
+
+    def processCallCacheField(callJson: JsObject) = for {
+      originalCallCachingField <- callJson.fields.get("callCaching")
+      originalHitField <- originalCallCachingField.asJsObject.fields.get("hit")
+    } yield "callCaching" -> JsObject(Map("hit" -> originalHitField))
+
+    def processCallsSection(calls: JsObject): JsObject = {
+      val newFields = calls.fields.map { case (callName, callsArray) =>
+        val newElements = callsArray.asInstanceOf[spray.json.JsArray].elements.map(_.asJsObject).map { call =>
+          val callWithOneWordIncludes = processOneWordIncludes(call)
+          val callCacheField = processCallCacheField(call)
+          JsObject(callWithOneWordIncludes.fields ++ callCacheField)
+        }
+        callName -> JsArray(newElements)
+      }
+      JsObject(newFields)
+    }
+
+    val workflowLevelWithOneWordIncludes = processOneWordIncludes(originalWorkflowMetadataJson)
+    val callsField = originalCallMetadataJson map { calls => Map("calls" -> processCallsSection(calls)) } getOrElse Map.empty
+
+    JsObject(workflowLevelWithOneWordIncludes.fields ++ callsField)
+  }
+
+  def waitForArchive(submittedWorkflow: SubmittedWorkflow, workflowDefinition: Workflow): Test[Unit] = {
     new Test[Unit] {
 
       def validateMetadataArchiveStatus(status: String): IO[Boolean] = {
-        logger.info(s"Validating archive status '$status for workflow ID: $workflowId'")
+        logger.info(s"Validating archive status '$status for workflow ID: ${submittedWorkflow.id}'")
         if (status == "Archived") {
           IO.pure(true)
         }  else if (status == "Unarchived" ) {
@@ -641,19 +779,43 @@ object Operations extends StrictLogging {
         }
       }
 
-      def checkArchived(): IO[Boolean] = for {
-          archiveStatus <- CentaurCromwellClient.archiveStatus(workflowId)
-          isArchived <- validateMetadataArchiveStatus(archiveStatus)
-      } yield isArchived
+      def checkArchived(): IO[(Boolean, Boolean)] = for {
+        archiveStatus <- CentaurCromwellClient.archiveStatus(submittedWorkflow.id)
+        isArchived <- validateMetadataArchiveStatus(archiveStatus)
+        isMetadataSourceArchived <- validateMetadataSourceArchived()
+      } yield (isArchived, isMetadataSourceArchived)
+
+      def validateMetadataSourceArchived(): IO[Boolean] = for {
+        metadataSource <- CentaurCromwellClient.metadataWithId(submittedWorkflow.id).map(_.asFlat.stringifyValues.get("metadataSource"))
+        isMetadataSourceArchived <- {
+          if (metadataSource.contains(JsString("Archived"))) {
+            IO.pure(true)
+          } else if (metadataSource.contains(JsString("Unarchived"))) {
+            IO.pure(false)
+          } else {
+            IO.raiseError(CentaurTestException(
+              s"`Metadata` endpoint returned unknown value for `metadataSource`: $metadataSource",
+              workflowDefinition,
+              submittedWorkflow
+            ))
+          }
+        }
+      } yield isMetadataSourceArchived
 
       def eventuallyArchived(): IO[Unit] = {
-          checkArchived() flatMap {
-            case true => IO.pure(())
-            case false => for {
-              _ <- IO.sleep(2.seconds)
-              recurse <- eventuallyArchived()
-            } yield recurse
-          }
+        checkArchived() flatMap {
+          case (true, true) => IO.pure(())
+          case (true, false) =>
+            IO.raiseError(CentaurTestException(
+              "`Query` endpoint returns metadata status \"Archived\" but `metadata` endpoint returns metadata source \"Unarchived\"",
+              workflowDefinition,
+              submittedWorkflow
+            ))
+          case (false, true) | (false, false) => for {
+            _ <- IO.sleep(2.seconds)
+            recurse <- eventuallyArchived()
+          } yield recurse
+        }
       }
 
       override def run: IO[Unit] = {
@@ -698,7 +860,7 @@ object Operations extends StrictLogging {
     override def run: IO[Unit] = workflowDefinition.directoryContentCounts match {
       case None => IO.unit
       case Some(directoryContentCountCheck) =>
-        val counts = directoryContentCountCheck.expectedDrectoryContentsCounts map {
+        val counts = directoryContentCountCheck.expectedDirectoryContentsCounts map {
           case (directory, count) =>
             val substitutedDir = directory.replaceAll("<<UUID>>", workflowId)
             (substitutedDir, count, directoryContentCountCheck.checkFiles.countObjectsAtPath(substitutedDir))
@@ -749,5 +911,4 @@ object Operations extends StrictLogging {
       }
     }
   }
-
 }

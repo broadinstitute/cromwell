@@ -37,7 +37,8 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
   with Localization
   with UserAction
   with Delocalization
-  with MemoryRetryCheckAction {
+  with MemoryRetryCheckAction
+  with SSHAccessAction {
 
   override def build(initializer: HttpRequestInitializer): PipelinesApiRequestFactory = new PipelinesApiRequestFactory {
     implicit lazy val googleProjectMetadataLabelDecoder: Decoder[ProjectLabels] = deriveDecoder
@@ -139,7 +140,8 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       val memoryRetryAction: List[Action] = checkForMemoryRetryActions(createPipelineParameters, mounts)
       val deLocalization: List[Action] = deLocalizeActions(createPipelineParameters, mounts)
       val monitoring: List[Action] = monitoringActions(createPipelineParameters, mounts)
-      val allActions = containerSetup ++ localization ++ userAction ++ memoryRetryAction ++ deLocalization ++ monitoring
+      val sshAccess: List[Action] = sshAccessActions(createPipelineParameters, mounts)
+      val allActions = containerSetup ++ localization ++ userAction ++ memoryRetryAction ++ deLocalization ++ monitoring ++ sshAccess
 
       // adding memory as environment variables makes it easy for a user to retrieve the new value of memory
       // on the machine to utilize in their command blocks if needed
@@ -217,6 +219,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         .setResources(resources)
         .setActions(sortedActions.asJava)
         .setEnvironment(environment)
+        .setTimeout(createPipelineParameters.pipelineTimeout.toSeconds.toString() + "s")
 
       val pipelineRequest = new RunPipelineRequest()
         .setPipeline(pipeline)
@@ -257,7 +260,7 @@ object GenomicsFactory {
     *
     * When updating this value, also consider updating the CromwellImagesSizeRoundedUpInGB below.
     */
-  val CloudSdkImage = "gcr.io/google.com/cloudsdktool/cloud-sdk:275.0.0-slim"
+  val CloudSdkImage = "gcr.io/google.com/cloudsdktool/cloud-sdk:276.0.0-slim"
 
   /*
    * At the moment, the cloud-sdk:slim (727MB on 2019-09-26) and possibly stedolan/jq (182MB) decompressed ~= 1 GB

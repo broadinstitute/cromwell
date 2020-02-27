@@ -39,6 +39,7 @@ import cromwell.services.EngineServicesStore
 import cromwell.services.metadata.CallMetadataKeys.CallCachingKeys
 import cromwell.services.metadata.{CallMetadataKeys, MetadataKey}
 import cromwell.webservice.EngineStatsActor
+import wom.callable.MetaValueElement.MetaValueElementBoolean
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -87,6 +88,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   // NB: this can also change (e.g. if we have a HashError we just force this to CallCachingOff)
   private[execution] var effectiveCallCachingMode = {
     if (backendLifecycleActorFactory.fileHashingActorProps.isEmpty) CallCachingOff
+    else if (jobDescriptorKey.node.callable.meta.get("volatile").contains(MetaValueElementBoolean(true))) CallCachingOff
     else if (backendLifecycleActorFactory.cacheHitCopyingActorProps.isEmpty || jobDescriptorKey.attempt > 1) {
       callCachingMode.withoutRead
     } else callCachingMode
@@ -656,8 +658,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     }
 
     response match {
-      case CallCacheInvalidatedFailure(failure) => log.error(failure, "Failed to invalidate cache entry for job: {}", jobDescriptorKey)
-      case CallCacheInvalidatedSuccess(Some(entry)) => updateMetadataForInvalidatedEntry(entry)
+      case CallCacheInvalidatedFailure(_, failure) => log.error(failure, "Failed to invalidate cache entry for job: {}", jobDescriptorKey)
+      case CallCacheInvalidatedSuccess(_, Some(entry)) => updateMetadataForInvalidatedEntry(entry)
       case _ =>
     }
 

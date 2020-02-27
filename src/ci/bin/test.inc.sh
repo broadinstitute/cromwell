@@ -21,7 +21,7 @@ set -o errexit -o nounset -o pipefail
 #     Quick debug scripts. Example: `crmdbg=y src/ci/bin/testCentaurLocal.sh`
 #
 #   - crmcit
-#     Simulate a centaur integration test build. Example: `crmcit=y src/ci/bin/testCentaurPapiV2.sh`
+#     Simulate a centaur integration test build. Example: `crmcit=y src/ci/bin/testCentaurPapiV2beta.sh`
 
 cromwell::private::check_debug() {
     # shellcheck disable=SC2154
@@ -120,7 +120,7 @@ cromwell::private::create_build_variables() {
     # circuiting logic for pull request builds
     if [[ "${TRAVIS_EVENT_TYPE:-unset}" != "pull_request" ]]; then
         CROMWELL_BUILD_ONLY_DOCS_CHANGED=false
-    elif git diff --name-only "${TRAVIS_BRANCH}" 2>&1 | grep -q --invert-match ^docs/; then
+    elif git diff --name-only "origin/${TRAVIS_BRANCH}" 2>&1 | egrep -q --invert-match "^mkdocs.yml|^docs/"; then
         CROMWELL_BUILD_ONLY_DOCS_CHANGED=false
     else
         CROMWELL_BUILD_ONLY_DOCS_CHANGED=true
@@ -219,22 +219,27 @@ cromwell::private::create_build_variables() {
         CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND="assembly"
     fi
 
-    if [[ "${CROMWELL_BUILD_TYPE}" == centaurPapiUpgrade* ]] || \
-        [[ "${CROMWELL_BUILD_TYPE}" == centaurHoricromtalEngineUpgrade* ]]; then
-        CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v1_v2_upgrade_application.conf"
-    else
-        CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_BACKEND_TYPE}_application.conf"
-    fi
-
     case "${CROMWELL_BUILD_TYPE}" in
-        centaurPapiUpgrade*)
-            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v1_v2_upgrade_application.conf"
+        centaurPapiUpgradePapiV1*)
+            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v1_v2alpha1_upgrade_application.conf"
             ;;
-        centaurHoricromtalPapi*)
-            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2_horicromtal_application.conf"
+        centaurPapiUpgradeNewWorkflowsPapiV1*)
+            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v1_v2alpha1_upgrade_application.conf"
+            ;;
+        centaurPapiUpgradePapiV2alpha1*)
+            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2alpha1_v2beta_upgrade_application.conf"
+            ;;
+        centaurPapiUpgradeNewWorkflowsPapiV2alpha1*)
+            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2alpha1_v2beta_upgrade_application.conf"
+            ;;
+        centaurHoricromtalPapiV2alpha1*)
+            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2alpha1_horicromtal_application.conf"
+            ;;
+        centaurHoricromtalPapiV2beta*)
+            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2beta_horicromtal_application.conf"
             ;;
         centaurHoricromtalEngineUpgrade*)
-            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2_application.conf"
+            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2alpha1_horicromtal_application.conf"
             ;;
         *)
             CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_BACKEND_TYPE}_application.conf"
@@ -468,7 +473,7 @@ cromwell::private::create_centaur_variables() {
             ;;
         *)
             CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY="${CROMWELL_BUILD_CENTAUR_RESOURCES}/${CROMWELL_BUILD_CENTAUR_TYPE}TestCases"
-            if test "${CROMWELL_BUILD_BACKEND_TYPE}" = "papi_v2"
+            if test "${CROMWELL_BUILD_BACKEND_TYPE}" = "papi_v2alpha1" || test "${CROMWELL_BUILD_BACKEND_TYPE}" = "papi_v2beta"
             then
               CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2_centaur_application.conf"
             else

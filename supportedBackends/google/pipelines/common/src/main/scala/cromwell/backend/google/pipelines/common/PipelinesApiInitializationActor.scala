@@ -4,6 +4,7 @@ import akka.actor.ActorRef
 import com.google.api.services.cloudkms.v1.model.EncryptRequest
 import com.google.api.services.cloudkms.v1.{CloudKMS, CloudKMSScopes}
 import com.google.api.services.genomics.GenomicsScopes
+import com.google.api.services.lifesciences.v2beta.CloudLifeSciencesScopes
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
 import com.google.auth.http.HttpCredentialsAdapter
@@ -54,9 +55,10 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
   // Credentials object for the Genomics API
   private lazy val genomicsCredentials: Future[Credentials] = pipelinesConfiguration.papiAttributes.auths.genomics
     .retryCredentials(workflowOptions, List(
+      CloudLifeSciencesScopes.CLOUD_PLATFORM,
       GenomicsScopes.GENOMICS,
       /*
-      Genomics Pipelines API v1alpha2 requires the COMPUTE scope. Does not seem to be required for v2alpha1.
+      Genomics Pipelines API v1alpha2 requires the COMPUTE scope. Does not seem to be required for either v2alpha1 or v2beta.
        */
       GenomicsScopes.COMPUTE,
       /*

@@ -16,6 +16,7 @@ object TesTestConfig {
       |  continueOnReturnCode: 0
       |  memory: "2 GB"
       |  disk: "2 GB"
+      |  preemptible: false
       |  # The keys below have been commented out as they are optional runtime attributes.
       |  # dockerWorkingDir
       |  # docker

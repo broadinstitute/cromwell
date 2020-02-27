@@ -23,7 +23,8 @@ object PipelinesApiTestConfig {
       |
       |genomics {
       |  auth = "application-default"
-      |  endpoint-url = "https://genomics.googleapis.com/"
+      |  endpoint-url = "https://lifesciences.googleapis.com/"
+      |  location = "us-central1"
       |}
       |
       |filesystems.gcs.auth = "application-default"

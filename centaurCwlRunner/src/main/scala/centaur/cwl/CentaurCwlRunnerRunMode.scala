@@ -40,7 +40,7 @@ object CentaurCwlRunnerRunMode {
   def fromConfig(conf: Config): CentaurCwlRunnerRunMode = {
     conf.getString("mode") match {
       case "local" => LocalRunMode
-      case "papi_v2" => PapiRunMode(conf)
+      case "papi_v2alpha1" | "papi_v2beta" => PapiRunMode(conf)
       case "tesk" => TeskRunMode(conf)
       case unknown => throw new UnsupportedOperationException(s"mode not recognized: $unknown")
     }

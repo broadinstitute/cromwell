@@ -2,7 +2,6 @@ package languages.cwl
 
 import better.files.File
 import cats.data.EitherT.fromEither
-import cats.data.NonEmptyList
 import cats.effect.IO
 import com.typesafe.config.Config
 import common.Checked
@@ -32,18 +31,21 @@ class CwlV1_0LanguageFactory(override val config: Config) extends LanguageFactor
                                  ioFunctions: IoFunctionSet,
                                  importResolvers: List[ImportResolver]): IOChecked[ValidatedWomNamespace] = {
 
-    def parse(): IOChecked[Cwl] = source.workflowUrl match {
-      case Some(url) => for {
-        reference <- fromEither[IO](CwlReference.fromString(url).map(Right(_)).getOrElse(Left(NonEmptyList.one(s"Invalid workflow reference: $url")))): IOChecked[CwlReference]
-        parsed <- CwlDecoder.decodeCwlReference(reference.changePointer(source.workflowRoot))
-      } yield parsed
-      case None =>
-        CwlDecoder.decodeCwlString(
-          workflowSource,
-          source.importsZipFileOption.map(File.newTemporaryFile().appendByteArray(_)),
-          source.workflowRoot,
-          "cwl_temp_file_" + workflowIdForLogging.toString
-        )
+    def parse(): IOChecked[Cwl] = {
+      val decodedCwlReference =
+        for {
+          url <- source.workflowUrl
+          reference <- CwlReference.fromString(url)
+        } yield CwlDecoder.decodeCwlReference(reference.changePointer(source.workflowRoot))
+
+      decodedCwlReference
+        .getOrElse(
+          CwlDecoder.decodeCwlString(
+            workflowSource,
+            source.importsZipFileOption.map(File.newTemporaryFile().appendByteArray(_)),
+            source.workflowRoot,
+            cwlFilename = s"cwl_temp_file_$workflowIdForLogging"
+          ))
     }
 
     import cwl.AcceptAllRequirements

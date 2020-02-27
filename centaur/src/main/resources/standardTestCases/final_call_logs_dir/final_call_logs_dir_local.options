@@ -2,5 +2,6 @@
   "backend": "Local",
   "final_call_logs_dir": "/tmp/call_logs",
   "final_workflow_log_dir": "/tmp/logs",
-  "final_workflow_outputs_dir": "/tmp/outputs"
+  "final_workflow_outputs_dir": "/tmp/outputs",
+  "read_from_cache": false
 }

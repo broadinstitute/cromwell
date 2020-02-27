@@ -12,7 +12,8 @@ object Dependencies {
   private val apacheCommonNetV = "3.6"
   private val apacheHttpClientV = "4.5.7"
   private val awsSdkV = "2.3.9"
-  private val betterFilesV = "2.17.1"
+  private val betterFilesV = "3.8.0"
+  private val amazonAwsV = "1.11.500"
   private val catsEffectV = "2.0.0"
   private val catsV = "2.0.0"
   private val circeOpticsV = "0.12.0"
@@ -34,7 +35,8 @@ object Dependencies {
   private val googleCloudMonitoringV = "1.70.0"
   private val googleCloudNioV = "0.61.0-alpha"
   private val googleGenomicsServicesV1ApiV = "v1alpha2-rev495-1.23.0"
-  private val googleGenomicsServicesV2ApiV = "v2alpha1-rev31-1.25.0"
+  private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev31-1.25.0"
+  private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev5-1.25.0"
   private val googleHttpClientApacheV = "2.1.1"
   private val googleHttpClientV = "1.29.1"
   private val googleOauth2V = "0.13.0"
@@ -44,8 +46,7 @@ object Dependencies {
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.4.1"
   private val http4sVersion = "0.20.0-M5"
-  private val jacksonDatabindV = "2.9.9.3"
-  private val jacksonV = "2.9.9" // NOTE: On the next version, please remove jacksonDatabindV and just use this!
+  private val jacksonV = "2.10.0"
   private val jacksonJqV = "1.0.0-preview.20190925"
   private val janinoV = "3.0.12"
   private val javaxActivationV = "1.2.0"
@@ -85,7 +86,16 @@ object Dependencies {
   private val simulacrumV = "0.15.0"
   private val slf4jV = "1.7.25"
   private val slickCatsV = "0.9.0"
-  private val slickV = "3.2.3"
+
+  /* If you're about to update our Slick version:
+    * Consider checking whether the new Slick version passes tests with upserts enabled (eg KeyValueDatabaseSpec)
+    *
+    * Current version 3.3.2-2076hotfix was built locally from https://github.com/grsterin/slick/tree/v3.3.2-2076hotfix
+    * and manually uploaded to the Broad Institute artifactory at https://broadinstitute.jfrog.io/broadinstitute/.
+    * Consider updating to the official newer Slick version once they fix issue #2076
+    * Related Slick PR: https://github.com/slick/slick/pull/2101
+  */
+  private val slickV = "3.3.2-2076hotfix"
   private val snakeyamlV = "1.23"
   private val specs2MockV = "4.4.1"
   private val sprayJsonV = "1.3.5"
@@ -244,8 +254,13 @@ object Dependencies {
       exclude("com.google.guava", "guava-jdk5")
   )
 
-  private val googleGenomicsV2Dependency = List(
-    "com.google.apis" % "google-api-services-genomics" % googleGenomicsServicesV2ApiV
+  private val googleGenomicsV2Alpha1Dependency = List(
+    "com.google.apis" % "google-api-services-genomics" % googleGenomicsServicesV2Alpha1ApiV
+      exclude("com.google.guava", "guava-jdk5")
+  )
+
+  private val googleLifeSciencesV2BetaDependency = List(
+    "com.google.apis" % "google-api-services-lifesciences" % googleLifeSciencesServicesV2BetaApiV
       exclude("com.google.guava", "guava-jdk5")
   )
 
@@ -264,6 +279,7 @@ object Dependencies {
 
   private val awsCloudDependencies = List(
     "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonV,
+    "com.amazonaws" % "aws-java-sdk-s3" % amazonAwsV
   ) ++ s3fsDependencies ++ List(
     "batch",
     "core",
@@ -284,7 +300,7 @@ object Dependencies {
     "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV,
     "com.google.apis" % "google-api-services-cloudkms" % googleCloudKmsV
       exclude("com.google.guava", "guava-jdk5")
-  ) ++ googleGenomicsV1Dependency ++ googleGenomicsV2Dependency
+  ) ++ googleGenomicsV1Dependency ++ googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency
 
   private val aliyunOssDependencies = List(
     "com.aliyun.oss" % "aliyun-sdk-oss" % aliyunOssV
@@ -470,7 +486,8 @@ object Dependencies {
   val centaurDependencies = List(
     "org.apache.commons" % "commons-math3" % commonsMathV,
     "com.github.kxbmap" %% "configs" % configsV,
-    "com.google.cloud" % "google-cloud-bigquery" % googleCloudCoreV % IntegrationTest
+    "com.google.cloud" % "google-cloud-bigquery" % googleCloudCoreV % IntegrationTest,
+    "org.gnieh" %% "diffson-spray-json" % "4.0.1"
   ) ++ circeDependencies ++ slf4jBindingDependencies ++ cloudSupportDependencies ++ http4sDependencies
 
   val engineDependencies = List(
@@ -480,7 +497,7 @@ object Dependencies {
       exclude("com.fasterxml.jackson.core", "jackson-databind")
       exclude("com.fasterxml.jackson.module", "jackson-module-scala")
       exclude("org.scala-tools.testing", "test-interface"),
-    "com.fasterxml.jackson.core" % "jackson-databind" % jacksonDatabindV,
+    "com.fasterxml.jackson.core" % "jackson-databind" % jacksonV,
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV
   ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ akkaHttpCirceIntegrationDependency ++ circeDependencies
 

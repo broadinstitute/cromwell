@@ -993,7 +993,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
       Map(
         "backendLogs:log" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/goodbye.log",
         "callRoot" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye",
-        "jes:endpointUrl" -> "https://genomics.googleapis.com/",
+        "jes:endpointUrl" -> "https://lifesciences.googleapis.com/",
         "jes:executionBucket" -> jesGcsRoot,
         "jes:googleProject" -> googleProject,
         "labels:cromwell-workflow-id" -> s"cromwell-$workflowId",

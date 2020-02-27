@@ -11,6 +11,8 @@ import cromwell.core.logging.JobLogger
 import cromwell.core.path.Path
 import wom.runtime.WomOutputRuntimeExtractor
 
+import scala.concurrent.duration._
+
 /**
   * The PipelinesApiRequestFactory defines the HttpRequests needed to run jobs
   */
@@ -73,6 +75,7 @@ object PipelinesApiRequestFactory {
                                       computeServiceAccount: String,
                                       googleLabels: Seq[GoogleLabel],
                                       preemptible: Boolean,
+                                      pipelineTimeout: FiniteDuration,
                                       jobShell: String,
                                       privateDockerKeyAndEncryptedToken: Option[CreatePipelineDockerKeyAndToken],
                                       womOutputRuntimeExtractor: Option[WomOutputRuntimeExtractor],

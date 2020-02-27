@@ -21,7 +21,8 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
     false,
     None,
     None,
-    None
+    None,
+    false
   )
 
   val expectedDefaultsPlusUbuntuDocker = expectedDefaults.copy(dockerImage = "ubuntu:latest")
@@ -61,6 +62,17 @@ class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
       assertFailure(runtimeAttributes, "Expecting failOnStderr runtime attribute to be a Boolean or a String with values of 'true' or 'false'")
     }
 
+    "validate a valid preemptible entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "preemptible" -> WomBoolean(true))
+      val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(preemptible = true)
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "fail to validate an invalid preemptible entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "preemptible" -> WomString("yes"))
+      assertFailure(runtimeAttributes, "Expecting preemptible runtime attribute to be a Boolean or a String with values of 'true' or 'false'")
+    }
+    
     "validate a valid continueOnReturnCode entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomInteger(1))
       val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1)))

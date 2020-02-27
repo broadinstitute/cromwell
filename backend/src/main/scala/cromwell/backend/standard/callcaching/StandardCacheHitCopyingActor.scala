@@ -125,8 +125,9 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   override lazy val configurationDescriptor: BackendConfigurationDescriptor = standardParams.configurationDescriptor
   protected val commandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
 
-  lazy val destinationCallRootPath: Path = jobPaths.callRoot
-  def destinationJobDetritusPaths: Map[String, Path] = jobPaths.detritusPaths
+  lazy val cacheCopyJobPaths = jobPaths.forCallCacheCopyAttempts
+  lazy val destinationCallRootPath: Path = cacheCopyJobPaths.callRoot
+  def destinationJobDetritusPaths: Map[String, Path] = cacheCopyJobPaths.detritusPaths
   
   lazy val ioActor = standardParams.ioActor
 

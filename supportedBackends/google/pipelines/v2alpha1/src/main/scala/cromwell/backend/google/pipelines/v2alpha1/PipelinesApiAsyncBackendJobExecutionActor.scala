@@ -24,6 +24,7 @@ import wom.values.{GlobFunctions, WomFile, WomGlobFile, WomMaybeListedDirectory,
 import scala.concurrent.Future
 import scala.io.Source
 import scala.language.postfixOps
+import scala.util.control.NoStackTrace
 
 class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExecutionActorParams) extends cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor(standardParams) {
 
@@ -310,15 +311,31 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
 }
 
 object PipelinesApiAsyncBackendJobExecutionActor {
-  private val gcsPathMatcher = "^gs://?([^/]+)/.*".r
+  // GCS path regexes comments:
+  // - The (?s) option at the start makes '.' expression to match any symbol, including '\n'
+  // - All valid GCS paths start with gs://
+  // - Bucket names:
+  //  - The bucket name is matched inside a set of '()'s so it can be used later.
+  //  - The bucket name must start with a letter or number (https://cloud.google.com/storage/docs/naming)
+  //  - Then, anything that is not a '/' is part of the bucket name
+  // - Allow zero or more subdirectories, with (/[^/]+)*
+  // - Then, for files:
+  //  - There must be at least one '/', followed by some content in the file name.
+  // - Or, then, for directories:
+  //  - If we got this far, we already have a valid directory path. Allow it to optionally end with a `/` character.
+  private val gcsFilePathMatcher =      "(?s)^gs://([a-zA-Z0-9][^/]+)(/[^/]+)*/[^/]+$".r
+  private val gcsDirectoryPathMatcher = "(?s)^gs://([a-zA-Z0-9][^/]+)(/[^/]+)*/?$".r
 
   private [v2alpha1] def groupParametersByGcsBucket[T <: PipelinesParameter](parameters: List[T]): Map[String, NonEmptyList[T]] = {
     parameters.map { param =>
-      param.cloudPath.toString match {
-        case gcsPathMatcher(bucket) =>
-          Map(bucket -> NonEmptyList.of(param))
+      def pathTypeString = if (param.isFileParameter) "File" else "Directory"
+      val regexToUse = if (param.isFileParameter) gcsFilePathMatcher else gcsDirectoryPathMatcher
+
+      param.cloudPath.pathAsString match {
+        case regexToUse(bucket) => Map(bucket -> NonEmptyList.of(param))
+        case regexToUse(bucket, _) => Map(bucket -> NonEmptyList.of(param))
         case other =>
-          throw new RuntimeException(s"Programmer error: Path '$other' did not match the expected regex. This should have been impossible")
+          throw new Exception(s"$pathTypeString path '$other' did not match the expected regex: ${regexToUse.pattern.toString}") with NoStackTrace
       }
     } combineAll
   }

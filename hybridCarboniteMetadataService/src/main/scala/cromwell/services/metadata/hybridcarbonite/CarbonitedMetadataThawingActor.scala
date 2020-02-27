@@ -9,7 +9,8 @@ import cats.syntax.eq._
 import mouse.boolean._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.ErrorOr._
-import cromwell.core.WorkflowId
+import common.validation.Validation._
+import cromwell.core.{WorkflowId, WorkflowMetadataKeys}
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
 import cromwell.services.metadata.MetadataQuery
 import cromwell.services.metadata.MetadataService._
@@ -152,7 +153,8 @@ object CarbonitedMetadataThawingActor {
         // For carbonited metadata, "expanded" subworkflows translates to not deleting subworkflows out of the root workflow that already
         // contains them. So `intermediate.validNel` for expanded subworkflows and `JsonEditor.replaceSubworkflowMetadataWithId`
         // for unexpanded subworkflows.
-        if (get.key.expandSubWorkflows) intermediate else intermediate flatMap JsonEditor.unexpandSubworkflows
+        val res = if (get.key.expandSubWorkflows) intermediate else intermediate flatMap JsonEditor.unexpandSubworkflows
+        if (get.key.includeKeysOption.isDefined) res else appendMetadataSource(res, action.workflowId)
       case other =>
         throw new RuntimeException(s"Programmer Error: Unexpected BuildWorkflowMetadataJsonAction message of type '${other.getClass.getSimpleName}': $other")
     }
@@ -166,6 +168,13 @@ object CarbonitedMetadataThawingActor {
           s"JSON of the root workflow $rootWorkflowId.").invalidNel
       }
     }
+
+    def appendMetadataSource(inputJson: ErrorOr[Json], workflowId: WorkflowId): ErrorOr[Json] =
+      inputJson.flatMap {
+        _.asObject
+          .toErrorOr(s"Programmer Error: Unexpected empty metadata json for workflow: $workflowId")
+          .map(jsObj => Json.fromJsonObject(jsObj.add(WorkflowMetadataKeys.MetadataSource, Json.fromString("Archived"))))
+      }
 
     def toSpray: JsObject = json.printWith(Printer.spaces2).parseJson.asJsObject
   }

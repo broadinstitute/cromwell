@@ -1,0 +1,6 @@
+{
+  "use_relative_output_paths":false,
+  "final_workflow_outputs_dir":"s3://<<s3-bucket-name-placeholder>>/wf_results",
+  "final_workflow_log_dir":"s3://<<s3-bucket-name-placeholder>>/wf_logs",
+  "final_call_logs_dir":"s3://<<s3-bucket-name-placeholder>>/cl_logs"
+}

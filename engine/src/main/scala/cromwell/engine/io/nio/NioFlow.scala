@@ -14,12 +14,11 @@ import cromwell.engine.io.IoActor._
 import cromwell.engine.io.{IoAttempts, IoCommandContext}
 import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPath
-import cromwell.filesystems.s3.S3Path
 import cromwell.filesystems.oss.OssPath
+import cromwell.filesystems.s3.S3Path
 import cromwell.util.TryWithResource._
 
 import scala.concurrent.ExecutionContext
-import scala.io.Codec
 object NioFlow {
   def NoopOnRetry(context: IoCommandContext[_])(failure: Throwable) = ()
 }
@@ -87,7 +86,7 @@ class NioFlow(parallelism: Int,
 
   private def write(write: IoWriteCommand) = IO {
     createDirectories(write.file)
-    write.file.writeContent(write.content)(write.openOptions, Codec.UTF8, write.compressPayload)
+    write.file.writeContent(write.content)(write.openOptions, StandardCharsets.UTF_8, write.compressPayload)
     ()
   }
 

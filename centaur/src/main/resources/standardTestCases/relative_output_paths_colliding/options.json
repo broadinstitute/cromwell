@@ -1,4 +1,5 @@
 {
   "final_workflow_outputs_dir": "/tmp/outputs/relative_output_paths_colliding",
-  "use_relative_output_paths": true
+  "use_relative_output_paths": true,
+  "read_from_cache": false
 }

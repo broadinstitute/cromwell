@@ -56,6 +56,7 @@ I chose to increase it from 2GB to 8GB but 4 might have been sufficient.
 * Check that the workflow succeeded
 * Check that there's now a new Cromwell release listed [here](https://github.com/broadinstitute/cromwell/releases).
 * Check that there's a homebrew PR for the new Cromwell version [here](https://github.com/Homebrew/homebrew-core/pulls) (and that it passes their CI)  
+* Have a look at https://travis-ci.com/broadinstitute/cromwell/branches. There should be a build for the new release tag that publishes new docker images for the version.
 
 ### How to Release Cromwell into Firecloud
 

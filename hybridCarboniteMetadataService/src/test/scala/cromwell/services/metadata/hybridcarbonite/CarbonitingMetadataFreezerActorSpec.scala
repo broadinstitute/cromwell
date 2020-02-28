@@ -120,7 +120,7 @@ class CarbonitingMetadataFreezerActorSpec extends TestKitSuite("CarbonitedMetada
     }
 
     // Simulates the IoActor failing to complete the IO command successfully:
-    ioCommandPromise.failure(new RuntimeException("Cannot write metadata to GCS bucket"))
+    ioCommandPromise.failure(new RuntimeException("TEST EXCEPTION: Cannot write metadata to GCS bucket"))
     eventually {
       actor.underlyingActor.updateArchiveStatusCall should be((workflowIdToFreeze, MetadataArchiveStatus.ArchiveFailed))
       actor.stateName should be(UpdatingDatabase)
@@ -148,7 +148,7 @@ class CarbonitingMetadataFreezerActorSpec extends TestKitSuite("CarbonitedMetada
     }
 
     // Freezer actor will receive `FailedMetadataJsonResponse` from service registry actor on any failure, including DB read timeout
-    serviceRegistryActor.send(actor, FailedMetadataJsonResponse(null, new RuntimeException("Cannot read classic metadata from DB")))
+    serviceRegistryActor.send(actor, FailedMetadataJsonResponse(null, new RuntimeException("TEST EXCEPTION: Cannot read classic metadata from DB")))
 
     eventually {
       actor.underlyingActor.updateArchiveStatusCall should be((workflowIdToFreeze, MetadataArchiveStatus.ArchiveFailed))
@@ -206,7 +206,7 @@ class CarbonitingMetadataFreezerActorSpec extends TestKitSuite("CarbonitedMetada
     // When the database update fails, the actor should retry update endlessly until success:
     watch(actor)
     10.times {
-      actor.underlyingActor.updateArchiveStatusPromise.failure(new RuntimeException("Cannot update status in DB"))
+      actor.underlyingActor.updateArchiveStatusPromise.failure(new RuntimeException("TEST EXCEPTION: Cannot update status in DB"))
       eventually {
         actor.stateName should be(UpdatingDatabase)
       }

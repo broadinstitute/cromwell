@@ -130,7 +130,7 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
     val expectedRes = s"""{ "calls": {}, $expectedJson, "id":"$workflow", "metadataSource": "Unarchived" }"""
 
     val mdQuery = MetadataQuery(workflow, None, None, None, None, expandSubWorkflows = false)
-    val queryAction = GetSingleWorkflowMetadataAction(workflow, None, None, expandSubWorkflows = false)
+    val queryAction = GetSingleWorkflowMetadataAction(workflow, None, None, expandSubWorkflows = false, metadataSourceOverride = None)
     assertMetadataResponse(queryAction, mdQuery, events, expectedRes)
   }
 

@@ -475,7 +475,6 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   }
 
   override def mapOutputWomFile(womFile: WomFile): WomFile = {
-
     val wfile  =  configuration.fileSystem match {
       case  AWSBatchStorageSystems.s3 =>
         womFile

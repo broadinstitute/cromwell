@@ -50,7 +50,7 @@ import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
-import cromwell.core.path.{DefaultPath, DefaultPathBuilder, Path, PathFactory,PathBuilder}
+import cromwell.core.path.{DefaultPathBuilder, Path, PathFactory,PathBuilder}
 import cromwell.core.io.DefaultIoCommandBuilder
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.s3.S3Path
@@ -466,24 +466,25 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     val pathBuilders:List[PathBuilder]  = List(DefaultPathBuilder)
     val path = PathFactory.buildPath(pathString, pathBuilders)
-    path match {
-      case _: DefaultPath if !path.isAbsolute => jobPaths.callExecutionRoot.resolve(path).toAbsolutePath
-      case _: DefaultPath if jobPaths.isInExecution(path.pathAsString) => jobPaths.hostPathFromContainerPath(path.pathAsString)
-      case _: DefaultPath => jobPaths.hostPathFromContainerInputs(path.pathAsString)
-    }
+    if (!path.isAbsolute)
+      jobPaths.callExecutionRoot.resolve(path).toAbsolutePath
+    else if(jobPaths.isInExecution(path.pathAsString))
+      jobPaths.hostPathFromContainerPath(path.pathAsString)
+    else
+      jobPaths.hostPathFromContainerInputs(path.pathAsString)
   }
 
   override def mapOutputWomFile(womFile: WomFile): WomFile = {
-    configuration.fileSystem match {
+
+    val wfile  =  configuration.fileSystem match {
       case  AWSBatchStorageSystems.s3 =>
-        womFileToPath(generateAwsBatchOutputs(jobDescriptor))(womFile)
+        womFile
       case _ =>
         val hostPath = hostAbsoluteFilePath(jobPaths, womFile.valueString)
-        def hostAbsolute(pathString: String): String = hostAbsoluteFilePath(jobPaths, pathString).pathAsString
-        if (!hostPath.exists) throw new FileNotFoundException(s"Could not process output, file not found: ${hostAbsolute(womFile.valueString)}")
-        val wfile = womFile mapFile hostAbsolute
-        womFileToPath(generateAwsBatchOutputs(jobDescriptor))(wfile)
+        if (!hostPath.exists) throw new FileNotFoundException(s"Could not process output, file not found: ${hostPath.pathAsString}")
+        womFile mapFile { _ => hostPath.pathAsString }
     }
+    womFileToPath(generateAwsBatchOutputs(jobDescriptor))(wfile)
   }
 
   private[aws] def womFileToPath(outputs: Set[AwsBatchFileOutput])(womFile: WomFile): WomFile = {

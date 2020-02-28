@@ -60,6 +60,10 @@ I chose to increase it from 2GB to 8GB but 4 might have been sufficient.
 
 ### How to Release Cromwell into Firecloud
 
+**Note:** If the Cromwell CHANGELOG indicates that the upgrade might take some time (eg because of a database migration), checking in with the release engineer
+and user support/comms to let them know that the upgrade may involve downtime is also required. You may need to help draft an impact statement and co-ordinate timing
+the deploy to make sure user impact in minimized.
+
 **Note:** How to accomplish some of these steps might be non-obvious to you. If so, refer to the additional details in the [full document](https://docs.google.com/document/d/1EEzwemE8IedCplIwL506fiqXr0262Pz4G0x6Cr6V-5E). 
 
 ![firecloud-develop](firecloud-develop.dot.png) 
@@ -81,9 +85,10 @@ runs and fill in any missing entries in the table.
 
 ### How to Deploy Cromwell in CAAS prod
 
-**Note:** Full details on how to complete each of these steps is found in the [Quick CAAS Deployment Guide](https://docs.google.com/document/d/1s0YC-oohJ7o-OGcgnH_-YBtIEKmLIPTRpG36yvWxUpE) 
+**Note:** If the Cromwell CHANGELOG indicates that the upgrade might take some time (eg because of a database migration), checking in with the CaaS users
+to let them know that the upgrade is about to happen is a good idea.
 
-![caas-prod](caas-prod.dot.png)
+Deploying to CAAS is detailed in the [Quick CAAS Deployment Guide](https://docs.google.com/document/d/1s0YC-oohJ7o-OGcgnH_-YBtIEKmLIPTRpG36yvWxUpE) 
 
 ## Bonus Processes
 

@@ -32,31 +32,29 @@ package cromwell.backend.impl.aws
 
 import java.security.MessageDigest
 
-import cats.data.{Kleisli, ReaderT}
 import cats.data.ReaderT._
-import cats.implicits._
-import cromwell.core.ExecutionIndex._
-
-import scala.language.higherKinds
+import cats.data.{Kleisli, ReaderT}
 import cats.effect.{Async, Timer}
-import com.amazonaws.services.s3.AmazonS3Client
+import cats.implicits._
+import com.amazonaws.services.s3.{AmazonS3, AmazonS3Client}
+import cromwell.backend.BackendJobDescriptor
+import cromwell.backend.io.JobPaths
+import cromwell.cloudsupport.aws.auth.AwsAuthMode
+import cromwell.core.ExecutionIndex._
+import fs2.Stream
+import org.slf4j.{Logger, LoggerFactory}
+import software.amazon.awssdk.core.sync.RequestBody
+import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.batch.BatchClient
 import software.amazon.awssdk.services.batch.model._
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient
 import software.amazon.awssdk.services.cloudwatchlogs.model.{GetLogEventsRequest, OutputLogEvent}
-import cromwell.backend.BackendJobDescriptor
-import cromwell.backend.io.JobPaths
-import cromwell.cloudsupport.aws.AwsConfiguration
-import cromwell.cloudsupport.aws.auth.AwsAuthMode
-import org.slf4j.{Logger, LoggerFactory}
-import fs2.Stream
-import software.amazon.awssdk.core.sync.RequestBody
-import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3Client
-import software.amazon.awssdk.services.s3.model.{HeadObjectRequest, ListObjectsV2Request, PutObjectRequest}
+import software.amazon.awssdk.services.s3.model.{HeadObjectRequest, PutObjectRequest}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
+import scala.language.higherKinds
 import scala.util.Try
 
 /**
@@ -102,8 +100,8 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     builder.build
   }
 
-  lazy val s3Client: S3Client = {
-    val s3Client = AmazonS3Client.builder.build
+  lazy val s3Client: AmazonS3 = {
+    AmazonS3Client.builder.build
   }
 
   lazy val reconfiguredScript: String = {
@@ -270,7 +268,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
       .digest(commandLine.getBytes())
       .foldLeft("")(_ + "%02x".format(_))
 
-    val bucketName = scriptS3BucketName;
+    val bucketName = scriptS3BucketName
 
     if (s3Client.headObject(HeadObjectRequest.builder()
       .bucket(bucketName)
@@ -326,7 +324,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
     val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder
 
-    Log.info(s"Creating job definition for task: ${taskId} with command: ${commandStr}")
+    Log.info(s"Creating job definition for task: $taskId with command: $commandStr")
 
     val jobDefinition = jobDefinitionBuilder.build(jobDefinitionContext)
 
@@ -340,7 +338,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                               .`type`(JobDefinitionType.CONTAINER)
                               .build
 
-    Log.info(s"Submitting definition request: ${definitionRequest}")
+    Log.info(s"""Submitting definition request: $definitionRequest""")
     val submit = async.delay(client.registerJobDefinition(definitionRequest).jobDefinitionArn)
 
     //Log.info(s"Submitted: ${submit.show}")

@@ -41,14 +41,11 @@ import cromwell.backend.impl.aws.io.AwsBatchVolume
 
 import scala.collection.JavaConverters._
 import java.io.ByteArrayOutputStream
-import java.security.MessageDigest
 import java.util.zip.GZIPOutputStream
 
 import com.google.common.io.BaseEncoding
 import org.slf4j.{Logger, LoggerFactory}
-import software.amazon.awssdk.core.sync.RequestBody
-import software.amazon.awssdk.services.s3.S3Client
-import software.amazon.awssdk.services.s3.model.{HeadObjectRequest, PutObjectRequest}
+
 
 /**
   * Responsible for the creation of the job definition.

@@ -184,8 +184,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
         }).compile.last.map(_.get)) //if successful there is guaranteed to be a value emitted, hence we can .get this option
     }
 
-    (createDefinition[F](s"""${workflow.callable.name}-${jobDescriptor.taskCall.localName}""", uniquePath) product Kleisli.ask[F, AwsBatchAttributes]).
-      flatMap((callClient _).tupled)
+    (createDefinition[F]( uniquePath ) product Kleisli.ask[F, AwsBatchAttributes]).flatMap((callClient _).tupled)
   }
 
   /**
@@ -255,42 +254,6 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     }
   }
 
-//  private def registerJobDefinition( jobDefinitionName: String ): RegisterJobDefinitionResponse = {
-//    val registerJobDefinitionRequest = RegisterJobDefinitionRequest.builder()
-//      .jobDefinitionName(jobDefinitionName)
-//      // type is reserved in scala so java methods called type() need to be escaped
-//      .`type`(JobDefinitionType.CONTAINER)
-//      .containerProperties(ContainerProperties.builder()
-//        //.jobRoleArn( jobRoleArn )
-//        .image(runtimeAttributes.dockerImage)
-//        // mount the fetch and run script. The script is made available by the launch template user data
-//        .volumes(Volume.builder()
-//          .name("fetchAndRunScript")
-//          .host(Host.builder().sourcePath("/usr/local/bin/fetch_and_run.sh").build())
-//          .build())
-//        .mountPoints(MountPoint.builder()
-//          .readOnly(true)
-//          .sourceVolume("fetchAndRunScript")
-//          .containerPath("/var/scratch/fetch_and_run.sh")
-//          .build())
-//        //mount the aws cli v2 distribution so the container can access it
-//        .volumes(Volume.builder()
-//          .name("awsCliHome")
-//          .host(Host.builder().sourcePath("/usr/local/aws-cli").build())
-//          .build())
-//        .mountPoints(MountPoint.builder()
-//          .readOnly(true)
-//          .sourceVolume("awsCliHome")
-//          .containerPath("/usr/local/aws-cli")
-//          .build())
-//        //the command the container should run
-//        .command("/var/scratch/fetch_and_run.sh")
-//        .build()
-//      )
-//      .build()
-//
-//    client.registerJobDefinition(registerJobDefinitionRequest)
-//  }
 
 
   /**
@@ -336,17 +299,12 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
   /** Creates a job definition in AWS Batch
    *
-   *  @param name Job definition name
    *  @return Arn for newly created job definition
    *
    */
-  private def createDefinition[F[_]](name: String,
-                                     taskId: String)(
-                                     implicit async: Async[F],
-                                     timer: Timer[F]): Aws[F, String] = ReaderT { awsBatchAttributes =>
-    //todo check if there is already a suitable definition
+  private def createDefinition[F[_]](taskId: String)
+                                    (implicit async: Async[F], timer: Timer[F]): Aws[F, String] = ReaderT { awsBatchAttributes =>
 
-    val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder
     val commandStr = awsBatchAttributes.fileSystem match {
       case AWSBatchStorageSystems.s3  => reconfiguredScript
       case _ => script
@@ -361,6 +319,12 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                                                             jobPaths,
                                                             inputs,
                                                             outputs)
+
+    //todo check if there is already a suitable definition
+    //todo create job definition name from prefix, image, tag and SHA1
+    val name = " todo ... "
+
+    val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder
 
     Log.info(s"Creating job definition for task: ${taskId} with command: ${commandStr}")
 

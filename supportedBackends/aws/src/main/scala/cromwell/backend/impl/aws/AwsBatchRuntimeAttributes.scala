@@ -37,7 +37,7 @@ import com.typesafe.config.Config
 import common.validation.ErrorOr._
 import cromwell.backend.impl.aws.io.{AwsBatchVolume, AwsBatchWorkingDisk}
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
-import cromwell.backend.validation.{BooleanRuntimeAttributesValidation, _}
+import cromwell.backend.validation._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import wom.RuntimeAttributesKeys
@@ -55,12 +55,14 @@ case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                      failOnStderr: Boolean,
                                      continueOnReturnCode: ContinueOnReturnCode,
                                      noAddress: Boolean,
-                                     fileSystem:String= "s3",
-                                     scriptS3BucketName: String)
+                                     scriptS3BucketName: String,
+                                     fileSystem:String= "s3")
 
 object AwsBatchRuntimeAttributes {
 
   val QueueArnKey = "queueArn"
+
+  val scriptS3BucketKey = "scriptBucketName"
 
   val ZonesKey = "zones"
   private val ZonesDefaultValue = WomString("us-east-1a")
@@ -106,6 +108,10 @@ object AwsBatchRuntimeAttributes {
   private def noAddressValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] = noAddressValidationInstance
     .withDefault(noAddressValidationInstance.configDefaultWomValue(runtimeConfig) getOrElse NoAddressDefaultValue)
 
+  private def scriptS3BucketNameValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[String] = {
+    ScriptS3BucketNameValidation( runtimeConfig.get.getString( scriptS3BucketKey ) ) //todo is this correct??
+  }
+
   private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
 
   private def queueArnValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[String] =
@@ -123,7 +129,8 @@ object AwsBatchRuntimeAttributes {
       memoryMinValidation(runtimeConfig),
       noAddressValidation(runtimeConfig),
       dockerValidation,
-      queueArnValidation(runtimeConfig)
+      queueArnValidation(runtimeConfig),
+      scriptS3BucketNameValidation(runtimeConfig)
     )
   }
 
@@ -137,7 +144,7 @@ object AwsBatchRuntimeAttributes {
     val failOnStderr: Boolean = RuntimeAttributesValidation.extract(failOnStderrValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val continueOnReturnCode: ContinueOnReturnCode = RuntimeAttributesValidation.extract(continueOnReturnCodeValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val noAddress: Boolean = RuntimeAttributesValidation.extract(noAddressValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-    val scriptS3BucketName = RuntimeAttributesValidation.extract( , validatedRuntimeAttributes)
+    val scriptS3BucketName = RuntimeAttributesValidation.extract(scriptS3BucketNameValidation(runtimeAttrsConfig) , validatedRuntimeAttributes)
 
     new AwsBatchRuntimeAttributes(
       cpu,
@@ -151,6 +158,28 @@ object AwsBatchRuntimeAttributes {
       noAddress,
       scriptS3BucketName
     )
+  }
+}
+
+object ScriptS3BucketNameValidation {
+  def apply(key: String): ScriptS3BucketNameValidation = new ScriptS3BucketNameValidation(key)
+}
+
+class ScriptS3BucketNameValidation( key: String ) extends StringRuntimeAttributesValidation(AwsBatchRuntimeAttributes.scriptS3BucketKey) {
+
+  //a reasonable but not perfect regex for a bucket (see https://stackoverflow.com/a/58248645/3573553)
+  protected val s3BucketNameRegex = "(?!^(\\d{1,3}\\.){3}\\d{1,3}$)(^[a-z0-9]([a-z0-9-]*(\\.[a-z0-9])?)*$)".trim.r
+
+
+  override def validateCoercedValue(womValue: WomString): ErrorOr[String] = {
+    case WomString(s) => validateBucketName(s)
+  }
+
+  private def validateBucketName(possibleBucketName: String): ErrorOr[String] = {
+    possibleBucketName match {
+      case s3BucketNameRegex(_@_*) => possibleBucketName.validNel
+      case _ => "Bucket name has invalid format".invalidNel
+    }
   }
 }
 

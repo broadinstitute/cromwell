@@ -1,14 +1,14 @@
 package cromwell.services.metadata.hybridcarbonite
 
 import akka.actor.ActorRef
-import akka.testkit.{TestActorRef, TestProbe}
+import akka.testkit.{EventFilter, TestActorRef, TestProbe}
 import com.typesafe.config.ConfigFactory
 import common.validation.Validation._
 import common.assertion.ManyTimes._
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.services.metadata.MetadataArchiveStatus.{Archived, Unarchived}
-import cromwell.services.metadata.MetadataService.{QueryForWorkflowsMatchingParameters, QueryMetadata, WorkflowQueryResponse, WorkflowQueryResult, WorkflowQuerySuccess}
+import cromwell.services.metadata.MetadataService.{QueryForWorkflowsMatchingParameters, QueryMetadata, WorkflowQueryFailure, WorkflowQueryResponse, WorkflowQueryResult, WorkflowQuerySuccess}
 import cromwell.services.metadata.hybridcarbonite.CarboniteWorkerActor.CarboniteWorkflowComplete
 import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActor.FreezeMetadata
 import org.scalatest.{FlatSpecLike, Matchers}
@@ -68,6 +68,21 @@ class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") 
       carboniteFreezerActor.expectMsg(FreezeMetadata(WorkflowId.fromString(workflowToCarbonite)))
 
       carboniteFreezerActor.send(carboniteWorkerActor, CarboniteWorkflowComplete(WorkflowId.fromString(workflowToCarbonite), Archived))
+    }
+  }
+
+  it should "keep carboniting workflow at intervals despite the query failures" in {
+    10.times {
+      // We might get noise from instrumentation. We can ignore that, but we expect the query to come through eventually:
+      val expectedQueryParams = CarboniteWorkerActor.buildQueryParametersForWorkflowToCarboniteQuery(carboniterConfig.minimumSummaryEntryId)
+      serviceRegistryActor.fishForSpecificMessage(10.seconds) {
+        case QueryForWorkflowsMatchingParameters(`expectedQueryParams`) => true
+      }
+
+      EventFilter.error(start = "Error while querying workflow to carbonite, will retry.") intercept {
+        serviceRegistryActor.send(carboniteWorkerActor, WorkflowQueryFailure(new RuntimeException("exception")))
+      }
+
     }
   }
 }

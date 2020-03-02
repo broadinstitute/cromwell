@@ -41,18 +41,19 @@ object TestFormulas extends StrictLogging {
   def runSuccessfulWorkflowAndVerifyMetadata(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = for {
     _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
     submittedWorkflow <- runSuccessfulWorkflow(workflowDefinition)
-    metadata <- validateMetadata(submittedWorkflow, workflowDefinition)
-    _ <- validateJobManagerStyleMetadata(submittedWorkflow, metadata.value)
-    _ = cromwellTracker.track(metadata)
-    _ <- validateDirectoryContentsCounts(workflowDefinition, submittedWorkflow, metadata)
+    notArchivedMetadata <- validateMetadata(submittedWorkflow, workflowDefinition, validateArchived = Option(false))
+    _ <- validateJobManagerStyleMetadata(submittedWorkflow, originalMetadata = notArchivedMetadata.value, validateArchived = Option(false))
+    _ = cromwellTracker.track(notArchivedMetadata)
+    _ <- validateDirectoryContentsCounts(workflowDefinition, submittedWorkflow, notArchivedMetadata)
     _ <- waitForArchive(submittedWorkflow, workflowDefinition)
     // Re-validate the metadata now that carboniting has completed
-    _ <- validateMetadata(submittedWorkflow, workflowDefinition)
-    flatMetadata = metadata.asFlat
+    _ <- validateMetadata(submittedWorkflow, workflowDefinition, validateArchived = Option(true))
+    _ <- validateJobManagerStyleMetadata(submittedWorkflow, originalMetadata = notArchivedMetadata.value, validateArchived = Option(true))
+    flatMetadata = notArchivedMetadata.asFlat
     workflowRoot = flatMetadata.value.get("workflowRoot").collectFirst { case JsString(r) => r } getOrElse "No Workflow Root"
     _ <- validateOutputs(submittedWorkflow, workflowDefinition, workflowRoot)
     _ <- validateLabels(submittedWorkflow, workflowDefinition, workflowRoot)
-    _ <- validateLogs(metadata, submittedWorkflow, workflowDefinition)
+    _ <- validateLogs(notArchivedMetadata, submittedWorkflow, workflowDefinition)
   } yield SubmitResponse(submittedWorkflow)
 
   def runFailingWorkflowAndVerifyMetadata(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = for {

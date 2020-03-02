@@ -574,7 +574,8 @@ object Operations extends StrictLogging {
 
   def validateMetadata(submittedWorkflow: SubmittedWorkflow,
                        workflowSpec: Workflow,
-                       cacheHitUUID: Option[UUID] = None): Test[WorkflowMetadata] = {
+                       cacheHitUUID: Option[UUID] = None,
+                       validateArchived: Option[Boolean] = None): Test[WorkflowMetadata] = {
     new Test[WorkflowMetadata] {
       def eventuallyMetadata(workflow: SubmittedWorkflow,
                              expectedMetadata: WorkflowFlatMetadata): IO[WorkflowMetadata] = {
@@ -629,7 +630,7 @@ object Operations extends StrictLogging {
         }
 
         for {
-          actualMetadata <- CentaurCromwellClient.metadata(workflow)
+          actualMetadata <- CentaurCromwellClient.metadata(workflow, archived = validateArchived)
           _ <- validateUnwantedMetadata(actualMetadata)
           _ <- validateAllowOtherOutputs(actualMetadata)
           diffs = expectedMetadata.diff(actualMetadata.asFlat, workflow.id.id, cacheHitUUID)
@@ -648,7 +649,8 @@ object Operations extends StrictLogging {
   }
 
   def validateJobManagerStyleMetadata(submittedWorkflow: SubmittedWorkflow,
-                                      originalMetadata: String): Test[Unit] = new Test[Unit] {
+                                      originalMetadata: String,
+                                      validateArchived: Option[Boolean] = None): Test[Unit] = new Test[Unit] {
 
     def validate(expectation: JsObject, actual: JsObject): IO[Unit] = {
       if(actual.equals(expectation)) {
@@ -703,7 +705,10 @@ object Operations extends StrictLogging {
     }
 
     override def run: IO[Unit] = for {
-      jmMetadata <- CentaurCromwellClient.metadata(workflow = submittedWorkflow, Option(CentaurCromwellClient.defaultMetadataArgs.getOrElse(Map.empty) ++ jmArgs))
+      jmMetadata <- CentaurCromwellClient.metadata(
+        workflow = submittedWorkflow,
+        Option(CentaurCromwellClient.defaultMetadataArgs.getOrElse(Map.empty) ++ jmArgs),
+        archived = validateArchived)
       jmMetadataObject <- IO.fromTry(Try(jmMetadata.value.parseJson.asJsObject))
       expectation <- IO.fromTry(Try(extractJmStyleMetadataFields(originalMetadata.parseJson.asJsObject)))
 

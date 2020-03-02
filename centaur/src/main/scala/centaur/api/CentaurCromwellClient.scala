@@ -107,7 +107,22 @@ object CentaurCromwellClient extends StrictLogging {
     Try(Await.result(successOrFailure, CentaurConfig.sendReceiveTimeout)).isSuccess
   }
 
-  def metadata(workflow: SubmittedWorkflow, args: Option[Map[String, List[String]]] = defaultMetadataArgs): IO[WorkflowMetadata] = metadataWithId(workflow.id, args)
+  def metadata(workflow: SubmittedWorkflow,
+               args: Option[Map[String, List[String]]] = defaultMetadataArgs,
+               archived: Option[Boolean] = None): IO[WorkflowMetadata] = {
+    val metadataSourceOverrideOpt = archived map { isArchived =>
+      "metadataSource" -> List(if (isArchived) "Archived" else "Unarchived")
+    }
+    val newArgs = args match {
+      case None => metadataSourceOverrideOpt.map(Map(_))
+      case Some(argMap) =>
+        metadataSourceOverrideOpt match {
+          case Some(metadataSourceOverride) => Option(argMap + metadataSourceOverride)
+          case None => Option(argMap)
+        }
+    }
+    metadataWithId(workflow.id, newArgs)
+  }
 
   def metadataWithId(id: WorkflowId, args: Option[Map[String, List[String]]] = defaultMetadataArgs): IO[WorkflowMetadata] = {
     sendReceiveFutureCompletion(() => cromwellClient.metadata(id, args))

@@ -34,7 +34,7 @@ package cromwell.backend.impl.aws
 import cats.syntax.apply._
 import cats.syntax.validated._
 import com.typesafe.config.Config
-import common.validation.ErrorOr._
+import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.impl.aws.io.{AwsBatchVolume, AwsBatchWorkingDisk}
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation._
@@ -44,6 +44,8 @@ import wom.RuntimeAttributesKeys
 import wom.format.MemorySize
 import wom.types._
 import wom.values._
+
+import scala.util.matching.Regex
 
 /**
  * Attributes that are provided to the job at runtime
@@ -55,7 +57,7 @@ import wom.values._
  * @param queueArn the arn of the AWS Batch queue that the job will be submitted to
  * @param failOnStderr should the job fail if something is logged to `stderr`
  * @param continueOnReturnCode decides if a job continues on receiving a specific return code
- * @param noAddress
+ * @param noAddress is there no address
  * @param scriptS3BucketName the s3 bucket where the execution command or script will be written and, from there, fetched into the container and executed
  * @param fileSystem the filesystem type, default is "s3"
  */
@@ -181,10 +183,10 @@ object ScriptS3BucketNameValidation {
 class ScriptS3BucketNameValidation( key: String ) extends StringRuntimeAttributesValidation(AwsBatchRuntimeAttributes.scriptS3BucketKey) {
 
   //a reasonable but not perfect regex for a bucket (see https://stackoverflow.com/a/58248645/3573553)
-  protected val s3BucketNameRegex = "(?!^(\\d{1,3}\\.){3}\\d{1,3}$)(^[a-z0-9]([a-z0-9-]*(\\.[a-z0-9])?)*$)".trim.r
+  protected val s3BucketNameRegex: Regex = "(?!^(\\d{1,3}\\.){3}\\d{1,3}$)(^[a-z0-9]([a-z0-9-]*(\\.[a-z0-9])?)*$)".trim.r
 
 
-  override def validateCoercedValue(womValue: WomString): ErrorOr[String] = {
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[String]] = {
     case WomString(s) => validateBucketName(s)
   }
 
@@ -200,7 +202,7 @@ object QueueArnValidation extends ArnValidation(AwsBatchRuntimeAttributes.QueueA
   // queue arn format can be found here
   // https://docs.aws.amazon.com/en_us/general/latest/gr/aws-arns-and-namespaces.html#arn-syntax-batch
   // arn:aws:batch:region:account-id:job-queue/queue-name
-  override protected val arnRegex =
+  override protected val arnRegex: Regex =
   s"""
       (?x)                            # Turn on comments and whitespace insensitivity
       (arn)                           # Every AWS ARN starts with "arn"
@@ -247,7 +249,7 @@ class ArnValidation(override val key: String) extends StringRuntimeAttributesVal
   // Possible ARN formats can be found here
   // https://docs.aws.amazon.com/en_us/general/latest/gr/aws-arns-and-namespaces.html
   // This is quite vague regex, but it allows to support a lot of ARN formats
-  protected val arnRegex =
+  protected val arnRegex: Regex =
   s"""
       (?x)                            # Turn on comments and whitespace insensitivity
       (arn)                           # Every ARN starts with "arn"

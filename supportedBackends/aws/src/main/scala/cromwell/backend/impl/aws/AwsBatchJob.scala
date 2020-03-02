@@ -40,7 +40,6 @@ import com.amazonaws.services.s3.{AmazonS3, AmazonS3Client}
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.JobPaths
 import cromwell.cloudsupport.aws.auth.AwsAuthMode
-import cromwell.core.ExecutionIndex._
 import fs2.Stream
 import org.slf4j.{Logger, LoggerFactory}
 import software.amazon.awssdk.core.sync.RequestBody
@@ -144,17 +143,26 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
   def submitJob[F[_]]()( implicit timer: Timer[F], async: Async[F]): Aws[F, SubmitJobResponse] = {
 
     val taskId = jobDescriptor.key.call.fullyQualifiedName + "-" + jobDescriptor.key.index + "-" + jobDescriptor.key.attempt
-    val workflow = jobDescriptor.workflowDescriptor
-    val uniquePath = workflow.callable.name + "/" +
-                     jobDescriptor.taskCall.localName + "/" +
-                     workflow.id + "/" +
-                     jobDescriptor.key.index.fromIndex + "/" +
-                     jobDescriptor.key.attempt
+
+    // create job definition name from prefix, image:tag and SHA1 of the volumes
+    val prefix = s"cromwell_${runtimeAttributes.dockerImage}".slice(0,88) // will be joined to a 40 character SHA1 for total length of 128
+    val volumeString = runtimeAttributes.disks.map(v => s"${v.toVolume()}:${v.toMountPoint}").mkString(",")
+    val sha1 = MessageDigest.getInstance("SHA-256")
+                            .digest(volumeString.getBytes("UTF-8"))
+                            .map("%02x".format(_)).mkString
+    val jobDefinitionName = sanitize( s"${prefix}_$sha1" )
+
+    //    val workflow = jobDescriptor.workflowDescriptor
+    //    val uniquePath = workflow.callable.name + "/" +
+    //                     jobDescriptor.taskCall.localName + "/" +
+    //                     workflow.id + "/" +
+    //                     jobDescriptor.key.index.fromIndex + "/" +
+    //                     jobDescriptor.key.attempt
     Log.info(s"""Submitting job to AWS Batch""")
     Log.info(s"""dockerImage: ${runtimeAttributes.dockerImage}""")
     Log.info(s"""jobQueueArn: ${runtimeAttributes.queueArn}""")
     Log.info(s"""taskId: $taskId""")
-    Log.info(s"""hostpath root: $uniquePath""")
+    Log.info(s"""job definition: $jobDefinitionName""")
 
     //find or create the script in s3 to execute
     val scriptKey = findOrCreateS3Script(commandLine, runtimeAttributes.scriptS3BucketName)
@@ -182,76 +190,8 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
         }).compile.last.map(_.get)) //if successful there is guaranteed to be a value emitted, hence we can .get this option
     }
 
-    (createDefinition[F]( uniquePath ) product Kleisli.ask[F, AwsBatchAttributes]).flatMap((callClient _).tupled)
+    (createDefinition[F]( jobDefinitionName ) product Kleisli.ask[F, AwsBatchAttributes]).flatMap((callClient _).tupled)
   }
-
-  /**
-    * is there an existing appropriate definition that I can use, if not create one
-    */
-  private def findOrRegisterJobDefinition(): Unit ={
-
-    //is there an active definition of the same name?
-    val jobDefinitionName = s"""cromwell_def_${runtimeAttributes.dockerImage}"""
-
-    val jobDefinitionRequest = DescribeJobDefinitionsRequest.builder()
-      .jobDefinitionName( sanitize(jobDefinitionName) )
-      .status( "ACTIVE" )
-      .build()
-
-    val existingJobDefinitions = client.describeJobDefinitions(jobDefinitionRequest).jobDefinitions()
-
-    if( existingJobDefinitions.isEmpty ) {
-      //can't find one of the same name so make it
-      Log.info(s"Creating $jobDefinitionName job definition")
-
-      val jobRegistrationResult: RegisterJobDefinitionResponse = registerJobDefinition(jobDefinitionName)
-
-      Log.info(s"Created job definition named ${jobRegistrationResult.jobDefinitionName()} " +
-        s"with arn ${jobRegistrationResult.jobDefinitionArn}")
-
-    } else {
-      //get the latest revision
-      val jobDef = existingJobDefinitions.asScala.toList.sortWith( _.revision > _.revision ).head
-
-      println(s"Found job definition ${ jobDef.jobDefinitionName } revision ${ jobDef.revision}")
-
-      //todo check that the definition that was found by name matches what would have been created in code??
-
-      // the definition should have the same name and the latest version should have the expected:
-      // 1. image
-      // 2. command (fetch and run)
-      // 3. volumes:
-      //   "volumes": [
-      //            {
-      //                "host": {
-      //                    "sourcePath": "/usr/local/bin/fetch_and_run.sh"
-      //                },
-      //                "name": "fetchAndRunScript"
-      //            },
-      //            {
-      //                "host": {
-      //                    "sourcePath": "/usr/local/aws-cli"
-      //                },
-      //                "name": "awsCliHome"
-      //            }
-      //   ]
-      // 4. mount points:
-      //   "mountPoints": [
-      //            {
-      //                "containerPath": "/var/scratch/fetch_and_run.sh",
-      //                "readOnly": true,
-      //                "sourceVolume": "fetchAndRunScript"
-      //            },
-      //            {
-      //                "containerPath": "/usr/local/aws-cli",
-      //                "readOnly": true,
-      //                "sourceVolume": "awsCliHome"
-      //            }
-      //   ]
-
-    }
-  }
-
 
 
   /**
@@ -297,51 +237,68 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
   /** Creates a job definition in AWS Batch
    *
-   *  @return Arn for newly created job definition
+   * @return Arn for newly created job definition
    *
    */
-  private def createDefinition[F[_]](taskId: String)
+  private def createDefinition[F[_]](jobDefinitionName: String)
                                     (implicit async: Async[F], timer: Timer[F]): Aws[F, String] = ReaderT { awsBatchAttributes =>
+    //check if there is already a suitable definition based on the job definition name
+    val describeJobDefinitionRequest = DescribeJobDefinitionsRequest.builder().jobDefinitionName( jobDefinitionName ).build()
+    val describeJobDefinitionResponse = client.describeJobDefinitions( describeJobDefinitionRequest )
 
+    if( ! describeJobDefinitionResponse.jobDefinitions.isEmpty ){
+      val jobDefArnFunction = async.
+        delay(client.describeJobDefinitions(describeJobDefinitionRequest)).
+        map(_.jobDefinitions().asScala.toList.sortWith( _.revision > _.revision )).
+        map(definitions => {
+          Log.info(s"Latest job definition revision is: ${definitions.head} with arn: ${definitions.head.jobDefinitionArn()}")
+          definitions.last.jobDefinitionArn()
+        })
+
+      return liftF( jobDefArnFunction )
+    }
+
+    //no definition found. create one
     val commandStr = awsBatchAttributes.fileSystem match {
-      case AWSBatchStorageSystems.s3  => reconfiguredScript
+      case AWSBatchStorageSystems.s3 => reconfiguredScript
       case _ => script
     }
-    val jobDefinitionContext = AwsBatchJobDefinitionContext(runtimeAttributes,
-                                                            taskId,
-                                                            commandStr,
-                                                            dockerRc,
-                                                            dockerStdout,
-                                                            dockerStderr,
-                                                            jobDescriptor,
-                                                            jobPaths,
-                                                            inputs,
-                                                            outputs)
-
-    //todo check if there is already a suitable definition
-    //todo create job definition name from prefix, image, tag and SHA1
-    val name = " todo ... "
+    val jobDefinitionContext = AwsBatchJobDefinitionContext(
+      runtimeAttributes = runtimeAttributes,
+      uniquePath = jobDefinitionName,
+      commandText = commandStr,
+      dockerRcPath = dockerRc,
+      dockerStdoutPath = dockerStdout,
+      dockerStderrPath = dockerStderr,
+      jobDescriptor = jobDescriptor,
+      jobPaths = jobPaths,
+      inputs = inputs,
+      outputs = outputs)
 
     val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder
 
-    Log.info(s"Creating job definition for task: $taskId with command: $commandStr")
+    Log.info(s"Creating job definition: $jobDefinitionName")
 
     val jobDefinition = jobDefinitionBuilder.build(jobDefinitionContext)
+
 
     // See:
     //
     // http://aws-java-sdk-javadoc.s3-website-us-west-2.amazonaws.com/latest/software/amazon/awssdk/services/batch/model/RegisterJobDefinitionRequest.Builder.html
     val definitionRequest = RegisterJobDefinitionRequest.builder
-                              .containerProperties(jobDefinition.containerProperties)
-                              .jobDefinitionName(sanitize(name))
-                              // See https://stackoverflow.com/questions/24349517/scala-method-named-type
-                              .`type`(JobDefinitionType.CONTAINER)
-                              .build
+      .containerProperties(jobDefinition.containerProperties)
+      .jobDefinitionName(jobDefinitionName)
+      // See https://stackoverflow.com/questions/24349517/scala-method-named-type
+      .`type`(JobDefinitionType.CONTAINER)
+      .build
 
-    Log.info(s"""Submitting definition request: $definitionRequest""")
-    val submit = async.delay(client.registerJobDefinition(definitionRequest).jobDefinitionArn)
+    Log.info(s"Submitting definition request: $definitionRequest")
+    val submit = async.delay({
+      val arn = client.registerJobDefinition(definitionRequest).jobDefinitionArn
+      Log.info(s"Definition created: $arn")
+      arn
+    })
 
-    //Log.info(s"Submitted: ${submit.show}")
 
     val retry: F[String] = Stream.retry(submit, 0.millis, _ * 2, awsBatchAttributes.createDefinitionAttempts.value, {
       // RegisterJobDefinition throws 404s every once in a while
@@ -356,11 +313,12 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
         // warning as a result of this potential
         Log.warn("Job definition already exists. Performing describe and retrieving latest revision.")
         async.
-          delay(client.describeJobDefinitions(DescribeJobDefinitionsRequest.builder().jobDefinitionName(sanitize(name)).build())).
+          delay(client.describeJobDefinitions(DescribeJobDefinitionsRequest.builder().jobDefinitionName(jobDefinitionName).build())).
           map(_.jobDefinitions().asScala).
           map(definitions => {
             Log.info(s"Latest job definition revision is: ${definitions.last.jobDefinitionName()} with arn: ${definitions.last.jobDefinitionArn()}")
-            definitions.last.jobDefinitionArn()})
+            definitions.last.jobDefinitionArn()
+          })
     }
   }
 

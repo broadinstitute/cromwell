@@ -45,7 +45,20 @@ import wom.format.MemorySize
 import wom.types._
 import wom.values._
 
-
+/**
+ * Attributes that are provided to the job at runtime
+ * @param cpu number of vCPU
+ * @param zones the aws availability zones to run in
+ * @param memory memory to allocate
+ * @param disks a sequence of disk volumes
+ * @param dockerImage the name of the docker image that the job will run in
+ * @param queueArn the arn of the AWS Batch queue that the job will be submitted to
+ * @param failOnStderr should the job fail if something is logged to `stderr`
+ * @param continueOnReturnCode decides if a job continues on receiving a specific return code
+ * @param noAddress
+ * @param scriptS3BucketName the s3 bucket where the execution command or script will be written and, from there, fetched into the container and executed
+ * @param fileSystem the filesystem type, default is "s3"
+ */
 case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                      zones: Vector[String],
                                      memory: MemorySize,

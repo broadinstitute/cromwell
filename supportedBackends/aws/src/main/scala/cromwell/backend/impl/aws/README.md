@@ -360,11 +360,13 @@ the AWS Services involved in the processing of the work.
 
 ```text
 +----------------------------+
-|                            |  s3:GetObject on bucket for workflow
-|                            |  batch:RegisterTaskDefinition
-|          Cromwell          |  batch:SubmitJob
+|                            |  s3:GetObject on bucket for workflow and script bucket
+|                            |  s3:ListObjects on script bucket
+|                            |  s3:PutObject on script bucket
+|          Cromwell          |  batch:RegisterTaskDefinition
+|                            |  batch:SubmitJob
 |                            |  batch:DescribeJobs
-|                            |  batch:DescribeJobDefinitions (retry only)
+|                            |  batch:DescribeJobDefinitions
 +-------------+--------------+
               |
               |

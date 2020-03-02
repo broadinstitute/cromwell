@@ -124,7 +124,8 @@ object AwsBatchRuntimeAttributes {
     .withDefault(noAddressValidationInstance.configDefaultWomValue(runtimeConfig) getOrElse NoAddressDefaultValue)
 
   private def scriptS3BucketNameValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[String] = {
-    ScriptS3BucketNameValidation( runtimeConfig.get.getString( scriptS3BucketKey ) ) //todo is this correct??
+    ScriptS3BucketNameValidation(scriptS3BucketKey).withDefault(ScriptS3BucketNameValidation(scriptS3BucketKey)
+      .configDefaultWomValue(runtimeConfig).getOrElse( throw new RuntimeException( "scriptBucketName is required" )))
   }
 
   private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
@@ -180,7 +181,7 @@ object ScriptS3BucketNameValidation {
   def apply(key: String): ScriptS3BucketNameValidation = new ScriptS3BucketNameValidation(key)
 }
 
-class ScriptS3BucketNameValidation( key: String ) extends StringRuntimeAttributesValidation(AwsBatchRuntimeAttributes.scriptS3BucketKey) {
+class ScriptS3BucketNameValidation( key: String ) extends StringRuntimeAttributesValidation(key) {
 
   //a reasonable but not perfect regex for a bucket (see https://stackoverflow.com/a/58248645/3573553)
   protected val s3BucketNameRegex: Regex = "(?!^(\\d{1,3}\\.){3}\\d{1,3}$)(^[a-z0-9]([a-z0-9-]*(\\.[a-z0-9])?)*$)".trim.r

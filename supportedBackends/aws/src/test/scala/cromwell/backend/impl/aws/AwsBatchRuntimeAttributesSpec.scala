@@ -32,9 +32,9 @@
 package cromwell.backend.impl.aws
 
 import cats.data.NonEmptyList
+import cromwell.backend.RuntimeAttributeDefinition
 import cromwell.backend.impl.aws.io.{AwsBatchVolume, AwsBatchWorkingDisk}
 import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
-import cromwell.backend.RuntimeAttributeDefinition
 import cromwell.core.WorkflowOptions
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineMV
@@ -57,8 +57,13 @@ class AwsBatchRuntimeAttributesSpec extends WordSpecLike with Matchers with Mock
 
   val expectedDefaults = new AwsBatchRuntimeAttributes(refineMV[Positive](1), Vector("us-east-1a", "us-east-1b"),
 
-    MemorySize(2, MemoryUnit.GB), Vector(AwsBatchWorkingDisk()), "ubuntu:latest", "arn:aws:batch:us-east-1:111222333444:job-queue/job-queue", false,
-    ContinueOnReturnCodeSet(Set(0)), false)
+    MemorySize(2, MemoryUnit.GB), Vector(AwsBatchWorkingDisk()),
+    "ubuntu:latest",
+    "arn:aws:batch:us-east-1:111222333444:job-queue/job-queue",
+    false,
+    ContinueOnReturnCodeSet(Set(0)),
+    false,
+    "my-bucket")
 
   "AwsBatchRuntimeAttributes" should {
 
@@ -80,6 +85,18 @@ class AwsBatchRuntimeAttributesSpec extends WordSpecLike with Matchers with Mock
     //   val expectedRuntimeAttributes = expectedDefaults
     //   assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes, configuration = noDefaultsAwsBatchConfiguration)
     // }
+
+    "validate a valid scriptBucketName entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("my-bucket"))
+      val expectedRuntimeAttributes = expectedDefaults
+      assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "fail to validate an invalid scriptBucketName entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("my**Bucket"))
+      assertAwsBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Bucket name has invalid format")
+
+    }
 
     "validate a valid Docker entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"))

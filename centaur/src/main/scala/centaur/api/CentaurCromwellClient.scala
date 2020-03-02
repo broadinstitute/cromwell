@@ -109,11 +109,14 @@ object CentaurCromwellClient extends StrictLogging {
 
   def metadata(workflow: SubmittedWorkflow,
                args: Option[Map[String, List[String]]] = defaultMetadataArgs,
+               expandSubworkflows: Boolean = false,
                archived: Option[Boolean] = None): IO[WorkflowMetadata] = {
+    val mandatoryArgs = Map("expandSubWorkflows" -> List(expandSubworkflows.toString))
+
     val metadataSourceOverrideOpt = archived map { isArchived =>
       "metadataSource" -> List(if (isArchived) "Archived" else "Unarchived")
     }
-    val newArgs = args match {
+    val optArgs = args match {
       case None => metadataSourceOverrideOpt.map(Map(_))
       case Some(argMap) =>
         metadataSourceOverrideOpt match {
@@ -121,7 +124,7 @@ object CentaurCromwellClient extends StrictLogging {
           case None => Option(argMap)
         }
     }
-    metadataWithId(workflow.id, newArgs)
+    metadataWithId(workflow.id, Option(mandatoryArgs ++ optArgs.getOrElse(Map.empty)))
   }
 
   def metadataWithId(id: WorkflowId, args: Option[Map[String, List[String]]] = defaultMetadataArgs): IO[WorkflowMetadata] = {

@@ -483,6 +483,28 @@ object Operations extends StrictLogging {
     } yield selected
   }
 
+  def validateSubworkflowsMetadataBeforeAndAfterArchival(submittedWorkflow: SubmittedWorkflow,
+                                                         workflow: Workflow): Test[Unit] = new Test[Unit] {
+
+    def validateSubworkflowsMetadata(expected: WorkflowFlatMetadata, actual: WorkflowFlatMetadata): IO[Unit] = {
+      val errors = expected diff actual
+      if (errors.isEmpty) {
+        IO.pure(())
+      } else {
+        val message = s"Subworkflows metadata validation failed: ${errors.mkString("\n")}"
+        IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
+      }
+    }
+
+    override def run: IO[Unit] = {
+      for {
+        notArchivedMetadata <- CentaurCromwellClient.metadata(submittedWorkflow, expandSubworkflows = true, archived = Option(false))
+        archivedMetadata <- CentaurCromwellClient.metadata(submittedWorkflow, expandSubworkflows = true, archived = Option(true))
+        _ <- validateSubworkflowsMetadata(notArchivedMetadata.asFlat.onlySubWorkflows, archivedMetadata.asFlat.onlySubWorkflows)
+      } yield ()
+    }
+  }
+
   def validateOutputs(submittedWorkflow: SubmittedWorkflow,
                       workflow: Workflow,
                       workflowRoot: String): Test[Unit] = new Test[Unit] {
@@ -643,7 +665,7 @@ object Operations extends StrictLogging {
           eventuallyMetadata(submittedWorkflow, expectedMetadata)
             .timeoutTo(CentaurConfig.metadataConsistencyTimeout, validateMetadata(submittedWorkflow, expectedMetadata))
         // Nothing to wait for, so just return the first metadata we get back:
-        case None => CentaurCromwellClient.metadata(submittedWorkflow)
+        case None => CentaurCromwellClient.metadata(submittedWorkflow, archived = validateArchived)
       }
     }
   }

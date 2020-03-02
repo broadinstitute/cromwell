@@ -49,8 +49,9 @@ object TestFormulas extends StrictLogging {
     // Re-validate the metadata now that carboniting has completed
     _ <- validateMetadata(submittedWorkflow, workflowDefinition, validateArchived = Option(true))
     _ <- validateJobManagerStyleMetadata(submittedWorkflow, originalMetadata = notArchivedMetadata.value, validateArchived = Option(true))
-    flatMetadata = notArchivedMetadata.asFlat
-    workflowRoot = flatMetadata.value.get("workflowRoot").collectFirst { case JsString(r) => r } getOrElse "No Workflow Root"
+    _ <- validateSubworkflowsMetadataBeforeAndAfterArchival(submittedWorkflow, workflowDefinition)
+    notArchivedFlatMetadata = notArchivedMetadata.asFlat
+    workflowRoot = notArchivedFlatMetadata.value.get("workflowRoot").collectFirst { case JsString(r) => r } getOrElse "No Workflow Root"
     _ <- validateOutputs(submittedWorkflow, workflowDefinition, workflowRoot)
     _ <- validateLabels(submittedWorkflow, workflowDefinition, workflowRoot)
     _ <- validateLogs(notArchivedMetadata, submittedWorkflow, workflowDefinition)

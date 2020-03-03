@@ -34,7 +34,7 @@ import java.security.MessageDigest
 
 import cats.data.ReaderT._
 import cats.data.{Kleisli, ReaderT}
-import cats.effect.{Async, Timer}
+import cats.effect.{Async, IO, Timer}
 import cats.implicits._
 import com.amazonaws.services.s3.{AmazonS3, AmazonS3Client}
 import cromwell.backend.BackendJobDescriptor
@@ -49,7 +49,7 @@ import software.amazon.awssdk.services.batch.model._
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient
 import software.amazon.awssdk.services.cloudwatchlogs.model.{GetLogEventsRequest, OutputLogEvent}
 import software.amazon.awssdk.services.s3.S3Client
-import software.amazon.awssdk.services.s3.model.{HeadObjectRequest, PutObjectRequest}
+import software.amazon.awssdk.services.s3.model.{HeadObjectRequest, NoSuchKeyException, PutObjectRequest}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -158,14 +158,14 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     //                     workflow.id + "/" +
     //                     jobDescriptor.key.index.fromIndex + "/" +
     //                     jobDescriptor.key.attempt
-    Log.info(s"""Submitting job to AWS Batch""")
-    Log.info(s"""dockerImage: ${runtimeAttributes.dockerImage}""")
-    Log.info(s"""jobQueueArn: ${runtimeAttributes.queueArn}""")
-    Log.info(s"""taskId: $taskId""")
-    Log.info(s"""job definition: $jobDefinitionName""")
+    IO(Log.info(s"""Submitting job to AWS Batch"""))
+    IO(Log.info(s"""dockerImage: ${runtimeAttributes.dockerImage}"""))
+    IO(Log.info(s"""jobQueueArn: ${runtimeAttributes.queueArn}"""))
+    IO(Log.info(s"""taskId: $taskId"""))
+    IO(Log.info(s"""job definition: $jobDefinitionName"""))
 
     //find or create the script in s3 to execute
-    val scriptKey = findOrCreateS3Script(commandLine, runtimeAttributes.scriptS3BucketName)
+    val scriptKey = findOrCreateS3Script(script, runtimeAttributes.scriptS3BucketName)
 
     def callClient(definitionArn: String, awsBatchAttributes: AwsBatchAttributes): Aws[F, SubmitJobResponse] = {
       val submit: F[SubmitJobResponse] =
@@ -190,48 +190,51 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
         }).compile.last.map(_.get)) //if successful there is guaranteed to be a value emitted, hence we can .get this option
     }
 
-    (createDefinition[F]( jobDefinitionName ) product Kleisli.ask[F, AwsBatchAttributes]).flatMap((callClient _).tupled)
+    (findOrCreateDefinition[F]( jobDefinitionName ) product Kleisli.ask[F, AwsBatchAttributes]).flatMap((callClient _).tupled)
   }
 
 
   /**
-    * Performs an md5 digest the command line, checks in s3 bucket for that script, if it's not already there then persists it.
+    * Performs an md5 digest the script, checks in s3 bucket for that script, if it's not already there then persists it.
     *
-    * @param commandLine the command line script to be executed
+    * @param script the command line script to be executed
     * @param scriptS3BucketName the bucket that stores the scripts
+    * @return the name of the script that was found or created
     */
-  private def findOrCreateS3Script(commandLine :String, scriptS3BucketName: String) :String = {
+  private def findOrCreateS3Script(script :String, scriptS3BucketName: String) :String = {
 
     val s3Client = S3Client.create()
 
     val key = MessageDigest.getInstance("MD5")
-      .digest(commandLine.getBytes())
+      .digest(script.getBytes())
       .foldLeft("")(_ + "%02x".format(_))
 
     val bucketName = scriptS3BucketName
 
-    if (s3Client.headObject(HeadObjectRequest.builder()
-      .bucket(bucketName)
-      .ifMatch(key)
-      .build()
-    ).eTag().equals(key)) {
+    try { //try and head the object
+      s3Client.headObject(HeadObjectRequest.builder()
+        .bucket(bucketName)
+        .ifMatch(key)
+        .build()
+      ).eTag().equals(key)
+
       //the script already exists
       Log.info(s"""Found script s3://$bucketName/$key""")
+    } catch {
+      case _: NoSuchKeyException =>  //this happens if there is no object with that key in the bucket
+        Log.info(s"Script $key not found in bucket $bucketName. Creating script with content:\n$script")
 
-    } else {
+        val putRequest = PutObjectRequest.builder()
+          .bucket(bucketName)
+          .key(key)
+          .contentMD5(key)
+          .build()
 
-      Log.info(s"Script $key not found in bucket $bucketName. Creating script with content:\n$commandLine")
-      s3Client.putObject(PutObjectRequest.builder()
-        .bucket(bucketName)
-        .key(key)
-        .contentMD5(key)
-        .build(),
-        RequestBody.fromString(commandLine))
+        s3Client.putObject(putRequest, RequestBody.fromString(script))
 
-      Log.info(s"Created script $key")
+        Log.info(s"Created script $key")
 
     }
-
     key
   }
 
@@ -240,23 +243,25 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
    * @return Arn for newly created job definition
    *
    */
-  private def createDefinition[F[_]](jobDefinitionName: String)
+  private def findOrCreateDefinition[F[_]](jobDefinitionName: String)
                                     (implicit async: Async[F], timer: Timer[F]): Aws[F, String] = ReaderT { awsBatchAttributes =>
     //check if there is already a suitable definition based on the job definition name
     val describeJobDefinitionRequest = DescribeJobDefinitionsRequest.builder().jobDefinitionName( jobDefinitionName ).build()
-    val describeJobDefinitionResponse = client.describeJobDefinitions( describeJobDefinitionRequest )
 
-    if( ! describeJobDefinitionResponse.jobDefinitions.isEmpty ){
-      val jobDefArnFunction = async.
-        delay(client.describeJobDefinitions(describeJobDefinitionRequest)).
-        map(_.jobDefinitions().asScala.toList.sortWith( _.revision > _.revision )).
-        map(definitions => {
-          Log.info(s"Latest job definition revision is: ${definitions.head} with arn: ${definitions.head.jobDefinitionArn()}")
-          definitions.last.jobDefinitionArn()
-        })
+    async.delay({
+      val describeJobDefinitionResponse = client.describeJobDefinitions(describeJobDefinitionRequest)
+      if ( !describeJobDefinitionResponse.jobDefinitions.isEmpty ) {
 
-      return liftF( jobDefArnFunction )
-    }
+        val definitions = describeJobDefinitionResponse.jobDefinitions().asScala
+
+        //sort the definitions so that the latest revision is at the head and return its ARN
+        definitions.toList.sortWith(_.revision > _.revision).head.jobDefinitionArn()
+        Log.info(s"Latest job definition revision is: ${definitions.head} with arn: ${definitions.head.jobDefinitionArn()}")
+
+        return pure(definitions.head.jobDefinitionArn())
+      }
+    })
+
 
     //no definition found. create one
     val commandStr = awsBatchAttributes.fileSystem match {

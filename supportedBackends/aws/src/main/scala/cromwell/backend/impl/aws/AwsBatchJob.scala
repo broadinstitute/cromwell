@@ -34,7 +34,7 @@ import java.security.MessageDigest
 
 import cats.data.ReaderT._
 import cats.data.{Kleisli, ReaderT}
-import cats.effect.{Async, IO, Timer}
+import cats.effect.{Async, Timer}
 import cats.implicits._
 import com.amazonaws.services.s3.{AmazonS3, AmazonS3Client}
 import cromwell.backend.BackendJobDescriptor
@@ -152,20 +152,18 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                             .map("%02x".format(_)).mkString
     val jobDefinitionName = sanitize( s"${prefix}_$sha1" )
 
-    //    val workflow = jobDescriptor.workflowDescriptor
-    //    val uniquePath = workflow.callable.name + "/" +
-    //                     jobDescriptor.taskCall.localName + "/" +
-    //                     workflow.id + "/" +
-    //                     jobDescriptor.key.index.fromIndex + "/" +
-    //                     jobDescriptor.key.attempt
-    IO(Log.info(s"""Submitting job to AWS Batch"""))
-    IO(Log.info(s"""dockerImage: ${runtimeAttributes.dockerImage}"""))
-    IO(Log.info(s"""jobQueueArn: ${runtimeAttributes.queueArn}"""))
-    IO(Log.info(s"""taskId: $taskId"""))
-    IO(Log.info(s"""job definition: $jobDefinitionName"""))
+
+    Log.info(s"""Submitting job to AWS Batch
+                 |  dockerImage: ${runtimeAttributes.dockerImage}
+                 |  jobQueueArn: ${runtimeAttributes.queueArn}
+                 |  taskId: $taskId
+                 |  job definition name: $jobDefinitionName
+                 |  command line: $commandLine
+                 |  script: $script
+                 |  """.stripMargin)
 
     //find or create the script in s3 to execute
-    val scriptKey = findOrCreateS3Script(script, runtimeAttributes.scriptS3BucketName)
+    val scriptKey = findOrCreateS3Script(commandLine, runtimeAttributes.scriptS3BucketName)
 
     def callClient(definitionArn: String, awsBatchAttributes: AwsBatchAttributes): Aws[F, SubmitJobResponse] = {
       val submit: F[SubmitJobResponse] =
@@ -197,40 +195,40 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
   /**
     * Performs an md5 digest the script, checks in s3 bucket for that script, if it's not already there then persists it.
     *
-    * @param script the command line script to be executed
+    * @param commandLine the command line script to be executed
     * @param scriptS3BucketName the bucket that stores the scripts
     * @return the name of the script that was found or created
     */
-  private def findOrCreateS3Script(script :String, scriptS3BucketName: String) :String = {
+  private def findOrCreateS3Script(commandLine :String, scriptS3BucketName: String) :String = {
 
     val s3Client = S3Client.create()
+    val bucketName = scriptS3BucketName
 
     val key = MessageDigest.getInstance("MD5")
-      .digest(script.getBytes())
+      .digest(commandLine.getBytes())
       .foldLeft("")(_ + "%02x".format(_))
 
-    val bucketName = scriptS3BucketName
+    Log.info(s"s3 object name for script is calculated to be ${key} in ${bucketName} bucket")
 
     try { //try and head the object
       s3Client.headObject(HeadObjectRequest.builder()
         .bucket(bucketName)
-        .ifMatch(key)
+        .key(key)
         .build()
       ).eTag().equals(key)
 
-      //the script already exists
+      // if there's no exception then the script already exists
       Log.info(s"""Found script s3://$bucketName/$key""")
     } catch {
       case _: NoSuchKeyException =>  //this happens if there is no object with that key in the bucket
-        Log.info(s"Script $key not found in bucket $bucketName. Creating script with content:\n$script")
+        Log.info(s"Script $key not found in bucket $bucketName. Creating script with content:\n$commandLine")
 
         val putRequest = PutObjectRequest.builder()
           .bucket(bucketName)
           .key(key)
-          .contentMD5(key)
           .build()
 
-        s3Client.putObject(putRequest, RequestBody.fromString(script))
+        s3Client.putObject(putRequest, RequestBody.fromString(commandLine))
 
         Log.info(s"Created script $key")
 

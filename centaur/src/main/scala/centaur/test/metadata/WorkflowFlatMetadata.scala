@@ -19,15 +19,10 @@ import scala.util.{Failure, Success, Try}
 
 
 /**
-  * Workflow metadata that has been flattened for Centaur test purposes. The keys are similar to the simpleton-syntax
-  * stored in the Cromwell database, and values are primitive types, not nested JSON objects or arrays.
-  */
+ * Workflow metadata that has been flattened for Centaur test purposes. The keys are similar to the simpleton-syntax
+ * stored in the Cromwell database, and values are primitive types, not nested JSON objects or arrays.
+ */
 case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
-
-  def onlySubWorkflows = {
-    val filtered = value filter { case (key, _) => key.contains(".subWorkflowMetadata.") }
-    filtered |> WorkflowFlatMetadata.apply
-  }
 
   def diff(actual: WorkflowFlatMetadata, workflowID: UUID, cacheHitUUID: Option[UUID] = None): Iterable[String] = {
     // If the test fails in initialization there wouldn't be workflow root metadata, and if that's the expectation
@@ -40,26 +35,7 @@ case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
     mismatchErrors ++ missingErrors
   }
 
-  def diff(actual: WorkflowFlatMetadata): Iterable[String] = {
-    val missingErrors = value.keySet.diff(actual.value.keySet) map { k => s"Missing key: $k" }
-    val mismatchErrors = value.keySet.intersect(actual.value.keySet) flatMap { k => diffValues(k, value(k).toString, actual.value(k))}
-
-    mismatchErrors ++ missingErrors
-  }
-
   private def diffValues(key: String, expected: JsValue, actual: JsValue, workflowID: UUID, workflowRoot: String, cacheHitUUID: Option[UUID]): Option[String] = {
-    import WorkflowFlatMetadata._
-
-    lazy val substitutedValue = expected.toString.replaceExpectationVariables(WorkflowId(workflowID), workflowRoot)
-    lazy val cacheSubstitutions = cacheHitUUID match {
-      case Some(uuid) => substitutedValue.replace("<<CACHE_HIT_UUID>>", uuid.toString)
-      case None => substitutedValue
-    }
-
-    diffValues(key, cacheSubstitutions,  actual)
-  }
-
-  private def diffValues(key: String, expected: String, actual: JsValue): Option[String] = {
     /*
       FIXME/TODO:
 
@@ -68,23 +44,30 @@ case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
       JsString, JsNumber and JsBoolean for comparison so this is a hacky way of handling that situation. It's
       entirely likely that it won't survive long term.
      */
+    import WorkflowFlatMetadata._
+
+    lazy val substitutedValue = expected.toString.replaceExpectationVariables(WorkflowId(workflowID), workflowRoot)
+    lazy val cacheSubstitutions = cacheHitUUID match {
+      case Some(uuid) => substitutedValue.replace("<<CACHE_HIT_UUID>>", uuid.toString)
+      case None => substitutedValue
+    }
 
     def stripQuotes(str: String) = str.stripPrefix("\"").stripSuffix("\"")
 
     val matchError = actual match {
-      case o: JsString if stripQuotes(expected).startsWith("~~") =>
-        val stripped = stripQuotes(expected).stripPrefix("~~")
+      case o: JsString if stripQuotes(cacheSubstitutions).startsWith("~~") =>
+        val stripped = stripQuotes(cacheSubstitutions).stripPrefix("~~")
         (!stripQuotes(o.toString).contains(stripped)).option(s"Actual value ${o.toString()} does not contain $stripped")
-      case o: JsString => (expected != o.toString).option(s"expected: $expected but got: $actual")
-      case o: JsNumber => (expected != o.value.toString).option(s"expected: $expected but got: $actual")
-      case o: JsBoolean => (expected != o.value.toString).option(s"expected: $expected but got: $actual")
-      case o: JsArray if stripQuotes(expected).startsWith("~>") =>
-        val stripped = stripQuotes(expected).stripPrefix("~>")
+      case o: JsString => (cacheSubstitutions != o.toString).option(s"expected: $cacheSubstitutions but got: $actual")
+      case o: JsNumber => (expected != JsString(o.value.toString)).option(s"expected: $cacheSubstitutions but got: $actual")
+      case o: JsBoolean => (expected != JsString(o.value.toString)).option(s"expected: $cacheSubstitutions but got: $actual")
+      case o: JsArray if stripQuotes(cacheSubstitutions).startsWith("~>") =>
+        val stripped = stripQuotes(cacheSubstitutions).stripPrefix("~>")
         val replaced = stripped.replaceAll("\\\\\"", "\"")
-        (replaced != o.toString).option(s"expected: $expected but got: $actual")
-      case o: JsArray => (expected != o.toString).option(s"expected: $expected but got: $actual")
-      case JsNull => (expected != JsNull.toString).option(s"expected: $expected but got: $actual")
-      case _ => Option(s"expected: $expected but got: $actual")
+        (replaced != o.toString).option(s"expected: $cacheSubstitutions but got: $actual")
+      case o: JsArray => (expected != JsString(o.toString)).option(s"expected: $cacheSubstitutions but got: $actual")
+      case JsNull => (expected != JsNull).option(s"expected: $cacheSubstitutions but got: $actual")
+      case _ => Option(s"expected: $cacheSubstitutions but got: $actual")
     }
 
     matchError.map(s"Metadata mismatch for $key - " + _)

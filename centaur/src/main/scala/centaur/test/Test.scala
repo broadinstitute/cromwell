@@ -3,6 +3,7 @@ package centaur.test
 import java.util.UUID
 
 import cats.Monad
+import cats.data.Validated._
 import cats.effect.IO
 import cats.instances.list._
 import cats.syntax.traverse._
@@ -20,6 +21,7 @@ import com.google.auth.oauth2.ServiceAccountCredentials
 import com.google.cloud.storage.{Storage, StorageOptions}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
+import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
@@ -483,24 +485,30 @@ object Operations extends StrictLogging {
     } yield selected
   }
 
-  def validateSubworkflowsMetadataBeforeAndAfterArchival(submittedWorkflow: SubmittedWorkflow,
-                                                         workflow: Workflow): Test[Unit] = new Test[Unit] {
+  private def removeMetadataSourceFromJsObject(jsObject: JsObject) = {
+    val metadataSourceKeyName = "metadataSource"
+    JsObject(jsObject.fields.filter { case (key, _) => key != metadataSourceKeyName })
+  }
 
-    def validateSubworkflowsMetadata(expected: WorkflowFlatMetadata, actual: WorkflowFlatMetadata): IO[Unit] = {
-      val errors = expected diff actual
-      if (errors.isEmpty) {
-        IO.pure(())
-      } else {
-        val message = s"Subworkflows metadata validation failed: ${errors.mkString("\n")}"
-        IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
+  def validateMetadataBeforeAndAfterArchival(submittedWorkflow: SubmittedWorkflow,
+                                             workflow: Workflow,
+                                             expandSubworkflows: Boolean): Test[Unit] = new Test[Unit] {
+
+    def validateWorkflowMetadata(expected: JsObject, actual: JsObject): IO[Unit] =
+      validateJson(expected, actual) match {
+        case Valid(_) => IO.pure(())
+        case Invalid(errors) =>
+          val message = s"Workflow metadata before and after archival doesn't match: $errors"
+          IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
       }
-    }
 
     override def run: IO[Unit] = {
       for {
-        notArchivedMetadata <- CentaurCromwellClient.metadata(submittedWorkflow, expandSubworkflows = true, archived = Option(false))
-        archivedMetadata <- CentaurCromwellClient.metadata(submittedWorkflow, expandSubworkflows = true, archived = Option(true))
-        _ <- validateSubworkflowsMetadata(notArchivedMetadata.asFlat.onlySubWorkflows, archivedMetadata.asFlat.onlySubWorkflows)
+        metadataBeforeArchival <- CentaurCromwellClient.metadata(submittedWorkflow, expandSubworkflows = expandSubworkflows, archived = Option(false))
+        metadataAfterArchival <- CentaurCromwellClient.metadata(submittedWorkflow, expandSubworkflows = expandSubworkflows, archived = Option(true))
+        metadataObjectBeforeArchival <- IO.fromTry(Try(removeMetadataSourceFromJsObject(metadataBeforeArchival.value.parseJson.asJsObject)))
+        metadataObjectAfterArchival <- IO.fromTry(Try(removeMetadataSourceFromJsObject(metadataAfterArchival.value.parseJson.asJsObject)))
+        _ <- validateWorkflowMetadata(metadataObjectBeforeArchival, metadataObjectAfterArchival)
       } yield ()
     }
   }
@@ -670,61 +678,91 @@ object Operations extends StrictLogging {
     }
   }
 
+  def validateJson(expected: JsObject, actual: JsObject): ErrorOr[Unit] = {
+    if (actual.equals(expected)) {
+      Valid(())
+    } else {
+      import diffson._
+      import diffson.lcs._
+      import diffson.sprayJson._
+      import diffson.jsonpatch._
+      import diffson.jsonpatch.lcsdiff._
+
+      implicit val lcs = new Patience[JsValue]
+
+      implicit val writer: JsonWriter[JsonPatch[JsValue]] = new JsonWriter[JsonPatch[JsValue]] {
+        def processOperation(op: Operation[JsValue]): JsValue = op match {
+          case Add(path, value) => JsObject(Map[String, JsValue](
+            "op" -> JsString("add"),
+            "path" -> JsString(path.toString),
+            "value" -> value))
+          case Copy(from, path) => JsObject(Map[String, JsValue](
+            "op" -> JsString("copy"),
+            "from" -> JsString(from.toString),
+            "path" -> JsString(path.toString)))
+          case Move(from, path) => JsObject(Map[String, JsValue](
+            "op" -> JsString("move"),
+            "from" -> JsString(from.toString),
+            "path" -> JsString(path.toString)))
+          case Remove(path, old) => JsObject(Map[String, JsValue](
+            "op" -> JsString("remove"),
+            "path" -> JsString(path.toString)) ++ old.map(o => "old" -> o))
+          case Replace(path, value, old) => JsObject(Map[String, JsValue](
+            "op" -> JsString("replace"),
+            "path" -> JsString(path.toString),
+            "value" -> value) ++ old.map(o => "old" -> o))
+          case diffson.jsonpatch.Test(path, value) => JsObject(Map[String, JsValue](
+            "op" -> JsString("test"),
+            "path" -> JsString(path.toString),
+            "value" -> value))
+        }
+
+        override def write(obj: JsonPatch[JsValue]): JsValue = {
+          JsArray(obj.ops.toVector.map(processOperation))
+        }
+      }
+
+      val jsonDiff = diff(expected: JsValue, actual: JsValue)
+      invalidNel(jsonDiff.toJson.prettyPrint)
+    }
+  }
+
+  def validateJobManagerStyleMetadataBeforeAndAfterArchival(submittedWorkflow: SubmittedWorkflow): Test[Unit] = new Test[Unit] {
+
+    def validate(expectation: JsObject, actual: JsObject): IO[Unit] =
+      validateJson(expectation, actual) match {
+        case Valid(_) => IO.pure(())
+        case Invalid(errors) =>
+          logger.error(s"Bad JM style metadata: $errors")
+          IO.raiseError(new Exception(s"Bad JM style metadata. See error log output"))
+      }
+
+    override def run: IO[Unit] = for {
+      jmMetadataBeforeArchival <- CentaurCromwellClient.metadata(
+        workflow = submittedWorkflow,
+        Option(CentaurCromwellClient.defaultMetadataArgs.getOrElse(Map.empty) ++ jmArgs),
+        archived = Option(false))
+      jmMetadataAfterArchival <- CentaurCromwellClient.metadata(
+        workflow = submittedWorkflow,
+        Option(CentaurCromwellClient.defaultMetadataArgs.getOrElse(Map.empty) ++ jmArgs),
+        archived = Option(true))
+      jmMetadataObjectBeforeArchival <- IO.fromTry(Try(removeMetadataSourceFromJsObject(jmMetadataBeforeArchival.value.parseJson.asJsObject)))
+      jmMetadataObjectAfterArchival <- IO.fromTry(Try(removeMetadataSourceFromJsObject(jmMetadataAfterArchival.value.parseJson.asJsObject)))
+      _ <- validate(jmMetadataObjectBeforeArchival, jmMetadataObjectAfterArchival)
+    } yield ()
+  }
+
   def validateJobManagerStyleMetadata(submittedWorkflow: SubmittedWorkflow,
                                       originalMetadata: String,
                                       validateArchived: Option[Boolean] = None): Test[Unit] = new Test[Unit] {
 
-    def validate(expectation: JsObject, actual: JsObject): IO[Unit] = {
-      if(actual.equals(expectation)) {
-        IO.pure(())
-      } else {
-
-        import diffson._
-        import diffson.lcs._
-        import diffson.sprayJson._
-        import diffson.jsonpatch._
-        import diffson.jsonpatch.lcsdiff._
-
-        implicit val lcs = new Patience[JsValue]
-
-        implicit val writer: JsonWriter[JsonPatch[JsValue]] = new JsonWriter[JsonPatch[JsValue]] {
-          def processOperation(op: Operation[JsValue]): JsValue = op match {
-            case Add(path, value) => JsObject(Map[String, JsValue](
-              "op" -> JsString("add"),
-              "path" -> JsString(path.toString),
-              "value" -> value))
-            case Copy(from, path) => JsObject(Map[String, JsValue](
-              "op" -> JsString("copy"),
-              "from" -> JsString(from.toString),
-              "path" -> JsString(path.toString)))
-            case Move(from, path) => JsObject(Map[String, JsValue](
-              "op" -> JsString("move"),
-              "from" -> JsString(from.toString),
-              "path" -> JsString(path.toString)))
-            case Remove(path, old) => JsObject(Map[String, JsValue](
-              "op" -> JsString("remove"),
-              "path" -> JsString(path.toString)) ++ old.map(o => "old" -> o) )
-            case Replace(path, value, old) => JsObject(Map[String, JsValue](
-              "op" -> JsString("replace"),
-              "path" -> JsString(path.toString),
-              "value" -> value) ++ old.map(o => "old" -> o) )
-            case diffson.jsonpatch.Test(path, value) => JsObject(Map[String, JsValue](
-              "op" -> JsString("test"),
-              "path" -> JsString(path.toString),
-              "value" -> value))
-          }
-
-          override def write(obj: JsonPatch[JsValue]): JsValue = {
-            JsArray(obj.ops.toVector.map(processOperation))
-          }
-        }
-
-        val jsonDiff = diff(expectation: JsValue, actual: JsValue)
-
-        logger.error(s"Bad JM style metadata: ${jsonDiff.toJson.prettyPrint}")
-        IO.raiseError(new Exception(s"Bad JM style metadata. See error log output"))
+    def validate(expectation: JsObject, actual: JsObject): IO[Unit] =
+      validateJson(expectation, actual) match {
+        case Valid(_) => IO.pure(())
+        case Invalid(errors) =>
+          logger.error(s"Bad JM style metadata: $errors")
+          IO.raiseError(new Exception(s"Bad JM style metadata. See error log output"))
       }
-    }
 
     override def run: IO[Unit] = for {
       jmMetadata <- CentaurCromwellClient.metadata(

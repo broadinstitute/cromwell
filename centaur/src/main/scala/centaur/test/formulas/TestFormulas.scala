@@ -46,10 +46,10 @@ object TestFormulas extends StrictLogging {
     _ = cromwellTracker.track(notArchivedMetadata)
     _ <- validateDirectoryContentsCounts(workflowDefinition, submittedWorkflow, notArchivedMetadata)
     _ <- waitForArchive(submittedWorkflow, workflowDefinition)
-    // Re-validate the metadata now that carboniting has completed
-    _ <- validateMetadata(submittedWorkflow, workflowDefinition, validateArchived = Option(true))
-    _ <- validateJobManagerStyleMetadata(submittedWorkflow, originalMetadata = notArchivedMetadata.value, validateArchived = Option(true))
-    _ <- validateSubworkflowsMetadataBeforeAndAfterArchival(submittedWorkflow, workflowDefinition)
+    // Compare archived and unarchived metadata in various querying scenarios
+    _ <- validateMetadataBeforeAndAfterArchival(submittedWorkflow, workflowDefinition, expandSubworkflows = false)
+    _ <- validateMetadataBeforeAndAfterArchival(submittedWorkflow, workflowDefinition, expandSubworkflows = true)
+    _ <- validateJobManagerStyleMetadataBeforeAndAfterArchival(submittedWorkflow)
     notArchivedFlatMetadata = notArchivedMetadata.asFlat
     workflowRoot = notArchivedFlatMetadata.value.get("workflowRoot").collectFirst { case JsString(r) => r } getOrElse "No Workflow Root"
     _ <- validateOutputs(submittedWorkflow, workflowDefinition, workflowRoot)

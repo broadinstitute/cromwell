@@ -19,9 +19,9 @@ import scala.util.{Failure, Success, Try}
 
 
 /**
- * Workflow metadata that has been flattened for Centaur test purposes. The keys are similar to the simpleton-syntax
- * stored in the Cromwell database, and values are primitive types, not nested JSON objects or arrays.
- */
+  * Workflow metadata that has been flattened for Centaur test purposes. The keys are similar to the simpleton-syntax
+  * stored in the Cromwell database, and values are primitive types, not nested JSON objects or arrays.
+  */
 case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
 
   def diff(actual: WorkflowFlatMetadata, workflowID: UUID, cacheHitUUID: Option[UUID] = None): Iterable[String] = {

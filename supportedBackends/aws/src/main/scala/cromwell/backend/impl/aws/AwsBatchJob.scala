@@ -148,7 +148,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     val prefix = s"cromwell_${runtimeAttributes.dockerImage}".slice(0,88) // will be joined to a 40 character SHA1 for total length of 128
     val volumeString = runtimeAttributes.disks.map(v => s"${v.toVolume()}:${v.toMountPoint}").mkString(",")
     val sha1 = MessageDigest.getInstance("SHA-256")
-                            .digest(volumeString.getBytes("UTF-8"))
+                            .digest(( runtimeAttributes.dockerImage + volumeString ).getBytes("UTF-8"))
                             .map("%02x".format(_)).mkString
     val jobDefinitionName = sanitize( s"${prefix}_$sha1" )
 

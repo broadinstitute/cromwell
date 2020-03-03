@@ -98,7 +98,8 @@ object ActionBuilder {
                  scriptContainerPath: String,
                  mounts: List[Mount],
                  jobShell: String,
-                 privateDockerKeyAndToken: Option[CreatePipelineDockerKeyAndToken]): Action = {
+                 privateDockerKeyAndToken: Option[CreatePipelineDockerKeyAndToken],
+                 fuseEnabled: Boolean): Action = {
 
     val dockerImageIdentifier = DockerImageIdentifier.fromString(docker)
 
@@ -116,6 +117,7 @@ object ActionBuilder {
       .setEntrypoint("")
       .setLabels(Map(Key.Tag -> Value.UserAction).asJava)
       .setCredentials(secret.orNull)
+      .setEnableFuse(fuseEnabled)
   }
 
   def checkForMemoryRetryAction(retryLookupKeys: List[String], mounts: List[Mount]): Action = {

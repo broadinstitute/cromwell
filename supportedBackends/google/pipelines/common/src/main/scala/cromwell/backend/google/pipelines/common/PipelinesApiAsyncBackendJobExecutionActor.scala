@@ -394,6 +394,10 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.GoogleComputeServiceAccount, jesAttributes.computeServiceAccount)
   }
 
+  protected def fuseEnabled(descriptor: BackendWorkflowDescriptor): Boolean = {
+    descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.EnableFuse).toOption.getOrElse(jesAttributes.enableFuse)
+  }
+
   override def isTerminal(runStatus: RunStatus): Boolean = {
     runStatus match {
       case _: TerminalRunStatus => true
@@ -449,6 +453,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           adjustedSizeDisks = adjustedSizeDisks,
           virtualPrivateCloudConfiguration = jesAttributes.virtualPrivateCloudConfiguration,
           retryWithMoreMemoryKeys = jesAttributes.memoryRetryConfiguration.map(_.errorKeys),
+          fuseEnabled = fuseEnabled(jobDescriptor.workflowDescriptor),
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")

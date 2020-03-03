@@ -10,7 +10,8 @@ trait UserAction {
       createPipelineParameters.commandScriptContainerPath.pathAsString,
       mounts,
       createPipelineParameters.jobShell,
-      createPipelineParameters.privateDockerKeyAndEncryptedToken
+      createPipelineParameters.privateDockerKeyAndEncryptedToken,
+      createPipelineParameters.fuseEnabled
     )
 
     val describeAction = ActionBuilder.describeDocker("user action", userAction)

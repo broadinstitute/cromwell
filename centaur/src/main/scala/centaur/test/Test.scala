@@ -519,7 +519,7 @@ object Operations extends StrictLogging {
           // here we use generic type instead of `LabelsFlatMetadataType` because we need to do  full comparison, i.e.
           // expected.diff(actual) and actual.diff(expected), unlike the regular `validateMetadata` test where we only
           // check that actual labels contain all labels specified in the *.test file
-          FlatMetadataType("labels"),
+          GenericFlatMetadataType("labels"),
           submittedWorkflow,
           workflow
         )
@@ -544,7 +544,7 @@ object Operations extends StrictLogging {
             submittedWorkflow
           ))
         }
-      case OutputsFlatMetadataType | FlatMetadataType(_) =>
+      case OutputsFlatMetadataType | GenericFlatMetadataType(_) =>
         val inExpectedButNotActual = expected.toSet.diff(actual.toSet)
         val inActualButNotExpected = actual.toSet.diff(expected.toSet)
         if (inExpectedButNotActual.isEmpty && inActualButNotExpected.isEmpty) {

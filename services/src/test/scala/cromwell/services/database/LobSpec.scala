@@ -2,6 +2,7 @@ package cromwell.services.database
 
 import java.time.OffsetDateTime
 
+import com.dimafeng.testcontainers.Container
 import cromwell.core.Tags._
 import cromwell.core.WorkflowId
 import cromwell.database.sql.SqlConverters._
@@ -24,7 +25,13 @@ class LobSpec extends FlatSpec with Matchers with ScalaFutures {
 
     behavior of s"CLOBs and BLOBs on ${databaseSystem.name}"
 
-    lazy val database = DatabaseTestKit.initializedDatabaseFromSystem(EngineDatabaseType, databaseSystem)
+    val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
+
+    lazy val database = DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, EngineDatabaseType, databaseSystem)
+
+    it should "start container if required" taggedAs DbmsTest in {
+      containerOpt.foreach { _.start }
+    }
 
     it should "fail to store and retrieve empty blobs" taggedAs DbmsTest in {
       // See notes in BytesToBlobOption
@@ -200,6 +207,10 @@ class LobSpec extends FlatSpec with Matchers with ScalaFutures {
 
     it should "close the database" taggedAs DbmsTest in {
       database.close()
+    }
+
+    it should "stop container if required" taggedAs DbmsTest in {
+      containerOpt.foreach { _.stop }
     }
   }
 }

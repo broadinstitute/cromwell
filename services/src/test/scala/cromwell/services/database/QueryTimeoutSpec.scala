@@ -1,6 +1,7 @@
 package cromwell.services.database
 
 import better.files._
+import com.dimafeng.testcontainers.Container
 import cromwell.core.Tags.DbmsTest
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
@@ -15,17 +16,28 @@ class QueryTimeoutSpec extends FlatSpec with Matchers with ScalaFutures {
       case (sleepCommand, errorMessage) =>
         behavior of s"Query timeouts on ${databaseSystem.name}"
 
+        val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
+
+        it should "start container if required" taggedAs DbmsTest in {
+          containerOpt.foreach { _.start }
+        }
+
         it should "fail with a timeout" taggedAs DbmsTest in {
-          checkDatabaseSystem(databaseSystem, sleepCommand, errorMessage)
+          checkDatabaseSystem(containerOpt, databaseSystem, sleepCommand, errorMessage)
+        }
+
+        it should "stop container if required" taggedAs DbmsTest in {
+          containerOpt.foreach { _.stop }
         }
     }
   }
 
-  private def checkDatabaseSystem(databaseSystem: DatabaseSystem,
+  private def checkDatabaseSystem(containerOpt: Option[Container],
+                                  databaseSystem: DatabaseSystem,
                                   sleepCommand: String,
                                   errorEither: Either[String, Option[Int]]): Unit = {
     for {
-      testDatabase <- DatabaseTestKit.schemalessDatabaseFromSystem(databaseSystem).autoClosed
+      testDatabase <- DatabaseTestKit.schemalessDatabaseFromContainerOptAndSystem(containerOpt, databaseSystem).autoClosed
     } {
       import testDatabase.dataAccess.driver.api._
 

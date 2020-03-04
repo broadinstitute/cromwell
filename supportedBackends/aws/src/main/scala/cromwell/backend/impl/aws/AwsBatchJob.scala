@@ -269,49 +269,50 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
         //return the arn of the job
         definitions.head.jobDefinitionArn()
+      } else {
+
+        //no definition found. create one
+        Log.info(s"No job definition found, creating one")
+
+        val commandStr = awsBatchAttributes.fileSystem match {
+          case AWSBatchStorageSystems.s3 => reconfiguredScript
+          case _ => script
+        }
+        val jobDefinitionContext = AwsBatchJobDefinitionContext(
+          runtimeAttributes = runtimeAttributes,
+          uniquePath = jobDefinitionName,
+          commandText = commandStr,
+          dockerRcPath = dockerRc,
+          dockerStdoutPath = dockerStdout,
+          dockerStderrPath = dockerStderr,
+          jobDescriptor = jobDescriptor,
+          jobPaths = jobPaths,
+          inputs = inputs,
+          outputs = outputs)
+
+        val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder
+
+        Log.info(s"Creating job definition: $jobDefinitionName")
+
+        val jobDefinition = jobDefinitionBuilder.build(jobDefinitionContext)
+
+
+        // See:
+        //
+        // http://aws-java-sdk-javadoc.s3-website-us-west-2.amazonaws.com/latest/software/amazon/awssdk/services/batch/model/RegisterJobDefinitionRequest.Builder.html
+        val definitionRequest = RegisterJobDefinitionRequest.builder
+          .containerProperties(jobDefinition.containerProperties)
+          .jobDefinitionName(jobDefinitionName)
+          // See https://stackoverflow.com/questions/24349517/scala-method-named-type
+          .`type`(JobDefinitionType.CONTAINER)
+          .build
+
+        Log.info(s"Submitting definition request: $definitionRequest")
+
+        val arn = client.registerJobDefinition(definitionRequest).jobDefinitionArn
+        Log.info(s"Definition created: $arn")
+        arn
       }
-
-      //no definition found. create one
-      Log.info(s"No job definition found, creating one")
-
-      val commandStr = awsBatchAttributes.fileSystem match {
-        case AWSBatchStorageSystems.s3 => reconfiguredScript
-        case _ => script
-      }
-      val jobDefinitionContext = AwsBatchJobDefinitionContext(
-        runtimeAttributes = runtimeAttributes,
-        uniquePath = jobDefinitionName,
-        commandText = commandStr,
-        dockerRcPath = dockerRc,
-        dockerStdoutPath = dockerStdout,
-        dockerStderrPath = dockerStderr,
-        jobDescriptor = jobDescriptor,
-        jobPaths = jobPaths,
-        inputs = inputs,
-        outputs = outputs)
-
-      val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder
-
-      Log.info(s"Creating job definition: $jobDefinitionName")
-
-      val jobDefinition = jobDefinitionBuilder.build(jobDefinitionContext)
-
-
-      // See:
-      //
-      // http://aws-java-sdk-javadoc.s3-website-us-west-2.amazonaws.com/latest/software/amazon/awssdk/services/batch/model/RegisterJobDefinitionRequest.Builder.html
-      val definitionRequest = RegisterJobDefinitionRequest.builder
-        .containerProperties(jobDefinition.containerProperties)
-        .jobDefinitionName(jobDefinitionName)
-        // See https://stackoverflow.com/questions/24349517/scala-method-named-type
-        .`type`(JobDefinitionType.CONTAINER)
-        .build
-
-      Log.info(s"Submitting definition request: $definitionRequest")
-
-      val arn = client.registerJobDefinition(definitionRequest).jobDefinitionArn
-      Log.info(s"Definition created: $arn")
-      arn
     })
 
 

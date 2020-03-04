@@ -75,6 +75,16 @@ case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
 }
 
 object WorkflowFlatMetadata {
+  sealed trait FlatMetadataType {
+    def name: String
+  }
+  case object LabelsFlatMetadata extends FlatMetadataType {
+    override def name: String = "labels"
+  }
+  case object OutputsFlatMetadata extends FlatMetadataType {
+    override def name: String = "outputs"
+  }
+
   def fromConfig(config: Config): ErrorOr[WorkflowFlatMetadata] = {
     config.extract[Map[String, Option[String]]] match {
       case Result.Success(m) => Valid(WorkflowFlatMetadata(m safeMapValues { _.map(JsString.apply).getOrElse(JsNull) }))

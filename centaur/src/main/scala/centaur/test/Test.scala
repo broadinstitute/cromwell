@@ -23,7 +23,7 @@ import com.typesafe.scalalogging.StrictLogging
 import common.validation.Validation._
 import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
-import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, Succeeded, TerminalStatus, WaasDescription, WorkflowId, WorkflowMetadata, WorkflowStatus}
+import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, Succeeded, TerminalStatus, WaasDescription, WorkflowId, WorkflowLabels, WorkflowMetadata, WorkflowStatus}
 import cromwell.cloudsupport.aws.AwsConfiguration
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
@@ -485,7 +485,7 @@ object Operations extends StrictLogging {
 
   private def removeMetadataSourceFromJsObject(jsObject: JsObject) = {
     val metadataSourceKeyName = "metadataSource"
-    JsObject(jsObject.fields.filter { case (key, _) => key != metadataSourceKeyName })
+    JsObject(jsObject.fields - metadataSourceKeyName)
   }
 
   def compareMetadataBeforeAndAfterArchival(submittedWorkflow: SubmittedWorkflow,
@@ -503,23 +503,59 @@ object Operations extends StrictLogging {
     }
   }
 
+  def compareLabelsBeforeAndAfterArchival(labelsLikelyBeforeArchival: IO[WorkflowLabels],
+                                          labelsAfterArchival: IO[WorkflowLabels],
+                                          submittedWorkflow: SubmittedWorkflow,
+                                          workflow: Workflow): Test[Unit] = new Test[Unit] {
+
+    override def run: IO[Unit] = {
+      import centaur.test.metadata.WorkflowFlatLabels._
+      for {
+        labelsLikelyBeforeArchivalFlat <- labelsLikelyBeforeArchival map { _.asFlat.stringifyValues }
+        labelsAfterArchivalFlat <- labelsAfterArchival map { _.asFlat.stringifyValues }
+        _ <- compareFlatMetadata(
+          expected = labelsLikelyBeforeArchivalFlat,
+          actual = labelsAfterArchivalFlat,
+          LabelsFlatMetadata,
+          submittedWorkflow,
+          workflow
+        )
+      } yield ()
+    }
+  }
+
   private def compareFlatMetadata(expected: Map[String, JsValue],
                                   actual: Map[String, JsValue],
-                                  metadataTypeName: String,
+                                  flatMetadataType: FlatMetadataType,
                                   submittedWorkflow: SubmittedWorkflow,
                                   workflow: Workflow): IO[Unit] = {
-    val inExpectedButNotActual = expected.toSet.diff(actual.toSet)
-    val inActualButNotExpected = actual.toSet.diff(expected.toSet)
-    if (inExpectedButNotActual.isEmpty && inActualButNotExpected.isEmpty) {
-      IO.unit
-    } else {
-      IO.raiseError(CentaurTestException(
-        s"""In expected $metadataTypeName but not in actual: ${inExpectedButNotActual.mkString(", ")}
-           |In actual $metadataTypeName but not in expected: ${inActualButNotExpected.mkString(", ")}
-           |""".stripMargin,
-        workflow,
-        submittedWorkflow
-      ))
+    flatMetadataType match {
+      case LabelsFlatMetadata =>
+        val inExpectedButNotActual = expected.toSet.diff(actual.toSet)
+        if (inExpectedButNotActual.isEmpty) {
+          IO.unit
+        } else {
+          IO.raiseError(CentaurTestException(
+            s"In expected ${flatMetadataType.name} but not in actual: ${inExpectedButNotActual.mkString(", ")}",
+            workflow,
+            submittedWorkflow
+          ))
+        }
+      case OutputsFlatMetadata =>
+        val inExpectedButNotActual = expected.toSet.diff(actual.toSet)
+        val inActualButNotExpected = actual.toSet.diff(expected.toSet)
+        if (inExpectedButNotActual.isEmpty && inActualButNotExpected.isEmpty) {
+          IO.unit
+        } else {
+          IO.raiseError(CentaurTestException(
+            s"""
+               |In expected ${flatMetadataType.name} but not in actual: ${inExpectedButNotActual.mkString(", ")}
+               |In actual ${flatMetadataType.name} but not in expected: ${inActualButNotExpected.mkString(", ")}
+               |""".stripMargin,
+            workflow,
+            submittedWorkflow
+          ))
+        }
     }
   }
 
@@ -531,7 +567,7 @@ object Operations extends StrictLogging {
       for {
         outputsBeforeArchival <- CentaurCromwellClient.outputs(submittedWorkflow, archived = Option(false)) map { _.asFlat.stringifyValues }
         outputsAfterArchival <- CentaurCromwellClient.outputs(submittedWorkflow, archived = Option(true)) map { _.asFlat.stringifyValues }
-        _ <- compareFlatMetadata(outputsBeforeArchival, outputsAfterArchival, metadataTypeName = "outputs", submittedWorkflow = submittedWorkflow, workflow = workflow)
+        _ <- compareFlatMetadata(outputsBeforeArchival, outputsAfterArchival, OutputsFlatMetadata, submittedWorkflow = submittedWorkflow, workflow = workflow)
       } yield ()
     }
   }
@@ -581,7 +617,7 @@ object Operations extends StrictLogging {
       val ioActualLabels: IO[Map[String, JsValue]] = CentaurCromwellClient.labels(submittedWorkflow) map { _.asFlat.stringifyValues }
 
       ioActualLabels flatMap { actualLabels =>
-        compareFlatMetadata(expectedLabels.toMap, actualLabels, metadataTypeName = "labels", submittedWorkflow = submittedWorkflow, workflow = workflow)
+        compareFlatMetadata(expectedLabels.toMap, actualLabels, LabelsFlatMetadata, submittedWorkflow = submittedWorkflow, workflow = workflow)
       }
     }
   }

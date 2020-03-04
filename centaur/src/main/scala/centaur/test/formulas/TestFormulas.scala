@@ -2,6 +2,7 @@ package centaur.test.formulas
 
 import cats.syntax.flatMap._
 import cats.syntax.functor._
+import centaur.api.CentaurCromwellClient
 import centaur.test.Operations._
 import centaur.test.Test.testMonad
 import centaur.test.markers.CallMarker
@@ -41,6 +42,7 @@ object TestFormulas extends StrictLogging {
   def runSuccessfulWorkflowAndVerifyMetadata(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = for {
     _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
     submittedWorkflow <- runSuccessfulWorkflow(workflowDefinition)
+    labelsLikelyBeforeArchival = CentaurCromwellClient.labels(submittedWorkflow)
     notArchivedMetadata <- validateMetadata(submittedWorkflow, workflowDefinition, validateArchived = Option(false))
     _ <- validateJobManagerStyleMetadata(submittedWorkflow, workflowDefinition, originalMetadata = notArchivedMetadata.value, validateArchived = Option(false))
     notArchivedFlatMetadata = notArchivedMetadata.asFlat
@@ -52,6 +54,8 @@ object TestFormulas extends StrictLogging {
     _ <- validateDirectoryContentsCounts(workflowDefinition, submittedWorkflow, notArchivedMetadata)
     _ <- waitForArchive(submittedWorkflow, workflowDefinition)
     // Compare archived and unarchived metadata in various querying scenarios
+    labelsAfterArchival = CentaurCromwellClient.labels(submittedWorkflow)
+    _ <- compareLabelsBeforeAndAfterArchival(labelsLikelyBeforeArchival, labelsAfterArchival, submittedWorkflow, workflowDefinition)
     _ <- compareMetadataBeforeAndAfterArchival(submittedWorkflow, workflowDefinition, expandSubworkflows = false)
     _ <- compareMetadataBeforeAndAfterArchival(submittedWorkflow, workflowDefinition, expandSubworkflows = true)
     _ <- compareJobManagerStyleMetadataBeforeAndAfterArchival(submittedWorkflow, workflowDefinition)

@@ -5,7 +5,7 @@ import cromwell.services.FailedMetadataJsonResponse
 import cromwell.services.metadata.MetadataQuery.{MetadataSourceForceArchived, MetadataSourceForceUnarchived}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.hybridcarbonite.HybridReadDeciderActor._
-import cromwell.services.metadata.{MetadataArchiveStatus, MetadataQuery, WorkflowQueryKey}
+import cromwell.services.metadata.{MetadataArchiveStatus, WorkflowQueryKey}
 
 import scala.concurrent.ExecutionContext
 
@@ -17,14 +17,20 @@ class HybridReadDeciderActor(classicMetadataServiceActor: ActorRef, carboniteMet
 
   when(Pending) {
     case Event(action: BuildMetadataJsonAction, NoData) => action match {
+      case workflowAction: BuildWorkflowMetadataJsonWithOverridableSourceAction if workflowAction.metadataSourceOverride.isDefined =>
+        if (workflowAction.metadataSourceOverride.contains(MetadataSourceForceUnarchived)) {
+          classicMetadataServiceActor ! action
+          goto(WaitingForMetadataResponse) using WorkingData(sender(), action)
+        } else if (workflowAction.metadataSourceOverride.contains(MetadataSourceForceArchived)) {
+          carboniteMetadataServiceActor ! action
+          goto(WaitingForMetadataResponse) using WorkingData(sender(), action)
+        } else {
+          val errorMsg = s"Programmer Error: Unknown value specified for metadataSource: ${workflowAction.metadataSourceOverride}"
+          sender() ! makeAppropriateFailureForRequest(errorMsg, action)
+          stop(FSM.Failure(errorMsg))
+        }
       case action if action.requiresOnlyClassicMetadata =>
         classicMetadataServiceActor ! action
-        goto(WaitingForMetadataResponse) using WorkingData(sender(), action)
-      case GetMetadataAction(MetadataQuery(_, _, _, _, _, _, Some(MetadataSourceForceUnarchived))) =>
-        classicMetadataServiceActor ! action
-        goto(WaitingForMetadataResponse) using WorkingData(sender(), action)
-      case GetMetadataAction(MetadataQuery(_, _, _, _, _, _, Some(MetadataSourceForceArchived))) =>
-        carboniteMetadataServiceActor ! action
         goto(WaitingForMetadataResponse) using WorkingData(sender(), action)
       case workflowAction: BuildWorkflowMetadataJsonAction =>
         classicMetadataServiceActor ! QueryForWorkflowsMatchingParameters(Vector(WorkflowQueryKey.Id.name -> workflowAction.workflowId.toString))

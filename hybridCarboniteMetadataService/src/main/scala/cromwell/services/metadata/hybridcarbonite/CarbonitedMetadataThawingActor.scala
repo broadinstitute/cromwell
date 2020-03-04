@@ -140,14 +140,14 @@ object CarbonitedMetadataThawingActor {
       case _: WorkflowOutputs => JsonEditor.outputs(json)
       case get: GetMetadataAction =>
         val intermediate: ErrorOr[Json] = get.key match {
-          case MetadataQuery(_, None, None, None, None, _, _) => json.validNel
-          case MetadataQuery(_, None, Some(key), None, None, _, _) => JsonEditor.includeJson(json, NonEmptyList.of(key))
-          case MetadataQuery(_, None, None, includeKeys, excludeKeys, _, _) => JsonEditor.includeExcludeJson(json, includeKeys, excludeKeys)
+          case MetadataQuery(_, None, None, None, None, _) => json.validNel
+          case MetadataQuery(_, None, Some(key), None, None, _) => JsonEditor.includeJson(json, NonEmptyList.of(key))
+          case MetadataQuery(_, None, None, includeKeys, excludeKeys, _) => JsonEditor.includeExcludeJson(json, includeKeys, excludeKeys)
           // The following three don't bother with exclusions or inclusions since they are only used internally
           // and the existing client code is robust to superfluous data.
-          case MetadataQuery(_, Some(_), None, None, None, _, _) => json.validNel
-          case MetadataQuery(_, Some(_), Some(_), None, None, _, _) => json.validNel
-          case MetadataQuery(_, Some(_), None, _, _, _, _) => json.validNel
+          case MetadataQuery(_, Some(_), None, None, None, _) => json.validNel
+          case MetadataQuery(_, Some(_), Some(_), None, None, _) => json.validNel
+          case MetadataQuery(_, Some(_), None, _, _, _) => json.validNel
           case wrong => throw new RuntimeException(s"Programmer Error: Invalid MetadataQuery: $wrong")
         }
         // For carbonited metadata, "expanded" subworkflows translates to not deleting subworkflows out of the root workflow that already

@@ -50,14 +50,18 @@ trait MetadataRouteSupport extends HttpInstrumentation {
     path("workflows" / Segment / Segment / "outputs") { (_, possibleWorkflowId) =>
       get {
         instrumentRequest {
-          metadataLookup(possibleWorkflowId, (w: WorkflowId) => WorkflowOutputs(w), serviceRegistryActor)
+          parameters('metadataSource.as[MetadataSourceOverride](metadataSourceUnmarshaller).?) { metadataSourceOverride =>
+            metadataLookup(possibleWorkflowId, (w: WorkflowId) => WorkflowOutputs(w, metadataSourceOverride), serviceRegistryActor)
+          }
         }
       }
     },
     path("workflows" / Segment / Segment / "logs") { (_, possibleWorkflowId) =>
       get {
         instrumentRequest {
-          metadataLookup(possibleWorkflowId, (w: WorkflowId) => GetLogs(w), serviceRegistryActor)
+          parameters('metadataSource.as[MetadataSourceOverride](metadataSourceUnmarshaller).?) { metadataSourceOverride =>
+            metadataLookup(possibleWorkflowId, (w: WorkflowId) => GetLogs(w, metadataSourceOverride), serviceRegistryActor)
+          }
         }
       }
     },

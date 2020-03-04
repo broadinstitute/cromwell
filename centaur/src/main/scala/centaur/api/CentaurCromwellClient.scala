@@ -74,16 +74,22 @@ object CentaurCromwellClient extends StrictLogging {
     sendReceiveFutureCompletion(() => cromwellClient.abort(workflow.id))
   }
 
-  def outputs(workflow: SubmittedWorkflow): IO[WorkflowOutputs] = {
-    sendReceiveFutureCompletion(() => cromwellClient.outputs(workflow.id))
+  def outputs(workflow: SubmittedWorkflow, archived: Option[Boolean] = None): IO[WorkflowOutputs] = {
+    val metadataSourceOverrideOpt = archived map { isArchived =>
+      "metadataSource" -> List(if (isArchived) "Archived" else "Unarchived")
+    }
+    sendReceiveFutureCompletion(() => cromwellClient.outputs(workflow.id, Option(metadataSourceOverrideOpt.toMap)))
   }
 
   def callCacheDiff(workflowA: SubmittedWorkflow, callA: String, workflowB: SubmittedWorkflow, callB: String): IO[CallCacheDiff] = {
     sendReceiveFutureCompletion(() => cromwellClient.callCacheDiff(workflowA.id, callA, ShardIndex(None), workflowB.id, callB, ShardIndex(None)))
   }
 
-  def logs(workflow: SubmittedWorkflow): IO[WorkflowMetadata] = {
-    sendReceiveFutureCompletion(() => cromwellClient.logs(workflow.id))
+  def logs(workflow: SubmittedWorkflow, archived: Option[Boolean] = None): IO[WorkflowMetadata] = {
+    val metadataSourceOverrideOpt = archived map { isArchived =>
+      "metadataSource" -> List(if (isArchived) "Archived" else "Unarchived")
+    }
+    sendReceiveFutureCompletion(() => cromwellClient.logs(workflow.id, Option(metadataSourceOverrideOpt.toMap)))
   }
 
   def labels(workflow: SubmittedWorkflow): IO[WorkflowLabels] = {
@@ -115,7 +121,7 @@ object CentaurCromwellClient extends StrictLogging {
     val metadataSourceOverrideOpt = archived map { isArchived =>
       "metadataSource" -> List(if (isArchived) "Archived" else "Unarchived")
     }
-    metadataWithId(workflow.id, Option(mandatoryArgs ++ metadataSourceOverrideOpt.toMap ++ args.getOrElse(Map.empty)))
+    metadataWithId(workflow.id, Option(args.getOrElse(Map.empty) ++ metadataSourceOverrideOpt.toMap ++ mandatoryArgs))
   }
 
   def metadataWithId(id: WorkflowId, args: Option[Map[String, List[String]]] = defaultMetadataArgs): IO[WorkflowMetadata] = {

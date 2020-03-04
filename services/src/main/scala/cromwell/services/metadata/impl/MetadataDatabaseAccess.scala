@@ -127,20 +127,20 @@ trait MetadataDatabaseAccess {
     val uuid = query.workflowId.id.toString
 
     val futureMetadata: Future[Seq[MetadataEntry]] = query match {
-      case MetadataQuery(_, None, None, None, None, _, _) =>
+      case MetadataQuery(_, None, None, None, None, _) =>
         metadataDatabaseInterface.queryMetadataEntries(uuid, timeout)
-      case MetadataQuery(_, None, Some(key), None, None, _, _) =>
+      case MetadataQuery(_, None, Some(key), None, None, _) =>
         metadataDatabaseInterface.queryMetadataEntries(uuid, key, timeout)
-      case MetadataQuery(_, Some(jobKey), None, None, None, _, _) =>
+      case MetadataQuery(_, Some(jobKey), None, None, None, _) =>
         metadataDatabaseInterface.queryMetadataEntries(uuid, jobKey.callFqn, jobKey.index, jobKey.attempt, timeout)
-      case MetadataQuery(_, Some(jobKey), Some(key), None, None, _, _) =>
+      case MetadataQuery(_, Some(jobKey), Some(key), None, None, _) =>
         metadataDatabaseInterface.queryMetadataEntries(uuid, key, jobKey.callFqn, jobKey.index, jobKey.attempt, timeout)
-      case MetadataQuery(_, None, None, includeKeys, excludeKeys, _, _) =>
+      case MetadataQuery(_, None, None, includeKeys, excludeKeys, _) =>
         val excludeKeyRequirements = listKeyRequirements(excludeKeys)
         val queryType = if (excludeKeyRequirements.contains("calls%")) WorkflowQuery else CallOrWorkflowQuery
 
         metadataDatabaseInterface.queryMetadataEntryWithKeyConstraints(uuid, listKeyRequirements(includeKeys), excludeKeyRequirements, queryType, timeout)
-      case MetadataQuery(_, Some(MetadataQueryJobKey(callFqn, index, attempt)), None, includeKeys, excludeKeys, _, _) =>
+      case MetadataQuery(_, Some(MetadataQueryJobKey(callFqn, index, attempt)), None, includeKeys, excludeKeys, _) =>
         metadataDatabaseInterface.queryMetadataEntryWithKeyConstraints(uuid, listKeyRequirements(includeKeys), listKeyRequirements(excludeKeys), CallQuery(callFqn, index, attempt), timeout)
       case _ => Future.failed(new IllegalArgumentException(s"Invalid MetadataQuery: $query"))
     }

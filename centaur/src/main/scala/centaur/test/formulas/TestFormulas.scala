@@ -61,7 +61,7 @@ object TestFormulas extends StrictLogging {
     _ <- compareJobManagerStyleMetadataBeforeAndAfterArchival(submittedWorkflow, workflowDefinition)
     _ <- compareOutputsBeforeAndAfterArchival(submittedWorkflow, workflowDefinition)
     // validateLogs method validates data it gets from the `logs` endpoint against logs extracted from the provided
-    // metadata (notArchivedMetadata in this case), so there is no need to direct comparison
+    // metadata (notArchivedMetadata in this case), so there is no need for direct old-new comparison
     _ <- validateLogs(notArchivedMetadata, submittedWorkflow, workflowDefinition, validateArchived = Option(true))
   } yield SubmitResponse(submittedWorkflow)
 

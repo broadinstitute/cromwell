@@ -75,15 +75,9 @@ case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
 }
 
 object WorkflowFlatMetadata {
-  sealed trait FlatMetadataType {
-    def name: String
-  }
-  case object LabelsFlatMetadata extends FlatMetadataType {
-    override def name: String = "labels"
-  }
-  case object OutputsFlatMetadata extends FlatMetadataType {
-    override def name: String = "outputs"
-  }
+  case class FlatMetadataType(name: String)
+  case object LabelsFlatMetadataType extends FlatMetadataType("labels")
+  case object OutputsFlatMetadataType extends FlatMetadataType("outputs")
 
   def fromConfig(config: Config): ErrorOr[WorkflowFlatMetadata] = {
     config.extract[Map[String, Option[String]]] match {

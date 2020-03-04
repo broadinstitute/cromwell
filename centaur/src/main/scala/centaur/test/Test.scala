@@ -516,7 +516,10 @@ object Operations extends StrictLogging {
         _ <- compareFlatMetadata(
           expected = labelsLikelyBeforeArchivalFlat,
           actual = labelsAfterArchivalFlat,
-          LabelsFlatMetadata,
+          // here we use generic type instead of `LabelsFlatMetadataType` because we need to do  full comparison, i.e.
+          // expected.diff(actual) and actual.diff(expected), unlike the regular `validateMetadata` test where we only
+          // check that actual labels contain all labels specified in the *.test file
+          FlatMetadataType("labels"),
           submittedWorkflow,
           workflow
         )
@@ -530,7 +533,7 @@ object Operations extends StrictLogging {
                                   submittedWorkflow: SubmittedWorkflow,
                                   workflow: Workflow): IO[Unit] = {
     flatMetadataType match {
-      case LabelsFlatMetadata =>
+      case LabelsFlatMetadataType =>
         val inExpectedButNotActual = expected.toSet.diff(actual.toSet)
         if (inExpectedButNotActual.isEmpty) {
           IO.unit
@@ -541,7 +544,7 @@ object Operations extends StrictLogging {
             submittedWorkflow
           ))
         }
-      case OutputsFlatMetadata =>
+      case OutputsFlatMetadataType | FlatMetadataType(_) =>
         val inExpectedButNotActual = expected.toSet.diff(actual.toSet)
         val inActualButNotExpected = actual.toSet.diff(expected.toSet)
         if (inExpectedButNotActual.isEmpty && inActualButNotExpected.isEmpty) {
@@ -567,7 +570,7 @@ object Operations extends StrictLogging {
       for {
         outputsBeforeArchival <- CentaurCromwellClient.outputs(submittedWorkflow, archived = Option(false)) map { _.asFlat.stringifyValues }
         outputsAfterArchival <- CentaurCromwellClient.outputs(submittedWorkflow, archived = Option(true)) map { _.asFlat.stringifyValues }
-        _ <- compareFlatMetadata(outputsBeforeArchival, outputsAfterArchival, OutputsFlatMetadata, submittedWorkflow = submittedWorkflow, workflow = workflow)
+        _ <- compareFlatMetadata(outputsBeforeArchival, outputsAfterArchival, OutputsFlatMetadataType, submittedWorkflow = submittedWorkflow, workflow = workflow)
       } yield ()
     }
   }
@@ -617,7 +620,7 @@ object Operations extends StrictLogging {
       val ioActualLabels: IO[Map[String, JsValue]] = CentaurCromwellClient.labels(submittedWorkflow) map { _.asFlat.stringifyValues }
 
       ioActualLabels flatMap { actualLabels =>
-        compareFlatMetadata(expectedLabels.toMap, actualLabels, LabelsFlatMetadata, submittedWorkflow = submittedWorkflow, workflow = workflow)
+        compareFlatMetadata(expectedLabels.toMap, actualLabels, LabelsFlatMetadataType, submittedWorkflow = submittedWorkflow, workflow = workflow)
       }
     }
   }

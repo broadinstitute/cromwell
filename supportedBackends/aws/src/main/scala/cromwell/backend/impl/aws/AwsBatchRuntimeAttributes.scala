@@ -183,8 +183,8 @@ object ScriptS3BucketNameValidation {
 
 class ScriptS3BucketNameValidation( key: String ) extends StringRuntimeAttributesValidation(key) {
 
-  //a reasonable but not perfect regex for a bucket (see https://stackoverflow.com/a/58248645/3573553)
-  protected val s3BucketNameRegex: Regex = "(?!^(\\d{1,3}\\.){3}\\d{1,3}$)(^[a-z0-9]([a-z0-9-/]*(\\.[a-z0-9])?)*$)".trim.r
+  //a reasonable but not perfect regex for a bucket
+  protected val s3BucketNameRegex: Regex = "^s3://([^/]+)/(.*?([^/]+)/?)$".trim.r
 
 
   override protected def validateValue: PartialFunction[WomValue, ErrorOr[String]] = {

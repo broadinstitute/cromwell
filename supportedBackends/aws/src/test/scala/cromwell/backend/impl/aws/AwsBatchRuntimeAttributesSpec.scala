@@ -63,7 +63,7 @@ class AwsBatchRuntimeAttributesSpec extends WordSpecLike with Matchers with Mock
     false,
     ContinueOnReturnCodeSet(Set(0)),
     false,
-    "my-bucket")
+    "s3://ama/my-stuff/foo")
 
   "AwsBatchRuntimeAttributes" should {
 
@@ -87,8 +87,14 @@ class AwsBatchRuntimeAttributesSpec extends WordSpecLike with Matchers with Mock
     // }
 
     "validate a valid scriptBucketName entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("my-bucket"))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo"))
       val expectedRuntimeAttributes = expectedDefaults
+      assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "validate a valid scriptBucketName with trailing slash entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo/"))
+      val expectedRuntimeAttributes = expectedDefaults.copy(scriptS3BucketName = "s3://ama/my-stuff/foo/")
       assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -99,7 +105,7 @@ class AwsBatchRuntimeAttributesSpec extends WordSpecLike with Matchers with Mock
     }
 
     "validate a valid Docker entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo"))
       val expectedRuntimeAttributes = expectedDefaults
       assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
@@ -110,7 +116,7 @@ class AwsBatchRuntimeAttributesSpec extends WordSpecLike with Matchers with Mock
     }
 
     "validate a valid failOnStderr entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "failOnStderr" -> WomBoolean(true))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo"), "failOnStderr" -> WomBoolean(true))
       val expectedRuntimeAttributes = expectedDefaults.copy(failOnStderr = true)
       assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
@@ -121,86 +127,86 @@ class AwsBatchRuntimeAttributesSpec extends WordSpecLike with Matchers with Mock
     }
 
     "validate a valid continueOnReturnCode integer entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomInteger(1))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo"), "continueOnReturnCode" -> WomInteger(1))
       val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1)))
       assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "validate a valid continueOnReturnCode boolean entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomBoolean(false))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo"), "continueOnReturnCode" -> WomBoolean(false))
       val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ContinueOnReturnCodeFlag(false))
       assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "validate a valid continueOnReturnCode array entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomArray(WomArrayType(WomIntegerType), Array(WomInteger(1), WomInteger(2))))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo"), "continueOnReturnCode" -> WomArray(WomArrayType(WomIntegerType), Array(WomInteger(1), WomInteger(2))))
       val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1, 2)))
       assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "coerce then validate a valid continueOnReturnCode array entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomArray(WomArrayType(WomStringType), Array(WomString("1"), WomString("2"))))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo"), "continueOnReturnCode" -> WomArray(WomArrayType(WomStringType), Array(WomString("1"), WomString("2"))))
       val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1, 2)))
       assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "fail to validate an invalid continueOnReturnCode entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomString("value"))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo"), "continueOnReturnCode" -> WomString("value"))
       assertAwsBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]")
     }
 
     "validate a valid cpu entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "cpu" -> WomInteger(2))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo"), "cpu" -> WomInteger(2))
       val expectedRuntimeAttributes = expectedDefaults.copy(cpu = refineMV[Positive](2))
       assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "validate a valid cpu string entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "cpu" -> WomString("2"))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo"), "cpu" -> WomString("2"))
       val expectedRuntimeAttributes = expectedDefaults.copy(cpu = refineMV[Positive](2))
       assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "fail to validate an invalid cpu entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "cpu" -> WomString("value"))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo"), "cpu" -> WomString("value"))
       assertAwsBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting cpu runtime attribute to be an Integer")
     }
 
     "validate a valid zones entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "zones" -> WomString("us-east-1a"))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo"), "zones" -> WomString("us-east-1a"))
       val expectedRuntimeAttributes = expectedDefaults.copy(zones = Vector("us-east-1a"))
       assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "fail to validate an invalid zones entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "zones" -> WomInteger(1))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo"), "zones" -> WomInteger(1))
       assertAwsBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting zones runtime attribute to be either a whitespace separated String or an Array[String]")
     }
 
     "validate a valid array zones entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "zones" -> WomArray(WomArrayType(WomStringType), Array(WomString("us-east-1a"), WomString("us-east-1b"))))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo"), "zones" -> WomArray(WomArrayType(WomStringType), Array(WomString("us-east-1a"), WomString("us-east-1b"))))
       val expectedRuntimeAttributes = expectedDefaults.copy(zones = Vector("us-east-1a", "us-east-1b"))
       assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "fail to validate an invalid array zones entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "zones" -> WomArray(WomArrayType(WomIntegerType), Array(WomInteger(1), WomInteger(2))))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo"), "zones" -> WomArray(WomArrayType(WomIntegerType), Array(WomInteger(1), WomInteger(2))))
       assertAwsBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting zones runtime attribute to be either a whitespace separated String or an Array[String]")
     }
 
     "validate a valid disks entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomString("local-disk"))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo"), "disks" -> WomString("local-disk"))
       val expectedRuntimeAttributes = expectedDefaults.copy(disks = Seq(AwsBatchVolume.parse("local-disk").get))
       assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "fail to validate an invalid disks entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomInteger(10))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo"), "disks" -> WomInteger(10))
       assertAwsBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting disks runtime attribute to be a comma separated String or Array[String]")
     }
 
     "validate a valid disks array entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomArray(WomArrayType(WomStringType), Array(WomString("local-disk"), WomString("local-disk"))))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo"), "disks" -> WomArray(WomArrayType(WomStringType), Array(WomString("local-disk"), WomString("local-disk"))))
       val expectedRuntimeAttributes = expectedDefaults.copy(disks = Seq(AwsBatchVolume.parse("local-disk").get, AwsBatchVolume.parse("local-disk").get))
       assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
@@ -212,24 +218,24 @@ class AwsBatchRuntimeAttributesSpec extends WordSpecLike with Matchers with Mock
     // }
 
     "validate a valid memory entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "memory" -> WomString("1 GB"))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo"), "memory" -> WomString("1 GB"))
       val expectedRuntimeAttributes = expectedDefaults.copy(memory = MemorySize(1, MemoryUnit.GB))
       assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "fail to validate an invalid memory entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "memory" -> WomString("blah"))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo"), "memory" -> WomString("blah"))
       assertAwsBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting memory runtime attribute to be an Integer or String with format '8 GB'")
     }
 
     "validate a valid noAddress entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "noAddress" -> WomBoolean(true))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo"), "noAddress" -> WomBoolean(true))
       val expectedRuntimeAttributes = expectedDefaults.copy(noAddress = true)
       assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "fail to validate an invalid noAddress entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "noAddress" -> WomInteger(1))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo"), "noAddress" -> WomInteger(1))
       assertAwsBatchRuntimeAttributesFailedCreation(runtimeAttributes,
         "Expecting noAddress runtime attribute to be a Boolean")
     }
@@ -245,7 +251,7 @@ class AwsBatchRuntimeAttributesSpec extends WordSpecLike with Matchers with Mock
         "arn:aws:batch:us-east-1:123456789012:job-queue/my_queue",
       )
       validArnsAsStrings foreach { validArn =>
-        val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "queueArn" -> WomString(validArn))
+        val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo"), "queueArn" -> WomString(validArn))
         val expectedRuntimeAttributes = expectedDefaults.copy(queueArn = validArn)
         assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
       }
@@ -271,7 +277,7 @@ class AwsBatchRuntimeAttributesSpec extends WordSpecLike with Matchers with Mock
     }
 
     "override config default attributes with default attributes declared in workflow options" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo") )
 
       val workflowOptionsJson =
         """{
@@ -285,7 +291,7 @@ class AwsBatchRuntimeAttributesSpec extends WordSpecLike with Matchers with Mock
     }
 
     "override config default runtime attributes with task runtime attributes" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "cpu" -> WomInteger(4))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("s3://ama/my-stuff/foo"),  "cpu" -> WomInteger(4))
 
       val workflowOptionsJson =
         """{
@@ -299,7 +305,7 @@ class AwsBatchRuntimeAttributesSpec extends WordSpecLike with Matchers with Mock
     }
 
     "override invalid config default attributes with task runtime attributes" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "cpu" -> WomInteger(4))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"),"scriptBucketName" -> WomString("s3://ama/my-stuff/foo"),  "cpu" -> WomInteger(4))
 
       val workflowOptionsJson =
         """{

@@ -36,7 +36,6 @@ import cats.data.ReaderT._
 import cats.data.{Kleisli, ReaderT}
 import cats.effect.{Async, Timer}
 import cats.implicits._
-import com.amazonaws.services.s3.{AmazonS3, AmazonS3Client}
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.JobPaths
 import cromwell.cloudsupport.aws.auth.AwsAuthMode
@@ -49,7 +48,7 @@ import software.amazon.awssdk.services.batch.model._
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient
 import software.amazon.awssdk.services.cloudwatchlogs.model.{GetLogEventsRequest, OutputLogEvent}
 import software.amazon.awssdk.services.s3.S3Client
-import software.amazon.awssdk.services.s3.model.{HeadObjectRequest, NoSuchKeyException, PutObjectRequest}
+import software.amazon.awssdk.services.s3.model.{HeadObjectRequest, PutObjectRequest, S3Exception}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -99,8 +98,13 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     builder.build
   }
 
-  lazy val s3Client: AmazonS3 = {
-    AmazonS3Client.builder.build
+  lazy val s3Client: S3Client = {
+    val builder = S3Client.builder()
+    optAwsAuthMode.foreach { awsAuthMode =>
+      builder.credentialsProvider(awsAuthMode.provider())
+    }
+    configRegion.foreach(builder.region)
+    builder.build
   }
 
   lazy val reconfiguredScript: String = {
@@ -201,7 +205,6 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     */
   private def findOrCreateS3Script(commandLine :String, scriptS3BucketName: String) :String = {
 
-    val s3Client = S3Client.create()
     val bucketName = scriptS3BucketName
 
     val key = MessageDigest.getInstance("MD5")
@@ -220,7 +223,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
       // if there's no exception then the script already exists
       Log.info(s"""Found script s3://$bucketName/$key""")
     } catch {
-      case _: NoSuchKeyException =>  //this happens if there is no object with that key in the bucket
+      case _: S3Exception =>  //this happens if there is no object with that key in the bucket
         Log.info(s"Script $key not found in bucket $bucketName. Creating script with content:\n$commandLine")
 
         val putRequest = PutObjectRequest.builder()

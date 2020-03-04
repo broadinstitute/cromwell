@@ -208,7 +208,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
       .digest(commandLine.getBytes())
       .foldLeft("")(_ + "%02x".format(_))
 
-    Log.info(s"s3 object name for script is calculated to be ${key} in ${bucketName} bucket")
+    Log.info(s"s3 object name for script is calculated to be $key in $bucketName bucket")
 
     try { //try and head the object
       s3Client.headObject(HeadObjectRequest.builder()
@@ -243,60 +243,72 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
    */
   private def findOrCreateDefinition[F[_]](jobDefinitionName: String)
                                     (implicit async: Async[F], timer: Timer[F]): Aws[F, String] = ReaderT { awsBatchAttributes =>
-    //check if there is already a suitable definition based on the job definition name
-    val describeJobDefinitionRequest = DescribeJobDefinitionsRequest.builder().jobDefinitionName( jobDefinitionName ).build()
 
-    async.delay({
+    // this is a call back that is executed below by the async.recoverWithRetry(retry)
+    val submit = async.delay({
+
+      //check if there is already a suitable definition based on the job definition name
+
+      Log.info(s"Checking for existence of job definition called: $jobDefinitionName")
+
+      val describeJobDefinitionRequest = DescribeJobDefinitionsRequest.builder()
+        .jobDefinitionName( jobDefinitionName )
+        .status("ACTIVE")
+        .build()
+
       val describeJobDefinitionResponse = client.describeJobDefinitions(describeJobDefinitionRequest)
+
       if ( !describeJobDefinitionResponse.jobDefinitions.isEmpty ) {
 
-        val definitions = describeJobDefinitionResponse.jobDefinitions().asScala
+        Log.info(s"Found job definition $jobDefinitionName, getting arn for latest version")
 
-        //sort the definitions so that the latest revision is at the head and return its ARN
-        definitions.toList.sortWith(_.revision > _.revision).head.jobDefinitionArn()
-        Log.info(s"Latest job definition revision is: ${definitions.head} with arn: ${definitions.head.jobDefinitionArn()}")
+        //sort the definitions so that the latest revision is at the head
+        val definitions = describeJobDefinitionResponse.jobDefinitions().asScala.toList.sortWith(_.revision > _.revision)
 
-        return pure(definitions.head.jobDefinitionArn())
+        Log.info(s"Latest job definition revision is: ${definitions.head.revision()} with arn: ${definitions.head.jobDefinitionArn()}")
+
+        //return the arn of the job
+        definitions.head.jobDefinitionArn()
       }
-    })
+
+      //no definition found. create one
+      Log.info(s"No job definition found, creating one")
+
+      val commandStr = awsBatchAttributes.fileSystem match {
+        case AWSBatchStorageSystems.s3 => reconfiguredScript
+        case _ => script
+      }
+      val jobDefinitionContext = AwsBatchJobDefinitionContext(
+        runtimeAttributes = runtimeAttributes,
+        uniquePath = jobDefinitionName,
+        commandText = commandStr,
+        dockerRcPath = dockerRc,
+        dockerStdoutPath = dockerStdout,
+        dockerStderrPath = dockerStderr,
+        jobDescriptor = jobDescriptor,
+        jobPaths = jobPaths,
+        inputs = inputs,
+        outputs = outputs)
+
+      val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder
+
+      Log.info(s"Creating job definition: $jobDefinitionName")
+
+      val jobDefinition = jobDefinitionBuilder.build(jobDefinitionContext)
 
 
-    //no definition found. create one
-    val commandStr = awsBatchAttributes.fileSystem match {
-      case AWSBatchStorageSystems.s3 => reconfiguredScript
-      case _ => script
-    }
-    val jobDefinitionContext = AwsBatchJobDefinitionContext(
-      runtimeAttributes = runtimeAttributes,
-      uniquePath = jobDefinitionName,
-      commandText = commandStr,
-      dockerRcPath = dockerRc,
-      dockerStdoutPath = dockerStdout,
-      dockerStderrPath = dockerStderr,
-      jobDescriptor = jobDescriptor,
-      jobPaths = jobPaths,
-      inputs = inputs,
-      outputs = outputs)
+      // See:
+      //
+      // http://aws-java-sdk-javadoc.s3-website-us-west-2.amazonaws.com/latest/software/amazon/awssdk/services/batch/model/RegisterJobDefinitionRequest.Builder.html
+      val definitionRequest = RegisterJobDefinitionRequest.builder
+        .containerProperties(jobDefinition.containerProperties)
+        .jobDefinitionName(jobDefinitionName)
+        // See https://stackoverflow.com/questions/24349517/scala-method-named-type
+        .`type`(JobDefinitionType.CONTAINER)
+        .build
 
-    val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder
+      Log.info(s"Submitting definition request: $definitionRequest")
 
-    Log.info(s"Creating job definition: $jobDefinitionName")
-
-    val jobDefinition = jobDefinitionBuilder.build(jobDefinitionContext)
-
-
-    // See:
-    //
-    // http://aws-java-sdk-javadoc.s3-website-us-west-2.amazonaws.com/latest/software/amazon/awssdk/services/batch/model/RegisterJobDefinitionRequest.Builder.html
-    val definitionRequest = RegisterJobDefinitionRequest.builder
-      .containerProperties(jobDefinition.containerProperties)
-      .jobDefinitionName(jobDefinitionName)
-      // See https://stackoverflow.com/questions/24349517/scala-method-named-type
-      .`type`(JobDefinitionType.CONTAINER)
-      .build
-
-    Log.info(s"Submitting definition request: $definitionRequest")
-    val submit = async.delay({
       val arn = client.registerJobDefinition(definitionRequest).jobDefinitionArn
       Log.info(s"Definition created: $arn")
       arn

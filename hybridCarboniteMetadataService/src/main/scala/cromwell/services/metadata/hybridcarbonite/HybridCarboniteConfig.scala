@@ -30,7 +30,12 @@ final case class HybridCarboniteConfig(enabled: Boolean,
 
 final case class HybridCarboniteFreezeScanConfig(initialInterval: FiniteDuration = 5 seconds, maxInterval: FiniteDuration = 5 minutes, multiplier: Double = 1.1)
 
-final case class MetadataDeletionConfig(intervalOpt: Option[FiniteDuration] = None, batchSize: Long = 200L, delayAfterWorkflowCompletion: FiniteDuration = 24 hours)
+sealed trait MetadataDeletionConfig
+final case class ActiveMetadataDeletionConfig(initialDelay: FiniteDuration,
+                                              interval: FiniteDuration,
+                                              batchSize: Long = 200L,
+                                              delayAfterWorkflowCompletion: FiniteDuration = 24 hours) extends MetadataDeletionConfig
+case object InactiveMetadataDeletionConfig extends MetadataDeletionConfig
 
 object HybridCarboniteConfig {
 
@@ -70,21 +75,24 @@ object HybridCarboniteConfig {
       if (carboniterConfig.hasPath("metadata-deletion")) {
         val metadataDeletion = carboniterConfig.getConfig("metadata-deletion")
 
+        val initialDelay = Try { metadataDeletion.getOrElse[Duration]("initial-delay", Duration.Inf) } toErrorOr
         val interval = Try { metadataDeletion.getOrElse[Duration]("interval", Duration.Inf) } toErrorOr
         val batchSize = Try { metadataDeletion.getOrElse("batchSize", default = 200L) } toErrorOr
         val delayAfterWorkflowCompletion = Try { metadataDeletion.getOrElse("delay-after-workflow-completion", 24 hours) } toErrorOr
 
-        val errorOrMetadataDeletionConfig = (interval, batchSize, delayAfterWorkflowCompletion) mapN {
-          case (i, b, d) =>
-            MetadataDeletionConfig(
-              if (i.isFinite()) Option(i.asInstanceOf[FiniteDuration]) else None,
+        val errorOrMetadataDeletionConfig: ErrorOr[MetadataDeletionConfig] = (initialDelay, interval, batchSize, delayAfterWorkflowCompletion) mapN { case (id, i, b, d) =>
+          if (id.isFinite() && i.isFinite()) {
+            ActiveMetadataDeletionConfig(
+              id.asInstanceOf[FiniteDuration],
+              i.asInstanceOf[FiniteDuration],
               b,
-              d)
+              d
+            )
+          } else InactiveMetadataDeletionConfig
         } contextualizeErrors "parse Carboniter 'metadata-deletion' stanza"
-
         errorOrMetadataDeletionConfig.toEither
       } else {
-        MetadataDeletionConfig().validNelCheck
+        InactiveMetadataDeletionConfig.validNelCheck
       }
     }
 

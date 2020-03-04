@@ -13,7 +13,6 @@ import cromwell.services.metadata.hybridcarbonite.NumberOfWorkflowsToDeleteMetad
 import cromwell.services.metadata.impl.MetadataDatabaseAccess
 
 import scala.util.{Failure, Success}
-import scala.concurrent.duration._
 
 class DeleteMetadataActor(metadataDeletionConfig: MetadataDeletionConfig, override val serviceRegistryActor: ActorRef) extends Actor
   with ActorLogging
@@ -23,19 +22,26 @@ class DeleteMetadataActor(metadataDeletionConfig: MetadataDeletionConfig, overri
 
   implicit val ec = context.dispatcher
 
-  metadataDeletionConfig.intervalOpt.map { interval =>
-    context.system.scheduler.schedule(5.minutes, interval, self, DeleteMetadataAction)
+  var activeConfig: ActiveMetadataDeletionConfig = _
+  metadataDeletionConfig match {
+    case a: ActiveMetadataDeletionConfig =>
+      logger.info(s"Archived metadata deletion is configured to begin polling after ${a.initialDelay}, and then delete up to ${a.batchSize} workflows worth of metadata every ${a.interval} (for workflows which completed at least ${a.delayAfterWorkflowCompletion} ago).")
+      activeConfig = a
+      context.system.scheduler.schedule(a.initialDelay, a.interval, self, DeleteMetadataAction)
+    case InactiveMetadataDeletionConfig =>
+      logger.info("Archived metadata deletion is configured to be inactive.")
+      context.stop(self)
   }
 
   val numOfWorkflowsToDeleteMetadataMetricActor = context.actorOf(NumberOfWorkflowsToDeleteMetadataMetricActor.props(serviceRegistryActor))
 
   override def receive: Receive = {
     case DeleteMetadataAction =>
-      val currentTimestampMinusDelay = OffsetDateTime.now().minusSeconds(metadataDeletionConfig.delayAfterWorkflowCompletion.toSeconds)
+      val currentTimestampMinusDelay = OffsetDateTime.now().minusSeconds(activeConfig.delayAfterWorkflowCompletion.toSeconds)
       val workflowIdsForMetadataDeletionFuture = queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(
         MetadataArchiveStatus.toDatabaseValue(Archived),
         currentTimestampMinusDelay,
-        metadataDeletionConfig.batchSize
+        activeConfig.batchSize
       )
       workflowIdsForMetadataDeletionFuture onComplete {
         case Success(workflowIds) =>

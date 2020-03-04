@@ -58,6 +58,9 @@ object CentaurConfig {
   lazy val maxWorkflowLength = conf.getDuration("maxWorkflowLength").toScala
   lazy val metadataConsistencyTimeout = conf.getDuration("metadataConsistencyTimeout").toScala
 
+  lazy val metadataDeletionMinimumWait = conf.getDuration("metadataDeletionMinimumWait").toScala
+  lazy val metadataDeletionMaximumWait = conf.getDuration("metadataDeletionMaximumWait").toScala
+
   lazy val standardTestCasePath = Paths.get(conf.getString("standardTestCasePath"))
 
   // If provided, any tests will be appended to the tests in standardTestCasePath

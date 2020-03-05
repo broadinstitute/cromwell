@@ -92,8 +92,8 @@ object CentaurCromwellClient extends StrictLogging {
     sendReceiveFutureCompletion(() => cromwellClient.logs(workflow.id, Option(metadataSourceOverrideOpt.toMap)))
   }
 
-  def labels(workflow: SubmittedWorkflow): IO[WorkflowLabels] = {
-    sendReceiveFutureCompletion(() => cromwellClient.labels(workflow.id))
+  def labels(workflow: SubmittedWorkflow, newLabels: Option[List[Label]] = None): IO[WorkflowLabels] = {
+    sendReceiveFutureCompletion(() => cromwellClient.labels(workflow.id, newLabels))
   }
 
   def version: IO[CromwellVersion] = {

@@ -56,6 +56,7 @@ object TestFormulas extends StrictLogging {
     // Compare archived and unarchived metadata in various querying scenarios
     labelsAfterArchival = CentaurCromwellClient.labels(submittedWorkflow)
     _ <- compareLabelsBeforeAndAfterArchival(labelsLikelyBeforeArchival, labelsAfterArchival, submittedWorkflow, workflowDefinition)
+    _ <- validateLabelsAdditionAndSubsequentRetrieval(submittedWorkflow, workflowDefinition)
     _ <- compareMetadataBeforeAndAfterArchival(submittedWorkflow, workflowDefinition, expandSubworkflows = false)
     _ <- compareMetadataBeforeAndAfterArchival(submittedWorkflow, workflowDefinition, expandSubworkflows = true)
     _ <- compareJobManagerStyleMetadataBeforeAndAfterArchival(submittedWorkflow, workflowDefinition)

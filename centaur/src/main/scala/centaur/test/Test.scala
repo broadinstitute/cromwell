@@ -23,7 +23,7 @@ import com.typesafe.scalalogging.StrictLogging
 import common.validation.Validation._
 import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
-import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, Succeeded, TerminalStatus, WaasDescription, WorkflowId, WorkflowLabels, WorkflowMetadata, WorkflowStatus}
+import cromwell.api.model.{CallCacheDiff, Failed, Label, SubmittedWorkflow, Succeeded, TerminalStatus, WaasDescription, WorkflowId, WorkflowLabels, WorkflowMetadata, WorkflowStatus}
 import cromwell.cloudsupport.aws.AwsConfiguration
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
@@ -523,6 +523,43 @@ object Operations extends StrictLogging {
           submittedWorkflow,
           workflow
         )
+      } yield ()
+    }
+  }
+
+  def validateLabelsAdditionAndSubsequentRetrieval(submittedWorkflow: SubmittedWorkflow,
+                                                   workflow: Workflow): Test[Unit] = new Test[Unit] {
+
+    import centaur.test.metadata.WorkflowFlatLabels._
+
+    def eventuallyComparisonSucceeds(expected: Map[String, JsValue],
+                                     actual: Map[String, JsValue],
+                                     flatMetadataType: FlatMetadataType,
+                                     submittedWorkflow: SubmittedWorkflow,
+                                     workflow: Workflow): IO[Unit] = {
+      compareFlatMetadata(expected, actual, flatMetadataType, submittedWorkflow, workflow).handleErrorWith({ _ =>
+        for {
+          _ <- IO.sleep(2.seconds)
+          latestLabels <- CentaurCromwellClient.labels(submittedWorkflow)
+          recurse <- eventuallyComparisonSucceeds(expected, latestLabels.asFlat.value, flatMetadataType, submittedWorkflow, workflow)
+        } yield recurse
+      })
+    }
+
+    override def run: IO[Unit] = {
+      val labelsToAdd = List(Label("newlyAddedLabel", "Twas brillig, and the slithy toves did gyre and gimble in the wabe"))
+      for {
+        labelsBeforeAddition <- CentaurCromwellClient.labels(submittedWorkflow)
+        _ <- CentaurCromwellClient.labels(submittedWorkflow, Some(labelsToAdd))
+        labelsAfterAddition <- CentaurCromwellClient.labels(submittedWorkflow)
+        // "eventually" because we have to wait until summarizer kicks in
+        _ <- eventuallyComparisonSucceeds(
+          expected = labelsBeforeAddition.asFlat.value ++ labelsToAdd.map(lbl => lbl.key -> JsString(lbl.value)),
+          actual = labelsAfterAddition.asFlat.value,
+          GenericFlatMetadataType("labels"),
+          submittedWorkflow,
+          workflow
+        ).timeout(CentaurConfig.metadataConsistencyTimeout)
       } yield ()
     }
   }

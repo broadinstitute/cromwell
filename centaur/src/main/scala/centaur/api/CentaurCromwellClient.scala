@@ -75,21 +75,18 @@ object CentaurCromwellClient extends StrictLogging {
   }
 
   def outputs(workflow: SubmittedWorkflow, archived: Option[Boolean] = None): IO[WorkflowOutputs] = {
-    val metadataSourceOverrideOpt = archived map { isArchived =>
-      "metadataSource" -> List(if (isArchived) "Archived" else "Unarchived")
-    }
-    sendReceiveFutureCompletion(() => cromwellClient.outputs(workflow.id, Option(metadataSourceOverrideOpt.toMap)))
+    sendReceiveFutureCompletion(() => cromwellClient.outputs(workflow.id, Option(archivedBooleanToMetadataSourceParameter(archived))))
   }
 
   def callCacheDiff(workflowA: SubmittedWorkflow, callA: String, workflowB: SubmittedWorkflow, callB: String): IO[CallCacheDiff] = {
     sendReceiveFutureCompletion(() => cromwellClient.callCacheDiff(workflowA.id, callA, ShardIndex(None), workflowB.id, callB, ShardIndex(None)))
   }
 
+  private def archivedBooleanToMetadataSourceParameter(archived: Option[Boolean]): Map[String, List[String]] =
+    archived.map(isArchived => "metadataSource" -> List(if (isArchived) "Archived" else "Unarchived")).toMap
+
   def logs(workflow: SubmittedWorkflow, archived: Option[Boolean] = None): IO[WorkflowMetadata] = {
-    val metadataSourceOverrideOpt = archived map { isArchived =>
-      "metadataSource" -> List(if (isArchived) "Archived" else "Unarchived")
-    }
-    sendReceiveFutureCompletion(() => cromwellClient.logs(workflow.id, Option(metadataSourceOverrideOpt.toMap)))
+    sendReceiveFutureCompletion(() => cromwellClient.logs(workflow.id, Option(archivedBooleanToMetadataSourceParameter(archived))))
   }
 
   def labels(workflow: SubmittedWorkflow): IO[WorkflowLabels] = {
@@ -118,10 +115,8 @@ object CentaurCromwellClient extends StrictLogging {
                expandSubworkflows: Boolean = false,
                archived: Option[Boolean] = None): IO[WorkflowMetadata] = {
     val mandatoryArgs = Map("expandSubWorkflows" -> List(expandSubworkflows.toString))
-    val metadataSourceOverrideOpt = archived map { isArchived =>
-      "metadataSource" -> List(if (isArchived) "Archived" else "Unarchived")
-    }
-    metadataWithId(workflow.id, Option(args.getOrElse(Map.empty) ++ metadataSourceOverrideOpt.toMap ++ mandatoryArgs))
+    val metadataSourceOverride = archivedBooleanToMetadataSourceParameter(archived)
+    metadataWithId(workflow.id, Option(args.getOrElse(Map.empty) ++ metadataSourceOverride ++ mandatoryArgs))
   }
 
   def metadataWithId(id: WorkflowId, args: Option[Map[String, List[String]]] = defaultMetadataArgs): IO[WorkflowMetadata] = {

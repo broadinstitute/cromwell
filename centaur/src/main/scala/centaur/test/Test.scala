@@ -509,21 +509,9 @@ object Operations extends StrictLogging {
                                           workflow: Workflow): Test[Unit] = new Test[Unit] {
 
     override def run: IO[Unit] = {
-      import centaur.test.metadata.WorkflowFlatLabels._
-      for {
-        labelsLikelyBeforeArchivalFlat <- labelsLikelyBeforeArchival map { _.asFlat.stringifyValues }
-        labelsAfterArchivalFlat <- labelsAfterArchival map { _.asFlat.stringifyValues }
-        _ <- compareFlatMetadata(
-          expected = labelsLikelyBeforeArchivalFlat,
-          actual = labelsAfterArchivalFlat,
-          // here we use generic type instead of `LabelsFlatMetadataType` because we need to do  full comparison, i.e.
-          // expected.diff(actual) and actual.diff(expected), unlike the regular `validateMetadata` test where we only
-          // check that actual labels contain all labels specified in the *.test file
-          GenericFlatMetadataType("labels"),
-          submittedWorkflow,
-          workflow
-        )
-      } yield ()
+      labelsLikelyBeforeArchival.flatMap { expectedLabels =>
+        labelsAfterArchival.flatMap(actualLabels => validateMetadataJson(expectedLabels.labels, actualLabels.labels, submittedWorkflow, workflow))
+      }
     }
   }
 
@@ -532,16 +520,15 @@ object Operations extends StrictLogging {
 
     import centaur.test.metadata.WorkflowFlatLabels._
 
-    def eventuallyComparisonSucceeds(expected: Map[String, JsValue],
-                                     actual: Map[String, JsValue],
-                                     flatMetadataType: FlatMetadataType,
+    def eventuallyComparisonSucceeds(expected: JsObject,
+                                     actual: JsObject,
                                      submittedWorkflow: SubmittedWorkflow,
                                      workflow: Workflow): IO[Unit] = {
-      compareFlatMetadata(expected, actual, flatMetadataType, submittedWorkflow, workflow).handleErrorWith({ _ =>
+      validateMetadataJson(expected, actual, submittedWorkflow, workflow).handleErrorWith({ _ =>
         for {
           _ <- IO.sleep(2.seconds)
           latestLabels <- CentaurCromwellClient.labels(submittedWorkflow)
-          recurse <- eventuallyComparisonSucceeds(expected, latestLabels.asFlat.value, flatMetadataType, submittedWorkflow, workflow)
+          recurse <- eventuallyComparisonSucceeds(expected, latestLabels.labels, submittedWorkflow, workflow)
         } yield recurse
       })
     }
@@ -554,9 +541,8 @@ object Operations extends StrictLogging {
         labelsAfterAddition <- CentaurCromwellClient.labels(submittedWorkflow)
         // "eventually" because we have to wait until summarizer kicks in
         _ <- eventuallyComparisonSucceeds(
-          expected = labelsBeforeAddition.asFlat.value ++ labelsToAdd.map(lbl => lbl.key -> JsString(lbl.value)),
-          actual = labelsAfterAddition.asFlat.value,
-          GenericFlatMetadataType("labels"),
+          expected = JsObject(labelsBeforeAddition.labels.fields ++ labelsToAdd.map(lbl => lbl.key -> JsString(lbl.value))),
+          actual = labelsAfterAddition.labels,
           submittedWorkflow,
           workflow
         ).timeout(CentaurConfig.metadataConsistencyTimeout)
@@ -564,50 +550,15 @@ object Operations extends StrictLogging {
     }
   }
 
-  private def compareFlatMetadata(expected: Map[String, JsValue],
-                                  actual: Map[String, JsValue],
-                                  flatMetadataType: FlatMetadataType,
-                                  submittedWorkflow: SubmittedWorkflow,
-                                  workflow: Workflow): IO[Unit] = {
-    flatMetadataType match {
-      case LabelsFlatMetadataType =>
-        val inExpectedButNotActual = expected.toSet.diff(actual.toSet)
-        if (inExpectedButNotActual.isEmpty) {
-          IO.unit
-        } else {
-          IO.raiseError(CentaurTestException(
-            s"In expected ${flatMetadataType.name} but not in actual: ${inExpectedButNotActual.mkString(", ")}",
-            workflow,
-            submittedWorkflow
-          ))
-        }
-      case OutputsFlatMetadataType | GenericFlatMetadataType(_) =>
-        val inExpectedButNotActual = expected.toSet.diff(actual.toSet)
-        val inActualButNotExpected = actual.toSet.diff(expected.toSet)
-        if (inExpectedButNotActual.isEmpty && inActualButNotExpected.isEmpty) {
-          IO.unit
-        } else {
-          IO.raiseError(CentaurTestException(
-            s"""
-               |In expected ${flatMetadataType.name} but not in actual: ${inExpectedButNotActual.mkString(", ")}
-               |In actual ${flatMetadataType.name} but not in expected: ${inActualButNotExpected.mkString(", ")}
-               |""".stripMargin,
-            workflow,
-            submittedWorkflow
-          ))
-        }
-    }
-  }
 
   def compareOutputsBeforeAndAfterArchival(submittedWorkflow: SubmittedWorkflow,
                                           workflow: Workflow): Test[Unit] = new Test[Unit] {
 
     override def run: IO[Unit] = {
-      import centaur.test.metadata.WorkflowFlatOutputs._
       for {
-        outputsBeforeArchival <- CentaurCromwellClient.outputs(submittedWorkflow, archived = Option(false)) map { _.asFlat.stringifyValues }
-        outputsAfterArchival <- CentaurCromwellClient.outputs(submittedWorkflow, archived = Option(true)) map { _.asFlat.stringifyValues }
-        _ <- compareFlatMetadata(outputsBeforeArchival, outputsAfterArchival, OutputsFlatMetadataType, submittedWorkflow = submittedWorkflow, workflow = workflow)
+        outputsBeforeArchival <- CentaurCromwellClient.outputs(submittedWorkflow, archived = Option(false))
+        outputsAfterArchival <- CentaurCromwellClient.outputs(submittedWorkflow, archived = Option(true))
+        _ <- validateMetadataJson(outputsBeforeArchival.outputs.asJsObject, outputsAfterArchival.outputs.asJsObject, submittedWorkflow, workflow)
       } yield ()
     }
   }
@@ -657,7 +608,16 @@ object Operations extends StrictLogging {
       val ioActualLabels: IO[Map[String, JsValue]] = CentaurCromwellClient.labels(submittedWorkflow) map { _.asFlat.stringifyValues }
 
       ioActualLabels flatMap { actualLabels =>
-        compareFlatMetadata(expectedLabels.toMap, actualLabels, LabelsFlatMetadataType, submittedWorkflow = submittedWorkflow, workflow = workflow)
+        val diff = expectedLabels.toSet.diff(actualLabels.toSet)
+        if (diff.isEmpty) {
+          IO.unit
+        } else {
+          IO.raiseError(CentaurTestException(
+            s"In expected labels but not in actual: ${diff.mkString(", ")}",
+            workflow,
+            submittedWorkflow
+          ))
+        }
       }
     }
   }

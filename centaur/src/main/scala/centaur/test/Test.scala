@@ -518,8 +518,6 @@ object Operations extends StrictLogging {
   def validateLabelsAdditionAndSubsequentRetrieval(submittedWorkflow: SubmittedWorkflow,
                                                    workflow: Workflow): Test[Unit] = new Test[Unit] {
 
-    import centaur.test.metadata.WorkflowFlatLabels._
-
     def eventuallyComparisonSucceeds(expected: JsObject,
                                      actual: JsObject,
                                      submittedWorkflow: SubmittedWorkflow,

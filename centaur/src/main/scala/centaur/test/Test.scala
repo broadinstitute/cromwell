@@ -523,15 +523,15 @@ object Operations extends StrictLogging {
     def eventuallyComparisonWithLatestLabelsSucceeds(expected: JsObject,
                                                      submittedWorkflow: SubmittedWorkflow,
                                                      workflow: Workflow): IO[Unit] = {
-      val latestLabels = CentaurCromwellClient.labels(submittedWorkflow)
-      latestLabels flatMap { actualLabels =>
-        validateMetadataJson(expected, actualLabels.labels, submittedWorkflow, workflow).handleErrorWith({ _ =>
+      for {
+        actualLabels <- CentaurCromwellClient.labels(submittedWorkflow)
+        _ <- validateMetadataJson(expected, actualLabels.labels, submittedWorkflow, workflow).handleErrorWith({ _ =>
           for {
             _ <- IO.sleep(2.seconds)
             recurse <- eventuallyComparisonWithLatestLabelsSucceeds(expected, submittedWorkflow, workflow)
           } yield recurse
         })
-      }
+      } yield ()
     }
 
     override def run: IO[Unit] = {

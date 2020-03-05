@@ -515,35 +515,35 @@ object Operations extends StrictLogging {
     }
   }
 
-  def validateLabelsAdditionAndSubsequentRetrieval(submittedWorkflow: SubmittedWorkflow,
-                                                   workflow: Workflow): Test[Unit] = new Test[Unit] {
+  def validateLabelsAdditionUpdateAndSubsequentRetrieval(submittedWorkflow: SubmittedWorkflow,
+                                                         workflow: Workflow): Test[Unit] = new Test[Unit] {
 
-    def eventuallyComparisonSucceeds(expected: JsObject,
-                                     actual: JsObject,
-                                     submittedWorkflow: SubmittedWorkflow,
-                                     workflow: Workflow): IO[Unit] = {
-      validateMetadataJson(expected, actual, submittedWorkflow, workflow).handleErrorWith({ _ =>
-        for {
-          _ <- IO.sleep(2.seconds)
-          latestLabels <- CentaurCromwellClient.labels(submittedWorkflow)
-          recurse <- eventuallyComparisonSucceeds(expected, latestLabels.labels, submittedWorkflow, workflow)
-        } yield recurse
-      })
+    def eventuallyComparisonWithLatestLabelsSucceeds(expected: JsObject,
+                                                     submittedWorkflow: SubmittedWorkflow,
+                                                     workflow: Workflow): IO[Unit] = {
+      val latestLabels = CentaurCromwellClient.labels(submittedWorkflow)
+      latestLabels flatMap { actualLabels =>
+        validateMetadataJson(expected, actualLabels.labels, submittedWorkflow, workflow).handleErrorWith({ _ =>
+          for {
+            _ <- IO.sleep(2.seconds)
+            recurse <- eventuallyComparisonWithLatestLabelsSucceeds(expected, submittedWorkflow, workflow)
+          } yield recurse
+        })
+      }
     }
 
     override def run: IO[Unit] = {
       val labelsToAdd = List(Label("newlyAddedLabel", "Twas brillig, and the slithy toves did gyre and gimble in the wabe"))
+      val labelsToUpdate = List(Label("newlyAddedLabel", "All mimsy were the borogoves, and the mome raths outgrabe"))
       for {
         labelsBeforeAddition <- CentaurCromwellClient.labels(submittedWorkflow)
-        _ <- CentaurCromwellClient.labels(submittedWorkflow, Some(labelsToAdd))
-        labelsAfterAddition <- CentaurCromwellClient.labels(submittedWorkflow)
-        // "eventually" because we have to wait until summarizer kicks in
-        _ <- eventuallyComparisonSucceeds(
-          expected = JsObject(labelsBeforeAddition.labels.fields ++ labelsToAdd.map(lbl => lbl.key -> JsString(lbl.value))),
-          actual = labelsAfterAddition.labels,
-          submittedWorkflow,
-          workflow
-        ).timeout(CentaurConfig.metadataConsistencyTimeout)
+        _ <- CentaurCromwellClient.labels(submittedWorkflow, Option(labelsToAdd))
+        expectedLabels = JsObject(labelsBeforeAddition.labels.fields ++ labelsToAdd.map(lbl => lbl.key -> JsString(lbl.value)))
+         // "eventually" because we have to wait until summarizer kicks in
+        _ <- eventuallyComparisonWithLatestLabelsSucceeds(expectedLabels, submittedWorkflow, workflow).timeout(CentaurConfig.metadataConsistencyTimeout)
+        _ <- CentaurCromwellClient.labels(submittedWorkflow, Option(labelsToUpdate))
+        expectedLabels = JsObject(labelsBeforeAddition.labels.fields ++ labelsToUpdate.map(lbl => lbl.key -> JsString(lbl.value)))
+        _ <- eventuallyComparisonWithLatestLabelsSucceeds(expectedLabels, submittedWorkflow, workflow).timeout(CentaurConfig.metadataConsistencyTimeout)
       } yield ()
     }
   }

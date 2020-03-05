@@ -509,9 +509,11 @@ object Operations extends StrictLogging {
                                           workflow: Workflow): Test[Unit] = new Test[Unit] {
 
     override def run: IO[Unit] = {
-      labelsLikelyBeforeArchival.flatMap { expectedLabels =>
-        labelsAfterArchival.flatMap(actualLabels => validateMetadataJson(expectedLabels.labels, actualLabels.labels, submittedWorkflow, workflow))
-      }
+      for {
+        expectedLabels <- labelsLikelyBeforeArchival
+        actualLabels <- labelsAfterArchival
+        _ <- validateMetadataJson(expectedLabels.labels, actualLabels.labels, submittedWorkflow, workflow)
+      } yield ()
     }
   }
 

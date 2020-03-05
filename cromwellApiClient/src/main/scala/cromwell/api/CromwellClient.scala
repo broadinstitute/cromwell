@@ -130,8 +130,7 @@ class CromwellClient(val cromwellUrl: URL,
     simpleRequest[WorkflowOutputs](outputsEndpoint(workflowId, args))
   }
 
-  def labels(workflowId: WorkflowId,
-             headers: List[HttpHeader] = defaultHeaders)
+  def labels(workflowId: WorkflowId, headers: List[HttpHeader] = defaultHeaders)
             (implicit ec: ExecutionContext): FailureResponseOrT[WorkflowLabels] = {
     simpleRequest[WorkflowLabels](labelsEndpoint(workflowId), headers=headers)
   }

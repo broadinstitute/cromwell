@@ -183,8 +183,9 @@ object ScriptS3BucketNameValidation {
 
 class ScriptS3BucketNameValidation( key: String ) extends StringRuntimeAttributesValidation(key) {
 
-  //a reasonable but not perfect regex for a bucket
-  protected val s3BucketNameRegex: Regex = "^s3://([^/]+)/(.*?([^/]+)/?)$".trim.r
+  //a reasonable but not perfect regex for a bucket. see https://stackoverflow.com/a/50484916/3573553
+  protected val s3BucketNameRegex: Regex = "(?=^.{3,63}$)(?!^(\\d+\\.)+\\d+$)(^(([a-z0-9]|[a-z0-9][a-z0-9\\-]*[a-z0-9])\\.)*([a-z0-9]|[a-z0-9][a-z0-9\\-]*[a-z0-9])$)"
+    .r
 
 
   override protected def validateValue: PartialFunction[WomValue, ErrorOr[String]] = {
@@ -194,7 +195,7 @@ class ScriptS3BucketNameValidation( key: String ) extends StringRuntimeAttribute
   private def validateBucketName(possibleBucketName: String): ErrorOr[String] = {
     possibleBucketName match {
       case s3BucketNameRegex(_@_*) => possibleBucketName.validNel
-      case _ => "Bucket name has invalid format".invalidNel
+      case _ => "The Script Bucket name has an invalid s3 bucket format".invalidNel
     }
   }
 }

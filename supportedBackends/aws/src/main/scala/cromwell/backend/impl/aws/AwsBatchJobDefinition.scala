@@ -114,34 +114,49 @@ trait AwsBatchJobDefinitionBuilder {
         }
     }
 
+
+    def buildVolumes(disks: Seq[AwsBatchVolume]): List[Volume] = {
+
+      //all the configured disks plus the fetch and run volume and the aws-cli volume
+      disks.map(d => d.toVolume(getVolPath(d))).toList ++ List(
+        Volume.builder()
+        .name("fetchAndRunScript")
+        .host(Host.builder().sourcePath("/usr/local/bin/fetch_and_run.sh").build())
+        .build(),
+        Volume.builder()
+          .name("awsCliHome")
+          .host(Host.builder().sourcePath("/usr/local/aws-cli").build())
+          .build()
+      )
+    }
+
+    def buildMountPoints(disks: Seq[AwsBatchVolume]): List[MountPoint] = {
+
+      //all the configured disks plus the fetch and run mount point and the AWS cli mount point
+      disks.map(_.toMountPoint).toList ++ List(
+        MountPoint.builder()
+          .readOnly(true)
+          .sourceVolume("fetchAndRunScript")
+          .containerPath("/var/scratch/fetch_and_run.sh")
+          .build(),
+
+        MountPoint.builder()
+          .readOnly(true)
+          .sourceVolume("awsCliHome")
+          .containerPath("/usr/local/aws-cli")
+          .build()
+      )
+    }
+
     builder
        .command(packCommand("/bin/bash", "-c", "/var/scratch/fetch_and_run.sh").asJava)
       .memory(context.runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt)
       .vcpus(context.runtimeAttributes.cpu##)
-      .volumes(context.runtimeAttributes.disks.map(d => d.toVolume(getVolPath(d))).asJava)
-      .mountPoints(context.runtimeAttributes.disks.map(_.toMountPoint).asJava)
-      //add additional mount points and volumes for fetch_and_run.sh and for aws cli v2
-      .volumes(Volume.builder()
-        .name("fetchAndRunScript")
-        .host(Host.builder().sourcePath("/usr/local/bin/fetch_and_run.sh").build())
-        .build())
-      .mountPoints(MountPoint.builder()
-        .readOnly(true)
-        .sourceVolume("fetchAndRunScript")
-        .containerPath("/var/scratch/fetch_and_run.sh")
-        .build())
-      //mount the aws cli v2 distribution so the container can access it
-      .volumes(Volume.builder()
-        .name("awsCliHome")
-        .host(Host.builder().sourcePath("/usr/local/aws-cli").build())
-        .build())
-      .mountPoints(MountPoint.builder()
-        .readOnly(true)
-        .sourceVolume("awsCliHome")
-        .containerPath("/usr/local/aws-cli")
-        .build())
+      .volumes( buildVolumes( context.runtimeAttributes.disks ).asJava)
+      .mountPoints( buildMountPoints( context.runtimeAttributes.disks ).asJava)
       .environment(environment.asJava)
   }
+
 
   private def gzip(data: String): String = {
     val byteArrayOutputStream = new ByteArrayOutputStream()

@@ -48,7 +48,7 @@ import software.amazon.awssdk.services.batch.model._
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient
 import software.amazon.awssdk.services.cloudwatchlogs.model.{GetLogEventsRequest, OutputLogEvent}
 import software.amazon.awssdk.services.s3.S3Client
-import software.amazon.awssdk.services.s3.model.{HeadObjectRequest, PutObjectRequest, S3Exception}
+import software.amazon.awssdk.services.s3.model.{GetObjectRequest, HeadObjectRequest, NoSuchKeyException, PutObjectRequest}
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -83,6 +83,10 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                              ) {
 
   val Log: Logger = LoggerFactory.getLogger(AwsBatchJob.getClass)
+
+  //this will be the "folder" that scripts will live in (underneath the script bucket)
+  val scriptKeyPrefix = "scripts/"
+
   // TODO: Auth, endpoint
   lazy val client: BatchClient = {
     val builder = BatchClient.builder()
@@ -151,7 +155,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     // create job definition name from prefix, image:tag and SHA1 of the volumes
     val prefix = s"cromwell_${runtimeAttributes.dockerImage}".slice(0,88) // will be joined to a 40 character SHA1 for total length of 128
     val volumeString = runtimeAttributes.disks.map(v => s"${v.toVolume()}:${v.toMountPoint}").mkString(",")
-    val sha1 = MessageDigest.getInstance("SHA-256")
+    val sha1 = MessageDigest.getInstance("SHA-1")
                             .digest(( runtimeAttributes.dockerImage + volumeString ).getBytes("UTF-8"))
                             .map("%02x".format(_)).mkString
     val jobDefinitionName = sanitize( s"${prefix}_$sha1" )
@@ -177,7 +181,9 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
             .parameters(parameters.collect({ case i: AwsBatchInput => i.toStringString }).toMap.asJava)
             .containerOverrides( ContainerOverrides.builder.environment(
                 KeyValuePair.builder.name("BATCH_FILE_TYPE").value("script").build,
-                KeyValuePair.builder.name("BATCH_FILE_S3_URL").value(s"""s3://${runtimeAttributes.scriptS3BucketName}/$scriptKey""").build
+                KeyValuePair.builder.name("BATCH_FILE_S3_URL")
+                  //the fetch and run script expects the s3:// prefix
+                  .value(s"""s3://${runtimeAttributes.scriptS3BucketName}/$scriptKeyPrefix$scriptKey""").build
               ).build
             )
             .jobQueue(runtimeAttributes.queueArn)
@@ -211,30 +217,31 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
       .digest(commandLine.getBytes())
       .foldLeft("")(_ + "%02x".format(_))
 
-    Log.info(s"s3 object name for script is calculated to be $key in $bucketName bucket")
+    Log.info(s"s3 object name for script is calculated to be $bucketName/$scriptKeyPrefix$key")
 
-    try { //try and head the object
+    try { //try and get the object
+
+      s3Client.getObject( GetObjectRequest.builder().bucket(bucketName).key( scriptKeyPrefix + key).build )
       s3Client.headObject(HeadObjectRequest.builder()
         .bucket(bucketName)
-        .key(key)
-        .build()
+        .key( scriptKeyPrefix + key )
+        .build
       ).eTag().equals(key)
 
       // if there's no exception then the script already exists
-      Log.info(s"""Found script s3://$bucketName/$key""")
+      Log.info(s"""Found script $bucketName/$scriptKeyPrefix$key""")
     } catch {
-      case _: S3Exception =>  //this happens if there is no object with that key in the bucket
+      case _: NoSuchKeyException =>  //this happens if there is no object with that key in the bucket
         Log.info(s"Script $key not found in bucket $bucketName. Creating script with content:\n$commandLine")
 
         val putRequest = PutObjectRequest.builder()
-          .bucket(bucketName)
-          .key(key)
-          .build()
+          .bucket(bucketName) //remove the "s3://" prefix
+          .key(scriptKeyPrefix + key)
+          .build
 
         s3Client.putObject(putRequest, RequestBody.fromString(commandLine))
 
         Log.info(s"Created script $key")
-
     }
     key
   }

@@ -23,7 +23,7 @@ import com.typesafe.scalalogging.StrictLogging
 import common.validation.Validation._
 import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
-import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, Succeeded, TerminalStatus, WaasDescription, WorkflowId, WorkflowMetadata, WorkflowStatus}
+import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, Succeeded, TerminalStatus, WaasDescription, WorkflowId, WorkflowLabels, WorkflowMetadata, WorkflowStatus}
 import cromwell.cloudsupport.aws.AwsConfiguration
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
@@ -483,9 +483,56 @@ object Operations extends StrictLogging {
     } yield selected
   }
 
+  private def removeMetadataSourceFromJsObject(jsObject: JsObject) = {
+    val metadataSourceKeyName = "metadataSource"
+    JsObject(jsObject.fields - metadataSourceKeyName)
+  }
+
+  def compareMetadataBeforeAndAfterArchival(submittedWorkflow: SubmittedWorkflow,
+                                            workflow: Workflow,
+                                            expandSubworkflows: Boolean): Test[Unit] = new Test[Unit] {
+
+    override def run: IO[Unit] = {
+      for {
+        metadataBeforeArchival <- CentaurCromwellClient.metadata(submittedWorkflow, expandSubworkflows = expandSubworkflows, archived = Option(false))
+        metadataAfterArchival <- CentaurCromwellClient.metadata(submittedWorkflow, expandSubworkflows = expandSubworkflows, archived = Option(true))
+        metadataObjectBeforeArchival <- IO.fromTry(Try(removeMetadataSourceFromJsObject(metadataBeforeArchival.value.parseJson.asJsObject)))
+        metadataObjectAfterArchival <- IO.fromTry(Try(removeMetadataSourceFromJsObject(metadataAfterArchival.value.parseJson.asJsObject)))
+        _ <- validateMetadataJson(metadataObjectBeforeArchival, metadataObjectAfterArchival, submittedWorkflow, workflow)
+      } yield ()
+    }
+  }
+
+  def compareLabelsBeforeAndAfterArchival(labelsLikelyBeforeArchival: IO[WorkflowLabels],
+                                          labelsAfterArchival: IO[WorkflowLabels],
+                                          submittedWorkflow: SubmittedWorkflow,
+                                          workflow: Workflow): Test[Unit] = new Test[Unit] {
+
+    override def run: IO[Unit] = {
+      for {
+        expectedLabels <- labelsLikelyBeforeArchival
+        actualLabels <- labelsAfterArchival
+        _ <- validateMetadataJson(expectedLabels.labels, actualLabels.labels, submittedWorkflow, workflow)
+      } yield ()
+    }
+  }
+
+  def compareOutputsBeforeAndAfterArchival(submittedWorkflow: SubmittedWorkflow,
+                                          workflow: Workflow): Test[Unit] = new Test[Unit] {
+
+    override def run: IO[Unit] = {
+      for {
+        outputsBeforeArchival <- CentaurCromwellClient.outputs(submittedWorkflow, archived = Option(false))
+        outputsAfterArchival <- CentaurCromwellClient.outputs(submittedWorkflow, archived = Option(true))
+        _ <- validateMetadataJson(outputsBeforeArchival.outputs.asJsObject, outputsAfterArchival.outputs.asJsObject, submittedWorkflow, workflow)
+      } yield ()
+    }
+  }
+
   def validateOutputs(submittedWorkflow: SubmittedWorkflow,
                       workflow: Workflow,
-                      workflowRoot: String): Test[Unit] = new Test[Unit] {
+                      workflowRoot: String,
+                      validateArchived: Option[Boolean] = None): Test[Unit] = new Test[Unit] {
 
     def checkOutputs(expectedOutputs: List[(String, JsValue)])(actualOutputs: Map[String, JsValue]): IO[Unit] = {
       val expected = expectedOutputs.toSet
@@ -509,7 +556,7 @@ object Operations extends StrictLogging {
       import centaur.test.metadata.WorkflowFlatOutputs._
 
       val expectedOutputs: List[(String, JsValue)] = selectMetadataExpectationSubsetByPrefix(workflow, "outputs.", submittedWorkflow.id, workflowRoot)
-      val ioActualOutputs: IO[Map[String, JsValue]] = CentaurCromwellClient.outputs(submittedWorkflow) map { _.asFlat.stringifyValues }
+      val ioActualOutputs: IO[Map[String, JsValue]] = CentaurCromwellClient.outputs(submittedWorkflow, archived = validateArchived) map { _.asFlat.stringifyValues }
 
       ioActualOutputs flatMap checkOutputs(expectedOutputs)
     }
@@ -528,18 +575,24 @@ object Operations extends StrictLogging {
 
       ioActualLabels flatMap { actualLabels =>
         val diff = expectedLabels.toSet.diff(actualLabels.toSet)
-        if (diff.nonEmpty) {
-          val message = s"In expected labels but not in actual: ${diff.mkString(", ")}"
-          IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
-        } else {
+        if (diff.isEmpty) {
           IO.unit
+        } else {
+          IO.raiseError(CentaurTestException(
+            s"In expected labels but not in actual: ${diff.mkString(", ")}",
+            workflow,
+            submittedWorkflow
+          ))
         }
       }
     }
   }
 
   /** Compares logs filtered from the raw `metadata` endpoint with the `logs` endpoint. */
-  def validateLogs(metadata: WorkflowMetadata, submittedWorkflow: SubmittedWorkflow, workflow: Workflow): Test[Unit] = new Test[Unit] {
+  def validateLogs(metadata: WorkflowMetadata,
+                   submittedWorkflow: SubmittedWorkflow,
+                   workflow: Workflow,
+                   validateArchived: Option[Boolean] = None): Test[Unit] = new Test[Unit] {
     val suffixes = Set("stdout", "shardIndex", "stderr", "attempt", "backendLogs.log")
 
     def removeSubworkflowKeys(flattened: Map[String, JsValue]): Map[String, JsValue] = {
@@ -564,7 +617,7 @@ object Operations extends StrictLogging {
         }
 
       for {
-        logs <- CentaurCromwellClient.logs(submittedWorkflow)
+        logs <- CentaurCromwellClient.logs(submittedWorkflow, archived = validateArchived)
         flatLogs = logs.asFlat.value
         flatFilteredMetadata = metadata.asFlat.value |> filterForLogsFields
         _ <- validateLogsMetadata(flatLogs, flatFilteredMetadata)
@@ -574,7 +627,8 @@ object Operations extends StrictLogging {
 
   def validateMetadata(submittedWorkflow: SubmittedWorkflow,
                        workflowSpec: Workflow,
-                       cacheHitUUID: Option[UUID] = None): Test[WorkflowMetadata] = {
+                       cacheHitUUID: Option[UUID] = None,
+                       validateArchived: Option[Boolean] = None): Test[WorkflowMetadata] = {
     new Test[WorkflowMetadata] {
       def eventuallyMetadata(workflow: SubmittedWorkflow,
                              expectedMetadata: WorkflowFlatMetadata): IO[WorkflowMetadata] = {
@@ -629,7 +683,7 @@ object Operations extends StrictLogging {
         }
 
         for {
-          actualMetadata <- CentaurCromwellClient.metadata(workflow)
+          actualMetadata <- CentaurCromwellClient.metadata(workflow, archived = validateArchived)
           _ <- validateUnwantedMetadata(actualMetadata)
           _ <- validateAllowOtherOutputs(actualMetadata)
           diffs = expectedMetadata.diff(actualMetadata.asFlat, workflow.id.id, cacheHitUUID)
@@ -642,72 +696,95 @@ object Operations extends StrictLogging {
           eventuallyMetadata(submittedWorkflow, expectedMetadata)
             .timeoutTo(CentaurConfig.metadataConsistencyTimeout, validateMetadata(submittedWorkflow, expectedMetadata))
         // Nothing to wait for, so just return the first metadata we get back:
-        case None => CentaurCromwellClient.metadata(submittedWorkflow)
+        case None => CentaurCromwellClient.metadata(submittedWorkflow, archived = validateArchived)
       }
     }
   }
 
-  def validateJobManagerStyleMetadata(submittedWorkflow: SubmittedWorkflow,
-                                      originalMetadata: String): Test[Unit] = new Test[Unit] {
+  def validateMetadataJson(expected: JsObject,
+                           actual: JsObject,
+                           submittedWorkflow: SubmittedWorkflow,
+                           workflow: Workflow): IO[Unit] = {
+    if (actual.equals(expected)) {
+      IO.unit
+    } else {
+      import diffson._
+      import diffson.lcs._
+      import diffson.sprayJson._
+      import diffson.jsonpatch._
+      import diffson.jsonpatch.lcsdiff._
 
-    def validate(expectation: JsObject, actual: JsObject): IO[Unit] = {
-      if(actual.equals(expectation)) {
-        IO.pure(())
-      } else {
+      implicit val lcs = new Patience[JsValue]
 
-        import diffson._
-        import diffson.lcs._
-        import diffson.sprayJson._
-        import diffson.jsonpatch._
-        import diffson.jsonpatch.lcsdiff._
-
-        implicit val lcs = new Patience[JsValue]
-
-        implicit val writer: JsonWriter[JsonPatch[JsValue]] = new JsonWriter[JsonPatch[JsValue]] {
-          def processOperation(op: Operation[JsValue]): JsValue = op match {
-            case Add(path, value) => JsObject(Map[String, JsValue](
-              "op" -> JsString("add"),
-              "path" -> JsString(path.toString),
-              "value" -> value))
-            case Copy(from, path) => JsObject(Map[String, JsValue](
-              "op" -> JsString("copy"),
-              "from" -> JsString(from.toString),
-              "path" -> JsString(path.toString)))
-            case Move(from, path) => JsObject(Map[String, JsValue](
-              "op" -> JsString("move"),
-              "from" -> JsString(from.toString),
-              "path" -> JsString(path.toString)))
-            case Remove(path, old) => JsObject(Map[String, JsValue](
-              "op" -> JsString("remove"),
-              "path" -> JsString(path.toString)) ++ old.map(o => "old" -> o) )
-            case Replace(path, value, old) => JsObject(Map[String, JsValue](
-              "op" -> JsString("replace"),
-              "path" -> JsString(path.toString),
-              "value" -> value) ++ old.map(o => "old" -> o) )
-            case diffson.jsonpatch.Test(path, value) => JsObject(Map[String, JsValue](
-              "op" -> JsString("test"),
-              "path" -> JsString(path.toString),
-              "value" -> value))
-          }
-
-          override def write(obj: JsonPatch[JsValue]): JsValue = {
-            JsArray(obj.ops.toVector.map(processOperation))
-          }
+      implicit val writer: JsonWriter[JsonPatch[JsValue]] = new JsonWriter[JsonPatch[JsValue]] {
+        def processOperation(op: Operation[JsValue]): JsValue = op match {
+          case Add(path, value) => JsObject(Map[String, JsValue](
+            "op" -> JsString("add"),
+            "path" -> JsString(path.toString),
+            "value" -> value))
+          case Copy(from, path) => JsObject(Map[String, JsValue](
+            "op" -> JsString("copy"),
+            "from" -> JsString(from.toString),
+            "path" -> JsString(path.toString)))
+          case Move(from, path) => JsObject(Map[String, JsValue](
+            "op" -> JsString("move"),
+            "from" -> JsString(from.toString),
+            "path" -> JsString(path.toString)))
+          case Remove(path, old) => JsObject(Map[String, JsValue](
+            "op" -> JsString("remove"),
+            "path" -> JsString(path.toString)) ++ old.map(o => "old" -> o))
+          case Replace(path, value, old) => JsObject(Map[String, JsValue](
+            "op" -> JsString("replace"),
+            "path" -> JsString(path.toString),
+            "value" -> value) ++ old.map(o => "old" -> o))
+          case diffson.jsonpatch.Test(path, value) => JsObject(Map[String, JsValue](
+            "op" -> JsString("test"),
+            "path" -> JsString(path.toString),
+            "value" -> value))
         }
 
-        val jsonDiff = diff(expectation: JsValue, actual: JsValue)
-
-        logger.error(s"Bad JM style metadata: ${jsonDiff.toJson.prettyPrint}")
-        IO.raiseError(new Exception(s"Bad JM style metadata. See error log output"))
+        override def write(obj: JsonPatch[JsValue]): JsValue = {
+          JsArray(obj.ops.toVector.map(processOperation))
+        }
       }
+
+      val jsonDiff = diff(expected: JsValue, actual: JsValue).toJson.prettyPrint
+      IO.raiseError(CentaurTestException(s"Metadata doesn't match the expected. Diff: $jsonDiff", workflow, submittedWorkflow))
     }
+  }
+
+  def compareJobManagerStyleMetadataBeforeAndAfterArchival(submittedWorkflow: SubmittedWorkflow,
+                                                           workflow: Workflow): Test[Unit] = new Test[Unit] {
 
     override def run: IO[Unit] = for {
-      jmMetadata <- CentaurCromwellClient.metadata(workflow = submittedWorkflow, Option(CentaurCromwellClient.defaultMetadataArgs.getOrElse(Map.empty) ++ jmArgs))
+      jmMetadataBeforeArchival <- CentaurCromwellClient.metadata(
+        workflow = submittedWorkflow,
+        Option(CentaurCromwellClient.defaultMetadataArgs.getOrElse(Map.empty) ++ jmArgs),
+        archived = Option(false))
+      jmMetadataAfterArchival <- CentaurCromwellClient.metadata(
+        workflow = submittedWorkflow,
+        Option(CentaurCromwellClient.defaultMetadataArgs.getOrElse(Map.empty) ++ jmArgs),
+        archived = Option(true))
+      jmMetadataObjectBeforeArchival <- IO.fromTry(Try(removeMetadataSourceFromJsObject(jmMetadataBeforeArchival.value.parseJson.asJsObject)))
+      jmMetadataObjectAfterArchival <- IO.fromTry(Try(removeMetadataSourceFromJsObject(jmMetadataAfterArchival.value.parseJson.asJsObject)))
+      _ <- validateMetadataJson(jmMetadataObjectBeforeArchival, jmMetadataObjectAfterArchival, submittedWorkflow, workflow)
+    } yield ()
+  }
+
+  def validateJobManagerStyleMetadata(submittedWorkflow: SubmittedWorkflow,
+                                      workflow: Workflow,
+                                      originalMetadata: String,
+                                      validateArchived: Option[Boolean] = None): Test[Unit] = new Test[Unit] {
+
+    override def run: IO[Unit] = for {
+      jmMetadata <- CentaurCromwellClient.metadata(
+        workflow = submittedWorkflow,
+        Option(CentaurCromwellClient.defaultMetadataArgs.getOrElse(Map.empty) ++ jmArgs),
+        archived = validateArchived)
       jmMetadataObject <- IO.fromTry(Try(jmMetadata.value.parseJson.asJsObject))
       expectation <- IO.fromTry(Try(extractJmStyleMetadataFields(originalMetadata.parseJson.asJsObject)))
 
-      validationUnit <- validate(expectation, jmMetadataObject)
+      validationUnit <- validateMetadataJson(expectation, jmMetadataObject, submittedWorkflow, workflow)
     } yield validationUnit
   }
 

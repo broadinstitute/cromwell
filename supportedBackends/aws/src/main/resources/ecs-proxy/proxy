@@ -165,6 +165,12 @@ if [ -n "${AWS_CROMWELL_OUTPUTS}" ]; then
   copyfiles "${AWS_CROMWELL_OUTPUTS}" out
 fi
 
+if [ -n "${AWS_CROMWELL_OUTPUTS_GZ}" ]; then
+  echo "Copying output files to S3 (gzipped output)"
+  outputs=$(decompVal "${AWS_CROMWELL_OUTPUTS_GZ}")
+  copyfiles "${outputs}" out
+fi
+
 echo "Removing target container"
 docker rm "${AWS_ECS_PROXY_TARGET_CONTAINER_ID}"
 

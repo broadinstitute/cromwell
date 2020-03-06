@@ -96,7 +96,7 @@ trait AwsBatchJobDefinitionBuilder {
           buildKVPair("AWS_CROMWELL_CALL_ROOT",context.jobPaths.callExecutionRoot.toString),
           buildKVPair("AWS_CROMWELL_WORKFLOW_ROOT",context.jobPaths.workflowPaths.workflowRoot.toString),
           gzipKeyValuePair("AWS_CROMWELL_INPUTS", inputinfo),
-          buildKVPair("AWS_CROMWELL_OUTPUTS",outputinfo))
+          gzipKeyValuePair("AWS_CROMWELL_OUTPUTS",outputinfo))
       }.flatten
 
     def getVolPath(d:AwsBatchVolume) : Option[String] =  {

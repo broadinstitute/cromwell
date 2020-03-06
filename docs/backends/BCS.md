@@ -127,6 +127,7 @@ backend {
           systemDisk: "cloud 50"
           dataDisk: "cloud 250 /home/data/"
           timeout: 3000
+          isv: "abc"
         }
       }
     }
@@ -213,7 +214,6 @@ default-runtime-attributes {
 }
 ```
 - `docker-image-with-tag` - Docker image stored in Alibaba Cloud Container Registry, such as `registry.cn-shanghai.aliyuncs.com/batchcompute/myubuntu:0.2`.
-
 #### userData
 
 If a runtime cluster is specified, it's possible to pass some environment variables to VM when running BCS jobs.
@@ -264,6 +264,16 @@ The system disk size can support up to 500GB. One can mount another data disk in
    dataDisk: "<disk-type> <disk-size-in-GB> <mount-point>"
  }
 ```
+#### isv
+
+If a BCS ISV is used in the task, a runtime attribute name `isv` can be used to specify it.
+
+```hocon
+ default-runtime-attributes {
+   isv: "abc"
+ }
+```
+
 
 ###CallCaching
 BCS supports CallCaching feature when the docker image is from Alibaba Cloud Container Registry.

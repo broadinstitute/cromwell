@@ -2,6 +2,7 @@ package cromwell.services.keyvalue.impl
 
 import java.sql.{BatchUpdateException, SQLIntegrityConstraintViolationException}
 
+import com.dimafeng.testcontainers.Container
 import cromwell.core.Tags.DbmsTest
 import cromwell.core.WorkflowId
 import cromwell.database.sql.tables.JobKeyValueEntry
@@ -10,12 +11,11 @@ import cromwell.services.keyvalue.impl.KeyValueDatabaseSpec._
 import org.postgresql.util.PSQLException
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers, RecoverMethods}
-import org.specs2.mock.Mockito
+import org.scalatest.{FlatSpec, Matchers, RecoverMethods}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito with RecoverMethods {
+class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with RecoverMethods {
 
   implicit val ec = ExecutionContext.global
   implicit val defaultPatience = PatienceConfig(scaled(Span(5, Seconds)), scaled(Span(100, Millis)))
@@ -23,7 +23,10 @@ class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with
   DatabaseSystem.All foreach { databaseSystem =>
     behavior of s"KeyValueDatabase on ${databaseSystem.name}"
 
-    lazy val dataAccess = DatabaseTestKit.initializedDatabaseFromSystem(EngineDatabaseType, databaseSystem)
+    val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
+
+    lazy val dataAccess = DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, EngineDatabaseType, databaseSystem)
+
     val workflowId = WorkflowId.randomId().toString
     val callFqn = "AwesomeWorkflow.GoodJob"
 
@@ -62,6 +65,10 @@ class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with
       storeKey = "myKeyB",
       storeValue = null
     )
+
+    it should "start database container if required" taggedAs DbmsTest in {
+      containerOpt.foreach { _.start }
+    }
 
     it should "upsert and retrieve kv pairs correctly" taggedAs DbmsTest in {
       (for {
@@ -103,6 +110,10 @@ class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with
 
     it should "close the database" taggedAs DbmsTest in {
       dataAccess.close()
+    }
+
+    it should "stop container" taggedAs DbmsTest in {
+      containerOpt.foreach { _.stop }
     }
   }
 }

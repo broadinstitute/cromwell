@@ -680,7 +680,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   private def logCacheHitSuccessAndNotifyMetadata(data: ResponsePendingData): Unit = {
 
-    val metadataMap = Map(callCachingHitResultMetadataKey -> true) ++ data.ejeaCacheHit.map(ech => callCachingReadResultMetadataKey -> s"Cache Hit: $ech").toMap
+    val metadataMap = Map(callCachingHitResultMetadataKey -> true) ++ data.ejeaCacheHit.flatMap(_.details).map(details => callCachingReadResultMetadataKey -> s"Cache Hit: $details").toMap
 
     writeToMetadata(metadataMap)
 

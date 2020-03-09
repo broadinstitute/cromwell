@@ -33,20 +33,23 @@ trait CallMetadataHelper {
     serviceRegistryActor ! PutMetadataAction(statusChange)
   }
 
+  var alreadyPushedRunningCallMetadata = false
   def pushRunningCallMetadata(key: CallKey, evaluatedInputs: WomEvaluatedCallInputs) = {
-    val inputEvents = evaluatedInputs match {
-      case empty if empty.isEmpty =>
-        List(MetadataEvent.empty(metadataKeyForCall(key, s"${CallMetadataKeys.Inputs}")))
-      case inputs =>
-        inputs flatMap {
-          case (inputName, inputValue) =>
-            womValueToMetadataEvents(metadataKeyForCall(key, s"${CallMetadataKeys.Inputs}:${inputName.name}"), inputValue)
-        }
+    if (!alreadyPushedRunningCallMetadata) {
+      val inputEvents = evaluatedInputs match {
+        case empty if empty.isEmpty =>
+          List(MetadataEvent.empty(metadataKeyForCall(key, s"${CallMetadataKeys.Inputs}")))
+        case inputs =>
+          inputs flatMap {
+            case (inputName, inputValue) =>
+              womValueToMetadataEvents(metadataKeyForCall(key, s"${CallMetadataKeys.Inputs}:${inputName.name}"), inputValue)
+          }
+      }
+
+      val runningEvent = List(MetadataEvent(metadataKeyForCall(key, CallMetadataKeys.ExecutionStatus), MetadataValue(ExecutionStatus.Running)))
+      serviceRegistryActor ! PutMetadataAction(runningEvent ++ inputEvents)
+      alreadyPushedRunningCallMetadata = true
     }
-
-    val runningEvent = List(MetadataEvent(metadataKeyForCall(key, CallMetadataKeys.ExecutionStatus), MetadataValue(ExecutionStatus.Running)))
-
-    serviceRegistryActor ! PutMetadataAction(runningEvent ++ inputEvents)
   }
 
   def pushWorkflowOutputMetadata(outputs: Map[LocallyQualifiedName, WomValue]) = {

@@ -49,6 +49,7 @@ import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient
 import software.amazon.awssdk.services.cloudwatchlogs.model.{GetLogEventsRequest, OutputLogEvent}
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.{GetObjectRequest, HeadObjectRequest, NoSuchKeyException, PutObjectRequest}
+import wdl4s.parser.MemoryUnit
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -112,79 +113,53 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
   }
 
   lazy val reconfiguredScript: String = {
-    // We'll use the MD5 of the dockerRc so the boundary is "random" but consistent
-    val boundary = MessageDigest.getInstance("MD5").digest(dockerRc.getBytes).map("%02x".format(_)).mkString
-
-    // NOTE: We are assuming the presence of a volume named "local-disk".
-    //       This requires a custom AMI with the volume defined. But, since
-    //       we need a custom AMI anyway for any real workflow, we just need
-    //       to make sure this requirement is documented.
-    //
-    //       This MIME format is technically no longer necessary as the
-    //       proxy docker container will manage the stdout/stderr/rc
-    //       stuff being copied correctly, but this can still be useful
-    //       later, so I'm leaving it here for potential future use.
-    script.concat(s"""
-    |echo "MIME-Version: 1.0
-    |Content-Type: multipart/alternative; boundary="$boundary"
-    |
-    |--$boundary
-    |Content-Type: text/plain
-    |Content-Disposition: attachment; filename="rc.txt"
-    |"
-    |cat $dockerRc
-    |echo "--$boundary
-    |Content-Type: text/plain
-    |Content-Disposition: attachment; filename="stdout.txt"
-    |"
-    |cat $dockerStdout
-    |echo "--$boundary
-    |Content-Type: text/plain
-    |Content-Disposition: attachment; filename="stderr.txt"
-    |"
-    |cat $dockerStderr
-    |echo "--$boundary--"
-    |exit 0
-    """).stripMargin
+    s"""
+    |#! /bin/sh
+    |$commandLine > $${AWS_CROMWELL_STDOUT_FILE} >2 $${AWS_CROMWELL_STDERR_FILE}
+    |return_code=$$?
+    |aws s3 cp $${AWS_CROMWELL_STDOUT_FILE} $${AWS_CROMWELL_CALL_ROOT}
+    |aws s3 cp $${AWS_CROMWELL_STDERR_FILE} $${AWS_CROMWELL_CALL_ROOT}
+    |exit $$return_code
+    """.stripMargin
   }
+
 
   def submitJob[F[_]]()( implicit timer: Timer[F], async: Async[F]): Aws[F, SubmitJobResponse] = {
 
     val taskId = jobDescriptor.key.call.fullyQualifiedName + "-" + jobDescriptor.key.index + "-" + jobDescriptor.key.attempt
 
-    // create job definition name from prefix, image:tag and SHA1 of the volumes
-    val prefix = s"cromwell_${runtimeAttributes.dockerImage}".slice(0,88) // will be joined to a 40 character SHA1 for total length of 128
-    val volumeString = runtimeAttributes.disks.map(v => s"${v.toVolume()}:${v.toMountPoint}").mkString(",")
-    val sha1 = MessageDigest.getInstance("SHA-1")
-                            .digest(( runtimeAttributes.dockerImage + volumeString ).getBytes("UTF-8"))
-                            .map("%02x".format(_)).mkString
-    val jobDefinitionName = sanitize( s"${prefix}_$sha1" )
-
-
-    Log.info(s"""Submitting job to AWS Batch
-                 |  dockerImage: ${runtimeAttributes.dockerImage}
-                 |  jobQueueArn: ${runtimeAttributes.queueArn}
-                 |  taskId: $taskId
-                 |  job definition name: $jobDefinitionName
-                 |  command line: $commandLine
-                 |  script: $script
-                 |  """.stripMargin)
-
     //find or create the script in s3 to execute
-    val scriptKey = findOrCreateS3Script(commandLine, runtimeAttributes.scriptS3BucketName)
+    val scriptKey = findOrCreateS3Script(reconfiguredScript, runtimeAttributes.scriptS3BucketName)
 
+    //calls the client to submit the job
     def callClient(definitionArn: String, awsBatchAttributes: AwsBatchAttributes): Aws[F, SubmitJobResponse] = {
+
+      Log.info(s"""Submitting job to AWS Batch
+                  |  dockerImage: ${runtimeAttributes.dockerImage}
+                  |  jobQueueArn: ${runtimeAttributes.queueArn}
+                  |  taskId: $taskId
+                  |  job definition arn: $definitionArn
+                  |  command line: $commandLine
+                  |  script: $script
+                  |  """.stripMargin)
+
       val submit: F[SubmitJobResponse] =
         async.delay(client.submitJob(
           SubmitJobRequest.builder()
             .jobName(sanitize(jobDescriptor.taskCall.fullyQualifiedName))
             .parameters(parameters.collect({ case i: AwsBatchInput => i.toStringString }).toMap.asJava)
-            .containerOverrides( ContainerOverrides.builder.environment(
-                KeyValuePair.builder.name("BATCH_FILE_TYPE").value("script").build,
-                KeyValuePair.builder.name("BATCH_FILE_S3_URL")
-                  //the fetch and run script expects the s3:// prefix
-                  .value(s"""s3://${runtimeAttributes.scriptS3BucketName}/$scriptKeyPrefix$scriptKey""").build
-              ).build
+
+            //provide job environment variables, vcpu and memory
+            .containerOverrides(
+              ContainerOverrides.builder
+                .environment(
+                  KeyValuePair.builder.name("BATCH_FILE_TYPE").value("script").build,
+                  KeyValuePair.builder.name("BATCH_FILE_S3_URL")
+                    //the fetch and run script expects the s3:// prefix
+                    .value(s"""s3://${runtimeAttributes.scriptS3BucketName}/$scriptKeyPrefix$scriptKey""").build
+                )
+                .memory(runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt)
+                .vcpus(runtimeAttributes.cpu.##).build
             )
             .jobQueue(runtimeAttributes.queueArn)
             .jobDefinition(definitionArn).build
@@ -198,7 +173,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
         }).compile.last.map(_.get)) //if successful there is guaranteed to be a value emitted, hence we can .get this option
     }
 
-    (findOrCreateDefinition[F]( jobDefinitionName ) product Kleisli.ask[F, AwsBatchAttributes]).flatMap((callClient _).tupled)
+    (findOrCreateDefinition[F]() product Kleisli.ask[F, AwsBatchAttributes]).flatMap((callClient _).tupled)
   }
 
 
@@ -251,13 +226,34 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
    * @return Arn for newly created job definition
    *
    */
-  private def findOrCreateDefinition[F[_]](jobDefinitionName: String)
+  private def findOrCreateDefinition[F[_]]()
                                     (implicit async: Async[F], timer: Timer[F]): Aws[F, String] = ReaderT { awsBatchAttributes =>
 
     // this is a call back that is executed below by the async.recoverWithRetry(retry)
     val submit = async.delay({
 
-      //check if there is already a suitable definition based on the job definition name
+      val commandStr = awsBatchAttributes.fileSystem match {
+        case AWSBatchStorageSystems.s3 => reconfiguredScript
+        case _ => script
+      }
+      val jobDefinitionContext = AwsBatchJobDefinitionContext(
+        runtimeAttributes = runtimeAttributes,
+        //uniquePath = jobDefinitionName,
+        commandText = commandStr,
+        dockerRcPath = dockerRc,
+        dockerStdoutPath = dockerStdout,
+        dockerStderrPath = dockerStderr,
+        jobDescriptor = jobDescriptor,
+        jobPaths = jobPaths,
+        inputs = inputs,
+        outputs = outputs)
+
+      val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder
+      val jobDefinition = jobDefinitionBuilder.build(jobDefinitionContext)
+
+
+      //check if there is already a suitable definition based on the calculated job definition name
+      val jobDefinitionName = jobDefinition.name
 
       Log.info(s"Checking for existence of job definition called: $jobDefinitionName")
 
@@ -282,30 +278,9 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
       } else {
 
         //no definition found. create one
-        Log.info(s"No job definition found, creating one")
-
-        val commandStr = awsBatchAttributes.fileSystem match {
-          case AWSBatchStorageSystems.s3 => reconfiguredScript
-          case _ => script
-        }
-        val jobDefinitionContext = AwsBatchJobDefinitionContext(
-          runtimeAttributes = runtimeAttributes,
-          uniquePath = jobDefinitionName,
-          commandText = commandStr,
-          dockerRcPath = dockerRc,
-          dockerStdoutPath = dockerStdout,
-          dockerStderrPath = dockerStderr,
-          jobDescriptor = jobDescriptor,
-          jobPaths = jobPaths,
-          inputs = inputs,
-          outputs = outputs)
-
-        val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder
+        Log.info(s"No job definition found")
 
         Log.info(s"Creating job definition: $jobDefinitionName")
-
-        val jobDefinition = jobDefinitionBuilder.build(jobDefinitionContext)
-
 
         // See:
         //
@@ -347,17 +322,6 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
           })
     }
   }
-
-  /** Sanitizes a job and job definition name
-    *
-    *  @param name Job or Job definition name
-    *  @return Sanitized name
-    *
-    */
-  private def sanitize(name: String): String =
-    // Up to 128 letters (uppercase and lowercase), numbers, hyphens, and underscores are allowed.
-    // We'll replace all invalid characters with an underscore
-    name.replaceAll("[^A-Za-z0-9_\\-]", "_").slice(0,128)
 
 
   /** Gets the status of a job by its Id, converted to a RunStatus

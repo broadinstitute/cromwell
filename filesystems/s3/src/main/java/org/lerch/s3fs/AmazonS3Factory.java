@@ -71,7 +71,7 @@ public abstract class AmazonS3Factory {
 
         S3ClientBuilder builder = S3Client.builder();
         if (uri != null && uri.getHost() != null) {
-            log.info("\tOveriding endpoint to {}", uri);
+            log.info("\tOverriding endpoint to {}", uri);
             builder.endpointOverride(uri);
         }
 

@@ -36,11 +36,11 @@ import scala.collection.mutable.ListBuffer
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.JobPaths
 import software.amazon.awssdk.services.batch.model.{ContainerProperties, Host, KeyValuePair, MountPoint, Volume}
-import wdl4s.parser.MemoryUnit
 import cromwell.backend.impl.aws.io.AwsBatchVolume
 
 import scala.collection.JavaConverters._
 import java.io.ByteArrayOutputStream
+import java.security.MessageDigest
 import java.util.zip.GZIPOutputStream
 
 import com.google.common.io.BaseEncoding
@@ -63,6 +63,7 @@ import org.slf4j.{Logger, LoggerFactory}
   */
 sealed trait AwsBatchJobDefinition {
   def containerProperties: ContainerProperties
+  def name: String
 }
 
 trait AwsBatchJobDefinitionBuilder {
@@ -83,7 +84,7 @@ trait AwsBatchJobDefinitionBuilder {
 
 
   def buildResources(builder: ContainerProperties.Builder,
-                     context: AwsBatchJobDefinitionContext): ContainerProperties.Builder = {
+                     context: AwsBatchJobDefinitionContext): (ContainerProperties.Builder, String) = {
     // The initial buffer should only contain one item - the hostpath of the
     // local disk mount point, which will be needed by the docker container
     // that copies data around
@@ -93,11 +94,13 @@ trait AwsBatchJobDefinitionBuilder {
       .map(i => "%s,%s,%s,%s".format(i.name, i.s3key, i.local, i.mount))
       .mkString(";")
 
+
+    //todo: can the environment go into the job submission?
     val environment =
       context.runtimeAttributes.disks.collect{
         case d if d.name == "local-disk" =>  // this has s3 file system, needs all the env for the ecs-proxy
           List(buildKVPair("AWS_CROMWELL_LOCAL_DISK", d.mountPoint.toString),
-          buildKVPair("AWS_CROMWELL_PATH",context.uniquePath),
+          buildKVPair("AWS_CROMWELL_PATH",jobDefinitionName),
           buildKVPair("AWS_CROMWELL_RC_FILE",context.dockerRcPath),
           buildKVPair("AWS_CROMWELL_STDOUT_FILE",context.dockerStdoutPath),
           buildKVPair("AWS_CROMWELL_STDERR_FILE",context.dockerStderrPath),
@@ -110,7 +113,7 @@ trait AwsBatchJobDefinitionBuilder {
     def getVolPath(d:AwsBatchVolume) : Option[String] =  {
         d.fsType match {
           case "efs"  => None
-          case _ =>  Option(context.uniquePath)
+          case _ =>  Option(jobDefinitionName)
         }
     }
 
@@ -143,18 +146,46 @@ trait AwsBatchJobDefinitionBuilder {
         MountPoint.builder()
           .readOnly(true)
           .sourceVolume("awsCliHome")
-          .containerPath("/usr/local/aws-cli")
+          .containerPath("/usr/local/aws-cli/v2/current")
           .build()
       )
     }
 
-    builder
-       .command(packCommand("/bin/bash", "-c", "/var/scratch/fetch_and_run.sh").asJava)
-      .memory(context.runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt)
-      .vcpus(context.runtimeAttributes.cpu##)
-      .volumes( buildVolumes( context.runtimeAttributes.disks ).asJava)
-      .mountPoints( buildMountPoints( context.runtimeAttributes.disks ).asJava)
-      .environment(environment.asJava)
+    def buildName(imageName: String, packedCommand: String, volumes: List[Volume], mountPoints: List[MountPoint], env: Seq[KeyValuePair]): String = {
+      val str = s"$imageName:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints.map(_.toString).mkString(",")}:${env.map(_.toString).mkString(",")}"
+
+      val sha1 = MessageDigest.getInstance("SHA-1")
+            .digest(( str ).getBytes("UTF-8"))
+            .map("%02x".format(_)).mkString
+
+      val prefix = s"cromwell_$imageName".slice(0,88) // will be joined to a 40 character SHA1 for total length of 128
+
+      sanitize(prefix + sha1)
+    }
+
+
+
+    val packedCommand = packCommand("/bin/bash", "-c", "/var/scratch/fetch_and_run.sh")
+    val volumes =  buildVolumes( context.runtimeAttributes.disks )
+    val mountPoints = buildMountPoints( context.runtimeAttributes.disks)
+    val jobDefinitionName = buildName(
+      context.runtimeAttributes.dockerImage,
+      packedCommand.mkString(","),
+      volumes,
+      mountPoints,
+      environment
+    )
+
+    (builder
+       .command(packedCommand.asJava)
+      // todo can the memory and vcpus go into the job submission?
+      //.memory(context.runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt)
+      //.vcpus(context.runtimeAttributes.cpu##)
+        .volumes( volumes.asJava)
+        .mountPoints( mountPoints.asJava)
+        .environment(environment.asJava),
+
+      jobDefinitionName)
   }
 
 
@@ -212,19 +243,21 @@ trait AwsBatchJobDefinitionBuilder {
 
 object StandardAwsBatchJobDefinitionBuilder extends AwsBatchJobDefinitionBuilder {
   def build(context: AwsBatchJobDefinitionContext): AwsBatchJobDefinition = {
+    //instantiate a builder with the name of the docker image
     val builderInst = builder(context.runtimeAttributes.dockerImage)
-    buildResources(builderInst, context)
-    new StandardAwsBatchJobDefinitionBuilder(builderInst.build)
+    val (b, name) = buildResources(builderInst, context)
+
+    new StandardAwsBatchJobDefinitionBuilder(b.build, name)
   }
 }
 
-case class StandardAwsBatchJobDefinitionBuilder private(containerProperties: ContainerProperties) extends AwsBatchJobDefinition
+case class StandardAwsBatchJobDefinitionBuilder private(containerProperties: ContainerProperties, name: String) extends AwsBatchJobDefinition
 
 object AwsBatchJobDefinitionContext
 
 case class AwsBatchJobDefinitionContext(
             runtimeAttributes: AwsBatchRuntimeAttributes,
-            uniquePath: String,
+            //uniquePath: String,
             commandText: String,
             dockerRcPath: String,
             dockerStdoutPath: String,
@@ -232,4 +265,5 @@ case class AwsBatchJobDefinitionContext(
             jobDescriptor: BackendJobDescriptor,
             jobPaths: JobPaths,
             inputs: Set[AwsBatchInput],
-            outputs: Set[AwsBatchFileOutput])
+            outputs: Set[AwsBatchFileOutput]){
+}

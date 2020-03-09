@@ -1,0 +1,23 @@
+name: awsGzContainerOverrideSizeLimit
+testFormat: workflowsuccess
+backends: [AWSBatch]
+tags: ["aws_container_overrides"]
+
+files {
+  workflow: awsGzContainerOverrideSizeLimit/workflow.wdl
+  options: awsGzContainerOverrideSizeLimit/options.json
+}
+
+metadata {
+  status: Succeeded
+}
+
+fileSystemCheck: "aws"
+outputExpectations: {
+    "s3://<<s3-bucket-name-placeholder>>/wf_results/Workflow/<<UUID>>/call-takesSomeFiles/output.txt": 1
+    "s3://<<s3-bucket-name-placeholder>>/wf_logs/workflow.<<UUID>>.log": 1
+    "s3://<<s3-bucket-name-placeholder>>/cl_logs/Workflow/<<UUID>>/call-takesSomeFiles/takesSomeFiles-stderr.log": 1
+    "s3://<<s3-bucket-name-placeholder>>/cl_logs/Workflow/<<UUID>>/call-takesSomeFiles/takesSomeFiles-stdout.log": 1
+    "s3://<<s3-bucket-name-placeholder>>/cl_logs/Workflow/<<UUID>>/call-makeSomeFiles/makeSomeFiles-stderr.log": 1
+    "s3://<<s3-bucket-name-placeholder>>/cl_logs/Workflow/<<UUID>>/call-makeSomeFiles/makeSomeFiles-stdout.log": 1
+}

@@ -260,7 +260,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     // Backend copying response:
     case Event(
     response: JobSucceededResponse,
-    data@ResponsePendingData(_, _, Some(Success(hashes)), _, Some(cacheHit), _, _),
+    data@ResponsePendingData(_, _, Some(Success(hashes)), _, _, _, _),
     ) =>
       logCacheHitSuccessAndNotifyMetadata(data)
       saveCacheResults(hashes, data.withSuccessResponse(response))

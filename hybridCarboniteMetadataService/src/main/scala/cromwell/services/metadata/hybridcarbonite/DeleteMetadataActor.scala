@@ -2,21 +2,25 @@ package cromwell.services.metadata.hybridcarbonite
 
 import java.time.OffsetDateTime
 
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import cats.data.NonEmptyList
 import cromwell.core.WorkflowId
+import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.services.MetadataServicesStore
+import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataArchiveStatus._
-import cromwell.services.metadata.hybridcarbonite.DeleteMetadataActor.DeleteMetadataAction
-import cromwell.services.metadata.impl.MetadataDatabaseAccess
+import cromwell.services.metadata.hybridcarbonite.DeleteMetadataActor._
+import cromwell.services.metadata.impl.{MetadataDatabaseAccess, MetadataServiceActor}
 
 import scala.util.{Failure, Success}
 import scala.concurrent.duration._
 
-class DeleteMetadataActor(metadataDeletionConfig: MetadataDeletionConfig) extends Actor
+class DeleteMetadataActor(metadataDeletionConfig: MetadataDeletionConfig, override val serviceRegistryActor: ActorRef) extends Actor
   with ActorLogging
   with MetadataDatabaseAccess
-  with MetadataServicesStore {
+  with MetadataServicesStore
+  with CromwellInstrumentation {
 
   implicit val ec = context.dispatcher
 
@@ -34,6 +38,7 @@ class DeleteMetadataActor(metadataDeletionConfig: MetadataDeletionConfig) extend
       )
       workflowIdsForMetadataDeletionFuture onComplete {
         case Success(workflowIds) =>
+          populateWorkflowsToDeleteMetadataMetric(currentTimestampMinusDelay)
           workflowIds foreach { workflowIdStr =>
             deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(WorkflowId.fromString(workflowIdStr), MetadataArchiveStatus.toDatabaseValue(ArchivedAndPurged)) onComplete {
               case Success(_) => log.info(s"Successfully deleted metadata for workflow $workflowIdStr")
@@ -45,12 +50,27 @@ class DeleteMetadataActor(metadataDeletionConfig: MetadataDeletionConfig) extend
       }
     case unexpected => log.warning(s"Programmer error: unexpected message $unexpected received from $sender")
   }
+
+  private def populateWorkflowsToDeleteMetadataMetric(currentTimestampMinusDelay: OffsetDateTime) = {
+    // we need the dedicated `count` query here because the result of the `queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp`
+    // query is upper-bounded by `batchSize` parameter, which is undesired here
+    countRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(
+      MetadataArchiveStatus.toDatabaseValue(Archived),
+      currentTimestampMinusDelay
+    ) onComplete {
+      case Success(numToDelete) =>
+        sendGauge(workflowsToDeleteMetadataMetricPath, numToDelete.toLong, InstrumentationPrefixes.ServicesPrefix)
+      case Failure(ex) =>
+        log.warning(s"Cannot send workflowsToDeleteMetadata gauge metric value: unable to query number of workflows-to-delete-metadata from the database: ${ex.getMessage}")
+    }
+  }
 }
 
 object DeleteMetadataActor {
 
-  def props(metadataDeletionConfig: MetadataDeletionConfig) = Props(new DeleteMetadataActor(metadataDeletionConfig))
+  def props(metadataDeletionConfig: MetadataDeletionConfig, serviceRegistryActor: ActorRef) = Props(new DeleteMetadataActor(metadataDeletionConfig, serviceRegistryActor))
 
   case object DeleteMetadataAction
 
+  private val workflowsToDeleteMetadataMetricPath: NonEmptyList[String] = MetadataServiceActor.MetadataInstrumentationPrefix :+ "delete" :+ "workflowsToDeleteMetadata"
 }

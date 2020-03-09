@@ -4,7 +4,7 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 import akka.actor.Props
-import akka.testkit.{EventFilter, ImplicitSender}
+import akka.testkit.{EventFilter, ImplicitSender, TestProbe}
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataArchiveStatus.Archived
@@ -44,7 +44,7 @@ class DeleteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Implic
   }
 
   private def createTestDeletionActor(failLookups: Boolean = false, failDeletions: Boolean = false) = {
-    val deleteMetadataActor = system.actorOf(Props(new DeleteMetadataActor(MetadataDeletionConfig(Option(1 minute), 200L, 1 minute)) {
+    val deleteMetadataActor = system.actorOf(Props(new DeleteMetadataActor(MetadataDeletionConfig(Option(1 minute), 200L, 1 minute), serviceRegistryActor = TestProbe().ref) {
       override def queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(archiveStatus: Option[String], thresholdTimestamp: OffsetDateTime, batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[String]] = {
         val expectedArchiveStatus = MetadataArchiveStatus.toDatabaseValue(Archived)
         if (expectedArchiveStatus !== archiveStatus) {

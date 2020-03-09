@@ -81,6 +81,16 @@ trait WorkflowMetadataSummaryEntryComponent {
       } yield summary.workflowExecutionUuid).take(batchSize)
     })
 
+  val countRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp = Compiled(
+    (metadataArchiveStatus: Rep[Option[String]], workflowEndTimestampThreshold: Rep[Timestamp]) => {
+      (for {
+        summary <- workflowMetadataSummaryEntries
+        if summary.rootWorkflowExecutionUuid.isEmpty && summary.parentWorkflowExecutionUuid.isEmpty // is root workflow entry
+        if summary.metadataArchiveStatus === metadataArchiveStatus
+        if summary.endTimestamp <= workflowEndTimestampThreshold
+      } yield summary.workflowExecutionUuid).length
+    })
+
   val workflowMetadataSummaryEntriesForWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
       workflowMetadataSummaryEntry <- workflowMetadataSummaryEntries

@@ -35,7 +35,7 @@ trait CallMetadataHelper {
 
   var alreadyPushedRunningCallMetadata = Set.empty[String]
   def pushRunningCallMetadata(key: CallKey, evaluatedInputs: WomEvaluatedCallInputs) = {
-    val metadataKeyForUniqueness = metadataKeyForCall(key, "").toString
+    val metadataKeyForUniqueness = s"${(key: JobKey).node.fullyQualifiedName}:${key.index.getOrElse(-1)}:${key.attempt}"
 
     if (!alreadyPushedRunningCallMetadata.contains(metadataKeyForUniqueness)) {
       val inputEvents = evaluatedInputs match {

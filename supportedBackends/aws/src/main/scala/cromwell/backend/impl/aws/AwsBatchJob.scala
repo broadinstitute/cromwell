@@ -143,6 +143,12 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                   |  script: $script
                   |  """.stripMargin)
 
+      val outputinfo = outputs.map(o => "%s,%s,%s,%s".format(o.name, o.s3key, o.local, o.mount))
+        .mkString(";")
+      val inputinfo = inputs.collect{case i: AwsBatchFileInput => i}
+        .map(i => "%s,%s,%s,%s".format(i.name, i.s3key, i.local, i.mount))
+        .mkString(";")
+
       val submit: F[SubmitJobResponse] =
         async.delay(client.submitJob(
           SubmitJobRequest.builder()
@@ -153,16 +159,20 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
             .containerOverrides(
               ContainerOverrides.builder
                 .environment(
-                  KeyValuePair.builder.name("BATCH_FILE_TYPE").value("script").build,
-                  KeyValuePair.builder.name("BATCH_FILE_S3_URL")
-                    //the fetch and run script expects the s3:// prefix
-                    .value(s"""s3://${runtimeAttributes.scriptS3BucketName}/$scriptKeyPrefix$scriptKey""").build
+                  buildKVPair("BATCH_FILE_TYPE", "script"),
+                  buildKVPair("BATCH_FILE_S3_URL",
+                    s"s3://${runtimeAttributes.scriptS3BucketName}/$scriptKeyPrefix$scriptKey"),
+                  buildKVPair("AWS_CROMWELL_CALL_ROOT", jobPaths.callExecutionRoot.toString),
+                  buildKVPair("AWS_CROMWELL_WORKFLOW_ROOT", jobPaths.workflowPaths.workflowRoot.toString),
+                  gzipKeyValuePair("AWS_CROMWELL_INPUTS", inputinfo),
+                  buildKVPair("AWS_CROMWELL_OUTPUTS", outputinfo)
                 )
                 .memory(runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt)
                 .vcpus(runtimeAttributes.cpu.##).build
             )
             .jobQueue(runtimeAttributes.queueArn)
-            .jobDefinition(definitionArn).build
+            .jobDefinition(definitionArn)
+            .build
         ))
 
       ReaderT.liftF(
@@ -294,33 +304,53 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
         Log.info(s"Submitting definition request: $definitionRequest")
 
-        val arn = client.registerJobDefinition(definitionRequest).jobDefinitionArn
-        Log.info(s"Definition created: $arn")
-        arn
+        val response: RegisterJobDefinitionResponse = client.registerJobDefinition(definitionRequest)
+        Log.info(s"Definition created: $response")
+        response.jobDefinitionArn()
       }
     })
 
 
-    val retry: F[String] = Stream.retry(submit, 0.millis, _ * 2, awsBatchAttributes.createDefinitionAttempts.value, {
-      // RegisterJobDefinition throws 404s every once in a while
-      case e: ClientException => e.statusCode() == 404
-      case _ => false
-    }).compile.last.map(_.get)
+    // a function to retry submissions, returns a higher kind parameterized on a String (where the String is an arn)
+    val retry: F[String] = Stream.retry(
+      fo = submit, //the value to attempt to get
+      delay = 0.millis, //how long to wait
+      nextDelay = _ * 2, //how long to back off after a failure
+      maxAttempts = awsBatchAttributes.createDefinitionAttempts.value, //how many times to try
+      retriable = { //a function to say if we should retry or not
+        // RegisterJobDefinition throws 404s every once in a while
+        case e: ClientException => e.statusCode() == 404 || e.statusCode() == 409
+        // a 409 means an eventual consistency collision has happened, most likely during a scatter.
+        // Just wait and retry as job definition names are canonical and if another thread succeeds in making one then
+        // that will be used and if there really isn't one, then the definition will be created.
+        case _ => false  //don't retry other cases
+      }
+    ).compile.last.map(_.get)
 
-    async.recoverWith(retry) {
-      case e: ClientException if e.statusCode() == 409 =>
-        // This could be a problem here, as we might have registerJobDefinition
-        // but not describeJobDefinitions permissions. We've changed this to a
-        // warning as a result of this potential
-        Log.warn("Job definition already exists. Performing describe and retrieving latest revision.")
-        async.
-          delay(client.describeJobDefinitions(DescribeJobDefinitionsRequest.builder().jobDefinitionName(jobDefinitionName).build())).
-          map(_.jobDefinitions().asScala).
-          map(definitions => {
-            Log.info(s"Latest job definition revision is: ${definitions.last.jobDefinitionName()} with arn: ${definitions.last.jobDefinitionArn()}")
-            definitions.last.jobDefinitionArn()
-          })
+    // attempt to register the job definition
+    async.recoverWith(retry){
+      case e: ClientException if e.statusCode == 404 || e.statusCode == 409 => retry  //probably worth trying again
     }
+
+//    async.recoverWith(retry) {
+//      case e: ClientException if e.statusCode() == 409 =>
+//        /*
+//        The HTTP 409 Conflict response status code indicates a request conflict with current state of the server.
+//        Conflicts are most likely to occur in response to a PUT request. For example, you may get a 409 response when
+//        uploading a file which is older than the one already on the server resulting in a version control conflict.
+//         */
+//        Log.warn("Received a 409 code from AWS Batch when attempting to create the job definition.")
+//        Log.warn(e.awsErrorDetails().toString)
+//        // A collision has occurred. Two actors have attempted to create the same definition causing a problem with
+//        // eventual consistency
+//        async.
+//          delay(client.describeJobDefinitions(DescribeJobDefinitionsRequest.builder().jobDefinitionName(jobDefinitionName).build())).
+//          map(_.jobDefinitions().asScala).
+//          map(definitions => {
+//            Log.info(s"Latest job definition revision is: ${definitions.last.jobDefinitionName()} with arn: ${definitions.last.jobDefinitionArn()}")
+//            definitions.last.jobDefinitionArn()
+//          })
+//    }
   }
 
 

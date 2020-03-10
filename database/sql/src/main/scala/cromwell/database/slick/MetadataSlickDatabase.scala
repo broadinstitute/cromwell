@@ -207,8 +207,8 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
         )
       summarizedMetadataEntryIds = rawMetadataEntries.flatMap(_.metadataEntryId)
       _ <- deleteSummaryQueueEntriesByMetadataJournalIds(summarizedMetadataEntryIds)
-      unsummarizedTotal <- countSummaryQueueEntries()
-    } yield (summarizedMetadataEntryIds.length.toLong, unsummarizedTotal.toLong)
+      //unsummarizedTotal <- countSummaryQueueEntries()
+    } yield (summarizedMetadataEntryIds.length.toLong, 42L /*unsummarizedTotal.toLong*/)
 
     runTransaction(action)
   }

@@ -151,7 +151,9 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         summaryResult.rowsProcessedIncreasing should be > 0L
         summaryResult.rowsProcessedDecreasing should be(0L)
 
-        summaryResult.increasingGap should be(0L)
+        // summaryResult.increasingGap should be(0L)
+        // hotfix-related, always returning gap=42 to avoid count(*) query
+        summaryResult.increasingGap should be(42L)
         summaryResult.decreasingGap should be(0L)
       }
     }

@@ -23,9 +23,9 @@ class MetadataDataAccessComponent(val driver: JdbcProfile) extends DataAccessCom
   val metadataEntriesToSummarizeQuery = {
     Compiled(
       (limit: ConstColumn[Long]) => (for {
-        (_, metadataEntry) <-
-          summaryQueueEntries join metadataEntries on (_.metadataJournalId === _.metadataEntryId)
-      } yield metadataEntry).sortBy(_.metadataEntryId).take(limit)
+        summaryEntry <- summaryQueueEntries.take(limit)
+        metadataEntry <- metadataEntries if metadataEntry.metadataEntryId === summaryEntry.metadataJournalId
+      } yield metadataEntry).sortBy(_.metadataEntryId)
     )
   }
 }

@@ -33,9 +33,9 @@ trait CallMetadataHelper {
     serviceRegistryActor ! PutMetadataAction(statusChange)
   }
 
-  var alreadyPushedRunningCallMetadata = false
+  var alreadyPushedRunningCallMetadata = Set.empty[CallKey]
   def pushRunningCallMetadata(key: CallKey, evaluatedInputs: WomEvaluatedCallInputs) = {
-    if (!alreadyPushedRunningCallMetadata) {
+    if (!alreadyPushedRunningCallMetadata.contains(key)) {
       val inputEvents = evaluatedInputs match {
         case empty if empty.isEmpty =>
           List(MetadataEvent.empty(metadataKeyForCall(key, s"${CallMetadataKeys.Inputs}")))
@@ -48,7 +48,7 @@ trait CallMetadataHelper {
 
       val runningEvent = List(MetadataEvent(metadataKeyForCall(key, CallMetadataKeys.ExecutionStatus), MetadataValue(ExecutionStatus.Running)))
       serviceRegistryActor ! PutMetadataAction(runningEvent ++ inputEvents)
-      alreadyPushedRunningCallMetadata = true
+      alreadyPushedRunningCallMetadata += key
     }
   }
 

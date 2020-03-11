@@ -9,7 +9,7 @@ trait SummaryQueueEntryComponent {
 
   class SummaryQueueEntries(tag: Tag) extends Table[SummaryQueueEntry](tag, "SUMMARY_QUEUE_ENTRY") {
 
-    def metadataJournalId = column[Long]("METADATA_JOURNAL_ID")
+    def metadataJournalId = column[Long]("METADATA_JOURNAL_ID", O.PrimaryKey)
 
     override def * = metadataJournalId <> (SummaryQueueEntry.apply, SummaryQueueEntry.unapply)
 

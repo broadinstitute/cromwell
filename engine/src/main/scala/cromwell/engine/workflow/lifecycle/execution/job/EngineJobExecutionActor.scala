@@ -242,9 +242,6 @@ class EngineJobExecutionActor(replyTo: ActorRef,
         // Treat this like the "CachedOutputLookupFailed" event:
         runJob(data)
       } else {
-        writeToMetadata(Map(
-          callCachingHitResultMetadataKey -> true,
-          callCachingReadResultMetadataKey -> s"Cache Hit: $cacheHitDetails"))
         log.debug("Cache hit for {}! Fetching cached result {}", jobTag, cacheResultId)
         makeBackendCopyCacheHit(womValueSimpletons, jobDetritus, returnCode, data, cacheResultId, ejeaCacheHit.hitNumber) using data.withCacheDetails(cacheHitDetails)
       }
@@ -265,14 +262,14 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     response: JobSucceededResponse,
     data@ResponsePendingData(_, _, Some(Success(hashes)), _, _, _, _),
     ) =>
-      logCacheHitSuccess(data)
+      logCacheHitSuccessAndNotifyMetadata(data)
       saveCacheResults(hashes, data.withSuccessResponse(response))
     case Event(response: JobSucceededResponse, data: ResponsePendingData) if effectiveCallCachingMode.writeToCache && data.hashes.isEmpty =>
-      logCacheHitSuccess(data)
+      logCacheHitSuccessAndNotifyMetadata(data)
       // Wait for the CallCacheHashes
       stay using data.withSuccessResponse(response)
     case Event(response: JobSucceededResponse, data: ResponsePendingData) => // bad hashes or cache write off
-      logCacheHitSuccess(data)
+      logCacheHitSuccessAndNotifyMetadata(data)
       saveJobCompletionToJobStore(data.withSuccessResponse(response))
     case Event(
     CopyingOutputsFailedResponse(_, cacheCopyAttempt, throwable),
@@ -681,7 +678,12 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     s"$workflowIdForLogging-BackendCacheHitCopyingActor-$jobTag-${cacheResultId.id}"
   }
 
-  private def logCacheHitSuccess(data: ResponsePendingData): Unit = {
+  private def logCacheHitSuccessAndNotifyMetadata(data: ResponsePendingData): Unit = {
+
+    val metadataMap = Map(callCachingHitResultMetadataKey -> true) ++ data.ejeaCacheHit.flatMap(_.details).map(details => callCachingReadResultMetadataKey -> s"Cache Hit: $details").toMap
+
+    writeToMetadata(metadataMap)
+
     workflowLogger.info(
       "Call cache hit process had {} total hit failures before completing successfully",
       data.cacheHitFailureCount,

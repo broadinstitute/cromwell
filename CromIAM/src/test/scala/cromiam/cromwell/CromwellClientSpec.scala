@@ -79,9 +79,7 @@ object CromwellClientSpec {
     extends CromwellApiClient(new URL("http://foo.com"), "bar") {
 
 
-    override def labels(workflowId: WorkflowId,
-                        newLabels: Option[List[Label]],
-                        headers: List[HttpHeader] = defaultHeaders)
+    override def labels(workflowId: WorkflowId, headers: List[HttpHeader] = defaultHeaders)
                        (implicit ec: ExecutionContext): FailureResponseOrT[WorkflowLabels] = {
       if (workflowId == RootWorkflowId) {
         FailureResponseOrT.pure(FictitiousWorkflowLabelsWithCollection)

@@ -131,15 +131,17 @@ class CromwellClient(val cromwellUrl: URL,
   }
 
   def labels(workflowId: WorkflowId,
-             newLabelsOpt: Option[List[Label]] = None,
              headers: List[HttpHeader] = defaultHeaders)
             (implicit ec: ExecutionContext): FailureResponseOrT[WorkflowLabels] = {
-    newLabelsOpt match {
-      case None  => simpleRequest[WorkflowLabels](labelsEndpoint(workflowId), headers=headers)
-      case Some(newLabels) =>
-        val requestEntity = requestEntityForAddLabels(newLabels)
-        makeRequest[WorkflowLabels](HttpRequest(HttpMethods.PATCH, labelsEndpoint(workflowId), headers, requestEntity))
-    }
+    simpleRequest[WorkflowLabels](labelsEndpoint(workflowId), headers = headers)
+  }
+
+  def addLabels(workflowId: WorkflowId,
+                newLabels: List[Label],
+                headers: List[HttpHeader] = defaultHeaders)
+               (implicit ec: ExecutionContext): FailureResponseOrT[WorkflowLabels] = {
+    val requestEntity = requestEntityForAddLabels(newLabels)
+    makeRequest[WorkflowLabels](HttpRequest(HttpMethods.PATCH, labelsEndpoint(workflowId), headers, requestEntity))
   }
 
   def logs(workflowId: WorkflowId,

@@ -539,11 +539,11 @@ object Operations extends StrictLogging {
       val labelsToUpdate = List(Label("newlyAddedLabel", "All mimsy were the borogoves, and the mome raths outgrabe"))
       for {
         labelsBeforeAddition <- CentaurCromwellClient.labels(submittedWorkflow)
-        _ <- CentaurCromwellClient.labels(submittedWorkflow, Option(labelsToAdd))
+        _ <- CentaurCromwellClient.addLabels(submittedWorkflow, labelsToAdd)
         expectedLabels = JsObject(labelsBeforeAddition.labels.fields ++ labelsToAdd.map(lbl => lbl.key -> JsString(lbl.value)))
          // "eventually" because we have to wait until summarizer kicks in
         _ <- eventuallyComparisonWithLatestLabelsSucceeds(expectedLabels, submittedWorkflow, workflow).timeout(CentaurConfig.metadataConsistencyTimeout)
-        _ <- CentaurCromwellClient.labels(submittedWorkflow, Option(labelsToUpdate))
+        _ <- CentaurCromwellClient.addLabels(submittedWorkflow, labelsToUpdate)
         expectedLabels = JsObject(labelsBeforeAddition.labels.fields ++ labelsToUpdate.map(lbl => lbl.key -> JsString(lbl.value)))
         _ <- eventuallyComparisonWithLatestLabelsSucceeds(expectedLabels, submittedWorkflow, workflow).timeout(CentaurConfig.metadataConsistencyTimeout)
       } yield ()

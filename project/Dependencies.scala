@@ -108,6 +108,7 @@ object Dependencies {
   private val workbenchGoogleV = "0.15-2fc79a3"
   private val workbenchModelV = "0.10-6800f3a"
   private val workbenchUtilV = "0.3-f3ce961"
+  private val zeroAllocationHashingV = "0.11"
 
   private val slf4jFacadeDependencies = List(
     "org.slf4j" % "slf4j-api" % slf4jV,
@@ -526,6 +527,9 @@ object Dependencies {
   val bcsBackendDependencies = commonDependencies ++ refinedTypeDependenciesList ++ aliyunBatchComputeDependencies
   val tesBackendDependencies = akkaHttpDependencies
   val sparkBackendDependencies = akkaHttpDependencies
+  val sfsBackendDependencies = List (
+    "net.openhft" % "zero-allocation-hashing" % zeroAllocationHashingV
+  )
 
   val testDependencies = List(
     "org.scalatest" %% "scalatest" % scalatestV,
@@ -579,6 +583,7 @@ object Dependencies {
       ossFileSystemDependencies ++
       perfDependencies ++
       serverDependencies ++
+      sfsBackendDependencies ++
       sparkBackendDependencies ++
       spiDependencies ++
       spiUtilDependencies ++

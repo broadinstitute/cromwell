@@ -1,6 +1,6 @@
 package cromwell.backend.impl.sfs.config
 
-import java.io.FileNotFoundException
+import java.io.{FileNotFoundException, InputStream}
 
 import akka.event.LoggingAdapter
 import com.typesafe.config.Config
@@ -9,7 +9,9 @@ import cromwell.backend.standard.callcaching.StandardFileHashingActor.SingleFile
 import cromwell.core.path.{Path, PathFactory}
 import cromwell.util.TryWithResource._
 import net.ceedubs.ficus.Ficus._
+import net.openhft.hashing.LongHashFunction
 import org.apache.commons.codec.digest.DigestUtils
+import org.apache.commons.io.IOUtils
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.util.{Failure, Try}
@@ -25,6 +27,7 @@ object ConfigHashingStrategy {
         case "path" => HashPathStrategy(checkSiblingMd5)
         case "file" => HashFileStrategy(checkSiblingMd5)
         case "path+modtime" => HashPathModTimeStrategy(checkSiblingMd5)
+        case "XXH64" => HashFileXXH64Strategy(checkSiblingMd5)
         case what =>
           logger.warn(s"Unrecognized hashing strategy $what.")
           HashPathStrategy(checkSiblingMd5)
@@ -92,5 +95,18 @@ final case class HashFileStrategy(checkSiblingMd5: Boolean) extends ConfigHashin
     tryWithResource(() => file.newInputStream) { DigestUtils.md5Hex }
   }
 
-  override val description = "hash file content"
+  override val description = "hash file content with md5"
 }
+
+final case class HashFileXXH64Strategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
+  override protected def hash(file: Path): Try[String] = {
+    tryWithResource(() => file.newInputStream) {XX64Hash}
+  }
+  override val description = "hash file content XXH64"
+  def XX64Hash(inputStream: InputStream): String = {
+    // Does this work with big files? Does it adequately buffer?
+    val xxh64hash: Long = LongHashFunction.xx().hashBytes(IOUtils.toByteArray(inputStream))
+    xxh64hash.toHexString
+  }
+}
+

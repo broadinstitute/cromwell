@@ -1,6 +1,7 @@
 package cromwell.backend.impl.sfs.config
 
 import java.io.{FileNotFoundException, InputStream}
+import java.nio.ByteBuffer
 
 import akka.event.LoggingAdapter
 import com.typesafe.config.Config
@@ -100,12 +101,18 @@ final case class HashFileStrategy(checkSiblingMd5: Boolean) extends ConfigHashin
 
 final case class HashFileXXH64Strategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
   override protected def hash(file: Path): Try[String] = {
-    tryWithResource(() => file.newInputStream) {XX64Hash}
+    tryWithResource(() => file.newInputStream) {XX64Hash(_)}
   }
+
   override val description = "hash file content XXH64"
-  def XX64Hash(inputStream: InputStream): String = {
-    // Does this work with big files? Does it adequately buffer?
-    val xxh64hash: Long = LongHashFunction.xx().hashBytes(IOUtils.toByteArray(inputStream))
+
+  def XX64Hash(inputStream: InputStream, bufferSize: Int = 32768): String = {
+    var xxh64hash: Long = 0L
+    val byteBuffer: Array[Byte] = Array.emptyByteArray
+    while (inputStream.available() > 0) {
+      inputStream.read(byteBuffer)
+      xxh64hash = LongHashFunction.xx(xxh64hash).hashBytes(byteBuffer)
+    }
     xxh64hash.toHexString
   }
 }

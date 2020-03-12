@@ -66,7 +66,7 @@ public abstract class AmazonS3Factory {
         final ClientOverrideConfiguration clientOverrideConfiguration = getOverrideConfiguration(props);
         final Region region = getRegion(props);
 
-        log.info("Creating s3fs client with httpClient:{}\ns3Configuration:{}\nclientOverrideConfiguration{}\nregion:{}",
+        log.debug("Creating s3fs client with httpClient:{}\ns3Configuration:{}\nclientOverrideConfiguration{}\nregion:{}",
                 httpClient, s3Configuration, clientOverrideConfiguration, region);
 
         S3ClientBuilder builder = S3Client.builder();

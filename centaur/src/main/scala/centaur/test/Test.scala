@@ -534,7 +534,7 @@ object Operations extends StrictLogging {
                                                      workflow: Workflow): IO[Unit] = {
       for {
         actualLabels <- CentaurCromwellClient.labels(submittedWorkflow)
-        _ <- validateMetadataJson(expected, actualLabels.labels, submittedWorkflow, workflow).handleErrorWith({ _ =>
+        _ <- validateMetadataJson("eventuallyComparisonWithLatestLabelsSucceeds", expected, actualLabels.labels, submittedWorkflow, workflow).handleErrorWith({ _ =>
           for {
             _ <- IO.sleep(2.seconds)
             recurse <- eventuallyComparisonWithLatestLabelsSucceeds(expected, submittedWorkflow, workflow)

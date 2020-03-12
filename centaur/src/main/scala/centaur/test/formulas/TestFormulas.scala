@@ -59,7 +59,6 @@ object TestFormulas extends StrictLogging {
     // Test that these endpoints are still good after archival - but in the window where deletion is unlikely to have happened yet:
     labelsAfterArchival = CentaurCromwellClient.labels(submittedWorkflow)
     _ <- assertLabelsResponseHasNotChanged("after archival but probably not yet deleted", labelsLikelyBeforeArchival, labelsAfterArchival, submittedWorkflow, workflowDefinition)
-    _ <- validateLabelsAdditionUpdateAndSubsequentRetrieval(submittedWorkflow, workflowDefinition)
     _ <- assertMetadataResponseHasNotChanged("after archival but probably not yet deleted", unarchivedNonSubworkflowMetadata, submittedWorkflow, workflowDefinition, expandSubworkflows = false)
     _ <- assertMetadataResponseHasNotChanged("after archival but probably not yet deleted", unarchivedFullMetadata, submittedWorkflow, workflowDefinition, expandSubworkflows = true)
     _ <- assertJobManagerStyleMetadataDidNotChange("after archival but probably not yet deleted", unarchivedJobManagerStyleMetadata, submittedWorkflow, workflowDefinition)
@@ -74,6 +73,9 @@ object TestFormulas extends StrictLogging {
     _ <- assertMetadataResponseHasNotChanged("after archival and deletion", unarchivedFullMetadata, submittedWorkflow, workflowDefinition, expandSubworkflows = true)
     _ <- assertJobManagerStyleMetadataDidNotChange("after archival and deletion", unarchivedJobManagerStyleMetadata, submittedWorkflow, workflowDefinition)
     _ <- assertOutputsResponseHasNotChanged("after archival and deletion", unarchivedOutputs, submittedWorkflow, workflowDefinition)
+
+    // Now that we've checked things haven't changed unexpectedly, let's check that we _can_ still change the labels:
+    _ <- validateLabelsAdditionUpdateAndSubsequentRetrieval(submittedWorkflow, workflowDefinition)
 
     // validateLogs method validates data it gets from the `logs` endpoint against logs extracted from the provided
     // metadata (notArchivedMetadata in this case), so there is no need for direct old-new comparison
@@ -103,6 +105,8 @@ object TestFormulas extends StrictLogging {
     _ <- assertJobManagerStyleMetadataDidNotChange("after archival and deletion", unarchivedJobManagerStyleMetadata, submittedWorkflow, workflowDefinition)
     _ <- assertOutputsResponseHasNotChanged("after archival and deletion", unarchivedOutputs, submittedWorkflow, workflowDefinition)
 
+    // Now that we've checked things haven't changed unexpectedly, let's check that we _can_ still change the labels:
+    _ <- validateLabelsAdditionUpdateAndSubsequentRetrieval(submittedWorkflow, workflowDefinition)
   } yield SubmitResponse(submittedWorkflow)
 
   def runWorkflowTwiceExpectingCaching(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = {

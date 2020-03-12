@@ -84,21 +84,23 @@ trait AwsBatchJobDefinitionBuilder {
     // local disk mount point, which will be needed by the docker container
     // that copies data around
 
-    val environment =
-      context.runtimeAttributes.disks.collect{
-        case d if d.name == "local-disk" =>  // this has s3 file system, needs all the env for the ecs-proxy
-          List(
-            //buildKVPair("AWS_CROMWELL_LOCAL_DISK", d.mountPoint.toString),
-            //buildKVPair("AWS_CROMWELL_PATH",jobDefinitionName),
-            //buildKVPair("AWS_CROMWELL_RC_FILE",context.dockerRcPath),
-            buildKVPair("AWS_CROMWELL_STDOUT_FILE",context.dockerStdoutPath),
-            buildKVPair("AWS_CROMWELL_STDERR_FILE",context.dockerStderrPath)
+    val environment = List.empty[KeyValuePair]
 
-            //move the rest to job submission over-rides
-            //buildKVPair("AWS_CROMWELL_CALL_ROOT",context.jobPaths.callExecutionRoot.toString),
-            //buildKVPair("AWS_CROMWELL_WORKFLOW_ROOT",context.jobPaths.workflowPaths.workflowRoot.toString)
-          )
-      }.flatten
+//    val environment =
+//      context.runtimeAttributes.disks.collect{
+//        case d if d.name == "local-disk" =>  // this has s3 file system, needs all the env for the ecs-proxy
+//          List(
+//            //buildKVPair("AWS_CROMWELL_LOCAL_DISK", d.mountPoint.toString),
+//            //buildKVPair("AWS_CROMWELL_PATH",jobDefinitionName),
+//            //buildKVPair("AWS_CROMWELL_RC_FILE",context.dockerRcPath),
+//            buildKVPair("AWS_CROMWELL_STDOUT_FILE",context.dockerStdoutPath),
+//            buildKVPair("AWS_CROMWELL_STDERR_FILE",context.dockerStderrPath)
+//
+//            //move the rest to job submission over-rides
+//            //buildKVPair("AWS_CROMWELL_CALL_ROOT",context.jobPaths.callExecutionRoot.toString),
+//            //buildKVPair("AWS_CROMWELL_WORKFLOW_ROOT",context.jobPaths.workflowPaths.workflowRoot.toString)
+//          )
+//      }.flatten
 
 //    def getVolPath(d:AwsBatchVolume) : Option[String] =  {
 //        d.fsType match {
@@ -116,9 +118,10 @@ trait AwsBatchJobDefinitionBuilder {
         .name("fetchAndRunScript")
         .host(Host.builder().sourcePath("/usr/local/bin/fetch_and_run.sh").build())
         .build(),
+        //the aws-cli location on the EC2
         Volume.builder()
           .name("awsCliHome")
-          .host(Host.builder().sourcePath("/usr/local/aws-cli/v2").build())
+          .host(Host.builder().sourcePath("/usr/local/aws-cli").build())
           .build()
       )
     }
@@ -136,7 +139,8 @@ trait AwsBatchJobDefinitionBuilder {
         MountPoint.builder()
           .readOnly(true)
           .sourceVolume("awsCliHome")
-          .containerPath("/usr/local/aws-cli/v2")
+          //where the aws-cli will be on the container
+          .containerPath("/usr/local/aws-cli")
           .build()
       )
     }

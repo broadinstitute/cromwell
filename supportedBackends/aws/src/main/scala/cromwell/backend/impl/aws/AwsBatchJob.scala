@@ -115,10 +115,16 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
   lazy val reconfiguredScript: String = {
     s"""
     |#! /bin/sh
-    |$commandLine > $${AWS_CROMWELL_STDOUT_FILE} >2 $${AWS_CROMWELL_STDERR_FILE}
+    |touch stdout.log && touch stderr.log
+    |$commandLine > stdout.log 2> stderr.log
     |return_code=$$?
-    |aws s3 cp $${AWS_CROMWELL_STDOUT_FILE} $${AWS_CROMWELL_CALL_ROOT}
-    |aws s3 cp $${AWS_CROMWELL_STDERR_FILE} $${AWS_CROMWELL_CALL_ROOT}
+    |echo $$return_code > rc.txt
+    |
+    |cat stdout.log && cat stderr.log >&2
+    |
+    |/usr/local/aws-cli/v2/current/bin/aws s3 cp stdout.log $${AWS_CROMWELL_CALL_ROOT}/${jobPaths.defaultStdoutFilename}
+    |/usr/local/aws-cli/v2/current/bin/aws s3 cp stderr.log $${AWS_CROMWELL_CALL_ROOT}/${jobPaths.defaultStderrFilename}
+    |/usr/local/aws-cli/v2/current/bin/aws s3 cp rc.txt $${AWS_CROMWELL_CALL_ROOT}/${jobPaths.returnCodeFilename}
     |exit $$return_code
     """.stripMargin
   }
@@ -165,7 +171,10 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                   buildKVPair("AWS_CROMWELL_CALL_ROOT", jobPaths.callExecutionRoot.toString),
                   buildKVPair("AWS_CROMWELL_WORKFLOW_ROOT", jobPaths.workflowPaths.workflowRoot.toString),
                   gzipKeyValuePair("AWS_CROMWELL_INPUTS", inputinfo),
-                  buildKVPair("AWS_CROMWELL_OUTPUTS", outputinfo)
+                  buildKVPair("AWS_CROMWELL_OUTPUTS", outputinfo),
+                  buildKVPair("AWS_CROMWELL_STDOUT_FILE", dockerStdout),
+                  buildKVPair("AWS_CROMWELL_STDERR_FILE", dockerStderr),
+                  buildKVPair("AWS_CROMWELL_RC_FILE", dockerRc),
                 )
                 .memory(runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt)
                 .vcpus(runtimeAttributes.cpu.##).build
@@ -328,7 +337,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     ).compile.last.map(_.get)
 
     // attempt to register the job definition
-    async.recoverWith(retry){
+    async.recoverWith(submit){
       case e: ClientException if e.statusCode == 404 || e.statusCode == 409 => retry  //probably worth trying again
     }
 
@@ -378,6 +387,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
      detail.container.exitCode
   }
 
+  //todo: unused at present
   def output(detail: JobDetail): String = {
      val events: Seq[OutputLogEvent] = logsclient.getLogEvents(GetLogEventsRequest.builder
                                             // http://aws-java-sdk-javadoc.s3-website-us-west-2.amazonaws.com/latest/software/amazon/awssdk/services/batch/model/ContainerDetail.html#logStreamName--

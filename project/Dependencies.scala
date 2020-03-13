@@ -56,6 +56,7 @@ object Dependencies {
   private val liquibaseSlf4jV = "2.0.0"
   private val liquibaseV = "3.6.3"
   private val logbackV = "1.2.3"
+  private val lz4JavaV = "1.7.1"
   private val mariadbV = "2.4.2"
   private val metrics3ScalaV = "3.5.10" // https://github.com/erikvanoosten/metrics-scala/tree/f733e26#download-4x
   private val metrics3StatsdV = "4.2.0"
@@ -108,7 +109,7 @@ object Dependencies {
   private val workbenchGoogleV = "0.15-2fc79a3"
   private val workbenchModelV = "0.10-6800f3a"
   private val workbenchUtilV = "0.3-f3ce961"
-  private val zeroAllocationHashingV = "0.11"
+
 
   private val slf4jFacadeDependencies = List(
     "org.slf4j" % "slf4j-api" % slf4jV,
@@ -528,7 +529,7 @@ object Dependencies {
   val tesBackendDependencies = akkaHttpDependencies
   val sparkBackendDependencies = akkaHttpDependencies
   val sfsBackendDependencies = List (
-    "net.openhft" % "zero-allocation-hashing" % zeroAllocationHashingV
+    "org.lz4" % "lz4-java" % lz4JavaV
   )
 
   val testDependencies = List(

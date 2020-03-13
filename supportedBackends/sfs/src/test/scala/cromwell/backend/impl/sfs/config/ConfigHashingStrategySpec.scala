@@ -187,6 +187,48 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
     }
   }
 
+  it should "create a xxh64 hashing strategy from config" in {
+    val defaultSibling = makeStrategy("xxh64")
+    defaultSibling.isInstanceOf[HashFileXxH64Strategy] shouldBe true
+    defaultSibling.checkSiblingMd5 shouldBe false
+
+    val checkSibling = makeStrategy("file", Option(true))
+
+    checkSibling.isInstanceOf[HashFileXxH64Strategy] shouldBe true
+    checkSibling.checkSiblingMd5 shouldBe true
+    checkSibling.toString shouldBe "Call caching hashing strategy: Check first for sibling md5 and if not found hash file content with xxh64."
+
+    val dontCheckSibling = makeStrategy("file", Option(false))
+
+    dontCheckSibling.isInstanceOf[HashFileMd5Strategy] shouldBe true
+    dontCheckSibling.checkSiblingMd5 shouldBe false
+    dontCheckSibling.toString shouldBe "Call caching hashing strategy: hash file content."
+  }
+
+  it should "have a file hashing strategy and use md5 sibling file when appropriate" in {
+    val table = Table(
+      ("check", "withMd5", "expected"),
+      (true, true, md5FileHash),
+      (false, true, steakXxh64),
+      (true, false, steakXxh64),
+      (false, false, steakXxh64)
+    )
+
+    forAll(table) { (check, withMd5, expected) =>
+      md5File.delete(swallowIOExceptions = true)
+      val checkSibling = makeStrategy("file", Option(check))
+
+      checkSibling.getHash(mockRequest(withMd5, symlink = false), mock[LoggingAdapter]) shouldBe Success(expected)
+
+      val symLinkRequest: SingleFileHashRequest = mockRequest(withMd5, symlink = true)
+      val symlink = DefaultPathBuilder.get(symLinkRequest.file.valueString)
+
+      symlink.isSymbolicLink shouldBe true
+      checkSibling.getHash(symLinkRequest, mock[LoggingAdapter]) shouldBe Success(expected)
+    }
+  }
+
+
   override def afterAll() = {
     file.delete(true)
     md5File.delete(true)

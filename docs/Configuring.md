@@ -521,12 +521,15 @@ When running a job on the Config (Shared Filesystem) backend, Cromwell provides 
               ]
 
               # Possible values: file, path, path+modtime
-              # "file" will compute an md5 hash of the file content.
+              # "md5" will compute an md5 hash of the file content.
+              # "file" DEPRECATED: same as md5.
+              # "xxh64" will compute an xxh64 hash of the file content. This uses the xxHash algorithm (www.xxhash.com).
+              # xxHash was optimized for file integrity checksums and is more than 10 times faster as md5.
               # "path" will compute an md5 hash of the file path. This strategy will only be effective if the duplication-strategy (above) is set to "soft-link",
               # in order to allow for the original file path to be hashed.
               # "path+modtime" will compute an md5 hash of the file path and the last modified time. The same conditions as for "path" apply here.
-              # Default: file
-              hashing-strategy: "file"
+              # Default: "md5"
+              hashing-strategy: "xxh64"
 
               # When true, will check if a sibling file with the same name and the .md5 extension exists, and if it does, use the content of this file as a hash.
               # If false or the md5 does not exist, will proceed with the above-defined hashing strategy.

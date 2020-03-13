@@ -43,7 +43,7 @@ object TestFormulas extends StrictLogging {
     _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
     submittedWorkflow <- runSuccessfulWorkflow(workflowDefinition)
     labelsLikelyBeforeArchival = CentaurCromwellClient.labels(submittedWorkflow)
-    unarchivedFullMetadata <- fetchAndValidateMetadata(submittedWorkflow, workflowDefinition, validateArchived = Option(false))
+    unarchivedFullMetadata <- fetchAndValidateFullMetadata(submittedWorkflow, workflowDefinition, validateArchived = Option(false))
     unarchivedNonSubworkflowMetadata <- fetchMetadata(submittedWorkflow, expandSubworkflows = false, requestArchivedMetadata = Option(false)).asTest
     unarchivedJobManagerStyleMetadata <- fetchAndValidateJobManagerStyleMetadata(submittedWorkflow, workflowDefinition, KnownNonSubWorkflowMetadata = Option(unarchivedNonSubworkflowMetadata.value), validateArchived = Option(false))
     notArchivedFlatMetadata = unarchivedFullMetadata.asFlat
@@ -86,7 +86,7 @@ object TestFormulas extends StrictLogging {
     _ <- checkDescription(workflowDefinition, validityExpectation = None)
     submittedWorkflow <- runFailingWorkflow(workflowDefinition)
     labelsLikelyBeforeArchival = CentaurCromwellClient.labels(submittedWorkflow)
-    unarchivedFullMetadata <- fetchAndValidateMetadata(submittedWorkflow, workflowDefinition, validateArchived = Option(false))
+    unarchivedFullMetadata <- fetchAndValidateFullMetadata(submittedWorkflow, workflowDefinition, validateArchived = Option(false))
     unarchivedNonSubworkflowMetadata <- fetchMetadata(submittedWorkflow, expandSubworkflows = false, requestArchivedMetadata = Option(false)).asTest
     unarchivedJobManagerStyleMetadata <- fetchAndValidateJobManagerStyleMetadata(submittedWorkflow, workflowDefinition, KnownNonSubWorkflowMetadata = Option(unarchivedNonSubworkflowMetadata.value), validateArchived = Option(false))
     workflowRoot = unarchivedFullMetadata.asFlat.value.get("workflowRoot").collectFirst { case JsString(r) => r } getOrElse "No Workflow Root"
@@ -115,7 +115,7 @@ object TestFormulas extends StrictLogging {
       firstWF <- runSuccessfulWorkflow(workflowDefinition)
       secondWf <- runSuccessfulWorkflow(workflowDefinition.secondRun)
       _ <- printHashDifferential(firstWF, secondWf)
-      metadata <- fetchAndValidateMetadata(secondWf, workflowDefinition, Option(firstWF.id.id))
+      metadata <- fetchAndValidateFullMetadata(secondWf, workflowDefinition, Option(firstWF.id.id))
       _ <- fetchAndValidateJobManagerStyleMetadata(secondWf, workflowDefinition, KnownNonSubWorkflowMetadata = None)
       _ = cromwellTracker.track(metadata)
       _ <- validateNoCacheMisses(secondWf, metadata, workflowDefinition)
@@ -128,12 +128,12 @@ object TestFormulas extends StrictLogging {
       _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
       firstWf <- runSuccessfulWorkflow(workflowDefinition)
       secondWf <- runSuccessfulWorkflow(workflowDefinition.secondRun)
-      metadataTwo <- fetchAndValidateMetadata(secondWf, workflowDefinition, Option(firstWf.id.id))
+      metadataTwo <- fetchAndValidateFullMetadata(secondWf, workflowDefinition, Option(firstWf.id.id))
       _ = cromwellTracker.track(metadataTwo)
       _ <- validateNoCacheHits(secondWf, metadataTwo, workflowDefinition)
       thirdWf <- runSuccessfulWorkflow(workflowDefinition.thirdRun)
       _ <- printHashDifferential(secondWf, thirdWf)
-      metadataThree <- fetchAndValidateMetadata(thirdWf, workflowDefinition, Option(secondWf.id.id))
+      metadataThree <- fetchAndValidateFullMetadata(thirdWf, workflowDefinition, Option(secondWf.id.id))
       _ <- validateNoCacheMisses(thirdWf, metadataThree, workflowDefinition)
       _ <- validateDirectoryContentsCounts(workflowDefinition, thirdWf, metadataThree)
     } yield SubmitResponse(thirdWf)
@@ -144,7 +144,7 @@ object TestFormulas extends StrictLogging {
       _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
       _ <- runSuccessfulWorkflow(workflowDefinition) // Build caches
       testWf <- runSuccessfulWorkflow(workflowDefinition.secondRun)
-      metadata <- fetchAndValidateMetadata(testWf, workflowDefinition)
+      metadata <- fetchAndValidateFullMetadata(testWf, workflowDefinition)
       _ <- fetchAndValidateJobManagerStyleMetadata(testWf, workflowDefinition, KnownNonSubWorkflowMetadata = None)
       _ = cromwellTracker.track(metadata)
       _ <- validateNoCacheHits(testWf, metadata, workflowDefinition)
@@ -157,7 +157,7 @@ object TestFormulas extends StrictLogging {
       _ <- checkDescription(workflowDefinition, validityExpectation = None)
       _ <- runFailingWorkflow(workflowDefinition) // Build caches
       testWf <- runFailingWorkflow(workflowDefinition)
-      metadata <- fetchAndValidateMetadata(testWf, workflowDefinition)
+      metadata <- fetchAndValidateFullMetadata(testWf, workflowDefinition)
       _ <- fetchAndValidateJobManagerStyleMetadata(testWf, workflowDefinition, KnownNonSubWorkflowMetadata = None)
       _ = cromwellTracker.track(metadata)
       _ <- validateNoCacheHits(testWf, metadata, workflowDefinition)
@@ -180,7 +180,7 @@ object TestFormulas extends StrictLogging {
           _ = CromwellManager.startCromwell(postRestart)
           _ <- expectSomeProgress(submittedWorkflow, workflowDefinition, Set(Running, finalStatus), workflowProgressTimeout)
           _ <- pollUntilStatus(submittedWorkflow, workflowDefinition, finalStatus)
-          metadata <- fetchAndValidateMetadata(submittedWorkflow, workflowDefinition)
+          metadata <- fetchAndValidateFullMetadata(submittedWorkflow, workflowDefinition)
           _ <- fetchAndValidateJobManagerStyleMetadata(submittedWorkflow, workflowDefinition, KnownNonSubWorkflowMetadata = None)
           _ = cromwellTracker.track(metadata)
           _ <- if (testRecover) {
@@ -203,7 +203,7 @@ object TestFormulas extends StrictLogging {
     _ <- abortWorkflow(submittedWorkflow)
     _ <- expectSomeProgress(submittedWorkflow, workflowDefinition, Set(Running, Aborting, Aborted), workflowProgressTimeout)
     _ <- pollUntilStatus(submittedWorkflow, workflowDefinition, Aborted)
-    metadata <- fetchAndValidateMetadata(submittedWorkflow, workflowDefinition)
+    metadata <- fetchAndValidateFullMetadata(submittedWorkflow, workflowDefinition)
     _ <- fetchAndValidateJobManagerStyleMetadata(submittedWorkflow, workflowDefinition, KnownNonSubWorkflowMetadata = None)
     _ = cromwellTracker.track(metadata)
     _ <- validateDirectoryContentsCounts(workflowDefinition, submittedWorkflow, metadata)
@@ -230,7 +230,7 @@ object TestFormulas extends StrictLogging {
       _ <- validatePAPIAborted(workflowDefinition, submittedWorkflow, jobId)
       // Wait a little to make sure that if the abort didn't work and calls start running we see them in the metadata
       _ <- waitFor(30.seconds)
-      metadata <- fetchAndValidateMetadata(submittedWorkflow, workflowDefinition)
+      metadata <- fetchAndValidateFullMetadata(submittedWorkflow, workflowDefinition)
       _ <- fetchAndValidateJobManagerStyleMetadata(submittedWorkflow, workflowDefinition, KnownNonSubWorkflowMetadata = None)
       _ = cromwellTracker.track(metadata)
       _ <- validateDirectoryContentsCounts(workflowDefinition, submittedWorkflow, metadata)
@@ -267,7 +267,7 @@ object TestFormulas extends StrictLogging {
           _ <- checkDescription(workflowDefinition.secondRun, validityExpectation = Option(true))
           second <- runSuccessfulWorkflow(workflowDefinition.secondRun) // Same WDL and config but a "backend" runtime option targeting PAPI v2.
           _ <- printHashDifferential(first, second)
-          metadata <- fetchAndValidateMetadata(second, workflowDefinition, Option(first.id.id))
+          metadata <- fetchAndValidateFullMetadata(second, workflowDefinition, Option(first.id.id))
           _ <- fetchAndValidateJobManagerStyleMetadata(second, workflowDefinition, KnownNonSubWorkflowMetadata = None)
           _ = cromwellTracker.track(metadata)
           _ <- validateNoCacheMisses(second, metadata, workflowDefinition)

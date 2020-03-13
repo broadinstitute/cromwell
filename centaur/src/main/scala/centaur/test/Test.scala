@@ -502,7 +502,7 @@ object Operations {
 
     override def run: IO[Unit] = {
       for {
-        metadataAfterArchival <- CentaurCromwellClient.metadata(submittedWorkflow, expandSubworkflows = expandSubworkflows, archived = Option(true))
+        metadataAfterArchival <- fetchMetadata(submittedWorkflow, expandSubworkflows = expandSubworkflows, requestArchivedMetadata = Option(true))
         metadataObjectBeforeArchival <- IO.fromTry(Try(removeMetadataSourceFromJsObject(metadataBeforeArchival.value.parseJson.asJsObject)))
         metadataObjectAfterArchival <- IO.fromTry(Try(removeMetadataSourceFromJsObject(metadataAfterArchival.value.parseJson.asJsObject)))
         _ <- validateMetadataJson(testType = s"assertMetadataResponseHasNotChanged ($testContext, expandSubworkflows=$expandSubworkflows)", metadataObjectBeforeArchival, metadataObjectAfterArchival, submittedWorkflow, workflow)
@@ -680,13 +680,13 @@ object Operations {
   def fetchMetadata(submittedWorkflow: SubmittedWorkflow,
                     expandSubworkflows: Boolean,
                     requestArchivedMetadata: Option[Boolean]): IO[WorkflowMetadata] = {
-    CentaurCromwellClient.metadata(submittedWorkflow, expandSubworkflows = expandSubworkflows, archived = Option(false))
+    CentaurCromwellClient.metadata(submittedWorkflow, expandSubworkflows = expandSubworkflows, archived = requestArchivedMetadata)
   }
 
-  def fetchAndValidateMetadata(submittedWorkflow: SubmittedWorkflow,
-                               workflowSpec: Workflow,
-                               cacheHitUUID: Option[UUID] = None,
-                               validateArchived: Option[Boolean] = None): Test[WorkflowMetadata] = {
+  def fetchAndValidateFullMetadata(submittedWorkflow: SubmittedWorkflow,
+                                   workflowSpec: Workflow,
+                                   cacheHitUUID: Option[UUID] = None,
+                                   validateArchived: Option[Boolean] = None): Test[WorkflowMetadata] = {
     new Test[WorkflowMetadata] {
       def eventuallyMetadata(workflow: SubmittedWorkflow,
                              expectedMetadata: WorkflowFlatMetadata): IO[WorkflowMetadata] = {
@@ -754,7 +754,7 @@ object Operations {
           eventuallyMetadata(submittedWorkflow, expectedMetadata)
             .timeoutTo(CentaurConfig.metadataConsistencyTimeout, validateMetadata(submittedWorkflow, expectedMetadata))
         // Nothing to wait for, so just return the first metadata we get back:
-        case None => CentaurCromwellClient.metadata(submittedWorkflow, archived = validateArchived)
+        case None => fetchMetadata(submittedWorkflow, expandSubworkflows = true, requestArchivedMetadata = validateArchived)
       }
     }
   }

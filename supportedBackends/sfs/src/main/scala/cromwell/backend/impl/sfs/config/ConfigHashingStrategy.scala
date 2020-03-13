@@ -100,13 +100,13 @@ final case class HashFileMd5Strategy(checkSiblingMd5: Boolean) extends ConfigHas
 
 final case class HashFileXxH64Strategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
   override protected def hash(file: Path): Try[String] = {
-    tryWithResource(() => file.newInputStream) {HashFileXxH64Strategy.xxh64sum(_)}
+    tryWithResource(() => file.newInputStream) {HashFileXxH64StrategyMethods.xxh64sum(_)}
   }
   override val description = "hash file content with xxh64"
 
 }
 
-object HashFileXxH64Strategy {
+object HashFileXxH64StrategyMethods {
   // For more information about the choice of buffer size: https://github.com/rhpvorderman/hashtest/
   private lazy val defaultBufferSize: Int = 128 * 1024
   private lazy val xxhashFactory: XXHashFactory = XXHashFactory.fastestInstance()

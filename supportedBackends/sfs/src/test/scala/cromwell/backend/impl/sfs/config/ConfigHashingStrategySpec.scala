@@ -22,7 +22,7 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
 
   val steak = "Steak"
   val steakMd5 = DigestUtils.md5Hex(steak)
-  val steakXxh64 = XXHashFactory.fastestInstance().hash64().hash(steak.getBytes, 0, steak.length, 0)
+  val steakXxh64 = XXHashFactory.fastestInstance().hash64().hash(steak.getBytes, 0, steak.length, 0).toHexString
   val file = DefaultPathBuilder.createTempFile()
   val symLinksDir = DefaultPathBuilder.createTempDirectory("sym-dir")
   val pathMd5 = DigestUtils.md5Hex(file.pathAsString)
@@ -146,22 +146,22 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
     }
   }
 
-  it should "create a file hashing strategy from config" in {
+  it should "create a md5 hashing strategy from config" in {
     val defaultSibling = makeStrategy("file")
     defaultSibling.isInstanceOf[HashFileMd5Strategy] shouldBe true
     defaultSibling.checkSiblingMd5 shouldBe false
 
-    val checkSibling = makeStrategy("file", Option(true))
+    val checkSibling = makeStrategy("md5", Option(true))
 
     checkSibling.isInstanceOf[HashFileMd5Strategy] shouldBe true
     checkSibling.checkSiblingMd5 shouldBe true
-    checkSibling.toString shouldBe "Call caching hashing strategy: Check first for sibling md5 and if not found hash file content."
+    checkSibling.toString shouldBe "Call caching hashing strategy: Check first for sibling md5 and if not found hash file content with md5."
 
     val dontCheckSibling = makeStrategy("file", Option(false))
 
     dontCheckSibling.isInstanceOf[HashFileMd5Strategy] shouldBe true
     dontCheckSibling.checkSiblingMd5 shouldBe false
-    dontCheckSibling.toString shouldBe "Call caching hashing strategy: hash file content."
+    dontCheckSibling.toString shouldBe "Call caching hashing strategy: hash file content with md5."
   }
 
   it should "have a file hashing strategy and use md5 sibling file when appropriate" in {
@@ -205,7 +205,7 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
     dontCheckSibling.toString shouldBe "Call caching hashing strategy: hash file content."
   }
 
-  it should "have a file hashing strategy and use md5 sibling file when appropriate" in {
+  it should "have a xxh64 hashing strategy and use md5 sibling file when appropriate" in {
     val table = Table(
       ("check", "withMd5", "expected"),
       (true, true, md5FileHash),

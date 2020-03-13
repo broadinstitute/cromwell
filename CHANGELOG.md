@@ -1,5 +1,22 @@
 # Cromwell Change Log
 
+## 50 Release Notes
+
+### New functionality
+
+#### xxHash for faster call-caching using file hashes
+
+The `file` strategy uses md5sum hashing which causes a lot of strain on the server, the `path` and `path+modtime` 
+strategies are much lighter, but do not work properly with containers. To alleviate this problem a new file hashing
+strategy called `xxh64` was introduced. This uses the 64-bit implementation of the [xxHash](https://www.xxhash.com)
+algorithm. This algorithm is optimized for file integrity hashing and provides a more than 10x speed improvement over
+md5. The `file` strategy has now been renamed `md5` for clarity. For backwards compatibility reasons, `file` is still
+available (defaults to `md5`) and `md5` is still the default hashing algorithm.
+
+### Bugfixes
+
++ Fixed a bug in Cromwell 49 where the `use_relative_output_paths` option would not preserve intermediate folders.
+
 ## 49 Release Notes
 
 ### Changes and Warnings

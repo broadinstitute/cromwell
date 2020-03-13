@@ -14,7 +14,7 @@ import cromwell.services.metadata.impl.MetadataDatabaseAccess
 
 import scala.util.{Failure, Success}
 
-class DeleteMetadataActor(metadataDeletionConfig: MetadataDeletionConfig, override val serviceRegistryActor: ActorRef) extends Actor
+class DeleteMetadataActor(metadataDeletionConfig: ActiveMetadataDeletionConfig, override val serviceRegistryActor: ActorRef) extends Actor
   with ActorLogging
   with MetadataDatabaseAccess
   with MetadataServicesStore
@@ -22,26 +22,18 @@ class DeleteMetadataActor(metadataDeletionConfig: MetadataDeletionConfig, overri
 
   implicit val ec = context.dispatcher
 
-  var activeConfig: ActiveMetadataDeletionConfig = _
-  metadataDeletionConfig match {
-    case a: ActiveMetadataDeletionConfig =>
-      logger.info(s"Archived metadata deletion is configured to begin polling after ${a.initialDelay}, and then delete up to ${a.batchSize} workflows worth of metadata every ${a.interval} (for workflows which completed at least ${a.delayAfterWorkflowCompletion} ago).")
-      activeConfig = a
-      context.system.scheduler.schedule(a.initialDelay, a.interval, self, DeleteMetadataAction)
-    case InactiveMetadataDeletionConfig =>
-      logger.info("Archived metadata deletion is configured to be inactive.")
-      context.stop(self)
-  }
+  log.info(s"Archived metadata deletion is configured to begin polling after ${metadataDeletionConfig.initialDelay}, and then delete up to ${metadataDeletionConfig.batchSize} workflows worth of metadata every ${metadataDeletionConfig.interval} (for workflows which completed at least ${metadataDeletionConfig.delayAfterWorkflowCompletion} ago).")
+  context.system.scheduler.schedule(metadataDeletionConfig.initialDelay, metadataDeletionConfig.interval, self, DeleteMetadataAction)
 
   val numOfWorkflowsToDeleteMetadataMetricActor = context.actorOf(NumberOfWorkflowsToDeleteMetadataMetricActor.props(serviceRegistryActor))
 
   override def receive: Receive = {
     case DeleteMetadataAction =>
-      val currentTimestampMinusDelay = OffsetDateTime.now().minusSeconds(activeConfig.delayAfterWorkflowCompletion.toSeconds)
+      val currentTimestampMinusDelay = OffsetDateTime.now().minusSeconds(metadataDeletionConfig.delayAfterWorkflowCompletion.toSeconds)
       val workflowIdsForMetadataDeletionFuture = queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(
         MetadataArchiveStatus.toDatabaseValue(Archived),
         currentTimestampMinusDelay,
-        activeConfig.batchSize
+        metadataDeletionConfig.batchSize
       )
       workflowIdsForMetadataDeletionFuture onComplete {
         case Success(workflowIds) =>
@@ -65,7 +57,6 @@ class DeleteMetadataActor(metadataDeletionConfig: MetadataDeletionConfig, overri
 
 object DeleteMetadataActor {
 
-  def props(metadataDeletionConfig: MetadataDeletionConfig, serviceRegistryActor: ActorRef) = Props(new DeleteMetadataActor(metadataDeletionConfig, serviceRegistryActor))
-
+  def props(metadataDeletionConfig: ActiveMetadataDeletionConfig, serviceRegistryActor: ActorRef) = Props(new DeleteMetadataActor(metadataDeletionConfig, serviceRegistryActor))
   case object DeleteMetadataAction
 }

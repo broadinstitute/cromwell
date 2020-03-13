@@ -683,11 +683,14 @@ object Operations {
     CentaurCromwellClient.metadata(submittedWorkflow, expandSubworkflows = expandSubworkflows, archived = requestArchivedMetadata)
   }
 
-  def fetchAndValidateFullMetadata(submittedWorkflow: SubmittedWorkflow,
-                                   workflowSpec: Workflow,
-                                   cacheHitUUID: Option[UUID] = None,
-                                   validateArchived: Option[Boolean] = None): Test[WorkflowMetadata] = {
+  def fetchAndValidateNonSubworkflowMetadata(submittedWorkflow: SubmittedWorkflow,
+                                             workflowSpec: Workflow,
+                                             cacheHitUUID: Option[UUID] = None,
+                                             validateArchived: Option[Boolean] = None): Test[WorkflowMetadata] = {
     new Test[WorkflowMetadata] {
+
+      def fetchOnce() = fetchMetadata(submittedWorkflow, expandSubworkflows = false, requestArchivedMetadata = validateArchived)
+
       def eventuallyMetadata(workflow: SubmittedWorkflow,
                              expectedMetadata: WorkflowFlatMetadata): IO[WorkflowMetadata] = {
         validateMetadata(workflow, expectedMetadata).handleErrorWith({ _ =>
@@ -741,7 +744,7 @@ object Operations {
         }
 
         for {
-          actualMetadata <-  fetchMetadata(submittedWorkflow, expandSubworkflows = true, requestArchivedMetadata = validateArchived)
+          actualMetadata <- fetchOnce()
           _ <- validateUnwantedMetadata(actualMetadata)
           _ <- validateAllowOtherOutputs(actualMetadata)
           diffs = expectedMetadata.diff(actualMetadata.asFlat, workflow.id.id, cacheHitUUID)
@@ -754,7 +757,7 @@ object Operations {
           eventuallyMetadata(submittedWorkflow, expectedMetadata)
             .timeoutTo(CentaurConfig.metadataConsistencyTimeout, validateMetadata(submittedWorkflow, expectedMetadata))
         // Nothing to wait for, so just return the first metadata we get back:
-        case None => fetchMetadata(submittedWorkflow, expandSubworkflows = true, requestArchivedMetadata = validateArchived)
+        case None => fetchOnce()
       }
     }
   }

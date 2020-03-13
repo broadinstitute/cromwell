@@ -40,6 +40,7 @@ import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.JobPaths
 import cromwell.cloudsupport.aws.auth.AwsAuthMode
 import fs2.Stream
+import org.apache.commons.lang3.builder.{ToStringBuilder, ToStringStyle}
 import org.slf4j.{Logger, LoggerFactory}
 import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.regions.Region
@@ -402,5 +403,24 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
   //TODO: Wrap in cats Effect
   def abort(jobId: String): CancelJobResponse = {
     client.cancelJob(CancelJobRequest.builder.jobId(jobId).reason("cromwell abort called").build)
+  }
+
+  /**
+    * Generate a `String` describing the instance. Mainly for debugging
+    * @return a description of the instance
+    */
+  override def toString: String = {
+     new ToStringBuilder(this, ToStringStyle.JSON_STYLE)
+      .append("jobDescriptor", jobDescriptor)
+      .append("runtimeAttributes", runtimeAttributes)
+      .append("commandLine", commandLine)
+      .append("script", script)
+      .append("dockerRc", dockerRc).append("dockerStderr", dockerStderr).append("dockerStdout", dockerStdout)
+      .append("inputs", inputs)
+      .append("outputs", outputs)
+      .append("jobPaths", jobPaths)
+      .append("configRegion", configRegion)
+      .append("awsAuthMode", optAwsAuthMode)
+      .toString
   }
 }

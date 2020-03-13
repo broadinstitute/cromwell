@@ -192,17 +192,17 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
     defaultSibling.isInstanceOf[HashFileXxH64Strategy] shouldBe true
     defaultSibling.checkSiblingMd5 shouldBe false
 
-    val checkSibling = makeStrategy("file", Option(true))
+    val checkSibling = makeStrategy("xxh64", Option(true))
 
     checkSibling.isInstanceOf[HashFileXxH64Strategy] shouldBe true
     checkSibling.checkSiblingMd5 shouldBe true
     checkSibling.toString shouldBe "Call caching hashing strategy: Check first for sibling md5 and if not found hash file content with xxh64."
 
-    val dontCheckSibling = makeStrategy("file", Option(false))
+    val dontCheckSibling = makeStrategy("xxh64", Option(false))
 
-    dontCheckSibling.isInstanceOf[HashFileMd5Strategy] shouldBe true
+    dontCheckSibling.isInstanceOf[HashFileXxH64Strategy] shouldBe true
     dontCheckSibling.checkSiblingMd5 shouldBe false
-    dontCheckSibling.toString shouldBe "Call caching hashing strategy: hash file content."
+    dontCheckSibling.toString shouldBe "Call caching hashing strategy: hash file content with xxh64."
   }
 
   it should "have a xxh64 hashing strategy and use md5 sibling file when appropriate" in {
@@ -216,7 +216,7 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
 
     forAll(table) { (check, withMd5, expected) =>
       md5File.delete(swallowIOExceptions = true)
-      val checkSibling = makeStrategy("file", Option(check))
+      val checkSibling = makeStrategy("xxh64", Option(check))
 
       checkSibling.getHash(mockRequest(withMd5, symlink = false), mock[LoggingAdapter]) shouldBe Success(expected)
 

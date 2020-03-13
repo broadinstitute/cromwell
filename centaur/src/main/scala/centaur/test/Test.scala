@@ -23,7 +23,7 @@ import com.typesafe.scalalogging.StrictLogging
 import common.validation.Validation._
 import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
-import cromwell.api.model.{CallCacheDiff, Failed, SubmittedWorkflow, Succeeded, TerminalStatus, WaasDescription, WorkflowId, WorkflowLabels, WorkflowMetadata, WorkflowStatus}
+import cromwell.api.model.{CallCacheDiff, Failed, Label, SubmittedWorkflow, Succeeded, TerminalStatus, WaasDescription, WorkflowId, WorkflowLabels, WorkflowMetadata, WorkflowStatus}
 import cromwell.cloudsupport.aws.AwsConfiguration
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
@@ -516,6 +516,40 @@ object Operations extends StrictLogging {
       } yield ()
     }
   }
+
+  def validateLabelsAdditionUpdateAndSubsequentRetrieval(submittedWorkflow: SubmittedWorkflow,
+                                                         workflow: Workflow): Test[Unit] = new Test[Unit] {
+
+    def eventuallyComparisonWithLatestLabelsSucceeds(expected: JsObject,
+                                                     submittedWorkflow: SubmittedWorkflow,
+                                                     workflow: Workflow): IO[Unit] = {
+      for {
+        actualLabels <- CentaurCromwellClient.labels(submittedWorkflow)
+        _ <- validateMetadataJson(expected, actualLabels.labels, submittedWorkflow, workflow).handleErrorWith({ _ =>
+          for {
+            _ <- IO.sleep(2.seconds)
+            recurse <- eventuallyComparisonWithLatestLabelsSucceeds(expected, submittedWorkflow, workflow)
+          } yield recurse
+        })
+      } yield ()
+    }
+
+    override def run: IO[Unit] = {
+      val labelsToAdd = List(Label("newlyAddedLabel", "Twas brillig, and the slithy toves did gyre and gimble in the wabe"))
+      val labelsToUpdate = List(Label("newlyAddedLabel", "All mimsy were the borogoves, and the mome raths outgrabe"))
+      for {
+        labelsBeforeAddition <- CentaurCromwellClient.labels(submittedWorkflow)
+        _ <- CentaurCromwellClient.addLabels(submittedWorkflow, labelsToAdd)
+        expectedLabels = JsObject(labelsBeforeAddition.labels.fields ++ labelsToAdd.map(lbl => lbl.key -> JsString(lbl.value)))
+         // "eventually" because we have to wait until summarizer kicks in
+        _ <- eventuallyComparisonWithLatestLabelsSucceeds(expectedLabels, submittedWorkflow, workflow).timeout(CentaurConfig.metadataConsistencyTimeout)
+        _ <- CentaurCromwellClient.addLabels(submittedWorkflow, labelsToUpdate)
+        expectedLabels = JsObject(labelsBeforeAddition.labels.fields ++ labelsToUpdate.map(lbl => lbl.key -> JsString(lbl.value)))
+        _ <- eventuallyComparisonWithLatestLabelsSucceeds(expectedLabels, submittedWorkflow, workflow).timeout(CentaurConfig.metadataConsistencyTimeout)
+      } yield ()
+    }
+  }
+
 
   def compareOutputsBeforeAndAfterArchival(submittedWorkflow: SubmittedWorkflow,
                                           workflow: Workflow): Test[Unit] = new Test[Unit] {

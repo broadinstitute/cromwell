@@ -130,9 +130,18 @@ class CromwellClient(val cromwellUrl: URL,
     simpleRequest[WorkflowOutputs](outputsEndpoint(workflowId, args))
   }
 
-  def labels(workflowId: WorkflowId, headers: List[HttpHeader] = defaultHeaders)
+  def labels(workflowId: WorkflowId,
+             headers: List[HttpHeader] = defaultHeaders)
             (implicit ec: ExecutionContext): FailureResponseOrT[WorkflowLabels] = {
-    simpleRequest[WorkflowLabels](labelsEndpoint(workflowId), headers=headers)
+    simpleRequest[WorkflowLabels](labelsEndpoint(workflowId), headers = headers)
+  }
+
+  def addLabels(workflowId: WorkflowId,
+                newLabels: List[Label],
+                headers: List[HttpHeader] = defaultHeaders)
+               (implicit ec: ExecutionContext): FailureResponseOrT[WorkflowLabels] = {
+    val requestEntity = requestEntityForAddLabels(newLabels)
+    makeRequest[WorkflowLabels](HttpRequest(HttpMethods.PATCH, labelsEndpoint(workflowId), headers, requestEntity))
   }
 
   def logs(workflowId: WorkflowId,
@@ -297,6 +306,11 @@ object CromwellClient {
 
     val multipartFormData = Multipart.FormData(sourceBodyParts.toSeq : _*)
     multipartFormData.toEntity()
+  }
+
+  private[api] def requestEntityForAddLabels(newLabels: List[Label]): MessageEntity = {
+    import cromwell.api.model.LabelsJsonFormatter._
+    HttpEntity(MediaTypes.`application/json`, newLabels.toJson.toString())
   }
 
   /**

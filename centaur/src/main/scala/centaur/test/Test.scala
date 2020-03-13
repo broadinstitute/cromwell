@@ -20,7 +20,6 @@ import com.google.auth.http.HttpCredentialsAdapter
 import com.google.auth.oauth2.ServiceAccountCredentials
 import com.google.cloud.storage.{Storage, StorageOptions}
 import com.typesafe.config.Config
-import com.typesafe.scalalogging.StrictLogging
 import common.validation.Validation._
 import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
@@ -97,8 +96,10 @@ object Test {
   *
   * All operations are expected to return a Test type and implement the run method. These can then
   * be composed together via a for comprehension as a test formula and then run by some other entity.
+  *
+  * Stop! Do NOT add StrictLogging to this object. It will mess with the conformance testing.
   */
-object Operations extends StrictLogging {
+object Operations {
   lazy val configuration: GoogleConfiguration = GoogleConfiguration(CentaurConfig.conf)
   lazy val googleConf: Config = CentaurConfig.conf.getConfig("google")
   lazy val authName: String = googleConf.getString("auth")
@@ -183,14 +184,12 @@ object Operations extends StrictLogging {
             case None => IO.pure(())
             case Some(d.valid) => IO.pure(())
             case Some(otherExpectation) =>
-              logger.error(s"Unexpected 'valid=${d.valid}' response when expecting $otherExpectation. Full unexpected description:${System.lineSeparator()}$d")
               IO.raiseError(new Exception(s"Expected this workflow's /describe validity to be '$otherExpectation' but got: '${d.valid}' (errors: ${d.errors.mkString(", ")})"))
           }
         }).timeoutTo(timeout, IO {
           if (alreadyTried + 1 >= retries) {
             throw new TimeoutException("Timeout from checkDescription 60 seconds: " + timeoutStackTraceString)
           } else {
-            logger.warn(s"checkDescription timeout on attempt ${alreadyTried + 1}. ")
             checkDescriptionInner(alreadyTried + 1)
             ()
           }
@@ -941,7 +940,6 @@ object Operations extends StrictLogging {
                                      workflowCompletionTime: OffsetDateTime): Test[Unit] = new Test[Unit] {
     override def run: IO[Unit] = {
       if (CentaurConfig.expectCarbonite) {
-        logger.info(s"Expecting archive deletion of ${submittedWorkflow.id.toString}")
         (for {
           _ <- waitForArchiveStatus(
             submittedWorkflow,
@@ -953,7 +951,6 @@ object Operations extends StrictLogging {
           CentaurConfig.metadataDeletionMaximumWait,
           fallback = IO.raiseError(new Exception(s"Timeout waiting for archive status to reach ArchivedAndPurged within ${CentaurConfig.metadataDeletionMaximumWait}")))
       } else {
-        logger.info(s"Not assessing archive deletion of ${submittedWorkflow.id.toString}")
         IO.pure(())
       }
     }
@@ -963,8 +960,6 @@ object Operations extends StrictLogging {
                            workflowDefinition: Workflow,
                            anticipatedEventualArchiveStatus: String,
                            anticipatedIntermediateArchiveStatuses: Set[String]): IO[Unit] = {
-
-    logger.info(s"Anticipating archive status '$anticipatedEventualArchiveStatus' for workflow ID: ${submittedWorkflow.id}...'")
     def validateMetadataArchiveStatus(status: String): IO[Boolean] = {
         if (status == anticipatedEventualArchiveStatus) {
           // We reached the expected archive status. Woohoo.

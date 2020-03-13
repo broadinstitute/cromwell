@@ -13,7 +13,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 import wom.values.WomSingleFile
-
+import net.jpountz.xxhash.XXHashFactory
 import scala.util.Success
 
 class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenPropertyChecks with Mockito with BeforeAndAfterAll {
@@ -21,10 +21,11 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
   behavior of "ConfigHashingStrategy"
 
   val steak = "Steak"
-  val steakHash = DigestUtils.md5Hex(steak)
+  val steakMd5 = DigestUtils.md5Hex(steak)
+  val steakXxh64 = XXHashFactory.fastestInstance().hash64().hash(steak.getBytes, 0, steak.length, 0)
   val file = DefaultPathBuilder.createTempFile()
   val symLinksDir = DefaultPathBuilder.createTempDirectory("sym-dir")
-  val pathHash = DigestUtils.md5Hex(file.pathAsString)
+  val pathMd5 = DigestUtils.md5Hex(file.pathAsString)
   val md5File = file.sibling(s"${file.name}.md5")
   // Not the md5 value of "Steak". This is intentional so we can verify which hash is used depending on the strategy
   val md5FileHash = "103508832bace55730c8ee8d89c1a45f"
@@ -81,9 +82,9 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
     val table = Table(
       ("check", "withMd5", "expected"),
       (true, true, md5FileHash),
-      (false, true, pathHash),
-      (true, false, pathHash),
-      (false, false, pathHash)
+      (false, true, pathMd5),
+      (true, false, pathMd5),
+      (false, false, pathMd5)
     )
 
     forAll(table) { (check, withMd5, expected) =>
@@ -167,9 +168,9 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
     val table = Table(
       ("check", "withMd5", "expected"),
       (true, true, md5FileHash),
-      (false, true, steakHash),
-      (true, false, steakHash),
-      (false, false, steakHash)
+      (false, true, steakMd5),
+      (true, false, steakMd5),
+      (false, false, steakMd5)
     )
 
     forAll(table) { (check, withMd5, expected) =>

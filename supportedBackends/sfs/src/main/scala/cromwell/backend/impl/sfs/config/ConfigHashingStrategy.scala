@@ -17,16 +17,17 @@ import scala.util.{Failure, Try}
 
 object ConfigHashingStrategy {
   val logger: Logger = LoggerFactory.getLogger(getClass)
-  val defaultStrategy = HashFileStrategy(checkSiblingMd5 = false)
+  val defaultStrategy = HashFileMd5Strategy(checkSiblingMd5 = false)
 
   def apply(hashingConfig: Config): ConfigHashingStrategy = {
       val checkSiblingMd5 = hashingConfig.as[Option[Boolean]]("check-sibling-md5").getOrElse(false)
 
       hashingConfig.as[Option[String]]("hashing-strategy").getOrElse("file") match {
         case "path" => HashPathStrategy(checkSiblingMd5)
-        case "file" => HashFileStrategy(checkSiblingMd5)
+        case "file" => HashFileMd5Strategy(checkSiblingMd5)
+        case "md5" => HashFileMd5Strategy(checkSiblingMd5)
         case "path+modtime" => HashPathModTimeStrategy(checkSiblingMd5)
-        case "XXH64" => HashFileXXH64Strategy(checkSiblingMd5)
+        case "xxh64" => HashFileXxH64Strategy(checkSiblingMd5)
         case what =>
           logger.warn(s"Unrecognized hashing strategy $what.")
           HashPathStrategy(checkSiblingMd5)
@@ -89,7 +90,7 @@ final case class HashPathModTimeStrategy(checkSiblingMd5: Boolean) extends Confi
   override val description = "hash file path and last modified time"
 }
 
-final case class HashFileStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
+final case class HashFileMd5Strategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
   override protected def hash(file: Path): Try[String] = {
     tryWithResource(() => file.newInputStream) { DigestUtils.md5Hex }
   }
@@ -97,15 +98,15 @@ final case class HashFileStrategy(checkSiblingMd5: Boolean) extends ConfigHashin
   override val description = "hash file content with md5"
 }
 
-final case class HashFileXXH64Strategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
+final case class HashFileXxH64Strategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
   override protected def hash(file: Path): Try[String] = {
-    tryWithResource(() => file.newInputStream) {HashFileXXH64Strategy.xxh64sum(_)}
+    tryWithResource(() => file.newInputStream) {HashFileXxH64Strategy.xxh64sum(_)}
   }
   override val description = "hash file content with xxh64"
 
 }
 
-object HashFileXXH64Strategy {
+object HashFileXxH64Strategy {
   // For more information about the choice of buffer size: https://github.com/rhpvorderman/hashtest/
   private lazy val defaultBufferSize: Int = 128 * 1024
   private lazy val xxhashFactory: XXHashFactory = XXHashFactory.fastestInstance()

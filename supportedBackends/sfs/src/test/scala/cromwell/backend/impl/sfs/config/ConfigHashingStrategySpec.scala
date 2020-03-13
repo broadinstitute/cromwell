@@ -147,18 +147,18 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
 
   it should "create a file hashing strategy from config" in {
     val defaultSibling = makeStrategy("file")
-    defaultSibling.isInstanceOf[HashFileStrategy] shouldBe true
+    defaultSibling.isInstanceOf[HashFileMd5Strategy] shouldBe true
     defaultSibling.checkSiblingMd5 shouldBe false
 
     val checkSibling = makeStrategy("file", Option(true))
 
-    checkSibling.isInstanceOf[HashFileStrategy] shouldBe true
+    checkSibling.isInstanceOf[HashFileMd5Strategy] shouldBe true
     checkSibling.checkSiblingMd5 shouldBe true
     checkSibling.toString shouldBe "Call caching hashing strategy: Check first for sibling md5 and if not found hash file content."
 
     val dontCheckSibling = makeStrategy("file", Option(false))
 
-    dontCheckSibling.isInstanceOf[HashFileStrategy] shouldBe true
+    dontCheckSibling.isInstanceOf[HashFileMd5Strategy] shouldBe true
     dontCheckSibling.checkSiblingMd5 shouldBe false
     dontCheckSibling.toString shouldBe "Call caching hashing strategy: hash file content."
   }

@@ -22,7 +22,7 @@ object Dependencies {
   private val commonsCodecV = "1.11"
   private val commonsIoV = "2.6"
   private val commonsLang3V = "3.8.1"
-  private val commonsMathV = "3.2"
+  private val commonsMathV = "3.6.1"
   private val commonsTextV = "1.6"
   private val configsV = "0.4.4"
   private val delightRhinoSandboxV = "0.0.10"
@@ -499,7 +499,8 @@ object Dependencies {
       exclude("com.fasterxml.jackson.module", "jackson-module-scala")
       exclude("org.scala-tools.testing", "test-interface"),
     "com.fasterxml.jackson.core" % "jackson-databind" % jacksonV,
-    "io.github.andrebeat" %% "scala-pool" % scalaPoolV
+    "io.github.andrebeat" %% "scala-pool" % scalaPoolV,
+    "org.apache.commons" % "commons-math3" % commonsMathV
   ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ akkaHttpCirceIntegrationDependency ++ circeDependencies
 
   val hybridCarboniteMetadataServiceDependencies = List(

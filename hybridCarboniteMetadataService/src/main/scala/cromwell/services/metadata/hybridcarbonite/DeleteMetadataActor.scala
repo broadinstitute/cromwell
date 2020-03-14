@@ -9,7 +9,7 @@ import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataArchiveStatus._
 import cromwell.services.metadata.hybridcarbonite.DeleteMetadataActor._
-import cromwell.services.metadata.hybridcarbonite.WorkflowsToDeleteMetadataMetricHelperActor.{CalculateMetricAndSend, SendPrecalculatedMetric}
+import cromwell.services.metadata.hybridcarbonite.NumOfWorkflowsToDeleteMetadataMetricActor.{CalculateNumOfWorkflowsToDeleteMetadataMetricValue, NumOfWorkflowsToDeleteMetadataMetricValue}
 import cromwell.services.metadata.impl.MetadataDatabaseAccess
 
 import scala.util.{Failure, Success}
@@ -27,13 +27,9 @@ class DeleteMetadataActor(metadataDeletionConfig: MetadataDeletionConfig, overri
     context.system.scheduler.schedule(5.minutes, interval, self, DeleteMetadataAction)
   }
 
-  val workflowsToDeleteMetadataMetricHelperActor =
-    context.actorOf(WorkflowsToDeleteMetadataMetricHelperActor.props(self, serviceRegistryActor))
+  val numOfWorkflowsToDeleteMetadataMetricActor = context.actorOf(NumOfWorkflowsToDeleteMetadataMetricActor.props(serviceRegistryActor))
 
-  override def receive: Receive = receive(isMetricActorFree = true)
-
-  private def receive(isMetricActorFree: Boolean): Receive = {
-    case MetricActorFreed => context.become(receive(isMetricActorFree = true))
+  override def receive: Receive = {
     case DeleteMetadataAction =>
       val currentTimestampMinusDelay = OffsetDateTime.now().minusSeconds(metadataDeletionConfig.delayAfterWorkflowCompletion.toSeconds)
       val workflowIdsForMetadataDeletionFuture = queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(
@@ -43,18 +39,11 @@ class DeleteMetadataActor(metadataDeletionConfig: MetadataDeletionConfig, overri
       )
       workflowIdsForMetadataDeletionFuture onComplete {
         case Success(workflowIds) =>
-          if (isMetricActorFree) {
-            log.info("WorkflowsToDeleteMetadataMetricHelperActor is free: sending a metric request.")
-            context.become(receive(isMetricActorFree = false))
-            if (workflowIds.length < metadataDeletionConfig.batchSize) {
-              workflowsToDeleteMetadataMetricHelperActor ! SendPrecalculatedMetric(workflowIds.length.toLong)
-            } else {
-              workflowsToDeleteMetadataMetricHelperActor ! CalculateMetricAndSend(currentTimestampMinusDelay)
-            }
+          if (workflowIds.length < metadataDeletionConfig.batchSize) {
+            numOfWorkflowsToDeleteMetadataMetricActor ! NumOfWorkflowsToDeleteMetadataMetricValue(workflowIds.length.toLong)
           } else {
-            log.info("WorkflowsToDeleteMetadataMetricHelperActor is busy: not sending another metric request at this time.")
+            numOfWorkflowsToDeleteMetadataMetricActor ! CalculateNumOfWorkflowsToDeleteMetadataMetricValue(currentTimestampMinusDelay)
           }
-
           workflowIds foreach { workflowIdStr =>
             deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(WorkflowId.fromString(workflowIdStr), MetadataArchiveStatus.toDatabaseValue(ArchivedAndPurged)) onComplete {
               case Success(_) => log.info(s"Successfully deleted metadata for workflow $workflowIdStr")
@@ -73,5 +62,4 @@ object DeleteMetadataActor {
   def props(metadataDeletionConfig: MetadataDeletionConfig, serviceRegistryActor: ActorRef) = Props(new DeleteMetadataActor(metadataDeletionConfig, serviceRegistryActor))
 
   case object DeleteMetadataAction
-  case object MetricActorFreed
 }

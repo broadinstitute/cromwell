@@ -6,7 +6,7 @@ import akka.testkit.{ImplicitSender, TestFSMRef, TestProbe}
 import cromwell.core.TestKitSuite
 import cromwell.services.instrumentation.CromwellGauge
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
-import cromwell.services.metadata.hybridcarbonite.NumOfWorkflowsToDeleteMetadataMetricActor.{CalculateNumOfWorkflowsToDeleteMetadataMetricValue, MetricCalculationInProgress, NumOfWorkflowsToDeleteMetadataMetricValue, WaitingForMetricCalculationRequestOrMetricValue}
+import cromwell.services.metadata.hybridcarbonite.NumberOfWorkflowsToDeleteMetadataMetricActor.{CalculateNumberOfWorkflowsToDeleteMetadataMetricValue, MetricCalculationInProgress, NumberOfWorkflowsToDeleteMetadataMetricValue, WaitingForMetricCalculationRequestOrMetricValue}
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.scalatest.concurrent.Eventually
 
@@ -14,14 +14,14 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class NumOfWorkflowsToDeleteMetadataMetricActorSpec extends TestKitSuite with FlatSpecLike with ImplicitSender with Matchers with Eventually {
+class NumberOfWorkflowsToDeleteMetadataMetricActorSpec extends TestKitSuite with FlatSpecLike with ImplicitSender with Matchers with Eventually {
 
   private val defaultTimeout = 5 seconds
 
   it should "follow the proper state transition path when requested to calculate metric value and calculation succeeded" in {
     val serviceRegistryProbe = TestProbe()
-    val metricActor = TestFSMRef(new NumOfWorkflowsToDeleteMetadataMetricActor(serviceRegistryProbe.ref))
-    metricActor ! CalculateNumOfWorkflowsToDeleteMetadataMetricValue(OffsetDateTime.now())
+    val metricActor = TestFSMRef(new NumberOfWorkflowsToDeleteMetadataMetricActor(serviceRegistryProbe.ref))
+    metricActor ! CalculateNumberOfWorkflowsToDeleteMetadataMetricValue(OffsetDateTime.now())
     eventually {
       metricActor.stateName shouldBe MetricCalculationInProgress
     }
@@ -37,11 +37,11 @@ class NumOfWorkflowsToDeleteMetadataMetricActorSpec extends TestKitSuite with Fl
 
   it should "return into WaitingForMetricCalculationRequestOrMetricValue state if DB query resulted in error" in {
     val dbFailurePromise = Promise[Int]()
-    val metricActor = TestFSMRef(new NumOfWorkflowsToDeleteMetadataMetricActor(TestProbe().ref) {
+    val metricActor = TestFSMRef(new NumberOfWorkflowsToDeleteMetadataMetricActor(TestProbe().ref) {
       override def countRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(archiveStatus: Option[String], thresholdTimestamp: OffsetDateTime)(implicit ec: ExecutionContext): Future[Int] =
         dbFailurePromise.future
     })
-    metricActor ! CalculateNumOfWorkflowsToDeleteMetadataMetricValue(OffsetDateTime.now())
+    metricActor ! CalculateNumberOfWorkflowsToDeleteMetadataMetricValue(OffsetDateTime.now())
     eventually {
       metricActor.stateName shouldBe MetricCalculationInProgress
     }
@@ -56,14 +56,14 @@ class NumOfWorkflowsToDeleteMetadataMetricActorSpec extends TestKitSuite with Fl
     val precalculatedVal = -2L
     val serviceRegistryProbe = TestProbe()
     val dbResultPromise = Promise[Int]()
-    val metricActor = TestFSMRef(new NumOfWorkflowsToDeleteMetadataMetricActor(serviceRegistryProbe.ref) {
+    val metricActor = TestFSMRef(new NumberOfWorkflowsToDeleteMetadataMetricActor(serviceRegistryProbe.ref) {
       override def countRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(archiveStatus: Option[String], thresholdTimestamp: OffsetDateTime)(implicit ec: ExecutionContext): Future[Int] = {
         dbResultPromise.success(valFromDB)
         dbResultPromise.future
       }
     })
 
-    metricActor ! NumOfWorkflowsToDeleteMetadataMetricValue(precalculatedVal)
+    metricActor ! NumberOfWorkflowsToDeleteMetadataMetricValue(precalculatedVal)
     serviceRegistryProbe.expectMsgPF(defaultTimeout){
       case InstrumentationServiceMessage(CromwellGauge(_, actualValue)) =>
         actualValue shouldBe precalculatedVal

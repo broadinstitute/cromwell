@@ -9,7 +9,7 @@ import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataArchiveStatus._
 import cromwell.services.metadata.hybridcarbonite.DeleteMetadataActor._
-import cromwell.services.metadata.hybridcarbonite.NumOfWorkflowsToDeleteMetadataMetricActor.{CalculateNumOfWorkflowsToDeleteMetadataMetricValue, NumOfWorkflowsToDeleteMetadataMetricValue}
+import cromwell.services.metadata.hybridcarbonite.NumberOfWorkflowsToDeleteMetadataMetricActor.{CalculateNumberOfWorkflowsToDeleteMetadataMetricValue, NumberOfWorkflowsToDeleteMetadataMetricValue}
 import cromwell.services.metadata.impl.MetadataDatabaseAccess
 
 import scala.util.{Failure, Success}
@@ -27,7 +27,7 @@ class DeleteMetadataActor(metadataDeletionConfig: MetadataDeletionConfig, overri
     context.system.scheduler.schedule(5.minutes, interval, self, DeleteMetadataAction)
   }
 
-  val numOfWorkflowsToDeleteMetadataMetricActor = context.actorOf(NumOfWorkflowsToDeleteMetadataMetricActor.props(serviceRegistryActor))
+  val numOfWorkflowsToDeleteMetadataMetricActor = context.actorOf(NumberOfWorkflowsToDeleteMetadataMetricActor.props(serviceRegistryActor))
 
   override def receive: Receive = {
     case DeleteMetadataAction =>
@@ -40,9 +40,9 @@ class DeleteMetadataActor(metadataDeletionConfig: MetadataDeletionConfig, overri
       workflowIdsForMetadataDeletionFuture onComplete {
         case Success(workflowIds) =>
           if (workflowIds.length < metadataDeletionConfig.batchSize) {
-            numOfWorkflowsToDeleteMetadataMetricActor ! NumOfWorkflowsToDeleteMetadataMetricValue(workflowIds.length.toLong)
+            numOfWorkflowsToDeleteMetadataMetricActor ! NumberOfWorkflowsToDeleteMetadataMetricValue(workflowIds.length.toLong)
           } else {
-            numOfWorkflowsToDeleteMetadataMetricActor ! CalculateNumOfWorkflowsToDeleteMetadataMetricValue(currentTimestampMinusDelay)
+            numOfWorkflowsToDeleteMetadataMetricActor ! CalculateNumberOfWorkflowsToDeleteMetadataMetricValue(currentTimestampMinusDelay)
           }
           workflowIds foreach { workflowIdStr =>
             deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(WorkflowId.fromString(workflowIdStr), MetadataArchiveStatus.toDatabaseValue(ArchivedAndPurged)) onComplete {

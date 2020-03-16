@@ -10,10 +10,10 @@ import cromwell.services.MetadataServicesStore
 import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataArchiveStatus.Archived
-import cromwell.services.metadata.hybridcarbonite.NumOfWorkflowsToDeleteMetadataMetricActor._
+import cromwell.services.metadata.hybridcarbonite.NumberOfWorkflowsToDeleteMetadataMetricActor._
 import cromwell.services.metadata.impl.{MetadataDatabaseAccess, MetadataServiceActor}
 
-class NumOfWorkflowsToDeleteMetadataMetricActor(override val serviceRegistryActor: ActorRef)
+class NumberOfWorkflowsToDeleteMetadataMetricActor(override val serviceRegistryActor: ActorRef)
   extends LoggingFSM[MetadataDeletionMetricsActorState, Unit]
   with MetadataDatabaseAccess
   with MetadataServicesStore
@@ -24,24 +24,28 @@ class NumOfWorkflowsToDeleteMetadataMetricActor(override val serviceRegistryActo
   startWith(WaitingForMetricCalculationRequestOrMetricValue, ())
 
   when(WaitingForMetricCalculationRequestOrMetricValue) {
-    case Event(NumOfWorkflowsToDeleteMetadataMetricValue(value), _) =>
+    case Event(NumberOfWorkflowsToDeleteMetadataMetricValue(value), _) =>
       sendGauge(workflowsToDeleteMetadataMetricPath, value, InstrumentationPrefixes.ServicesPrefix)
       stay()
-    case Event(CalculateNumOfWorkflowsToDeleteMetadataMetricValue(currentTimestampMinusDelay), _) =>
+    case Event(CalculateNumberOfWorkflowsToDeleteMetadataMetricValue(currentTimestampMinusDelay), _) =>
       countRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(
         MetadataArchiveStatus.toDatabaseValue(Archived),
         currentTimestampMinusDelay
       )
-        .map(intVal => FinishedNumOfWorkflowsToDeleteMetadataMetricValueCalculation(intVal.toLong))
+        .map(intVal => FinishedNumberOfWorkflowsToDeleteMetadataMetricValueCalculation(intVal.toLong))
         .pipeTo(self)
       goto(MetricCalculationInProgress)
   }
 
   when(MetricCalculationInProgress) {
-    case Event(CalculateNumOfWorkflowsToDeleteMetadataMetricValue, _) =>
+    case Event(CalculateNumberOfWorkflowsToDeleteMetadataMetricValue, _) =>
       // metric actor is already busy calculating metric value, so we dismiss this request
       stay()
-    case Event(FinishedNumOfWorkflowsToDeleteMetadataMetricValueCalculation(calculatedValue), _) =>
+    case Event(NumberOfWorkflowsToDeleteMetadataMetricValue(value), _) =>
+      // pass through the pre-calculated metric value and stay, continuing to wait for DB query to finish
+      sendGauge(workflowsToDeleteMetadataMetricPath, value, InstrumentationPrefixes.ServicesPrefix)
+      stay()
+    case Event(FinishedNumberOfWorkflowsToDeleteMetadataMetricValueCalculation(calculatedValue), _) =>
       // populate metric and return to the default state
       sendGauge(workflowsToDeleteMetadataMetricPath, calculatedValue, InstrumentationPrefixes.ServicesPrefix)
       goto(WaitingForMetricCalculationRequestOrMetricValue)
@@ -57,9 +61,9 @@ class NumOfWorkflowsToDeleteMetadataMetricActor(override val serviceRegistryActo
   }
 }
 
-object NumOfWorkflowsToDeleteMetadataMetricActor {
+object NumberOfWorkflowsToDeleteMetadataMetricActor {
 
-  def props(serviceRegistryActor: ActorRef) = Props(new NumOfWorkflowsToDeleteMetadataMetricActor(serviceRegistryActor))
+  def props(serviceRegistryActor: ActorRef) = Props(new NumberOfWorkflowsToDeleteMetadataMetricActor(serviceRegistryActor))
 
   private val workflowsToDeleteMetadataMetricPath: NonEmptyList[String] =
     MetadataServiceActor.MetadataInstrumentationPrefix :+ "delete" :+ "numOfWorkflowsToDeleteMetadata"
@@ -70,8 +74,8 @@ object NumOfWorkflowsToDeleteMetadataMetricActor {
   case object MetricCalculationInProgress extends MetadataDeletionMetricsActorState
 
   // messages
-  case class CalculateNumOfWorkflowsToDeleteMetadataMetricValue(currentTimestampMinusDelay: OffsetDateTime)
-  case class NumOfWorkflowsToDeleteMetadataMetricValue(value: Long)
-  case class FinishedNumOfWorkflowsToDeleteMetadataMetricValueCalculation(calculatedValue: Long)
+  case class CalculateNumberOfWorkflowsToDeleteMetadataMetricValue(currentTimestampMinusDelay: OffsetDateTime)
+  case class NumberOfWorkflowsToDeleteMetadataMetricValue(value: Long)
+  case class FinishedNumberOfWorkflowsToDeleteMetadataMetricValueCalculation(calculatedValue: Long)
 
 }

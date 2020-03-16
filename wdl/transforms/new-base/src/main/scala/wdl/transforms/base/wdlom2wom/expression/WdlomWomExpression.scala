@@ -26,8 +26,10 @@ final case class WdlomWomExpression private (expressionElement: ExpressionElemen
     expressionElement.expressionConsumedValueHooks map { hook => linkedValues(hook).linkableName }
   }
 
-  def evaluateValueForPlaceholder(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, forCommandInstantiationOptions: ForCommandInstantiationOptions): ErrorOr[EvaluatedValue[_]] =
-    expressionElement.evaluateValue(inputValues, ioFunctionSet, Option(forCommandInstantiationOptions))
+  def evaluateValueForPlaceholder(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, forCommandInstantiationOptions: ForCommandInstantiationOptions): ErrorOr[EvaluatedValue[_]] = {
+    val preMappedInputs = inputValues.map { case (key, value) => key -> forCommandInstantiationOptions.valueMapper.apply(value) }
+    expressionElement.evaluateValue(preMappedInputs, ioFunctionSet, Option(forCommandInstantiationOptions))
+  }
 
   override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] =
     expressionElement.evaluateValue(inputValues, ioFunctionSet, None) map { _.value }

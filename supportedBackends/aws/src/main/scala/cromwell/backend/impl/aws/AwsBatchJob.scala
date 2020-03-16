@@ -92,26 +92,18 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
   // TODO: Auth, endpoint
   lazy val client: BatchClient = {
     val builder = BatchClient.builder()
-    optAwsAuthMode.foreach { awsAuthMode =>
-      builder.credentialsProvider(awsAuthMode.provider())
-    }
-    configRegion.foreach(builder.region)
-    builder.build
+    configureClient(builder, optAwsAuthMode, configRegion)
   }
   lazy val logsclient: CloudWatchLogsClient = {
     val builder = CloudWatchLogsClient.builder()
-    configRegion.foreach(builder.region)
-    builder.build
+    configureClient(builder, optAwsAuthMode, configRegion)
   }
 
   lazy val s3Client: S3Client = {
     val builder = S3Client.builder()
-    optAwsAuthMode.foreach { awsAuthMode =>
-      builder.credentialsProvider(awsAuthMode.provider())
-    }
-    configRegion.foreach(builder.region)
-    builder.build
+    configureClient(builder, optAwsAuthMode, configRegion)
   }
+
 
   lazy val reconfiguredScript: String = {
     s"""
@@ -339,7 +331,8 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
     // attempt to register the job definition
     async.recoverWith(submit){
-      case e: ClientException if e.statusCode == 404 || e.statusCode == 409 => retry  //probably worth trying again
+      case e: ClientException if e.statusCode == 404 ||
+        e.statusCode == 409 || e.statusCode == 429  => retry  //probably worth trying again
     }
 
 //    async.recoverWith(retry) {
@@ -421,6 +414,6 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
       .append("jobPaths", jobPaths)
       .append("configRegion", configRegion)
       .append("awsAuthMode", optAwsAuthMode)
-      .toString
+      .build
   }
 }

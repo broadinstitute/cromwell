@@ -5,6 +5,9 @@ import java.util.zip.GZIPOutputStream
 
 import cats.data.ReaderT
 import com.google.common.io.BaseEncoding
+import cromwell.cloudsupport.aws.auth.AwsAuthMode
+import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder
+import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.batch.model.KeyValuePair
 
 import scala.language.higherKinds
@@ -54,5 +57,25 @@ package object aws {
     gzipOutputStream.close()
 
     BaseEncoding.base64().encode(byteArrayOutputStream.toByteArray())
+  }
+
+  /**
+    * Generic method that, given a client builder, will configure that client with auth and region and return the client
+    * to you
+    * @param builder a builder for the client, the type of the builder will dictate the type of client
+    * @param awsAuthMode an optional authorization mode
+    * @param configRegion an optional region
+    * @tparam BuilderT the type of builder (which dictates the type of client returned
+    * @tparam ClientT the type of the client that you will get back
+    * @return a configured client for the AWS service
+    */
+  def configureClient[BuilderT <: AwsClientBuilder[BuilderT, ClientT], ClientT](builder: AwsClientBuilder[BuilderT, ClientT],
+                                                                                 awsAuthMode: Option[AwsAuthMode],
+                                                                                 configRegion: Option[Region]): ClientT = {
+    awsAuthMode.foreach { awsAuthMode =>
+      builder.credentialsProvider(awsAuthMode.provider())
+    }
+    configRegion.foreach(builder.region)
+    builder.build
   }
 }

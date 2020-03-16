@@ -9,7 +9,6 @@ import cromwell.services.instrumentation.InstrumentationService.InstrumentationS
 import cromwell.services.metadata.hybridcarbonite.NumberOfWorkflowsToDeleteMetadataMetricActor.{CalculateNumberOfWorkflowsToDeleteMetadataMetricValue, MetricCalculationInProgress, NumberOfWorkflowsToDeleteMetadataMetricValue, WaitingForMetricCalculationRequestOrMetricValue}
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.scalatest.concurrent.Eventually
-import org.scalatest.concurrent.PatienceConfiguration.Timeout
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
@@ -20,19 +19,25 @@ class NumberOfWorkflowsToDeleteMetadataMetricActorSpec extends TestKitSuite with
   private val defaultTimeout = 5 seconds
 
   it should "follow the proper state transition path when requested to calculate metric value and calculation succeeded" in {
+    val valFromDB = -1
     val serviceRegistryProbe = TestProbe()
-    val metricActor = TestFSMRef(new NumberOfWorkflowsToDeleteMetadataMetricActor(serviceRegistryProbe.ref))
+    val dbResultPromise = Promise[Int]()
+    val metricActor = TestFSMRef(new NumberOfWorkflowsToDeleteMetadataMetricActor(serviceRegistryProbe.ref) {
+      override def countRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(archiveStatus: Option[String], thresholdTimestamp: OffsetDateTime)(implicit ec: ExecutionContext): Future[Int] = {
+        dbResultPromise.future
+      }
+    })
     metricActor ! CalculateNumberOfWorkflowsToDeleteMetadataMetricValue(OffsetDateTime.now())
-    eventually(Timeout(defaultTimeout)) {
+    eventually {
       metricActor.stateName shouldBe MetricCalculationInProgress
     }
-    eventually(Timeout(defaultTimeout)) {
+    dbResultPromise.success(valFromDB)
+    eventually {
       metricActor.stateName shouldBe WaitingForMetricCalculationRequestOrMetricValue
     }
     serviceRegistryProbe.expectMsgPF(defaultTimeout){
       case InstrumentationServiceMessage(CromwellGauge(_, actualValue)) =>
-        // real value should be zero in the empty test HSQLDB database
-        actualValue shouldBe 0
+        actualValue shouldBe valFromDB
     }
   }
 
@@ -43,11 +48,11 @@ class NumberOfWorkflowsToDeleteMetadataMetricActorSpec extends TestKitSuite with
         dbFailurePromise.future
     })
     metricActor ! CalculateNumberOfWorkflowsToDeleteMetadataMetricValue(OffsetDateTime.now())
-    eventually(Timeout(defaultTimeout)) {
+    eventually {
       metricActor.stateName shouldBe MetricCalculationInProgress
     }
     dbFailurePromise.failure(new RuntimeException("TEST: cannot query data from DB"))
-    eventually(Timeout(defaultTimeout)) {
+    eventually {
       metricActor.stateName shouldBe WaitingForMetricCalculationRequestOrMetricValue
     }
   }

@@ -228,25 +228,25 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
     }
   }
 
-  it should "create a hpc strategy from config" in {
-    val defaultSibling = makeStrategy("hpc")
-    defaultSibling.isInstanceOf[HpcStrategy] shouldBe true
+  it should "create a fingerprint strategy from config" in {
+    val defaultSibling = makeStrategy("fingerprint")
+    defaultSibling.isInstanceOf[FingerprintStrategy] shouldBe true
     defaultSibling.checkSiblingMd5 shouldBe false
 
-    val checkSibling = makeStrategy("hpc", Option(true))
+    val checkSibling = makeStrategy("fingerprint", Option(true))
 
-    checkSibling.isInstanceOf[HpcStrategy] shouldBe true
+    checkSibling.isInstanceOf[FingerprintStrategy] shouldBe true
     checkSibling.checkSiblingMd5 shouldBe true
-    checkSibling.toString shouldBe "Call caching hashing strategy: Check first for sibling md5 and if not found check size, last modified time and hash first 10 mb of file content with xxh64."
+    checkSibling.toString shouldBe "Call caching hashing strategy: Check first for sibling md5 and if not found fingerprint the file with last modified time, size and a xxh64 hash of the first 10 mb."
 
-    val dontCheckSibling = makeStrategy("hpc", Option(false))
+    val dontCheckSibling = makeStrategy("fingerprint", Option(false))
 
-    dontCheckSibling.isInstanceOf[HpcStrategy] shouldBe true
+    dontCheckSibling.isInstanceOf[FingerprintStrategy] shouldBe true
     dontCheckSibling.checkSiblingMd5 shouldBe false
-    dontCheckSibling.toString shouldBe "Call caching hashing strategy: check size, last modified time and hash first 10 mb of file content with xxh64."
+    dontCheckSibling.toString shouldBe "Call caching hashing strategy: fingerprint the file with last modified time, size and a xxh64 hash of the first 10 mb."
   }
 
-  it should "have a hpc strategy and use md5 sibling file when appropriate" in {
+  it should "have a fingerprint strategy and use md5 sibling file when appropriate" in {
     val hpcHash = file.lastModifiedTime.toEpochMilli.toHexString + file.size.toHexString + steakXxh64
     val table = Table(
       ("check", "withMd5", "expected"),
@@ -258,7 +258,7 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
 
     forAll(table) { (check, withMd5, expected) =>
       md5File.delete(swallowIOExceptions = true)
-      val checkSibling = makeStrategy("hpc", Option(check))
+      val checkSibling = makeStrategy("fingerprint", Option(check))
 
       checkSibling.getHash(mockRequest(withMd5, symlink = false), mock[LoggingAdapter]) shouldBe Success(expected)
 

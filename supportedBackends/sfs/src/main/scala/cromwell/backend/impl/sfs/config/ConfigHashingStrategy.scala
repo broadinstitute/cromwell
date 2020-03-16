@@ -28,7 +28,7 @@ object ConfigHashingStrategy {
         case "md5" => HashFileMd5Strategy(checkSiblingMd5)
         case "path+modtime" => HashPathModTimeStrategy(checkSiblingMd5)
         case "xxh64" => HashFileXxH64Strategy(checkSiblingMd5)
-        case "hpc" => HpcStrategy(checkSiblingMd5)
+        case "fingerprint" => FingerprintStrategy(checkSiblingMd5)
         case what =>
           logger.warn(s"Unrecognized hashing strategy $what.")
           HashPathStrategy(checkSiblingMd5)
@@ -106,7 +106,7 @@ final case class HashFileXxH64Strategy(checkSiblingMd5: Boolean) extends ConfigH
   override val description = "hash file content with xxh64"
 }
 
-final case class HpcStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
+final case class FingerprintStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
   override protected def hash(file: Path): Try[String] = {
     Try {
       file.lastModifiedTime.toEpochMilli.toHexString +
@@ -115,7 +115,7 @@ final case class HpcStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStra
       HashFileXxH64StrategyMethods.xxh64sum(file.newInputStream, maxSize = 10 * 1024 * 1024)
       }
     }
-  override val description = "check size, last modified time and hash first 10 mb of file content with xxh64"
+  override val description = "fingerprint the file with last modified time, size and a xxh64 hash of the first 10 mb"
 }
 
 object HashFileXxH64StrategyMethods {

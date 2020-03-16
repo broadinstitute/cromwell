@@ -109,14 +109,14 @@ final case class HashFileXxH64Strategy(checkSiblingMd5: Boolean) extends ConfigH
 final case class HpcStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
   override protected def hash(file: Path): Try[String] = {
     Try {
-      file.lastModifiedTime.hashCode().toHexString +
+      file.lastModifiedTime.toEpochMilli.toHexString +
       file.size.toHexString +
       // Only check first 10 MB for performance reasons
       HashFileXxH64StrategyMethods.xxh64sum(file.newInputStream, maxSize = 10 * 1024 * 1024)
       }
     }
 
-  override val description = "Check size, last modified time and hash first 10 mb of file content with xxh64"
+  override val description = "check size, last modified time and hash first 10 mb of file content with xxh64"
 }
 
 object HashFileXxH64StrategyMethods {

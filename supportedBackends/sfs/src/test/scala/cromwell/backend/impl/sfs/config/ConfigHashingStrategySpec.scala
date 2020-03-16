@@ -228,6 +228,47 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
     }
   }
 
+  it should "create a hpc strategy from config" in {
+    val defaultSibling = makeStrategy("hpc")
+    defaultSibling.isInstanceOf[HpcStrategy] shouldBe true
+    defaultSibling.checkSiblingMd5 shouldBe false
+
+    val checkSibling = makeStrategy("hpc", Option(true))
+
+    checkSibling.isInstanceOf[HpcStrategy] shouldBe true
+    checkSibling.checkSiblingMd5 shouldBe true
+    checkSibling.toString shouldBe "Call caching hashing strategy: Check first for sibling md5 and if not found check size, last modified time and hash first 10 mb of file content with xxh64."
+
+    val dontCheckSibling = makeStrategy("hpc", Option(false))
+
+    dontCheckSibling.isInstanceOf[HpcStrategy] shouldBe true
+    dontCheckSibling.checkSiblingMd5 shouldBe false
+    dontCheckSibling.toString shouldBe "Call caching hashing strategy: check size, last modified time and hash first 10 mb of file content with xxh64."
+  }
+
+  it should "have a hpc strategy and use md5 sibling file when appropriate" in {
+    val hpcHash = file.lastModifiedTime.toEpochMilli.toHexString + file.size.toHexString + steakXxh64
+    val table = Table(
+      ("check", "withMd5", "expected"),
+      (true, true, md5FileHash),
+      (false, true, hpcHash),
+      (true, false, hpcHash),
+      (false, false, hpcHash)
+    )
+
+    forAll(table) { (check, withMd5, expected) =>
+      md5File.delete(swallowIOExceptions = true)
+      val checkSibling = makeStrategy("hpc", Option(check))
+
+      checkSibling.getHash(mockRequest(withMd5, symlink = false), mock[LoggingAdapter]) shouldBe Success(expected)
+
+      val symLinkRequest: SingleFileHashRequest = mockRequest(withMd5, symlink = true)
+      val symlink = DefaultPathBuilder.get(symLinkRequest.file.valueString)
+
+      symlink.isSymbolicLink shouldBe true
+      checkSibling.getHash(symLinkRequest, mock[LoggingAdapter]) shouldBe Success(expected)
+    }
+  }
 
   override def afterAll() = {
     file.delete(true)

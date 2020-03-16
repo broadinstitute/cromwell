@@ -90,11 +90,11 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
   val scriptKeyPrefix = "scripts/"
 
   // TODO: Auth, endpoint
-  lazy val client: BatchClient = {
+  lazy val batchClient: BatchClient = {
     val builder = BatchClient.builder()
     configureClient(builder, optAwsAuthMode, configRegion)
   }
-  lazy val logsclient: CloudWatchLogsClient = {
+  lazy val cloudWatchLogsClient: CloudWatchLogsClient = {
     val builder = CloudWatchLogsClient.builder()
     configureClient(builder, optAwsAuthMode, configRegion)
   }
@@ -106,20 +106,34 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
 
   lazy val reconfiguredScript: String = {
+    //this is the location of the aws cli mounted into the container by the ec2 launch template
+    val s3Cmd = "/usr/local/aws-cli/v2/current/bin/aws s3"
+    val dockerRootDir = runtimeAttributes.disks.map(_.mountPoint.toString).head
+
+    //generate a series of s3 copy statements to copy any s3 files into the container
+    val inputCopyCommand = inputs.map {
+      case input: AwsBatchFileInput => s"$s3Cmd cp ${input.s3key} $dockerRootDir/${input.local}"
+      case _ => ""
+    }.mkString("\n")
+
     s"""
     |#! /bin/sh
+    |
+    |$inputCopyCommand
+    |
     |touch stdout.log && touch stderr.log
+    |
     |$commandLine > stdout.log 2> stderr.log
     |return_code=$$?
     |echo $$return_code > rc.txt
     |
     |cat stdout.log && cat stderr.log >&2
     |
-    |/usr/local/aws-cli/v2/current/bin/aws s3 cp stdout.log $${AWS_CROMWELL_CALL_ROOT}/${jobPaths.defaultStdoutFilename}
-    |/usr/local/aws-cli/v2/current/bin/aws s3 cp stderr.log $${AWS_CROMWELL_CALL_ROOT}/${jobPaths.defaultStderrFilename}
-    |/usr/local/aws-cli/v2/current/bin/aws s3 cp rc.txt $${AWS_CROMWELL_CALL_ROOT}/${jobPaths.returnCodeFilename}
+    |$s3Cmd cp stdout.log $${AWS_CROMWELL_CALL_ROOT}/${jobPaths.defaultStdoutFilename}
+    |$s3Cmd cp stderr.log $${AWS_CROMWELL_CALL_ROOT}/${jobPaths.defaultStderrFilename}
+    |$s3Cmd cp rc.txt $${AWS_CROMWELL_CALL_ROOT}/${jobPaths.returnCodeFilename}
     |exit $$return_code
-    """.stripMargin
+    |""".stripMargin
   }
 
 
@@ -149,7 +163,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
         .mkString(";")
 
       val submit: F[SubmitJobResponse] =
-        async.delay(client.submitJob(
+        async.delay(batchClient.submitJob(
           SubmitJobRequest.builder()
             .jobName(sanitize(jobDescriptor.taskCall.fullyQualifiedName))
             .parameters(parameters.collect({ case i: AwsBatchInput => i.toStringString }).toMap.asJava)
@@ -274,7 +288,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
         .status("ACTIVE")
         .build()
 
-      val describeJobDefinitionResponse = client.describeJobDefinitions(describeJobDefinitionRequest)
+      val describeJobDefinitionResponse = batchClient.describeJobDefinitions(describeJobDefinitionRequest)
 
       if ( !describeJobDefinitionResponse.jobDefinitions.isEmpty ) {
 
@@ -306,7 +320,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
         Log.info(s"Submitting definition request: $definitionRequest")
 
-        val response: RegisterJobDefinitionResponse = client.registerJobDefinition(definitionRequest)
+        val response: RegisterJobDefinitionResponse = batchClient.registerJobDefinition(definitionRequest)
         Log.info(s"Definition created: $response")
         response.jobDefinitionArn()
       }
@@ -370,7 +384,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
   def detail(jobId: String): JobDetail = {
     //TODO: This client call should be wrapped in a cats Effect
-     val describeJobsResponse = client.describeJobs(DescribeJobsRequest.builder.jobs(jobId).build)
+     val describeJobsResponse = batchClient.describeJobs(DescribeJobsRequest.builder.jobs(jobId).build)
 
      describeJobsResponse.jobs.asScala.headOption.
        getOrElse(throw new RuntimeException(s"Expected a job Detail to be present from this request: $describeJobsResponse and this response: $describeJobsResponse "))
@@ -383,7 +397,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
   //todo: unused at present
   def output(detail: JobDetail): String = {
-     val events: Seq[OutputLogEvent] = logsclient.getLogEvents(GetLogEventsRequest.builder
+     val events: Seq[OutputLogEvent] = cloudWatchLogsClient.getLogEvents(GetLogEventsRequest.builder
                                             // http://aws-java-sdk-javadoc.s3-website-us-west-2.amazonaws.com/latest/software/amazon/awssdk/services/batch/model/ContainerDetail.html#logStreamName--
                                             .logGroupName("/aws/batch/job")
                                             .logStreamName(detail.container.logStreamName)
@@ -395,7 +409,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
   //TODO: Wrap in cats Effect
   def abort(jobId: String): CancelJobResponse = {
-    client.cancelJob(CancelJobRequest.builder.jobId(jobId).reason("cromwell abort called").build)
+    batchClient.cancelJob(CancelJobRequest.builder.jobId(jobId).reason("cromwell abort called").build)
   }
 
   /**

@@ -9,6 +9,7 @@ import cromwell.services.instrumentation.InstrumentationService.InstrumentationS
 import cromwell.services.metadata.hybridcarbonite.NumberOfWorkflowsToDeleteMetadataMetricActor.{CalculateNumberOfWorkflowsToDeleteMetadataMetricValue, MetricCalculationInProgress, NumberOfWorkflowsToDeleteMetadataMetricValue, WaitingForMetricCalculationRequestOrMetricValue}
 import org.scalatest.{FlatSpecLike, Matchers}
 import org.scalatest.concurrent.Eventually
+import org.scalatest.concurrent.PatienceConfiguration.Timeout
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
@@ -22,10 +23,10 @@ class NumberOfWorkflowsToDeleteMetadataMetricActorSpec extends TestKitSuite with
     val serviceRegistryProbe = TestProbe()
     val metricActor = TestFSMRef(new NumberOfWorkflowsToDeleteMetadataMetricActor(serviceRegistryProbe.ref))
     metricActor ! CalculateNumberOfWorkflowsToDeleteMetadataMetricValue(OffsetDateTime.now())
-    eventually {
+    eventually(Timeout(defaultTimeout)) {
       metricActor.stateName shouldBe MetricCalculationInProgress
     }
-    eventually {
+    eventually(Timeout(defaultTimeout)) {
       metricActor.stateName shouldBe WaitingForMetricCalculationRequestOrMetricValue
     }
     serviceRegistryProbe.expectMsgPF(defaultTimeout){
@@ -42,11 +43,11 @@ class NumberOfWorkflowsToDeleteMetadataMetricActorSpec extends TestKitSuite with
         dbFailurePromise.future
     })
     metricActor ! CalculateNumberOfWorkflowsToDeleteMetadataMetricValue(OffsetDateTime.now())
-    eventually {
+    eventually(Timeout(defaultTimeout)) {
       metricActor.stateName shouldBe MetricCalculationInProgress
     }
     dbFailurePromise.failure(new RuntimeException("TEST: cannot query data from DB"))
-    eventually {
+    eventually(Timeout(defaultTimeout)) {
       metricActor.stateName shouldBe WaitingForMetricCalculationRequestOrMetricValue
     }
   }

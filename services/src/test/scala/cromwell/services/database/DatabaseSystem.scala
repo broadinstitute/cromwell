@@ -20,6 +20,7 @@ object DatabaseSystem {
     MysqlLatestDatabaseSystem,
     PostgresqlEarliestDatabaseSystem,
     PostgresqlLatestDatabaseSystem,
+    SqliteDatabaseSystem,
   )
 }
 

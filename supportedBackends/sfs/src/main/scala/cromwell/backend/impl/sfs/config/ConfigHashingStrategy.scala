@@ -28,6 +28,7 @@ object ConfigHashingStrategy {
         case "md5" => HashFileMd5Strategy(checkSiblingMd5)
         case "path+modtime" => HashPathModTimeStrategy(checkSiblingMd5)
         case "xxh64" => HashFileXxH64Strategy(checkSiblingMd5)
+        case "hpc" => HpcStrategy(checkSiblingMd5)
         case what =>
           logger.warn(s"Unrecognized hashing strategy $what.")
           HashPathStrategy(checkSiblingMd5)
@@ -103,7 +104,19 @@ final case class HashFileXxH64Strategy(checkSiblingMd5: Boolean) extends ConfigH
     tryWithResource(() => file.newInputStream) {HashFileXxH64StrategyMethods.xxh64sum(_)}
   }
   override val description = "hash file content with xxh64"
+}
 
+final case class HpcStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
+  override protected def hash(file: Path): Try[String] = {
+    Try {
+      file.lastModifiedTime.hashCode().toHexString +
+      file.size.toHexString +
+      // Only check first 10 MB for performance reasons
+      HashFileXxH64StrategyMethods.xxh64sum(file.newInputStream, maxSize = 10 * 1024 * 1024)
+      }
+    }
+
+  override val description = "Check size, last modified time and hash first 10 mb of file content with xxh64"
 }
 
 object HashFileXxH64StrategyMethods {
@@ -118,14 +131,19 @@ object HashFileXxH64StrategyMethods {
     * @return A hex string of the digest.
     */
   def xxh64sum(inputStream: InputStream,
-               bufferSize: Int = defaultBufferSize): String = {
+               bufferSize: Int = defaultBufferSize,
+               maxSize: Long = Long.MaxValue): String = {
     val hasher = xxhashFactory.newStreamingHash64(0)
     val buffer: Array[Byte] = new Array[Byte](bufferSize)
-
-    while (inputStream.available() > 0) {
-      val length: Int = inputStream.read(buffer)
-      hasher.update(buffer, 0, length)
+    var byteCounter: Long = 0
+    try {
+      while (inputStream.available() > 0 && byteCounter < maxSize) {
+        val length: Int = inputStream.read(buffer)
+        hasher.update(buffer, 0, length)
+        byteCounter += bufferSize
+      }
     }
+    finally inputStream.close()
     // Long.toHexString does not add leading zero's
     f"%%16s".format(hasher.getValue.toHexString).replace(" ", "0")
   }

@@ -509,19 +509,21 @@ Cromwell also accepts [Workflow Options](wf_options/Overview#call-caching-option
 
 #### Call cache strategy options
 
-* hash based options. These read the entire file. These strategies work with containers.:
+* hash based options. These read the entire file. These strategies work with containers.
     * `xxh64`. This uses the 64-bit implementation of the [xxHash](https://www.xxhash.com)
              algorithm. This algorithm is optimized for file integrity hashing and provides a more than 10x speed improvement over
              md5. 
     * `md5`. The well-known md5sum algorithm
 * Path based options. These are based on filepath. Extremely lightweight, but only work with the `soft-link` file 
-caching strategy. And can therefore never work with containers.
+caching strategy and can therefore never work with containers.
     * `path` creates a md5 hash of the path.
     * `path+modtime` creates a md5 hash of the path and its modification time.
-* Fingerprinting. This strategy also works with containers.
-    * `fingerprint` tries to create a unique hash for each file by taking its last modified time (milliseconds since
+* Fingerprinting. This strategy works with containers.
+    * `fingerprint` tries to create a fingerprint for each file by taking its last modified time (milliseconds since
        epoch in hexadecimal) + size (bytes in hexadecimal) + the xxh64 sum of the first 10 MB of the file. It is much
-       more lightweight than the hash based options while still providing a unique hash.
+       more lightweight than the hash based options while still unique enough that collisions are infeasible. This 
+       strategy works well for workflows that generate multi gigabyte-files and where hashing these files on the 
+       cromwell instance provides CPU or I/O problems. 
 
 ### Local filesystem options
 

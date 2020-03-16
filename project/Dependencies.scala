@@ -86,6 +86,7 @@ object Dependencies {
   private val simulacrumV = "0.15.0"
   private val slf4jV = "1.7.25"
   private val slickCatsV = "0.9.0"
+  private val sqliteV = "3.30.1"
   private val testContainersScalaV = "0.35.2"
 
   /* If you're about to update our Slick version:
@@ -354,7 +355,8 @@ object Dependencies {
     "org.hsqldb" % "hsqldb" % hsqldbV,
     "org.mariadb.jdbc" % "mariadb-java-client" % mariadbV,
     "mysql" % "mysql-connector-java" % mysqlV,
-    "org.postgresql" % "postgresql" % postgresV
+    "org.postgresql" % "postgresql" % postgresV,
+    "org.xerial" % "sqlite-jdbc" % sqliteV,
   )
 
   private val refinedTypeDependenciesList = List(

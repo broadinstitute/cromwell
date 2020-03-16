@@ -6,10 +6,8 @@ import MetadataArchiveStatus._
 
 sealed trait MetadataArchiveStatus {
   final def isArchived = this match {
-    case ArchiveFailed => false
-    case Unarchived => false
-    case Archived => true
-    case ArchivedAndPurged => true
+    case Archived | ArchivedAndPurged => true
+    case ArchiveFailed | Unarchived => false
   }
 }
 

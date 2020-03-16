@@ -25,8 +25,7 @@ class NumberOfWorkflowsToDeleteMetadataMetricActor(override val serviceRegistryA
 
   when(WaitingForMetricCalculationRequestOrMetricValue) {
     case Event(NumberOfWorkflowsToDeleteMetadataMetricValue(value), _) =>
-      sendGauge(workflowsToDeleteMetadataMetricPath, value, InstrumentationPrefixes.ServicesPrefix)
-      stay()
+      sendGaugeAndStay(value)
     case Event(CalculateNumberOfWorkflowsToDeleteMetadataMetricValue(currentTimestampMinusDelay), _) =>
       countRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(
         MetadataArchiveStatus.toDatabaseValue(Archived),
@@ -43,8 +42,7 @@ class NumberOfWorkflowsToDeleteMetadataMetricActor(override val serviceRegistryA
       stay()
     case Event(NumberOfWorkflowsToDeleteMetadataMetricValue(value), _) =>
       // pass through the pre-calculated metric value and stay, continuing to wait for DB query to finish
-      sendGauge(workflowsToDeleteMetadataMetricPath, value, InstrumentationPrefixes.ServicesPrefix)
-      stay()
+      sendGaugeAndStay(value)
     case Event(FinishedNumberOfWorkflowsToDeleteMetadataMetricValueCalculation(calculatedValue), _) =>
       // populate metric and return to the default state
       sendGauge(workflowsToDeleteMetadataMetricPath, calculatedValue, InstrumentationPrefixes.ServicesPrefix)
@@ -58,6 +56,11 @@ class NumberOfWorkflowsToDeleteMetadataMetricActor(override val serviceRegistryA
     case Event(unexpected, _) =>
       log.warning(s"Programmer error: this actor should not receive message $unexpected while in state $stateName")
       stay()
+  }
+
+  private def sendGaugeAndStay(metricValue: Long): State = {
+    sendGauge(workflowsToDeleteMetadataMetricPath, metricValue, InstrumentationPrefixes.ServicesPrefix)
+    stay()
   }
 }
 

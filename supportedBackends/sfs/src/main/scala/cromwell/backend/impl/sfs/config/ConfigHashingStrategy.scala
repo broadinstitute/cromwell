@@ -115,7 +115,6 @@ final case class HpcStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStra
       HashFileXxH64StrategyMethods.xxh64sum(file.newInputStream, maxSize = 10 * 1024 * 1024)
       }
     }
-
   override val description = "check size, last modified time and hash first 10 mb of file content with xxh64"
 }
 

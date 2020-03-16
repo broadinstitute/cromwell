@@ -56,6 +56,7 @@ class QueryTimeoutSpec extends FlatSpec with Matchers with ScalaFutures {
         // HSQL does not document a SLEEP() function, which is essential for this test
         // The functionality being tested is not relevant to an HSQL user, so the omission is probably acceptable
         None
+      case SQLiteDatabasePlatform => None  // SQLite also does not document a sleep function.
       case MariadbDatabasePlatform =>
         Option((
           "select sleep(10);",

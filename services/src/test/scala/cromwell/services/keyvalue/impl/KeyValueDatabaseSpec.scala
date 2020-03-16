@@ -126,6 +126,7 @@ object KeyValueDatabaseSpec {
       case MariadbDatabasePlatform => """\(conn=\d+\) Column 'STORE_VALUE' cannot be null"""
       case MysqlDatabasePlatform => "Column 'STORE_VALUE' cannot be null"
       case PostgresqlDatabasePlatform => """ERROR: null value in column "STORE_VALUE" violates not-null constraint"""
+      case SQLiteDatabasePlatform => """alksdaljkjncoqwe""" // TODO: Get correct error
     }
   }
 
@@ -135,6 +136,7 @@ object KeyValueDatabaseSpec {
       case MariadbDatabasePlatform => classOf[BatchUpdateException]
       case MysqlDatabasePlatform => classOf[BatchUpdateException]
       case PostgresqlDatabasePlatform => classOf[PSQLException]
+      case SQLiteDatabasePlatform => classOf[SQLIntegrityConstraintViolationException]
     }
   }
 }

@@ -348,6 +348,18 @@ object LiquibaseComparisonSpec {
       ),
     )
 
+  private val SQLiteColumnMapping =
+    ColumnMapping(
+      typeMapping = Map(
+        HsqldbTypeBigInt -> ColumnType("INT8", None),
+        HsqldbTypeBlob -> ColumnType("BLOB", None),
+        HsqldbTypeBoolean -> ColumnType("INTEGER", None),
+        HsqldbTypeClob -> ColumnType("TEXT", None),
+        HsqldbTypeInteger -> ColumnType("INTEGER", None),
+        HsqldbTypeTimestamp -> ColumnType("TEXT", None)
+      )
+    )
+
   /**
     * Returns the column mapping for the DBMS.
     */
@@ -357,6 +369,7 @@ object LiquibaseComparisonSpec {
       case MariadbDatabasePlatform => MariadbColumnMapping
       case MysqlDatabasePlatform => MysqldbColumnMapping
       case PostgresqlDatabasePlatform => PostgresqlColumnMapping
+      case SQLiteDatabasePlatform => SQLiteColumnMapping
     }
   }
 

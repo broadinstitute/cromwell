@@ -110,6 +110,7 @@ object DatabaseTestKit extends StrictLogging {
   def getDatabaseTestContainer(databaseSystem: DatabaseSystem): Option[Container] = {
     databaseSystem match {
       case HsqldbDatabaseSystem => None
+      case SqliteDatabaseSystem => None
       case networkDbSystem: NetworkDatabaseSystem =>
         networkDbSystem.platform match {
           case MariadbDatabasePlatform =>
@@ -157,6 +158,7 @@ object DatabaseTestKit extends StrictLogging {
           case MariadbDatabasePlatform => ("slick.jdbc.MySQLProfile$", "org.mariadb.jdbc.Driver")
           case MysqlDatabasePlatform => ("slick.jdbc.MySQLProfile$", "com.mysql.cj.jdbc.Driver")
           case PostgresqlDatabasePlatform => ("slick.jdbc.PostgresProfile$", "org.postgresql.Driver")
+          case SQLiteDatabasePlatform => ("slick.jdbc.SQLiteProfile$", "org.sqlite.JDBC")
         }
         ConfigFactory.parseString(
           s"""|profile = "$slickProfile"

@@ -41,6 +41,7 @@ import cromwell.backend.impl.aws.io.AwsBatchVolume
 import scala.collection.JavaConverters._
 import java.security.MessageDigest
 
+import org.apache.commons.lang3.builder.{ToStringBuilder, ToStringStyle}
 import org.slf4j.{Logger, LoggerFactory}
 import wdl4s.parser.MemoryUnit
 
@@ -62,6 +63,13 @@ import wdl4s.parser.MemoryUnit
 sealed trait AwsBatchJobDefinition {
   def containerProperties: ContainerProperties
   def name: String
+
+  override def toString: String = {
+    new ToStringBuilder(this, ToStringStyle.JSON_STYLE)
+      .append("name", name)
+      .append("containerProperties", containerProperties)
+      .build
+  }
 }
 
 trait AwsBatchJobDefinitionBuilder {
@@ -149,7 +157,7 @@ trait AwsBatchJobDefinitionBuilder {
       val str = s"$imageName:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints.map(_.toString).mkString(",")}:${env.map(_.toString).mkString(",")}"
 
       val sha1 = MessageDigest.getInstance("SHA-1")
-            .digest(( str ).getBytes("UTF-8"))
+            .digest( str.getBytes("UTF-8") )
             .map("%02x".format(_)).mkString
 
       val prefix = s"cromwell_$imageName".slice(0,88) // will be joined to a 40 character SHA1 for total length of 128
@@ -224,4 +232,18 @@ case class AwsBatchJobDefinitionContext(
             jobPaths: JobPaths,
             inputs: Set[AwsBatchInput],
             outputs: Set[AwsBatchFileOutput]){
+
+  override def toString: String = {
+    new ToStringBuilder(this, ToStringStyle.JSON_STYLE)
+      .append("runtimeAttributes", runtimeAttributes)
+      .append("commandText", commandText)
+      .append("dockerRcPath", dockerRcPath)
+      .append("dockerStderrPath",dockerStderrPath)
+      .append("dockerStdoutPath", dockerStdoutPath)
+      .append("jobDescriptor", jobDescriptor)
+      .append("jobPaths", jobPaths)
+      .append("inputs", inputs)
+      .append("outputs", outputs)
+      .build
+  }
 }

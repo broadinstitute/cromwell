@@ -834,11 +834,14 @@ object Operations extends StrictLogging {
 
   def fetchAndValidateJobManagerStyleMetadata(submittedWorkflow: SubmittedWorkflow,
                                               workflow: Workflow,
-                                              KnownNonSubWorkflowMetadata: Option[String],
+                                              prefetchedOriginalNonSubWorkflowMetadata: Option[String],
                                               validateArchived: Option[Boolean] = None): Test[WorkflowMetadata] = new Test[WorkflowMetadata] {
 
-    def originalMetadataStringIO: IO[String] = KnownNonSubWorkflowMetadata.map(IO.pure)
-      .getOrElse(fetchMetadata(submittedWorkflow, expandSubworkflows = false, validateArchived).map(_.value))
+    // If the non-subworkflow metadata was already fetched, there's no need to fetch it again.
+    def originalMetadataStringIO: IO[String] = prefetchedOriginalNonSubWorkflowMetadata match {
+      case Some(nonSubworkflowMetadata) => IO.pure(nonSubworkflowMetadata)
+      case None => fetchMetadata(submittedWorkflow, expandSubworkflows = false, validateArchived).map(_.value)
+    }
 
     override def run: IO[WorkflowMetadata] = for {
       originalMetadata <- originalMetadataStringIO

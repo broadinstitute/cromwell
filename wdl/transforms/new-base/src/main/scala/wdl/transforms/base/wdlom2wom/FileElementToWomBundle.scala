@@ -102,7 +102,7 @@ object FileElementToWomBundle {
 
     val languageFactoryKleislis: List[CheckedAtoB[ResolvedImportBundle, WomBundle]] = languageFactories map { factory =>
       CheckedAtoB.fromCheck { resolutionBundle: ResolvedImportBundle =>
-        factory.getWomBundle(resolutionBundle.source, Option(resolutionBundle.resolvedImportRecord), optionsJson, resolutionBundle.newResolvers, languageFactories)
+        factory.validateWomBundle(resolutionBundle.source, Option(resolutionBundle.resolvedImportRecord), optionsJson, resolutionBundle.newResolvers, languageFactories)
       }
     }
     val compoundLanguageFactory: CheckedAtoB[ResolvedImportBundle, WomBundle] = CheckedAtoB.firstSuccess(languageFactoryKleislis, s"convert imported '${importElement.importUrl}' to WOM")

@@ -56,7 +56,7 @@ object Describer {
     // Mirror of the inputs/no inputs fork in womtool.validate.Validate
     if (workflowSourceFilesCollection.inputsJson.isEmpty) {
       // No inputs: just load up the WomBundle
-      factory.getWomBundle(workflowSource, workflowSourceOrigin = None, workflowOptionsJson = "{}", importResolvers, List(factory)) match {
+      factory.validateWomBundle(workflowSource, workflowSourceOrigin = None, workflowOptionsJson = "{}", importResolvers, List(factory)) match {
         case Right(bundle: WomBundle) =>
           WorkflowDescription.fromBundle(bundle, submittedDescriptorType, List.empty)
         case Left(workflowErrors) =>
@@ -64,7 +64,7 @@ object Describer {
       }
     } else {
       // Inputs: load up the WomBundle and then try creating an executable with WomBundle + inputs
-      factory.getWomBundle(workflowSource, workflowSourceOrigin = None, workflowOptionsJson = "{}", importResolvers, List(factory)) match {
+      factory.validateWomBundle(workflowSource, workflowSourceOrigin = None, workflowOptionsJson = "{}", importResolvers, List(factory)) match {
         case Right(bundle) =>
           factory.createExecutable(bundle, workflowSourceFilesCollection.inputsJson, NoIoFunctionSet) match {
             // Throw away the executable, all we care about is whether it created successfully (i.e. the inputs are valid)

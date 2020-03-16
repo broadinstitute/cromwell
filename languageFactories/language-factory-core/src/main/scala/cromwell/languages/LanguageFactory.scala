@@ -34,6 +34,23 @@ trait LanguageFactory {
     case _ => None.validNelCheck
   }
 
+  final def validateWomBundle(workflowSource: WorkflowSource,
+                              workflowSourceOrigin: Option[ResolvedImportRecord],
+                              workflowOptionsJson: WorkflowOptionsJson,
+                              importResolvers: List[ImportResolver],
+                              languageFactories: List[LanguageFactory],
+                              convertNestedScatterToSubworkflow : Boolean = true): Checked[WomBundle] = {
+
+    def validate
+
+    val unvalidated = getWomBundle(workflowSource,
+      workflowSourceOrigin,
+      workflowOptionsJson,
+      importResolvers,
+      languageFactories,
+      convertNestedScatterToSubworkflow)
+  }
+
   def getWomBundle(workflowSource: WorkflowSource,
                    workflowSourceOrigin: Option[ResolvedImportRecord],
                    workflowOptionsJson: WorkflowOptionsJson,

@@ -522,7 +522,7 @@ caching strategy and can therefore never work with containers.
     * `fingerprint` tries to create a fingerprint for each file by taking its last modified time (milliseconds since
        epoch in hexadecimal) + size (bytes in hexadecimal) + the xxh64 sum of the first 10 MB of the file. It is much
        more lightweight than the hash based options while still unique enough that collisions are infeasible. This 
-       strategy works well for workflows that generate multi gigabyte-files and where hashing these files on the 
+       strategy works well for workflows that generate multi-gigabyte files and where hashing these files on the 
        cromwell instance provides CPU or I/O problems. 
 
 ### Local filesystem options

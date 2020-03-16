@@ -128,6 +128,7 @@ object HashFileXxH64StrategyMethods {
     * Returns the xxh64sum of an input stream. The input stream is read in a buffered way.
     * @param inputStream an input Stream
     * @param bufferSize the size in bytes for the buffer.
+    * @param maxSize, only calculate the hash for the first maxSize bytes. Must be a multiply of bufferSize.
     * @return A hex string of the digest.
     */
   def xxh64sum(inputStream: InputStream,

@@ -490,7 +490,8 @@ Read the [Abort](execution/ExecutionTwists/#abort) section to learn more about h
 
 ### Call caching
 
-Call Caching allows Cromwell to detect when a job has been run in the past so it doesn't have to re-compute results.  To learn more see [Call Caching](cromwell_features/CallCaching).
+Call Caching allows Cromwell to detect when a job has been run in the past so it doesn't have to re-compute results.  
+To learn more see [Call Caching](cromwell_features/CallCaching).
 
 To enable Call Caching, add the following to your Cromwell configuration:
 
@@ -506,30 +507,50 @@ When `invalidate-bad-cache-results=true` (default: `true`), Cromwell will invali
 
 Cromwell also accepts [Workflow Options](wf_options/Overview#call-caching-options) to override the cache read/write behavior.  
 
+#### Call cache strategy options
+
+* hash based options. These read the entire file. These strategies work with containers.:
+    * `xxh64`. This uses the 64-bit implementation of the [xxHash](https://www.xxhash.com)
+             algorithm. This algorithm is optimized for file integrity hashing and provides a more than 10x speed improvement over
+             md5. 
+    * `md5`. The well-known md5sum algorithm
+* Path based options. These are based on filepath. Extremely lightweight, but only work with the `soft-link` file 
+caching strategy. And can therefore never work with containers.
+    * `path` creates a md5 hash of the path.
+    * `path+modtime` creates a md5 hash of the path and its modification time.
+* Fingerprinting. This strategy also works with containers.
+    * `fingerprint` tries to create a unique hash for each file by taking its last modified time (milliseconds since
+       epoch in hexadecimal) + size (bytes in hexadecimal) + the xxh64 sum of the first 10 MB of the file. It is much
+       more lightweight than the hash based options while still providing a unique hash.
+
 ### Local filesystem options
 
-When running a job on the Config (Shared Filesystem) backend, Cromwell provides some additional options in the backend's config section:
+When running a job on the Config (Shared Filesystem) backend, Cromwell provides some additional options in the backend's 
+config section:
 
 ```HOCON
       config {
         filesystems {
           local {
             caching {
-              # When copying a cached result, what type of file duplication should occur. Attempted in the order listed below:
+              # When copying a cached result, what type of file duplication should occur. 
+              # possible values: "hard-link", "soft-link", "copy", "cached-copy".
+              # For more information check: https://cromwell.readthedocs.io/en/stable/backends/HPC/#shared-filesystem
+              # Attempted in the order listed below:
               duplication-strategy: [
                 "hard-link", "soft-link", "copy"
               ]
 
-              # Possible values: file, path, path+modtime
+              # Possible values: md5, xxh64, fingerprint, path, path+modtime
+              # For extended explanation check: https://cromwell.readthedocs.io/en/stable/Configuring/#call-caching
               # "md5" will compute an md5 hash of the file content.
-              # "file" DEPRECATED: same as md5.
-              # "xxh64" will compute an xxh64 hash of the file content. This uses the xxHash algorithm (www.xxhash.com).
-              # xxHash was optimized for file integrity checksums and is more than 10 times faster as md5.
+              # "xxh64" will compute an xxh64 hash of the file content. Much faster than md5
+              # "fingerprint" will take last modified time, size and hash the first 10 mb with xxh64 to create a file fingerprint.
               # "path" will compute an md5 hash of the file path. This strategy will only be effective if the duplication-strategy (above) is set to "soft-link",
               # in order to allow for the original file path to be hashed.
               # "path+modtime" will compute an md5 hash of the file path and the last modified time. The same conditions as for "path" apply here.
               # Default: "md5"
-              hashing-strategy: "xxh64"
+              hashing-strategy: "fingerprint"
 
               # When true, will check if a sibling file with the same name and the .md5 extension exists, and if it does, use the content of this file as a hash.
               # If false or the md5 does not exist, will proceed with the above-defined hashing strategy.

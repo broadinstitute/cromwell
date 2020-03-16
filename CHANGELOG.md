@@ -4,14 +4,12 @@
 
 ### New functionality
 
-#### xxHash for faster call-caching using file hashes
+#### new xxh64 and fingerprint strategies for call caching
 
-The `file` strategy uses md5sum hashing which causes a lot of strain on the server, the `path` and `path+modtime` 
-strategies are much lighter, but do not work properly with containers. To alleviate this problem a new file hashing
-strategy called `xxh64` was introduced. This uses the 64-bit implementation of the [xxHash](https://www.xxhash.com)
-algorithm. This algorithm is optimized for file integrity hashing and provides a more than 10x speed improvement over
-md5. The `file` strategy has now been renamed `md5` for clarity. For backwards compatibility reasons, `file` is still
-available (defaults to `md5`) and `md5` is still the default hashing algorithm.
+To alleviate problems with existing call cache strategies, two new strategies have been added: `xxh64` and 
+`fingerprint`. `xxh64` is a lightweight hashing algorithm, `fingerprint` is a strategy designed to be very 
+lightweight. Read more about it in the [call caching documentation](
+https://cromwell.readthedocs.io/en/stable/Configuring/#call-caching).
 
 ### Bugfixes
 

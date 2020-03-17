@@ -351,7 +351,7 @@ object LiquibaseComparisonSpec {
   private val SQLiteColumnMapping =
     ColumnMapping(
       typeMapping = Map(
-        HsqldbTypeBigInt -> ColumnType("INT8", None),
+        HsqldbTypeBigInt -> ColumnType("INTEGER", None),
         HsqldbTypeBlob -> ColumnType("BLOB", None),
         HsqldbTypeBoolean -> ColumnType("INTEGER", None),
         HsqldbTypeClob -> ColumnType("TEXT", None),

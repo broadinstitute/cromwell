@@ -167,6 +167,7 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
                                         isolationLevel: TransactionIsolation = TransactionIsolation.RepeatableRead,
                                         timeout: Duration = Duration.Inf): Future[R] = {
     dataAccess.driver match {
+      // SQLite supports only TRANSACTION_SERIALIZABLE and TRANSACTION_READ_UNCOMMITTED
       case SQLiteProfile => runActionInternal(action.transactionally, timeout = timeout)
       case _ => runActionInternal(action.transactionally.withTransactionIsolation(isolationLevel), timeout = timeout)
     }

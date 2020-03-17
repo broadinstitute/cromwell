@@ -20,7 +20,7 @@ object DatabaseSystem {
     MysqlLatestDatabaseSystem,
     PostgresqlEarliestDatabaseSystem,
     PostgresqlLatestDatabaseSystem,
-    SqliteDatabaseSystem,
+    SQLiteDatabaseSystem,
   )
 }
 
@@ -29,7 +29,7 @@ case object HsqldbDatabaseSystem extends DatabaseSystem {
   override val platform: HsqldbDatabasePlatform.type = HsqldbDatabasePlatform
 }
 
-case object SqliteDatabaseSystem extends DatabaseSystem {
+case object SQLiteDatabaseSystem extends DatabaseSystem {
   override val name: String = "SQLite"
   override val platform: SQLiteDatabasePlatform.type = SQLiteDatabasePlatform
 }

@@ -21,6 +21,13 @@ import scala.concurrent.duration.Duration
 object DatabaseTestKit extends StrictLogging {
 
   private lazy val hsqldbDatabaseConfig = ConfigFactory.load().getConfig("database")
+  private lazy val sqliteDatabaseConfig = ConfigFactory.parseString(
+    s"""|profile = "slick.jdbc.SQLiteProfile$$"
+        |db {
+        |  driver = "org.sqlite.JDBC"
+        |  url = "jdbc:sqlite::memory:"
+        |}
+        |""".stripMargin)
 
   /**
     * Lends a connection to a block of code.
@@ -110,7 +117,7 @@ object DatabaseTestKit extends StrictLogging {
   def getDatabaseTestContainer(databaseSystem: DatabaseSystem): Option[Container] = {
     databaseSystem match {
       case HsqldbDatabaseSystem => None
-      case SqliteDatabaseSystem => None
+      case SQLiteDatabaseSystem => None
       case networkDbSystem: NetworkDatabaseSystem =>
         networkDbSystem.platform match {
           case MariadbDatabasePlatform =>
@@ -151,14 +158,16 @@ object DatabaseTestKit extends StrictLogging {
   def getConfig(databaseSystem: DatabaseSystem, dbContainerOpt: Option[JdbcDatabaseContainer] = None): Config = {
     dbContainerOpt match {
       case None if databaseSystem == HsqldbDatabaseSystem => hsqldbDatabaseConfig
+      case None if databaseSystem == SQLiteDatabaseSystem => sqliteDatabaseConfig
       case None => throw new RuntimeException("ERROR: dbContainer option must be passed into `getConfig` method for all databases except HSQLDB.")
       case Some(dbContainer) =>
         val (slickProfile, jdbcDriver) = databaseSystem.platform match {
           case HsqldbDatabasePlatform => throw new RuntimeException("ERROR: dbContainer option cannot be defined for HSQLDB database.")
+          case SQLiteDatabasePlatform => throw new RuntimeException("ERROR: dbContainer option cannot be defined for SQLite database.")
           case MariadbDatabasePlatform => ("slick.jdbc.MySQLProfile$", "org.mariadb.jdbc.Driver")
           case MysqlDatabasePlatform => ("slick.jdbc.MySQLProfile$", "com.mysql.cj.jdbc.Driver")
           case PostgresqlDatabasePlatform => ("slick.jdbc.PostgresProfile$", "org.postgresql.Driver")
-          case SQLiteDatabasePlatform => ("slick.jdbc.SQLiteProfile$", "org.sqlite.JDBC")
+
         }
         ConfigFactory.parseString(
           s"""|profile = "$slickProfile"

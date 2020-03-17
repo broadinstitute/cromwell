@@ -107,12 +107,13 @@ final case class HashFileXxH64Strategy(checkSiblingMd5: Boolean) extends ConfigH
 }
 
 final case class FingerprintStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
+  private lazy val defaultMaxSize: Long = 10 * 1024 * 1024
   override protected def hash(file: Path): Try[String] = {
     Try {
       file.lastModifiedTime.toEpochMilli.toHexString +
       file.size.toHexString +
       // Only check first 10 MB for performance reasons
-      HashFileXxH64StrategyMethods.xxh64sum(file.newInputStream, maxSize = 10 * 1024 * 1024)
+      HashFileXxH64StrategyMethods.xxh64sum(file.newInputStream, maxSize = defaultMaxSize)
       }
     }
   override val description = "fingerprint the file with last modified time, size and a xxh64 hash of the first 10 mb"
@@ -140,7 +141,7 @@ object HashFileXxH64StrategyMethods {
       while (inputStream.available() > 0 && byteCounter < maxSize) {
         val length: Int = inputStream.read(buffer)
         hasher.update(buffer, 0, length)
-        byteCounter += bufferSize
+        byteCounter += length
       }
     }
     finally inputStream.close()

@@ -114,7 +114,12 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     val inputCopyCommand = inputs.map {
       case input: AwsBatchFileInput => s"$s3Cmd cp ${input.s3key} $dockerRootDir/${input.local}"
       case _ => ""
-    }.mkString("\n")
+    }.mkString("\n|") //the pipe is needed for the margin (which gets stripped out)
+
+    val outputCopyCommand = outputs.map {
+      case output: AwsBatchFileOutput => s"$s3Cmd cp ${output.local} ${output.s3key}"
+      case _ => ""
+    }.mkString("\n|")
 
     s"""
     |#! /bin/sh
@@ -128,6 +133,8 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     |echo $$return_code > rc.txt
     |
     |cat stdout.log && cat stderr.log >&2
+    |
+    |$outputCopyCommand
     |
     |$s3Cmd cp stdout.log $${AWS_CROMWELL_CALL_ROOT}/${jobPaths.defaultStdoutFilename}
     |$s3Cmd cp stderr.log $${AWS_CROMWELL_CALL_ROOT}/${jobPaths.defaultStderrFilename}
@@ -153,7 +160,6 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                   |  taskId: $taskId
                   |  job definition arn: $definitionArn
                   |  command line: $commandLine
-                  |  script: $script
                   |  """.stripMargin)
 
       val outputinfo = outputs.map(o => "%s,%s,%s,%s".format(o.name, o.s3key, o.local, o.mount))

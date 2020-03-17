@@ -8,7 +8,7 @@ import common.validation.ErrorOr._
 import common.collections.EnhancedCollections._
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
-import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
+import wdl.model.draft3.graph.expression.{EvaluatedValue, ValueEvaluator}
 import wdl.transforms.base.linking.expression.values.EngineFunctionEvaluators.processValidatedSingleValue
 import wom.expression.IoFunctionSet
 import wom.types._
@@ -18,7 +18,7 @@ import wom.types.coercion.defaults._
 object BiscayneValueEvaluators {
 
   implicit val noneLiteralEvaluator: ValueEvaluator[NoneLiteralElement.type] = new ValueEvaluator[ExpressionElement.NoneLiteralElement.type] {
-    override def evaluateValue(a: ExpressionElement.NoneLiteralElement.type, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
+    override def evaluateValue(a: ExpressionElement.NoneLiteralElement.type, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, forCommandInstantiationOptions: Boolean)(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
       EvaluatedValue(
         value = WomOptionalValue(WomNothingType, None),
         sideEffectFiles = Seq.empty).validNel
@@ -26,7 +26,7 @@ object BiscayneValueEvaluators {
   }
 
   implicit val asMapFunctionEvaluator: ValueEvaluator[AsMap] = new ValueEvaluator[AsMap] {
-    override def evaluateValue(a: AsMap, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+    override def evaluateValue(a: AsMap, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, forCommandInstantiationOptions: Boolean)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
       processValidatedSingleValue[WomArray, WomMap](expressionValueEvaluator.evaluateValue(a.param, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)) {
         case WomArray(WomArrayType(WomPairType(_: WomPrimitiveType, _)), values) =>
@@ -60,7 +60,7 @@ object BiscayneValueEvaluators {
     override def evaluateValue(a: Keys,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               forCommandInstantiationOptions: Boolean)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomArray]] = {
 
       processValidatedSingleValue[WomMap, WomArray](expressionValueEvaluator.evaluateValue(a.param, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)) {
@@ -71,7 +71,7 @@ object BiscayneValueEvaluators {
   }
 
   implicit val asPairsFunctionEvaluator: ValueEvaluator[AsPairs] = new ValueEvaluator[AsPairs] {
-    override def evaluateValue(a: AsPairs, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+    override def evaluateValue(a: AsPairs, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, forCommandInstantiationOptions: Boolean)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
       processValidatedSingleValue[WomMap, WomArray](expressionValueEvaluator.evaluateValue(a.param, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)) {
         case WomMap(WomMapType(keyType, valueType), values) =>
@@ -86,7 +86,7 @@ object BiscayneValueEvaluators {
   }
 
   implicit val collectByKeyFunctionEvaluator: ValueEvaluator[CollectByKey] = new ValueEvaluator[CollectByKey] {
-    override def evaluateValue(a: CollectByKey, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+    override def evaluateValue(a: CollectByKey, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, forCommandInstantiationOptions: Boolean)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
       processValidatedSingleValue[WomArray, WomMap](expressionValueEvaluator.evaluateValue(a.param, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)) {
         case WomArray(WomArrayType(WomPairType(_: WomPrimitiveType, _)), values) =>
@@ -124,7 +124,7 @@ object BiscayneValueEvaluators {
     override def evaluateValue(a: Min,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               forCommandInstantiationOptions: Boolean)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomValue]] = {
       val value1 = expressionValueEvaluator.evaluateValue(a.arg1, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
       val value2 = expressionValueEvaluator.evaluateValue(a.arg2, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
@@ -140,7 +140,7 @@ object BiscayneValueEvaluators {
     override def evaluateValue(a: Max,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomValue]] = {
+                               forCommandInstantiationOptions: Boolean)(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomValue]] = {
       val value1 = expressionValueEvaluator.evaluateValue(a.arg1, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
       val value2 = expressionValueEvaluator.evaluateValue(a.arg2, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
 

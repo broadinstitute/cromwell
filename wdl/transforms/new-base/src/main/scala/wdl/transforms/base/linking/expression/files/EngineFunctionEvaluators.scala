@@ -28,7 +28,7 @@ object EngineFunctionEvaluators {
       case IdentifierLookup(identifier) if !inputs.contains(identifier) => Set.empty[WomFile].validNel
       case IdentifierMemberAccess(first, _, _) if !inputs.contains(first) => Set.empty[WomFile].validNel
       case _ =>
-        outermostElement.evaluateValue(inputs, ioFunctionSet, None) flatMap {
+        outermostElement.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions = false) flatMap {
           case EvaluatedValue(p: WomPrimitive, _) => Set[WomFile](WomSingleFile(p.valueString)).validNel
           case other => s"Expected a primitive but got ${other.getClass.getSimpleName}".invalidNel
         }
@@ -125,7 +125,7 @@ object EngineFunctionEvaluators {
     override def predictFilesNeededToEvaluate(a: Glob, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
                                              (implicit fileEvaluator: FileEvaluator[ExpressionElement],
                                               valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] = {
-      a.param.evaluateValue(inputs, ioFunctionSet, None) flatMap {
+      a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions = false) flatMap {
         case EvaluatedValue(p: WomPrimitive, _) => Set[WomFile](WomGlobFile(p.valueString)).validNel
         case other => s"Could not predict files to delocalize from '$a' for 'glob'. Expected a primitive but got ${other.getClass.getSimpleName}".invalidNel
       }

@@ -5,7 +5,7 @@ import common.validation.ErrorOr._
 import common.validation.ErrorOr.ErrorOr
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
-import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
+import wdl.model.draft3.graph.expression.{EvaluatedValue, ValueEvaluator}
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wom.expression.IoFunctionSet
 import wom.values.WomValue
@@ -22,7 +22,7 @@ object UnaryOperatorEvaluators {
     override def evaluateValue(a: A,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               forCommandInstantiationOptions: Boolean)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
       a.argument.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions) flatMap { arg =>
         op(arg.value).toErrorOr map {

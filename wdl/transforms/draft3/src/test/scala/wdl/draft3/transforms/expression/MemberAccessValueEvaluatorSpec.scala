@@ -22,10 +22,10 @@ class MemberAccessValueEvaluatorSpec extends FlatSpec with Matchers{
   it should "find the left and right hand sides of a pair expression" in {
     val pair = PairLiteral(fiveLiteral, sixLiteral)
     val leftExpression: ExpressionElement = ExpressionMemberAccess(pair, NonEmptyList("left", List.empty))
-    leftExpression.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(womFive, Seq.empty)
+    leftExpression.evaluateValue(Map.empty, NoIoFunctionSet, forCommandInstantiationOptions = false) shouldBeValid EvaluatedValue(womFive, Seq.empty)
 
     val rightExpression: ExpressionElement = ExpressionMemberAccess(pair, NonEmptyList("right", List.empty))
-    rightExpression.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(womSix, Seq.empty)
+    rightExpression.evaluateValue(Map.empty, NoIoFunctionSet, forCommandInstantiationOptions = false) shouldBeValid EvaluatedValue(womSix, Seq.empty)
   }
 
   it should "find the appropriate value in a deeply nested Pair" in {
@@ -45,7 +45,7 @@ class MemberAccessValueEvaluatorSpec extends FlatSpec with Matchers{
       ),
       memberAccessTail = NonEmptyList("left", List("right", "right", "left"))
     )
-     nestedPairLookup.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(WomPair(womFive, womSix), Seq.empty)
+     nestedPairLookup.evaluateValue(Map.empty, NoIoFunctionSet, forCommandInstantiationOptions = false) shouldBeValid EvaluatedValue(WomPair(womFive, womSix), Seq.empty)
   }
 
   it should "evaluate a nested member access on a call output" in {
@@ -54,7 +54,7 @@ class MemberAccessValueEvaluatorSpec extends FlatSpec with Matchers{
       "t.out" -> WomPair(WomPair(womFive, WomPair(womFive, womSix)), womFive)
     )
 
-    callOutputLookup.evaluateValue(inputs, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(WomPair(womFive, womSix), Seq.empty)
+    callOutputLookup.evaluateValue(inputs, NoIoFunctionSet, forCommandInstantiationOptions = false) shouldBeValid EvaluatedValue(WomPair(womFive, womSix), Seq.empty)
   }
 
   it should "evaluate a nested member access on an object" in {
@@ -63,14 +63,14 @@ class MemberAccessValueEvaluatorSpec extends FlatSpec with Matchers{
       "t" -> WomObject(Map("out" -> WomPair(WomPair(womFive, WomPair(womFive, womSix)), womFive)))
     )
 
-    objectLookup.evaluateValue(inputs, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(WomPair(womFive, womSix), Seq.empty)
+    objectLookup.evaluateValue(inputs, NoIoFunctionSet, forCommandInstantiationOptions = false) shouldBeValid EvaluatedValue(WomPair(womFive, womSix), Seq.empty)
   }
 
   it should "evaluate an identifier lookup" in {
     val identifierLookup: ExpressionElement = IdentifierLookup("foo")
     val inputs = Map("foo" -> WomString("foo"))
 
-    identifierLookup.evaluateValue(inputs, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(WomString("foo"), Seq.empty)
+    identifierLookup.evaluateValue(inputs, NoIoFunctionSet, forCommandInstantiationOptions = false) shouldBeValid EvaluatedValue(WomString("foo"), Seq.empty)
   }
 
 }

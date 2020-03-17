@@ -5,7 +5,7 @@ import common.validation.ErrorOr.ErrorOr
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
-import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
+import wdl.model.draft3.graph.expression.{EvaluatedValue, ValueEvaluator}
 import wdl.transforms.base.linking.expression.values.BinaryOperatorEvaluators._
 import wdl.transforms.base.linking.expression.values.EngineFunctionEvaluators._
 import wdl.transforms.base.linking.expression.values.LiteralEvaluators._
@@ -23,7 +23,7 @@ package object values {
     override def evaluateValue(a: ExpressionElement,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               forCommandInstantiationOptions: Boolean)
                               (implicit valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
 
       a match {

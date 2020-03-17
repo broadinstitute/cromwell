@@ -22,7 +22,7 @@ class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
     expr.shouldBeValidPF {
-      case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(WomInteger(6), Seq.empty)
+      case e => e.evaluateValue(Map.empty, NoIoFunctionSet, forCommandInstantiationOptions = false) shouldBeValid EvaluatedValue(WomInteger(6), Seq.empty)
     }
   }
 
@@ -37,7 +37,7 @@ class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
     ))
 
     expr.shouldBeValidPF {
-      case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedMap, Seq.empty)
+      case e => e.evaluateValue(Map.empty, NoIoFunctionSet, forCommandInstantiationOptions = false) shouldBeValid EvaluatedValue(expectedMap, Seq.empty)
     }
   }
 
@@ -55,7 +55,7 @@ class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
       ))
 
       expr.shouldBeValidPF {
-        case e => e.evaluateValue(inputs, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedPairs, Seq.empty)
+        case e => e.evaluateValue(inputs, NoIoFunctionSet, forCommandInstantiationOptions = false) shouldBeValid EvaluatedValue(expectedPairs, Seq.empty)
       }
       ()
     }
@@ -80,7 +80,7 @@ class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
       val inputs = Map("echo_me" -> expectedPairs)
 
       expr.shouldBeValidPF {
-        case e => e.evaluateValue(inputs, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedPairs, Seq.empty)
+        case e => e.evaluateValue(inputs, NoIoFunctionSet, forCommandInstantiationOptions = false) shouldBeValid EvaluatedValue(expectedPairs, Seq.empty)
       }
       ()
     }
@@ -94,7 +94,7 @@ class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
       val expr = fromString[ExpressionElement](str, parser.parse_e)
 
       expr.shouldBeValidPF {
-        case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None).shouldBeInvalid("""Cannot evaluate 'as_map' with duplicated keys: keys can only appear once but "x" appeared 2 times.""")
+        case e => e.evaluateValue(Map.empty, NoIoFunctionSet, forCommandInstantiationOptions = false).shouldBeInvalid("""Cannot evaluate 'as_map' with duplicated keys: keys can only appear once but "x" appeared 2 times.""")
       }
       ()
     }
@@ -113,7 +113,7 @@ class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
       ))
 
       expr.shouldBeValidPF {
-        case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedMap, Seq.empty)
+        case e => e.evaluateValue(Map.empty, NoIoFunctionSet, forCommandInstantiationOptions = false) shouldBeValid EvaluatedValue(expectedMap, Seq.empty)
       }
       ()
     }
@@ -133,7 +133,7 @@ class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
     ))
 
     expr.shouldBeValidPF {
-      case e => e.evaluateValue(inputs, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedMap, Seq.empty)
+      case e => e.evaluateValue(inputs, NoIoFunctionSet, forCommandInstantiationOptions = false) shouldBeValid EvaluatedValue(expectedMap, Seq.empty)
     }
   }
 
@@ -157,7 +157,7 @@ class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
         val expr = fromString[ExpressionElement](str, parser.parse_e)
 
         expr.shouldBeValidPF {
-          case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedEvaluation, Seq.empty)
+          case e => e.evaluateValue(Map.empty, NoIoFunctionSet, forCommandInstantiationOptions = false) shouldBeValid EvaluatedValue(expectedEvaluation, Seq.empty)
         }
       }
     }

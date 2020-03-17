@@ -17,61 +17,61 @@ class Draft3ReadFileLimitsSpec extends FlatSpec with Matchers {
   
   it should "pass correct size limits to the ioFunctions for read_lines" in {
       ReadLines(PrimitiveLiteralExpressionElement(WomSingleFile("blah")))
-        .evaluateValue(Map.empty, ioFunctionTester(1, ""), None)
+        .evaluateValue(Map.empty, ioFunctionTester(1, ""), forCommandInstantiationOptions = false)
         .valueOr(errors => fail(errors.toList.mkString(", ")))
   }
 
   it should "pass correct size limits to the ioFunctions for read_bool" in {
     ReadBoolean(PrimitiveLiteralExpressionElement(WomSingleFile("blah")))
-      .evaluateValue(Map.empty, ioFunctionTester(2, "true"), None)
+      .evaluateValue(Map.empty, ioFunctionTester(2, "true"), forCommandInstantiationOptions = false)
       .valueOr(errors => fail(errors.toList.mkString(", ")))
   }
 
   it should "pass correct size limits to the ioFunctions for read_int" in {
     ReadInt(PrimitiveLiteralExpressionElement(WomSingleFile("blah")))
-      .evaluateValue(Map.empty, ioFunctionTester(3, "0"), None)
+      .evaluateValue(Map.empty, ioFunctionTester(3, "0"), forCommandInstantiationOptions = false)
       .valueOr(errors => fail(errors.toList.mkString(", ")))
   }
 
   it should "pass correct size limits to the ioFunctions for read_float" in {
     ReadFloat(PrimitiveLiteralExpressionElement(WomSingleFile("blah")))
-      .evaluateValue(Map.empty, ioFunctionTester(4, "5.0"), None)
+      .evaluateValue(Map.empty, ioFunctionTester(4, "5.0"), forCommandInstantiationOptions = false)
       .valueOr(errors => fail(errors.toList.mkString(", ")))
   }
 
   it should "pass correct size limits to the ioFunctions for read_string" in {
     ReadString(PrimitiveLiteralExpressionElement(WomSingleFile("blah")))
-      .evaluateValue(Map.empty, ioFunctionTester(5, ""), None)
+      .evaluateValue(Map.empty, ioFunctionTester(5, ""), forCommandInstantiationOptions = false)
       .valueOr(errors => fail(errors.toList.mkString(", ")))
   }
 
   it should "pass correct size limits to the ioFunctions for read_json" in {
     ReadJson(PrimitiveLiteralExpressionElement(WomSingleFile("blah")))
-      .evaluateValue(Map.empty, ioFunctionTester(6, "{}"), None)
+      .evaluateValue(Map.empty, ioFunctionTester(6, "{}"), forCommandInstantiationOptions = false)
       .valueOr(errors => fail(errors.toList.mkString(", ")))
   }
 
   it should "pass correct size limits to the ioFunctions for read_tsv" in {
     ReadTsv(PrimitiveLiteralExpressionElement(WomSingleFile("blah")))
-      .evaluateValue(Map.empty, ioFunctionTester(7, "a\tb"), None)
+      .evaluateValue(Map.empty, ioFunctionTester(7, "a\tb"), forCommandInstantiationOptions = false)
       .valueOr(errors => fail(errors.toList.mkString(", ")))
   }
 
   it should "pass correct size limits to the ioFunctions for read_map" in {
     ReadMap(PrimitiveLiteralExpressionElement(WomSingleFile("blah")))
-      .evaluateValue(Map.empty, ioFunctionTester(8, "a\tb"), None)
+      .evaluateValue(Map.empty, ioFunctionTester(8, "a\tb"), forCommandInstantiationOptions = false)
       .valueOr(errors => fail(errors.toList.mkString(", ")))
   }
 
   it should "pass correct size limits to the ioFunctions for read_object" in {
     ReadObject(PrimitiveLiteralExpressionElement(WomSingleFile("blah")))
-      .evaluateValue(Map.empty, ioFunctionTester(9, "a\tb\nc\td"), None)
+      .evaluateValue(Map.empty, ioFunctionTester(9, "a\tb\nc\td"), forCommandInstantiationOptions = false)
       .valueOr(errors => fail(errors.toList.mkString(", ")))
   }
 
   it should "pass correct size limits to the ioFunctions for read_objects" in {
     ReadObjects(PrimitiveLiteralExpressionElement(WomSingleFile("blah")))
-      .evaluateValue(Map.empty, ioFunctionTester(9, "a\tb\nc\td"), None)
+      .evaluateValue(Map.empty, ioFunctionTester(9, "a\tb\nc\td"), forCommandInstantiationOptions = false)
       .valueOr(errors => fail(errors.toList.mkString(", ")))
   }
 

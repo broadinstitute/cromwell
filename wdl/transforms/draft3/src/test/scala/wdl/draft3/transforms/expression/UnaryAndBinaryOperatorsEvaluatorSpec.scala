@@ -63,7 +63,7 @@ class UnaryAndBinaryOperatorsEvaluatorSpec extends FlatSpec with Matchers{
 
   expressionTests foreach { case (name, expression, expectedValue, expectedType) =>
     it should s"evaluate the expression '$name'" in {
-      expression.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedValue, Seq.empty)
+      expression.evaluateValue(Map.empty, NoIoFunctionSet, forCommandInstantiationOptions = false) shouldBeValid EvaluatedValue(expectedValue, Seq.empty)
     }
 
     it should s"evaluate the type of the expression '$name'" in {

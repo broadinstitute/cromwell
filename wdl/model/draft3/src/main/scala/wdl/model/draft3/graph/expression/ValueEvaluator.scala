@@ -22,7 +22,7 @@ trait ValueEvaluator[A] {
   def evaluateValue(a: A,
                     inputs: Map[String, WomValue],
                     ioFunctionSet: IoFunctionSet,
-                    forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                    forCommandInstantiationOptions: Boolean)
                    (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]]
 }
 

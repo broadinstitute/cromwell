@@ -45,7 +45,7 @@ class TernaryIfEvaluatorSpec extends FlatSpec with Matchers{
 
   valueTests foreach { case (name, expression, expected) =>
     it should s"evaluate the expression '$name'" in {
-      expression.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expected, Seq.empty)
+      expression.evaluateValue(Map.empty, NoIoFunctionSet, forCommandInstantiationOptions = false) shouldBeValid EvaluatedValue(expected, Seq.empty)
     }
   }
 

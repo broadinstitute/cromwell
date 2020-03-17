@@ -20,7 +20,7 @@ trait FileEvaluator[A <: ExpressionElement] {
                                           coerceTo: WomType)
                                          (implicit fileEvaluator: FileEvaluator[ExpressionElement],
                                           valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] = {
-    valueEvaluator.evaluateValue(a, inputs, ioFunctionSet, None) match {
+    valueEvaluator.evaluateValue(a, inputs, ioFunctionSet, forCommandInstantiationOptions = false) match {
       case Valid(womValue) => FileEvaluatorUtil.findFilesToDelocalize(womValue.value, coerceTo).toSet.validNel
       case _ => predictFilesNeededToEvaluate(a, inputs, ioFunctionSet, coerceTo)
     }

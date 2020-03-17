@@ -28,11 +28,11 @@ final case class WdlomWomExpression private (expressionElement: ExpressionElemen
 
   def evaluateValueForPlaceholder(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, forCommandInstantiationOptions: ForCommandInstantiationOptions): ErrorOr[EvaluatedValue[_]] = {
     val preMappedInputs = inputValues.map { case (key, value) => key -> forCommandInstantiationOptions.valueMapper.apply(value) }
-    expressionElement.evaluateValue(preMappedInputs, ioFunctionSet, None)
+    expressionElement.evaluateValue(preMappedInputs, ioFunctionSet, forCommandInstantiationOptions = false)
   }
 
   override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] =
-    expressionElement.evaluateValue(inputValues, ioFunctionSet, None) map { _.value }
+    expressionElement.evaluateValue(inputValues, ioFunctionSet, forCommandInstantiationOptions = false) map { _.value }
 
   private lazy val evaluatedType = expressionElement.evaluateType(linkedValues)
   // NB types can be determined using the linked values, so we don't need the inputMap:

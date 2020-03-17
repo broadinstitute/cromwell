@@ -28,7 +28,7 @@ final case class WdlomWomExpression private (expressionElement: ExpressionElemen
 
   def evaluateValueForPlaceholder(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, forCommandInstantiationOptions: ForCommandInstantiationOptions): ErrorOr[EvaluatedValue[_]] = {
     val preMappedInputs = inputValues.map { case (key, value) => key -> forCommandInstantiationOptions.valueMapper.apply(value) }
-    expressionElement.evaluateValue(preMappedInputs, ioFunctionSet, forCommandInstantiationOptions = false)
+    expressionElement.evaluateValue(preMappedInputs, ioFunctionSet, forCommandInstantiationOptions = true)
   }
 
   override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] =

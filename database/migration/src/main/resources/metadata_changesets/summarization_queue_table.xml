@@ -37,7 +37,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="summary_queue_initialization_postgresql" author="gsterin" dbms="postgresql">
+    <changeSet id="summary_queue_initialization_postgresql" author="gsterin" dbms="postgresql,sqlite">
         <preConditions onFail="MARK_RAN">
             <!-- if METADATA_ENTRY table not exists yet, then skip this changeset -->
             <tableExists tableName="METADATA_ENTRY"/>

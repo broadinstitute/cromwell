@@ -11,7 +11,7 @@ import net.ceedubs.ficus.Ficus._
 import org.postgresql.util.{PSQLException, ServerErrorMessage}
 import org.slf4j.LoggerFactory
 import slick.basic.DatabaseConfig
-import slick.jdbc.{JdbcCapabilities, JdbcProfile, PostgresProfile, TransactionIsolation}
+import slick.jdbc.{JdbcCapabilities, JdbcProfile, PostgresProfile, SQLiteProfile, TransactionIsolation}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -166,7 +166,10 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
   protected[this] def runTransaction[R](action: DBIO[R],
                                         isolationLevel: TransactionIsolation = TransactionIsolation.RepeatableRead,
                                         timeout: Duration = Duration.Inf): Future[R] = {
-    runActionInternal(action.transactionally.withTransactionIsolation(isolationLevel), timeout = timeout)
+    dataAccess.driver match {
+      case SQLiteProfile => runActionInternal(action.transactionally, timeout = timeout)
+      case _ => runActionInternal(action.transactionally.withTransactionIsolation(isolationLevel), timeout = timeout)
+    }
   }
 
   /* Note that this is only appropriate for actions that do not involve Blob

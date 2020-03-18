@@ -13,9 +13,8 @@ import cromwell.services.metadata.hybridcarbonite.NumberOfWorkflowsToDeleteMetad
 import cromwell.services.metadata.impl.MetadataDatabaseAccess
 
 import scala.util.{Failure, Success}
-import scala.concurrent.duration._
 
-class DeleteMetadataActor(metadataDeletionConfig: MetadataDeletionConfig, override val serviceRegistryActor: ActorRef) extends Actor
+class DeleteMetadataActor(metadataDeletionConfig: ActiveMetadataDeletionConfig, override val serviceRegistryActor: ActorRef) extends Actor
   with ActorLogging
   with MetadataDatabaseAccess
   with MetadataServicesStore
@@ -23,9 +22,8 @@ class DeleteMetadataActor(metadataDeletionConfig: MetadataDeletionConfig, overri
 
   implicit val ec = context.dispatcher
 
-  metadataDeletionConfig.intervalOpt.map { interval =>
-    context.system.scheduler.schedule(5.minutes, interval, self, DeleteMetadataAction)
-  }
+  log.info(s"Archived metadata deletion is configured to begin polling after ${metadataDeletionConfig.initialDelay}, and then delete up to ${metadataDeletionConfig.batchSize} workflows worth of metadata every ${metadataDeletionConfig.interval} (for workflows which completed at least ${metadataDeletionConfig.delayAfterWorkflowCompletion} ago).")
+  context.system.scheduler.schedule(metadataDeletionConfig.initialDelay, metadataDeletionConfig.interval, self, DeleteMetadataAction)
 
   val numOfWorkflowsToDeleteMetadataMetricActor = context.actorOf(NumberOfWorkflowsToDeleteMetadataMetricActor.props(serviceRegistryActor))
 
@@ -59,7 +57,6 @@ class DeleteMetadataActor(metadataDeletionConfig: MetadataDeletionConfig, overri
 
 object DeleteMetadataActor {
 
-  def props(metadataDeletionConfig: MetadataDeletionConfig, serviceRegistryActor: ActorRef) = Props(new DeleteMetadataActor(metadataDeletionConfig, serviceRegistryActor))
-
+  def props(metadataDeletionConfig: ActiveMetadataDeletionConfig, serviceRegistryActor: ActorRef) = Props(new DeleteMetadataActor(metadataDeletionConfig, serviceRegistryActor))
   case object DeleteMetadataAction
 }

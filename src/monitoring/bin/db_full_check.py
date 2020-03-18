@@ -20,10 +20,7 @@ def main():
 def call_time_series_endpoint():
     google_project = os.getenv("CROMWELL_GOOGLE_PROJECT")
     cloud_sql_instance = os.getenv("CROMWELL_CLOUDSQL_INSTANCE")
-    # If there is an auth that needs to be `gcloud auth activate-service-account --key-file=...` activated that should
-    # happen before getting this access token!
-    # TODO use the python API rather than shelling out
-    access_token = os.popen("gcloud auth print-access-token").read().rstrip()
+    access_token = os.getenv("METRICS_ACCESS_TOKEN")
 
     now_utc = datetime.now(timezone.utc)
     now = datetime.isoformat(now_utc)
@@ -62,4 +59,5 @@ class Datum:
         self.bytes = bytes
 
 if __name__ == '__main__':
-    os.environ
+    print("Hello from Python")
+    print(os.environ)

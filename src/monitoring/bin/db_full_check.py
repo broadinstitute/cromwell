@@ -62,4 +62,4 @@ class Datum:
         self.bytes = bytes
 
 if __name__ == '__main__':
-    main()
+    os.environ

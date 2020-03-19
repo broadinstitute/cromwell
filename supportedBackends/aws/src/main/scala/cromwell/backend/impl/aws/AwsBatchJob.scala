@@ -128,7 +128,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     |
     |touch stdout.log && touch stderr.log
     |
-    |$commandLine > stdout.log 2> stderr.log
+    |$commandLine | tee > stdout.log 2> stderr.log
     |return_code=$$?
     |echo $$return_code > rc.txt
     |

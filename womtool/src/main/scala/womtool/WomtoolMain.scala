@@ -17,6 +17,7 @@ import womtool.cmdline._
 import womtool.graph.WomGraph
 import womtool.input.WomGraphMaker
 import womtool.inputs.Inputs
+import womtool.outputs.Outputs
 import womtool.validate.Validate
 import womtool.wom2wdlom.WomToWdlom.womBundleToFileElement
 
@@ -52,6 +53,7 @@ object WomtoolMain extends App {
     case p: ParseCommandLine => parse(p.workflowSource.pathAsString)
     case h: HighlightCommandLine => highlight(h.workflowSource.pathAsString, h.highlightMode)
     case i: InputsCommandLine => Inputs.inputsJson(i.workflowSource, i.showOptionals)
+    case o: OutputsCommandLine => Outputs.outputsJson(o.workflowSource)
     case g: WomtoolGraphCommandLine => graph(g.workflowSource)
     case g: WomtoolWomGraphCommandLine => womGraph(g.workflowSource)
     case u: WomtoolWdlUpgradeCommandLine => upgrade(u.workflowSource.pathAsString)

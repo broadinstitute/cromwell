@@ -10,7 +10,7 @@ import wdl.model.draft3.graph.expression._
 import wdl.transforms.base.linking.graph.LinkedGraphMaker
 import wdl.transforms.base.wdlom2wom.expression.WdlomWomExpression
 import wom.callable.RuntimeEnvironment
-import wom.expression.{IoFunctionSet, WomExpression}
+import wom.expression.{CloudToLocalFilePathMapper, IoFunctionSet, WomExpression}
 import wom.graph.LocalName
 import wom.types.{WomArrayType, WomPrimitiveType, WomType}
 import wom.values.{WomArray, WomBoolean, WomOptionalValue, WomPrimitive, WomValue}
@@ -30,7 +30,7 @@ object CommandPartElementToWomCommandPart {
               typeEvaluator: TypeEvaluator[ExpressionElement],
               valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[CommandPart] = commandPart match {
     case s: StringCommandPartElement => WdlomWomStringCommandPart(s).validNel
-    case p: PlaceholderCommandPartElement => {
+    case p: PlaceholderCommandPartElement =>
       val attributes = p.attributes
       val consumedValues = p.expressionElement.expressionConsumedValueHooks
 
@@ -39,7 +39,6 @@ object CommandPartElementToWomCommandPart {
         womExpression <- p.expressionElement.makeWomExpression(typeAliases, consumedValueLookup)
         _ <- validatePlaceholderType(womExpression, attributes)
       } yield WdlomWomPlaceholderCommandPart(attributes, womExpression.asInstanceOf[WdlomWomExpression])
-    }
   }
 
   private def validatePlaceholderType(womExpression: WomExpression, attributes: PlaceholderAttributeSet): ErrorOr[Unit] = ().validNel
@@ -63,11 +62,12 @@ case class WdlomWomPlaceholderCommandPart(attributes: PlaceholderAttributeSet, e
                            valueMapper: WomValue => WomValue,
                            runtimeEnvironment: RuntimeEnvironment): ErrorOr[List[InstantiatedCommand]] = {
     val inputsValues = inputsMap map { case (localName, value) => localName.value -> value }
-    expression.evaluateValueForPlaceholder(inputsValues, functions, ForCommandInstantiationOptions(valueMapper)) flatMap { evaluatedExpression =>
+    expression.evaluateValueForPlaceholder(inputsValues, functions, CloudToLocalFilePathMapper(valueMapper)) flatMap { evaluatedExpression =>
       instantiateFromValue(evaluatedExpression, valueMapper).map(List(_))
     }
   }
 
+  @scala.annotation.tailrec
   private def instantiateFromValue(value: EvaluatedValue[_], valueMapper: WomValue => WomValue): ErrorOr[InstantiatedCommand] = value.value match {
     case WomBoolean(b) if attributes.trueAttribute.isDefined && attributes.falseAttribute.isDefined =>
       InstantiatedCommand(

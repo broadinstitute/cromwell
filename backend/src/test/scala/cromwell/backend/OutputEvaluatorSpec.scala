@@ -11,7 +11,7 @@ import cromwell.util.WomMocks
 import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 import wom.callable.Callable.{InputDefinition, OutputDefinition, RequiredInputDefinition}
-import wom.expression.{FileEvaluation, IoFunctionSet, NoIoFunctionSet, WomExpression}
+import wom.expression.{ExpressionEvaluationOptions, FileEvaluation, IoFunctionSet, NoIoFunctionSet, WomExpression}
 import wom.graph.WomIdentifier
 import wom.types.{WomIntegerType, WomType}
 import wom.values.{WomInteger, WomValue}
@@ -31,7 +31,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
   def o1Expression = new WomExpression {
     override def sourceString: String = "o1"
     override def inputs: Set[String] = Set("input")
-    override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
+    override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, expressionEvaluationOptions: ExpressionEvaluationOptions): ErrorOr[WomValue] = {
       Validated.fromOption(inputValues.get("input"), NonEmptyList.one("Can't find a value for 'input'"))
     }
     override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = throw new UnsupportedOperationException
@@ -42,7 +42,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
   def o2Expression = new WomExpression {
     override def sourceString: String = "o2"
     override def inputs: Set[String] = Set("o1")
-    override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
+    override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, expressionEvaluationOptions: ExpressionEvaluationOptions): ErrorOr[WomValue] = {
       Validated.fromOption(inputValues.get("o1"), NonEmptyList.one("Can't find a value for 'o1'"))
     }
     override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = throw new UnsupportedOperationException
@@ -52,7 +52,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
   def invalidWomExpression1 = new WomExpression {
     override def sourceString: String = "invalid1"
     override def inputs: Set[String] = Set.empty
-    override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
+    override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, expressionEvaluationOptions: ExpressionEvaluationOptions): ErrorOr[WomValue] = {
       "Invalid expression 1".invalidNel
     }
     override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = {
@@ -66,7 +66,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
   def invalidWomExpression2 = new WomExpression {
     override def sourceString: String = "invalid2"
     override def inputs: Set[String] = Set.empty
-    override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
+    override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, expressionEvaluationOptions: ExpressionEvaluationOptions): ErrorOr[WomValue] = {
       "Invalid expression 2".invalidNel
     }
     override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = {
@@ -82,7 +82,7 @@ class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
   def throwingWomExpression = new WomExpression {
     override def sourceString: String = "throwing"
     override def inputs: Set[String] = Set.empty
-    override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
+    override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, expressionEvaluationOptions: ExpressionEvaluationOptions): ErrorOr[WomValue] = {
       throw exception
     }
     override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = {

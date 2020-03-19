@@ -12,7 +12,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 final case class PlaceholderWomExpression(inputs: Set[String], fixedWomType: WomType) extends WomExpression {
   override def sourceString: String = "placeholder"
-  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] =
+  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, expressionEvaluationOptions: ExpressionEvaluationOptions): ErrorOr[WomValue] =
     Invalid(NonEmptyList.one(s"couldn't evaluate value from inputs $inputs\tfixedWomType\t$fixedWomType\tinputValues\t$inputValues"))
   override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] =
     Valid(fixedWomType)

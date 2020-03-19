@@ -5,9 +5,9 @@ import common.validation.ErrorOr._
 import common.validation.ErrorOr.ErrorOr
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
-import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
+import wdl.model.draft3.graph.expression.{EvaluatedValue, ValueEvaluator}
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
-import wom.expression.IoFunctionSet
+import wom.expression.{ExpressionEvaluationOptions, IoFunctionSet}
 import wom.values.WomValue
 
 import scala.util.Try
@@ -22,9 +22,9 @@ object UnaryOperatorEvaluators {
     override def evaluateValue(a: A,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
-      a.argument.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions) flatMap { arg =>
+      a.argument.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions) flatMap { arg =>
         op(arg.value).toErrorOr map {
           EvaluatedValue(_, arg.sideEffectFiles)
         }

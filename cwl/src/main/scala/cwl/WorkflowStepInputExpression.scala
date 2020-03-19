@@ -1,7 +1,7 @@
 package cwl
 
 import cats.syntax.validated._
-import wom.expression.{FileEvaluation, IoFunctionSet}
+import wom.expression.{ExpressionEvaluationOptions, FileEvaluation, IoFunctionSet}
 import wom.types._
 import wom.values._
 
@@ -13,7 +13,7 @@ final case class WorkflowStepInputExpression(inputName: String,
 
   override def sourceString = inputName
 
-  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet) = {
+  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, expressionEvaluationOptions: ExpressionEvaluationOptions) = {
     valueFrom match {
       // If valueFrom is a constant string value, use this as the value for this input parameter.
       // TODO: need to handle case where this is a parameter reference, it currently looks like a String to us!

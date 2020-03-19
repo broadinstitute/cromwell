@@ -6,9 +6,9 @@ import common.validation.ErrorOr.ErrorOr
 import common.validation.ErrorOr._
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
-import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
+import wdl.model.draft3.graph.expression.{EvaluatedValue, ValueEvaluator}
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
-import wom.expression.IoFunctionSet
+import wom.expression.{ExpressionEvaluationOptions, IoFunctionSet}
 import wom.types._
 import wom.values._
 import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
@@ -21,11 +21,11 @@ object LookupEvaluators {
     override def evaluateValue(a: IdentifierLookup,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
       inputs.get(a.identifier) match {
         case Some(value) =>
-          val mapped = forCommandInstantiationOptions.fold(value)(_.valueMapper(value))
+          val mapped = expressionEvaluationOptions.cloudToLocalFilePathMapper.fold(value)(_.valueMapper(value))
           EvaluatedValue(mapped, Seq.empty).validNel
         case None =>
           s"ValueEvaluator[IdentifierLookup]: No suitable input for '${a.identifier}' amongst {${inputs.keys.mkString(", ")}}".invalidNel
@@ -37,9 +37,9 @@ object LookupEvaluators {
     override def evaluateValue(a: ExpressionMemberAccess,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
-      a.expression.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions) flatMap { evaluated =>
+      a.expression.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions) flatMap { evaluated =>
         doLookup(evaluated.value, a.memberAccessTail) map { EvaluatedValue(_, evaluated.sideEffectFiles) }
       }
     }
@@ -49,7 +49,7 @@ object LookupEvaluators {
     override def evaluateValue(a: IdentifierMemberAccess,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
 
       // Do the first lookup and decide whether any more lookups are needed:
@@ -70,9 +70,9 @@ object LookupEvaluators {
   }
 
   implicit val indexAccessValueEvaluator: ValueEvaluator[IndexAccess] = new ValueEvaluator[IndexAccess] {
-    override def evaluateValue(a: IndexAccess, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+    override def evaluateValue(a: IndexAccess, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
-      (a.expressionElement.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions), a.index.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) flatMapN { (lhs, rhs) =>
+      (a.expressionElement.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions), a.index.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) flatMapN { (lhs, rhs) =>
         val value: ErrorOr[WomValue] = (lhs.value, rhs.value) match {
           case (array: WomArray, WomInteger(index)) =>
             if (array.value.length > index)

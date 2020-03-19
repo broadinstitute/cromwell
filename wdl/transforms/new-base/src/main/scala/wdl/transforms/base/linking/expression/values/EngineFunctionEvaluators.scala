@@ -8,11 +8,11 @@ import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import wom.format.MemorySize
 import wdl.model.draft3.elements.ExpressionElement._
-import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
+import wdl.model.draft3.graph.expression.{EvaluatedValue, ValueEvaluator}
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wdl.shared.transforms.evaluation.values.EngineFunctions
 import wdl4s.parser.MemoryUnit
-import wom.expression.IoFunctionSet
+import wom.expression.{ExpressionEvaluationOptions, IoFunctionSet}
 import wom.types._
 import wom.values.WomArray.WomArrayLike
 import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomMap, WomObject, WomOptionalValue, WomPair, WomSingleFile, WomString, WomValue}
@@ -35,8 +35,8 @@ object EngineFunctionEvaluators {
   implicit val stdoutFunctionEvaluator: ValueEvaluator[StdoutElement.type] = new ValueEvaluator[StdoutElement.type] {
     override def evaluateValue(a: StdoutElement.type,
                                inputs: Map[String, WomValue],
-                               ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               ioFunctionSet: IoFunctionSet, 
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomSingleFile]] =
       EvaluatedValue(WomSingleFile(ioFunctionSet.pathFunctions.stdout), Seq.empty).validNel
   }
@@ -45,7 +45,7 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: StderrElement.type,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomSingleFile]] =
       EvaluatedValue(WomSingleFile(ioFunctionSet.pathFunctions.stderr), Seq.empty).validNel
   }
@@ -59,9 +59,9 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: ReadLines,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomArray]] = {
-      processValidatedSingleValue[WomSingleFile, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
+      processValidatedSingleValue[WomSingleFile, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { fileToRead =>
         val tryResult = for {
           //validate
           read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readLinesLimit)
@@ -76,9 +76,9 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: ReadTsv,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomArray]] = {
-      processValidatedSingleValue[WomSingleFile, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
+      processValidatedSingleValue[WomSingleFile, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { fileToRead =>
         val tryResult = for {
           read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readTsvLimit)
           tsv <- Try(WomArray.fromTsv(read))
@@ -92,9 +92,9 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: ReadMap,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomMap]] = {
-      processValidatedSingleValue[WomSingleFile, WomMap](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
+      processValidatedSingleValue[WomSingleFile, WomMap](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { fileToRead =>
         val tryResult = for {
           read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readMapLimit)
           map <- WomMap.fromTsv(read)
@@ -108,9 +108,9 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: ReadObject,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomObject]] = {
-      processValidatedSingleValue[WomSingleFile, WomObject](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
+      processValidatedSingleValue[WomSingleFile, WomObject](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { fileToRead =>
         val tryResult = for {
           read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readObjectLimit)
           obj <- WomObject.fromTsv(read)
@@ -128,9 +128,9 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: ReadObjects,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomArray]] = {
-      processValidatedSingleValue[WomSingleFile, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
+      processValidatedSingleValue[WomSingleFile, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { fileToRead =>
         val tryResult = for {
           read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readObjectLimit)
           objects <- WomObject.fromTsv(read)
@@ -145,9 +145,9 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: ReadJson,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomObject]] = {
-      processValidatedSingleValue[WomSingleFile, WomObject](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
+      processValidatedSingleValue[WomSingleFile, WomObject](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { fileToRead =>
         val tryResult: Try[WomObject] = for {
           read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readJsonLimit)
           jsValue <- Try(read.parseJson)
@@ -164,9 +164,9 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: ReadInt,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomInteger]] = {
-      processValidatedSingleValue[WomSingleFile, WomInteger](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
+      processValidatedSingleValue[WomSingleFile, WomInteger](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { fileToRead =>
         val tryResult = for {
           read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readIntLimit)
           asInt <- Try(read.trim.toInt)
@@ -180,9 +180,9 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: ReadString,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomString]] = {
-      processValidatedSingleValue[WomSingleFile, WomString](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
+      processValidatedSingleValue[WomSingleFile, WomString](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { fileToRead =>
         val tryResult = for {
           read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readStringLimit)
         } yield WomString(read.trim)
@@ -195,9 +195,9 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: ReadFloat,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomFloat]] = {
-      processValidatedSingleValue[WomSingleFile, WomFloat](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
+      processValidatedSingleValue[WomSingleFile, WomFloat](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { fileToRead =>
         val tryResult = for {
           read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readFloatLimit)
           asFloat <- Try(read.trim.toDouble)
@@ -211,9 +211,9 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: ReadBoolean,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomBoolean]] = {
-      processValidatedSingleValue[WomSingleFile, WomBoolean](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
+      processValidatedSingleValue[WomSingleFile, WomBoolean](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { fileToRead =>
         val tryResult = for {
           read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readBoolLimit)
           asBool <- Try(read.trim.toBoolean)
@@ -233,10 +233,10 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: WriteLines,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomSingleFile]] = {
       val functionName = "write_lines"
-      processValidatedSingleValue[WomArray, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { stringsToWrite =>
+      processValidatedSingleValue[WomArray, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { stringsToWrite =>
         val tryResult = for {
           serialized <- ValueEvaluation.serializeWomValue(functionName, stringsToWrite, defaultIfOptionalEmpty = WomArray(WomArrayType(WomStringType), Seq.empty))
           written <- writeContent(functionName, ioFunctionSet, serialized)
@@ -251,10 +251,10 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: WriteTsv,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomSingleFile]] = {
       val functionName = "write_tsv"
-      processValidatedSingleValue[WomArray, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { objectToWrite =>
+      processValidatedSingleValue[WomArray, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { objectToWrite =>
 
         val tryResult = for {
           serialized <- ValueEvaluation.serializeWomValue(functionName, objectToWrite, defaultIfOptionalEmpty = WomArray(WomArrayType(WomStringType), List.empty[WomValue]))
@@ -270,10 +270,10 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: WriteMap,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomSingleFile]] = {
       val functionName = "write_map"
-      processValidatedSingleValue[WomMap, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { mapToWrite: WomMap =>
+      processValidatedSingleValue[WomMap, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { mapToWrite: WomMap =>
         val tryResult = for {
           serialized <- ValueEvaluation.serializeWomValue(functionName, mapToWrite, defaultIfOptionalEmpty = WomMap(Map.empty))
           written <- writeContent(functionName, ioFunctionSet, serialized)
@@ -288,10 +288,10 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: WriteObject,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomSingleFile]] = {
       val functionName = "write_object"
-      processValidatedSingleValue[WomObject, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { objectToWrite: WomObject =>
+      processValidatedSingleValue[WomObject, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { objectToWrite: WomObject =>
         val tryResult = for {
           serialized <- ValueEvaluation.serializeWomValue(functionName, objectToWrite, defaultIfOptionalEmpty = WomObject(Map.empty))
           written <- writeContent(functionName, ioFunctionSet, serialized)
@@ -306,10 +306,10 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: WriteObjects,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomSingleFile]] = {
       val functionName = "write_objects"
-      processValidatedSingleValue[WomArray, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { objectToWrite =>
+      processValidatedSingleValue[WomArray, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { objectToWrite =>
         val tryResult = for {
           serialized <- ValueEvaluation.serializeWomValue(functionName, objectToWrite, defaultIfOptionalEmpty = WomArray(List(WomObject(Map.empty))))
           written <- writeContent(functionName, ioFunctionSet, serialized)
@@ -324,10 +324,10 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: WriteJson,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomSingleFile]] = {
       val functionName = "write_json"
-      processValidatedSingleValue[WomObject, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { objectToWrite =>
+      processValidatedSingleValue[WomObject, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { objectToWrite =>
         val serialized = ValueEvaluation.valueToJson(objectToWrite)
         val tryResult = for {
           written <- writeContent(functionName, ioFunctionSet, serialized.compactPrint)
@@ -342,9 +342,9 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: Range,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomArray]] = {
-      processValidatedSingleValue[WomInteger, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { integer =>
+      processValidatedSingleValue[WomInteger, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { integer =>
         val array = WomArray(
           womType = WomArrayType(WomIntegerType, guaranteedNonEmpty = integer.value > 0),
           value = (0 until integer.value).map(WomInteger)
@@ -358,9 +358,9 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: Transpose,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomArray]] = {
-      processValidatedSingleValue[WomArray, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { array =>
+      processValidatedSingleValue[WomArray, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { array =>
         EngineFunctions.transpose(array).map(EvaluatedValue(_, Seq.empty)).toErrorOr
       }
     }
@@ -370,9 +370,9 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: Length,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomInteger]] = {
-      processValidatedSingleValue[WomArray, WomInteger](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { a =>
+      processValidatedSingleValue[WomArray, WomInteger](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { a =>
         EvaluatedValue(WomInteger(a.value.size), Seq.empty).validNel
       }
     }
@@ -382,14 +382,14 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: Flatten,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomArray]] = {
       def flatValues(v: WomValue): ErrorOr[Seq[WomValue]] = v match {
         case WomArrayLike(arrayLike) => arrayLike.value.validNel
         case other => s"inner item ${other.toWomString} was not an array-like".invalidNel
       }
 
-      processValidatedSingleValue[WomArray, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { array =>
+      processValidatedSingleValue[WomArray, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { array =>
         val expandedValidation = array.value.toList.traverse{ flatValues }
         expandedValidation map { expanded => EvaluatedValue(WomArray(expanded.flatten), Seq.empty) }
       } (coercer = WomArrayType(WomArrayType(WomAnyType)))
@@ -400,9 +400,9 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: SelectFirst,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomValue]] = {
-      processValidatedSingleValue[WomArray, WomValue](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { array =>
+      processValidatedSingleValue[WomArray, WomValue](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { array =>
         val firstValue = array.value collectFirst {
           case WomOptionalValue(_, Some(yay)) => yay
         }
@@ -419,9 +419,9 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: SelectAll,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomArray]] = {
-      processValidatedSingleValue[WomArray, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { array =>
+      processValidatedSingleValue[WomArray, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { array =>
         val goodValues = array.value.collect {
           case WomOptionalValue.Flattened(Some(value)) => value
         }
@@ -434,9 +434,9 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: Defined,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomBoolean]] = {
-      processValidatedSingleValue[WomOptionalValue, WomBoolean](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { optionalValue =>
+      processValidatedSingleValue[WomOptionalValue, WomBoolean](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { optionalValue =>
         EvaluatedValue(WomBoolean(optionalValue.value.isDefined), Seq.empty).validNel
       }
     }
@@ -446,9 +446,9 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: Floor,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomInteger]] = {
-      processValidatedSingleValue[WomFloat, WomInteger](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { float =>
+      processValidatedSingleValue[WomFloat, WomInteger](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { float =>
         EvaluatedValue(WomInteger(math.floor(float.value).toInt), Seq.empty).validNel
       }
     }
@@ -458,9 +458,9 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: Ceil,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomInteger]] = {
-      processValidatedSingleValue[WomFloat, WomInteger](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { float =>
+      processValidatedSingleValue[WomFloat, WomInteger](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { float =>
         EvaluatedValue(WomInteger(math.ceil(float.value).toInt), Seq.empty).validNel
       }
     }
@@ -470,9 +470,9 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: Round,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomInteger]] = {
-      processValidatedSingleValue[WomFloat, WomInteger](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { float =>
+      processValidatedSingleValue[WomFloat, WomInteger](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { float =>
         EvaluatedValue(WomInteger(math.round(float.value).toInt), Seq.empty).validNel
       }
     }
@@ -485,12 +485,12 @@ object EngineFunctionEvaluators {
       * @param a                              The A to evaluate
       * @param inputs                         Evaluation inputs
       * @param ioFunctionSet                  IO functions to use
-      * @param forCommandInstantiationOptions Supplied only if we're evaluating this A as part of command instantiation.
+      * @param expressionEvaluationOptions Supplied only if we're evaluating this A as part of command instantiation.
       * @return An evaluated value set - the value itself and any files which were produced as part of the evaluation.
       */
-    override def evaluateValue(a: Glob, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+    override def evaluateValue(a: Glob, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
-      processValidatedSingleValue[WomString, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { globString =>
+      processValidatedSingleValue[WomString, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { globString =>
         for {
           globbed <- Try(Await.result(ioFunctionSet.glob(globString.valueString), ReadWaitTimeout)).toErrorOr
           files = globbed map WomSingleFile
@@ -504,7 +504,7 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: Size,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomFloat]] = {
       // Inner function: get the memory unit from the second (optional) parameter
       def toUnit(womValue: WomValue): ErrorOr[MemoryUnit] = Try(MemoryUnit.fromSuffix(womValue.valueString)).toErrorOr
@@ -537,8 +537,8 @@ object EngineFunctionEvaluators {
         } yield EvaluatedValue(WomFloat(MemorySize(fileSize.toDouble, MemoryUnit.Bytes).to(convertToUnit).amount), value.sideEffectFiles ++ evaluatedUnitValue.sideEffectFiles)
       }
 
-      val evaluatedFileValidation: ErrorOr[EvaluatedValue[_ <: WomValue]] = a.file.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
-      fileSize(evaluatedFileValidation, a.unit map (_.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)))
+      val evaluatedFileValidation: ErrorOr[EvaluatedValue[_ <: WomValue]] = a.file.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)
+      fileSize(evaluatedFileValidation, a.unit map (_.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)))
     }
   }
 
@@ -546,17 +546,17 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: Basename,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomString]] = {
       def simpleBasename(fileNameAsString: WomString) = fileNameAsString.valueString.split('/').last
 
       a.suffixToRemove match {
-        case None => processValidatedSingleValue[WomString, WomString](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { str =>
+        case None => processValidatedSingleValue[WomString, WomString](a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { str =>
           EvaluatedValue(WomString(simpleBasename(str)), Seq.empty).validNel
         }
         case Some(suffixToRemove) => processTwoValidatedValues[WomString, WomString, WomString](
-          a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions),
-          suffixToRemove.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { (name, suffix) =>
+          a.param.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions),
+          suffixToRemove.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { (name, suffix) =>
             EvaluatedValue(WomString(simpleBasename(name).stripSuffix(suffix.valueString)), Seq.empty).validNel
           }
       }
@@ -567,9 +567,9 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: Zip,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomArray]] = {
-      processTwoValidatedValues[WomArray, WomArray, WomArray](a.arg1.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions), a.arg2.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { (arr1, arr2) =>
+      processTwoValidatedValues[WomArray, WomArray, WomArray](a.arg1.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions), a.arg2.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { (arr1, arr2) =>
         if (arr1.size == arr2.size) {
           val pairs = arr1.value.zip(arr2.value) map { case (a, b) => WomPair(a, b) }
           EvaluatedValue(WomArray(WomArrayType(WomPairType(arr1.arrayType.memberType, arr2.arrayType.memberType)), pairs), Seq.empty).validNel
@@ -584,9 +584,9 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: Cross,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomArray]] = {
-      processTwoValidatedValues[WomArray, WomArray, WomArray](a.arg1.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions), a.arg2.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { (arr1, arr2) =>
+      processTwoValidatedValues[WomArray, WomArray, WomArray](a.arg1.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions), a.arg2.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { (arr1, arr2) =>
         val pairs = for {
           a <- arr1.value
           b <- arr2.value
@@ -600,9 +600,9 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: Prefix,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomArray]] = {
-      processTwoValidatedValues[WomString, WomArray, WomArray](a.prefix.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions), a.array.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { (prefix, array) =>
+      processTwoValidatedValues[WomString, WomArray, WomArray](a.prefix.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions), a.array.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { (prefix, array) =>
         EvaluatedValue(WomArray(array.value.map(value => WomString(prefix.value + value.valueString))), Seq.empty).validNel
       }
     }
@@ -612,12 +612,12 @@ object EngineFunctionEvaluators {
     override def evaluateValue(a: Sub,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomString]] = {
       processThreeValidatedValues[WomString, WomString, WomString, WomString](
-        a.input.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions),
-        a.pattern.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions),
-        a.replace.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { (input, pattern, replace) =>
+        a.input.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions),
+        a.pattern.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions),
+        a.replace.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) { (input, pattern, replace) =>
         EvaluatedValue(WomString(pattern.valueString.r.replaceAllIn(input.valueString, replace.valueString)), Seq.empty).validNel
       }
     }

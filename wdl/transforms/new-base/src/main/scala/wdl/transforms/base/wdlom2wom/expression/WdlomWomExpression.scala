@@ -9,7 +9,7 @@ import wdl.model.draft3.graph.expression.TypeEvaluator.ops._
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wdl.model.draft3.graph.expression._
 import wdl.model.draft3.graph.{ExpressionValueConsumer, GeneratedValueHandle, UnlinkedConsumedValueHook}
-import wom.expression.{FileEvaluation, IoFunctionSet, WomExpression}
+import wom.expression.{CloudToLocalFilePathMapper, ExpressionEvaluationOptions, FileEvaluation, IoFunctionSet, WomExpression}
 import wom.types.WomType
 import wom.values.WomValue
 import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
@@ -26,11 +26,11 @@ final case class WdlomWomExpression private (expressionElement: ExpressionElemen
     expressionElement.expressionConsumedValueHooks map { hook => linkedValues(hook).linkableName }
   }
 
-  def evaluateValueForPlaceholder(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, forCommandInstantiationOptions: ForCommandInstantiationOptions): ErrorOr[EvaluatedValue[_]] =
-    expressionElement.evaluateValue(inputValues, ioFunctionSet, Option(forCommandInstantiationOptions))
+  def evaluateValueForPlaceholder(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, cloudToLocalFilePathMapper: CloudToLocalFilePathMapper): ErrorOr[EvaluatedValue[_]] =
+    expressionElement.evaluateValue(inputValues, ioFunctionSet, ExpressionEvaluationOptions(Option(cloudToLocalFilePathMapper), forCommandInstantiation = true))
 
-  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] =
-    expressionElement.evaluateValue(inputValues, ioFunctionSet, None) map { _.value }
+  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, expressionEvaluationOptions: ExpressionEvaluationOptions): ErrorOr[WomValue] =
+    expressionElement.evaluateValue(inputValues, ioFunctionSet, expressionEvaluationOptions) map { _.value }
 
   private lazy val evaluatedType = expressionElement.evaluateType(linkedValues)
   // NB types can be determined using the linked values, so we don't need the inputMap:

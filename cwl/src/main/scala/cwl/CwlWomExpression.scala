@@ -14,7 +14,7 @@ import cwl.InitialWorkDirRequirement.IwdrListingArrayEntry
 import shapeless.Poly1
 import wom.callable.{AdHocValue, ContainerizedInputExpression}
 import wom.expression.IoFunctionSet.{IoDirectory, IoFile}
-import wom.expression.{FileEvaluation, IoFunctionSet, WomExpression}
+import wom.expression.{ExpressionEvaluationOptions, FileEvaluation, IoFunctionSet, WomExpression}
 import wom.types._
 import wom.values._
 
@@ -45,7 +45,7 @@ case class ECMAScriptWomExpression(expression: Expression,
     case Expression.ECMAScriptFunction(s) => s.value
   }
 
-  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet) = {
+  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, expressionEvaluationOptions: ExpressionEvaluationOptions) = {
     val pc = ParameterContext(ioFunctionSet, expressionLib, inputValues)
     evaluate(inputValues, pc, expression)
   }

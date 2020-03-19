@@ -9,7 +9,7 @@ import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.EvaluatedValue
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wdl.model.draft3.graph.expression.TypeEvaluator.ops._
-import wom.expression.NoIoFunctionSet
+import wom.expression.{ExpressionEvaluationOptions, NoIoFunctionSet}
 import wom.types.{WomBooleanType, WomIntegerType, WomType}
 import wom.values.{WomBoolean, WomInteger, WomValue}
 
@@ -63,7 +63,7 @@ class UnaryAndBinaryOperatorsEvaluatorSpec extends FlatSpec with Matchers{
 
   expressionTests foreach { case (name, expression, expectedValue, expectedType) =>
     it should s"evaluate the expression '$name'" in {
-      expression.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedValue, Seq.empty)
+      expression.evaluateValue(Map.empty, NoIoFunctionSet, ExpressionEvaluationOptions.default) shouldBeValid EvaluatedValue(expectedValue, Seq.empty)
     }
 
     it should s"evaluate the type of the expression '$name'" in {

@@ -4,7 +4,7 @@ import common.validation.ErrorOr.ErrorOr
 import common.validation.IOChecked.{IOChecked, _}
 import cwl.CwlType.CwlType
 import shapeless.Poly1
-import wom.expression.{EmptyIoFunctionSet, FileEvaluation, IoFunctionSet}
+import wom.expression.{EmptyIoFunctionSet, ExpressionEvaluationOptions, FileEvaluation, IoFunctionSet}
 import wom.types._
 import wom.values.WomValue
 
@@ -53,7 +53,7 @@ case class OutputParameterExpression(parameter: OutputParameter,
     )
   }
   
-  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
+  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, expressionEvaluationOptions: ExpressionEvaluationOptions): ErrorOr[WomValue] = {
     def fromOutputBinding =
       parameter.outputBinding.map(evaluateOutputBinding(inputValues, ioFunctionSet, parameter.secondaryFiles, parameter.format)(_, cwlExpressionType))
 

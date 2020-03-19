@@ -6,10 +6,10 @@ import common.validation.ErrorOr.ErrorOr
 import common.validation.ErrorOr._
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
-import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
+import wdl.model.draft3.graph.expression.{EvaluatedValue, ValueEvaluator}
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wom.OptionalNotSuppliedException
-import wom.expression.IoFunctionSet
+import wom.expression.{ExpressionEvaluationOptions, IoFunctionSet}
 import wom.values.{WomBoolean, WomString, WomValue}
 
 import scala.util.Try
@@ -38,18 +38,18 @@ object BinaryOperatorEvaluators {
     override def evaluateValue(a: A,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] =
-      a.left.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions) flatMap { left =>
+      a.left.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions) flatMap { left =>
         if (shortCircuit.isDefinedAt(left.value)) {
           EvaluatedValue(shortCircuit(left.value), left.sideEffectFiles).validNel
         } else {
-          a.right.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions) flatMap { right =>
+          a.right.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions) flatMap { right =>
             val rawResult = op(left.value, right.value)
 
             // Allow unsupplied optionals, but only if we're instantiating a command:
             val handleOptionals = rawResult.recover {
-              case OptionalNotSuppliedException(_) if forCommandInstantiationOptions.isDefined => WomString("")
+              case OptionalNotSuppliedException(_) if expressionEvaluationOptions.forCommandInstantiation => WomString("")
             }
 
             handleOptionals.toErrorOr map { newValue => EvaluatedValue(newValue, left.sideEffectFiles ++ right.sideEffectFiles) }

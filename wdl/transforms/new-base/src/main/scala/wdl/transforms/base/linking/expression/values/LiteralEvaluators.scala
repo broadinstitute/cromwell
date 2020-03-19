@@ -7,9 +7,9 @@ import cats.instances.list._
 import common.validation.ErrorOr.ErrorOr
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
-import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
+import wdl.model.draft3.graph.expression.{EvaluatedValue, ValueEvaluator}
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
-import wom.expression.IoFunctionSet
+import wom.expression.{ExpressionEvaluationOptions, IoFunctionSet}
 import wom.values.{WomArray, WomMap, WomObject, WomPair, WomString, WomValue}
 
 
@@ -19,7 +19,7 @@ object LiteralEvaluators {
     override def evaluateValue(a: PrimitiveLiteralExpressionElement,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
       EvaluatedValue(a.value, Seq.empty).validNel
     }
@@ -29,7 +29,7 @@ object LiteralEvaluators {
     override def evaluateValue(a: StringLiteral,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomString]] = {
       EvaluatedValue(WomString(a.value), Seq.empty).validNel
     }
@@ -39,11 +39,11 @@ object LiteralEvaluators {
     override def evaluateValue(a: StringExpression,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
       val evaluatedPieces = a.pieces.toList.traverse {
-        case e: StringPlaceholder => e.expr.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
-        case s: StringLiteral => s.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
+        case e: StringPlaceholder => e.expr.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)
+        case s: StringLiteral => s.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)
         case e: StringEscapeSequence => EvaluatedValue(WomString(e.unescape), Seq.empty).validNel
       }
 
@@ -57,11 +57,11 @@ object LiteralEvaluators {
     override def evaluateValue(a: ObjectLiteral,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
 
       val evaluated: ErrorOr[List[(String, EvaluatedValue[_])]] = a.elements.toList traverse { case (key, value) =>
-        value.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions).map(key -> _)
+        value.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions).map(key -> _)
       }
 
       evaluated map { mapping =>
@@ -76,12 +76,12 @@ object LiteralEvaluators {
     override def evaluateValue(a: MapLiteral,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
 
       val evaluated: ErrorOr[List[(EvaluatedValue[_], EvaluatedValue[_])]] = a.elements.toList traverse { case (key, value) =>
-        (key.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions),
-          value.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) mapN { (key, value) => key -> value}
+        (key.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions),
+          value.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) mapN { (key, value) => key -> value}
       }
 
       evaluated map { kvps =>
@@ -96,11 +96,11 @@ object LiteralEvaluators {
     override def evaluateValue(a: ArrayLiteral,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
 
       val evaluated: ErrorOr[Seq[EvaluatedValue[_]]] = a.elements.toList traverse { entry =>
-        entry.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
+        entry.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)
       }
 
       evaluated map { evaluateds =>
@@ -115,11 +115,11 @@ object LiteralEvaluators {
     override def evaluateValue(a: PairLiteral,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                               expressionEvaluationOptions: ExpressionEvaluationOptions)
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
 
-      (a.left.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions),
-        a.right.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) mapN { (left, right) =>
+      (a.left.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions),
+        a.right.evaluateValue(inputs, ioFunctionSet, expressionEvaluationOptions)) mapN { (left, right) =>
 
         EvaluatedValue(WomPair(left.value, right.value), left.sideEffectFiles ++ right.sideEffectFiles)
       }

@@ -24,9 +24,17 @@ trait WomExpression {
     */
   def cacheString = sourceString
   def inputs: Set[String]
-  def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue]
+  def evaluateValue(inputValues: Map[String, WomValue],
+                    ioFunctionSet: IoFunctionSet,
+                    evaluationOptions: ExpressionEvaluationOptions = ExpressionEvaluationOptions.default): ErrorOr[WomValue]
   def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType]
   def evaluateFiles(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]]
+}
+
+final case class ExpressionEvaluationOptions(cloudToLocalFilePathMapper: Option[CloudToLocalFilePathMapper], forCommandInstantiation: Boolean)
+final case class CloudToLocalFilePathMapper(valueMapper: WomValue => WomValue) { def mapCloudPathToLocal(value: WomValue) = valueMapper.apply(value) }
+object ExpressionEvaluationOptions {
+  val default = ExpressionEvaluationOptions(None, forCommandInstantiation = false)
 }
 
 /**
@@ -34,7 +42,7 @@ trait WomExpression {
   */
 final case class ValueAsAnExpression(value: WomValue) extends WomExpression {
   override def sourceString: String = value.valueString
-  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = Valid(value)
+  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, expressionEvaluationOptions: ExpressionEvaluationOptions): ErrorOr[WomValue] = Valid(value)
   override def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType] = Valid(value.womType)
   override def evaluateFiles(inputTypes: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = Valid(Set.empty)
   override val inputs: Set[String] = Set.empty

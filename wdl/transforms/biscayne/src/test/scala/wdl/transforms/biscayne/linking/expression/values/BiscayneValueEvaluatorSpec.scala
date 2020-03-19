@@ -7,7 +7,7 @@ import wdl.model.draft3.graph.expression.EvaluatedValue
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wdl.transforms.biscayne.Ast2WdlomSpec.{fromString, parser}
 import wdl.transforms.biscayne.ast2wdlom._
-import wom.expression.NoIoFunctionSet
+import wom.expression.{ExpressionEvaluationOptions, NoIoFunctionSet}
 import wom.values.{WomArray, WomInteger, WomMap, WomOptionalValue, WomPair, WomString}
 import common.assertion.ManyTimes.intWithTimes
 import wom.types.{WomIntegerType, WomMapType, WomOptionalType, WomStringType}
@@ -22,7 +22,7 @@ class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
     expr.shouldBeValidPF {
-      case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(WomInteger(6), Seq.empty)
+      case e => e.evaluateValue(Map.empty, NoIoFunctionSet, ExpressionEvaluationOptions.default) shouldBeValid EvaluatedValue(WomInteger(6), Seq.empty)
     }
   }
 
@@ -37,7 +37,7 @@ class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
     ))
 
     expr.shouldBeValidPF {
-      case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedMap, Seq.empty)
+      case e => e.evaluateValue(Map.empty, NoIoFunctionSet, ExpressionEvaluationOptions.default) shouldBeValid EvaluatedValue(expectedMap, Seq.empty)
     }
   }
 
@@ -55,7 +55,7 @@ class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
       ))
 
       expr.shouldBeValidPF {
-        case e => e.evaluateValue(inputs, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedPairs, Seq.empty)
+        case e => e.evaluateValue(inputs, NoIoFunctionSet, ExpressionEvaluationOptions.default) shouldBeValid EvaluatedValue(expectedPairs, Seq.empty)
       }
       ()
     }
@@ -80,7 +80,7 @@ class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
       val inputs = Map("echo_me" -> expectedPairs)
 
       expr.shouldBeValidPF {
-        case e => e.evaluateValue(inputs, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedPairs, Seq.empty)
+        case e => e.evaluateValue(inputs, NoIoFunctionSet, ExpressionEvaluationOptions.default) shouldBeValid EvaluatedValue(expectedPairs, Seq.empty)
       }
       ()
     }
@@ -94,7 +94,7 @@ class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
       val expr = fromString[ExpressionElement](str, parser.parse_e)
 
       expr.shouldBeValidPF {
-        case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None).shouldBeInvalid("""Cannot evaluate 'as_map' with duplicated keys: keys can only appear once but "x" appeared 2 times.""")
+        case e => e.evaluateValue(Map.empty, NoIoFunctionSet, ExpressionEvaluationOptions.default).shouldBeInvalid("""Cannot evaluate 'as_map' with duplicated keys: keys can only appear once but "x" appeared 2 times.""")
       }
       ()
     }
@@ -113,7 +113,7 @@ class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
       ))
 
       expr.shouldBeValidPF {
-        case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedMap, Seq.empty)
+        case e => e.evaluateValue(Map.empty, NoIoFunctionSet, ExpressionEvaluationOptions.default) shouldBeValid EvaluatedValue(expectedMap, Seq.empty)
       }
       ()
     }
@@ -133,7 +133,7 @@ class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
     ))
 
     expr.shouldBeValidPF {
-      case e => e.evaluateValue(inputs, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedMap, Seq.empty)
+      case e => e.evaluateValue(inputs, NoIoFunctionSet, ExpressionEvaluationOptions.default) shouldBeValid EvaluatedValue(expectedMap, Seq.empty)
     }
   }
 
@@ -157,7 +157,7 @@ class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
         val expr = fromString[ExpressionElement](str, parser.parse_e)
 
         expr.shouldBeValidPF {
-          case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedEvaluation, Seq.empty)
+          case e => e.evaluateValue(Map.empty, NoIoFunctionSet, ExpressionEvaluationOptions.default) shouldBeValid EvaluatedValue(expectedEvaluation, Seq.empty)
         }
       }
     }

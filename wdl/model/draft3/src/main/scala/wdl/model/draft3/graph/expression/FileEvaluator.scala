@@ -6,7 +6,7 @@ import common.validation.ErrorOr.ErrorOr
 import simulacrum.typeclass
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.shared.model.expression.FileEvaluatorUtil
-import wom.expression.IoFunctionSet
+import wom.expression.{ExpressionEvaluationOptions, IoFunctionSet}
 import wom.types.WomType
 import wom.values.{WomFile, WomValue}
 
@@ -20,7 +20,7 @@ trait FileEvaluator[A <: ExpressionElement] {
                                           coerceTo: WomType)
                                          (implicit fileEvaluator: FileEvaluator[ExpressionElement],
                                           valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] = {
-    valueEvaluator.evaluateValue(a, inputs, ioFunctionSet, None) match {
+    valueEvaluator.evaluateValue(a, inputs, ioFunctionSet, ExpressionEvaluationOptions.default) match {
       case Valid(womValue) => FileEvaluatorUtil.findFilesToDelocalize(womValue.value, coerceTo).toSet.validNel
       case _ => predictFilesNeededToEvaluate(a, inputs, ioFunctionSet, coerceTo)
     }

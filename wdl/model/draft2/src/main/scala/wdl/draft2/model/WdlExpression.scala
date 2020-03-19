@@ -219,7 +219,7 @@ final case class WdlWomExpression(wdlExpression: WdlExpression, from: Scope) ext
   override def sourceString = wdlExpression.valueString
   override def inputs: Set[String] = wdlExpression.variableReferences(from) map { _.referencedVariableName } toSet
 
-  override def evaluateValue(variableValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
+  override def evaluateValue(variableValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, expressionEvaluationOptions: ExpressionEvaluationOptions): ErrorOr[WomValue] = {
     lazy val wdlFunctions = WdlStandardLibraryFunctions.fromIoFunctionSet(ioFunctionSet, FileSizeLimitationConfig.fileSizeLimitationConfig)
     wdlExpression.evaluate(variableValues.apply, wdlFunctions).toErrorOr
   }

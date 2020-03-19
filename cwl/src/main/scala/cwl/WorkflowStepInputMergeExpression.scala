@@ -9,7 +9,7 @@ import cats.syntax.validated._
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import cwl.InputParameter.DefaultToWomValuePoly
-import wom.expression.{FileEvaluation, IoFunctionSet}
+import wom.expression.{ExpressionEvaluationOptions, FileEvaluation, IoFunctionSet}
 import wom.graph.GraphNodePort.OutputPort
 import wom.types.WomType
 import wom.values.{WomArray, WomFile, WomOptionalValue, WomValue}
@@ -25,7 +25,7 @@ final case class WorkflowStepInputMergeExpression(input: WorkflowStepInput,
   override def sourceString: String = s"${input.id}-Merge-Expression"
   override def inputs: Set[String] = allStepInputSources.toSet
 
-  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] = {
+  override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, expressionEvaluationOptions: ExpressionEvaluationOptions): ErrorOr[WomValue] = {
     def lookupValue(key: String): ErrorOr[WomValue] =
       inputValues.
         get(key).

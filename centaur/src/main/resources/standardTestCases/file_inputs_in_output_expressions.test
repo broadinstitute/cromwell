@@ -1,0 +1,11 @@
+name: file_inputs_in_output_expressions
+testFormat: workflowsuccess
+
+files {
+  workflow: file_inputs_in_output_expressions/file_inputs_in_output_expressions.wdl
+}
+
+metadata {
+  workflowName: file_inputs_in_output_expressions
+  status: Succeeded
+}

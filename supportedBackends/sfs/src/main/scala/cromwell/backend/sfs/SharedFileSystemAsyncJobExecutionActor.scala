@@ -173,7 +173,7 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   def writeScriptContents(): Either[ExecutionHandle, Unit] =
     commandScriptContents.fold(
-      errors => Left(FailedNonRetryableExecutionHandle(new RuntimeException("Unable to start job due to: " + errors.toList.mkString(", ")), kvPairsToSave = None)),
+      errors => Left(FailedNonRetryableExecutionHandle(new RuntimeException(s"Unable to start job ${jobName} due to: " + errors.toList.mkString(", ")), kvPairsToSave = None)),
       {script => jobPaths.script.write(script); Right(())} )
 
   lazy val standardPaths = jobPaths.standardPaths

@@ -8,13 +8,14 @@ import common.validation.Validation._
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobSucceededResponse, RunOnBackend}
 import cromwell.backend._
 import cromwell.backend.impl.spark.SparkClusterProcess._
-import cromwell.backend.io.JobPathsWithDocker
+import cromwell.backend.io.{JobPaths, JobPathsWithDocker}
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
 import cromwell.backend.Command
 import cromwell.backend.OutputEvaluator.{EvaluatedJobOutputs, InvalidJobOutputs, JobOutputsEvaluationException, ValidJobOutputs}
 import cromwell.core.path.JavaWriterImplicits._
 import cromwell.core.path.Obsolete._
 import cromwell.core.path.{DefaultPathBuilder, TailedWriter, UntailedWriter}
+import wom.WomFileMapper
 import wom.expression.IoFunctionSet
 import wom.values.WomValue
 
@@ -138,6 +139,10 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   def evaluateOutputs(wdlFunctions: IoFunctionSet,
                       postMapper: WomValue => Try[WomValue] = v => Success(v))(implicit ec: ExecutionContext): EvaluatedJobOutputs = {
     Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, wdlFunctions, postMapper = postMapper), Duration.Inf)
+  }
+
+  def outputMapper(job: JobPaths)(womValue: WomValue): Try[WomValue] = {
+    WomFileMapper.mapWomFiles(mapJobWomFile(job), Set.empty)(womValue)
   }
 
   private def processSuccess(rc: Int) = {

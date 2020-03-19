@@ -54,8 +54,8 @@ def check_for_imminent_explosion(a, b):
     # To find out when the database will explode, solve for x and set y to the maximum size.
     # y = a * e^(b*x)          # original
     # ln(y) = ln(a) + b*x      # take logarithms of both sides
-    # ln(y) - ln(a) = b*x      # subtract ln(b) from both sides
-    # (ln(y) - ln(a))/b = x    # divide both sides by c
+    # ln(y) - ln(a) = b*x      # subtract ln(a) from both sides
+    # (ln(y) - ln(a))/b = x    # divide both sides by b
     # x = (ln(y) - ln(a))/b    # swap sides
     when_explode_months = (log(maximum_database_size_tib) - log(a)) / b
     print("Given a maximum size of {maximum_database_size_tib:.2f} TiB, it is estimated that the Cromwell database will explode in {when_explode_months:.2f} months. Please plan accordingly.".format(**locals()))

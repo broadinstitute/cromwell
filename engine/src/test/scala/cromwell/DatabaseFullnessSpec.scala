@@ -15,7 +15,7 @@ class DatabaseFullnessSpec extends FlatSpec {
   // (tl;dr take logs and do linear regression):
   // https://stackoverflow.com/questions/41783768/determine-coefficients-of-exponential-function-using-apache-common-math
 
-  it should "be able to warn about impending database explosion" in {
+  it should "be able to warn about impending database explosion" ignore {
     val googleProject = System.getenv("GOOGLE_PROJECT")
     val cloudSqlInstance = System.getenv("CLOUD_SQL_INSTANCE")
     val maximumDatabaseSizeTiB = System.getenv("MAXIMUM_DATABASE_SIZE_TIB").toLong

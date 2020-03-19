@@ -7,7 +7,7 @@ import wom.callable.RuntimeEnvironment
 import wom.expression.IoFunctionSet
 import wom.values.{WomEvaluatedCallInputs, WomValue}
 
-import scala.util.{Success, Try}
+import scala.util.Try
 
 object Command {
 
@@ -24,7 +24,7 @@ object Command {
     */
   def instantiate(jobDescriptor: BackendJobDescriptor,
                   callEngineFunction: IoFunctionSet,
-                  inputsPreProcessor: WomEvaluatedCallInputs => Try[WomEvaluatedCallInputs] = (i: WomEvaluatedCallInputs) => Success(i),
+                  inputsPreProcessor: WomEvaluatedCallInputs => Try[WomEvaluatedCallInputs],
                   valueMapper: WomValue => WomValue,
                   runtimeEnvironment: RuntimeEnvironment): ErrorOr[InstantiatedCommand] = {
     inputsPreProcessor(jobDescriptor.evaluatedTaskInputs).toErrorOr flatMap { mappedInputs =>

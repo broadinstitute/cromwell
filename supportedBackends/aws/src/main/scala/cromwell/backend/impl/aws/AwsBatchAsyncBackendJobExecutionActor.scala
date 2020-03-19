@@ -423,6 +423,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     * @return a `Future` for the asynch operation
     */
   def uploadScriptFile(): Future[Unit] = {
+    //todo possibly remove this method as we don't use the script
     commandScriptContents.fold(
       errors => Future.failed(new RuntimeException(errors.toList.mkString(", "))),
       asyncIo.writeAsync(jobPaths.script, _, Seq.empty)

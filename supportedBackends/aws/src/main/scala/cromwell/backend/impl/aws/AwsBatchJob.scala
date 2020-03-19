@@ -48,6 +48,8 @@ import software.amazon.awssdk.services.batch.BatchClient
 import software.amazon.awssdk.services.batch.model._
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient
 import software.amazon.awssdk.services.cloudwatchlogs.model.{GetLogEventsRequest, OutputLogEvent}
+import software.amazon.awssdk.services.ecs.EcsClient
+import software.amazon.awssdk.services.ecs.model.DescribeContainerInstancesRequest
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.{GetObjectRequest, HeadObjectRequest, NoSuchKeyException, PutObjectRequest}
 import wdl4s.parser.MemoryUnit
@@ -112,12 +114,12 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
     //generate a series of s3 copy statements to copy any s3 files into the container
     val inputCopyCommand = inputs.map {
-      case input: AwsBatchFileInput => s"$s3Cmd cp ${input.s3key} $dockerRootDir/${input.local}"
+      case input: AwsBatchFileInput if input.s3key.startsWith("s3://") => s"$s3Cmd cp ${input.s3key} $dockerRootDir/${input.local}"
       case _ => ""
     }.mkString("\n|") //the pipe is needed for the margin (which gets stripped out)
 
     val outputCopyCommand = outputs.map {
-      case output: AwsBatchFileOutput => s"$s3Cmd cp ${output.local} ${output.s3key}"
+      case output: AwsBatchFileOutput if output.s3key.startsWith("s3://") => s"$s3Cmd cp ${output.local} ${output.s3key}"
       case _ => ""
     }.mkString("\n|")
 
@@ -194,6 +196,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
             )
             .jobQueue(runtimeAttributes.queueArn)
             .jobDefinition(definitionArn)
+            // todo add JobRetryStrategy with retry attempts
             .build
         ))
 
@@ -385,15 +388,50 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
    */
   def status(jobId: String): Try[RunStatus] = for {
     statusString <- Try(detail(jobId).status)
+    batchJobContainerContext <- Try(batchJobContainerContext(jobId))
+    _ <- Try(Log.info(s"Task ${jobDescriptor.key.call.fullyQualifiedName + "-" + jobDescriptor.key.index + "-" + jobDescriptor.key.attempt} in container context $batchJobContainerContext"))
     runStatus <- RunStatus.fromJobStatus(statusString, jobId)
   } yield runStatus
 
   def detail(jobId: String): JobDetail = {
     //TODO: This client call should be wrapped in a cats Effect
-     val describeJobsResponse = batchClient.describeJobs(DescribeJobsRequest.builder.jobs(jobId).build)
+    val describeJobsResponse = batchClient.describeJobs(DescribeJobsRequest.builder.jobs(jobId).build)
 
-     describeJobsResponse.jobs.asScala.headOption.
-       getOrElse(throw new RuntimeException(s"Expected a job Detail to be present from this request: $describeJobsResponse and this response: $describeJobsResponse "))
+    val jobDetail = describeJobsResponse.jobs.asScala.headOption.
+      getOrElse(throw new RuntimeException(s"Expected a job Detail to be present from this request: $describeJobsResponse and this response: $describeJobsResponse "))
+
+    jobDetail
+  }
+
+  /**
+    * Return information about the container, ECS Cluster and EC2 instance that is (or was) hosting this job
+    * @param jobId the id of the job for which you want the context
+    * @return the context
+    */
+  def batchJobContainerContext(jobId: String): BatchJobContainerContext ={
+    val containerInstanceArn = detail(jobId).container().containerInstanceArn()
+    val describeJobQueuesResponse = batchClient.describeJobQueues( DescribeJobQueuesRequest.builder().jobQueues( runtimeAttributes.queueArn ).build())
+    val computeEnvironments = describeJobQueuesResponse.jobQueues().asScala.head.computeEnvironmentOrder().asScala.map(_.computeEnvironment())
+    val describeComputeEnvironmentsResponse = batchClient.describeComputeEnvironments( DescribeComputeEnvironmentsRequest.builder().computeEnvironments(computeEnvironments.asJava).build())
+    val ecsClusterArns = describeComputeEnvironmentsResponse.computeEnvironments().asScala.map(_.ecsClusterArn())
+
+    val ecsClient = configureClient(EcsClient.builder(), optAwsAuthMode, configRegion)
+
+    val instanceIds: Seq[String] = ecsClusterArns.map(containerArn => ecsClient.describeContainerInstances(DescribeContainerInstancesRequest.builder().containerInstances(containerInstanceArn).cluster(containerArn).build()))
+      .map(r => r.containerInstances().asScala).flatMap(_.map(_.ec2InstanceId()))
+
+    BatchJobContainerContext(jobId, containerInstanceArn, ecsClusterArns, instanceIds)
+  }
+
+  case class BatchJobContainerContext(jobId: String, containerInstanceArn: String, ecsClusterArns: Seq[String], ec2InstanceIds: Seq[String]) {
+    override def toString: String = {
+      new ToStringBuilder(this, ToStringStyle.JSON_STYLE)
+        .append("jobId", this.jobId)
+        .append("containerInstanceArn", containerInstanceArn)
+        .append("ecsClusterArns", ecsClusterArns)
+        .append("ec2InstanceIds", ec2InstanceIds)
+        .build()
+    }
   }
 
   //TODO: unused at present
@@ -401,7 +439,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
      detail.container.exitCode
   }
 
-  //todo: unused at present
+  //todo: unused at present??
   def output(detail: JobDetail): String = {
      val events: Seq[OutputLogEvent] = cloudWatchLogsClient.getLogEvents(GetLogEventsRequest.builder
                                             // http://aws-java-sdk-javadoc.s3-website-us-west-2.amazonaws.com/latest/software/amazon/awssdk/services/batch/model/ContainerDetail.html#logStreamName--

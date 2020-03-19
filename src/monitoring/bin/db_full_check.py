@@ -6,8 +6,7 @@ import requests
 
 
 def main():
-    time_series_response = call_time_series_endpoint()
-    points = time_series_response["timeSeries"][0]["points"]
+    points = call_time_series_endpoint()
     data = [datum_from_raw_time_point(p) for p in points]
 
     # Sorting is not strictly necessary but convenient when sanity checking.
@@ -70,12 +69,12 @@ def datum_from_raw_time_point(time_point):
     return Datum(dateutil.parser.parse(string_timestamp), bytes)
 
 
-def read_response_from_file():
+def read_points_from_file():
     # debug code to read a canned response, main can be modified to call this instead of call_time_series_endpoint().
     import json
     line = open("response.json", "r").readlines()[0].strip()
     time_series_response = json.loads(line)
-    return time_series_response
+    return time_series_response["timeSeries"][0]["points"]
 
 
 def call_time_series_endpoint():
@@ -103,7 +102,7 @@ def call_time_series_endpoint():
             'Authorization': 'Bearer ' + access_token
         }
     )
-    return response.json()
+    return response.json()["timeSeries"][0]["points"]
 
 
 class Datum:

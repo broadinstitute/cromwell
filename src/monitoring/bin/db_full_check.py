@@ -19,7 +19,7 @@ def main():
 
 def call_time_series_endpoint():
     google_project = os.getenv("CROMWELL_GOOGLE_PROJECT")
-    cloud_sql_instance = os.getenv("CROMWELL_CLOUDSQL_INSTANCE")
+    cloudsql_instance = os.getenv("CROMWELL_CLOUDSQL_INSTANCE")
     access_token = os.getenv("METRICS_ACCESS_TOKEN")
 
     now_utc = datetime.now(timezone.utc)

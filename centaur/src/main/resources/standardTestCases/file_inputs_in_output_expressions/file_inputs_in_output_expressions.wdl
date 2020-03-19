@@ -15,7 +15,7 @@ task mkFoo {
 
   output {
     File foo = "foo.txt"
-    File foo_index = "foo.index"
+    File foo_index = "~{foo}.index"
   }
   runtime {
     docker: "ubuntu:latest"

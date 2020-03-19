@@ -7,8 +7,9 @@ import cats.instances.try_._
 import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.validated._
+import cats.syntax.traverse._
+import cats.instances.list._
 import common.util.TryUtil
-import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr
 import cromwell.core.CallOutputs
 import wom.expression.IoFunctionSet
@@ -29,8 +30,9 @@ object OutputEvaluator {
 
   def evaluateOutputs(jobDescriptor: BackendJobDescriptor,
                       ioFunctions: IoFunctionSet,
+                      preMapper: WomValue => WomValue = v => v,
                       postMapper: WomValue => Try[WomValue] = v => Success(v))(implicit ec: ExecutionContext): Future[EvaluatedJobOutputs] = {
-    val taskInputValues: Map[String, WomValue] = jobDescriptor.localInputs
+    val taskInputValues: Map[String, WomValue] = jobDescriptor.localInputs map { case (key, value) => key -> preMapper(value) }
 
     def foldFunction(accumulatedOutputs: Try[ErrorOr[List[(OutputPort, WomValue)]]], output: ExpressionBasedOutputPort) = accumulatedOutputs flatMap { accumulated =>
       // Extract the valid pairs from the job outputs accumulated so far, and add to it the inputs (outputs can also reference inputs)
@@ -63,8 +65,8 @@ object OutputEvaluator {
       val evaluated = for {
         evaluated <- evaluateOutputExpression
         coerced <- coerceOutputValue(evaluated, output.womType)
-        postProcessed <- EitherT { postMapper(coerced).map(_.validNelCheck) }: OutputResult[WomValue]
-        pair = output -> postProcessed
+//        postProcessed <- EitherT { postMapper(coerced).map(_.validNelCheck) }: OutputResult[WomValue]
+        pair = output -> coerced
       } yield pair
 
       def enhanceErrorText(s: String): String = s"Bad output '${output.name}': $s"
@@ -81,7 +83,19 @@ object OutputEvaluator {
       case Success(Invalid(errors)) => InvalidJobOutputs(errors)
       case Failure(exception) => JobOutputsEvaluationException(exception)
     }
-    
+
+    def fromOutputPortsPostMapped: EvaluatedJobOutputs = fromOutputPorts match {
+      case ValidJobOutputs(outputs) =>
+        val postMapped = outputs.outputs.toList.traverse { case (key, value) =>
+          postMapper(value).map { postMapped => key -> postMapped }
+        }
+        postMapped match {
+          case Success(postMappedOutputs) => ValidJobOutputs(CallOutputs(postMappedOutputs.toMap))
+          case Failure(f) => JobOutputsEvaluationException(f)
+        }
+      case other => other
+    }
+
     /*
       * Because Cromwell doesn't trust anyone, if custom evaluation is provided,
       * still make sure that all the output ports have been filled with values
@@ -112,7 +126,7 @@ object OutputEvaluator {
         case Some(Right(outputs)) => validateCustomEvaluation(outputs)
         case Some(Left(errors)) => InvalidJobOutputs(errors)
         // If it returns an empty value, fallback to canonical output evaluation
-        case None => fromOutputPorts
+        case None => fromOutputPortsPostMapped
       })
   }
 }

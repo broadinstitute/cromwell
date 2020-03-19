@@ -11,12 +11,15 @@ import cromwell.backend.impl.spark.SparkClusterProcess._
 import cromwell.backend.io.JobPathsWithDocker
 import cromwell.backend.sfs.{SharedFileSystem, SharedFileSystemExpressionFunctions}
 import cromwell.backend.Command
-import cromwell.backend.OutputEvaluator.{InvalidJobOutputs, JobOutputsEvaluationException, ValidJobOutputs}
+import cromwell.backend.OutputEvaluator.{EvaluatedJobOutputs, InvalidJobOutputs, JobOutputsEvaluationException, ValidJobOutputs}
 import cromwell.core.path.JavaWriterImplicits._
 import cromwell.core.path.Obsolete._
 import cromwell.core.path.{DefaultPathBuilder, TailedWriter, UntailedWriter}
+import wom.expression.IoFunctionSet
+import wom.values.WomValue
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.sys.process.ProcessLogger
 import scala.util.{Failure, Success, Try}
 
@@ -130,6 +133,11 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
         }
       case false => Future.successful(processSuccess(0))
     }
+  }
+
+  def evaluateOutputs(wdlFunctions: IoFunctionSet,
+                      postMapper: WomValue => Try[WomValue] = v => Success(v))(implicit ec: ExecutionContext): EvaluatedJobOutputs = {
+    Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, wdlFunctions, postMapper = postMapper), Duration.Inf)
   }
 
   private def processSuccess(rc: Int) = {

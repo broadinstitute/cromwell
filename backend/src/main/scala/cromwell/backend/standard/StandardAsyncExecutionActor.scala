@@ -854,8 +854,8 @@ trait StandardAsyncExecutionActor
     *
     * @return A Try wrapping evaluated outputs.
     */
-  def evaluateOutputs()(implicit ec: ExecutionContext): Future[EvaluatedJobOutputs] = {
-    OutputEvaluator.evaluateOutputs(jobDescriptor, backendEngineFunctions, outputValueMapper)
+  final def evaluateOutputs()(implicit ec: ExecutionContext): Future[EvaluatedJobOutputs] = {
+    OutputEvaluator.evaluateOutputs(jobDescriptor, backendEngineFunctions, commandLineValueMapper, outputValueMapper)
   }
 
   /**

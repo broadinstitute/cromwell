@@ -5,16 +5,11 @@ import akka.event.LoggingReceive
 import common.validation.Validation.{GreaterEqualOne, GreaterEqualRefined}
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor._
-import cromwell.backend.OutputEvaluator.EvaluatedJobOutputs
 import cromwell.core._
 import cromwell.core.path.Path
 import eu.timepit.refined.refineMV
-import wom.expression.IoFunctionSet
-import wom.values.WomValue
 
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.util.{Success, Try}
+import scala.concurrent.Future
 
 object BackendJobExecutionActor {
 
@@ -121,10 +116,5 @@ trait BackendJobExecutionActor extends BackendJobLifecycleActor with ActorLoggin
   def abort(): Unit = {
     log.warning("{} backend currently doesn't support abort for {}.",
       jobTag, jobDescriptor.key.call.fullyQualifiedName)
-  }
-
-  def evaluateOutputs(wdlFunctions: IoFunctionSet,
-                      postMapper: WomValue => Try[WomValue] = v => Success(v))(implicit ec: ExecutionContext): EvaluatedJobOutputs = {
-    Await.result(OutputEvaluator.evaluateOutputs(jobDescriptor, wdlFunctions, postMapper), Duration.Inf)
   }
 }

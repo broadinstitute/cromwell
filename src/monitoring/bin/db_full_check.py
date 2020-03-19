@@ -12,16 +12,18 @@ def main(call_endpoint = True):
 
     # Sorting is not strictly necessary but convenient when sanity checking, and I am pro-sanity.
     data.sort(key = lambda d: d.timestamp)
+    [a, b] = fit_to_exponential_curve(data)
+    imminent_explosion_check(a, b)
 
+
+def fit_to_exponential_curve(data):
     # Fitting
     #
     # y = a * e ^ (b * x)
     #
-    # can be like fitting
+    # can be turned into a linear regression by taking logarithms
     #
     # log y = log a + b * x
-    #
-    # if logarithms are taken of the y values
 
     # Months and TiB seem the most natural units to describe the growth of this db.
     # 30 days in a month as far as this script is concerned.
@@ -29,17 +31,24 @@ def main(call_endpoint = True):
     bytes_per_tib = (1 << 40)
 
     now_utc = datetime.now(timezone.utc)
+    # months from now, which will be negative for all time series historical values.
     x = [(d.timestamp - now_utc).total_seconds() / seconds_per_month for d in data]
+    # logarithms of TiBbified y values
     y = [log(d.bytes / bytes_per_tib) for d in data]
 
-    # numpy's polyfit is perverse, returns coefficients in *descending* order of degree.
+    # numpy's polyfit is perverse, it returns coefficients in *descending* order of degree.
     [b, log_a] = polyfit(x, y, 1)
     a = exp(log_a)
-    print("For <db size in TiB> = a * exp(b * <months from now>), a and b are estimated to be {a} and {b} respectively.".format(**locals()))
-    size_from_now = a * exp(b * 12)
-    print("The Cromwell database size is predicted to be {size_from_now:.2f} TiB 12 months from now.".format(**locals()))
+    return [a, b]
 
-    maximum_database_size_tib = 30
+
+def imminent_explosion_check(a, b):
+    maximum_database_size_tib = float(os.getenv("CROMWELL_MAXIMUM_DATABASE_SIZE_TIB"))
+    database_forecast_limit_months = float(os.getenv("CROMWELL_DATABASE_FORECAST_LIMIT_MONTHS"))
+
+    print("For <db size in TiB> = a * exp(b * <months from now>), a and b are estimated to be {a} and {b} respectively.".format(**locals()))
+    size_from_now = a * exp(b * database_forecast_limit_months)
+    print("Cromwell database size is predicted to be {size_from_now:.2f} TiB {database_forecast_limit_months} months from now.".format(**locals()))
 
     # y = <db size in TiB>, x = <months from now>
     # To find out when the database will explode, solve for x and set y to the maximum size.
@@ -50,6 +59,9 @@ def main(call_endpoint = True):
     # x = (ln(y) - ln(a))/b    # swap sides
     when_explode_months = (log(maximum_database_size_tib) - log(a)) / b
     print("Given a maximum size of {maximum_database_size_tib:.2f} TiB, it is estimated that the Cromwell database will explode in {when_explode_months:.2f} months. Please plan accordingly.".format(**locals()))
+    if when_explode_months < database_forecast_limit_months:
+        import sys
+        sys.exit(1)
 
 
 def datum_from_raw_time_point(time_point):
@@ -74,12 +86,9 @@ def call_time_series_endpoint():
     now = datetime.isoformat(now_utc)
     then = datetime.isoformat(now_utc - timedelta(days = 60))
 
-    # print("now is '%s' and then is '%s'"%(now, then))
-
     url='https://monitoring.clients6.google.com/v3/projects/{google_project}/timeSeries'.format(**locals())
     filter='metric.type="cloudsql.googleapis.com/database/disk/bytes_used" AND (resource.label.database_id="{google_project}:{cloudsql_instance}")'.format(**locals())
 
-    # print("url is", url, "and filter is", filter)
     response = requests.get(
         url,
         params = {
@@ -96,11 +105,6 @@ def call_time_series_endpoint():
     return response.json()
 
 
-def predict_fullness():
-    maximum_database_size_tib = os.getenv("CROMWELL_MAXIMUM_DATABASE_SIZE_TIB")
-    database_forecast_limit_months = os.getenv("CROMWELL_DATABASE_FORECAST_LIMIT_MONTHS")
-
-
 class Datum:
     def __init__(self, timestamp, bytes):
         self.timestamp = timestamp
@@ -108,6 +112,4 @@ class Datum:
 
 
 if __name__ == '__main__':
-    # print("Hello from Python")
-    # print(os.environ)
-    main(call_endpoint = False)
+    main(call_endpoint = True)

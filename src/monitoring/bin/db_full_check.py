@@ -1,6 +1,6 @@
 from datetime import timedelta, datetime, timezone
 import dateutil.parser
-import numpy
+from numpy import exp, log, polyfit
 import os
 import requests
 
@@ -10,11 +10,46 @@ def main(call_endpoint = True):
     points = time_series_response["timeSeries"][0]["points"]
     data = [datum_from_raw_time_point(p) for p in points]
 
-    # Sorting is not strictly necessary but convenient when sanity checking.
+    # Sorting is not strictly necessary but convenient when sanity checking, and I am pro-sanity.
     data.sort(key = lambda d: d.timestamp)
 
-    for datum in data:
-        print(datum.timestamp, datum.bytes)
+    # Fitting
+    #
+    # y = a * e ^ (b * x)
+    #
+    # can be like fitting
+    #
+    # log y = log a + b * x
+    #
+    # if logarithms are taken of the y values
+
+    # Months and TiB seem the most natural units to describe the growth of this db.
+    # 30 days in a month as far as this script is concerned.
+    seconds_per_month = (60 * 60 * 24 * 30)
+    bytes_per_tib = (1 << 40)
+
+    now_utc = datetime.now(timezone.utc)
+    x = [(d.timestamp - now_utc).total_seconds() / seconds_per_month for d in data]
+    y = [log(d.bytes / bytes_per_tib) for d in data]
+
+    # numpy's polyfit is perverse, returns coefficients in *descending* order of degree.
+    [b, log_a] = polyfit(x, y, 1)
+    a = exp(log_a)
+    print("For <db size in TiB> = a * exp(b * <months from now>), a and b are estimated to be {a} and {b} respectively.".format(**locals()))
+    size_from_now = a * exp(b * 12)
+    print("The Cromwell database size is predicted to be {size_from_now:.2f} TiB 12 months from now.".format(**locals()))
+
+    maximum_database_size_tib = 30
+
+    # y = <db size in TiB>, x = <months from now>
+    # To find out when the database will explode, solve for x and set y to the maximum size.
+    # y = a * e^(b*x)          # original
+    # ln(y) = ln(a) + b*x      # take logarithms of both sides
+    # ln(y) - ln(a) = b*x      # subtract ln(b) from both sides
+    # (ln(y) - ln(a))/b = x    # divide both sides by c
+    # x = (ln(y) - ln(a))/b    # swap sides
+    when_explode_months = (log(maximum_database_size_tib) - log(a)) / b
+    print("Given a maximum size of {maximum_database_size_tib:.2f} TiB, it is estimated that the Cromwell database will explode in {when_explode_months:.2f} months. Please plan accordingly.".format(**locals()))
 
 
 def datum_from_raw_time_point(time_point):
@@ -73,6 +108,6 @@ class Datum:
 
 
 if __name__ == '__main__':
-    print("Hello from Python")
-    print(os.environ)
+    # print("Hello from Python")
+    # print(os.environ)
     main(call_endpoint = False)

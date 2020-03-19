@@ -5,15 +5,15 @@ import os
 import requests
 
 
-def main(call_endpoint = True):
-    time_series_response = call_time_series_endpoint() if call_endpoint else read_response_from_file()
+def main():
+    time_series_response = call_time_series_endpoint()
     points = time_series_response["timeSeries"][0]["points"]
     data = [datum_from_raw_time_point(p) for p in points]
 
-    # Sorting is not strictly necessary but convenient when sanity checking, and I am pro-sanity.
+    # Sorting is not strictly necessary but convenient when sanity checking.
     data.sort(key = lambda d: d.timestamp)
     [a, b] = fit_to_exponential_curve(data)
-    imminent_explosion_check(a, b)
+    check_for_imminent_explosion(a, b)
 
 
 def fit_to_exponential_curve(data):
@@ -42,7 +42,7 @@ def fit_to_exponential_curve(data):
     return [a, b]
 
 
-def imminent_explosion_check(a, b):
+def check_for_imminent_explosion(a, b):
     maximum_database_size_tib = float(os.getenv("CROMWELL_MAXIMUM_DATABASE_SIZE_TIB"))
     database_forecast_limit_months = float(os.getenv("CROMWELL_DATABASE_FORECAST_LIMIT_MONTHS"))
 
@@ -71,6 +71,7 @@ def datum_from_raw_time_point(time_point):
 
 
 def read_response_from_file():
+    # debug code to read a canned response, main can be rewired to call this instead of call_time_series_endpoint().
     import json
     line = open("response.json", "r").readlines()[0].strip()
     time_series_response = json.loads(line)
@@ -112,4 +113,4 @@ class Datum:
 
 
 if __name__ == '__main__':
-    main(call_endpoint = True)
+    main()

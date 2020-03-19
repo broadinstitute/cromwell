@@ -242,10 +242,6 @@ trait SharedFileSystem extends PathFactory {
     }
   }
 
-  def outputMapper(job: JobPaths)(womValue: WomValue): Try[WomValue] = {
-    WomFileMapper.mapWomFiles(mapJobWomFile(job), Set.empty)(womValue)
-  }
-
   def mapJobWomFile(jobPaths: JobPaths)(womFile: WomFile): WomFile = {
     val hostPath = hostAbsoluteFilePath(jobPaths, womFile.valueString)
     def hostAbsolute(pathString: String): String = hostAbsoluteFilePath(jobPaths, pathString).pathAsString

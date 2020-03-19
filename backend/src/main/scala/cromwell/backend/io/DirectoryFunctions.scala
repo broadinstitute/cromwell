@@ -24,11 +24,12 @@ trait DirectoryFunctions extends IoFunctionSet with PathFactory with AsyncIoFunc
 
   def findDirectoryOutputs(call: CommandCallNode,
                            jobDescriptor: BackendJobDescriptor): ErrorOr[List[WomUnlistedDirectory]] = {
-    call.callable.outputs.flatTraverse[ErrorOr, WomUnlistedDirectory] { outputDefinition =>
+    val result = call.callable.outputs.flatTraverse[ErrorOr, WomUnlistedDirectory] { outputDefinition =>
       outputDefinition.expression.evaluateFiles(jobDescriptor.localInputs, evaluateFileFunctions, outputDefinition.womType) map {
         _.toList.flatMap(_.file.flattenFiles) collect { case unlistedDirectory: WomUnlistedDirectory => unlistedDirectory }
       }
     }
+    result.contextualizeErrors("find directory outputs in call")
   }
 
   override def isDirectory(path: String) = asyncIo.isDirectory(buildPath(path))

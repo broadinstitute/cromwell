@@ -2,6 +2,7 @@ package wdl.draft3.transforms.linking.expression
 
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr._
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.{FileEvaluator, ValueEvaluator}
@@ -15,6 +16,8 @@ import wdl.transforms.base.linking.expression.files.UnaryOperatorEvaluators._
 import wom.expression.IoFunctionSet
 import wom.types.WomType
 import wom.values.{WomFile, WomValue}
+import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
+import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.expressionElementWriter
 
 package object files {
 
@@ -23,11 +26,11 @@ package object files {
     override def predictFilesNeededToEvaluate(a: ExpressionElement, inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType)
                                              (implicit fileEvaluator: FileEvaluator[ExpressionElement],
                                               valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] = {
-
-      a match {
+      val result = a match {
         // Literals:
         case a: PrimitiveLiteralExpressionElement => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
         case a: StringLiteral => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
+        case a: StringExpression => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
         case a: ObjectLiteral => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
         case a: MapLiteral => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
         case a: ArrayLiteral => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
@@ -104,6 +107,7 @@ package object files {
 
         case other => s"No implementation of FileEvaluator[${other.getClass.getSimpleName}]".invalidNel
       }
+      result.contextualizeErrors(s"predict files needed to evaluate ${a.toWdlV1}")
     }
   }
 }

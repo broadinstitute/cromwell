@@ -9,10 +9,10 @@ import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.{FileEvaluator, ValueEvaluator}
 import wdl.model.draft3.graph.expression.FileEvaluator.ops._
-import wom.expression.IoFunctionSet
+import wom.expression.{ExpressionEvaluationOptions, IoFunctionSet}
 import wom.types.{WomCompositeType, WomSingleFileType, WomType}
 import wom.values.{WomFile, WomSingleFile, WomValue}
-
+import common.validation.ErrorOr._
 
 object LiteralEvaluators {
   implicit val primitiveValueEvaluator: FileEvaluator[PrimitiveLiteralExpressionElement] = new FileEvaluator[PrimitiveLiteralExpressionElement] {
@@ -32,6 +32,19 @@ object LiteralEvaluators {
                                              (implicit fileEvaluator: FileEvaluator[ExpressionElement],
                                               valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] = coerceTo match {
       case WomSingleFileType => Set[WomFile](WomSingleFile(a.value)).validNel
+      case _ => Set.empty[WomFile].validNel
+    }
+  }
+
+  implicit val stringExpressionEvaluator: FileEvaluator[StringExpression] = new FileEvaluator[StringExpression] {
+    override def predictFilesNeededToEvaluate(a: StringExpression,
+                                              inputs: Map[String, WomValue],
+                                              ioFunctionSet: IoFunctionSet,
+                                              coerceTo: WomType)
+                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement], valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] = coerceTo match {
+      case WomSingleFileType =>
+        valueEvaluator.evaluateValue(a, inputs, ioFunctionSet, ExpressionEvaluationOptions.default)
+          .map(s => Set[WomFile](WomSingleFile(s.value.valueString)))
       case _ => Set.empty[WomFile].validNel
     }
   }

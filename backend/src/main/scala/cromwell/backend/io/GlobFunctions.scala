@@ -3,6 +3,7 @@ package cromwell.backend.io
 import cats.instances.list._
 import cats.syntax.traverse._
 import common.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr._
 import cromwell.backend.BackendJobDescriptor
 import cromwell.core.CallContext
 import cromwell.core.io.AsyncIoFunctions
@@ -24,7 +25,7 @@ trait GlobFunctions extends IoFunctionSet with AsyncIoFunctions {
         _.toList.flatMap(_.file.flattenFiles) collect { case glob: WomGlobFile => glob }
       }
     }
-    fromOutputs.map(_ ++ call.callable.additionalGlob)
+    fromOutputs.map(_ ++ call.callable.additionalGlob).contextualizeErrors("find glob outputs in call")
   }
 
   /**

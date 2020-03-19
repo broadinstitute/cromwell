@@ -5,16 +5,29 @@ import os
 import requests
 
 
-def main():
-    time_series_response = call_time_series_endpoint()
-    points = time_series_response.json()["timeSeries"][0]["points"]
-    time_series_data = [Datum(dateutil.parser.parse(p["interval"]["startTime"]), p["value"]["doubleValue"]) for p in points]
+def main(call_endpoint = True):
+    time_series_response = call_time_series_endpoint() if call_endpoint else read_response_from_file()
+    points = time_series_response["timeSeries"][0]["points"]
+    data = [datum_from_raw_time_point(p) for p in points]
 
     # Sorting is not strictly necessary but convenient when sanity checking.
-    time_series_data.sort(key = lambda d: d.timestamp)
+    data.sort(key = lambda d: d.timestamp)
 
-    for datum in time_series_data:
+    for datum in data:
         print(datum.timestamp, datum.bytes)
+
+
+def datum_from_raw_time_point(time_point):
+    string_timestamp = time_point["interval"]["startTime"]
+    bytes = time_point["value"]["doubleValue"]
+    return Datum(dateutil.parser.parse(string_timestamp), bytes)
+
+
+def read_response_from_file():
+    import json
+    line = open("response.json", "r").readlines()[0].strip()
+    time_series_response = json.loads(line)
+    return time_series_response
 
 
 def call_time_series_endpoint():
@@ -45,7 +58,7 @@ def call_time_series_endpoint():
             'Authorization': 'Bearer ' + access_token
         }
     )
-    return response
+    return response.json()
 
 
 def predict_fullness():
@@ -58,7 +71,8 @@ class Datum:
         self.timestamp = timestamp
         self.bytes = bytes
 
+
 if __name__ == '__main__':
     print("Hello from Python")
     print(os.environ)
-    main()
+    main(call_endpoint = False)

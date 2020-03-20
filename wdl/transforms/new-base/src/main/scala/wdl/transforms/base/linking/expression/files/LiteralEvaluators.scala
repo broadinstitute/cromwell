@@ -9,7 +9,7 @@ import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.{FileEvaluator, ValueEvaluator}
 import wdl.model.draft3.graph.expression.FileEvaluator.ops._
-import wom.expression.{ExpressionEvaluationOptions, IoFunctionSet}
+import wom.expression.IoFunctionSet
 import wom.types.{WomCompositeType, WomSingleFileType, WomType}
 import wom.values.{WomFile, WomSingleFile, WomValue}
 import common.validation.ErrorOr._
@@ -43,7 +43,7 @@ object LiteralEvaluators {
                                               coerceTo: WomType)
                                              (implicit fileEvaluator: FileEvaluator[ExpressionElement], valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] = coerceTo match {
       case WomSingleFileType =>
-        valueEvaluator.evaluateValue(a, inputs, ioFunctionSet, ExpressionEvaluationOptions.default)
+        valueEvaluator.evaluateValue(a, inputs, ioFunctionSet, None)
           .map(s => Set[WomFile](WomSingleFile(s.value.valueString)))
       case _ => Set.empty[WomFile].validNel
     }

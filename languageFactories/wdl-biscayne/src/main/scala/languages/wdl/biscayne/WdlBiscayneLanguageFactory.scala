@@ -52,12 +52,12 @@ class WdlBiscayneLanguageFactory(override val config: Config) extends LanguageFa
 
   }
 
-  override def getWomBundle(workflowSource: WorkflowSource,
-                            workflowSourceOrigin: Option[ResolvedImportRecord],
-                            workflowOptionsJson: WorkflowOptionsJson,
-                            importResolvers: List[ImportResolver],
-                            languageFactories: List[LanguageFactory],
-                            convertNestedScatterToSubworkflow : Boolean = true): Checked[WomBundle] = {
+  override def getWomBundleInner(workflowSource: WorkflowSource,
+                                 workflowSourceOrigin: Option[ResolvedImportRecord],
+                                 workflowOptionsJson: WorkflowOptionsJson,
+                                 importResolvers: List[ImportResolver],
+                                 languageFactories: List[LanguageFactory],
+                                 convertNestedScatterToSubworkflow : Boolean = true): Checked[WomBundle] = {
 
     val converter: CheckedAtoB[FileStringParserInput, WomBundle] = stringToAst andThen wrapAst andThen astToFileElement.map(FileElementToWomBundleInputs(_, workflowOptionsJson, convertNestedScatterToSubworkflow, importResolvers, languageFactories, workflowDefinitionElementToWomWorkflowDefinition, taskDefinitionElementToWomTaskDefinition)) andThen fileElementToWomBundle
 

@@ -68,12 +68,12 @@ class WdlDraft3LanguageFactory(override val config: Config) extends LanguageFact
       .map(b => b.copyResolvedImportRecord(b, workflowSourceOrigin)).toValidated
   }
 
-  override def getWomBundle(workflowSource: WorkflowSource,
-                            workflowSourceOrigin: Option[ResolvedImportRecord],
-                            workflowOptionsJson: WorkflowOptionsJson,
-                            importResolvers: List[ImportResolver],
-                            languageFactories: List[LanguageFactory],
-                            convertNestedScatterToSubworkflow : Boolean = true): Checked[WomBundle] = {
+  override def getWomBundleInner(workflowSource: WorkflowSource,
+                                 workflowSourceOrigin: Option[ResolvedImportRecord],
+                                 workflowOptionsJson: WorkflowOptionsJson,
+                                 importResolvers: List[ImportResolver],
+                                 languageFactories: List[LanguageFactory],
+                                 convertNestedScatterToSubworkflow : Boolean = true): Checked[WomBundle] = {
 
     lazy val validationCallable = new Callable[ErrorOr[WomBundle]] {
       def call: ErrorOr[WomBundle] = makeWomBundle(workflowSource, workflowSourceOrigin, workflowOptionsJson, importResolvers, languageFactories, convertNestedScatterToSubworkflow)

@@ -1,5 +1,11 @@
 package cromwell.languages
 
+import cats.data.NonEmptyList
+import cats.data.Validated.Invalid
+import cats.syntax.validated._
+import cats.syntax.traverse._
+import cats.syntax.functor._
+import cats.instances.list._
 import com.typesafe.config.Config
 import common.Checked
 import common.validation.Checked._
@@ -7,10 +13,12 @@ import common.validation.IOChecked.IOChecked
 import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.languages.util.ImportResolver.ImportResolver
 import wom.ResolvedImportRecord
+import wom.callable.TaskDefinition
 import wom.core._
 import wom.executable.WomBundle
 import wom.expression.IoFunctionSet
 import wom.runtime.WomOutputRuntimeExtractor
+import wom.types.WomSingleFileType
 
 trait LanguageFactory {
 
@@ -34,12 +42,55 @@ trait LanguageFactory {
     case _ => None.validNelCheck
   }
 
-  def getWomBundle(workflowSource: WorkflowSource,
-                   workflowSourceOrigin: Option[ResolvedImportRecord],
-                   workflowOptionsJson: WorkflowOptionsJson,
-                   importResolvers: List[ImportResolver],
-                   languageFactories: List[LanguageFactory],
-                   convertNestedScatterToSubworkflow : Boolean = true): Checked[WomBundle]
+  final def getWomBundle(workflowSource: WorkflowSource,
+                         workflowSourceOrigin: Option[ResolvedImportRecord],
+                         workflowOptionsJson: WorkflowOptionsJson,
+                         importResolvers: List[ImportResolver],
+                         languageFactories: List[LanguageFactory],
+                         convertNestedScatterToSubworkflow : Boolean = true,
+                         allowOutputsAsFunctionsOfFileInputs: Boolean = true): Checked[WomBundle] = {
+    val bundle = getWomBundleInner(workflowSource, workflowSourceOrigin, workflowOptionsJson, importResolvers, languageFactories, convertNestedScatterToSubworkflow)
+
+    if (allowOutputsAsFunctionsOfFileInputs) bundle else {
+      def validateOutputsAreNotFunctionsOfFiles(womBundle: WomBundle): Checked[Unit] = {
+        val tasksToCheck = womBundle.allCallables.collect {
+          case (name, t: TaskDefinition) => name -> t
+        }.toList
+
+        val taskValidation = tasksToCheck.traverse { case (name, task) =>
+          def isAFileInput(inputName: String) =
+            ( task.inputs.exists(i => i.localName.value == inputName && i.womType == WomSingleFileType) ||
+              task.outputs.exists(o => o.localName.value == inputName && o.womType == WomSingleFileType) )
+
+          val invalidTasksOutputs = task.outputs.collect {
+            case o if o.expression.inputs.exists(isAFileInput) => s"Cannot evaluate task '$name''s output '${o.name} = ${o.expression.sourceString}': it relies on File inputs."
+          }
+
+          NonEmptyList.fromList(invalidTasksOutputs) match {
+            case None => ().validNel
+            case Some(errors) => Invalid(errors)
+          }
+        }
+
+        taskValidation.void.toEither
+      }
+
+
+      for {
+        b <- bundle
+        _ = validateOutputsAreNotFunctionsOfFiles(b)
+      } yield b
+    }
+
+
+  }
+
+  protected def getWomBundleInner(workflowSource: WorkflowSource,
+                                  workflowSourceOrigin: Option[ResolvedImportRecord],
+                                  workflowOptionsJson: WorkflowOptionsJson,
+                                  importResolvers: List[ImportResolver],
+                                  languageFactories: List[LanguageFactory],
+                                  convertNestedScatterToSubworkflow : Boolean = true): Checked[WomBundle]
 
   def createExecutable(womBundle: WomBundle,
                        inputs: WorkflowJson,

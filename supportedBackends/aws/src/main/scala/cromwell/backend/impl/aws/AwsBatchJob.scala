@@ -389,7 +389,11 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     * @return the context
     */
   def batchJobContainerContext(jobId: String): BatchJobContainerContext ={
+    if (jobId == null) return BatchJobContainerContext("","",Seq.empty, Seq.empty)
+
     val containerInstanceArn = detail(jobId).container().containerInstanceArn()
+    if(containerInstanceArn == null || containerInstanceArn.isEmpty) return BatchJobContainerContext(jobId,"",Seq.empty, Seq.empty)
+
     val describeJobQueuesResponse = batchClient.describeJobQueues( DescribeJobQueuesRequest.builder().jobQueues( runtimeAttributes.queueArn ).build())
     val computeEnvironments = describeJobQueuesResponse.jobQueues().asScala.head.computeEnvironmentOrder().asScala.map(_.computeEnvironment())
     val describeComputeEnvironmentsResponse = batchClient.describeComputeEnvironments( DescribeComputeEnvironmentsRequest.builder().computeEnvironments(computeEnvironments.asJava).build())
@@ -414,7 +418,6 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     }
   }
 
-  //TODO: unused at present
   def rc(detail: JobDetail): Integer = {
      detail.container.exitCode
   }

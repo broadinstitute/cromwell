@@ -357,26 +357,6 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
       case e: ClientException if e.statusCode == 404 ||
         e.statusCode == 409 || e.statusCode == 429  => retry  //probably worth trying again
     }
-
-//    async.recoverWith(retry) {
-//      case e: ClientException if e.statusCode() == 409 =>
-//        /*
-//        The HTTP 409 Conflict response status code indicates a request conflict with current state of the server.
-//        Conflicts are most likely to occur in response to a PUT request. For example, you may get a 409 response when
-//        uploading a file which is older than the one already on the server resulting in a version control conflict.
-//         */
-//        Log.warn("Received a 409 code from AWS Batch when attempting to create the job definition.")
-//        Log.warn(e.awsErrorDetails().toString)
-//        // A collision has occurred. Two actors have attempted to create the same definition causing a problem with
-//        // eventual consistency
-//        async.
-//          delay(client.describeJobDefinitions(DescribeJobDefinitionsRequest.builder().jobDefinitionName(jobDefinitionName).build())).
-//          map(_.jobDefinitions().asScala).
-//          map(definitions => {
-//            Log.info(s"Latest job definition revision is: ${definitions.last.jobDefinitionName()} with arn: ${definitions.last.jobDefinitionArn()}")
-//            definitions.last.jobDefinitionArn()
-//          })
-//    }
   }
 
 

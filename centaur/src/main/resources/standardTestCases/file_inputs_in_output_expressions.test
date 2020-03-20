@@ -1,5 +1,6 @@
 name: file_inputs_in_output_expressions
 testFormat: workflowsuccess
+backends: [Papiv2]
 
 files {
   workflow: file_inputs_in_output_expressions/file_inputs_in_output_expressions.wdl

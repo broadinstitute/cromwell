@@ -833,7 +833,10 @@ trait StandardAsyncExecutionActor
     * @return The Try wrapped and mapped WOM value.
     */
   final def outputValueMapper(womValue: WomValue): Try[WomValue] = {
-    WomFileMapper.mapWomFiles(mapOutputWomFile, Set.empty)(womValue)
+    println(s"Processing value mapping for: $womValue")
+    val result = WomFileMapper.mapWomFiles(mapOutputWomFile, Set.empty)(womValue)
+    println(s"Processed value mapping for: $womValue as $result")
+    result
   }
 
   /**
@@ -855,7 +858,7 @@ trait StandardAsyncExecutionActor
     * @return A Try wrapping evaluated outputs.
     */
   final def evaluateOutputs()(implicit ec: ExecutionContext): Future[EvaluatedJobOutputs] = {
-    OutputEvaluator.evaluateOutputs(jobDescriptor, backendEngineFunctions, commandLineValueMapper, outputValueMapper)
+    OutputEvaluator.evaluateOutputs(jobDescriptor, backendEngineFunctions, preMapper = commandLineValueMapper, postMapper = outputValueMapper)
   }
 
   /**

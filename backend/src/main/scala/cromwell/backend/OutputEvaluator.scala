@@ -32,7 +32,10 @@ object OutputEvaluator {
                       ioFunctions: IoFunctionSet,
                       preMapper: WomValue => WomValue = v => v,
                       postMapper: WomValue => Try[WomValue] = v => Success(v))(implicit ec: ExecutionContext): Future[EvaluatedJobOutputs] = {
+
+    println(s"Task input values given to output evaluator before premapping: ${jobDescriptor.localInputs}")
     val taskInputValues: Map[String, WomValue] = jobDescriptor.localInputs map { case (key, value) => key -> preMapper(value) }
+    println(s"Task input values given to output evaluator after premapping: $taskInputValues")
 
     def foldFunction(accumulatedOutputs: Try[ErrorOr[List[(OutputPort, WomValue)]]], output: ExpressionBasedOutputPort) = accumulatedOutputs flatMap { accumulated =>
       // Extract the valid pairs from the job outputs accumulated so far, and add to it the inputs (outputs can also reference inputs)

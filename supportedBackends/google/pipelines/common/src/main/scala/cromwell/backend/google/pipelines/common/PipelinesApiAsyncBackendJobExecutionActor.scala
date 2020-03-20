@@ -268,9 +268,11 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   protected [pipelines] def generateOutputs(jobDescriptor: BackendJobDescriptor): Set[PipelinesApiOutput] = {
     import cats.syntax.validated._
     def evaluateFiles(output: OutputDefinition): List[FileEvaluation] = {
-      Try(
-        output.expression.evaluateFiles(jobDescriptor.localInputs, NoIoFunctionSet, output.womType).map(_.toList)
-      ).getOrElse(List.empty[FileEvaluation].validNel)
+      Try {
+        val premappedInputs = jobDescriptor.localInputs.map { case (key, value) => key -> commandLineValueMapper.apply(value) }
+
+        output.expression.evaluateFiles(premappedInputs, NoIoFunctionSet, output.womType).map(_.toList)
+      }.getOrElse(List.empty[FileEvaluation].validNel)
         .getOrElse(List.empty)
     }
 
@@ -287,6 +289,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         case globFile: WomGlobFile => generateGlobFileOutputs(globFile) // Assumes optional = false for globs.
       }
     }
+
+    println(s"PAPI outputs:${outputs.map(o => s"   ${o.relativeHostPath.pathAsString} -> ${o.cloudPath.pathAsString}").mkString(System.lineSeparator(), System.lineSeparator(), "")}")
 
     val additionalGlobOutput = jobDescriptor.taskCall.callable.additionalGlob.toList.flatMap(generateGlobFileOutputs).toSet
 

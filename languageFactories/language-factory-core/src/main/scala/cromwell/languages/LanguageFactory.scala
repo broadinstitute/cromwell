@@ -42,13 +42,14 @@ trait LanguageFactory {
     case _ => None.validNelCheck
   }
 
+  val allowOutputsAsFunctionsOfFileInputs = config.as[Option[Boolean]]("allow-outputs-as-functions-of-file-inputs").getOrElse(true)
+
   final def getWomBundle(workflowSource: WorkflowSource,
                          workflowSourceOrigin: Option[ResolvedImportRecord],
                          workflowOptionsJson: WorkflowOptionsJson,
                          importResolvers: List[ImportResolver],
                          languageFactories: List[LanguageFactory],
-                         convertNestedScatterToSubworkflow : Boolean = true,
-                         allowOutputsAsFunctionsOfFileInputs: Boolean = true): Checked[WomBundle] = {
+                         convertNestedScatterToSubworkflow : Boolean = true): Checked[WomBundle] = {
     val bundle = getWomBundleInner(workflowSource, workflowSourceOrigin, workflowOptionsJson, importResolvers, languageFactories, convertNestedScatterToSubworkflow)
 
     if (allowOutputsAsFunctionsOfFileInputs) bundle else {
@@ -75,10 +76,9 @@ trait LanguageFactory {
         taskValidation.void.toEither
       }
 
-
       for {
         b <- bundle
-        _ = validateOutputsAreNotFunctionsOfFiles(b)
+        _ <- validateOutputsAreNotFunctionsOfFiles(b)
       } yield b
     }
 

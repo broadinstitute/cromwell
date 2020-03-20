@@ -1,11 +1,12 @@
 name: file_inputs_in_output_expressions
-testFormat: workflowsuccess
+testFormat: workflowfailure
 
 files {
   workflow: file_inputs_in_output_expressions/file_inputs_in_output_expressions.wdl
 }
 
 metadata {
-  workflowName: file_inputs_in_output_expressions
-  status: Succeeded
+  status: Failed
+  "failures.0.message": "Workflow input processing failed"
+  "failures.0.causedBy.0.message": "Cannot evaluate task 'foo2bar''s output 'bar_index = (foo_index + \".barre\")': it relies on File inputs."
 }

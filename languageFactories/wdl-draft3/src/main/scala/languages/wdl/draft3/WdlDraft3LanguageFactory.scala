@@ -45,6 +45,7 @@ class WdlDraft3LanguageFactory(override val config: Config) extends LanguageFact
 
     val checked: Checked[ValidatedWomNamespace] = for {
       _ <- enabledCheck
+      _ = println("Getting bundle")
       bundle <- getWomBundle(workflowSource, workflowSourceOrigin = None, source.workflowOptions.asPrettyJson, importResolvers, factories)
       executable <- createExecutable(bundle, source.inputsJson, ioFunctions)
     } yield executable

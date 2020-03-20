@@ -45,7 +45,7 @@ def check_for_imminent_explosion(a, b):
     maximum_database_size_tib = float(os.getenv("CROMWELL_MAXIMUM_DATABASE_SIZE_TIB"))
     database_forecast_limit_months = float(os.getenv("CROMWELL_DATABASE_FORECAST_LIMIT_MONTHS"))
 
-    print("For <db size in TiB> = a * exp(b * <months from now>), a and b are estimated to be {a} and {b} respectively.".format(**locals()))
+    print(f"For <db size in TiB> = a * exp(b * <months from now>), a and b are estimated to be {a} and {b} respectively.")
     size_from_now = a * exp(b * database_forecast_limit_months)
     print("Cromwell database size is predicted to be {size_from_now:.2f} TiB {database_forecast_limit_months} months from now.".format(**locals()))
 
@@ -86,8 +86,8 @@ def call_time_series_endpoint():
     now = datetime.isoformat(now_utc)
     then = datetime.isoformat(now_utc - timedelta(days = 60))
 
-    url='https://monitoring.clients6.google.com/v3/projects/{google_project}/timeSeries'.format(**locals())
-    filter='metric.type="cloudsql.googleapis.com/database/disk/bytes_used" AND (resource.label.database_id="{google_project}:{cloudsql_instance}")'.format(**locals())
+    url=f'https://monitoring.clients6.google.com/v3/projects/{google_project}/timeSeries'
+    filter=f'metric.type="cloudsql.googleapis.com/database/disk/bytes_used" AND (resource.label.database_id="{google_project}:{cloudsql_instance}")'
 
     response = requests.get(
         url,

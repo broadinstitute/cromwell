@@ -47,7 +47,7 @@ def check_for_imminent_explosion(a, b):
 
     print(f"For <db size in TiB> = a * exp(b * <months from now>), a and b are estimated to be {a} and {b} respectively.")
     size_from_now = a * exp(b * database_forecast_limit_months)
-    print("Cromwell database size is predicted to be {size_from_now:.2f} TiB {database_forecast_limit_months} months from now.".format(**locals()))
+    print(f"Cromwell database size is predicted to be {size_from_now:.2f} TiB {database_forecast_limit_months} months from now.")
 
     # y = <db size in TiB>, x = <months from now>
     # To find out when the database will explode, solve for x and set y to the maximum size.
@@ -57,7 +57,7 @@ def check_for_imminent_explosion(a, b):
     # (ln(y) - ln(a))/b = x    # divide both sides by b
     # x = (ln(y) - ln(a))/b    # swap sides
     when_explode_months = (log(maximum_database_size_tib) - log(a)) / b
-    print("Given a maximum size of {maximum_database_size_tib:.2f} TiB, it is estimated that the Cromwell database will explode in {when_explode_months:.2f} months. Please plan accordingly.".format(**locals()))
+    print(f"Given a maximum size of {maximum_database_size_tib:.2f} TiB, it is estimated that the Cromwell database will explode in {when_explode_months:.2f} months. Please plan accordingly.")
     if when_explode_months <= database_forecast_limit_months:
         import sys
         sys.exit(1)

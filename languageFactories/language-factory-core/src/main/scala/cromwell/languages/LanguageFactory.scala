@@ -59,9 +59,7 @@ trait LanguageFactory {
         }.toList
 
         val taskValidation = tasksToCheck.traverse { case (name, task) =>
-          def isAFileInput(inputName: String) =
-            ( task.inputs.exists(i => i.localName.value == inputName && i.womType == WomSingleFileType) ||
-              task.outputs.exists(o => o.localName.value == inputName && o.womType == WomSingleFileType) )
+          def isAFileInput(inputName: String) = task.inputs.exists(i => i.localName.value == inputName && i.womType == WomSingleFileType)
 
           val invalidTasksOutputs = task.outputs.collect {
             case o if o.expression.inputs.exists(isAFileInput) => s"Cannot evaluate task '$name''s output '${o.name} = ${o.expression.sourceString}': it relies on File inputs."

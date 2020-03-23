@@ -1,5 +1,6 @@
 name: input_mirror
 testFormat: workflowsuccess
+ignore: true
 
 files {
   workflow: input_mirror/input_mirror.wdl

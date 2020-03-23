@@ -11,7 +11,7 @@ files {
 metadata {
     "outputs.sizeenginefunction.created_file_size_in_gi": 2.0489096641540527E-8,
     "outputs.sizeenginefunction.created_file_size_in_kib": 0.021484375,
-    "outputs.sizeenginefunction.input_file_size": 23.0,
+#    "outputs.sizeenginefunction.input_file_size": 23.0,
     "outputs.sizeenginefunction.input_file_size2": 23.0,
     "outputs.sizeenginefunction.unsupplied_size": 0.0,
     "outputs.sizeenginefunction.total_input_size": 23,

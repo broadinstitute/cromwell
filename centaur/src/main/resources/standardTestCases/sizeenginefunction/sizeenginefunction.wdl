@@ -20,7 +20,7 @@ task size {
   }
 
   output {
-    Float input_file_size = size(input_file)
+#    Float input_file_size = size(input_file)
     Float input_file_size2 = size(stdout())
     Float unsupplied_size = size(unsupplied)
     Int total_input_size = round(size(unsupplied) + size(input_file))

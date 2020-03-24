@@ -28,6 +28,7 @@ package object files {
         // Literals:
         case a: PrimitiveLiteralExpressionElement => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
         case a: StringLiteral => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
+        case a: StringExpression => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
         case a: ObjectLiteral => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
         case a: MapLiteral => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
         case a: ArrayLiteral => a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)

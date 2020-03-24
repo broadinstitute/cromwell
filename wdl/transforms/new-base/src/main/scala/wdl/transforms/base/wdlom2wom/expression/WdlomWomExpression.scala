@@ -36,9 +36,10 @@ final case class WdlomWomExpression private (expressionElement: ExpressionElemen
   // NB types can be determined using the linked values, so we don't need the inputMap:
   override def evaluateType(inputMap: Map[String, WomType]): ErrorOr[WomType] = evaluatedType
 
-  override def evaluateFiles(inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] =
+  override def evaluateFiles(inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = {
     // If WDL ever supports optional outputs then the `optional` parameter of `FileEvaluation` would need to be assigned appropriately.
     expressionElement.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo) map { _ map FileEvaluation.requiredFile }
+  }
 }
 
 object WdlomWomExpression {

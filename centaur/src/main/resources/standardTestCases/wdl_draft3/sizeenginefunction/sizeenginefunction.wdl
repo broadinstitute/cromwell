@@ -23,10 +23,11 @@ task size {
   >>>
 
   output {
+# This output was ignored in BA-6299 because an output expression depends on input Files. Fix ticket will be BA-6238:
 #    Float input_file_size = size(input_file)
     Float input_file_size2 = size(stdout())
-    Float unsupplied_size = size(unsupplied)
-    Int total_input_size = round(size(unsupplied) + size(input_file))
+#    Float unsupplied_size = size(unsupplied)
+#    Int total_input_size = round(size(unsupplied) + size(input_file))
     Int created_file_size = round(size("created_file"))
     Float created_file_size_in_k = size("created_file", "K")
     Float created_file_size_in_kb = size("created_file", "KB")
@@ -64,10 +65,10 @@ workflow sizeenginefunction {
 
   output {
     Array[Int] workflow_sizes = workflow_size
-    Float input_file_size = size.input_file_size
+#    Float input_file_size = size.input_file_size
     Float input_file_size2 = size.input_file_size2
-    Float unsupplied_size = size.unsupplied_size
-    Int total_input_size = size.total_input_size
+#    Float unsupplied_size = size.unsupplied_size
+#    Int total_input_size = size.total_input_size
     Int created_file_size = size.created_file_size
     Float created_file_size_in_k = size.created_file_size_in_k
     Float created_file_size_in_kb = size.created_file_size_in_kb

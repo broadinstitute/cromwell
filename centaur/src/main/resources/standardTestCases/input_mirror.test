@@ -1,6 +1,6 @@
 name: input_mirror
 testFormat: workflowsuccess
-ignore: true
+ignore: true # Ignored in BA-6299 because an output expression depends on input Files. Fix ticket will be: BA-6238
 
 files {
   workflow: input_mirror/input_mirror.wdl

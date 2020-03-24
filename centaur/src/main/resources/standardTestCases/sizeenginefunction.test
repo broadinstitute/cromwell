@@ -8,10 +8,11 @@ files {
 metadata {
     "outputs.enginefunctions.size.created_file_size_in_gi": 2.0489096641540527E-8,
     "outputs.enginefunctions.size.created_file_size_in_kib": 0.021484375,
+# This output was ignored in BA-6299 because an output expression depends on input Files. Fix ticket will be BA-6238:
 #    "outputs.enginefunctions.size.input_file_size": 23.0,
     "outputs.enginefunctions.size.input_file_size2": 23.0,
-    "outputs.enginefunctions.size.unsupplied_size": 0.0,
-    "outputs.enginefunctions.size.total_input_size": 23,
+#    "outputs.enginefunctions.size.unsupplied_size": 0.0,
+#    "outputs.enginefunctions.size.total_input_size": 23,
     "outputs.enginefunctions.size.created_file_size_in_g": 2.0489096641540527E-8,
     "outputs.enginefunctions.size.created_file_size_in_m": 0.0000209808349609375,
     "outputs.enginefunctions.size.created_file_size_in_t": 2.000888343900442E-11,

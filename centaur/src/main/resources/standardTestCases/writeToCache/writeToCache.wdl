@@ -11,12 +11,13 @@ task print {
 task grep {
   String match = "o"
   File input_file
+  Boolean ready
   command {
     grep '${match}' ${input_file} | wc -l
   }
   output {
     Int count = read_int(stdout())
-    File redirect = input_file
+    Boolean done = true
   }
   runtime {docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"}
 }
@@ -24,20 +25,21 @@ task grep {
 task grepAgain {
   String match = "o"
   File input_file
+  Boolean ready
   command {
     grep '${match}' ${input_file} | wc -l
   }
   output {
     Int count = read_int(stdout())
-    File redirect = input_file
+    Boolean done = true
   }
   runtime {docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"}
 }
 
 workflow writeToCache {
   call print
-  call grep { input: input_file = print.tongueTwister }
-  call grepAgain { input: input_file = grep.redirect }
+  call grep { input: input_file = print.tongueTwister, ready = true }
+  call grepAgain { input: input_file = print.tongueTwister, ready = grep.done }
   output {
     grep.count
     grepAgain.count

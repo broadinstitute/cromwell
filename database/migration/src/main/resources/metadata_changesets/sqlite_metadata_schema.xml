@@ -10,18 +10,21 @@
                 <constraints primaryKey="true" primaryKeyName="PK_CUSTOM_LABEL_ENTRY"/>
             </column>
             <column name="CUSTOM_LABEL_KEY" type="TEXT">
-                <constraints nullable="false"/>
+                <constraints nullable="false" uniqueConstraintName="UC_CUSTOM_LABEL_ENTRY_CLK_WEU"/>
             </column>
             <column name="CUSTOM_LABEL_VALUE" type="TEXT">
                 <constraints nullable="false"/>
             </column>
             <column name="WORKFLOW_EXECUTION_UUID" type="TEXT">
-                <constraints nullable="false"/>
+                <constraints nullable="false"
+                             foreignKeyName="FK_CUSTOM_LABEL_ENTRY_WORKFLOW_EXECUTION_UUID"
+                             deleteCascade="true"
+                             referencedColumnNames="WORKFLOW_EXECUTION_UUID"
+                             referencedTableName="WORKFLOW_METADATA_SUMMARY_ENTRY"
+                             uniqueConstraintName="UC_CUSTOM_LABEL_ENTRY_CLK_WEU"/>
             </column>
         </createTable>
-    </changeSet>
 
-    <changeSet author="rhpvorderman" id="sqlite-metadata-init-2" dbms="sqlite">
         <createTable tableName="METADATA_ENTRY">
             <column autoIncrement="true" name="METADATA_JOURNAL_ID" type="INTEGER">
                 <constraints primaryKey="true" primaryKeyName="PK_METADATA_JOURNAL"/>
@@ -41,29 +44,25 @@
             </column>
             <column name="METADATA_VALUE_TYPE" type="TEXT"/>
         </createTable>
-    </changeSet>
 
-    <changeSet author="rhpvorderman" id="sqlite-metadata-init-3" dbms="sqlite">
         <createTable tableName="SUMMARY_STATUS_ENTRY">
             <column autoIncrement="true" name="SUMMARY_STATUS_ENTRY_ID" type="INTEGER">
                 <constraints primaryKey="true" primaryKeyName="PK_SUMMARY_STATUS_ENTRY"/>
             </column>
             <column name="SUMMARY_NAME" type="TEXT">
-                <constraints nullable="false"/>
+                <constraints nullable="false" uniqueConstraintName="UC_SUMMARY_STATUS_ENTRY_SN"/>
             </column>
             <column name="SUMMARY_POSITION" type="INTEGER">
                 <constraints nullable="false"/>
             </column>
         </createTable>
-    </changeSet>
 
-    <changeSet author="rhpvorderman" id="sqlite-metadata-init-4" dbms="sqlite">
         <createTable tableName="WORKFLOW_METADATA_SUMMARY_ENTRY">
             <column autoIncrement="true" name="WORKFLOW_METADATA_SUMMARY_ENTRY_ID" type="INTEGER">
                 <constraints primaryKey="true" primaryKeyName="PK_WORKFLOW_METADATA_SUMMARY_ENTRY"/>
             </column>
             <column name="WORKFLOW_EXECUTION_UUID" type="TEXT">
-                <constraints nullable="false"/>
+                <constraints nullable="false" uniqueConstraintName="UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU"/>
             </column>
             <column name="WORKFLOW_NAME" type="TEXT"/>
             <column name="WORKFLOW_STATUS" type="TEXT"/>
@@ -76,53 +75,38 @@
                 <constraints nullable="true" />
             </column>
         </createTable>
-    </changeSet>
 
-    <changeSet id="summary_queue_table" author="rhpvorderman" dbms="sqlite">
         <createTable tableName="SUMMARY_QUEUE_ENTRY">
-            <column name="METADATA_JOURNAL_ID" type="INTEGER">
-                <constraints nullable="false"/>
+            <column name="METADATA_JOURNAL_ID" type="BIGINT">
+                <constraints nullable="false" primaryKey="true" primaryKeyName="PK_SUMMARY_QUEUE_ENTRY"/>
             </column>
-    </createTable>
-    </changeSet>
-    <changeSet author="rhpvorderman" id="sqlite-metadata-init-5" dbms="sqlite">
+        </createTable>
+
         <createIndex indexName="IX_CUSTOM_LABEL_ENTRY_CLK_CLV" tableName="CUSTOM_LABEL_ENTRY">
             <column name="CUSTOM_LABEL_KEY"/>
             <column name="CUSTOM_LABEL_VALUE"/>
         </createIndex>
-    </changeSet>
 
-    <changeSet author="rhpvorderman" id="sqlite-metadata-init-6" dbms="sqlite">
         <createIndex indexName="IX_WORKFLOW_METADATA_SUMMARY_ENTRY_PWEU" tableName="WORKFLOW_METADATA_SUMMARY_ENTRY">
             <column name="PARENT_WORKFLOW_EXECUTION_UUID"/>
         </createIndex>
-    </changeSet>
 
-    <changeSet author="rhpvorderman" id="sqlite-metadata-init-7" dbms="sqlite">
         <createIndex indexName="IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU" tableName="WORKFLOW_METADATA_SUMMARY_ENTRY">
             <column name="ROOT_WORKFLOW_EXECUTION_UUID"/>
         </createIndex>
-    </changeSet>
 
-    <changeSet author="rhpvorderman" id="sqlite-metadata-init-8" dbms="sqlite">
         <createIndex indexName="IX_WORKFLOW_METADATA_SUMMARY_ENTRY_WN" tableName="WORKFLOW_METADATA_SUMMARY_ENTRY">
             <column name="WORKFLOW_NAME"/>
         </createIndex>
-    </changeSet>
 
-    <changeSet author="rhpvorderman" id="sqlite-metadata-init-9" dbms="sqlite">
         <createIndex indexName="IX_WORKFLOW_METADATA_SUMMARY_ENTRY_WS" tableName="WORKFLOW_METADATA_SUMMARY_ENTRY">
             <column name="WORKFLOW_STATUS"/>
         </createIndex>
-    </changeSet>
 
-    <changeSet author="rhpvorderman" id="sqlite-metadata-init-10" dbms="sqlite">
         <createIndex indexName="METADATA_WORKFLOW_IDX" tableName="METADATA_ENTRY">
             <column name="WORKFLOW_EXECUTION_UUID"/>
         </createIndex>
-    </changeSet>
 
-    <changeSet id="metadata_archive_status_index" author="cjllanwarne" dbms="sqlite">
         <createIndex indexName="IX_WORKFLOW_METADATA_SUMMARY_ENTRY_MAS"
                      tableName="WORKFLOW_METADATA_SUMMARY_ENTRY" unique="false">
             <column name="METADATA_ARCHIVE_STATUS"/>

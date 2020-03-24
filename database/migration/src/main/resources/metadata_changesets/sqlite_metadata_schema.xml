@@ -6,7 +6,7 @@
 
     <changeSet author="rhpvorderman" id="sqlite-metadata-init-1" dbms="sqlite">
         <createTable tableName="CUSTOM_LABEL_ENTRY">
-            <column autoIncrement="true" name="CUSTOM_LABEL_ENTRY_ID" type="INTEGER">
+            <column autoIncrement="true" name="CUSTOM_LABEL_ENTRY_ID" type="BIGINT">
                 <constraints primaryKey="true" primaryKeyName="PK_CUSTOM_LABEL_ENTRY"/>
             </column>
             <column name="CUSTOM_LABEL_KEY" type="TEXT">
@@ -26,7 +26,7 @@
         </createTable>
 
         <createTable tableName="METADATA_ENTRY">
-            <column autoIncrement="true" name="METADATA_JOURNAL_ID" type="INTEGER">
+            <column autoIncrement="true" name="METADATA_JOURNAL_ID" type="BIGINT">
                 <constraints primaryKey="true" primaryKeyName="PK_METADATA_JOURNAL"/>
             </column>
             <column name="WORKFLOW_EXECUTION_UUID" type="TEXT">
@@ -38,8 +38,8 @@
             <column name="CALL_FQN" type="TEXT"/>
             <column name="JOB_SCATTER_INDEX" type="INTEGER"/>
             <column name="JOB_RETRY_ATTEMPT" type="INTEGER"/>
-            <column name="METADATA_VALUE" type="TEXT"/>
-            <column name="METADATA_TIMESTAMP" type="TEXT">
+            <column name="METADATA_VALUE" type="CLOB"/>
+            <column name="METADATA_TIMESTAMP" type="DATETIME">
                 <constraints nullable="false"/>
             </column>
             <column name="METADATA_VALUE_TYPE" type="TEXT"/>
@@ -52,7 +52,7 @@
             <column name="SUMMARY_NAME" type="TEXT">
                 <constraints nullable="false" uniqueConstraintName="UC_SUMMARY_STATUS_ENTRY_SN"/>
             </column>
-            <column name="SUMMARY_POSITION" type="INTEGER">
+            <column name="SUMMARY_POSITION" type="BIGINT">
                 <constraints nullable="false"/>
             </column>
         </createTable>
@@ -66,9 +66,9 @@
             </column>
             <column name="WORKFLOW_NAME" type="TEXT"/>
             <column name="WORKFLOW_STATUS" type="TEXT"/>
-            <column name="START_TIMESTAMP" type="TEXT"/>
-            <column name="END_TIMESTAMP" type="TEXT"/>
-            <column name="SUBMISSION_TIMESTAMP" type="TEXT"/>
+            <column name="START_TIMESTAMP" type="DATETIME"/>
+            <column name="END_TIMESTAMP" type="DATETIME"/>
+            <column name="SUBMISSION_TIMESTAMP" type="DATETIME"/>
             <column name="PARENT_WORKFLOW_EXECUTION_UUID" type="TEXT"/>
             <column name="ROOT_WORKFLOW_EXECUTION_UUID" type="TEXT"/>
             <column name="METADATA_ARCHIVE_STATUS" type="TEXT">

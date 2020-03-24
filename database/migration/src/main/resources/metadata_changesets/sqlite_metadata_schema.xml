@@ -10,7 +10,7 @@
                 <constraints primaryKey="true" primaryKeyName="PK_CUSTOM_LABEL_ENTRY"/>
             </column>
             <column name="CUSTOM_LABEL_KEY" type="TEXT">
-                <constraints nullable="false" uniqueConstraintName="UC_CUSTOM_LABEL_ENTRY_CLK_WEU"/>
+                <constraints nullable="false" uniqueConstraintName="UC_CUSTOM_LABEL_ENTRY_CLK_WEU" unique="true"/>
             </column>
             <column name="CUSTOM_LABEL_VALUE" type="TEXT">
                 <constraints nullable="false"/>
@@ -21,7 +21,8 @@
                              deleteCascade="true"
                              referencedColumnNames="WORKFLOW_EXECUTION_UUID"
                              referencedTableName="WORKFLOW_METADATA_SUMMARY_ENTRY"
-                             uniqueConstraintName="UC_CUSTOM_LABEL_ENTRY_CLK_WEU"/>
+                             uniqueConstraintName="UC_CUSTOM_LABEL_ENTRY_CLK_WEU"
+                             unique="true"/>
             </column>
         </createTable>
 
@@ -50,7 +51,7 @@
                 <constraints primaryKey="true" primaryKeyName="PK_SUMMARY_STATUS_ENTRY"/>
             </column>
             <column name="SUMMARY_NAME" type="TEXT">
-                <constraints nullable="false" uniqueConstraintName="UC_SUMMARY_STATUS_ENTRY_SN"/>
+                <constraints nullable="false" uniqueConstraintName="UC_SUMMARY_STATUS_ENTRY_SN" unique="true"/>
             </column>
             <column name="SUMMARY_POSITION" type="INTEGER">
                 <constraints nullable="false"/>
@@ -62,7 +63,7 @@
                 <constraints primaryKey="true" primaryKeyName="PK_WORKFLOW_METADATA_SUMMARY_ENTRY"/>
             </column>
             <column name="WORKFLOW_EXECUTION_UUID" type="TEXT">
-                <constraints nullable="false" uniqueConstraintName="UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU"/>
+                <constraints nullable="false" uniqueConstraintName="UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU" unique="true"/>
             </column>
             <column name="WORKFLOW_NAME" type="TEXT"/>
             <column name="WORKFLOW_STATUS" type="TEXT"/>

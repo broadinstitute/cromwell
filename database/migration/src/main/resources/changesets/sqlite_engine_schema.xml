@@ -27,7 +27,7 @@
             </column>
             <column name="DETRITUS_KEY" type="TEXT">
                 <constraints nullable="false"
-                             uniqueConstraintName="UC_CALL_CACHING_DETRITUS_ENTRY_CCEI_DK"/>
+                             uniqueConstraintName="UC_CALL_CACHING_DETRITUS_ENTRY_CCEI_DK" unique="true"/>
             </column>
             <column name="DETRITUS_VALUE" type="CLOB"/>
             <column name="CALL_CACHING_ENTRY_ID" type="INTEGER">
@@ -35,7 +35,8 @@
                              foreignKeyName="FK_CALL_CACHING_DETRITUS_ENTRY_CALL_CACHING_ENTRY_ID"
                              referencedColumnNames="CALL_CACHING_ENTRY_ID"
                              referencedTableName="CALL_CACHING_ENTRY"
-                             uniqueConstraintName="UC_CALL_CACHING_DETRITUS_ENTRY_CCEI_DK"/>
+                             uniqueConstraintName="UC_CALL_CACHING_DETRITUS_ENTRY_CCEI_DK"
+                             unique="true"/>
             </column>
         </createTable>
 
@@ -44,13 +45,13 @@
                 <constraints primaryKey="true" primaryKeyName="PK_CALL_CACHING_ENTRY"/>
             </column>
             <column name="WORKFLOW_EXECUTION_UUID" type="TEXT">
-                <constraints nullable="false" uniqueConstraintName="UC_CALL_CACHING_ENTRY_WEU_CFQN_JI"/>
+                <constraints nullable="false" uniqueConstraintName="UC_CALL_CACHING_ENTRY_WEU_CFQN_JI" unique="true"/>
             </column>
             <column name="CALL_FULLY_QUALIFIED_NAME" type="TEXT">
-                <constraints nullable="false" uniqueConstraintName="UC_CALL_CACHING_ENTRY_WEU_CFQN_JI"/>
+                <constraints nullable="false" uniqueConstraintName="UC_CALL_CACHING_ENTRY_WEU_CFQN_JI" unique="true"/>
             </column>
             <column name="JOB_INDEX" type="INTEGER">
-                <constraints nullable="false" uniqueConstraintName="UC_CALL_CACHING_ENTRY_WEU_CFQN_JI"/>
+                <constraints nullable="false" uniqueConstraintName="UC_CALL_CACHING_ENTRY_WEU_CFQN_JI" unique="true"/>
             </column>
             <column name="RETURN_CODE" type="INT"/>
             <column defaultValueBoolean="true" name="ALLOW_RESULT_REUSE" type="BOOLEAN">
@@ -64,7 +65,7 @@
                 <constraints primaryKey="true" primaryKeyName="PK_CALL_CACHING_HASH_ENTRY"/>
             </column>
             <column name="HASH_KEY" type="TEXT">
-                <constraints nullable="false" uniqueConstraintName="UC_CALL_CACHING_HASH_ENTRY_CCEI_HK"/>
+                <constraints nullable="false" uniqueConstraintName="UC_CALL_CACHING_HASH_ENTRY_CCEI_HK" unique="true"/>
             </column>
             <column name="HASH_VALUE" type="TEXT">
                 <constraints nullable="false"/>
@@ -74,7 +75,8 @@
                              foreignKeyName="FK_CALL_CACHING_HASH_ENTRY_CALL_CACHING_ENTRY_ID"
                              referencedColumnNames="CALL_CACHING_ENTRY_ID"
                              referencedTableName="CALL_CACHING_ENTRY"
-                             uniqueConstraintName="UC_CALL_CACHING_HASH_ENTRY_CCEI_HK"/>
+                             uniqueConstraintName="UC_CALL_CACHING_HASH_ENTRY_CCEI_HK"
+                             unique="true"/>
             </column>
         </createTable>
 
@@ -83,7 +85,7 @@
                 <constraints primaryKey="true" primaryKeyName="PK_CALL_CACHING_SIMPLETON_ENTRY"/>
             </column>
             <column name="SIMPLETON_KEY" type="TEXT">
-                <constraints nullable="false" uniqueConstraintName="UC_CALL_CACHING_SIMPLETON_ENTRY_CCEI_SK"/>
+                <constraints nullable="false" uniqueConstraintName="UC_CALL_CACHING_SIMPLETON_ENTRY_CCEI_SK" unique="true"/>
             </column>
             <column name="SIMPLETON_VALUE" type="TEXT"/>
             <column name="WDL_TYPE" type="TEXT">
@@ -94,7 +96,7 @@
                              foreignKeyName="FK_CALL_CACHING_SIMPLETON_ENTRY_CALL_CACHING_ENTRY_ID"
                              referencedColumnNames="CALL_CACHING_ENTRY_ID"
                              referencedTableName="CALL_CACHING_ENTRY"
-                             uniqueConstraintName="UC_CALL_CACHING_SIMPLETON_ENTRY_CCEI_SK"/>
+                             uniqueConstraintName="UC_CALL_CACHING_SIMPLETON_ENTRY_CCEI_SK" unique="true"/>
             </column>
         </createTable>
 
@@ -103,10 +105,10 @@
                 <constraints primaryKey="true" primaryKeyName="PK_DOCKER_HASH_STORE_ENTRY"/>
             </column>
             <column name="WORKFLOW_EXECUTION_UUID" type="TEXT">
-                <constraints nullable="false" uniqueConstraintName="UC_DOCKER_HASH_STORE_ENTRY_WEU_DT"/>
+                <constraints nullable="false" uniqueConstraintName="UC_DOCKER_HASH_STORE_ENTRY_WEU_DT" unique="true"/>
             </column>
             <column name="DOCKER_TAG" type="TEXT">
-                <constraints nullable="false" uniqueConstraintName="UC_DOCKER_HASH_STORE_ENTRY_WEU_DT"/>
+                <constraints nullable="false" uniqueConstraintName="UC_DOCKER_HASH_STORE_ENTRY_WEU_DT" unique="true"/>
             </column>
             <column name="DOCKER_HASH" type="TEXT">
                 <constraints nullable="false"/>
@@ -119,19 +121,19 @@
                 <constraints primaryKey="true" primaryKeyName="PK_JOB_KEY_VALUE_ENTRY"/>
             </column>
             <column name="WORKFLOW_EXECUTION_UUID" type="TEXT">
-                <constraints nullable="false" uniqueConstraintName="UC_JOB_KEY_VALUE_ENTRY_WEU_CFQN_JI_JA_SK"/>
+                <constraints nullable="false" uniqueConstraintName="UC_JOB_KEY_VALUE_ENTRY_WEU_CFQN_JI_JA_SK" unique="true"/>
             </column>
             <column name="CALL_FULLY_QUALIFIED_NAME" type="TEXT">
-                <constraints nullable="false" uniqueConstraintName="UC_JOB_KEY_VALUE_ENTRY_WEU_CFQN_JI_JA_SK"/>
+                <constraints nullable="false" uniqueConstraintName="UC_JOB_KEY_VALUE_ENTRY_WEU_CFQN_JI_JA_SK" unique="true"/>
             </column>
             <column name="JOB_INDEX" type="INTEGER">
-                <constraints nullable="false" uniqueConstraintName="UC_JOB_KEY_VALUE_ENTRY_WEU_CFQN_JI_JA_SK"/>
+                <constraints nullable="false" uniqueConstraintName="UC_JOB_KEY_VALUE_ENTRY_WEU_CFQN_JI_JA_SK" unique="true"/>
             </column>
             <column name="JOB_ATTEMPT" type="INTEGER">
-                <constraints nullable="false" uniqueConstraintName="UC_JOB_KEY_VALUE_ENTRY_WEU_CFQN_JI_JA_SK"/>
+                <constraints nullable="false" uniqueConstraintName="UC_JOB_KEY_VALUE_ENTRY_WEU_CFQN_JI_JA_SK" unique="true"/>
             </column>
             <column name="STORE_KEY" type="TEXT">
-                <constraints nullable="false" uniqueConstraintName="UC_JOB_KEY_VALUE_ENTRY_WEU_CFQN_JI_JA_SK"/>
+                <constraints nullable="false" uniqueConstraintName="UC_JOB_KEY_VALUE_ENTRY_WEU_CFQN_JI_JA_SK" unique="true"/>
             </column>
             <column name="STORE_VALUE" type="TEXT">
                 <constraints nullable="false"/>
@@ -143,16 +145,16 @@
                 <constraints primaryKey="true" primaryKeyName="PK_JOB_STORE_ENTRY"/>
             </column>
             <column name="WORKFLOW_EXECUTION_UUID" type="TEXT">
-                <constraints nullable="false" uniqueConstraintName="UC_JOB_STORE_ENTRY_WEU_CFQN_JI_JA"/>
+                <constraints nullable="false" uniqueConstraintName="UC_JOB_STORE_ENTRY_WEU_CFQN_JI_JA" unique="true"/>
             </column>
             <column name="CALL_FULLY_QUALIFIED_NAME" type="TEXT">
-                <constraints nullable="false" uniqueConstraintName="UC_JOB_STORE_ENTRY_WEU_CFQN_JI_JA"/>
+                <constraints nullable="false" uniqueConstraintName="UC_JOB_STORE_ENTRY_WEU_CFQN_JI_JA" unique="true"/>
             </column>
             <column name="JOB_INDEX" type="INTEGER">
-                <constraints nullable="false" uniqueConstraintName="UC_JOB_STORE_ENTRY_WEU_CFQN_JI_JA"/>
+                <constraints nullable="false" uniqueConstraintName="UC_JOB_STORE_ENTRY_WEU_CFQN_JI_JA" unique="true"/>
             </column>
             <column name="JOB_ATTEMPT" type="INTEGER">
-                <constraints nullable="false" uniqueConstraintName="UC_JOB_STORE_ENTRY_WEU_CFQN_JI_JA"/>
+                <constraints nullable="false" uniqueConstraintName="UC_JOB_STORE_ENTRY_WEU_CFQN_JI_JA" unique="true"/>
             </column>
             <column name="JOB_SUCCESSFUL" type="INTEGER">
                 <constraints nullable="false"/>
@@ -167,7 +169,7 @@
                 <constraints primaryKey="true" primaryKeyName="PK_JOB_STORE_SIMPLETON_ENTRY"/>
             </column>
             <column name="SIMPLETON_KEY" type="TEXT">
-                <constraints nullable="false" uniqueConstraintName="UC_JOB_STORE_SIMPLETON_ENTRY_JSEI_SK"/>
+                <constraints nullable="false" uniqueConstraintName="UC_JOB_STORE_SIMPLETON_ENTRY_JSEI_SK" unique="true"/>
             </column>
             <column name="SIMPLETON_VALUE" type="CLOB"/>
             <column name="WDL_TYPE" type="TEXT">
@@ -179,7 +181,8 @@
                              referencedColumnNames="JOB_STORE_ENTRY_ID"
                              referencedTableName="JOB_STORE_ENTRY"
                              deleteCascade="true"
-                             uniqueConstraintName="UC_JOB_STORE_SIMPLETON_ENTRY_JSEI_SK"/>
+                             uniqueConstraintName="UC_JOB_STORE_SIMPLETON_ENTRY_JSEI_SK"
+                             unique="true"/>
             </column>
         </createTable>
 
@@ -195,16 +198,16 @@
                              deleteCascade="true"/>
             </column>
             <column name="PARENT_WORKFLOW_EXECUTION_UUID" type="TEXT">
-                <constraints nullable="false" uniqueConstraintName="UC_SUB_WORKFLOW_STORE_ENTRY_PWEU_CFQN_CI_CA"/>
+                <constraints nullable="false" uniqueConstraintName="UC_SUB_WORKFLOW_STORE_ENTRY_PWEU_CFQN_CI_CA" unique="true"/>
             </column>
             <column name="CALL_FULLY_QUALIFIED_NAME" type="TEXT">
-                <constraints nullable="false" uniqueConstraintName="UC_SUB_WORKFLOW_STORE_ENTRY_PWEU_CFQN_CI_CA"/>
+                <constraints nullable="false" uniqueConstraintName="UC_SUB_WORKFLOW_STORE_ENTRY_PWEU_CFQN_CI_CA" unique="true"/>
             </column>
             <column name="CALL_INDEX" type="INTEGER">
-                <constraints nullable="false" uniqueConstraintName="UC_SUB_WORKFLOW_STORE_ENTRY_PWEU_CFQN_CI_CA"/>
+                <constraints nullable="false" uniqueConstraintName="UC_SUB_WORKFLOW_STORE_ENTRY_PWEU_CFQN_CI_CA" unique="true"/>
             </column>
             <column name="CALL_ATTEMPT" type="INTEGER">
-                <constraints nullable="false" uniqueConstraintName="UC_SUB_WORKFLOW_STORE_ENTRY_PWEU_CFQN_CI_CA"/>
+                <constraints nullable="false" uniqueConstraintName="UC_SUB_WORKFLOW_STORE_ENTRY_PWEU_CFQN_CI_CA" unique="true"/>
             </column>
             <column name="SUB_WORKFLOW_EXECUTION_UUID" type="TEXT">
                 <constraints nullable="false"/>
@@ -216,7 +219,7 @@
                 <constraints primaryKey="true" primaryKeyName="PK_WORKFLOW_STORE_ENTRY"/>
             </column>
             <column name="WORKFLOW_EXECUTION_UUID" type="TEXT">
-                <constraints nullable="false" uniqueConstraintName="UC_WORKFLOW_STORE_ENTRY_WEU"/>
+                <constraints nullable="false" uniqueConstraintName="UC_WORKFLOW_STORE_ENTRY_WEU" unique="true"/>
             </column>
             <column name="WORKFLOW_DEFINITION" type="CLOB"/>
             <column name="WORKFLOW_INPUTS" type="CLOB"/>

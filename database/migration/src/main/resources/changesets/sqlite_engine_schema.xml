@@ -10,7 +10,10 @@
                 <constraints primaryKey="true" primaryKeyName="PK_CALL_CACHING_AGGREGATION_ENTRY"/>
             </column>
             <column name="CALL_CACHING_ENTRY_ID" type="INTEGER">
-                <constraints nullable="false"/>
+                <constraints nullable="false"
+                             foreignKeyName="FK_CALL_CACHING_AGGREGATION_ENTRY_CALL_CACHING_ENTRY_ID"
+                             referencedColumnNames="CALL_CACHING_ENTRY_ID"
+                             referencedTableName="CALL_CACHING_ENTRY"/>
             </column>
             <column name="BASE_AGGREGATION" type="TEXT">
                 <constraints nullable="false"/>
@@ -27,7 +30,10 @@
             </column>
             <column name="DETRITUS_VALUE" type="TEXT"/>
             <column name="CALL_CACHING_ENTRY_ID" type="INTEGER">
-                <constraints nullable="false"/>
+                <constraints nullable="false"
+                             foreignKeyName="FK_CALL_CACHING_DETRITUS_ENTRY_CALL_CACHING_ENTRY_ID"
+                             referencedColumnNames="CALL_CACHING_ENTRY_ID"
+                             referencedTableName="CALL_CACHING_ENTRY"/>
             </column>
         </createTable>
 
@@ -62,7 +68,10 @@
                 <constraints nullable="false"/>
             </column>
             <column name="CALL_CACHING_ENTRY_ID" type="INTEGER">
-                <constraints nullable="false"/>
+                <constraints nullable="false"
+                             foreignKeyName="FK_CALL_CACHING_HASH_ENTRY_CALL_CACHING_ENTRY_ID"
+                             referencedColumnNames="CALL_CACHING_ENTRY_ID"
+                             referencedTableName="CALL_CACHING_ENTRY"/>
             </column>
         </createTable>
 
@@ -78,7 +87,10 @@
                 <constraints nullable="false"/>
             </column>
             <column name="CALL_CACHING_ENTRY_ID" type="INTEGER">
-                <constraints nullable="false"/>
+                <constraints nullable="false"
+                             foreignKeyName="FK_CALL_CACHING_SIMPLETON_ENTRY_CALL_CACHING_ENTRY_ID"
+                             referencedColumnNames="CALL_CACHING_ENTRY_ID"
+                             referencedTableName="CALL_CACHING_ENTRY"/>
             </column>
         </createTable>
 
@@ -158,7 +170,11 @@
                 <constraints nullable="false"/>
             </column>
             <column name="JOB_STORE_ENTRY_ID" type="INTEGER">
-                <constraints nullable="false"/>
+                <constraints nullable="false"
+                             foreignKeyName="FK_JOB_STORE_SIMPLETON_ENTRY_JOB_STORE_ENTRY_ID"
+                             referencedColumnNames="JOB_STORE_ENTRY_ID"
+                             referencedTableName="JOB_STORE_ENTRY"
+                             deleteCascade="true"/>
             </column>
         </createTable>
 
@@ -167,7 +183,11 @@
                 <constraints primaryKey="true" primaryKeyName="PK_SUB_WORKFLOW_STORE_ENTRY"/>
             </column>
             <column name="ROOT_WORKFLOW_ID" type="INTEGER">
-                <constraints nullable="false"/>
+                <constraints nullable="false"
+                             foreignKeyName="FK_SUB_WORKFLOW_STORE_ENTRY_ROOT_WORKFLOW_ID"
+                             referencedColumnNames="WORKFLOW_STORE_ENTRY_ID"
+                             referencedTableName="WORKFLOW_STORE_ENTRY"
+                             deleteCascade="true"/>
             </column>
             <column name="PARENT_WORKFLOW_EXECUTION_UUID" type="TEXT">
                 <constraints nullable="false"/>
@@ -214,6 +234,56 @@
             <column name="WORKFLOW_URL" type="TEXT"/>
             <column name="HOG_GROUP" type="TEXT"/>
         </createTable>
+
+        <addUniqueConstraint
+                columnNames="CALL_CACHING_ENTRY_ID, DETRITUS_KEY"
+                constraintName="UC_CALL_CACHING_DETRITUS_ENTRY_CCEI_DK"
+                tableName="CALL_CACHING_DETRITUS_ENTRY"/>
+
+        <addUniqueConstraint
+                columnNames="WORKFLOW_EXECUTION_UUID, CALL_FULLY_QUALIFIED_NAME, JOB_INDEX"
+                constraintName="UC_CALL_CACHING_ENTRY_WEU_CFQN_JI"
+                tableName="CALL_CACHING_ENTRY"/>
+
+        <addUniqueConstraint
+                columnNames="CALL_CACHING_ENTRY_ID, HASH_KEY"
+                constraintName="UC_CALL_CACHING_HASH_ENTRY_CCEI_HK"
+                tableName="CALL_CACHING_HASH_ENTRY"/>
+
+        <addUniqueConstraint
+                columnNames="CALL_CACHING_ENTRY_ID, SIMPLETON_KEY"
+                constraintName="UC_CALL_CACHING_SIMPLETON_ENTRY_CCEI_SK"
+                tableName="CALL_CACHING_SIMPLETON_ENTRY"/>
+
+        <addUniqueConstraint
+                columnNames="WORKFLOW_EXECUTION_UUID, DOCKER_TAG"
+                constraintName="UC_DOCKER_HASH_STORE_ENTRY_WEU_DT"
+                tableName="DOCKER_HASH_STORE_ENTRY"/>
+
+        <addUniqueConstraint
+                columnNames="WORKFLOW_EXECUTION_UUID, CALL_FULLY_QUALIFIED_NAME, JOB_INDEX, JOB_ATTEMPT, STORE_KEY"
+                constraintName="UC_JOB_KEY_VALUE_ENTRY_WEU_CFQN_JI_JA_SK"
+                tableName="JOB_KEY_VALUE_ENTRY"/>
+
+        <addUniqueConstraint
+                columnNames="WORKFLOW_EXECUTION_UUID, CALL_FULLY_QUALIFIED_NAME, JOB_INDEX, JOB_ATTEMPT"
+                constraintName="UC_JOB_STORE_ENTRY_WEU_CFQN_JI_JA"
+                tableName="JOB_STORE_ENTRY"/>
+
+        <addUniqueConstraint
+                columnNames="JOB_STORE_ENTRY_ID, SIMPLETON_KEY"
+                constraintName="UC_JOB_STORE_SIMPLETON_ENTRY_JSEI_SK"
+                tableName="JOB_STORE_SIMPLETON_ENTRY"/>
+
+        <addUniqueConstraint
+                columnNames="PARENT_WORKFLOW_EXECUTION_UUID, CALL_FULLY_QUALIFIED_NAME, CALL_INDEX, CALL_ATTEMPT"
+                constraintName="UC_SUB_WORKFLOW_STORE_ENTRY_PWEU_CFQN_CI_CA"
+                tableName="SUB_WORKFLOW_STORE_ENTRY"/>
+
+        <addUniqueConstraint
+                columnNames="WORKFLOW_EXECUTION_UUID"
+                constraintName="UC_WORKFLOW_STORE_ENTRY_WEU"
+                tableName="WORKFLOW_STORE_ENTRY"/>
 
         <createIndex indexName="IX_CALL_CACHING_AGGREGATION_ENTRY_BA_IFA" tableName="CALL_CACHING_AGGREGATION_ENTRY">
             <column name="BASE_AGGREGATION"/>

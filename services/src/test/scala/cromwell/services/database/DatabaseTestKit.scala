@@ -25,7 +25,7 @@ object DatabaseTestKit extends StrictLogging {
     s"""|profile = "slick.jdbc.SQLiteProfile$$"
         |db {
         |  driver = "org.sqlite.JDBC"
-        |  url = "jdbc:sqlite::memory:"
+        |  url = "jdbc:sqlite::memory:?foreign_keys=true"
         |}
         |""".stripMargin)
 

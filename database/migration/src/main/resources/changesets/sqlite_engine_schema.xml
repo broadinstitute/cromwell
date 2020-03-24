@@ -29,7 +29,7 @@
                 <constraints nullable="false"
                              uniqueConstraintName="UC_CALL_CACHING_DETRITUS_ENTRY_CCEI_DK"/>
             </column>
-            <column name="DETRITUS_VALUE" type="TEXT"/>
+            <column name="DETRITUS_VALUE" type="CLOB"/>
             <column name="CALL_CACHING_ENTRY_ID" type="INTEGER">
                 <constraints nullable="false"
                              foreignKeyName="FK_CALL_CACHING_DETRITUS_ENTRY_CALL_CACHING_ENTRY_ID"
@@ -52,8 +52,8 @@
             <column name="JOB_INDEX" type="INTEGER">
                 <constraints nullable="false" uniqueConstraintName="UC_CALL_CACHING_ENTRY_WEU_CFQN_JI"/>
             </column>
-            <column name="RETURN_CODE" type="INTEGER"/>
-            <column defaultValueBoolean="true" name="ALLOW_RESULT_REUSE" type="INTEGER">
+            <column name="RETURN_CODE" type="INT"/>
+            <column defaultValueBoolean="true" name="ALLOW_RESULT_REUSE" type="BOOLEAN">
                 <constraints nullable="false"/>
             </column>
             <column defaultValueComputed="NULL" name="JOB_ATTEMPT" type="INTEGER"/>
@@ -158,8 +158,8 @@
                 <constraints nullable="false"/>
             </column>
             <column name="RETURN_CODE" type="INTEGER"/>
-            <column name="EXCEPTION_MESSAGE" type="TEXT"/>
-            <column name="RETRYABLE_FAILURE" type="INTEGER"/>
+            <column name="EXCEPTION_MESSAGE" type="CLOB"/>
+            <column name="RETRYABLE_FAILURE" type="BOOLEAN"/>
         </createTable>
 
         <createTable tableName="JOB_STORE_SIMPLETON_ENTRY">
@@ -169,7 +169,7 @@
             <column name="SIMPLETON_KEY" type="TEXT">
                 <constraints nullable="false" uniqueConstraintName="UC_JOB_STORE_SIMPLETON_ENTRY_JSEI_SK"/>
             </column>
-            <column name="SIMPLETON_VALUE" type="TEXT"/>
+            <column name="SIMPLETON_VALUE" type="CLOB"/>
             <column name="WDL_TYPE" type="TEXT">
                 <constraints nullable="false"/>
             </column>
@@ -218,24 +218,24 @@
             <column name="WORKFLOW_EXECUTION_UUID" type="TEXT">
                 <constraints nullable="false" uniqueConstraintName="UC_WORKFLOW_STORE_ENTRY_WEU"/>
             </column>
-            <column name="WORKFLOW_DEFINITION" type="TEXT"/>
-            <column name="WORKFLOW_INPUTS" type="TEXT"/>
-            <column name="WORKFLOW_OPTIONS" type="TEXT"/>
+            <column name="WORKFLOW_DEFINITION" type="CLOB"/>
+            <column name="WORKFLOW_INPUTS" type="CLOB"/>
+            <column name="WORKFLOW_OPTIONS" type="CLOB"/>
             <column name="WORKFLOW_STATE" type="TEXT">
                 <constraints nullable="false"/>
             </column>
-            <column name="SUBMISSION_TIME" type="TEXT">
+            <column name="SUBMISSION_TIME" type="DATETIME">
                 <constraints nullable="false"/>
             </column>
             <column name="IMPORTS_ZIP" type="BLOB"/>
-            <column name="CUSTOM_LABELS" type="TEXT">
+            <column name="CUSTOM_LABELS" type="CLOB">
                 <constraints nullable="false"/>
             </column>
             <column name="WORKFLOW_TYPE" type="TEXT"/>
             <column name="WORKFLOW_TYPE_VERSION" type="TEXT"/>
             <column name="WORKFLOW_ROOT" type="TEXT"/>
             <column name="CROMWELL_ID" type="TEXT"/>
-            <column name="HEARTBEAT_TIMESTAMP" type="TEXT"/>
+            <column name="HEARTBEAT_TIMESTAMP" type="DATETIME"/>
             <column name="WORKFLOW_URL" type="TEXT"/>
             <column name="HOG_GROUP" type="TEXT"/>
         </createTable>

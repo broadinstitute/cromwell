@@ -54,7 +54,7 @@ object Dependencies {
   private val kindProjectorV = "0.9.9"
   private val kittensV = "2.0.0"
   private val liquibaseSlf4jV = "2.0.0"
-  private val liquibaseV = "3.6.3"
+  private val liquibaseV = "3.8.8"
   private val logbackV = "1.2.3"
   private val mariadbV = "2.4.2"
   private val metrics3ScalaV = "3.5.10" // https://github.com/erikvanoosten/metrics-scala/tree/f733e26#download-4x

@@ -1,6 +1,6 @@
 # Cromwell Change Log
 
-## 50 Rekease Notes
+## 50 Release Notes
 
 ### Bugfixes
 

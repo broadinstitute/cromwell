@@ -1,5 +1,11 @@
 # Cromwell Change Log
 
+## 50 Rekease Notes
+
+### Bugfixes
+
++ Fixed a bug where the `use_relative_output_paths` option would not preserve intermediate folders.
+
 ## 49 Release Notes
 
 ### Changes and Warnings

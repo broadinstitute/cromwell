@@ -108,10 +108,10 @@ object GraphPrint {
           |  compound=true;
           |
           |  # Links
-          |  ${digraph.links.toList.flatMap(_.dotString.lines).mkString(System.lineSeparator + "  ")}
+          |  ${digraph.links.toList.flatMap(_.dotString.linesIterator).mkString(System.lineSeparator + "  ")}
           |
           |  # Nodes
-          |  ${digraph.nodes.toList.flatMap(_.dotString.lines).mkString(System.lineSeparator + "  ")}
+          |  ${digraph.nodes.toList.flatMap(_.dotString.linesIterator).mkString(System.lineSeparator + "  ")}
           |}""".stripMargin
   }
 
@@ -154,7 +154,7 @@ object GraphPrint {
       s"""subgraph $id {
           |  style="filled,solid";
           |  fillcolor=white;
-          |  ${nodes.toList.flatMap(_.dotString.lines).mkString(System.lineSeparator() + "  ")}
+          |  ${nodes.toList.flatMap(_.dotString.linesIterator).mkString(System.lineSeparator() + "  ")}
           |}""".stripMargin
   }
 
@@ -163,7 +163,7 @@ object GraphPrint {
       s"""subgraph $id {
          |  style="filled,dashed";
          |  fillcolor=white;
-         |  ${nodes.toList.flatMap(_.dotString.lines).mkString(System.lineSeparator() + "  ")}
+         |  ${nodes.toList.flatMap(_.dotString.linesIterator).mkString(System.lineSeparator() + "  ")}
          |}""".stripMargin
   }
 

@@ -48,7 +48,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
       }
       else {
         log.info(s"Root workflow ${rootWorkflowId.id} does not have any intermediate output files to delete.")
-        stopSelf()
+        respondAndStop(Nil, Nil, Nil)
       }
   }
 

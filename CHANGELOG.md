@@ -11,10 +11,6 @@ To alleviate problems with existing call cache strategies, two new strategies ha
 lightweight. Read more about it in the [call caching documentation](
 https://cromwell.readthedocs.io/en/stable/Configuring/#call-caching).
 
-### Bugfixes
-
-+ Fixed a bug in Cromwell 49 where the `use_relative_output_paths` option would not preserve intermediate folders.
-
 ## 49 Release Notes
 
 ### Changes and Warnings

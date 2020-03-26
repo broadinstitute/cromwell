@@ -24,7 +24,7 @@ wait_for_cromwell() {
       # Just wait a bit longer - no rush, this is a chill VM - this is because cromwell responds to requests before being really ready...
       sleep 30
     
-      CROMWELL_VERSION=$(curl -X GET "http://${CROMWELL_UNDER_TEST}:8000/engine/v1/version" -H "accept: application/json" | jq -r '.cromwell')
+      CROMWELL_VERSION=$(curl --silent -X GET "http://${CROMWELL_UNDER_TEST}:8000/engine/v1/version" -H "accept: application/json" | jq -r '.cromwell')
       if [ -z ${CROMWELL_VERSION} ]
       then
         echo "Cromwell was up but failed to return its version, so something went wrong, shutting down"
@@ -55,7 +55,7 @@ custom_wait_for_cromwell() {
     sleep 30
     ATTEMPTS=$((ATTEMPTS + 1))
 
-    CROMWELL_VERSION_JSON=$(curl -X GET "http://${cromwell_under_test}:8000/engine/v1/version" -H "accept: application/json")
+    CROMWELL_VERSION_JSON=$(curl --silent -X GET "http://${cromwell_under_test}:8000/engine/v1/version" -H "accept: application/json")
     RESULT=$?
 
     CROMWELL_VERSION=$(echo "${CROMWELL_VERSION_JSON}" | jq -r '.cromwell')
@@ -112,7 +112,7 @@ clean_up() {
 }
 
 self_destruct_instance() {
-    gcloud compute instances delete $(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google") --zone=us-central1-c -q
+    gcloud compute instances delete $(curl --silent "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google") --zone=us-central1-c -q
 }
 
 run_test() {

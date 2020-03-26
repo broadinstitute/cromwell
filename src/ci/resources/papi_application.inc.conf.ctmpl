@@ -66,11 +66,13 @@ services {
 
       check-papi-backends: [ Papi ]
       check-gcs: true
+      check-carboniter-gcs-access: true
       check-engine-database: true
       check-dockerhub: true
 
 	  google-auth-name = "service_account"
 	  gcs-bucket-to-check = "cloud-cromwell-dev"
+	  gcs-object-to-check-carboniter-access = "healthcheck.txt"
 	}
   }
 }

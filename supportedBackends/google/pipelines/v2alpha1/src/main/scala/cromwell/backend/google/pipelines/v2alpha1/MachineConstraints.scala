@@ -22,18 +22,15 @@ object MachineConstraints {
   private val memoryFactor = MemorySize(256, MemoryUnit.MB)
 
   private def validateCpu(cpu: Int Refined Positive) = cpu.value match {
-    case numLessThan32 if numLessThan32 < 32 =>
-      numLessThan32 match {
-        // odd is not allowed, round it up to the next even number
-        case odd if odd.isOdd => odd + 1
-        case even => even
-      }
-    // If the instance has a vCPU count that is 32 vCPUs or higher, the vCPU count must be evenly divisible by 4.
-    // So, for example, 32, 36, and 40 vCPUs are all valid, but 38 is invalid.
-    case numGreaterThan32 =>
-      numGreaterThan32 match {
-        case divisibleBy4 if divisibleBy4 % 4 == 0 => divisibleBy4
-        case notDivisibleBy4 => notDivisibleBy4 + (4 - (notDivisibleBy4 % 4))
+    case numLessOrEquals2 if numLessOrEquals2 <= 2 => 2
+    // You can create VMs with vCPUs in multiples of 4 with up to 8 vCPUs. For VMs with more than 16 vCPUs, you can
+    // create custom VMs with a vCPU count in multiples of 16.
+    case numLessOrEquals4 if numLessOrEquals4 <= 4 => 4
+    case numLessOrEquals8 if numLessOrEquals8 <= 8 => 8
+    case numGreaterThan8 =>
+      numGreaterThan8 match {
+        case divisibleBy16 if divisibleBy16 % 16 == 0 => divisibleBy16
+        case notDivisibleBy16 => notDivisibleBy16 + (16 - (notDivisibleBy16 % 16))
       }
   }
 
@@ -80,6 +77,6 @@ object MachineConstraints {
   def machineType(memory: MemorySize, cpu: Int Refined Positive, jobLogger: Logger) = {
     val (validCpu, validMemory) = balanceMemoryAndCpu(memory |> validateMemory, cpu |> validateCpu)
     logAdjustment(cpu.value, validCpu, memory, validMemory, jobLogger)
-    s"n2-custom-$validCpu-${validMemory.to(MemoryUnit.MB).amount.intValue()}"
+    s"n2d-custom-$validCpu-${validMemory.to(MemoryUnit.MB).amount.intValue()}"
   }
 }

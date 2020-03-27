@@ -17,16 +17,24 @@ object MachineConstraints {
 
   // https://cloud.google.com/compute/docs/instances/creating-instance-with-custom-machine-type
   // https://cloud.google.com/compute/docs/instances/creating-instance-with-custom-machine-type#specifications
-  private val minMemoryPerCpu = MemorySize(0.9, MemoryUnit.GB)
-  private val maxMemoryPerCpu = MemorySize(6.5, MemoryUnit.GB)
+  private val minMemoryPerCpu = MemorySize(0.5, MemoryUnit.GB)
+  private val maxMemoryPerCpu = MemorySize(8.0, MemoryUnit.GB)
   private val memoryFactor = MemorySize(256, MemoryUnit.MB)
 
   private def validateCpu(cpu: Int Refined Positive) = cpu.value match {
-    // One CPU is cool
-    case 1 => 1
-    // odd is not allowed, round it up to the next even number
-    case odd if odd.isOdd => odd + 1
-    case even => even
+    case numLessThan32 if numLessThan32 < 32 =>
+      numLessThan32 match {
+        // odd is not allowed, round it up to the next even number
+        case odd if odd.isOdd => odd + 1
+        case even => even
+      }
+    // If the instance has a vCPU count that is 32 vCPUs or higher, the vCPU count must be evenly divisible by 4.
+    // So, for example, 32, 36, and 40 vCPUs are all valid, but 38 is invalid.
+    case numGreaterThan32 =>
+      numGreaterThan32 match {
+        case divisibleBy4 if divisibleBy4 % 4 == 0 => divisibleBy4
+        case notDivisibleBy4 => notDivisibleBy4 + (4 - (notDivisibleBy4 % 4))
+      }
   }
 
   private def validateMemory(memory: MemorySize) = memory.asMultipleOf(memoryFactor)
@@ -72,6 +80,6 @@ object MachineConstraints {
   def machineType(memory: MemorySize, cpu: Int Refined Positive, jobLogger: Logger) = {
     val (validCpu, validMemory) = balanceMemoryAndCpu(memory |> validateMemory, cpu |> validateCpu)
     logAdjustment(cpu.value, validCpu, memory, validMemory, jobLogger)
-    s"custom-$validCpu-${validMemory.to(MemoryUnit.MB).amount.intValue()}"
+    s"n2-custom-$validCpu-${validMemory.to(MemoryUnit.MB).amount.intValue()}"
   }
 }

@@ -53,7 +53,8 @@ final case class PipelinesApiRuntimeAttributes(cpu: Int Refined Positive,
 object PipelinesApiRuntimeAttributes {
 
   val ZonesKey = "zones"
-  private val ZonesDefaultValue = WomString("us-central1-b")
+  // us-central1-b doesn't support n2 and n2d machine types
+  private val ZonesDefaultValue = WomString("us-central1-a")
 
   val PreemptibleKey = "preemptible"
   private val preemptibleValidationInstance = new IntRuntimeAttributesValidation(PreemptibleKey)

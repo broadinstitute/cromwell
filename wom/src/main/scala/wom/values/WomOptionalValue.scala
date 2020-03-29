@@ -4,7 +4,7 @@ import cats.Applicative
 import cats.syntax.functor._
 import common.validation.IOChecked.IOChecked
 import wom.expression.IoFunctionSet
-import wom.types.{WomOptionalType, WomType}
+import wom.types.{WomOptionalType, WomType, WomStringType}
 
 import scala.annotation.tailrec
 import scala.language.higherKinds
@@ -16,7 +16,10 @@ final case class WomOptionalValue(innerType: WomType, value: Option[WomValue]) e
 
   override def add(rhs: WomValue): Try[WomValue] = value match {
     case Some(lhs) => lhs.add(rhs)
-    case None => emptyValueFailure("+")
+    case _ => {
+      if (innerType == WomStringType) return Success(WomOptionalValue(innerType, None))
+      emptyValueFailure("+")
+    }
   }
 
   override def subtract(rhs: WomValue): Try[WomValue] = value match {

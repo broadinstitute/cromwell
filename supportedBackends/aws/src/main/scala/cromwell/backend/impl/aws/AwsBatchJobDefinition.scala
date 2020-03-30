@@ -94,29 +94,6 @@ trait AwsBatchJobDefinitionBuilder {
 
     val environment = List.empty[KeyValuePair]
 
-//    val environment =
-//      context.runtimeAttributes.disks.collect{
-//        case d if d.name == "local-disk" =>  // this has s3 file system, needs all the env for the ecs-proxy
-//          List(
-//            //buildKVPair("AWS_CROMWELL_LOCAL_DISK", d.mountPoint.toString),
-//            //buildKVPair("AWS_CROMWELL_PATH",jobDefinitionName),
-//            //buildKVPair("AWS_CROMWELL_RC_FILE",context.dockerRcPath),
-//            buildKVPair("AWS_CROMWELL_STDOUT_FILE",context.dockerStdoutPath),
-//            buildKVPair("AWS_CROMWELL_STDERR_FILE",context.dockerStderrPath)
-//
-//            //move the rest to job submission over-rides
-//            //buildKVPair("AWS_CROMWELL_CALL_ROOT",context.jobPaths.callExecutionRoot.toString),
-//            //buildKVPair("AWS_CROMWELL_WORKFLOW_ROOT",context.jobPaths.workflowPaths.workflowRoot.toString)
-//          )
-//      }.flatten
-
-//    def getVolPath(d:AwsBatchVolume) : Option[String] =  {
-//        d.fsType match {
-//          case "efs"  => None
-//          case _ =>  Option(jobDefinitionName)
-//        }
-//    }
-
 
     def buildVolumes(disks: Seq[AwsBatchVolume]): List[Volume] = {
 

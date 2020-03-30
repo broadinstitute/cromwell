@@ -3,7 +3,7 @@ package wom.types
 import spray.json.JsNull
 import wom.values.{WomOptionalValue, WomValue}
 
-import scala.util.Try
+import scala.util.{Success, Try}
 
 case class WomOptionalType(memberType: WomType) extends WomType {
 
@@ -67,7 +67,7 @@ case class WomOptionalType(memberType: WomType) extends WomType {
   def baseMemberTypeIsCompatibleWith(otherType: WomType): Boolean =
     baseMemberType.equalsType(otherType).isSuccess
 
-  override def add(rhs: WomType): Try[WomType] = memberType.add(rhs)
+  override def add(rhs: WomType): Try[WomType] = Success(WomOptionalType(memberType.add(rhs).get))
   override def subtract(rhs: WomType): Try[WomType] = memberType.subtract(rhs)
   override def multiply(rhs: WomType): Try[WomType] = memberType.multiply(rhs)
   override def divide(rhs: WomType): Try[WomType] = memberType.divide(rhs)

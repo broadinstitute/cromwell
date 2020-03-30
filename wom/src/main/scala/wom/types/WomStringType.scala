@@ -25,8 +25,9 @@ case object WomStringType extends WomPrimitiveType {
 
   override def add(rhs: WomType): Try[WomType] = rhs match {
     case WomStringType | WomIntegerType | WomFloatType => Success(WomStringType)
+    case WomOptionalType(memberType) => Success(WomOptionalType(add(memberType).get))
+    case WomNothingType => Success(WomNothingType)
     case _: WomPrimitiveFileType => Success(WomStringType)
-    case WomOptionalType(memberType) => add(memberType)
     case _ => invalid(s"$this + $rhs")
   }
 

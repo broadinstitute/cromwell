@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
-import cromwell.backend.BackendCacheHitCopyingActor.CopyingOutputsFailedResponse
+import cromwell.backend.BackendCacheHitCopyingActor.{CopyingOutputsFailedResponse, LoggableCacheCopyError, MetricableCacheCopyError}
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.core.callcaching._
@@ -118,6 +118,12 @@ private[ejea] trait HasJobFailureResponses { self: EngineJobExecutionActorSpec =
 private[ejea] trait HasCopyFailureResponses { self: EngineJobExecutionActorSpec =>
   val copyFailureReason =
     new Exception("Deliberate failure for test case: failed to copy cache outputs!") with NoStackTrace
+
   // Need to delay making the response because job descriptors come from the per-test "helper", which is null outside tests!
-  def failedToCopyResponse(attemptNumber: Int) = CopyingOutputsFailedResponse(helper.jobDescriptorKey, attemptNumber, copyFailureReason)
+  def loggableFailedToCopyResponse(attemptNumber: Int) = CopyingOutputsFailedResponse(helper.jobDescriptorKey, attemptNumber, LoggableCacheCopyError(copyFailureReason))
+  def metricableFailedToCopyResponse(attemptNumber: Int) = CopyingOutputsFailedResponse(helper.jobDescriptorKey, attemptNumber, MetricableCacheCopyError(HasCopyFailureResponses.metricContext))
+}
+
+object HasCopyFailureResponses {
+  val metricContext = "metriccontext"
 }

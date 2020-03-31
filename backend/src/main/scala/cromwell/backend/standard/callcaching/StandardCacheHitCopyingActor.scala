@@ -7,7 +7,7 @@ import cats.instances.list._
 import cats.instances.set._
 import cats.instances.tuple._
 import cats.syntax.foldable._
-import cromwell.backend.BackendCacheHitCopyingActor.{CopyOutputsCommand, CopyingOutputsFailedResponse}
+import cromwell.backend.BackendCacheHitCopyingActor.{CopyOutputsCommand, CopyingOutputsFailedResponse, LoggableCacheCopyError, LoggableOrMetricableCacheCopyError, MetricableCacheCopyError}
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.io.JobPaths
@@ -140,14 +140,9 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
   when(Idle) {
     case Event(command: CopyOutputsCommand, None) if isSourceBlacklisted(command) =>
-      val rootWorkflowId = jobDescriptor.workflowDescriptor.rootWorkflowId
-      // The `.get` is safe because `isSourceBlacklisted` flatMaps `extractBlacklistPrefix` and could not have returned true
-      // unless `isSourceBlacklisted` was a `Some`.
-      val blacklistedBucket = extractBlacklistPrefix(command).get
-      failAndStop(new IllegalArgumentException(s"Source bucket for cache hit copy in root workflow $rootWorkflowId has been blacklisted: $blacklistedBucket"))
+      failAndStop(MetricableCacheCopyError(s"bucketblacklisted"))
 
     case Event(CopyOutputsCommand(simpletons, jobDetritus, returnCode), None) =>
-
       // Try to make a Path of the callRootPath from the detritus
       lookupSourceCallRootPath(jobDetritus) match {
         case Success(sourceCallRootPath) =>
@@ -254,15 +249,17 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     stay()
   }
 
-  def failAndStop(failure: Throwable) = {
+  def failAndStop(failure: LoggableOrMetricableCacheCopyError): State = {
     context.parent ! CopyingOutputsFailedResponse(jobDescriptor.key, standardParams.cacheCopyAttempt, failure)
     context stop self
     stay()
   }
 
+  def failAndStop(failure: Throwable): State = failAndStop(LoggableCacheCopyError(failure))
+
   /** If there are no responses pending this behaves like `failAndStop`, otherwise this goes to `FailedState` and waits
     * for all the pending responses to come back before stopping. */
-  def failAndAwaitPendingResponses(failure: Throwable, command: IoCommand[_], data: StandardCacheHitCopyingActorData): State = {
+  def failAndAwaitPendingResponses(failure: LoggableOrMetricableCacheCopyError, command: IoCommand[_], data: StandardCacheHitCopyingActorData): State = {
     context.parent ! CopyingOutputsFailedResponse(jobDescriptor.key, standardParams.cacheCopyAttempt, failure)
 
     val (newData, commandState) = data.commandComplete(command)
@@ -275,6 +272,9 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
         stay()
     }
   }
+
+  def failAndAwaitPendingResponses(failure: Throwable, command: IoCommand[_], data: StandardCacheHitCopyingActorData): State =
+    failAndAwaitPendingResponses(LoggableCacheCopyError(failure), command, data)
 
   def abort() = {
     log.warning("{}: Abort not supported during cache hit copying", jobTag)
@@ -368,9 +368,6 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     * to return the prefix of the path from the failed copy command to use for blacklisting.
     */
   protected def extractBlacklistPrefix(path: String): Option[String] = None
-
-  private def extractBlacklistPrefix(command: CopyOutputsCommand): Option[String] =
-    extractBlacklistPrefix(command.jobDetritusFiles.values.head)
 
   private def sourcePathFromCopyOutputsCommand(command: CopyOutputsCommand): String = command.jobDetritusFiles.values.head
 

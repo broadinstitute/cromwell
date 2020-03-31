@@ -2,7 +2,8 @@ package cromwell.engine.workflow.lifecycle.execution.job
 
 import akka.actor.SupervisorStrategy.{Escalate, Stop}
 import akka.actor.{ActorInitializationException, ActorRef, LoggingFSM, OneForOneStrategy, Props}
-import cromwell.backend.BackendCacheHitCopyingActor.{CopyOutputsCommand, CopyingOutputsFailedResponse}
+import cats.data.NonEmptyList
+import cromwell.backend.BackendCacheHitCopyingActor.{CopyOutputsCommand, CopyingOutputsFailedResponse, LoggableCacheCopyError, LoggableOrMetricableCacheCopyError, MetricableCacheCopyError}
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
@@ -36,6 +37,7 @@ import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.{JobExecu
 import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore._
 import cromwell.services.EngineServicesStore
+import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.metadata.CallMetadataKeys.CallCachingKeys
 import cromwell.services.metadata.{CallMetadataKeys, MetadataKey}
 import cromwell.webservice.EngineStatsActor
@@ -63,7 +65,11 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                               command: BackendJobExecutionActorCommand,
                               fileHashCachingActor: Option[ActorRef],
                               blacklistCache: Option[BlacklistCache]) extends LoggingFSM[EngineJobExecutionActorState, EJEAData]
-  with WorkflowLogging with CallMetadataHelper with JobInstrumentation with TimedFSM[EngineJobExecutionActorState] {
+  with WorkflowLogging
+  with CallMetadataHelper
+  with JobInstrumentation
+  with CromwellInstrumentation
+  with TimedFSM[EngineJobExecutionActorState] {
 
   override val workflowIdForLogging = workflowDescriptor.possiblyNotRootWorkflowId
   override val rootWorkflowIdForLogging = workflowDescriptor.rootWorkflowId
@@ -272,10 +278,10 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       logCacheHitSuccessAndNotifyMetadata(data)
       saveJobCompletionToJobStore(data.withSuccessResponse(response))
     case Event(
-    CopyingOutputsFailedResponse(_, cacheCopyAttempt, throwable),
+    CopyingOutputsFailedResponse(_, cacheCopyAttempt, reason),
     data@ResponsePendingData(_, _, _, _, Some(cacheHit), _, _)
     ) if cacheCopyAttempt == cacheHit.hitNumber =>
-      invalidateCacheHitAndTransition(cacheHit, data, throwable)
+      invalidateCacheHitAndTransition(cacheHit, data, reason)
 
     // Hashes arrive:
     case Event(hashes: CallCacheHashes, data: SucceededResponseData) =>
@@ -701,8 +707,20 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     }
   }
 
-  private def invalidateCacheHitAndTransition(ejeaCacheHit: EJEACacheHit, data: ResponsePendingData, reason: Throwable) = {
-    logCacheHitFailure(data, reason)
+  private def metricizeCacheHitFailure(data: ResponsePendingData, failureCategory: String): Unit = {
+    val workflowsToDeleteMetadataMetricPath: NonEmptyList[String] =
+      NonEmptyList.of(
+        "job",
+        "callcaching", "read", "error", failureCategory, data.jobDescriptor.taskCall.localName, data.jobDescriptor.workflowDescriptor.hogGroup.value)
+    increment(workflowsToDeleteMetadataMetricPath)
+  }
+
+  private def invalidateCacheHitAndTransition(ejeaCacheHit: EJEACacheHit, data: ResponsePendingData, reason: LoggableOrMetricableCacheCopyError) = {
+    reason match {
+      case LoggableCacheCopyError(failure) => logCacheHitFailure(data, failure)
+      case MetricableCacheCopyError(failureCategory) => metricizeCacheHitFailure(data, failureCategory)
+    }
+
     val updatedData = data.copy(cacheHitFailureCount = data.cacheHitFailureCount + 1)
 
     if (invalidationRequired) {

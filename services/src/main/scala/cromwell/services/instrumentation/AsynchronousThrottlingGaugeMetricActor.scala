@@ -32,7 +32,7 @@ class AsynchronousThrottlingGaugeMetricActor(metricPath: NonEmptyList[String],
       // metric actor is already busy calculating metric value, so we dismiss this request
       stay()
     case Event(MetricValue(value), _) =>
-      // pass through the pre-calculated metric value and stay, continuing to wait for DB query to finish
+      // pass through the pre-calculated metric value and stay, continuing to wait for ongoing metric value calculation to finish
       sendGaugeAndStay(value)
     case Event(FinishedMetricValueCalculation(value), _) =>
       sendGauge(metricPath, value, instrumentationPrefix)

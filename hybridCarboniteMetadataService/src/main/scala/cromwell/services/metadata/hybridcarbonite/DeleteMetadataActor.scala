@@ -4,13 +4,14 @@ import java.time.OffsetDateTime
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.core.WorkflowId
+import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.services.MetadataServicesStore
-import cromwell.services.instrumentation.CromwellInstrumentation
+import cromwell.services.instrumentation.AsynchronousThrottlingGaugeMetricActor.{CalculateMetricValue, MetricValue}
+import cromwell.services.instrumentation.{AsynchronousThrottlingGaugeMetricActor, CromwellInstrumentation}
 import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataArchiveStatus._
 import cromwell.services.metadata.hybridcarbonite.DeleteMetadataActor._
-import cromwell.services.metadata.hybridcarbonite.NumberOfWorkflowsToDeleteMetadataMetricActor.{CalculateNumberOfWorkflowsToDeleteMetadataMetricValue, NumberOfWorkflowsToDeleteMetadataMetricValue}
-import cromwell.services.metadata.impl.MetadataDatabaseAccess
+import cromwell.services.metadata.impl.{MetadataDatabaseAccess, MetadataServiceActor}
 
 import scala.util.{Failure, Success}
 
@@ -25,7 +26,10 @@ class DeleteMetadataActor(metadataDeletionConfig: ActiveMetadataDeletionConfig, 
   log.info(s"Archived metadata deletion is configured to begin polling after ${metadataDeletionConfig.initialDelay}, and then delete up to ${metadataDeletionConfig.batchSize} workflows worth of metadata every ${metadataDeletionConfig.interval} (for workflows which completed at least ${metadataDeletionConfig.delayAfterWorkflowCompletion} ago).")
   context.system.scheduler.schedule(metadataDeletionConfig.initialDelay, metadataDeletionConfig.interval, self, DeleteMetadataAction)
 
-  val numOfWorkflowsToDeleteMetadataMetricActor = context.actorOf(NumberOfWorkflowsToDeleteMetadataMetricActor.props(serviceRegistryActor))
+  private val workflowsToDeleteMetadataMetricPath =
+    MetadataServiceActor.MetadataInstrumentationPrefix :+ "delete" :+ "numOfWorkflowsToDeleteMetadata"
+  private val numOfWorkflowsToDeleteMetadataMetricActor =
+    context.actorOf(AsynchronousThrottlingGaugeMetricActor.props(workflowsToDeleteMetadataMetricPath, InstrumentationPrefixes.ServicesPrefix, serviceRegistryActor))
 
   override def receive: Receive = {
     case DeleteMetadataAction =>
@@ -38,9 +42,15 @@ class DeleteMetadataActor(metadataDeletionConfig: ActiveMetadataDeletionConfig, 
       workflowIdsForMetadataDeletionFuture onComplete {
         case Success(workflowIds) =>
           if (workflowIds.length < metadataDeletionConfig.batchSize) {
-            numOfWorkflowsToDeleteMetadataMetricActor ! NumberOfWorkflowsToDeleteMetadataMetricValue(workflowIds.length.toLong)
+            numOfWorkflowsToDeleteMetadataMetricActor ! MetricValue(workflowIds.length.toLong)
           } else {
-            numOfWorkflowsToDeleteMetadataMetricActor ! CalculateNumberOfWorkflowsToDeleteMetadataMetricValue(currentTimestampMinusDelay)
+            numOfWorkflowsToDeleteMetadataMetricActor ! CalculateMetricValue {
+              () =>
+                countRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(
+                  MetadataArchiveStatus.toDatabaseValue(Archived),
+                  currentTimestampMinusDelay
+                )
+            }
           }
           workflowIds foreach { workflowIdStr =>
             deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(WorkflowId.fromString(workflowIdStr), MetadataArchiveStatus.toDatabaseValue(ArchivedAndPurged)) onComplete {

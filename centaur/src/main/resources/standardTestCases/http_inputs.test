@@ -11,5 +11,5 @@ files {
 metadata {
   workflowName: http_inputs
   status: Succeeded
-  "outputs.http_inputs.sum.sum": "602d0a4c1d54b7302e2d245a66a1b609\n"
+  "outputs.http_inputs.sum.sum": "602d0a4c1d54b7302e2d245a66a1b609"
 }

@@ -13,6 +13,7 @@ import cromwell.services.metadata.MetadataArchiveStatus._
 import cromwell.services.metadata.hybridcarbonite.DeleteMetadataActor._
 import cromwell.services.metadata.impl.{MetadataDatabaseAccess, MetadataServiceActor}
 
+import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 class DeleteMetadataActor(metadataDeletionConfig: ActiveMetadataDeletionConfig, override val serviceRegistryActor: ActorRef) extends Actor
@@ -44,13 +45,13 @@ class DeleteMetadataActor(metadataDeletionConfig: ActiveMetadataDeletionConfig, 
           if (workflowIds.length < metadataDeletionConfig.batchSize) {
             numOfWorkflowsToDeleteMetadataMetricActor ! MetricValue(workflowIds.length.toLong)
           } else {
-            numOfWorkflowsToDeleteMetadataMetricActor ! CalculateMetricValue {
+            def metricCalculatingFunction: () => Future[Int] =
               () =>
                 countRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(
                   MetadataArchiveStatus.toDatabaseValue(Archived),
                   currentTimestampMinusDelay
                 )
-            }
+            numOfWorkflowsToDeleteMetadataMetricActor ! CalculateMetricValue(metricCalculatingFunction)
           }
           workflowIds foreach { workflowIdStr =>
             deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(WorkflowId.fromString(workflowIdStr), MetadataArchiveStatus.toDatabaseValue(ArchivedAndPurged)) onComplete {

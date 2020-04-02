@@ -65,4 +65,68 @@ class AsynchronousThrottlingGaugeMetricActorSpec extends TestKitSuite with FlatS
         actualValue shouldBe calculatedVal
     }
   }
+
+  it should "successfully complete ongoing metric value calculation even after being interrupted by MetricValue message" in {
+    val calculatedVal = -1
+    val precalculatedVal = -2L
+    val serviceRegistryProbe = TestProbe()
+    val calculatedValPromise = Promise[Int]()
+    val metricActor = TestFSMRef {
+      new AsynchronousThrottlingGaugeMetricActor(NonEmptyList.of("metric"), InstrumentationPrefixes.ServicesPrefix, serviceRegistryProbe.ref)
+    }
+    metricActor ! CalculateMetricValue(() => calculatedValPromise.future)
+    eventually {
+      metricActor.stateName shouldBe MetricCalculationInProgress
+    }
+
+    // interrupted by precalculated MetricValue
+    metricActor ! MetricValue(precalculatedVal)
+    serviceRegistryProbe.expectMsgPF(defaultTimeout){
+      case InstrumentationServiceMessage(CromwellGauge(_, actualValue)) =>
+        actualValue shouldBe precalculatedVal
+    }
+    metricActor.stateName shouldBe MetricCalculationInProgress
+
+    // completing ongoing calculation
+    calculatedValPromise.success(calculatedVal)
+    eventually {
+      metricActor.stateName shouldBe WaitingForMetricCalculationRequestOrMetricValue
+    }
+    serviceRegistryProbe.expectMsgPF(defaultTimeout){
+      case InstrumentationServiceMessage(CromwellGauge(_, actualValue)) =>
+        actualValue shouldBe calculatedVal
+    }
+  }
+
+  it should "successfully complete ongoing metric value calculation and ignore another calculation requests while in MetricCalculationInProgress state" in {
+    val serviceRegistryProbe = TestProbe()
+    val metricActor = TestFSMRef {
+      new AsynchronousThrottlingGaugeMetricActor(NonEmptyList.of("metric"), InstrumentationPrefixes.ServicesPrefix, serviceRegistryProbe.ref)
+    }
+
+    val calculatedVal = -1
+    val calculatedValPromise = Promise[Int]()
+    val calculatedValInterruptor = -2
+    val calculatedValInterruptorPromise = Promise[Int]()
+
+    metricActor ! CalculateMetricValue(() => calculatedValPromise.future)
+    eventually {
+      metricActor.stateName shouldBe MetricCalculationInProgress
+    }
+
+    metricActor ! CalculateMetricValue(() => calculatedValInterruptorPromise.future)
+
+    // completing ongoing calculation
+    calculatedValPromise.success(calculatedVal)
+    // complete interrupttor calculation
+    calculatedValInterruptorPromise.success(calculatedValInterruptor)
+    eventually {
+      metricActor.stateName shouldBe WaitingForMetricCalculationRequestOrMetricValue
+    }
+    serviceRegistryProbe.expectMsgPF(defaultTimeout){
+      case InstrumentationServiceMessage(CromwellGauge(_, actualValue)) =>
+        // should be calculatedVal, not calculatedValInterruptor
+        actualValue shouldBe calculatedVal
+    }
+  }
 }

@@ -3,7 +3,7 @@ package cromwell.engine.workflow.lifecycle.execution.job
 import akka.actor.SupervisorStrategy.{Escalate, Stop}
 import akka.actor.{ActorInitializationException, ActorRef, LoggingFSM, OneForOneStrategy, Props}
 import cats.data.NonEmptyList
-import cromwell.backend.BackendCacheHitCopyingActor.{CopyOutputsCommand, CopyingOutputsFailedResponse, LoggableCacheCopyError, LoggableOrMetricableCacheCopyError, MetricableCacheCopyError}
+import cromwell.backend.BackendCacheHitCopyingActor.{CopyOutputsCommand, CopyingOutputsFailedResponse, LoggableCacheCopyError, CacheCopyError, MetricableCacheCopyError}
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend._
@@ -697,25 +697,18 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   private def logCacheHitFailure(data: ResponsePendingData, reason: Throwable): Unit = {
-    val problemSummary =
-      s"Failed copying cache results for job $jobDescriptorKey (${reason.getClass.getSimpleName}: ${reason.getMessage})"
-    if (invalidationRequired) {
-      // Whenever invalidating a cache result, always log why the invalidation occurred
-      workflowLogger.warn(s"$problemSummary, invalidating cache entry.")
-    } else if (data.cacheHitFailureCount < 3) {
-      workflowLogger.info(problemSummary)
-    }
+    workflowLogger.info(s"Failed copying cache results for job $jobDescriptorKey (${reason.getClass.getSimpleName}: ${reason.getMessage})")
   }
 
   private def metricizeCacheHitFailure(data: ResponsePendingData, failureCategory: String): Unit = {
-    val workflowsToDeleteMetadataMetricPath: NonEmptyList[String] =
+    val callCachingErrorsMetricPath: NonEmptyList[String] =
       NonEmptyList.of(
         "job",
         "callcaching", "read", "error", failureCategory, data.jobDescriptor.taskCall.localName, data.jobDescriptor.workflowDescriptor.hogGroup.value)
-    increment(workflowsToDeleteMetadataMetricPath)
+    increment(callCachingErrorsMetricPath)
   }
 
-  private def invalidateCacheHitAndTransition(ejeaCacheHit: EJEACacheHit, data: ResponsePendingData, reason: LoggableOrMetricableCacheCopyError) = {
+  private def invalidateCacheHitAndTransition(ejeaCacheHit: EJEACacheHit, data: ResponsePendingData, reason: CacheCopyError) = {
     reason match {
       case LoggableCacheCopyError(failure) => logCacheHitFailure(data, failure)
       case MetricableCacheCopyError(failureCategory) => metricizeCacheHitFailure(data, failureCategory)
@@ -724,6 +717,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     val updatedData = data.copy(cacheHitFailureCount = data.cacheHitFailureCount + 1)
 
     if (invalidationRequired) {
+      workflowLogger.warn(s"Invalidating cache entry ${ejeaCacheHit.hit.cacheResultId} (Cache entry details: ${ejeaCacheHit.details})")
       invalidateCacheHit(ejeaCacheHit.hit.cacheResultId)
       goto(InvalidatingCacheEntry) using updatedData
     } else {

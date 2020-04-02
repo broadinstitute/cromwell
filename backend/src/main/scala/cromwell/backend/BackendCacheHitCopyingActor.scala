@@ -6,9 +6,9 @@ import cromwell.core.simpleton.WomValueSimpleton
 object BackendCacheHitCopyingActor {
   final case class CopyOutputsCommand(womValueSimpletons: Seq[WomValueSimpleton], jobDetritusFiles: Map[String, String], returnCode: Option[Int])
 
-  final case class CopyingOutputsFailedResponse(jobKey: JobKey, cacheCopyAttempt: Int, failure: LoggableOrMetricableCacheCopyError)
+  final case class CopyingOutputsFailedResponse(jobKey: JobKey, cacheCopyAttempt: Int, failure: CacheCopyError)
 
-  sealed trait LoggableOrMetricableCacheCopyError
-  final case class LoggableCacheCopyError(failure: Throwable) extends LoggableOrMetricableCacheCopyError
-  final case class MetricableCacheCopyError(failureCategory: String) extends LoggableOrMetricableCacheCopyError
+  sealed trait CacheCopyError
+  final case class LoggableCacheCopyError(failure: Throwable) extends CacheCopyError
+  final case class MetricableCacheCopyError(failureCategory: String) extends CacheCopyError
 }

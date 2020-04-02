@@ -9,5 +9,5 @@ files {
 metadata {
   status: Failed
   "failures.0.message": "Workflow input processing failed"
-  "failures.0.causedBy.0.message": "Failed to resolve 'https://raw.githubusercontent.com/broadinstitute/cromwell/path_to_url_doesnt_exist' using resolver: 'http importer (no 'relative-to' origin)' (reason 1 of 1): Failed to download https://raw.githubusercontent.com/broadinstitute/cromwell/path_to_url_doesnt_exist (reason 1 of 1): 400: Invalid request\n"
+  "failures.0.causedBy.0.message": "Failed to resolve 'https://raw.githubusercontent.com/broadinstitute/cromwell/path_to_url_doesnt_exist' using resolver: 'http importer (no 'relative-to' origin)' (reason 1 of 1): Failed to download https://raw.githubusercontent.com/broadinstitute/cromwell/path_to_url_doesnt_exist (reason 1 of 1): 400: Invalid request"
 }

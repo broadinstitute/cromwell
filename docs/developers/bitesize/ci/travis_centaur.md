@@ -7,18 +7,13 @@ Other backends run tests for any user.
 | Backend       | Read-only users | Write/Admin users |
 |---------------|:---------------:|:-----------------:|
 | AWS           |                 |        ✅         |
-| BCS*          |                 |        ✅         |
+| BCS           |                 |        ✅         |
 | Local         |       ✅        |        ✅         |
 | PAPI V1       |                 |        ✅         |
 | PAPI V2alpha1 |                 |        ✅         |
 | PAPI V2beta   |                 |        ✅         |
 | SLURM         |       ✅        |        ✅         |
 | TES           |       ✅        |        ✅         |
-
-<small>
-\* Alibaba BCS Testing is temporarily disabled. See [BA-6345](https://broadworkbench.atlassian.net/browse/BA-6345) for
-more information. You will have to create and login using a free Atlassian account before you can view the Jira ticket.
-</small>
 
 ## Upgrade / Horicromtal / etc.
 

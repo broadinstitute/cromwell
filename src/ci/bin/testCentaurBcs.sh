@@ -1,20 +1,5 @@
 #!/usr/bin/env bash
 
-echo "**************************************************************"
-echo "**************************************************************"
-echo "**                                                          **"
-echo "**  WARNING: Alibaba testing is disabled. See               **"
-echo "**  https://broadworkbench.atlassian.net/browse/BA-6345     **"
-echo "**                                                          **"
-echo "**  NOTE: You will have to create and login using a free    **"
-echo "**  Atlassian account before you can view the Jira ticket.  **"
-echo "**                                                          **"
-echo "**  Exiting.                                                **"
-echo "**                                                          **"
-echo "**************************************************************"
-echo "**************************************************************"
-exit 0
-
 set -o errexit -o nounset -o pipefail
 export CROMWELL_BUILD_REQUIRES_SECURE=true
 # import in shellcheck / CI / IntelliJ compatible ways

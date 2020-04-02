@@ -259,7 +259,7 @@ strip_trailing_slash() {
 #   `op` - a descriptive term that will appear in the Docker container that runs gcloud.
 #   `policy` - the Cloud SQL activation policy, should be one of ALWAYS, NEVER or ON_DEMAND.
 #              For more details: https://cloud.google.com/sql/docs/mysql/start-stop-restart-instance
-private::patch_cloud_sql() {
+private::patch_cloud_sql_activation_policy() {
   op="$1"
   policy="$2"
 
@@ -271,9 +271,9 @@ private::patch_cloud_sql() {
 }
 
 start_cloud_sql() {
-  private::patch_cloud_sql "start" "ALWAYS"
+  private::patch_cloud_sql_activation_policy "start" "ALWAYS"
 }
 
 stop_cloud_sql() {
-  private::patch_cloud_sql "stop" "NEVER"
+  private::patch_cloud_sql_activation_policy "stop" "NEVER"
 }

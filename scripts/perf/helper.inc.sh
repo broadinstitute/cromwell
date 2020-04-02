@@ -156,7 +156,7 @@ read_service_account_from_vault() {
 gcloud_run_as_service_account() {
   local name="$1"
   local command="$2"
-  docker run --name $name -v "$(pwd)"/mnt:${DOCKER_ETC_PATH} --rm gcr.io/google.com/cloudsdktool/cloud-sdk:slim \
+  docker run --name ${name} -v "$(pwd)"/mnt:${DOCKER_ETC_PATH} --rm gcr.io/google.com/cloudsdktool/cloud-sdk:slim \
     /bin/bash -c "\
     gcloud auth activate-service-account --key-file ${DOCKER_ETC_PATH}/sa.json 2> /dev/null &&\
     ${command}"
@@ -252,6 +252,13 @@ strip_trailing_slash() {
   echo "${path}" | sed 's/\/$//'
 }
 
+# Patch the activation policy of the Cloud SQL Instance referenced by $CLOUD_SQL_INSTANCE.
+# In practice used mostly to turn a Cloud SQL instance on or off.
+#
+# Arguments:
+#   `op` - a descriptive term that will appear in the Docker container that runs gcloud.
+#   `policy` - the Cloud SQL activation policy, should be one of ALWAYS, NEVER or ON_DEMAND.
+#              For more details: https://cloud.google.com/sql/docs/mysql/start-stop-restart-instance
 private::patch_cloud_sql() {
   op="$1"
   policy="$2"

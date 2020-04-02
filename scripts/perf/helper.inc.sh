@@ -251,3 +251,22 @@ strip_trailing_slash() {
   local path=$1
   echo "${path}" | sed 's/\/$//'
 }
+
+private::patch_cloud_sql() {
+  op="$1"
+  policy="$2"
+
+  mkdir -p mnt
+  # Read the service account credentials from vault:
+  read_service_account_from_vault
+
+  gcloud_run_as_service_account "perf_sql_${op}_gcloud_${BUILD_NUMBER}" "gcloud -q --project broad-dsde-cromwell-perf sql instances patch ${CLOUD_SQL_INSTANCE} --activation-policy ${policy}"
+}
+
+start_cloud_sql() {
+  private::patch_cloud_sql "start" "ALWAYS"
+}
+
+stop_cloud_sql() {
+  private::patch_cloud_sql "stop" "NEVER"
+}

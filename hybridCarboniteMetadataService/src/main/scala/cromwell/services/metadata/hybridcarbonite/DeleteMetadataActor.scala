@@ -45,11 +45,11 @@ class DeleteMetadataActor(metadataDeletionConfig: ActiveMetadataDeletionConfig, 
             numOfWorkflowsToDeleteMetadataMetricActor ! MetricValue(workflowIds.length.toLong)
           } else {
             numOfWorkflowsToDeleteMetadataMetricActor ! CalculateMetricValue {
-              () =>
+              ec =>
                 countRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(
                   MetadataArchiveStatus.toDatabaseValue(Archived),
                   currentTimestampMinusDelay
-                )
+                )(ec)
             }
           }
           workflowIds foreach { workflowIdStr =>

@@ -128,5 +128,6 @@ class AsynchronousThrottlingGaugeMetricActorSpec extends TestKitSuite with FlatS
         // should be calculatedVal, not calculatedValInterruptor
         actualValue shouldBe calculatedVal
     }
+    serviceRegistryProbe.expectNoMessage(defaultTimeout)
   }
 }

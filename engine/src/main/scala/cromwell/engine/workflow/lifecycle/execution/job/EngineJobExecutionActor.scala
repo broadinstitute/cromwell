@@ -3,9 +3,10 @@ package cromwell.engine.workflow.lifecycle.execution.job
 import akka.actor.SupervisorStrategy.{Escalate, Stop}
 import akka.actor.{ActorInitializationException, ActorRef, LoggingFSM, OneForOneStrategy, Props}
 import cats.data.NonEmptyList
-import cromwell.backend.BackendCacheHitCopyingActor.{CopyOutputsCommand, CopyingOutputsFailedResponse, LoggableCacheCopyError, CacheCopyError, MetricableCacheCopyError}
+import cromwell.backend.BackendCacheHitCopyingActor.{CacheCopyError, CopyOutputsCommand, CopyingOutputsFailedResponse, LoggableCacheCopyError, MetricableCacheCopyError}
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
+import cromwell.backend.MetricableCacheCopyErrorCategory.MetricableCacheCopyErrorCategory
 import cromwell.backend._
 import cromwell.backend.standard.StandardInitializationData
 import cromwell.backend.standard.callcaching.BlacklistCache
@@ -700,11 +701,11 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     workflowLogger.info(s"Failed copying cache results for job $jobDescriptorKey (${reason.getClass.getSimpleName}: ${reason.getMessage})")
   }
 
-  private def metricizeCacheHitFailure(data: ResponsePendingData, failureCategory: String): Unit = {
+  private def metricizeCacheHitFailure(data: ResponsePendingData, failureCategory: MetricableCacheCopyErrorCategory): Unit = {
     val callCachingErrorsMetricPath: NonEmptyList[String] =
       NonEmptyList.of(
         "job",
-        "callcaching", "read", "error", failureCategory, data.jobDescriptor.taskCall.localName, data.jobDescriptor.workflowDescriptor.hogGroup.value)
+        "callcaching", "read", "error", failureCategory.toString, data.jobDescriptor.taskCall.localName, data.jobDescriptor.workflowDescriptor.hogGroup.value)
     increment(callCachingErrorsMetricPath)
   }
 

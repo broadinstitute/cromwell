@@ -7,13 +7,13 @@ import cats.instances.list._
 import cats.instances.set._
 import cats.instances.tuple._
 import cats.syntax.foldable._
-import cromwell.backend.BackendCacheHitCopyingActor.{CopyOutputsCommand, CopyingOutputsFailedResponse, LoggableCacheCopyError, CacheCopyError, MetricableCacheCopyError}
+import cromwell.backend.BackendCacheHitCopyingActor.{CacheCopyError, CopyOutputsCommand, CopyingOutputsFailedResponse, LoggableCacheCopyError, MetricableCacheCopyError}
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor._
-import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, MetricableCacheCopyErrorCategory}
 import cromwell.core.CallOutputs
 import cromwell.core.io._
 import cromwell.core.logging.JobLogging
@@ -73,7 +73,7 @@ object StandardCacheHitCopyingActor {
     * The head subset of commandsToWaitFor is sent to the IoActor as a bulk.
     * When a response comes back, the corresponding command is removed from the head set.
     * When the head set is empty, it is removed and the next subset is sent, until there is no subset left.
-    * If at any point a response comes back as a failure. Other responses for the current set will be awaited for 
+    * If at any point a response comes back as a failure. Other responses for the current set will be awaited for
     * but subsequent sets will not be sent and the actor will send back a failure message.
     */
   case class StandardCacheHitCopyingActorData(commandsToWaitFor: List[Set[IoCommand[_]]],
@@ -128,7 +128,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   lazy val cacheCopyJobPaths = jobPaths.forCallCacheCopyAttempts
   lazy val destinationCallRootPath: Path = cacheCopyJobPaths.callRoot
   def destinationJobDetritusPaths: Map[String, Path] = cacheCopyJobPaths.detritusPaths
-  
+
   lazy val ioActor = standardParams.ioActor
 
   startWith(Idle, None)
@@ -141,7 +141,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   when(Idle) {
     case Event(command: CopyOutputsCommand, None) if isSourceBlacklisted(command) =>
       // We don't want to log this because bucket blacklisting is a common and expected occurrence.
-      failAndStop(MetricableCacheCopyError(s"bucketblacklisted"))
+      failAndStop(MetricableCacheCopyError(MetricableCacheCopyErrorCategory.BucketBlacklisted))
 
     case Event(CopyOutputsCommand(simpletons, jobDetritus, returnCode), None) =>
       // Try to make a Path of the callRootPath from the detritus

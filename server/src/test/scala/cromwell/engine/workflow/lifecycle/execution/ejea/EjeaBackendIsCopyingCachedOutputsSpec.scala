@@ -178,7 +178,7 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
                     prefix should be(List.empty[String])
                     path should be(NonEmptyList.of(
                       "job",
-                      "callcaching", "read", "error", HasCopyFailureResponses.metricContext, helper.taskName, helper.backendWorkflowDescriptor.hogGroup.value
+                      "callcaching", "read", "error", "bucketblacklisted", helper.taskName, helper.backendWorkflowDescriptor.hogGroup.value
                     ))
                 }
               }

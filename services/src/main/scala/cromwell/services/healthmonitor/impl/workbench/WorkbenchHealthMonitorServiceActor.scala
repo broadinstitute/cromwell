@@ -44,16 +44,33 @@ abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, glo
   }
 
   protected lazy val Gcs = MonitoredSubsystem("GCS", () => checkGcs())
+  protected lazy val CarboniterGcsAccess = MonitoredSubsystem("CarboniterGcsAccess", () => checkGcsAccess(carboniterBucketName, gcsObjectToCheckCarboniterAccess, carboniterGoogleAuth))
   protected lazy val PapiSubsystems = papiBackendConfigurations map papiMonitoredSubsystem
 
   lazy val googleConfig = GoogleConfiguration(globalConfig)
 
   lazy val googleAuthName = serviceConfig.as[Option[String]]("google-auth-name").getOrElse("application-default")
+  lazy val googleAuth = getGoogleAuthConfigurationOrFail(googleAuthName)
 
-  lazy val googleAuth = googleConfig.auth(googleAuthName) match {
-    case Valid(a) => a
-    case Invalid(e) => throw new IllegalArgumentException("Unable to configure WorkbenchHealthMonitor: " + e.toList.mkString(", "))
-  }
+  private lazy val carboniterAuthNameConfigPath = "services.MetadataService.config.carbonite-metadata-service.filesystems.gcs.auth"
+  lazy val carboniterAuthName = getGlobalConfigValueOrFail(carboniterAuthNameConfigPath)
+  lazy val carboniterGoogleAuth = getGoogleAuthConfigurationOrFail(carboniterAuthName)
+
+  private lazy val carboniterBucketNameConfigPath = "services.MetadataService.config.carbonite-metadata-service.bucket"
+  lazy val carboniterBucketName = getGlobalConfigValueOrFail(carboniterBucketNameConfigPath)
+  lazy val gcsObjectToCheckCarboniterAccess = serviceConfig.as[String]("gcs-object-to-check-carboniter-access")
+
+  private def getGlobalConfigValueOrFail(configPath: String): String =
+    globalConfig.as[Option[String]](configPath) match {
+      case Some(value) => value
+      case None => throw new IllegalArgumentException(s"Unable to configure WorkbenchHealthMonitor: path $configPath does not exist in the Cromwell configuration file")
+    }
+
+  private def getGoogleAuthConfigurationOrFail(googleAuthName: String): GoogleAuthMode =
+    googleConfig.auth(googleAuthName) match {
+      case Valid(a) => a
+      case Invalid(e) => throw new IllegalArgumentException("Unable to configure WorkbenchHealthMonitor: " + e.toList.mkString(", "))
+    }
 
   /**
     * Demonstrates connectivity to GCS by stat-ing a bucket
@@ -66,6 +83,17 @@ abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, glo
       GcsStorage.gcsStorage(googleConfig.applicationName, credentials, RetrySettings.newBuilder().build())
     }
     storage map { _.buckets.get(gcsBucketToCheck).execute() } as OkStatus
+  }
+
+  /**
+   * Demonstrates ability to read data from specified GCS location with Carboniter credentials
+   */
+  private def checkGcsAccess(gcsBucket: String, gcsObjectPath: String, googleAuth: GoogleAuthMode): Future[SubsystemStatus] = {
+    val storageScopes = List(StorageScopes.DEVSTORAGE_READ_ONLY)
+    val storage = Future(googleAuth.credentials(storageScopes)) map { credentials =>
+      GcsStorage.gcsStorage(googleConfig.applicationName, credentials, RetrySettings.newBuilder().build())
+    }
+    storage map { _.objects().get(gcsBucket, gcsObjectPath).execute() } as OkStatus
   }
 
   private def checkPapi(papiConfiguration: PapiConfiguration): Future[SubsystemStatus] = {

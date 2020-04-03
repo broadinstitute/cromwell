@@ -5,7 +5,7 @@ import akka.pattern.pipe
 import cats.data.NonEmptyList
 import cromwell.services.instrumentation.AsynchronousThrottlingGaugeMetricActor._
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 class AsynchronousThrottlingGaugeMetricActor(metricPath: NonEmptyList[String],
                                              instrumentationPrefix: Option[String],
@@ -21,7 +21,7 @@ class AsynchronousThrottlingGaugeMetricActor(metricPath: NonEmptyList[String],
     case Event(MetricValue(value), _) =>
       sendGaugeAndStay(value)
     case Event(CalculateMetricValue(calculateMetricValueFunction), _) =>
-      calculateMetricValueFunction()
+      calculateMetricValueFunction(ec)
         .map(intValue => FinishedMetricValueCalculation(intValue.toLong))
         .pipeTo(self)
       goto(MetricCalculationInProgress)
@@ -66,7 +66,7 @@ object AsynchronousThrottlingGaugeMetricActor {
   case object MetricCalculationInProgress extends AsynchronousThrottlingGaugeMetricActorState
 
   // messages
-  case class CalculateMetricValue(calculateMetricValueFunction: () => Future[Int])
+  case class CalculateMetricValue(calculateMetricValueFunction: ExecutionContext => Future[Int])
   case class MetricValue(value: Long)
   case class FinishedMetricValueCalculation(calculatedValue: Long)
 

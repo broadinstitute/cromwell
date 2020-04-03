@@ -64,7 +64,7 @@ class MetadataSummaryRefreshActor(override val serviceRegistryActor: ActorRef)
     case Event(SummarizeMetadata(limit, respondTo), _) =>
       refreshWorkflowMetadataSummaries(limit) onComplete {
         case Success(summaryResult) =>
-          summarizerQueueIncreasingGapMetricActor ! CalculateMetricValue { () => getSummaryQueueSize() }
+          summarizerQueueIncreasingGapMetricActor ! CalculateMetricValue { ec => getSummaryQueueSize()(ec) }
           sendGauge(decreasingGapPath, summaryResult.decreasingGap, instrumentationPrefix)
 
           count(increasingProcessedPath, summaryResult.rowsProcessedIncreasing, instrumentationPrefix)

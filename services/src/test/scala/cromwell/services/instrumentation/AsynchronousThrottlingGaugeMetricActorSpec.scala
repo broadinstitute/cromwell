@@ -24,7 +24,7 @@ class AsynchronousThrottlingGaugeMetricActorSpec extends TestKitSuite with FlatS
     val metricActor = TestFSMRef {
       new AsynchronousThrottlingGaugeMetricActor(NonEmptyList.of("metric"), InstrumentationPrefixes.ServicesPrefix, serviceRegistryProbe.ref)
     }
-    metricActor ! CalculateMetricValue(() => calculatedValPromise.future)
+    metricActor ! CalculateMetricValue(_ => calculatedValPromise.future)
     eventually {
       metricActor.stateName shouldBe MetricCalculationInProgress
     }
@@ -43,7 +43,7 @@ class AsynchronousThrottlingGaugeMetricActorSpec extends TestKitSuite with FlatS
     val metricActor = TestFSMRef {
       new AsynchronousThrottlingGaugeMetricActor(NonEmptyList.of("metric"), InstrumentationPrefixes.ServicesPrefix, TestProbe().ref)
     }
-    metricActor ! CalculateMetricValue(() => dbFailurePromise.future)
+    metricActor ! CalculateMetricValue(_ => dbFailurePromise.future)
     eventually {
       metricActor.stateName shouldBe MetricCalculationInProgress
     }
@@ -74,7 +74,7 @@ class AsynchronousThrottlingGaugeMetricActorSpec extends TestKitSuite with FlatS
     val metricActor = TestFSMRef {
       new AsynchronousThrottlingGaugeMetricActor(NonEmptyList.of("metric"), InstrumentationPrefixes.ServicesPrefix, serviceRegistryProbe.ref)
     }
-    metricActor ! CalculateMetricValue(() => calculatedValPromise.future)
+    metricActor ! CalculateMetricValue(_ => calculatedValPromise.future)
     eventually {
       metricActor.stateName shouldBe MetricCalculationInProgress
     }
@@ -109,12 +109,12 @@ class AsynchronousThrottlingGaugeMetricActorSpec extends TestKitSuite with FlatS
     val calculatedValInterruptor = -2
     val calculatedValInterruptorPromise = Promise[Int]()
 
-    metricActor ! CalculateMetricValue(() => calculatedValPromise.future)
+    metricActor ! CalculateMetricValue(_ => calculatedValPromise.future)
     eventually {
       metricActor.stateName shouldBe MetricCalculationInProgress
     }
 
-    metricActor ! CalculateMetricValue(() => calculatedValInterruptorPromise.future)
+    metricActor ! CalculateMetricValue(_ => calculatedValInterruptorPromise.future)
 
     // completing ongoing calculation
     calculatedValPromise.success(calculatedVal)

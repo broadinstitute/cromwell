@@ -278,9 +278,6 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     }
   }
 
-  def failAndAwaitPendingResponses(failure: LoggableCacheCopyError, command: IoCommand[_], data: StandardCacheHitCopyingActorData): State =
-    failAndAwaitPendingResponses(failure, command, data)
-
   def abort() = {
     log.warning("{}: Abort not supported during cache hit copying", jobTag)
     context.parent ! JobAbortedResponse(jobDescriptor.key)

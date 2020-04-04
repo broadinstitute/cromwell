@@ -285,6 +285,10 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     override def countRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp)(implicit ec: ExecutionContext): Future[Int] = {
       notImplemented()
     }
+
+    override def getSummaryQueueSize()(implicit ec: ExecutionContext): Future[Int] = {
+      notImplemented()
+    }
   }
 }
 

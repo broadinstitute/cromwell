@@ -109,8 +109,8 @@ final case class HashFileXxH64Strategy(checkSiblingMd5: Boolean) extends ConfigH
 final case class FingerprintStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
   override protected def hash(file: Path): Try[String] = {
     Try {
-      file.lastModifiedTime.toEpochMilli.toHexString +
-      file.size.toHexString +
+      HashFileXxH64StrategyMethods.xxh64sumString(file.lastModifiedTime.toEpochMilli.toHexString +
+      file.size.toHexString) +
       // Only check first 10 MB (10485760 bytes) for performance reasons
       HashFileXxH64StrategyMethods.xxh64sum(file.newInputStream, maxSize = 10485760L)
       }
@@ -132,8 +132,9 @@ object HashFileXxH64StrategyMethods {
     */
   def xxh64sum(inputStream: InputStream,
                bufferSize: Int = defaultBufferSize,
-               maxSize: Long = Long.MaxValue): String = {
-    val hasher = xxhashFactory.newStreamingHash64(0)
+               maxSize: Long = Long.MaxValue,
+               seed: Long = 0L): String = {
+    val hasher = xxhashFactory.newStreamingHash64(seed)
     val buffer: Array[Byte] = new Array[Byte](bufferSize)
     var byteCounter: Long = 0
     try {
@@ -148,6 +149,16 @@ object HashFileXxH64StrategyMethods {
     finally inputStream.close()
     // Long.toHexString does not add leading zero's
     f"%%16s".format(hasher.getValue.toHexString).replace(" ", "0")
+  }
+
+  // Only instantiate the xxh64hasher once
+  private lazy val xxh64hasher = xxhashFactory.hash64()
+
+  def xxh64sumString(string: String, seed: Long = 0L): String = {
+    val bytes: Array[Byte] = string.toCharArray.map(_.toByte)
+    val hash = xxh64hasher.hash(bytes, 0, bytes.length, seed)
+    // Long.toHexString does not add leading zero's
+    f"%%16s".format(hash.toHexString).replace(" ", "0")
   }
 }
 

@@ -13,7 +13,6 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 import wom.values.WomSingleFile
-import net.jpountz.xxhash.XXHashFactory
 import scala.util.Success
 
 class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenPropertyChecks with Mockito with BeforeAndAfterAll {
@@ -22,7 +21,7 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
 
   val steak = "Steak"
   val steakMd5 = DigestUtils.md5Hex(steak)
-  val steakXxh64 = XXHashFactory.fastestInstance().hash64().hash(steak.getBytes, 0, steak.length, 0).toHexString
+  val steakXxh64 = HashFileXxH64StrategyMethods.xxh64sumString(steak)
   val file = DefaultPathBuilder.createTempFile()
   val symLinksDir = DefaultPathBuilder.createTempDirectory("sym-dir")
   val pathMd5 = DigestUtils.md5Hex(file.pathAsString)
@@ -247,13 +246,14 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
   }
 
   it should "have a fingerprint strategy and use md5 sibling file when appropriate" in {
-    val hpcHash = file.lastModifiedTime.toEpochMilli.toHexString + file.size.toHexString + steakXxh64
+    val fingerPrintHash = HashFileXxH64StrategyMethods.xxh64sumString(file.lastModifiedTime.toEpochMilli.toHexString +
+                                                              file.size.toHexString) + steakXxh64
     val table = Table(
       ("check", "withMd5", "expected"),
       (true, true, md5FileHash),
-      (false, true, hpcHash),
-      (true, false, hpcHash),
-      (false, false, hpcHash)
+      (false, true, fingerPrintHash),
+      (true, false, fingerPrintHash),
+      (false, false, fingerPrintHash)
     )
 
     forAll(table) { (check, withMd5, expected) =>

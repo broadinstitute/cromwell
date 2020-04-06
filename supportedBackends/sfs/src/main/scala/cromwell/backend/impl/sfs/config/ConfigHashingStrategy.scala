@@ -109,9 +109,12 @@ final case class HashFileXxH64Strategy(checkSiblingMd5: Boolean) extends ConfigH
 final case class FingerprintStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
   override protected def hash(file: Path): Try[String] = {
     Try {
+      // Calculate the xxh64 hash of last modified time and filesize. These are NOT added, as it will lead to loss of
+      // information. Instead their hexstrings are concatenated and then hashed.
       HashFileXxH64StrategyMethods.xxh64sumString(file.lastModifiedTime.toEpochMilli.toHexString +
       file.size.toHexString) +
-      // Only check first 10 MB (10485760 bytes) for performance reasons
+      // Only check first 10 MB (10485760 bytes) for performance reasons. 100 MB will take to much time on network file
+      // systems. 1 MB might not be unique enough.
       HashFileXxH64StrategyMethods.xxh64sum(file.newInputStream, maxSize = 10485760L)
       }
     }

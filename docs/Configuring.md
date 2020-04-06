@@ -507,24 +507,6 @@ When `invalidate-bad-cache-results=true` (default: `true`), Cromwell will invali
 
 Cromwell also accepts [Workflow Options](wf_options/Overview#call-caching-options) to override the cache read/write behavior.  
 
-#### Call cache strategy options
-
-* hash based options. These read the entire file. These strategies work with containers.
-    * `xxh64`. This uses the 64-bit implementation of the [xxHash](https://www.xxhash.com)
-             algorithm. This algorithm is optimized for file integrity hashing and provides a more than 10x speed improvement over
-             md5. 
-    * `md5`. The well-known md5sum algorithm
-* Path based options. These are based on filepath. Extremely lightweight, but only work with the `soft-link` file 
-caching strategy and can therefore never work with containers.
-    * `path` creates a md5 hash of the path.
-    * `path+modtime` creates a md5 hash of the path and its modification time.
-* Fingerprinting. This strategy works with containers.
-    * `fingerprint` tries to create a fingerprint for each file by taking its last modified time (milliseconds since
-       epoch in hexadecimal) + size (bytes in hexadecimal) + the xxh64 sum of the first 10 MB of the file. It is much
-       more lightweight than the hash based options while still unique enough that collisions are infeasible. This 
-       strategy works well for workflows that generate multi-gigabyte files and where hashing these files on the 
-       cromwell instance provides CPU or I/O problems. 
-
 ### Local filesystem options
 
 When running a job on the Config (Shared Filesystem) backend, Cromwell provides some additional options in the backend's 
@@ -564,6 +546,33 @@ config section:
       }
 ```
 
+#### Call cache strategy options for local filesystem
+
+* hash based options. These read the entire file. These strategies work with containers.
+    * `xxh64` (community-supported*). This uses the 64-bit implementation of the [xxHash](https://www.xxhash.com)
+             algorithm. This algorithm is optimized for file integrity hashing and provides a more than 10x speed improvement over
+             md5.
+    * `md5`. The well-known md5sum algorithm
+* Path based options. These are based on filepath. Extremely lightweight, but only work with the `soft-link` file 
+caching strategy and can therefore never work with containers.
+    * `path` creates a md5 hash of the path.
+    * `path+modtime` creates a md5 hash of the path and its modification time.
+* Fingerprinting. This strategy works with containers.
+    * `fingerprint` (community-supported*) tries to create a fingerprint for each file by taking its last modified time (milliseconds since
+       epoch in hexadecimal) + size (bytes in hexadecimal) + the xxh64 sum of the first 10 MB** of the file. 
+       It is much more lightweight than the hash based options while still unique enough that collisions are unlikely. This 
+       strategy works well for workflows that generate multi-gigabyte files and where hashing these files on the 
+       cromwell instance provides CPU or I/O problems. 
+       NOTE: This strategy requires hard-linking as a dupliation strategy, as copying changes the last modified time.
+
+(*) The `fingerprint` and `xxh64` strategies are features that are community supported by Cromwell's HPC community. There
+is no official support from the core Cromwell team.
+
+(**) 10 MB was chosen because some files have very large headers which might be similar between files, so smaller 
+ sizes might be insufficient. On a 100mbit connection, 10MB is transferred within one second, this was deemed an
+ acceptable time delay for systems that use a (slow) NFS backend. Taking a larger first file part would increase 
+ the transfer time, but is not likely to generate a more unique hash.
+ 
 ### Workflow log directory
 
 To change the directory where Cromwell writes workflow logs, change the directory location via the setting:

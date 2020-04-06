@@ -6,7 +6,7 @@
 
 #### new xxh64 and fingerprint strategies for call caching
 
-To alleviate problems with existing call cache strategies, two new strategies have been added: `xxh64` and 
+To alleviate problems with existing call cache strategies, two new strategies for files on a shared filesystem (ie not in cloud storage) have been added: `xxh64` and 
 `fingerprint`. `xxh64` is a lightweight hashing algorithm, `fingerprint` is a strategy designed to be very 
 lightweight. Read more about it in the [call caching documentation](
 https://cromwell.readthedocs.io/en/stable/Configuring/#call-caching).

@@ -690,13 +690,17 @@ object Operations extends StrictLogging {
                                              validateArchived: Option[Boolean] = None): Test[WorkflowMetadata] = {
     new Test[WorkflowMetadata] {
 
-      def fetchOnce() = fetchMetadata(submittedWorkflow, expandSubworkflows = false, requestArchivedMetadata = validateArchived)
+      def fetchOnce() = {
+        logger.info(s"Fetching metadata for ${submittedWorkflow.id.toString}.")
+        fetchMetadata(submittedWorkflow, expandSubworkflows = false, requestArchivedMetadata = validateArchived)
+      }
 
       def eventuallyMetadata(workflow: SubmittedWorkflow,
                              expectedMetadata: WorkflowFlatMetadata): IO[WorkflowMetadata] = {
         validateMetadata(workflow, expectedMetadata).handleErrorWith({ _ =>
           for {
             _ <- IO.sleep(2.seconds)
+            _ = logger.info(s"Metadata is not quite ready for ${submittedWorkflow.id.toString}. Retrying.")
             recurse <- eventuallyMetadata(workflow, expectedMetadata)
           } yield recurse
         })

@@ -1,0 +1,10 @@
+name: sizerelativepath
+testFormat: workflowsuccess
+
+files {
+  workflow: sizerelativepath/sizerelativepath.wdl
+}
+
+metadata {
+        "outputs.sizerelativepath.size_string": "1495"
+}

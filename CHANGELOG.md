@@ -1,5 +1,12 @@
 # Cromwell Change Log
 
+## 50 Release Notes
+
+### Bug fixes
+
+* Fixed a bug where the `size(...)` function did not work correctly on files from the input section
+  of a task that had a relative path.
+
 ## 49 Release Notes
 
 ### Changes and Warnings

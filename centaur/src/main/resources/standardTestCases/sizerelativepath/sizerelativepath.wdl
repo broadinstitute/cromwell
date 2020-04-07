@@ -4,14 +4,14 @@ task print_size {
     input {
         File file
     }
-    Int bytes = size(file)
+    Int bytes = ceil(size(file))
 
     command {
         echo ~{bytes}
     }
 
     output {
-        String out = stdout()
+        String out = read_string(stdout())
     }
 
     runtime {docker: "ubuntu:latest"}

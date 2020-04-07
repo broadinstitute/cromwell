@@ -43,6 +43,7 @@ class DefaultBackendLifecycleActorFactory(val name: String, val configurationDes
                                            jobKey: BackendJobDescriptorKey,
                                            initializationData: Option[BackendInitializationData],
                                            ioActorProxy: ActorRef,
-                                           ec: ExecutionContext): IoFunctionSet = NoIoFunctionSet
+                                           ec: ExecutionContext,
+                                           forInput: Boolean): IoFunctionSet = NoIoFunctionSet
 }
 

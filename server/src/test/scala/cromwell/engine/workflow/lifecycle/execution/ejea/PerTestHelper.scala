@@ -90,7 +90,8 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
                                              jobKey: BackendJobDescriptorKey,
                                              initializationData: Option[BackendInitializationData],
                                              ioActorProxy: ActorRef,
-                                             ec: ExecutionContext): IoFunctionSet = {
+                                             ec: ExecutionContext,
+                                             forInput: Boolean): IoFunctionSet = {
       NoIoFunctionSet
     }
 

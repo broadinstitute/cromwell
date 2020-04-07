@@ -127,6 +127,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
     override lazy val callContext: CallContext = TestableCallContext
     override val ioActorProxy: ActorRef = simpleIoActor
     override val executionContext = system.dispatcher
+    override val forInput: Boolean = false
   }
 
   lazy val TestableAwsBatchExpressionFunctions: AwsBatchExpressionFunctions = {

@@ -94,6 +94,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     override lazy val callContext: CallContext = TestableCallContext
     override val ioActorProxy: ActorRef = simpleIoActor
     override val executionContext = system.dispatcher
+    override val forInput: Boolean = false
   }
 
   lazy val TestableJesExpressionFunctions: PipelinesApiExpressionFunctions = {

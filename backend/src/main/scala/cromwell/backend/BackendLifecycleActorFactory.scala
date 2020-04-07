@@ -100,8 +100,9 @@ trait BackendLifecycleActorFactory {
                                   jobKey: BackendJobDescriptorKey,
                                   initializationData: Option[BackendInitializationData],
                                   ioActor: ActorRef,
-                                  ec: ExecutionContext): IoFunctionSet = NoIoFunctionSet
-  
+                                  ec: ExecutionContext,
+                                  forInput: Boolean = false): IoFunctionSet = NoIoFunctionSet
+
   def pathBuilders(initializationDataOption: Option[BackendInitializationData]): PathBuilders = List.empty
 
   def getExecutionRootPath(workflowDescriptor: BackendWorkflowDescriptor, backendConfig: Config, initializationData: Option[BackendInitializationData]): Path = {

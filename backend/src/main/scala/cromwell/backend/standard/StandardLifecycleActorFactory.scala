@@ -182,11 +182,12 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
                                            jobKey: BackendJobDescriptorKey,
                                            initializationDataOption: Option[BackendInitializationData],
                                            ioActorProxy: ActorRef,
-                                           ec: ExecutionContext):
+                                           ec: ExecutionContext,
+                                           forInput: Boolean):
   IoFunctionSet = {
     val standardInitializationData = BackendInitializationData.as[StandardInitializationData](initializationDataOption)
     val jobPaths = standardInitializationData.workflowPaths.toJobPaths(jobKey, workflowDescriptor)
-    standardInitializationData.expressionFunctions(jobPaths, ioActorProxy, ec)
+    standardInitializationData.expressionFunctions(jobPaths, ioActorProxy, ec, forInput)
   }
   
   override def pathBuilders(initializationDataOption: Option[BackendInitializationData]) = {

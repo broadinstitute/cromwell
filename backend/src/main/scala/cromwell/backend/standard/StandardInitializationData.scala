@@ -17,9 +17,9 @@ class StandardInitializationData
   private lazy val standardExpressionFunctionsConstructor =
     standardExpressionFunctionsClass.getConstructor(classOf[StandardExpressionFunctionsParams])
 
-  def expressionFunctions(jobPaths: JobPaths, ioActorProxy: ActorRef, ec: ExecutionContext): StandardExpressionFunctions = {
+  def expressionFunctions(jobPaths: JobPaths, ioActorProxy: ActorRef, ec: ExecutionContext, forInput: Boolean): StandardExpressionFunctions = {
     val pathBuilders = jobPaths.workflowPaths.pathBuilders
-    val standardParams = DefaultStandardExpressionFunctionsParams(pathBuilders, jobPaths.callContext, ioActorProxy, ec)
+    val standardParams = DefaultStandardExpressionFunctionsParams(pathBuilders, jobPaths.callContext, ioActorProxy, ec, forInput)
     standardExpressionFunctionsConstructor.newInstance(standardParams)
   }
 }

@@ -28,7 +28,8 @@ case class SparkBackendFactory(name: String, configurationDescriptor: BackendCon
   override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor, jobKey: BackendJobDescriptorKey,
                                            initializationData: Option[BackendInitializationData],
                                            ioActorProxy: ActorRef,
-                                           ec: ExecutionContext): IoFunctionSet = {
+                                           ec: ExecutionContext,
+                                           forInput: Boolean): IoFunctionSet = {
     val jobPaths = JobPathsWithDocker(jobKey, workflowDescriptor, configurationDescriptor.backendConfig)
     val callContext = CallContext(
       jobPaths.callExecutionRoot,
@@ -36,7 +37,7 @@ case class SparkBackendFactory(name: String, configurationDescriptor: BackendCon
       isDocker = true
     )
 
-    new SharedFileSystemExpressionFunctions(SparkJobExecutionActor.DefaultPathBuilders, callContext, ioActorProxy, ec)
+    new SharedFileSystemExpressionFunctions(SparkJobExecutionActor.DefaultPathBuilders, callContext, ioActorProxy, ec, forInput)
   }
 
   override def pathBuilders(initializationDataOption: Option[BackendInitializationData]) = List(DefaultPathBuilder)

@@ -127,7 +127,7 @@ trait StandardAsyncExecutionActor
 
   /** @see [[Command.instantiate]] */
   lazy val backendEngineFunctions: StandardExpressionFunctions =
-    standardInitializationData.expressionFunctions(jobPaths, standardParams.ioActor, ec)
+    standardInitializationData.expressionFunctions(jobPaths, standardParams.ioActor, ec, forInput = false)
 
   lazy val scriptEpilogue = configurationDescriptor.backendConfig.as[Option[String]]("script-epilogue").getOrElse("sync")
 

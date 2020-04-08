@@ -63,9 +63,6 @@ import scala.util.Try
   *  The actual job for submission in AWS batch. `AwsBatchJob` is the primary interface to AWS Batch. It creates the
   *  necessary `AwsBatchJobDefinition`, then submits the job using the SubmitJob API.
   *
-  *  Currently, each job will have its own job definition and queue. Support for separation and reuse of job
-  *  definitions will be provided later.
-  *
   *  @constructor Create an `AwsBatchJob` object capable of submitting, aborting and monitoring itself
   *  @param jobDescriptor the `BackendJobDescriptor` that is passed to the BackendWorkflowActor
   *  @param runtimeAttributes runtime attributes class (which subsequently pulls from config)
@@ -124,34 +121,31 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
       case _ => ""
     }.mkString("\n|")
 
+    //this is a temporary work around until we can surgically remove the "local-disk" volume
+    val replacementCommandLine = commandLine.replaceAllLiterally("/cromwell_root", dockerRootDir)
+
     s"""
     |#! /bin/sh
     |
     |#exit on any line causing an error
     |set -e
     |
-    |#trap any exit or error and handle with the final() function
-    |trap 'final $$? $$LINENO' EXIT
+    |#trap any error and handle with the final() function
+    |trap 'final $$? $$LINENO' ERR
     |
     |final() {
-    |  #write the return code
+       #create or overwrite rc.txt, something failedf
     |  echo $$1 > rc.txt
-    |  #any return code other than 0 is an error
-    |  if [ "$$1" != "0" ];
-    |  then
-    |    # error handling goes here
-    |    echo "Error $$1 occurred on line $$2"
-    |  else
-    |    echo "Success, exit code is $$1"
-    |  fi
+    |  echo "Error $$1 occurred on line $$2"
     |}
     |
     |$inputCopyCommand
     |
     |touch stdout.log && touch stderr.log
     |
-    |$commandLine | tee > stdout.log 2> stderr.log
+    |$replacementCommandLine | tee > stdout.log 2> stderr.log
     |return_code=$$?
+    |echo $$return_code > rc.txt
     |
     |cat stdout.log && cat stderr.log >&2
     |
@@ -180,7 +174,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                   |  jobQueueArn: ${runtimeAttributes.queueArn}
                   |  taskId: $taskId
                   |  job definition arn: $definitionArn
-                  |  command line: $commandLine
+                  |  executionScript: $scriptKey
                   |  """.stripMargin)
 
       val outputinfo = outputs.map(o => "%s,%s,%s,%s".format(o.name, o.s3key, o.local, o.mount))
@@ -292,7 +286,6 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
       }
       val jobDefinitionContext = AwsBatchJobDefinitionContext(
         runtimeAttributes = runtimeAttributes,
-        //uniquePath = jobDefinitionName,
         commandText = commandStr,
         dockerRcPath = dockerRc,
         dockerStdoutPath = dockerStdout,

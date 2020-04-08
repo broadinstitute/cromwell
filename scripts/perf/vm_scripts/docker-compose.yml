@@ -16,7 +16,8 @@ services:
       - JAVA_OPTS=-Dconfig.file=/conf/cromwell.conf
     command: ["server"]
     depends_on:
-      - cloudsql-db
+      cloudsql-db:
+        condition: service_healthy
     ports:
       - "8000:8000"
     networks:

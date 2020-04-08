@@ -137,6 +137,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
        #create or overwrite rc.txt, something failedf
     |  echo $$1 > rc.txt
     |  echo "Error $$1 occurred on line $$2"
+    |  $s3Cmd cp rc.txt $${AWS_CROMWELL_CALL_ROOT}/${jobPaths.returnCodeFilename}
     |}
     |
     |$inputCopyCommand

@@ -39,7 +39,7 @@ the workings of Batch, feel free to skip this section, and move on.
 [AWS Batch](https://aws.amazon.com/batch/) fundamentally is a service to allow batch jobs to run easily and
 efficiently. To use it effectively, however, you need to understand its own
 technical stack. To create a job, you need a "Job Queue". That job queue allows
-jobs to be scheduled onto one or more "Compte Environments". This can
+jobs to be scheduled onto one or more "Compute Environments". This can
 be managed through AWS Batch, but when AWS Batch sets up a compute environment,
 it's simply setting up an Elastic Container Service (ECS) Cluster. The ECS
 cluster, in turn is just a few managed CloudFormation templates, that is

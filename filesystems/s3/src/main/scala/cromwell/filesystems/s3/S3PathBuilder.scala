@@ -129,7 +129,6 @@ object S3PathBuilder {
                    configuration: S3Configuration,
                    options: WorkflowOptions,
                    storageRegion: Option[Region]): S3PathBuilder = {
-    // AmazonS3ClientProvider.init(provider, storageRegion.getOrElse(Region.US_EAST_2))
     new S3PathBuilder(configuration)
   }
 }
@@ -141,13 +140,10 @@ class S3PathBuilder(configuration: S3Configuration
     validatePath(string) match {
       case ValidFullS3Path(bucket, path) =>
         Try {
-          // TODO: System.getenv needs to turn into a full Auth thingy
-          // TODO: This assumes the "global endpoint". Need to handle other endpoints
           val s3Path = new S3FileSystemProvider()
             .getFileSystem(URI.create("s3:////"), System.getenv)
             .getPath(s"""/$bucket/$path""")
           S3Path(s3Path, bucket,
-            //todo, check this!!
             new AmazonS3ClientFactory().getS3Client(URI.create("s3:////"), System.getProperties))
         }
       case PossiblyValidRelativeS3Path => Failure(new IllegalArgumentException(s"$string does not have a s3 scheme"))

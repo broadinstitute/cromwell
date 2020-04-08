@@ -46,7 +46,7 @@ package object aws {
     // too big when looking at the value manually in the console
     data.length() match {
       case len if len <= lim => buildKVPair(prefix, data)
-      case len if len > lim => buildKVPair(prefix + "_GZ", gzip(data))
+      case _ => buildKVPair(prefix + "_GZ", gzip(data))
     }
   }
 

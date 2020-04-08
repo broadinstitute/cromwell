@@ -418,7 +418,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
         Preconditions.checkArgument(!Files.isDirectory(source), "copying directories is not yet supported: %s", source);
         Preconditions.checkArgument(!Files.isDirectory(target), "copying directories is not yet supported: %s", target);
 
-        ImmutableSet<CopyOption> actualOptions = ImmutableSet.copyOf(options);
+        final ImmutableSet<CopyOption> actualOptions = ImmutableSet.copyOf(options);
         verifySupportedOptions(EnumSet.of(StandardCopyOption.REPLACE_EXISTING), actualOptions);
 
         if (exists(s3Target) && !actualOptions.contains(StandardCopyOption.REPLACE_EXISTING)) {

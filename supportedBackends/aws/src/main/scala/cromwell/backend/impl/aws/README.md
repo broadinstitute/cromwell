@@ -59,10 +59,8 @@ will be discussed later. These are:
 * [8k container overrides limit.](https://docs.aws.amazon.com/cli/latest/reference/ecs/run-task.html)
 
 The ECS workers used by the AWS Batch backend can be any instance type and should
-be based on an AMI running the ECS agent, docker and a version of Linux similar to 
-that used by [Amazon Linux2](https://aws.amazon.com/amazon-linux-2/). 
-The ami `ami-044bf85e844eddde5` is recommended. An EC2 LaunchTemplate is used
-to provide some additional "on first boot" configuration that:
+be based on an AMI running the ECS agent and docker. An ECS optimized AMI is recommended.
+An EC2 LaunchTemplate is used to provide some additional "on first boot" configuration that:
 1. Installs AWS CLI v2,
 1. Installs a script to mount an EBS as a `btrfs` file system that will auto-expand,
 1. Configures docker to use that file system so that the "filesystem" of the container

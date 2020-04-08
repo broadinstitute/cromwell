@@ -446,6 +446,20 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(submitJobResponse.jobId), Option(batchJob), previousState = None)
   }
 
+
+  override def recoverAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] =  reconnectAsync(jobId)
+
+  override def reconnectAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = {
+    val handle = PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunState](jobDescriptor, jobId, Option(batchJob), previousState = None)
+    Future.successful(handle)
+  }
+
+  override def reconnectToAbortAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = {
+    tryAbort(jobId)
+    reconnectAsync(jobId)
+  }
+
+
   //uniquely identify the current job
   val futureKvJobKey: KvJobKey = KvJobKey(jobDescriptor.key.call.fullyQualifiedName,
                                           jobDescriptor.key.index,

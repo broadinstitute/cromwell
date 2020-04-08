@@ -2,9 +2,10 @@ package cromwell.services.metadata.hybridcarbonite
 
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import cromwell.services.FailedMetadataJsonResponse
+import cromwell.services.metadata.MetadataQuery.{MetadataSourceForceArchived, MetadataSourceForceUnarchived}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.hybridcarbonite.HybridReadDeciderActor._
-import cromwell.services.metadata.{MetadataArchiveStatus, WorkflowQueryKey}
+import cromwell.services.metadata.{MetadataArchiveStatus, MetadataQuery, WorkflowQueryKey}
 
 import scala.concurrent.ExecutionContext
 
@@ -18,6 +19,12 @@ class HybridReadDeciderActor(classicMetadataServiceActor: ActorRef, carboniteMet
     case Event(action: BuildMetadataJsonAction, NoData) => action match {
       case action if action.requiresOnlyClassicMetadata =>
         classicMetadataServiceActor ! action
+        goto(WaitingForMetadataResponse) using WorkingData(sender(), action)
+      case GetMetadataAction(MetadataQuery(_, _, _, _, _, _, Some(MetadataSourceForceUnarchived))) =>
+        classicMetadataServiceActor ! action
+        goto(WaitingForMetadataResponse) using WorkingData(sender(), action)
+      case GetMetadataAction(MetadataQuery(_, _, _, _, _, _, Some(MetadataSourceForceArchived))) =>
+        carboniteMetadataServiceActor ! action
         goto(WaitingForMetadataResponse) using WorkingData(sender(), action)
       case workflowAction: BuildWorkflowMetadataJsonAction =>
         classicMetadataServiceActor ! QueryForWorkflowsMatchingParameters(Vector(WorkflowQueryKey.Id.name -> workflowAction.workflowId.toString))

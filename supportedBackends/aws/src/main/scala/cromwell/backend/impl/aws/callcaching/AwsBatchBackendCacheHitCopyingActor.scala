@@ -100,7 +100,7 @@ class AwsBatchBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyin
                  |The original outputs can be found at this location: ${sourceCallRootPath.pathAsString}
       """.stripMargin
 
-            List(Set(S3BatchCommandBuilder.writeCommand(jobPaths.callExecutionRoot / "call_caching_placeholder.txt", content, Seq(CloudStorageOptions.withMimeType("text/plain")))))
+            List(Set(S3BatchCommandBuilder.writeCommand(jobPaths.forCallCacheCopyAttempts.callExecutionRoot / "call_caching_placeholder.txt", content, Seq(CloudStorageOptions.withMimeType("text/plain")))))
        case (AWSBatchStorageSystems.s3, CopyCachedOutputs) => List.empty
        case (_, _) => super.additionalIoCommands(sourceCallRootPath,originalSimpletons, newOutputs, originalDetritus,newDetritus)
     }

@@ -175,8 +175,7 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
                                              timeout: Duration)
                                             (implicit ec: ExecutionContext): Nothing = notImplemented()
 
-    override def summarizeIncreasing(summaryNameIncreasing: String,
-                                     startMetadataKey: String,
+    override def summarizeIncreasing(startMetadataKey: String,
                                      endMetadataKey: String,
                                      nameMetadataKey: String,
                                      statusMetadataKey: String,
@@ -185,7 +184,6 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
                                      rootWorkflowIdKey: String,
                                      labelMetadataKey: String,
                                      limit: Int,
-                                     permittedSummaryStatusPointerUpdate: Option[Long],
                                      buildUpdatedSummary:
                                      (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                                        => WorkflowMetadataSummaryEntry)

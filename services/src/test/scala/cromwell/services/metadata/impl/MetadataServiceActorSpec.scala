@@ -24,7 +24,7 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
   def actorName: String = "MetadataServiceActor"
 
   val config = ConfigFactory.parseString(Config)
-  lazy val actor = system.actorOf(MetadataServiceActor.props(config, globalConfigToMetadataServiceConfig(config), TestProbe().ref), "MetadataServiceActor-for-MetadataServiceActorSpec")
+  lazy val actor = system.actorOf(MetadataServiceActor.props(globalConfigToMetadataServiceConfig(config), config, TestProbe().ref), "MetadataServiceActor-for-MetadataServiceActorSpec")
 
     val workflowId = WorkflowId.randomId()
 
@@ -70,12 +70,14 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
     ("query1", query1, s"""{
                           |  "key1": "value2",
                           |  "calls": {},
-                          |  "id": "$workflowId"
+                          |  "id": "$workflowId",
+                          |  "metadataSource": "Unarchived"
                           |}""".stripMargin),
     ("query2", query2, s"""{
                           |  "key2": "value1",
                           |  "calls": {},
-                          |  "id": "$workflowId"
+                          |  "id": "$workflowId",
+                          |  "metadataSource": "Unarchived"
                           |}""".stripMargin),
     ("query3", query3, s"""{
                           |  "calls": {
@@ -85,7 +87,8 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
                           |      "shardIndex": -1
                           |    }]
                           |  },
-                          |  "id": "$workflowId"
+                          |  "id": "$workflowId",
+                          |  "metadataSource": "Unarchived"
                           |}""".stripMargin),
     ("query4", query4, s"""{
                           |  "key1": "value2",
@@ -97,7 +100,8 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
                           |      "shardIndex": -1
                           |    }]
                           |  },
-                          |  "id": "$workflowId"
+                          |  "id": "$workflowId",
+                          |  "metadataSource": "Unarchived"
                           |}""".stripMargin),
     ("query5", query5, s"""{
                           |  "calls": {
@@ -107,7 +111,8 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
                           |      "shardIndex": -1
                           |    }]
                           |  },
-                          |  "id": "$workflowId"
+                          |  "id": "$workflowId",
+                          |  "metadataSource": "Unarchived"
                           |}""".stripMargin),
 
   )
@@ -169,8 +174,8 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
 object MetadataServiceActorSpec {
   val Config =
     """
-      |services.MetadataService.db-batch-size = 3
-      |services.MetadataService.db-flush-rate = 100 millis
+      |services.MetadataService.config.db-batch-size = 3
+      |services.MetadataService.config.db-flush-rate = 100 millis
     """.stripMargin
 
   val ConfigWithoutSummarizer = Config + """

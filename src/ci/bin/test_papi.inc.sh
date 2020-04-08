@@ -117,11 +117,22 @@ cromwell::private::papi::setup_papi_refresh_token() {
     export GOOGLE_REFRESH_TOKEN_PATH
 }
 
+cromwell::private::papi::setup_papi_endpoint_url() {
+    if [[ "${CROMWELL_BUILD_TYPE}" == "centaurPapiV2" ]]; then
+        PAPI_ENDPOINT_URL="https://lifesciences.googleapis.com/"
+    else
+        PAPI_ENDPOINT_URL="https://genomics.googleapis.com/"
+    fi
+
+    export PAPI_ENDPOINT_URL
+}
+
 cromwell::build::papi::setup_papi_centaur_environment() {
     cromwell::private::papi::setup_papi_gcloud
     cromwell::private::papi::setup_papi_gcr
     cromwell::private::papi::setup_papi_service_account
     cromwell::private::papi::setup_papi_refresh_token
+    cromwell::private::papi::setup_papi_endpoint_url
 }
 
 cromwell::build::papi::setup_papi_conformance_environment() {

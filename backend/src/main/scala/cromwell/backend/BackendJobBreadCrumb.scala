@@ -8,6 +8,6 @@ import wom.callable.Callable
 case class BackendJobBreadCrumb(callable: Callable, id: WorkflowId, jobKey: JobKey) {
   def toPath(root: Path): Path = {
     val workflowPart = root.resolve(callable.name).resolve(id.toString)
-    JobPaths.callPathBuilder(workflowPart, jobKey)
+    JobPaths.callPathBuilder(workflowPart, jobKey, isCallCacheCopyAttempt = false)
   }
 }

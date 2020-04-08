@@ -8,6 +8,7 @@ import cats.data.NonEmptyList
 import cromwell.core._
 import cromwell.services.ServiceRegistryActor.{ListenToMessage, ServiceRegistryMessage}
 import common.exception.{MessageAggregation, ThrowableAggregation}
+import cromwell.services.metadata.MetadataQuery.MetadataSourceOverride
 import wom.core._
 import wom.values._
 
@@ -93,11 +94,11 @@ object MetadataService {
     def apply(workflowId: WorkflowId,
               includeKeysOption: Option[NonEmptyList[String]],
               excludeKeysOption: Option[NonEmptyList[String]],
-              expandSubWorkflows: Boolean): BuildWorkflowMetadataJsonAction = {
-      GetMetadataAction(MetadataQuery(workflowId, None, None, includeKeysOption, excludeKeysOption, expandSubWorkflows))
+              expandSubWorkflows: Boolean,
+              metadataSourceOverride: Option[MetadataSourceOverride]): BuildWorkflowMetadataJsonAction = {
+      GetMetadataAction(MetadataQuery(workflowId, None, None, includeKeysOption, excludeKeysOption, expandSubWorkflows, metadataSourceOverride))
     }
   }
-
 
   final case class GetMetadataAction(key: MetadataQuery) extends BuildWorkflowMetadataJsonAction {
     override def workflowId: WorkflowId = key.workflowId

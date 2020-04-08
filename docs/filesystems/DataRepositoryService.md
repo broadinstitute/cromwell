@@ -50,7 +50,7 @@ backend {
     providers {
         # ... other providers here ...
         Papi {
-            actor-factory = "cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory"
+            actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
             config {
                 # ... other config here ...
                 filesystems {

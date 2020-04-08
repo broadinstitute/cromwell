@@ -32,6 +32,7 @@ case class PipelinesApiConfigurationAttributes(project: String,
                                                restrictMetadataAccess: Boolean,
                                                executionBucket: String,
                                                endpointUrl: URL,
+                                               location: String,
                                                maxPollingInterval: Int,
                                                qps: Int Refined Positive,
                                                cacheHitDuplicationStrategy: PipelinesCacheHitDuplicationStrategy,
@@ -67,6 +68,7 @@ object PipelinesApiConfigurationAttributes {
     "root",
     "maximum-polling-interval",
     "genomics",
+    "genomics.location",
     "genomics.compute-service-account",
     "genomics.auth",
     "genomics.restrict-metadata-access",
@@ -139,6 +141,7 @@ object PipelinesApiConfigurationAttributes {
     val project: ErrorOr[String] = validate { backendConfig.as[String]("project") }
     val executionBucket: ErrorOr[String] = validate { backendConfig.as[String]("root") }
     val endpointUrl: ErrorOr[URL] = validate { backendConfig.as[URL]("genomics.endpoint-url") }
+    val location: ErrorOr[String] = validateGenomicsLocation(endpointUrl, backendConfig.as[Option[String]]("genomics.location"))
     val maxPollingInterval: Int = backendConfig.as[Option[Int]]("maximum-polling-interval").getOrElse(600)
     val computeServiceAccount: String = backendConfig.as[Option[String]]("genomics.compute-service-account").getOrElse("default")
     val genomicsAuthName: ErrorOr[String] = validate { backendConfig.as[String]("genomics.auth") }
@@ -201,6 +204,7 @@ object PipelinesApiConfigurationAttributes {
                                                        bucket: String,
                                                        endpointUrl: URL,
                                                        genomicsName: String,
+                                                       location: String,
                                                        restrictMetadata: Boolean,
                                                        gcsName: String,
                                                        qps: Int Refined Positive,
@@ -219,6 +223,7 @@ object PipelinesApiConfigurationAttributes {
             restrictMetadataAccess = restrictMetadata,
             executionBucket = bucket,
             endpointUrl = endpointUrl,
+            location = location,
             maxPollingInterval = maxPollingInterval,
             qps = qps,
             cacheHitDuplicationStrategy = cacheHitDuplicationStrategy,
@@ -236,6 +241,7 @@ object PipelinesApiConfigurationAttributes {
       executionBucket,
       endpointUrl,
       genomicsAuthName,
+      location,
       genomicsRestrictMetadataAccess,
       gcsFilesystemAuthName,
       qpsValidation,
@@ -264,6 +270,17 @@ object PipelinesApiConfigurationAttributes {
     refineV[Positive](qpsCandidate) match {
       case Left(_) => s"Calculated QPS for Google Genomics API ($qpsCandidate/s) was not a positive integer (supplied value was $qp100s per 100s)".invalidNel
       case Right(refined) => refined.validNel
+    }
+  }
+
+  def validateGenomicsLocation(genomicsUrl: ErrorOr[URL], location: Option[String]): ErrorOr[String] = {
+    genomicsUrl match {
+      case Valid(url) if url.toString.contains("lifesciences") =>
+        location match {
+          case Some(location) => location.validNel
+          case None => "Missing mandatory attribute `genomics.location` for Google Cloud Life Sciences API".invalidNel
+        }
+      case _ => location.getOrElse("").validNel
     }
   }
 

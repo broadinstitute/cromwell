@@ -45,7 +45,7 @@ object AwsBatchJobPaths {
  * @param workflowPaths the paths for the job
  * @param jobKey the job
  */
-final case class AwsBatchJobPaths(override val workflowPaths: AwsBatchWorkflowPaths, jobKey: BackendJobDescriptorKey) extends JobPaths {
+final case class AwsBatchJobPaths(override val workflowPaths: AwsBatchWorkflowPaths, jobKey: BackendJobDescriptorKey, override val isCallCacheCopyAttempt: Boolean = false) extends JobPaths {
 
   def logBasename = {
     val index = jobKey.index.map(s => s"-$s").getOrElse("")
@@ -58,4 +58,6 @@ final case class AwsBatchJobPaths(override val workflowPaths: AwsBatchWorkflowPa
   // at the time that code runs.
   override def defaultStdoutFilename: String = s"$logBasename-stdout.log"
   override def defaultStderrFilename: String = s"$logBasename-stderr.log"
+
+  override def forCallCacheCopyAttempts: JobPaths = this.copy(isCallCacheCopyAttempt = true)
 }

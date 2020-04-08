@@ -9,7 +9,8 @@ import cats.syntax.eq._
 import mouse.boolean._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.ErrorOr._
-import cromwell.core.WorkflowId
+import common.validation.Validation._
+import cromwell.core.{WorkflowId, WorkflowMetadataKeys}
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
 import cromwell.services.metadata.MetadataQuery
 import cromwell.services.metadata.MetadataService._
@@ -139,20 +140,21 @@ object CarbonitedMetadataThawingActor {
       case _: WorkflowOutputs => JsonEditor.outputs(json)
       case get: GetMetadataAction =>
         val intermediate: ErrorOr[Json] = get.key match {
-          case MetadataQuery(_, None, None, None, None, _) => json.validNel
-          case MetadataQuery(_, None, Some(key), None, None, _) => JsonEditor.includeJson(json, NonEmptyList.of(key))
-          case MetadataQuery(_, None, None, includeKeys, excludeKeys, _) => JsonEditor.includeExcludeJson(json, includeKeys, excludeKeys)
+          case MetadataQuery(_, None, None, None, None, _, _) => json.validNel
+          case MetadataQuery(_, None, Some(key), None, None, _, _) => JsonEditor.includeJson(json, NonEmptyList.of(key))
+          case MetadataQuery(_, None, None, includeKeys, excludeKeys, _, _) => JsonEditor.includeExcludeJson(json, includeKeys, excludeKeys)
           // The following three don't bother with exclusions or inclusions since they are only used internally
           // and the existing client code is robust to superfluous data.
-          case MetadataQuery(_, Some(_), None, None, None, _) => json.validNel
-          case MetadataQuery(_, Some(_), Some(_), None, None, _) => json.validNel
-          case MetadataQuery(_, Some(_), None, _, _, _) => json.validNel
+          case MetadataQuery(_, Some(_), None, None, None, _, _) => json.validNel
+          case MetadataQuery(_, Some(_), Some(_), None, None, _, _) => json.validNel
+          case MetadataQuery(_, Some(_), None, _, _, _, _) => json.validNel
           case wrong => throw new RuntimeException(s"Programmer Error: Invalid MetadataQuery: $wrong")
         }
         // For carbonited metadata, "expanded" subworkflows translates to not deleting subworkflows out of the root workflow that already
         // contains them. So `intermediate.validNel` for expanded subworkflows and `JsonEditor.replaceSubworkflowMetadataWithId`
         // for unexpanded subworkflows.
-        if (get.key.expandSubWorkflows) intermediate else intermediate flatMap JsonEditor.unexpandSubworkflows
+        val res = if (get.key.expandSubWorkflows) intermediate else intermediate flatMap JsonEditor.unexpandSubworkflows
+        if (get.key.includeKeysOption.isDefined) res else appendMetadataSource(res, action.workflowId)
       case other =>
         throw new RuntimeException(s"Programmer Error: Unexpected BuildWorkflowMetadataJsonAction message of type '${other.getClass.getSimpleName}': $other")
     }
@@ -166,6 +168,13 @@ object CarbonitedMetadataThawingActor {
           s"JSON of the root workflow $rootWorkflowId.").invalidNel
       }
     }
+
+    def appendMetadataSource(inputJson: ErrorOr[Json], workflowId: WorkflowId): ErrorOr[Json] =
+      inputJson.flatMap {
+        _.asObject
+          .toErrorOr(s"Programmer Error: Unexpected empty metadata json for workflow: $workflowId")
+          .map(jsObj => Json.fromJsonObject(jsObj.add(WorkflowMetadataKeys.MetadataSource, Json.fromString("Archived"))))
+      }
 
     def toSpray: JsObject = json.printWith(Printer.spaces2).parseJson.asJsObject
   }

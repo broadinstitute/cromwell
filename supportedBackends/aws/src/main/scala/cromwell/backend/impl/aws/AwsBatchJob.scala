@@ -111,7 +111,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     //this is the location of the aws cli mounted into the container by the ec2 launch template
     val s3Cmd = "/usr/local/aws-cli/v2/current/bin/aws s3"
     //val dockerRootDir = runtimeAttributes.disks.map(_.mountPoint.toString).head
-    val dockerRootDir = "./"
+    val dockerRootDir = "."
 
     //generate a series of s3 copy statements to copy any s3 files into the container
     val inputCopyCommand = inputs.map {

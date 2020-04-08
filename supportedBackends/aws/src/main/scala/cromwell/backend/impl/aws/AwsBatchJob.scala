@@ -110,7 +110,8 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
   lazy val reconfiguredScript: String = {
     //this is the location of the aws cli mounted into the container by the ec2 launch template
     val s3Cmd = "/usr/local/aws-cli/v2/current/bin/aws s3"
-    val dockerRootDir = runtimeAttributes.disks.map(_.mountPoint.toString).head
+    //val dockerRootDir = runtimeAttributes.disks.map(_.mountPoint.toString).head
+    val dockerRootDir = "./"
 
     //generate a series of s3 copy statements to copy any s3 files into the container
     val inputCopyCommand = inputs.map {
@@ -126,13 +127,31 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     s"""
     |#! /bin/sh
     |
+    |#exit on any line causing an error
+    |set -e
+    |
+    |#trap any exit or error and handle with the final() function
+    |trap 'final $$? $$LINENO' EXIT
+    |
+    |final() {
+    |  #write the return code
+    |  echo $$1 > rc.txt
+    |  #any return code other than 0 is an error
+    |  if [ "$$1" != "0" ];
+    |  then
+    |    # error handling goes here
+    |    echo "Error $$1 occurred on line $$2"
+    |  else
+    |    echo "Success, exit code is $$1"
+    |  fi
+    |}
+    |
     |$inputCopyCommand
     |
     |touch stdout.log && touch stderr.log
     |
     |$commandLine | tee > stdout.log 2> stderr.log
     |return_code=$$?
-    |echo $$return_code > rc.txt
     |
     |cat stdout.log && cat stderr.log >&2
     |

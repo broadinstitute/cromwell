@@ -1,7 +1,8 @@
 name: sizerelativepath
 testFormat: workflowsuccess
 
-backends: [Local]
+backends: [Local, LocalNoDocker, Slurm, SlurmNoDocker]
+backendsMode: "any"
 
 files {
   workflow: sizerelativepath/sizerelativepath.wdl

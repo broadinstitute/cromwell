@@ -1,0 +1,23 @@
+# When there are no files to delete, Cromwell should successfully transition to terminal state
+
+name: no_output_delete
+testFormat: workflowsuccess
+backends: [Papiv2]
+
+files {
+  workflow: delete_intermediates/no_output_delete.wdl
+  options: delete_intermediates/delete_intermediates.options
+}
+
+metadata {
+  workflowName: no_output_delete
+  status: Succeeded
+  fileDeletionStatus: Succeeded
+}
+
+fileSystemCheck: "gcs"
+outputExpectations: {
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/no_output_delete/<<UUID>>/call-empty/stdout": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/no_output_delete/<<UUID>>/call-empty/stderr": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/no_output_delete/<<UUID>>/call-empty/rc": 1
+}

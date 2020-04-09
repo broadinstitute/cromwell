@@ -287,7 +287,7 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
 
       check(DescribeRequest(wsfc),
         DescribeFailure(
-          "Failed to resolve 'https://raw.githubusercontent.com/broadinstitute/cromwell/develop/my_workflow' using resolver: 'http importer (no 'relative-to' origin)' (reason 1 of 1): Failed to download https://raw.githubusercontent.com/broadinstitute/cromwell/develop/my_workflow (reason 1 of 1): 404: Not Found\n"))
+          "Failed to resolve 'https://raw.githubusercontent.com/broadinstitute/cromwell/develop/my_workflow' using resolver: 'http importer (no 'relative-to' origin)' (reason 1 of 1): Failed to download https://raw.githubusercontent.com/broadinstitute/cromwell/develop/my_workflow (reason 1 of 1): 404: Not Found"))
     }
 
     "return an error when the workflow URL's host can't be resolved" in {

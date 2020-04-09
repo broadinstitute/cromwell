@@ -200,7 +200,6 @@ object AwsBatchJobDefinitionContext
 
 case class AwsBatchJobDefinitionContext(
             runtimeAttributes: AwsBatchRuntimeAttributes,
-            //uniquePath: String,
             commandText: String,
             dockerRcPath: String,
             dockerStdoutPath: String,

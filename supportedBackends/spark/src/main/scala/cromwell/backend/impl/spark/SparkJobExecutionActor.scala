@@ -65,7 +65,7 @@ class SparkJobExecutionActor(override val jobDescriptor: BackendJobDescriptor,
   private lazy val SubmitJobJson = "%s.json"
   private lazy val isClusterMode = isSparkClusterMode(sparkDeployMode, sparkMaster)
 
-  private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, DefaultPathBuilders, ioActorProxy, context.dispatcher, forInput = false)
+  private val callEngineFunction = SharedFileSystemExpressionFunctions(jobPaths, DefaultPathBuilders, ioActorProxy, context.dispatcher)
 
   private val executionResponse = Promise[BackendJobExecutionResponse]()
 

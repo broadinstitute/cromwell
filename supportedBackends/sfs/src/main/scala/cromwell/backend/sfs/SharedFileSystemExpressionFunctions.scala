@@ -13,7 +13,7 @@ object SharedFileSystemExpressionFunctions {
             pathBuilders: List[PathBuilder],
             ioActorProxy: ActorRef,
             ec: ExecutionContext,
-            forInput: Boolean): SharedFileSystemExpressionFunctions = {
+            forInput: Boolean = false): SharedFileSystemExpressionFunctions = {
     new SharedFileSystemExpressionFunctions(pathBuilders, jobPaths.callContext, ioActorProxy, ec, forInput)
   }
 }

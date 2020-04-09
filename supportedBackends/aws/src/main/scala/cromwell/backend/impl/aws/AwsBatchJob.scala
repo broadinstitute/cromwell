@@ -107,7 +107,6 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
   lazy val reconfiguredScript: String = {
     //this is the location of the aws cli mounted into the container by the ec2 launch template
     val s3Cmd = "/usr/local/aws-cli/v2/current/bin/aws s3"
-    //val dockerRootDir = runtimeAttributes.disks.map(_.mountPoint.toString).head
     val dockerRootDir = "."
 
     //generate a series of s3 copy statements to copy any s3 files into the container
@@ -134,7 +133,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     |trap 'final $$? $$LINENO' ERR
     |
     |final() {
-       #create or overwrite rc.txt, something failedf
+    |  #create or overwrite rc.txt, something failed
     |  echo $$1 > rc.txt
     |  echo "Error $$1 occurred on line $$2"
     |  $s3Cmd cp rc.txt $${AWS_CROMWELL_CALL_ROOT}/${jobPaths.returnCodeFilename}
@@ -324,11 +323,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
         //return the arn of the job
         definitions.head.jobDefinitionArn()
       } else {
-
-        //no definition found. create one
-        Log.info(s"No job definition found")
-
-        Log.info(s"Creating job definition: $jobDefinitionName")
+        Log.info(s"No job definition found. Creating job definition: $jobDefinitionName")
 
         // See:
         //

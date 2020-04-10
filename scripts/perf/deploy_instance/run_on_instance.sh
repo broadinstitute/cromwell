@@ -62,6 +62,12 @@ addVar REPORT_URL="$(strip_trailing_slash "gs://${GCS_REPORT_BUCKET}/${GCS_REPOR
 
 # Start cromwell and cloud sql proxy
 prepare_statsd_proxy
+# The following hack is to attempt to get around "IPv6: ADDRCONF(NETDEV_UP): docker0: link is not ready" errors
+# https://github.com/docker/for-linux/issues/924
+# https://github.com/moby/moby/issues/26492
+sleep 30
+sudo systemctl restart docker
+
 docker-compose -f ${PERF_ROOT}/vm_scripts/docker-compose.yml up -d
 
 # Intermittently upload Cromwell logs to the bucket

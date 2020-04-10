@@ -24,8 +24,6 @@ import scala.util.Try
   * For instance, the metadata field is a Map[String, Object] even though it represents "Metadata"
   * for which there's an existing class.
   * This class provides implicit functions to deserialize those map to their proper type.
-  * This uses reflection and is therefore not great performance-wise.
-  * However it is only used once, when the job completes, which should limit the performance hit.
   */
 private [api] object Deserialization {
 

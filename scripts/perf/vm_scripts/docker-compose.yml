@@ -26,7 +26,7 @@ services:
     # Be careful if upgrading this, the `nc` used in `healthcheck` disappeared from newer versions.
     # https://github.com/GoogleCloudPlatform/cloudsql-proxy/issues/137#issuecomment-598188268
     # Health checks do appear to be necessary to prevent Cromwell from occasionally wedging itself on startup,
-    # but there doesn't appear to be a Google-blessed way of performing them.
+    # but I didn't find a Google-blessed way of performing them.
     image: "gcr.io/cloudsql-docker/gce-proxy:1.11"
     ports:
       - "127.0.0.1:3306:3306"
@@ -34,5 +34,3 @@ services:
     command: ["/cloud_sql_proxy", "-instances=broad-dsde-cromwell-perf:us-central1:${CLOUD_SQL_INSTANCE}=tcp:0.0.0.0:3306"]
     healthcheck:
       test: "/usr/bin/nc 127.0.0.1 3306"
-    networks:
-      mysql_net:

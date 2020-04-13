@@ -29,11 +29,12 @@ class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
   val carboniteFreezerActor = context.actorOf(CarbonitingMetadataFreezerActor.props(carboniterConfig, self, serviceRegistryActor, ioActor))
 
   val backOff = {
-    val scanConfig = carboniterConfig.freezeScanConfig
+    val freezingConfig = carboniterConfig.freezingConfig
     SimpleExponentialBackoff(
-      initialInterval = scanConfig.initialInterval,
-      maxInterval = scanConfig.maxInterval,
-      multiplier = scanConfig.multiplier,
+      // This actor is only created if the initial interval is finite.
+      initialInterval = freezingConfig.initialInterval.asInstanceOf[FiniteDuration],
+      maxInterval = freezingConfig.maxInterval,
+      multiplier = freezingConfig.multiplier,
       randomizationFactor = 0.0
     )
   }
@@ -67,7 +68,7 @@ class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
       recordTimeSinceStartAsMetric(CarboniteFreezingTimeMetricPath, carboniteFreezeStartTime)
       carboniteFreezeStartTime = None
 
-      if (carboniterConfig.debugLogging) { log.info(s"Carboniting complete for workflow ${c.workflowId}") }
+      if (carboniterConfig.freezingConfig.debugLogging) { log.info(s"Carboniting complete for workflow ${c.workflowId}") }
 
       c.result match {
         case Archived => increment(CarboniteSuccessesMetricPath, InstrumentationPrefix)
@@ -93,7 +94,7 @@ class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
 
   def findWorkflowToCarbonite(): Unit = {
     workflowQueryStartTime = Option(System.currentTimeMillis())
-    serviceRegistryActor ! QueryForWorkflowsMatchingParameters(CarboniteWorkerActor.buildQueryParametersForWorkflowToCarboniteQuery(carboniterConfig.minimumSummaryEntryId))
+    serviceRegistryActor ! QueryForWorkflowsMatchingParameters(CarboniteWorkerActor.buildQueryParametersForWorkflowToCarboniteQuery(carboniterConfig.freezingConfig.minimumSummaryEntryId))
   }
 
 
@@ -102,7 +103,7 @@ class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
 
     Try(WorkflowId.fromString(workflowId)) match {
       case Success(id: WorkflowId) =>
-        if (carboniterConfig.debugLogging) { log.info(s"Starting carboniting of workflow: $workflowId") }
+        if (carboniterConfig.freezingConfig.debugLogging) { log.info(s"Starting carboniting of workflow: $workflowId") }
         carboniteFreezerActor ! FreezeMetadata(id)
       case Failure(e) =>
         log.error(e, s"Cannot carbonite workflow $workflowId. Error while converting it to WorkflowId, will retry.")

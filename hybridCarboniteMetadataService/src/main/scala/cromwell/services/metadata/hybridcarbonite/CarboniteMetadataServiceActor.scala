@@ -40,7 +40,7 @@ class CarboniteMetadataServiceActor(carboniteConfig: HybridCarboniteConfig, serv
     case IoActorRef(ref) =>
       log.info(s"${getClass.getSimpleName} has received an IoActor reference")
       ioActorOption = Option(ref)
-      carboniteWorker = carboniteConfig.enabled.option(context.actorOf(CarboniteWorkerActor.props(carboniteConfig, serviceRegistryActor, ref)))
+      carboniteWorker = carboniteConfig.freezingConfig.enabled.option(context.actorOf(CarboniteWorkerActor.props(carboniteConfig, serviceRegistryActor, ref)))
     case NoIoActorRefAvailable =>
       log.warning(s"${getClass.getSimpleName} is still waiting for an IoActor reference")
       scheduleIoActorLookup()

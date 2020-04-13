@@ -285,8 +285,9 @@ as the `class` for `MetadataService`. The "classic" (i.e. relational database) a
 additional configuration, but the "Carbonite" aspect has its own `carbonite-metadata-service` stanza. A sample configuration
 with default values is shown below.
  
-`enabled = true` is required for any Carboniting to actually happen, and a `bucket` and `filesystems.gcs.auth` must also be specified.
-The `freeze-scan` stanza controls the frequency and backoff with which Cromwell searches for "classic" metadata to Carbonite, while
+A `bucket` and `filesystems.gcs.auth` must be specified to be able to read and/or write Carbonited metadata.
+The `metadata-freezing` stanza controls parameters for the "freezing" of metadata (converting "classic" metadata stored in Cromwell's
+relational database to JSON stored in GCS), while
 the `metadata-deletion` stanza controls the parameters around Cromwell's deletion of successfully archived metadata rows
 from the "classic" metadata database.
 
@@ -300,16 +301,8 @@ services {
     
       # The carbonite section contains carbonite-specific options
       carbonite-metadata-service {
-        # Enables carboniting process
-        enabled = false
-    
-        # Only carbonite workflows whose summary entry IDs are greater than or equal to this value:
-        minimum-summary-entry-id = 0
-    
-        # Output log messages whenever carboniting activity is started or completed?
-        debug-logging = false
-    
-        # Which GCS bucket to use for storing the generated metadata JSON
+
+        # Which GCS bucket to use for storing or retrieving metadata JSON
         bucket = "<<A private bucket, *without* the gs:// prefix>>"
     
         # A filesytem able to access the specified bucket:
@@ -320,14 +313,22 @@ services {
           }
         }
     
-        # Freeze scan configuration. This controls the intervals at which the `CarboniteWorkerActor` looks for terminal
+        # Metadata freezing configuration. This controls the intervals at which the `CarboniteWorkerActor` looks for terminal
         # workflows to carbonite. All of these entries are optional and default to the values shown below. Any supplied
         # values will be sanity checked: intervals must be durations, max greater than initial, multiplier must
         # be a number greater than 1.
-        freeze-scan {
-          initial-interval = 5 seconds,
-          max-interval = 5 minutes,
+        metadata-freezing {
+          # How often Cromwell should check for metadata ready for freezing. Set the `initial-interval` value to "Inf" to
+          # turn off metadata freezing. The default value is currently "Inf".
+          initial-interval = Inf
+          max-interval = 5 minutes
           multiplier = 1.1
+
+          # Only freeze workflows whose summary entry IDs are greater than or equal to this value:
+          minimum-summary-entry-id = 0
+
+          # Output log messages whenever freezing activity is started or completed.
+          debug-logging = true
         }
 
         # Metadata deletion configuration.

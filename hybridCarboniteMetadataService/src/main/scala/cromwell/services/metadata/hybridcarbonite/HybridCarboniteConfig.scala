@@ -18,17 +18,20 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Try
 
-final case class HybridCarboniteConfig(enabled: Boolean,
-                                       minimumSummaryEntryId: Option[Long],
-                                       debugLogging: Boolean,
-                                       pathBuilders: PathBuilders,
+final case class HybridCarboniteConfig(pathBuilders: PathBuilders,
                                        bucket: String,
-                                       freezeScanConfig: HybridCarboniteFreezeScanConfig,
-                                       metadataDeletionConfig: MetadataDeletionConfig) {
+                                       freezingConfig: MetadataFreezingConfig,
+                                       deletionConfig: MetadataDeletionConfig) {
   def makePath(workflowId: WorkflowId)= PathFactory.buildPath(HybridCarboniteConfig.pathForWorkflow(workflowId, bucket), pathBuilders)
 }
 
-final case class HybridCarboniteFreezeScanConfig(initialInterval: FiniteDuration = 5 seconds, maxInterval: FiniteDuration = 5 minutes, multiplier: Double = 1.1)
+final case class MetadataFreezingConfig(initialInterval: Duration,
+                                        maxInterval: FiniteDuration,
+                                        multiplier: Double,
+                                        minimumSummaryEntryId: Option[Long],
+                                        debugLogging: Boolean) {
+  lazy val enabled = initialInterval.isFinite()
+}
 
 sealed trait MetadataDeletionConfig
 final case class ActiveMetadataDeletionConfig(initialDelay: FiniteDuration,
@@ -40,34 +43,41 @@ case object InactiveMetadataDeletionConfig extends MetadataDeletionConfig
 object HybridCarboniteConfig {
 
   def pathForWorkflow(id: WorkflowId, bucket: String) = s"gs://$bucket/$id/$id.json"
-  
+
   def parseConfig(carboniterConfig: Config)(implicit system: ActorSystem): Checked[HybridCarboniteConfig] = {
-    val enable = carboniterConfig.getOrElse("enabled", false)
-    val minimumSummaryEntryIdCheck = carboniterConfig.as[Option[Long]]("minimum-summary-entry-id") match {
-      case Some(l) if l < 0 => "Minimum summary entry ID must be above 0. Omit or set to 0 to allow all entries to be summarized.".invalidNelCheck
-      case other => other.validNelCheck
-    }
-    val carboniteDebugLogging = carboniterConfig.getOrElse("debug-logging", true)
 
-    def freezeScanConfig: Checked[HybridCarboniteFreezeScanConfig] = {
-      if (carboniterConfig.hasPath("freeze-scan")) {
-        val freeze = carboniterConfig.getConfig("freeze-scan")
+    def metadataFreezingConfig: Checked[MetadataFreezingConfig] = {
+      val defaultInitialInterval: Duration = Duration.Inf
+      val defaultMaxInterval = 5 minutes
+      val defaultMultiplier = 1.1
+      val defaultMinimumSummaryEntryId: Option[Long] = None
+      val defaultDebugLogging = true
+      if (carboniterConfig.hasPath("metadata-freezing")) {
+        val freeze = carboniterConfig.getConfig("metadata-freezing")
 
-        val initialInterval = Try { freeze.getOrElse("initial-interval", 5 seconds) } toErrorOr
-        val maxInterval = Try { freeze.getOrElse("max-interval", default = 5 minutes) } toErrorOr
-        val multiplier = Try { freeze.getOrElse("multiplier", 1.1) } toErrorOr
+        val initialInterval = Try { freeze.getOrElse("initial-interval", defaultInitialInterval) } toErrorOr
+        val maxInterval = Try { freeze.getOrElse("max-interval", defaultMaxInterval) } toErrorOr
+        val multiplier = Try { freeze.getOrElse("multiplier", defaultMultiplier) } toErrorOr
+        val minimumSummaryEntryId = Try { freeze.getOrElse("minimum-summary-entry-id", defaultMinimumSummaryEntryId) } toErrorOr
+        val debugLogging = Try { freeze.getOrElse("debug-logging", defaultDebugLogging)}  toErrorOr
 
-        val errorOrFreezeScanConfig = (initialInterval, maxInterval, multiplier) mapN {
-          case (i, m, x) => HybridCarboniteFreezeScanConfig(i, m, x)
-        } contextualizeErrors "parse Carboniter 'freeze-scan' stanza"
+        val errorOrFreezingConfig = (initialInterval, maxInterval, multiplier, minimumSummaryEntryId, debugLogging) mapN {
+          case (i, m, x, s, d) => MetadataFreezingConfig(i, m, x, s, d)
+        } contextualizeErrors "parse Carboniter 'metadata-freezing' stanza"
 
         for {
-          freezeScanConfig <- errorOrFreezeScanConfig.toEither
-          _ <- if (freezeScanConfig.maxInterval > freezeScanConfig.initialInterval) "".validNelCheck else "'max-interval' must be greater than or equal to 'initial-interval' in Carboniter 'freeze-scan' stanza".invalidNelCheck
-          _ <- if (freezeScanConfig.multiplier > 1) "".validNelCheck else "'multiplier' must be greater than 1 in Carboniter 'freeze-scan' stanza".invalidNelCheck
-        } yield freezeScanConfig
+          freezingConfig <- errorOrFreezingConfig.toEither
+          _ <- if (freezingConfig.minimumSummaryEntryId.exists(_ < 0)) "`metadata-freezing.minimum-summary-entry-id` must be greater than or equal to 0. Omit or set to 0 to allow all entries to be summarized.".invalidNelCheck else "".validNelCheck
+          _ <- if (freezingConfig.initialInterval.isFinite() && freezingConfig.maxInterval > freezingConfig.initialInterval) "".validNelCheck else "'max-interval' must be greater than or equal to a finite 'initial-interval' in Carboniter 'metadata-freezing' stanza".invalidNelCheck
+          _ <- if (freezingConfig.multiplier > 1) "".validNelCheck else "`metadata-freezing.multiplier` must be greater than 1 in Carboniter 'metadata-freezing' stanza".invalidNelCheck
+        } yield freezingConfig
       } else {
-        HybridCarboniteFreezeScanConfig().validNelCheck
+        MetadataFreezingConfig(
+          defaultInitialInterval,
+          defaultMaxInterval,
+          defaultMultiplier,
+          defaultMinimumSummaryEntryId,
+          defaultDebugLogging).validNelCheck
       }
     }
 
@@ -102,9 +112,8 @@ object HybridCarboniteConfig {
       pathBuilders <- Try(Await.result(PathBuilderFactory.instantiatePathBuilders(pathBuilderFactories.values.toList, WorkflowOptions.empty), 60.seconds))
         .toCheckedWithContext("construct Carboniter path builders from factories")
       bucket <- Try(carboniterConfig.getString("bucket")).toCheckedWithContext("parse Carboniter 'bucket' field from config")
-      minimumSummaryEntryId <- minimumSummaryEntryIdCheck
-      freezeScan <- freezeScanConfig
+      freezingConfig <- metadataFreezingConfig
       metadataDeletion <- metadataDeletionConfig
-    } yield HybridCarboniteConfig(enable, minimumSummaryEntryId, carboniteDebugLogging, pathBuilders, bucket, freezeScan, metadataDeletion)
+    } yield HybridCarboniteConfig(pathBuilders, bucket, freezingConfig, metadataDeletion)
   }
 }

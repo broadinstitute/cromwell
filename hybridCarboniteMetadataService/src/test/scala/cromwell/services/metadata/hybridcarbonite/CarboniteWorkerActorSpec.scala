@@ -30,13 +30,15 @@ class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") 
 
   val carboniterConfig = HybridCarboniteConfig.parseConfig(ConfigFactory.parseString(
     """{
-      |   enabled = true
       |   bucket = "carbonite-test-bucket"
       |   filesystems {
       |     gcs {
       |       # A reference to the auth to use for storing and retrieving metadata:
       |       auth = "application-default"
       |     }
+      |   }
+      |   metadata-freezing {
+      |     initial-interval = 5 seconds
       |   }
       |}""".stripMargin
   )).unsafe("Make config file")
@@ -58,7 +60,7 @@ class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") 
   it should "carbonite workflow at intervals" in {
     10.times {
       // We might get noise from instrumentation. We can ignore that, but we expect the query to come through eventually:
-      val expectedQueryParams = CarboniteWorkerActor.buildQueryParametersForWorkflowToCarboniteQuery(carboniterConfig.minimumSummaryEntryId)
+      val expectedQueryParams = CarboniteWorkerActor.buildQueryParametersForWorkflowToCarboniteQuery(carboniterConfig.freezingConfig.minimumSummaryEntryId)
       serviceRegistryActor.fishForSpecificMessage(10.seconds) {
         case QueryForWorkflowsMatchingParameters(`expectedQueryParams`) => true
       }
@@ -74,7 +76,7 @@ class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") 
   it should "keep carboniting workflow at intervals despite the query failures" in {
     10.times {
       // We might get noise from instrumentation. We can ignore that, but we expect the query to come through eventually:
-      val expectedQueryParams = CarboniteWorkerActor.buildQueryParametersForWorkflowToCarboniteQuery(carboniterConfig.minimumSummaryEntryId)
+      val expectedQueryParams = CarboniteWorkerActor.buildQueryParametersForWorkflowToCarboniteQuery(carboniterConfig.freezingConfig.minimumSummaryEntryId)
       serviceRegistryActor.fishForSpecificMessage(10.seconds) {
         case QueryForWorkflowsMatchingParameters(`expectedQueryParams`) => true
       }

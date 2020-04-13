@@ -25,14 +25,18 @@ class CarbonitingMetadataFreezerActorSpec extends TestKitSuite("CarbonitedMetada
   implicit val ec: ExecutionContext = system.dispatcher
 
   val carboniterConfig = HybridCarboniteConfig.parseConfig(ConfigFactory.parseString(
-    """enabled = true
+    """
       |bucket = "carbonite-test-bucket"
       |filesystems {
       |  gcs {
       |    # A reference to the auth to use for storing and retrieving metadata:
       |    auth = "application-default"
       |  }
-      |}""".stripMargin)).unsafe("Make config file")
+      |}
+      |metadata-freezing {
+      |  initial-interval: 5 seconds
+      |}
+      |""".stripMargin)).unsafe("Make config file")
 
   val serviceRegistryActor = TestProbe()
   val ioActor = TestProbe()

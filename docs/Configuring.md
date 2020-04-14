@@ -331,7 +331,7 @@ services {
           # noisy in some CI circumstances).
           debug-logging = true
         }
-    
+
         # Metadata deletion configuration.
         metadata-deletion {
     

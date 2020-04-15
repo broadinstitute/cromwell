@@ -174,7 +174,7 @@ class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec"
 
     carboniteConfig match {
       case Left(e) =>
-        e.head shouldBe "'max-interval' must be greater than or equal to a finite 'initial-interval' in Carboniter 'metadata-freezing' stanza"
+        e.head shouldBe "'max-interval' 1 second should be greater than or equal to finite 'initial-interval' 5 seconds"
       case Right(_) => fail(s"Expected to fail but the config was parsed correctly!")
     }
   }

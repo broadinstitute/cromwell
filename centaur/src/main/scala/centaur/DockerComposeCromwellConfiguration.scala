@@ -29,8 +29,8 @@ case class DockerComposeCromwellConfiguration(dockerTag: String, dockerComposeFi
       }
 
       private val startCommand = composeCommand("up")
-      // private val stopCommand = composeCommand("down -v")
-      // private val rmCommand = composeCommand("rm -fsv")
+      private val stopCommand = composeCommand("down -v")
+      private val rmCommand = composeCommand("rm -fsv")
 
       private var process: Option[Process] = None
 
@@ -39,12 +39,12 @@ case class DockerComposeCromwellConfiguration(dockerTag: String, dockerComposeFi
       }
 
       override def stop(): Unit = {
-        // waitProcess(runProcess(stopCommand))
-        // waitProcess(runProcess(rmCommand))
-        // process foreach {
-        //   waitProcess(_, destroy = true)
-        // }
-        // process = None
+        waitProcess(runProcess(stopCommand))
+        waitProcess(runProcess(rmCommand))
+        process foreach {
+          waitProcess(_, destroy = true)
+        }
+        process = None
       }
 
       override def isAlive: Boolean = process.exists {

@@ -69,8 +69,9 @@ object HybridCarboniteConfig {
           freezingConfig <- errorOrFreezingConfig.toEither
           initialInterval = freezingConfig.initialInterval
           maxInterval = freezingConfig.maxInterval
+          _ = System.err.println(s"initialInterval is $initialInterval and maxInterval is $maxInterval")
           _ <- if (freezingConfig.minimumSummaryEntryId.exists(_ < 0)) "`metadata-freezing.minimum-summary-entry-id` must be greater than or equal to 0. Omit or set to 0 to allow all entries to be summarized.".invalidNelCheck else "".validNelCheck
-          _ <- if (initialInterval.isFinite() && maxInterval < initialInterval) "'max-interval' must be greater than or equal to a finite 'initial-interval' in Carboniter 'metadata-freezing' stanza".invalidNelCheck else "".validNelCheck
+          _ <- if (initialInterval.isFinite() && maxInterval < initialInterval) s"'max-interval' $maxInterval should be greater than or equal to a finite 'initial-interval' $initialInterval".invalidNelCheck else "".validNelCheck
           _ <- if (freezingConfig.multiplier > 1) "".validNelCheck else "`metadata-freezing.multiplier` must be greater than 1 in Carboniter 'metadata-freezing' stanza".invalidNelCheck
         } yield freezingConfig
       } else {

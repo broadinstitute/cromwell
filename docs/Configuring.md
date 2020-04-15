@@ -323,10 +323,10 @@ services {
           initial-interval = Inf
           max-interval = 5 minutes
           multiplier = 1.1
-    
+
           # Only freeze workflows whose summary entry IDs are greater than or equal to `minimum-summary-entry-id`.
           minimum-summary-entry-id = 0
-    
+
           # Whether to output log messages whenever freezing activity is started or completed (this can be problematically
           # noisy in some CI circumstances).
           debug-logging = true
@@ -334,19 +334,19 @@ services {
 
         # Metadata deletion configuration.
         metadata-deletion {
-    
+
           # How long to wait after system startup before the first metadata deletion action.
           # This is potentially useful to avoid overwhelming a newly-starting Cromwell service with lots of deletion activity.
           initial-delay = 5 minutes
-    
+
           # How often Cromwell should check for metadata ready for deletion. Set this value to "Inf" to turn off metadata deletion.
           # The default value is currently "Inf".
           interval = Inf
-    
+
           # Upper limit for the number of workflows which Cromwell will process during a single scheduled metadata deletion event.
           # The default value is currently "200".
           batch-size = 200
-    
+
           # Minimum time between a workflow completion and deletion of its metadata from the database.
           # Note: Metadata is only eligible for deletion if it has already been carbonited.
           # The default value is currently "24 hours".

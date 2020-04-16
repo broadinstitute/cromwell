@@ -1,0 +1,286 @@
+{
+  "actualWorkflowLanguage": "WDL",
+  "actualWorkflowLanguageVersion": "draft-2",
+  "calls": {
+    "main_workflow.wf_hello": [
+      {
+        "attempt": 1,
+        "end": "2020-04-16T20:51:20.931Z",
+        "executionEvents": [
+          {
+            "description": "SubWorkflowRunningState",
+            "endTime": "2020-04-16T20:51:20.930Z",
+            "startTime": "2020-04-16T20:48:53.990Z"
+          },
+          {
+            "description": "SubWorkflowPendingState",
+            "endTime": "2020-04-16T20:48:53.942Z",
+            "startTime": "2020-04-16T20:48:53.925Z"
+          },
+          {
+            "description": "WaitingForValueStore",
+            "endTime": "2020-04-16T20:48:53.954Z",
+            "startTime": "2020-04-16T20:48:53.942Z"
+          },
+          {
+            "description": "SubWorkflowPreparingState",
+            "endTime": "2020-04-16T20:48:53.990Z",
+            "startTime": "2020-04-16T20:48:53.954Z"
+          }
+        ],
+        "executionStatus": "Done",
+        "inputs": {
+          "wf_hello_input": "sub world"
+        },
+        "outputs": {
+          "salutation": "Hello sub world!"
+        },
+        "shardIndex": -1,
+        "start": "2020-04-16T20:48:53.919Z",
+        "subWorkflowMetadata": {
+          "calls": {
+            "wf_hello.hello": [
+              {
+                "attempt": 1,
+                "backend": "Papi",
+                "backendLabels": {
+                  "cromwell-sub-workflow-name": "sub-wf-hello",
+                  "cromwell-workflow-id": "cromwell-f6cf8176-f7f9-458c-9bf7-e2b2a416e28e",
+                  "wdl-call-alias": "hello",
+                  "wdl-task-name": "sub-hello"
+                },
+                "backendLogs": {
+                  "log": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/main_workflow/f6cf8176-f7f9-458c-9bf7-e2b2a416e28e/call-wf_hello/sub.wf_hello/e0350fb3-4a12-4f71-a651-63125a51def3/call-hello/hello.log"
+                },
+                "backendStatus": "Success",
+                "callCaching": {
+                  "allowResultReuse": true,
+                  "effectiveCallCachingMode": "ReadAndWriteCache",
+                  "hashes": {
+                    "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+                    "command template": "4EAADE3CD5D558C5A6CFA4FD101A1486",
+                    "input": {
+                      "String addressee": "B3EB934782A0B263A4A7759213CB3ADA"
+                    },
+                    "input count": "C4CA4238A0B923820DCC509A6F75849B",
+                    "output count": "C4CA4238A0B923820DCC509A6F75849B",
+                    "output expression": {
+                      "String salutation": "0183144CF6617D5341681C6B2F756046"
+                    },
+                    "runtime attribute": {
+                      "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+                      "docker": "5E7DF90C2675647DEC5193F290917C18",
+                      "failOnStderr": "68934A3E9455FA72420237EB05902327"
+                    }
+                  },
+                  "hit": false,
+                  "result": "Cache Miss"
+                },
+                "callRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/main_workflow/f6cf8176-f7f9-458c-9bf7-e2b2a416e28e/call-wf_hello/sub.wf_hello/e0350fb3-4a12-4f71-a651-63125a51def3/call-hello",
+                "commandLine": "echo \"Hello sub world!\"",
+                "compressedDockerSize": 26726969,
+                "dockerImageUsed": "ubuntu@sha256:e5dd9dbb37df5b731a6688fa49f4003359f6f126958c9c928f937bec69836320",
+                "end": "2020-04-16T20:51:18.909Z",
+                "executionEvents": [
+                  {
+                    "description": "Pending",
+                    "endTime": "2020-04-16T20:48:56.128Z",
+                    "startTime": "2020-04-16T20:48:56.099Z"
+                  },
+                  {
+                    "description": "Pulling \"gcr.io/google.com/cloudsdktool/cloud-sdk:276.0.0-slim\"",
+                    "endTime": "2020-04-16T20:50:17.436Z",
+                    "startTime": "2020-04-16T20:49:38.420Z"
+                  },
+                  {
+                    "description": "Complete in GCE / Cromwell Poll Interval",
+                    "endTime": "2020-04-16T20:51:17.754Z",
+                    "startTime": "2020-04-16T20:51:02.387Z"
+                  },
+                  {
+                    "description": "CallCacheReading",
+                    "endTime": "2020-04-16T20:48:57.928Z",
+                    "startTime": "2020-04-16T20:48:57.865Z"
+                  },
+                  {
+                    "description": "UserAction",
+                    "endTime": "2020-04-16T20:50:47.250Z",
+                    "startTime": "2020-04-16T20:50:45.652Z"
+                  },
+                  {
+                    "description": "Localization",
+                    "endTime": "2020-04-16T20:50:45.652Z",
+                    "startTime": "2020-04-16T20:50:32.437Z"
+                  },
+                  {
+                    "description": "RunningJob",
+                    "endTime": "2020-04-16T20:49:01.635Z",
+                    "startTime": "2020-04-16T20:48:57.928Z"
+                  },
+                  {
+                    "description": "Worker \"google-pipelines-worker-5750d321068586e8a46330cb5938b9c3\" assigned in \"us-central1-b\"",
+                    "endTime": "2020-04-16T20:49:38.420Z",
+                    "startTime": "2020-04-16T20:49:04.937Z"
+                  },
+                  {
+                    "description": "Pulling \"ubuntu@sha256:e5dd9dbb37df5b731a6688fa49f4003359f6f126958c9c928f937bec69836320\"",
+                    "endTime": "2020-04-16T20:50:25.595Z",
+                    "startTime": "2020-04-16T20:50:17.436Z"
+                  },
+                  {
+                    "description": "ContainerSetup",
+                    "endTime": "2020-04-16T20:50:32.437Z",
+                    "startTime": "2020-04-16T20:50:26.639Z"
+                  },
+                  {
+                    "description": "PreparingJob",
+                    "endTime": "2020-04-16T20:48:57.865Z",
+                    "startTime": "2020-04-16T20:48:57.149Z"
+                  },
+                  {
+                    "description": "Background",
+                    "endTime": "2020-04-16T20:50:26.639Z",
+                    "startTime": "2020-04-16T20:50:25.873Z"
+                  },
+                  {
+                    "description": "UpdatingCallCache",
+                    "endTime": "2020-04-16T20:51:17.962Z",
+                    "startTime": "2020-04-16T20:51:17.754Z"
+                  },
+                  {
+                    "description": "Delocalization",
+                    "endTime": "2020-04-16T20:51:02.387Z",
+                    "startTime": "2020-04-16T20:50:47.250Z"
+                  },
+                  {
+                    "description": "Worker released",
+                    "endTime": "2020-04-16T20:51:02.387Z",
+                    "startTime": "2020-04-16T20:51:02.387Z"
+                  },
+                  {
+                    "description": "waiting for quota",
+                    "endTime": "2020-04-16T20:49:04.937Z",
+                    "startTime": "2020-04-16T20:49:01.635Z"
+                  },
+                  {
+                    "description": "UpdatingJobStore",
+                    "endTime": "2020-04-16T20:51:18.910Z",
+                    "startTime": "2020-04-16T20:51:17.962Z"
+                  },
+                  {
+                    "description": "WaitingForValueStore",
+                    "endTime": "2020-04-16T20:48:57.149Z",
+                    "startTime": "2020-04-16T20:48:57.141Z"
+                  },
+                  {
+                    "description": "RequestingExecutionToken",
+                    "endTime": "2020-04-16T20:48:57.141Z",
+                    "startTime": "2020-04-16T20:48:56.128Z"
+                  }
+                ],
+                "executionStatus": "Done",
+                "inputs": {
+                  "addressee": "sub world"
+                },
+                "jes": {
+                  "endpointUrl": "https://genomics.googleapis.com/",
+                  "executionBucket": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci",
+                  "googleProject": "broad-dsde-cromwell-dev",
+                  "instanceName": "google-pipelines-worker-5750d321068586e8a46330cb5938b9c3",
+                  "machineType": "custom-1-2048",
+                  "zone": "us-central1-b"
+                },
+                "jobId": "projects/broad-dsde-cromwell-dev/operations/2244029211726316446",
+                "labels": {
+                  "cromwell-sub-workflow-name": "sub.wf_hello",
+                  "cromwell-workflow-id": "cromwell-f6cf8176-f7f9-458c-9bf7-e2b2a416e28e",
+                  "wdl-call-alias": "hello",
+                  "wdl-task-name": "sub.hello"
+                },
+                "outputs": {
+                  "salutation": "Hello sub world!"
+                },
+                "preemptible": false,
+                "returnCode": 0,
+                "runtimeAttributes": {
+                  "bootDiskSizeGb": "10",
+                  "continueOnReturnCode": "0",
+                  "cpu": "1",
+                  "cpuMin": "1",
+                  "disks": "local-disk 10 SSD",
+                  "docker": "ubuntu:latest",
+                  "failOnStderr": "false",
+                  "maxRetries": "0",
+                  "memory": "2 GB",
+                  "memoryMin": "2 GB",
+                  "noAddress": "false",
+                  "preemptible": "0",
+                  "zones": "us-central1-b"
+                },
+                "shardIndex": -1,
+                "start": "2020-04-16T20:48:56.074Z",
+                "stderr": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/main_workflow/f6cf8176-f7f9-458c-9bf7-e2b2a416e28e/call-wf_hello/sub.wf_hello/e0350fb3-4a12-4f71-a651-63125a51def3/call-hello/stderr",
+                "stdout": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/main_workflow/f6cf8176-f7f9-458c-9bf7-e2b2a416e28e/call-wf_hello/sub.wf_hello/e0350fb3-4a12-4f71-a651-63125a51def3/call-hello/stdout"
+              }
+            ]
+          },
+          "end": "2020-04-16T20:51:20.929Z",
+          "id": "e0350fb3-4a12-4f71-a651-63125a51def3",
+          "inputs": {
+            "wf_hello_input": "sub world"
+          },
+          "outputs": {
+            "wf_hello.salutation": "Hello sub world!"
+          },
+          "parentWorkflowId": "f6cf8176-f7f9-458c-9bf7-e2b2a416e28e",
+          "rootWorkflowId": "f6cf8176-f7f9-458c-9bf7-e2b2a416e28e",
+          "start": "2020-04-16T20:48:53.953Z",
+          "status": "Succeeded",
+          "workflowName": "wf_hello",
+          "workflowRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/main_workflow/f6cf8176-f7f9-458c-9bf7-e2b2a416e28e/"
+        }
+      }
+    ]
+  },
+  "end": "2020-04-16T20:51:22.877Z",
+  "id": "f6cf8176-f7f9-458c-9bf7-e2b2a416e28e",
+  "inputs": {},
+  "labels": {
+    "cromwell-workflow-id": "cromwell-f6cf8176-f7f9-458c-9bf7-e2b2a416e28e",
+    "newlyAddedLabel": "All mimsy were the borogoves, and the mome raths outgrabe"
+  },
+  "metadataSource": "Archived",
+  "outputs": {
+    "main_workflow.main_output": "Hello sub world!"
+  },
+  "start": "2020-04-16T20:48:49.736Z",
+  "status": "Succeeded",
+  "submission": "2020-04-16T20:48:48.934Z",
+  "submittedFiles": {
+    "imports": {
+      "sub_workflow_hello_world_import.wdl": "task hello {\n  String addressee\n  command {\n    echo \"Hello ${addressee}!\"\n  }\n  runtime {\n      docker: \"ubuntu:latest\"\n  }\n  output {\n    String salutation = read_string(stdout())\n  }\n}\n\nworkflow wf_hello {\n  String wf_hello_input = \"world\"\n  \n  call hello { input: addressee = wf_hello_input }\n  \n  output {\n    String salutation = hello.salutation\n  }\n}\n"
+    },
+    "inputs": "{}",
+    "labels": "{}",
+    "options": "{\n\n}",
+    "root": "",
+    "workflow": "import \"sub_workflow_hello_world_import.wdl\" as sub\n\nworkflow main_workflow {\n    call sub.wf_hello { input: wf_hello_input = \"sub world\" }\n    output {\n        String main_output = wf_hello.salutation\n    }\n}",
+    "workflowUrl": ""
+  },
+  "workflowName": "main_workflow",
+  "workflowProcessingEvents": [
+    {
+      "cromwellId": "cromid-e4f268e",
+      "cromwellVersion": "cromwell-version.conf-to-be-generated-by-sbt",
+      "description": "PickedUp",
+      "timestamp": "2020-04-16T20:48:49.675Z"
+    },
+    {
+      "cromwellId": "cromid-e4f268e",
+      "cromwellVersion": "cromwell-version.conf-to-be-generated-by-sbt",
+      "description": "Finished",
+      "timestamp": "2020-04-16T20:51:22.878Z"
+    }
+  ],
+  "workflowRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/main_workflow/f6cf8176-f7f9-458c-9bf7-e2b2a416e28e/"
+}

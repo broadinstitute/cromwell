@@ -35,11 +35,11 @@ class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec"
     carboniteConfig match {
       case Left(e) => fail(s"Expected to parse correctly but got failure. Reason: $e")
       case Right(c) =>
-        c.freezingConfig.enabled shouldBe true
+        c.freezingConfig.asInstanceOf[ActiveMetadataFreezingConfig]
         c.bucket shouldBe "my_test_bucket"
         c.pathBuilders.head.name shouldBe "Google Cloud Storage"
         //noinspection RedundantDefaultArgument
-        val defaultFreezeScanConfig = MetadataFreezingConfig(
+        val defaultFreezeScanConfig = ActiveMetadataFreezingConfig(
           initialInterval = 5 seconds,
           maxInterval = 5 minutes,
           multiplier = 1.1,
@@ -68,7 +68,7 @@ class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec"
     carboniteConfig match {
       case Left(e) => fail(s"Expected to parse correctly but got failure. Reason: $e")
       case Right(c) =>
-        c.freezingConfig.enabled shouldBe false
+        c.freezingConfig.asInstanceOf[ActiveMetadataFreezingConfig]
         c.bucket shouldBe "my_test_bucket"
         c.pathBuilders.head.name shouldBe "Google Cloud Storage"
     }
@@ -157,7 +157,7 @@ class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec"
     carboniteConfig match {
       case Left(e) => fail(s"Expected to parse correctly but got failure. Reason: $e")
       case Right(c) =>
-        val expectedConfig = MetadataFreezingConfig(
+        val expectedConfig = ActiveMetadataFreezingConfig(
           initialInterval = 1 second,
           maxInterval = 5 seconds,
           multiplier = 1.2,

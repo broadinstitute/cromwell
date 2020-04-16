@@ -227,7 +227,7 @@ class CarbonitingMetadataFreezerActorSpec extends TestKitSuite("CarbonitedMetada
 object CarbonitingMetadataFreezerActorSpec {
 
   class TestableCarbonitingMetadataFreezerActor(config: HybridCarboniteConfig, carboniteWorkerActor: ActorRef, serviceRegistry: ActorRef, ioActor: ActorRef)
-    extends CarbonitingMetadataFreezerActor(config, carboniteWorkerActor, serviceRegistry, ioActor) {
+    extends CarbonitingMetadataFreezerActor(config.freezingConfig.asInstanceOf[ActiveMetadataFreezingConfig], config, carboniteWorkerActor, serviceRegistry, ioActor) {
 
     var updateArchiveStatusCall: (WorkflowId, MetadataArchiveStatus) = (null, null)
     var updateArchiveStatusPromise = Promise[Int]()

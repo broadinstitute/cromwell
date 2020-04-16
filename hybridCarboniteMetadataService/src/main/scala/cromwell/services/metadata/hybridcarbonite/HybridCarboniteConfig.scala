@@ -1,7 +1,9 @@
 package cromwell.services.metadata.hybridcarbonite
 
 import akka.actor.ActorSystem
+import cats.data.Validated._
 import cats.syntax.apply._
+import cats.syntax.validated._
 import com.typesafe.config.Config
 import common.Checked
 import common.validation.Checked._
@@ -25,13 +27,13 @@ final case class HybridCarboniteConfig(pathBuilders: PathBuilders,
   def makePath(workflowId: WorkflowId)= PathFactory.buildPath(HybridCarboniteConfig.pathForWorkflow(workflowId, bucket), pathBuilders)
 }
 
-final case class MetadataFreezingConfig(initialInterval: Duration,
+sealed trait MetadataFreezingConfig
+final case class ActiveMetadataFreezingConfig(initialInterval: FiniteDuration,
                                         maxInterval: FiniteDuration,
                                         multiplier: Double,
                                         minimumSummaryEntryId: Option[Long],
-                                        debugLogging: Boolean) {
-  lazy val enabled = initialInterval.isFinite()
-}
+                                        debugLogging: Boolean) extends MetadataFreezingConfig
+case object InactiveMetadataFreezingConfig extends MetadataFreezingConfig
 
 sealed trait MetadataDeletionConfig
 final case class ActiveMetadataDeletionConfig(initialDelay: FiniteDuration,
@@ -61,26 +63,20 @@ object HybridCarboniteConfig {
         val minimumSummaryEntryId = Try { freeze.getOrElse("minimum-summary-entry-id", defaultMinimumSummaryEntryId) } toErrorOr
         val debugLogging = Try { freeze.getOrElse("debug-logging", defaultDebugLogging)}  toErrorOr
 
-        val errorOrFreezingConfig = (initialInterval, maxInterval, multiplier, minimumSummaryEntryId, debugLogging) mapN {
-          case (i, m, x, s, d) => MetadataFreezingConfig(i, m, x, s, d)
+        val errorOrFreezingConfig: ErrorOr[MetadataFreezingConfig] = (initialInterval, maxInterval, multiplier, minimumSummaryEntryId, debugLogging) flatMapN {
+          case (i, m, x, s, d) =>
+            i match {
+              case f: FiniteDuration =>
+                for {
+                  _ <- if (s.exists(_ < 0)) "`metadata-freezing.minimum-summary-entry-id` must be greater than or equal to 0. Omit or set to 0 to allow all entries to be summarized.".invalidNel else "".validNel
+                  _ <- if (f > m) s"'max-interval' $m should be greater than or equal to finite 'initial-interval' $f".invalidNel else "".validNel
+                  _ <- if (x > 1) "".validNel else "`metadata-freezing.multiplier` must be greater than 1 in Carboniter 'metadata-freezing' stanza".invalidNel
+                } yield ActiveMetadataFreezingConfig(f, m, x, s, d)
+              case _ => InactiveMetadataFreezingConfig.validNel
+            }
         } contextualizeErrors "parse Carboniter 'metadata-freezing' stanza"
-
-        for {
-          freezingConfig <- errorOrFreezingConfig.toEither
-          initialInterval = freezingConfig.initialInterval
-          maxInterval = freezingConfig.maxInterval
-          _ <- if (freezingConfig.minimumSummaryEntryId.exists(_ < 0)) "`metadata-freezing.minimum-summary-entry-id` must be greater than or equal to 0. Omit or set to 0 to allow all entries to be summarized.".invalidNelCheck else "".validNelCheck
-          _ <- if (initialInterval.isFinite() && maxInterval < initialInterval) s"'max-interval' $maxInterval should be greater than or equal to finite 'initial-interval' $initialInterval".invalidNelCheck else "".validNelCheck
-          _ <- if (freezingConfig.multiplier > 1) "".validNelCheck else "`metadata-freezing.multiplier` must be greater than 1 in Carboniter 'metadata-freezing' stanza".invalidNelCheck
-        } yield freezingConfig
-      } else {
-        MetadataFreezingConfig(
-          defaultInitialInterval,
-          defaultMaxInterval,
-          defaultMultiplier,
-          defaultMinimumSummaryEntryId,
-          defaultDebugLogging).validNelCheck
-      }
+        errorOrFreezingConfig
+      } toEither else InactiveMetadataFreezingConfig.validNelCheck
     }
 
     def metadataDeletionConfig: Checked[MetadataDeletionConfig] = {

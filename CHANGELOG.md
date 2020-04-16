@@ -1,5 +1,16 @@
 # Cromwell Change Log
 
+## 50 Release Notes
+
+### Changes and Warnings
+
+#### Metadata Archival Config Change
+
+Cromwell's metadata archival configuration has undergone a minor rework for consistency,
+please see
+[the updated documentation](https://cromwell.readthedocs.io/en/stable/Configuring#hybrid-metadata-storage-classic-carbonite) for details.
+
+
 ## 49 Release Notes
 
 ### Changes and Warnings

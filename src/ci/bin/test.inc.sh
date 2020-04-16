@@ -133,7 +133,6 @@ cromwell::private::create_build_variables() {
     # circuiting logic for pull request builds
     cromwell::private::set_variable_if_only_some_files_changed "^mkdocs.yml|^docs/" "CROMWELL_BUILD_ONLY_DOCS_CHANGED"
     cromwell::private::set_variable_if_only_some_files_changed "^scripts/" "CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED"
-    cromwell::private::set_variable_if_only_some_files_changed "^src/ci/bin/test.inc.sh" "CROMWELL_BUILD_ONLY_TEST_INC_CHANGED"
 
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
@@ -159,9 +158,6 @@ cromwell::private::create_build_variables() {
                 [[ "${BUILD_TYPE}" != "checkPublish" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=false
             elif [[ "${CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED}" == "true" ]]; then
-                CROMWELL_BUILD_RUN_TESTS=false
-            elif [[ "${CROMWELL_BUILD_ONLY_TEST_INC_CHANGED}" == "true" ]]; then
-                # This is testing the build logic in this script works. Not intended to remain here...
                 CROMWELL_BUILD_RUN_TESTS=false
             elif [[ "${TRAVIS_EVENT_TYPE}" == "push" ]] && \
                 [[ "${BUILD_TYPE}" != "sbt" ]]; then

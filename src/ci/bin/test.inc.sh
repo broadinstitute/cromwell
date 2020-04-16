@@ -35,6 +35,19 @@ cromwell::private::check_debug() {
     fi
 }
 
+cromwell::private::set_variable_if_only_some_files_changed() {
+  files_changed_regex=${1}
+  variable_to_set=${2}
+
+    if [[ "${TRAVIS_EVENT_TYPE:-unset}" != "pull_request" ]]; then
+        export "${variable_to_set}=false"
+    elif git diff --name-only "origin/${TRAVIS_BRANCH}" 2>&1 | egrep -q --invert-match "${files_changed_regex}"; then
+        export "${variable_to_set}=false"
+    else
+        export "${variable_to_set}=true"
+    fi
+}
+
 # Exports environment variables used for scripts.
 cromwell::private::create_build_variables() {
     CROMWELL_BUILD_PROVIDER_TRAVIS="travis"
@@ -118,13 +131,9 @@ cromwell::private::create_build_variables() {
     # will be the name of the branch targeted by the pull request, and for push builds it will be the name of the
     # branch. So, in case of push builds `git diff` will always return empty result. This is why we only use this short
     # circuiting logic for pull request builds
-    if [[ "${TRAVIS_EVENT_TYPE:-unset}" != "pull_request" ]]; then
-        CROMWELL_BUILD_ONLY_DOCS_CHANGED=false
-    elif git diff --name-only "origin/${TRAVIS_BRANCH}" 2>&1 | egrep -q --invert-match "^mkdocs.yml|^docs/"; then
-        CROMWELL_BUILD_ONLY_DOCS_CHANGED=false
-    else
-        CROMWELL_BUILD_ONLY_DOCS_CHANGED=true
-    fi
+    cromwell::private::set_variable_if_only_some_files_changed "^mkdocs.yml|^docs/" "CROMWELL_BUILD_ONLY_DOCS_CHANGED"
+    cromwell::private::set_variable_if_only_some_files_changed "^scripts/" "CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED"
+    cromwell::private::set_variable_if_only_some_files_changed "^src/ci/bin/test.inc.sh" "CROMWELL_BUILD_ONLY_TEST_INC_CHANGED"
 
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
@@ -148,6 +157,11 @@ cromwell::private::create_build_variables() {
                 CROMWELL_BUILD_RUN_TESTS=true
             elif [[ "${CROMWELL_BUILD_ONLY_DOCS_CHANGED}" == "true" ]] && \
                 [[ "${BUILD_TYPE}" != "checkPublish" ]]; then
+                CROMWELL_BUILD_RUN_TESTS=false
+            elif [[ "${CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED}" == "true" ]]; then
+                CROMWELL_BUILD_RUN_TESTS=false
+            elif [[ "${CROMWELL_BUILD_ONLY_TEST_INC_CHANGED}" == "true" ]]; then
+                # This is testing the build logic in this script works. Not intended to remain here...
                 CROMWELL_BUILD_RUN_TESTS=false
             elif [[ "${TRAVIS_EVENT_TYPE}" == "push" ]] && \
                 [[ "${BUILD_TYPE}" != "sbt" ]]; then

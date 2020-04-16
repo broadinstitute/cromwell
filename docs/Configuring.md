@@ -319,7 +319,7 @@ services {
         metadata-freezing {
           # How often Cromwell should check for metadata ready for freezing. Set the `initial-interval` value to "Inf"
           # (or leave the default unchanged) to turn off metadata freezing. Both interval parameters must be durations,
-          # max must be greater than initial, and multiplier must be a number greater than 1.
+          # if initial is finite then max must be greater than initial, and multiplier must be a number greater than 1.
           initial-interval = Inf
           max-interval = 5 minutes
           multiplier = 1.1

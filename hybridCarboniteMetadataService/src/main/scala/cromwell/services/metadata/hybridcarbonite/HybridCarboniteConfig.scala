@@ -49,12 +49,13 @@ object HybridCarboniteConfig {
   def parseConfig(carboniterConfig: Config)(implicit system: ActorSystem): Checked[HybridCarboniteConfig] = {
 
     def metadataFreezingConfig: Checked[MetadataFreezingConfig] = {
-      val defaultInitialInterval: Duration = Duration.Inf
-      val defaultMaxInterval = 5 minutes
-      val defaultMultiplier = 1.1
-      val defaultMinimumSummaryEntryId: Option[Long] = None
-      val defaultDebugLogging = true
       if (carboniterConfig.hasPath("metadata-freezing")) {
+        val defaultInitialInterval: Duration = Duration.Inf
+        val defaultMaxInterval = 5 minutes
+        val defaultMultiplier = 1.1
+        val defaultMinimumSummaryEntryId: Option[Long] = None
+        val defaultDebugLogging = true
+
         val freeze = carboniterConfig.getConfig("metadata-freezing")
 
         val initialInterval = Try { freeze.getOrElse("initial-interval", defaultInitialInterval) } toErrorOr

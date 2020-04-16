@@ -47,3 +47,4 @@ private_docker_papi_v2_usa.options
 tesk_application_ftp.conf
 ftp_centaur_cwl_runner.conf
 tesk_application.conf
+**/__pycache__/

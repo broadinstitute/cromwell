@@ -68,7 +68,10 @@ class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec"
     carboniteConfig match {
       case Left(e) => fail(s"Expected to parse correctly but got failure. Reason: $e")
       case Right(c) =>
-        c.freezingConfig.asInstanceOf[ActiveMetadataFreezingConfig]
+        c.freezingConfig match {
+          case InactiveMetadataFreezingConfig =>
+          case _ => fail()
+        }
         c.bucket shouldBe "my_test_bucket"
         c.pathBuilders.head.name shouldBe "Google Cloud Storage"
     }
@@ -174,7 +177,7 @@ class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec"
 
     carboniteConfig match {
       case Left(e) =>
-        e.head shouldBe "'max-interval' 1 second should be greater than or equal to finite 'initial-interval' 5 seconds"
+        e.head shouldBe "Failed to parse Carboniter 'metadata-freezing' stanza (reason 1 of 1): 'max-interval' 1 second should be greater than or equal to finite 'initial-interval' 5 seconds"
       case Right(_) => fail(s"Expected to fail but the config was parsed correctly!")
     }
   }

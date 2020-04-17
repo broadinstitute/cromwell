@@ -21,6 +21,7 @@ object ConfigHashingStrategy {
 
   def apply(hashingConfig: Config): ConfigHashingStrategy = {
       val checkSiblingMd5 = hashingConfig.as[Option[Boolean]]("check-sibling-md5").getOrElse(false)
+      lazy val fingerprintSize = hashingConfig.as[Option[Long]]("fingerprint-size").getOrElse(10485760L)
 
       hashingConfig.as[Option[String]]("hashing-strategy").getOrElse("file") match {
         case "path" => HashPathStrategy(checkSiblingMd5)
@@ -28,7 +29,7 @@ object ConfigHashingStrategy {
         case "md5" => HashFileMd5Strategy(checkSiblingMd5)
         case "path+modtime" => HashPathModTimeStrategy(checkSiblingMd5)
         case "xxh64" => HashFileXxH64Strategy(checkSiblingMd5)
-        case "fingerprint" => FingerprintStrategy(checkSiblingMd5)
+        case "fingerprint" => FingerprintStrategy(checkSiblingMd5, fingerprintSize)
         case what =>
           logger.warn(s"Unrecognized hashing strategy $what.")
           HashPathStrategy(checkSiblingMd5)
@@ -106,7 +107,7 @@ final case class HashFileXxH64Strategy(checkSiblingMd5: Boolean) extends ConfigH
   override val description = "hash file content with xxh64"
 }
 
-final case class FingerprintStrategy(checkSiblingMd5: Boolean) extends ConfigHashingStrategy {
+final case class FingerprintStrategy(checkSiblingMd5: Boolean, fingerprintSize: Long) extends ConfigHashingStrategy {
   override protected def hash(file: Path): Try[String] = {
     Try {
       // Calculate the xxh64 hash of last modified time and filesize. These are NOT added, as it will lead to loss of
@@ -115,7 +116,7 @@ final case class FingerprintStrategy(checkSiblingMd5: Boolean) extends ConfigHas
       file.size.toHexString) +
       // Only check first 10 MB (10485760 bytes) for performance reasons. 100 MB will take to much time on network file
       // systems. 1 MB might not be unique enough.
-      HashFileXxH64StrategyMethods.xxh64sum(file.newInputStream, maxSize = 10485760L)
+      HashFileXxH64StrategyMethods.xxh64sum(file.newInputStream, maxSize = fingerprintSize)
       }
     }
   override val description = "fingerprint the file with last modified time, size and a xxh64 hash of the first 10 mb"

@@ -228,9 +228,18 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
   }
 
   it should "create a fingerprint strategy from config" in {
-    val defaultSibling = makeStrategy("fingerprint")
-    defaultSibling.isInstanceOf[FingerprintStrategy] shouldBe true
-    defaultSibling.checkSiblingMd5 shouldBe false
+    val defaultFingerprint:  FingerprintStrategy = makeStrategy("fingerprint").asInstanceOf[FingerprintStrategy]
+    defaultFingerprint.isInstanceOf[FingerprintStrategy] shouldBe true
+    defaultFingerprint.checkSiblingMd5 shouldBe false
+    defaultFingerprint.fingerprintSize shouldBe 10 * 1024 * 1024
+
+    val config = ConfigFactory.parseString(
+      """|hashing-strategy: "fingerprint"
+         |fingerprint-size: 123456789
+         |""".stripMargin)
+    val otherFingerprint: FingerprintStrategy = ConfigHashingStrategy.apply(config).asInstanceOf[FingerprintStrategy]
+    otherFingerprint.fingerprintSize shouldBe 123456789
+    otherFingerprint.isInstanceOf[FingerprintStrategy] shouldBe true
 
     val checkSibling = makeStrategy("fingerprint", Option(true))
 
@@ -243,6 +252,7 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
     dontCheckSibling.isInstanceOf[FingerprintStrategy] shouldBe true
     dontCheckSibling.checkSiblingMd5 shouldBe false
     dontCheckSibling.toString shouldBe "Call caching hashing strategy: fingerprint the file with last modified time, size and a xxh64 hash of the first 10 mb."
+
   }
 
   it should "have a fingerprint strategy and use md5 sibling file when appropriate" in {

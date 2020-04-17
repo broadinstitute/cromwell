@@ -6,7 +6,8 @@
 
 #### Metadata Archival Config Change
 
-Cromwell's metadata archival configuration has undergone a minor rework for consistency,
+**Note:** Unless you have already opted-in to GCS-archival of metadata during its development, this change will not affect you.
+Cromwell's metadata archival configuration has changed in a backwards incompatible way to increase consistency,
 please see
 [the updated documentation](https://cromwell.readthedocs.io/en/stable/Configuring#hybrid-metadata-storage-classic-carbonite) for details.
 

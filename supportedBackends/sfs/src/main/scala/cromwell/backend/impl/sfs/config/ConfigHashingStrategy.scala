@@ -147,8 +147,6 @@ object HashFileXxH64StrategyMethods {
         byteCounter += length
       }
     }
-    catch {case e: Exception => throw e
-           case t: Throwable => throw t}
     finally inputStream.close()
     // Long.toHexString does not add leading zero's
     f"%%16s".format(hasher.getValue.toHexString).replace(" ", "0")

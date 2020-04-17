@@ -117,7 +117,7 @@ cromwell::private::create_build_variables() {
     # This works for both pull_request and push builds, unlike using 'git log HEAD' which gives a merge commit message
     # on pull requests:
     git_commit_message="$(git log --reverse ${TRAVIS_COMMIT_RANGE} | tail -n1 2>/dev/null || true)"
-    echo "Building for commit message: ${git_commit_message}"
+    echo "Building for git commit message: ${git_commit_message}"
 
     if [[ "${git_commit_message}" == *"[force ci]"* ]]; then
         CROMWELL_BUILD_FORCE_TESTS=true

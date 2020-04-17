@@ -41,7 +41,7 @@ class HybridMetadataServiceActor(serviceConfig: Config, globalConfig: Config, se
 
   val readRegulatorActor = context.actorOf(ReadMetadataRegulatorActor.props(readDeciderActorProps, readDeciderActorProps), "ReadMetadataRegulatorActor_for_HMSA")
 
-  var deleteMetadataActor: Option[ActorRef] = carboniteMetadataServiceActorConfig.metadataDeletionConfig match {
+  var deleteMetadataActor: Option[ActorRef] = carboniteMetadataServiceActorConfig.deletionConfig match {
     case a: ActiveMetadataDeletionConfig => Option(context.actorOf(DeleteMetadataActor.props(a, serviceRegistryActor)))
     case _ => None
   }

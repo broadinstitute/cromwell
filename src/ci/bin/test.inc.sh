@@ -113,19 +113,19 @@ cromwell::private::create_build_variables() {
     fi
 
     local git_commit_message
+    # The commit message to analyze should be the last one in the commit range.
+    # This works for both pull_request and push builds, unlike using 'git log HEAD' which gives a merge commit message
+    # on pull requests:
     git_commit_message="$(git log ${TRAVIS_COMMIT_RANGE} | tail -n1 2>/dev/null || true)"
-
+    echo "Building for commit message: ${git_commit_message}"
 
     if [[ "${git_commit_message}" == *"[force ci]"* ]]; then
-        echo "*** Force CI flag detected in '${git_commit_message}'"
         CROMWELL_BUILD_FORCE_TESTS=true
         CROMWELL_BUILD_MINIMAL_TESTS=false
     elif [[ "${git_commit_message}" == *"[minimal ci]"* ]]; then
-        echo "*** Minimal CI flag detected in '${git_commit_message}'"
         CROMWELL_BUILD_FORCE_TESTS=false
         CROMWELL_BUILD_MINIMAL_TESTS=true
     else
-      echo "*** Minimal CI flag not detected in '${git_commit_message}'"
       CROMWELL_BUILD_FORCE_TESTS=false
       CROMWELL_BUILD_MINIMAL_TESTS=false
     fi
@@ -162,8 +162,6 @@ cromwell::private::create_build_variables() {
 
             # For solely documentation updates run only checkPublish. Otherwise always run sbt, even for 'push'.
             # This allows quick sanity checks before starting PRs *and* publishing after merges into develop.
-            echo "***** CROMWELL_BUILD_MINIMAL_TESTS: ${CROMWELL_BUILD_MINIMAL_TESTS}"
-            echo "***** TRAVIS_EVENT_TYPE: ${TRAVIS_EVENT_TYPE}"
             if [[ "${CROMWELL_BUILD_FORCE_TESTS}" == "true" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=true
             elif [[ "${CROMWELL_BUILD_ONLY_DOCS_CHANGED}" == "true" ]] && \

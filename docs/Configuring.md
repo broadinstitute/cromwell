@@ -535,7 +535,12 @@ config section:
               # in order to allow for the original file path to be hashed.
               # "path+modtime" will compute an md5 hash of the file path and the last modified time. The same conditions as for "path" apply here.
               # Default: "md5"
-              hashing-strategy: "fingerprint"
+              hashing-strategy: "md5"
+              
+              # When the 'fingerprint' strategy is used set how much of the beginning of the file is read as fingerprint. 
+              # If the file is smaller than this size the entire file will be read.
+              # Default: 10485760 (10MB). 
+              fingerprint-size: 10485760
 
               # When true, will check if a sibling file with the same name and the .md5 extension exists, and if it does, use the content of this file as a hash.
               # If false or the md5 does not exist, will proceed with the above-defined hashing strategy.
@@ -569,10 +574,7 @@ caching strategy and can therefore never work with containers.
 (*) The `fingerprint` and `xxh64` strategies are features that are community supported by Cromwell's HPC community. There
 is no official support from the core Cromwell team.
 
-(**) 10 MB was chosen because some files have very large headers which might be similar between files, so smaller 
- sizes might be insufficient. On a 100mbit connection, 10MB is transferred within one second, this was deemed an
- acceptable time delay for systems that use a (slow) NFS backend. Taking a larger first file part would increase 
- the transfer time, but is not likely to generate a more unique hash.
+(**) This value is configurable.
  
 ### Workflow log directory
 

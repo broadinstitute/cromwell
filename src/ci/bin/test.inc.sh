@@ -116,8 +116,13 @@ cromwell::private::create_build_variables() {
     git_commit_message="$(git log --format=%B --max-count=1 HEAD 2>/dev/null || true)"
     if [[ "${git_commit_message}" == *"[force ci]"* ]]; then
         CROMWELL_BUILD_FORCE_TESTS=true
-    else
+        CROMWELL_BUILD_MINIMAL_TESTS=false
+    elif [[ "${git_commit_message}" == *"[minimal ci]"* ]]; then
         CROMWELL_BUILD_FORCE_TESTS=false
+        CROMWELL_BUILD_MINIMAL_TESTS=true
+    else
+      CROMWELL_BUILD_FORCE_TESTS=false
+      CROMWELL_BUILD_MINIMAL_TESTS=false
     fi
 
     local git_revision
@@ -156,6 +161,9 @@ cromwell::private::create_build_variables() {
                 CROMWELL_BUILD_RUN_TESTS=true
             elif [[ "${CROMWELL_BUILD_ONLY_DOCS_CHANGED}" == "true" ]] && \
                 [[ "${BUILD_TYPE}" != "checkPublish" ]]; then
+                CROMWELL_BUILD_RUN_TESTS=false
+            elif [[ "${CROMWELL_BUILD_MINIMAL_TESTS}" == "true" ]] && \
+                [[ "${TRAVIS_EVENT_TYPE}" != "push" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=false
             elif [[ "${CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED}" == "true" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=false

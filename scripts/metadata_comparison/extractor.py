@@ -13,7 +13,6 @@
 #   * pip3 install --upgrade google-api-python-client
 #   * pip3 install --upgrade google-cloud
 #   * pip3 install --upgrade google-cloud-storage
-#   * pip3 install --upgrade google-api-python-client
 #
 # Remember to login to create application default credentials before use:
 #   % gcloud auth application-default login
@@ -24,47 +23,66 @@ import json
 import requests
 from google.cloud import storage
 import google.auth
-from apiclient.discovery import build
+from googleapiclient.discovery import build as google_client_build
 
 def workflow_regex_validator(value):
+    """Makes sure that a value is a valid Cromwell workflow ID then returns the workflow ID"""
     workflow_regex=re.compile('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
     if not workflow_regex.match(value):
-        msg = 'Invalid workflow ID {inv_id}. Expected {regex}'.format(inv_id=value, regex=workflow_regex.pattern)
+        msg = f'Invalid workflow ID {value}. Expected {workflow_regex.pattern}'
         raise argparse.ArgumentTypeError(msg)
     else:
         return value
 
 
 def url_regex_validator(value):
-    url_regex = re.compile('(http(s?)://.*[^/])(/(api.*)?)?')
-    m = url_regex.search(value)
+    """
+    Validates then extract the root of the Cromwell URL from the various URL strings which might be provided.
+    Deliberately flexible because it's tedious to remember which script requires which type of format.
+    eg:
+        'http://localhost' => 'http://localhost'
+        'http://localhost:8000' => 'http://localhost:8000'
+        'http://localhost:8000/' => 'http://localhost:8000'
+        'http://localhost:8000/api/workflows/' => 'http://localhost:8000'
+        'http://localhost:8000/custom/prefix/api/workflows/' => 'http://localhost:8000/custom/prefix'
+    """
+    url_regex = re.compile('(http(s?)://((?!/api).)*[^/])(/(api.*)?)?')
+    m = url_regex.match(value)
     if m:
         return m.group(1)
     else:
-        msg = 'Invalid Cromwell URL {inv_url}. Expected {regex}'.format(inv_url=value, regex=url_regex.pattern)
+        msg = f'Invalid Cromwell URL {value}. Expected {url_regex.pattern}'
         raise argparse.ArgumentTypeError(msg)
 
 
 def gcs_path_regex_validator(value):
+    """
+    Validates then extracts the bucket and object-path from a GS string. Returned as a pair.
+    eg:
+        'gs://bucket/path/to/directory/' -> ('bucket', 'path/to/directory')
+    """
     gcs_regex = re.compile('^gs://([a-zA-Z0-9-]+)/(([a-zA-Z0-9-]+/)*[a-zA-Z0-9-]+)/?$')
-    m = gcs_regex.search(value)
+    m = gcs_regex.match(value)
     if m:
         return m.group(1), m.group(2)
     else:
-        msg = 'Invalid GCS path {inv_gcs}. Expected {regex}'.format(inv_gcs=value, regex=gcs_regex.pattern)
+        msg = f'Invalid GCS path {value}. Expected {gcs_regex.pattern}'
         raise argparse.ArgumentTypeError(msg)
 
 
 def get_operation_id_number(value):
-    """Extracts from operation IDs like 'projects/project_name/operations/01234567891011121314' just the final
-    number - eg '01234567891011121314'"""
+    """
+    Validates then extracts from PAPI operation IDs just the final number.
+    eg:
+        'projects/project_name/operations/01234567891011121314' -> '01234567891011121314'
+    """
 
     operation_regex = re.compile('^.*/([^/]*)')
     m = operation_regex.search(value)
     if m:
         return m.group(1)
     else:
-        msg = 'Unexpected operation ID {inv_url}. Expected something like {regex}'.format(inv_url=value, regex=url_regex.pattern)
+        msg = f'Unexpected operation ID {value}. Expected something like {operation_regex.pattern}'
         raise Exception(msg)
 
 
@@ -83,11 +101,13 @@ def uploadLocalCheckout():
     raise Exception("Not Implemented")
 
 
-def fetch_raw_workflow_metadata(cromwell_url, workflow):
-    url = '{url}/api/workflows/v1/{wfid}/metadata?expandSubWorkflows=true'.format(url=cromwell_url, wfid=workflow)
-    print('Fetching Cromwell metadata from...', url, end='...')
+def fetch_raw_workflow_metadata(cromwell_url, workflow, verbose):
+    url = f'{cromwell_url}/api/workflows/v1/{workflow}/metadata?expandSubWorkflows=true'
+    if verbose:
+        print('Fetching Cromwell metadata from...', url, end='...')
     result = requests.get(url)
-    print(' fetched!')
+    if verbose:
+        print(' fetched!')
     return result.content, result.json()
 
 
@@ -121,16 +141,18 @@ def pretty_print_json(raw_json):
     return json.dumps(json.loads(raw_json), indent=4, separators=(',', ': '))
 
 
-def read_operations_metadata(jobId, api, genomics_client):
+def read_operations_metadata(jobId, api, genomics_client, verbose):
     """Reads the operations metadata for a pipelines API v2alpha1 job ID. Returns a python dict"""
     # TODO: Reroute appropriately for different API versions
-    print('Reading operation metadata for {jobId}...'.format(jobId=jobId), end='')
+    if verbose:
+        print(f'Reading operation metadata for {jobId}...', end='')
     result = genomics_client.projects().operations().get(name=jobId).execute()
-    print(' done!')
+    if verbose:
+        print(' done!')
     return result
 
 
-def upload_blob(bucket_name, source_file_contents, destination_blob_name, gcs_storage_client):
+def upload_blob(bucket_name, source_file_contents, destination_blob_name, gcs_storage_client, verbose):
     """Uploads a file to the cloud"""
     # bucket_name = "your-bucket-name"
     # source_file_contents = "... some file contents..."
@@ -138,56 +160,60 @@ def upload_blob(bucket_name, source_file_contents, destination_blob_name, gcs_st
 
     bucket = gcs_storage_client.bucket(bucket_name)
 
-    print('Uploading file content to gs://{bucket}/{dest}...'.format(bucket=bucket_name, dest=destination_blob_name), end='')
+    if verbose:
+        print(f'Uploading file content to gs://{bucket_name}/{destination_blob_name}...', end='')
     blob = bucket.blob(destination_blob_name)
     blob.upload_from_string(source_file_contents)
-    print(" done!")
+    if verbose:
+        print(" done!")
 
 
-def upload_workflow_metadata_json(bucket_name, raw_workflow_metadata, workflow_gcs_base_path, gcs_storage_client):
-    workflow_gcs_metadata_upload_path = '{workflow_gcs_base_path}/metadata.json'.format(workflow_gcs_base_path=workflow_gcs_base_path)
-    upload_blob(bucket_name, raw_workflow_metadata, workflow_gcs_metadata_upload_path, gcs_storage_client)
+def upload_workflow_metadata_json(bucket_name, raw_workflow_metadata, workflow_gcs_base_path, gcs_storage_client, verbose):
+    workflow_gcs_metadata_upload_path = f'{workflow_gcs_base_path}/metadata.json'
+    upload_blob(bucket_name, raw_workflow_metadata, workflow_gcs_metadata_upload_path, gcs_storage_client, verbose)
 
 
-def upload_operations_metadata_json(bucket_name, operation_id, operations_metadata, workflow_gcs_base_path, gcs_storage_client):
+def upload_operations_metadata_json(bucket_name, operation_id, operations_metadata, workflow_gcs_base_path, gcs_storage_client, verbose):
     """Uploads metadata to cloud storage, as json"""
-    operation_upload_path = '{workflow_gcs_base_path}/operations/{miniid}.json'.format(workflow_gcs_base_path=workflow_gcs_base_path, miniid=get_operation_id_number(operation_id))
+    operation_upload_path = f'{workflow_gcs_base_path}/operations/{get_operation_id_number(operation_id)}.json'
     formatted_metadata = json.dumps(operations_metadata, indent=2)
-    upload_blob(bucket_name, formatted_metadata, operation_upload_path, gcs_storage_client)
+    upload_blob(bucket_name, formatted_metadata, operation_upload_path, gcs_storage_client, verbose)
 
 
-def process_workflow(cromwell_url, gcs_bucket, gcs_path, gcs_storage_client, genomics_client, workflow):
-    raw_metadata, json_metadata = fetch_raw_workflow_metadata(cromwell_url, workflow)
-    workflow_gcs_base_path = '{root_gcs_path}/{wfid}/extractor'.format(root_gcs_path=gcs_path, wfid=workflow)
+def process_workflow(cromwell_url, gcs_bucket, gcs_path, gcs_storage_client, genomics_client, workflow, verbose):
+    raw_metadata, json_metadata = fetch_raw_workflow_metadata(cromwell_url, workflow, verbose)
+    workflow_gcs_base_path = f'{gcs_path}/{workflow}/extractor'
 
     operation_ids = find_operation_ids_in_metadata(json_metadata)
-    operation_metadata = { id: read_operations_metadata(id, api, genomics_client) for (id, api) in operation_ids.items() }
-    for id in operation_metadata:
-        upload_operations_metadata_json(gcs_bucket, id, operation_metadata[id], workflow_gcs_base_path, gcs_storage_client)
-    upload_workflow_metadata_json(gcs_bucket, raw_metadata, workflow_gcs_base_path, gcs_storage_client)
+    for (id, api) in operation_ids.items():
+        operation_metadata = read_operations_metadata(id, api, genomics_client, verbose)
+        upload_operations_metadata_json(gcs_bucket, id, operation_metadata, workflow_gcs_base_path, gcs_storage_client, verbose)
+    upload_workflow_metadata_json(gcs_bucket, raw_metadata, workflow_gcs_base_path, gcs_storage_client, verbose)
 
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Extract metadata and operation details for workflows and upload to GCS')
+    parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('cromwell_url', metavar='CROMWELL', type=url_regex_validator, nargs=1, help='Cromwell host')
     parser.add_argument('gcs_path', metavar='GCSPATH', type=gcs_path_regex_validator, nargs=1, help='GCS path to upload to')
     parser.add_argument('workflows', metavar='WORKFLOW', type=workflow_regex_validator, nargs='+', help='Workflows to process')
 
     args = parser.parse_args()
+    verbose = args.verbose
     cromwell_url = args.cromwell_url[0]
     gcs_bucket, gcs_path = args.gcs_path[0]
     workflows = args.workflows
 
     credentials, project_id = google.auth.default()
     storage_client = storage.Client(credentials = credentials)
-    genomics_v1_client = build('genomics', 'v1alpha2', credentials = credentials)
-    genomics_client = build('genomics', 'v2alpha1', credentials = credentials)
+    genomics_v2alpha1_client = google_client_build('genomics', 'v2alpha1', credentials = credentials)
 
-    print('cromwell:', cromwell_url)
-    print('gcs_bucket', gcs_bucket, 'gcs_path', gcs_path)
-    print('workflows:', workflows)
+    if verbose:
+        print('cromwell:', cromwell_url)
+        print('gcs_bucket', gcs_bucket, 'gcs_path', gcs_path)
+        print('workflows:', workflows)
 
     for workflow in workflows:
-        process_workflow(cromwell_url, gcs_bucket, gcs_path, storage_client, genomics_client, workflow)
+        process_workflow(cromwell_url, gcs_bucket, gcs_path, storage_client, genomics_v2alpha1_client, workflow, verbose)

@@ -123,6 +123,7 @@ cromwell::private::create_build_variables() {
         CROMWELL_BUILD_MINIMAL_TESTS=true
     else
       echo "*** Minimal CI flag not detected in '${git_commit_message}'"
+      echo "*** Maybe useful: TRAVIS_COMMIT_MESSAGE='${TRAVIS_COMMIT_MESSAGE}', TRAVIS_COMMIT_RANGE='TRAVIS_COMMIT_RANGE', TRAVIS_JOB_NAME='${TRAVIS_JOB_NAME}'"
       CROMWELL_BUILD_FORCE_TESTS=false
       CROMWELL_BUILD_MINIMAL_TESTS=false
     fi

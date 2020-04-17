@@ -68,11 +68,13 @@ object HybridCarboniteConfig {
           case (i, m, x, s, d) =>
             i match {
               case f: FiniteDuration =>
-                for {
-                  _ <- if (s.exists(_ < 0)) "`metadata-freezing.minimum-summary-entry-id` must be greater than or equal to 0. Omit or set to 0 to allow all entries to be summarized.".invalidNel else "".validNel
-                  _ <- if (f > m) s"'max-interval' $m should be greater than or equal to finite 'initial-interval' $f".invalidNel else "".validNel
-                  _ <- if (x > 1) "".validNel else "`metadata-freezing.multiplier` must be greater than 1 in Carboniter 'metadata-freezing' stanza".invalidNel
-                } yield ActiveMetadataFreezingConfig(f, m, x, s, d)
+                val summaryCheck = if (s.exists(_ < 0)) "`minimum-summary-entry-id` must be greater than or equal to 0. Omit or set to 0 to allow all entries to be summarized.".invalidNel else "".validNel
+                val maxGteInitialCheck = if (f > m) s"'max-interval' $m should be greater than or equal to finite 'initial-interval' $f.".invalidNel else "".validNel
+                val multiplierGt1 = if (x > 1) "".validNel else "`multiplier` must be greater than 1.".invalidNel
+
+                (summaryCheck, maxGteInitialCheck, multiplierGt1) mapN {
+                  case (_, _, _) => ActiveMetadataFreezingConfig(f, m, x, s, d)
+                }
               case _ => InactiveMetadataFreezingConfig.validNel
             }
         } contextualizeErrors "parse Carboniter 'metadata-freezing' stanza"

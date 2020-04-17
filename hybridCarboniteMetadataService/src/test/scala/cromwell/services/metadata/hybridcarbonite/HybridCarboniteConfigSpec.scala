@@ -136,7 +136,7 @@ class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec"
     }
   }
 
-  private def buildFreezeScanConfig(initInterval: Any, maxInterval: Any, multiplier: Any): Config = {
+  private def buildFreezeScanConfig(initInterval: Any, maxInterval: Any, multiplier: Any, minimumSummaryEntryId: Int = 0): Config = {
     ConfigFactory.parseString(s"""{
       |   bucket = "my_test_bucket"
       |   filesystems {
@@ -148,6 +148,7 @@ class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec"
       |     initial-interval = $initInterval
       |     max-interval = $maxInterval
       |     multiplier = $multiplier
+      |     minimum-summary-entry-id = $minimumSummaryEntryId
       |   }
       |}
       """.stripMargin)
@@ -164,7 +165,7 @@ class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec"
           initialInterval = 1 second,
           maxInterval = 5 seconds,
           multiplier = 1.2,
-          minimumSummaryEntryId = None,
+          minimumSummaryEntryId = Some(0),
           debugLogging = true
         )
         c.freezingConfig shouldBe expectedConfig
@@ -177,7 +178,7 @@ class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec"
 
     carboniteConfig match {
       case Left(e) =>
-        e.head shouldBe "Failed to parse Carboniter 'metadata-freezing' stanza (reason 1 of 1): 'max-interval' 1 second should be greater than or equal to finite 'initial-interval' 5 seconds"
+        e.head shouldBe "Failed to parse Carboniter 'metadata-freezing' stanza (reason 1 of 1): 'max-interval' 1 second should be greater than or equal to finite 'initial-interval' 5 seconds."
       case Right(_) => fail(s"Expected to fail but the config was parsed correctly!")
     }
   }
@@ -193,6 +194,22 @@ class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec"
           "Failed to parse Carboniter 'metadata-freezing' stanza (reason 1 of 3): format error I",
           "Failed to parse Carboniter 'metadata-freezing' stanza (reason 2 of 3): String: 10: Invalid value at 'max-interval': No number in duration value 'like'",
           "Failed to parse Carboniter 'metadata-freezing' stanza (reason 3 of 3): String: 11: multiplier has type STRING rather than NUMBER"
+        )
+      case Right(_) => fail(s"Expected to fail but the config was parsed correctly!")
+    }
+  }
+
+  it should "reject more subtly invalid values in metadata-freezing config" in {
+    val config = buildFreezeScanConfig(initInterval = "10 seconds", maxInterval = "1 second", multiplier = "0.3", minimumSummaryEntryId = -1)
+    val carboniteConfig = HybridCarboniteConfig.parseConfig(config)
+
+    carboniteConfig match {
+      case Left(e) =>
+        e.size shouldBe 3
+        e.toList.toSet shouldEqual Set(
+          "Failed to parse Carboniter 'metadata-freezing' stanza (reason 1 of 3): `minimum-summary-entry-id` must be greater than or equal to 0. Omit or set to 0 to allow all entries to be summarized.",
+          "Failed to parse Carboniter 'metadata-freezing' stanza (reason 2 of 3): 'max-interval' 1 second should be greater than or equal to finite 'initial-interval' 10 seconds.",
+          "Failed to parse Carboniter 'metadata-freezing' stanza (reason 3 of 3): `multiplier` must be greater than 1."
         )
       case Right(_) => fail(s"Expected to fail but the config was parsed correctly!")
     }

@@ -5,12 +5,6 @@ from metadata_comparison.extractor import *
 
 class ExtractorTestMethods(unittest.TestCase):
 
-    def read_contents(self, file):
-        with open(file, 'r') as file:
-            data = file.read()
-        return data
-
-
     def test_cromwell_url_regex_valid(self):
          cases = [
              ('http://localhost', 'http://localhost'),

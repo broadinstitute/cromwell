@@ -157,6 +157,8 @@ cromwell::private::create_build_variables() {
 
             # For solely documentation updates run only checkPublish. Otherwise always run sbt, even for 'push'.
             # This allows quick sanity checks before starting PRs *and* publishing after merges into develop.
+            echo "***** CROMWELL_BUILD_MINIMAL_TESTS: ${CROMWELL_BUILD_MINIMAL_TESTS}"
+            echo "***** TRAVIS_EVENT_TYPE: ${TRAVIS_EVENT_TYPE}"
             if [[ "${CROMWELL_BUILD_FORCE_TESTS}" == "true" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=true
             elif [[ "${CROMWELL_BUILD_ONLY_DOCS_CHANGED}" == "true" ]] && \

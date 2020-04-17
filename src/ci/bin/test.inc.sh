@@ -116,7 +116,7 @@ cromwell::private::create_build_variables() {
     # The commit message to analyze should be the last one in the commit range.
     # This works for both pull_request and push builds, unlike using 'git log HEAD' which gives a merge commit message
     # on pull requests:
-    git_commit_message="$(git log ${TRAVIS_COMMIT_RANGE} | tail -n1 2>/dev/null || true)"
+    git_commit_message="$(git log --reverse ${TRAVIS_COMMIT_RANGE} | tail -n1 2>/dev/null || true)"
     echo "Building for commit message: ${git_commit_message}"
 
     if [[ "${git_commit_message}" == *"[force ci]"* ]]; then

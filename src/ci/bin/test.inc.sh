@@ -113,7 +113,13 @@ cromwell::private::create_build_variables() {
     fi
 
     local git_commit_message
-    git_commit_message="$(git log --format=%B --max-count=1 HEAD 2>/dev/null || true)"
+    if [[ "${TRAVIS_EVENT_TYPE:-unset}" != "pull_request" ]]; then
+        git_commit_message="$(git log --format=%B --max-count=1 HEAD 2>/dev/null || true)"
+    else
+        # Fetch the message _before_ the merge commit message
+        git_commit_message="$(git log --format=%B --max-count=1 HEAD~1 2>/dev/null || true)"
+    fi
+
     if [[ "${git_commit_message}" == *"[force ci]"* ]]; then
         CROMWELL_BUILD_FORCE_TESTS=true
         CROMWELL_BUILD_MINIMAL_TESTS=false
@@ -123,7 +129,7 @@ cromwell::private::create_build_variables() {
         CROMWELL_BUILD_MINIMAL_TESTS=true
     else
       echo "*** Minimal CI flag not detected in '${git_commit_message}'"
-      echo "*** Maybe useful: TRAVIS_COMMIT_MESSAGE='${TRAVIS_COMMIT_MESSAGE}', TRAVIS_COMMIT_RANGE='TRAVIS_COMMIT_RANGE', TRAVIS_JOB_NAME='${TRAVIS_JOB_NAME}'"
+      echo "*** Maybe useful: TRAVIS_COMMIT_MESSAGE='${TRAVIS_COMMIT_MESSAGE}', TRAVIS_COMMIT_RANGE='${TRAVIS_COMMIT_RANGE}', TRAVIS_JOB_NAME='${TRAVIS_JOB_NAME}'"
       CROMWELL_BUILD_FORCE_TESTS=false
       CROMWELL_BUILD_MINIMAL_TESTS=false
     fi

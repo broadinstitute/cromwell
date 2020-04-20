@@ -4,6 +4,7 @@ backends: [TES]
 workflowType: WDL
 workflowTypeVersion: 1.0
 tags: ["wdl_1.0", localdockertest]
+retryTestFailures: false
 
 files {
   workflow: wdl_draft3/call_cache_capoeira/draft3_call_cache_capoeira_tes.wdl

@@ -31,7 +31,7 @@ class DeserializationSpec extends FlatSpec with Matchers {
               "actionId" -> Integer.valueOf(18),
               "ipAddress" -> "86.127.54.8",
               "portMappings" -> Map(
-                8000 -> 8008
+                "8000" -> Integer.valueOf(8008)
               ).asJava
             ).asJava,
           ).asJava
@@ -62,7 +62,7 @@ class DeserializationSpec extends FlatSpec with Matchers {
     event2Details.getActionId shouldBe 18
     event2Details.getIpAddress shouldBe "86.127.54.8"
     event2Details.getPortMappings.size() shouldBe 1
-    event2Details.getPortMappings.get(8000) shouldBe 8008
+    event2Details.getPortMappings.get("8000") shouldBe 8008
   }
 
   it should "deserialize pipeline from operation metadata" in {

@@ -16,6 +16,7 @@ These workflow options provide Google-specific information for workflows running
 | `google_labels`                    | `object`        | An object containing only string values. Represent custom labels to send with PAPI job requests. Per the PAPI specification, each key and value must conform to the regex `[a-z]([-a-z0-9]*[a-z0-9])?`.                                                                                                                                                                                                                                                                                                       |
 | `enable_ssh_access`                | `boolean`       | If set to true, will enable SSH access to the Google Genomics worker machines. Please note that this is a community contribution and is not officially supported by the Cromwell development team.
 | `delete_intermediate_output_files` | `boolean`       | **Experimental:** Any `File` variables referenced in call `output` sections that are not found in the workflow `output` section will be considered an intermediate `File`. When the workflow finishes and this option is set to `true`, all intermediate `File` objects will be deleted from GCS. Cromwell must be run with the configuration value `system.delete-workflow-files` set to `true`. The default for both values is `false`. NOTE: The behavior of this option on other backends is unspecified. |
+| `enable_fuse`                      | `boolean`       | Specifies if workflow tasks should be submitted to Google Pipelines with an additional `ENABLE_FUSE` flag. It causes container to be executed with `CAP_SYS_ADMIN`. Use it only for trusted containers. Please note that this is a community contribution and is not officially supported by the Cromwell development team.                                                                                                                                                                                   |
 
 <!-- Pasted into then regenerated at https://www.tablesgenerator.com/markdown_tables -->
 
@@ -33,6 +34,7 @@ These workflow options provide Google-specific information for workflows running
   "google_labels": {
     "custom-label": "custom-value"
   },
-  "delete_intermediate_output_files": false
+  "delete_intermediate_output_files": false,
+  "enable_fuse": false
 }
 ```

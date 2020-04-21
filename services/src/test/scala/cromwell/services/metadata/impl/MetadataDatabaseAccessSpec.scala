@@ -2,6 +2,7 @@ package cromwell.services.metadata.impl
 
 import java.time.OffsetDateTime
 
+import com.dimafeng.testcontainers.Container
 import common.util.TimeUtil._
 import cromwell.core.Tags.DbmsTest
 import cromwell.core._
@@ -44,11 +45,11 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
   DatabaseSystem.All foreach { databaseSystem =>
     behavior of s"MetadataDatabaseAccess on ${databaseSystem.name}"
 
+    val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
+
     lazy val dataAccess = new MetadataDatabaseAccess with MetadataServicesStore {
       override val metadataDatabaseInterface: MetadataSlickDatabase = {
-        // NOTE: EngineLiquibaseSettings **MUST** always run before the MetadataLiquibaseSettings
-        DatabaseTestKit.initializedDatabaseFromSystem(EngineDatabaseType, databaseSystem).close()
-        DatabaseTestKit.initializedDatabaseFromSystem(MetadataDatabaseType, databaseSystem)
+        DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, MetadataDatabaseType, databaseSystem)
       }
     }
 
@@ -95,6 +96,10 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         (WorkflowMetadataKeys.EndTime, OffsetDateTime.now.toUtcMilliString))
 
       publishMetadataEvents(workflowKey, keyAndValue).map(_ => id)
+    }
+
+    it should "start container if required" taggedAs DbmsTest in {
+      containerOpt.foreach { _.start }
     }
 
     it should "return pagination metadata only when page and pagesize query params are specified" taggedAs DbmsTest in {
@@ -151,7 +156,6 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
         summaryResult.rowsProcessedIncreasing should be > 0L
         summaryResult.rowsProcessedDecreasing should be(0L)
 
-        summaryResult.increasingGap should be(0L)
         summaryResult.decreasingGap should be(0L)
       }
     }
@@ -542,6 +546,10 @@ class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFuture
 
     it should "close the database" taggedAs DbmsTest in {
       dataAccess.metadataDatabaseInterface.close()
+    }
+
+    it should "stop container if required" taggedAs DbmsTest in {
+      containerOpt.foreach { _.stop }
     }
   }
 }

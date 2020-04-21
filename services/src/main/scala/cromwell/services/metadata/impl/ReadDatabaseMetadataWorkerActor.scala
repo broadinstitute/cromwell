@@ -20,13 +20,13 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration) extends Act
   implicit val ec = context.dispatcher
 
   def receive = {
-    case GetMetadataAction(query@MetadataQuery(_, _, _, _, _, _)) => evaluateRespondAndStop(sender(), getMetadata(query))
+    case GetMetadataAction(query: MetadataQuery, _) => evaluateRespondAndStop(sender(), getMetadata(query))
     case GetStatus(workflowId) => evaluateRespondAndStop(sender(), getStatus(workflowId))
     case GetLabels(workflowId) => evaluateRespondAndStop(sender(), queryLabelsAndRespond(workflowId))
     case GetRootAndSubworkflowLabels(rootWorkflowId: WorkflowId) => evaluateRespondAndStop(sender(), queryRootAndSubworkflowLabelsAndRespond(rootWorkflowId))
-    case GetLogs(workflowId) => evaluateRespondAndStop(sender(), queryLogsAndRespond(workflowId))
+    case GetLogs(workflowId, _) => evaluateRespondAndStop(sender(), queryLogsAndRespond(workflowId))
     case query: QueryForWorkflowsMatchingParameters => evaluateRespondAndStop(sender(), queryWorkflowsAndRespond(query.parameters))
-    case WorkflowOutputs(id) => evaluateRespondAndStop(sender(), queryWorkflowOutputsAndRespond(id))
+    case WorkflowOutputs(id, _) => evaluateRespondAndStop(sender(), queryWorkflowOutputsAndRespond(id))
     case unexpected => log.warning(s"Programmer Error! Unexpected message received by ${getClass.getSimpleName}: $unexpected")
   }
 

@@ -50,9 +50,9 @@ class CromwellClient(val cromwellUrl: URL,
   def abortEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(workflowsEndpoint, workflowId, "abort")
   def statusEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(workflowsEndpoint, workflowId, "status")
   def metadataEndpoint(workflowId: WorkflowId, args: Option[Map[String, List[String]]] = None): Uri = workflowSpecificGetEndpoint(workflowsEndpoint, workflowId, "metadata", args)
-  def outputsEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(workflowsEndpoint, workflowId, "outputs")
+  def outputsEndpoint(workflowId: WorkflowId, args: Option[Map[String, List[String]]] = None): Uri = workflowSpecificGetEndpoint(workflowsEndpoint, workflowId, "outputs", args)
   def labelsEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(workflowsEndpoint, workflowId, "labels")
-  def logsEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(workflowsEndpoint, workflowId, "logs")
+  def logsEndpoint(workflowId: WorkflowId, args: Option[Map[String, List[String]]] = None): Uri = workflowSpecificGetEndpoint(workflowsEndpoint, workflowId, "logs", args)
   def diffEndpoint(workflowA: WorkflowId, callA: String, indexA: ShardIndex, workflowB: WorkflowId, callB: String, indexB: ShardIndex): String = {
     def shardParam(aOrB: String, s: ShardIndex) = s.index.map(i => s"&index$aOrB=$i.toString").getOrElse("")
     s"$workflowsEndpoint/callcaching/diff?workflowA=$workflowA&callA=$callA&workflowB=$workflowB&callB=$callB${shardParam("A", indexA)}${shardParam("B", indexB)}"
@@ -125,17 +125,28 @@ class CromwellClient(val cromwellUrl: URL,
     simpleRequest[String](metadataEndpoint(workflowId, args), headers=headers) map WorkflowMetadata
   }
 
-  def outputs(workflowId: WorkflowId)(implicit ec: ExecutionContext): FailureResponseOrT[WorkflowOutputs] = {
-    simpleRequest[WorkflowOutputs](outputsEndpoint(workflowId))
+  def outputs(workflowId: WorkflowId,
+              args: Option[Map[String, List[String]]] = None)(implicit ec: ExecutionContext): FailureResponseOrT[WorkflowOutputs] = {
+    simpleRequest[WorkflowOutputs](outputsEndpoint(workflowId, args))
   }
 
-  def labels(workflowId: WorkflowId, headers: List[HttpHeader] = defaultHeaders)
+  def labels(workflowId: WorkflowId,
+             headers: List[HttpHeader] = defaultHeaders)
             (implicit ec: ExecutionContext): FailureResponseOrT[WorkflowLabels] = {
-    simpleRequest[WorkflowLabels](labelsEndpoint(workflowId), headers=headers)
+    simpleRequest[WorkflowLabels](labelsEndpoint(workflowId), headers = headers)
   }
 
-  def logs(workflowId: WorkflowId)(implicit ec: ExecutionContext): FailureResponseOrT[WorkflowMetadata] = {
-    simpleRequest[String](logsEndpoint(workflowId)) map WorkflowMetadata
+  def addLabels(workflowId: WorkflowId,
+                newLabels: List[Label],
+                headers: List[HttpHeader] = defaultHeaders)
+               (implicit ec: ExecutionContext): FailureResponseOrT[WorkflowLabels] = {
+    val requestEntity = requestEntityForAddLabels(newLabels)
+    makeRequest[WorkflowLabels](HttpRequest(HttpMethods.PATCH, labelsEndpoint(workflowId), headers, requestEntity))
+  }
+
+  def logs(workflowId: WorkflowId,
+           args: Option[Map[String, List[String]]] = None)(implicit ec: ExecutionContext): FailureResponseOrT[WorkflowMetadata] = {
+    simpleRequest[String](logsEndpoint(workflowId, args)) map WorkflowMetadata
   }
 
   def query(workflowId: WorkflowId)(implicit ec: ExecutionContext): FailureResponseOrT[CromwellQueryResults] = {
@@ -295,6 +306,11 @@ object CromwellClient {
 
     val multipartFormData = Multipart.FormData(sourceBodyParts.toSeq : _*)
     multipartFormData.toEntity()
+  }
+
+  private[api] def requestEntityForAddLabels(newLabels: List[Label]): MessageEntity = {
+    import cromwell.api.model.LabelsJsonFormatter._
+    HttpEntity(MediaTypes.`application/json`, newLabels.toJson.toString())
   }
 
   /**

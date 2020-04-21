@@ -80,7 +80,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
                           buildUpdatedSummary:
                           (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                             => WorkflowMetadataSummaryEntry)
-                         (implicit ec: ExecutionContext): Future[(Long, Long)]
+                         (implicit ec: ExecutionContext): Future[Long]
 
   /**
     * Retrieves a window of summarizable metadata satisfying the specified criteria.
@@ -152,4 +152,8 @@ trait MetadataSqlDatabase extends SqlDatabase {
   def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]]
 
   def queryRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp, batchSizeOpt: Long)(implicit ec: ExecutionContext): Future[Seq[String]]
+
+  def countRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp)(implicit ec: ExecutionContext): Future[Int]
+
+  def getSummaryQueueSize()(implicit ec: ExecutionContext): Future[Int]
 }

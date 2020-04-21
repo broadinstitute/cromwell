@@ -62,10 +62,6 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
   val query4 = MetadataQuery.forWorkflow(workflowId)
   val query5 = MetadataQuery.forJob(workflowId, supJob)
 
-  def expectConstructedMetadata(query: MetadataQuery, expectation: String) = {
-
-  }
-
   val testCases = List[(String, MetadataQuery, String)] (
     ("query1", query1, s"""{
                           |  "key1": "value2",

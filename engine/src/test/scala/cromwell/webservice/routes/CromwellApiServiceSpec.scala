@@ -604,12 +604,12 @@ object CromwellApiServiceSpec {
         sender ! SuccessfulMetadataJsonResponse(request, MetadataBuilderActor.processStatusResponse(id, status))
       case request @ GetLabels(id) =>
         sender ! SuccessfulMetadataJsonResponse(request, MetadataBuilderActor.processLabelsResponse(id, Map("key1" -> "label1", "key2" -> "label2")))
-      case request @ WorkflowOutputs(id) =>
+      case request @ WorkflowOutputs(id, _) =>
         val event = Vector(MetadataEvent(MetadataKey(id, None, "outputs:test.hello.salutation"), MetadataValue("Hello foo!", MetadataString)))
         sender ! SuccessfulMetadataJsonResponse(request, MetadataBuilderActor.processOutputsResponse(id, event))
-      case request @ GetLogs(id) =>
+      case request @ GetLogs(id, _) =>
         sender ! SuccessfulMetadataJsonResponse(request, MetadataBuilderActor.workflowMetadataResponse(id, logsEvents(id), includeCallsIfEmpty = false, Map.empty))
-      case request @ GetMetadataAction(MetadataQuery(id, _, _, withKeys, withoutKeys, _)) =>
+      case request @ GetMetadataAction(MetadataQuery(id, _, _, withKeys, withoutKeys, _), _) =>
         val withKeysList = withKeys.map(_.toList).getOrElse(List.empty)
         val withoutKeysList = withoutKeys.map(_.toList).getOrElse(List.empty)
         sender ! SuccessfulMetadataJsonResponse(request, responseMetadataValues(id, withKeysList, withoutKeysList))

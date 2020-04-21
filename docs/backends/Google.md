@@ -280,6 +280,35 @@ backend.providers.PAPIv2.config {
 }
 ```
 
+**Enabling FUSE capabilities**
+
+*This is a community contribution and not officially supported by the Cromwell team.*
+By default Cromwell task containers doesn't allow to mount any FUSE filesystems. It happens because containers are launched without specific linux capabilities being enabled. 
+Google pipelines backend supports running containers with the enabled capabilities and so does Cromwell. 
+
+If you need to use fuses within task containers then you can set `enable_fuse` workflow option. 
+
+```
+{
+    "enable_fuse": true
+}
+```
+
+Differently you can enable support for fuses right in your backend configuration.
+
+```
+backend.providers.Papiv2.config {
+    genomics {
+        enable-fuse = true
+    }
+}
+```
+
+There is a list of limitations regarding the usage of FUSE filesystems:
+
++ Any inputs brought in via a FUSE filesystem will not be considered for call caching.
++ Any outputs stored via a FUSE filesystem will not be recreated if a task is replayed from a call-cache hit.
++ If the filesystem is writable, your job is potentially no longer idempotent - Cromwell may decide to retry your job for you, and you might get unforeseen file collisions or even incorrect results if that happens.
 
 #### Google Labels
 

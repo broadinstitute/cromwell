@@ -204,7 +204,7 @@ object MetadataBuilderActor {
     if (eventsList.isEmpty) JsObject(Map.empty[String, JsValue])
     else {
       query match {
-        case MetadataQuery(w, _, _, _, _, _) => workflowMetadataResponse(w, eventsList, includeCallsIfEmpty = true, expandedValues)
+        case mq: MetadataQuery => workflowMetadataResponse(mq.workflowId, eventsList, includeCallsIfEmpty = true, expandedValues)
         case _ => MetadataBuilderActor.parse(eventsList, expandedValues)
       }
     }
@@ -310,7 +310,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, isForSubworkflo
 
   def processSubWorkflowMetadata(metadataResponse: MetadataJsonResponse, data: HasReceivedEventsData) = {
     metadataResponse match {
-      case SuccessfulMetadataJsonResponse(GetMetadataAction(queryKey), js) =>
+      case SuccessfulMetadataJsonResponse(GetMetadataAction(queryKey, _), js) =>
         val subId: WorkflowId = queryKey.workflowId
         val newData = data.withSubWorkflow(subId.toString, js)
 

@@ -83,7 +83,7 @@ object MetadataDatabaseAccess {
     }
   }
 
-  case class SummaryResult(rowsProcessedIncreasing: Long, increasingGap: Long, rowsProcessedDecreasing: Long, decreasingGap: Long)
+  case class SummaryResult(rowsProcessedIncreasing: Long, rowsProcessedDecreasing: Long, decreasingGap: Long)
 }
 
 trait MetadataDatabaseAccess {
@@ -169,7 +169,7 @@ trait MetadataDatabaseAccess {
 
   def refreshWorkflowMetadataSummaries(limit: Int)(implicit ec: ExecutionContext): Future[SummaryResult] = {
     for {
-      (increasingProcessed, increasingGap) <- metadataDatabaseInterface.summarizeIncreasing(
+      increasingProcessed <- metadataDatabaseInterface.summarizeIncreasing(
         startMetadataKey = WorkflowMetadataKeys.StartTime,
         endMetadataKey = WorkflowMetadataKeys.EndTime,
         nameMetadataKey = WorkflowMetadataKeys.Name,
@@ -193,7 +193,7 @@ trait MetadataDatabaseAccess {
         labelMetadataKey = WorkflowMetadataKeys.Labels,
         limit = limit,
         buildUpdatedSummary = MetadataDatabaseAccess.buildUpdatedSummary)
-    } yield SummaryResult(increasingProcessed, increasingGap, decreasingProcessed, decreasingGap)
+    } yield SummaryResult(increasingProcessed, decreasingProcessed, decreasingGap)
   }
 
   def updateMetadataArchiveStatus(workflowId: WorkflowId, newStatus: MetadataArchiveStatus): Future[Int] = {
@@ -337,4 +337,10 @@ trait MetadataDatabaseAccess {
 
   def queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(archiveStatus: Option[String], thresholdTimestamp: OffsetDateTime, batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[String]] =
     metadataDatabaseInterface.queryRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus, thresholdTimestamp.toSystemTimestamp, batchSize)
+
+  def countRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(archiveStatus: Option[String], thresholdTimestamp: OffsetDateTime)(implicit ec: ExecutionContext): Future[Int] =
+    metadataDatabaseInterface.countRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus, thresholdTimestamp.toSystemTimestamp)
+
+  def getSummaryQueueSize()(implicit ec: ExecutionContext): Future[Int] =
+    metadataDatabaseInterface.getSummaryQueueSize()
 }

@@ -18,7 +18,8 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-class CarbonitingMetadataFreezerActor(carboniterConfig: HybridCarboniteConfig,
+class CarbonitingMetadataFreezerActor(freezingConfig: ActiveMetadataFreezingConfig,
+                                      carboniterConfig: HybridCarboniteConfig,
                                       carboniteWorkerActor: ActorRef,
                                       serviceRegistry: ActorRef,
                                       ioActor: ActorRef) extends
@@ -109,8 +110,8 @@ class CarbonitingMetadataFreezerActor(carboniterConfig: HybridCarboniteConfig,
 
 object CarbonitingMetadataFreezerActor {
 
-  def props(carboniterConfig: HybridCarboniteConfig, carboniteWorkerActor: ActorRef, serviceRegistry: ActorRef, ioActor: ActorRef) =
-    Props(new CarbonitingMetadataFreezerActor(carboniterConfig, carboniteWorkerActor, serviceRegistry, ioActor))
+  def props(freezingConfig: ActiveMetadataFreezingConfig, carboniterConfig: HybridCarboniteConfig, carboniteWorkerActor: ActorRef, serviceRegistry: ActorRef, ioActor: ActorRef) =
+    Props(new CarbonitingMetadataFreezerActor(freezingConfig, carboniterConfig, carboniteWorkerActor, serviceRegistry, ioActor))
 
   sealed trait CarbonitingMetadataFreezingState
   case object Pending extends CarbonitingMetadataFreezingState

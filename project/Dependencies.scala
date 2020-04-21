@@ -4,7 +4,7 @@ object Dependencies {
   private val akkaHttpCirceIntegrationV = "1.29.1"
   private val akkaHttpV = "10.1.9"
   private val akkaV = "2.5.23"
-  private val aliyunBcsV = "6.1.0"
+  private val aliyunBcsV = "6.2.1"
   private val aliyunCoreV = "4.3.2"
   private val aliyunCrV = "3.0.0"
   private val aliyunOssV = "3.4.0"
@@ -63,7 +63,7 @@ object Dependencies {
   private val mockserverNettyV = "5.5.1"
   private val mouseV = "0.23"
   private val mysqlV = "8.0.15"
-  private val nettyV = "4.1.33.Final"
+  private val nettyV = "4.1.46.Final"
   private val owlApiV = "5.1.9"
   private val paradiseV = "2.1.1"
   private val pegdownV = "1.6.0"
@@ -86,6 +86,7 @@ object Dependencies {
   private val simulacrumV = "0.15.0"
   private val slf4jV = "1.7.25"
   private val slickCatsV = "0.9.0"
+  private val testContainersScalaV = "0.35.2"
 
   /* If you're about to update our Slick version:
     * Consider checking whether the new Slick version passes tests with upserts enabled (eg KeyValueDatabaseSpec)
@@ -529,7 +530,11 @@ object Dependencies {
   val testDependencies = List(
     "org.scalatest" %% "scalatest" % scalatestV,
     "org.pegdown" % "pegdown" % pegdownV,
-    "org.specs2" %% "specs2-mock" % specs2MockV
+    "org.specs2" %% "specs2-mock" % specs2MockV,
+    "com.dimafeng" %% "testcontainers-scala-scalatest" % testContainersScalaV,
+    "com.dimafeng" %% "testcontainers-scala-mysql" % testContainersScalaV,
+    "com.dimafeng" %% "testcontainers-scala-mariadb" % testContainersScalaV,
+    "com.dimafeng" %% "testcontainers-scala-postgresql" % testContainersScalaV
   ) ++ slf4jBindingDependencies // During testing, add an slf4j binding for _all_ libraries.
 
   val kindProjectorPlugin = "org.spire-math" %% "kind-projector" % kindProjectorV

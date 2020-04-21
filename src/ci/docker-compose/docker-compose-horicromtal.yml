@@ -3,6 +3,10 @@
 version: '2.3'
 services:
   # Runs the database initialization but is NOT a workflow-running backend.
+  # Opts out of:
+  # - Running the summarizer
+  # - Running the carboniter
+  # - Running the archived-metadata-deleter
   cromwell-database-master:
     image: "broadinstitute/cromwell:${CROMWELL_TAG}"
     network_mode: host
@@ -18,6 +22,8 @@ services:
         -Dsystem.max-workflow-launch-count=0
         -Dsystem.new-workflow-poll-rate=999999
         -Dservices.MetadataService.config.metadata-summary-refresh-interval=Inf
+        -Dservices.MetadataService.config.carbonite-metadata-service.metadata-freezing.initial-interval=Inf
+        -Dservices.MetadataService.config.carbonite-metadata-service.metadata-deletion.interval=Inf
       - CROMWELL_BUILD_RESOURCES_DIRECTORY
       - CROMWELL_BUILD_CENTAUR_SLICK_PROFILE
       - CROMWELL_BUILD_CENTAUR_JDBC_DRIVER
@@ -32,7 +38,9 @@ services:
       interval: 2s
       timeout: 120s
       retries: 60
-  # Runs the summarizer and is also a regular Cromwell workflow-running backend.
+  # Is a regular Cromwell workflow-running backend.
+  # Makes no changes to the config file we bring in, so always summarizes, and sometimes does carboniting and metadata
+  # deletion things, but only if the underlying config file says that we do.
   cromwell-summarizer-plus-backend:
     image: "broadinstitute/cromwell:${CROMWELL_TAG}"
     network_mode: host
@@ -62,7 +70,12 @@ services:
       interval: 2s
       timeout: 120s
       retries: 60
-  # Talks to Centaur (i.e. is a frontend) and is also a regular Cromwell workflow-running backend.
+  # Is the Cromwell which Centaur communicates with (hence "frontend")
+  # Is also a regular Cromwell workflow-running "backend".
+  # Opts out of:
+  # - Running the summarizer
+  # - Running the carboniter
+  # - Running the archived-metadata-deleter
   cromwell-frontend-plus-backend:
     image: "broadinstitute/cromwell:${CROMWELL_TAG}"
     network_mode: host
@@ -79,6 +92,8 @@ services:
         -Dwebservice.port=${MANAGED_CROMWELL_PORT-8008}
         -Dsystem.cromwell_id=frontend
         -Dservices.MetadataService.config.metadata-summary-refresh-interval=Inf
+        -Dservices.MetadataService.config.carbonite-metadata-service.metadata-freezing.initial-interval=Inf
+        -Dservices.MetadataService.config.carbonite-metadata-service.metadata-deletion.interval=Inf
       - CROMWELL_BUILD_RESOURCES_DIRECTORY
       - CROMWELL_BUILD_CENTAUR_SLICK_PROFILE
       - CROMWELL_BUILD_CENTAUR_JDBC_DRIVER

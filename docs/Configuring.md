@@ -285,8 +285,9 @@ as the `class` for `MetadataService`. The "classic" (i.e. relational database) a
 additional configuration, but the "Carbonite" aspect has its own `carbonite-metadata-service` stanza. A sample configuration
 with default values is shown below.
  
-`enabled = true` is required for any Carboniting to actually happen, and a `bucket` and `filesystems.gcs.auth` must also be specified.
-The `freeze-scan` stanza controls the frequency and backoff with which Cromwell searches for "classic" metadata to Carbonite, while
+A `bucket` and `filesystems.gcs.auth` must be specified to be able to read and/or write Carbonited metadata.
+The `metadata-freezing` stanza controls parameters for the "freezing" of metadata (converting "classic" metadata stored in Cromwell's
+relational database to JSON stored in GCS), while
 the `metadata-deletion` stanza controls the parameters around Cromwell's deletion of successfully archived metadata rows
 from the "classic" metadata database.
 
@@ -300,17 +301,9 @@ services {
     
       # The carbonite section contains carbonite-specific options
       carbonite-metadata-service {
-        # Enables carboniting process
-        enabled = false
     
-        # Only carbonite workflows whose summary entry IDs are greater than or equal to this value:
-        minimum-summary-entry-id = 0
-    
-        # Output log messages whenever carboniting activity is started or completed?
-        debug-logging = false
-    
-        # Which GCS bucket to use for storing the generated metadata JSON
-        bucket = "<<A private bucket, *without* the gs:// prefix>>"
+        # Which bucket to use for storing or retrieving metadata JSON
+        bucket = "carbonite-test-bucket"
     
         # A filesytem able to access the specified bucket:
         filesystems {
@@ -320,26 +313,40 @@ services {
           }
         }
     
-        # Freeze scan configuration. This controls the intervals at which the `CarboniteWorkerActor` looks for terminal
-        # workflows to carbonite. All of these entries are optional and default to the values shown below. Any supplied
-        # values will be sanity checked: intervals must be durations, max greater than initial, multiplier must
-        # be a number greater than 1.
-        freeze-scan {
-          initial-interval = 5 seconds,
-          max-interval = 5 minutes,
+        # Metadata freezing configuration. All of these entries are optional and default to the values shown below.
+        # In particular, the default value of `Inf` for `initial-interval` turns off metadata freezing, so an explict
+        # non-`Inf` value would need to be chosen for that parameter to turn metadata freezing on.
+        metadata-freezing {
+          # How often Cromwell should check for metadata ready for freezing. Set the `initial-interval` value to "Inf"
+          # (or leave the default unchanged) to turn off metadata freezing. Both interval parameters must be durations,
+          # if initial is finite then max must be greater than initial, and multiplier must be a number greater than 1.
+          initial-interval = Inf
+          max-interval = 5 minutes
           multiplier = 1.1
+
+          # Only freeze workflows whose summary entry IDs are greater than or equal to `minimum-summary-entry-id`.
+          minimum-summary-entry-id = 0
+
+          # Whether to output log messages whenever freezing activity is started or completed (this can be problematically
+          # noisy in some CI circumstances).
+          debug-logging = true
         }
 
         # Metadata deletion configuration.
         metadata-deletion {
+
+          # How long to wait after system startup before the first metadata deletion action.
+          # This is potentially useful to avoid overwhelming a newly-starting Cromwell service with lots of deletion activity.
+          initial-delay = 5 minutes
+
           # How often Cromwell should check for metadata ready for deletion. Set this value to "Inf" to turn off metadata deletion.
           # The default value is currently "Inf".
           interval = Inf
-        
+
           # Upper limit for the number of workflows which Cromwell will process during a single scheduled metadata deletion event.
           # The default value is currently "200".
           batch-size = 200
-        
+
           # Minimum time between a workflow completion and deletion of its metadata from the database.
           # Note: Metadata is only eligible for deletion if it has already been carbonited.
           # The default value is currently "24 hours".

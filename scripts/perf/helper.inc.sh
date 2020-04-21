@@ -24,7 +24,7 @@ wait_for_cromwell() {
       # Just wait a bit longer - no rush, this is a chill VM - this is because cromwell responds to requests before being really ready...
       sleep 30
     
-      CROMWELL_VERSION=$(curl -X GET "http://${CROMWELL_UNDER_TEST}:8000/engine/v1/version" -H "accept: application/json" | jq -r '.cromwell')
+      CROMWELL_VERSION=$(curl --silent -X GET "http://${CROMWELL_UNDER_TEST}:8000/engine/v1/version" -H "accept: application/json" | jq -r '.cromwell')
       if [ -z ${CROMWELL_VERSION} ]
       then
         echo "Cromwell was up but failed to return its version, so something went wrong, shutting down"
@@ -55,7 +55,7 @@ custom_wait_for_cromwell() {
     sleep 30
     ATTEMPTS=$((ATTEMPTS + 1))
 
-    CROMWELL_VERSION_JSON=$(curl -X GET "http://${cromwell_under_test}:8000/engine/v1/version" -H "accept: application/json")
+    CROMWELL_VERSION_JSON=$(curl --silent -X GET "http://${cromwell_under_test}:8000/engine/v1/version" -H "accept: application/json")
     RESULT=$?
 
     CROMWELL_VERSION=$(echo "${CROMWELL_VERSION_JSON}" | jq -r '.cromwell')
@@ -112,7 +112,7 @@ clean_up() {
 }
 
 self_destruct_instance() {
-    gcloud compute instances delete $(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google") --zone=us-central1-c -q
+    gcloud compute instances delete $(curl --silent "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google") --zone=us-central1-c -q
 }
 
 run_test() {
@@ -156,7 +156,7 @@ read_service_account_from_vault() {
 gcloud_run_as_service_account() {
   local name="$1"
   local command="$2"
-  docker run --name $name -v "$(pwd)"/mnt:${DOCKER_ETC_PATH} --rm gcr.io/google.com/cloudsdktool/cloud-sdk:slim \
+  docker run --name ${name} -v "$(pwd)"/mnt:${DOCKER_ETC_PATH} --rm gcr.io/google.com/cloudsdktool/cloud-sdk:slim \
     /bin/bash -c "\
     gcloud auth activate-service-account --key-file ${DOCKER_ETC_PATH}/sa.json 2> /dev/null &&\
     ${command}"
@@ -250,4 +250,30 @@ wait_for_ping_to_start_then_stop() {
 strip_trailing_slash() {
   local path=$1
   echo "${path}" | sed 's/\/$//'
+}
+
+# Patch the activation policy of the Cloud SQL Instance referenced by $CLOUD_SQL_INSTANCE.
+# In practice used mostly to turn a Cloud SQL instance on or off.
+#
+# Arguments:
+#   `op` - a descriptive term that will appear in the Docker container that runs gcloud.
+#   `policy` - the Cloud SQL activation policy, should be one of ALWAYS, NEVER or ON_DEMAND.
+#              For more details: https://cloud.google.com/sql/docs/mysql/start-stop-restart-instance
+private::patch_cloud_sql_activation_policy() {
+  op="$1"
+  policy="$2"
+
+  mkdir -p mnt
+  # Read the service account credentials from vault:
+  read_service_account_from_vault
+
+  gcloud_run_as_service_account "perf_sql_${op}_gcloud_${BUILD_NUMBER}" "gcloud -q --project broad-dsde-cromwell-perf sql instances patch ${CLOUD_SQL_INSTANCE} --activation-policy ${policy}"
+}
+
+start_cloud_sql() {
+  private::patch_cloud_sql_activation_policy "start" "ALWAYS"
+}
+
+stop_cloud_sql() {
+  private::patch_cloud_sql_activation_policy "stop" "NEVER"
 }

@@ -67,11 +67,12 @@ import scala.util.Try
   *  @param jobDescriptor the `BackendJobDescriptor` that is passed to the BackendWorkflowActor
   *  @param runtimeAttributes runtime attributes class (which subsequently pulls from config)
   *  @param commandLine command line to be passed to the job
+  *  @param commandScript the `commandLine` with additional commands to setup the context and localize/ de-localize files
   */
 final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                              runtimeAttributes: AwsBatchRuntimeAttributes, // config or WDL/CWL
                              commandLine: String, // WDL/CWL
-                             script: String, // WDL/CWL
+                             commandScript: String, // WDL/CWL
                              dockerRc: String, // Calculated from StandardAsyncExecutionActor
                              dockerStdout: String, // Calculated from StandardAsyncExecutionActor
                              dockerStderr: String, // Calculated from StandardAsyncExecutionActor
@@ -103,59 +104,74 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     configureClient(builder, optAwsAuthMode, configRegion)
   }
 
-
+  /**
+    * The goal of the reconfigured script is to do 3 things:
+    * 1. make a directory "working_dir" and replace all "/cromwell_root" with that
+    * 2. before the command line, insert the input copy command to stage input files
+    * 3. at the end of the script sync all content with the s3 bucket
+    */
   lazy val reconfiguredScript: String = {
     //this is the location of the aws cli mounted into the container by the ec2 launch template
     val s3Cmd = "/usr/local/aws-cli/v2/current/bin/aws s3"
-    val dockerRootDir = "."
+    val workDir = "/working_dir"
+    val replaced = commandScript.replaceAllLiterally("/cromwell_root", workDir)
+    val insertionPoint = replaced.indexOf("\n", replaced.indexOf("#!")) +1 //just after the new line after the shebang!
 
     //generate a series of s3 copy statements to copy any s3 files into the container
     val inputCopyCommand = inputs.map {
-      case input: AwsBatchFileInput if input.s3key.startsWith("s3://") => s"$s3Cmd cp ${input.s3key} $dockerRootDir/${input.local}"
+      case input: AwsBatchFileInput if input.s3key.startsWith("s3://")
+                                                 => s"$s3Cmd cp ${input.s3key} $workDir/${input.local}"
       case _ => ""
-    }.mkString("\n|") //the pipe is needed for the margin (which gets stripped out)
+    }.mkString("\n")
 
+    //generate a series of s3 commands to delocalize artifacts from the container to storage
     val outputCopyCommand = outputs.map {
-      case output: AwsBatchFileOutput if output.s3key.startsWith("s3://") => s"$s3Cmd cp ${output.local} ${output.s3key}"
+      case output: AwsBatchFileOutput if output.local.pathAsString.endsWith("*") => "" //filter out globs
+      case output: AwsBatchFileOutput if output.name.endsWith(".list") && output.name.contains("glob-") => {
+        // need to process this list and de-localize each file
+        //if the list file actually exists
+        s"""
+           |if [ -f ${output.local.pathAsString} ]; then
+           |  for file in ${output.local.pathAsString}; do
+           |    if [ -f $$file ]; then $s3Cmd $$file ${jobPaths.callRoot.pathAsString}/$$file ; fi
+           |  done
+           |fi
+           |""".stripMargin
+        //get each line and make an s3 cp command
+      }
+      case output: AwsBatchFileOutput if output.s3key.startsWith("s3://") => {
+        s"if [ -f ${output.local.pathAsString} ]; then $s3Cmd cp ${output.local.pathAsString} ${output.s3key} ; fi"
+      }
       case _ => ""
-    }.mkString("\n|")
+    }.mkString("\n") + "\n" +
+      s"if [ -f $workDir/${jobPaths.returnCodeFilename} ]; then $s3Cmd cp $workDir/${jobPaths.returnCodeFilename} ${jobPaths.callRoot.pathAsString}/${jobPaths.returnCodeFilename} ; fi\n" +
+      s"if [ -f ${dockerStderr.replace("/cromwell_root", workDir)} ]; then $s3Cmd cp ${dockerStderr.replace("/cromwell_root", workDir)} ${jobPaths.standardPaths.error.pathAsString} ; fi\n" +
+      s"if [ -f ${dockerStdout.replace("/cromwell_root", workDir)} ]; then $s3Cmd cp ${dockerStdout.replace("/cromwell_root", workDir)} ${jobPaths.standardPaths.output.pathAsString} ; fi\n"
 
-    //this is a temporary work around until we can surgically remove the "local-disk" volume
-    val replacementCommandLine = commandLine.replaceAllLiterally("/cromwell_root", dockerRootDir)
 
-    s"""
-    |#! /bin/sh
-    |
-    |#exit on any line causing an error
-    |set -e
-    |
-    |#trap any error and handle with the final() function
-    |trap 'final $$? $$LINENO' ERR
-    |
-    |final() {
-    |  #create or overwrite rc.txt, something failed
-    |  echo $$1 > rc.txt
-    |  echo "Error $$1 occurred on line $$2"
-    |  $s3Cmd cp rc.txt $${AWS_CROMWELL_CALL_ROOT}/${jobPaths.returnCodeFilename}
-    |}
-    |
-    |$inputCopyCommand
-    |
-    |touch stdout.log && touch stderr.log
-    |
-    |$replacementCommandLine | tee > stdout.log 2> stderr.log
-    |return_code=$$?
-    |echo $$return_code > rc.txt
-    |
-    |cat stdout.log && cat stderr.log >&2
-    |
-    |$outputCopyCommand
-    |
-    |$s3Cmd cp stdout.log $${AWS_CROMWELL_CALL_ROOT}/${jobPaths.defaultStdoutFilename}
-    |$s3Cmd cp stderr.log $${AWS_CROMWELL_CALL_ROOT}/${jobPaths.defaultStderrFilename}
-    |$s3Cmd cp rc.txt $${AWS_CROMWELL_CALL_ROOT}/${jobPaths.returnCodeFilename}
-    |exit $$return_code
-    |""".stripMargin
+    val preamble =
+      s"""
+         |#exit on any line causing an error
+         |set -e
+         |
+         |#trap any error and handle with the final() function
+         |trap 'final $$? $$LINENO' ERR
+         |
+         |final() {
+         |  #create or overwrite rc.txt, something failed
+         |  echo $$1 > ${jobPaths.returnCodeFilename}
+         |  echo "Error $$1 occurred on line $$2 of reconfigured script"
+         |  $s3Cmd cp ${jobPaths.returnCodeFilename} ${jobPaths.callRoot.pathAsString}/${jobPaths.returnCodeFilename}
+         |}
+         |mkdir $workDir && chmod 777 $workDir
+         |cd $workDir
+         |$inputCopyCommand
+         |""".stripMargin
+
+    val postScript = s"set +e \n$outputCopyCommand"
+
+    //insert the preamble at the insertion point and the postscript at the end
+    replaced.patch(insertionPoint, preamble, 0) + postScript
   }
 
 
@@ -282,7 +298,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
       val commandStr = awsBatchAttributes.fileSystem match {
         case AWSBatchStorageSystems.s3 => reconfiguredScript
-        case _ => script
+        case _ => commandScript
       }
       val jobDefinitionContext = AwsBatchJobDefinitionContext(
         runtimeAttributes = runtimeAttributes,
@@ -456,7 +472,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
       .append("jobDescriptor", jobDescriptor)
       .append("runtimeAttributes", runtimeAttributes)
       .append("commandLine", commandLine)
-      .append("script", script)
+      .append("commandScript", commandScript)
       .append("dockerRc", dockerRc).append("dockerStderr", dockerStderr).append("dockerStdout", dockerStdout)
       .append("inputs", inputs)
       .append("outputs", outputs)

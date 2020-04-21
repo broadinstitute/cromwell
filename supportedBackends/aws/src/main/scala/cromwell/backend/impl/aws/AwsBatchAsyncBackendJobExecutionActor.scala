@@ -122,24 +122,6 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override lazy val dockerImageUsed: Option[String] = Option(jobDockerImage)
 
-  // generate the path where the job script will be mounted
-  private lazy val jobScriptMountPath =  configuration.fileSystem match  {
-    case AWSBatchStorageSystems.s3 =>  AwsBatchWorkingDisk.MountPoint.resolve(jobPaths.script.pathWithoutScheme.stripPrefix("/")).pathAsString
-    case _ =>  jobPaths.script.pathWithoutScheme
-  }
-
-
-  /*
-   * will produce something like:
-   *
-   * #! /bin/bash
-   * /bin/bash /path/to/script
-   *
-   */
-  private lazy val execScript =
-    s"""|#!$jobShell
-        |$jobShell $jobScriptMountPath
-        |""".stripMargin
 
   /* Batch job object (see AwsBatchJob). This has the configuration necessary
    * to perform all operations with the AWS Batch infrastructure. This is
@@ -178,7 +160,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       jobDescriptor,
       runtimeAttributes,
       instantiatedCommand.commandString,
-      execScript,
+      commandScriptContents.toEither.right.get,
       rcPath.toString, executionStdout, executionStderr,
       generateAwsBatchInputs(jobDescriptor),
       generateAwsBatchOutputs(jobDescriptor),

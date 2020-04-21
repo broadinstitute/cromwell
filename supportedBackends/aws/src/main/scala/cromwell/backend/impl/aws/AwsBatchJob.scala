@@ -124,6 +124,9 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
       case _ => ""
     }.mkString("\n")
 
+    val stdOut = dockerStdout.replace("/cromwell_root", workDir)
+    val stdErr = dockerStderr.replace("/cromwell_root", workDir)
+
     //generate a series of s3 commands to delocalize artifacts from the container to storage
     val outputCopyCommand = outputs.map {
       case output: AwsBatchFileOutput if output.local.pathAsString.endsWith("*") => "" //filter out globs
@@ -132,9 +135,9 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
         //if the list file actually exists
         s"""
            |if [ -f ${output.local.pathAsString} ]; then
-           |  for file in ${output.local.pathAsString}; do
+           |  while IFS= read -r file; do
            |    if [ -f $$file ]; then $s3Cmd $$file ${jobPaths.callRoot.pathAsString}/$$file ; fi
-           |  done
+           |  done < ${output.local.pathAsString}
            |fi
            |""".stripMargin
         //get each line and make an s3 cp command
@@ -144,10 +147,12 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
       }
       case _ => ""
     }.mkString("\n") + "\n" +
-      s"if [ -f $workDir/${jobPaths.returnCodeFilename} ]; then $s3Cmd cp $workDir/${jobPaths.returnCodeFilename} ${jobPaths.callRoot.pathAsString}/${jobPaths.returnCodeFilename} ; fi\n" +
-      s"if [ -f ${dockerStderr.replace("/cromwell_root", workDir)} ]; then $s3Cmd cp ${dockerStderr.replace("/cromwell_root", workDir)} ${jobPaths.standardPaths.error.pathAsString} ; fi\n" +
-      s"if [ -f ${dockerStdout.replace("/cromwell_root", workDir)} ]; then $s3Cmd cp ${dockerStdout.replace("/cromwell_root", workDir)} ${jobPaths.standardPaths.output.pathAsString} ; fi\n"
-
+      s"""
+         |if [ -f $workDir/${jobPaths.returnCodeFilename} ]; then $s3Cmd cp $workDir/${jobPaths.returnCodeFilename} ${jobPaths.callRoot.pathAsString}/${jobPaths.returnCodeFilename} ; fi\n
+         |touch $stdOut && touch $stdErr
+         |$s3Cmd cp $stdErr ${jobPaths.standardPaths.error.pathAsString}
+         |$s3Cmd cp $stdOut ${jobPaths.standardPaths.output.pathAsString}
+         |""".stripMargin
 
     val preamble =
       s"""

@@ -18,7 +18,6 @@
 #   % gcloud auth application-default login
 
 import argparse
-import re
 import json
 import requests
 from google.cloud import storage

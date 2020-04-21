@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import unittest
-from metadata_comparison.lib_argument_regex import *
+from metadata_comparison.lib.argument_regex import *
 
 class ExtractorTestMethods(unittest.TestCase):
 

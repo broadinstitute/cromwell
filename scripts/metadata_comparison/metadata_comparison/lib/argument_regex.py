@@ -62,4 +62,3 @@ def get_operation_id_number(value):
     else:
         msg = f'Unexpected operation ID {value}. Expected something like {operation_regex.pattern}'
         raise Exception(msg)
-

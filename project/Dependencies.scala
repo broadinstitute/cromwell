@@ -110,7 +110,6 @@ object Dependencies {
   private val workbenchModelV = "0.10-6800f3a"
   private val workbenchUtilV = "0.3-f3ce961"
 
-
   private val slf4jFacadeDependencies = List(
     "org.slf4j" % "slf4j-api" % slf4jV,
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,

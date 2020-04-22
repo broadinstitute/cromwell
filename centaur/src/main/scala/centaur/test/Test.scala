@@ -1,5 +1,6 @@
 package centaur.test
 
+import java.time.OffsetDateTime
 import java.util.UUID
 
 import cats.Monad
@@ -78,6 +79,12 @@ object Test {
         case Right(b) => pure(b)
         case Left(nextA) => tailRecM(nextA)(f)
       }
+    }
+  }
+
+  implicit class TestableIO[A](a: IO[A]) {
+    def asTest: Test[A] = new Test[A] {
+      override def run: IO[A] = a
     }
   }
 }
@@ -300,7 +307,13 @@ object Operations extends StrictLogging {
           mappedStatus <- workflowStatus match {
             case s if s == expectedStatus => IO.pure(workflow)
             case s: TerminalStatus =>
-              CentaurCromwellClient.metadata(workflow) flatMap { metadata =>
+              val reducedMetadataOptions: Map[String, List[String]] =
+                CentaurCromwellClient.defaultMetadataArgs.getOrElse(Map.empty) ++ Map(
+                  "includeKey" -> (List("status") ++ (if (expectedStatus == Succeeded) List("failures") else List.empty)),
+                  "expandSubWorkflows" -> List("false")
+                )
+
+              CentaurCromwellClient.metadata(workflow = workflow, args = Option(reducedMetadataOptions)) flatMap { metadata =>
                 val failuresString = if (expectedStatus == Succeeded) {
                   (for {
                     metadataJson <- parse(metadata.value).toOption
@@ -488,31 +501,33 @@ object Operations extends StrictLogging {
     JsObject(jsObject.fields - metadataSourceKeyName)
   }
 
-  def compareMetadataBeforeAndAfterArchival(submittedWorkflow: SubmittedWorkflow,
-                                            workflow: Workflow,
-                                            expandSubworkflows: Boolean): Test[Unit] = new Test[Unit] {
+  def assertMetadataResponseHasNotChanged(testContext: String,
+                                          metadataBeforeArchival: WorkflowMetadata,
+                                          submittedWorkflow: SubmittedWorkflow,
+                                          workflow: Workflow,
+                                          expandSubworkflows: Boolean): Test[Unit] = new Test[Unit] {
 
     override def run: IO[Unit] = {
       for {
-        metadataBeforeArchival <- CentaurCromwellClient.metadata(submittedWorkflow, expandSubworkflows = expandSubworkflows, archived = Option(false))
-        metadataAfterArchival <- CentaurCromwellClient.metadata(submittedWorkflow, expandSubworkflows = expandSubworkflows, archived = Option(true))
+        metadataAfterArchival <- fetchMetadata(submittedWorkflow, expandSubworkflows = expandSubworkflows, requestArchivedMetadata = Option(true))
         metadataObjectBeforeArchival <- IO.fromTry(Try(removeMetadataSourceFromJsObject(metadataBeforeArchival.value.parseJson.asJsObject)))
         metadataObjectAfterArchival <- IO.fromTry(Try(removeMetadataSourceFromJsObject(metadataAfterArchival.value.parseJson.asJsObject)))
-        _ <- validateMetadataJson(metadataObjectBeforeArchival, metadataObjectAfterArchival, submittedWorkflow, workflow)
+        _ <- validateMetadataJson(testType = s"assertMetadataResponseHasNotChanged ($testContext, expandSubworkflows=$expandSubworkflows)", metadataObjectBeforeArchival, metadataObjectAfterArchival, submittedWorkflow, workflow)
       } yield ()
     }
   }
 
-  def compareLabelsBeforeAndAfterArchival(labelsLikelyBeforeArchival: IO[WorkflowLabels],
-                                          labelsAfterArchival: IO[WorkflowLabels],
-                                          submittedWorkflow: SubmittedWorkflow,
-                                          workflow: Workflow): Test[Unit] = new Test[Unit] {
+  def assertLabelsResponseHasNotChanged(testContext: String,
+                                        labelsLikelyBeforeArchival: IO[WorkflowLabels],
+                                        labelsAfterArchival: IO[WorkflowLabels],
+                                        submittedWorkflow: SubmittedWorkflow,
+                                        workflow: Workflow): Test[Unit] = new Test[Unit] {
 
     override def run: IO[Unit] = {
       for {
         expectedLabels <- labelsLikelyBeforeArchival
         actualLabels <- labelsAfterArchival
-        _ <- validateMetadataJson(expectedLabels.labels, actualLabels.labels, submittedWorkflow, workflow)
+        _ <- validateMetadataJson(testType = s"assertLabelsResponseHasNotChanged ($testContext)", expectedLabels.labels, actualLabels.labels, submittedWorkflow, workflow)
       } yield ()
     }
   }
@@ -525,7 +540,7 @@ object Operations extends StrictLogging {
                                                      workflow: Workflow): IO[Unit] = {
       for {
         actualLabels <- CentaurCromwellClient.labels(submittedWorkflow)
-        _ <- validateMetadataJson(expected, actualLabels.labels, submittedWorkflow, workflow).handleErrorWith({ _ =>
+        _ <- validateMetadataJson("eventuallyComparisonWithLatestLabelsSucceeds", expected, actualLabels.labels, submittedWorkflow, workflow).handleErrorWith({ _ =>
           for {
             _ <- IO.sleep(2.seconds)
             recurse <- eventuallyComparisonWithLatestLabelsSucceeds(expected, submittedWorkflow, workflow)
@@ -550,23 +565,23 @@ object Operations extends StrictLogging {
     }
   }
 
-
-  def compareOutputsBeforeAndAfterArchival(submittedWorkflow: SubmittedWorkflow,
-                                          workflow: Workflow): Test[Unit] = new Test[Unit] {
+  def assertOutputsResponseHasNotChanged(testContext: String,
+                                         outputsBeforeArchival: JsObject,
+                                         submittedWorkflow: SubmittedWorkflow,
+                                         workflow: Workflow): Test[Unit] = new Test[Unit] {
 
     override def run: IO[Unit] = {
       for {
-        outputsBeforeArchival <- CentaurCromwellClient.outputs(submittedWorkflow, archived = Option(false))
         outputsAfterArchival <- CentaurCromwellClient.outputs(submittedWorkflow, archived = Option(true))
-        _ <- validateMetadataJson(outputsBeforeArchival.outputs.asJsObject, outputsAfterArchival.outputs.asJsObject, submittedWorkflow, workflow)
+        _ <- validateMetadataJson(testType = s"assertOutputsResponseHasNotChanged ($testContext)", outputsBeforeArchival, outputsAfterArchival.outputs.asJsObject, submittedWorkflow, workflow)
       } yield ()
     }
   }
 
-  def validateOutputs(submittedWorkflow: SubmittedWorkflow,
-                      workflow: Workflow,
-                      workflowRoot: String,
-                      validateArchived: Option[Boolean] = None): Test[Unit] = new Test[Unit] {
+  def fetchAndValidateOutputs(submittedWorkflow: SubmittedWorkflow,
+                              workflow: Workflow,
+                              workflowRoot: String,
+                              validateArchived: Option[Boolean] = None): Test[JsObject] = new Test[JsObject] {
 
     def checkOutputs(expectedOutputs: List[(String, JsValue)])(actualOutputs: Map[String, JsValue]): IO[Unit] = {
       val expected = expectedOutputs.toSet
@@ -586,28 +601,32 @@ object Operations extends StrictLogging {
       }
     }
 
-    override def run: IO[Unit] = {
+    override def run: IO[JsObject] = {
       import centaur.test.metadata.WorkflowFlatOutputs._
 
       val expectedOutputs: List[(String, JsValue)] = selectMetadataExpectationSubsetByPrefix(workflow, "outputs.", submittedWorkflow.id, workflowRoot)
-      val ioActualOutputs: IO[Map[String, JsValue]] = CentaurCromwellClient.outputs(submittedWorkflow, archived = validateArchived) map { _.asFlat.stringifyValues }
 
-      ioActualOutputs flatMap checkOutputs(expectedOutputs)
+      for {
+        outputs <- CentaurCromwellClient.outputs(submittedWorkflow, archived = validateArchived)
+        outputsMap = outputs.asFlat.stringifyValues
+        _ <- checkOutputs(expectedOutputs)(outputsMap)
+      } yield outputs.outputs.asJsObject
+
     }
   }
 
-  def validateLabels(submittedWorkflow: SubmittedWorkflow,
-                     workflow: Workflow,
-                     workflowRoot: String): Test[Unit] = new Test[Unit] {
+  def fetchAndValidateLabels(submittedWorkflow: SubmittedWorkflow,
+                             workflow: Workflow,
+                             workflowRoot: String): Test[Unit] = new Test[Unit] {
     override def run: IO[Unit] = {
       import centaur.test.metadata.WorkflowFlatLabels._
 
       val workflowIdLabel = ("cromwell-workflow-id", JsString(s"cromwell-${submittedWorkflow.id}"))
       val expectedLabels: List[(String, JsValue)] = workflowIdLabel ::
         selectMetadataExpectationSubsetByPrefix(workflow, "labels.", submittedWorkflow.id, workflowRoot)
-      val ioActualLabels: IO[Map[String, JsValue]] = CentaurCromwellClient.labels(submittedWorkflow) map { _.asFlat.stringifyValues }
 
-      ioActualLabels flatMap { actualLabels =>
+
+      def validateLabels(actualLabels: Map[String, JsValue]) = {
         val diff = expectedLabels.toSet.diff(actualLabels.toSet)
         if (diff.isEmpty) {
           IO.unit
@@ -619,6 +638,12 @@ object Operations extends StrictLogging {
           ))
         }
       }
+
+      for {
+        labelsJson <- CentaurCromwellClient.labels(submittedWorkflow)
+        labelsMap = labelsJson.asFlat.stringifyValues
+        _ <- validateLabels(labelsMap)
+      } yield ()
     }
   }
 
@@ -659,11 +684,20 @@ object Operations extends StrictLogging {
     }
   }
 
-  def validateMetadata(submittedWorkflow: SubmittedWorkflow,
-                       workflowSpec: Workflow,
-                       cacheHitUUID: Option[UUID] = None,
-                       validateArchived: Option[Boolean] = None): Test[WorkflowMetadata] = {
+  def fetchMetadata(submittedWorkflow: SubmittedWorkflow,
+                    expandSubworkflows: Boolean,
+                    requestArchivedMetadata: Option[Boolean]): IO[WorkflowMetadata] = {
+    CentaurCromwellClient.metadata(submittedWorkflow, expandSubworkflows = expandSubworkflows, archived = requestArchivedMetadata)
+  }
+
+  def fetchAndValidateNonSubworkflowMetadata(submittedWorkflow: SubmittedWorkflow,
+                                             workflowSpec: Workflow,
+                                             cacheHitUUID: Option[UUID] = None,
+                                             validateArchived: Option[Boolean] = None): Test[WorkflowMetadata] = {
     new Test[WorkflowMetadata] {
+
+      def fetchOnce() = fetchMetadata(submittedWorkflow, expandSubworkflows = false, requestArchivedMetadata = validateArchived)
+
       def eventuallyMetadata(workflow: SubmittedWorkflow,
                              expectedMetadata: WorkflowFlatMetadata): IO[WorkflowMetadata] = {
         validateMetadata(workflow, expectedMetadata).handleErrorWith({ _ =>
@@ -717,7 +751,7 @@ object Operations extends StrictLogging {
         }
 
         for {
-          actualMetadata <- CentaurCromwellClient.metadata(workflow, archived = validateArchived)
+          actualMetadata <- fetchOnce()
           _ <- validateUnwantedMetadata(actualMetadata)
           _ <- validateAllowOtherOutputs(actualMetadata)
           diffs = expectedMetadata.diff(actualMetadata.asFlat, workflow.id.id, cacheHitUUID)
@@ -730,12 +764,13 @@ object Operations extends StrictLogging {
           eventuallyMetadata(submittedWorkflow, expectedMetadata)
             .timeoutTo(CentaurConfig.metadataConsistencyTimeout, validateMetadata(submittedWorkflow, expectedMetadata))
         // Nothing to wait for, so just return the first metadata we get back:
-        case None => CentaurCromwellClient.metadata(submittedWorkflow, archived = validateArchived)
+        case None => fetchOnce()
       }
     }
   }
 
-  def validateMetadataJson(expected: JsObject,
+  def validateMetadataJson(testType: String,
+                           expected: JsObject,
                            actual: JsObject,
                            submittedWorkflow: SubmittedWorkflow,
                            workflow: Workflow): IO[Unit] = {
@@ -743,10 +778,10 @@ object Operations extends StrictLogging {
       IO.unit
     } else {
       import diffson._
-      import diffson.lcs._
-      import diffson.sprayJson._
       import diffson.jsonpatch._
       import diffson.jsonpatch.lcsdiff._
+      import diffson.lcs._
+      import diffson.sprayJson._
 
       implicit val lcs = new Patience[JsValue]
 
@@ -783,34 +818,39 @@ object Operations extends StrictLogging {
       }
 
       val jsonDiff = diff(expected: JsValue, actual: JsValue).toJson.prettyPrint
-      IO.raiseError(CentaurTestException(s"Metadata doesn't match the expected. Diff: $jsonDiff", workflow, submittedWorkflow))
+      IO.raiseError(CentaurTestException(s"Error during $testType metadata comparison. Diff (changes to mutate from 'expected' to 'actual'): $jsonDiff", workflow, submittedWorkflow))
     }
   }
 
-  def compareJobManagerStyleMetadataBeforeAndAfterArchival(submittedWorkflow: SubmittedWorkflow,
-                                                           workflow: Workflow): Test[Unit] = new Test[Unit] {
+  def assertJobManagerStyleMetadataDidNotChange(testContext: String,
+                                                jmMetadataBeforeArchival: WorkflowMetadata,
+                                                submittedWorkflow: SubmittedWorkflow,
+                                                workflow: Workflow): Test[Unit] = new Test[Unit] {
 
     override def run: IO[Unit] = for {
-      jmMetadataBeforeArchival <- CentaurCromwellClient.metadata(
-        workflow = submittedWorkflow,
-        Option(CentaurCromwellClient.defaultMetadataArgs.getOrElse(Map.empty) ++ jmArgs),
-        archived = Option(false))
       jmMetadataAfterArchival <- CentaurCromwellClient.metadata(
         workflow = submittedWorkflow,
-        Option(CentaurCromwellClient.defaultMetadataArgs.getOrElse(Map.empty) ++ jmArgs),
+        args = Option(CentaurCromwellClient.defaultMetadataArgs.getOrElse(Map.empty) ++ jmArgs),
         archived = Option(true))
       jmMetadataObjectBeforeArchival <- IO.fromTry(Try(removeMetadataSourceFromJsObject(jmMetadataBeforeArchival.value.parseJson.asJsObject)))
       jmMetadataObjectAfterArchival <- IO.fromTry(Try(removeMetadataSourceFromJsObject(jmMetadataAfterArchival.value.parseJson.asJsObject)))
-      _ <- validateMetadataJson(jmMetadataObjectBeforeArchival, jmMetadataObjectAfterArchival, submittedWorkflow, workflow)
+      _ <- validateMetadataJson(testType = s"assertJobManagerStyleMetadataDidNotChange ($testContext)", jmMetadataObjectBeforeArchival, jmMetadataObjectAfterArchival, submittedWorkflow, workflow)
     } yield ()
   }
 
-  def validateJobManagerStyleMetadata(submittedWorkflow: SubmittedWorkflow,
-                                      workflow: Workflow,
-                                      originalMetadata: String,
-                                      validateArchived: Option[Boolean] = None): Test[Unit] = new Test[Unit] {
+  def fetchAndValidateJobManagerStyleMetadata(submittedWorkflow: SubmittedWorkflow,
+                                              workflow: Workflow,
+                                              prefetchedOriginalNonSubWorkflowMetadata: Option[String],
+                                              validateArchived: Option[Boolean] = None): Test[WorkflowMetadata] = new Test[WorkflowMetadata] {
 
-    override def run: IO[Unit] = for {
+    // If the non-subworkflow metadata was already fetched, there's no need to fetch it again.
+    def originalMetadataStringIO: IO[String] = prefetchedOriginalNonSubWorkflowMetadata match {
+      case Some(nonSubworkflowMetadata) => IO.pure(nonSubworkflowMetadata)
+      case None => fetchMetadata(submittedWorkflow, expandSubworkflows = false, validateArchived).map(_.value)
+    }
+
+    override def run: IO[WorkflowMetadata] = for {
+      originalMetadata <- originalMetadataStringIO
       jmMetadata <- CentaurCromwellClient.metadata(
         workflow = submittedWorkflow,
         Option(CentaurCromwellClient.defaultMetadataArgs.getOrElse(Map.empty) ++ jmArgs),
@@ -818,8 +858,8 @@ object Operations extends StrictLogging {
       jmMetadataObject <- IO.fromTry(Try(jmMetadata.value.parseJson.asJsObject))
       expectation <- IO.fromTry(Try(extractJmStyleMetadataFields(originalMetadata.parseJson.asJsObject)))
 
-      validationUnit <- validateMetadataJson(expectation, jmMetadataObject, submittedWorkflow, workflow)
-    } yield validationUnit
+      _ <- validateMetadataJson(testType = s"fetchAndValidateJobManagerStyleMetadata (initial fetch)", expectation, jmMetadataObject, submittedWorkflow, workflow)
+    } yield jmMetadata
   }
 
   val oneWordIncludeKeys = List(
@@ -876,67 +916,114 @@ object Operations extends StrictLogging {
     JsObject(workflowLevelWithOneWordIncludes.fields ++ callsField)
   }
 
-  def waitForArchive(submittedWorkflow: SubmittedWorkflow, workflowDefinition: Workflow): Test[Unit] = {
-    new Test[Unit] {
+  def waitForArchivedStatus(submittedWorkflow: SubmittedWorkflow,
+                            workflowDefinition: Workflow): Test[Unit] = new Test[Unit] {
+    override def run: IO[Unit] =
 
-      def validateMetadataArchiveStatus(status: String): IO[Boolean] = {
-        logger.info(s"Validating archive status '$status for workflow ID: ${submittedWorkflow.id}'")
-        if (status == "Archived") {
+      if (CentaurConfig.expectCarbonite) {
+        (for {
+          _ <- waitForArchiveStatus(
+            submittedWorkflow,
+            workflowDefinition,
+            anticipatedEventualArchiveStatus = "Archived",
+            anticipatedIntermediateArchiveStatuses = Set("Unarchived"))
+          _ <- validateMetadataSource(submittedWorkflow, workflowDefinition, expectedSource = "Archived")
+        } yield ()).timeoutTo(
+          CentaurConfig.metadataConsistencyTimeout,
+          fallback = IO.raiseError(new Exception(s"Timeout waiting for archive status to reach Archived within ${CentaurConfig.metadataConsistencyTimeout}")))
+      } else {
+        IO.pure(())
+      }
+  }
+
+  def extractWorkflowEndTime(metadata: WorkflowMetadata) = IO.fromTry( Try {
+    val raw = metadata.value.parseJson.asJsObject.fields("end").asInstanceOf[JsString].value
+    OffsetDateTime.parse(raw)
+  })
+
+  def validateNotTooSoon(eventName: String, previousTimestamp: OffsetDateTime, minimumDurationSince: FiniteDuration): IO[Unit] = {
+    val mustBeAfter = previousTimestamp.plusNanos(minimumDurationSince.toNanos)
+    val currentTime: OffsetDateTime = OffsetDateTime.now
+    if (currentTime.isAfter(mustBeAfter)) IO.pure(())
+    else IO.raiseError(new Exception(s"$eventName happened too soon. Expected this event at or after the timestamp ($previousTimestamp + $minimumDurationSince) or later, but instead it happened at $currentTime"))
+  }
+
+  def waitForArchivedAndPurgedStatus(submittedWorkflow: SubmittedWorkflow,
+                                     workflowDefinition: Workflow,
+                                     workflowCompletionTime: OffsetDateTime): Test[Unit] = new Test[Unit] {
+    override def run: IO[Unit] = {
+      if (CentaurConfig.expectCarbonite) {
+        logger.info(s"Expecting archive deletion of ${submittedWorkflow.id.toString}")
+        (for {
+          _ <- waitForArchiveStatus(
+            submittedWorkflow,
+            workflowDefinition,
+            anticipatedEventualArchiveStatus = "ArchivedAndPurged",
+            anticipatedIntermediateArchiveStatuses = Set("Archived"))
+          _ <- validateNotTooSoon(eventName = "archive deletion", previousTimestamp = workflowCompletionTime, minimumDurationSince = CentaurConfig.metadataDeletionMinimumWait)
+        } yield ()).timeoutTo(
+          CentaurConfig.metadataDeletionMaximumWait,
+          fallback = IO.raiseError(new Exception(s"Timeout waiting for archive status to reach ArchivedAndPurged within ${CentaurConfig.metadataDeletionMaximumWait}")))
+      } else {
+        logger.info(s"Not assessing archive deletion of ${submittedWorkflow.id.toString}")
+        IO.pure(())
+      }
+    }
+  }
+
+  def waitForArchiveStatus(submittedWorkflow: SubmittedWorkflow,
+                           workflowDefinition: Workflow,
+                           anticipatedEventualArchiveStatus: String,
+                           anticipatedIntermediateArchiveStatuses: Set[String]): IO[Unit] = {
+
+    logger.info(s"Anticipating archive status '$anticipatedEventualArchiveStatus' for workflow ID: ${submittedWorkflow.id}...'")
+    def validateMetadataArchiveStatus(status: String): IO[Boolean] = {
+        if (status == anticipatedEventualArchiveStatus) {
+          // We reached the expected archive status. Woohoo.
           IO.pure(true)
-        }  else if (status == "Unarchived" ) {
+        }  else if (anticipatedIntermediateArchiveStatuses.contains(status)) {
+          // We expected that we might see this status, but we're not done yet. Keep going
           IO.pure(false)
         } else {
-          IO.fromTry(Failure(new Exception(s"Expected Archived but got $status")))
+          IO.fromTry(Failure(new Exception(s"Got unanticipated archive status ($status) while waiting for $anticipatedEventualArchiveStatus")))
         }
       }
 
-      def checkArchived(): IO[(Boolean, Boolean)] = for {
+      def checkArchived(): IO[Boolean] = for {
         archiveStatus <- CentaurCromwellClient.archiveStatus(submittedWorkflow.id)
         isArchived <- validateMetadataArchiveStatus(archiveStatus)
-        isMetadataSourceArchived <- validateMetadataSourceArchived()
-      } yield (isArchived, isMetadataSourceArchived)
-
-      def validateMetadataSourceArchived(): IO[Boolean] = for {
-        metadataSource <- CentaurCromwellClient.metadataWithId(submittedWorkflow.id).map(_.asFlat.stringifyValues.get("metadataSource"))
-        isMetadataSourceArchived <- {
-          if (metadataSource.contains(JsString("Archived"))) {
-            IO.pure(true)
-          } else if (metadataSource.contains(JsString("Unarchived"))) {
-            IO.pure(false)
-          } else {
-            IO.raiseError(CentaurTestException(
-              s"`Metadata` endpoint returned unknown value for `metadataSource`: $metadataSource",
-              workflowDefinition,
-              submittedWorkflow
-            ))
-          }
-        }
-      } yield isMetadataSourceArchived
+      } yield isArchived
 
       def eventuallyArchived(): IO[Unit] = {
         checkArchived() flatMap {
-          case (true, true) => IO.pure(())
-          case (true, false) =>
-            IO.raiseError(CentaurTestException(
-              "`Query` endpoint returns metadata status \"Archived\" but `metadata` endpoint returns metadata source \"Unarchived\"",
-              workflowDefinition,
-              submittedWorkflow
-            ))
-          case (false, true) | (false, false) => for {
+          case true => IO.pure(())
+          case false => for {
             _ <- IO.sleep(2.seconds)
             recurse <- eventuallyArchived()
           } yield recurse
         }
       }
+    eventuallyArchived()
 
-      override def run: IO[Unit] = {
-        if (CentaurConfig.expectCarbonite) {
-          eventuallyArchived().timeout(CentaurConfig.metadataConsistencyTimeout)
-        } else {
-          IO.pure(())
+  }
+
+  def validateMetadataSource(submittedWorkflow: SubmittedWorkflow,
+                             workflowDefinition: Workflow,
+                             expectedSource: String): IO[Unit] = {
+      for {
+        metadataSource <- CentaurCromwellClient.metadataWithId(submittedWorkflow.id).map(_.asFlat.stringifyValues.get("metadataSource"))
+        _ <- {
+          if (metadataSource.contains(JsString(expectedSource))) {
+            IO.pure(())
+          } else {
+            IO.raiseError(CentaurTestException(
+              s"`Metadata` returned an unexpected `metadataSource`: $metadataSource (expected $expectedSource)",
+              workflowDefinition,
+              submittedWorkflow
+            ))
+          }
         }
-      }
-    }
+      } yield ()
   }
 
   /**

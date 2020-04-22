@@ -189,7 +189,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                    buildUpdatedSummary:
                                    (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                                      => WorkflowMetadataSummaryEntry)
-                                  (implicit ec: ExecutionContext): Future[(Long, Long)] = {
+                                  (implicit ec: ExecutionContext): Future[Long] = {
     val action = for {
       rawMetadataEntries <- dataAccess.metadataEntriesToSummarizeQuery(limit.toLong).result
       _ <-
@@ -207,8 +207,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
         )
       summarizedMetadataEntryIds = rawMetadataEntries.flatMap(_.metadataEntryId)
       _ <- deleteSummaryQueueEntriesByMetadataJournalIds(summarizedMetadataEntryIds)
-      unsummarizedTotal <- countSummaryQueueEntries()
-    } yield (summarizedMetadataEntryIds.length.toLong, unsummarizedTotal.toLong)
+    } yield summarizedMetadataEntryIds.length.toLong
 
     runTransaction(action)
   }
@@ -398,4 +397,14 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     )
   }
 
+  override def countRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp)(implicit ec: ExecutionContext): Future[Int] = {
+    runAction(
+      dataAccess.countRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp((archiveStatus, thresholdTimestamp)).result
+    )
+  }
+
+  override def getSummaryQueueSize()(implicit ec: ExecutionContext): Future[Int] =
+    runAction(
+      countSummaryQueueEntries()
+    )
 }

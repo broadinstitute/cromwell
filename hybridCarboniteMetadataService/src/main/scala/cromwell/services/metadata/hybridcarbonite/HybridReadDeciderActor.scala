@@ -4,8 +4,8 @@ import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import cromwell.services.FailedMetadataJsonResponse
 import cromwell.services.metadata.MetadataQuery.{MetadataSourceForceArchived, MetadataSourceForceUnarchived}
 import cromwell.services.metadata.MetadataService._
+import cromwell.services.metadata.WorkflowQueryKey
 import cromwell.services.metadata.hybridcarbonite.HybridReadDeciderActor._
-import cromwell.services.metadata.{MetadataArchiveStatus, WorkflowQueryKey}
 
 import scala.concurrent.ExecutionContext
 
@@ -96,7 +96,7 @@ object HybridReadDeciderActor {
 
   implicit class EnhancedWorkflowQuerySuccess(val success: WorkflowQuerySuccess) extends AnyVal {
     def hasMultipleSummaryRows: Boolean = success.response.results.size > 1
-    def isCarbonited: Boolean = success.response.results.headOption.exists(_.metadataArchiveStatus == MetadataArchiveStatus.Archived)
+    def isCarbonited: Boolean = success.response.results.headOption.exists(_.metadataArchiveStatus.isArchived)
   }
 
   implicit class EnhancedMetadataReadAction(val action: BuildMetadataJsonAction) extends AnyVal {

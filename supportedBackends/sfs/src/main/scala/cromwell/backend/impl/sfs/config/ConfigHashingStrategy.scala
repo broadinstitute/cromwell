@@ -22,10 +22,10 @@ object ConfigHashingStrategy {
   def apply(hashingConfig: Config): ConfigHashingStrategy = {
       val checkSiblingMd5 = hashingConfig.as[Option[Boolean]]("check-sibling-md5").getOrElse(false)
 
-      // Fingerprint strategy by default checks the first 10 MB (10485760 bytes) for performance reasons.
+      // Fingerprint strategy by default checks the first 10 MiB (10485760 bytes) for performance reasons.
       // 100 MB will take to much time on network file systems. 1 MB might not be unique enough.
       // The value is user configurable.
-      lazy val fingerprintSize = hashingConfig.as[Option[Long]]("fingerprint-size").getOrElse(10485760L)
+      lazy val fingerprintSize = hashingConfig.as[Option[Long]]("fingerprint-size").getOrElse(10L * 1024 * 1024)
 
       hashingConfig.as[Option[String]]("hashing-strategy").getOrElse("file") match {
         case "path" => HashPathStrategy(checkSiblingMd5)

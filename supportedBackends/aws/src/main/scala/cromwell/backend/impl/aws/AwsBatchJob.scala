@@ -188,7 +188,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                   |  jobQueueArn: ${runtimeAttributes.queueArn}
                   |  taskId: $taskId
                   |  job definition arn: $definitionArn
-                  |  executionScript: $scriptKey
+                  |  executionScript: s3://${runtimeAttributes.scriptS3BucketName}/$scriptKeyPrefix$scriptKey
                   |  """.stripMargin)
 
       val outputinfo = outputs.map(o => "%s,%s,%s,%s".format(o.name, o.s3key, o.local, o.mount))
@@ -269,8 +269,6 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
       Log.info(s"""Found script $bucketName/$scriptKeyPrefix$key""")
     } catch {
       case _: NoSuchKeyException =>  //this happens if there is no object with that key in the bucket
-        Log.info(s"Script $key not found in bucket $bucketName. Creating script with content:\n$commandLine")
-
         val putRequest = PutObjectRequest.builder()
           .bucket(bucketName) //remove the "s3://" prefix
           .key(scriptKeyPrefix + key)

@@ -156,7 +156,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
    * commandScriptContents here
    */
   lazy val batchJob: AwsBatchJob = {
-    val job = AwsBatchJob(
+    AwsBatchJob(
       jobDescriptor,
       runtimeAttributes,
       instantiatedCommand.commandString,
@@ -167,10 +167,6 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       jobPaths, Seq.empty[AwsBatchParameter],
       configuration.awsConfig.region,
       Option(configuration.awsAuth))
-
-    Log.info(s"${this.getClass.getName} initialized AwsBatchJob: ${job.toString}")
-
-    job
   }
   /* Tries to abort the job in flight
    *

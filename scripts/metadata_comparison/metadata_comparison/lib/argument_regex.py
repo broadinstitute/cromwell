@@ -46,19 +46,3 @@ def gcs_path_regex_validator(value):
     else:
         msg = f'Invalid GCS path {value}. Expected {gcs_regex.pattern}'
         raise argparse.ArgumentTypeError(msg)
-
-
-def get_operation_id_number(value):
-    """
-    Validates then extracts from PAPI operation IDs just the final number.
-    eg:
-        'projects/project_name/operations/01234567891011121314' -> '01234567891011121314'
-    """
-
-    operation_regex = re.compile('^.*/([^/]*)')
-    m = operation_regex.search(value)
-    if m:
-        return m.group(1)
-    else:
-        msg = f'Unexpected operation ID {value}. Expected something like {operation_regex.pattern}'
-        raise Exception(msg)

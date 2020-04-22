@@ -25,6 +25,7 @@ import google.auth
 from googleapiclient.discovery import build as google_client_build
 import logging as log
 from metadata_comparison.lib.argument_regex import *
+from metadata_comparison.lib.operation_ids import *
 
 logger = log.getLogger('metadata_comparison.extractor')
 

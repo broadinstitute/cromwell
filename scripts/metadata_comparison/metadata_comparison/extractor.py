@@ -63,33 +63,6 @@ def fetch_raw_workflow_metadata(cromwell_url, workflow):
     return result.content, result.json()
 
 
-def find_operation_ids_in_metadata(json_metadata):
-    """Finds all instances of PAPI operations IDs in a workflow, and the API to call to retrieve metadata"""
-    # {
-    #   "calls": {
-    #     "workflow_name.task_name": [
-    #       {
-    #         "backend": "Papi"
-    #         "jobId": "projects/broad-dsde-cromwell-dev/operations/5788303950667477684",
-    papi_operation_to_api_mapping = {}
-
-    def find_operation_ids_in_calls(calls):
-        for callname in calls:
-            attempts = calls[callname]
-            for attempt in attempts:
-                operation_id = attempt.get('jobId')
-                subWorkflowMetadata = attempt.get('subWorkflowMetadata')
-                if operation_id:
-                    api = 'lifesciences' if 'beta' in attempt.get('backend', '').lower() else 'genomics'
-                    papi_operation_to_api_mapping[operation_id] = api
-                if subWorkflowMetadata:
-                    find_operation_ids_in_calls(subWorkflowMetadata.get('calls', {}))
-
-    find_operation_ids_in_calls(json_metadata.get('calls', {}))
-
-    return papi_operation_to_api_mapping
-
-
 def read_papi_v2alpha1_operation_metadata(operation_id, api, genomics_v2alpha1_client):
     """Reads the operations metadata for a pipelines API v2alpha1 job ID. Returns a python dict"""
     logger.info(f'Reading PAPI v2alpha1 operation metadata for {operation_id}...')

@@ -25,3 +25,32 @@ def get_operation_id_number(value):
 
 def determine_papi_version_from_operation_id(value):
     return Exception("Not Implemented")
+
+
+def find_operation_ids_in_metadata(json_metadata):
+    """Finds all instances of PAPI operations IDs in a workflow"""
+    # Eg given:
+    # {
+    #   "calls": {
+    #     "workflow_name.task_name": [
+    #       {
+    #         "jobId": "projects/broad-dsde-cromwell-dev/operations/01234567891011121314",
+    # ...
+    #
+    # We want to extract "projects/broad-dsde-cromwell-dev/operations/01234567891011121314"
+    papi_operations = []
+
+    def find_operation_ids_in_calls(calls):
+        for callname in calls:
+            attempts = calls[callname]
+            for attempt in attempts:
+                operation_id = attempt.get('jobId')
+                subWorkflowMetadata = attempt.get('subWorkflowMetadata')
+                if operation_id:
+                    papi_operations.append(operation_id)
+                if subWorkflowMetadata:
+                    find_operation_ids_in_calls(subWorkflowMetadata.get('calls', {}))
+
+    find_operation_ids_in_calls(json_metadata.get('calls', {}))
+
+    return papi_operations

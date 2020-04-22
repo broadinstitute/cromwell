@@ -131,19 +131,25 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     val outputCopyCommand = outputs.map {
       case output: AwsBatchFileOutput if output.local.pathAsString.endsWith("*") => "" //filter out globs
       case output: AwsBatchFileOutput if output.name.endsWith(".list") && output.name.contains("glob-") => {
-        // need to process this list and de-localize each file
-        //if the list file actually exists
+        /*
+         * Need to process this list and de-localize each file if the list file actually exists
+         * if it doesn't exist then 'touch' it so that it can be copied otherwise later steps will get upset
+         * about the missing file
+         */
         s"""
-           |if [ -f ${output.local.pathAsString} ]; then
-           |  while IFS= read -r file; do
-           |    if [ -f $$file ]; then $s3Cmd $$file ${jobPaths.callRoot.pathAsString}/$$file ; fi
-           |  done < ${output.local.pathAsString}
-           |fi
+           |touch ${output.local.pathAsString}
+           |while IFS= read -r file; do
+           |    touch $$file
+           |    $s3Cmd cp $$file ${jobPaths.callRoot.pathAsString}/$$file
+           |done < ${output.local.pathAsString}
+           |$s3Cmd cp ${output.local.pathAsString} ${output.s3key}
            |""".stripMargin
-        //get each line and make an s3 cp command
       }
       case output: AwsBatchFileOutput if output.s3key.startsWith("s3://") => {
-        s"if [ -f ${output.local.pathAsString} ]; then $s3Cmd cp ${output.local.pathAsString} ${output.s3key} ; fi"
+        s"""
+           |touch ${output.local.pathAsString}
+           |$s3Cmd cp ${output.local.pathAsString} ${output.s3key}
+           |""".stripMargin
       }
       case _ => ""
     }.mkString("\n") + "\n" +
@@ -156,27 +162,14 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
     val preamble =
       s"""
-         |#exit on any line causing an error
-         |set -e
-         |
-         |#trap any error and handle with the final() function
-         |trap 'final $$? $$LINENO' ERR
-         |
-         |final() {
-         |  #create or overwrite rc.txt, something failed
-         |  echo $$1 > ${jobPaths.returnCodeFilename}
-         |  echo "Error $$1 occurred on line $$2 of reconfigured script"
-         |  $s3Cmd cp ${jobPaths.returnCodeFilename} ${jobPaths.callRoot.pathAsString}/${jobPaths.returnCodeFilename}
-         |}
          |mkdir $workDir && chmod 777 $workDir
          |cd $workDir
          |$inputCopyCommand
          |""".stripMargin
 
-    val postScript = s"set +e \n$outputCopyCommand"
 
-    //insert the preamble at the insertion point and the postscript at the end
-    replaced.patch(insertionPoint, preamble, 0) + postScript
+    //insert the preamble at the insertion point and the postscript copy command at the end
+    replaced.patch(insertionPoint, preamble, 0) + outputCopyCommand
   }
 
 

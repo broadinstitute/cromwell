@@ -121,7 +121,7 @@ final case class FingerprintStrategy(checkSiblingMd5: Boolean, fingerprintSize: 
       HashFileXxH64StrategyMethods.xxh64sum(file.newInputStream, maxSize = fingerprintSize)
       }
     }
-  override val description = "fingerprint the file with last modified time, size and a xxh64 hash of the first 10 mb"
+  override val description = "fingerprint the file with last modified time, size and a xxh64 hash of the first part of the file"
 }
 
 object HashFileXxH64StrategyMethods {

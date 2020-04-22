@@ -245,13 +245,13 @@ class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenP
 
     checkSibling.isInstanceOf[FingerprintStrategy] shouldBe true
     checkSibling.checkSiblingMd5 shouldBe true
-    checkSibling.toString shouldBe "Call caching hashing strategy: Check first for sibling md5 and if not found fingerprint the file with last modified time, size and a xxh64 hash of the first 10 mb."
+    checkSibling.toString shouldBe "Call caching hashing strategy: Check first for sibling md5 and if not found fingerprint the file with last modified time, size and a xxh64 hash of the first part of the file."
 
     val dontCheckSibling = makeStrategy("fingerprint", Option(false))
 
     dontCheckSibling.isInstanceOf[FingerprintStrategy] shouldBe true
     dontCheckSibling.checkSiblingMd5 shouldBe false
-    dontCheckSibling.toString shouldBe "Call caching hashing strategy: fingerprint the file with last modified time, size and a xxh64 hash of the first 10 mb."
+    dontCheckSibling.toString shouldBe "Call caching hashing strategy: fingerprint the file with last modified time, size and a xxh64 hash of the first part of the file."
 
   }
 

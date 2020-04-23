@@ -39,7 +39,7 @@ def read_json_files(*paths):
 def compare_jsons(*pathsAndJsons):
     """
     Uses pandas library to convert JSONs into into dataframes, and concatenate those dataframes into a single one.
-    Performs sanity check, producing exception, if at least one of the JSONs has doesn't have matching subset of keys.
+    Performs sanity check, producing exception, if at least one of the JSONs doesn't have matching subset of keys.
     """
     result = pandas.DataFrame()
     lastCols = []
@@ -61,7 +61,7 @@ if __name__ == "__main__":
         description='Compare performance metadata JSONs and produce CSV result')
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('--json_paths', metavar='JSONPATH', type=Path, nargs='+', help='Paths to JSON files')
-    parser.add_argument('--output_path', metavar='OUTPUTPATH', type=Path, nargs=1, help='Path for output CSV file')
+    parser.add_argument('--output_path', metavar='OUTPUTPATH', type=Path, nargs=1, help='Path to output CSV file')
 
     logger.info("Starting Comparer operation.")
 

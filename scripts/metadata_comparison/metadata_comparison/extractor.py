@@ -25,19 +25,9 @@ import google.auth
 from googleapiclient.discovery import build as google_client_build
 import logging as log
 from metadata_comparison.lib.argument_regex import *
+import metadata_comparison.lib.util as util
 
 logger = log.getLogger('metadata_comparison.extractor')
-
-def set_log_verbosity(verbose):
-    if verbose:
-        log.basicConfig(format='[%(asctime)s] [%(name)s] %(message)s', level=log.INFO)
-    else:
-        log.basicConfig(format='[%(asctime)s] [%(name)s] %(message)s', level=log.WARNING)
-
-
-def quieten_chatty_imports():
-    log.getLogger('googleapiclient.discovery_cache').setLevel(log.ERROR)
-    log.getLogger('googleapiclient.discovery').setLevel(log.WARNING)
 
 
 def uploadLocalCheckout():
@@ -96,29 +86,16 @@ def read_papi_v2alpha1_operation_metadata(operation_id, api, genomics_v2alpha1_c
     return result
 
 
-def upload_blob(bucket_name, source_file_contents, destination_blob_name, gcs_storage_client):
-    """Uploads a file to the cloud"""
-    # bucket_name = "your-bucket-name"
-    # source_file_contents = "... some file contents..."
-    # destination_blob_name = "storage/object/name"
-
-    bucket = gcs_storage_client.bucket(bucket_name)
-
-    logger.info(f'Uploading file content to gs://{bucket_name}/{destination_blob_name}...')
-    blob = bucket.blob(destination_blob_name)
-    blob.upload_from_string(source_file_contents)
-
-
 def upload_workflow_metadata_json(bucket_name, raw_workflow_metadata, workflow_gcs_base_path, gcs_storage_client):
     workflow_gcs_metadata_upload_path = f'{workflow_gcs_base_path}/metadata.json'
-    upload_blob(bucket_name, raw_workflow_metadata, workflow_gcs_metadata_upload_path, gcs_storage_client)
+    util.upload_blob(bucket_name, raw_workflow_metadata, workflow_gcs_metadata_upload_path, gcs_storage_client, logger)
 
 
 def upload_operations_metadata_json(bucket_name, operation_id, operations_metadata, workflow_gcs_base_path, gcs_storage_client):
     """Uploads metadata to cloud storage, as json"""
     operation_upload_path = f'{workflow_gcs_base_path}/operations/{get_operation_id_number(operation_id)}.json'
     formatted_metadata = json.dumps(operations_metadata, indent=2)
-    upload_blob(bucket_name, formatted_metadata, operation_upload_path, gcs_storage_client)
+    util.upload_blob(bucket_name, formatted_metadata, operation_upload_path, gcs_storage_client, logger)
 
 
 def process_workflow(cromwell_url, gcs_bucket, gcs_path, gcs_storage_client, genomics_v2alpha1_client, workflow):
@@ -140,8 +117,8 @@ if __name__ == "__main__":
     parser.add_argument('workflows', metavar='WORKFLOW', type=workflow_regex_validator, nargs='+', help='Workflows to process')
 
     args = parser.parse_args()
-    set_log_verbosity(args.verbose)
-    quieten_chatty_imports()
+    util.set_log_verbosity(args.verbose)
+    util.quieten_chatty_imports()
 
     cromwell_url = args.cromwell_url[0]
     gcs_bucket, gcs_path = args.gcs_path[0]

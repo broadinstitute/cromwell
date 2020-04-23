@@ -5,6 +5,7 @@ from metadata_comparison.lib.argument_regex import *
 from metadata_comparison.extractor import *
 import json
 
+
 class ExtractorTestMethods(unittest.TestCase):
 
     def read_resource(self, filename):

@@ -25,19 +25,9 @@ import google.auth
 from googleapiclient.discovery import build as google_client_build
 import logging as log
 from metadata_comparison.lib.argument_regex import *
+import metadata_comparison.lib.util as util
 
 logger = log.getLogger('metadata_comparison.extractor')
-
-def set_log_verbosity(verbose):
-    if verbose:
-        log.basicConfig(format='[%(asctime)s] [%(name)s] %(message)s', level=log.INFO)
-    else:
-        log.basicConfig(format='[%(asctime)s] [%(name)s] %(message)s', level=log.WARNING)
-
-
-def quieten_chatty_imports():
-    log.getLogger('googleapiclient.discovery_cache').setLevel(log.ERROR)
-    log.getLogger('googleapiclient.discovery').setLevel(log.WARNING)
 
 
 def uploadLocalCheckout():
@@ -70,23 +60,11 @@ def find_operation_ids_in_metadata(json_metadata):
     #       {
     #         "backend": "Papi"
     #         "jobId": "projects/broad-dsde-cromwell-dev/operations/5788303950667477684",
-    papi_operation_to_api_mapping = {}
+    def call_fn(operation_mapping, operation_id, path, attempt):
+        api = 'lifesciences' if 'beta' in attempt.get('backend', '').lower() else 'genomics'
+        operation_mapping[operation_id] = api
 
-    def find_operation_ids_in_calls(calls):
-        for callname in calls:
-            attempts = calls[callname]
-            for attempt in attempts:
-                operation_id = attempt.get('jobId')
-                subWorkflowMetadata = attempt.get('subWorkflowMetadata')
-                if operation_id:
-                    api = 'lifesciences' if 'beta' in attempt.get('backend', '').lower() else 'genomics'
-                    papi_operation_to_api_mapping[operation_id] = api
-                if subWorkflowMetadata:
-                    find_operation_ids_in_calls(subWorkflowMetadata.get('calls', {}))
-
-    find_operation_ids_in_calls(json_metadata.get('calls', {}))
-
-    return papi_operation_to_api_mapping
+    return util.build_papi_operation_mapping(json_metadata, call_fn)
 
 
 def read_papi_v2alpha1_operation_metadata(operation_id, api, genomics_v2alpha1_client):
@@ -96,29 +74,16 @@ def read_papi_v2alpha1_operation_metadata(operation_id, api, genomics_v2alpha1_c
     return result
 
 
-def upload_blob(bucket_name, source_file_contents, destination_blob_name, gcs_storage_client):
-    """Uploads a file to the cloud"""
-    # bucket_name = "your-bucket-name"
-    # source_file_contents = "... some file contents..."
-    # destination_blob_name = "storage/object/name"
-
-    bucket = gcs_storage_client.bucket(bucket_name)
-
-    logger.info(f'Uploading file content to gs://{bucket_name}/{destination_blob_name}...')
-    blob = bucket.blob(destination_blob_name)
-    blob.upload_from_string(source_file_contents)
-
-
 def upload_workflow_metadata_json(bucket_name, raw_workflow_metadata, workflow_gcs_base_path, gcs_storage_client):
     workflow_gcs_metadata_upload_path = f'{workflow_gcs_base_path}/metadata.json'
-    upload_blob(bucket_name, raw_workflow_metadata, workflow_gcs_metadata_upload_path, gcs_storage_client)
+    util.upload_blob(bucket_name, raw_workflow_metadata, workflow_gcs_metadata_upload_path, gcs_storage_client, logger)
 
 
 def upload_operations_metadata_json(bucket_name, operation_id, operations_metadata, workflow_gcs_base_path, gcs_storage_client):
     """Uploads metadata to cloud storage, as json"""
     operation_upload_path = f'{workflow_gcs_base_path}/operations/{get_operation_id_number(operation_id)}.json'
     formatted_metadata = json.dumps(operations_metadata, indent=2)
-    upload_blob(bucket_name, formatted_metadata, operation_upload_path, gcs_storage_client)
+    util.upload_blob(bucket_name, formatted_metadata, operation_upload_path, gcs_storage_client, logger)
 
 
 def process_workflow(cromwell_url, gcs_bucket, gcs_path, gcs_storage_client, genomics_v2alpha1_client, workflow):
@@ -131,6 +96,7 @@ def process_workflow(cromwell_url, gcs_bucket, gcs_path, gcs_storage_client, gen
         upload_operations_metadata_json(gcs_bucket, id, operation_metadata, workflow_gcs_base_path, gcs_storage_client)
     upload_workflow_metadata_json(gcs_bucket, raw_metadata, workflow_gcs_base_path, gcs_storage_client)
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Extract metadata and operation details for workflows and upload to GCS')
@@ -140,8 +106,8 @@ if __name__ == "__main__":
     parser.add_argument('workflows', metavar='WORKFLOW', type=workflow_regex_validator, nargs='+', help='Workflows to process')
 
     args = parser.parse_args()
-    set_log_verbosity(args.verbose)
-    quieten_chatty_imports()
+    util.set_log_verbosity(args.verbose)
+    util.quieten_chatty_imports()
 
     cromwell_url = args.cromwell_url[0]
     gcs_bucket, gcs_path = args.gcs_path[0]

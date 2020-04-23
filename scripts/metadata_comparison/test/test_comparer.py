@@ -22,6 +22,9 @@ class ComparerTestMethods(unittest.TestCase):
         actualDf = compare_jsons(json1, json2)
         expectedDf = pandas.read_csv(f"{self.baseResourcePath}/valid_comparison_result.csv", index_col = 0)
 
+        print(f"expected dataframe:\n{expectedDf}")
+        print(f"\nactual dataframe:\n{actualDf}")
+
         self.assertTrue(pandas.DataFrame.equals(expectedDf, actualDf))
 
 

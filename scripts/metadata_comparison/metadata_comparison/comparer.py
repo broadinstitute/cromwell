@@ -2,7 +2,7 @@
 #
 # comparer.py
 #
-# Purpose: Compare performance metadata JSON files produced by Digester and upload result to GCS in the CSV format
+# Purpose: Compare performance metadata JSON files produced by Digester and produce result in CSV format
 #
 # Usage: python3 comparer.py [-h] [-v] [--json_paths JSONPATH [JSONPATH ...]] [--output_path OUTPUTPATH]
 #
@@ -62,6 +62,8 @@ if __name__ == "__main__":
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('--json_paths', metavar='JSONPATH', type=Path, nargs='+', help='Paths to JSON files')
     parser.add_argument('--output_path', metavar='OUTPUTPATH', type=Path, nargs=1, help='Path for output CSV file')
+
+    logger.info("Starting Comparer operation.")
 
     args = parser.parse_args()
     set_log_verbosity(args.verbose)

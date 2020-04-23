@@ -15,16 +15,9 @@ import argparse
 import json
 import pandas
 from pathlib import Path
-import logging as log
+from metadata_comparison.lib.logging import *
 
 logger = log.getLogger('metadata_comparison.comparer')
-
-def set_log_verbosity(verbose):
-    if verbose:
-        log.basicConfig(format='[%(asctime)s] [%(name)s] %(message)s', level=log.INFO)
-    else:
-        log.basicConfig(format='[%(asctime)s] [%(name)s] %(message)s', level=log.WARNING)
-
 
 def read_json_files(*paths):
     """
@@ -32,9 +25,11 @@ def read_json_files(*paths):
     """
     jsons = []
     for path in paths:
-        jsons.append([path, json.load(open(path,))])
+        with open(path,) as file:
+            jsons.append([path, json.load(file)])
 
     return jsons
+
 
 def compare_jsons(*pathsAndJsons):
     """
@@ -57,6 +52,7 @@ def compare_jsons(*pathsAndJsons):
 
     return result
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Compare performance metadata JSONs and produce CSV result')
@@ -64,10 +60,9 @@ if __name__ == "__main__":
     parser.add_argument('--json_paths', metavar='JSONPATH', type=Path, nargs='+', help='Paths to JSON files')
     parser.add_argument('--output_path', metavar='OUTPUTPATH', type=Path, nargs=1, help='Path to output CSV file')
 
-    logger.info("Starting Comparer operation.")
-
     args = parser.parse_args()
     set_log_verbosity(args.verbose)
+    logger.info("Starting Comparer operation.")
 
     pathsAndJsons = read_json_files(*args.json_paths)
     comparisonResultDf = compare_jsons(*pathsAndJsons)

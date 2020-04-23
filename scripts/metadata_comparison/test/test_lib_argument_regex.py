@@ -2,6 +2,8 @@
 
 import unittest
 from metadata_comparison.lib.argument_regex import *
+from metadata_comparison.extractor import *
+import json
 
 class ExtractorTestMethods(unittest.TestCase):
 

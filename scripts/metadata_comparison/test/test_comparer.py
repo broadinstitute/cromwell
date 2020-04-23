@@ -38,21 +38,21 @@ class ComparerTestMethods(unittest.TestCase):
 
 
     def test_exception_on_missing_key(self):
-            json1 = self.readTestJson("performance_json1.json")
-            json2 = self.readTestJson("performance_json_missing_key.json")
-            with self.assertRaises(Exception) as context:
-                compare_jsons(json1, json2)
+        json1 = self.readTestJson("performance_json1.json")
+        json2 = self.readTestJson("performance_json_missing_key.json")
+        with self.assertRaises(Exception) as context:
+            compare_jsons(json1, json2)
 
-            self.assertTrue("doesn't have matching subset of columns" in str(context.exception))
+        self.assertTrue("doesn't have matching subset of columns" in str(context.exception))
 
 
     def test_exception_on_excessive_key(self):
-                json1 = self.readTestJson("performance_json1.json")
-                json2 = self.readTestJson("performance_json_excessive_key.json")
-                with self.assertRaises(Exception) as context:
-                    compare_jsons(json1, json2)
+        json1 = self.readTestJson("performance_json1.json")
+        json2 = self.readTestJson("performance_json_excessive_key.json")
+        with self.assertRaises(Exception) as context:
+            compare_jsons(json1, json2)
 
-                self.assertTrue("doesn't have matching subset of columns" in str(context.exception))
+        self.assertTrue("doesn't have matching subset of columns" in str(context.exception))
 
 
 if __name__ == '__main__':

@@ -53,6 +53,10 @@ def compare_jsons(*pathsAndJsons):
         df.index = [pathAndJson[0]]
         result = pandas.concat([result, df[cols]])
 
+    renameVersionColumnTo = "digester format version"
+    result.rename(columns = {versionColumnName: renameVersionColumnTo}, inplace = True)
+    result.index.name = "input file name"
+
     return result
 
 

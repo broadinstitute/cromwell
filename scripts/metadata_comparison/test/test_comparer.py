@@ -22,10 +22,28 @@ class ComparerTestMethods(unittest.TestCase):
         actualDf = compare_jsons(json1, json2)
         expectedDf = pandas.read_csv(f"{self.baseResourcePath}/valid_comparison_result.csv", index_col = 0)
 
-        print(f"expected dataframe:\n{expectedDf}")
-        print(f"\nactual dataframe:\n{actualDf}")
+        areEqual = pandas.DataFrame.equals(expectedDf, actualDf)
+        if areEqual == False:
+            # will print out dataframe having `true` in cells, which matching values and `false` otherwise
+            print(expectedDf.eq(actualDf))
 
-        self.assertTrue(pandas.DataFrame.equals(expectedDf, actualDf))
+        self.assertTrue(areEqual)
+
+
+    def test_compare_valid_differently_sorted_jsons(self):
+        json1 = self.readTestJson("performance_json1.json")
+        json2 = self.readTestJson("performance_json2_differently_sorted.json")
+
+        # here we drop row names from dataframes `reset_index(drop = True)` in order to disregard file names during comparison
+        actualDf = compare_jsons(json1, json2).reset_index(drop = True)
+        expectedDf = pandas.read_csv(f"{self.baseResourcePath}/valid_comparison_result.csv", index_col = 0).reset_index(drop = True)
+
+        areEqual = pandas.DataFrame.equals(expectedDf, actualDf)
+        if areEqual == False:
+            # will print out dataframe having `true` in cells, which matching values and `false` otherwise
+            print(expectedDf.eq(actualDf))
+
+        self.assertTrue(areEqual)
 
 
     def test_exception_on_renamed_key(self):

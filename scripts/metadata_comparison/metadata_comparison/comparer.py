@@ -37,11 +37,14 @@ def compare_jsons(*pathsAndJsons):
     Performs sanity check, producing exception, if at least one of the JSONs doesn't have matching subset of keys.
     """
     columnToCompareNameEnding = ".overallRuntimeSeconds"
+    versionColumnName = "version"
     result = pandas.DataFrame()
     lastCols = []
     for pathAndJson in pathsAndJsons:
         df = pandas.json_normalize(pathAndJson[1])
-        cols = [c for c in df.columns if c[len(c)-len(columnToCompareNameEnding):] == columnToCompareNameEnding or c == 'version']
+        cols = [c for c in df.columns if c.endswith(columnToCompareNameEnding)]
+        cols.sort()
+        cols.insert(0, versionColumnName)
 
         if lastCols and lastCols != cols:
             raise Exception(f"JSON data at {pathAndJson[0]} doesn't have matching subset of columns. Expected: {lastCols} but got {cols}")

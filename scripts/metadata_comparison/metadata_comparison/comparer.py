@@ -48,7 +48,7 @@ def compare_jsons(*pathsAndJsons):
         cols = [c for c in df.columns if c[len(c)-8:] != '.attempt' or c == 'version']
 
         if lastCols and lastCols != cols:
-            raise Exception(f"JSON data at {pathAndJson[0]} doesn't have matching subsets of columns. Expected: {lastCols} but got {cols}")
+            raise Exception(f"JSON data at {pathAndJson[0]} doesn't have matching subset of columns. Expected: {lastCols} but got {cols}")
 
         lastCols = cols
         df.index = [pathAndJson[0]]

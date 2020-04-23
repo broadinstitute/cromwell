@@ -33,7 +33,7 @@ def set_log_verbosity(verbose):
         log.basicConfig(format='[%(asctime)s] [%(name)s] %(message)s', level=log.INFO)
     else:
         log.basicConfig(format='[%(asctime)s] [%(name)s] %(message)s', level=log.WARNING)
-        
+
 
 def quieten_chatty_imports():
     log.getLogger('googleapiclient.discovery_cache').setLevel(log.ERROR)
@@ -72,14 +72,20 @@ def find_operation_ids_in_metadata(json_metadata):
     #         "jobId": "projects/broad-dsde-cromwell-dev/operations/5788303950667477684",
     papi_operation_to_api_mapping = {}
 
-    calls = json_metadata.get('calls', {})
-    for callname in calls:
-        attempts = calls[callname]
-        for attempt in attempts:
-            operation_id = attempt.get('jobId')
-            if operation_id:
-                api = 'lifesciences' if 'beta' in attempt.get('backend', '').lower() else 'genomics'
-                papi_operation_to_api_mapping[operation_id] = api
+    def find_operation_ids_in_calls(calls):
+        for callname in calls:
+            attempts = calls[callname]
+            for attempt in attempts:
+                operation_id = attempt.get('jobId')
+                subWorkflowMetadata = attempt.get('subWorkflowMetadata')
+                if operation_id:
+                    api = 'lifesciences' if 'beta' in attempt.get('backend', '').lower() else 'genomics'
+                    papi_operation_to_api_mapping[operation_id] = api
+                if subWorkflowMetadata:
+                    find_operation_ids_in_calls(subWorkflowMetadata.get('calls', {}))
+
+    find_operation_ids_in_calls(json_metadata.get('calls', {}))
+
     return papi_operation_to_api_mapping
 
 
@@ -124,7 +130,6 @@ def process_workflow(cromwell_url, gcs_bucket, gcs_path, gcs_storage_client, gen
         operation_metadata = read_papi_v2alpha1_operation_metadata(id, api, genomics_v2alpha1_client)
         upload_operations_metadata_json(gcs_bucket, id, operation_metadata, workflow_gcs_base_path, gcs_storage_client)
     upload_workflow_metadata_json(gcs_bucket, raw_metadata, workflow_gcs_base_path, gcs_storage_client)
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

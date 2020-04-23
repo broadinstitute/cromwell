@@ -7,7 +7,8 @@ from googleapiclient.discovery import build as google_client_build
 import logging as log
 import metadata_comparison.lib.argument_regex as reutil
 import metadata_comparison.lib.util as util
-
+from datetime import timedelta, datetime, timezone
+import dateutil.parser
 
 Version = "0.0.1"
 verbose = False
@@ -45,10 +46,18 @@ def find_succeeded_shards(metadata):
         if backend_status == 'Success':
             print("Job was Succeeded woot")
             string_path = '.'.join(path)
+            start = attempt.get('start')
+            end = attempt.get('end')
+
+            overall_runtime_seconds = (dateutil.parser.parse(end) - dateutil.parser.parse(start)).total_seconds()
+
             operation_mapping[string_path] = {
                 "attempt": attempt.get('attempt'),
-                #"shardIndex": attempt.get('shardIndex'),
-                "operationId": operation_id
+                "shardIndex": attempt.get('shardIndex'),
+                "operationId": operation_id,
+                "start": start,
+                "end": end,
+                "overallRuntimeSeconds": overall_runtime_seconds
             }
 
     shards = util.build_papi_operation_mapping(metadata, call_fn)

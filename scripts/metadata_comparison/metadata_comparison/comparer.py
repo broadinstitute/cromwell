@@ -45,7 +45,7 @@ def compare_jsons(*pathsAndJsons):
     lastCols = []
     for pathAndJson in pathsAndJsons:
         df = pandas.json_normalize(pathAndJson[1])
-        cols = [c for c in df.columns if c[len(c)-8:] != '.attempt' or c == 'version']
+        cols = [c for c in df.columns if c[len(c)-22:] == '.overallRuntimeSeconds' or c == 'version']
 
         if lastCols and lastCols != cols:
             raise Exception(f"JSON data at {pathAndJson[0]} doesn't have matching subset of columns. Expected: {lastCols} but got {cols}")

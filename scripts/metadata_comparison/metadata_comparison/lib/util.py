@@ -40,16 +40,29 @@ def build_papi_operation_mapping(json_metadata, call_fn):
             attempts = calls[callname]
             for attempt in attempts:
                 operation_id = attempt.get('jobId')
-                subWorkflowMetadata = attempt.get('subWorkflowMetadata')
-                path = path_so_far.copy()
-                path.append(callname)
-                shard_index = attempt.get('shardIndex', -1)
-                if shard_index != -1:
-                    path.append(f"shard_{shard_index}")
+                sub_workflow_metadata = attempt.get('subWorkflowMetadata')
+                path = build_call_path(callname, path_so_far, attempt)
                 if operation_id:
                     call_fn(papi_operation_mapping, operation_id, path, attempt)
-                if subWorkflowMetadata:
-                    examine_calls(subWorkflowMetadata.get('calls', {}), path)
+                if sub_workflow_metadata:
+                    examine_calls(sub_workflow_metadata.get('calls', {}), path)
+
+    def build_call_path(callname, path_so_far, attempt):
+        call_path = path_so_far.copy()
+
+        # Remove confusing duplication in subworkflow call names
+        deduplicated_callname = callname
+        if len(path_so_far) > 0:
+            this_call_components = callname.split('.')
+            if len(this_call_components) > 1 and path_so_far[-1].endswith('.' + this_call_components[0]):
+                deduplicated_callname = '.'.join(this_call_components[1:])
+
+        call_path.append(deduplicated_callname)
+        shard_index = attempt.get('shardIndex', -1)
+        if shard_index != -1:
+            call_path.append(f"shard_{shard_index}")
+
+        return call_path
 
     examine_calls(json_metadata.get('calls', {}), [])
 

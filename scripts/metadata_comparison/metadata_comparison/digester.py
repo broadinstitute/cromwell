@@ -42,9 +42,9 @@ def parse_args():
 def find_succeeded_shards(metadata):
     def call_fn(operation_mapping, operation_id, path, attempt):
         backend_status = attempt.get('backendStatus', 'Unknown')
-        print(f"digester seeing path of {path} and backendStatus {backend_status}")
+        # print(f"digester seeing path of {path} and backendStatus {backend_status}")
         if backend_status == 'Success':
-            print("Job was Succeeded woot")
+            # print("Job was Succeeded woot")
             string_path = '.'.join(path)
             start = attempt.get('start')
             end = attempt.get('end')

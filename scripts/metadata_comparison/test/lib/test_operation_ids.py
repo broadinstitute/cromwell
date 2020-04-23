@@ -8,19 +8,75 @@ from test.lib.helper_functions import read_resource
 
 class OperationIdTestMethods(unittest.TestCase):
 
+    v1alpha2_ids = [
+        'operations/EMj9o52aLhj78ZLxzunkiHcg0e2BmaAdKg9wcm9kdWN0aW9uUXVldWU',
+        'operations/EMLel52aLhjHt6LH_fmuqOUBINHtgZmgHSoPcHJvZHVjdGlvblF1ZXVl',
+        'operations/EJGZrp2aLhix7YG3sMaj-usBINHtgZmgHSoPcHJvZHVjdGlvblF1ZXVl',
+        'operations/EM79o52aLhisyJifgbTuzb4BINHtgZmgHSoPcHJvZHVjdGlvblF1ZXVl'
+    ]
+
+    v2alpha1_ids = [
+        'projects/broad-dsde-cromwell-dev/operations/4960504346170163809',
+        'projects/broad-dsde-cromwell-dev/operations/1242302480525595574',
+        'projects/broad-dsde-cromwell-dev/operations/11113854067012168443',
+        'projects/broad-dsde-cromwell-dev/operations/14350975406210565808'
+    ]
+
+    v2beta_ids = [
+
+    ]
+
     def test_operation_id_number_valid(self):
+        v1alpha2_short_ids = [
+            'EMj9o52aLhj78ZLxzunkiHcg0e2BmaAdKg9wcm9kdWN0aW9uUXVldWU',
+            'EMLel52aLhjHt6LH_fmuqOUBINHtgZmgHSoPcHJvZHVjdGlvblF1ZXVl',
+            'EJGZrp2aLhix7YG3sMaj-usBINHtgZmgHSoPcHJvZHVjdGlvblF1ZXVl',
+            'EM79o52aLhisyJifgbTuzb4BINHtgZmgHSoPcHJvZHVjdGlvblF1ZXVl'
+        ]
+        v2alpha1_short_ids = [
+            '4960504346170163809',
+            '1242302480525595574',
+            '11113854067012168443',
+            '14350975406210565808'
+        ]
+        v2beta_short_ids = [
+            '14642412977689025366',
+            '3128777609532869613',
+            '18107476451113522273',
+            '13032426715870634389'
+        ]
+
+
         self.assertEqual(get_operation_id_number('projects/project_name/operations/01234567891011121314'), '01234567891011121314')
 
+    def test_find_v1alpha2_operation_ids_in_metadata(self):
+        metadata = json.loads(read_resource('forkjoin_metadata_papi_v1alpha2.json'))
+        self.assertEqual(find_operation_ids_in_metadata(metadata), self.v1alpha2_ids)
 
-    def test_find_operation_ids_in_metadata(self):
-        metadata = json.loads(read_resource('forkjoin_metadata.json'))
-        self.assertEqual(find_operation_ids_in_metadata(metadata),
+
+    def test_find_v2alpha1_operation_ids_in_metadata(self):
+        metadata = json.loads(read_resource('forkjoin_metadata_papi_v2alpha1.json'))
+        self.assertEqual(
+            find_operation_ids_in_metadata(metadata),
             [
                 'projects/broad-dsde-cromwell-dev/operations/4960504346170163809',
                 'projects/broad-dsde-cromwell-dev/operations/1242302480525595574',
                 'projects/broad-dsde-cromwell-dev/operations/11113854067012168443',
                 'projects/broad-dsde-cromwell-dev/operations/14350975406210565808'
             ])
+
+
+    def test_find_v2beta_operation_ids_in_metadata(self):
+        metadata = json.loads(read_resource('forkjoin_metadata_papi_v2beta.json'))
+        self.assertEqual(
+            find_operation_ids_in_metadata(metadata),
+            [
+                'projects/1005074806481/locations/us-central1/operations/14642412977689025366',
+                'projects/1005074806481/locations/us-central1/operations/3128777609532869613',
+                'projects/1005074806481/locations/us-central1/operations/18107476451113522273',
+                'projects/1005074806481/locations/us-central1/operations/13032426715870634389'
+            ])
+
 
     def test_find_operation_ids_in_metadata_subworkflows(self):
         metadata = json.loads(read_resource('subworkflow_hello_world_metadata.json'))

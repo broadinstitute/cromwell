@@ -2,29 +2,33 @@
 
 import re
 
-operation_regex = re.compile('^.*/([0-9]*)')
-papi_v1_operation_regex = re.compile('^projects/.*/operations/([^/]*)')
-papi_v2alpha1_operation_regex = re.compile('^projects/.*/operations/([^/]*)')
-papi_v2alpha1_operation_regex = re.compile('^projects/.*/operations/([^/]*)')
-
-
+papi_v1_operation_regex = re.compile('^operations/[^/]*')
+papi_v2alpha1_operation_regex = re.compile('^projects/.*/operations/[0-9]*')
+papi_v2beta_operation_regex = re.compile('^projects/.*/locations/.*/operations/[0-9]*')
 
 def get_operation_id_number(value):
     """
     Validates then extracts from PAPI operation IDs just the final number.
     eg:
-        'projects/project_name/operations/01234567891011121314' -> '01234567891011121314'
+        papiv1:       'operations/EMj9o52aLhj78ZLxzunkiHcg0e2BmaAdKg9wcm9kdWN0aW9uUXVldWU -> EMj9o52aLhj78ZLxzunkiHcg0e2BmaAdKg9wcm9kdWN0aW9uUXVldWU'
+        papiv2alpha1: 'projects/project_name/operations/01234567891011121314' -> '01234567891011121314'
     """
-    m = operation_regex.search(value)
-    if m:
-        return m.group(1)
+    return value.split('/')[-1]
+
+
+def operation_id_to_api_version(value):
+    """
+    Examines an operation ID and returns the PAPI API version which produced it
+    Luckily, this is currently a 1:1 format-to-api mapping so we don't need any other clues to tell the API version.
+    """
+    if papi_v1_operation_regex.match(value):
+        return 'v1alpha2'
+    elif papi_v2alpha1_operation_regex.match(value):
+        return 'v2alpha1'
+    elif papi_v2beta_operation_regex.match(value):
+        return 'v2beta'
     else:
-        msg = f'Unexpected operation ID {value}. Expected something like {operation_regex.pattern}'
-        raise Exception(msg)
-
-
-def determine_papi_version_from_operation_id(value):
-    return Exception("Not Implemented")
+        raise Exception(f'Cannot deduce PAPI api version from ID "{value}"')
 
 
 def find_operation_ids_in_metadata(json_metadata):

@@ -217,6 +217,8 @@ final case class BcsJob(name: String,
     userData foreach {datas => autoCluster.setUserData(datas.asJava)}
 
     configs foreach (bcsConfigs => autoCluster.setConfigs(bcsConfigs))
+    runtime.isv foreach(isv => autoCluster.setDependencyIsvService(isv))
+
     lazyTask.setAutoCluster(autoCluster)
   }
 

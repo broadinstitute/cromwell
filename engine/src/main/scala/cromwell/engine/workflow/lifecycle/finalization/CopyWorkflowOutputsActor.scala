@@ -98,7 +98,8 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
     // Truncate regex is declared here. If it were declared in the if statement the regex would have to be
     // compiled for every single file.
     // "execution" should be optional, because its not created on AWS.
-    lazy val truncateRegex = ".*\\/call-.*\\/(execution\\/)?".r
+    // Also cacheCopy or attempt-<int> folders are optional.
+    lazy val truncateRegex = ".*/call-[^/]*/(cacheCopy/)?(attempt-[1-9]+/)?(execution/)?".r
     val outputFileDestinations = rootAndFiles flatMap {
       case (workflowRoot, outputs) =>
         outputs map { output => 

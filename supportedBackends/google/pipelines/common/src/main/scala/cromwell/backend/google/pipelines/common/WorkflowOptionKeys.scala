@@ -6,4 +6,5 @@ object WorkflowOptionKeys {
   val EnableSSHAccess = "enable_ssh_access"
   val GoogleProject = "google_project"
   val GoogleComputeServiceAccount = "google_compute_service_account"
+  val EnableFuse = "enable_fuse"
 }

@@ -4,7 +4,7 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 import akka.actor.Props
-import akka.testkit.{EventFilter, ImplicitSender}
+import akka.testkit.{EventFilter, ImplicitSender, TestProbe}
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataArchiveStatus.Archived
@@ -20,23 +20,24 @@ class DeleteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Implic
   private val workflowId1 = UUID.randomUUID().toString
   private val workflowId2 = UUID.randomUUID().toString
 
-  private val deleteMetadataActor = createTestDeletionActor()
-  private val deleteMetadataActorFailingLookups = createTestDeletionActor(failLookups = true)
-  private val deleteMetadataActorFailingDeletions = createTestDeletionActor(failDeletions = true)
+  val metricActor = TestProbe().ref
 
   it should "lookup for workflows matching criteria and delete their metadata" in {
+    val deleteMetadataActor = createTestDeletionActor()
     EventFilter.info(pattern = s"Successfully deleted metadata for workflow *", occurrences = 2) intercept {
       deleteMetadataActor ! DeleteMetadataAction
     }
   }
 
   it should "write error message to the log if lookup fails" in {
+    val deleteMetadataActorFailingLookups = createTestDeletionActor(failLookups = true)
     EventFilter.error(start = "Cannot delete metadata: unable to query list of workflow ids for metadata deletion from metadata summary table.", occurrences = 1) intercept {
       deleteMetadataActorFailingLookups ! DeleteMetadataAction
     }
   }
 
   it should "write error message to the log if deletion fails and continue processing next workflow from the list" in {
+    val deleteMetadataActorFailingDeletions = createTestDeletionActor(failDeletions = true)
     // error message should appear twice
     EventFilter.error(pattern = s"Cannot delete metadata for workflow *", occurrences = 2) intercept {
       deleteMetadataActorFailingDeletions ! DeleteMetadataAction
@@ -44,7 +45,7 @@ class DeleteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Implic
   }
 
   private def createTestDeletionActor(failLookups: Boolean = false, failDeletions: Boolean = false) = {
-    val deleteMetadataActor = system.actorOf(Props(new DeleteMetadataActor(MetadataDeletionConfig(Option(1 minute), 200L, 1 minute)) {
+    val deleteMetadataActor = system.actorOf(Props(new DeleteMetadataActor(ActiveMetadataDeletionConfig(1 minute, 1 minute, 200L, 1 minute), serviceRegistryActor = TestProbe().ref) {
       override def queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(archiveStatus: Option[String], thresholdTimestamp: OffsetDateTime, batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[String]] = {
         val expectedArchiveStatus = MetadataArchiveStatus.toDatabaseValue(Archived)
         if (expectedArchiveStatus !== archiveStatus) {

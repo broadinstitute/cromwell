@@ -1,7 +1,9 @@
 package cromwell.services.metadata.hybridcarbonite
 
 import akka.actor.ActorSystem
+import cats.data.Validated._
 import cats.syntax.apply._
+import cats.syntax.validated._
 import com.typesafe.config.Config
 import common.Checked
 import common.validation.Checked._
@@ -18,73 +20,90 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Try
 
-final case class HybridCarboniteConfig(enabled: Boolean,
-                                       minimumSummaryEntryId: Option[Long],
-                                       debugLogging: Boolean,
-                                       pathBuilders: PathBuilders,
+final case class HybridCarboniteConfig(pathBuilders: PathBuilders,
                                        bucket: String,
-                                       freezeScanConfig: HybridCarboniteFreezeScanConfig,
-                                       metadataDeletionConfig: MetadataDeletionConfig) {
+                                       freezingConfig: MetadataFreezingConfig,
+                                       deletionConfig: MetadataDeletionConfig) {
   def makePath(workflowId: WorkflowId)= PathFactory.buildPath(HybridCarboniteConfig.pathForWorkflow(workflowId, bucket), pathBuilders)
 }
 
-final case class HybridCarboniteFreezeScanConfig(initialInterval: FiniteDuration = 5 seconds, maxInterval: FiniteDuration = 5 minutes, multiplier: Double = 1.1)
+sealed trait MetadataFreezingConfig
+final case class ActiveMetadataFreezingConfig(initialInterval: FiniteDuration,
+                                        maxInterval: FiniteDuration,
+                                        multiplier: Double,
+                                        minimumSummaryEntryId: Option[Long],
+                                        debugLogging: Boolean) extends MetadataFreezingConfig
+case object InactiveMetadataFreezingConfig extends MetadataFreezingConfig
 
-final case class MetadataDeletionConfig(intervalOpt: Option[FiniteDuration] = None, batchSize: Long = 200L, delayAfterWorkflowCompletion: FiniteDuration = 24 hours)
+sealed trait MetadataDeletionConfig
+final case class ActiveMetadataDeletionConfig(initialDelay: FiniteDuration,
+                                              interval: FiniteDuration,
+                                              batchSize: Long = 200L,
+                                              delayAfterWorkflowCompletion: FiniteDuration = 24 hours) extends MetadataDeletionConfig
+case object InactiveMetadataDeletionConfig extends MetadataDeletionConfig
 
 object HybridCarboniteConfig {
 
   def pathForWorkflow(id: WorkflowId, bucket: String) = s"gs://$bucket/$id/$id.json"
-  
+
   def parseConfig(carboniterConfig: Config)(implicit system: ActorSystem): Checked[HybridCarboniteConfig] = {
-    val enable = carboniterConfig.getOrElse("enabled", false)
-    val minimumSummaryEntryIdCheck = carboniterConfig.as[Option[Long]]("minimum-summary-entry-id") match {
-      case Some(l) if l < 0 => "Minimum summary entry ID must be above 0. Omit or set to 0 to allow all entries to be summarized.".invalidNelCheck
-      case other => other.validNelCheck
-    }
-    val carboniteDebugLogging = carboniterConfig.getOrElse("debug-logging", true)
 
-    def freezeScanConfig: Checked[HybridCarboniteFreezeScanConfig] = {
-      if (carboniterConfig.hasPath("freeze-scan")) {
-        val freeze = carboniterConfig.getConfig("freeze-scan")
+    def metadataFreezingConfig: Checked[MetadataFreezingConfig] = {
+      if (carboniterConfig.hasPath("metadata-freezing")) {
+        val defaultInitialInterval: Duration = Duration.Inf
+        val defaultMaxInterval = 5 minutes
+        val defaultMultiplier = 1.1
+        val defaultMinimumSummaryEntryId: Option[Long] = None
+        val defaultDebugLogging = true
 
-        val initialInterval = Try { freeze.getOrElse("initial-interval", 5 seconds) } toErrorOr
-        val maxInterval = Try { freeze.getOrElse("max-interval", default = 5 minutes) } toErrorOr
-        val multiplier = Try { freeze.getOrElse("multiplier", 1.1) } toErrorOr
+        val freeze = carboniterConfig.getConfig("metadata-freezing")
 
-        val errorOrFreezeScanConfig = (initialInterval, maxInterval, multiplier) mapN {
-          case (i, m, x) => HybridCarboniteFreezeScanConfig(i, m, x)
-        } contextualizeErrors "parse Carboniter 'freeze-scan' stanza"
+        val initialInterval = Try { freeze.getOrElse("initial-interval", defaultInitialInterval) } toErrorOr
+        val maxInterval = Try { freeze.getOrElse("max-interval", defaultMaxInterval) } toErrorOr
+        val multiplier = Try { freeze.getOrElse("multiplier", defaultMultiplier) } toErrorOr
+        val minimumSummaryEntryId = Try { freeze.getOrElse("minimum-summary-entry-id", defaultMinimumSummaryEntryId) } toErrorOr
+        val debugLogging = Try { freeze.getOrElse("debug-logging", defaultDebugLogging)}  toErrorOr
 
-        for {
-          freezeScanConfig <- errorOrFreezeScanConfig.toEither
-          _ <- if (freezeScanConfig.maxInterval > freezeScanConfig.initialInterval) "".validNelCheck else "'max-interval' must be greater than or equal to 'initial-interval' in Carboniter 'freeze-scan' stanza".invalidNelCheck
-          _ <- if (freezeScanConfig.multiplier > 1) "".validNelCheck else "'multiplier' must be greater than 1 in Carboniter 'freeze-scan' stanza".invalidNelCheck
-        } yield freezeScanConfig
-      } else {
-        HybridCarboniteFreezeScanConfig().validNelCheck
-      }
+        val errorOrFreezingConfig: ErrorOr[MetadataFreezingConfig] = (initialInterval, maxInterval, multiplier, minimumSummaryEntryId, debugLogging) flatMapN {
+          case (i, m, x, s, d) =>
+            i match {
+              case f: FiniteDuration =>
+                val summaryCheck = if (s.exists(_ < 0)) "`minimum-summary-entry-id` must be greater than or equal to 0. Omit or set to 0 to allow all entries to be summarized.".invalidNel else "".validNel
+                val maxGteInitialCheck = if (f > m) s"'max-interval' $m should be greater than or equal to finite 'initial-interval' $f.".invalidNel else "".validNel
+                val multiplierGt1 = if (x > 1) "".validNel else "`multiplier` must be greater than 1.".invalidNel
+
+                (summaryCheck, maxGteInitialCheck, multiplierGt1) mapN {
+                  case (_, _, _) => ActiveMetadataFreezingConfig(f, m, x, s, d)
+                }
+              case _ => InactiveMetadataFreezingConfig.validNel
+            }
+        } contextualizeErrors "parse Carboniter 'metadata-freezing' stanza"
+        errorOrFreezingConfig
+      } toEither else InactiveMetadataFreezingConfig.validNelCheck
     }
 
     def metadataDeletionConfig: Checked[MetadataDeletionConfig] = {
       if (carboniterConfig.hasPath("metadata-deletion")) {
         val metadataDeletion = carboniterConfig.getConfig("metadata-deletion")
 
+        val initialDelay = Try { metadataDeletion.getOrElse[Duration]("initial-delay", Duration.Inf) } toErrorOr
         val interval = Try { metadataDeletion.getOrElse[Duration]("interval", Duration.Inf) } toErrorOr
         val batchSize = Try { metadataDeletion.getOrElse("batchSize", default = 200L) } toErrorOr
         val delayAfterWorkflowCompletion = Try { metadataDeletion.getOrElse("delay-after-workflow-completion", 24 hours) } toErrorOr
 
-        val errorOrMetadataDeletionConfig = (interval, batchSize, delayAfterWorkflowCompletion) mapN {
-          case (i, b, d) =>
-            MetadataDeletionConfig(
-              if (i.isFinite()) Option(i.asInstanceOf[FiniteDuration]) else None,
+        val errorOrMetadataDeletionConfig: ErrorOr[MetadataDeletionConfig] = (initialDelay, interval, batchSize, delayAfterWorkflowCompletion) mapN { case (id, i, b, d) =>
+          if (id.isFinite() && i.isFinite()) {
+            ActiveMetadataDeletionConfig(
+              id.asInstanceOf[FiniteDuration],
+              i.asInstanceOf[FiniteDuration],
               b,
-              d)
+              d
+            )
+          } else InactiveMetadataDeletionConfig
         } contextualizeErrors "parse Carboniter 'metadata-deletion' stanza"
-
         errorOrMetadataDeletionConfig.toEither
       } else {
-        MetadataDeletionConfig().validNelCheck
+        InactiveMetadataDeletionConfig.validNelCheck
       }
     }
 
@@ -94,9 +113,8 @@ object HybridCarboniteConfig {
       pathBuilders <- Try(Await.result(PathBuilderFactory.instantiatePathBuilders(pathBuilderFactories.values.toList, WorkflowOptions.empty), 60.seconds))
         .toCheckedWithContext("construct Carboniter path builders from factories")
       bucket <- Try(carboniterConfig.getString("bucket")).toCheckedWithContext("parse Carboniter 'bucket' field from config")
-      minimumSummaryEntryId <- minimumSummaryEntryIdCheck
-      freezeScan <- freezeScanConfig
+      freezingConfig <- metadataFreezingConfig
       metadataDeletion <- metadataDeletionConfig
-    } yield HybridCarboniteConfig(enable, minimumSummaryEntryId, carboniteDebugLogging, pathBuilders, bucket, freezeScan, metadataDeletion)
+    } yield HybridCarboniteConfig(pathBuilders, bucket, freezingConfig, metadataDeletion)
   }
 }

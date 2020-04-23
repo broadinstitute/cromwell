@@ -74,20 +74,27 @@ object CentaurCromwellClient extends StrictLogging {
     sendReceiveFutureCompletion(() => cromwellClient.abort(workflow.id))
   }
 
-  def outputs(workflow: SubmittedWorkflow): IO[WorkflowOutputs] = {
-    sendReceiveFutureCompletion(() => cromwellClient.outputs(workflow.id))
+  def outputs(workflow: SubmittedWorkflow, archived: Option[Boolean] = None): IO[WorkflowOutputs] = {
+    sendReceiveFutureCompletion(() => cromwellClient.outputs(workflow.id, Option(archivedBooleanToMetadataSourceParameter(archived))))
   }
 
   def callCacheDiff(workflowA: SubmittedWorkflow, callA: String, workflowB: SubmittedWorkflow, callB: String): IO[CallCacheDiff] = {
     sendReceiveFutureCompletion(() => cromwellClient.callCacheDiff(workflowA.id, callA, ShardIndex(None), workflowB.id, callB, ShardIndex(None)))
   }
 
-  def logs(workflow: SubmittedWorkflow): IO[WorkflowMetadata] = {
-    sendReceiveFutureCompletion(() => cromwellClient.logs(workflow.id))
+  private def archivedBooleanToMetadataSourceParameter(archived: Option[Boolean]): Map[String, List[String]] =
+    archived.map(isArchived => "metadataSource" -> List(if (isArchived) "Archived" else "Unarchived")).toMap
+
+  def logs(workflow: SubmittedWorkflow, archived: Option[Boolean] = None): IO[WorkflowMetadata] = {
+    sendReceiveFutureCompletion(() => cromwellClient.logs(workflow.id, Option(archivedBooleanToMetadataSourceParameter(archived))))
   }
 
   def labels(workflow: SubmittedWorkflow): IO[WorkflowLabels] = {
     sendReceiveFutureCompletion(() => cromwellClient.labels(workflow.id))
+  }
+
+  def addLabels(workflow: SubmittedWorkflow, newLabels: List[Label]): IO[WorkflowLabels] = {
+    sendReceiveFutureCompletion(() => cromwellClient.addLabels(workflow.id, newLabels))
   }
 
   def version: IO[CromwellVersion] = {
@@ -107,7 +114,14 @@ object CentaurCromwellClient extends StrictLogging {
     Try(Await.result(successOrFailure, CentaurConfig.sendReceiveTimeout)).isSuccess
   }
 
-  def metadata(workflow: SubmittedWorkflow, args: Option[Map[String, List[String]]] = defaultMetadataArgs): IO[WorkflowMetadata] = metadataWithId(workflow.id, args)
+  def metadata(workflow: SubmittedWorkflow,
+               args: Option[Map[String, List[String]]] = defaultMetadataArgs,
+               expandSubworkflows: Boolean = false,
+               archived: Option[Boolean] = None): IO[WorkflowMetadata] = {
+    val mandatoryArgs = Map("expandSubWorkflows" -> List(expandSubworkflows.toString))
+    val metadataSourceOverride = archivedBooleanToMetadataSourceParameter(archived)
+    metadataWithId(workflow.id, Option(args.getOrElse(Map.empty) ++ metadataSourceOverride ++ mandatoryArgs))
+  }
 
   def metadataWithId(id: WorkflowId, args: Option[Map[String, List[String]]] = defaultMetadataArgs): IO[WorkflowMetadata] = {
     sendReceiveFutureCompletion(() => cromwellClient.metadata(id, args))

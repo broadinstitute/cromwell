@@ -36,6 +36,7 @@ object BcsTestUtilSpec {
       |  vpc: "192.168.0.0/16 vpc-xxxx"
       |  tag: "jobTag"
       |  imageId: "img-ubuntu-vpc"
+      |  isv: "test-isv"
       |}
     """.stripMargin
 
@@ -151,10 +152,11 @@ trait BcsTestUtilSpec extends TestKitSuite with FlatSpecLike with Matchers with 
   val expectedVerbose = Option(false)
   val expectedVpc = Option(BcsVpcConfiguration(Option("192.168.0.0/16"), Option("vpc-xxxx")))
   val expectedTag = Option("jobTag")
+  val expectedIsv = Option("test-isv")
 
 
   val expectedRuntimeAttributes = new BcsRuntimeAttributes(expectedContinueOnReturn, expectedDockerTag, expectedDocker, expectedFailOnStderr,  expectedMounts, expectedUserData, expectedCluster,
-    expectedImageId, expectedSystemDisk, expectedDataDisk, expectedReserveOnFail, expectedAutoRelease, expectedTimeout, expectedVerbose, expectedVpc, expectedTag)
+    expectedImageId, expectedSystemDisk, expectedDataDisk, expectedReserveOnFail, expectedAutoRelease, expectedTimeout, expectedVerbose, expectedVpc, expectedTag, expectedIsv)
 
 
   protected def createBcsRuntimeAttributes(runtimeAttributes: Map[String, WomValue]): BcsRuntimeAttributes = {

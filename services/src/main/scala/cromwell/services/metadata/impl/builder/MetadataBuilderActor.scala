@@ -310,7 +310,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, isForSubworkflo
 
   def processSubWorkflowMetadata(metadataResponse: MetadataJsonResponse, data: HasReceivedEventsData) = {
     metadataResponse match {
-      case SuccessfulMetadataJsonResponse(GetMetadataAction(queryKey), js) =>
+      case SuccessfulMetadataJsonResponse(GetMetadataAction(queryKey, _), js) =>
         val subId: WorkflowId = queryKey.workflowId
         val newData = data.withSubWorkflow(subId.toString, js)
 

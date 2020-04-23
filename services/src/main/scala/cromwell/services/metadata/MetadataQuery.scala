@@ -8,7 +8,6 @@ import cromwell.core.labels.Labels
 import org.slf4j.{Logger, LoggerFactory}
 import wom.values._
 import common.util.TimeUtil._
-import cromwell.services.metadata.MetadataQuery.MetadataSourceOverride
 
 case class MetadataJobKey(callFqn: String, index: Option[Int], attempt: Int)
 
@@ -100,8 +99,7 @@ case class MetadataQuery(workflowId: WorkflowId,
                          key: Option[String],
                          includeKeysOption: Option[NonEmptyList[String]],
                          excludeKeysOption: Option[NonEmptyList[String]],
-                         expandSubWorkflows: Boolean,
-                         metadataSourceOverride: Option[MetadataSourceOverride] = None)
+                         expandSubWorkflows: Boolean)
 
 object MetadataQuery {
   def forWorkflow(workflowId: WorkflowId) = MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)

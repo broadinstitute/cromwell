@@ -26,6 +26,7 @@ class HealthMonitorServiceActorSpec extends TestKitSuite with FlatSpecLike with 
         |check-engine-database: false
         |check-gcs: false
         |check-papi-backends: []
+        |check-carboniter-gcs-access: false
         |""".stripMargin
 
 

@@ -73,12 +73,28 @@ class HybridReadDeciderActorSpec extends TestKitSuite("HybridReadDeciderActorSpe
     assertStraightToClassicOrCarbonite(QueryForWorkflowsMatchingParameters(Vector("Includekey" -> "blah")), straightToClassic = true)
   }
 
-  it should "direct straight to the classic metadata service for queries with metadataSource set to Unarchived" in {
-    assertStraightToClassicOrCarbonite(GetMetadataAction(MetadataQuery(null, null, null, null, null, expandSubWorkflows = false, Some(MetadataSourceForceUnarchived))), straightToClassic = true)
+  it should "direct straight to the classic metadata service for metadata queries with metadataSource set to Unarchived" in {
+    assertStraightToClassicOrCarbonite(GetMetadataAction(MetadataQuery(null, null, null, null, null, expandSubWorkflows = false), Some(MetadataSourceForceUnarchived)), straightToClassic = true)
   }
 
-  it should "direct straight to the carbonite metadata service for queries with metadataSource set to Archived" in {
-    assertStraightToClassicOrCarbonite(GetMetadataAction(MetadataQuery(null, null, null, null, null, expandSubWorkflows = false, Some(MetadataSourceForceArchived))), straightToClassic = false)
+  it should "direct straight to the carbonite metadata service for metadata queries with metadataSource set to Archived" in {
+    assertStraightToClassicOrCarbonite(GetMetadataAction(MetadataQuery(null, null, null, null, null, expandSubWorkflows = false), Some(MetadataSourceForceArchived)), straightToClassic = false)
+  }
+
+  it should "direct straight to the classic metadata service for log queries with metadataSource set to Unarchived" in {
+    assertStraightToClassicOrCarbonite(GetLogs(null, Some(MetadataSourceForceUnarchived)), straightToClassic = true)
+  }
+
+  it should "direct straight to the carbonite metadata service for log queries with metadataSource set to Archived" in {
+    assertStraightToClassicOrCarbonite(GetLogs(null, Some(MetadataSourceForceArchived)), straightToClassic = false)
+  }
+
+  it should "direct straight to the classic metadata service for outputs queries with metadataSource set to Unarchived" in {
+    assertStraightToClassicOrCarbonite(WorkflowOutputs(null, Some(MetadataSourceForceUnarchived)), straightToClassic = true)
+  }
+
+  it should "direct straight to the carbonite metadata service for outputs queries with metadataSource set to Archived" in {
+    assertStraightToClassicOrCarbonite(WorkflowOutputs(null, Some(MetadataSourceForceArchived)), straightToClassic = false)
   }
 
   /*

@@ -1,9 +1,9 @@
 package cromwell.services.database
 
-import java.net.URLEncoder
 import java.sql.Connection
 
 import better.files._
+import com.dimafeng.testcontainers.{Container, JdbcDatabaseContainer, MariaDBContainer, MySQLContainer, PostgreSQLContainer}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.database.migration.liquibase.LiquibaseUtils
@@ -92,174 +92,85 @@ object DatabaseTestKit extends StrictLogging {
     */
   def initializedDatabaseFromSystem[A <: SlickDatabase](databaseType: CromwellDatabaseType[A],
                                                         databaseSystem: DatabaseSystem): A with TestSlickDatabase = {
-    val databaseConfig = getConfig(databaseSystem)
-    initializedDatabaseFromConfig(databaseType, databaseConfig)
+    initializeDatabaseByContainerOptTypeAndSystem(None, databaseType, databaseSystem)
   }
 
   /**
-    * Opens a database connection without any liquibase being performed.
-    */
-  def schemalessDatabaseFromSystem(databaseSystem: DatabaseSystem): SchemalessSlickDatabase with TestSlickDatabase = {
-    val databaseConfig = getConfig(databaseSystem)
-    new SchemalessSlickDatabase(databaseConfig) with TestSlickDatabase
+   * Opens a database connection without any liquibase being performed.
+   */
+  def schemalessDatabaseFromContainerOptAndSystem(containerOpt: Option[Container], databaseSystem: DatabaseSystem): SchemalessSlickDatabase with TestSlickDatabase = {
+    containerOpt match {
+      case None => new SchemalessSlickDatabase(getConfig(databaseSystem, dbContainerOpt = None)) with TestSlickDatabase
+      case Some(cont) if cont.isInstanceOf[JdbcDatabaseContainer] =>
+        new SchemalessSlickDatabase(getConfig(databaseSystem, Option(cont.asInstanceOf[JdbcDatabaseContainer]))) with TestSlickDatabase
+      case Some(_) => throw new RuntimeException("ERROR: container is not a JdbcDatabaseContainer.")
+    }
   }
 
-  private var configCache: Map[NetworkDatabaseSystem, Config] = Map.empty
-  private val configCacheMutex = new Object
-
-  /**
-    * Returns a config for a DatabaseSystem.
-    */
-  private def getConfig(databaseSystem: DatabaseSystem): Config = {
+  def getDatabaseTestContainer(databaseSystem: DatabaseSystem): Option[Container] = {
     databaseSystem match {
-      case HsqldbDatabaseSystem => hsqldbDatabaseConfig
-      case networkDatabaseSystem: NetworkDatabaseSystem =>
-        configCacheMutex synchronized {
-          configCache.get(networkDatabaseSystem) match {
-            case Some(config) => config
-            case None =>
-              val config = getConfig(networkDatabaseSystem)
-              configCache += networkDatabaseSystem -> config
-              config
-          }
+      case HsqldbDatabaseSystem => None
+      case networkDbSystem: NetworkDatabaseSystem =>
+        networkDbSystem.platform match {
+          case MariadbDatabasePlatform =>
+            Option(MariaDBContainer(
+              dockerImageName = s"mariadb:${networkDbSystem.dockerImageVersion}",
+              dbName = "cromwell_test",
+              dbUsername = "cromwell",
+              dbPassword = "test"
+            ))
+          case MysqlDatabasePlatform =>
+            Option(MySQLContainer(
+              mysqlImageVersion = s"mysql:${networkDbSystem.dockerImageVersion}",
+              databaseName = "cromwell_test",
+              username = "cromwell",
+              password = "test"))
+          case PostgresqlDatabasePlatform =>
+            Option(PostgreSQLContainer(
+              dockerImageNameOverride =  s"postgres:${networkDbSystem.dockerImageVersion}",
+              databaseName = "cromwell_test",
+              username = "cromwell",
+              password = "test"))
+          case _ => None
         }
     }
   }
 
-  private case class DatabaseSystemSettings(environmentKey: String, defaultPort: Int, dockerTag: String)
-
-  /**
-    * Returns the network settings for a database system.
-    */
-  private def getDatabaseSystemSettings(networkDatabaseSystem: NetworkDatabaseSystem): DatabaseSystemSettings = {
-    networkDatabaseSystem match {
-      // The below list of docker tags should be synced with the tags under "BUILD_TYPE=dbms" in .travis.yml
-      case MariadbEarliestDatabaseSystem => DatabaseSystemSettings("MARIADB", 23306, "5.5")
-      case MariadbLatestDatabaseSystem => DatabaseSystemSettings("MARIADB_LATEST", 33306, "latest")
-      case MysqlEarliestDatabaseSystem => DatabaseSystemSettings("MYSQL", 3306, "5.6")
-      case MysqlLatestDatabaseSystem => DatabaseSystemSettings("MYSQL_LATEST", 13306, "latest")
-      case PostgresqlEarliestDatabaseSystem => DatabaseSystemSettings("POSTGRESQL", 5432, "9.6")
-      case PostgresqlLatestDatabaseSystem => DatabaseSystemSettings("POSTGRESQL_LATEST", 15432, "latest")
-      // The list above of docker tags should be synced with the tags under "BUILD_TYPE=dbms" in .travis.yml
+  def initializeDatabaseByContainerOptTypeAndSystem[A <: SlickDatabase](containerOpt: Option[Container],
+                                                                        databaseType: CromwellDatabaseType[A],
+                                                                        databaseSystem: DatabaseSystem): A with TestSlickDatabase = {
+    containerOpt match {
+      case None => initializedDatabaseFromConfig(databaseType, getConfig(databaseSystem, None))
+      case Some(cont) if cont.isInstanceOf[JdbcDatabaseContainer] =>
+        initializedDatabaseFromConfig(databaseType, getConfig(databaseSystem, Option(cont.asInstanceOf[JdbcDatabaseContainer])))
+      case Some(_) => throw new RuntimeException("ERROR: container is not a JdbcDatabaseContainer.")
     }
   }
 
-  /**
-    * Returns a config for a NetworkDatabaseSystem.
-    */
-  private def getConfig(networkDatabaseSystem: NetworkDatabaseSystem): Config = {
-    val databaseSystemSettings = getDatabaseSystemSettings(networkDatabaseSystem)
-    val systemName = networkDatabaseSystem.name
-    val environmentKey = databaseSystemSettings.environmentKey
-    val jdbcPortDefault = databaseSystemSettings.defaultPort
-    val dockerTag = databaseSystemSettings.dockerTag
-
-    val jdbcUsername = "cromwell"
-    val jdbcPassword = "test"
-    val jdbcSchema = "cromwell_test"
-    val jdbcHostname: String = sys.env.getOrElse(s"CROMWELL_BUILD_${environmentKey}_HOSTNAME", "localhost")
-    val jdbcPort = sys.env.get(s"CROMWELL_BUILD_${environmentKey}_PORT").map(_.toInt).getOrElse(jdbcPortDefault)
-
-    def makeJdbcUrl(dbms: String, queryParams: Map[String, String]): String = {
-      s"jdbc:$dbms://$jdbcHostname:$jdbcPort/$jdbcSchema?" +
-        queryParams.map({ case (name, value) => queryEncode(name) + "=" + queryEncode(value) }).mkString("&")
+  def getConfig(databaseSystem: DatabaseSystem, dbContainerOpt: Option[JdbcDatabaseContainer] = None): Config = {
+    dbContainerOpt match {
+      case None if databaseSystem == HsqldbDatabaseSystem => hsqldbDatabaseConfig
+      case None => throw new RuntimeException("ERROR: dbContainer option must be passed into `getConfig` method for all databases except HSQLDB.")
+      case Some(dbContainer) =>
+        val (slickProfile, jdbcDriver) = databaseSystem.platform match {
+          case HsqldbDatabasePlatform => throw new RuntimeException("ERROR: dbContainer option cannot be defined for HSQLDB database.")
+          case MariadbDatabasePlatform => ("slick.jdbc.MySQLProfile$", "org.mariadb.jdbc.Driver")
+          case MysqlDatabasePlatform => ("slick.jdbc.MySQLProfile$", "com.mysql.cj.jdbc.Driver")
+          case PostgresqlDatabasePlatform => ("slick.jdbc.PostgresProfile$", "org.postgresql.Driver")
+        }
+        ConfigFactory.parseString(
+          s"""|profile = "$slickProfile"
+              |db {
+              |  driver = "$jdbcDriver"
+              |  url = "${dbContainer.jdbcUrl}"
+              |  user = "${dbContainer.username}"
+              |  password = "${dbContainer.password}"
+              |  connectionTimeout = 5000
+              |}
+              |""".stripMargin
+        )
     }
-
-    val (dockerHelp, resetHelp, slickProfile, jdbcDriver, jdbcUrl) = networkDatabaseSystem.platform match {
-      case HsqldbDatabasePlatform => throw new UnsupportedOperationException
-      case MariadbDatabasePlatform => (
-        s"""|docker run \\
-            |  --rm \\
-            |  --detach --name cromwell_test_mariadb_database_$jdbcPort \\
-            |  --env MYSQL_ROOT_PASSWORD=private \\
-            |  --env MYSQL_USER=$jdbcUsername \\
-            |  --env MYSQL_PASSWORD=$jdbcPassword \\
-            |  --env MYSQL_DATABASE=$jdbcSchema \\
-            |  --publish $jdbcPort:3306 \\
-            |  --volume $${PWD}/src/ci/docker-compose/mariadb-conf.d:/etc/mysql/conf.d \\
-            |  mariadb:$dockerTag
-            |""".stripMargin.trim,
-        s"""|mysql \\
-            |  --protocol=tcp --host=$jdbcHostname --port=$jdbcPort \\
-            |  --user=$jdbcUsername --password=$jdbcPassword \\
-            |  --execute='DROP DATABASE IF EXISTS $jdbcSchema; CREATE DATABASE $jdbcSchema;'
-            |""".stripMargin.trim,
-        "slick.jdbc.MySQLProfile$",
-        "org.mariadb.jdbc.Driver",
-        makeJdbcUrl("mysql", Map("rewriteBatchedStatements" -> "true")),
-      )
-      case MysqlDatabasePlatform => (
-        s"""|docker run \\
-            |  --rm \\
-            |  --detach --name cromwell_test_mysql_database_$jdbcPort \\
-            |  --env MYSQL_ROOT_PASSWORD=private \\
-            |  --env MYSQL_USER=$jdbcUsername \\
-            |  --env MYSQL_PASSWORD=$jdbcPassword \\
-            |  --env MYSQL_DATABASE=$jdbcSchema \\
-            |  --publish $jdbcPort:3306 \\
-            |  --volume $${PWD}/src/ci/docker-compose/mysql-conf.d:/etc/mysql/conf.d \\
-            |  mysql:$dockerTag
-            |""".stripMargin.trim,
-        s"""|mysql \\
-            |  --protocol=tcp --host=$jdbcHostname --port=$jdbcPort \\
-            |  --user=$jdbcUsername --password=$jdbcPassword \\
-            |  --execute='DROP DATABASE IF EXISTS $jdbcSchema; CREATE DATABASE $jdbcSchema;'
-            |""".stripMargin.trim,
-        "slick.jdbc.MySQLProfile$",
-        "com.mysql.cj.jdbc.Driver",
-        makeJdbcUrl("mysql", Map(
-          "rewriteBatchedStatements" -> "true",
-          "useSSL" -> "false",
-          "allowPublicKeyRetrieval" -> "true",
-          "serverTimezone" -> "UTC",
-          "useInformationSchema" -> "true",
-        )),
-      )
-      case PostgresqlDatabasePlatform => (
-        s"""|docker run \\
-            |  --rm \\
-            |  --detach --name cromwell_test_postgresql_database_$jdbcPort \\
-            |  --env POSTGRES_USER=$jdbcUsername \\
-            |  --env POSTGRES_PASSWORD=$jdbcPassword \\
-            |  --env POSTGRES_DB=$jdbcSchema \\
-            |  --publish $jdbcPort:5432 \\
-            |  --volume $${PWD}/src/ci/docker-compose/postgresql-initdb.d:/docker-entrypoint-initdb.d \\
-            |  postgres:$dockerTag
-            |""".stripMargin.trim,
-        s"""|PGPASSWORD=$jdbcPassword psql \\
-            |  --host=localhost --port=5432 --username=$jdbcUsername \\
-            |  postgres <<< 'drop database if exists $jdbcSchema; create database $jdbcSchema;'
-            |""".stripMargin.trim,
-        "slick.jdbc.PostgresProfile$",
-        "org.postgresql.Driver",
-        makeJdbcUrl("postgresql", Map("reWriteBatchedInserts" -> "true")),
-      )
-    }
-
-    logger.info(
-      s"""|Run an example $systemName via docker using:
-          |$dockerHelp""".stripMargin)
-    logger.info(
-      s"""|The schema will be initialized when the docker container starts. If needed reset the schema using:
-          |$resetHelp""".stripMargin)
-
-    ConfigFactory.parseString(
-      s"""|profile = "$slickProfile"
-          |db {
-          |  driver = "$jdbcDriver"
-          |  url = "$jdbcUrl"
-          |  user = "$jdbcUsername"
-          |  password = "$jdbcPassword"
-          |  connectionTimeout = 5000
-          |}
-          |""".stripMargin
-    )
   }
-
-  /**
-    * Encode strings for URLs.
-    */
-  private def queryEncode(string: String): String = URLEncoder.encode(string, "UTF-8")
 
   /**
     * Run liquibase on a open database.

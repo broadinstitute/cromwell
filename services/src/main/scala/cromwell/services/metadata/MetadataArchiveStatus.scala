@@ -2,8 +2,14 @@ package cromwell.services.metadata
 
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
+import MetadataArchiveStatus._
 
-sealed trait MetadataArchiveStatus
+sealed trait MetadataArchiveStatus {
+  final def isArchived = this match {
+    case Archived | ArchivedAndPurged => true
+    case ArchiveFailed | Unarchived => false
+  }
+}
 
 object MetadataArchiveStatus {
 

@@ -2,8 +2,8 @@ package cromwell.services.database
 
 import java.time.OffsetDateTime
 
+import com.dimafeng.testcontainers.Container
 import cromwell.core.Tags.DbmsTest
-import cromwell.database.slick.MetadataSlickDatabase
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
@@ -20,11 +20,17 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
 
     behavior of s"MetadataSlickDatabase on ${databaseSystem.name}"
 
-    lazy val database: MetadataSlickDatabase with TestSlickDatabase = DatabaseTestKit.initializedDatabaseFromSystem(MetadataDatabaseType, databaseSystem)
+    val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
+
+    lazy val database = DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, MetadataDatabaseType, databaseSystem)
     import database.dataAccess.driver.api._
 
     import cromwell.database.migration.metadata.table.symbol.MetadataStatement.OffsetDateTimeToSystemTimestamp
     val now = OffsetDateTime.now().toSystemTimestamp
+
+    it should "start container if required" taggedAs DbmsTest in {
+      containerOpt.foreach { _.start }
+    }
 
     it should "set up the test data" taggedAs DbmsTest in {
       database.runTestTransaction(
@@ -82,6 +88,10 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
       database.runTestTransaction(database.dataAccess.workflowMetadataSummaryEntries.delete).futureValue(Timeout(10.seconds))
 
       database.close()
+    }
+
+    it should "stop container if required" taggedAs DbmsTest in {
+      containerOpt.foreach { _.stop }
     }
 
   }

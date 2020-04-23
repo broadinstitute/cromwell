@@ -3,8 +3,8 @@
 import re
 
 papi_v1_operation_regex = re.compile('^operations/[^/]*')
-papi_v2alpha1_operation_regex = re.compile('^projects/.*/operations/[0-9]*')
-papi_v2beta_operation_regex = re.compile('^projects/.*/locations/.*/operations/[0-9]*')
+papi_v2alpha1_operation_regex = re.compile('^projects/[^/]*/operations/[0-9]*')
+papi_v2beta_operation_regex = re.compile('^projects/[^/]*/locations/[^/]*/operations/[0-9]*')
 
 def get_operation_id_number(value):
     """

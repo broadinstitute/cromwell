@@ -35,18 +35,22 @@ def build_papi_operation_mapping(json_metadata, call_fn):
     #         "jobId": "projects/broad-dsde-cromwell-dev/operations/5788303950667477684",
     papi_operation_mapping = {}
 
-    def find_operation_ids_in_calls(calls):
+    def examine_calls(calls, path_so_far):
         for callname in calls:
             attempts = calls[callname]
             for attempt in attempts:
                 operation_id = attempt.get('jobId')
                 subWorkflowMetadata = attempt.get('subWorkflowMetadata')
+                path = path_so_far.copy()
+                path.append(callname)
+                shard_index = attempt.get('shardIndex', -1)
+                if shard_index != -1:
+                    path.append(f"shard_{shard_index}")
                 if operation_id:
-                    # TODO populate `path` field correctly for digester key building.
-                    call_fn(papi_operation_mapping, operation_id, [], attempt)
+                    call_fn(papi_operation_mapping, operation_id, path, attempt)
                 if subWorkflowMetadata:
-                    find_operation_ids_in_calls(subWorkflowMetadata.get('calls', {}))
+                    examine_calls(subWorkflowMetadata.get('calls', {}), path)
 
-    find_operation_ids_in_calls(json_metadata.get('calls', {}))
+    examine_calls(json_metadata.get('calls', {}), [])
 
     return papi_operation_mapping

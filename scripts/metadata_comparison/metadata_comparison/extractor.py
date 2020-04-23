@@ -25,6 +25,7 @@ import google.auth
 import logging as log
 from metadata_comparison.lib.argument_regex import *
 from metadata_comparison.lib.operation_ids import *
+from metadata_comparison.lib.papi.papi_clients import PapiClients
 
 logger = log.getLogger('metadata_comparison.extractor')
 
@@ -62,13 +63,6 @@ def fetch_raw_workflow_metadata(cromwell_url, workflow):
     return result.content, result.json()
 
 
-def read_papi_v2alpha1_operation_metadata(operation_id, api, genomics_v2alpha1_client):
-    """Reads the operations metadata for a pipelines API v2alpha1 job ID. Returns a python dict"""
-    logger.info(f'Reading PAPI v2alpha1 operation metadata for {operation_id}...')
-    result = genomics_v2alpha1_client.projects().operations().get(name=operation_id).execute()
-    return result
-
-
 def upload_blob(bucket_name, source_file_contents, destination_blob_name, gcs_storage_client):
     """Uploads a file to the cloud"""
     # bucket_name = "your-bucket-name"
@@ -94,13 +88,13 @@ def upload_operations_metadata_json(bucket_name, operation_id, operations_metada
     upload_blob(bucket_name, formatted_metadata, operation_upload_path, gcs_storage_client)
 
 
-def process_workflow(cromwell_url, gcs_bucket, gcs_path, gcs_storage_client, genomics_v2alpha1_client, workflow):
+def process_workflow(cromwell_url, gcs_bucket, gcs_path, gcs_storage_client, papi_clients, workflow):
     raw_metadata, json_metadata = fetch_raw_workflow_metadata(cromwell_url, workflow)
     workflow_gcs_base_path = f'{gcs_path}/{workflow}/extractor'
 
     operation_ids = find_operation_ids_in_metadata(json_metadata)
-    for (id, api) in operation_ids.items():
-        operation_metadata = read_papi_v2alpha1_operation_metadata(id, api, genomics_v2alpha1_client)
+    for id in operation_ids:
+        operation_metadata = papi_clients.request_operation_metadata(id)
         upload_operations_metadata_json(gcs_bucket, id, operation_metadata, workflow_gcs_base_path, gcs_storage_client)
     upload_workflow_metadata_json(gcs_bucket, raw_metadata, workflow_gcs_base_path, gcs_storage_client)
 
@@ -122,13 +116,13 @@ if __name__ == "__main__":
 
     credentials, project_id = google.auth.default()
     storage_client = storage.Client(credentials = credentials)
-    genomics_v2alpha1_client = google_client_build('genomics', 'v2alpha1', credentials = credentials)
+    papi_clients = PapiClients(credentials)
 
     logger.info(f'cromwell: {cromwell_url}')
     logger.info(f'gcs_bucket: {gcs_bucket}; gcs_path: {gcs_path}')
     logger.info(f'workflows: {workflows}')
 
     for workflow in workflows:
-        process_workflow(cromwell_url, gcs_bucket, gcs_path, storage_client, genomics_v2alpha1_client, workflow)
+        process_workflow(cromwell_url, gcs_bucket, gcs_path, storage_client, papi_clients, workflow)
 
     logger.info('Extractor operation completed successfully.')

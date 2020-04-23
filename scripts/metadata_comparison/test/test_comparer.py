@@ -15,7 +15,7 @@ class ComparerTestMethods(unittest.TestCase):
             return filePath, json.load(file)
 
 
-    def test_cromwell_url_regex_valid(self):
+    def test_compare_valid_jsons(self):
         json1 = self.readTestJson("performance_json1.json")
         json2 = self.readTestJson("performance_json2.json")
 

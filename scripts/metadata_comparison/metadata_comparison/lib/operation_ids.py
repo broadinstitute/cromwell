@@ -2,9 +2,10 @@
 
 import re
 
-papi_v1_operation_regex = re.compile('^operations/[^/]*')
-papi_v2alpha1_operation_regex = re.compile('^projects/[^/]*/operations/[0-9]*')
-papi_v2beta_operation_regex = re.compile('^projects/[^/]*/locations/[^/]*/operations/[0-9]*')
+PAPI_V1_OPERATION_REGEX = re.compile('^operations/[^/]*')
+PAPI_V2ALPHA1_OPERATION_REGEX = re.compile('^projects/[^/]*/operations/[0-9]*')
+PAPI_V2BETA_OPERATION_REGEX = re.compile('^projects/[^/]*/locations/[^/]*/operations/[0-9]*')
+
 
 def get_operation_id_number(value):
     """
@@ -21,14 +22,14 @@ def operation_id_to_api_version(value):
     Examines an operation ID and returns the PAPI API version which produced it
     Luckily, this is currently a 1:1 format-to-api mapping so we don't need any other clues to tell the API version.
     """
-    if papi_v1_operation_regex.match(value):
+    if PAPI_V1_OPERATION_REGEX.match(value):
         return 'v1alpha2'
-    elif papi_v2alpha1_operation_regex.match(value):
+    elif PAPI_V2ALPHA1_OPERATION_REGEX.match(value):
         return 'v2alpha1'
-    elif papi_v2beta_operation_regex.match(value):
+    elif PAPI_V2BETA_OPERATION_REGEX.match(value):
         return 'v2beta'
     else:
-        raise Exception(f'Cannot deduce PAPI api version from ID "{value}"')
+        raise Exception(f'Cannot deduce PAPI api version from unexpected operation ID format \'{value}\'')
 
 
 def find_operation_ids_in_metadata(json_metadata):

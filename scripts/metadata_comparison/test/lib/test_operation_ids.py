@@ -4,7 +4,7 @@ import unittest
 import json
 from metadata_comparison.lib.operation_ids import *
 from metadata_comparison.extractor import find_operation_ids_in_metadata
-from test.lib.helper_functions import read_resource
+from test.lib.helper_functions import RESOURCES
 
 class OperationIdTestMethods(unittest.TestCase):
 
@@ -60,22 +60,22 @@ class OperationIdTestMethods(unittest.TestCase):
                 self.assertEqual(get_operation_id_number(input), expectation)
 
     def test_find_v1alpha2_operation_ids_in_metadata(self):
-        metadata = json.loads(read_resource('forkjoin_metadata_papi_v1alpha2.json'))
+        metadata = json.loads((RESOURCES / 'forkjoin_metadata_papi_v1alpha2.json').read_text())
         self.assertEqual(find_operation_ids_in_metadata(metadata), self.v1alpha2_ids)
 
 
     def test_find_v2alpha1_operation_ids_in_metadata(self):
-        metadata = json.loads(read_resource('forkjoin_metadata_papi_v2alpha1.json'))
+        metadata = json.loads((RESOURCES / 'forkjoin_metadata_papi_v2alpha1.json').read_text())
         self.assertEqual(find_operation_ids_in_metadata(metadata), self.v2alpha1_ids)
 
 
     def test_find_v2beta_operation_ids_in_metadata(self):
-        metadata = json.loads(read_resource('forkjoin_metadata_papi_v2beta.json'))
+        metadata = json.loads((RESOURCES / 'forkjoin_metadata_papi_v2beta.json').read_text())
         self.assertEqual(find_operation_ids_in_metadata(metadata), self.v2beta_ids)
 
 
     def test_find_operation_ids_in_metadata_subworkflows(self):
-        metadata = json.loads(read_resource('subworkflow_hello_world_metadata.json'))
+        metadata = json.loads((RESOURCES / 'subworkflow_hello_world_metadata.json').read_text())
         self.assertEqual(find_operation_ids_in_metadata(metadata),
             ['projects/broad-dsde-cromwell-dev/operations/2244029211726316446'])
 
@@ -90,6 +90,14 @@ class OperationIdTestMethods(unittest.TestCase):
         for case in self.v2beta_ids:
             with self.subTest(case=case):
                 self.assertEqual(operation_id_to_api_version(case), 'v2beta')
+
+
+    def test_invalid_operation_id_has_no_api_version(self):
+        case = "badstart/projects/broad-dsde-cromwell-dev/operations/4960504346170163809"
+        with self.assertRaises(Exception) as context:
+            operation_id_to_api_version(case)
+        self.assertEqual(str(context.exception), 'Cannot deduce PAPI api version from unexpected operation ID format \'badstart/projects/broad-dsde-cromwell-dev/operations/4960504346170163809\'')
+
 
 
 if __name__ == '__main__':

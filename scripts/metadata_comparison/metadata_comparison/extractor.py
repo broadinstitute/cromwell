@@ -22,23 +22,23 @@ import json
 import requests
 from google.cloud import storage
 import google.auth
-import logging as log
+import logging
 from metadata_comparison.lib.argument_regex import *
 from metadata_comparison.lib.operation_ids import *
 from metadata_comparison.lib.papi.papi_clients import PapiClients
 
-logger = log.getLogger('metadata_comparison.extractor')
+logger = logging.getLogger('metadata_comparison.extractor')
 
-def set_log_verbosity(verbose):
+def set_log_verbosity(verbose: bool) -> None:
     if verbose:
-        log.basicConfig(format='[%(asctime)s] [%(name)s] %(message)s', level=log.INFO)
+        logging.basicConfig(format='[%(asctime)s] [%(name)s] %(message)s', level=logging.INFO)
     else:
-        log.basicConfig(format='[%(asctime)s] [%(name)s] %(message)s', level=log.WARNING)
+        logging.basicConfig(format='[%(asctime)s] [%(name)s] %(message)s', level=logging.WARNING)
 
 
-def quieten_chatty_imports():
-    log.getLogger('googleapiclient.discovery_cache').setLevel(log.ERROR)
-    log.getLogger('googleapiclient.discovery').setLevel(log.WARNING)
+def quieten_chatty_imports() -> None:
+    logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
+    logging.getLogger('googleapiclient.discovery').setLevel(logging.WARNING)
 
 
 def uploadLocalCheckout():
@@ -56,14 +56,15 @@ def uploadLocalCheckout():
     raise Exception("Not Implemented")
 
 
-def fetch_raw_workflow_metadata(cromwell_url, workflow):
+def fetch_raw_workflow_metadata(cromwell_url: str, workflow: str) -> (requests.Response, dict):
+    """Fetches workflow metadata for a workflow. Returns the raw response and the dict read from json"""
     url = f'{cromwell_url}/api/workflows/v1/{workflow}/metadata?expandSubWorkflows=true'
     logger.info(f'Fetching Cromwell metadata from {url}...')
     result = requests.get(url)
     return result.content, result.json()
 
 
-def upload_blob(bucket_name, source_file_contents, destination_blob_name, gcs_storage_client):
+def upload_blob(bucket_name: str, source_file_contents: str, destination_blob_name: str, gcs_storage_client: storage.Client) -> None:
     """Uploads a file to the cloud"""
     # bucket_name = "your-bucket-name"
     # source_file_contents = "... some file contents..."
@@ -76,19 +77,19 @@ def upload_blob(bucket_name, source_file_contents, destination_blob_name, gcs_st
     blob.upload_from_string(source_file_contents)
 
 
-def upload_workflow_metadata_json(bucket_name, raw_workflow_metadata, workflow_gcs_base_path, gcs_storage_client):
+def upload_workflow_metadata_json(bucket_name: str, raw_workflow_metadata: str, workflow_gcs_base_path: str, gcs_storage_client: storage.Client) -> None:
     workflow_gcs_metadata_upload_path = f'{workflow_gcs_base_path}/metadata.json'
     upload_blob(bucket_name, raw_workflow_metadata, workflow_gcs_metadata_upload_path, gcs_storage_client)
 
 
-def upload_operations_metadata_json(bucket_name, operation_id, operations_metadata, workflow_gcs_base_path, gcs_storage_client):
+def upload_operations_metadata_json(bucket_name: str, operation_id: str, operations_metadata: dict, workflow_gcs_base_path: str, gcs_storage_client: storage.Client) -> None:
     """Uploads metadata to cloud storage, as json"""
     operation_upload_path = f'{workflow_gcs_base_path}/operations/{get_operation_id_number(operation_id)}.json'
     formatted_metadata = json.dumps(operations_metadata, indent=2)
     upload_blob(bucket_name, formatted_metadata, operation_upload_path, gcs_storage_client)
 
 
-def process_workflow(cromwell_url, gcs_bucket, gcs_path, gcs_storage_client, papi_clients, workflow):
+def process_workflow(cromwell_url: str, gcs_bucket: str, gcs_path: str, gcs_storage_client: storage.Client, papi_clients: PapiClients, workflow: str) -> None:
     raw_metadata, json_metadata = fetch_raw_workflow_metadata(cromwell_url, workflow)
     workflow_gcs_base_path = f'{gcs_path}/{workflow}/extractor'
 

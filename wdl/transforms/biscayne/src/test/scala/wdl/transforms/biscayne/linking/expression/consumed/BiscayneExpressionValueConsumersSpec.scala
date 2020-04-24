@@ -46,4 +46,13 @@ class BiscayneExpressionValueConsumersSpec extends FlatSpec with Matchers {
       case e => e.expressionConsumedValueHooks should be(Set(UnlinkedCallOutputOrIdentifierAndMemberAccessHook("my_task", "out")))
     }
   }
+
+  it should "discover the variable lookups within a sep() call" in {
+    val str = """ sep(my_separator, ["a", "b", c]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    expr.shouldBeValidPF {
+      case e => e.expressionConsumedValueHooks should be(Set(UnlinkedIdentifierHook("my_separator"), UnlinkedIdentifierHook("c")))
+    }
+  }
 }

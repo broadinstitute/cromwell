@@ -156,9 +156,12 @@ object BiscayneValueEvaluators {
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
-                              (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomArray]] = {
+                              (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomString]] = {
 
-      processTwoValidatedValues[WomArray, WomString, WomString](a.arg1.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions), a.arg2.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { (arr1, sepvalue) =>
+      processTwoValidatedValues[WomArray, WomString, WomString](
+        expressionValueEvaluator.evaluateValue(a.arg1, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator),
+        expressionValueEvaluator.evaluateValue(a.arg2, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
+      ) { (arr1, sepvalue) =>
         EvaluatedValue(WomString(arr1.value.mkString(sepvalue.value)), Seq.empty).validNel
       }
     }

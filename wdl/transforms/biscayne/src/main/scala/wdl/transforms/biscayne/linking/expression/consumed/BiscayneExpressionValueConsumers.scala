@@ -43,7 +43,8 @@ object BiscayneExpressionValueConsumers {
 
   implicit val sepExpressionValueConsumer: ExpressionValueConsumer[Sep] = new ExpressionValueConsumer[Sep] {
     override def expressionConsumedValueHooks(a: Sep)(implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): Set[UnlinkedConsumedValueHook] = {
-      expressionValueConsumer.expressionConsumedValueHooks(a.arg1)(expressionValueConsumer) ++ expressionValueConsumer.expressionConsumedValueHooks(a.arg2)(expressionValueConsumer)
+      expressionValueConsumer.expressionConsumedValueHooks(a.arg1)(expressionValueConsumer) ++
+        expressionValueConsumer.expressionConsumedValueHooks(a.arg2)(expressionValueConsumer)
     }
   }
 

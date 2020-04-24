@@ -307,7 +307,13 @@ object Operations extends StrictLogging {
           mappedStatus <- workflowStatus match {
             case s if s == expectedStatus => IO.pure(workflow)
             case s: TerminalStatus =>
-              CentaurCromwellClient.metadata(workflow) flatMap { metadata =>
+              val reducedMetadataOptions: Map[String, List[String]] =
+                CentaurCromwellClient.defaultMetadataArgs.getOrElse(Map.empty) ++ Map(
+                  "includeKey" -> (List("status") ++ (if (expectedStatus == Succeeded) List("failures") else List.empty)),
+                  "expandSubWorkflows" -> List("false")
+                )
+
+              CentaurCromwellClient.metadata(workflow = workflow, args = Option(reducedMetadataOptions)) flatMap { metadata =>
                 val failuresString = if (expectedStatus == Succeeded) {
                   (for {
                     metadataJson <- parse(metadata.value).toOption
@@ -824,7 +830,7 @@ object Operations extends StrictLogging {
     override def run: IO[Unit] = for {
       jmMetadataAfterArchival <- CentaurCromwellClient.metadata(
         workflow = submittedWorkflow,
-        Option(CentaurCromwellClient.defaultMetadataArgs.getOrElse(Map.empty) ++ jmArgs),
+        args = Option(CentaurCromwellClient.defaultMetadataArgs.getOrElse(Map.empty) ++ jmArgs),
         archived = Option(true))
       jmMetadataObjectBeforeArchival <- IO.fromTry(Try(removeMetadataSourceFromJsObject(jmMetadataBeforeArchival.value.parseJson.asJsObject)))
       jmMetadataObjectAfterArchival <- IO.fromTry(Try(removeMetadataSourceFromJsObject(jmMetadataAfterArchival.value.parseJson.asJsObject)))

@@ -62,6 +62,8 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
 
   private[preparation] lazy val expressionLanguageFunctions = {
     val expressionFunctions: IoFunctionSet = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, jobKey, initializationData, ioActor, ioEc)
+    // It would have been nicer to check if expressionFunctions is of class SharedFileSystemExpressions, but this
+    // class cannot be imported due to import order issues.
     expressionFunctions.setForInput(true)
     expressionFunctions
   }

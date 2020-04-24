@@ -24,10 +24,6 @@ def quieten_chatty_imports():
     log.getLogger('googleapiclient.discovery').setLevel(log.WARNING)
 
 
-def ensure_slashed(path):
-    return path + '/' if not path.endswith('/') else path
-
-
 def build_papi_operation_mapping(json_metadata, call_fn):
     """Finds all instances of attempts with PAPI operations IDs in a workflow and
        invokes the supplied call_fn on each, potentially populating the returned dictionary."""

@@ -3,6 +3,7 @@
 import argparse
 import re
 
+
 def workflow_regex_validator(value):
     """Makes sure that a value is a valid Cromwell workflow ID then returns the workflow ID"""
     workflow_regex=re.compile('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
@@ -11,6 +12,10 @@ def workflow_regex_validator(value):
         raise argparse.ArgumentTypeError(msg)
     else:
         return value
+
+
+def validate_gcs_if_gcs(value):
+    return gcs_path_regex_validator(value) if value.startswith('gs://') else value
 
 
 def url_regex_validator(value):

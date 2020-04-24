@@ -9,6 +9,8 @@ import metadata_comparison.lib.argument_regex as reutil
 import metadata_comparison.lib.util as util
 from datetime import timedelta, datetime, timezone
 import dateutil.parser
+import os
+from pathlib import Path
 
 Version = "0.0.1"
 verbose = False
@@ -24,13 +26,23 @@ def main():
     #     operations_path = parent_path + 'operations'
     #     print(f'would expect to find a workflow json at {workflow_json_path} and operations under {operations_path}')
     for path in args.local_paths:
-        parent_path = util.ensure_slashed(path)
-        workflow_json_path = parent_path + 'workflow.json'
-        # operations_dir = parent_path + 'operations'
-        with open(workflow_json_path, 'r') as file:
-            data = file.read()
-            metadata = json.loads(data)
-            print(json.dumps(digest(metadata), sort_keys=True, indent=4))
+        if not isinstance(path, tuple):
+            parent_path = path if not path.endswith('/') else path[:-1]
+            workflow_json_path = f'{parent_path}/workflow.json'
+            # operations_dir = parent_path + 'operations'
+            with open(workflow_json_path, 'r') as file:
+                data = file.read()
+                metadata = json.loads(data)
+                digest_parent = Path(f'{parent_path}/digests/{Version}')
+                digest_path = digest_parent / 'digest.json'
+                if not os.path.exists(digest_path) or args.force:
+                    digest_parent.mkdir(parents=True, exist_ok=True)
+                    with open(digest_path, 'w') as digest_file:
+                        digest_file.write(json.dumps(digest(metadata), sort_keys=True, indent=4))
+                else:
+                    raise ValueError(f'digest file already exists at {digest_path} and --force not specified')
+        else:
+            raise ValueError("Haven't written the GCS bits yet")
 
 
 def parse_args():
@@ -40,9 +52,8 @@ def parse_args():
                         help='whether to log verbosely (default False)')
     parser.add_argument('-f', '--force', action='store_true',
                         help='whether to overwrite existing digests (default False)')
-    parser.add_argument('local_paths', metavar="LOCALPATH", nargs='+', help="Local directory containing metadata")
-    # parser.add_argument('gcs_paths', metavar='GCSPATH', type=reutil.gcs_path_regex_validator, nargs='+',
-    #                     help='GCS paths containing workflow data')
+    parser.add_argument('local_paths', metavar="PATH", nargs='+', type=reutil.validate_gcs_if_gcs,
+                        help="Location at which to find metadata (local or GCS)")
 
     return parser.parse_args()
 

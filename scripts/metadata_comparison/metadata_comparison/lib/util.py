@@ -24,9 +24,13 @@ def quieten_chatty_imports():
     log.getLogger('googleapiclient.discovery').setLevel(log.WARNING)
 
 
+def ensure_slashed(path):
+    return path + '/' if not path.endswith('/') else path
+
+
 def build_papi_operation_mapping(json_metadata, call_fn):
     """Finds all instances of attempts with PAPI operations IDs in a workflow and
-       invokes the supplied call_fn on them to potentially populate the returned dictionary."""
+       invokes the supplied call_fn on each, potentially populating the returned dictionary."""
     # {
     #   "calls": {
     #     "workflow_name.task_name": [
@@ -60,10 +64,10 @@ def build_papi_operation_mapping(json_metadata, call_fn):
         call_path.append(deduplicated_callname)
         shard_index = attempt.get('shardIndex', -1)
         if shard_index != -1:
-            call_path.append(f"shard_{shard_index}")
+            call_path.append(f"shard_{shard_index:04d}")
 
         return call_path
 
-    examine_calls(json_metadata.get('calls', {}), [])
+    examine_calls(calls=json_metadata.get('calls', {}), path_so_far=[])
 
     return papi_operation_mapping

@@ -27,9 +27,6 @@ class SharedFileSystemExpressionFunctions(standardParams: StandardExpressionFunc
     this(DefaultStandardExpressionFunctionsParams(pathBuilders, callContext, ioActorProxy, ec))
   }
 
-  private var forInput = false
-  override def setForInput(x: Boolean): Unit = forInput = x
-
   lazy val cromwellCwd: Path = DefaultPathBuilder.build(sys.props("user.dir")).get
 
   override def postMapping(path: Path) = {

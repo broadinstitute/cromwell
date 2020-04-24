@@ -18,16 +18,15 @@ verbose = False
 
 def main():
     args = parse_args()
-    global verbose
     for path in args.local_paths:
         if not isinstance(path, tuple):
-            parent_path = path if not path.endswith('/') else path[:-1]
-            workflow_json_path = f'{parent_path}/workflow.json'
-            # operations_dir = parent_path + 'operations'
+            parent_path = Path(path)
+            workflow_json_path = parent_path / 'workflow.json'
+            # operations_dir = parent_path / 'operations'
             with open(workflow_json_path, 'r') as file:
                 data = file.read()
                 metadata = json.loads(data)
-                digest_parent = Path(f'{parent_path}/digests/{Version}')
+                digest_parent = parent_path / 'digests' / Version
                 digest_path = digest_parent / 'digest.json'
                 if not os.path.exists(digest_path) or args.force:
                     digest_parent.mkdir(parents=True, exist_ok=True)

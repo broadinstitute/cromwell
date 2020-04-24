@@ -28,7 +28,7 @@ class SharedFileSystemExpressionFunctions(standardParams: StandardExpressionFunc
   }
 
   private var forInput = false
-  def setForInput(x: Boolean): Unit = forInput = x
+  override def setForInput(x: Boolean): Unit = forInput = x
 
   lazy val cromwellCwd: Path = DefaultPathBuilder.build(sys.props("user.dir")).get
 

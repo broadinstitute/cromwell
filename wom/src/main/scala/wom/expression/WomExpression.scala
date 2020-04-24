@@ -158,6 +158,12 @@ trait IoFunctionSet {
   def size(path: String): Future[Long]
 
   /**
+    * Set the forInput variable if present.
+    * @param x the value for forInput.
+    */
+  def setForInput(x: Boolean): Unit = {}
+
+  /**
     * To map/flatMap over IO results
     */
   implicit def ec: ExecutionContext

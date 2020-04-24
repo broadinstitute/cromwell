@@ -7,7 +7,6 @@ import common.exception.MessageAggregation
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation.{GreaterEqualOne, GreaterEqualRefined}
 import cromwell.backend._
-import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
 import cromwell.backend.validation.DockerValidation
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching._
@@ -27,6 +26,7 @@ import cromwell.services.metadata.{CallMetadataKeys, MetadataEvent, MetadataValu
 import eu.timepit.refined.api.Refined
 import wom.RuntimeAttributesKeys
 import wom.callable.Callable.InputDefinition
+import wom.expression.IoFunctionSet
 import wom.format.MemorySize
 import wom.values._
 
@@ -61,13 +61,9 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   private[preparation] val ioEc = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
 
   private[preparation] lazy val expressionLanguageFunctions = {
-    val expressionFunctions = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, jobKey, initializationData, ioActor, ioEc)
-    expressionFunctions match {
-        // For shared file systems inputs should be resolved from Cromwell's current working directory.
-        // This needs to be known in the expression functions.
-      case ef: SharedFileSystemExpressionFunctions => ef.setForInput(true); ef
-      case ef: _ => ef
-    }
+    val expressionFunctions: IoFunctionSet = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, jobKey, initializationData, ioActor, ioEc)
+    expressionFunctions.setForInput(true)
+    expressionFunctions
   }
 
   private[preparation] lazy val dockerHashCredentials = factory.dockerHashCredentials(workflowDescriptor.backendDescriptor, initializationData)

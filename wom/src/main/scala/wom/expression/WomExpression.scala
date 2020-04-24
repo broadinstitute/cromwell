@@ -158,14 +158,16 @@ trait IoFunctionSet {
   def size(path: String): Future[Long]
 
   /**
-    * Lets the IO Function set now if it used for the input section. This is useful for some backends.
-    */
-  var forInput = false
-
-  /**
     * To map/flatMap over IO results
     */
   implicit def ec: ExecutionContext
   
   implicit def cs = IO.contextShift(ec)
+}
+
+trait InputDependentIOFunctionSet {
+  /**
+    * Lets the IO Function set now if it used for the input section. This is useful for some backends.
+    */
+  var forInput = false
 }

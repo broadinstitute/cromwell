@@ -5,6 +5,7 @@ import cromwell.backend.io._
 import cromwell.backend.standard.{DefaultStandardExpressionFunctionsParams, StandardExpressionFunctions, StandardExpressionFunctionsParams}
 import cromwell.core.CallContext
 import cromwell.core.path.{DefaultPath, DefaultPathBuilder, Path, PathBuilder}
+import wom.expression.InputDependentIOFunctionSet
 
 import scala.concurrent.ExecutionContext
 
@@ -18,7 +19,7 @@ object SharedFileSystemExpressionFunctions {
 }
 
 class SharedFileSystemExpressionFunctions(standardParams: StandardExpressionFunctionsParams)
-  extends StandardExpressionFunctions(standardParams) {
+  extends StandardExpressionFunctions(standardParams) with InputDependentIOFunctionSet {
 
   def this(pathBuilders: List[PathBuilder],
            callContext: CallContext,

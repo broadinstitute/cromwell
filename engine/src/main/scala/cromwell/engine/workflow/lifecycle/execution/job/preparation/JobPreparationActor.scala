@@ -26,7 +26,7 @@ import cromwell.services.metadata.{CallMetadataKeys, MetadataEvent, MetadataValu
 import eu.timepit.refined.api.Refined
 import wom.RuntimeAttributesKeys
 import wom.callable.Callable.InputDefinition
-import wom.expression.IoFunctionSet
+import wom.expression.{InputDependentIOFunctionSet, IoFunctionSet}
 import wom.format.MemorySize
 import wom.values._
 
@@ -61,11 +61,11 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   private[preparation] val ioEc = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
 
   private[preparation] lazy val expressionLanguageFunctions = {
-    val expressionFunctions: IoFunctionSet = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, jobKey, initializationData, ioActor, ioEc)
-    // It would have been nicer to check if expressionFunctions is of class SharedFileSystemExpressions, but this
-    // class cannot be imported due to import order issues.
-    expressionFunctions.forInput = true
-    expressionFunctions
+    val ioFunctionSet: IoFunctionSet = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, jobKey, initializationData, ioActor, ioEc)
+    ioFunctionSet match {
+      case iofs: InputDependentIOFunctionSet => iofs.forInput = true; iofs
+      case _ => ioFunctionSet
+    }
   }
 
   private[preparation] lazy val dockerHashCredentials = factory.dockerHashCredentials(workflowDescriptor.backendDescriptor, initializationData)

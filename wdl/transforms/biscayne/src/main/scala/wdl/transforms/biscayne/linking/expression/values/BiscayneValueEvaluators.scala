@@ -9,10 +9,10 @@ import common.collections.EnhancedCollections._
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
-import wdl.transforms.base.linking.expression.values.EngineFunctionEvaluators.processValidatedSingleValue
+import wdl.transforms.base.linking.expression.values.EngineFunctionEvaluators.{processValidatedSingleValue, processTwoValidatedValues}
 import wom.expression.IoFunctionSet
 import wom.types._
-import wom.values.{WomArray, WomInteger, WomFloat, WomMap, WomOptionalValue, WomPair, WomValue}
+import wom.values.{WomArray, WomInteger, WomFloat, WomMap, WomOptionalValue, WomPair, WomValue, WomString}
 import wom.types.coercion.defaults._
 
 object BiscayneValueEvaluators {
@@ -148,6 +148,19 @@ object BiscayneValueEvaluators {
       val doubleFunc = (l1: Double, l2: Double) => Math.max(l1, l2)
 
       (value1, value2) flatMapN resultOfIntVsFloat("max", intFunc, doubleFunc)
+    }
+  }
+
+  implicit val sepFunctionEvaluator: ValueEvaluator[Sep] = new ValueEvaluator[Sep] {
+    override def evaluateValue(a: Sep,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
+                              (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomArray]] = {
+
+      processTwoValidatedValues[WomArray, WomString, WomString](a.arg1.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions), a.arg2.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { (arr1, sepvalue) =>
+        EvaluatedValue(WomString(arr1.value.mkString(sepvalue.value)), Seq.empty).validNel
+      }
     }
   }
 }

@@ -1,5 +1,12 @@
 # Cromwell Change Log
 
+## 51 Release Notes
+
+### Bug fixes
+
+* Fixed a bug where the `size(...)` function did not work correctly on files from the input section
+  of a task that had a relative path.
+
 ## 50 Release Notes
 
 ### Changes and Warnings
@@ -10,7 +17,6 @@
 Cromwell's metadata archival configuration has changed in a backwards incompatible way to increase consistency,
 please see
 [the updated documentation](https://cromwell.readthedocs.io/en/stable/Configuring#hybrid-metadata-storage-classic-carbonite) for details.
-
 
 ## 49 Release Notes
 

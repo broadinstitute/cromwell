@@ -30,7 +30,6 @@ class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") 
 
   val carboniterConfig = HybridCarboniteConfig.parseConfig(ConfigFactory.parseString(
     """{
-      |   enabled = true
       |   bucket = "carbonite-test-bucket"
       |   filesystems {
       |     gcs {
@@ -38,8 +37,13 @@ class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") 
       |       auth = "application-default"
       |     }
       |   }
+      |   metadata-freezing {
+      |     initial-interval = 5 seconds
+      |   }
       |}""".stripMargin
   )).unsafe("Make config file")
+
+  val freezingConfig: ActiveMetadataFreezingConfig = carboniterConfig.freezingConfig.asInstanceOf[ActiveMetadataFreezingConfig]
 
   val carboniteWorkerActor = TestActorRef(new MockCarboniteWorkerActor(
     carboniterConfig,
@@ -55,10 +59,11 @@ class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") 
   val queryResponse = WorkflowQueryResponse(Seq(queryResult), 1)
   val querySuccessResponse = WorkflowQuerySuccess(queryResponse, Option(queryMeta))
 
+
   it should "carbonite workflow at intervals" in {
     10.times {
       // We might get noise from instrumentation. We can ignore that, but we expect the query to come through eventually:
-      val expectedQueryParams = CarboniteWorkerActor.buildQueryParametersForWorkflowToCarboniteQuery(carboniterConfig.minimumSummaryEntryId)
+      val expectedQueryParams = CarboniteWorkerActor.buildQueryParametersForWorkflowToCarboniteQuery(freezingConfig.minimumSummaryEntryId)
       serviceRegistryActor.fishForSpecificMessage(10.seconds) {
         case QueryForWorkflowsMatchingParameters(`expectedQueryParams`) => true
       }
@@ -74,7 +79,7 @@ class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") 
   it should "keep carboniting workflow at intervals despite the query failures" in {
     10.times {
       // We might get noise from instrumentation. We can ignore that, but we expect the query to come through eventually:
-      val expectedQueryParams = CarboniteWorkerActor.buildQueryParametersForWorkflowToCarboniteQuery(carboniterConfig.minimumSummaryEntryId)
+      val expectedQueryParams = CarboniteWorkerActor.buildQueryParametersForWorkflowToCarboniteQuery(freezingConfig.minimumSummaryEntryId)
       serviceRegistryActor.fishForSpecificMessage(10.seconds) {
         case QueryForWorkflowsMatchingParameters(`expectedQueryParams`) => true
       }
@@ -92,4 +97,4 @@ class MockCarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
                                ioActor: ActorRef,
                                override val carboniteFreezerActor: ActorRef,
                                override val backOff: SimpleExponentialBackoff)
-  extends CarboniteWorkerActor(carboniterConfig, serviceRegistryActor, ioActor) { }
+  extends CarboniteWorkerActor(carboniterConfig.freezingConfig.asInstanceOf[ActiveMetadataFreezingConfig], carboniterConfig, serviceRegistryActor, ioActor) { }

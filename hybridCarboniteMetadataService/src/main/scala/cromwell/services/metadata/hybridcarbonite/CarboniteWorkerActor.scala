@@ -20,20 +20,20 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
+class CarboniteWorkerActor(freezingConfig: ActiveMetadataFreezingConfig,
+                           carboniterConfig: HybridCarboniteConfig,
                            override val serviceRegistryActor: ActorRef,
                            ioActor: ActorRef) extends Actor with ActorLogging with GracefulShutdownHelper with CromwellInstrumentation {
 
   implicit val ec: ExecutionContext = context.dispatcher
 
-  val carboniteFreezerActor = context.actorOf(CarbonitingMetadataFreezerActor.props(carboniterConfig, self, serviceRegistryActor, ioActor))
+  val carboniteFreezerActor = context.actorOf(CarbonitingMetadataFreezerActor.props(freezingConfig, carboniterConfig, self, serviceRegistryActor, ioActor))
 
   val backOff = {
-    val scanConfig = carboniterConfig.freezeScanConfig
     SimpleExponentialBackoff(
-      initialInterval = scanConfig.initialInterval,
-      maxInterval = scanConfig.maxInterval,
-      multiplier = scanConfig.multiplier,
+      initialInterval = freezingConfig.initialInterval,
+      maxInterval = freezingConfig.maxInterval,
+      multiplier = freezingConfig.multiplier,
       randomizationFactor = 0.0
     )
   }
@@ -67,7 +67,7 @@ class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
       recordTimeSinceStartAsMetric(CarboniteFreezingTimeMetricPath, carboniteFreezeStartTime)
       carboniteFreezeStartTime = None
 
-      if (carboniterConfig.debugLogging) { log.info(s"Carboniting complete for workflow ${c.workflowId}") }
+      if (freezingConfig.debugLogging) { log.info(s"Carboniting complete for workflow ${c.workflowId}") }
 
       c.result match {
         case Archived => increment(CarboniteSuccessesMetricPath, InstrumentationPrefix)
@@ -93,7 +93,7 @@ class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
 
   def findWorkflowToCarbonite(): Unit = {
     workflowQueryStartTime = Option(System.currentTimeMillis())
-    serviceRegistryActor ! QueryForWorkflowsMatchingParameters(CarboniteWorkerActor.buildQueryParametersForWorkflowToCarboniteQuery(carboniterConfig.minimumSummaryEntryId))
+    serviceRegistryActor ! QueryForWorkflowsMatchingParameters(CarboniteWorkerActor.buildQueryParametersForWorkflowToCarboniteQuery(freezingConfig.minimumSummaryEntryId))
   }
 
 
@@ -102,7 +102,7 @@ class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
 
     Try(WorkflowId.fromString(workflowId)) match {
       case Success(id: WorkflowId) =>
-        if (carboniterConfig.debugLogging) { log.info(s"Starting carboniting of workflow: $workflowId") }
+        if (freezingConfig.debugLogging) { log.info(s"Starting carboniting of workflow: $workflowId") }
         carboniteFreezerActor ! FreezeMetadata(id)
       case Failure(e) =>
         log.error(e, s"Cannot carbonite workflow $workflowId. Error while converting it to WorkflowId, will retry.")
@@ -134,8 +134,8 @@ object CarboniteWorkerActor {
     PageSize.name -> "1"
   ) ++ minimumSummaryEntryId.map(id => MinimumSummaryEntryId.name -> s"$id")
 
-  def props(carboniterConfig: HybridCarboniteConfig, serviceRegistryActor: ActorRef, ioActor: ActorRef) =
-    Props(new CarboniteWorkerActor(carboniterConfig, serviceRegistryActor, ioActor))
+  def props(freezingConfig: ActiveMetadataFreezingConfig, carboniterConfig: HybridCarboniteConfig, serviceRegistryActor: ActorRef, ioActor: ActorRef) =
+    Props(new CarboniteWorkerActor(freezingConfig, carboniterConfig, serviceRegistryActor, ioActor))
 
   val InstrumentationPrefix: Option[String] = InstrumentationPrefixes.ServicesPrefix
   private val carboniteMetricsBasePath: NonEmptyList[String] = MetadataServiceActor.MetadataInstrumentationPrefix :+ "carbonite"

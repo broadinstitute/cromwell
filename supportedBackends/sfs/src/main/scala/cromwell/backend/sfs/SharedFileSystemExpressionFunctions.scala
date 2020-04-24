@@ -4,7 +4,7 @@ import akka.actor.ActorRef
 import cromwell.backend.io._
 import cromwell.backend.standard.{DefaultStandardExpressionFunctionsParams, StandardExpressionFunctions, StandardExpressionFunctionsParams}
 import cromwell.core.CallContext
-import cromwell.core.path.{DefaultPath, Path, PathBuilder}
+import cromwell.core.path.{DefaultPath, DefaultPathBuilder, Path, PathBuilder}
 
 import scala.concurrent.ExecutionContext
 
@@ -27,8 +27,14 @@ class SharedFileSystemExpressionFunctions(standardParams: StandardExpressionFunc
     this(DefaultStandardExpressionFunctionsParams(pathBuilders, callContext, ioActorProxy, ec))
   }
 
+  private var forInput = false
+  def setForInput(x: Boolean): Unit = forInput = x
+
+  lazy val cromwellCwd: Path = DefaultPathBuilder.build(sys.props("user.dir")).get
+
   override def postMapping(path: Path) = {
     path match {
+      case _: DefaultPath if !path.isAbsolute && forInput => cromwellCwd.resolve(path)
       case _: DefaultPath if !path.isAbsolute => callContext.root.resolve(path)
       case _ => path
     }

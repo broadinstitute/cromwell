@@ -7,6 +7,7 @@ import common.exception.MessageAggregation
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation.{GreaterEqualOne, GreaterEqualRefined}
 import cromwell.backend._
+import cromwell.backend.sfs.SharedFileSystemExpressionFunctions
 import cromwell.backend.validation.DockerValidation
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching._
@@ -59,7 +60,16 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   private[preparation] lazy val noResponseTimeout: FiniteDuration = 3 minutes
   private[preparation] val ioEc = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
 
-  private[preparation] lazy val expressionLanguageFunctions = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, jobKey, initializationData, ioActor, ioEc)
+  private[preparation] lazy val expressionLanguageFunctions = {
+    val expressionFunctions = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, jobKey, initializationData, ioActor, ioEc)
+    expressionFunctions match {
+        // For shared file systems inputs should be resolved from Cromwell's current working directory.
+        // This needs to be known in the expression functions.
+      case ef: SharedFileSystemExpressionFunctions => ef.setForInput(true); ef
+      case ef: _ => ef
+    }
+  }
+
   private[preparation] lazy val dockerHashCredentials = factory.dockerHashCredentials(workflowDescriptor.backendDescriptor, initializationData)
   private[preparation] lazy val runtimeAttributeDefinitions = factory.runtimeAttributeDefinitions(initializationData)
   private[preparation] lazy val hasDockerDefinition = runtimeAttributeDefinitions.exists(_.name == DockerValidation.instance.key)

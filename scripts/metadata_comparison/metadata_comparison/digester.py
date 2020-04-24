@@ -19,12 +19,6 @@ verbose = False
 def main():
     args = parse_args()
     global verbose
-    verbose = args.verbose
-    # for gcs_path in args.gcs_paths:
-    #     parent_path = f'gs://{gcs_path[0]}/{gcs_path[1]}/'
-    #     workflow_json_path = parent_path + 'workflow.json'
-    #     operations_path = parent_path + 'operations'
-    #     print(f'would expect to find a workflow json at {workflow_json_path} and operations under {operations_path}')
     for path in args.local_paths:
         if not isinstance(path, tuple):
             parent_path = path if not path.endswith('/') else path[:-1]
@@ -61,9 +55,7 @@ def parse_args():
 def digest(metadata):
     def call_fn(operation_mapping, operation_id, path, attempt):
         backend_status = attempt.get('backendStatus', 'Unknown')
-        # print(f"digester seeing path of {path} and backendStatus {backend_status}")
         if backend_status == 'Success':
-            # print("Job was Succeeded woot")
             string_path = '.'.join(path)
             start = attempt.get('start')
             end = attempt.get('end')

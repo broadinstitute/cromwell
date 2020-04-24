@@ -57,7 +57,7 @@ def digest(metadata):
             start = attempt.get('start')
             end = attempt.get('end')
 
-            overall_runtime_seconds = (dateutil.parser.parse(end) - dateutil.parser.parse(start)).total_seconds()
+            cromwell_total_time_seconds = (dateutil.parser.parse(end) - dateutil.parser.parse(start)).total_seconds()
 
             operation_mapping[string_path] = {
                 "attempt": attempt.get('attempt'),
@@ -65,7 +65,7 @@ def digest(metadata):
                 "operationId": operation_id,
                 "start": start,
                 "end": end,
-                "overallRuntimeSeconds": overall_runtime_seconds
+                "cromwellTotalTimeSeconds": cromwell_total_time_seconds
             }
 
     shards = util.build_papi_operation_mapping(metadata, call_fn)

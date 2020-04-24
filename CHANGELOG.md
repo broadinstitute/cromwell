@@ -1,5 +1,11 @@
 # Cromwell Change Log
 
+## 51 Release Notes
+
+### Bugfixes
+
++ Fixed a bug where the `use_relative_output_paths` option would not preserve intermediate folders.
+
 ## 50 Release Notes
 
 ### Changes and Warnings
@@ -10,10 +16,6 @@
 Cromwell's metadata archival configuration has changed in a backwards incompatible way to increase consistency,
 please see
 [the updated documentation](https://cromwell.readthedocs.io/en/stable/Configuring#hybrid-metadata-storage-classic-carbonite) for details.
-
-### Bugfixes
-
-+ Fixed a bug where the `use_relative_output_paths` option would not preserve intermediate folders.
 
 ## 49 Release Notes
 

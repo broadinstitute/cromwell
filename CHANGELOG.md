@@ -7,7 +7,7 @@
 #### new xxh64 and fingerprint strategies for call caching
 
 Existing call cache strategies `path` and `path+modtime` don't work when using docker on shared filesystems 
-(SFS backend, i.e. not in cloud storage). The `file` (md5) strategy works, but uses a lot of resources.
+(SFS backend, i.e. not in cloud storage). The `file` (md5sum) strategy works, but uses a lot of resources.
 Two faster strategies have been added for this use case: `xxh64` and 
 `fingerprint`. `xxh64` is a lightweight hashing algorithm, `fingerprint` is a strategy designed to be very 
 lightweight. Read more about it in the [call caching documentation](

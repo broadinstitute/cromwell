@@ -113,7 +113,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
   lazy val reconfiguredScript: String = {
     //this is the location of the aws cli mounted into the container by the ec2 launch template
     val s3Cmd = "/usr/local/aws-cli/v2/current/bin/aws s3"
-    val workDir = "/working_dir"
+    val workDir = "/cromwell_root"
     val replaced = commandScript.replaceAllLiterally("/cromwell_root", workDir)
     val insertionPoint = replaced.indexOf("\n", replaced.indexOf("#!")) +1 //just after the new line after the shebang!
 
@@ -124,13 +124,27 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
       case _ => ""
     }.mkString("\n")
 
+    // this goes at the start of the script after the #!
+    val preamble =
+      s"""
+         |(
+         |mkdir $workDir && chmod 777 $workDir
+         |cd $workDir
+         |$inputCopyCommand
+         |
+         |)
+         |""".stripMargin
+
+    // the paths of the stdOut and stdErr
     val stdOut = dockerStdout.replace("/cromwell_root", workDir)
     val stdErr = dockerStderr.replace("/cromwell_root", workDir)
 
-    //generate a series of s3 commands to delocalize artifacts from the container to storage
+    //generate a series of s3 commands to delocalize artifacts from the container to storage at the end of the task
     val outputCopyCommand = outputs.map {
       case output: AwsBatchFileOutput if output.local.pathAsString.endsWith("*") => "" //filter out globs
       case output: AwsBatchFileOutput if output.name.endsWith(".list") && output.name.contains("glob-") => {
+
+        val s3GlobOutDirectory = output.s3key.replace(".list", "")
         /*
          * Need to process this list and de-localize each file if the list file actually exists
          * if it doesn't exist then 'touch' it so that it can be copied otherwise later steps will get upset
@@ -139,15 +153,13 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
         s"""
            |touch ${output.local.pathAsString}
            |while IFS= read -r file; do
-           |    touch $$file
-           |    $s3Cmd cp $$file ${jobPaths.callRoot.pathAsString}/$$file
+           |    $s3Cmd cp $$file $s3GlobOutDirectory/$$file
            |done < ${output.local.pathAsString}
            |$s3Cmd cp ${output.local.pathAsString} ${output.s3key}
            |""".stripMargin
       }
       case output: AwsBatchFileOutput if output.s3key.startsWith("s3://") => {
         s"""
-           |touch ${output.local.pathAsString}
            |$s3Cmd cp ${output.local.pathAsString} ${output.s3key}
            |""".stripMargin
       }
@@ -160,16 +172,9 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
          |$s3Cmd cp $stdOut ${jobPaths.standardPaths.output.pathAsString}
          |""".stripMargin
 
-    val preamble =
-      s"""
-         |mkdir $workDir && chmod 777 $workDir
-         |cd $workDir
-         |$inputCopyCommand
-         |""".stripMargin
-
 
     //insert the preamble at the insertion point and the postscript copy command at the end
-    replaced.patch(insertionPoint, preamble, 0) + outputCopyCommand
+    replaced.patch(insertionPoint, preamble, 0) + "( set -e\n"+ outputCopyCommand +"\n)\n"
   }
 
 

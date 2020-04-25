@@ -33,7 +33,7 @@ def read_json_files(*paths):
 
 def compare_jsons(*pathsAndJsons):
     """
-    Uses pandas library to convert JSONs into into dataframes, and concatenate those dataframes into a single one.
+    Uses pandas library to convert JSONs into dataframes, and concatenate those dataframes into a single one.
     Performs sanity check, producing exception, if at least one of the JSONs doesn't have matching subset of keys.
     """
     columnToCompareNameEnding = ".overallRuntimeSeconds"

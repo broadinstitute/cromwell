@@ -12,7 +12,6 @@ import mouse.all._
 import PipelinesUtilityConversions._
 
 import scala.language.postfixOps
-import scala.util.Try
 
 trait PipelinesUtilityConversions {
   def toAccelerator(gpuResource: GpuResource) = new Accelerator().setCount(gpuResource.gpuCount.value.toLong).setType(gpuResource.gpuType.toString)

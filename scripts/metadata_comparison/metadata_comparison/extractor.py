@@ -23,11 +23,12 @@ import requests
 from google.cloud import storage
 import google.auth
 import logging
-from metadata_comparison.lib.argument_regex import *
-from metadata_comparison.lib.operation_ids import *
+from metadata_comparison.lib.argument_regex import url_regex_validator, gcs_path_regex_validator, workflow_regex_validator
+from metadata_comparison.lib.operation_ids import get_operation_id_number, find_operation_ids_in_metadata
 from metadata_comparison.lib.papi.papi_clients import PapiClients
 
 logger = logging.getLogger('metadata_comparison.extractor')
+
 
 def set_log_verbosity(verbose: bool) -> None:
     if verbose:
@@ -41,7 +42,7 @@ def quieten_chatty_imports() -> None:
     logging.getLogger('googleapiclient.discovery').setLevel(logging.WARNING)
 
 
-def uploadLocalCheckout():
+def upload_local_checkout():
     #   # Make a snapshot of the local Cromwell git repo
     #
     #   hash=$(git rev-parse HEAD)
@@ -64,7 +65,7 @@ def fetch_raw_workflow_metadata(cromwell_url: str, workflow: str) -> (requests.R
     return result.content, result.json()
 
 
-def upload_blob(bucket_name: str, source_file_contents: str, destination_blob_name: str, gcs_storage_client: storage.Client) -> None:
+def upload_blob(bucket_name: str, source_file_contents: bytes, destination_blob_name: str, gcs_storage_client: storage.Client) -> None:
     """Uploads a file to the cloud"""
     # bucket_name = "your-bucket-name"
     # source_file_contents = "... some file contents..."
@@ -77,7 +78,7 @@ def upload_blob(bucket_name: str, source_file_contents: str, destination_blob_na
     blob.upload_from_string(source_file_contents)
 
 
-def upload_workflow_metadata_json(bucket_name: str, raw_workflow_metadata: str, workflow_gcs_base_path: str, gcs_storage_client: storage.Client) -> None:
+def upload_workflow_metadata_json(bucket_name: str, raw_workflow_metadata: bytes, workflow_gcs_base_path: str, gcs_storage_client: storage.Client) -> None:
     workflow_gcs_metadata_upload_path = f'{workflow_gcs_base_path}/metadata.json'
     upload_blob(bucket_name, raw_workflow_metadata, workflow_gcs_metadata_upload_path, gcs_storage_client)
 
@@ -86,7 +87,7 @@ def upload_operations_metadata_json(bucket_name: str, operation_id: str, operati
     """Uploads metadata to cloud storage, as json"""
     operation_upload_path = f'{workflow_gcs_base_path}/operations/{get_operation_id_number(operation_id)}.json'
     formatted_metadata = json.dumps(operations_metadata, indent=2)
-    upload_blob(bucket_name, formatted_metadata, operation_upload_path, gcs_storage_client)
+    upload_blob(bucket_name, bytes(formatted_metadata, 'utf-8'), operation_upload_path, gcs_storage_client)
 
 
 def process_workflow(cromwell_url: str, gcs_bucket: str, gcs_path: str, gcs_storage_client: storage.Client, papi_clients: PapiClients, workflow: str) -> None:
@@ -98,6 +99,7 @@ def process_workflow(cromwell_url: str, gcs_bucket: str, gcs_path: str, gcs_stor
         operation_metadata = papi_clients.request_operation_metadata(id)
         upload_operations_metadata_json(gcs_bucket, id, operation_metadata, workflow_gcs_base_path, gcs_storage_client)
     upload_workflow_metadata_json(gcs_bucket, raw_metadata, workflow_gcs_base_path, gcs_storage_client)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

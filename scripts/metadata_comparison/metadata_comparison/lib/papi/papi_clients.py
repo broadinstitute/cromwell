@@ -4,7 +4,7 @@
 #
 
 from googleapiclient.discovery import build as google_client_build
-from metadata_comparison.lib.operation_ids import *
+from metadata_comparison.lib.operation_ids import operation_id_to_api_version
 import logging
 
 logger = logging.getLogger('metadata_comparison.lib.papi.PapiClients')

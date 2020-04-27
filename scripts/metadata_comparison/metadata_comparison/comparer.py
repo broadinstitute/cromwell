@@ -43,7 +43,7 @@ def compare_jsons(workflow_ids_and_jsons: List[Tuple[str, dict]]) -> pandas.Data
     Uses pandas library to convert JSONs into dataframes, and concatenate those dataframes into a single one.
     Performs sanity check, producing exception, if at least one of the JSONs doesn't have matching subset of keys.
     """
-    columnToCompareNameEnding = ".overallRuntimeSeconds"
+    columnToCompareNameEnding = ".cromwellTotalTimeSeconds"
     versionColumnName = "version"
     result = pandas.DataFrame()
     last_cols = []

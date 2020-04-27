@@ -4,17 +4,17 @@
     "root_wf.baz": {
       "attempt": 2,
       "operationId": "789",
-      "overallRuntimeSeconds": 93
+      "cromwellTotalTimeSeconds": 93
     },
     "root_wf.sub_wf.shard_0.call_foo.shard_0": {
       "attempt": 3,
       "operationId": "123",
-      "overallRuntimeSeconds": 11
+      "cromwellTotalTimeSeconds": 11
     },
     "root_wf.sub_wf.shard_1.call_bar.shard_2": {
       "attempt": 1,
       "operationId": "456",
-      "overallRuntimeSeconds": 99
+      "cromwellTotalTimeSeconds": 99
     }
   }
 }

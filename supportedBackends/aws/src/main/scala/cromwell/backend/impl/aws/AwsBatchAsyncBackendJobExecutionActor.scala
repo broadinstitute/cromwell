@@ -265,7 +265,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   }
 
   /**
-    * Given a path (relative or absolute), returns a (Path, AwsBatchVolume) tuple where the Path is
+    * Given a path (relative or absolute), returns a (Path, AwsBatchVolume.scala) tuple where the Path is
     * relative to the Volume's mount point
     *
     * @throws Exception if the `path` does not live in one of the supplied `disks`

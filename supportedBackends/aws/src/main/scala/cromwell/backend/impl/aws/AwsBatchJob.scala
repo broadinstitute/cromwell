@@ -37,6 +37,7 @@ import cats.data.{Kleisli, ReaderT}
 import cats.effect.{Async, Timer}
 import cats.implicits._
 import cromwell.backend.BackendJobDescriptor
+import cromwell.backend.impl.aws.io.AwsBatchWorkingDisk
 import cromwell.backend.io.JobPaths
 import cromwell.cloudsupport.aws.auth.AwsAuthMode
 import fs2.Stream
@@ -113,8 +114,10 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
   lazy val reconfiguredScript: String = {
     //this is the location of the aws cli mounted into the container by the ec2 launch template
     val s3Cmd = "/usr/local/aws-cli/v2/current/bin/aws s3"
-    val workDir = "/cromwell_root"
-    val replaced = commandScript.replaceAllLiterally("/cromwell_root", workDir)
+    //internal to the container, therefore not mounted
+    val workDir = "/scratch"
+    //working in a mount will cause collisions in long running workers
+    val replaced = commandScript.replaceAllLiterally(AwsBatchWorkingDisk.MountPoint.pathAsString, workDir)
     val insertionPoint = replaced.indexOf("\n", replaced.indexOf("#!")) +1 //just after the new line after the shebang!
 
     //generate a series of s3 copy statements to copy any s3 files into the container
@@ -128,7 +131,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     val preamble =
       s"""
          |(
-         |mkdir $workDir && chmod 777 $workDir
+         |if [ ! -d $workDir ]; then mkdir $workDir && chmod 777 $workDir; fi
          |cd $workDir
          |$inputCopyCommand
          |
@@ -151,25 +154,24 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
          * about the missing file
          */
         s"""
-           |touch ${output.local.pathAsString}
+           |touch ${output.name}
            |while IFS= read -r file; do
            |    $s3Cmd cp $$file $s3GlobOutDirectory/$$file
-           |done < ${output.local.pathAsString}
-           |$s3Cmd cp ${output.local.pathAsString} ${output.s3key}
+           |done < ${output.name}
+           |$s3Cmd cp ${output.name} ${output.s3key}
            |""".stripMargin
       }
       case output: AwsBatchFileOutput if output.s3key.startsWith("s3://") => {
         s"""
-           |$s3Cmd cp ${output.local.pathAsString} ${output.s3key}
+           |$s3Cmd cp ${output.name} ${output.s3key}
            |""".stripMargin
       }
       case _ => ""
     }.mkString("\n") + "\n" +
       s"""
          |if [ -f $workDir/${jobPaths.returnCodeFilename} ]; then $s3Cmd cp $workDir/${jobPaths.returnCodeFilename} ${jobPaths.callRoot.pathAsString}/${jobPaths.returnCodeFilename} ; fi\n
-         |touch $stdOut && touch $stdErr
-         |$s3Cmd cp $stdErr ${jobPaths.standardPaths.error.pathAsString}
-         |$s3Cmd cp $stdOut ${jobPaths.standardPaths.output.pathAsString}
+         |if [ -f $stdErr ]; then $s3Cmd cp $stdErr ${jobPaths.standardPaths.error.pathAsString}; fi
+         |if [ -f $stdOut ]; then $s3Cmd cp $stdOut ${jobPaths.standardPaths.output.pathAsString}; fi
          |""".stripMargin
 
 

@@ -85,7 +85,7 @@ object BiscayneTypeEvaluators {
   implicit val sepFunctionEvaluator: TypeEvaluator[Sep] = new TypeEvaluator[Sep] {
     override def evaluateType(a: Sep, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])
                              (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
-      validateParamType(a.arg1, linkedValues, WomMapType(WomAnyType, WomAnyType)) flatMap {
+      validateParamType(a.arg1, linkedValues, WomArrayType(WomAnyType)) flatMap {
         case WomArrayType(_) => WomStringType.validNel
         case other => s"Cannot invoke 'sep' on type '${other.stableName}'. Expected an array".invalidNel
 

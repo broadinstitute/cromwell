@@ -162,7 +162,7 @@ object BiscayneValueEvaluators {
         expressionValueEvaluator.evaluateValue(a.arg1, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator),
         expressionValueEvaluator.evaluateValue(a.arg2, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
       ) { (arr1, sepvalue) =>
-        EvaluatedValue(WomString(arr1.value.mkString(sepvalue.value)), Seq.empty).validNel
+        EvaluatedValue(WomString(arr1.value.map(v => v.valueString).mkString(sepvalue.value)), Seq.empty).validNel
       }
     }
   }

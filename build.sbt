@@ -223,7 +223,7 @@ lazy val awsBackend = (project in backendRoot / "aws")
   .dependsOn(services % "test->test")
 
 lazy val sfsBackend = (project in backendRoot / "sfs")
-  .withLibrarySettings("cromwell-sfs-backend")
+  .withLibrarySettings("cromwell-sfs-backend", sfsBackendDependencies)
   .dependsOn(backend)
   .dependsOn(gcsFileSystem)
   .dependsOn(httpFileSystem)

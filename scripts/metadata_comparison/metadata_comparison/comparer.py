@@ -22,8 +22,9 @@ import pandas
 import google.auth
 from google.cloud import storage
 import logging
-from metadata_comparison.lib.util import set_log_verbosity, quieten_chatty_imports, upload_blob
-from metadata_comparison.lib.argument_regex import gcs_path_regex_validator, digester_version_regex_validator
+from metadata_comparison.lib.logging import set_log_verbosity, quieten_chatty_imports
+from metadata_comparison.lib.storage import upload_blob
+from metadata_comparison.lib.argument_regex import gcs_path_regex_validator, digester_version_regex_validator, workflow_regex_validator
 
 logger = logging.getLogger('metadata_comparison.comparer')
 
@@ -73,7 +74,7 @@ if __name__ == "__main__":
     parser.add_argument('--digester_version', metavar = 'DIGESTERVERSION', type = digester_version_regex_validator, nargs = 1, help = 'Compare digests produced by this version of the digester')
     parser.add_argument('--digest_gcs_base_path', metavar = 'DIGESTGCSBASEPATH', type = gcs_path_regex_validator, nargs = 1, help = 'GCS base path to the directory containing JSONs produced by digester')
     parser.add_argument('--output_gcs_file_path', metavar = 'OUTPUTGCSFILE', type = gcs_path_regex_validator, nargs = 1, help = 'GCS path to output CSV file')
-    parser.add_argument('--workflow_ids', metavar = 'WORKFLOWIDS', type = str, nargs = '+', help = 'Workflow ids for performance comparison')
+    parser.add_argument('--workflow_ids', metavar = 'WORKFLOWIDS', type = workflow_regex_validator, nargs = '+', help = 'Workflow ids for performance comparison')
 
     args = parser.parse_args()
     set_log_verbosity(args.verbose)

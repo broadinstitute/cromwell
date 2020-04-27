@@ -54,7 +54,7 @@ def digester_version_regex_validator(value: str) -> str:
     """
     Validates that digester version looks like 0.0.1
     """
-    digester_version_regex = re.compile('^\d\.\d\.\d$')
+    digester_version_regex = re.compile('^\d+\.\d+\.\d+$')
     m = digester_version_regex.match(value)
     if m:
         return m.group(0)

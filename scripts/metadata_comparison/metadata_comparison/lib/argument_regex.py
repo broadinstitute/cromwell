@@ -38,11 +38,26 @@ def gcs_path_regex_validator(value: str) -> (str, str):
     Validates then extracts the bucket and object-path from a GS string. Returned as a pair.
     eg:
         'gs://bucket/path/to/directory/' -> ('bucket', 'path/to/directory')
+        or
+        'gs://bucket/path/to/file.ext' -> ('bucket', 'path/to/file.ext')
     """
-    gcs_regex = re.compile('^gs://([a-zA-Z0-9-]+)/(([a-zA-Z0-9-]+/)*[a-zA-Z0-9-]+)/?$')
+    gcs_regex = re.compile('^gs://([a-zA-Z0-9-]+)/(([a-zA-Z0-9-]+/)*[\.a-zA-Z0-9-]+)/?$')
     m = gcs_regex.match(value)
     if m:
         return m.group(1), m.group(2)
     else:
         msg = f'Invalid GCS path {value}. Expected {gcs_regex.pattern}'
+        raise argparse.ArgumentTypeError(msg)
+
+
+def digester_version_regex_validator(value: str) -> str:
+    """
+    Validates that digester version looks like 0.0.1
+    """
+    digester_version_regex = re.compile('^\d+\.\d+\.\d+$')
+    m = digester_version_regex.match(value)
+    if m:
+        return m.group(0)
+    else:
+        msg = f'Invalid digester version {value}. Expected {digester_version_regex.pattern}'
         raise argparse.ArgumentTypeError(msg)

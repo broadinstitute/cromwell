@@ -497,7 +497,8 @@ Read the [Abort](execution/ExecutionTwists/#abort) section to learn more about h
 
 ### Call caching
 
-Call Caching allows Cromwell to detect when a job has been run in the past so it doesn't have to re-compute results.  To learn more see [Call Caching](cromwell_features/CallCaching).
+Call Caching allows Cromwell to detect when a job has been run in the past so it doesn't have to re-compute results.  
+To learn more see [Call Caching](cromwell_features/CallCaching).
 
 To enable Call Caching, add the following to your Cromwell configuration:
 
@@ -515,25 +516,38 @@ Cromwell also accepts [Workflow Options](wf_options/Overview#call-caching-option
 
 ### Local filesystem options
 
-When running a job on the Config (Shared Filesystem) backend, Cromwell provides some additional options in the backend's config section:
+When running a job on the Config (Shared Filesystem) backend, Cromwell provides some additional options in the backend's 
+config section:
 
 ```HOCON
       config {
         filesystems {
           local {
             caching {
-              # When copying a cached result, what type of file duplication should occur. Attempted in the order listed below:
+              # When copying a cached result, what type of file duplication should occur. 
+              # possible values: "hard-link", "soft-link", "copy", "cached-copy".
+              # For more information check: https://cromwell.readthedocs.io/en/stable/backends/HPC/#shared-filesystem
+              # Attempted in the order listed below:
               duplication-strategy: [
                 "hard-link", "soft-link", "copy"
               ]
 
-              # Possible values: file, path, path+modtime
-              # "file" will compute an md5 hash of the file content.
+              # Possible values: md5, xxh64, fingerprint, path, path+modtime
+              # For extended explanation check: https://cromwell.readthedocs.io/en/stable/Configuring/#call-caching
+              # "md5" will compute an md5 hash of the file content.
+              # "xxh64" will compute an xxh64 hash of the file content. Much faster than md5
+              # "fingerprint" will take last modified time, size and hash the first 10 mb with xxh64 to create a file fingerprint.
+              # This strategy will only be effective if the duplication-strategy (above) is set to "hard-link", as copying changes the last modified time.
               # "path" will compute an md5 hash of the file path. This strategy will only be effective if the duplication-strategy (above) is set to "soft-link",
               # in order to allow for the original file path to be hashed.
               # "path+modtime" will compute an md5 hash of the file path and the last modified time. The same conditions as for "path" apply here.
-              # Default: file
-              hashing-strategy: "file"
+              # Default: "md5"
+              hashing-strategy: "md5"
+              
+              # When the 'fingerprint' strategy is used set how much of the beginning of the file is read as fingerprint. 
+              # If the file is smaller than this size the entire file will be read.
+              # Default: 10485760 (10MB). 
+              fingerprint-size: 10485760
 
               # When true, will check if a sibling file with the same name and the .md5 extension exists, and if it does, use the content of this file as a hash.
               # If false or the md5 does not exist, will proceed with the above-defined hashing strategy.
@@ -545,6 +559,30 @@ When running a job on the Config (Shared Filesystem) backend, Cromwell provides 
       }
 ```
 
+#### Call cache strategy options for local filesystem
+
+* hash based options. These read the entire file. These strategies work with containers.
+    * `xxh64` (community-supported*). This uses the 64-bit implementation of the [xxHash](https://www.xxhash.com)
+             algorithm. This algorithm is optimized for file integrity hashing and provides a more than 10x speed improvement over
+             md5.
+    * `md5`. The well-known md5sum algorithm
+* Path based options. These are based on filepath. Extremely lightweight, but only work with the `soft-link` file 
+caching strategy and can therefore never work with containers.
+    * `path` creates a md5 hash of the path.
+    * `path+modtime` creates a md5 hash of the path and its modification time.
+* Fingerprinting. This strategy works with containers.
+    * `fingerprint` (community-supported*) tries to create a fingerprint for each file by taking its last modified time (milliseconds since
+       epoch in hexadecimal) + size (bytes in hexadecimal) + the xxh64 sum of the first 10 MB** of the file. 
+       It is much more lightweight than the hash based options while still unique enough that collisions are unlikely. This 
+       strategy works well for workflows that generate multi-gigabyte files and where hashing these files on the 
+       cromwell instance provides CPU or I/O problems. 
+       NOTE: This strategy requires hard-linking as a dupliation strategy, as copying changes the last modified time.
+
+(*) The `fingerprint` and `xxh64` strategies are features that are community supported by Cromwell's HPC community. There
+is no official support from the core Cromwell team.
+
+(**) This value is configurable.
+ 
 ### Workflow log directory
 
 To change the directory where Cromwell writes workflow logs, change the directory location via the setting:

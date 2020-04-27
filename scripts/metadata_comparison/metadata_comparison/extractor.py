@@ -26,6 +26,7 @@ import logging
 from metadata_comparison.lib.argument_regex import url_regex_validator, gcs_path_regex_validator, workflow_regex_validator
 from metadata_comparison.lib.operation_ids import get_operation_id_number, find_operation_ids_in_metadata
 from metadata_comparison.lib.papi.papi_clients import PapiClients
+from typing import Mapping, Any
 
 logger = logging.getLogger('metadata_comparison.extractor')
 
@@ -42,7 +43,7 @@ def quieten_chatty_imports() -> None:
     logging.getLogger('googleapiclient.discovery').setLevel(logging.WARNING)
 
 
-def upload_local_checkout():
+def upload_local_checkout() -> None:
     #   # Make a snapshot of the local Cromwell git repo
     #
     #   hash=$(git rev-parse HEAD)
@@ -57,7 +58,7 @@ def upload_local_checkout():
     raise Exception("Not Implemented")
 
 
-def fetch_raw_workflow_metadata(cromwell_url: str, workflow: str) -> (requests.Response, dict):
+def fetch_raw_workflow_metadata(cromwell_url: str, workflow: str) -> (requests.Response, Mapping[str, Any]):
     """Fetches workflow metadata for a workflow. Returns the raw response and the dict read from json"""
     url = f'{cromwell_url}/api/workflows/v1/{workflow}/metadata?expandSubWorkflows=true'
     logger.info(f'Fetching Cromwell metadata from {url}...')
@@ -83,7 +84,7 @@ def upload_workflow_metadata_json(bucket_name: str, raw_workflow_metadata: bytes
     upload_blob(bucket_name, raw_workflow_metadata, workflow_gcs_metadata_upload_path, gcs_storage_client)
 
 
-def upload_operations_metadata_json(bucket_name: str, operation_id: str, operations_metadata: dict, workflow_gcs_base_path: str, gcs_storage_client: storage.Client) -> None:
+def upload_operations_metadata_json(bucket_name: str, operation_id: str, operations_metadata: Mapping[str, Any], workflow_gcs_base_path: str, gcs_storage_client: storage.Client) -> None:
     """Uploads metadata to cloud storage, as json"""
     operation_upload_path = f'{workflow_gcs_base_path}/operations/{get_operation_id_number(operation_id)}.json'
     formatted_metadata = json.dumps(operations_metadata, indent=2)

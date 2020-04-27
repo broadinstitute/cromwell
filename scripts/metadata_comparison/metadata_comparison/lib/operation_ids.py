@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 
 import re
+from typing import Sequence, Mapping, Any
 
 PAPI_V1_OPERATION_REGEX = re.compile('^operations/[^/]*')
 PAPI_V2ALPHA1_OPERATION_REGEX = re.compile('^projects/[^/]*/operations/[0-9]*')
 PAPI_V2BETA_OPERATION_REGEX = re.compile('^projects/[^/]*/locations/[^/]*/operations/[0-9]*')
 
 
-def get_operation_id_number(value):
+def get_operation_id_number(value: str) -> str:
     """
     Validates then extracts from PAPI operation IDs just the final number.
     eg:
@@ -17,7 +18,7 @@ def get_operation_id_number(value):
     return value.split('/')[-1]
 
 
-def operation_id_to_api_version(value):
+def operation_id_to_api_version(value: str) -> str:
     """
     Examines an operation ID and returns the PAPI API version which produced it
     Luckily, this is currently a 1:1 format-to-api mapping so we don't need any other clues to tell the API version.
@@ -32,7 +33,7 @@ def operation_id_to_api_version(value):
         raise Exception(f'Cannot deduce PAPI api version from unexpected operation ID format \'{value}\'')
 
 
-def find_operation_ids_in_metadata(json_metadata):
+def find_operation_ids_in_metadata(json_metadata: Mapping[str, Any]) -> Sequence[str]:
     """Finds all instances of PAPI operations IDs in a workflow"""
     # Eg given:
     # {

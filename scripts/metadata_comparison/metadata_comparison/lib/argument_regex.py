@@ -3,7 +3,7 @@
 import argparse
 import re
 
-def workflow_regex_validator(value):
+def workflow_regex_validator(value: str) -> str:
     """Makes sure that a value is a valid Cromwell workflow ID then returns the workflow ID"""
     workflow_regex=re.compile('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
     if not workflow_regex.match(value):
@@ -13,7 +13,7 @@ def workflow_regex_validator(value):
         return value
 
 
-def url_regex_validator(value):
+def url_regex_validator(value: str) -> str:
     """
     Validates then extract the root of the Cromwell URL from the various URL strings which might be provided.
     Deliberately flexible because it's tedious to remember which script requires which type of format.
@@ -33,7 +33,7 @@ def url_regex_validator(value):
         raise argparse.ArgumentTypeError(msg)
 
 
-def gcs_path_regex_validator(value):
+def gcs_path_regex_validator(value: str) -> (str, str):
     """
     Validates then extracts the bucket and object-path from a GS string. Returned as a pair.
     eg:

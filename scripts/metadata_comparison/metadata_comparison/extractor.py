@@ -23,10 +23,17 @@ import requests
 from google.cloud import storage
 import google.auth
 from googleapiclient.discovery import build as google_client_build
-from metadata_comparison.lib.logging import *
+import logging as log
 from metadata_comparison.lib.argument_regex import *
 
 logger = log.getLogger('metadata_comparison.extractor')
+
+def set_log_verbosity(verbose):
+    if verbose:
+        log.basicConfig(format='[%(asctime)s] [%(name)s] %(message)s', level=log.INFO)
+    else:
+        log.basicConfig(format='[%(asctime)s] [%(name)s] %(message)s', level=log.WARNING)
+
 
 def quieten_chatty_imports():
     log.getLogger('googleapiclient.discovery_cache').setLevel(log.ERROR)

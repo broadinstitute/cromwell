@@ -6,6 +6,7 @@
 
 * Fixed a bug where the `size(...)` function did not work correctly on files from the input section
   of a task that had a relative path.
+* Fixed a bug where the `use_relative_output_paths` option would not preserve intermediate folders.
 
 ## 50 Release Notes
 

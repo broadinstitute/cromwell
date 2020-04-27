@@ -13,7 +13,7 @@ class ComparerTestMethods(unittest.TestCase):
     valid_comparison_result_file = RESOURCES / Path("comparer/valid_comparison_result.csv")
 
     def __read_test_json(self, filename: str) -> dict:
-        filePath = RESOURCES / Path("comparer") / Path(filename)
+        filePath = RESOURCES / "comparer" / filename
         with open(filePath,) as file:
             return json.load(file)
 

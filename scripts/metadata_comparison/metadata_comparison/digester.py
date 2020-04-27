@@ -1,13 +1,13 @@
 import argparse
 import json
-import requests
-from google.cloud import storage
-import google.auth
-from googleapiclient.discovery import build as google_client_build
-import logging as log
+# import requests
+# from google.cloud import storage
+# import google.auth
+# from googleapiclient.discovery import build as google_client_build
+# import logging as log
 import metadata_comparison.lib.argument_regex as reutil
 import metadata_comparison.lib.util as util
-from datetime import timedelta, datetime, timezone
+# from datetime import timedelta, datetime, timezone
 import dateutil.parser
 import os
 from pathlib import Path
@@ -19,6 +19,8 @@ verbose = False
 def main():
     args = parse_args()
     for path in args.local_paths:
+        # GCS paths are currently returned as tuples of (bucket, object path) where local paths are just strings.
+        # Useful, but a yucky implementation that should be cleaned up.
         if not isinstance(path, tuple):
             parent_path = Path(path)
             workflow_json_path = parent_path / 'workflow.json'
@@ -51,9 +53,12 @@ def parse_args():
     return parser.parse_args()
 
 
-def digest(metadata):
-    def call_fn(operation_mapping, operation_id, path, attempt):
+def digest(metadata: dict):
+    def call_fn(operation_mapping: dict, operation_id: str, path: list, attempt: int):
         backend_status = attempt.get('backendStatus', 'Unknown')
+        # This script should only ever be pointed at successful workflows, so the assumption is that all jobs that
+        # do not have backend status of `Success` were later re-run successfully. The non-`Success`ful attempts
+        # are therefore ignored.
         if backend_status == 'Success':
             string_path = '.'.join(path)
             start = attempt.get('start')
@@ -65,13 +70,13 @@ def digest(metadata):
                 "attempt": attempt.get('attempt'),
                 "shardIndex": attempt.get('shardIndex'),
                 "operationId": operation_id,
-                "start": start,
-                "end": end,
+                "cromwellStart": start,
+                "cromwellEnd": end,
                 "cromwellTotalTimeSeconds": cromwell_total_time_seconds
             }
 
     shards = util.build_papi_operation_mapping(metadata, call_fn)
-    return { 'version': Version, 'calls': shards }
+    return {'version': Version, 'calls': shards}
 
 
 if __name__ == "__main__":

@@ -36,10 +36,6 @@ def operation_id_to_api_version(value: str) -> str:
 # What a JSON Object works out to be.
 JsonObject = Dict[str, Union[Union[None, AnyStr, float], Any]]
 Accumulator = Any
-K = TypeVar('K')  # Any type.
-V = TypeVar('V')  # Any type.
-# The operation mapping function chooses the type of both the keys and the values in the returned MappingDict.
-MappingDict = Mapping[K, V]
 OperationId = AnyStr
 CallNameSequence = Sequence[AnyStr]
 

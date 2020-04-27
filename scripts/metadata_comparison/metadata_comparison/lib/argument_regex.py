@@ -3,7 +3,7 @@
 import argparse
 import re
 
-def workflow_regex_validator(value):
+def workflow_regex_validator(value: str) -> str:
     """Makes sure that a value is a valid Cromwell workflow ID then returns the workflow ID"""
     workflow_regex=re.compile('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
     if not workflow_regex.match(value):
@@ -13,7 +13,7 @@ def workflow_regex_validator(value):
         return value
 
 
-def url_regex_validator(value):
+def url_regex_validator(value: str) -> str:
     """
     Validates then extract the root of the Cromwell URL from the various URL strings which might be provided.
     Deliberately flexible because it's tedious to remember which script requires which type of format.
@@ -33,7 +33,7 @@ def url_regex_validator(value):
         raise argparse.ArgumentTypeError(msg)
 
 
-def gcs_path_regex_validator(value):
+def gcs_path_regex_validator(value: str) -> (str, str):
     """
     Validates then extracts the bucket and object-path from a GS string. Returned as a pair.
     eg:
@@ -46,19 +46,3 @@ def gcs_path_regex_validator(value):
     else:
         msg = f'Invalid GCS path {value}. Expected {gcs_regex.pattern}'
         raise argparse.ArgumentTypeError(msg)
-
-
-def get_operation_id_number(value):
-    """
-    Validates then extracts from PAPI operation IDs just the final number.
-    eg:
-        'projects/project_name/operations/01234567891011121314' -> '01234567891011121314'
-    """
-
-    operation_regex = re.compile('^.*/([^/]*)')
-    m = operation_regex.search(value)
-    if m:
-        return m.group(1)
-    else:
-        msg = f'Unexpected operation ID {value}. Expected something like {operation_regex.pattern}'
-        raise Exception(msg)

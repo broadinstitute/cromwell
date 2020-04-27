@@ -22,25 +22,28 @@ import json
 import requests
 from google.cloud import storage
 import google.auth
-from googleapiclient.discovery import build as google_client_build
-import logging as log
-from metadata_comparison.lib.argument_regex import *
+import logging
+from metadata_comparison.lib.argument_regex import url_regex_validator, gcs_path_regex_validator, workflow_regex_validator
+from metadata_comparison.lib.operation_ids import get_operation_id_number, find_operation_ids_in_metadata
+from metadata_comparison.lib.papi.papi_clients import PapiClients
+from typing import Mapping, Any
 
-logger = log.getLogger('metadata_comparison.extractor')
+logger = logging.getLogger('metadata_comparison.extractor')
 
-def set_log_verbosity(verbose):
+
+def set_log_verbosity(verbose: bool) -> None:
     if verbose:
-        log.basicConfig(format='[%(asctime)s] [%(name)s] %(message)s', level=log.INFO)
+        logging.basicConfig(format='[%(asctime)s] [%(name)s] %(message)s', level=logging.INFO)
     else:
-        log.basicConfig(format='[%(asctime)s] [%(name)s] %(message)s', level=log.WARNING)
+        logging.basicConfig(format='[%(asctime)s] [%(name)s] %(message)s', level=logging.WARNING)
 
 
-def quieten_chatty_imports():
-    log.getLogger('googleapiclient.discovery_cache').setLevel(log.ERROR)
-    log.getLogger('googleapiclient.discovery').setLevel(log.WARNING)
+def quieten_chatty_imports() -> None:
+    logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
+    logging.getLogger('googleapiclient.discovery').setLevel(logging.WARNING)
 
 
-def uploadLocalCheckout():
+def upload_local_checkout() -> None:
     #   # Make a snapshot of the local Cromwell git repo
     #
     #   hash=$(git rev-parse HEAD)
@@ -55,48 +58,15 @@ def uploadLocalCheckout():
     raise Exception("Not Implemented")
 
 
-def fetch_raw_workflow_metadata(cromwell_url, workflow):
+def fetch_raw_workflow_metadata(cromwell_url: str, workflow: str) -> (requests.Response, Mapping[str, Any]):
+    """Fetches workflow metadata for a workflow. Returns the raw response and the dict read from json"""
     url = f'{cromwell_url}/api/workflows/v1/{workflow}/metadata?expandSubWorkflows=true'
     logger.info(f'Fetching Cromwell metadata from {url}...')
     result = requests.get(url)
     return result.content, result.json()
 
 
-def find_operation_ids_in_metadata(json_metadata):
-    """Finds all instances of PAPI operations IDs in a workflow, and the API to call to retrieve metadata"""
-    # {
-    #   "calls": {
-    #     "workflow_name.task_name": [
-    #       {
-    #         "backend": "Papi"
-    #         "jobId": "projects/broad-dsde-cromwell-dev/operations/5788303950667477684",
-    papi_operation_to_api_mapping = {}
-
-    def find_operation_ids_in_calls(calls):
-        for callname in calls:
-            attempts = calls[callname]
-            for attempt in attempts:
-                operation_id = attempt.get('jobId')
-                subWorkflowMetadata = attempt.get('subWorkflowMetadata')
-                if operation_id:
-                    api = 'lifesciences' if 'beta' in attempt.get('backend', '').lower() else 'genomics'
-                    papi_operation_to_api_mapping[operation_id] = api
-                if subWorkflowMetadata:
-                    find_operation_ids_in_calls(subWorkflowMetadata.get('calls', {}))
-
-    find_operation_ids_in_calls(json_metadata.get('calls', {}))
-
-    return papi_operation_to_api_mapping
-
-
-def read_papi_v2alpha1_operation_metadata(operation_id, api, genomics_v2alpha1_client):
-    """Reads the operations metadata for a pipelines API v2alpha1 job ID. Returns a python dict"""
-    logger.info(f'Reading PAPI v2alpha1 operation metadata for {operation_id}...')
-    result = genomics_v2alpha1_client.projects().operations().get(name=operation_id).execute()
-    return result
-
-
-def upload_blob(bucket_name, source_file_contents, destination_blob_name, gcs_storage_client):
+def upload_blob(bucket_name: str, source_file_contents: bytes, destination_blob_name: str, gcs_storage_client: storage.Client) -> None:
     """Uploads a file to the cloud"""
     # bucket_name = "your-bucket-name"
     # source_file_contents = "... some file contents..."
@@ -109,27 +79,28 @@ def upload_blob(bucket_name, source_file_contents, destination_blob_name, gcs_st
     blob.upload_from_string(source_file_contents)
 
 
-def upload_workflow_metadata_json(bucket_name, raw_workflow_metadata, workflow_gcs_base_path, gcs_storage_client):
+def upload_workflow_metadata_json(bucket_name: str, raw_workflow_metadata: bytes, workflow_gcs_base_path: str, gcs_storage_client: storage.Client) -> None:
     workflow_gcs_metadata_upload_path = f'{workflow_gcs_base_path}/metadata.json'
     upload_blob(bucket_name, raw_workflow_metadata, workflow_gcs_metadata_upload_path, gcs_storage_client)
 
 
-def upload_operations_metadata_json(bucket_name, operation_id, operations_metadata, workflow_gcs_base_path, gcs_storage_client):
+def upload_operations_metadata_json(bucket_name: str, operation_id: str, operations_metadata: Mapping[str, Any], workflow_gcs_base_path: str, gcs_storage_client: storage.Client) -> None:
     """Uploads metadata to cloud storage, as json"""
     operation_upload_path = f'{workflow_gcs_base_path}/operations/{get_operation_id_number(operation_id)}.json'
     formatted_metadata = json.dumps(operations_metadata, indent=2)
-    upload_blob(bucket_name, formatted_metadata, operation_upload_path, gcs_storage_client)
+    upload_blob(bucket_name, bytes(formatted_metadata, 'utf-8'), operation_upload_path, gcs_storage_client)
 
 
-def process_workflow(cromwell_url, gcs_bucket, gcs_path, gcs_storage_client, genomics_v2alpha1_client, workflow):
+def process_workflow(cromwell_url: str, gcs_bucket: str, gcs_path: str, gcs_storage_client: storage.Client, papi_clients: PapiClients, workflow: str) -> None:
     raw_metadata, json_metadata = fetch_raw_workflow_metadata(cromwell_url, workflow)
     workflow_gcs_base_path = f'{gcs_path}/{workflow}/extractor'
 
     operation_ids = find_operation_ids_in_metadata(json_metadata)
-    for (id, api) in operation_ids.items():
-        operation_metadata = read_papi_v2alpha1_operation_metadata(id, api, genomics_v2alpha1_client)
+    for id in operation_ids:
+        operation_metadata = papi_clients.request_operation_metadata(id)
         upload_operations_metadata_json(gcs_bucket, id, operation_metadata, workflow_gcs_base_path, gcs_storage_client)
     upload_workflow_metadata_json(gcs_bucket, raw_metadata, workflow_gcs_base_path, gcs_storage_client)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -149,13 +120,13 @@ if __name__ == "__main__":
 
     credentials, project_id = google.auth.default()
     storage_client = storage.Client(credentials = credentials)
-    genomics_v2alpha1_client = google_client_build('genomics', 'v2alpha1', credentials = credentials)
+    papi_clients = PapiClients(credentials)
 
     logger.info(f'cromwell: {cromwell_url}')
     logger.info(f'gcs_bucket: {gcs_bucket}; gcs_path: {gcs_path}')
     logger.info(f'workflows: {workflows}')
 
     for workflow in workflows:
-        process_workflow(cromwell_url, gcs_bucket, gcs_path, storage_client, genomics_v2alpha1_client, workflow)
+        process_workflow(cromwell_url, gcs_bucket, gcs_path, storage_client, papi_clients, workflow)
 
     logger.info('Extractor operation completed successfully.')

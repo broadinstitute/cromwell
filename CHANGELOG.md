@@ -1,5 +1,22 @@
 # Cromwell Change Log
 
+## 51 Release Notes
+
+### New functionality
+
+#### new xxh64 and fingerprint strategies for call caching
+
+Existing call cache strategies `path` and `path+modtime` don't work when using docker on shared filesystems 
+(SFS backend, i.e. not in cloud storage). The `file` (md5sum) strategy works, but uses a lot of resources.
+Two faster strategies have been added for this use case: `xxh64` and 
+`fingerprint`. `xxh64` is a lightweight hashing algorithm, `fingerprint` is a strategy designed to be very 
+lightweight. Read more about it in the [call caching documentation](
+https://cromwell.readthedocs.io/en/stable/Configuring/#call-caching).
+
+### Bugfixes
+
++ Fixed a bug where the `use_relative_output_paths` option would not preserve intermediate folders.
+
 ## 50 Release Notes
 
 ### Changes and Warnings
@@ -10,7 +27,6 @@
 Cromwell's metadata archival configuration has changed in a backwards incompatible way to increase consistency,
 please see
 [the updated documentation](https://cromwell.readthedocs.io/en/stable/Configuring#hybrid-metadata-storage-classic-carbonite) for details.
-
 
 ## 49 Release Notes
 

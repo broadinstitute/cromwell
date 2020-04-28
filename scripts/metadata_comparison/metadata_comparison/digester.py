@@ -36,7 +36,7 @@ class DigesterPath(ABC):
             raise ValueError(f'Unrecognized path {path}')
 
     @abstractmethod
-    def read_bytes(self) -> AnyStr:
+    def read_text(self, encoding: AnyStr = 'utf_8') -> AnyStr:
         pass
 
     @abstractmethod
@@ -52,7 +52,7 @@ class DigesterPath(ABC):
         pass
 
     @abstractmethod
-    def write_bytes(self, content: AnyStr) -> None:
+    def write_text(self, content: AnyStr, encoding: AnyStr = 'utf_8') -> None:
         pass
 
 
@@ -61,7 +61,7 @@ class GcsPath(DigesterPath):
         self._bucket = bucket
         self._object = obj
 
-    def read_bytes(self) -> AnyStr:
+    def read_text(self, encoding: AnyStr = 'utf_8') -> AnyStr:
         raise ValueError("implement me")
 
     def __truediv__(self, other):
@@ -74,7 +74,7 @@ class GcsPath(DigesterPath):
         # Nothing to do here, "directory structure" is implicitly "mkdir -p"'d in GCS.
         pass
 
-    def write_bytes(self, content: AnyStr) -> None:
+    def write_text(self, content: AnyStr, encoding: AnyStr = 'utf_8') -> None:
         raise ValueError("implement me")
 
 
@@ -82,8 +82,8 @@ class LocalPath(DigesterPath):
     def __init__(self, local_spec: Union[LocalSpec, Path]):
         self.path = Path(local_spec)
 
-    def read_bytes(self) -> AnyStr:
-        return self.path.read_bytes()
+    def read_text(self, encoding: AnyStr = 'utf_8') -> AnyStr:
+        return self.path.read_text(encoding)
 
     def __truediv__(self, other):
         return LocalPath(self.path / other)
@@ -94,8 +94,8 @@ class LocalPath(DigesterPath):
     def mkdir(self) -> None:
         self.path.mkdir(parents=True, exist_ok=True)
 
-    def write_bytes(self, content: AnyStr) -> None:
-        self.path.write_bytes()
+    def write_text(self, content: AnyStr, encoding: AnyStr = 'utf_8') -> None:
+        self.path.write_text(content, encoding)
 
 
 def main() -> None:
@@ -114,7 +114,7 @@ def main() -> None:
             digest_parent.mkdir()
             digest_json = digest(workflow_path, operations_dir_path)
             digest_string = json.dumps(digest_json, sort_keys=True, indent=4)
-            digest_path.write(digest_string)
+            digest_path.write_text(digest_string)
         else:
             raise ValueError(f'digest file already exists at {digest_path} and --force not specified')
 
@@ -162,7 +162,7 @@ def digest(workflow_path: DigesterPath, operations_path: DigesterPath) -> JsonOb
                 "cromwellTotalTimeSeconds": cromwell_total_time_seconds
             }
 
-    data = workflow_path.read_bytes()
+    data = workflow_path.read_text()
     metadata = json.loads(data)
 
     shards = operation_ids.visit_papi_operations(metadata, call_fn, initial_accumulator={})

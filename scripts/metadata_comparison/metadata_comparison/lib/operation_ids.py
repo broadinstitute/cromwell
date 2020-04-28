@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import re
-from typing import Any, AnyStr, Callable, Dict, Sequence, Union
+from typing import Any, AnyStr, Callable, Dict, Sequence, TypeVar, Union
 
 PAPI_V1_OPERATION_REGEX = re.compile('^operations/[^/]*')
 PAPI_V2ALPHA1_OPERATION_REGEX = re.compile('^projects/[^/]*/operations/[0-9]*')
@@ -35,7 +35,7 @@ def operation_id_to_api_version(value: str) -> str:
 
 # What a JSON Object works out to be.
 JsonObject = Dict[str, Union[Union[None, AnyStr, float], Any]]
-Accumulator = Any
+Accumulator = TypeVar('Accumulator')
 OperationId = AnyStr
 CallNameSequence = Sequence[AnyStr]
 
@@ -48,9 +48,9 @@ def visit_papi_operations(json_metadata: AnyStr,
 
     accumulator = initial_accumulator
 
-    def examine_calls(call_names: dict, path_so_far: Sequence[AnyStr]) -> None:
-        for call_name in call_names:
-            attempts = call_names[call_name]
+    def examine_calls(calls: JsonObject, path_so_far: Sequence[AnyStr]) -> None:
+        for call_name in calls:
+            attempts = calls[call_name]
             for attempt in attempts:
                 operation_id = attempt.get('jobId')
                 sub_workflow_metadata = attempt.get('subWorkflowMetadata')
@@ -77,6 +77,6 @@ def visit_papi_operations(json_metadata: AnyStr,
 
         return call_path
 
-    examine_calls(call_names=json_metadata.get('calls', {}), path_so_far=[])
+    examine_calls(calls=json_metadata.get('calls', {}), path_so_far=[])
 
     return accumulator

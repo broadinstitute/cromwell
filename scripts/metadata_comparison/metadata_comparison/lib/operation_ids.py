@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import re
-from typing import Any, AnyStr, Callable, Dict, Mapping, Sequence, TypeVar, Union
+from typing import Any, AnyStr, Callable, Dict, Sequence, Union
 
 PAPI_V1_OPERATION_REGEX = re.compile('^operations/[^/]*')
 PAPI_V2ALPHA1_OPERATION_REGEX = re.compile('^projects/[^/]*/operations/[0-9]*')

@@ -81,7 +81,7 @@ def upload_local_config(config_path: Path, gcs_bucket: str, gcs_path: str, gcs_s
     upload_blob(gcs_bucket, config_path.read_text(), f"{gcs_path}/{configuration_file_name}", gcs_storage_client, logger)
 
 
-def fetch_raw_workflow_metadata(cromwell_url: str, workflow: str) -> (requests.Response, Mapping[str, Any]):
+def fetch_raw_workflow_metadata(cromwell_url: str, workflow: str) -> (requests.Response, JsonObject):
     """Fetches workflow metadata for a workflow. Returns the raw response and the dict read from json"""
     url = f'{cromwell_url}/api/workflows/v1/{workflow}/metadata?expandSubWorkflows=true'
     logger.info(f'Fetching Cromwell metadata from {url}...')
@@ -108,7 +108,7 @@ def upload_operations_metadata_json(bucket_name: str,
     upload_blob(bucket_name, bytes(formatted_metadata, 'utf-8'), operation_upload_path, gcs_storage_client)
 
 
-def find_operation_ids_in_metadata(json_metadata) -> Sequence[AnyStr]:
+def find_operation_ids_in_metadata(json_metadata: JsonObject) -> Sequence[AnyStr]:
     """Finds all instances of PAPI operations IDs in a workflow"""
     # Eg given:
     # {

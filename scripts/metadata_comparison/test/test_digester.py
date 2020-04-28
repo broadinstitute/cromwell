@@ -14,7 +14,7 @@ def read_resource(filename: AnyStr) -> AnyStr:
 
 class DigesterTestMethods(unittest.TestCase):
 
-    def _test_digestion(self) -> None:
+    def test_digestion(self) -> None:
         directory = Path('test/resources/exome_germline_single_sample_v1.3/PAPIv2_alpha1/v1_style_machine_types')
         for path in directory.rglob('workflow.json'):
             parent = path.parent

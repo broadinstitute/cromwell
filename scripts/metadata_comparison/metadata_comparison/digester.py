@@ -27,19 +27,19 @@ def main() -> None:
         # Useful, but a yucky implementation that should be cleaned up.
         if not isinstance(path, tuple):
             parent_path = Path(path)
-            workflow_json_path = parent_path / 'workflow.json'
+            workflow_file_path = parent_path / 'workflow.json'
             # operations_dir = parent_path / 'operations'
-            with open(workflow_json_path, 'r') as file:
-                data = file.read()
-                metadata = json.loads(data)
+            with open(workflow_file_path, 'r') as workflow_file:
+                workflow_string = workflow_file.read()
+                workflow_json = json.loads(workflow_string)
                 digest_parent = parent_path / 'digests' / Version
                 digest_path = digest_parent / 'digest.json'
                 if not os.path.exists(digest_path) or args.force:
                     digest_parent.mkdir(parents=True, exist_ok=True)
                     with open(digest_path, 'w') as digest_file:
-                        digested = digest(metadata)
-                        json_string = json.dumps(digested, sort_keys=True, indent=4)
-                        digest_file.write(json_string)
+                        digest_json = digest(workflow_json)
+                        digest_string = json.dumps(digest_json, sort_keys=True, indent=4)
+                        digest_file.write(digest_string)
                 else:
                     raise ValueError(f'digest file already exists at {digest_path} and --force not specified')
         else:

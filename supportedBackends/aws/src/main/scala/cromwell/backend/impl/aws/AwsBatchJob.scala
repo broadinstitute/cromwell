@@ -148,6 +148,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
       case output: AwsBatchFileOutput if output.name.endsWith(".list") && output.name.contains("glob-") => {
 
         val s3GlobOutDirectory = output.s3key.replace(".list", "")
+        val globDirectory = output.name.replace(".list", "")
         /*
          * Need to process this list and de-localize each file if the list file actually exists
          * if it doesn't exist then 'touch' it so that it can be copied otherwise later steps will get upset
@@ -155,10 +156,8 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
          */
         s"""
            |touch ${output.name}
-           |while IFS= read -r file; do
-           |    $s3Cmd cp $$file $s3GlobOutDirectory/$$file
-           |done < ${output.name}
            |$s3Cmd cp ${output.name} ${output.s3key}
+           |if [ -e $globDirectory ]; then $s3Cmd cp $globDirectory $s3GlobOutDirectory --recursive --exclude "cromwell_glob_control_file"; fi
            |""".stripMargin
       }
       case output: AwsBatchFileOutput if output.s3key.startsWith("s3://") => {

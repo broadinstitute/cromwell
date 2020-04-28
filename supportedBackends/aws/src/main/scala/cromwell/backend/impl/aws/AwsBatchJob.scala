@@ -124,18 +124,24 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     val inputCopyCommand = inputs.map {
       case input: AwsBatchFileInput if input.s3key.startsWith("s3://")
                                                  => s"$s3Cmd cp ${input.s3key} $workDir/${input.local}"
+      case input: AwsBatchFileInput => {
+        val filePath = (input.mount.mountPoint.pathAsString + "/" + input.local.pathAsString)
+          .replaceAllLiterally(AwsBatchWorkingDisk.MountPoint.pathAsString, workDir)
+
+        s"test -e $filePath || echo 'input file: $filePath does not exist' && exit 1"
+      }
       case _ => ""
     }.mkString("\n")
 
     // this goes at the start of the script after the #!
     val preamble =
       s"""
-         |(
+         |{
          |if [ ! -d $workDir ]; then mkdir $workDir && chmod 777 $workDir; fi
          |cd $workDir
          |$inputCopyCommand
          |
-         |)
+         |}
          |""".stripMargin
 
     // the paths of the stdOut and stdErr

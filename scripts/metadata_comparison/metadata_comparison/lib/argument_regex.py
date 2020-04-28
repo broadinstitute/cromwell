@@ -52,10 +52,6 @@ def gcs_path_regex_validator(value: str) -> (str, str):
         raise argparse.ArgumentTypeError(msg)
 
 
-def validate_gcs_if_gcs(value: AnyStr) -> AnyStr:
-    return gcs_path_regex_validator(value) if value.startswith('gs://') else value
-
-
 def digester_version_regex_validator(value: str) -> str:
     """
     Validates that digester version looks like 0.0.1

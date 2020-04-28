@@ -1,101 +1,16 @@
 import argparse
 import json
-from google.cloud import storage
-import google.auth
 # from googleapiclient.discovery import build as google_client_build
 # import logging as log
-import metadata_comparison.lib.argument_regex as argument_regex
 import metadata_comparison.lib.operation_ids as operation_ids
 from metadata_comparison.lib.operation_ids import Accumulator, CallNameSequence, JsonObject, OperationId
+from metadata_comparison.lib.digester_paths import DigesterPath
 
-# from datetime import timedelta, datetime, timezone
 import dateutil.parser
-import os
-from pathlib import Path
-from typing import Any, AnyStr, Dict, List, Tuple, Union
-from abc import ABC, abstractmethod
+from typing import AnyStr, Dict
 
 Version = "0.0.1"
 verbose = False
-
-
-GcsBucket = AnyStr
-GcsObject = AnyStr
-GcsSpec = Tuple[GcsBucket, GcsObject]
-LocalSpec = Union[AnyStr, Path]
-
-
-class DigesterPath(ABC):
-    @staticmethod
-    def create(path: Union[GcsSpec, LocalSpec]):
-        if isinstance(path, Tuple):
-            return GcsPath(path[0], path[1])
-        elif isinstance(path, bytes) or isinstance(path, str) or isinstance(path, Path):
-            return LocalPath(path)
-        else:
-            raise ValueError(f'Unrecognized path {path}')
-
-    @abstractmethod
-    def read_text(self, encoding: AnyStr = 'utf_8') -> AnyStr:
-        pass
-
-    @abstractmethod
-    def __truediv__(self, other) -> AnyStr:
-        pass
-
-    @abstractmethod
-    def exists(self) -> bool:
-        pass
-
-    @abstractmethod
-    def mkdir(self) -> None:
-        pass
-
-    @abstractmethod
-    def write_text(self, content: AnyStr, encoding: AnyStr = 'utf_8') -> None:
-        pass
-
-
-class GcsPath(DigesterPath):
-    def __init__(self, bucket: GcsBucket, obj: GcsObject):
-        self._bucket = bucket
-        self._object = obj
-
-    def read_text(self, encoding: AnyStr = 'utf_8') -> AnyStr:
-        raise ValueError("implement me")
-
-    def __truediv__(self, other):
-        return GcsPath(self._bucket, '/'.join((Path(self._object) / other).parts))
-
-    def exists(self) -> bool:
-        raise ValueError("implement me")
-
-    def mkdir(self) -> None:
-        # Nothing to do here, "directory structure" is implicitly "mkdir -p"'d in GCS.
-        pass
-
-    def write_text(self, content: AnyStr, encoding: AnyStr = 'utf_8') -> None:
-        raise ValueError("implement me")
-
-
-class LocalPath(DigesterPath):
-    def __init__(self, local_spec: Union[LocalSpec, Path]):
-        self.path = Path(local_spec)
-
-    def read_text(self, encoding: AnyStr = 'utf_8') -> AnyStr:
-        return self.path.read_text(encoding)
-
-    def __truediv__(self, other):
-        return LocalPath(self.path / other)
-
-    def exists(self) -> bool:
-        return self.path.exists()
-
-    def mkdir(self) -> None:
-        self.path.mkdir(parents=True, exist_ok=True)
-
-    def write_text(self, content: AnyStr, encoding: AnyStr = 'utf_8') -> None:
-        self.path.write_text(content, encoding)
 
 
 def main() -> None:
@@ -120,13 +35,18 @@ def main() -> None:
 
 
 def parse_args() -> argparse.Namespace:
+    def validate_path(p: AnyStr) -> AnyStr:
+        if DigesterPath.is_valid_path_string(p):
+            return p
+        raise ValueError(f'{p} is not a valid path whatsoever')
+
     parser = argparse.ArgumentParser(
         description='Digest workflow metadata and job operation details, reading from and reuploading to GCS.')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='whether to log verbosely (default False)')
     parser.add_argument('-f', '--force', action='store_true',
                         help='whether to overwrite existing digests (default False)')
-    parser.add_argument('local_paths', metavar="PATH", nargs='+', type=argument_regex.validate_gcs_if_gcs,
+    parser.add_argument('local_paths', metavar="PATH", nargs='+', type=validate_path,
                         help="Location at which to find metadata (local or GCS)")
 
     return parser.parse_args()

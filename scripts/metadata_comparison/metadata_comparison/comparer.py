@@ -24,11 +24,16 @@ from google.cloud import storage
 import logging
 from metadata_comparison.lib.logging import set_log_verbosity, quieten_chatty_imports
 from metadata_comparison.lib.storage import upload_blob
-from metadata_comparison.lib.argument_regex import gcs_path_regex_validator, digester_version_regex_validator, workflow_regex_validator
+from metadata_comparison.lib.argument_regex import gcs_path_regex_validator, digester_version_regex_validator, \
+    workflow_regex_validator
 
 logger = logging.getLogger('metadata_comparison.comparer')
 
-def read_digester_jsons_from_gcs(bucket_name: str, base_path: str, digester_version: str, workflow_ids: List[str], gcs_storage_client: storage.Client) -> List[Tuple[str, dict]]:
+def read_digester_jsons_from_gcs(bucket_name: str,
+                                 base_path: str,
+                                 digester_version: str,
+                                 workflow_ids: List[str],
+                                 storage_client: storage.Client) -> List[Tuple[str, dict]]:
     bucket = storage_client.get_bucket(bucket_name)
     result = []
     for workflow_id in workflow_ids:
@@ -62,19 +67,23 @@ def compare_jsons(workflow_ids_and_jsons: List[Tuple[str, dict]]) -> pandas.Data
         result = pandas.concat([result, df[cols]])
 
     renameVersionColumnTo = "digester format version"
-    result.rename(columns = {versionColumnName: renameVersionColumnTo}, inplace = True)
+    result.rename(columns={versionColumnName: renameVersionColumnTo}, inplace=True)
     result.index.name = "workflow id"
 
     return result
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description = 'Compare performance metadata JSONs and produce CSV result')
-    parser.add_argument('-v', '--verbose', action ='store_true')
-    parser.add_argument('--digester_version', metavar = 'DIGESTERVERSION', type = digester_version_regex_validator, nargs = 1, help = 'Compare digests produced by this version of the digester')
-    parser.add_argument('--digest_gcs_base_path', metavar = 'DIGESTGCSBASEPATH', type = gcs_path_regex_validator, nargs = 1, help = 'GCS base path to the directory containing JSONs produced by digester')
-    parser.add_argument('--output_gcs_file_path', metavar = 'OUTPUTGCSFILE', type = gcs_path_regex_validator, nargs = 1, help = 'GCS path to output CSV file')
-    parser.add_argument('--workflow_ids', metavar = 'WORKFLOWIDS', type = workflow_regex_validator, nargs = '+', help = 'Workflow ids for performance comparison')
+    parser = argparse.ArgumentParser(description='Compare performance metadata JSONs and produce CSV result')
+    parser.add_argument('-v', '--verbose', action='store_true')
+    parser.add_argument('--digester_version', metavar='DIGESTERVERSION', type=digester_version_regex_validator, nargs=1,
+                        help='Compare digests produced by this version of the digester')
+    parser.add_argument('--digest_gcs_base_path', metavar='DIGESTGCSBASEPATH', type=gcs_path_regex_validator, nargs=1,
+                        help='GCS base path to the directory containing JSONs produced by digester')
+    parser.add_argument('--output_gcs_file_path', metavar='OUTPUTGCSFILE', type=gcs_path_regex_validator, nargs=1,
+                        help='GCS path to output CSV file')
+    parser.add_argument('--workflow_ids', metavar='WORKFLOWIDS', type=workflow_regex_validator, nargs='+',
+                        help='Workflow ids for performance comparison')
 
     args = parser.parse_args()
     set_log_verbosity(args.verbose)

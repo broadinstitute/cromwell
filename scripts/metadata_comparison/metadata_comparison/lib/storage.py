@@ -3,7 +3,12 @@
 from google.cloud import storage
 import logging
 
-def upload_blob(bucket_name: str, source_file_contents: str, destination_blob_name: str, gcs_storage_client: storage.Client, logger: logging.Logger) -> None:
+
+def upload_blob(bucket_name: str,
+                source_file_contents: str,
+                destination_blob_name: str,
+                gcs_storage_client: storage.Client,
+                logger: logging.Logger) -> None:
     """Uploads a file to the cloud"""
     # bucket_name = "your-bucket-name"
     # source_file_contents = "... some file contents..."

@@ -3,25 +3,20 @@
 # import logging as log
 import metadata_comparison.lib.argument_regex as argument_regex
 
-from pathlib import Path
+from pathlib import Path, PosixPath
 from typing import AnyStr, Tuple, Union
 from abc import ABC, abstractmethod
-
-GcsBucket = AnyStr
-GcsObject = AnyStr
-GcsSpec = Tuple[GcsBucket, GcsObject]
-LocalSpec = Union[AnyStr, Path]
 
 
 class DigesterPath(ABC):
     @staticmethod
-    def create(path: Union[GcsSpec, LocalSpec]):
-        if isinstance(path, Tuple):
-            return GcsPath(path[0], path[1])
-        elif isinstance(path, bytes) or isinstance(path, str) or isinstance(path, Path):
+    def create(path: Union[AnyStr, Path]):
+        if isinstance(path, PosixPath):
             return LocalPath(path)
-        else:
-            raise ValueError(f'Unsupported as DigesterPath: {path}')
+        elif path.startswith('gs://'):
+            bucket, obj = argument_regex.gcs_path_regex_validator(path)
+            return GcsPath(bucket, obj)
+        return LocalPath(path)
 
     @abstractmethod
     def read_text(self, encoding: AnyStr = 'utf_8') -> AnyStr:
@@ -50,7 +45,7 @@ class DigesterPath(ABC):
 
 
 class GcsPath(DigesterPath):
-    def __init__(self, bucket: GcsBucket, obj: GcsObject):
+    def __init__(self, bucket: AnyStr, obj: AnyStr):
         self._bucket = bucket
         self._object = obj
 
@@ -78,7 +73,7 @@ class GcsPath(DigesterPath):
 
 
 class LocalPath(DigesterPath):
-    def __init__(self, local_spec: Union[LocalSpec, Path]):
+    def __init__(self, local_spec: Union[AnyStr, Path]):
         self.path = Path(local_spec)
 
     def read_text(self, encoding: AnyStr = 'utf_8') -> AnyStr:

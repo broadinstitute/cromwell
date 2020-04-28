@@ -43,7 +43,7 @@ def gcs_path_regex_validator(value: str) -> (str, str):
         or
         'gs://bucket/path/to/file.ext' -> ('bucket', 'path/to/file.ext')
     """
-    gcs_regex = re.compile('^gs://(?P<bucket_name>[a-zA-Z0-9-]+)/(?P<object_name>([a-zA-Z0-9-]+/)*[\\.a-zA-Z0-9-]+)/?$')
+    gcs_regex = re.compile('^gs://(?P<bucket_name>[a-zA-Z0-9-]+)/(?P<object_name>([a-zA-Z0-9-]+/)*[\\.a-zA-Z0-9_-]+)/?$')
     m = gcs_regex.match(value)
     if m:
         return m.group('bucket_name'), m.group('object_name')

@@ -1,6 +1,5 @@
 import argparse
 import json
-# from googleapiclient.discovery import build as google_client_build
 # import logging as log
 import metadata_comparison.lib.operation_ids as operation_ids
 from metadata_comparison.lib.operation_ids import Accumulator, CallNameSequence, JsonObject, OperationId

@@ -2,6 +2,8 @@
 
 import argparse
 import re
+from typing import AnyStr
+
 
 def workflow_regex_validator(value: str) -> str:
     """Makes sure that a value is a valid Cromwell workflow ID then returns the workflow ID"""
@@ -41,13 +43,17 @@ def gcs_path_regex_validator(value: str) -> (str, str):
         or
         'gs://bucket/path/to/file.ext' -> ('bucket', 'path/to/file.ext')
     """
-    gcs_regex = re.compile('^gs://([a-zA-Z0-9-]+)/(([a-zA-Z0-9-]+/)*[\.a-zA-Z0-9-]+)/?$')
+    gcs_regex = re.compile('^gs://(?P<bucket_name>[a-zA-Z0-9-]+)/(?P<object_name>([a-zA-Z0-9-]+/)*[\\.a-zA-Z0-9-]+)/?$')
     m = gcs_regex.match(value)
     if m:
-        return m.group(1), m.group(2)
+        return m.group('bucket_name'), m.group('object_name')
     else:
         msg = f'Invalid GCS path {value}. Expected {gcs_regex.pattern}'
         raise argparse.ArgumentTypeError(msg)
+
+
+def validate_gcs_if_gcs(value: AnyStr) -> AnyStr:
+    return gcs_path_regex_validator(value) if value.startswith('gs://') else value
 
 
 def digester_version_regex_validator(value: str) -> str:

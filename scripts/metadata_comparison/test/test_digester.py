@@ -16,17 +16,18 @@ class DigesterTestMethods(unittest.TestCase):
 
     def test_digestion(self) -> None:
         directory = Path('test/resources/exome_germline_single_sample_v1.3/PAPIv2_alpha1/v1_style_machine_types')
-        for path in directory.rglob('workflow.json'):
-            parent = path.parent
+        for workflow_file in directory.rglob('workflow.json'):
+            parent = workflow_file.parent
             sample = parent.parts[-1]
-            with open(path, 'r') as file:
-                data = file.read()
-                metadata = json.loads(data)
-                actual = digest(metadata)
-                with open(parent / 'digests' / Version / 'digest.json', 'r') as expected_file:
-                    expected_data = expected_file.read()
-                    expected = json.loads(expected_data)
-                    self.assertEqual(actual, expected, f'oh noes {sample} has a mismatch')
+
+            workflow_path = DigesterPath.create(workflow_file)
+            actual = digest(workflow_path, None)
+
+            expected_file = parent / 'digests' / Version / 'digest.json'
+            expected_data = expected_file.read_bytes()
+            expected = json.loads(expected_data)
+
+            self.assertEqual(actual, expected, f'oh noes {sample} has a mismatch')
 
 
 if __name__ == '__main__':

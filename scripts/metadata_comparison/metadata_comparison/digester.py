@@ -12,47 +12,111 @@ from metadata_comparison.lib.operation_ids import Accumulator, CallNameSequence,
 import dateutil.parser
 import os
 from pathlib import Path
-from typing import Any, AnyStr, Dict, List, Union
+from typing import Any, AnyStr, Dict, List, Tuple, Union
+from abc import ABC, abstractmethod
 
 Version = "0.0.1"
 verbose = False
 
 
-# Write the local and GCS code and then clean it up.
+GcsBucket = AnyStr
+GcsObject = AnyStr
+GcsSpec = Tuple[GcsBucket, GcsObject]
+LocalSpec = Union[AnyStr, Path]
+
+
+class DigesterPath(ABC):
+    @staticmethod
+    def create(path: Union[GcsSpec, LocalSpec]):
+        if isinstance(path, Tuple):
+            return GcsPath(path[0], path[1])
+        elif isinstance(path, bytes) or isinstance(path, str) or isinstance(path, Path):
+            return LocalPath(path)
+        else:
+            raise ValueError(f'Unrecognized path {path}')
+
+    @abstractmethod
+    def read_bytes(self) -> AnyStr:
+        pass
+
+    @abstractmethod
+    def __truediv__(self, other) -> AnyStr:
+        pass
+
+    @abstractmethod
+    def exists(self) -> bool:
+        pass
+
+    @abstractmethod
+    def mkdir(self) -> None:
+        pass
+
+    @abstractmethod
+    def write_bytes(self, content: AnyStr) -> None:
+        pass
+
+
+class GcsPath(DigesterPath):
+    def __init__(self, bucket: GcsBucket, obj: GcsObject):
+        self._bucket = bucket
+        self._object = obj
+
+    def read_bytes(self) -> AnyStr:
+        raise ValueError("implement me")
+
+    def __truediv__(self, other):
+        return GcsPath(self._bucket, '/'.join((Path(self._object) / other).parts))
+
+    def exists(self) -> bool:
+        raise ValueError("implement me")
+
+    def mkdir(self) -> None:
+        # Nothing to do here, "directory structure" is implicitly "mkdir -p"'d in GCS.
+        pass
+
+    def write_bytes(self, content: AnyStr) -> None:
+        raise ValueError("implement me")
+
+
+class LocalPath(DigesterPath):
+    def __init__(self, local_spec: Union[LocalSpec, Path]):
+        self.path = Path(local_spec)
+
+    def read_bytes(self) -> AnyStr:
+        return self.path.read_bytes()
+
+    def __truediv__(self, other):
+        return LocalPath(self.path / other)
+
+    def exists(self) -> bool:
+        return self.path.exists()
+
+    def mkdir(self) -> None:
+        self.path.mkdir(parents=True, exist_ok=True)
+
+    def write_bytes(self, content: AnyStr) -> None:
+        self.path.write_bytes()
+
 
 def main() -> None:
     args = parse_args()
+
     for path in args.local_paths:
-        # GCS paths are currently returned as tuples of (bucket, object path) where local paths are just strings.
-        # Useful, but a yucky implementation that should be cleaned up.
-        if not isinstance(path, tuple):
-            parent_path = Path(path)
-            workflow_file_path = parent_path / 'workflow.json'
-            # operations_dir = parent_path / 'operations'
-            with open(workflow_file_path, 'r') as workflow_file:
-                workflow_string = workflow_file.read()
-                workflow_json = json.loads(workflow_string)
-                digest_parent = parent_path / 'digests' / Version
-                digest_path = digest_parent / 'digest.json'
-                if not os.path.exists(digest_path) or args.force:
-                    digest_parent.mkdir(parents=True, exist_ok=True)
-                    with open(digest_path, 'w') as digest_file:
-                        digest_json = digest(workflow_json)
-                        digest_string = json.dumps(digest_json, sort_keys=True, indent=4)
-                        digest_file.write(digest_string)
-                else:
-                    raise ValueError(f'digest file already exists at {digest_path} and --force not specified')
+        parent_path = DigesterPath.create(path)
+
+        workflow_path = parent_path / 'workflow.json'
+        operations_dir_path = parent_path / 'operations'
+
+        digest_parent = parent_path / 'digests' / Version
+        digest_path = digest_parent / 'digest.json'
+
+        if not digest_path.exists() or args.force:
+            digest_parent.mkdir()
+            digest_json = digest(workflow_path, operations_dir_path)
+            digest_string = json.dumps(digest_json, sort_keys=True, indent=4)
+            digest_path.write(digest_string)
         else:
-            gcs_bucket, gcs_object = path
-            credentials, project_id = google.auth.default()
-            storage_client = storage.Client(credentials=credentials)
-            process_workflow_gcs(gcs_bucket, gcs_object, storage_client)
-
-
-def process_workflow_gcs(gcs_bucket: AnyStr, gcs_path: AnyStr, storage_client: storage.Client) -> None:
-    bucket = storage_client.get_bucket(gcs_bucket)
-    blob = bucket.blob(f'{gcs_path}/extractor/metadata.json')
-    json_string_bytes = blob.download_as_string()
+            raise ValueError(f'digest file already exists at {digest_path} and --force not specified')
 
 
 def parse_args() -> argparse.Namespace:
@@ -71,7 +135,7 @@ def parse_args() -> argparse.Namespace:
 CallName = AnyStr
 
 
-def digest(metadata: JsonObject) -> JsonObject:
+def digest(workflow_path: DigesterPath, operations_path: DigesterPath) -> JsonObject:
     def call_fn(succeeded_operations: Dict[CallName, JsonObject],
                 operation_id: OperationId,
                 path: CallNameSequence,
@@ -97,6 +161,9 @@ def digest(metadata: JsonObject) -> JsonObject:
                 "cromwellEnd": cromwell_end,
                 "cromwellTotalTimeSeconds": cromwell_total_time_seconds
             }
+
+    data = workflow_path.read_bytes()
+    metadata = json.loads(data)
 
     shards = operation_ids.visit_papi_operations(metadata, call_fn, initial_accumulator={})
     return {'version': Version, 'calls': shards, 'workflowId': metadata['id']}

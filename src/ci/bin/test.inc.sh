@@ -1464,9 +1464,9 @@ cromwell::build::kill_tree() {
 cromwell::build::install_python_scripts_dependencies() {
     cromwell::private::install_python3_pip3
 
-    pip3 install requests --upgrade --force-reinstall
-    pip3 install google-cloud --upgrade --force-reinstall
-    pip3 install google-cloud-storage --upgrade --force-reinstall
-    pip3 install google-api-python-client --upgrade --force-reinstall
-    pip3 install pandas --upgrade --force-reinstall
+    cromwell::private::pip_install requests --upgrade
+    cromwell::private::pip_install install google-cloud --upgrade
+    cromwell::private::pip_install install google-cloud-storage --upgrade
+    cromwell::private::pip_install install google-api-python-client --upgrade
+    cromwell::private::pip_install install pandas --upgrade
 }

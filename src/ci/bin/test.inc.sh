@@ -716,8 +716,9 @@ cromwell::private::upgrade_pip() {
 cromwell::private::install_python3_pip3() {
     sudo apt-get update -y
     sudo apt-get install python3
+    sudo apt-get install python3-setuptools
     sudo apt-get install python3-pip
-    pip3 install --upgrade pip
+    pip3 install pip --upgrade
 }
 
 cromwell::private::install_wait_for_it() {
@@ -1464,9 +1465,9 @@ cromwell::build::kill_tree() {
 cromwell::build::install_python_scripts_dependencies() {
     cromwell::private::install_python3_pip3
 
-    cromwell::private::pip_install requests --upgrade
-    cromwell::private::pip_install google-cloud --upgrade
-    cromwell::private::pip_install google-cloud-storage --upgrade
-    cromwell::private::pip_install google-api-python-client --upgrade
-    cromwell::private::pip_install pandas --upgrade
+    pip3 install requests --upgrade
+    pip3 install google-cloud --upgrade
+    pip3 install google-cloud-storage --upgrade
+    pip3 install google-api-python-client --upgrade
+    pip3 install pandas --upgrade
 }

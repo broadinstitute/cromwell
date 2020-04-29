@@ -2,10 +2,10 @@ import argparse
 import json
 from metadata_comparison.lib import logging, operation_ids
 from metadata_comparison.lib.operation_ids import CallNameSequence, JsonObject, OperationId
-from metadata_comparison.lib.digester_paths import DigesterPath
+from metadata_comparison.lib.comparison_paths import ComparisonPath
 
 import dateutil.parser
-from typing import AnyStr, Dict, Sequence
+from typing import AnyStr, Dict
 
 Version = "0.0.1"
 verbose = False
@@ -13,7 +13,7 @@ verbose = False
 
 def main(args: argparse.Namespace) -> None:
     for path in args.paths:
-        parent_path = DigesterPath.create(path)
+        parent_path = ComparisonPath.create(path)
 
         workflow_path = parent_path / 'workflow.json'
         operations_dir_path = parent_path / 'operations'
@@ -32,7 +32,7 @@ def main(args: argparse.Namespace) -> None:
 
 def parse_args() -> argparse.Namespace:
     def validate_path(p: AnyStr) -> AnyStr:
-        if DigesterPath.is_valid_path_string(p):
+        if ComparisonPath.is_valid_path_string(p):
             return p
         raise ValueError(f'{p} is not a valid path whatsoever')
 
@@ -51,7 +51,7 @@ def parse_args() -> argparse.Namespace:
 CallName = AnyStr
 
 
-def digest(workflow_path: DigesterPath, operations_path: DigesterPath) -> JsonObject:
+def digest(workflow_path: ComparisonPath, operations_path: ComparisonPath) -> JsonObject:
     def call_fn(succeeded_operations: Dict[CallName, JsonObject],
                 operation_id: OperationId,
                 path: CallNameSequence,
@@ -69,13 +69,26 @@ def digest(workflow_path: DigesterPath, operations_path: DigesterPath) -> JsonOb
             cromwell_total_time_seconds = (dateutil.parser.parse(cromwell_end) -
                                            dateutil.parser.parse(cromwell_start)).total_seconds()
 
+            bare_operation_id = operation_id.split('/')[-1]
+            operations_file_path = operations_path / f'{bare_operation_id}.json'
+            operations_data = operations_file_path.read_text()
+            operations_metadata = json.loads(operations_data).get('metadata')
+            papi_start = operations_metadata.get('createTime')
+            papi_end = operations_metadata.get('endTime')
+            papi_total_time_seconds = (dateutil.parser.parse(papi_end) -
+                                       dateutil.parser.parse(papi_start)).total_seconds()
+
             succeeded_operations[string_path] = {
                 "attempt": attempt.get('attempt'),
                 "shardIndex": attempt.get('shardIndex'),
                 "operationId": operation_id,
                 "cromwellStart": cromwell_start,
                 "cromwellEnd": cromwell_end,
-                "cromwellTotalTimeSeconds": cromwell_total_time_seconds
+                "cromwellTotalTimeSeconds": cromwell_total_time_seconds,
+                "papiStart": papi_start,
+                "papiEnd": papi_end,
+                "papiTotalTimeSeconds": papi_total_time_seconds,
+                "cromwellAdditionalTotalTimeSeconds": "%.3f" % (cromwell_total_time_seconds - papi_total_time_seconds)
             }
 
     data = workflow_path.read_text()

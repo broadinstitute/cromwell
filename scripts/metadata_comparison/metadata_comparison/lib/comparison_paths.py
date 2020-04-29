@@ -8,10 +8,10 @@ from typing import AnyStr, Union
 from abc import ABC, abstractmethod
 
 
-class DigesterPath(ABC):
+class ComparisonPath(ABC):
     """
     Abstract Base Class for Local and GCS paths sharing an interface for the purpose of PAPI metadata comparison.
-    There's nothing particularly "Digester" about these paths, I just couldn't think of a better name.
+    There's nothing particularly "Comparison" about these paths, I just couldn't think of a better name.
     """
     @staticmethod
     def create(path: Union[AnyStr, Path]):
@@ -30,7 +30,7 @@ class DigesterPath(ABC):
     @abstractmethod
     def read_text(self, encoding: AnyStr = 'utf_8') -> AnyStr: pass
 
-    # / operator
+    # `/` operator, used to implement pathlib.Path style `<existing path> / <new path element>` syntax.
     @abstractmethod
     def __truediv__(self, other): pass
 
@@ -44,7 +44,7 @@ class DigesterPath(ABC):
     def write_text(self, content: AnyStr, encoding: AnyStr = 'utf_8') -> None: pass
 
 
-class GcsPath(DigesterPath):
+class GcsPath(ComparisonPath):
     def __init__(self, bucket: AnyStr, obj: AnyStr, storage_bucket: storage.Bucket = None):
         self._bucket = bucket
         self._object = obj
@@ -66,7 +66,7 @@ class GcsPath(DigesterPath):
     def read_text(self, encoding: AnyStr = 'utf_8') -> AnyStr:
         return self.__storage_blob().download_as_string()
 
-    def __truediv__(self, other) -> DigesterPath:
+    def __truediv__(self, other) -> ComparisonPath:
         return GcsPath(bucket=self._bucket,
                        obj=f'{self._object}/{other}',
                        storage_bucket=self._storage_bucket)
@@ -91,14 +91,14 @@ class GcsPath(DigesterPath):
         return f'gs://{self._bucket}/{self._object}'
 
 
-class LocalPath(DigesterPath):
+class LocalPath(ComparisonPath):
     def __init__(self, local_spec: Union[AnyStr, Path]):
         self.path = Path(local_spec)
 
     def read_text(self, encoding: AnyStr = 'utf_8') -> AnyStr:
         return self.path.read_text(encoding)
 
-    def __truediv__(self, other) -> DigesterPath:
+    def __truediv__(self, other) -> ComparisonPath:
         return LocalPath(self.path / other)
 
     def exists(self) -> bool:

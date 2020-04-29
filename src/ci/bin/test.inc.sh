@@ -1465,8 +1465,8 @@ cromwell::build::install_python_scripts_dependencies() {
     cromwell::private::install_python3_pip3
 
     cromwell::private::pip_install requests --upgrade
-    cromwell::private::pip_install install google-cloud --upgrade
-    cromwell::private::pip_install install google-cloud-storage --upgrade
-    cromwell::private::pip_install install google-api-python-client --upgrade
-    cromwell::private::pip_install install pandas --upgrade
+    cromwell::private::pip_install google-cloud --upgrade
+    cromwell::private::pip_install google-cloud-storage --upgrade
+    cromwell::private::pip_install google-api-python-client --upgrade
+    cromwell::private::pip_install pandas --upgrade
 }

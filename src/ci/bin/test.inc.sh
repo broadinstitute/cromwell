@@ -708,19 +708,6 @@ cromwell::private::pip_install() {
     fi
 }
 
-cromwell::private::pip3_install() {
-    local pip_package
-    pip_package="${1:?pip3_install called without a package}"; shift
-
-    if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
-        sudo -H pip3 install "${pip_package}" "$@"
-    elif [[ "${CROMWELL_BUILD_IS_VIRTUAL_ENV}" == "true" ]]; then
-        pip3 install "${pip_package}" "$@"
-    else
-        pip3 install "${pip_package}" --user "$@"
-    fi
-}
-
 cromwell::private::upgrade_pip() {
     cromwell::private::pip_install pip --upgrade
     cromwell::private::pip_install requests[security] --ignore-installed
@@ -1468,9 +1455,9 @@ cromwell::build::kill_tree() {
 }
 
 cromwell::build::install_python_scripts_dependencies() {
-    cromwell::private::pip3_install requests --upgrade
-    cromwell::private::pip3_install google-cloud --upgrade
-    cromwell::private::pip3_install google-cloud-storage --upgrade
-    cromwell::private::pip3_install google-api-python-client --upgrade
-    cromwell::private::pip3_install pandas --upgrade
+    cromwell::private::pip_install requests --upgrade --force-reinstall
+    cromwell::private::pip_install google-cloud --upgrade --force-reinstall
+    cromwell::private::pip_install google-cloud-storage --upgrade --force-reinstall
+    cromwell::private::pip_install google-api-python-client --upgrade --force-reinstall
+    cromwell::private::pip_install pandas --upgrade --force-reinstall
 }

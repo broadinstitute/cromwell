@@ -122,11 +122,19 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
     //generate a series of s3 copy statements to copy any s3 files into the container
     val inputCopyCommand = inputs.map {
+      case input: AwsBatchFileInput if input.s3key.startsWith("s3://") && input.s3key.endsWith(".tmp") => {
+        //we are localizing a tmp file which may contain workdirectory paths that need to be reconfigured
+        s"""
+           |$s3Cmd cp ${input.s3key} $workDir/${input.local}
+           |sed -i 's#${AwsBatchWorkingDisk.MountPoint.pathAsString}#$workDir#g' $workDir/${input.local}
+           |""".stripMargin
+
+      }
       case input: AwsBatchFileInput if input.s3key.startsWith("s3://")
                                                  => s"$s3Cmd cp ${input.s3key} $workDir/${input.local}"
       case input: AwsBatchFileInput => {
-        val filePath = (input.mount.mountPoint.pathAsString + "/" + input.local.pathAsString)
-          .replaceAllLiterally(AwsBatchWorkingDisk.MountPoint.pathAsString, workDir)
+        //here we don't need a copy command but the centaurTests expect us to verify the existence of the file
+        val filePath = workDir + "/" + input.local.pathAsString
 
         s"test -e $filePath || echo 'input file: $filePath does not exist' && exit 1"
       }
@@ -137,10 +145,11 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     val preamble =
       s"""
          |{
+         |echo '*** LOCALIZING INPUTS ***'
          |if [ ! -d $workDir ]; then mkdir $workDir && chmod 777 $workDir; fi
          |cd $workDir
          |$inputCopyCommand
-         |
+         |echo '*** COMPLETED LOCALIZATION ***'
          |}
          |""".stripMargin
 
@@ -168,7 +177,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
       }
       case output: AwsBatchFileOutput if output.s3key.startsWith("s3://") => {
         s"""
-           |$s3Cmd cp ${output.name} ${output.s3key}
+           |$s3Cmd cp $workDir/${output.local.pathAsString} ${output.s3key}
            |""".stripMargin
       }
       case _ => ""
@@ -181,7 +190,8 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
 
     //insert the preamble at the insertion point and the postscript copy command at the end
-    replaced.patch(insertionPoint, preamble, 0) + "( set -e\n"+ outputCopyCommand +"\n)\n"
+    replaced.patch(insertionPoint, preamble, 0) +
+      "( set -e\necho '*** DELOCALIZING OUTPUTS ***'"+ outputCopyCommand +"\necho '*** COMPLETED DELOCALIZATION ***')\n"
   }
 
 

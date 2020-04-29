@@ -42,10 +42,12 @@ def gcs_path_regex_validator(value: str) -> (str, str):
         or
         'gs://bucket/path/to/file.ext' -> ('bucket', 'path/to/file.ext')
     """
-    gcs_regex = re.compile('^gs://(?P<bucket_name>[a-zA-Z0-9-]+)/(?P<object_name>([a-zA-Z0-9-]+/)*[\\.a-zA-Z0-9_-]+)/?$')
+    bucket_class = 'a-zA-Z0-9-'
+    object_class = '_\\.' + bucket_class
+    gcs_regex = re.compile(f'^gs://(?P<bucket>[{bucket_class}]+)/(?P<object>([{object_class}]+/)*[{object_class}]+)/?$')
     m = gcs_regex.match(value)
     if m:
-        return m.group('bucket_name'), m.group('object_name')
+        return m.group('bucket'), m.group('object')
     else:
         msg = f'Invalid GCS path {value}. Expected {gcs_regex.pattern}'
         raise argparse.ArgumentTypeError(msg)

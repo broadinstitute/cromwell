@@ -113,3 +113,6 @@ class LocalPath(ComparisonPath):
     @staticmethod
     def is_valid_path_string(path: AnyStr) -> bool:
         return True
+
+    def __str__(self) -> AnyStr:
+        return str(self.path)

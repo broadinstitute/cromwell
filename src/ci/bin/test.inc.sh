@@ -713,6 +713,11 @@ cromwell::private::upgrade_pip() {
     cromwell::private::pip_install requests[security] --ignore-installed
 }
 
+cromwell::private::install_python3_pip3() {
+    sudo apt-get install python3
+    sudo apt-get install python3-pip
+}
+
 cromwell::private::install_wait_for_it() {
     curl -s "${CROMWELL_BUILD_WAIT_FOR_IT_URL}" > "$CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT"
     chmod +x "$CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT"
@@ -1455,9 +1460,11 @@ cromwell::build::kill_tree() {
 }
 
 cromwell::build::install_python_scripts_dependencies() {
-    cromwell::private::pip_install requests --upgrade --force-reinstall
-    cromwell::private::pip_install google-cloud --upgrade --force-reinstall
-    cromwell::private::pip_install google-cloud-storage --upgrade --force-reinstall
-    cromwell::private::pip_install google-api-python-client --upgrade --force-reinstall
-    cromwell::private::pip_install pandas --upgrade --force-reinstall
+    cromwell::private::install_python3_pip3
+
+    pip3 install requests --upgrade --force-reinstall
+    pip3 install google-cloud --upgrade --force-reinstall
+    pip3 install google-cloud-storage --upgrade --force-reinstall
+    pip3 install google-api-python-client --upgrade --force-reinstall
+    pip3 install pandas --upgrade --force-reinstall
 }

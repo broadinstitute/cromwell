@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 
 import logging
+import warnings
+
 
 def set_log_verbosity(verbose: bool) -> None:
-    if verbose:
-        logging.basicConfig(format='[%(asctime)s] [%(name)s] %(message)s', level=logging.INFO)
-    else:
-        logging.basicConfig(format='[%(asctime)s] [%(name)s] %(message)s', level=logging.WARNING)
+    level = logging.INFO if verbose else logging.WARNING
+    logging.basicConfig(format='[%(asctime)s] [%(name)s] %(message)s', level=level)
 
 
 def quieten_chatty_imports() -> None:
     logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
     logging.getLogger('googleapiclient.discovery').setLevel(logging.WARNING)
+    warnings.filterwarnings("ignore", "Your application has authenticated using end user credentials")

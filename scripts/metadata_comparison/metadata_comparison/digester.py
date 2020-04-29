@@ -1,21 +1,18 @@
 import argparse
 import json
-# import logging as log
-import metadata_comparison.lib.operation_ids as operation_ids
-from metadata_comparison.lib.operation_ids import Accumulator, CallNameSequence, JsonObject, OperationId
+from metadata_comparison.lib import logging, operation_ids
+from metadata_comparison.lib.operation_ids import CallNameSequence, JsonObject, OperationId
 from metadata_comparison.lib.digester_paths import DigesterPath
 
 import dateutil.parser
-from typing import AnyStr, Dict
+from typing import AnyStr, Dict, Sequence
 
 Version = "0.0.1"
 verbose = False
 
 
-def main() -> None:
-    args = parse_args()
-
-    for path in args.local_paths:
+def main(args: argparse.Namespace) -> None:
+    for path in args.paths:
         parent_path = DigesterPath.create(path)
 
         workflow_path = parent_path / 'workflow.json'
@@ -45,7 +42,7 @@ def parse_args() -> argparse.Namespace:
                         help='whether to log verbosely (default False)')
     parser.add_argument('-f', '--force', action='store_true',
                         help='whether to overwrite existing digests (default False)')
-    parser.add_argument('local_paths', metavar="PATH", nargs='+', type=validate_path,
+    parser.add_argument('paths', metavar="PATH", nargs='+', type=validate_path,
                         help="Location at which to find metadata (local or GCS)")
 
     return parser.parse_args()
@@ -89,4 +86,8 @@ def digest(workflow_path: DigesterPath, operations_path: DigesterPath) -> JsonOb
 
 
 if __name__ == "__main__":
-    main()
+    logging.quieten_chatty_imports()
+    _args = parse_args()
+    logging.set_log_verbosity(_args.verbose)
+
+    main(_args)

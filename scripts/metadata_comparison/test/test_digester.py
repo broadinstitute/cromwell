@@ -6,7 +6,7 @@ from typing import AnyStr, Callable
 from metadata_comparison.lib.comparison_paths import ComparisonPath
 from pathlib import Path
 import logging
-from metadata_comparison.digester import digest, JsonObject
+from metadata_comparison.digester import digest
 from metadata_comparison.lib.logging import quieten_chatty_imports, set_log_verbosity
 
 

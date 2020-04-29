@@ -43,6 +43,9 @@ class ComparisonPath(ABC):
     @abstractmethod
     def write_text(self, content: AnyStr, encoding: AnyStr = 'utf_8') -> None: pass
 
+    @abstractmethod
+    def description(self) -> AnyStr: pass
+
 
 class GcsPath(ComparisonPath):
     def __init__(self, bucket: AnyStr, obj: AnyStr, storage_bucket: storage.Bucket = None):
@@ -90,6 +93,9 @@ class GcsPath(ComparisonPath):
     def __str__(self) -> AnyStr:
         return f'gs://{self._bucket}/{self._object}'
 
+    def description(self) -> AnyStr:
+        return 'GCS'
+
 
 class LocalPath(ComparisonPath):
     def __init__(self, local_spec: Union[AnyStr, Path]):
@@ -116,3 +122,6 @@ class LocalPath(ComparisonPath):
 
     def __str__(self) -> AnyStr:
         return str(self.path)
+
+    def description(self) -> AnyStr:
+        return 'Local filesystem'

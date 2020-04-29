@@ -77,6 +77,8 @@ def digest(workflow_path: ComparisonPath, operations_path: ComparisonPath) -> Js
             papi_end = operations_metadata.get('endTime')
             papi_total_time_seconds = (dateutil.parser.parse(papi_end) -
                                        dateutil.parser.parse(papi_start)).total_seconds()
+            cromwell_additional_total_time_seconds = \
+                float("%.3f" % (cromwell_total_time_seconds - papi_total_time_seconds))
 
             succeeded_operations[string_path] = {
                 "attempt": attempt.get('attempt'),
@@ -88,7 +90,7 @@ def digest(workflow_path: ComparisonPath, operations_path: ComparisonPath) -> Js
                 "papiStart": papi_start,
                 "papiEnd": papi_end,
                 "papiTotalTimeSeconds": papi_total_time_seconds,
-                "cromwellAdditionalTotalTimeSeconds": "%.3f" % (cromwell_total_time_seconds - papi_total_time_seconds)
+                "cromwellAdditionalTotalTimeSeconds": cromwell_additional_total_time_seconds
             }
 
     data = workflow_path.read_text()

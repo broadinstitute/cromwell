@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import re
-from typing import Any, AnyStr, Callable, Dict, Sequence, TypeVar, Union
+from typing import Any, AnyStr, Callable, Dict, List, Sequence, TypeVar, Union
 
 PAPI_V1_OPERATION_REGEX = re.compile('^operations/[^/]*')
 PAPI_V2ALPHA1_OPERATION_REGEX = re.compile('^projects/[^/]*/operations/[0-9]*')
@@ -42,13 +42,13 @@ CallNameSequence = Sequence[AnyStr]
 OperationMappingCallFunction = Callable[[Accumulator, OperationId, CallNameSequence, JsonObject], None]
 
 
-def visit_papi_operations(json_metadata: AnyStr,
+def visit_papi_operations(json_metadata: JsonObject,
                           call_fn: OperationMappingCallFunction,
                           initial_accumulator: Accumulator) -> Accumulator:
 
     accumulator = initial_accumulator
 
-    def examine_calls(calls: JsonObject, path_so_far: Sequence[AnyStr]) -> None:
+    def examine_calls(calls: JsonObject, path_so_far: List[AnyStr]) -> None:
         for call_name in calls:
             attempts = calls[call_name]
             for attempt in attempts:
@@ -60,7 +60,7 @@ def visit_papi_operations(json_metadata: AnyStr,
                 if sub_workflow_metadata:
                     examine_calls(sub_workflow_metadata.get('calls', {}), path)
 
-    def build_call_path(call_name, path_so_far: Sequence[AnyStr], attempt: dict) -> Sequence[AnyStr]:
+    def build_call_path(call_name, path_so_far: List[AnyStr], attempt: dict) -> List[AnyStr]:
         call_path = path_so_far.copy()
 
         # Remove confusing duplication in subworkflow call names

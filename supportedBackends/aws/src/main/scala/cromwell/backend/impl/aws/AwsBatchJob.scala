@@ -122,22 +122,25 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
     //generate a series of s3 copy statements to copy any s3 files into the container
     val inputCopyCommand = inputs.map {
-      case input: AwsBatchFileInput if input.s3key.startsWith("s3://") && input.s3key.endsWith(".tmp") => {
+      case input: AwsBatchFileInput if input.s3key.startsWith("s3://") && input.s3key.endsWith(".tmp") =>
         //we are localizing a tmp file which may contain workdirectory paths that need to be reconfigured
         s"""
            |$s3Cmd cp ${input.s3key} $workDir/${input.local}
            |sed -i 's#${AwsBatchWorkingDisk.MountPoint.pathAsString}#$workDir#g' $workDir/${input.local}
            |""".stripMargin
 
-      }
-      case input: AwsBatchFileInput if input.s3key.startsWith("s3://")
-                                                 => s"$s3Cmd cp ${input.s3key} $workDir/${input.local}"
-      case input: AwsBatchFileInput => {
+
+      case input: AwsBatchFileInput if input.s3key.startsWith("s3://") =>
+        s"$s3Cmd cp ${input.s3key} ${input.mount.mountPoint.pathAsString}/${input.local}"
+          .replaceAllLiterally(AwsBatchWorkingDisk.MountPoint.pathAsString, workDir)
+
+      case input: AwsBatchFileInput =>
         //here we don't need a copy command but the centaurTests expect us to verify the existence of the file
-        val filePath = workDir + "/" + input.local.pathAsString
+        val filePath = s"${input.mount.mountPoint.pathAsString}/${input.local.pathAsString}"
+          .replaceAllLiterally(AwsBatchWorkingDisk.MountPoint.pathAsString, workDir)
 
         s"test -e $filePath || echo 'input file: $filePath does not exist' && exit 1"
-      }
+
       case _ => ""
     }.mkString("\n")
 
@@ -160,7 +163,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     //generate a series of s3 commands to delocalize artifacts from the container to storage at the end of the task
     val outputCopyCommand = outputs.map {
       case output: AwsBatchFileOutput if output.local.pathAsString.endsWith("*") => "" //filter out globs
-      case output: AwsBatchFileOutput if output.name.endsWith(".list") && output.name.contains("glob-") => {
+      case output: AwsBatchFileOutput if output.name.endsWith(".list") && output.name.contains("glob-") =>
 
         val s3GlobOutDirectory = output.s3key.replace(".list", "")
         val globDirectory = output.name.replace(".list", "")
@@ -174,12 +177,15 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
            |$s3Cmd cp ${output.name} ${output.s3key}
            |if [ -e $globDirectory ]; then $s3Cmd cp $globDirectory $s3GlobOutDirectory --recursive --exclude "cromwell_glob_control_file"; fi
            |""".stripMargin
-      }
-      case output: AwsBatchFileOutput if output.s3key.startsWith("s3://") => {
+
+      case output: AwsBatchFileOutput if output.s3key.startsWith("s3://") && output.mount.mountPoint.pathAsString == AwsBatchWorkingDisk.MountPoint.pathAsString =>
+        //output is on working disk mount
         s"""
            |$s3Cmd cp $workDir/${output.local.pathAsString} ${output.s3key}
            |""".stripMargin
-      }
+      case output: AwsBatchFileOutput =>
+        //output on a different mount
+        s"$s3Cmd cp ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} ${output.s3key}"
       case _ => ""
     }.mkString("\n") + "\n" +
       s"""
@@ -191,7 +197,14 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
     //insert the preamble at the insertion point and the postscript copy command at the end
     replaced.patch(insertionPoint, preamble, 0) +
-      "( set -e\necho '*** DELOCALIZING OUTPUTS ***'"+ outputCopyCommand +"\necho '*** COMPLETED DELOCALIZATION ***')\n"
+      s"""
+         |{
+         |set -e
+         |echo '*** DELOCALIZING OUTPUTS ***'
+         |$outputCopyCommand
+         |echo '*** COMPLETED DELOCALIZATION ***'
+         |}
+         |""".stripMargin
   }
 
 

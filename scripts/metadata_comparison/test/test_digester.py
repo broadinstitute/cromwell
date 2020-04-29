@@ -58,7 +58,6 @@ class DigesterTestMethods(unittest.TestCase):
                 os.system(command)
 
             parents_to_test = [local_parent, gcs_parent]
-            # parents_to_test = [local_parent]
 
             for parent in parents_to_test:
                 description = parent.description()

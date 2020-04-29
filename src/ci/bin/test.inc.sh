@@ -170,7 +170,8 @@ cromwell::private::create_build_variables() {
             elif [[ "${CROMWELL_BUILD_MINIMAL_TESTS}" == "true" ]] && \
                 [[ "${TRAVIS_EVENT_TYPE}" != "push" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=false
-            elif [[ "${CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED}" == "true" ]]; then
+            elif [[ "${CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED}" == "true" ]] && \
+                [[ "${BUILD_TYPE}" != "metadataComparisonPython" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=false
             elif [[ "${TRAVIS_EVENT_TYPE}" == "push" ]] && \
                 [[ "${BUILD_TYPE}" != "sbt" ]]; then
@@ -1451,4 +1452,12 @@ cromwell::build::delete_docker_images() {
 
 cromwell::build::kill_tree() {
     cromwell::private::kill_tree "$1"
+}
+
+cromwell::build::install_python_scripts_dependencies() {
+    cromwell::private::pip_install requests --upgrade
+    cromwell::private::pip_install google-cloud --upgrade
+    cromwell::private::pip_install google-cloud-storage --upgrade
+    cromwell::private::pip_install google-api-python-client --upgrade
+    cromwell::private::pip_install pandas --upgrade
 }

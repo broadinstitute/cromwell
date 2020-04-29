@@ -17,5 +17,3 @@ pip install --upgrade google-cloud-storage
 pip install --upgrade pandas
 python -m unittest discover -v /metadata_comparison
 "
-
-cromwell::build::publish_artifacts

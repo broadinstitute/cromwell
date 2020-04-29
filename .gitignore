@@ -50,4 +50,4 @@ ftp_centaur_cwl_runner.conf
 tesk_application.conf
 **/__pycache__/
 **/venv/
-scripts/metadata_comparison/test/resources/exome_germline_single_sample_v1.3/
+exome_germline_single_sample_v1.3/

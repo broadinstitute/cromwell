@@ -714,6 +714,7 @@ cromwell::private::upgrade_pip() {
 }
 
 cromwell::private::install_python3_pip3() {
+    sudo apt-get upgrade -y
     sudo apt-get install python3
     sudo apt-get install python3-pip
 }

@@ -713,14 +713,6 @@ cromwell::private::upgrade_pip() {
     cromwell::private::pip_install requests[security] --ignore-installed
 }
 
-cromwell::private::install_python3_pip3() {
-    sudo apt-get update -y
-    sudo apt-get install python3
-    sudo apt-get install python3-setuptools
-    sudo apt-get install python3-pip
-    pip3 install pip --upgrade
-}
-
 cromwell::private::install_wait_for_it() {
     curl -s "${CROMWELL_BUILD_WAIT_FOR_IT_URL}" > "$CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT"
     chmod +x "$CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT"
@@ -1460,14 +1452,4 @@ cromwell::build::delete_docker_images() {
 
 cromwell::build::kill_tree() {
     cromwell::private::kill_tree "$1"
-}
-
-cromwell::build::install_python_scripts_dependencies() {
-    cromwell::private::install_python3_pip3
-
-    pip3 install requests --upgrade
-    pip3 install google-cloud --upgrade
-    pip3 install google-cloud-storage --upgrade
-    pip3 install google-api-python-client --upgrade
-    pip3 install pandas --upgrade
 }

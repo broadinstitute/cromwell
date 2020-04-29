@@ -30,6 +30,7 @@ class DigesterPath(ABC):
     @abstractmethod
     def read_text(self, encoding: AnyStr = 'utf_8') -> AnyStr: pass
 
+    # / operator
     @abstractmethod
     def __truediv__(self, other): pass
 
@@ -67,7 +68,7 @@ class GcsPath(DigesterPath):
 
     def __truediv__(self, other) -> DigesterPath:
         return GcsPath(bucket=self._bucket,
-                       obj='/'.join((Path(self._object) / other).parts),
+                       obj=f'{self._object}/{other}',
                        storage_bucket=self._storage_bucket)
 
     def exists(self) -> bool:

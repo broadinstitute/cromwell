@@ -218,13 +218,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     //calls the client to submit the job
     def callClient(definitionArn: String, awsBatchAttributes: AwsBatchAttributes): Aws[F, SubmitJobResponse] = {
 
-      Log.info(s"""Submitting job to AWS Batch
-                  |  dockerImage: ${runtimeAttributes.dockerImage}
-                  |  jobQueueArn: ${runtimeAttributes.queueArn}
-                  |  taskId: $taskId
-                  |  job definition arn: $definitionArn
-                  |  executionScript: s3://${runtimeAttributes.scriptS3BucketName}/$scriptKeyPrefix$scriptKey
-                  |  """.stripMargin)
+      Log.info(s"Submitting taskId: $taskId, job definition : $definitionArn, script: s3://${runtimeAttributes.scriptS3BucketName}/$scriptKeyPrefix$scriptKey")
 
       val outputinfo = outputs.map(o => "%s,%s,%s,%s".format(o.name, o.s3key, o.local, o.mount))
         .mkString(";")
@@ -289,7 +283,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
       .digest(commandLine.getBytes())
       .foldLeft("")(_ + "%02x".format(_))
 
-    Log.info(s"s3 object name for script is calculated to be $bucketName/$scriptKeyPrefix$key")
+    Log.debug(s"s3 object name for script is calculated to be s3://$bucketName/$scriptKeyPrefix$key")
 
     try { //try and get the object
 
@@ -301,7 +295,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
       ).eTag().equals(key)
 
       // if there's no exception then the script already exists
-      Log.info(s"""Found script $bucketName/$scriptKeyPrefix$key""")
+      Log.debug(s"""Found script $bucketName/$scriptKeyPrefix$key""")
     } catch {
       case _: NoSuchKeyException =>  //this happens if there is no object with that key in the bucket
         val putRequest = PutObjectRequest.builder()
@@ -311,7 +305,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
         s3Client.putObject(putRequest, RequestBody.fromString(commandLine))
 
-        Log.info(s"Created script $key")
+        Log.debug(s"Created script $key")
     }
     key
   }
@@ -349,7 +343,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
       //check if there is already a suitable definition based on the calculated job definition name
       val jobDefinitionName = jobDefinition.name
 
-      Log.info(s"Checking for existence of job definition called: $jobDefinitionName")
+      Log.debug(s"Checking for existence of job definition called: $jobDefinitionName")
 
       val describeJobDefinitionRequest = DescribeJobDefinitionsRequest.builder()
         .jobDefinitionName( jobDefinitionName )
@@ -359,18 +353,13 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
       val describeJobDefinitionResponse = batchClient.describeJobDefinitions(describeJobDefinitionRequest)
 
       if ( !describeJobDefinitionResponse.jobDefinitions.isEmpty ) {
-
-        Log.info(s"Found job definition $jobDefinitionName, getting arn for latest version")
-
         //sort the definitions so that the latest revision is at the head
         val definitions = describeJobDefinitionResponse.jobDefinitions().asScala.toList.sortWith(_.revision > _.revision)
-
-        Log.info(s"Latest job definition revision is: ${definitions.head.revision()} with arn: ${definitions.head.jobDefinitionArn()}")
 
         //return the arn of the job
         definitions.head.jobDefinitionArn()
       } else {
-        Log.info(s"No job definition found. Creating job definition: $jobDefinitionName")
+        Log.debug(s"No job definition found. Creating job definition: $jobDefinitionName")
 
         // See:
         //
@@ -382,7 +371,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
           .`type`(JobDefinitionType.CONTAINER)
           .build
 
-        Log.info(s"Submitting definition request: $definitionRequest")
+        Log.debug(s"Submitting definition request: $definitionRequest")
 
         val response: RegisterJobDefinitionResponse = batchClient.registerJobDefinition(definitionRequest)
         Log.info(s"Definition created: $response")
@@ -424,7 +413,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
   def status(jobId: String): Try[RunStatus] = for {
     statusString <- Try(detail(jobId).status)
     batchJobContainerContext <- Try(batchJobContainerContext(jobId))
-    _ <- Try(Log.info(s"Task ${jobDescriptor.key.call.fullyQualifiedName + "-" + jobDescriptor.key.index + "-" + jobDescriptor.key.attempt} in container context $batchJobContainerContext"))
+    _ <- Try(Log.debug(s"Task ${jobDescriptor.key.call.fullyQualifiedName + "-" + jobDescriptor.key.index + "-" + jobDescriptor.key.attempt} in container context $batchJobContainerContext"))
     runStatus <- RunStatus.fromJobStatus(statusString, jobId)
   } yield runStatus
 

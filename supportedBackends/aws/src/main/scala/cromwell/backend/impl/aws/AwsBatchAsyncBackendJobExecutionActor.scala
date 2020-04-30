@@ -206,8 +206,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     * relativeLocalizationPath("s3://some/bucket/foo.txt") -> "some/bucket/foo.txt"
     */
   override protected def relativeLocalizationPath(file: WomFile): WomFile = {
-    Log.info(s"Obtaining relative localization path for WomFile ${file.valueString}")
-    val f = file.mapFile(value =>
+    file.mapFile(value =>
       getPath(value) match {
         case Success(path) =>
           configuration.fileSystem match  {
@@ -217,9 +216,6 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         case _ => value
       }
     )
-
-    Log.info(s"Relative location is $f")
-    f
   }
 
   /**

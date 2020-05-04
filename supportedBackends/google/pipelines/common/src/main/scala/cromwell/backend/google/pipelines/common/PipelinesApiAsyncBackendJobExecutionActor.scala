@@ -1,6 +1,7 @@
 package cromwell.backend.google.pipelines.common
 
 import java.net.SocketTimeoutException
+import java.time.OffsetDateTime
 
 import _root_.io.grpc.Status
 import akka.actor.ActorRef
@@ -575,7 +576,25 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     }
   }
 
+  var lastStatusPoll: Option[OffsetDateTime] = None
+  val junkMetadataValue = "Blah blah blah what a load of junk"
+
+  def spamJunkMetadata() = {
+    val junkToSend = lastStatusPoll match {
+      case None =>
+        10000
+      case Some(previousPoll) =>
+        val timeDiffSeconds = OffsetDateTime.now.toEpochSecond - previousPoll.toEpochSecond
+        timeDiffSeconds * 10000
+    }
+    lastStatusPoll = Option(OffsetDateTime.now)
+
+    val metadataJunk = 0.to(junkToSend.intValue) map { i => s"junk_value[$i]" -> junkMetadataValue }
+    tellMetadata(metadataJunk.toMap)
+  }
+
   override def pollStatusAsync(handle: JesPendingExecutionHandle): Future[RunStatus] = {
+    spamJunkMetadata()
     super[PipelinesApiStatusRequestClient].pollStatus(workflowId, handle.pendingJob)
   }
 

@@ -2,10 +2,23 @@
 
 ## 51 Release Notes
 
+
+### New functionality
+
+#### new xxh64 and fingerprint strategies for call caching
+
+Existing call cache strategies `path` and `path+modtime` don't work when using docker on shared filesystems 
+(SFS backend, i.e. not in cloud storage). The `file` (md5sum) strategy works, but uses a lot of resources.
+Two faster strategies have been added for this use case: `xxh64` and 
+`fingerprint`. `xxh64` is a lightweight hashing algorithm, `fingerprint` is a strategy designed to be very 
+lightweight. Read more about it in the [call caching documentation](
+https://cromwell.readthedocs.io/en/stable/Configuring/#call-caching).
+
 ### Bug fixes
 
 * Fixed a bug where the `size(...)` function did not work correctly on files from the input section
   of a task that had a relative path.
+* Fixed a bug where the `use_relative_output_paths` option would not preserve intermediate folders.
 
 ## 50 Release Notes
 

@@ -12,7 +12,6 @@ import mouse.all._
 import PipelinesUtilityConversions._
 
 import scala.language.postfixOps
-import scala.util.Try
 
 trait PipelinesUtilityConversions {
   def toAccelerator(gpuResource: GpuResource) = new Accelerator().setCount(gpuResource.gpuCount.value.toLong).setType(gpuResource.gpuType.toString)
@@ -57,11 +56,17 @@ object PipelinesUtilityConversions {
 
   implicit class EnhancedEvent(val event: Event) extends AnyVal {
     def getActionId: Option[Integer] = {
-      Try(event.getContainerKilled.getActionId)
-        .orElse(Try(event.getContainerStarted.getActionId))
-        .orElse(Try(event.getContainerStopped.getActionId))
-        .orElse(Try(event.getUnexpectedExitStatus.getActionId))
-        .toOption
+      if (event.getContainerKilled != null) {
+        Option(event.getContainerKilled.getActionId)
+      } else if (event.getContainerStarted != null) {
+        Option(event.getContainerStarted.getActionId)
+      } else if (event.getContainerStopped != null) {
+        Option(event.getContainerStopped.getActionId)
+      } else if (event.getUnexpectedExitStatus != null) {
+        Option(event.getUnexpectedExitStatus.getActionId)
+      } else {
+        None
+      }
     }
   }
 }

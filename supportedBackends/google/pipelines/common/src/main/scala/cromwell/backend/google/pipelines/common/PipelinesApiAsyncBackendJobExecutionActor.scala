@@ -579,7 +579,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   var lastStatusPoll: Option[OffsetDateTime] = None
   val junkMetadataValue = "Blah blah blah what a load of junk"
-  val configuredSpamQuantity = standardParams.configurationDescriptor.backendConfig.as[Option[Long]]("metadata_spam_per_second_on_poll")
+  val configuredSpamQuantity = standardParams.configurationDescriptor.backendConfig.as[Option[Int]]("metadata_spam_per_second_on_poll")
+  val configuredSpamWindow = standardParams.configurationDescriptor.backendConfig.as[Option[Int]]("metadata_spam_metadata_put_batch_size")
 
   def spamJunkMetadata() = {
     configuredSpamQuantity foreach { quantity =>
@@ -587,13 +588,13 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         case None =>
           quantity
         case Some(previousPoll) =>
-          val timeDiffSeconds = OffsetDateTime.now.toEpochSecond - previousPoll.toEpochSecond
+          val timeDiffSeconds = OffsetDateTime.now.toEpochSecond.intValue() - previousPoll.toEpochSecond.intValue()
           timeDiffSeconds * quantity
       }
 
       lastStatusPoll = Option(OffsetDateTime.now)
-      val metadataJunk = 0.to(junkToSend.intValue) map { i => s"junk_value[$i]" -> junkMetadataValue }
-      metadataJunk.grouped(1000).foreach { subgroup => tellMetadata(subgroup.toMap) }
+      val metadataJunk = 0.to(junkToSend) map { i => s"junk_value[$i]" -> junkMetadataValue }
+      metadataJunk.grouped(configuredSpamWindow.getOrElse(1000).intValue()).foreach { subgroup => tellMetadata(subgroup.toMap) }
     }
   }
 

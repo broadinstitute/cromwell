@@ -163,11 +163,11 @@ trait IoFunctionSet {
   implicit def ec: ExecutionContext
   
   implicit def cs = IO.contextShift(ec)
-}
 
-trait InputDependentIOFunctionSet {
   /**
-    * Lets the IO Function set now if it used for the input section. This is useful for some backends.
+    * Returns an IO functionset where input specific functions have been turned on. This allows backends such as the sfs
+    * backend to set a different set of functions when evaluating inputs.
+    * @return an IoFunctionSet
     */
-  var forInput = false
+  def makeInputSpecificFunctions: IoFunctionSet = this
 }

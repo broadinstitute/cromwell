@@ -5,7 +5,7 @@ import cromwell.backend.io._
 import cromwell.backend.standard.{DefaultStandardExpressionFunctionsParams, StandardExpressionFunctions, StandardExpressionFunctionsParams}
 import cromwell.core.CallContext
 import cromwell.core.path.{DefaultPath, DefaultPathBuilder, Path, PathBuilder}
-import wom.expression.InputDependentIOFunctionSet
+import wom.expression.IoFunctionSet
 
 import scala.concurrent.ExecutionContext
 
@@ -18,8 +18,9 @@ object SharedFileSystemExpressionFunctions {
   }
 }
 
-class SharedFileSystemExpressionFunctions(standardParams: StandardExpressionFunctionsParams)
-  extends StandardExpressionFunctions(standardParams) with InputDependentIOFunctionSet {
+class SharedFileSystemExpressionFunctions(standardParams: StandardExpressionFunctionsParams,
+                                          val forInput: Boolean = false)
+  extends StandardExpressionFunctions(standardParams) {
 
   def this(pathBuilders: List[PathBuilder],
            callContext: CallContext,
@@ -27,6 +28,8 @@ class SharedFileSystemExpressionFunctions(standardParams: StandardExpressionFunc
            ec: ExecutionContext) = {
     this(DefaultStandardExpressionFunctionsParams(pathBuilders, callContext, ioActorProxy, ec))
   }
+
+  override def makeInputSpecificFunctions: IoFunctionSet = new SharedFileSystemExpressionFunctions(standardParams, forInput = true)
 
   lazy val cromwellCwd: Path = DefaultPathBuilder.build(sys.props("user.dir")).get
 

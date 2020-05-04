@@ -26,7 +26,7 @@ import cromwell.services.metadata.{CallMetadataKeys, MetadataEvent, MetadataValu
 import eu.timepit.refined.api.Refined
 import wom.RuntimeAttributesKeys
 import wom.callable.Callable.InputDefinition
-import wom.expression.{InputDependentIOFunctionSet, IoFunctionSet}
+import wom.expression.IoFunctionSet
 import wom.format.MemorySize
 import wom.values._
 
@@ -62,10 +62,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
 
   private[preparation] lazy val expressionLanguageFunctions = {
     val ioFunctionSet: IoFunctionSet = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, jobKey, initializationData, ioActor, ioEc)
-    ioFunctionSet match {
-      case iofs: InputDependentIOFunctionSet => iofs.forInput = true; iofs
-      case _ => ioFunctionSet
-    }
+    ioFunctionSet.makeInputSpecificFunctions
   }
 
   private[preparation] lazy val dockerHashCredentials = factory.dockerHashCredentials(workflowDescriptor.backendDescriptor, initializationData)

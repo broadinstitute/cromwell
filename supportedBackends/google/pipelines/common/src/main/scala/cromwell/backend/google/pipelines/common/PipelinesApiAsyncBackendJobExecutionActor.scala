@@ -579,7 +579,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   var lastStatusPoll: Option[OffsetDateTime] = None
   val junkMetadataValue = "Blah blah blah what a load of junk"
-  val configuredSpamQuantity = standardParams.configurationDescriptor.backendConfig.as[Option[Int]]("metadata_spam_on_status_poll")
+  val configuredSpamQuantity = standardParams.configurationDescriptor.backendConfig.as[Option[Long]]("metadata_spam_per_second_on_poll")
 
   def spamJunkMetadata() = {
     configuredSpamQuantity foreach { quantity =>

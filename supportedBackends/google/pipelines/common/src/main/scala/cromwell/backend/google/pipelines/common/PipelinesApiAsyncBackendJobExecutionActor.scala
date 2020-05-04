@@ -588,13 +588,13 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         case None =>
           quantity
         case Some(previousPoll) =>
-          val timeDiffSeconds = OffsetDateTime.now.toEpochSecond.intValue() - previousPoll.toEpochSecond.intValue()
+          val timeDiffSeconds = (OffsetDateTime.now.toEpochSecond - previousPoll.toEpochSecond).intValue()
           timeDiffSeconds * quantity
       }
 
       lastStatusPoll = Option(OffsetDateTime.now)
       val metadataJunk = 0.to(junkToSend) map { i => s"junk_value[$i]" -> junkMetadataValue }
-      metadataJunk.grouped(configuredSpamWindow.getOrElse(1000).intValue()).foreach { subgroup => tellMetadata(subgroup.toMap) }
+      metadataJunk.grouped(configuredSpamWindow.getOrElse(1000)).foreach { subgroup => tellMetadata(subgroup.toMap) }
     }
   }
 

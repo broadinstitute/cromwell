@@ -593,7 +593,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
       lastStatusPoll = Option(OffsetDateTime.now)
       val metadataJunk = 0.to(junkToSend.intValue) map { i => s"junk_value[$i]" -> junkMetadataValue }
-      tellMetadata(metadataJunk.toMap)
+      metadataJunk.grouped(1000).foreach { subgroup => tellMetadata(subgroup.toMap) }
     }
   }
 

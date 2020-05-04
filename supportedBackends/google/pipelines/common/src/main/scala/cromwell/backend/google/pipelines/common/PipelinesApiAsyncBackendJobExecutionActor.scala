@@ -10,6 +10,7 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
+import net.ceedubs.ficus.Ficus._
 import common.util.StringUtil._
 import common.validation.ErrorOr._
 import common.validation.Validation._
@@ -578,19 +579,22 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   var lastStatusPoll: Option[OffsetDateTime] = None
   val junkMetadataValue = "Blah blah blah what a load of junk"
+  val configuredSpamQuantity = standardParams.configurationDescriptor.backendConfig.as[Option[Int]]("metadata_spam_on_status_poll")
 
   def spamJunkMetadata() = {
-    val junkToSend = lastStatusPoll match {
-      case None =>
-        10000
-      case Some(previousPoll) =>
-        val timeDiffSeconds = OffsetDateTime.now.toEpochSecond - previousPoll.toEpochSecond
-        timeDiffSeconds * 10000
-    }
-    lastStatusPoll = Option(OffsetDateTime.now)
+    configuredSpamQuantity foreach { quantity =>
+      val junkToSend = lastStatusPoll match {
+        case None =>
+          quantity
+        case Some(previousPoll) =>
+          val timeDiffSeconds = OffsetDateTime.now.toEpochSecond - previousPoll.toEpochSecond
+          timeDiffSeconds * quantity
+      }
 
-    val metadataJunk = 0.to(junkToSend.intValue) map { i => s"junk_value[$i]" -> junkMetadataValue }
-    tellMetadata(metadataJunk.toMap)
+      lastStatusPoll = Option(OffsetDateTime.now)
+      val metadataJunk = 0.to(junkToSend.intValue) map { i => s"junk_value[$i]" -> junkMetadataValue }
+      tellMetadata(metadataJunk.toMap)
+    }
   }
 
   override def pollStatusAsync(handle: JesPendingExecutionHandle): Future[RunStatus] = {

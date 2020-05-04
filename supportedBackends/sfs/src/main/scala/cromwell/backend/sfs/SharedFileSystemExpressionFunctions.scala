@@ -28,15 +28,10 @@ class SharedFileSystemExpressionFunctions(standardParams: StandardExpressionFunc
     this(DefaultStandardExpressionFunctionsParams(pathBuilders, callContext, ioActorProxy, ec))
   }
 
-  // Use a separate class for forInput = true, otherwise makeInputSpecificFunctions is self-referential and will fail.
   override def makeInputSpecificFunctions: IoFunctionSet = new SharedFileSystemExpressionFunctionsForInput(standardParams)
-
-  lazy val forInput = false
-  lazy val cromwellCwd: Path = DefaultPathBuilder.build(sys.props("user.dir")).get
 
   override def postMapping(path: Path) = {
     path match {
-      case _: DefaultPath if !path.isAbsolute && forInput => cromwellCwd.resolve(path)
       case _: DefaultPath if !path.isAbsolute => callContext.root.resolve(path)
       case _ => path
     }
@@ -45,6 +40,16 @@ class SharedFileSystemExpressionFunctions(standardParams: StandardExpressionFunc
 
 class SharedFileSystemExpressionFunctionsForInput(standardParams: StandardExpressionFunctionsParams)
   extends SharedFileSystemExpressionFunctions(standardParams) {
+
+  // override needed to prevent class self-reference
   override def makeInputSpecificFunctions: IoFunctionSet = this
-  override lazy val forInput = true
+
+  lazy val cromwellCwd: Path = DefaultPathBuilder.build(sys.props("user.dir")).get
+
+  override def postMapping(path: Path) = {
+    path match {
+      case _: DefaultPath if !path.isAbsolute => cromwellCwd.resolve(path)
+      case _ => path
+    }
+  }
 }

@@ -589,11 +589,20 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   val configuredSpamQuantity = standardParams.configurationDescriptor.backendConfig.as[Option[Int]]("metadata_spam_per_second")
   log.info(s"Spam quantity: ${configuredSpamQuantity}")
   val configuredSpamWindow = standardParams.configurationDescriptor.backendConfig.as[Option[Int]]("metadata_spam_metadata_put_batch_size")
+  val configuredFilletPerThousand = standardParams.configurationDescriptor.backendConfig.as[Option[Int]]("metadata_spam_fillet_per_thousand")
 
   def spamJunkMetadata() = {
+
     log.info("Spam spam spam spam...")
+
     configuredSpamQuantity foreach { quantity =>
-      val metadataJunk = 0.to(quantity) map { i => s"junk_value[$i]" -> junkMetadataValue }
+      val metadataJunk = 0.to(quantity) map { i =>
+        if (configuredFilletPerThousand.exists { f => i % 1000 < f }) {
+          "status" -> "Running"
+        } else {
+          s"junk_value[$i]" -> junkMetadataValue
+        }
+      }
       metadataJunk.grouped(configuredSpamWindow.getOrElse(1000)).foreach { subgroup => tellMetadata(subgroup.toMap) }
     }
   }

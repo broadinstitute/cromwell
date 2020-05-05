@@ -1,7 +1,6 @@
 package cromwell.backend.google.pipelines.common
 
 import java.net.SocketTimeoutException
-import java.time.OffsetDateTime
 
 import _root_.io.grpc.Status
 import akka.actor.ActorRef
@@ -587,10 +586,12 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   }
 
   val junkMetadataValue = "Blah blah blah what a load of junk"
-  val configuredSpamQuantity = standardParams.configurationDescriptor.backendConfig.as[Option[Int]]("metadata_spam_per_second_on_poll")
+  val configuredSpamQuantity = standardParams.configurationDescriptor.backendConfig.as[Option[Int]]("metadata_spam_per_second")
+  log.info(s"Spam quantity: ${configuredSpamQuantity}")
   val configuredSpamWindow = standardParams.configurationDescriptor.backendConfig.as[Option[Int]]("metadata_spam_metadata_put_batch_size")
 
   def spamJunkMetadata() = {
+    log.info("Spam spam spam spam...")
     configuredSpamQuantity foreach { quantity =>
       val metadataJunk = 0.to(quantity) map { i => s"junk_value[$i]" -> junkMetadataValue }
       metadataJunk.grouped(configuredSpamWindow.getOrElse(1000)).foreach { subgroup => tellMetadata(subgroup.toMap) }

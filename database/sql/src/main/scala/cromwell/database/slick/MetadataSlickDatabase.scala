@@ -42,7 +42,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
 //      val action = DBIO.seq(metadataEntries.grouped(insertBatchSize).map(dataAccess.metadataEntries ++= _).toSeq:_*)
 //      runLobAction(action)
 
-        val action = DBIO.sequence(metadataEntries.grouped(insertBatchSize).map(dataAccess.metadataEntryIdsAutoInc ++= _))
+        val action = DBIO.sequence(metadataEntries.grouped(insertBatchSize).map(dataAccess.metadataEntries ++= _))
         runLobAction(action).void
 
 //      val batchesToWrite = metadataEntries.grouped(insertBatchSize).toList

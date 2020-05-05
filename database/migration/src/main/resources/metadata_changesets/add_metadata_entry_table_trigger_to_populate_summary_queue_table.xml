@@ -4,7 +4,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet id="summary_queue_table_trigger_mysql_mariadb" author="gsterin" dbms="mariadb,mysql">
+    <changeSet id="metadata_entry_to_summary_queue_table_trigger_mysql_mariadb" author="gsterin" dbms="mariadb,mysql">
         <sql>
             CREATE TRIGGER after_metadata_entry_insert
             AFTER INSERT ON METADATA_ENTRY
@@ -13,7 +13,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="summary_queue_table_trigger_hsqldb" author="gsterin" dbms="hsqldb">
+    <changeSet id="metadata_entry_to_summary_queue_table_trigger_hsqldb" author="gsterin" dbms="hsqldb">
         <sql>
             CREATE TRIGGER after_metadata_entry_insert
             AFTER INSERT ON METADATA_ENTRY
@@ -23,7 +23,7 @@
         </sql>
     </changeSet>
 
-    <changeSet id="summary_queue_table_trigger_postgresql" author="gsterin" dbms="postgresql">
+    <changeSet id="metadata_entry_to_summary_queue_table_trigger_postgresql" author="gsterin" dbms="postgresql">
         <createProcedure>
             CREATE FUNCTION "SUMMARY_QUEUE_ENTRY_INSERT"() RETURNS trigger
             LANGUAGE plpgsql

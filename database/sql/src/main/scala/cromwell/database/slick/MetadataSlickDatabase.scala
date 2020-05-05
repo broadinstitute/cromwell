@@ -44,7 +44,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       // SUMMARY_QUEUE_ENTRY in the same transaction.
 
       // DISCLAIMER: the latter way may cause significant performance degradation
-      if (isOfficiallySupportedDatabase(dataAccess.driver)) {
+      if (isOfficiallySupportedDatabase()) {
         val insertActions = DBIO.seq(metadataEntries.grouped(insertBatchSize).map(dataAccess.metadataEntries ++= _).toSeq:_*)
         runLobAction(insertActions)
       } else {

@@ -38,13 +38,11 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                  (implicit ec: ExecutionContext): Future[Unit] = {
 
     if (metadataEntries.isEmpty) Future.successful(()) else {
-      // If we officially support the database, then we have a trigger in it which will populate SUMMARY_QUEUE_TABLE
-      // automatically when we insert records in the METADATA_ENTRY table.
-      // Otherwise, we insert data in METADATA_ENTRY, fetch the newly generated record ids and then insert data into
-      // SUMMARY_QUEUE_ENTRY in the same transaction.
-
-      // DISCLAIMER: the latter way may cause significant performance degradation
-      if (isOfficiallySupportedDatabase()) {
+      // We support 2 possible ways to populate SUMMARY_QUEUE_ENTRY table:
+      // 1. DB trigger (enabled by default for databases listed inside `useDbTriggerToPopulateSummarizerQueue()` method).
+      // 2. Insert data in METADATA_ENTRY, fetch the newly generated record ids, and then insert data into SUMMARY_QUEUE_ENTRY in the same transaction
+      // Disclaimer: The second method may cause significant performance degradation.
+      if (useDbTriggerToPopulateSummarizerQueue()) {
         val insertActions = DBIO.seq(metadataEntries.grouped(insertBatchSize).map(dataAccess.metadataEntries ++= _).toSeq:_*)
         runLobAction(insertActions)
       } else {

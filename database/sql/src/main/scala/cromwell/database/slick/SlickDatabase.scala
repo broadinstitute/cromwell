@@ -188,7 +188,7 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
     }
   }
 
-  protected[this] def isOfficiallySupportedDatabase(): Boolean = {
+  protected[this] def useDbTriggerToPopulateSummarizerQueue(): Boolean = {
     dataAccess.driver match {
       case PostgresProfile | MySQLProfile | HsqldbProfile => true
       case _ => false

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet id="summary_queue_table_trigger_mysql_mariadb" author="gsterin" dbms="mariadb,mysql">
+        <sql>
+            CREATE TRIGGER after_metadata_entry_insert
+            AFTER INSERT ON METADATA_ENTRY
+            FOR EACH ROW
+            INSERT INTO SUMMARY_QUEUE_ENTRY VALUES(NEW.METADATA_JOURNAL_ID);
+        </sql>
+    </changeSet>
+
+    <changeSet id="summary_queue_table_trigger_hsqldb" author="gsterin" dbms="hsqldb">
+        <sql>
+            CREATE TRIGGER after_metadata_entry_insert
+            AFTER INSERT ON METADATA_ENTRY
+            REFERENCING NEW ROW AS NEW
+            FOR EACH ROW
+            INSERT INTO SUMMARY_QUEUE_ENTRY VALUES(NEW.METADATA_JOURNAL_ID);
+        </sql>
+    </changeSet>
+
+    <changeSet id="summary_queue_table_trigger_postgresql" author="gsterin" dbms="postgresql">
+        <createProcedure>
+            CREATE FUNCTION "SUMMARY_QUEUE_ENTRY_INSERT"() RETURNS trigger
+            LANGUAGE plpgsql
+            AS $$
+            BEGIN
+            INSERT INTO "SUMMARY_QUEUE_ENTRY" VALUES(NEW."METADATA_JOURNAL_ID");
+            RETURN NEW;
+            END;
+            $$;
+        </createProcedure>
+        <sql>
+            CREATE TRIGGER "AFTER_METADATA_ENTRY_INSERT"
+            AFTER INSERT ON "METADATA_ENTRY"
+            FOR EACH ROW
+            EXECUTE PROCEDURE "SUMMARY_QUEUE_ENTRY_INSERT"();
+        </sql>
+    </changeSet>
+
+
+</databaseChangeLog>

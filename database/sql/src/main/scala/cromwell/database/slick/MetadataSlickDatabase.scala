@@ -38,13 +38,24 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                  (implicit ec: ExecutionContext): Future[Unit] = {
 
     if (metadataEntries.isEmpty) Future.successful(()) else {
+      // If we officially support the database, then we have a trigger in it which will populate SUMMARY_QUEUE_TABLE
+      // automatically when we insert records in the METADATA_ENTRY table.
+      // Otherwise, we insert data in METADATA_ENTRY, fetch the newly generated record ids and then insert data into
+      // SUMMARY_QUEUE_ENTRY in the same transaction.
 
-      val batchesToWrite = metadataEntries.grouped(insertBatchSize).toList
-      val insertActions = batchesToWrite.map { batch =>
-        val insertMetadata = dataAccess.metadataEntryIdsAutoInc ++= batch
-        insertMetadata.flatMap(ids => writeSummaryQueueEntries(ids))
+      // DISCLAIMER: the latter way may cause significant performance degradation
+      if (isOfficiallySupportedDatabase(dataAccess.driver)) {
+        val insertActions = DBIO.seq(metadataEntries.grouped(insertBatchSize).map(dataAccess.metadataEntries ++= _).toSeq:_*)
+        runLobAction(insertActions)
+      } else {
+        val batchesToWrite = metadataEntries.grouped(insertBatchSize).toList
+        val insertActions = batchesToWrite.map { batch =>
+          val insertMetadata = dataAccess.metadataEntryIdsAutoInc ++= batch
+          insertMetadata.flatMap(ids => writeSummaryQueueEntries(ids))
+          insertMetadata
+        }
+        runTransaction(DBIO.sequence(insertActions)).void
       }
-      runTransaction(DBIO.sequence(insertActions)).void
     }
   }
 

@@ -120,11 +120,18 @@ object DatabaseTestKit extends StrictLogging {
               dbPassword = "test"
             ))
           case MysqlDatabasePlatform =>
-            Option(MySQLContainer(
-              mysqlImageVersion = s"mysql:${networkDbSystem.dockerImageVersion}",
-              databaseName = "cromwell_test",
-              username = "cromwell",
-              password = "test"))
+            Option(
+              MySQLContainer(
+                mysqlImageVersion = s"mysql:${networkDbSystem.dockerImageVersion}",
+                databaseName = "cromwell_test",
+                username = "cromwell",
+                password = "test"
+              )
+                .configure(c => {
+                  c.withCommand("--log-bin-trust-function-creators") // required for creating triggers
+                  ()
+                })
+            )
           case PostgresqlDatabasePlatform =>
             Option(PostgreSQLContainer(
               dockerImageNameOverride =  s"postgres:${networkDbSystem.dockerImageVersion}",

@@ -52,7 +52,6 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
         val insertActions = batchesToWrite.map { batch =>
           val insertMetadata = dataAccess.metadataEntryIdsAutoInc ++= batch
           insertMetadata.flatMap(ids => writeSummaryQueueEntries(ids))
-          insertMetadata
         }
         runTransaction(DBIO.sequence(insertActions)).void
       }

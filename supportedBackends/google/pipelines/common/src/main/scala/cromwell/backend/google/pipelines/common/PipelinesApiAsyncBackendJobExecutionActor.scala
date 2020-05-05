@@ -36,7 +36,8 @@ import cromwell.filesystems.http.HttpPath
 import cromwell.filesystems.sra.SraPath
 import cromwell.google.pipelines.common.PreviousRetryReasons
 import cromwell.services.keyvalue.KeyValueServiceActor._
-import cromwell.services.metadata.CallMetadataKeys
+import cromwell.services.metadata.MetadataService.PutMetadataAction
+import cromwell.services.metadata.{CallMetadataKeys, MetadataEvent, MetadataJobKey, MetadataKey, MetadataValue}
 import shapeless.Coproduct
 import wdl4s.parser.MemoryUnit
 import wom.callable.AdHocValue
@@ -152,14 +153,12 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override def receive: Receive = metadataSpamReceive orElse pollingActorClientReceive orElse runCreationClientReceive orElse abortActorClientReceive orElse kvClientReceive orElse super.receive
 
-  case object SpamNow
+  case class SpamNow(quantity: Int)
   private def metadataSpamReceive: Receive = {
-    case SpamNow =>
-      spamJunkMetadata()
-      context.system.scheduler.scheduleOnce(1.second) { self ! SpamNow }; ()
+    case SpamNow(quantity) =>
+      spamJunkMetadata(quantity)
+      context.system.scheduler.scheduleOnce(1.second) { self ! SpamNow(quantity) }; ()
   }
-
-  context.system.scheduler.scheduleOnce(10.second) { self ! SpamNow }
 
   private def gcsAuthParameter: Option[PipelinesApiLiteralInput] = {
     if (jesAttributes.auths.gcs.requiresAuthFile || dockerConfiguration.isDefined)
@@ -587,23 +586,26 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   val junkMetadataValue = "Blah blah blah what a load of junk"
   val configuredSpamQuantity = standardParams.configurationDescriptor.backendConfig.as[Option[Int]]("metadata_spam_per_second")
+  configuredSpamQuantity foreach { quantity =>   context.system.scheduler.scheduleOnce(10.second) { self ! SpamNow(quantity) }}
   log.info(s"Spam quantity: ${configuredSpamQuantity}")
   val configuredSpamWindow = standardParams.configurationDescriptor.backendConfig.as[Option[Int]]("metadata_spam_metadata_put_batch_size")
   val configuredFilletPerThousand = standardParams.configurationDescriptor.backendConfig.as[Option[Int]]("metadata_spam_fillet_per_thousand")
 
-  def spamJunkMetadata() = {
+  def spamJunkMetadata(quantity: Int) = {
 
     log.info("Spam spam spam spam...")
 
-    configuredSpamQuantity foreach { quantity =>
-      val metadataJunk = 0.to(quantity) map { i =>
-        if (configuredFilletPerThousand.exists { f => i % 1000 < f }) {
-          "status" -> "Running"
-        } else {
-          s"junk_value[$i]" -> junkMetadataValue
-        }
+    val metadataJobKey = MetadataJobKey(jobDescriptor.key.node.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt)
+
+    val metadataJunk = 0.to(quantity).toSeq map { i =>
+      if (configuredFilletPerThousand.exists { f => i % 1000 < f }) {
+        MetadataEvent(MetadataKey(workflowId, None, s"labels:junk_value_${i}"), Option(MetadataValue("Running")))
+      } else {
+        MetadataEvent(MetadataKey(workflowId, Option(metadataJobKey), s"junk_value[$i]"), Option(MetadataValue(junkMetadataValue)))
       }
-      metadataJunk.grouped(configuredSpamWindow.getOrElse(1000)).foreach { subgroup => tellMetadata(subgroup.toMap) }
+    }
+    metadataJunk.grouped(configuredSpamWindow.getOrElse(1000)).foreach { events =>
+      serviceRegistryActor ! PutMetadataAction(events)
     }
   }
 

@@ -151,7 +151,16 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override def requestsAbortAndDiesImmediately: Boolean = false
 
-  override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse abortActorClientReceive orElse kvClientReceive orElse super.receive
+  override def receive: Receive = metadataSpamReceive orElse pollingActorClientReceive orElse runCreationClientReceive orElse abortActorClientReceive orElse kvClientReceive orElse super.receive
+
+  case object SpamNow
+  private def metadataSpamReceive: Receive = {
+    case SpamNow =>
+      spamJunkMetadata()
+      context.system.scheduler.scheduleOnce(1.second) { self ! SpamNow }; ()
+  }
+
+  context.system.scheduler.scheduleOnce(10.second) { self ! SpamNow }
 
   private def gcsAuthParameter: Option[PipelinesApiLiteralInput] = {
     if (jesAttributes.auths.gcs.requiresAuthFile || dockerConfiguration.isDefined)
@@ -577,29 +586,18 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     }
   }
 
-  var lastStatusPoll: Option[OffsetDateTime] = None
   val junkMetadataValue = "Blah blah blah what a load of junk"
   val configuredSpamQuantity = standardParams.configurationDescriptor.backendConfig.as[Option[Int]]("metadata_spam_per_second_on_poll")
   val configuredSpamWindow = standardParams.configurationDescriptor.backendConfig.as[Option[Int]]("metadata_spam_metadata_put_batch_size")
 
   def spamJunkMetadata() = {
     configuredSpamQuantity foreach { quantity =>
-      val junkToSend = lastStatusPoll match {
-        case None =>
-          quantity
-        case Some(previousPoll) =>
-          val timeDiffSeconds = (OffsetDateTime.now.toEpochSecond - previousPoll.toEpochSecond).intValue()
-          timeDiffSeconds * quantity
-      }
-
-      lastStatusPoll = Option(OffsetDateTime.now)
-      val metadataJunk = 0.to(junkToSend) map { i => s"junk_value[$i]" -> junkMetadataValue }
+      val metadataJunk = 0.to(quantity) map { i => s"junk_value[$i]" -> junkMetadataValue }
       metadataJunk.grouped(configuredSpamWindow.getOrElse(1000)).foreach { subgroup => tellMetadata(subgroup.toMap) }
     }
   }
 
   override def pollStatusAsync(handle: JesPendingExecutionHandle): Future[RunStatus] = {
-    spamJunkMetadata()
     super[PipelinesApiStatusRequestClient].pollStatus(workflowId, handle.pendingJob)
   }
 

@@ -11,7 +11,7 @@ import net.ceedubs.ficus.Ficus._
 import org.postgresql.util.{PSQLException, ServerErrorMessage}
 import org.slf4j.LoggerFactory
 import slick.basic.DatabaseConfig
-import slick.jdbc.{JdbcCapabilities, JdbcProfile, PostgresProfile, TransactionIsolation}
+import slick.jdbc.{HsqldbProfile, JdbcCapabilities, JdbcProfile, MySQLProfile, PostgresProfile, TransactionIsolation}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
@@ -185,6 +185,13 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
     dataAccess.driver match {
       case PostgresProfile => runTransaction(action)
       case _ => runAction(action)
+    }
+  }
+
+  protected[this] def isOfficiallySupportedDatabase(driver: JdbcProfile): Boolean = {
+    dataAccess.driver match {
+      case PostgresProfile | MySQLProfile | HsqldbProfile => true
+      case _ => false
     }
   }
 

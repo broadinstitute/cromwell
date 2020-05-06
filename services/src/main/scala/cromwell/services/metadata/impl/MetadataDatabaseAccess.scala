@@ -179,26 +179,12 @@ trait MetadataDatabaseAccess {
   def refreshWorkflowMetadataSummaries(limit: Int)(implicit ec: ExecutionContext): Future[SummaryResult] = {
     for {
       increasingProcessed <- metadataDatabaseInterface.summarizeIncreasing(
-        startMetadataKey = WorkflowMetadataKeys.StartTime,
-        endMetadataKey = WorkflowMetadataKeys.EndTime,
-        nameMetadataKey = WorkflowMetadataKeys.Name,
-        statusMetadataKey = WorkflowMetadataKeys.Status,
-        submissionMetadataKey = WorkflowMetadataKeys.SubmissionTime,
-        parentWorkflowIdKey = WorkflowMetadataKeys.ParentWorkflowId,
-        rootWorkflowIdKey = WorkflowMetadataKeys.RootWorkflowId,
         labelMetadataKey = WorkflowMetadataKeys.Labels,
         limit = limit,
         buildUpdatedSummary = MetadataDatabaseAccess.buildUpdatedSummary)
       (decreasingProcessed, decreasingGap) <- metadataDatabaseInterface.summarizeDecreasing(
         summaryNameDecreasing = WorkflowMetadataKeys.SummaryNameDecreasing,
         summaryNameIncreasing = WorkflowMetadataKeys.SummaryNameIncreasing,
-        startMetadataKey = WorkflowMetadataKeys.StartTime,
-        endMetadataKey = WorkflowMetadataKeys.EndTime,
-        nameMetadataKey = WorkflowMetadataKeys.Name,
-        statusMetadataKey = WorkflowMetadataKeys.Status,
-        submissionMetadataKey = WorkflowMetadataKeys.SubmissionTime,
-        parentWorkflowIdKey = WorkflowMetadataKeys.ParentWorkflowId,
-        rootWorkflowIdKey = WorkflowMetadataKeys.RootWorkflowId,
         labelMetadataKey = WorkflowMetadataKeys.Labels,
         limit = limit,
         buildUpdatedSummary = MetadataDatabaseAccess.buildUpdatedSummary)

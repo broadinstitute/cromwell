@@ -76,14 +76,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
     * @param buildUpdatedSummary Takes in the optional existing summary and the metadata, returns the new summary.
     * @return A `Future` with the number of rows summarized by the invocation, and the number of rows still to summarize.
     */
-  def summarizeIncreasing(startMetadataKey: String,
-                          endMetadataKey: String,
-                          nameMetadataKey: String,
-                          statusMetadataKey: String,
-                          submissionMetadataKey: String,
-                          parentWorkflowIdKey: String,
-                          rootWorkflowIdKey: String,
-                          labelMetadataKey: String,
+  def summarizeIncreasing(labelMetadataKey: String,
                           limit: Int,
                           buildUpdatedSummary:
                           (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
@@ -98,13 +91,6 @@ trait MetadataSqlDatabase extends SqlDatabase {
     */
   def summarizeDecreasing(summaryNameDecreasing: String,
                           summaryNameIncreasing: String,
-                          startMetadataKey: String,
-                          endMetadataKey: String,
-                          nameMetadataKey: String,
-                          statusMetadataKey: String,
-                          submissionMetadataKey: String,
-                          parentWorkflowIdKey: String,
-                          rootWorkflowIdKey: String,
                           labelMetadataKey: String,
                           limit: Int,
                           buildUpdatedSummary:

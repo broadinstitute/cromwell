@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet id="delete_non_summarizable_metadata_from_queue" author="mcovarr" dbms="hsqldb,mariadb,mysql,postgresql">
+        <sql>
+            DELETE SUMMARY_QUEUE_ENTRY FROM SUMMARY_QUEUE_ENTRY
+            INNER JOIN METADATA_ENTRY ON
+                SUMMARY_QUEUE_ENTRY.METADATA_JOURNAL_ID = METADATA_ENTRY.METADATA_JOURNAL_ID WHERE NOT(
+                    METADATA_ENTRY.CALL_FQN IS NULL AND
+                    METADATA_ENTRY.JOB_SCATTER_INDEX IS NULL AND
+                    METADATA_ENTRY.JOB_RETRY_ATTEMPT IS NULL AND (
+                        METADATA_ENTRY.METADATA_KEY in
+                            ('start', 'end', 'workflowName', 'status', 'submission', 'parentWorkflowId', 'rootWorkflowId')
+                        OR
+                        METADATA_ENTRY.METADATA_KEY LIKE 'labels%'
+                    )
+                )
+        </sql>
+        <modifySql dbms="mysql">
+            <append value=" ENGINE=INNODB"/>
+        </modifySql>
+    </changeSet>
+
+</databaseChangeLog>

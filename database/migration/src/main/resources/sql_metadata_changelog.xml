@@ -16,5 +16,6 @@
     <include file="metadata_changesets/add_metadata_archive_status.xml" relativeToChangelogFile="true" />
     <include file="metadata_changesets/summarization_queue_table.xml" relativeToChangelogFile="true" />
     <include file="metadata_changesets/summarization_queue_table_add_primary_key.xml" relativeToChangelogFile="true"/>
+    <include file="metadata_changesets/remove_non_summarizable_metadata_from_queue.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>
 <!-- See Dos and Don'ts in changelog.xml -->

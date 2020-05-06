@@ -5,6 +5,9 @@
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
     <changeSet id="delete_non_summarizable_metadata_from_queue" author="mcovarr" dbms="hsqldb,mariadb,mysql,postgresql">
+        <comment>
+            Delete rows from the summary queue that correspond to metadata that will not be summarized.
+        </comment>
         <sql>
             DELETE SUMMARY_QUEUE_ENTRY FROM SUMMARY_QUEUE_ENTRY
             INNER JOIN METADATA_ENTRY ON
@@ -19,9 +22,6 @@
                     )
                 )
         </sql>
-        <modifySql dbms="mysql">
-            <append value=" ENGINE=INNODB"/>
-        </modifySql>
     </changeSet>
 
 </databaseChangeLog>

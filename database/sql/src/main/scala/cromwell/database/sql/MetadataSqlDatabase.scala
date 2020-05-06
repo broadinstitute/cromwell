@@ -25,7 +25,15 @@ trait MetadataSqlDatabase extends SqlDatabase {
   /**
     * Add metadata events to the database transactionally.
     */
-  def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])(implicit ec: ExecutionContext): Future[Unit]
+  def addMetadataEntries(metadataEntries: Iterable[MetadataEntry],
+                         startMetadataKey: String,
+                         endMetadataKey: String,
+                         nameMetadataKey: String,
+                         statusMetadataKey: String,
+                         submissionMetadataKey: String,
+                         parentWorkflowIdKey: String,
+                         rootWorkflowIdKey: String,
+                         labelMetadataKey: String)(implicit ec: ExecutionContext): Future[Unit]
 
   def metadataEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Boolean]
 

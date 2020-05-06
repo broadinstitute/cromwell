@@ -130,7 +130,15 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
 
     var requestsSinceLastSuccess = 0
     // Return successful
-    override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])
+    override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry],
+                                    startMetadataKey: String,
+                                    endMetadataKey: String,
+                                    nameMetadataKey: String,
+                                    statusMetadataKey: String,
+                                    submissionMetadataKey: String,
+                                    parentWorkflowIdKey: String,
+                                    rootWorkflowIdKey: String,
+                                    labelMetadataKey: String)
                                    (implicit ec: ExecutionContext): Future[Unit] = {
       if (requestsSinceLastSuccess == failuresBetweenEachSuccess) {
         requestsSinceLastSuccess = 0

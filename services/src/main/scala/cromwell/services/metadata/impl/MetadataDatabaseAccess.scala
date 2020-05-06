@@ -100,7 +100,16 @@ trait MetadataDatabaseAccess {
       MetadataEntry(workflowUuid, jobKey.map(_._1), jobKey.flatMap(_._2), jobKey.map(_._3),
         key.key, value.toClobOption, valueType, timestamp)
     }
-    metadataDatabaseInterface.addMetadataEntries(metadata)
+    metadataDatabaseInterface.addMetadataEntries(
+      metadataEntries = metadata,
+      startMetadataKey = WorkflowMetadataKeys.StartTime,
+      endMetadataKey = WorkflowMetadataKeys.EndTime,
+      nameMetadataKey = WorkflowMetadataKeys.Name,
+      statusMetadataKey = WorkflowMetadataKeys.Status,
+      submissionMetadataKey = WorkflowMetadataKeys.SubmissionTime,
+      parentWorkflowIdKey = WorkflowMetadataKeys.ParentWorkflowId,
+      rootWorkflowIdKey = WorkflowMetadataKeys.RootWorkflowId,
+      labelMetadataKey = WorkflowMetadataKeys.Labels)
   }
 
   private def metadataToMetadataEvents(workflowId: WorkflowId)(metadata: Seq[MetadataEntry]): Seq[MetadataEvent] = {

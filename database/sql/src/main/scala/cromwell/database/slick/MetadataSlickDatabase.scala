@@ -34,18 +34,52 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action)
   }
 
-  override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])
+  override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry],
+                                  startMetadataKey: String,
+                                  endMetadataKey: String,
+                                  nameMetadataKey: String,
+                                  statusMetadataKey: String,
+                                  submissionMetadataKey: String,
+                                  parentWorkflowIdKey: String,
+                                  rootWorkflowIdKey: String,
+                                  labelMetadataKey: String)
                                  (implicit ec: ExecutionContext): Future[Unit] = {
 
-    if (metadataEntries.isEmpty) Future.successful(()) else {
+    val partitionedMetadata = partitionSummarizationMetadata(
+        rawMetadataEntries = metadataEntries.toSeq,
+        startMetadataKey,
+        endMetadataKey,
+        nameMetadataKey,
+        statusMetadataKey,
+        submissionMetadataKey,
+        parentWorkflowIdKey,
+        rootWorkflowIdKey,
+        labelMetadataKey)
 
-      val batchesToWrite = metadataEntries.grouped(insertBatchSize).toList
+    val summarizableMetadata = partitionedMetadata.summarizableRegularMetadata.values.flatten ++ partitionedMetadata.summarizableLabelsMetadata
+    val nonSummarizableMetadata = partitionedMetadata.nonSummarizableMetadata
+
+    // These entries also require a write to the summary queue.
+    def writeSummarizable: Future[Unit] = if (summarizableMetadata.isEmpty) Future.successful(()) else {
+      val batchesToWrite = summarizableMetadata.grouped(insertBatchSize).toList
       val insertActions = batchesToWrite.map { batch =>
         val insertMetadata = dataAccess.metadataEntryIdsAutoInc ++= batch
         insertMetadata.flatMap(ids => writeSummaryQueueEntries(ids))
       }
       runTransaction(DBIO.sequence(insertActions)).void
     }
+
+    // Non-summarizable metadata that only needs to go to the metadata table can be written much more efficiently
+    // than summarizable metadata.
+    def writeNonSummarizable: Future[Unit] = if (nonSummarizableMetadata.isEmpty) Future.successful(()) else {
+      val action = DBIO.sequence(nonSummarizableMetadata.grouped(insertBatchSize).map(dataAccess.metadataEntries ++= _))
+      runLobAction(action).void
+    }
+
+    for {
+      _ <- writeSummarizable
+      _ <- writeNonSummarizable
+    } yield ()
   }
 
   override def metadataEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Boolean] = {
@@ -261,6 +295,38 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action)
   }
 
+  case class SummarizationPartitionedMetadata(nonSummarizableMetadata: Seq[MetadataEntry],
+                                              summarizableRegularMetadata: Map[String, Seq[MetadataEntry]],
+                                              summarizableLabelsMetadata: Seq[MetadataEntry])
+
+  private def partitionSummarizationMetadata(rawMetadataEntries: Seq[MetadataEntry],
+                                             startMetadataKey: String,
+                                             endMetadataKey: String,
+                                             nameMetadataKey: String,
+                                             statusMetadataKey: String,
+                                             submissionMetadataKey: String,
+                                             parentWorkflowIdKey: String,
+                                             rootWorkflowIdKey: String,
+                                             labelMetadataKey: String): SummarizationPartitionedMetadata = {
+
+    val exactMatchMetadataKeys = Set(startMetadataKey, endMetadataKey, nameMetadataKey, statusMetadataKey, submissionMetadataKey, parentWorkflowIdKey, rootWorkflowIdKey)
+    val startsWithMetadataKeys = Set(labelMetadataKey)
+
+    val (summarizable, nonSummarizable) = rawMetadataEntries partition { entry =>
+      entry.callFullyQualifiedName.isEmpty && entry.jobIndex.isEmpty && entry.jobAttempt.isEmpty &&
+        (exactMatchMetadataKeys.contains(entry.metadataKey) || startsWithMetadataKeys.exists(entry.metadataKey.startsWith))
+    }
+    val summarizableRegularMetadata = summarizable
+      .filterNot(_.metadataKey.contains(labelMetadataKey)) // Why are these "contains" while the filtering is "starts with"?
+      .groupBy(_.workflowExecutionUuid)
+    val summarizableLabelsMetadata = summarizable.filter(_.metadataKey.contains(labelMetadataKey))
+
+    SummarizationPartitionedMetadata(
+      nonSummarizableMetadata = nonSummarizable,
+      summarizableRegularMetadata = summarizableRegularMetadata,
+      summarizableLabelsMetadata = summarizableLabelsMetadata)
+  }
+
   private def buildMetadataSummaryFromRawMetadataAndWriteToDb(rawMetadataEntries: Seq[MetadataEntry],
                                                               startMetadataKey: String,
                                                               endMetadataKey: String,
@@ -274,21 +340,21 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                                               (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry]) => WorkflowMetadataSummaryEntry
                                                              )(implicit ec: ExecutionContext): DBIO[Unit] = {
 
-    val exactMatchMetadataKeys = Set(startMetadataKey, endMetadataKey, nameMetadataKey, statusMetadataKey, submissionMetadataKey, parentWorkflowIdKey, rootWorkflowIdKey)
-    val startsWithMetadataKeys = Set(labelMetadataKey)
-
-    val metadataEntries = rawMetadataEntries filter { entry =>
-      entry.callFullyQualifiedName.isEmpty && entry.jobIndex.isEmpty && entry.jobAttempt.isEmpty &&
-        (exactMatchMetadataKeys.contains(entry.metadataKey) || startsWithMetadataKeys.exists(entry.metadataKey.startsWith))
-    }
-    val metadataWithoutLabels = metadataEntries
-      .filterNot(_.metadataKey.contains(labelMetadataKey)) // Why are these "contains" while the filtering is "starts with"?
-      .groupBy(_.workflowExecutionUuid)
-    val customLabelEntries = metadataEntries.filter(_.metadataKey.contains(labelMetadataKey))
+    val summarizationPartitionedMetadata = partitionSummarizationMetadata(
+      rawMetadataEntries,
+      startMetadataKey,
+      endMetadataKey,
+      nameMetadataKey,
+      statusMetadataKey,
+      submissionMetadataKey,
+      parentWorkflowIdKey,
+      rootWorkflowIdKey,
+      labelMetadataKey
+    )
 
     for {
-      _ <- DBIO.sequence(metadataWithoutLabels map updateWorkflowMetadataSummaryEntry(buildUpdatedSummary))
-      _ <- DBIO.sequence(customLabelEntries map toCustomLabelEntry map upsertCustomLabelEntry)
+      _ <- DBIO.sequence(summarizationPartitionedMetadata.summarizableRegularMetadata map updateWorkflowMetadataSummaryEntry(buildUpdatedSummary))
+      _ <- DBIO.sequence(summarizationPartitionedMetadata.summarizableLabelsMetadata map toCustomLabelEntry map upsertCustomLabelEntry)
     } yield ()
   }
 

@@ -60,7 +60,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     val nonSummarizableMetadata = partitionedMetadata.nonSummarizableMetadata
 
     // These entries also require a write to the summary queue.
-    def writeSummarizable: Future[Unit] = if (summarizableMetadata.isEmpty) Future.successful(()) else {
+    def writeSummarizable(): Future[Unit] = if (summarizableMetadata.isEmpty) Future.successful(()) else {
       val batchesToWrite = summarizableMetadata.grouped(insertBatchSize).toList
       val insertActions = batchesToWrite.map { batch =>
         val insertMetadata = dataAccess.metadataEntryIdsAutoInc ++= batch
@@ -71,14 +71,14 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
 
     // Non-summarizable metadata that only needs to go to the metadata table can be written much more efficiently
     // than summarizable metadata.
-    def writeNonSummarizable: Future[Unit] = if (nonSummarizableMetadata.isEmpty) Future.successful(()) else {
+    def writeNonSummarizable(): Future[Unit] = if (nonSummarizableMetadata.isEmpty) Future.successful(()) else {
       val action = DBIO.sequence(nonSummarizableMetadata.grouped(insertBatchSize).map(dataAccess.metadataEntries ++= _))
       runLobAction(action).void
     }
 
     for {
-      _ <- writeSummarizable
-      _ <- writeNonSummarizable
+      _ <- writeSummarizable()
+      _ <- writeNonSummarizable()
     } yield ()
   }
 
@@ -316,14 +316,12 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       entry.callFullyQualifiedName.isEmpty && entry.jobIndex.isEmpty && entry.jobAttempt.isEmpty &&
         (exactMatchMetadataKeys.contains(entry.metadataKey) || startsWithMetadataKeys.exists(entry.metadataKey.startsWith))
     }
-    val summarizableRegularMetadata = summarizable
-      .filterNot(_.metadataKey.contains(labelMetadataKey)) // Why are these "contains" while the filtering is "starts with"?
-      .groupBy(_.workflowExecutionUuid)
-    val summarizableLabelsMetadata = summarizable.filter(_.metadataKey.contains(labelMetadataKey))
+
+    val (summarizableLabelsMetadata, summarizableRegularMetadata) = summarizable.partition(_.metadataKey.contains(labelMetadataKey))
 
     SummarizationPartitionedMetadata(
       nonSummarizableMetadata = nonSummarizable,
-      summarizableRegularMetadata = summarizableRegularMetadata,
+      summarizableRegularMetadata = summarizableRegularMetadata.groupBy(_.workflowExecutionUuid),
       summarizableLabelsMetadata = summarizableLabelsMetadata)
   }
 

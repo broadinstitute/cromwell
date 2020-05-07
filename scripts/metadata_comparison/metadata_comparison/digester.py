@@ -22,7 +22,7 @@ def main(args: argparse.Namespace) -> None:
         digest_path = digest_parent / 'digest.json'
 
         if not digest_path.exists() or args.force:
-            digest_parent.mkdir()
+            digest_parent.mkdir_p()
             digest_json = digest(workflow_path, operations_dir_path)
             digest_string = json.dumps(digest_json, sort_keys=True, indent=4)
             digest_path.write_text(digest_string)

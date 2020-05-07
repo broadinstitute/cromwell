@@ -38,7 +38,7 @@ class ComparisonPath(ABC):
     def exists(self) -> bool: pass
 
     @abstractmethod
-    def mkdir(self) -> None: pass
+    def mkdir_p(self) -> None: pass
 
     @abstractmethod
     def write_text(self, content: AnyStr, encoding: AnyStr = 'utf_8') -> None: pass
@@ -77,7 +77,7 @@ class GcsPath(ComparisonPath):
     def exists(self) -> bool:
         return self.__storage_blob().exists()
 
-    def mkdir(self) -> None:
+    def mkdir_p(self) -> None:
         # Nothing to do here, "directory structure" is implicitly "mkdir -p"'d in GCS.
         pass
 
@@ -110,7 +110,7 @@ class LocalPath(ComparisonPath):
     def exists(self) -> bool:
         return self.path.exists()
 
-    def mkdir(self) -> None:
+    def mkdir_p(self) -> None:
         self.path.mkdir(parents=True, exist_ok=True)
 
     def write_text(self, content: AnyStr, encoding: AnyStr = 'utf_8') -> None:

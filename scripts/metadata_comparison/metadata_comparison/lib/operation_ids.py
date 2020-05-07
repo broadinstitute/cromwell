@@ -60,10 +60,15 @@ def visit_papi_operations(json_metadata: JsonObject,
                 if sub_workflow_metadata:
                     examine_calls(sub_workflow_metadata.get('calls', {}), path)
 
-    def build_call_path(call_name, path_so_far: List[AnyStr], attempt: dict) -> List[AnyStr]:
+    def build_call_path(call_name: str, path_so_far: List[AnyStr], attempt: dict) -> List[AnyStr]:
         call_path = path_so_far.copy()
 
-        # Remove confusing duplication in subworkflow call names
+        # Remove confusing duplication in subworkflow call names.
+        # A parent workflow would name a subworkflow call "parent_wf.sub_wf".
+        # The subworkflow would name its calls "sub_wf.sub_call".
+        # If those call components were simply joined the result would be
+        # "parent_wf.sub_wf.sub_wf.sub_call". This logic removes the duplication of "sub_wf",
+        # resulting in "parent_wf.sub_wf.sub_call".
         deduplicated_call_name = call_name
         if len(path_so_far) > 0:
             this_call_components = call_name.split('.')

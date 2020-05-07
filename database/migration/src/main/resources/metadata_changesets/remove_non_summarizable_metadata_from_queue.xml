@@ -4,7 +4,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet id="delete_non_summarizable_metadata_from_queue" author="mcovarr" dbms="hsqldb">
+    <changeSet id="delete_non_summarizable_metadata_from_queue" author="mcovarr" dbms="hsqldb,postgresql">
         <comment>
             Delete rows from the summary queue that correspond to metadata that will not be summarized.
         </comment>
@@ -24,11 +24,11 @@
         </sql>
     </changeSet>
 
-    <changeSet id="delete_non_summarizable_metadata_from_queue" author="mcovarr" dbms="mariadb,mysql,postgresql">
+    <changeSet id="delete_non_summarizable_metadata_from_queue" author="mcovarr" dbms="mariadb,mysql">
         <sql>
             DELETE SUMMARY_QUEUE_ENTRY FROM SUMMARY_QUEUE_ENTRY
                 INNER JOIN METADATA_ENTRY ON
-                SUMMARY_QUEUE_ENTRY.METADATA_JOURNAL_ID = METADATA_ENTRY.METADATA_JOURNAL_ID WHERE NOT(
+                SUMMARY_QUEUE_ENTRY.METADATA_JOURNAL_ID = METADATA_ENTRY.METADATA_JOURNAL_ID WHERE NOT (
                     METADATA_ENTRY.CALL_FQN IS NULL AND
                     METADATA_ENTRY.JOB_SCATTER_INDEX IS NULL AND
                     METADATA_ENTRY.JOB_RETRY_ATTEMPT IS NULL AND (

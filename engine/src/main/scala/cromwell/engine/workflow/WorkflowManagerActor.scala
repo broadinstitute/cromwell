@@ -6,6 +6,7 @@ import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
 import cats.data.NonEmptyList
+import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import com.typesafe.config.Config
 import common.exception.ThrowableAggregation
 import cromwell.backend.async.KnownJobFailureException
@@ -278,6 +279,55 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       logger.debug(s"$tag transitioning from $fromState to $toState")
   }
 
+  private val blacklistCacheConfig: Option[Config] = config.as[Option[Config]]("call-caching.blacklist-cache")
+
+  private val blacklistGroupKey: Option[String] = blacklistCacheConfig.flatMap(_.as[Option[String]]("grouping-workflow-option"))
+
+  // If configuration allows, build a cache of blacklist groupings to BlacklistCaches.
+  private val blacklistGroupings: Option[LoadingCache[String, BlacklistCache]] = {
+    def buildBlacklistGroupings(cacheConfig: CacheConfig): LoadingCache[String, BlacklistCache] = {
+      val emptyBlacklistCacheLoader = new CacheLoader[String, BlacklistCache]() {
+        override def load(key: String): BlacklistCache = BlacklistCache(cacheConfig)
+      }
+
+      CacheBuilder.
+        newBuilder().
+        concurrencyLevel(cacheConfig.concurrency).
+        maximumSize(cacheConfig.size).
+        expireAfterWrite(cacheConfig.ttl.length, cacheConfig.ttl.unit).
+        build[String, BlacklistCache](emptyBlacklistCacheLoader)
+    }
+
+    for {
+      conf <- blacklistCacheConfig
+      _ <- blacklistGroupKey // Only build groupings if a group key is specified in config.
+      cacheConfig <- CacheConfig.optionalConfig(conf, defaultConcurrency = 1000, defaultSize = 1000, defaultTtl = 1 hour)
+    } yield buildBlacklistGroupings(cacheConfig)
+  }
+
+  // If configured return a group blacklist cache, otherwise if configured return a root workflow cache,
+  // otherwise return nothing.
+  private def blacklistCache(workflow: workflowstore.WorkflowToStart): Option[BlacklistCache] = {
+    // If configuration is set up for blacklist groups and a blacklist group is specified in workflow options,
+    // get the BlacklistCache for the group.
+    val groupBlacklistCache: Option[BlacklistCache] = for {
+      groupings <- blacklistGroupings
+      groupKey <- blacklistGroupKey
+      groupFromWorkflowOptions <- workflow.sources.workflowOptions.get(groupKey).toOption
+    } yield groupings.get(groupFromWorkflowOptions)
+
+    // Build a blacklist cache for a single, ungrouped root workflow.
+    def rootWorkflowBlacklistCache: Option[BlacklistCache] = {
+       for {
+        config <- blacklistCacheConfig
+        cacheConfig <- CacheConfig.optionalConfig(config, defaultConcurrency = 1000, defaultSize = 1000, defaultTtl = 1 hour)
+      } yield BlacklistCache(cacheConfig)
+    }
+
+    // Return the group blacklist cache if available, otherwise a blacklist cache for the root workflow.
+    groupBlacklistCache orElse rootWorkflowBlacklistCache
+  }
+
   /**
     * Submit the workflow and return an updated copy of the state data reflecting the addition of a
     * Workflow ID -> WorkflowActorRef entry.
@@ -292,11 +342,6 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     }
 
     val fileHashCacheActorProps: Option[Props] = fileHashCacheEnabled.option(RootWorkflowFileHashCacheActor.props(params.ioActor, workflowId))
-
-    val callCachingBlacklistCache: Option[BlacklistCache] = for {
-      config <- config.as[Option[Config]]("call-caching.blacklist-cache")
-      cacheConfig <- CacheConfig.optionalConfig(config, defaultConcurrency = 1000, defaultSize = 1000, defaultTtl = 1 hour)
-    } yield BlacklistCache(cacheConfig)
 
     val wfProps = WorkflowActor.props(
       workflowToStart = workflow,
@@ -318,7 +363,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       workflowHeartbeatConfig = params.workflowHeartbeatConfig,
       totalJobsByRootWf = new AtomicInteger(),
       fileHashCacheActorProps = fileHashCacheActorProps,
-      blacklistCache = callCachingBlacklistCache)
+      blacklistCache = blacklistCache(workflow))
     val wfActor = context.actorOf(wfProps, name = s"WorkflowActor-$workflowId")
 
     wfActor ! SubscribeTransitionCallBack(self)

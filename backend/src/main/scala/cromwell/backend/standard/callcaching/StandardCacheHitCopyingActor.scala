@@ -19,6 +19,7 @@ import cromwell.core.io._
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.{Path, PathCopier}
 import cromwell.core.simpleton.{WomValueBuilder, WomValueSimpleton}
+import cromwell.services.CallCaching.CallCachingEntryId
 import wom.values.WomSingleFile
 
 import scala.util.{Failure, Success, Try}
@@ -42,6 +43,8 @@ trait StandardCacheHitCopyingActorParams {
     */
   def cacheCopyAttempt: Int
 
+  def cacheHit: CallCachingEntryId
+
   def blacklistCache: Option[BlacklistCache]
 }
 
@@ -54,6 +57,7 @@ case class DefaultStandardCacheHitCopyingActorParams
   override val ioActor: ActorRef,
   override val configurationDescriptor: BackendConfigurationDescriptor,
   override val cacheCopyAttempt: Int,
+  override val cacheHit: CallCachingEntryId,
   override val blacklistCache: Option[BlacklistCache]
 ) extends StandardCacheHitCopyingActorParams
 
@@ -140,7 +144,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
   when(Idle) {
     case Event(command: CopyOutputsCommand, None) if isSourceBlacklisted(command) =>
-      // We don't want to log this because bucket blacklisting is a common and expected occurrence.
+      // We don't want to log this because blacklisting is a common and expected occurrence.
       failAndStop(MetricableCacheCopyError(MetricableCacheCopyErrorCategory.BucketBlacklisted))
 
     case Event(CopyOutputsCommand(simpletons, jobDetritus, returnCode), None) =>
@@ -227,6 +231,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   }
 
   private def stayOrStopInFailedState(response: IoAck[_], data: StandardCacheHitCopyingActorData): State = {
+    standardParams.blacklistCache foreach { _.blacklistHit(standardParams.cacheHit) }
     val (newData, commandState) = data.commandComplete(response.command)
     commandState match {
       // If we're still waiting for some responses, stay
@@ -243,7 +248,8 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     for {
       cache <- standardParams.blacklistCache
       prefix <- extractBlacklistPrefix(path)
-      _ = cache.blacklist(prefix)
+      _ = cache.blacklistBucket(prefix)
+      _ = cache.blacklistHit(standardParams.cacheHit)
     } yield()
     andThen
   }
@@ -265,6 +271,8 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   /** If there are no responses pending this behaves like `failAndStop`, otherwise this goes to `FailedState` and waits
     * for all the pending responses to come back before stopping. */
   def failAndAwaitPendingResponses(failure: CacheCopyError, command: IoCommand[_], data: StandardCacheHitCopyingActorData): State = {
+    standardParams.blacklistCache foreach { _.blacklistHit(standardParams.cacheHit) }
+
     context.parent ! CopyingOutputsFailedResponse(jobDescriptor.key, standardParams.cacheCopyAttempt, failure)
 
     val (newData, commandState) = data.commandComplete(command)
@@ -377,8 +385,8 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   private def isSourceBlacklisted(command: CopyOutputsCommand): Boolean = {
     val path = sourcePathFromCopyOutputsCommand(command)
     (for {
-      prefix <- extractBlacklistPrefix(path)
       cache <- standardParams.blacklistCache
-    } yield cache.isBlacklisted(prefix)).getOrElse(false)
+      prefix <- extractBlacklistPrefix(path)
+    } yield cache.isBlacklisted(standardParams.cacheHit, prefix)).getOrElse(false)
   }
 }

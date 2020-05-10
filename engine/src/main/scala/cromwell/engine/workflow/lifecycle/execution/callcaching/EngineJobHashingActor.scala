@@ -11,6 +11,7 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache.CallCa
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.{CompleteFileHashingResult, FinalFileHashingResult, InitialHashingResult, NoFileHashesResult}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor.NextHit
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor._
+import cromwell.services.CallCaching.CallCachingEntryId
 import cromwell.services.metadata.CallMetadataKeys
 
 /**

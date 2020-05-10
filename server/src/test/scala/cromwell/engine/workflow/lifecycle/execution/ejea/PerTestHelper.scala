@@ -8,11 +8,11 @@ import cromwell.backend.standard.callcaching._
 import cromwell.core.callcaching._
 import cromwell.core.{CallOutputs, HogGroup, WorkflowId, WorkflowOptions}
 import cromwell.engine.EngineWorkflowDescriptor
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
 import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor
 import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor.{EJEAData, EngineJobExecutionActorState, ResponsePendingData}
 import cromwell.engine.workflow.mocks.{DeclarationMock, TaskMock, WdlWomExpressionMock}
+import cromwell.services.CallCaching.CallCachingEntryId
 import cromwell.util.AkkaTestUtil._
 import cromwell.util.WomMocks
 import org.specs2.mock.Mockito
@@ -84,7 +84,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
                                         ioActor: ActorRef,
                                         backendSingletonActor: Option[ActorRef]): Props = bjeaProps
 
-    override def cacheHitCopyingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef, Int, Option[BlacklistCache]) => Props] = Option((_, _, _, _, _, _) => callCacheHitCopyingProbe.props)
+    override def cacheHitCopyingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef, Int, CallCachingEntryId, Option[BlacklistCache]) => Props] = Option((_, _, _, _, _, _, _) => callCacheHitCopyingProbe.props)
 
     override def expressionLanguageFunctions(workflowDescriptor: BackendWorkflowDescriptor,
                                              jobKey: BackendJobDescriptorKey,

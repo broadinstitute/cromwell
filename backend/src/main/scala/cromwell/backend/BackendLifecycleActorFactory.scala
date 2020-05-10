@@ -8,6 +8,7 @@ import cromwell.core.CallOutputs
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.path.Path
 import cromwell.core.path.PathFactory.PathBuilders
+import cromwell.services.CallCaching.CallCachingEntryId
 import net.ceedubs.ficus.Ficus._
 import wom.expression.{IoFunctionSet, NoIoFunctionSet}
 import wom.graph.CommandCallNode
@@ -88,7 +89,7 @@ trait BackendLifecycleActorFactory {
     *
     * Simples!
     */
-  def cacheHitCopyingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef, Int, Option[BlacklistCache]) => Props] = None
+  def cacheHitCopyingActorProps: Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef, Int, CallCachingEntryId, Option[BlacklistCache]) => Props] = None
 
   /* ****************************** */
   /*              Misc.             */

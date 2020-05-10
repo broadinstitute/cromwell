@@ -37,6 +37,7 @@ import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, Tim
 import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor.{JobExecutionTokenDispensed, JobExecutionTokenRequest, JobExecutionTokenReturn}
 import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore._
+import cromwell.services.CallCaching.CallCachingEntryId
 import cromwell.services.EngineServicesStore
 import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.metadata.CallMetadataKeys.CallCachingKeys
@@ -623,7 +624,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                                       cacheCopyAttempt: Int) = {
     backendLifecycleActorFactory.cacheHitCopyingActorProps match {
       case Some(propsMaker) =>
-        val backendCacheHitCopyingActorProps = propsMaker(data.jobDescriptor, initializationData, serviceRegistryActor, ioActor, cacheCopyAttempt, blacklistCache)
+        val backendCacheHitCopyingActorProps = propsMaker(data.jobDescriptor, initializationData, serviceRegistryActor, ioActor, cacheCopyAttempt, cacheResultId, blacklistCache)
         val cacheHitCopyActor = context.actorOf(backendCacheHitCopyingActorProps, buildCacheHitCopyingActorName(data.jobDescriptor, cacheResultId))
         cacheHitCopyActor ! CopyOutputsCommand(womValueSimpletons, jobDetritusFiles, returnCode)
         replyTo ! JobRunning(data.jobDescriptor.key, data.jobDescriptor.evaluatedTaskInputs)

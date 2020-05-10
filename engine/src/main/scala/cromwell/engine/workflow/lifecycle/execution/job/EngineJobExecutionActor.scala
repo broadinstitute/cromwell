@@ -664,13 +664,11 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       case _ =>
     }
 
-    val updatedData = data.copy(failedCopyAttempts = data.failedCopyAttempts + 1)
-
     data.ejha match {
-      case Some(ejha) if updatedData.failedCopyAttempts <= callCachingParameters.maxFailedCopyAttempts =>
+      case Some(ejha) if data.failedCopyAttempts <= callCachingParameters.maxFailedCopyAttempts =>
         workflowLogger.debug("Trying to use another cache hit for job: {}", jobDescriptorKey)
         ejha ! NextHit
-        goto(CheckingCallCache) using updatedData
+        goto(CheckingCallCache)
       case Some(_) =>
         writeToMetadata(Map(
           callCachingHitResultMetadataKey -> false,

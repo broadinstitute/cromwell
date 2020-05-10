@@ -8,7 +8,9 @@ import cromwell.services.CallCaching.CallCachingEntryId
 object BackendCacheHitCopyingActor {
   final case class CopyOutputsCommand(womValueSimpletons: Seq[WomValueSimpleton], jobDetritusFiles: Map[String, String], cacheHit: CallCachingEntryId, returnCode: Option[Int])
 
-  final case class CopyingOutputsFailedResponse(jobKey: JobKey, cacheCopyAttempt: Int, failure: CacheCopyError)
+  // 'declined' means that the copying actor declined to attempt copying the cache hit. Currently this is true only
+  // for blacklisting reasons.
+  final case class CopyingOutputsFailedResponse(jobKey: JobKey, cacheCopyAttempt: Int, failure: CacheCopyError, declined: Boolean = false)
 
   sealed trait CacheCopyError
   final case class LoggableCacheCopyError(failure: Throwable) extends CacheCopyError

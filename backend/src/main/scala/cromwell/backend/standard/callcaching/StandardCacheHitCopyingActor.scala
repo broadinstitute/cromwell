@@ -282,8 +282,8 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     stay()
   }
 
-  def failAndStop(failure: CacheCopyError): State = {
-    context.parent ! CopyingOutputsFailedResponse(jobDescriptor.key, standardParams.cacheCopyAttempt, failure)
+  def failAndStop(failure: CacheCopyError, declined: Boolean = false): State = {
+    context.parent ! CopyingOutputsFailedResponse(jobDescriptor.key, standardParams.cacheCopyAttempt, failure, declined)
     context stop self
     stay()
   }

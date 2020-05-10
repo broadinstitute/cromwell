@@ -6,6 +6,7 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.simpleton.WomValueSimpleton
 import cromwell.database.sql.SqlConverters._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.FetchCachedResultsActor.{CachedOutputLookupFailed, CachedOutputLookupSucceeded}
+import cromwell.services.CallCaching.CallCachingEntryId
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}

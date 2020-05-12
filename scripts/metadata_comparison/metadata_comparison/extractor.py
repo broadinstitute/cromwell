@@ -128,15 +128,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Extract metadata and operation details for workflows and upload to GCS')
     parser.add_argument('-v', '--verbose', action='store_true')
-    parser.add_argument('cromwell_url', metavar='CROMWELL', type=url_regex_validator, nargs=1,
+    parser.add_argument('cromwell-url', metavar='CROMWELL', type=url_regex_validator, nargs=1,
                         help='Cromwell host')
-    parser.add_argument('gcs_path', metavar='GCSPATH', type=gcs_path_regex_validator, nargs=1,
+    parser.add_argument('gcs-path', metavar='GCSPATH', type=gcs_path_regex_validator, nargs=1,
                         help='GCS path to upload to')
     parser.add_argument('workflows', metavar='WORKFLOW', type=workflow_regex_validator, nargs='+',
                         help='Workflows to process')
-    parser.add_argument('cromwell_checkout_path', metavar='CROMWELLCHECKOUTPATH', type=Path,
+    parser.add_argument('cromwell-checkout-path', metavar='CROMWELLCHECKOUTPATH', type=Path,
                         help='Path to Cromwell git checkout used to run workflows')
-    parser.add_argument('cromwell_config_path', metavar='CROMWELLCONFIGPATH', type=Path,
+    parser.add_argument('cromwell-config-path', metavar='CROMWELLCONFIGPATH', type=Path,
                         help='Path to Cromwell configuration file used to run workflows')
 
     args = parser.parse_args()

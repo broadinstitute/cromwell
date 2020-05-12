@@ -73,7 +73,7 @@ def upload_local_checkout(cromwell_path: Path,
         current_snapshot_path = __create_snapshot_of_local_repo(repo, cromwell_snapshots_path)
         __create_zip_file(zip_file_path, current_snapshot_path)
 
-    upload_blob(gcs_bucket, zip_file_path.read_text(), f"{gcs_path}/{zip_file_name}", gcs_storage_client, logger)
+    upload_blob(gcs_bucket, zip_file_path.read_bytes(), f"{gcs_path}/{zip_file_name}", gcs_storage_client, logger)
 
 
 def upload_local_config(config_path: Path, gcs_bucket: str, gcs_path: str, gcs_storage_client: storage.Client):
@@ -128,15 +128,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Extract metadata and operation details for workflows and upload to GCS')
     parser.add_argument('-v', '--verbose', action='store_true')
-    parser.add_argument('cromwell-url', metavar='CROMWELL', type=url_regex_validator, nargs=1,
+    parser.add_argument('cromwell_url', metavar='CROMWELL', type=str, nargs=1,
                         help='Cromwell host')
-    parser.add_argument('gcs-path', metavar='GCSPATH', type=gcs_path_regex_validator, nargs=1,
+    parser.add_argument('gcs_path', metavar='GCSPATH', type=gcs_path_regex_validator, nargs=1,
                         help='GCS path to upload to')
     parser.add_argument('workflows', metavar='WORKFLOW', type=workflow_regex_validator, nargs='+',
                         help='Workflows to process')
-    parser.add_argument('cromwell-checkout-path', metavar='CROMWELLCHECKOUTPATH', type=Path,
+    parser.add_argument('cromwell_checkout_path', metavar='CROMWELLCHECKOUTPATH', type=Path,
                         help='Path to Cromwell git checkout used to run workflows')
-    parser.add_argument('cromwell-config-path', metavar='CROMWELLCONFIGPATH', type=Path,
+    parser.add_argument('cromwell_config_path', metavar='CROMWELLCONFIGPATH', type=Path,
                         help='Path to Cromwell configuration file used to run workflows')
 
     args = parser.parse_args()
@@ -159,8 +159,8 @@ if __name__ == "__main__":
         process_workflow(cromwell_url, gcs_bucket, gcs_path, storage_client, papi_clients, workflow)
 
     if args.cromwell_checkout_path:
-        upload_local_checkout(args.cromwell_checkout_path[0], gcs_bucket, gcs_path, storage_client)
+        upload_local_checkout(args.cromwell_checkout_path, gcs_bucket, gcs_path, storage_client)
     if args.cromwell_config_path:
-        upload_local_config(args.cromwell_config_path[0], gcs_bucket, gcs_path, storage_client)
+        upload_local_config(args.cromwell_config_path, gcs_bucket, gcs_path, storage_client)
 
     logger.info('Extractor operation completed successfully.')

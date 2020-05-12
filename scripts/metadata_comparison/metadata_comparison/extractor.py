@@ -69,7 +69,7 @@ def upload_local_checkout(cromwell_path: Path,
 
     last_commit_hash = repo.head.commit.hexsha
     zip_file_name = f"{last_commit_hash}.zip"
-    zip_file_path = Path(cromwell_snapshots_path / zip_file_name)
+    zip_file_path = cromwell_snapshots_path / zip_file_name
     if not os.path.exists(zip_file_path):
         current_snapshot_path = __create_snapshot_of_local_repo(repo, cromwell_snapshots_path)
         __create_zip_file(zip_file_path, current_snapshot_path)

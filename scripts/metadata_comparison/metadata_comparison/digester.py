@@ -8,7 +8,6 @@ import dateutil.parser
 from typing import AnyStr, Dict
 
 Version = "0.0.1"
-verbose = False
 
 
 def main(args: argparse.Namespace) -> None:

@@ -76,13 +76,13 @@ def compare_jsons(workflow_ids_and_jsons: List[Tuple[str, dict]]) -> pandas.Data
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Compare performance metadata JSONs and produce CSV result')
     parser.add_argument('-v', '--verbose', action='store_true')
-    parser.add_argument('--digester_version', metavar='DIGESTERVERSION', type=digester_version_regex_validator, nargs=1,
+    parser.add_argument('--digester-version', metavar='DIGESTERVERSION', type=digester_version_regex_validator, nargs=1,
                         help='Compare digests produced by this version of the digester')
-    parser.add_argument('--digest_gcs_base_path', metavar='DIGESTGCSBASEPATH', type=gcs_path_regex_validator, nargs=1,
+    parser.add_argument('--digest-gcs-base-path', metavar='DIGESTGCSBASEPATH', type=gcs_path_regex_validator, nargs=1,
                         help='GCS base path to the directory containing JSONs produced by digester')
-    parser.add_argument('--output_gcs_file_path', metavar='OUTPUTGCSFILE', type=gcs_path_regex_validator, nargs=1,
+    parser.add_argument('--output-gcs-file-path', metavar='OUTPUTGCSFILE', type=gcs_path_regex_validator, nargs=1,
                         help='GCS path to output CSV file')
-    parser.add_argument('--workflow_ids', metavar='WORKFLOWIDS', type=workflow_regex_validator, nargs='+',
+    parser.add_argument('--workflow-ids', metavar='WORKFLOWIDS', type=workflow_regex_validator, nargs='+',
                         help='Workflow ids for performance comparison')
 
     args = parser.parse_args()

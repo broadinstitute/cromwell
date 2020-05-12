@@ -39,7 +39,7 @@ from typing import Mapping, Any, Union
 logger = logging.getLogger('metadata_comparison.extractor')
 
 
-def __create_snapshot_of_local_repo(repo: git.Repo, cromwell_snapshots_path: Union[Path, Any]) -> Union[Path, Any]:
+def __create_snapshot_of_local_repo(repo: git.Repo, cromwell_snapshots_path: Union[Path, str]) -> Union[Path, str]:
     last_commit_hash = repo.head.commit.hexsha
     if not os.path.exists(cromwell_snapshots_path):
         os.makedirs(cromwell_snapshots_path)
@@ -50,7 +50,7 @@ def __create_snapshot_of_local_repo(repo: git.Repo, cromwell_snapshots_path: Uni
     return current_snapshot_path
 
 
-def __create_zip_file(zip_file_path: Union[Path, Any], current_snapshot_path: Union[Path, Any]):
+def __create_zip_file(zip_file_path: Union[Path, str], current_snapshot_path: Union[Path, str]):
     with zipfile.ZipFile(zip_file_path, "a", allowZip64=False) as zip_file:
         for root, dirs, files in os.walk(current_snapshot_path):
             for file in files:
@@ -67,9 +67,8 @@ def upload_local_checkout(cromwell_path: Path,
     if repo.is_dirty():
         raise Exception("Unable to upload local checkout to GCS: repository is dirty - need to do check in first.")
 
-    last_commit_hash = repo.head.commit.hexsha
-    zip_file_name = f"{last_commit_hash}.zip"
-    zip_file_path = cromwell_snapshots_path / zip_file_name
+    zip_file_name = f"cromwell_code.zip"
+    zip_file_path = Path(cromwell_snapshots_path / zip_file_name)
     if not os.path.exists(zip_file_path):
         current_snapshot_path = __create_snapshot_of_local_repo(repo, cromwell_snapshots_path)
         __create_zip_file(zip_file_path, current_snapshot_path)
@@ -78,7 +77,8 @@ def upload_local_checkout(cromwell_path: Path,
 
 
 def upload_local_config(config_path: Path, gcs_bucket: str, gcs_path: str, gcs_storage_client: storage.Client):
-    upload_blob(gcs_bucket, config_path.read_text(), f"{gcs_path}/{config_path.name}", gcs_storage_client, logger)
+    configuration_file_name = "cromwell.conf"
+    upload_blob(gcs_bucket, config_path.read_text(), f"{gcs_path}/{configuration_file_name}", gcs_storage_client, logger)
 
 
 def fetch_raw_workflow_metadata(cromwell_url: str, workflow: str) -> (requests.Response, Mapping[str, Any]):

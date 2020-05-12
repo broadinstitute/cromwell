@@ -136,7 +136,7 @@ if __name__ == "__main__":
                         help='Workflows to process')
     parser.add_argument('cromwell-checkout-path', metavar='CROMWELLCHECKOUTPATH', type=Path,
                         help='Path to Cromwell git checkout used to run workflows')
-    parser.add_argument('cromwell_config_path', metavar='CROMWELLCONFIGPATH', type=Path,
+    parser.add_argument('cromwell-config-path', metavar='CROMWELLCONFIGPATH', type=Path,
                         help='Path to Cromwell configuration file used to run workflows')
 
     args = parser.parse_args()

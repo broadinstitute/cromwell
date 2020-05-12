@@ -134,7 +134,7 @@ if __name__ == "__main__":
                         help='GCS path to upload to')
     parser.add_argument('workflows', metavar='WORKFLOW', type=workflow_regex_validator, nargs='+',
                         help='Workflows to process')
-    parser.add_argument('cromwell_checkout_path', metavar='CROMWELLCHECKOUTPATH', type=Path,
+    parser.add_argument('cromwell-checkout-path', metavar='CROMWELLCHECKOUTPATH', type=Path,
                         help='Path to Cromwell git checkout used to run workflows')
     parser.add_argument('cromwell_config_path', metavar='CROMWELLCONFIGPATH', type=Path,
                         help='Path to Cromwell configuration file used to run workflows')

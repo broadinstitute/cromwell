@@ -130,7 +130,7 @@ if __name__ == "__main__":
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('cromwell-url', metavar='CROMWELL', type=url_regex_validator, nargs=1,
                         help='Cromwell host')
-    parser.add_argument('gcs_path', metavar='GCSPATH', type=gcs_path_regex_validator, nargs=1,
+    parser.add_argument('gcs-path', metavar='GCSPATH', type=gcs_path_regex_validator, nargs=1,
                         help='GCS path to upload to')
     parser.add_argument('workflows', metavar='WORKFLOW', type=workflow_regex_validator, nargs='+',
                         help='Workflows to process')

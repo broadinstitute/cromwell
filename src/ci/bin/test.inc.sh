@@ -170,7 +170,8 @@ cromwell::private::create_build_variables() {
             elif [[ "${CROMWELL_BUILD_MINIMAL_TESTS}" == "true" ]] && \
                 [[ "${TRAVIS_EVENT_TYPE}" != "push" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=false
-            elif [[ "${CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED}" == "true" ]]; then
+            elif [[ "${CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED}" == "true" ]] && \
+                [[ "${BUILD_TYPE}" != "metadataComparisonPython" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=false
             elif [[ "${TRAVIS_EVENT_TYPE}" == "push" ]] && \
                 [[ "${BUILD_TYPE}" != "sbt" ]]; then

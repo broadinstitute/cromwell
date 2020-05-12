@@ -45,6 +45,18 @@ OperationMappingCallFunction = Callable[[Accumulator, OperationId, CallNameSeque
 def visit_papi_operations(json_metadata: JsonObject,
                           call_fn: OperationMappingCallFunction,
                           initial_accumulator: Accumulator) -> Accumulator:
+    """
+    Visits all PAPI operations represented in the Cromwell metadata of `json_metadata`.
+    There will be more operations than calls if any of the operations were preempted or were failed and retried.
+    For every PAPI operation, the function `call_fn` is invoked with the parameters:
+
+    - Accumulator: an object of the type specified by the caller of this function per `initial_accumulator`.
+    - OperationId: The PAPI operation ID of the job as a string.
+    - CallNameSequence: The "breadcrumbs" leading to this call (e.g. [grandparent_wf, parent_wf, wf, call])
+    - JsonObject: The JSON object representing the individual job being examined.
+
+    The final Accumulator is returned as the result of this function.
+    """
 
     accumulator = initial_accumulator
 

@@ -12,4 +12,5 @@ def set_log_verbosity(verbose: bool) -> None:
 def quieten_chatty_imports() -> None:
     logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
     logging.getLogger('googleapiclient.discovery').setLevel(logging.WARNING)
-    warnings.filterwarnings("ignore", "Your application has authenticated using end user credentials")
+    # Controversial and doesn't seem to work for the tests anyway, YMMV.
+    # warnings.filterwarnings("ignore", "Your application has authenticated using end user credentials")

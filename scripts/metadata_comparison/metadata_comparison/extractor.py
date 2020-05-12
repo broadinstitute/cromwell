@@ -128,7 +128,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Extract metadata and operation details for workflows and upload to GCS')
     parser.add_argument('-v', '--verbose', action='store_true')
-    parser.add_argument('cromwell_url', metavar='CROMWELL', type=url_regex_validator, nargs=1,
+    parser.add_argument('cromwell-url', metavar='CROMWELL', type=url_regex_validator, nargs=1,
                         help='Cromwell host')
     parser.add_argument('gcs_path', metavar='GCSPATH', type=gcs_path_regex_validator, nargs=1,
                         help='GCS path to upload to')

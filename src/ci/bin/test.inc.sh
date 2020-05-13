@@ -142,7 +142,7 @@ cromwell::private::create_build_variables() {
     # branch. So, in case of push builds `git diff` will always return empty result. This is why we only use this short
     # circuiting logic for pull request builds
     cromwell::private::set_variable_if_only_some_files_changed "^mkdocs.yml|^docs/" "CROMWELL_BUILD_ONLY_DOCS_CHANGED"
-    cromwell::private::set_variable_if_only_some_files_changed "^scripts/" "CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED"
+    cromwell::private::set_variable_if_only_some_files_changed "^src/ci/bin/testMetadataComparisonPython.sh|^scripts/" "CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED"
 
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
@@ -170,7 +170,8 @@ cromwell::private::create_build_variables() {
             elif [[ "${CROMWELL_BUILD_MINIMAL_TESTS}" == "true" ]] && \
                 [[ "${TRAVIS_EVENT_TYPE}" != "push" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=false
-            elif [[ "${CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED}" == "true" ]]; then
+            elif [[ "${CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED}" == "true" ]] && \
+                [[ "${BUILD_TYPE}" != "metadataComparisonPython" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=false
             elif [[ "${TRAVIS_EVENT_TYPE}" == "push" ]] && \
                 [[ "${BUILD_TYPE}" != "sbt" ]]; then

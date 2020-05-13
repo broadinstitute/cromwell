@@ -15,7 +15,7 @@ https://cromwell.readthedocs.io/en/stable/Configuring/#call-caching).
 
 ### Documentation
 
-Information on how to properly use the singularity cache with Cromwell is now
+Information on how to properly use the Singularity cache with Cromwell is now
 provided in the [Cromwell Singularity documentation](
 https://cromwell.readthedocs.io/en/stable/tutorials/Containers/#singularity).
 

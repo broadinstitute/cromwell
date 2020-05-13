@@ -13,6 +13,7 @@
 #   * pip3 install --upgrade google-api-python-client
 #   * pip3 install --upgrade google-cloud
 #   * pip3 install --upgrade google-cloud-storage
+#   * pip3 install --upgrade gitpython
 #
 # Remember to login to create application default credentials before use:
 #   % gcloud auth application-default login
@@ -22,40 +23,62 @@ import json
 import requests
 from google.cloud import storage
 import google.auth
+from pathlib import Path
+import git
+import os
+import zipfile
 import logging
-from metadata_comparison.lib.argument_regex import url_regex_validator, gcs_path_regex_validator, workflow_regex_validator
+from metadata_comparison.lib.argument_regex import url_regex_validator, gcs_path_regex_validator, \
+    workflow_regex_validator
 from metadata_comparison.lib.operation_ids import get_operation_id_number, find_operation_ids_in_metadata
 from metadata_comparison.lib.papi.papi_clients import PapiClients
-from typing import Mapping, Any
+from metadata_comparison.lib.storage import upload_blob
+from metadata_comparison.lib.logging import set_log_verbosity, quieten_chatty_imports
+from typing import Mapping, Any, Union
 
 logger = logging.getLogger('metadata_comparison.extractor')
 
 
-def set_log_verbosity(verbose: bool) -> None:
-    if verbose:
-        logging.basicConfig(format='[%(asctime)s] [%(name)s] %(message)s', level=logging.INFO)
-    else:
-        logging.basicConfig(format='[%(asctime)s] [%(name)s] %(message)s', level=logging.WARNING)
+def __create_snapshot_of_local_repo(repo: git.Repo, cromwell_snapshots_path: Union[Path, str]) -> Union[Path, str]:
+    last_commit_hash = repo.head.commit.hexsha
+    if not os.path.exists(cromwell_snapshots_path):
+        os.makedirs(cromwell_snapshots_path)
+    current_snapshot_path = cromwell_snapshots_path / last_commit_hash
+    if not os.path.exists(current_snapshot_path):
+        os.makedirs(current_snapshot_path)
+        repo.clone(current_snapshot_path)
+    return current_snapshot_path
 
 
-def quieten_chatty_imports() -> None:
-    logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
-    logging.getLogger('googleapiclient.discovery').setLevel(logging.WARNING)
+def __create_zip_file(zip_file_path: Union[Path, str], current_snapshot_path: Union[Path, str]):
+    with zipfile.ZipFile(zip_file_path, "a", allowZip64=False) as zip_file:
+        for root, dirs, files in os.walk(current_snapshot_path):
+            for file in files:
+                zip_file.write(os.path.join(root, file))
 
 
-def upload_local_checkout() -> None:
-    #   # Make a snapshot of the local Cromwell git repo
-    #
-    #   hash=$(git rev-parse HEAD)
-    #
-    #   # Make sure all files are checked in.
-    #   if [[ $(git status --short | wc -l) -ne 0 ]]; then echo "stuff needs to be checked in"; exit 1; fi
-    #
-    #   git_snapshots_dir="../git-snapshots"
-    #   mkdir -p "${git_snapshots_dir}"
-    #   git_snapshot="${git_snapshots_dir}/$hash"
-    #   git clone . --local "${git_snapshot}"
-    raise Exception("Not Implemented")
+def upload_local_checkout(cromwell_path: Path,
+                          gcs_bucket: str,
+                          gcs_path: str,
+                          gcs_storage_client: storage.Client) -> None:
+    cromwell_snapshots_path = cromwell_path.parent / "cromwell_snapshots"
+
+    repo = git.Repo(cromwell_path)
+    if repo.is_dirty():
+        raise Exception("Unable to upload local checkout to GCS: repository is dirty - need to do check in first.")
+
+    zip_file_name = f"cromwell_code.zip"
+    zip_file_path = Path(cromwell_snapshots_path / zip_file_name)
+    if not os.path.exists(zip_file_path):
+        current_snapshot_path = __create_snapshot_of_local_repo(repo, cromwell_snapshots_path)
+        __create_zip_file(zip_file_path, current_snapshot_path)
+
+    upload_blob(gcs_bucket, zip_file_path.read_bytes(), f"{gcs_path}/{zip_file_name}", gcs_storage_client, logger)
+
+
+def upload_local_config(config_path: Path, gcs_bucket: str, gcs_path: str, gcs_storage_client: storage.Client):
+    configuration_file_name = "cromwell.conf"
+    upload_blob(gcs_bucket, config_path.read_text(), f"{gcs_path}/{configuration_file_name}", gcs_storage_client, logger)
 
 
 def fetch_raw_workflow_metadata(cromwell_url: str, workflow: str) -> (requests.Response, Mapping[str, Any]):
@@ -66,32 +89,31 @@ def fetch_raw_workflow_metadata(cromwell_url: str, workflow: str) -> (requests.R
     return result.content, result.json()
 
 
-def upload_blob(bucket_name: str, source_file_contents: bytes, destination_blob_name: str, gcs_storage_client: storage.Client) -> None:
-    """Uploads a file to the cloud"""
-    # bucket_name = "your-bucket-name"
-    # source_file_contents = "... some file contents..."
-    # destination_blob_name = "storage/object/name"
-
-    bucket = gcs_storage_client.bucket(bucket_name)
-
-    logger.info(f'Uploading file content to gs://{bucket_name}/{destination_blob_name}...')
-    blob = bucket.blob(destination_blob_name)
-    blob.upload_from_string(source_file_contents)
-
-
-def upload_workflow_metadata_json(bucket_name: str, raw_workflow_metadata: bytes, workflow_gcs_base_path: str, gcs_storage_client: storage.Client) -> None:
+def upload_workflow_metadata_json(bucket_name: str,
+                                  raw_workflow_metadata: bytes,
+                                  workflow_gcs_base_path: str,
+                                  gcs_storage_client: storage.Client) -> None:
     workflow_gcs_metadata_upload_path = f'{workflow_gcs_base_path}/metadata.json'
     upload_blob(bucket_name, raw_workflow_metadata, workflow_gcs_metadata_upload_path, gcs_storage_client)
 
 
-def upload_operations_metadata_json(bucket_name: str, operation_id: str, operations_metadata: Mapping[str, Any], workflow_gcs_base_path: str, gcs_storage_client: storage.Client) -> None:
+def upload_operations_metadata_json(bucket_name: str,
+                                    operation_id: str,
+                                    operations_metadata: Mapping[str, Any],
+                                    workflow_gcs_base_path: str,
+                                    gcs_storage_client: storage.Client) -> None:
     """Uploads metadata to cloud storage, as json"""
     operation_upload_path = f'{workflow_gcs_base_path}/operations/{get_operation_id_number(operation_id)}.json'
     formatted_metadata = json.dumps(operations_metadata, indent=2)
     upload_blob(bucket_name, bytes(formatted_metadata, 'utf-8'), operation_upload_path, gcs_storage_client)
 
 
-def process_workflow(cromwell_url: str, gcs_bucket: str, gcs_path: str, gcs_storage_client: storage.Client, papi_clients: PapiClients, workflow: str) -> None:
+def process_workflow(cromwell_url: str,
+                     gcs_bucket: str,
+                     gcs_path: str,
+                     gcs_storage_client: storage.Client,
+                     papi_clients: PapiClients,
+                     workflow: str) -> None:
     raw_metadata, json_metadata = fetch_raw_workflow_metadata(cromwell_url, workflow)
     workflow_gcs_base_path = f'{gcs_path}/{workflow}/extractor'
 
@@ -106,9 +128,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Extract metadata and operation details for workflows and upload to GCS')
     parser.add_argument('-v', '--verbose', action='store_true')
-    parser.add_argument('cromwell_url', metavar='CROMWELL', type=url_regex_validator, nargs=1, help='Cromwell host')
-    parser.add_argument('gcs_path', metavar='GCSPATH', type=gcs_path_regex_validator, nargs=1, help='GCS path to upload to')
-    parser.add_argument('workflows', metavar='WORKFLOW', type=workflow_regex_validator, nargs='+', help='Workflows to process')
+    parser.add_argument('cromwell_url', metavar='CROMWELL', type=str, nargs=1,
+                        help='Cromwell host')
+    parser.add_argument('gcs_path', metavar='GCSPATH', type=gcs_path_regex_validator, nargs=1,
+                        help='GCS path to upload to')
+    parser.add_argument('workflows', metavar='WORKFLOW', type=workflow_regex_validator, nargs='+',
+                        help='Workflows to process')
+    parser.add_argument('cromwell_checkout_path', metavar='CROMWELLCHECKOUTPATH', type=Path,
+                        help='Path to Cromwell git checkout used to run workflows')
+    parser.add_argument('cromwell_config_path', metavar='CROMWELLCONFIGPATH', type=Path,
+                        help='Path to Cromwell configuration file used to run workflows')
 
     args = parser.parse_args()
     set_log_verbosity(args.verbose)
@@ -119,7 +148,7 @@ if __name__ == "__main__":
     workflows = args.workflows
 
     credentials, project_id = google.auth.default()
-    storage_client = storage.Client(credentials = credentials)
+    storage_client = storage.Client(credentials=credentials)
     papi_clients = PapiClients(credentials)
 
     logger.info(f'cromwell: {cromwell_url}')
@@ -128,5 +157,10 @@ if __name__ == "__main__":
 
     for workflow in workflows:
         process_workflow(cromwell_url, gcs_bucket, gcs_path, storage_client, papi_clients, workflow)
+
+    if args.cromwell_checkout_path:
+        upload_local_checkout(args.cromwell_checkout_path, gcs_bucket, gcs_path, storage_client)
+    if args.cromwell_config_path:
+        upload_local_config(args.cromwell_config_path, gcs_bucket, gcs_path, storage_client)
 
     logger.info('Extractor operation completed successfully.')

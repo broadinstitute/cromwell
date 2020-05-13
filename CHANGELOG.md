@@ -13,6 +13,12 @@ Two faster strategies have been added for this use case: `xxh64` and
 lightweight. Read more about it in the [call caching documentation](
 https://cromwell.readthedocs.io/en/stable/Configuring/#call-caching).
 
+### Documentation
+
+Information on how to properly use the singularity cache with Cromwell is now
+provided in the [Cromwell Singularity documentation](
+https://cromwell.readthedocs.io/en/stable/tutorials/Containers/#singularity).
+
 ### Bugfixes
 
 + Fixed a bug where the `use_relative_output_paths` option would not preserve intermediate folders.

@@ -26,7 +26,7 @@ class DigesterTestMethods(unittest.TestCase):
         This uses "real" metadata from the PAPI v2 performance spike to drive digester testing. The metadata is stored
         in GCS and copied down to the local machine if not already present from an earlier run. The digester can run
         against either local or GCS paths using `ComparisonPath`s. Local is nicer to iterate on than GCS since it
-        runs so much more quickly; GCS testing can be turned off by setting the DIGESTER_TEST_LOCAL_ONLY environment
+        runs so much more quickly. GCS testing can be turned off by setting the DIGESTER_TEST_LOCAL_ONLY environment
         variable.
         """
         subdir = 'exome_germline_single_sample_v1.3/PAPIv2_alpha1/v1_style_machine_types'
@@ -59,7 +59,7 @@ class DigesterTestMethods(unittest.TestCase):
             local_sample_path = local_parent / sample_name
             if not local_sample_path.exists():
                 logging.info(f"Local sample directory '{local_sample_path}' does not exist, downloading from GCS.")
-                local_sample_path.mkdir()
+                local_sample_path.mkdir_p()
                 command = f"gsutil -m cp -r {gcs_parent}/{sample_name}/ {local_parent}"
                 logging.info(f'Executing command: {command}')
                 os.system(command)

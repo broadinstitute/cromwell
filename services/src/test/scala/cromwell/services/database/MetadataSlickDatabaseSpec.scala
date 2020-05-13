@@ -9,6 +9,7 @@ import cromwell.database.migration.metadata.table.symbol.MetadataStatement._
 import cromwell.database.slick.MetadataSlickDatabase
 import cromwell.database.slick.MetadataSlickDatabase.SummarizationPartitionedMetadata
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
+import cromwell.services.metadata.CallMetadataKeys
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
@@ -149,6 +150,25 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
         callEntry("rubbish")
       )
 
+      val thingsThatLookKindOfLikeTheRightWorkflowKeysButActuallyAreNotAndAreCallScopedAnyway = List(
+        callEntry(CallMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.StartTime),
+        callEntry(CallMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.EndTime),
+        callEntry(CallMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.Name),
+        callEntry(CallMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.Status),
+        callEntry(CallMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.SubmissionTime),
+        callEntry(CallMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.ParentWorkflowId),
+        callEntry(CallMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.RootWorkflowId),
+        callEntry(CallMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.Labels + ":arbitrary-label"),
+        callEntry(CallMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.StartTime),
+        callEntry(CallMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.EndTime),
+        callEntry(CallMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.Name),
+        callEntry(CallMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.Status),
+        callEntry(CallMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.SubmissionTime),
+        callEntry(CallMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.ParentWorkflowId),
+        callEntry(CallMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.RootWorkflowId),
+        callEntry(CallMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.Labels + ":arbitrary-label")
+      )
+
       val rightKeysWorkflowLevel = List(
         workflowEntry(WorkflowMetadataKeys.StartTime),
         workflowEntry(WorkflowMetadataKeys.EndTime),
@@ -165,8 +185,31 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
         workflowEntry("garbage")
       )
 
-      val partitioned = partition(rightKeysCallLevel ++ rightKeysWorkflowLevel ++ wrongKeysCallLevel ++ wrongKeysWorkflowLevel)
-      partitioned.nonSummarizableMetadata.toSet shouldBe (rightKeysCallLevel ++ wrongKeysCallLevel ++ wrongKeysWorkflowLevel).toSet
+      val thingsThatLookKindOfLikeTheRightWorkflowKeysButActuallyAreNot = List(
+        workflowEntry(WorkflowMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.StartTime),
+        workflowEntry(WorkflowMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.EndTime),
+        workflowEntry(WorkflowMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.Name),
+        workflowEntry(WorkflowMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.Status),
+        workflowEntry(WorkflowMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.SubmissionTime),
+        workflowEntry(WorkflowMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.ParentWorkflowId),
+        workflowEntry(WorkflowMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.RootWorkflowId),
+        workflowEntry(WorkflowMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.Labels + ":arbitrary-label"),
+        workflowEntry(WorkflowMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.StartTime),
+        workflowEntry(WorkflowMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.EndTime),
+        workflowEntry(WorkflowMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.Name),
+        workflowEntry(WorkflowMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.Status),
+        workflowEntry(WorkflowMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.SubmissionTime),
+        workflowEntry(WorkflowMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.ParentWorkflowId),
+        workflowEntry(WorkflowMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.RootWorkflowId),
+        workflowEntry(WorkflowMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.Labels + ":arbitrary-label")
+      )
+
+      val allTheWrongThings = rightKeysCallLevel ++ wrongKeysCallLevel ++ wrongKeysWorkflowLevel ++
+        thingsThatLookKindOfLikeTheRightWorkflowKeysButActuallyAreNot ++
+        thingsThatLookKindOfLikeTheRightWorkflowKeysButActuallyAreNotAndAreCallScopedAnyway
+
+      val partitioned = partition(rightKeysWorkflowLevel ++ allTheWrongThings)
+      partitioned.nonSummarizableMetadata.toSet shouldBe (allTheWrongThings).toSet
       partitioned.summarizableMetadata shouldBe rightKeysWorkflowLevel
     }
   }

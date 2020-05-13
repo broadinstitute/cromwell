@@ -94,7 +94,7 @@ def upload_workflow_metadata_json(bucket_name: str,
                                   workflow_gcs_base_path: str,
                                   gcs_storage_client: storage.Client) -> None:
     workflow_gcs_metadata_upload_path = f'{workflow_gcs_base_path}/metadata.json'
-    upload_blob(bucket_name, raw_workflow_metadata, workflow_gcs_metadata_upload_path, gcs_storage_client)
+    upload_blob(bucket_name, raw_workflow_metadata, workflow_gcs_metadata_upload_path, gcs_storage_client, logger)
 
 
 def upload_operations_metadata_json(bucket_name: str,
@@ -105,7 +105,7 @@ def upload_operations_metadata_json(bucket_name: str,
     """Uploads metadata to cloud storage, as json"""
     operation_upload_path = f'{workflow_gcs_base_path}/operations/{get_operation_id_number(operation_id)}.json'
     formatted_metadata = json.dumps(operations_metadata, indent=2)
-    upload_blob(bucket_name, bytes(formatted_metadata, 'utf-8'), operation_upload_path, gcs_storage_client)
+    upload_blob(bucket_name, bytes(formatted_metadata, 'utf-8'), operation_upload_path, gcs_storage_client, logger)
 
 
 def find_operation_ids_in_metadata(json_metadata: JsonObject) -> Sequence[AnyStr]:

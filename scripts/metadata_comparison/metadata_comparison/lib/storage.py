@@ -2,10 +2,11 @@
 
 from google.cloud import storage
 import logging
+from typing import AnyStr
 
 
 def upload_blob(bucket_name: str,
-                source_file_contents: str,
+                source_file_contents: AnyStr,
                 destination_blob_name: str,
                 gcs_storage_client: storage.Client,
                 logger: logging.Logger) -> None:

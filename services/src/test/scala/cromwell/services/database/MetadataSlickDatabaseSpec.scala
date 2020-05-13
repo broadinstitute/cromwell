@@ -135,7 +135,13 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
 
       val rightKeysCallLevel = List(
         callEntry(WorkflowMetadataKeys.StartTime),
-        callEntry(WorkflowMetadataKeys.EndTime)
+        callEntry(WorkflowMetadataKeys.EndTime),
+        callEntry(WorkflowMetadataKeys.Name),
+        callEntry(WorkflowMetadataKeys.Status),
+        callEntry(WorkflowMetadataKeys.SubmissionTime),
+        callEntry(WorkflowMetadataKeys.ParentWorkflowId),
+        callEntry(WorkflowMetadataKeys.RootWorkflowId),
+        callEntry(WorkflowMetadataKeys.Labels + ":arbitrary-label")
       )
 
       val wrongKeysCallLevel = List(
@@ -145,7 +151,13 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
 
       val rightKeysWorkflowLevel = List(
         workflowEntry(WorkflowMetadataKeys.StartTime),
-        workflowEntry(WorkflowMetadataKeys.EndTime)
+        workflowEntry(WorkflowMetadataKeys.EndTime),
+        workflowEntry(WorkflowMetadataKeys.Name),
+        workflowEntry(WorkflowMetadataKeys.Status),
+        workflowEntry(WorkflowMetadataKeys.SubmissionTime),
+        workflowEntry(WorkflowMetadataKeys.ParentWorkflowId),
+        workflowEntry(WorkflowMetadataKeys.RootWorkflowId),
+        workflowEntry(WorkflowMetadataKeys.Labels + ":arbitrary-label")
       )
 
       val wrongKeysWorkflowLevel = List(

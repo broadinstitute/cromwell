@@ -8,6 +8,8 @@ from pathlib import Path
 import logging
 from metadata_comparison.digester import digest
 from metadata_comparison.lib.logging import quieten_chatty_imports, set_log_verbosity
+import google.auth
+from google.cloud import storage
 
 
 def read_resource(filename: AnyStr) -> AnyStr:
@@ -29,9 +31,27 @@ class DigesterTestMethods(unittest.TestCase):
         runs so much more quickly. GCS testing can be turned off by setting the DIGESTER_TEST_LOCAL_ONLY environment
         variable.
         """
+        bucket_name = 'papi-performance-analysis'
         subdir = 'exome_germline_single_sample_v1.3/PAPIv2_alpha1/v1_style_machine_types'
+
         local_parent = ComparisonPath.create(subdir)
-        gcs_parent = ComparisonPath.create(f'gs://papi-performance-analysis/{subdir}')
+        gcs_parent = ComparisonPath.create(f'gs://{bucket_name}/{subdir}')
+
+        credentials, project_id = google.auth.default()
+        storage_client = storage.Client(credentials=credentials)
+        bucket = storage_client.get_bucket(bucket_name)
+
+        def download_metadata_from_gcs(_local_sample_path: ComparisonPath) -> None:
+            _local_sample_path.mkdir_p()
+            (_local_sample_path / "operations").mkdir_p()
+
+            prefix = str(_local_sample_path)
+            blobs = bucket.list_blobs(prefix=prefix)
+            for blob in blobs:
+                if not blob.name.endswith('/digest.json'):
+                    logging.info(f'Downloading blob: {blob.name}')
+                    blob.download_to_filename(blob.name)
+
         samples = {
             'dev_C1963.CHMI_CHMI3_Nex1': {
                 'total_jobs': 133,
@@ -59,10 +79,7 @@ class DigesterTestMethods(unittest.TestCase):
             local_sample_path = local_parent / sample_name
             if not local_sample_path.exists():
                 logging.info(f"Local sample directory '{local_sample_path}' does not exist, downloading from GCS.")
-                local_sample_path.mkdir_p()
-                command = f"gsutil -m cp -r {gcs_parent}/{sample_name}/ {local_parent}"
-                logging.info(f'Executing command: {command}')
-                os.system(command)
+                download_metadata_from_gcs(local_sample_path)
 
             parents_to_test = [local_parent, gcs_parent]
 

@@ -18,6 +18,33 @@ object MetadataSlickDatabase {
     val databaseConfig = SlickDatabase.getDatabaseConfig("metadata", parentConfig)
     new MetadataSlickDatabase(databaseConfig)
   }
+
+  case class SummarizationPartitionedMetadata(nonSummarizableMetadata: Seq[MetadataEntry],
+                                              summarizableMetadata: Seq[MetadataEntry])
+
+  def partitionSummarizationMetadata(rawMetadataEntries: Seq[MetadataEntry],
+                                     startMetadataKey: String,
+                                     endMetadataKey: String,
+                                     nameMetadataKey: String,
+                                     statusMetadataKey: String,
+                                     submissionMetadataKey: String,
+                                     parentWorkflowIdKey: String,
+                                     rootWorkflowIdKey: String,
+                                     labelMetadataKey: String): SummarizationPartitionedMetadata = {
+
+    val exactMatchMetadataKeys = Set(startMetadataKey, endMetadataKey, nameMetadataKey, statusMetadataKey, submissionMetadataKey, parentWorkflowIdKey, rootWorkflowIdKey)
+    val startsWithMetadataKeys = Set(labelMetadataKey)
+
+    val (summarizable, nonSummarizable) = rawMetadataEntries partition { entry =>
+      entry.callFullyQualifiedName.isEmpty && entry.jobIndex.isEmpty && entry.jobAttempt.isEmpty &&
+        (exactMatchMetadataKeys.contains(entry.metadataKey) || startsWithMetadataKeys.exists(entry.metadataKey.startsWith))
+    }
+
+    SummarizationPartitionedMetadata(
+      summarizableMetadata = summarizable,
+      nonSummarizableMetadata = nonSummarizable
+    )
+  }
 }
 
 class MetadataSlickDatabase(originalDatabaseConfig: Config)
@@ -28,6 +55,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   override lazy val dataAccess = new MetadataDataAccessComponent(slickConfig.profile)
 
   import dataAccess.driver.api._
+  import MetadataSlickDatabase._
 
   override def existsMetadataEntries()(implicit ec: ExecutionContext): Future[Boolean] = {
     val action = dataAccess.metadataEntriesExists.result
@@ -262,33 +290,6 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     } yield (rowsProcessed, newMinimumMetadataEntryId)
 
     runTransaction(action)
-  }
-
-  case class SummarizationPartitionedMetadata(nonSummarizableMetadata: Seq[MetadataEntry],
-                                              summarizableMetadata: Seq[MetadataEntry])
-
-  private def partitionSummarizationMetadata(rawMetadataEntries: Seq[MetadataEntry],
-                                             startMetadataKey: String,
-                                             endMetadataKey: String,
-                                             nameMetadataKey: String,
-                                             statusMetadataKey: String,
-                                             submissionMetadataKey: String,
-                                             parentWorkflowIdKey: String,
-                                             rootWorkflowIdKey: String,
-                                             labelMetadataKey: String): SummarizationPartitionedMetadata = {
-
-    val exactMatchMetadataKeys = Set(startMetadataKey, endMetadataKey, nameMetadataKey, statusMetadataKey, submissionMetadataKey, parentWorkflowIdKey, rootWorkflowIdKey)
-    val startsWithMetadataKeys = Set(labelMetadataKey)
-
-    val (summarizable, nonSummarizable) = rawMetadataEntries partition { entry =>
-      entry.callFullyQualifiedName.isEmpty && entry.jobIndex.isEmpty && entry.jobAttempt.isEmpty &&
-        (exactMatchMetadataKeys.contains(entry.metadataKey) || startsWithMetadataKeys.exists(entry.metadataKey.startsWith))
-    }
-
-    SummarizationPartitionedMetadata(
-      summarizableMetadata = summarizable,
-      nonSummarizableMetadata = nonSummarizable
-    )
   }
 
   private def buildMetadataSummaryFromRawMetadataAndWriteToDb(rawMetadataEntries: Seq[MetadataEntry],

@@ -4,13 +4,17 @@ import java.time.OffsetDateTime
 
 import com.dimafeng.testcontainers.Container
 import cromwell.core.Tags.DbmsTest
+import cromwell.core.{WorkflowId, WorkflowMetadataKeys}
+import cromwell.database.migration.metadata.table.symbol.MetadataStatement._
+import cromwell.database.slick.MetadataSlickDatabase
+import cromwell.database.slick.MetadataSlickDatabase.SummarizationPartitionedMetadata
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
 class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures {
 
@@ -23,9 +27,8 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
     val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
 
     lazy val database = DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, MetadataDatabaseType, databaseSystem)
-    import database.dataAccess.driver.api._
-
     import cromwell.database.migration.metadata.table.symbol.MetadataStatement.OffsetDateTimeToSystemTimestamp
+    import database.dataAccess.driver.api._
     val now = OffsetDateTime.now().toSystemTimestamp
 
     it should "start container if required" taggedAs DbmsTest in {
@@ -94,5 +97,65 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
       containerOpt.foreach { _.stop }
     }
 
+  }
+
+  behavior of "MetadataSlickDatabase"
+  it should "partition metadata for summarization correctly" in {
+
+    def partition(metadata: Seq[MetadataEntry]): SummarizationPartitionedMetadata = {
+      MetadataSlickDatabase.partitionSummarizationMetadata(
+        rawMetadataEntries = metadata,
+        startMetadataKey = WorkflowMetadataKeys.StartTime,
+        endMetadataKey = WorkflowMetadataKeys.EndTime,
+        nameMetadataKey = WorkflowMetadataKeys.Name,
+        statusMetadataKey = WorkflowMetadataKeys.Status,
+        submissionMetadataKey = WorkflowMetadataKeys.SubmissionTime,
+        parentWorkflowIdKey = WorkflowMetadataKeys.ParentWorkflowId,
+        rootWorkflowIdKey = WorkflowMetadataKeys.RootWorkflowId,
+        labelMetadataKey = WorkflowMetadataKeys.Labels)
+    }
+
+    {
+      // Edge condition: empty input
+      val partitioned = partition(List.empty)
+      partitioned.nonSummarizableMetadata shouldBe empty
+      partitioned.summarizableMetadata shouldBe empty
+    }
+
+    {
+      // A mix of summarizable and non-summarizable keys specified at workflow and call levels.
+      val wfid = WorkflowId.randomId().id.toString
+      val callName = "my.call"
+
+      def callEntry(key: String): MetadataEntry =
+        MetadataEntry(wfid, Option(callName), None, Option(1), key, None, None, OffsetDateTime.now().toSystemTimestamp)
+
+      def workflowEntry(key: String): MetadataEntry =
+        MetadataEntry(wfid, None, None, None, key, None, None, OffsetDateTime.now().toSystemTimestamp)
+
+      val rightKeysCallLevel = List(
+        callEntry(WorkflowMetadataKeys.StartTime),
+        callEntry(WorkflowMetadataKeys.EndTime)
+      )
+
+      val wrongKeysCallLevel = List(
+        callEntry("complete"),
+        callEntry("rubbish")
+      )
+
+      val rightKeysWorkflowLevel = List(
+        workflowEntry(WorkflowMetadataKeys.StartTime),
+        workflowEntry(WorkflowMetadataKeys.EndTime)
+      )
+
+      val wrongKeysWorkflowLevel = List(
+        workflowEntry("total"),
+        workflowEntry("garbage")
+      )
+
+      val partitioned = partition(rightKeysCallLevel ++ rightKeysWorkflowLevel ++ wrongKeysCallLevel ++ wrongKeysWorkflowLevel)
+      partitioned.nonSummarizableMetadata.toSet shouldBe (rightKeysCallLevel ++ wrongKeysCallLevel ++ wrongKeysWorkflowLevel).toSet
+      partitioned.summarizableMetadata shouldBe rightKeysWorkflowLevel
+    }
   }
 }

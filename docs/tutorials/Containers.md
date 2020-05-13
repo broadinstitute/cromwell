@@ -178,23 +178,42 @@ To run Singularity on a job scheduler, the singularity command needs to be passe
 For example, in SLURM, we can use the normal SLURM configuration as explained in the [SLURM documentation](../backends/SLURM), however we'll add a `submit-docker` block to execute when a task is tagged with a docker container. 
 
 When constructing this block, there are a few things to keep in mind:
-- Make sure Singularity is loaded (and in our path), for example you can call `module load Singularity/3.0.1`.
-- We should treat worker nodes as if they do not have stable access to the internet or build access, so we will pull the container before execution of the task.
-- It's a good idea to ask Singularity to build the image into the execution directory of the task as an artifact, and to save rendering time on the worker node.
-- We'll use the docker name (potentially including the docker hash) to generate a compliant filename that can be looked up later.
-- If the container exists, there is no need to rebuild the container.
+- Make sure Singularity is loaded (and in our path), for example you can 
+  call `module load Singularity/3.0.1` if module is installed on your system.
+- We should treat worker nodes as if they do not have stable access to the 
+  internet or build access, so we will pull the container before execution of 
+  the task.
+- It's a good idea to use a Singularity cache so that same images should only
+  have to be pulled once. Make sure you set the `SINGULARITY_CACHEDIR` 
+  environment variable to a location on the filesystem that is reachable by the
+  worker nodes!
+- If we are using a cache we need to ensure that submit processes started by
+  Cromwell do not pull to the same cache at the same time. This may corrupt the
+  cache. We can prevent this by implementing a filelock with `flock` and 
+  pulling the image before the job is submitted. The flock and pull command 
+  needs to be placed *before* the submit command so all pull commands are 
+  executed on the same node. This is necessary for the filelock to work.
 
 ```
 submit-docker = """
+    # Ensure singularity is loaded if it's installed as a module
     module load Singularity/3.0.1
-  
-    # Build the Docker image into a singularity image, using the head node
-    DOCKER_NAME=$(sed -e 's/[^A-Za-z0-9._-]/_/g' <<< ${docker})
-    IMAGE=${cwd}/$DOCKER_NAME.sif
-    if [ ! -f $IMAGE ]; then
-        singularity pull $IMAGE docker://${docker}
+
+    # Make sure the SINGULARITY_CACHEDIR variable is set. If not use a default
+    # based on the users home.
+    if [ -z $SINGULARITY_CACHEDIR ]; 
+        then CACHE_DIR=$HOME/.singularity/cache
+        else CACHE_DIR=$SINGULARITY_CACHEDIR
     fi
-  
+    # Make sure cache dir exists so lock file can be created by flock
+    mkdir -p $CACHE_DIR  
+    LOCK_FILE=$CACHE_DIR/singularity_pull_flock
+    # Create an exclusive filelock with flock. --verbose is useful for 
+    # for debugging, as is the echo command. These show up in `stdout.submit`.
+    flock --verbose --exclusive --timeout 900 $LOCK_FILE \
+    singularity exec --containall docker://${docker} \
+    echo "successfully pulled ${docker}!"
+
     # Submit the script to SLURM
     sbatch \
       [...]
@@ -236,12 +255,20 @@ backend {
             # Ensure singularity is loaded if it's installed as a module
             module load Singularity/3.0.1
             
-            # Build the Docker image into a singularity image
-            DOCKER_NAME=$(sed -e 's/[^A-Za-z0-9._-]/_/g' <<< ${docker})
-            IMAGE=${cwd}/$DOCKER_NAME.sif
-            if [ ! -f $IMAGE ]; then
-                singularity pull $IMAGE docker://${docker}
+            # Make sure the SINGULARITY_CACHEDIR variable is set. If not use a default
+            # based on the users home.
+            if [ -z $SINGULARITY_CACHEDIR ]; 
+                then CACHE_DIR=$HOME/.singularity/cache
+                else CACHE_DIR=$SINGULARITY_CACHEDIR
             fi
+            # Make sure cache dir exists so lock file can be created by flock
+            mkdir -p $CACHE_DIR  
+            LOCK_FILE=$CACHE_DIR/singularity_pull_flock
+            # Create an exclusive filelock with flock. --verbose is useful for 
+            # for debugging, as is the echo command. These show up in `stdout.submit`.
+            flock --verbose --exclusive --timeout 900 $LOCK_FILE \
+            singularity exec --containall docker://${docker} \
+            echo "successfully pulled ${docker}!"
 
             # Submit the script to SLURM
             sbatch \

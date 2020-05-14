@@ -2,9 +2,10 @@ package cromwell.engine.workflow
 
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import com.typesafe.config.Config
-import cromwell.backend.standard.callcaching.BlacklistCache
+import cromwell.backend.standard.callcaching.{BlacklistCache, GroupedBlacklistCache, RootWorkflowBlacklistCache}
 import cromwell.core.CacheConfig
 import net.ceedubs.ficus.Ficus._
+
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -19,7 +20,7 @@ class CallCachingBlacklistManager(config: Config) {
   private val blacklistGroupingsCache: Option[LoadingCache[String, BlacklistCache]] = {
     def buildBlacklistGroupingsCache(cacheConfig: CacheConfig): LoadingCache[String, BlacklistCache] = {
       val emptyBlacklistCacheLoader = new CacheLoader[String, BlacklistCache]() {
-        override def load(key: String): BlacklistCache = BlacklistCache(cacheConfig)
+        override def load(key: String): BlacklistCache = new GroupedBlacklistCache(cacheConfig, group = key)
       }
 
       CacheBuilder.
@@ -55,7 +56,7 @@ class CallCachingBlacklistManager(config: Config) {
       for {
         config <- blacklistCacheConfig
         cacheConfig <- CacheConfig.optionalConfig(config, defaultConcurrency = 1000, defaultSize = 1000, defaultTtl = 1 hour)
-      } yield BlacklistCache(cacheConfig)
+      } yield new RootWorkflowBlacklistCache(cacheConfig)
     }
 
     // Return the group blacklist cache if available, otherwise a blacklist cache for the root workflow.

@@ -20,4 +20,5 @@ object MetricableCacheCopyErrorCategory {
     override def toString: String = getClass.getSimpleName.stripSuffix("$").toLowerCase
   }
   final case object BucketBlacklisted extends MetricableCacheCopyErrorCategory
+  final case object HitBlacklisted extends MetricableCacheCopyErrorCategory
 }

@@ -3,6 +3,7 @@ package cromwell.backend.standard.callcaching
 import java.util.concurrent.TimeoutException
 
 import akka.actor.{ActorRef, FSM}
+import cats.data.NonEmptyList
 import cats.instances.list._
 import cats.instances.set._
 import cats.instances.tuple._
@@ -20,6 +21,7 @@ import cromwell.core.logging.JobLogging
 import cromwell.core.path.{Path, PathCopier}
 import cromwell.core.simpleton.{WomValueBuilder, WomValueSimpleton}
 import cromwell.services.CallCaching.CallCachingEntryId
+import cromwell.services.instrumentation.CromwellInstrumentationActor
 import wom.values.WomSingleFile
 
 import scala.util.{Failure, Success, Try}
@@ -121,7 +123,8 @@ class DefaultStandardCacheHitCopyingActor(standardParams: StandardCacheHitCopyin
   * Standard implementation of a BackendCacheHitCopyingActor.
   */
 abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHitCopyingActorParams)
-  extends FSM[StandardCacheHitCopyingActorState, Option[StandardCacheHitCopyingActorData]] with JobLogging with StandardCachingActorHelper with IoClientHelper {
+  extends FSM[StandardCacheHitCopyingActorState, Option[StandardCacheHitCopyingActorData]]
+    with JobLogging with StandardCachingActorHelper with IoClientHelper with CromwellInstrumentationActor {
 
   override lazy val jobDescriptor: BackendJobDescriptor = standardParams.jobDescriptor
   override lazy val backendInitializationDataOption: Option[BackendInitializationData] = standardParams.backendInitializationDataOption
@@ -143,6 +146,10 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   protected def duplicate(copyPairs: Set[PathPair]): Option[Try[Unit]] = None
 
   when(Idle) {
+    case Event(_: CopyOutputsCommand, None) if isSourceBlacklisted(standardParams.cacheHit) =>
+      // We don't want to log this because blacklisting is a common and expected occurrence.
+      failAndStop(MetricableCacheCopyError(MetricableCacheCopyErrorCategory.HitBlacklisted))
+
     case Event(command: CopyOutputsCommand, None) if isSourceBlacklisted(command) =>
       // We don't want to log this because blacklisting is a common and expected occurrence.
       failAndStop(MetricableCacheCopyError(MetricableCacheCopyErrorCategory.BucketBlacklisted))
@@ -243,13 +250,28 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     }
   }
 
-  /* Blacklist by prefix if appropriate. */
+  /* Blacklist by bucket and hit if appropriate. */
   private def handleForbidden[T](path: String, andThen: => State): State = {
+    def publishBlacklistMetrics(group: String, hit: CallCachingEntryId, bucket: String) = {
+      val blacklistedHitMetricPath: NonEmptyList[String] =
+        NonEmptyList.of(
+          "job",
+          "callcaching", "blacklist", "hit", jobDescriptor.taskCall.localName, group, hit.id.toString)
+      increment(blacklistedHitMetricPath)
+
+      val blacklistedBucketMetricPath: NonEmptyList[String] =
+        NonEmptyList.of(
+          "job",
+          "callcaching", "blacklist", "bucket", jobDescriptor.taskCall.localName, group, bucket)
+      increment(blacklistedBucketMetricPath)
+    }
+
     for {
       cache <- standardParams.blacklistCache
       prefix <- extractBlacklistPrefix(path)
-      _ = cache.blacklistBucket(prefix)
       _ = cache.blacklistHit(standardParams.cacheHit)
+      _ = cache.blacklistBucket(prefix)
+      _ = publishBlacklistMetrics(cache.group.getOrElse("none"), standardParams.cacheHit, prefix)
     } yield()
     andThen
   }
@@ -387,6 +409,12 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     (for {
       cache <- standardParams.blacklistCache
       prefix <- extractBlacklistPrefix(path)
-    } yield cache.isBlacklisted(standardParams.cacheHit, prefix)).getOrElse(false)
+    } yield cache.isBlacklisted(prefix)).getOrElse(false)
+  }
+
+  private def isSourceBlacklisted(hit: CallCachingEntryId): Boolean = {
+    (for {
+      cache <- standardParams.blacklistCache
+    } yield cache.isBlacklisted(hit)).getOrElse(false)
   }
 }

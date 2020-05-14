@@ -4,7 +4,7 @@ import com.google.common.cache.{CacheBuilder, CacheLoader}
 import cromwell.core.CacheConfig
 import cromwell.services.CallCaching.CallCachingEntryId
 
-case class BlacklistCache(config: CacheConfig) {
+sealed abstract class BlacklistCache(val config: CacheConfig, val group: Option[String]) {
   val bucketCache = {
     // Queries to the bucket blacklist cache return false by default (i.e. not blacklisted).
     val falseLoader = new CacheLoader[String, java.lang.Boolean]() {
@@ -33,9 +33,14 @@ case class BlacklistCache(config: CacheConfig) {
       build[CallCachingEntryId, java.lang.Boolean](falseLoader)
   }
 
-  def isBlacklisted(hit: CallCachingEntryId, bucket: String): Boolean = hitCache.get(hit) || bucketCache.get(bucket)
+  def isBlacklisted(hit: CallCachingEntryId): Boolean = hitCache.get(hit)
 
-  def blacklistBucket(bucket: String): Unit = bucketCache.put(bucket, true)
+  def isBlacklisted(bucket: String): Boolean = bucketCache.get(bucket)
 
   def blacklistHit(hit: CallCachingEntryId): Unit = hitCache.put(hit, true)
+
+  def blacklistBucket(bucket: String): Unit = bucketCache.put(bucket, true)
 }
+
+class RootWorkflowBlacklistCache(config: CacheConfig) extends BlacklistCache(config, group = None)
+class GroupedBlacklistCache(config: CacheConfig, group: String) extends BlacklistCache(config, group = Option(group))

@@ -212,6 +212,8 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
         andThen = failAndAwaitPendingResponses(LoggableCacheCopyError(f.failure), f.command, data)
       )
     case Event(IoFailAck(command: IoCommand[_], failure), Some(data)) =>
+      // Not a forbidden failure so do not blacklist the bucket but do blacklist the hit.
+      standardParams.blacklistCache foreach { blacklistAndMetricHit(_, standardParams.cacheHit) }
       // Loggable because this is an attempt-specific problem:
       failAndAwaitPendingResponses(LoggableCacheCopyError(failure), command, data)
     // Should not be possible
@@ -224,6 +226,10 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
         path = f.forbiddenPath,
         andThen = stayOrStopInFailedState(f, data)
       )
+    case Event(fail: IoFailAck[_], Some(data)) =>
+      // Not a forbidden failure so do not blacklist the bucket but do blacklist the hit.
+      standardParams.blacklistCache foreach { blacklistAndMetricHit(_, standardParams.cacheHit) }
+      stayOrStopInFailedState(fail, data)
     // At this point success or failure doesn't matter, we've already failed this hit
     case Event(response: IoAck[_], Some(data)) =>
       stayOrStopInFailedState(response, data)
@@ -238,7 +244,6 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   }
 
   private def stayOrStopInFailedState(response: IoAck[_], data: StandardCacheHitCopyingActorData): State = {
-    standardParams.blacklistCache foreach { _.blacklistHit(standardParams.cacheHit) }
     val (newData, commandState) = data.commandComplete(response.command)
     commandState match {
       // If we're still waiting for some responses, stay
@@ -252,28 +257,31 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
   /* Blacklist by bucket and hit if appropriate. */
   private def handleForbidden[T](path: String, andThen: => State): State = {
-    def publishBlacklistMetrics(group: String, hit: CallCachingEntryId, bucket: String) = {
-      val blacklistedHitMetricPath: NonEmptyList[String] =
-        NonEmptyList.of(
-          "job",
-          "callcaching", "blacklist", "hit", jobDescriptor.taskCall.localName, group, hit.id.toString)
-      increment(blacklistedHitMetricPath)
-
-      val blacklistedBucketMetricPath: NonEmptyList[String] =
-        NonEmptyList.of(
-          "job",
-          "callcaching", "blacklist", "bucket", jobDescriptor.taskCall.localName, group, bucket)
-      increment(blacklistedBucketMetricPath)
-    }
-
     for {
       cache <- standardParams.blacklistCache
+      _ = blacklistAndMetricHit(cache, standardParams.cacheHit)
       prefix <- extractBlacklistPrefix(path)
-      _ = cache.blacklistHit(standardParams.cacheHit)
-      _ = cache.blacklistBucket(prefix)
-      _ = publishBlacklistMetrics(cache.group.getOrElse("none"), standardParams.cacheHit, prefix)
+      _ = blacklistAndMetricBucket(cache, prefix)
     } yield()
     andThen
+  }
+
+  private def blacklistMetricPath(blacklistCache: BlacklistCache, key: String, value: String): Unit = {
+    val group = blacklistCache.group.getOrElse("none")
+    val metricPath = NonEmptyList.of(
+      "job",
+      "callcaching", "blacklist", key, jobDescriptor.taskCall.localName, group, value)
+    increment(metricPath)
+  }
+
+  private def blacklistAndMetricHit(blacklistCache: BlacklistCache, hit: CallCachingEntryId): Unit = {
+    blacklistCache.blacklistHit(standardParams.cacheHit)
+    blacklistMetricPath(blacklistCache, "hit", hit.id.toString)
+  }
+
+  private def blacklistAndMetricBucket(blacklistCache: BlacklistCache, bucket: String): Unit = {
+    blacklistCache.blacklistBucket(bucket)
+    blacklistMetricPath(blacklistCache, "bucket", bucket)
   }
 
   def succeedAndStop(returnCode: Option[Int], copiedJobOutputs: CallOutputs, detritusMap: DetritusMap) = {
@@ -293,8 +301,6 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   /** If there are no responses pending this behaves like `failAndStop`, otherwise this goes to `FailedState` and waits
     * for all the pending responses to come back before stopping. */
   def failAndAwaitPendingResponses(failure: CacheCopyError, command: IoCommand[_], data: StandardCacheHitCopyingActorData): State = {
-    standardParams.blacklistCache foreach { _.blacklistHit(standardParams.cacheHit) }
-
     context.parent ! CopyingOutputsFailedResponse(jobDescriptor.key, standardParams.cacheCopyAttempt, failure)
 
     val (newData, commandState) = data.commandComplete(command)
@@ -397,7 +403,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   }
 
   /**
-    * If a subclass of this `StandardCacheHitCopyingActor` supports blacklisting then it should implement this
+    * If a subclass of this `StandardCacheHitCopyingActor` supports blacklisting by path then it should implement this
     * to return the prefix of the path from the failed copy command to use for blacklisting.
     */
   protected def extractBlacklistPrefix(path: String): Option[String] = None

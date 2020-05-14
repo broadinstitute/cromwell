@@ -149,12 +149,12 @@ singularity exec --containall --bind ${cwd}:${docker_cwd} docker://${docker} ${j
 As the `Singularity exec` command does not emit a job-id, we must include the `run-in-background` tag within the the provider section in addition to the docker-submit script. As Cromwell watches for the existence of the `rc` file, the `run-in-background` option has the caveat that we require the Singularity container to successfully complete, otherwise the workflow might hang indefinitely.
 
 To ensure reproducibility and an isolated environment inside the container, 
-`--containall` is an **important** function. By default Singularity will mount
+`--containall` is an **important** function. By default, Singularity will mount
 the user's home directory and import the user's environment as well as some 
 other things that make Singularity easier to use in an interactive shell. 
 Unfortunately settings in the home directory and the user's environment may 
 affect the outcome of the tools that are used. This means different users may
-get different results. Therefore to ensure reproducibility while using 
+get different results. Therefore, to ensure reproducibility while using 
 Singularity, the `--containall` flag should be used.
 
 Putting this together, we have an example base configuration for a local environment:
@@ -195,8 +195,8 @@ When constructing this block, there are a few things to keep in mind:
   variable directly or simply use `/path/to/singularity` 
   directly in the config.
 - We should treat worker nodes as if they do not have stable access to the 
-  internet or build access, so we will pull the container before execution of 
-  the task.
+  internet or build access, so we will pull the container before the task is 
+  submit to the cluster.
 - It's a good idea to use a Singularity cache so that same images should only
   have to be pulled once. Make sure you set the `SINGULARITY_CACHEDIR` 
   environment variable to a location on the filesystem that is reachable by the
@@ -208,7 +208,7 @@ When constructing this block, there are a few things to keep in mind:
   needs to be placed *before* the submit command so all pull commands are 
   executed on the same node. This is necessary for the filelock to work.
 - As mentioned above the `--containall` flag is **important** for 
-  reproducability.
+  reproducibility.
 
 ```
 submit-docker = """

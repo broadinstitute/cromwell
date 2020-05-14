@@ -155,7 +155,8 @@ other things that make Singularity easier to use in an interactive shell.
 Unfortunately settings in the home directory and the user's environment may 
 affect the outcome of the tools that are used. This means different users may
 get different results. Therefore, to ensure reproducibility while using 
-Singularity, the `--containall` flag should be used.
+Singularity, the `--containall` flag should be used. This will make sure the 
+environment is cleaned and the HOME directory is not mounted.
 
 Putting this together, we have an example base configuration for a local environment:
 ```hocon

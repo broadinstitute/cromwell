@@ -195,8 +195,11 @@ To run Singularity on a job scheduler, the singularity command needs to be passe
 For example, in SLURM, we can use the normal SLURM configuration as explained in the [SLURM documentation](../backends/SLURM), however we'll add a `submit-docker` block to execute when a task is tagged with a docker container. 
 
 When constructing this block, there are a few things to keep in mind:
-- Make sure Singularity is loaded (and in our path), for example you can 
-  call `module load Singularity/3.0.1` if module is installed on your system.
+- Make sure Singularity is loaded (and in PATH). If `module` is installed for 
+  example you can call `module load Singularity`. If the cluster admin has made
+  a Singularity module available. Alternatively you can alter the `PATH` 
+  variable directly or simply use `/path/to/singularity` 
+  directly in the config.
 - We should treat worker nodes as if they do not have stable access to the 
   internet or build access, so we will pull the container before execution of 
   the task.
@@ -215,9 +218,6 @@ When constructing this block, there are a few things to keep in mind:
 
 ```
 submit-docker = """
-    # Ensure singularity is loaded if it's installed as a module
-    module load Singularity/3.0.1
-
     # Make sure the SINGULARITY_CACHEDIR variable is set. If not use a default
     # based on the users home.
     if [ -z $SINGULARITY_CACHEDIR ]; 
@@ -271,9 +271,6 @@ backend {
         """
 
         submit-docker = """
-            # Ensure singularity is loaded if it's installed as a module
-            module load Singularity/3.0.1
-            
             # Make sure the SINGULARITY_CACHEDIR variable is set. If not use a default
             # based on the users home.
             if [ -z $SINGULARITY_CACHEDIR ]; 

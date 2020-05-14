@@ -7,6 +7,10 @@ PAPI_V1_OPERATION_REGEX = re.compile('^operations/[^/]*')
 PAPI_V2ALPHA1_OPERATION_REGEX = re.compile('^projects/[^/]*/operations/[0-9]*')
 PAPI_V2BETA_OPERATION_REGEX = re.compile('^projects/[^/]*/locations/[^/]*/operations/[0-9]*')
 
+PAPI_V1_API_VERSION = 'v1alpha2'
+PAPI_V2_ALPHA1_API_VERSION = 'v2alpha1'
+PAPI_V2_BETA_API_VERSION = 'v2beta'
+
 
 def get_operation_id_number(value: str) -> str:
     """
@@ -24,11 +28,11 @@ def operation_id_to_api_version(value: str) -> str:
     Luckily, this is currently a 1:1 format-to-api mapping so we don't need any other clues to tell the API version.
     """
     if PAPI_V1_OPERATION_REGEX.match(value):
-        return 'v1alpha2'
+        return PAPI_V1_API_VERSION
     elif PAPI_V2ALPHA1_OPERATION_REGEX.match(value):
-        return 'v2alpha1'
+        return PAPI_V2_ALPHA1_API_VERSION
     elif PAPI_V2BETA_OPERATION_REGEX.match(value):
-        return 'v2beta'
+        return PAPI_V2_BETA_API_VERSION
     else:
         raise Exception(f'Cannot deduce PAPI api version from unexpected operation ID format \'{value}\'')
 

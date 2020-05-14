@@ -22,8 +22,8 @@ class DigesterTestMethods(unittest.TestCase):
         This uses "real" metadata from the PAPI v2 performance spike to drive digester testing. The metadata is stored
         in GCS and copied down to the local machine if not already present from an earlier run. The digester can run
         against either local or GCS paths using `ComparisonPath`s. Local is nicer to iterate on than GCS since it
-        runs so much more quickly. GCS testing can be turned off by setting the DIGESTER_TEST_LOCAL_ONLY environment
-        variable.
+        runs so much more quickly. Since it is slow GCS testing is off by default, it can be turned on by setting the
+        DIGESTER_TEST_GCS environment variable.
         """
 
         credentials, project_id = google.auth.default()
@@ -43,8 +43,8 @@ class DigesterTestMethods(unittest.TestCase):
             for sample_name in EXPECTATIONS.keys():
                 download_metadata_from_gcs_if_needed(sample_name, local_parent, bucket)
                 parents_to_test = [local_parent]
-                # Skip slow GCS testing if this environment variable is set.
-                if not os.environ.get('DIGESTER_TEST_LOCAL_ONLY'):
+                # Skip slow GCS testing unless this environment variable is set.
+                if os.environ.get('DIGESTER_TEST_GCS'):
                     parents_to_test.append(gcs_parent(subdir, gcs_comparison_path_by_subdir))
 
                 for parent in parents_to_test:

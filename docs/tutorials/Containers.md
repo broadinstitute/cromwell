@@ -148,20 +148,14 @@ singularity exec --containall --bind ${cwd}:${docker_cwd} docker://${docker} ${j
 
 As the `Singularity exec` command does not emit a job-id, we must include the `run-in-background` tag within the the provider section in addition to the docker-submit script. As Cromwell watches for the existence of the `rc` file, the `run-in-background` option has the caveat that we require the Singularity container to successfully complete, otherwise the workflow might hang indefinitely.
 
-The `--containall` flag is **important**. By default Singularity will:
-- Mount the user's home directory
-- Mount /tmp
-- Mount some system directories
-- Import the user's environment 
-- Runs the container in a shared (with the host) IPC namespace
-- Runs the container in a shared (with the host) PID namespace
-
-This is very unlike docker which only mounts these directories when explicitly 
-asked for. Especially the mounting of the user's home (which contains config
-files) and the importing of the user's environment tremendously limit the 
-ability to reproducibly execute workflows across systems. Using `--containall`
-will eliminate all these activities and only load system directories in `/dev`
-that are required.
+To ensure reproducibility and an isolated environment inside the container, 
+`--containall` is an **important** function. By default Singularity will mount
+the user's home directory and import the user's environment as well as some 
+other things that make Singularity easier to use in an interactive shell. 
+Unfortunately settings in the home directory and the user's environment may 
+affect the outcome of the tools that are used. This means different users may
+get different results. Therefore to ensure reproducibility while using 
+Singularity, the `--containall` flag should be used.
 
 Putting this together, we have an example base configuration for a local environment:
 ```hocon

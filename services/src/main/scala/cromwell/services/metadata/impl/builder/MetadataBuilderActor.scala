@@ -1,6 +1,7 @@
 package cromwell.services.metadata.impl.builder
 
 import java.time.OffsetDateTime
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
 
 import akka.actor.{ActorRef, LoggingFSM, PoisonPill, Props}
@@ -349,10 +350,11 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, isForSubworkflo
 
   def processMetadataResponse(query: MetadataQuery, eventsList: Seq[MetadataEvent], target: ActorRef, originalRequest: BuildMetadataJsonAction) = {
     if (query.expandSubWorkflows) {
-      // Scan events for sub workflow ids
-      val subWorkflowIds = eventsList.collect({
+      // Let's pretend that workflow has 10000 subworkflows with random UUIDs
+      val subWorkflowIds = (1 to 10000).map(_ => UUID.randomUUID.toString)
+      /*eventsList.collect({
         case MetadataEvent(key, value, _) if key.key.endsWith(CallMetadataKeys.SubWorkflowId) => value map { _.value }
-      }).flatten.distinct
+      }).flatten.distinct*/
 
       // If none is found just proceed to build metadata
       if (subWorkflowIds.isEmpty) buildAndStop(query, eventsList, Map.empty, target, originalRequest)
@@ -360,7 +362,11 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, isForSubworkflo
         // Otherwise spin up a metadata builder actor for each sub workflow
         subWorkflowIds foreach { subId =>
           val subMetadataBuilder = context.actorOf(MetadataBuilderActor.props(readMetadataWorkerMaker, isForSubworkflows = true), uniqueActorName(subId))
-          subMetadataBuilder ! GetMetadataAction(query.copy(workflowId = WorkflowId.fromString(subId)))
+
+          // Make fake subworkflow metadata request.
+          // Actually request the root workflow's metadata, but handle response as if it was a subworkflow with random uuid
+          subMetadataBuilder ! GetMetadataAction(query.copy())
+          //subMetadataBuilder ! GetMetadataAction(query.copy(workflowId = WorkflowId.fromString(subId)))
         }
         goto(WaitingForSubWorkflows) using HasReceivedEventsData(target, originalRequest, query, eventsList, Map.empty, subWorkflowIds.size)
       }

@@ -3,6 +3,7 @@ import json
 from metadata_comparison.lib import logging, operation_ids
 from metadata_comparison.lib.operation_ids import CallNameSequence, JsonObject, OperationId
 from metadata_comparison.lib.comparison_paths import ComparisonPath
+from metadata_comparison.lib.operations_digesters import OperationDigester
 
 import dateutil.parser
 from typing import AnyStr, Dict
@@ -71,11 +72,11 @@ def digest(workflow_path: ComparisonPath, operations_path: ComparisonPath) -> Js
             bare_operation_id = operation_id.split('/')[-1]
             operations_file_path = operations_path / f'{bare_operation_id}.json'
             operations_data = operations_file_path.read_text()
-            operations_metadata = json.loads(operations_data).get('metadata')
-            papi_start = operations_metadata.get('createTime')
-            papi_end = operations_metadata.get('endTime')
-            papi_total_time_seconds = (dateutil.parser.parse(papi_end) -
-                                       dateutil.parser.parse(papi_start)).total_seconds()
+            operations_metadata = json.loads(operations_data)
+            operation = OperationDigester.create(operations_metadata)
+
+            papi_total_time_seconds = operation.total_time_seconds()
+
             cromwell_additional_total_time_seconds = \
                 float("%.3f" % (cromwell_total_time_seconds - papi_total_time_seconds))
 
@@ -86,10 +87,11 @@ def digest(workflow_path: ComparisonPath, operations_path: ComparisonPath) -> Js
                 "cromwellStart": cromwell_start,
                 "cromwellEnd": cromwell_end,
                 "cromwellTotalTimeSeconds": cromwell_total_time_seconds,
-                "papiStart": papi_start,
-                "papiEnd": papi_end,
-                "papiTotalTimeSeconds": papi_total_time_seconds,
-                "cromwellAdditionalTotalTimeSeconds": cromwell_additional_total_time_seconds
+                "papiStart": operation.start_time(),
+                "papiEnd": operation.end_time(),
+                "papiTotalTimeSeconds": operation.total_time_seconds(),
+                "cromwellAdditionalTotalTimeSeconds": cromwell_additional_total_time_seconds,
+                "dockerImagePullSeconds": operation.docker_image_pull_seconds()
             }
 
     data = workflow_path.read_text()

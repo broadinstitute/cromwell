@@ -266,22 +266,22 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     andThen
   }
 
-  private def blacklistMetricPath(blacklistCache: BlacklistCache, key: String, value: String): Unit = {
+  private def publishMetric(blacklistCache: BlacklistCache, verb: String, bucketOrHit: String, value: String): Unit = {
     val group = blacklistCache.group.getOrElse("none")
     val metricPath = NonEmptyList.of(
       "job",
-      "callcaching", "blacklist", key, jobDescriptor.taskCall.localName, group, value)
+      "callcaching", "blacklist", verb, bucketOrHit, jobDescriptor.taskCall.localName, group, value)
     increment(metricPath)
   }
 
   private def blacklistAndMetricHit(blacklistCache: BlacklistCache, hit: CallCachingEntryId): Unit = {
     blacklistCache.blacklistHit(standardParams.cacheHit)
-    blacklistMetricPath(blacklistCache, "hit", hit.id.toString)
+    publishMetric(blacklistCache, verb = "write", bucketOrHit = "hit", hit.id.toString)
   }
 
   private def blacklistAndMetricBucket(blacklistCache: BlacklistCache, bucket: String): Unit = {
     blacklistCache.blacklistBucket(bucket)
-    blacklistMetricPath(blacklistCache, "bucket", bucket)
+    publishMetric(blacklistCache, verb = "write", bucketOrHit = "bucket", bucket)
   }
 
   def succeedAndStop(returnCode: Option[Int], copiedJobOutputs: CallOutputs, detritusMap: DetritusMap) = {
@@ -415,12 +415,14 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     (for {
       cache <- standardParams.blacklistCache
       prefix <- extractBlacklistPrefix(path)
+      _ = publishMetric(cache, verb = "query", bucketOrHit = "bucket", prefix)
     } yield cache.isBlacklisted(prefix)).getOrElse(false)
   }
 
   private def isSourceBlacklisted(hit: CallCachingEntryId): Boolean = {
     (for {
       cache <- standardParams.blacklistCache
+      _ = publishMetric(cache, verb = "query", bucketOrHit = "hit", hit.id.toString)
     } yield cache.isBlacklisted(hit)).getOrElse(false)
   }
 }

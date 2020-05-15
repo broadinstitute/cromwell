@@ -4,7 +4,9 @@ import com.google.common.cache.{CacheBuilder, CacheLoader}
 import cromwell.core.CacheConfig
 import cromwell.services.CallCaching.CallCachingEntryId
 
-sealed abstract class BlacklistCache(val config: CacheConfig, val group: Option[String]) {
+sealed abstract class BlacklistCache(val bucketCacheConfig: CacheConfig,
+                                     val hitCacheConfig: CacheConfig,
+                                     val group: Option[String]) {
   val bucketCache = {
     // Queries to the bucket blacklist cache return false by default (i.e. not blacklisted).
     val falseLoader = new CacheLoader[String, java.lang.Boolean]() {
@@ -13,9 +15,9 @@ sealed abstract class BlacklistCache(val config: CacheConfig, val group: Option[
 
     CacheBuilder.
       newBuilder().
-      concurrencyLevel(config.concurrency).
-      maximumSize(config.size).
-      expireAfterWrite(config.ttl.length, config.ttl.unit).
+      concurrencyLevel(bucketCacheConfig.concurrency).
+      maximumSize(bucketCacheConfig.size).
+      expireAfterWrite(bucketCacheConfig.ttl.length, bucketCacheConfig.ttl.unit).
       build[String, java.lang.Boolean](falseLoader)
   }
 
@@ -27,9 +29,9 @@ sealed abstract class BlacklistCache(val config: CacheConfig, val group: Option[
 
     CacheBuilder.
       newBuilder().
-      concurrencyLevel(config.concurrency).
-      maximumSize(config.size).
-      expireAfterWrite(config.ttl.length, config.ttl.unit).
+      concurrencyLevel(hitCacheConfig.concurrency).
+      maximumSize(hitCacheConfig.size).
+      expireAfterWrite(hitCacheConfig.ttl.length, hitCacheConfig.ttl.unit).
       build[CallCachingEntryId, java.lang.Boolean](falseLoader)
   }
 
@@ -42,5 +44,8 @@ sealed abstract class BlacklistCache(val config: CacheConfig, val group: Option[
   def blacklistBucket(bucket: String): Unit = bucketCache.put(bucket, true)
 }
 
-class RootWorkflowBlacklistCache(config: CacheConfig) extends BlacklistCache(config, group = None)
-class GroupedBlacklistCache(config: CacheConfig, group: String) extends BlacklistCache(config, group = Option(group))
+class RootWorkflowBlacklistCache(bucketCacheConfig: CacheConfig, hitCacheConfig: CacheConfig) extends
+  BlacklistCache(bucketCacheConfig = bucketCacheConfig, hitCacheConfig = hitCacheConfig, group = None)
+
+class GroupedBlacklistCache(bucketCacheConfig: CacheConfig, hitCacheConfig: CacheConfig, group: String) extends
+  BlacklistCache(bucketCacheConfig = bucketCacheConfig, hitCacheConfig = hitCacheConfig, group = Option(group))

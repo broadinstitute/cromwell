@@ -277,7 +277,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       logger.debug(s"$tag transitioning from $fromState to $toState")
   }
 
-  private val callCachingBlacklistManager = new CallCachingBlacklistManager(config)
+  private val callCachingBlacklistManager = new CallCachingBlacklistManager(config, logger)
 
   /**
     * Submit the workflow and return an updated copy of the state data reflecting the addition of a

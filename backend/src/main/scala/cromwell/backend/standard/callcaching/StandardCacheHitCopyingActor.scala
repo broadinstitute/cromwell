@@ -266,22 +266,24 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     andThen
   }
 
-  private def publishMetric(blacklistCache: BlacklistCache, verb: String, bucketOrHit: String, value: String): Unit = {
-    val group = blacklistCache.group.getOrElse("none")
+  private def publishBlacklistMetric(blacklistCache: BlacklistCache, verb: String, bucketOrHit: String, key: String, value: Boolean): Unit = {
+    // TODO remove
+    log.info("Publishing blacklist metric: {} {} {} {}", verb, bucketOrHit, key, value)
+    val group = blacklistCache.name.getOrElse("none")
     val metricPath = NonEmptyList.of(
       "job",
-      "callcaching", "blacklist", verb, bucketOrHit, jobDescriptor.taskCall.localName, group, value)
+      "callcaching", "blacklist", verb, bucketOrHit, jobDescriptor.taskCall.localName, group, key, value.toString)
     increment(metricPath)
   }
 
   private def blacklistAndMetricHit(blacklistCache: BlacklistCache, hit: CallCachingEntryId): Unit = {
     blacklistCache.blacklistHit(standardParams.cacheHit)
-    publishMetric(blacklistCache, verb = "write", bucketOrHit = "hit", hit.id.toString)
+    publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "hit", hit.id.toString, value = true)
   }
 
   private def blacklistAndMetricBucket(blacklistCache: BlacklistCache, bucket: String): Unit = {
     blacklistCache.blacklistBucket(bucket)
-    publishMetric(blacklistCache, verb = "write", bucketOrHit = "bucket", bucket)
+    publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "bucket", bucket, value = true)
   }
 
   def succeedAndStop(returnCode: Option[Int], copiedJobOutputs: CallOutputs, detritusMap: DetritusMap) = {
@@ -397,7 +399,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       case other => s"The Cache hit copying actor timed out waiting for an unknown I/O operation: $other"
     }
 
-    // Loggable because this is an attempt-specific:
+    // Loggable because this is attempt-specific:
     failAndStop(LoggableCacheCopyError(new TimeoutException(exceptionMessage)))
     ()
   }
@@ -410,19 +412,29 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
   private def sourcePathFromCopyOutputsCommand(command: CopyOutputsCommand): String = command.jobDetritusFiles.values.head
 
+  //noinspection ActorMutableStateInspection
+  private var publishedBucketBlacklistRead = false
+
   private def isSourceBlacklisted(command: CopyOutputsCommand): Boolean = {
     val path = sourcePathFromCopyOutputsCommand(command)
     (for {
       cache <- standardParams.blacklistCache
       prefix <- extractBlacklistPrefix(path)
-      _ = publishMetric(cache, verb = "query", bucketOrHit = "bucket", prefix)
-    } yield cache.isBlacklisted(prefix)).getOrElse(false)
+      value = cache.isBlacklisted(prefix)
+      _ = if (!publishedBucketBlacklistRead) publishBlacklistMetric(cache, verb = "read", bucketOrHit = "bucket", prefix, value)
+      _ = publishedBucketBlacklistRead = true
+    } yield value).getOrElse(false)
   }
+
+  //noinspection ActorMutableStateInspection
+  private var publishedHitBlacklistRead = false
 
   private def isSourceBlacklisted(hit: CallCachingEntryId): Boolean = {
     (for {
       cache <- standardParams.blacklistCache
-      _ = publishMetric(cache, verb = "query", bucketOrHit = "hit", hit.id.toString)
-    } yield cache.isBlacklisted(hit)).getOrElse(false)
+      value = cache.isBlacklisted(hit)
+      _ = if (!publishedHitBlacklistRead) publishBlacklistMetric(cache, verb = "read", bucketOrHit = "hit", hit.id.toString, value)
+      _ = publishedHitBlacklistRead = true
+    } yield value).getOrElse(false)
   }
 }

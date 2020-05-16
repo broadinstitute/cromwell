@@ -1,15 +1,16 @@
 package cromwell.engine.workflow
 
+import akka.event.LoggingAdapter
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import com.typesafe.config.Config
-import cromwell.backend.standard.callcaching.{BlacklistCache, GroupedBlacklistCache, RootWorkflowBlacklistCache}
+import cromwell.backend.standard.callcaching.{BlacklistCache, GroupBlacklistCache, RootWorkflowBlacklistCache}
 import cromwell.core.CacheConfig
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class CallCachingBlacklistManager(rootConfig: Config) {
+class CallCachingBlacklistManager(rootConfig: Config, logger: LoggingAdapter) {
 
   // Defined only if "call-caching.blacklist-cache" is defined in config and "enabled = true".
   private val blacklistCacheConfig: Option[CacheConfig] = {
@@ -52,7 +53,7 @@ class CallCachingBlacklistManager(rootConfig: Config) {
   private val blacklistGroupingsCache: Option[LoadingCache[String, BlacklistCache]] = {
     def buildBlacklistGroupingsCache(groupingConfig: CacheConfig, bucketConfig: CacheConfig, hitConfig: CacheConfig): LoadingCache[String, BlacklistCache] = {
       val emptyBlacklistCacheLoader = new CacheLoader[String, BlacklistCache]() {
-        override def load(key: String): BlacklistCache = new GroupedBlacklistCache(
+        override def load(key: String): BlacklistCache = new GroupBlacklistCache(
           bucketCacheConfig = bucketConfig,
           hitCacheConfig = hitConfig,
           group = key
@@ -94,6 +95,14 @@ class CallCachingBlacklistManager(rootConfig: Config) {
     } yield new RootWorkflowBlacklistCache(bucketCacheConfig = bucketConfig, hitCacheConfig = hitConfig)
 
     // Return the group blacklist cache if available, otherwise a blacklist cache for the root workflow.
-    groupBlacklistCache orElse rootWorkflowBlacklistCache
+    val maybeCache = groupBlacklistCache orElse rootWorkflowBlacklistCache
+    maybeCache collect {
+      case group: GroupBlacklistCache =>
+        logger.info("Workflow {} using group blacklist cache '{}' containing blacklist status for {} hits and {} buckets.",
+          workflow.id, group.group, group.hitCache.size(), group.bucketCache.size())
+      case _: RootWorkflowBlacklistCache =>
+        logger.info("Workflow {} using root workflow blacklist cache.", workflow.id)
+    }
+    maybeCache
   }
 }

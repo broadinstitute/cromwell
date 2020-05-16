@@ -306,7 +306,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   }
 
   private def whitelistAndMetricHit(blacklistCache: BlacklistCache, hit: CallCachingEntryId): Unit = {
-    blacklistCache.hitCache.get(standardParams.cacheHit) match {
+    blacklistCache.getBlacklistStatus(standardParams.cacheHit) match {
       case Unknown =>
         blacklistCache.whitelistHit(hit)
         publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "hit", hit.id.toString, value = KnownGood)
@@ -321,7 +321,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   }
 
   private def whitelistAndMetricBucket(blacklistCache: BlacklistCache, bucket: String): Unit = {
-    blacklistCache.bucketCache.get(bucket) match {
+    blacklistCache.getBlacklistStatus(bucket) match {
       case Unknown =>
         blacklistCache.whitelistBucket(bucket)
         publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "bucket", bucket, value = KnownGood)
@@ -469,7 +469,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     (for {
       cache <- standardParams.blacklistCache
       prefix <- extractBlacklistPrefix(path)
-      value = cache.isBlacklisted(prefix)
+      value = cache.getBlacklistStatus(prefix)
       _ = if (!publishedBucketBlacklistRead) publishBlacklistMetric(cache, verb = "read", bucketOrHit = "bucket", prefix, value)
       _ = publishedBucketBlacklistRead = true
     } yield value == KnownBad).getOrElse(false)
@@ -481,7 +481,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   private def isSourceBlacklisted(hit: CallCachingEntryId): Boolean = {
     (for {
       cache <- standardParams.blacklistCache
-      value = cache.isBlacklisted(hit)
+      value = cache.getBlacklistStatus(hit)
       _ = if (!publishedHitBlacklistRead) publishBlacklistMetric(cache, verb = "read", bucketOrHit = "hit", hit.id.toString, value)
       _ = publishedHitBlacklistRead = true
     } yield value == KnownBad).getOrElse(false)

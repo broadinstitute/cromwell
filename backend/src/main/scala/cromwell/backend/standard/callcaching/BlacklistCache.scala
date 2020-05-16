@@ -9,8 +9,8 @@ case object KnownBad extends BlacklistStatus
 case object KnownGood extends BlacklistStatus
 case object Unknown extends BlacklistStatus
 
-sealed abstract class BlacklistCache(val bucketCacheConfig: CacheConfig,
-                                     val hitCacheConfig: CacheConfig,
+sealed abstract class BlacklistCache(bucketCacheConfig: CacheConfig,
+                                     hitCacheConfig: CacheConfig,
                                      val name: Option[String]) {
   val bucketCache = {
     // Queries to the bucket blacklist cache return Unknown by default.
@@ -40,9 +40,9 @@ sealed abstract class BlacklistCache(val bucketCacheConfig: CacheConfig,
       build[CallCachingEntryId, BlacklistStatus](unknownLoader)
   }
 
-  def isBlacklisted(hit: CallCachingEntryId): BlacklistStatus = hitCache.get(hit)
+  def getBlacklistStatus(hit: CallCachingEntryId): BlacklistStatus = hitCache.get(hit)
 
-  def isBlacklisted(bucket: String): BlacklistStatus = bucketCache.get(bucket)
+  def getBlacklistStatus(bucket: String): BlacklistStatus = bucketCache.get(bucket)
 
   def blacklistHit(hit: CallCachingEntryId): Unit = hitCache.put(hit, KnownBad)
 

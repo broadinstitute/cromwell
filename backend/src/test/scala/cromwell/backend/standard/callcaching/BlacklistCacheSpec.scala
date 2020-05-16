@@ -14,13 +14,13 @@ class BlacklistCacheSpec extends FlatSpec with BeforeAndAfterAll with Matchers {
     val bucketCacheConfig = CacheConfig(concurrency = 1, size = Integer.MAX_VALUE, ttl = 1 second)
     val hitCacheConfig = CacheConfig(concurrency = 1, size = Integer.MAX_VALUE, ttl = 1 second)
     val cache = new RootWorkflowBlacklistCache(bucketCacheConfig = bucketCacheConfig, hitCacheConfig = hitCacheConfig)
-    cache.isBlacklisted(bucket) shouldBe false
+    cache.getBlacklistStatus(bucket) shouldBe Unknown
     cache.blacklistBucket(bucket)
-    cache.isBlacklisted(bucket) shouldBe true
+    cache.getBlacklistStatus(bucket) shouldBe KnownBad
 
     // Test ttl
     Thread.sleep(5000L)
-    cache.isBlacklisted(bucket) shouldBe false
+    cache.getBlacklistStatus(bucket) shouldBe Unknown
 
     // FIXME test hits too
   }

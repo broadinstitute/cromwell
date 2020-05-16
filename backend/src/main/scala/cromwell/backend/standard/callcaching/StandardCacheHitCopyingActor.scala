@@ -200,20 +200,21 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
       commandState match {
         case StillWaiting => stay() using Option(newData)
-        case AllCommandsDone => succeedAndStop(newData.returnCode, newData.newJobOutputs, newData.newDetritus)
+        case AllCommandsDone =>
+          handleWhitelistingForSuccess(command)
+          succeedAndStop(newData.returnCode, newData.newJobOutputs, newData.newDetritus)
         case NextSubSet(commands) =>
           commands foreach sendIoCommand
           stay() using Option(newData)
       }
     case Event(f: IoReadForbiddenFailure[_], Some(data)) =>
-      handleForbidden(
+      handleBlacklistingForForbidden(
         path = f.forbiddenPath,
         // Loggable because this is an attempt-specific problem:
         andThen = failAndAwaitPendingResponses(LoggableCacheCopyError(f.failure), f.command, data)
       )
     case Event(IoFailAck(command: IoCommand[_], failure), Some(data)) =>
-      // Not a forbidden failure so do not blacklist the bucket but do blacklist the hit.
-      standardParams.blacklistCache foreach { blacklistAndMetricHit(_, standardParams.cacheHit) }
+      handleBlacklistingForGenericFailure()
       // Loggable because this is an attempt-specific problem:
       failAndAwaitPendingResponses(LoggableCacheCopyError(failure), command, data)
     // Should not be possible
@@ -222,13 +223,13 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
   when(FailedState) {
     case Event(f: IoReadForbiddenFailure[_], Some(data)) =>
-      handleForbidden(
+      handleBlacklistingForForbidden(
         path = f.forbiddenPath,
         andThen = stayOrStopInFailedState(f, data)
       )
     case Event(fail: IoFailAck[_], Some(data)) =>
       // Not a forbidden failure so do not blacklist the bucket but do blacklist the hit.
-      standardParams.blacklistCache foreach { blacklistAndMetricHit(_, standardParams.cacheHit) }
+      handleBlacklistingForGenericFailure()
       stayOrStopInFailedState(fail, data)
     // At this point success or failure doesn't matter, we've already failed this hit
     case Event(response: IoAck[_], Some(data)) =>
@@ -256,8 +257,9 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   }
 
   /* Blacklist by bucket and hit if appropriate. */
-  private def handleForbidden[T](path: String, andThen: => State): State = {
+  private def handleBlacklistingForForbidden[T](path: String, andThen: => State): State = {
     for {
+      // Blacklist the hit first in the forcomp since not all configurations will support bucket blacklisting.
       cache <- standardParams.blacklistCache
       _ = blacklistAndMetricHit(cache, standardParams.cacheHit)
       prefix <- extractBlacklistPrefix(path)
@@ -266,9 +268,26 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     andThen
   }
 
-  private def publishBlacklistMetric(blacklistCache: BlacklistCache, verb: String, bucketOrHit: String, key: String, value: Boolean): Unit = {
-    // TODO remove
+  private def handleBlacklistingForGenericFailure(): Unit = {
+    standardParams.blacklistCache foreach { blacklistAndMetricHit(_, standardParams.cacheHit) }
+  }
+
+  /* Whitelist by bucket and hit if appropriate. */
+  private def handleWhitelistingForSuccess(command: IoCommand[_]): Unit = {
+    for {
+      cache <- standardParams.blacklistCache
+      _ = whitelistAndMetricHit(cache, standardParams.cacheHit)
+      copy <- Option(command) collect { case c: IoCopyCommand => c }
+      prefix <- extractBlacklistPrefix(copy.source.toString)
+      _ = whitelistAndMetricBucket(cache, prefix)
+    } yield ()
+    ()
+  }
+
+  private def publishBlacklistMetric(blacklistCache: BlacklistCache, verb: String, bucketOrHit: String, key: String, value: BlacklistStatus): Unit = {
+    // TODO probably remove the logging after interactive testing is complete
     log.info("Publishing blacklist metric: {} {} {} {}", verb, bucketOrHit, key, value)
+    // TODO don't publish write metrics when what is being written is consistent with what was already in the cache.
     val group = blacklistCache.name.getOrElse("none")
     val metricPath = NonEmptyList.of(
       "job",
@@ -278,12 +297,42 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
   private def blacklistAndMetricHit(blacklistCache: BlacklistCache, hit: CallCachingEntryId): Unit = {
     blacklistCache.blacklistHit(standardParams.cacheHit)
-    publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "hit", hit.id.toString, value = true)
+    publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "hit", hit.id.toString, value = KnownBad)
   }
 
   private def blacklistAndMetricBucket(blacklistCache: BlacklistCache, bucket: String): Unit = {
     blacklistCache.blacklistBucket(bucket)
-    publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "bucket", bucket, value = true)
+    publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "bucket", bucket, value = KnownBad)
+  }
+
+  private def whitelistAndMetricHit(blacklistCache: BlacklistCache, hit: CallCachingEntryId): Unit = {
+    blacklistCache.hitCache.get(standardParams.cacheHit) match {
+      case Unknown =>
+        blacklistCache.whitelistHit(hit)
+        publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "hit", hit.id.toString, value = KnownGood)
+      case KnownGood => // This hit is already known to be good, no need to rewrite or spam metrics.
+      case KnownBad =>
+        // This is surprising, a hit that we failed to copy before has now been the source of a successful copy.
+        // Don't overwrite this to KnownGood, hopefully there are less weird cache hits out there.
+        log.warning(
+          "Cache hit {} found in KnownBad blacklist state, not overwriting to KnownGood despite successful copy.",
+          standardParams.cacheHit.id)
+    }
+  }
+
+  private def whitelistAndMetricBucket(blacklistCache: BlacklistCache, bucket: String): Unit = {
+    blacklistCache.bucketCache.get(bucket) match {
+      case Unknown =>
+        blacklistCache.whitelistBucket(bucket)
+        publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "bucket", bucket, value = KnownGood)
+      case KnownGood => // This bucket is already known to be good, no need to rewrite or spam metrics.
+      case KnownBad =>
+        // This is surprising, a bucket that we failed to copy from before for auth reasons has now been the source
+        // of a successful copy. Don't overwrite this to KnownGood, hopefully there are less weird cache hits out there.
+        log.warning(
+          "Bucket {} found in KnownBad blacklist state, not overwriting to KnownGood despite successful copy.",
+          bucket)
+    }
   }
 
   def succeedAndStop(returnCode: Option[Int], copiedJobOutputs: CallOutputs, detritusMap: DetritusMap) = {
@@ -423,7 +472,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       value = cache.isBlacklisted(prefix)
       _ = if (!publishedBucketBlacklistRead) publishBlacklistMetric(cache, verb = "read", bucketOrHit = "bucket", prefix, value)
       _ = publishedBucketBlacklistRead = true
-    } yield value).getOrElse(false)
+    } yield value == KnownBad).getOrElse(false)
   }
 
   //noinspection ActorMutableStateInspection
@@ -435,6 +484,6 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       value = cache.isBlacklisted(hit)
       _ = if (!publishedHitBlacklistRead) publishBlacklistMetric(cache, verb = "read", bucketOrHit = "hit", hit.id.toString, value)
       _ = publishedHitBlacklistRead = true
-    } yield value).getOrElse(false)
+    } yield value == KnownBad).getOrElse(false)
   }
 }

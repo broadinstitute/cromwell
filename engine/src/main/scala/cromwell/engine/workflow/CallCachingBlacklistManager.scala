@@ -12,7 +12,7 @@ import scala.language.postfixOps
 
 class CallCachingBlacklistManager(rootConfig: Config, logger: LoggingAdapter) {
 
-  // Defined only if "call-caching.blacklist-cache" is defined in config and "enabled = true".
+  // Defined if "call-caching.blacklist-cache.enabled = true".
   private val blacklistCacheConfig: Option[CacheConfig] = {
     for {
       conf <- rootConfig.as[Option[Config]] ("call-caching.blacklist-cache")
@@ -20,13 +20,13 @@ class CallCachingBlacklistManager(rootConfig: Config, logger: LoggingAdapter) {
     } yield cacheConfig
   }
 
-  // Defined only if `blacklistCacheConfig` is defined and "call-caching.blacklist-cache.groupings.workflow-option" is defined.
+  // Defined if `blacklistCacheConfig` is defined and "call-caching.blacklist-cache.groupings.workflow-option" is defined.
   private val blacklistGroupingWorkflowOptionKey: Option[String] = for {
     _ <- blacklistCacheConfig // Only return a groupings cache if blacklisting is enabled.
     workflowOption <- rootConfig.as[Option[String]]("call-caching.blacklist-cache.groupings.workflow-option")
   } yield workflowOption
 
-  // Defined only if `blacklistGroupingWorkflowOptionKey` is defined.
+  // Defined if `blacklistGroupingWorkflowOptionKey` is defined.
   private val blacklistGroupingCacheConfig: Option[CacheConfig] = {
     for {
       _ <- blacklistGroupingWorkflowOptionKey

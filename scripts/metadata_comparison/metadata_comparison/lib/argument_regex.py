@@ -3,6 +3,7 @@
 import argparse
 import re
 
+
 def workflow_regex_validator(value: str) -> str:
     """Makes sure that a value is a valid Cromwell workflow ID then returns the workflow ID"""
     workflow_regex=re.compile('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
@@ -41,10 +42,12 @@ def gcs_path_regex_validator(value: str) -> (str, str):
         or
         'gs://bucket/path/to/file.ext' -> ('bucket', 'path/to/file.ext')
     """
-    gcs_regex = re.compile('^gs://([a-zA-Z0-9-]+)/(([a-zA-Z0-9-]+/)*[\.a-zA-Z0-9-]+)/?$')
+    bucket_class = 'a-zA-Z0-9-'
+    object_class = '_\\.' + bucket_class
+    gcs_regex = re.compile(f'^gs://(?P<bucket>[{bucket_class}]+)/(?P<object>([{object_class}]+/)*[{object_class}]+)/?$')
     m = gcs_regex.match(value)
     if m:
-        return m.group(1), m.group(2)
+        return m.group('bucket'), m.group('object')
     else:
         msg = f'Invalid GCS path {value}. Expected {gcs_regex.pattern}'
         raise argparse.ArgumentTypeError(msg)
@@ -54,7 +57,7 @@ def digester_version_regex_validator(value: str) -> str:
     """
     Validates that digester version looks like 0.0.1
     """
-    digester_version_regex = re.compile('^\d+\.\d+\.\d+$')
+    digester_version_regex = re.compile('^\\d+\\.\\d+\\.\\d+$')
     m = digester_version_regex.match(value)
     if m:
         return m.group(0)

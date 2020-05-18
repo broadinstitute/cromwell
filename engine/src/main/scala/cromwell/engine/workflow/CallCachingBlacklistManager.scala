@@ -3,22 +3,39 @@ package cromwell.engine.workflow
 import akka.event.LoggingAdapter
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import com.typesafe.config.Config
-import cromwell.backend.standard.callcaching.{BlacklistCache, GroupBlacklistCache, RootWorkflowBlacklistCache}
+import cromwell.backend.standard.callcaching.{BlacklistCache, GroupingBlacklistCache, RootWorkflowBlacklistCache}
 import cromwell.core.CacheConfig
+import mouse.boolean._
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
+object CallCachingBlacklistManager {
+  object Defaults {
+    object Groupings {
+      val Concurrency = 1000
+      val Size = 1000L
+      val Ttl = 2 hours
+    }
+    object Hits {
+      val Concurrency = 1000
+      val Size = 1000L
+      val Ttl = 1 hour
+    }
+    object Buckets {
+      val Concurrency = 1000
+      val Size = 1000L
+      val Ttl = 1 hour
+    }
+  }
+}
+
 class CallCachingBlacklistManager(rootConfig: Config, logger: LoggingAdapter) {
 
   // Defined if "call-caching.blacklist-cache.enabled = true".
-  private val blacklistCacheConfig: Option[CacheConfig] = {
-    for {
-      conf <- rootConfig.as[Option[Config]] ("call-caching.blacklist-cache")
-      cacheConfig <- CacheConfig.optionalConfig(conf, defaultConcurrency = 1000, defaultSize = 1000, defaultTtl = 2 hours)
-    } yield cacheConfig
-  }
+  private val blacklistCacheConfig: Option[Unit] =
+    rootConfig.getOrElse("call-caching.blacklist-cache.enabled", false).option(())
 
   // Defined if `blacklistCacheConfig` is defined and "call-caching.blacklist-cache.groupings.workflow-option" is defined.
   private val blacklistGroupingWorkflowOptionKey: Option[String] = for {
@@ -28,32 +45,39 @@ class CallCachingBlacklistManager(rootConfig: Config, logger: LoggingAdapter) {
 
   // Defined if `blacklistGroupingWorkflowOptionKey` is defined.
   private val blacklistGroupingCacheConfig: Option[CacheConfig] = {
+    import CallCachingBlacklistManager.Defaults.Groupings._
     for {
       _ <- blacklistGroupingWorkflowOptionKey
       groupingsOption = rootConfig.as[Option[Config]] ("call-caching.blacklist-cache.groupings")
-      conf = CacheConfig.config(groupingsOption, defaultConcurrency = 1000, defaultSize = 1000, defaultTtl = 2 hours)
+      conf = CacheConfig.config(groupingsOption, defaultConcurrency = Concurrency, defaultSize = Size, defaultTtl = Ttl)
     } yield conf
   }
 
   // Defined if `blacklistCacheConfig` is defined.
-  private val blacklistBucketCacheConfig: Option[CacheConfig] = for {
-    _ <- blacklistCacheConfig
-    bucketsOption = rootConfig.as[Option[Config]]("call-caching.blacklist-cache.buckets")
-    conf = CacheConfig.config(bucketsOption, defaultConcurrency = 1000, defaultSize = 1000, defaultTtl = 1 hour)
-  } yield conf
+  private val blacklistBucketCacheConfig: Option[CacheConfig] = {
+    import CallCachingBlacklistManager.Defaults.Buckets._
+    for {
+      _ <- blacklistCacheConfig
+      bucketsOption = rootConfig.as[Option[Config]]("call-caching.blacklist-cache.buckets")
+      conf = CacheConfig.config(bucketsOption, defaultConcurrency = Concurrency, defaultSize = Size, defaultTtl = Ttl)
+    } yield conf
+  }
 
   // Defined if `blacklistCacheConfig` is defined.
-  private val blacklistHitCacheConfig: Option[CacheConfig] = for {
-    _ <- blacklistCacheConfig
-    hitsOption = rootConfig.as[Option[Config]]("call-caching.blacklist-cache.hits")
-    conf = CacheConfig.config(hitsOption, defaultConcurrency = 1000, defaultSize = 50000, defaultTtl = 1 hour)
-  } yield conf
+  private val blacklistHitCacheConfig: Option[CacheConfig] = {
+    import CallCachingBlacklistManager.Defaults.Hits._
+    for {
+      _ <- blacklistCacheConfig
+      hitsOption = rootConfig.as[Option[Config]]("call-caching.blacklist-cache.hits")
+      conf = CacheConfig.config(hitsOption, defaultConcurrency = Concurrency, defaultSize = Size, defaultTtl = Ttl)
+    } yield conf
+  }
 
   // If configuration allows, build a cache of blacklist groupings to BlacklistCaches.
   private val blacklistGroupingsCache: Option[LoadingCache[String, BlacklistCache]] = {
     def buildBlacklistGroupingsCache(groupingConfig: CacheConfig, bucketConfig: CacheConfig, hitConfig: CacheConfig): LoadingCache[String, BlacklistCache] = {
       val emptyBlacklistCacheLoader = new CacheLoader[String, BlacklistCache]() {
-        override def load(key: String): BlacklistCache = new GroupBlacklistCache(
+        override def load(key: String): BlacklistCache = new GroupingBlacklistCache(
           bucketCacheConfig = bucketConfig,
           hitCacheConfig = hitConfig,
           group = key
@@ -97,7 +121,7 @@ class CallCachingBlacklistManager(rootConfig: Config, logger: LoggingAdapter) {
     // Return the group blacklist cache if available, otherwise a blacklist cache for the root workflow.
     val maybeCache = groupBlacklistCache orElse rootWorkflowBlacklistCache
     maybeCache collect {
-      case group: GroupBlacklistCache =>
+      case group: GroupingBlacklistCache =>
         logger.info("Workflow {} using group blacklist cache '{}' containing blacklist status for {} hits and {} buckets.",
           workflow.id, group.group, group.hitCache.size(), group.bucketCache.size())
       case _: RootWorkflowBlacklistCache =>

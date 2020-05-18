@@ -27,7 +27,7 @@ sealed abstract class BlacklistCache(bucketCacheConfig: CacheConfig,
   }
 
   val hitCache = {
-    // Queries to the hit blacklist cache return false by default (i.e. not blacklisted).
+    // Queries to the hit blacklist cache return Unknown by default (i.e. not blacklisted).
     val unknownLoader = new CacheLoader[CallCachingEntryId, BlacklistStatus]() {
       override def load(key: CallCachingEntryId): BlacklistStatus = Unknown
     }
@@ -44,13 +44,13 @@ sealed abstract class BlacklistCache(bucketCacheConfig: CacheConfig,
 
   def getBlacklistStatus(bucket: String): BlacklistStatus = bucketCache.get(bucket)
 
-  def blacklistHit(hit: CallCachingEntryId): Unit = hitCache.put(hit, KnownBad)
+  def blacklist(hit: CallCachingEntryId): Unit = hitCache.put(hit, KnownBad)
 
-  def blacklistBucket(bucket: String): Unit = bucketCache.put(bucket, KnownBad)
+  def blacklist(bucket: String): Unit = bucketCache.put(bucket, KnownBad)
 
-  def whitelistHit(hit: CallCachingEntryId): Unit = hitCache.put(hit, KnownGood)
+  def whitelist(hit: CallCachingEntryId): Unit = hitCache.put(hit, KnownGood)
 
-  def whitelistBucket(bucket: String): Unit = bucketCache.put(bucket, KnownGood)
+  def whitelist(bucket: String): Unit = bucketCache.put(bucket, KnownGood)
 }
 
 class RootWorkflowBlacklistCache(bucketCacheConfig: CacheConfig, hitCacheConfig: CacheConfig) extends

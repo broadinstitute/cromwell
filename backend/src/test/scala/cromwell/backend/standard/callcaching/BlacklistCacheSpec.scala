@@ -8,20 +8,32 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class BlacklistCacheSpec extends FlatSpec with BeforeAndAfterAll with Matchers {
-  val hit = CallCachingEntryId(3)
-  "The blacklist cache" should "default, blacklist and expire" in {
+  "The blacklist cache" should "default, blacklist, whitelist and expire" in {
+    val hit = CallCachingEntryId(3)
     val bucket = "foo"
+
     val bucketCacheConfig = CacheConfig(concurrency = 1, size = Integer.MAX_VALUE, ttl = 1 second)
     val hitCacheConfig = CacheConfig(concurrency = 1, size = Integer.MAX_VALUE, ttl = 1 second)
     val cache = new RootWorkflowBlacklistCache(bucketCacheConfig = bucketCacheConfig, hitCacheConfig = hitCacheConfig)
     cache.getBlacklistStatus(bucket) shouldBe Unknown
-    cache.blacklistBucket(bucket)
+    cache.getBlacklistStatus(hit) shouldBe Unknown
+    cache.blacklist(bucket)
+    cache.blacklist(hit)
     cache.getBlacklistStatus(bucket) shouldBe KnownBad
+    cache.getBlacklistStatus(hit) shouldBe KnownBad
 
     // Test ttl
     Thread.sleep(5000L)
     cache.getBlacklistStatus(bucket) shouldBe Unknown
+    cache.getBlacklistStatus(hit) shouldBe Unknown
 
-    // FIXME test hits too
+    cache.whitelist(bucket)
+    cache.whitelist(hit)
+    cache.getBlacklistStatus(bucket) shouldBe KnownGood
+    cache.getBlacklistStatus(hit) shouldBe KnownGood
+
+    Thread.sleep(5000L)
+    cache.getBlacklistStatus(bucket) shouldBe Unknown
+    cache.getBlacklistStatus(hit) shouldBe Unknown
   }
 }

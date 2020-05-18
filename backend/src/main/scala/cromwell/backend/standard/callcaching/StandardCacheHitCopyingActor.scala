@@ -297,7 +297,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   private def blacklistAndMetricHit(blacklistCache: BlacklistCache, hit: CallCachingEntryId): Unit = {
     blacklistCache.getBlacklistStatus(hit) match {
       case Unknown =>
-        blacklistCache.blacklistHit(hit)
+        blacklistCache.blacklist(hit)
         publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "hit", hit.id.toString, value = KnownBad)
       case KnownBad =>
         // Not a surprise, race conditions abound in cache hit copying. Do not overwrite with the same value or
@@ -308,7 +308,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
         log.warning(
           "Cache hit {} found in KnownGood blacklist state, but cache hit copying has failed for permissions reasons. Overwriting status to KnownBad state.",
           standardParams.cacheHit.id)
-        blacklistCache.blacklistHit(hit)
+        blacklistCache.blacklist(hit)
         publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "hit", hit.id.toString, value = KnownBad)
     }
   }
@@ -316,7 +316,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   private def blacklistAndMetricBucket(blacklistCache: BlacklistCache, bucket: String): Unit = {
     blacklistCache.getBlacklistStatus(bucket) match {
       case Unknown =>
-        blacklistCache.blacklistBucket(bucket)
+        blacklistCache.blacklist(bucket)
         publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "bucket", bucket, value = KnownBad)
       case KnownBad =>
       // Not a surprise, race conditions abound in cache hit copying. Do not overwrite with the same value or
@@ -327,7 +327,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
         log.warning(
           "Bucket {} found in KnownGood blacklist state, but cache hit copying has failed for permissions reasons. Overwriting status to KnownBad state.",
           standardParams.cacheHit.id)
-        blacklistCache.blacklistBucket(bucket)
+        blacklistCache.blacklist(bucket)
         publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "bucket", bucket, value = KnownBad)
     }
   }
@@ -335,7 +335,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   private def whitelistAndMetricHit(blacklistCache: BlacklistCache, hit: CallCachingEntryId): Unit = {
     blacklistCache.getBlacklistStatus(standardParams.cacheHit) match {
       case Unknown =>
-        blacklistCache.whitelistHit(hit)
+        blacklistCache.whitelist(hit)
         publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "hit", hit.id.toString, value = KnownGood)
       case KnownGood => // This hit is already known to be good, no need to rewrite or spam metrics.
       case KnownBad =>
@@ -350,7 +350,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   private def whitelistAndMetricBucket(blacklistCache: BlacklistCache, bucket: String): Unit = {
     blacklistCache.getBlacklistStatus(bucket) match {
       case Unknown =>
-        blacklistCache.whitelistBucket(bucket)
+        blacklistCache.whitelist(bucket)
         publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "bucket", bucket, value = KnownGood)
       case KnownGood => // This bucket is already known to be good, no need to rewrite or spam metrics.
       case KnownBad =>

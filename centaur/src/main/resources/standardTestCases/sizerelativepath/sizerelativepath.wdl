@@ -19,7 +19,7 @@ task print_size {
 
 workflow sizerelativepath {
     input {
-        File file = "LICENSE.txt"
+        File file = "centaur/src/main/resources/standardTestCases/sizerelativepath/1495bytes.txt"
     }
 
     call print_size {

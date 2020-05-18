@@ -296,13 +296,41 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   }
 
   private def blacklistAndMetricHit(blacklistCache: BlacklistCache, hit: CallCachingEntryId): Unit = {
-    blacklistCache.blacklistHit(standardParams.cacheHit)
-    publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "hit", hit.id.toString, value = KnownBad)
+    blacklistCache.getBlacklistStatus(hit) match {
+      case Unknown =>
+        blacklistCache.blacklistHit(hit)
+        publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "hit", hit.id.toString, value = KnownBad)
+      case KnownBad =>
+        // Not a surprise, race conditions abound in cache hit copying. Do not overwrite with the same value or
+        // multiply publish metrics for this hit.
+      case KnownGood =>
+        // This hit was thought to be good but now a copy has failed for permissions reasons. Be conservative and
+        // mark the hit as KnownBad and log this strangeness.
+        log.warning(
+          "Cache hit {} found in KnownGood blacklist state, but cache hit copying has failed for permissions reasons. Overwriting status to KnownBad state.",
+          standardParams.cacheHit.id)
+        blacklistCache.blacklistHit(hit)
+        publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "hit", hit.id.toString, value = KnownBad)
+    }
   }
 
   private def blacklistAndMetricBucket(blacklistCache: BlacklistCache, bucket: String): Unit = {
-    blacklistCache.blacklistBucket(bucket)
-    publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "bucket", bucket, value = KnownBad)
+    blacklistCache.getBlacklistStatus(bucket) match {
+      case Unknown =>
+        blacklistCache.blacklistBucket(bucket)
+        publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "bucket", bucket, value = KnownBad)
+      case KnownBad =>
+      // Not a surprise, race conditions abound in cache hit copying. Do not overwrite with the same value or
+      // multiply publish metrics for this bucket.
+      case KnownGood =>
+        // This bucket was thought to be good but now a copy has failed for permissions reasons. Be conservative and
+        // mark the bucket as KnownBad and log this strangeness.
+        log.warning(
+          "Bucket {} found in KnownGood blacklist state, but cache hit copying has failed for permissions reasons. Overwriting status to KnownBad state.",
+          standardParams.cacheHit.id)
+        blacklistCache.blacklistBucket(bucket)
+        publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "bucket", bucket, value = KnownBad)
+    }
   }
 
   private def whitelistAndMetricHit(blacklistCache: BlacklistCache, hit: CallCachingEntryId): Unit = {

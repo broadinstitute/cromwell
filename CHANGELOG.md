@@ -2,7 +2,6 @@
 
 ## 51 Release Notes
 
-
 ### New functionality
 
 #### new xxh64 and fingerprint strategies for call caching
@@ -19,7 +18,7 @@ https://cromwell.readthedocs.io/en/stable/Configuring/#call-caching).
 * Fixed a bug where the `size(...)` function did not work correctly on files 
   from a shared filesystem if `size(...)` was called in the input section on a 
   relative path.
-* Fixed a bug where the `use_relative_output_paths` option would not preserve intermediate folders.
++ Fixed a bug where the `use_relative_output_paths` option would not preserve intermediate folders.
 
 ## 50 Release Notes
 

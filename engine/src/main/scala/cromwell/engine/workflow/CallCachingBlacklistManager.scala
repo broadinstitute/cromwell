@@ -20,7 +20,7 @@ object CallCachingBlacklistManager {
     }
     object Hits {
       val Concurrency = 1000
-      val Size = 1000L
+      val Size = 20000L
       val Ttl = 1 hour
     }
     object Buckets {

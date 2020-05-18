@@ -287,7 +287,6 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   private def publishBlacklistMetric(blacklistCache: BlacklistCache, verb: String, bucketOrHit: String, key: String, value: BlacklistStatus): Unit = {
     // TODO probably remove the logging after interactive testing is complete
     log.info("Publishing blacklist metric: {} {} {} {}", verb, bucketOrHit, key, value)
-    // TODO don't publish write metrics when what is being written is consistent with what was already in the cache.
     val group = blacklistCache.name.getOrElse("none")
     val metricPath = NonEmptyList.of(
       "job",
@@ -488,6 +487,12 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   protected def extractBlacklistPrefix(path: String): Option[String] = None
 
   private def sourcePathFromCopyOutputsCommand(command: CopyOutputsCommand): String = command.jobDetritusFiles.values.head
+
+  // The "published*BlacklistRead" vars are to deal with the evaluation of the partial function that uses these
+  // `isSourceBlacklisted` methods in its guards. There are both "isDefinedAt and "apply" invocations associated with
+  // the partial function which means this code gets called twice. If the code was pure that would be fine, but
+  // publishing metrics is obviously side-effecting so these vars prevent the same metric from being published
+  // multiple times.
 
   //noinspection ActorMutableStateInspection
   private var publishedBucketBlacklistRead = false

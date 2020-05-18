@@ -169,5 +169,5 @@ trait IoFunctionSet {
     * backend to use a different set of functions when evaluating inputs.
     * @return an IoFunctionSet
     */
-  def makeInputSpecificFunctions: IoFunctionSet = this
+  def makeInputSpecificFunctions(): IoFunctionSet = this
 }

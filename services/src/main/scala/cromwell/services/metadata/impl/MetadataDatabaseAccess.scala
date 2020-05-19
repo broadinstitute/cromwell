@@ -129,7 +129,7 @@ trait MetadataDatabaseAccess {
     }
   }
 
-  def queryMetadataEventsTotalRowNumberWithoutLabels(workflowId: WorkflowId, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
+  def queryMetadataEventsTotalRowNumber(workflowId: WorkflowId, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
     metadataDatabaseInterface.getMetadataTotalRowNumberByRootWorkflowId(workflowId.toString, timeout)
   }
 

@@ -3,7 +3,7 @@ package cromwell.engine.workflow.lifecycle.execution.job
 import akka.actor.SupervisorStrategy.{Escalate, Stop}
 import akka.actor.{ActorInitializationException, ActorRef, LoggingFSM, OneForOneStrategy, Props}
 import cats.data.NonEmptyList
-import cromwell.backend.BackendCacheHitCopyingActor.{CacheCopyError, CopyOutputsCommand, CopyingOutputsFailedResponse, LoggableCacheCopyError, MetricableCacheCopyError}
+import cromwell.backend.BackendCacheHitCopyingActor.{CacheCopyError, CopyOutputsCommand, CopyingOutputsFailedResponse, CopyAttemptError, BlacklistedError}
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.MetricableCacheCopyErrorCategory.MetricableCacheCopyErrorCategory
@@ -276,10 +276,10 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       logCacheHitSuccessAndNotifyMetadata(data)
       saveJobCompletionToJobStore(data.withSuccessResponse(response))
     case Event(
-    CopyingOutputsFailedResponse(_, cacheCopyAttempt, reason, declined),
+    CopyingOutputsFailedResponse(_, cacheCopyAttempt, reason),
     data@ResponsePendingData(_, _, _, _, Some(cacheHit), _, _, _)
     ) if cacheCopyAttempt == cacheHit.hitNumber =>
-      invalidateCacheHitAndTransition(cacheHit, data, reason, declined)
+      invalidateCacheHitAndTransition(cacheHit, data, reason)
 
     // Hashes arrive:
     case Event(hashes: CallCacheHashes, data: SucceededResponseData) =>
@@ -704,7 +704,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     workflowLogger.info(s"Failed copying cache results for job $jobDescriptorKey (${reason.getClass.getSimpleName}: ${reason.getMessage})")
   }
 
-  private def metricizeCacheHitFailure(data: ResponsePendingData, failureCategory: MetricableCacheCopyErrorCategory): Unit = {
+  private def publishBlacklistReadMetrics(data: ResponsePendingData, failureCategory: MetricableCacheCopyErrorCategory): Unit = {
     val callCachingErrorsMetricPath: NonEmptyList[String] =
       NonEmptyList.of(
         "job",
@@ -712,19 +712,21 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     increment(callCachingErrorsMetricPath)
   }
 
-  private def invalidateCacheHitAndTransition(ejeaCacheHit: EJEACacheHit, data: ResponsePendingData, reason: CacheCopyError, declined: Boolean) = {
-    // Currently "declined" is true only when "reason" is a MetricableCacheCopyError. i.e. a copy error merits only
-    // "metricing" and not "logging" if it was caused by blacklisting which short-circuited an actual copy attempt.
-    // But this relationship between "declined" and "metricable" may not always be the same in the future so for now
-    // preserve them as independent concepts.
-    reason match {
-      case LoggableCacheCopyError(failure) => logCacheHitFailure(data, failure)
-      case MetricableCacheCopyError(failureCategory) => metricizeCacheHitFailure(data, failureCategory)
+  private def invalidateCacheHitAndTransition(ejeaCacheHit: EJEACacheHit, data: ResponsePendingData, reason: CacheCopyError) = {
+    val copyAttemptIncrement = reason match {
+      case CopyAttemptError(failure) =>
+        logCacheHitFailure(data, failure)
+        // An actual attempt to copy was made and failed so increment the attempt counter by 1.
+        1
+      case BlacklistedError(failureCategory) =>
+        publishBlacklistReadMetrics(data, failureCategory)
+        // Blacklisted hits are simply skipped and do not result in incrementing the attempt counter.
+        0
     }
 
     // Increment the total failure count and actual copy failure count as appropriate.
     val updatedData = data.copy(cacheHitFailureCount = data.cacheHitFailureCount + 1,
-                                failedCopyAttempts = data.failedCopyAttempts + (if (declined) 0 else 1))
+                                failedCopyAttempts = data.failedCopyAttempts + copyAttemptIncrement)
 
     if (invalidationRequired) {
       workflowLogger.warn(s"Invalidating cache entry ${ejeaCacheHit.hit.cacheResultId} (Cache entry details: ${ejeaCacheHit.details})")

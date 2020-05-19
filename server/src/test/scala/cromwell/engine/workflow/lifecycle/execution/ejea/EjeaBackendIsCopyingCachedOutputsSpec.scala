@@ -105,7 +105,7 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
           s"invalidate a call for caching if backend coping failed when it was going to receive $hashComboName, if call caching is $mode" in {
             ejea = ejeaInBackendIsCopyingCachedOutputsState(initialHashData, mode)
             // Send the response from the copying actor
-            ejea ! loggableFailedToCopyResponse(cacheHitNumber)
+            ejea ! copyAttemptFailedResponse(cacheHitNumber)
 
             expectInvalidateCallCacheActor(cacheId)
             eventually {
@@ -130,7 +130,7 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
             }
             ejea = ejeaInBackendIsCopyingCachedOutputsState(initialHashData, cacheInvalidationDisabledMode)
             // Send the response from the copying actor
-            ejea ! loggableFailedToCopyResponse(cacheHitNumber)
+            ejea ! copyAttemptFailedResponse(cacheHitNumber)
 
             helper.ejhaProbe.expectMsg(NextHit)
 
@@ -155,7 +155,7 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
               helper.jobStoreProbe.expectNoMessage(awaitAlmostNothing)
 
               // Send the response from the copying actor
-              val copyFailureMessage = if (expectMetric) metricableFailedToCopyResponse(cacheHitNumber) else loggableFailedToCopyResponse(cacheHitNumber)
+              val copyFailureMessage = if (expectMetric) cacheHitBlacklistedResponse(cacheHitNumber) else copyAttemptFailedResponse(cacheHitNumber)
               ejea ! copyFailureMessage
 
               expectInvalidateCallCacheActor(cacheId)

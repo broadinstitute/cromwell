@@ -150,10 +150,10 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       val (nextState, cacheReadType) =
         if (isSourceBlacklisted(cacheHit)) {
           // We don't want to log this because blacklisting is a common and expected occurrence.
-          (failAndStop(MetricableCacheCopyError(MetricableCacheCopyErrorCategory.HitBlacklisted)), ReadHitOnly)
+          (failAndStop(BlacklistedError(MetricableCacheCopyErrorCategory.HitBlacklisted)), ReadHitOnly)
         } else if (isSourceBlacklisted(command)) {
           // We don't want to log this because blacklisting is a common and expected occurrence.
-          (failAndStop(MetricableCacheCopyError(MetricableCacheCopyErrorCategory.BucketBlacklisted)), ReadHitAndBucket)
+          (failAndStop(BlacklistedError(MetricableCacheCopyErrorCategory.BucketBlacklisted)), ReadHitAndBucket)
         } else {
           // Try to make a Path of the callRootPath from the detritus
           val next = lookupSourceCallRootPath(jobDetritus) match {
@@ -172,7 +172,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
                     case Some(Success(_)) => succeedAndStop(returnCode, destinationCallOutputs, destinationDetritus)
                     case Some(Failure(failure)) =>
                       // Something went wrong in the custom duplication code. We consider this loggable because it's most likely a user-permission error:
-                      failAndStop(LoggableCacheCopyError(failure))
+                      failAndStop(CopyAttemptError(failure))
                     // Otherwise send the first round of IoCommands (file outputs and detritus) if any
                     case None if detritusAndOutputsIoCommands.nonEmpty =>
                       detritusAndOutputsIoCommands foreach sendIoCommand
@@ -186,11 +186,11 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
                   }
 
                 // Something went wrong in generating duplication commands. We consider this loggable error because we don't expect this to happen:
-                case Failure(failure) => failAndStop(LoggableCacheCopyError(failure))
+                case Failure(failure) => failAndStop(CopyAttemptError(failure))
               }
 
             // Something went wrong in looking up the call root... loggable because we don't expect this to happen:
-            case Failure(failure) => failAndStop(LoggableCacheCopyError(failure))
+            case Failure(failure) => failAndStop(CopyAttemptError(failure))
           }
           (next, ReadHitAndBucket)
         }
@@ -217,14 +217,14 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       handleBlacklistingForForbidden(
         path = f.forbiddenPath,
         // Loggable because this is an attempt-specific problem:
-        andThen = failAndAwaitPendingResponses(LoggableCacheCopyError(f.failure), f.command, data)
+        andThen = failAndAwaitPendingResponses(CopyAttemptError(f.failure), f.command, data)
       )
     case Event(IoFailAck(command: IoCommand[_], failure), Some(data)) =>
       handleBlacklistingForGenericFailure()
       // Loggable because this is an attempt-specific problem:
-      failAndAwaitPendingResponses(LoggableCacheCopyError(failure), command, data)
+      failAndAwaitPendingResponses(CopyAttemptError(failure), command, data)
     // Should not be possible
-    case Event(IoFailAck(_: IoCommand[_], failure), None) => failAndStop(LoggableCacheCopyError(failure))
+    case Event(IoFailAck(_: IoCommand[_], failure), None) => failAndStop(CopyAttemptError(failure))
   }
 
   when(FailedState) {
@@ -282,8 +282,8 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     stay()
   }
 
-  def failAndStop(failure: CacheCopyError, declined: Boolean = false): State = {
-    context.parent ! CopyingOutputsFailedResponse(jobDescriptor.key, standardParams.cacheCopyAttempt, failure, declined)
+  def failAndStop(failure: CacheCopyError): State = {
+    context.parent ! CopyingOutputsFailedResponse(jobDescriptor.key, standardParams.cacheCopyAttempt, failure)
     context stop self
     stay()
   }
@@ -388,7 +388,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     }
 
     // Loggable because this is attempt-specific:
-    failAndStop(LoggableCacheCopyError(new TimeoutException(exceptionMessage)))
+    failAndStop(CopyAttemptError(new TimeoutException(exceptionMessage)))
     ()
   }
 

@@ -57,7 +57,9 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
       .props(metadataReadTimeout, metadataReadRowNumberSafetyThreshold)
       .withDispatcher(ServiceDispatcher)
 
-  def metadataBuilderActorProps(): Props = MetadataBuilderActor.props(readMetadataWorkerActorProps).withDispatcher(ServiceDispatcher)
+  def metadataBuilderActorProps(): Props = MetadataBuilderActor
+    .props(readMetadataWorkerActorProps, metadataReadRowNumberSafetyThreshold)
+    .withDispatcher(ServiceDispatcher)
 
   val readActor = context.actorOf(ReadMetadataRegulatorActor.props(metadataBuilderActorProps, readMetadataWorkerActorProps), "ClassicMSA-ReadMetadataRegulatorActor")
 

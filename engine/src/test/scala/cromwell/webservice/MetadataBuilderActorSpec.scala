@@ -39,7 +39,7 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
     def readMetadataWorkerMaker = () => mockReadMetadataWorkerActor.props
 
 
-    val mba = system.actorOf(MetadataBuilderActor.props(readMetadataWorkerMaker))
+    val mba = system.actorOf(MetadataBuilderActor.props(readMetadataWorkerMaker, 1000000))
     val response = mba.ask(action).mapTo[MetadataJsonResponse]
     mockReadMetadataWorkerActor.expectMsg(defaultTimeout, action)
     mockReadMetadataWorkerActor.reply(MetadataLookupResponse(queryReply, events))
@@ -501,7 +501,7 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
     val mockReadMetadataWorkerActor = TestProbe()
     def readMetadataWorkerMaker = () => mockReadMetadataWorkerActor.props
 
-    val metadataBuilder = TestActorRef(MetadataBuilderActor.props(readMetadataWorkerMaker), parentProbe.ref, s"MetadataActor-${UUID.randomUUID()}")
+    val metadataBuilder = TestActorRef(MetadataBuilderActor.props(readMetadataWorkerMaker, 1000000), parentProbe.ref, s"MetadataActor-${UUID.randomUUID()}")
     val response = metadataBuilder.ask(mainQueryAction).mapTo[MetadataJsonResponse]
     mockReadMetadataWorkerActor.expectMsg(defaultTimeout, mainQueryAction)
     mockReadMetadataWorkerActor.reply(MetadataLookupResponse(mainQuery, mainEvents))
@@ -550,7 +550,7 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
     val mockReadMetadataWorkerActor = TestProbe()
     def readMetadataWorkerMaker= () => mockReadMetadataWorkerActor.props
 
-    val metadataBuilder = TestActorRef(MetadataBuilderActor.props(readMetadataWorkerMaker), parentProbe.ref, s"MetadataActor-${UUID.randomUUID()}")
+    val metadataBuilder = TestActorRef(MetadataBuilderActor.props(readMetadataWorkerMaker, 1000000), parentProbe.ref, s"MetadataActor-${UUID.randomUUID()}")
     val response = metadataBuilder.ask(queryNoExpandAction).mapTo[MetadataJsonResponse]
     mockReadMetadataWorkerActor.expectMsg(defaultTimeout, queryNoExpandAction)
     mockReadMetadataWorkerActor.reply(MetadataLookupResponse(queryNoExpand, mainEvents))
@@ -669,20 +669,21 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
     val mdQuery = MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)
     val action = GetMetadataAction(mdQuery)
 
+    val defaultSafetyRowNumberThreshold = 1000000
     val mockReadMetadataWorkerActor = TestProbe()
-    val mba = system.actorOf(MetadataBuilderActor.props(() => mockReadMetadataWorkerActor.props))
+    val mba = system.actorOf(MetadataBuilderActor.props(() => mockReadMetadataWorkerActor.props, defaultSafetyRowNumberThreshold))
     val response = mba.ask(action).mapTo[MetadataServiceResponse]
 
     val metadataRowNumber = 100500
     mockReadMetadataWorkerActor.expectMsg(defaultTimeout, action)
-    mockReadMetadataWorkerActor.reply(MetadataLookupFailedTooLargeResponse(mdQuery, metadataRowNumber))
+    mockReadMetadataWorkerActor.reply(MetadataLookupFailedTooLargeResponse(mdQuery, Option(metadataRowNumber)))
 
-    val expectedUnderlyingExceptionText = s"Metadata for workflow $workflowId exists in" +
-      s"database, but cannot be served. This is done in order to avoid Cromwell failure: metadata is too large - " +
-      s"$metadataRowNumber rows, and may cause Cromwell instance to die on attempt to read it in memory."
+    val expectedMessage = new MetadataTooLargeException(workflowId, Option(metadataRowNumber), defaultSafetyRowNumberThreshold).getMessage
     response map { r => r shouldBe a [FailedMetadataJsonResponse] }
-    response.mapTo[FailedMetadataJsonResponse] map { b => b.reason.getMessage shouldBe expectedUnderlyingExceptionText }
-
+    response.mapTo[FailedMetadataJsonResponse] map { b =>
+      b.reason.getClass shouldBe classOf[MetadataTooLargeException]
+      b.reason.getMessage shouldBe expectedMessage
+    }
   }
 }
 

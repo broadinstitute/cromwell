@@ -1,5 +1,7 @@
 package cromwell.services.metadata.impl
 
+import java.sql.SQLTimeoutException
+
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.{WorkflowId, WorkflowSubmitted}
@@ -49,12 +51,15 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
 
   private def getMetadata(query: MetadataQuery, checkResultSizeBeforeQuerying: Boolean): Future[MetadataServiceResponse] = {
     if (checkResultSizeBeforeQuerying) {
-      queryMetadataEventsTotalRowNumberWithoutLabels(query.workflowId) flatMap { size =>
+      queryMetadataEventsTotalRowNumberWithoutLabels(query.workflowId, metadataReadTimeout) flatMap { size =>
         if (size > metadataReadRowNumberSafetyThreshold) {
-          Future.successful(MetadataLookupFailedTooLargeResponse(query, size))
+          Future.successful(MetadataLookupFailedTooLargeResponse(query, Option(size)))
         } else {
           queryMetadata(query)
         }
+      } recoverWith {
+        case _: SQLTimeoutException => Future.successful(MetadataLookupFailedTooLargeResponse(query, None))
+        case t => Future.successful(MetadataServiceKeyLookupFailed(query, t))
       }
     } else {
       queryMetadata(query)
@@ -65,6 +70,7 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
     queryMetadataEvents(query, metadataReadTimeout) map {
       m => MetadataLookupResponse(query, m)
     } recover {
+      case _: SQLTimeoutException => MetadataLookupFailedTooLargeResponse(query, None)
       case t => MetadataServiceKeyLookupFailed(query, t)
     }
 

@@ -151,5 +151,5 @@ trait MetadataSqlDatabase extends SqlDatabase {
 
   def getSummaryQueueSize()(implicit ec: ExecutionContext): Future[Int]
 
-  def getMetadataTotalRowNumberByRootWorkflowId(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Int]
+  def getMetadataTotalRowNumberByRootWorkflowId(rootWorkflowId: String, timeout: Duration)(implicit ec: ExecutionContext): Future[Int]
 }

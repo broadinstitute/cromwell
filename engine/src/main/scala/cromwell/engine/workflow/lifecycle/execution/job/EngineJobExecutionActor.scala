@@ -672,8 +672,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       case Some(_) =>
         writeToMetadata(Map(
           callCachingHitResultMetadataKey -> false,
-          callCachingReadResultMetadataKey -> s"Cache Miss (${callCachingParameters.maxFailedCopyAttempts} failed copy attempts"))
-        log.debug("Cache miss for job {} ({} failed copy attempts)", jobTag, callCachingParameters.maxFailedCopyAttempts)
+          callCachingReadResultMetadataKey -> s"Cache Miss (${callCachingParameters.maxFailedCopyAttempts} failed copy attempts)"))
+        log.warning("Cache miss for job {} due to reaching the maximum of {} failed copy attempts.", jobTag, callCachingParameters.maxFailedCopyAttempts)
         runJob(data)
       case _ =>
         workflowLogger.info(

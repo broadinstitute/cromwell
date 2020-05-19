@@ -422,4 +422,10 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runAction(
       countSummaryQueueEntries()
     )
+
+  override def getMetadataTotalRowNumberByRootWorkflowId(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Int] = {
+    runAction(
+      dataAccess.metadataTotalSizeRowsForRootWorkflowId(rootWorkflowId).result
+    )
+  }
 }

@@ -278,6 +278,12 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, isForSubworkflo
       allDone()
     case Event(MetadataLookupResponse(query, metadata), HasWorkData(target, originalRequest)) =>
       processMetadataResponse(query, metadata, target, originalRequest)
+    case Event(MetadataLookupFailedTooLargeResponse(query, metadataSizeRows), HasWorkData(target, originalRequest)) =>
+      val metadataTooLargeException = new RuntimeException(s"Metadata for workflow ${query.workflowId} exists in" +
+        s"database, but cannot be served. This is done in order to avoid Cromwell failure: metadata is too large - " +
+        s"$metadataSizeRows rows, and may cause Cromwell instance to die on attempt to read it in memory.")
+      target ! FailedMetadataJsonResponse(originalRequest, metadataTooLargeException)
+      allDone()
     case Event(failure: MetadataServiceFailure, HasWorkData(target, originalRequest)) =>
       target ! FailedMetadataJsonResponse(originalRequest, failure.reason)
       allDone()
@@ -310,7 +316,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, isForSubworkflo
 
   def processSubWorkflowMetadata(metadataResponse: MetadataJsonResponse, data: HasReceivedEventsData) = {
     metadataResponse match {
-      case SuccessfulMetadataJsonResponse(GetMetadataAction(queryKey, _), js) =>
+      case SuccessfulMetadataJsonResponse(GetMetadataAction(queryKey, _, _), js) =>
         val subId: WorkflowId = queryKey.workflowId
         val newData = data.withSubWorkflow(subId.toString, js)
 
@@ -360,7 +366,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, isForSubworkflo
         // Otherwise spin up a metadata builder actor for each sub workflow
         subWorkflowIds foreach { subId =>
           val subMetadataBuilder = context.actorOf(MetadataBuilderActor.props(readMetadataWorkerMaker, isForSubworkflows = true), uniqueActorName(subId))
-          subMetadataBuilder ! GetMetadataAction(query.copy(workflowId = WorkflowId.fromString(subId)))
+          subMetadataBuilder ! GetMetadataAction(query.copy(workflowId = WorkflowId.fromString(subId)), checkTotalMetadataRowNumberBeforeQuerying = false)
         }
         goto(WaitingForSubWorkflows) using HasReceivedEventsData(target, originalRequest, query, eventsList, Map.empty, subWorkflowIds.size)
       }

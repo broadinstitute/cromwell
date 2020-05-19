@@ -494,7 +494,7 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
     val mainQueryAction = GetMetadataAction(mainQuery)
     
     val subQuery = MetadataQuery(subWorkflowId, None, None, None, None, expandSubWorkflows = true)
-    val subQueryAction = GetMetadataAction(subQuery)
+    val subQueryAction = GetMetadataAction(subQuery, checkTotalMetadataRowNumberBeforeQuerying = false)
     
     val parentProbe = TestProbe()
 
@@ -661,6 +661,28 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
       case (as, es) => (as.toList.map { _.toString } sorted) == (es.toList.map { _.toString } sorted)
     }
     matchesExpectations.reduceLeft(_ && _) shouldBe true
+  }
+
+  it should "politely refuse building metadata JSON if metadata is too large" in {
+    val workflowId = WorkflowId.randomId()
+
+    val mdQuery = MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)
+    val action = GetMetadataAction(mdQuery)
+
+    val mockReadMetadataWorkerActor = TestProbe()
+    val mba = system.actorOf(MetadataBuilderActor.props(() => mockReadMetadataWorkerActor.props))
+    val response = mba.ask(action).mapTo[MetadataServiceResponse]
+
+    val metadataRowNumber = 100500
+    mockReadMetadataWorkerActor.expectMsg(defaultTimeout, action)
+    mockReadMetadataWorkerActor.reply(MetadataLookupFailedTooLargeResponse(mdQuery, metadataRowNumber))
+
+    val expectedUnderlyingExceptionText = s"Metadata for workflow $workflowId exists in" +
+      s"database, but cannot be served. This is done in order to avoid Cromwell failure: metadata is too large - " +
+      s"$metadataRowNumber rows, and may cause Cromwell instance to die on attempt to read it in memory."
+    response map { r => r shouldBe a [FailedMetadataJsonResponse] }
+    response.mapTo[FailedMetadataJsonResponse] map { b => b.reason.getMessage shouldBe expectedUnderlyingExceptionText }
+
   }
 }
 

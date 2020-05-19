@@ -56,7 +56,7 @@ class CarbonitingMetadataFreezerActor(freezingConfig: ActiveMetadataFreezingConf
       goto(Freezing) using FreezingData(workflowId)
 
     case Event(FailedMetadataJsonResponse(_, reason: MetadataTooLargeException), FetchingData(workflowId)) =>
-      log.error(reason, s"Metadata for workflow $workflowId is too large to carbonite. Marking as $TooLargeToArchive")
+      log.error(reason, s"Carboniting failure: $reason. Marking as $TooLargeToArchive")
       scheduleDatabaseUpdateAndAwaitResult(workflowId, TooLargeToArchive)
 
     case Event(FailedMetadataJsonResponse(_, reason), FetchingData(workflowId)) =>

@@ -279,8 +279,12 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, metadataReadRow
     case Event(MetadataLookupResponse(query, metadata), HasWorkData(target, originalRequest)) =>
       processMetadataResponse(query, metadata, target, originalRequest)
     case Event(MetadataLookupFailedTooLargeResponse(query, metadataSizeRows), HasWorkData(target, originalRequest)) =>
-      val metadataTooLargeException = new MetadataTooLargeException(query.workflowId, metadataSizeRows, metadataReadRowNumberSafetyThreshold)
-      target ! FailedMetadataJsonResponse(originalRequest, metadataTooLargeException)
+      val metadataTooLargeNumberOfRowsException = new MetadataTooLargeNumberOfRowsException(query.workflowId, metadataSizeRows, metadataReadRowNumberSafetyThreshold)
+      target ! FailedMetadataJsonResponse(originalRequest, metadataTooLargeNumberOfRowsException)
+      allDone()
+    case Event(MetadataLookupFailedTimeoutResponse(query), HasWorkData(target, originalRequest)) =>
+      val metadataTooLargeTimeoutException = new MetadataTooLargeTimeoutException(query.workflowId)
+      target ! FailedMetadataJsonResponse(originalRequest, metadataTooLargeTimeoutException)
       allDone()
     case Event(failure: MetadataServiceFailure, HasWorkData(target, originalRequest)) =>
       target ! FailedMetadataJsonResponse(originalRequest, failure.reason)

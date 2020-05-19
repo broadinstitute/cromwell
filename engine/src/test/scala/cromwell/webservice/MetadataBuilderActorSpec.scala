@@ -28,6 +28,7 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
 
   behavior of "MetadataBuilderActor"
 
+  val defaultSafetyRowNumberThreshold = 1000000
   val defaultTimeout: FiniteDuration = 1.second.dilated
   implicit val timeout: Timeout = defaultTimeout
 
@@ -45,6 +46,24 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
     mockReadMetadataWorkerActor.reply(MetadataLookupResponse(queryReply, events))
     response map { r => r shouldBe a [SuccessfulMetadataJsonResponse] }
     response.mapTo[SuccessfulMetadataJsonResponse] map { b => b.responseJson shouldBe expectedRes.parseJson}
+  }
+
+  def assertMetadataFailureResponse(action: MetadataServiceAction,
+                                    mdQuery: MetadataQuery,
+                                    metadataServiceResponse: MetadataServiceResponse,
+                                    expectedException: Exception): Future[Assertion] = {
+    val mockReadMetadataWorkerActor = TestProbe()
+    val mba = system.actorOf(MetadataBuilderActor.props(() => mockReadMetadataWorkerActor.props, defaultSafetyRowNumberThreshold))
+    val response = mba.ask(action).mapTo[MetadataServiceResponse]
+
+    mockReadMetadataWorkerActor.expectMsg(defaultTimeout, action)
+    mockReadMetadataWorkerActor.reply(metadataServiceResponse)
+
+    response map { r => r shouldBe a [FailedMetadataJsonResponse] }
+    response.mapTo[FailedMetadataJsonResponse] map { b =>
+      b.reason.getClass shouldBe expectedException.getClass
+      b.reason.getMessage shouldBe expectedException.getMessage
+    }
   }
 
   it should "build workflow scope tree from metadata events" in {
@@ -663,27 +682,35 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
     matchesExpectations.reduceLeft(_ && _) shouldBe true
   }
 
-  it should "politely refuse building metadata JSON if metadata is too large" in {
+  it should "politely refuse building metadata JSON if metadata number of rows is too large" in {
     val workflowId = WorkflowId.randomId()
 
     val mdQuery = MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)
     val action = GetMetadataAction(mdQuery)
 
-    val defaultSafetyRowNumberThreshold = 1000000
-    val mockReadMetadataWorkerActor = TestProbe()
-    val mba = system.actorOf(MetadataBuilderActor.props(() => mockReadMetadataWorkerActor.props, defaultSafetyRowNumberThreshold))
-    val response = mba.ask(action).mapTo[MetadataServiceResponse]
-
     val metadataRowNumber = 100500
-    mockReadMetadataWorkerActor.expectMsg(defaultTimeout, action)
-    mockReadMetadataWorkerActor.reply(MetadataLookupFailedTooLargeResponse(mdQuery, Option(metadataRowNumber)))
+    val expectedException = new MetadataTooLargeNumberOfRowsException(workflowId, metadataRowNumber, defaultSafetyRowNumberThreshold)
+    assertMetadataFailureResponse(
+      action,
+      mdQuery,
+      MetadataLookupFailedTooLargeResponse(mdQuery, metadataRowNumber),
+      expectedException
+    )
+  }
 
-    val expectedMessage = new MetadataTooLargeException(workflowId, Option(metadataRowNumber), defaultSafetyRowNumberThreshold).getMessage
-    response map { r => r shouldBe a [FailedMetadataJsonResponse] }
-    response.mapTo[FailedMetadataJsonResponse] map { b =>
-      b.reason.getClass shouldBe classOf[MetadataTooLargeException]
-      b.reason.getMessage shouldBe expectedMessage
-    }
+  it should "politely refuse building metadata JSON if timeout occurs on attempt to read metadata from database" in {
+    val workflowId = WorkflowId.randomId()
+
+    val mdQuery = MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)
+    val action = GetMetadataAction(mdQuery)
+
+    val expectedException = new MetadataTooLargeTimeoutException(workflowId)
+    assertMetadataFailureResponse(
+      action,
+      mdQuery,
+      MetadataLookupFailedTimeoutResponse(mdQuery),
+      expectedException
+    )
   }
 }
 

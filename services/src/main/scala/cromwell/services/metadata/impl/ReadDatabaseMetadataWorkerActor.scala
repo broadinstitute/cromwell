@@ -53,12 +53,12 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
     if (checkResultSizeBeforeQuerying) {
       queryMetadataEventsTotalRowNumber(query.workflowId, metadataReadTimeout) flatMap { size =>
         if (size > metadataReadRowNumberSafetyThreshold) {
-          Future.successful(MetadataLookupFailedTooLargeResponse(query, Option(size)))
+          Future.successful(MetadataLookupFailedTooLargeResponse(query, size))
         } else {
           queryMetadata(query)
         }
       } recoverWith {
-        case _: SQLTimeoutException => Future.successful(MetadataLookupFailedTooLargeResponse(query, None))
+        case _: SQLTimeoutException => Future.successful(MetadataLookupFailedTimeoutResponse(query))
         case t => Future.successful(MetadataServiceKeyLookupFailed(query, t))
       }
     } else {
@@ -70,7 +70,7 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
     queryMetadataEvents(query, metadataReadTimeout) map {
       m => MetadataLookupResponse(query, m)
     } recover {
-      case _: SQLTimeoutException => MetadataLookupFailedTooLargeResponse(query, None)
+      case _: SQLTimeoutException => MetadataLookupFailedTimeoutResponse(query)
       case t => MetadataServiceKeyLookupFailed(query, t)
     }
 

@@ -213,7 +213,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
               eventually(timeout(15.seconds.dilated), interval(500.millis.dilated)) {
                 val actorNameUniquificationString = UUID.randomUUID().toString.take(7)
                 val readMetadataActor = system.actorOf(
-                  ReadDatabaseMetadataWorkerActor.props(metadataReadTimeout = 30 seconds),
+                  ReadDatabaseMetadataWorkerActor.props(metadataReadTimeout = 30 seconds, metadataReadRowNumberSafetyThreshold = 20000),
                   s"ReadMetadataActor-FetchEncryptedOptions-$actorNameUniquificationString"
                 )
 

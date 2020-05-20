@@ -283,6 +283,10 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     override def getSummaryQueueSize()(implicit ec: ExecutionContext): Future[Int] = {
       notImplemented()
     }
+
+    override def getMetadataTotalRowNumberByRootWorkflowId(rootWorkflowId: String, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
+      notImplemented()
+    }
   }
 }
 

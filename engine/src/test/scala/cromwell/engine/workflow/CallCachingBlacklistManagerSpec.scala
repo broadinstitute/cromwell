@@ -104,7 +104,7 @@ class CallCachingBlacklistManagerSpec extends FlatSpec with Matchers {
     val _ = cache.get.asInstanceOf[RootWorkflowBlacklistCache]
   }
 
-  it should "use a grouping caches if there is a workflow-option in config and its value exists as a key in workflow options" in {
+  it should "use a grouping cache if there is a workflow-option in config and its value exists as a key in workflow options" in {
     val configString =
       """
         |call-caching {

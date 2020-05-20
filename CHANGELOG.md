@@ -19,7 +19,7 @@ https://cromwell.readthedocs.io/en/stable/Configuring/#call-caching) for details
 #### Call caching blacklisting improvements
 
 Cromwell previously supported blacklisting GCS buckets containing cache hits which could not be copied for permissions 
-reasons. Cromwell now adds support for blacklisting individual which could not be copied for any reason,
+reasons. Cromwell now adds support for blacklisting individual cache hits which could not be copied for any reason,
 as well as grouping blacklist caches according to a workflow option key. More information available in the [
 call caching documentation]( https://cromwell.readthedocs.io/en/stable/Configuring/#call-caching). 
 

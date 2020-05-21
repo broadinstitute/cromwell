@@ -13,8 +13,11 @@ Two faster strategies have been added for this use case: `xxh64` and
 lightweight. Read more about it in the [call caching documentation](
 https://cromwell.readthedocs.io/en/stable/Configuring/#call-caching).
 
-### Bugfixes
+### Bug fixes
 
+* Fixed a bug where the `size(...)` function did not work correctly on files 
+  from a shared filesystem if `size(...)` was called in the input section on a 
+  relative path.
 + Fixed a bug where the `use_relative_output_paths` option would not preserve intermediate folders.
 
 ## 50 Release Notes

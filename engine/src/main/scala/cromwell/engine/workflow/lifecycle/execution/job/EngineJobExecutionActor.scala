@@ -624,9 +624,9 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                                       cacheCopyAttempt: Int) = {
     backendLifecycleActorFactory.cacheHitCopyingActorProps match {
       case Some(propsMaker) =>
-        val backendCacheHitCopyingActorProps = propsMaker(data.jobDescriptor, initializationData, serviceRegistryActor, ioActor, cacheCopyAttempt, cacheResultId, blacklistCache)
+        val backendCacheHitCopyingActorProps = propsMaker(data.jobDescriptor, initializationData, serviceRegistryActor, ioActor, cacheCopyAttempt, blacklistCache)
         val cacheHitCopyActor = context.actorOf(backendCacheHitCopyingActorProps, buildCacheHitCopyingActorName(data.jobDescriptor, cacheResultId))
-        cacheHitCopyActor ! CopyOutputsCommand(womValueSimpletons, jobDetritusFiles, returnCode)
+        cacheHitCopyActor ! CopyOutputsCommand(womValueSimpletons, jobDetritusFiles, cacheResultId, returnCode)
         replyTo ! JobRunning(data.jobDescriptor.key, data.jobDescriptor.evaluatedTaskInputs)
         goto(BackendIsCopyingCachedOutputs)
       case None =>

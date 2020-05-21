@@ -1,10 +1,9 @@
-package cromwell.engine.workflow
+package cromwell.backend.standard.callcaching
 
 import akka.event.LoggingAdapter
 import com.google.common.cache.{CacheBuilder, CacheLoader, LoadingCache}
 import com.typesafe.config.Config
-import cromwell.backend.standard.callcaching.{BlacklistCache, GroupingBlacklistCache, RootWorkflowBlacklistCache}
-import cromwell.core.CacheConfig
+import cromwell.core.{CacheConfig, HasWorkflowIdAndSources}
 import mouse.boolean._
 import net.ceedubs.ficus.Ficus._
 
@@ -103,7 +102,7 @@ class CallCachingBlacklistManager(rootConfig: Config, logger: LoggingAdapter) {
     * If configured return a group blacklist cache, otherwise if configured return a root workflow cache,
     * otherwise return nothing.
     */
-  def blacklistCacheFor(workflow: workflowstore.WorkflowToStart): Option[BlacklistCache] = {
+  def blacklistCacheFor(workflow: HasWorkflowIdAndSources): Option[BlacklistCache] = {
     // If configuration is set up for blacklist groups and a blacklist group is specified in workflow options,
     // get the BlacklistCache for the group.
     val groupBlacklistCache: Option[BlacklistCache] = for {

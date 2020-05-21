@@ -7,7 +7,6 @@ import cromwell.backend.standard.callcaching._
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.path.Path
 import cromwell.core.{CallOutputs, Dispatcher}
-import cromwell.services.CallCaching.CallCachingEntryId
 import wom.expression.IoFunctionSet
 import wom.graph.CommandCallNode
 
@@ -134,7 +133,7 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
   }
 
   override def cacheHitCopyingActorProps:
-  Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef, Int, CallCachingEntryId, Option[BlacklistCache]) => Props] = {
+  Option[(BackendJobDescriptor, Option[BackendInitializationData], ActorRef, ActorRef, Int, Option[BlacklistCache]) => Props] = {
     cacheHitCopyingActorClassOption map {
       standardCacheHitCopyingActor => cacheHitCopyingActorInner(standardCacheHitCopyingActor) _
     }
@@ -146,9 +145,8 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
                                 serviceRegistryActor: ActorRef,
                                 ioActor: ActorRef,
                                 cacheCopyAttempt: Int,
-                                cacheHit: CallCachingEntryId,
                                 blacklistCache: Option[BlacklistCache]): Props = {
-    val params = cacheHitCopyingActorParams(jobDescriptor, initializationDataOption, serviceRegistryActor, ioActor, cacheCopyAttempt, cacheHit, blacklistCache)
+    val params = cacheHitCopyingActorParams(jobDescriptor, initializationDataOption, serviceRegistryActor, ioActor, cacheCopyAttempt, blacklistCache)
     Props(standardCacheHitCopyingActor, params).withDispatcher(BackendDispatcher)
   }
 
@@ -157,10 +155,9 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
                                  serviceRegistryActor: ActorRef,
                                  ioActor: ActorRef,
                                  cacheCopyAttempt: Int,
-                                 cacheHit: CallCachingEntryId,
                                  blacklistCache: Option[BlacklistCache]): StandardCacheHitCopyingActorParams = {
     DefaultStandardCacheHitCopyingActorParams(
-      jobDescriptor, initializationDataOption, serviceRegistryActor, ioActor, configurationDescriptor, cacheCopyAttempt, cacheHit, blacklistCache)
+      jobDescriptor, initializationDataOption, serviceRegistryActor, ioActor, configurationDescriptor, cacheCopyAttempt, blacklistCache)
   }
 
   override def workflowFinalizationActorProps(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[CommandCallNode],

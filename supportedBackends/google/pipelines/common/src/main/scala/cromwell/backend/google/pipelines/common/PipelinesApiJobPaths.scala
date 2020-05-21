@@ -14,7 +14,7 @@ object PipelinesApiJobPaths {
   val GcsDelocalizationScriptName = "gcs_delocalization.sh"
 }
 
-final case class PipelinesApiJobPaths(override val workflowPaths: PipelinesApiWorkflowPaths, jobKey: BackendJobDescriptorKey, override val isCallCacheCopyAttempt: Boolean = false) extends JobPaths {
+case class PipelinesApiJobPaths(override val workflowPaths: PipelinesApiWorkflowPaths, jobKey: BackendJobDescriptorKey, override val isCallCacheCopyAttempt: Boolean = false) extends JobPaths {
 
   // `jesLogBasename` is a `def` rather than a `val` because it is referenced polymorphically from
   // the initialization code of the extended `JobPaths` trait, but this class will not have initialized its `val`s

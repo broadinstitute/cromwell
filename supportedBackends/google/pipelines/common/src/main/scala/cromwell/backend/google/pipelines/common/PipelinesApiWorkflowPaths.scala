@@ -44,7 +44,7 @@ case class PipelinesApiWorkflowPaths(workflowDescriptor: BackendWorkflowDescript
 
   private val workflowOptions: WorkflowOptions = workflowDescriptor.workflowOptions
 
-  val gcsAuthFilePath: Path = {
+  lazy val gcsAuthFilePath: Path = {
     // The default auth file bucket is always at the root of the root workflow
     val defaultBucket = executionRoot.resolve(workflowDescriptor.rootWorkflow.name).resolve(workflowDescriptor.rootWorkflowId.toString)
     val bucket = workflowDescriptor.workflowOptions.get(PipelinesApiWorkflowPaths.AuthFilePathOptionKey) getOrElse defaultBucket.pathAsString

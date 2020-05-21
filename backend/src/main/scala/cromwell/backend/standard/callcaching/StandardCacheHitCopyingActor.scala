@@ -45,8 +45,6 @@ trait StandardCacheHitCopyingActorParams {
     */
   def cacheCopyAttempt: Int
 
-  def cacheHit: CallCachingEntryId
-
   def blacklistCache: Option[BlacklistCache]
 }
 
@@ -59,7 +57,6 @@ case class DefaultStandardCacheHitCopyingActorParams
   override val ioActor: ActorRef,
   override val configurationDescriptor: BackendConfigurationDescriptor,
   override val cacheCopyAttempt: Int,
-  override val cacheHit: CallCachingEntryId,
   override val blacklistCache: Option[BlacklistCache]
 ) extends StandardCacheHitCopyingActorParams
 
@@ -85,6 +82,7 @@ object StandardCacheHitCopyingActor {
   case class StandardCacheHitCopyingActorData(commandsToWaitFor: List[Set[IoCommand[_]]],
                                               newJobOutputs: CallOutputs,
                                               newDetritus: DetritusMap,
+                                              cacheHit: CallCachingEntryId,
                                               returnCode: Option[Int]
                                              ) {
 
@@ -146,7 +144,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   protected def duplicate(copyPairs: Set[PathPair]): Option[Try[Unit]] = None
 
   when(Idle) {
-    case Event(_: CopyOutputsCommand, None) if isSourceBlacklisted(standardParams.cacheHit) =>
+    case Event(c: CopyOutputsCommand, None) if isSourceBlacklisted(c.cacheHit) =>
       // We don't want to log this because blacklisting is a common and expected occurrence.
       failAndStop(MetricableCacheCopyError(MetricableCacheCopyErrorCategory.HitBlacklisted))
 
@@ -154,7 +152,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       // We don't want to log this because blacklisting is a common and expected occurrence.
       failAndStop(MetricableCacheCopyError(MetricableCacheCopyErrorCategory.BucketBlacklisted))
 
-    case Event(CopyOutputsCommand(simpletons, jobDetritus, returnCode), None) =>
+    case Event(CopyOutputsCommand(simpletons, jobDetritus, cacheHit, returnCode), None) =>
       // Try to make a Path of the callRootPath from the detritus
       lookupSourceCallRootPath(jobDetritus) match {
         case Success(sourceCallRootPath) =>
@@ -181,7 +179,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
                   val additionalCommands = additionalIoCommands(sourceCallRootPath, simpletons, destinationCallOutputs, jobDetritus, destinationDetritus)
                   val allCommands = List(detritusAndOutputsIoCommands) ++ additionalCommands
 
-                    goto(WaitingForIoResponses) using Option(StandardCacheHitCopyingActorData(allCommands, destinationCallOutputs, destinationDetritus, returnCode))
+                    goto(WaitingForIoResponses) using Option(StandardCacheHitCopyingActorData(allCommands, destinationCallOutputs, destinationDetritus, cacheHit, returnCode))
                 case _ => succeedAndStop(returnCode, destinationCallOutputs, destinationDetritus)
               }
 
@@ -261,7 +259,8 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     for {
       // Blacklist the hit first in the forcomp since not all configurations will support bucket blacklisting.
       cache <- standardParams.blacklistCache
-      _ = blacklistAndMetricHit(cache, standardParams.cacheHit)
+      data <- stateData
+      _ = blacklistAndMetricHit(cache, data.cacheHit)
       prefix <- extractBlacklistPrefix(path)
       _ = blacklistAndMetricBucket(cache, prefix)
     } yield()
@@ -269,14 +268,20 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   }
 
   private def handleBlacklistingForGenericFailure(): Unit = {
-    standardParams.blacklistCache foreach { blacklistAndMetricHit(_, standardParams.cacheHit) }
+    for {
+      data <- stateData
+      cache <- standardParams.blacklistCache
+      _ = blacklistAndMetricHit(cache, data.cacheHit)
+    } yield ()
+    ()
   }
 
   /* Whitelist by bucket and hit if appropriate. */
   private def handleWhitelistingForSuccess(command: IoCommand[_]): Unit = {
     for {
       cache <- standardParams.blacklistCache
-      _ = whitelistAndMetricHit(cache, standardParams.cacheHit)
+      data <- stateData
+      _ = whitelistAndMetricHit(cache, data.cacheHit)
       copy <- Option(command) collect { case c: IoCopyCommand => c }
       prefix <- extractBlacklistPrefix(copy.source.toString)
       _ = whitelistAndMetricBucket(cache, prefix)
@@ -307,7 +312,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
         // mark the hit as KnownBad and log this strangeness.
         log.warning(
           "Cache hit {} found in KnownGood blacklist state, but cache hit copying has failed for permissions reasons. Overwriting status to KnownBad state.",
-          standardParams.cacheHit.id)
+          hit.id)
         blacklistCache.blacklist(hit)
         publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "hit", hit.id.toString, value = KnownBad)
     }
@@ -326,14 +331,14 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
         // mark the bucket as KnownBad and log this strangeness.
         log.warning(
           "Bucket {} found in KnownGood blacklist state, but cache hit copying has failed for permissions reasons. Overwriting status to KnownBad state.",
-          standardParams.cacheHit.id)
+          bucket)
         blacklistCache.blacklist(bucket)
         publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "bucket", bucket, value = KnownBad)
     }
   }
 
   private def whitelistAndMetricHit(blacklistCache: BlacklistCache, hit: CallCachingEntryId): Unit = {
-    blacklistCache.getBlacklistStatus(standardParams.cacheHit) match {
+    blacklistCache.getBlacklistStatus(hit) match {
       case Unknown =>
         blacklistCache.whitelist(hit)
         publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "hit", hit.id.toString, value = KnownGood)
@@ -343,7 +348,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
         // Don't overwrite this to KnownGood, hopefully there are less weird cache hits out there.
         log.warning(
           "Cache hit {} found in KnownBad blacklist state, not overwriting to KnownGood despite successful copy.",
-          standardParams.cacheHit.id)
+          hit.id)
     }
   }
 

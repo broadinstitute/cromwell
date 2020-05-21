@@ -40,7 +40,7 @@ class EjeaFetchingCachedOutputsFromDatabaseSpec extends EngineJobExecutionActorS
         val cachedReturnCode = Some(17)
         val sourceCacheDetails = s"${WorkflowId.randomId()}:call-someTask:1"
         ejea ! CachedOutputLookupSucceeded(cachedSimpletons, detritusMap, cachedReturnCode, callCachingEntryId, sourceCacheDetails)
-        helper.callCacheHitCopyingProbe.expectMsg(CopyOutputsCommand(cachedSimpletons, detritusMap, cachedReturnCode))
+        helper.callCacheHitCopyingProbe.expectMsg(CopyOutputsCommand(cachedSimpletons, detritusMap, callCachingEntryId, cachedReturnCode))
 
         // Check we end up in the right state:
         ejea.stateName should be(BackendIsCopyingCachedOutputs)

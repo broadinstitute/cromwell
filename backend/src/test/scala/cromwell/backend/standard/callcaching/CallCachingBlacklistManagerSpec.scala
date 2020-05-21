@@ -1,10 +1,8 @@
-package cromwell.engine.workflow
+package cromwell.backend.standard.callcaching
 
 import akka.event.NoLogging
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.standard.callcaching.{GroupingBlacklistCache, RootWorkflowBlacklistCache}
-import cromwell.core.{HogGroup, WorkflowId, WorkflowOptions, WorkflowSourceFilesWithoutImports}
-import cromwell.engine.workflow.workflowstore.{Submitted, WorkflowToStart}
+import cromwell.core._
 import org.scalatest.{FlatSpec, Matchers}
 import spray.json._
 
@@ -30,23 +28,20 @@ class CallCachingBlacklistManagerSpec extends FlatSpec with Matchers {
     workflowOptions = WorkflowOptions(""" { "google_project": "blacklist_group_testing" } """.parseJson.asJsObject)
   )
 
-  val workflowNoGrouping =
-    WorkflowToStart(
-    id = WorkflowId.randomId(),
-    submissionTime = null,
-    sources = workflowSourcesNoGrouping,
-    state = Submitted,
-    hogGroup = HogGroup("oink")
-  )
+  val workflowNoGrouping = new HasWorkflowIdAndSources {
+    override def sources: WorkflowSourceFilesCollection = workflowSourcesNoGrouping
+    override def id: WorkflowId = WorkflowId.randomId()
+  }
 
-  val workflowYesGrouping1 = workflowNoGrouping.copy(
-    id = WorkflowId.randomId(),
-    sources = workflowSourcesYesGrouping
-  )
+  val workflowYesGrouping1 = new HasWorkflowIdAndSources {
+    override def sources: WorkflowSourceFilesCollection = workflowSourcesYesGrouping
+    override def id: WorkflowId = WorkflowId.randomId()
+  }
 
-  val workflowYesGrouping2 = workflowYesGrouping1.copy(
-    id = WorkflowId.randomId()
-  )
+  val workflowYesGrouping2 = new HasWorkflowIdAndSources {
+    override def sources: WorkflowSourceFilesCollection = workflowSourcesYesGrouping
+    override def id: WorkflowId = WorkflowId.randomId()
+  }
 
   it should "be off by default" in {
     val configString = ""

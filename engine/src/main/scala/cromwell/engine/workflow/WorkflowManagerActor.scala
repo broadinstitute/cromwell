@@ -9,7 +9,7 @@ import cats.data.NonEmptyList
 import com.typesafe.config.Config
 import common.exception.ThrowableAggregation
 import cromwell.backend.async.KnownJobFailureException
-import cromwell.backend.standard.callcaching.RootWorkflowFileHashCacheActor
+import cromwell.backend.standard.callcaching.{CallCachingBlacklistManager, RootWorkflowFileHashCacheActor}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowId
 import cromwell.engine.SubWorkflowStart

@@ -3,16 +3,7 @@ package org.lerch.s3fs;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.Bucket;
-import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
-import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectAclRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-import software.amazon.awssdk.services.s3.model.S3Exception;
-import software.amazon.awssdk.services.s3.model.S3Object;
+import software.amazon.awssdk.services.s3.model.*;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -25,7 +16,6 @@ import org.lerch.s3fs.util.AttributesUtils;
 import org.lerch.s3fs.util.Cache;
 import org.lerch.s3fs.util.S3Utils;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -418,6 +408,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
         Preconditions.checkArgument(!Files.isDirectory(source), "copying directories is not yet supported: %s", source);
         Preconditions.checkArgument(!Files.isDirectory(target), "copying directories is not yet supported: %s", target);
 
+
         final ImmutableSet<CopyOption> actualOptions = ImmutableSet.copyOf(options);
         verifySupportedOptions(EnumSet.of(StandardCopyOption.REPLACE_EXISTING), actualOptions);
 
@@ -425,18 +416,124 @@ public class S3FileSystemProvider extends FileSystemProvider {
             throw new FileAlreadyExistsException(format("target already exists: %s", target));
         }
 
-        String bucketNameOrigin = s3Source.getFileStore().name();
-        String keySource = s3Source.getKey();
-        String bucketNameTarget = s3Target.getFileStore().name();
-        String keyTarget = s3Target.getKey();
-        s3Source.getFileSystem()
-                .getClient()
-                .copyObject(CopyObjectRequest.builder()
-                                             .copySource(bucketNameOrigin + "/" + keySource)
-                                             .bucket(bucketNameTarget)
-                                             .key(keyTarget)
-                                             .build());
+        long objectSize = this.objectSize(s3Source);
+        long threshold = 5L * 1024L * 1024L * 1024L; //5GB
+        if (objectSize >=  threshold ){
+            // large file, do a multipart copy
+            this.multiPartCopy(s3Source, objectSize, s3Target, options);
+
+        } else {
+            //do a normal copy
+            String bucketNameOrigin = s3Source.getFileStore().name();
+            String keySource = s3Source.getKey();
+            String bucketNameTarget = s3Target.getFileStore().name();
+            String keyTarget = s3Target.getKey();
+            s3Source.getFileSystem()
+                    .getClient()
+                    .copyObject(CopyObjectRequest.builder()
+                            .copySource(bucketNameOrigin + "/" + keySource)
+                            .bucket(bucketNameTarget)
+                            .key(keyTarget)
+                            .build());
+        }
     }
+
+    /**
+     * Copy large files
+     * https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPartCopy.html
+     * @param source the object being copied
+     * @param target the destination
+     * @param options copy options
+     */
+    private void multiPartCopy(S3Path source, long objectSize, S3Path target, CopyOption... options) {
+
+        S3Client s3Client = target.getFileSystem().getClient();
+
+        final CreateMultipartUploadRequest createMultipartUploadRequest = CreateMultipartUploadRequest.builder()
+                .bucket(target.getFileStore().name())
+                .key(target.getKey())
+                .build();
+        final CreateMultipartUploadResponse createMultipartUploadResponse = s3Client.createMultipartUpload(createMultipartUploadRequest);
+        final String uploadId = createMultipartUploadResponse.uploadId();
+
+
+        // Copy the object using 256 MB parts.
+        long partSize = 256 * 1024 * 1024;
+        long bytePosition = 0;
+        int partNum = 1;
+
+        List<CompletedPart> completedParts = new ArrayList<>();
+
+        //copy the parts
+        while (bytePosition < objectSize) {
+            // The last part might be smaller than partSize, so check to make sure
+            // that lastByte isn't beyond the end of the object.
+            long lastByte = Math.min(bytePosition + partSize - 1, objectSize - 1);
+
+            final UploadPartCopyRequest uploadPartCopyRequest = UploadPartCopyRequest.builder()
+                    .uploadId(uploadId)
+                    .copySource(source.getFileStore().name() + "/" + source.getKey())
+                    .copySourceRange("bytes="+bytePosition+"-"+lastByte)
+                    .bucket(target.getFileStore().name())
+                    .key(target.getKey())
+                    .partNumber(partNum)
+                    .build();
+            final UploadPartCopyResponse uploadPartCopyResponse = s3Client.uploadPartCopy(uploadPartCopyRequest);
+
+            completedParts.add( CompletedPart.builder()
+                    .partNumber(partNum)
+                    .eTag(uploadPartCopyResponse.copyPartResult().eTag())
+                    .build() );
+            bytePosition += partSize;
+
+            partNum++;
+        }
+
+        final CompleteMultipartUploadRequest completeMultipartUploadRequest = CompleteMultipartUploadRequest.builder()
+                .uploadId(uploadId)
+                .bucket(target.getFileStore().name())
+                .key(target.getKey())
+                .multipartUpload(CompletedMultipartUpload.builder()
+                        .parts(completedParts)
+                        .build())
+                .build();
+
+        s3Client.completeMultipartUpload(completeMultipartUploadRequest);
+
+    }
+
+    /**
+     * Obtain the size of an s3 object using a HEAD operation
+     * @param object the object of interest
+     * @return the size in bytes
+     */
+    private long objectSize(S3Path object) {
+
+        S3Client s3Client = object.getFileSystem().getClient();
+        final String bucket = object.getFileStore().name();
+        final String key = object.getKey();
+        final HeadObjectResponse headObjectResponse = s3Client.headObject(HeadObjectRequest.builder()
+                .bucket(bucket)
+                .key(key)
+                .build());
+
+        Integer partCount = headObjectResponse.partsCount();
+        if( partCount != null && partCount  > 1 ) {
+            //this is a multi-part object
+            long totalLength = 0;
+
+            for (int i = 1; i <= partCount ; i++) {
+                int finalI = i;
+                totalLength += s3Client.headObject(builder -> builder.bucket(bucket).key(key).partNumber(finalI)).contentLength();
+            }
+
+            return totalLength;
+
+        } else {
+            return headObjectResponse.contentLength();
+        }
+    }
+
 
     @Override
     public void move(Path source, Path target, CopyOption... options) throws IOException {

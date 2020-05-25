@@ -33,8 +33,6 @@ object CallElementToGraphNode {
 
     val callName = a.node.alias.getOrElse(a.node.callableReference.split("\\.").last)
 
-    val allowNestedInputs = a.allowNestedInputs
-
     // match the call element to a callable
     def callableValidation: ErrorOr[Callable] =
       a.callables.get(a.node.callableReference) match {
@@ -54,10 +52,17 @@ object CallElementToGraphNode {
         case None => s"Cannot resolve a callable with name ${a.node.callableReference}".invalidNel
       }
 
+    val allowNestedInputs = a.allowNestedInputs
+
     def supplyableInput(definition: Callable.InputDefinition): Boolean = {
-        !definition.isInstanceOf[FixedInputDefinitionWithDefault] &&
-          // As described in the spec per: https://github.com/openwdl/wdl/pull/359
-          (!definition.name.contains(".") || allowNestedInputs)
+      // As described in the spec per: https://github.com/openwdl/wdl/pull/359
+      val nestedInput = definition.name.contains(".")
+      definition match {
+        case _: Callable.FixedInputDefinitionWithDefault => false // Values supplied by the workflow cannot be overridden.
+        case _: Callable.RequiredInputDefinition => !nestedInput // Required inputs need to be supplied by the calling workflow if input is nested.
+        case _: Callable.OverridableInputDefinitionWithDefault => !nestedInput || allowNestedInputs
+        case _: Callable.OptionalInputDefinition => !nestedInput || allowNestedInputs
+      }
     }
 
     def validInput(name: String, definition: Callable.InputDefinition): Boolean = {

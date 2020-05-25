@@ -169,6 +169,9 @@ object CallElementToGraphNode {
           mappings = List(fixedExpression -> Coproduct[InputDefinitionPointer](expression))
         )
 
+        // No input mapping, required and we don't have a default value, leave this value unsupplied
+        case required@RequiredInputDefinition(_, _, _, _) if supplyableInput(required) => InputDefinitionFold()
+
         // No input mapping, no default value but optional, create a OptionalGraphInputNode
         // so that it can be satisfied via workflow inputs
         case optional@OptionalInputDefinition(n, womType, _, _) =>

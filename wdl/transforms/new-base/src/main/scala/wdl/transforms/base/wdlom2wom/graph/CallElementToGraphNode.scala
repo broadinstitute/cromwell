@@ -169,16 +169,6 @@ object CallElementToGraphNode {
           mappings = List(fixedExpression -> Coproduct[InputDefinitionPointer](expression))
         )
 
-        // No input mapping, required and we don't have a default value, create a new RequiredGraphInputNode
-        // so that it can be satisfied via workflow inputs
-        case required@RequiredInputDefinition(n, womType, _, _) if supplyableInput(required) =>
-          val identifier = WomIdentifier(
-            localName = s"$callName.${n.value}",
-            fullyQualifiedName = s"${a.workflowName}.$callName.${n.value}"
-          )
-
-          withGraphInputNode(required, RequiredGraphInputNode(identifier, womType, identifier.fullyQualifiedName.value))
-
         // No input mapping, no default value but optional, create a OptionalGraphInputNode
         // so that it can be satisfied via workflow inputs
         case optional@OptionalInputDefinition(n, womType, _, _) =>

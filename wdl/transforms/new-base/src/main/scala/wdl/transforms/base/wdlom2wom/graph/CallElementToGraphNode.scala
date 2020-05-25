@@ -33,6 +33,8 @@ object CallElementToGraphNode {
 
     val callName = a.node.alias.getOrElse(a.node.callableReference.split("\\.").last)
 
+    val allowNestedInputs = a.allowNestedInputs
+
     // match the call element to a callable
     def callableValidation: ErrorOr[Callable] =
       a.callables.get(a.node.callableReference) match {
@@ -54,7 +56,8 @@ object CallElementToGraphNode {
 
     def supplyableInput(definition: Callable.InputDefinition): Boolean = {
         !definition.isInstanceOf[FixedInputDefinitionWithDefault] &&
-        !definition.name.contains(".") // NB: Remove this check when sub-workflows allow pass-through task inputs
+          // As described in the spec per: https://github.com/openwdl/wdl/pull/359
+          (!definition.name.contains(".") || allowNestedInputs)
     }
 
     def validInput(name: String, definition: Callable.InputDefinition): Boolean = {
@@ -224,4 +227,5 @@ case class CallNodeMakerInputs(node: CallElement,
                                availableTypeAliases: Map[String, WomType],
                                workflowName: String,
                                insideAnotherScatter: Boolean,
+                               allowNestedInputs: Boolean,
                                callables: Map[String, Callable])

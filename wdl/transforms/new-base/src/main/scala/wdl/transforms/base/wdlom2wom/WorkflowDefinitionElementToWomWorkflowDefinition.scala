@@ -4,19 +4,20 @@ import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, _}
 import wdl.model.draft3.elements.ExpressionElement.{ArrayLiteral, IdentifierLookup, SelectFirst}
 import wdl.model.draft3.elements._
+import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
+import wdl.model.draft3.graph.expression.{FileEvaluator, TypeEvaluator, ValueEvaluator}
 import wdl.model.draft3.graph.{ExpressionValueConsumer, GeneratedCallFinishedHandle, GeneratedValueHandle, LinkedGraph}
 import wdl.shared.transforms.wdlom2wom.WomGraphMakerTools
 import wdl.transforms.base.linking.graph.LinkedGraphMaker
-import wdl.transforms.base.wdlom2wom.graph.{GraphNodeMakerInputs, WorkflowGraphElementToGraphNode}
-import wom.callable.{Callable, WorkflowDefinition}
-import wom.graph.expression.AnonymousExpressionNode
-import wom.graph.GraphNodePort.OutputPort
-import wom.graph.{CallNode, GraphNode, WomIdentifier, Graph => WomGraph}
-import wom.types.WomType
-import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
-import wdl.model.draft3.graph.expression.{FileEvaluator, TypeEvaluator, ValueEvaluator}
 import wdl.transforms.base.wdlom2wom.graph.renaming.GraphIdentifierLookupRenamer.ops._
 import wdl.transforms.base.wdlom2wom.graph.renaming._
+import wdl.transforms.base.wdlom2wom.graph.{GraphNodeMakerInputs, WorkflowGraphElementToGraphNode}
+import wom.callable.MetaValueElement.MetaValueElementBoolean
+import wom.callable.{Callable, WorkflowDefinition}
+import wom.graph.GraphNodePort.OutputPort
+import wom.graph.expression.AnonymousExpressionNode
+import wom.graph.{CallNode, GraphNode, WomIdentifier, Graph => WomGraph}
+import wom.types.WomType
 
 object WorkflowDefinitionElementToWomWorkflowDefinition extends Util {
 
@@ -33,6 +34,14 @@ object WorkflowDefinitionElementToWomWorkflowDefinition extends Util {
 
     val a: WorkflowDefinitionConvertInputs = eliminateInputDependencies(b)
 
+    val (meta, parameterMeta) = processMetaSections(a.definitionElement.metaSection, a.definitionElement.parameterMetaSection)
+
+    val allowNestedInputs: Boolean = {
+      meta.get("allowNestedInputs").flatMap {
+        case x: MetaValueElementBoolean => Option(x.value)
+        case _ => None
+      }}.getOrElse(false)
+
     // Make the set of workflow graph elements, including:
     // - Top-level graph elements
     // - Declarations in the inputs section
@@ -45,6 +54,7 @@ object WorkflowDefinitionElementToWomWorkflowDefinition extends Util {
     val innerGraph: ErrorOr[WomGraph] = convertGraphElements(GraphLikeConvertInputs(graphNodeElements, Set.empty, Map.empty, a.typeAliases, a.definitionElement.name,
                                                                                     insideAScatter = false,
                                                                                     convertNestedScatterToSubworkflow = b.convertNestedScatterToSubworkflow,
+                                                                                    allowNestedInputs = allowNestedInputs,
                                                                                     a.callables))
     // NB: isEmpty means "not isDefined". We specifically do NOT add defaults if the output section is defined but empty.
     val withDefaultOutputs: ErrorOr[WomGraph] = if (a.definitionElement.outputsSection.isEmpty) {
@@ -52,8 +62,6 @@ object WorkflowDefinitionElementToWomWorkflowDefinition extends Util {
     } else {
       innerGraph
     }
-
-    val (meta, parameterMeta) = processMetaSections(a.definitionElement.metaSection, a.definitionElement.parameterMetaSection)
 
     (withDefaultOutputs map {
       ig => WorkflowDefinition(a.definitionElement.name, ig, meta, parameterMeta, b.definitionElement.sourceLocation)
@@ -67,6 +75,7 @@ object WorkflowDefinitionElementToWomWorkflowDefinition extends Util {
                                           workflowName: String,
                                           insideAScatter: Boolean,
                                           convertNestedScatterToSubworkflow: Boolean,
+                                          allowNestedInputs: Boolean,
                                           callables: Map[String, Callable])
 
   def convertGraphElements(a: GraphLikeConvertInputs)
@@ -84,7 +93,7 @@ object WorkflowDefinitionElementToWomWorkflowDefinition extends Util {
 
     for {
       linkedGraph <- LinkedGraphMaker.make(nodes = a.graphElements, seedGeneratedValueHandles ++ finished, typeAliases = a.typeAliases, callables = a.callables)
-      womGraph <- makeWomGraph(linkedGraph, a.seedNodes, a.externalUpstreamCalls, a.workflowName, a.insideAScatter, a.convertNestedScatterToSubworkflow, a.callables)
+      womGraph <- makeWomGraph(linkedGraph, a.seedNodes, a.externalUpstreamCalls, a.workflowName, a.insideAScatter, a.convertNestedScatterToSubworkflow, a.allowNestedInputs, a.callables)
     } yield womGraph
   }
 
@@ -94,6 +103,7 @@ object WorkflowDefinitionElementToWomWorkflowDefinition extends Util {
                            workflowName: String,
                            insideAScatter: Boolean,
                            convertNestedScatterToSubworkflow : Boolean,
+                           allowNestedInputs: Boolean,
                            callables: Map[String, Callable])
                           (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
                            fileEvaluator: FileEvaluator[ExpressionElement],
@@ -119,7 +129,7 @@ object WorkflowDefinitionElementToWomWorkflowDefinition extends Util {
 
         val generatedGraphNodesValidation: ErrorOr[Set[GraphNode]] =
           WorkflowGraphElementToGraphNode.convert(
-            GraphNodeMakerInputs(next, upstreamCallNodes, linkedGraph.consumedValueLookup, availableValues, linkedGraph.typeAliases, workflowName, insideAScatter, convertNestedScatterToSubworkflow, callables))
+            GraphNodeMakerInputs(next, upstreamCallNodes, linkedGraph.consumedValueLookup, availableValues, linkedGraph.typeAliases, workflowName, insideAScatter, convertNestedScatterToSubworkflow, allowNestedInputs, callables))
         generatedGraphNodesValidation map { nextGraphNodes: Set[GraphNode] => currentList ++ nextGraphNodes }
       }
     }

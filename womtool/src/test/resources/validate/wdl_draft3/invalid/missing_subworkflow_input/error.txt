@@ -1,1 +1,1 @@
-Required workflow input 'missing_subworkflow_input.subwf.j' not specified
+To be called as a sub-workflow it must declare and pass-through the following values via workflow inputs: i, j

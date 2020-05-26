@@ -1,7 +1,7 @@
 version 1.0
 
 workflow sub_wf {
-  # Calls foo but doesn't provide an 'x', so this workflow shouldn't (strictly) be allowed as a sub-workflow
+  # Calls foo but doesn't provide an 'x', so this workflow shouldn't be allowed as a sub-workflow
   call foo
 }
 

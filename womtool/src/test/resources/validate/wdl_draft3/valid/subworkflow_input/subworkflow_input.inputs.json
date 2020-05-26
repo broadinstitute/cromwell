@@ -1,4 +1,5 @@
 {
-  "subworkflow_input.subwf.i": 5,
-  "subworkflow_input.subwf.j": 5
+  "subworkflow_input.i": 5,
+  "subworkflow_input.j": 5,
+  "subworkflow_input.subwf.k": 5
 }

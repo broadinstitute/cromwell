@@ -1,5 +1,5 @@
 {
-  "overridable_optionals.foo.x": 5,
+  "overridable_optionals.x": 5,
   "overridable_optionals.foo.y": 5,
   "overridable_optionals.foo.z": 5
 }

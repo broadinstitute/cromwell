@@ -1,7 +1,13 @@
 version 1.0
 
 workflow overridable_optionals {
-  call foo
+  input {
+    Int x
+  }
+  call foo {input: x=x}
+  meta {
+    allowNestedInputs: true
+  }
 }
 
 task foo {

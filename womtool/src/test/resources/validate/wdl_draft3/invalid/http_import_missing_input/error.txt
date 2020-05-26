@@ -1,1 +1,1 @@
-Required workflow input 'http_import_missing_input.task_only.in_file' not specified
+Failed to process workflow definition 'http_import_missing_input' (reason 1 of 1): Failed to process 'call imports.task_only' (reason 1 of 1): To be called as a task it must declare and pass-through the following required values via workflow inputs: in_file

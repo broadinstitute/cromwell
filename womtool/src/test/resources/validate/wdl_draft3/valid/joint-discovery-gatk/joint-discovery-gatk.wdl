@@ -361,13 +361,13 @@ task ImportGVCFs {
     
     String workspace_dir_name
     
-    String java_opt
+    String? java_opt
     String gatk_path
     
     String docker_image
     Int disk_size
-    String mem_size
-    Int preemptibles
+    String mem_size = "4G"
+    Int preemptibles = 2
     Int batch_size
   }
 
@@ -381,7 +381,7 @@ task ImportGVCFs {
     # a significant amount of non-heap memory for native libraries.
     # Also, testing has shown that the multithreaded reader initialization
     # does not scale well beyond 5 threads, so don't increase beyond that.
-    ~{gatk_path} --java-options "~{java_opt}" \
+    ~{gatk_path} ~{"--java-options " + java_opt} \
     GenomicsDBImport \
     --genomicsdb-workspace-path ~{workspace_dir_name} \
     --batch-size ~{batch_size} \
@@ -413,7 +413,7 @@ task GenotypeGVCFs {
     String output_vcf_filename
     
     String gatk_path
-    String java_opt
+    String? java_opt
     
     File ref_fasta
     File ref_fasta_index
@@ -423,8 +423,8 @@ task GenotypeGVCFs {
     
     String docker_image
     Int disk_size
-    String mem_size
-    Int preemptibles
+    String mem_size = "4G"
+    Int preemptibles = 2
   }
 
   command <<<
@@ -433,7 +433,7 @@ task GenotypeGVCFs {
     tar -xf ~{workspace_tar}
     WORKSPACE=$( basename ~{workspace_tar} .tar)
 
-    ~{gatk_path} --java-options "~{java_opt}" \
+    ~{gatk_path} ~{"--java-options " + java_opt} \
      GenotypeGVCFs \
      -R ~{ref_fasta} \
      -O ~{output_vcf_filename} \
@@ -467,18 +467,18 @@ task HardFilterAndMakeSitesOnlyVcf {
     String sites_only_vcf_filename
     
     String gatk_path
-    String java_opt
+    String? java_opt
     
     String docker_image
     Int disk_size
-    String mem_size
-    Int preemptibles
+    String mem_size = "4G"
+    Int preemptibles = 2
   }
 
   command {
     set -e
 
-    ~{gatk_path} --java-options "~{java_opt}" \
+    ~{gatk_path} ~{"--java-options " + java_opt} \
       VariantFiltration \
       --filter-expression "ExcessHet > ~{excess_het_threshold}" \
       --filter-name ExcessHet \
@@ -525,16 +525,16 @@ task IndelsVariantRecalibrator {
     File dbsnp_resource_vcf_index
     
     String gatk_path
-    String java_opt
+    String? java_opt
     
     String docker_image
     Int disk_size
-    String mem_size
-    Int preemptibles
+    String mem_size = "4G"
+    Int preemptibles = 2
   }
 
   command {
-    ~{gatk_path} --java-options "~{java_opt}" \
+    ~{gatk_path} ~{"--java-options " + java_opt} \
       VariantRecalibrator \
       -V ~{sites_only_variant_filtered_vcf} \
       -O ~{recalibration_filename} \
@@ -585,16 +585,16 @@ task SNPsVariantRecalibratorCreateModel {
     File dbsnp_resource_vcf_index
     
     String gatk_path
-    String java_opt
+    String? java_opt
     
     String docker_image
     Int disk_size
-    String mem_size
-    Int preemptibles
+    String mem_size = "4G"
+    Int preemptibles = 2
   }
 
   command {
-    ~{gatk_path} --java-options "~{java_opt}" \
+    ~{gatk_path} ~{"--java-options " + java_opt} \
       VariantRecalibrator \
       -V ~{sites_only_variant_filtered_vcf} \
       -O ~{recalibration_filename} \
@@ -645,16 +645,16 @@ task SNPsVariantRecalibratorScattered {
     File dbsnp_resource_vcf_index
     
     String gatk_path
-    String java_opt
+    String? java_opt
     
     String docker_image
     Int disk_size
-    String mem_size
-    Int preemptibles
+    String mem_size = "4G"
+    Int preemptibles = 2
   }
 
   command {
-    ~{gatk_path} --java-options "~{java_opt}" \
+    ~{gatk_path} ~{"--java-options " + java_opt} \
       VariantRecalibrator \
       -V ~{sites_only_variant_filtered_vcf} \
       -O ~{recalibration_filename} \
@@ -691,12 +691,12 @@ task GatherTranches {
     String output_filename
     
     String gatk_path
-    String java_opt
+    String? java_opt
     
     String docker_image
     Int disk_size
-    String mem_size
-    Int preemptibles
+    String mem_size = "4G"
+    Int preemptibles = 2
   }
 
   command <<<
@@ -721,7 +721,7 @@ task GatherTranches {
     #cat ~{input_fofn} | rev | cut -d '/' -f 1 | rev | awk '{print "tranches/" $1}' > inputs.list #.list has changed to .args for gatk4, but will change back to .list soon
     cat ~{input_fofn} | rev | cut -d '/' -f 1 | rev | awk '{print "tranches/" $1}' > inputs.args
 
-      ~{gatk_path} --java-options "~{java_opt}" \
+    ~{gatk_path} ~{"--java-options " + java_opt} \
       GatherTranches \
       --input inputs.args \
       --output ~{output_filename}
@@ -754,18 +754,18 @@ task ApplyRecalibration {
     Float snp_filter_level
     
     String gatk_path
-    String java_opt
+    String? java_opt
     
     String docker_image
     Int disk_size
-    String mem_size
-    Int preemptibles
+    String mem_size = "4G"
+    Int preemptibles = 2
   }
 
   command {
     set -e
 
-    ~{gatk_path} --java-options "~{java_opt}" \
+    ~{gatk_path} ~{"--java-options " + java_opt} \
       ApplyVQSR \
       -O tmp.indel.recalibrated.vcf \
       -V ~{input_vcf} \
@@ -804,12 +804,12 @@ task GatherVcfs {
     String output_vcf_name
     
     String gatk_path
-    String java_opt
+    String? java_opt
     
     String docker_image
     Int disk_size
-    String mem_size
-    Int preemptibles
+    String mem_size = "4G"
+    Int preemptibles = 2
   }
   
   command <<<
@@ -820,7 +820,7 @@ task GatherVcfs {
     mv ~{input_vcfs_fofn} inputs.args
 
     # ignoreSafetyChecks make a big performance difference so we include it in our invocation
-    ~{gatk_path} --java-options "~{java_opt}" \
+    ~{gatk_path} ~{"--java-options " + java_opt} \
     GatherVcfsCloud \
     --ignore-safety-checks \
     --gather-type BLOCK \
@@ -856,16 +856,16 @@ task CollectVariantCallingMetrics {
     File ref_dict
     
     String gatk_path
-    String java_opt
+    String? java_opt
     
     String docker_image
     Int disk_size
-    String mem_size
-    Int preemptibles
+    String mem_size = "4G"
+    Int preemptibles = 2
   }
 
   command {
-    ~{gatk_path} --java-options "~{java_opt}" \
+    ~{gatk_path} ~{"--java-options " + java_opt} \
       CollectVariantCallingMetrics \
       --INPUT ~{input_vcf} \
       --DBSNP ~{dbsnp_vcf} \
@@ -895,12 +895,12 @@ task GatherMetrics {
     String output_prefix
     
     String gatk_path
-    String java_opt
+    String? java_opt
     
     String docker_image
     Int disk_size
-    String mem_size
-    Int preemptibles
+    String mem_size = "4G"
+    Int preemptibles = 2
   }
 
   command <<<
@@ -933,7 +933,7 @@ task GatherMetrics {
 
     INPUT=`cat ~{input_details_fofn} | rev | cut -d '/' -f 1 | rev | sed s/.variant_calling_detail_metrics//g | awk '{printf("I=metrics/%s ", $1)}'`
 
-    ~{gatk_path} --java-option "~{java_opt}" \
+    ~{gatk_path} ~{"--java-options " + java_opt} \
     AccumulateVariantCallingMetrics \
     --INPUT $INPUT \
     --OUTPUT ~{output_prefix}
@@ -956,8 +956,8 @@ task DynamicallyCombineIntervals {
     File intervals
     Int merge_count
     String docker_image
-    String mem_size
-    Int preemptibles
+    String mem_size = "4G"
+    Int preemptibles = 2
   }
 
   command {

@@ -104,17 +104,17 @@ task HaplotypeCaller {
     Float? contamination
     Int? max_alt_alleles
 
-    Int preemptible_tries
-    Int disk_size
-    String mem_size
+    Int preemptible_tries = 3
+    Int disk_size = 10 * 1024 * 1024 * 1024  # 10GB
+    String mem_size = "4G"
 
-    String docker_image
-    String gatk_path
-    String java_opt
+    String docker_image = "quay.io/biocontainers/gatk4:4.1.7.0--py38_0"
+    String gatk_path = "gatk"
+    String? java_opt
   }
 
   command {
-    ~{gatk_path} --java-options ~{java_opt} \
+    ~{gatk_path} ~{"--java-options " + java_opt} \
       HaplotypeCaller \
       -R ~{ref_fasta} \
       -I ~{input_bam} \
@@ -144,13 +144,13 @@ task MergeGVCFs {
     String vcf_name
     String vcf_index
 
-    Int preemptible_tries
-    Int disk_size
-    String mem_size
+    Int preemptible_tries = 3
+    Int disk_size = 10 * 1024 * 1024 * 1024  # 10GB
+    String mem_size = "4G"
 
-    String docker_image
-    String gatk_path
-    String java_opt
+    String docker_image = "quay.io/biocontainers/gatk4:4.1.7.0--py38_0"
+    String gatk_path = "gatk"
+    String? java_opt
   }
 
   command {

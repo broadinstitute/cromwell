@@ -13,10 +13,12 @@ Two faster strategies have been added for this use case: `xxh64` and
 lightweight. Read more about it in the [call caching documentation](
 https://cromwell.readthedocs.io/en/stable/Configuring/#call-caching).
 
-#### Nested optional subworkflow inputs can be supplied.
+#### Implementation of inputs specification
 
 The WDL spec change as proposed [here](https://github.com/openwdl/wdl/pull/359)
-was implemented. If `allowNestedInputs` is set in the `meta` section of a WDL
+was implemented. Required inputs for tasks and subworkflows must now be 
+specified by the calling workflow.
+If `allowNestedInputs` is set in the `meta` section of a WDL
 workflow then nested subworkflow inputs such as 
 `my_workflow.my_subworkflow.my_task.my_optional_greeter_string: "Good morning!"` 
 can be used in the inputs JSON.

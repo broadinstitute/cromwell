@@ -66,7 +66,7 @@ object CallElementToGraphNode {
       val nestedInput = definition.name.contains(".")
       definition match {
         case _: Callable.FixedInputDefinitionWithDefault => false // Values supplied by the workflow cannot be overridden.
-        case _: Callable.RequiredInputDefinition => !nestedInput // Required inputs need to be supplied by the calling workflow if input is nested.
+        case _: Callable.RequiredInputDefinition => !nestedInput && providedInputs.contains(definition.name) // Required inputs need to be supplied by the calling workflow if input is nested.
         case _: Callable.OverridableInputDefinitionWithDefault => !nestedInput || a.allowNestedInputs
         case _: Callable.OptionalInputDefinition => !nestedInput ||  a.allowNestedInputs
       }

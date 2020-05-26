@@ -33,13 +33,15 @@ object CallElementToGraphNode {
 
     val callName = a.node.alias.getOrElse(a.node.callableReference.split("\\.").last)
 
+    val providedInputs: Set[String] = a.node.body.map(_.inputs.map(_.key).toSet).getOrElse(Set())
     // match the call element to a callable
     def callableValidation: ErrorOr[Callable] =
       a.callables.get(a.node.callableReference) match {
         // pass in specific constructor depending on callable type
         case Some(w: WorkflowDefinition) =>
           val unsuppliedInputs = w.inputs.collect {
-            case r: RequiredInputDefinition if r.localName.value.contains(".") => r.localName.value
+            // Required inputs need to be supplied by the calling workflow per: https://github.com/openwdl/wdl/pull/359
+            case r: RequiredInputDefinition if r.localName.value.contains(".") || !providedInputs.contains(r.localName.value) => r.localName.value
           }
           val unsuppliedInputsValidation: ErrorOr[Unit] = if (unsuppliedInputs.isEmpty) { ().validNel } else { s"To be called as a sub-workflow it must declare and pass-through the following values via workflow inputs: ${unsuppliedInputs.mkString(", ")}".invalidNel }
 
@@ -48,11 +50,16 @@ object CallElementToGraphNode {
 
           (unsuppliedInputsValidation, unspecifiedOutputsValidation) mapN { (_,_) => w }
 
-        case Some(c: Callable) => c.validNel
+        case Some(c: Callable) =>
+          val unsuppliedInputs = c.inputs.collect {
+            // Required inputs need to be supplied by the calling workflow per: https://github.com/openwdl/wdl/pull/359
+            case r: RequiredInputDefinition if !providedInputs.contains(r.localName.value) => r.localName.value
+          }
+          if (unsuppliedInputs.isEmpty) { c.validNel } else {
+            s"To be called as a task it must declare and pass-through the following required values via workflow inputs: ${unsuppliedInputs.mkString(", ")}".invalidNel }
+
         case None => s"Cannot resolve a callable with name ${a.node.callableReference}".invalidNel
       }
-
-    val allowNestedInputs = a.allowNestedInputs
 
     def supplyableInput(definition: Callable.InputDefinition): Boolean = {
       // As described in the spec per: https://github.com/openwdl/wdl/pull/359
@@ -60,8 +67,8 @@ object CallElementToGraphNode {
       definition match {
         case _: Callable.FixedInputDefinitionWithDefault => false // Values supplied by the workflow cannot be overridden.
         case _: Callable.RequiredInputDefinition => !nestedInput // Required inputs need to be supplied by the calling workflow if input is nested.
-        case _: Callable.OverridableInputDefinitionWithDefault => !nestedInput || allowNestedInputs
-        case _: Callable.OptionalInputDefinition => !nestedInput || allowNestedInputs
+        case _: Callable.OverridableInputDefinitionWithDefault => !nestedInput || a.allowNestedInputs
+        case _: Callable.OptionalInputDefinition => !nestedInput ||  a.allowNestedInputs
       }
     }
 
@@ -169,8 +176,15 @@ object CallElementToGraphNode {
           mappings = List(fixedExpression -> Coproduct[InputDefinitionPointer](expression))
         )
 
-        // No input mapping, required and we don't have a default value, leave this value unsupplied
-        case required@RequiredInputDefinition(_, _, _, _) if supplyableInput(required) => InputDefinitionFold()
+        // No input mapping, required and we don't have a default value, create a new RequiredGraphInputNode
+        // so that it can be satisfied via workflow inputs
+        case required@RequiredInputDefinition(n, womType, _, _) if supplyableInput(required) =>
+          val identifier = WomIdentifier(
+            localName = s"$callName.${n.value}",
+            fullyQualifiedName = s"${a.workflowName}.$callName.${n.value}"
+          )
+
+          withGraphInputNode(required, RequiredGraphInputNode(identifier, womType, identifier.fullyQualifiedName.value))
 
         // No input mapping, no default value but optional, create a OptionalGraphInputNode
         // so that it can be satisfied via workflow inputs

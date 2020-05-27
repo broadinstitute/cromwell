@@ -223,7 +223,21 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       writeToMetadata(Map(
         callCachingHitResultMetadataKey -> false,
         callCachingReadResultMetadataKey -> "Cache Miss"))
-      log.debug("Cache miss for job {}", jobTag)
+
+      if (data.cacheHitFailureCount > 0) {
+        val totalHits = data.cacheHitFailureCount
+        val copyFails = data.failedCopyAttempts
+        val blacklisted = totalHits - copyFails
+        workflowLogger.info(
+          s"Could not copy a suitable cache hit for $jobTag. " +
+            s"EJEA attempted to copy $totalHits cache hits before failing. " +
+            s"Of these $copyFails failed to copy and $blacklisted were already blacklisted from previous attempts). " +
+            s"Falling back to running job."
+        )
+      } else {
+        workflowLogger.info("Could not copy a suitable cache hit for {}. No copy attempts were made.", jobTag)
+      }
+
       runJob(data)
     case Event(hashes: CallCacheHashes, data: ResponsePendingData) =>
       addHashesAndStay(data, hashes)
@@ -665,10 +679,10 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     }
 
     data.ejha match {
-      case Some(ejha) if data.failedCopyAttempts <= callCachingParameters.maxFailedCopyAttempts =>
+      case Some(ejha) if data.failedCopyAttempts < callCachingParameters.maxFailedCopyAttempts =>
         workflowLogger.debug("Trying to use another cache hit for job: {}", jobDescriptorKey)
         ejha ! NextHit
-        goto(CheckingCallCache)
+        goto(CheckingCallCache) using data
       case Some(_) =>
         writeToMetadata(Map(
           callCachingHitResultMetadataKey -> false,
@@ -676,10 +690,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
         log.warning("Cache miss for job {} due to exceeding the maximum of {} failed copy attempts.", jobTag, callCachingParameters.maxFailedCopyAttempts)
         runJob(data)
       case _ =>
-        workflowLogger.info(
-          "Could not find a suitable cache hit. " +
-            "Call cache hit process had {} total hit failures before completing unsuccessfully. " +
-            "Falling back to running job: {}", data.cacheHitFailureCount, jobDescriptorKey)
+        workflowLogger.error("Programmer error: We got a cache failure but there was no hashing actor scanning for hits. Falling back to running job")
         runJob(data)
     }
   }
@@ -694,14 +705,33 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
     writeToMetadata(metadataMap)
 
-    workflowLogger.info(
-      "Call cache hit process had {} total hit failures before completing successfully",
-      data.cacheHitFailureCount,
-    )
+    val totalFailures = data.cacheHitFailureCount
+    if (totalFailures > 0) {
+      val copyFailures = data.failedCopyAttempts
+      val blacklisted = totalFailures - copyFailures
+
+      workflowLogger.info(
+        s"Call cache hit process had $totalFailures total copy failures before completing successfully" +
+          s" (of which, $copyFailures were copy failures, $blacklisted were already blacklisted)"
+      )
+    } else {
+      workflowLogger.info("Call cache hit process had 0 total hit failures before completing successfully")
+    }
   }
 
   private def logCacheHitFailure(data: ResponsePendingData, reason: Throwable): Unit = {
-    workflowLogger.info(s"Failed copying cache results for job $jobDescriptorKey (${reason.getClass.getSimpleName}: ${reason.getMessage})")
+    val totalFailures = data.cacheHitFailureCount
+
+    val multipleFailuresContext = if (totalFailures > 0) {
+      val copyFailures = data.failedCopyAttempts
+      val blacklisted = totalFailures - copyFailures
+      s"(this job has already failed to copy from another $totalFailures other hits, of which $copyFailures were copy failures and $blacklisted were already blacklisted)"
+    } else ""
+
+    workflowLogger.info(
+      s"Failure copying cache results for job $jobDescriptorKey (${reason.getClass.getSimpleName}: ${reason.getMessage})"
+      + multipleFailuresContext
+    )
   }
 
   private def publishBlacklistReadMetrics(data: ResponsePendingData, failureCategory: MetricableCacheCopyErrorCategory): Unit = {

@@ -13,6 +13,7 @@ import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.StandardCachingActorHelper
+import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor.Metrics.{Bucket, EntityType, Hit, Read, Verb, Write}
 import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, MetricableCacheCopyErrorCategory}
 import cromwell.core.CallOutputs
@@ -113,6 +114,19 @@ object StandardCacheHitCopyingActor {
   private[callcaching] case object StillWaiting extends CommandSetState
   private[callcaching] case object AllCommandsDone extends CommandSetState
   private[callcaching] case class NextSubSet(commands: Set[IoCommand[_]]) extends CommandSetState
+
+  object Metrics {
+    sealed trait ToStringBeautifier {
+      override def toString: String = getClass.getSimpleName.toLowerCase.dropRight(1)
+    }
+    sealed trait Verb extends ToStringBeautifier
+    case object Read extends Verb
+    case object Write extends Verb
+
+    sealed trait EntityType extends ToStringBeautifier
+    case object Hit extends EntityType
+    case object Bucket extends EntityType
+  }
 }
 
 class DefaultStandardCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams) extends StandardCacheHitCopyingActor(standardParams)
@@ -290,11 +304,11 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     ()
   }
 
-  private def publishBlacklistMetric(blacklistCache: BlacklistCache, verb: String, bucketOrHit: String, key: String, value: BlacklistStatus): Unit = {
+  private def publishBlacklistMetric(blacklistCache: BlacklistCache, verb: Verb, entityType: EntityType, key: String, value: BlacklistStatus): Unit = {
     val group = blacklistCache.name.getOrElse("none")
     val metricPath = NonEmptyList.of(
       "job",
-      "callcaching", "blacklist", verb, bucketOrHit, jobDescriptor.taskCall.localName, group, key, value.toString)
+      "callcaching", "blacklist", verb.toString, entityType.toString, jobDescriptor.taskCall.localName, group, key, value.toString)
     increment(metricPath)
   }
 
@@ -302,7 +316,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     blacklistCache.getBlacklistStatus(hit) match {
       case UntestedCacheResult =>
         blacklistCache.blacklist(hit)
-        publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "hit", hit.id.toString, value = BadCacheResult)
+        publishBlacklistMetric(blacklistCache, Write, Hit, hit.id.toString, value = BadCacheResult)
       case BadCacheResult =>
         // Not a surprise, race conditions abound in cache hit copying. Do not overwrite with the same value or
         // multiply publish metrics for this hit.
@@ -313,7 +327,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
           "Cache hit {} found in GoodCacheResult blacklist state, but cache hit copying has failed for permissions reasons. Overwriting status to BadCacheResult state.",
           hit.id)
         blacklistCache.blacklist(hit)
-        publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "hit", hit.id.toString, value = BadCacheResult)
+        publishBlacklistMetric(blacklistCache, Write, Hit, hit.id.toString, value = BadCacheResult)
     }
   }
 
@@ -321,7 +335,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     blacklistCache.getBlacklistStatus(bucket) match {
       case UntestedCacheResult =>
         blacklistCache.blacklist(bucket)
-        publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "bucket", bucket, value = BadCacheResult)
+        publishBlacklistMetric(blacklistCache, Write, Bucket, bucket, value = BadCacheResult)
       case BadCacheResult =>
       // Not a surprise, race conditions abound in cache hit copying. Do not overwrite with the same value or
       // multiply publish metrics for this bucket.
@@ -332,7 +346,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
           "Bucket {} found in GoodCacheResult blacklist state, but cache hit copying has failed for permissions reasons. Overwriting status to BadCacheResult state.",
           bucket)
         blacklistCache.blacklist(bucket)
-        publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "bucket", bucket, value = BadCacheResult)
+        publishBlacklistMetric(blacklistCache, Write, Bucket, bucket, value = BadCacheResult)
     }
   }
 
@@ -340,7 +354,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     blacklistCache.getBlacklistStatus(hit) match {
       case UntestedCacheResult =>
         blacklistCache.whitelist(hit)
-        publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "hit", hit.id.toString, value = GoodCacheResult)
+        publishBlacklistMetric(blacklistCache, Write, Hit, hit.id.toString, value = GoodCacheResult)
       case GoodCacheResult => // This hit is already known to be good, no need to rewrite or spam metrics.
       case BadCacheResult =>
         // This is surprising, a hit that we failed to copy before has now been the source of a successful copy.
@@ -355,7 +369,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     blacklistCache.getBlacklistStatus(bucket) match {
       case UntestedCacheResult =>
         blacklistCache.whitelist(bucket)
-        publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "bucket", bucket, value = GoodCacheResult)
+        publishBlacklistMetric(blacklistCache, Write, Bucket, bucket, value = GoodCacheResult)
       case GoodCacheResult => // This bucket is already known to be good, no need to rewrite or spam metrics.
       case BadCacheResult =>
         // This is surprising, a bucket that we failed to copy from before for auth reasons has now been the source
@@ -415,7 +429,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   }
 
   /**
-    * Returns a pair of the list of simpletons with copied paths, and copy commands necessary to perform those copies. 
+    * Returns a pair of the list of simpletons with copied paths, and copy commands necessary to perform those copies.
     */
   protected def processSimpletons(womValueSimpletons: Seq[WomValueSimpleton], sourceCallRootPath: Path): Try[(CallOutputs, Set[IoCommand[_]])] = Try {
     val (destinationSimpletons, ioCommands): (List[WomValueSimpleton], Set[IoCommand[_]]) = womValueSimpletons.toList.foldMap({
@@ -442,7 +456,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   }
 
   /**
-    * Returns a pair of the detritus with copied paths, and copy commands necessary to perform those copies. 
+    * Returns a pair of the detritus with copied paths, and copy commands necessary to perform those copies.
     */
   protected def processDetritus(sourceJobDetritusFiles: Map[String, String]): Try[(Map[String, Path], Set[IoCommand[_]])] = Try {
     val fileKeys = detritusFileKeys(sourceJobDetritusFiles)
@@ -507,7 +521,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       cache <- standardParams.blacklistCache
       prefix <- extractBlacklistPrefix(path)
       value = cache.getBlacklistStatus(prefix)
-      _ = if (!publishedBucketBlacklistRead) publishBlacklistMetric(cache, verb = "read", bucketOrHit = "bucket", prefix, value)
+      _ = if (!publishedBucketBlacklistRead) publishBlacklistMetric(cache, Read, Bucket, prefix, value)
       _ = publishedBucketBlacklistRead = true
     } yield value == BadCacheResult).getOrElse(false)
   }
@@ -519,7 +533,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     (for {
       cache <- standardParams.blacklistCache
       value = cache.getBlacklistStatus(hit)
-      _ = if (!publishedHitBlacklistRead) publishBlacklistMetric(cache, verb = "read", bucketOrHit = "hit", hit.id.toString, value)
+      _ = if (!publishedHitBlacklistRead) publishBlacklistMetric(cache, Read, Hit, hit.id.toString, value)
       _ = publishedHitBlacklistRead = true
     } yield value == BadCacheResult).getOrElse(false)
   }

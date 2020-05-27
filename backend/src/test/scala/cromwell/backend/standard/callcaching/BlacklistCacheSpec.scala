@@ -20,8 +20,8 @@ class BlacklistCacheSpec extends FlatSpec with Matchers with Eventually {
     cache.getBlacklistStatus(hit) shouldBe UntestedCacheResult
     cache.blacklist(bucket)
     cache.blacklist(hit)
-    cache.getBlacklistStatus(bucket) shouldBe GoodCacheResult
-    cache.getBlacklistStatus(hit) shouldBe GoodCacheResult
+    cache.getBlacklistStatus(bucket) shouldBe BadCacheResult
+    cache.getBlacklistStatus(hit) shouldBe BadCacheResult
 
     implicit val patienceConfig = PatienceConfig(timeout = scaled(5.seconds), interval = scaled(1.second))
 
@@ -33,8 +33,8 @@ class BlacklistCacheSpec extends FlatSpec with Matchers with Eventually {
 
     cache.whitelist(bucket)
     cache.whitelist(hit)
-    cache.getBlacklistStatus(bucket) shouldBe BadCacheResult
-    cache.getBlacklistStatus(hit) shouldBe BadCacheResult
+    cache.getBlacklistStatus(bucket) shouldBe GoodCacheResult
+    cache.getBlacklistStatus(hit) shouldBe GoodCacheResult
 
     eventually {
       cache.getBlacklistStatus(bucket) shouldBe UntestedCacheResult

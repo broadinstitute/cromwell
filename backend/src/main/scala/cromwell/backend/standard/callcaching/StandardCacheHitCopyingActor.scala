@@ -302,18 +302,18 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     blacklistCache.getBlacklistStatus(hit) match {
       case UntestedCacheResult =>
         blacklistCache.blacklist(hit)
-        publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "hit", hit.id.toString, value = GoodCacheResult)
-      case GoodCacheResult =>
+        publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "hit", hit.id.toString, value = BadCacheResult)
+      case BadCacheResult =>
         // Not a surprise, race conditions abound in cache hit copying. Do not overwrite with the same value or
         // multiply publish metrics for this hit.
-      case BadCacheResult =>
+      case GoodCacheResult =>
         // This hit was thought to be good but now a copy has failed for permissions reasons. Be conservative and
-        // mark the hit as KnownBad and log this strangeness.
+        // mark the hit as BadCacheResult and log this strangeness.
         log.warning(
-          "Cache hit {} found in KnownGood blacklist state, but cache hit copying has failed for permissions reasons. Overwriting status to KnownBad state.",
+          "Cache hit {} found in GoodCacheResult blacklist state, but cache hit copying has failed for permissions reasons. Overwriting status to BadCacheResult state.",
           hit.id)
         blacklistCache.blacklist(hit)
-        publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "hit", hit.id.toString, value = GoodCacheResult)
+        publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "hit", hit.id.toString, value = BadCacheResult)
     }
   }
 
@@ -321,18 +321,18 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     blacklistCache.getBlacklistStatus(bucket) match {
       case UntestedCacheResult =>
         blacklistCache.blacklist(bucket)
-        publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "bucket", bucket, value = GoodCacheResult)
-      case GoodCacheResult =>
+        publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "bucket", bucket, value = BadCacheResult)
+      case BadCacheResult =>
       // Not a surprise, race conditions abound in cache hit copying. Do not overwrite with the same value or
       // multiply publish metrics for this bucket.
-      case BadCacheResult =>
+      case GoodCacheResult =>
         // This bucket was thought to be good but now a copy has failed for permissions reasons. Be conservative and
-        // mark the bucket as KnownBad and log this strangeness.
+        // mark the bucket as BadCacheResult and log this strangeness.
         log.warning(
-          "Bucket {} found in KnownGood blacklist state, but cache hit copying has failed for permissions reasons. Overwriting status to KnownBad state.",
+          "Bucket {} found in GoodCacheResult blacklist state, but cache hit copying has failed for permissions reasons. Overwriting status to BadCacheResult state.",
           bucket)
         blacklistCache.blacklist(bucket)
-        publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "bucket", bucket, value = GoodCacheResult)
+        publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "bucket", bucket, value = BadCacheResult)
     }
   }
 
@@ -340,13 +340,13 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     blacklistCache.getBlacklistStatus(hit) match {
       case UntestedCacheResult =>
         blacklistCache.whitelist(hit)
-        publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "hit", hit.id.toString, value = BadCacheResult)
-      case BadCacheResult => // This hit is already known to be good, no need to rewrite or spam metrics.
-      case GoodCacheResult =>
+        publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "hit", hit.id.toString, value = GoodCacheResult)
+      case GoodCacheResult => // This hit is already known to be good, no need to rewrite or spam metrics.
+      case BadCacheResult =>
         // This is surprising, a hit that we failed to copy before has now been the source of a successful copy.
-        // Don't overwrite this to KnownGood, hopefully there are less weird cache hits out there.
+        // Don't overwrite this to GoodCacheResult, hopefully there are less weird cache hits out there.
         log.warning(
-          "Cache hit {} found in KnownBad blacklist state, not overwriting to KnownGood despite successful copy.",
+          "Cache hit {} found in BadCacheResult blacklist state, not overwriting to GoodCacheResult despite successful copy.",
           hit.id)
     }
   }
@@ -355,13 +355,13 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     blacklistCache.getBlacklistStatus(bucket) match {
       case UntestedCacheResult =>
         blacklistCache.whitelist(bucket)
-        publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "bucket", bucket, value = BadCacheResult)
-      case BadCacheResult => // This bucket is already known to be good, no need to rewrite or spam metrics.
-      case GoodCacheResult =>
+        publishBlacklistMetric(blacklistCache, verb = "write", bucketOrHit = "bucket", bucket, value = GoodCacheResult)
+      case GoodCacheResult => // This bucket is already known to be good, no need to rewrite or spam metrics.
+      case BadCacheResult =>
         // This is surprising, a bucket that we failed to copy from before for auth reasons has now been the source
-        // of a successful copy. Don't overwrite this to KnownGood, hopefully there are less weird cache hits out there.
+        // of a successful copy. Don't overwrite this to GoodCacheResult, hopefully there are less weird cache hits out there.
         log.warning(
-          "Bucket {} found in KnownBad blacklist state, not overwriting to KnownGood despite successful copy.",
+          "Bucket {} found in BadCacheResult blacklist state, not overwriting to GoodCacheResult despite successful copy.",
           bucket)
     }
   }
@@ -509,7 +509,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       value = cache.getBlacklistStatus(prefix)
       _ = if (!publishedBucketBlacklistRead) publishBlacklistMetric(cache, verb = "read", bucketOrHit = "bucket", prefix, value)
       _ = publishedBucketBlacklistRead = true
-    } yield value == GoodCacheResult).getOrElse(false)
+    } yield value == BadCacheResult).getOrElse(false)
   }
 
   //noinspection ActorMutableStateInspection
@@ -521,6 +521,6 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       value = cache.getBlacklistStatus(hit)
       _ = if (!publishedHitBlacklistRead) publishBlacklistMetric(cache, verb = "read", bucketOrHit = "hit", hit.id.toString, value)
       _ = publishedHitBlacklistRead = true
-    } yield value == GoodCacheResult).getOrElse(false)
+    } yield value == BadCacheResult).getOrElse(false)
   }
 }

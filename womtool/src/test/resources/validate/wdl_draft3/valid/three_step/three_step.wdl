@@ -36,11 +36,12 @@ task wc {
 }
 
 workflow three_step {
+  input {String pattern = ".*"}
   call ps
   call cgrep {
     input:
         in_file = ps.procs,
-        pattern = ".*"
+        pattern = pattern
   }
   call wc {
     input: in_file = ps.procs

@@ -106,17 +106,17 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("Pipeline
         _.bucket.path.toList.contains("hit")
       }
 
-      hitBegin.bucket.path.toList shouldBe expectedMetric(Hit, Read, grouping = GoogleProject, value = "0", Unknown)
-      bucketBegin.bucket.path.toList shouldBe expectedMetric(Bucket, Read, grouping = GoogleProject, value = WideOpenBucket, Unknown)
+      hitBegin.bucket.path.toList shouldBe expectedMetric(Hit, Read, grouping = GoogleProject, value = "0", UntestedCacheResult)
+      bucketBegin.bucket.path.toList shouldBe expectedMetric(Bucket, Read, grouping = GoogleProject, value = WideOpenBucket, UntestedCacheResult)
 
-      hitEnd.bucket.path.toList shouldBe expectedMetric(Hit, Write, grouping = GoogleProject, value = "0", KnownGood)
-      bucketEnd.bucket.path.toList shouldBe expectedMetric(Bucket, Write, grouping = GoogleProject, value = WideOpenBucket, KnownGood)
+      hitEnd.bucket.path.toList shouldBe expectedMetric(Hit, Write, grouping = GoogleProject, value = "0", BadCacheResult)
+      bucketEnd.bucket.path.toList shouldBe expectedMetric(Bucket, Write, grouping = GoogleProject, value = WideOpenBucket, BadCacheResult)
 
       blacklistCache.bucketCache.size() shouldBe 1
-      blacklistCache.bucketCache.get(WideOpenBucket) shouldBe KnownGood
+      blacklistCache.bucketCache.get(WideOpenBucket) shouldBe BadCacheResult
 
       blacklistCache.hitCache.size() shouldBe 1
-      blacklistCache.hitCache.get(CallCachingEntryId(0)) shouldBe KnownGood
+      blacklistCache.hitCache.get(CallCachingEntryId(0)) shouldBe BadCacheResult
     }
 
     {
@@ -159,21 +159,21 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("Pipeline
           _.bucket.path.toList.contains("hit")
         }
 
-        hitBegin.bucket.path.toList shouldBe expectedMetric(Hit, Read, grouping = GoogleProject, value = "1", Unknown)
-        bucketBegin.bucket.path.toList shouldBe expectedMetric(Bucket, Read, grouping = GoogleProject, value = LockedDownBucket, Unknown)
+        hitBegin.bucket.path.toList shouldBe expectedMetric(Hit, Read, grouping = GoogleProject, value = "1", UntestedCacheResult)
+        bucketBegin.bucket.path.toList shouldBe expectedMetric(Bucket, Read, grouping = GoogleProject, value = LockedDownBucket, UntestedCacheResult)
 
-        hitEnd.bucket.path.toList shouldBe expectedMetric(Hit, Write, grouping = GoogleProject, value = "1", KnownBad)
-        bucketEnd.bucket.path.toList shouldBe expectedMetric(Bucket, Write, grouping = GoogleProject, value = LockedDownBucket, KnownBad)
+        hitEnd.bucket.path.toList shouldBe expectedMetric(Hit, Write, grouping = GoogleProject, value = "1", GoodCacheResult)
+        bucketEnd.bucket.path.toList shouldBe expectedMetric(Bucket, Write, grouping = GoogleProject, value = LockedDownBucket, GoodCacheResult)
       }
 
       // Assert blacklist entries were made for bucket and hit.
       blacklistCache.bucketCache.size() shouldBe 2
-      blacklistCache.bucketCache.get(WideOpenBucket) shouldBe KnownGood
-      blacklistCache.bucketCache.get(LockedDownBucket) shouldBe KnownBad
+      blacklistCache.bucketCache.get(WideOpenBucket) shouldBe BadCacheResult
+      blacklistCache.bucketCache.get(LockedDownBucket) shouldBe GoodCacheResult
 
       blacklistCache.hitCache.size() shouldBe 2
-      blacklistCache.hitCache.get(CallCachingEntryId(0)) shouldBe KnownGood
-      blacklistCache.hitCache.get(CallCachingEntryId(1)) shouldBe KnownBad
+      blacklistCache.hitCache.get(CallCachingEntryId(0)) shouldBe BadCacheResult
+      blacklistCache.hitCache.get(CallCachingEntryId(1)) shouldBe GoodCacheResult
 
       supervisor.expectTerminated(copyActor, 5 seconds)
     }
@@ -206,17 +206,17 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("Pipeline
       val List(hitMessage, bucketMessage) = instrumentationCounts(n = 2, serviceRegistryActor = serviceRegistryActor)
 
       // Hit status is unknown but bucket status is known bad.
-      hitMessage.bucket.path.toList shouldBe expectedMetric(Hit, Read, grouping = GoogleProject, value = "2", Unknown)
-      bucketMessage.bucket.path.toList shouldBe expectedMetric(Bucket, Read, grouping = GoogleProject, value = LockedDownBucket, KnownBad)
+      hitMessage.bucket.path.toList shouldBe expectedMetric(Hit, Read, grouping = GoogleProject, value = "2", UntestedCacheResult)
+      bucketMessage.bucket.path.toList shouldBe expectedMetric(Bucket, Read, grouping = GoogleProject, value = LockedDownBucket, GoodCacheResult)
 
       blacklistCache.bucketCache.size() shouldBe 2
-      blacklistCache.bucketCache.get(WideOpenBucket) shouldBe KnownGood
-      blacklistCache.bucketCache.get(LockedDownBucket) shouldBe KnownBad
+      blacklistCache.bucketCache.get(WideOpenBucket) shouldBe BadCacheResult
+      blacklistCache.bucketCache.get(LockedDownBucket) shouldBe GoodCacheResult
 
       blacklistCache.hitCache.size() shouldBe 3
-      blacklistCache.hitCache.get(CallCachingEntryId(0)) shouldBe KnownGood
-      blacklistCache.hitCache.get(CallCachingEntryId(1)) shouldBe KnownBad
-      blacklistCache.hitCache.get(CallCachingEntryId(2)) shouldBe Unknown
+      blacklistCache.hitCache.get(CallCachingEntryId(0)) shouldBe BadCacheResult
+      blacklistCache.hitCache.get(CallCachingEntryId(1)) shouldBe GoodCacheResult
+      blacklistCache.hitCache.get(CallCachingEntryId(2)) shouldBe UntestedCacheResult
     }
 
     {
@@ -249,21 +249,21 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("Pipeline
 
       val List(readHit, readBucket, writeHit) = instrumentationCounts(n = 3, serviceRegistryActor = serviceRegistryActor)
 
-      readHit.bucket.path.toList shouldBe expectedMetric(Hit, Read, grouping = GoogleProject, value = "3", Unknown)
-      readBucket.bucket.path.toList shouldBe expectedMetric(Bucket, Read, grouping = GoogleProject, value = WideOpenBucket, KnownGood)
-      writeHit.bucket.path.toList shouldBe expectedMetric(Hit, Write, grouping = GoogleProject, value = "3", KnownBad)
+      readHit.bucket.path.toList shouldBe expectedMetric(Hit, Read, grouping = GoogleProject, value = "3", UntestedCacheResult)
+      readBucket.bucket.path.toList shouldBe expectedMetric(Bucket, Read, grouping = GoogleProject, value = WideOpenBucket, BadCacheResult)
+      writeHit.bucket.path.toList shouldBe expectedMetric(Hit, Write, grouping = GoogleProject, value = "3", GoodCacheResult)
 
       // Assert blacklist entries were made for bucket and hit.
       blacklistCache.bucketCache.size() shouldBe 2
       // The hit is bad but because the failure was generic the bucket which was marked good should stay that way.
-      blacklistCache.bucketCache.get(WideOpenBucket) shouldBe KnownGood
-      blacklistCache.bucketCache.get(LockedDownBucket) shouldBe KnownBad
+      blacklistCache.bucketCache.get(WideOpenBucket) shouldBe BadCacheResult
+      blacklistCache.bucketCache.get(LockedDownBucket) shouldBe GoodCacheResult
 
       blacklistCache.hitCache.size() shouldBe 4
-      blacklistCache.hitCache.get(CallCachingEntryId(0)) shouldBe KnownGood
-      blacklistCache.hitCache.get(CallCachingEntryId(1)) shouldBe KnownBad
-      blacklistCache.hitCache.get(CallCachingEntryId(2)) shouldBe Unknown
-      blacklistCache.hitCache.get(CallCachingEntryId(3)) shouldBe KnownBad
+      blacklistCache.hitCache.get(CallCachingEntryId(0)) shouldBe BadCacheResult
+      blacklistCache.hitCache.get(CallCachingEntryId(1)) shouldBe GoodCacheResult
+      blacklistCache.hitCache.get(CallCachingEntryId(2)) shouldBe UntestedCacheResult
+      blacklistCache.hitCache.get(CallCachingEntryId(3)) shouldBe GoodCacheResult
 
       supervisor.expectMsgPF(5 seconds) { case _: CopyingOutputsFailedResponse => }
 
@@ -299,19 +299,19 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("Pipeline
 
       val List(readHit) = instrumentationCounts(n = 1, serviceRegistryActor = serviceRegistryActor)
 
-      readHit.bucket.path.toList shouldBe expectedMetric(Hit, Read, grouping = GoogleProject, value = "3", KnownBad)
+      readHit.bucket.path.toList shouldBe expectedMetric(Hit, Read, grouping = GoogleProject, value = "3", GoodCacheResult)
 
       // Assert blacklist entries were made for bucket and hit.
       blacklistCache.bucketCache.size() shouldBe 2
       // The hit is bad but because the failure was generic the bucket which was previously marked good should stay that way.
-      blacklistCache.bucketCache.get(WideOpenBucket) shouldBe KnownGood
-      blacklistCache.bucketCache.get(LockedDownBucket) shouldBe KnownBad
+      blacklistCache.bucketCache.get(WideOpenBucket) shouldBe BadCacheResult
+      blacklistCache.bucketCache.get(LockedDownBucket) shouldBe GoodCacheResult
 
       blacklistCache.hitCache.size() shouldBe 4
-      blacklistCache.hitCache.get(CallCachingEntryId(0)) shouldBe KnownGood
-      blacklistCache.hitCache.get(CallCachingEntryId(1)) shouldBe KnownBad
-      blacklistCache.hitCache.get(CallCachingEntryId(2)) shouldBe Unknown
-      blacklistCache.hitCache.get(CallCachingEntryId(3)) shouldBe KnownBad
+      blacklistCache.hitCache.get(CallCachingEntryId(0)) shouldBe BadCacheResult
+      blacklistCache.hitCache.get(CallCachingEntryId(1)) shouldBe GoodCacheResult
+      blacklistCache.hitCache.get(CallCachingEntryId(2)) shouldBe UntestedCacheResult
+      blacklistCache.hitCache.get(CallCachingEntryId(3)) shouldBe GoodCacheResult
     }
 
     {
@@ -341,21 +341,21 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("Pipeline
 
       val List(readHit, readBucket) = instrumentationCounts(n = 2, serviceRegistryActor = serviceRegistryActor)
 
-      readHit.bucket.path.toList shouldBe expectedMetric(Hit, Read, grouping = GoogleProject, value = "4", Unknown)
-      readBucket.bucket.path.toList shouldBe expectedMetric(Bucket, Read, grouping = GoogleProject, value = LockedDownBucket, KnownBad)
+      readHit.bucket.path.toList shouldBe expectedMetric(Hit, Read, grouping = GoogleProject, value = "4", UntestedCacheResult)
+      readBucket.bucket.path.toList shouldBe expectedMetric(Bucket, Read, grouping = GoogleProject, value = LockedDownBucket, GoodCacheResult)
 
       // Assert blacklist entries were made for bucket and hit.
       blacklistCache.bucketCache.size() shouldBe 2
       // The hit is bad but because the failure was generic the bucket which was previously marked good should stay that way.
-      blacklistCache.bucketCache.get(WideOpenBucket) shouldBe KnownGood
-      blacklistCache.bucketCache.get(LockedDownBucket) shouldBe KnownBad
+      blacklistCache.bucketCache.get(WideOpenBucket) shouldBe BadCacheResult
+      blacklistCache.bucketCache.get(LockedDownBucket) shouldBe GoodCacheResult
 
       blacklistCache.hitCache.size() shouldBe 5
-      blacklistCache.hitCache.get(CallCachingEntryId(0)) shouldBe KnownGood
-      blacklistCache.hitCache.get(CallCachingEntryId(1)) shouldBe KnownBad
-      blacklistCache.hitCache.get(CallCachingEntryId(2)) shouldBe Unknown
-      blacklistCache.hitCache.get(CallCachingEntryId(3)) shouldBe KnownBad
-      blacklistCache.hitCache.get(CallCachingEntryId(4)) shouldBe Unknown
+      blacklistCache.hitCache.get(CallCachingEntryId(0)) shouldBe BadCacheResult
+      blacklistCache.hitCache.get(CallCachingEntryId(1)) shouldBe GoodCacheResult
+      blacklistCache.hitCache.get(CallCachingEntryId(2)) shouldBe UntestedCacheResult
+      blacklistCache.hitCache.get(CallCachingEntryId(3)) shouldBe GoodCacheResult
+      blacklistCache.hitCache.get(CallCachingEntryId(4)) shouldBe UntestedCacheResult
     }
   }
 

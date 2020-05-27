@@ -96,7 +96,8 @@ a workflow is submitted with the options
 then this workflow will share a blacklist cache with any other workflows whose workflow options contain `"project": "Mary"`.
 
 Grouping of blacklist caches can significantly improve blacklisting effectiveness and overall call caching performance.
-Workflows should be grouped by their effective authorization to ensure validity of cache contents.
+Workflows should be grouped by their effective authorization to ensure the same filesystem/object store permissions
+exist for every workflow in the group.
 
 **** Hit blacklisting ****
 

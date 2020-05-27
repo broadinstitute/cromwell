@@ -5,17 +5,17 @@ import cromwell.core.CacheConfig
 import cromwell.services.CallCaching.CallCachingEntryId
 
 sealed trait BlacklistStatus
-case object KnownBad extends BlacklistStatus
-case object KnownGood extends BlacklistStatus
-case object Unknown extends BlacklistStatus
+case object GoodCacheResult extends BlacklistStatus
+case object BadCacheResult extends BlacklistStatus
+case object UntestedCacheResult extends BlacklistStatus
 
 sealed abstract class BlacklistCache(bucketCacheConfig: CacheConfig,
                                      hitCacheConfig: CacheConfig,
                                      val name: Option[String]) {
   val bucketCache = {
-    // Queries to the bucket blacklist cache return Unknown by default.
+    // Queries to the bucket blacklist cache return UntestedCacheResult by default.
     val unknownLoader = new CacheLoader[String, BlacklistStatus]() {
-      override def load(key: String): BlacklistStatus = Unknown
+      override def load(key: String): BlacklistStatus = UntestedCacheResult
     }
 
     CacheBuilder.
@@ -29,7 +29,7 @@ sealed abstract class BlacklistCache(bucketCacheConfig: CacheConfig,
   val hitCache = {
     // Queries to the hit blacklist cache return Unknown by default (i.e. not blacklisted).
     val unknownLoader = new CacheLoader[CallCachingEntryId, BlacklistStatus]() {
-      override def load(key: CallCachingEntryId): BlacklistStatus = Unknown
+      override def load(key: CallCachingEntryId): BlacklistStatus = UntestedCacheResult
     }
 
     CacheBuilder.
@@ -44,13 +44,13 @@ sealed abstract class BlacklistCache(bucketCacheConfig: CacheConfig,
 
   def getBlacklistStatus(bucket: String): BlacklistStatus = bucketCache.get(bucket)
 
-  def blacklist(hit: CallCachingEntryId): Unit = hitCache.put(hit, KnownBad)
+  def blacklist(hit: CallCachingEntryId): Unit = hitCache.put(hit, GoodCacheResult)
 
-  def blacklist(bucket: String): Unit = bucketCache.put(bucket, KnownBad)
+  def blacklist(bucket: String): Unit = bucketCache.put(bucket, GoodCacheResult)
 
-  def whitelist(hit: CallCachingEntryId): Unit = hitCache.put(hit, KnownGood)
+  def whitelist(hit: CallCachingEntryId): Unit = hitCache.put(hit, BadCacheResult)
 
-  def whitelist(bucket: String): Unit = bucketCache.put(bucket, KnownGood)
+  def whitelist(bucket: String): Unit = bucketCache.put(bucket, BadCacheResult)
 }
 
 class RootWorkflowBlacklistCache(bucketCacheConfig: CacheConfig, hitCacheConfig: CacheConfig) extends

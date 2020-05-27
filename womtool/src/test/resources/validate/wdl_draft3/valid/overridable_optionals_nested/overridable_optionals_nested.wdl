@@ -10,6 +10,9 @@ workflow overridable_optionals {
       call foo as foo2
     }
   }
+  meta {
+    allowNestedInputs: true
+  }
 }
 
 task foo {

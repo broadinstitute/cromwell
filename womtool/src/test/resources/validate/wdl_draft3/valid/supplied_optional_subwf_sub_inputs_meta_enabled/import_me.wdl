@@ -9,6 +9,7 @@ workflow sub_wf {
 
   # No outputs, but we don't want that to be the error:
   output { }
+  meta {allowNestedInputs: true}
 }
 
 task foo {

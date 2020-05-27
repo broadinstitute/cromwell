@@ -8,6 +8,7 @@ workflow wdl_v1_tests {
             }
         }
     }
+    meta {allowNestedInputs: true}
 }
 
 task input_default_not_used {

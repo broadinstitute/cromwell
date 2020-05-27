@@ -3,6 +3,10 @@ version 1.0
 workflow multiple_overridable_optionals {
   call foo
   call foo as foo_a
+
+  meta {
+    allowNestedInputs: true
+  }
 }
 
 task foo {

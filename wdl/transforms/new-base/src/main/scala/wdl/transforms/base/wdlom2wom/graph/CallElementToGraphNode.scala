@@ -63,12 +63,15 @@ object CallElementToGraphNode {
 
     def supplyableInput(definition: Callable.InputDefinition): Boolean = {
       // As described in the spec per: https://github.com/openwdl/wdl/pull/359
-      val nestedInput = definition.name.contains(".")
+      // All inputs can be overridden if they are provided by the workflow and thus can be supplied via the workflow
+      // inputs file. Optional inputs that are not provided by the workflow can only be overriden when allowNestedInputs
+      // has been set to true.
+      val inputProvided = providedInputs.contains(definition.name)
       definition match {
-        case _: Callable.FixedInputDefinitionWithDefault => false // Values supplied by the workflow cannot be overridden.
-        case _: Callable.RequiredInputDefinition => !nestedInput && providedInputs.contains(definition.name) // Required inputs need to be supplied by the calling workflow if input is nested.
-        case _: Callable.OverridableInputDefinitionWithDefault => !nestedInput || a.allowNestedInputs
-        case _: Callable.OptionalInputDefinition => !nestedInput ||  a.allowNestedInputs
+        case _: Callable.FixedInputDefinitionWithDefault => inputProvided
+        case _: Callable.RequiredInputDefinition => inputProvided
+        case _: Callable.OverridableInputDefinitionWithDefault => inputProvided || a.allowNestedInputs
+        case _: Callable.OptionalInputDefinition => inputProvided || a.allowNestedInputs
       }
     }
 

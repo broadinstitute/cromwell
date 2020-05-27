@@ -68,7 +68,7 @@ object CallElementToGraphNode {
       // has been set to true.
       val inputProvided = providedInputs.contains(definition.name)
       definition match {
-        case _: Callable.FixedInputDefinitionWithDefault => inputProvided
+        case _: Callable.FixedInputDefinitionWithDefault => false
         case _: Callable.RequiredInputDefinition => inputProvided
         case _: Callable.OverridableInputDefinitionWithDefault => inputProvided || a.allowNestedInputs
         case _: Callable.OptionalInputDefinition => inputProvided || a.allowNestedInputs

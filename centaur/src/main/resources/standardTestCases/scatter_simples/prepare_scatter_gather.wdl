@@ -55,10 +55,11 @@ task do_gather {
 }
 
 workflow sc_test {
+    input {String salt}
     call do_prepare
     scatter(f in do_prepare.split_files) {
       call do_scatter {
-            input: input_file = f
+            input: input_file = f, salt=salt
         }
     }
     call do_gather {

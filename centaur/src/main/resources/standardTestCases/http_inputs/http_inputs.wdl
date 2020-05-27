@@ -2,7 +2,8 @@ version 1.0
 
 
 workflow http_inputs {
-  call sum
+  input {File jamie}
+  call sum {input: jamie=jamie}
 }
 
 

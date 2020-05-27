@@ -1,7 +1,21 @@
 version 1.0
 
 workflow drs_usa_hca {
-    call localize_drs_with_usa
+    input {
+        File file1
+        File file2
+        File file3
+        File file4
+        File file5
+    }
+    call localize_drs_with_usa {
+        input:
+            file1=file1,
+            file2=file2,
+            file3=file3,
+            file4=file4,
+            file5=file5
+    }
 
     output {
         String hash1 = localize_drs_with_usa.hash1

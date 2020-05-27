@@ -18,7 +18,8 @@ task yo {
 }
 
 workflow call_cache_hit_prefixes {
-  call yo
+  input {String salutation}
+  call yo {input: salutation=salutation}
 
   output {
     String sup = yo.out

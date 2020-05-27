@@ -52,8 +52,9 @@ task join {
 }
 
 workflow forkjoin {
+  String pattern
   call mkFile
-  call grep { input: in_file = mkFile.numbers }
+  call grep { input: in_file = mkFile.numbers, pattern=pattern }
   call wc { input: in_file=mkFile.numbers }
   call join { input: wcCount = wc.count, grepCount = grep.count }
   output {

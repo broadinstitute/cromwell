@@ -1,3 +1,3 @@
 {
-  "overridable_optionals.foo.x": "Int",
+  "overridable_optionals.x": "Int"
 }

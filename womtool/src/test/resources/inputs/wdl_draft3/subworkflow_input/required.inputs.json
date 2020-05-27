@@ -1,4 +1,4 @@
 {
-  "subworkflow_input.subwf.i": "Int",
-  "subworkflow_input.subwf.j": "Int"
+  "subworkflow_input.i": "Int",
+  "subworkflow_input.j": "Int"
 }

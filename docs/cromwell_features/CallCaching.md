@@ -60,7 +60,7 @@ call-caching {
        # Guava cache concurrency.
        concurrency: 10000
        # How long entries in the cache should live from the time of their last access.
-       ttl: 20 minutes
+       ttl: 1 hour
        # Maximum number of entries in the cache.
        size: 1000
      }
@@ -69,9 +69,9 @@ call-caching {
        # Guava cache concurrency.
        concurrency: 10000
        # How long entries in the cache should live from the time of their last access.
-       ttl: 20 minutes
+       ttl: 1 hour
        # Maximum number of entries in the cache.
-       size: 100000
+       size: 20000
      }
   }
 }

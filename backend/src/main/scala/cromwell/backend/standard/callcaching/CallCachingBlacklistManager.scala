@@ -13,17 +13,17 @@ import scala.language.postfixOps
 object CallCachingBlacklistManager {
   object Defaults {
     object Groupings {
-      val Concurrency = 1000
+      val Concurrency = 10000
       val Size = 1000L
       val Ttl = 2 hours
     }
     object Hits {
-      val Concurrency = 1000
+      val Concurrency = 10000
       val Size = 20000L
       val Ttl = 1 hour
     }
     object Buckets {
-      val Concurrency = 1000
+      val Concurrency = 10000
       val Size = 1000L
       val Ttl = 1 hour
     }

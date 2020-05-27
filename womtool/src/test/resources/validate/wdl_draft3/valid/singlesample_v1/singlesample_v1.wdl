@@ -1156,6 +1156,7 @@ workflow PairedEndSingleSampleWorkflow {
 
     String recalibrated_bam_basename = base_file_name + ".aligned.duplicates_marked.recalibrated"
   }
+  meta {allowNestedInputs: true}
   
   # Get the version of BWA to include in the PG record in the header of the BAM produced
   # by MergeBamAlignment.

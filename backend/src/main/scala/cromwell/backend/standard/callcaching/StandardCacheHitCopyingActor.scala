@@ -116,14 +116,15 @@ object StandardCacheHitCopyingActor {
   private[callcaching] case class NextSubSet(commands: Set[IoCommand[_]]) extends CommandSetState
 
   object Metrics {
-    sealed trait ToStringBeautifier {
-      override def toString: String = getClass.getName.toLowerCase.split('$').last
+    sealed trait HasMetricFormatting {
+      def metricize: String = getClass.getName.toLowerCase.split('$').last
     }
-    sealed trait Verb extends ToStringBeautifier
+    
+    sealed trait Verb extends HasMetricFormatting
     case object Read extends Verb
     case object Write extends Verb
 
-    sealed trait EntityType extends ToStringBeautifier
+    sealed trait EntityType extends HasMetricFormatting
     case object Hit extends EntityType
     case object Bucket extends EntityType
 
@@ -265,7 +266,6 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
         andThen = stayOrStopInFailedState(f, data)
       )
     case Event(fail: IoFailAck[_], Some(data)) =>
-      // Not a forbidden failure so do not blacklist the bucket but do blacklist the hit.
       handleBlacklistingForGenericFailure()
       stayOrStopInFailedState(fail, data)
     // At this point success or failure doesn't matter, we've already failed this hit
@@ -333,7 +333,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     val group = blacklistCache.name.getOrElse("none")
     val metricPath = NonEmptyList.of(
       "job",
-      "callcaching", "blacklist", verb.toString, entityType.toString, jobDescriptor.taskCall.localName, group, key, value.toString)
+      "callcaching", "blacklist", verb.metricize, entityType.metricize, jobDescriptor.taskCall.localName, group, key, value.toString)
     increment(metricPath)
   }
 

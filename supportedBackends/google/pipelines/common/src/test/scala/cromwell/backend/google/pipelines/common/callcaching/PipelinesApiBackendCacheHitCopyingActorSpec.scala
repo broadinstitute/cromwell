@@ -315,7 +315,7 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("Pipeline
     }
 
     {
-      // Step 5: a new workflow from the same grouping tries to copy an unknown cache hit the bucket blacklisted in step 1.
+      // Step 5: a new workflow from the same grouping tries to copy an unknown cache hit from the bucket blacklisted in step 1.
       val ioActor = TestProbe()
       val serviceRegistryActor = TestProbe()
       val supervisor = TestProbe()

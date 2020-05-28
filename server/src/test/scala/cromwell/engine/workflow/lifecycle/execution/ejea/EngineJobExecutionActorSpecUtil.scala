@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
-import cromwell.backend.BackendCacheHitCopyingActor.{CopyingOutputsFailedResponse, CopyAttemptError, BlacklistedError}
+import cromwell.backend.BackendCacheHitCopyingActor.{CopyingOutputsFailedResponse, CopyAttemptError, BlacklistSkip}
 import cromwell.backend.{BackendJobDescriptor, MetricableCacheCopyErrorCategory}
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.core.callcaching._
@@ -121,5 +121,5 @@ private[ejea] trait HasCopyFailureResponses { self: EngineJobExecutionActorSpec 
 
   // Need to delay making the response because job descriptors come from the per-test "helper", which is null outside tests!
   def copyAttemptFailedResponse(attemptNumber: Int) = CopyingOutputsFailedResponse(helper.jobDescriptorKey, attemptNumber, CopyAttemptError(copyFailureReason))
-  def cacheHitBlacklistedResponse(attemptNumber: Int) = CopyingOutputsFailedResponse(helper.jobDescriptorKey, attemptNumber, BlacklistedError(MetricableCacheCopyErrorCategory.BucketBlacklisted))
+  def cacheHitBlacklistedResponse(attemptNumber: Int) = CopyingOutputsFailedResponse(helper.jobDescriptorKey, attemptNumber, BlacklistSkip(MetricableCacheCopyErrorCategory.BucketBlacklisted))
 }

@@ -150,10 +150,10 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       val (nextState, cacheReadType) =
         if (isSourceBlacklisted(cacheHit)) {
           // We don't want to log this because blacklisting is a common and expected occurrence.
-          (failAndStop(BlacklistedError(MetricableCacheCopyErrorCategory.HitBlacklisted)), ReadHitOnly)
+          (failAndStop(BlacklistSkip(MetricableCacheCopyErrorCategory.HitBlacklisted)), ReadHitOnly)
         } else if (isSourceBlacklisted(command)) {
           // We don't want to log this because blacklisting is a common and expected occurrence.
-          (failAndStop(BlacklistedError(MetricableCacheCopyErrorCategory.BucketBlacklisted)), ReadHitAndBucket)
+          (failAndStop(BlacklistSkip(MetricableCacheCopyErrorCategory.BucketBlacklisted)), ReadHitAndBucket)
         } else {
           // Try to make a Path of the callRootPath from the detritus
           val next = lookupSourceCallRootPath(jobDetritus) match {
@@ -282,7 +282,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     stay()
   }
 
-  def failAndStop(failure: CacheCopyError): State = {
+  def failAndStop(failure: CacheCopyFailure): State = {
     context.parent ! CopyingOutputsFailedResponse(jobDescriptor.key, standardParams.cacheCopyAttempt, failure)
     context stop self
     stay()
@@ -290,7 +290,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
   /** If there are no responses pending this behaves like `failAndStop`, otherwise this goes to `FailedState` and waits
     * for all the pending responses to come back before stopping. */
-  def failAndAwaitPendingResponses(failure: CacheCopyError, command: IoCommand[_], data: StandardCacheHitCopyingActorData): State = {
+  def failAndAwaitPendingResponses(failure: CacheCopyFailure, command: IoCommand[_], data: StandardCacheHitCopyingActorData): State = {
     context.parent ! CopyingOutputsFailedResponse(jobDescriptor.key, standardParams.cacheCopyAttempt, failure)
 
     val (newData, commandState) = data.commandComplete(command)

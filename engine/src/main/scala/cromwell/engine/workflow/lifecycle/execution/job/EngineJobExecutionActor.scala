@@ -3,7 +3,7 @@ package cromwell.engine.workflow.lifecycle.execution.job
 import akka.actor.SupervisorStrategy.{Escalate, Stop}
 import akka.actor.{ActorInitializationException, ActorRef, LoggingFSM, OneForOneStrategy, Props}
 import cats.data.NonEmptyList
-import cromwell.backend.BackendCacheHitCopyingActor.{CacheCopyError, CopyOutputsCommand, CopyingOutputsFailedResponse, CopyAttemptError, BlacklistedError}
+import cromwell.backend.BackendCacheHitCopyingActor.{CacheCopyFailure, CopyOutputsCommand, CopyingOutputsFailedResponse, CopyAttemptError, BlacklistSkip}
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.MetricableCacheCopyErrorCategory.MetricableCacheCopyErrorCategory
@@ -742,13 +742,13 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     increment(callCachingErrorsMetricPath)
   }
 
-  private def invalidateCacheHitAndTransition(ejeaCacheHit: EJEACacheHit, data: ResponsePendingData, reason: CacheCopyError) = {
+  private def invalidateCacheHitAndTransition(ejeaCacheHit: EJEACacheHit, data: ResponsePendingData, reason: CacheCopyFailure) = {
     val copyAttemptIncrement = reason match {
       case CopyAttemptError(failure) =>
         logCacheHitFailure(data, failure)
         // An actual attempt to copy was made and failed so increment the attempt counter by 1.
         1
-      case BlacklistedError(failureCategory) =>
+      case BlacklistSkip(failureCategory) =>
         publishBlacklistReadMetrics(data, failureCategory)
         // Blacklisted hits are simply skipped and do not result in incrementing the attempt counter.
         0

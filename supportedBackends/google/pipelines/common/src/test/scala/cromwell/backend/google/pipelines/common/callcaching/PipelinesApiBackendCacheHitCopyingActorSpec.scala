@@ -8,7 +8,7 @@ import cromwell.backend.BackendJobExecutionActor.JobSucceededResponse
 import cromwell.backend.google.pipelines.common._
 import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
-import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor.Metrics.HasMetricFormatting
+import cromwell.backend.standard.callcaching.CopyingActorBlacklistCacheSupport.HasFormatting
 import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor._
 import cromwell.backend.standard.callcaching._
 import cromwell.backend.validation.ValidatedRuntimeAttributes
@@ -526,11 +526,11 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("Pipeline
     )
   }
 
-  sealed trait BlacklistingType extends HasMetricFormatting
+  sealed trait BlacklistingType extends HasFormatting
   case object Hit extends BlacklistingType
   case object Bucket extends BlacklistingType
 
-  sealed trait CacheAccessType extends HasMetricFormatting
+  sealed trait CacheAccessType extends HasFormatting
   case object Read extends CacheAccessType
   case object Write extends CacheAccessType
 

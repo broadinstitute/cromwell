@@ -3,7 +3,6 @@ package cromwell.backend.standard.callcaching
 import java.util.concurrent.TimeoutException
 
 import akka.actor.{ActorRef, FSM}
-import cats.data.NonEmptyList
 import cats.instances.list._
 import cats.instances.set._
 import cats.instances.tuple._
@@ -13,7 +12,7 @@ import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.StandardCachingActorHelper
-import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor.Metrics._
+import cromwell.backend.standard.callcaching.CopyingActorBlacklistCacheSupport._
 import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, MetricableCacheCopyErrorCategory}
 import cromwell.core.CallOutputs
@@ -26,6 +25,7 @@ import cromwell.services.instrumentation.CromwellInstrumentationActor
 import wom.values.WomSingleFile
 
 import scala.util.{Failure, Success, Try}
+
 
 /**
   * Trait of parameters passed to a StandardCacheHitCopyingActor.
@@ -115,23 +115,6 @@ object StandardCacheHitCopyingActor {
   private[callcaching] case object AllCommandsDone extends CommandSetState
   private[callcaching] case class NextSubSet(commands: Set[IoCommand[_]]) extends CommandSetState
 
-  object Metrics {
-    trait HasMetricFormatting {
-      def metricFormat: String = getClass.getName.toLowerCase.split('$').last
-    }
-
-    sealed trait Verb extends HasMetricFormatting
-    case object Read extends Verb
-    case object Write extends Verb
-
-    sealed trait EntityType extends HasMetricFormatting
-    case object Hit extends EntityType
-    case object Bucket extends EntityType
-
-    sealed trait CacheReadType
-    case object ReadHitOnly
-    case object ReadHitAndBucket
-  }
 }
 
 class DefaultStandardCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams) extends StandardCacheHitCopyingActor(standardParams)
@@ -141,7 +124,7 @@ class DefaultStandardCacheHitCopyingActor(standardParams: StandardCacheHitCopyin
   */
 abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHitCopyingActorParams)
   extends FSM[StandardCacheHitCopyingActorState, Option[StandardCacheHitCopyingActorData]]
-    with JobLogging with StandardCachingActorHelper with IoClientHelper with CromwellInstrumentationActor {
+    with JobLogging with StandardCachingActorHelper with IoClientHelper with CromwellInstrumentationActor with CopyingActorBlacklistCacheSupport {
 
   override lazy val jobDescriptor: BackendJobDescriptor = standardParams.jobDescriptor
   override lazy val backendInitializationDataOption: Option[BackendInitializationData] = standardParams.backendInitializationDataOption
@@ -291,120 +274,6 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     andThen
   }
 
-  private def handleBlacklistingForGenericFailure(): Unit = {
-    // Not a forbidden failure so do not blacklist the bucket but do blacklist the hit.
-    for {
-      data <- stateData
-      cache <- standardParams.blacklistCache
-      _ = blacklistAndMetricHit(cache, data.cacheHit)
-    } yield ()
-    ()
-  }
-
-  /* Whitelist by bucket and hit if appropriate. */
-  private def handleWhitelistingForSuccess(command: IoCommand[_]): Unit = {
-    for {
-      cache <- standardParams.blacklistCache
-      data <- stateData
-      _ = whitelistAndMetricHit(cache, data.cacheHit)
-      copy <- Option(command) collect { case c: IoCopyCommand => c }
-      prefix <- extractBlacklistPrefix(copy.source.toString)
-      _ = whitelistAndMetricBucket(cache, prefix)
-    } yield ()
-    ()
-  }
-
-  private def publishBlacklistMetric(blacklistCache: BlacklistCache, verb: Verb, entityType: EntityType, key: String, value: BlacklistStatus): Unit = {
-    val group = blacklistCache.name.getOrElse("none")
-    val metricPath = NonEmptyList.of(
-      "job",
-      "callcaching", "blacklist", verb.metricFormat, entityType.metricFormat, jobDescriptor.taskCall.localName, group, key, value.toString)
-    increment(metricPath)
-  }
-
-  private def blacklistAndMetricHit(blacklistCache: BlacklistCache, hit: CallCachingEntryId): Unit = {
-    blacklistCache.getBlacklistStatus(hit) match {
-      case UntestedCacheResult =>
-        blacklistCache.blacklist(hit)
-        publishBlacklistMetric(blacklistCache, Write, Hit, hit.id.toString, value = BadCacheResult)
-      case BadCacheResult =>
-        // Not a surprise, race conditions abound in cache hit copying. Do not overwrite with the same value or
-        // multiply publish metrics for this hit.
-      case GoodCacheResult =>
-        // This hit was thought to be good but now a copy has failed for permissions reasons. Be conservative and
-        // mark the hit as BadCacheResult and log this strangeness.
-        log.warning(
-          "Cache hit {} found in GoodCacheResult blacklist state, but cache hit copying has failed for permissions reasons. Overwriting status to BadCacheResult state.",
-          hit.id)
-        blacklistCache.blacklist(hit)
-        publishBlacklistMetric(blacklistCache, Write, Hit, hit.id.toString, value = BadCacheResult)
-    }
-  }
-
-  private def blacklistAndMetricBucket(blacklistCache: BlacklistCache, bucket: String): Unit = {
-    blacklistCache.getBlacklistStatus(bucket) match {
-      case UntestedCacheResult =>
-        blacklistCache.blacklist(bucket)
-        publishBlacklistMetric(blacklistCache, Write, Bucket, bucket, value = BadCacheResult)
-      case BadCacheResult =>
-      // Not a surprise, race conditions abound in cache hit copying. Do not overwrite with the same value or
-      // multiply publish metrics for this bucket.
-      case GoodCacheResult =>
-        // This bucket was thought to be good but now a copy has failed for permissions reasons. Be conservative and
-        // mark the bucket as BadCacheResult and log this strangeness.
-        log.warning(
-          "Bucket {} found in GoodCacheResult blacklist state, but cache hit copying has failed for permissions reasons. Overwriting status to BadCacheResult state.",
-          bucket)
-        blacklistCache.blacklist(bucket)
-        publishBlacklistMetric(blacklistCache, Write, Bucket, bucket, value = BadCacheResult)
-    }
-  }
-
-  private def whitelistAndMetricHit(blacklistCache: BlacklistCache, hit: CallCachingEntryId): Unit = {
-    blacklistCache.getBlacklistStatus(hit) match {
-      case UntestedCacheResult =>
-        blacklistCache.whitelist(hit)
-        publishBlacklistMetric(blacklistCache, Write, Hit, hit.id.toString, value = GoodCacheResult)
-      case GoodCacheResult => // This hit is already known to be good, no need to rewrite or spam metrics.
-      case BadCacheResult =>
-        // This is surprising, a hit that we failed to copy before has now been the source of a successful copy.
-        // Don't overwrite this to GoodCacheResult, hopefully there are less weird cache hits out there.
-        log.warning(
-          "Cache hit {} found in BadCacheResult blacklist state, not overwriting to GoodCacheResult despite successful copy.",
-          hit.id)
-    }
-  }
-
-  private def whitelistAndMetricBucket(blacklistCache: BlacklistCache, bucket: String): Unit = {
-    blacklistCache.getBlacklistStatus(bucket) match {
-      case UntestedCacheResult =>
-        blacklistCache.whitelist(bucket)
-        publishBlacklistMetric(blacklistCache, Write, Bucket, bucket, value = GoodCacheResult)
-      case GoodCacheResult => // This bucket is already known to be good, no need to rewrite or spam metrics.
-      case BadCacheResult =>
-        // This is surprising, a bucket that we failed to copy from before for auth reasons has now been the source
-        // of a successful copy. Don't overwrite this to GoodCacheResult, hopefully there are less weird cache hits out there.
-        log.warning(
-          "Bucket {} found in BadCacheResult blacklist state, not overwriting to GoodCacheResult despite successful copy.",
-          bucket)
-    }
-  }
-
-  private def publishBlacklistReadMetrics(command: CopyOutputsCommand, cacheHit: CallCachingEntryId, cacheReadType: Product) = {
-    for {
-      c <- standardParams.blacklistCache
-      hitBlacklistStatus = c.getBlacklistStatus(cacheHit)
-      // If blacklisting is on the hit cache is always checked so publish a hit read metric.
-      _ = publishBlacklistMetric(c, Read, Hit, cacheHit.id.toString, hitBlacklistStatus)
-      // Conditionally publish the bucket read if the backend supports bucket / prefix blacklisting and the bucket was read.
-      _ <- Option(cacheReadType).collect { case ReadHitAndBucket => () }
-      path = sourcePathFromCopyOutputsCommand(command)
-      prefix <- extractBlacklistPrefix(path)
-      bucketBlacklistStatus = c.getBlacklistStatus(prefix)
-      _ = publishBlacklistMetric(c, Read, Bucket, prefix, bucketBlacklistStatus)
-    } yield ()
-  }
-
   def succeedAndStop(returnCode: Option[Int], copiedJobOutputs: CallOutputs, detritusMap: DetritusMap) = {
     import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
     serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), startMetadataKeyValues)
@@ -529,21 +398,6 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     */
   protected def extractBlacklistPrefix(path: String): Option[String] = None
 
-  private def sourcePathFromCopyOutputsCommand(command: CopyOutputsCommand): String = command.jobDetritusFiles.values.head
+  def sourcePathFromCopyOutputsCommand(command: CopyOutputsCommand): String = command.jobDetritusFiles.values.head
 
-  private def isSourceBlacklisted(command: CopyOutputsCommand): Boolean = {
-    val path = sourcePathFromCopyOutputsCommand(command)
-    (for {
-      cache <- standardParams.blacklistCache
-      prefix <- extractBlacklistPrefix(path)
-      value = cache.getBlacklistStatus(prefix)
-    } yield value == BadCacheResult).getOrElse(false)
-  }
-
-  private def isSourceBlacklisted(hit: CallCachingEntryId): Boolean = {
-    (for {
-      cache <- standardParams.blacklistCache
-      value = cache.getBlacklistStatus(hit)
-    } yield value == BadCacheResult).getOrElse(false)
-  }
 }

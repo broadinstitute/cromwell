@@ -103,7 +103,7 @@ object MetadataService {
     }
   }
 
-  final case class GetMetadataAction(key: MetadataQuery, metadataSourceOverride: Option[MetadataSourceOverride] = None) extends BuildWorkflowMetadataJsonWithOverridableSourceAction {
+  final case class GetMetadataAction(key: MetadataQuery, metadataSourceOverride: Option[MetadataSourceOverride] = None, fakeSubWfId: Option[String] = None) extends BuildWorkflowMetadataJsonWithOverridableSourceAction {
     override def workflowId: WorkflowId = key.workflowId
   }
   final case class GetStatus(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction

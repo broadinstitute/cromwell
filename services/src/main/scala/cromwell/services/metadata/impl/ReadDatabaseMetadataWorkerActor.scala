@@ -20,7 +20,7 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration) extends Act
   implicit val ec = context.dispatcher
 
   def receive = {
-    case GetMetadataAction(query: MetadataQuery, _) => evaluateRespondAndStop(sender(), getMetadata(query))
+    case GetMetadataAction(query: MetadataQuery, _, _) => evaluateRespondAndStop(sender(), getMetadata(query))
     case GetStatus(workflowId) => evaluateRespondAndStop(sender(), getStatus(workflowId))
     case GetLabels(workflowId) => evaluateRespondAndStop(sender(), queryLabelsAndRespond(workflowId))
     case GetRootAndSubworkflowLabels(rootWorkflowId: WorkflowId) => evaluateRespondAndStop(sender(), queryRootAndSubworkflowLabelsAndRespond(rootWorkflowId))

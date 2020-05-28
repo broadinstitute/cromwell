@@ -1,52 +1,11 @@
 {
-  "valid" : true,
+  "valid" : false,
   "errors" : [
+    "Failed to process workflow definition 'my_workflow' (reason 1 of 1): Failed to process 'call my_task' (reason 1 of 1): To be called as a task it must declare and pass-through the following required values via workflow inputs: task_input"
   ],
-  "validWorkflow" : true,
-  "name" : "my_workflow",
+  "validWorkflow" : false,
+  "name" : "",
   "inputs" : [
-    {
-      "name" : "my_task.task_input",
-      "valueType" : {
-        "typeName" : "String"
-      },
-      "typeDisplayName" : "String",
-      "optional" : false,
-      "default" : null
-    },
-    {
-      "name" : "my_task.task_input_optional",
-      "valueType" : {
-        "typeName" : "Optional",
-        "optionalType" : {
-          "typeName" : "String"
-        }
-      },
-      "typeDisplayName" : "String?",
-      "optional" : true,
-      "default" : null
-    },
-    {
-      "name" : "my_task.task_input_optional_with_default",
-      "valueType" : {
-        "typeName" : "Optional",
-        "optionalType" : {
-          "typeName" : "String"
-        }
-      },
-      "typeDisplayName" : "String?",
-      "optional" : true,
-      "default" : "\"a\""
-    },
-    {
-      "name" : "workflow_input",
-      "valueType" : {
-        "typeName" : "String"
-      },
-      "typeDisplayName" : "String",
-      "optional" : false,
-      "default" : null
-    }
   ],
   "outputs" : [
   ],
@@ -64,5 +23,5 @@
   "parameterMeta" : {
 
   },
-  "isRunnableWorkflow" : true
+  "isRunnableWorkflow" : false
 }

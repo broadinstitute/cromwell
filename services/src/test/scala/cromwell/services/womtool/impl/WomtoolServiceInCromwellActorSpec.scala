@@ -42,7 +42,10 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
          |}
          |
          |workflow wf_hello {
-         |  call hello
+         |  input {
+         |    String addressee
+         |  }
+         |  call hello {input: addressee=addressee}
          |}
          |""".stripMargin
 
@@ -65,7 +68,10 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
          |}
          |
          |workflow wf_hello {
-         |  call hello
+         |  input {
+         |    String addressee
+         |  }
+         |  call hello {input: addressee=addressee}
          |}
          |""".stripMargin
 
@@ -97,7 +103,7 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
          |}
        """.stripMargin
 
-    val helloWorldInputs = """{"wf_hello.hello.addressee": "World"}"""
+    val helloWorldInputs = """{"wf_hello.addressee": "World"}"""
     val bogusInputs = """{"foo.bar": "World"}"""
     val emptyInputs = "{}"
     val wdlInvalid = "This is not a valid WDL."
@@ -107,7 +113,7 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
       errors = List.empty,
       validWorkflow = true,
       name = "wf_hello",
-      inputs = List(InputDescription("hello.addressee", WomStringType, "String", optional = false, default = None)),
+      inputs = List(InputDescription("addressee", WomStringType, "String", optional = false, default = None)),
       outputs = List.empty,
       images = List.empty,
       submittedDescriptorType = Map(
@@ -163,7 +169,7 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
       val wsfc = wsfcConjurer(workflowSource = Option(TestData.wdlValid), inputsJson = TestData.bogusInputs)
 
       check(DescribeRequest(wsfc), DescribeSuccess(
-        description = WorkflowDescription(valid = false, errors = List("Required workflow input 'wf_hello.hello.addressee' not specified"), validWorkflow = true, name = "wf_hello", inputs = List(InputDescription("hello.addressee", WomStringType, "String", false, None)), submittedDescriptorType = Map("descriptorType" -> "WDL", "descriptorTypeVersion" -> "1.0"), isRunnableWorkflow = true)))
+        description = WorkflowDescription(valid = false, errors = List("Required workflow input 'wf_hello.addressee' not specified"), validWorkflow = true, name = "wf_hello", inputs = List(InputDescription("addressee", WomStringType, "String", false, None)), submittedDescriptorType = Map("descriptorType" -> "WDL", "descriptorTypeVersion" -> "1.0"), isRunnableWorkflow = true)))
     }
 
     "return valid = false, validWorkflow = true for a valid inputs-requiring workflow with an empty inputs JSON" in {
@@ -171,7 +177,7 @@ class WomtoolServiceInCromwellActorSpec extends ServicesSpec("Womtool") {
       val wsfc = wsfcConjurer(workflowSource = Option(TestData.wdlValid), inputsJson = TestData.emptyInputs)
 
       check(DescribeRequest(wsfc), DescribeSuccess(
-        description = WorkflowDescription(valid = false, errors = List("Required workflow input 'wf_hello.hello.addressee' not specified"), validWorkflow = true, name = "wf_hello", inputs = List(InputDescription("hello.addressee", WomStringType, "String", false, None)), submittedDescriptorType = Map("descriptorType" -> "WDL", "descriptorTypeVersion" -> "1.0"), isRunnableWorkflow = true)))
+        description = WorkflowDescription(valid = false, errors = List("Required workflow input 'wf_hello.addressee' not specified"), validWorkflow = true, name = "wf_hello", inputs = List(InputDescription("addressee", WomStringType, "String", false, None)), submittedDescriptorType = Map("descriptorType" -> "WDL", "descriptorTypeVersion" -> "1.0"), isRunnableWorkflow = true)))
     }
 
     "return valid for a valid no-inputs workflow with empty inputs" in {

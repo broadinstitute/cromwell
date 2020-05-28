@@ -154,7 +154,7 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("Pipeline
 
       val counts = instrumentationCounts(n = 4, serviceRegistryActor = serviceRegistryActor)
 
-      // Expect read hit and read bucket Unknown followed by write hit and write bucket KnownBad.
+      // Expect read hit and read bucket UntestedCacheResult followed by write hit and write bucket BadCacheResult.
       {
         val (List(hitBegin, hitEnd), List(bucketBegin, bucketEnd)) = counts partition {
           _.bucket.path.toList.contains("hit")
@@ -363,7 +363,7 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("Pipeline
   private def instrumentationCounts(n: Int, serviceRegistryActor: TestProbe): List[CromwellCount] = {
     val received = serviceRegistryActor.receiveN(n = n, max = 5 seconds).toList
     val instrumentationCounts = received collect { case InstrumentationServiceMessage(c) => c } collect { case c: CromwellCount => c }
-    instrumentationCounts forall (c => c.value == 1 && c.sampling == 1.0)
+    instrumentationCounts foreach { c => c.value shouldBe 1; c.sampling shouldBe 1.0 }
 
     instrumentationCounts
   }

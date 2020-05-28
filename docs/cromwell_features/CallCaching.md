@@ -45,10 +45,9 @@ call-caching {
      # hit ids or buckets of cache hit paths that Cromwell has previously failed to copy for permissions reasons.
      enabled: true
 
-     # All blacklisting values below are optional except for groupings.workflow-option.
-
-     # A blacklist grouping can be specified in workflow options which will inform the blacklister which workflows
-     # should share a blacklist cache.
+     # All blacklisting values below are optional. In order to use groupings (blacklist caches shared among root
+     # workflows) a value must be specified for `groupings.workflow-option` in configuration and the workflows to
+     # be grouped must be submitted with workflow options specifying the same group.
      groupings {
        workflow-option: call-cache-blacklist-group
        concurrency: 10000

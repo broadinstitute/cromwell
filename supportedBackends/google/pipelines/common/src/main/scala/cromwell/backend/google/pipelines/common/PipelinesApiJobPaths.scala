@@ -14,6 +14,9 @@ object PipelinesApiJobPaths {
   val GcsDelocalizationScriptName = "gcs_delocalization.sh"
 }
 
+// Non-`final` as this is mocked for testing since using a real instance proved too difficult.
+// Do not subclass this or other case classes in production code, at least without understanding the pitfalls:
+// https://nrinaudo.github.io/scala-best-practices/tricky_behaviours/final_case_classes.html
 case class PipelinesApiJobPaths(override val workflowPaths: PipelinesApiWorkflowPaths, jobKey: BackendJobDescriptorKey, override val isCallCacheCopyAttempt: Boolean = false) extends JobPaths {
 
   // `jesLogBasename` is a `def` rather than a `val` because it is referenced polymorphically from

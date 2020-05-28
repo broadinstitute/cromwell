@@ -211,19 +211,24 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
           (next, ReadHitAndBucket)
         }
 
-      for {
-        c <- standardParams.blacklistCache
-        hitValue = c.getBlacklistStatus(cacheHit)
-        // Always publish hit if blacklisting is on
-        _ = publishBlacklistMetric(c, Read, Hit, cacheHit.id.toString, hitValue)
-        _ <- Option(cacheReadType).collect { case ReadHitAndBucket => () }
-        path = sourcePathFromCopyOutputsCommand(command)
-        prefix <- extractBlacklistPrefix(path)
-        bucketValue = c.getBlacklistStatus(prefix)
-        _ = publishBlacklistMetric(c, Read, Bucket, prefix, bucketValue)
-      } yield ()
+      publishBlacklistReadMetrics(command, cacheHit, cacheReadType)
 
       nextState
+  }
+
+  private def publishBlacklistReadMetrics(command: CopyOutputsCommand, cacheHit: CallCachingEntryId, cacheReadType: Product) = {
+    for {
+      c <- standardParams.blacklistCache
+      hitValue = c.getBlacklistStatus(cacheHit)
+      // If blacklisting is on the hit cache is always checked so publish a hit read metric.
+      _ = publishBlacklistMetric(c, Read, Hit, cacheHit.id.toString, hitValue)
+      // Conditionally publish the bucket read if the backend supports bucket / prefix blacklisting and the bucket was read.
+      _ <- Option(cacheReadType).collect { case ReadHitAndBucket => () }
+      path = sourcePathFromCopyOutputsCommand(command)
+      prefix <- extractBlacklistPrefix(path)
+      bucketValue = c.getBlacklistStatus(prefix)
+      _ = publishBlacklistMetric(c, Read, Bucket, prefix, bucketValue)
+    } yield ()
   }
 
   when(WaitingForIoResponses) {

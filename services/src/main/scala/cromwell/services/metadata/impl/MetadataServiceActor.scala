@@ -50,7 +50,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
   private val metadataReadTimeout: Duration =
     serviceConfig.getOrElse[Duration]("metadata-read-query-timeout", Duration.Inf)
 
-  private val x = 2 //serviceConfig.getInt("metadata-subwf-num")
+  private val x = serviceConfig.getInt("metadata-subwf-num")
 
   def readMetadataWorkerActorProps(): Props = ReadDatabaseMetadataWorkerActor.props(metadataReadTimeout).withDispatcher(ServiceDispatcher)
   def metadataBuilderActorProps(): Props = MetadataBuilderActor.props(readMetadataWorkerActorProps, x = Option(x)).withDispatcher(ServiceDispatcher)

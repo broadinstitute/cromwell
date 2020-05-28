@@ -316,10 +316,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, isForSubworkflo
         val newData = data.withSubWorkflow(subId.toString, js)
 
         if (newData.isComplete) {
-          val newExpVals = newData.subWorkflowsMetadata.map {
-            case (id, json) => id -> (json.asJsObject.fields + (WorkflowMetadataKeys.Name->JsString(id))).toJson
-          }
-          buildAndStop(data.originalQuery, data.originalEvents, newExpVals, data.target, data.originalRequest)
+          buildAndStop(data.originalQuery, data.originalEvents, newData.subWorkflowsMetadata, data.target, data.originalRequest)
         } else {
           stay() using newData
         }
@@ -346,7 +343,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, isForSubworkflo
       if (query.includeKeysOption.isDefined || isForSubworkflows)
         intermediate
       else
-        intermediate + (WorkflowMetadataKeys.MetadataSource -> JsString("Unarchived"))
+        intermediate + ("subwfs" -> expandedValues.toJson) + (WorkflowMetadataKeys.MetadataSource -> JsString("Unarchived"))
     target ! SuccessfulMetadataJsonResponse(originalRequest, JsObject(res))
     allDone()
   }
@@ -361,12 +358,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, isForSubworkflo
 
       // If none is found just proceed to build metadata
       if (subWorkflowIds.isEmpty) {
-        if (isForSubworkflows) {
-          val newEvLst = eventsList.map(event => event.copy(key = event.key.copy(workflowId = WorkflowId.fromString(UUID.randomUUID().toString))))
-          buildAndStop(query, newEvLst, Map.empty, target, originalRequest)
-        } else {
-          buildAndStop(query, eventsList, Map.empty, target, originalRequest)
-        }
+        buildAndStop(query, eventsList, Map.empty, target, originalRequest)
       }
       else {
         // Otherwise spin up a metadata builder actor for each sub workflow

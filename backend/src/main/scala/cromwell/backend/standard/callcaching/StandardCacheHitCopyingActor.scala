@@ -8,12 +8,12 @@ import cats.instances.list._
 import cats.instances.set._
 import cats.instances.tuple._
 import cats.syntax.foldable._
-import cromwell.backend.BackendCacheHitCopyingActor.{CacheCopyError, CopyOutputsCommand, CopyingOutputsFailedResponse, LoggableCacheCopyError, MetricableCacheCopyError}
+import cromwell.backend.BackendCacheHitCopyingActor._
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.StandardCachingActorHelper
-import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor.Metrics.{Bucket, EntityType, Hit, Read, Verb, Write}
+import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor.Metrics._
 import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, MetricableCacheCopyErrorCategory}
 import cromwell.core.CallOutputs
@@ -117,7 +117,7 @@ object StandardCacheHitCopyingActor {
 
   object Metrics {
     sealed trait ToStringBeautifier {
-      override def toString: String = getClass.getSimpleName.toLowerCase.dropRight(1)
+      override def toString: String = getClass.getName.toLowerCase.split('$').last
     }
     sealed trait Verb extends ToStringBeautifier
     case object Read extends Verb
@@ -126,6 +126,10 @@ object StandardCacheHitCopyingActor {
     sealed trait EntityType extends ToStringBeautifier
     case object Hit extends EntityType
     case object Bucket extends EntityType
+
+    sealed trait CacheReadType
+    case object ReadHitOnly
+    case object ReadHitAndBucket
   }
 }
 
@@ -158,52 +162,68 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   protected def duplicate(copyPairs: Set[PathPair]): Option[Try[Unit]] = None
 
   when(Idle) {
-    case Event(c: CopyOutputsCommand, None) if isSourceBlacklisted(c.cacheHit) =>
-      // We don't want to log this because blacklisting is a common and expected occurrence.
-      failAndStop(MetricableCacheCopyError(MetricableCacheCopyErrorCategory.HitBlacklisted))
+    case Event(command @ CopyOutputsCommand(simpletons, jobDetritus, cacheHit, returnCode), None) =>
+      val (nextState, cacheReadType) =
+        if (isSourceBlacklisted(cacheHit)) {
+          // We don't want to log this because blacklisting is a common and expected occurrence.
+          (failAndStop(MetricableCacheCopyError(MetricableCacheCopyErrorCategory.HitBlacklisted)), ReadHitOnly)
+        } else if (isSourceBlacklisted(command)) {
+          // We don't want to log this because blacklisting is a common and expected occurrence.
+          (failAndStop(MetricableCacheCopyError(MetricableCacheCopyErrorCategory.BucketBlacklisted)), ReadHitAndBucket)
+        } else {
+          // Try to make a Path of the callRootPath from the detritus
+          val next = lookupSourceCallRootPath(jobDetritus) match {
+            case Success(sourceCallRootPath) =>
 
-    case Event(command: CopyOutputsCommand, None) if isSourceBlacklisted(command) =>
-      // We don't want to log this because blacklisting is a common and expected occurrence.
-      failAndStop(MetricableCacheCopyError(MetricableCacheCopyErrorCategory.BucketBlacklisted))
+              // process simpletons and detritus to get updated paths and corresponding IoCommands
+              val processed = for {
+                (destinationCallOutputs, simpletonIoCommands) <- processSimpletons(simpletons, sourceCallRootPath)
+                (destinationDetritus, detritusIoCommands) <- processDetritus(jobDetritus)
+              } yield (destinationCallOutputs, destinationDetritus, simpletonIoCommands ++ detritusIoCommands)
 
-    case Event(CopyOutputsCommand(simpletons, jobDetritus, cacheHit, returnCode), None) =>
-      // Try to make a Path of the callRootPath from the detritus
-      lookupSourceCallRootPath(jobDetritus) match {
-        case Success(sourceCallRootPath) =>
-          
-          // process simpletons and detritus to get updated paths and corresponding IoCommands
-          val processed = for {
-            (destinationCallOutputs, simpletonIoCommands) <- processSimpletons(simpletons, sourceCallRootPath)
-            (destinationDetritus, detritusIoCommands) <- processDetritus(jobDetritus)
-          } yield (destinationCallOutputs, destinationDetritus, simpletonIoCommands ++ detritusIoCommands)
+              processed match {
+                case Success((destinationCallOutputs, destinationDetritus, detritusAndOutputsIoCommands)) =>
+                  duplicate(ioCommandsToCopyPairs(detritusAndOutputsIoCommands)) match {
+                    // Use the duplicate override if exists
+                    case Some(Success(_)) => succeedAndStop(returnCode, destinationCallOutputs, destinationDetritus)
+                    case Some(Failure(failure)) =>
+                      // Something went wrong in the custom duplication code. We consider this loggable because it's most likely a user-permission error:
+                      failAndStop(LoggableCacheCopyError(failure))
+                    // Otherwise send the first round of IoCommands (file outputs and detritus) if any
+                    case None if detritusAndOutputsIoCommands.nonEmpty =>
+                      detritusAndOutputsIoCommands foreach sendIoCommand
 
-          processed match {
-            case Success((destinationCallOutputs, destinationDetritus, detritusAndOutputsIoCommands)) =>
-              duplicate(ioCommandsToCopyPairs(detritusAndOutputsIoCommands)) match {
-                  // Use the duplicate override if exists
-                case Some(Success(_)) => succeedAndStop(returnCode, destinationCallOutputs, destinationDetritus)
-                case Some(Failure(failure)) =>
-                  // Something went wrong in the custom duplication code. We consider this loggable because it's most likely a user-permission error:
-                  failAndStop(LoggableCacheCopyError(failure))
-                  // Otherwise send the first round of IoCommands (file outputs and detritus) if any
-                case None if detritusAndOutputsIoCommands.nonEmpty =>
-                    detritusAndOutputsIoCommands foreach sendIoCommand
+                      // Add potential additional commands to the list
+                      val additionalCommands = additionalIoCommands(sourceCallRootPath, simpletons, destinationCallOutputs, jobDetritus, destinationDetritus)
+                      val allCommands = List(detritusAndOutputsIoCommands) ++ additionalCommands
 
-                    // Add potential additional commands to the list
-                  val additionalCommands = additionalIoCommands(sourceCallRootPath, simpletons, destinationCallOutputs, jobDetritus, destinationDetritus)
-                  val allCommands = List(detritusAndOutputsIoCommands) ++ additionalCommands
+                      goto(WaitingForIoResponses) using Option(StandardCacheHitCopyingActorData(allCommands, destinationCallOutputs, destinationDetritus, cacheHit, returnCode))
+                    case _ => succeedAndStop(returnCode, destinationCallOutputs, destinationDetritus)
+                  }
 
-                    goto(WaitingForIoResponses) using Option(StandardCacheHitCopyingActorData(allCommands, destinationCallOutputs, destinationDetritus, cacheHit, returnCode))
-                case _ => succeedAndStop(returnCode, destinationCallOutputs, destinationDetritus)
+                // Something went wrong in generating duplication commands. We consider this loggable error because we don't expect this to happen:
+                case Failure(failure) => failAndStop(LoggableCacheCopyError(failure))
               }
 
-            // Something went wrong in generating duplication commands. We consider this loggable error because we don't expect this to happen:
+            // Something went wrong in looking up the call root... loggable because we don't expect this to happen:
             case Failure(failure) => failAndStop(LoggableCacheCopyError(failure))
           }
+          (next, ReadHitAndBucket)
+        }
 
-        // Something went wrong in looking up the call root... loggable because we don't expect this to happen:
-        case Failure(failure) => failAndStop(LoggableCacheCopyError(failure))
-      }
+      for {
+        c <- standardParams.blacklistCache
+        hitValue = c.getBlacklistStatus(cacheHit)
+        // Always publish hit if blacklisting is on
+        _ = publishBlacklistMetric(c, Read, Hit, cacheHit.id.toString, hitValue)
+        _ <- Option(cacheReadType).collect { case ReadHitAndBucket => () }
+        path = sourcePathFromCopyOutputsCommand(command)
+        prefix <- extractBlacklistPrefix(path)
+        bucketValue = c.getBlacklistStatus(prefix)
+        _ = publishBlacklistMetric(c, Read, Bucket, prefix, bucketValue)
+      } yield ()
+
+      nextState
   }
 
   when(WaitingForIoResponses) {
@@ -506,35 +526,19 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
   private def sourcePathFromCopyOutputsCommand(command: CopyOutputsCommand): String = command.jobDetritusFiles.values.head
 
-  // The "published*BlacklistRead" vars are to deal with the evaluation of the partial function that uses these
-  // `isSourceBlacklisted` methods in its guards. There are both "isDefinedAt and "apply" invocations associated with
-  // the partial function which means this code gets called twice. If the code was pure that would be fine, but
-  // publishing metrics is obviously side-effecting so these vars prevent the same metric from being published
-  // multiple times.
-
-  //noinspection ActorMutableStateInspection
-  private var publishedBucketBlacklistRead = false
-
   private def isSourceBlacklisted(command: CopyOutputsCommand): Boolean = {
     val path = sourcePathFromCopyOutputsCommand(command)
     (for {
       cache <- standardParams.blacklistCache
       prefix <- extractBlacklistPrefix(path)
       value = cache.getBlacklistStatus(prefix)
-      _ = if (!publishedBucketBlacklistRead) publishBlacklistMetric(cache, Read, Bucket, prefix, value)
-      _ = publishedBucketBlacklistRead = true
     } yield value == BadCacheResult).getOrElse(false)
   }
-
-  //noinspection ActorMutableStateInspection
-  private var publishedHitBlacklistRead = false
 
   private def isSourceBlacklisted(hit: CallCachingEntryId): Boolean = {
     (for {
       cache <- standardParams.blacklistCache
       value = cache.getBlacklistStatus(hit)
-      _ = if (!publishedHitBlacklistRead) publishBlacklistMetric(cache, Read, Hit, hit.id.toString, value)
-      _ = publishedHitBlacklistRead = true
     } yield value == BadCacheResult).getOrElse(false)
   }
 }

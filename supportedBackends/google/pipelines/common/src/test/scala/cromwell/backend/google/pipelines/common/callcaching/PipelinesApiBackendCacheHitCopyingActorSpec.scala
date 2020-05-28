@@ -8,6 +8,7 @@ import cromwell.backend.BackendJobExecutionActor.JobSucceededResponse
 import cromwell.backend.google.pipelines.common._
 import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
+import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor.Metrics.HasMetricFormatting
 import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor._
 import cromwell.backend.standard.callcaching._
 import cromwell.backend.validation.ValidatedRuntimeAttributes
@@ -525,18 +526,18 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("Pipeline
     )
   }
 
-  sealed trait BlacklistingType
+  sealed trait BlacklistingType extends HasMetricFormatting
   case object Hit extends BlacklistingType
   case object Bucket extends BlacklistingType
 
-  sealed trait CacheAccessType
+  sealed trait CacheAccessType extends HasMetricFormatting
   case object Read extends CacheAccessType
   case object Write extends CacheAccessType
 
   private def expectedMetric(hitOrBucket: BlacklistingType, accessType: CacheAccessType, grouping: String, value: String, status: BlacklistStatus): List[String] = {
     List("job", "callcaching", "blacklist",
-      accessType.getClass.getSimpleName.toLowerCase().dropRight(1),
-      hitOrBucket.getClass.getSimpleName.toLowerCase().dropRight(1),
+      accessType.metricFormat,
+      hitOrBucket.metricFormat,
       TaskCall, grouping, value,
       status.getClass.getSimpleName.dropRight(1))
   }

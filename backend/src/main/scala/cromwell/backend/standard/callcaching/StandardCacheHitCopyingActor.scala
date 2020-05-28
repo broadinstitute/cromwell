@@ -116,10 +116,10 @@ object StandardCacheHitCopyingActor {
   private[callcaching] case class NextSubSet(commands: Set[IoCommand[_]]) extends CommandSetState
 
   object Metrics {
-    sealed trait HasMetricFormatting {
-      def metricize: String = getClass.getName.toLowerCase.split('$').last
+    trait HasMetricFormatting {
+      def metricFormat: String = getClass.getName.toLowerCase.split('$').last
     }
-    
+
     sealed trait Verb extends HasMetricFormatting
     case object Read extends Verb
     case object Write extends Verb
@@ -215,21 +215,6 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
       publishBlacklistReadMetrics(command, cacheHit, cacheReadType)
 
       nextState
-  }
-
-  private def publishBlacklistReadMetrics(command: CopyOutputsCommand, cacheHit: CallCachingEntryId, cacheReadType: Product) = {
-    for {
-      c <- standardParams.blacklistCache
-      hitValue = c.getBlacklistStatus(cacheHit)
-      // If blacklisting is on the hit cache is always checked so publish a hit read metric.
-      _ = publishBlacklistMetric(c, Read, Hit, cacheHit.id.toString, hitValue)
-      // Conditionally publish the bucket read if the backend supports bucket / prefix blacklisting and the bucket was read.
-      _ <- Option(cacheReadType).collect { case ReadHitAndBucket => () }
-      path = sourcePathFromCopyOutputsCommand(command)
-      prefix <- extractBlacklistPrefix(path)
-      bucketValue = c.getBlacklistStatus(prefix)
-      _ = publishBlacklistMetric(c, Read, Bucket, prefix, bucketValue)
-    } yield ()
   }
 
   when(WaitingForIoResponses) {
@@ -333,7 +318,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     val group = blacklistCache.name.getOrElse("none")
     val metricPath = NonEmptyList.of(
       "job",
-      "callcaching", "blacklist", verb.metricize, entityType.metricize, jobDescriptor.taskCall.localName, group, key, value.toString)
+      "callcaching", "blacklist", verb.metricFormat, entityType.metricFormat, jobDescriptor.taskCall.localName, group, key, value.toString)
     increment(metricPath)
   }
 
@@ -403,6 +388,21 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
           "Bucket {} found in BadCacheResult blacklist state, not overwriting to GoodCacheResult despite successful copy.",
           bucket)
     }
+  }
+
+  private def publishBlacklistReadMetrics(command: CopyOutputsCommand, cacheHit: CallCachingEntryId, cacheReadType: Product) = {
+    for {
+      c <- standardParams.blacklistCache
+      hitBlacklistStatus = c.getBlacklistStatus(cacheHit)
+      // If blacklisting is on the hit cache is always checked so publish a hit read metric.
+      _ = publishBlacklistMetric(c, Read, Hit, cacheHit.id.toString, hitBlacklistStatus)
+      // Conditionally publish the bucket read if the backend supports bucket / prefix blacklisting and the bucket was read.
+      _ <- Option(cacheReadType).collect { case ReadHitAndBucket => () }
+      path = sourcePathFromCopyOutputsCommand(command)
+      prefix <- extractBlacklistPrefix(path)
+      bucketBlacklistStatus = c.getBlacklistStatus(prefix)
+      _ = publishBlacklistMetric(c, Read, Bucket, prefix, bucketBlacklistStatus)
+    } yield ()
   }
 
   def succeedAndStop(returnCode: Option[Int], copiedJobOutputs: CallOutputs, detritusMap: DetritusMap) = {

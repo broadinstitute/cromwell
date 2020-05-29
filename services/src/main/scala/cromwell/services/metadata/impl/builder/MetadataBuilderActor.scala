@@ -312,6 +312,8 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, isForSubworkflo
   def processSubWorkflowMetadata(metadataResponse: MetadataJsonResponse, data: HasReceivedEventsData) = {
     metadataResponse match {
       case SuccessfulMetadataJsonResponse(GetMetadataAction(queryKey, _, fakeSubId), js) =>
+        // Substitute root workflow id with fake sub workflow id if needed. Otherwise we'll never reach `newData.isComplete`
+        // since it's checking size of the `subWorkflowsMetadata` map, where key is workflow id
         val subId: String = if (fakeSubId.isDefined) fakeSubId.get else queryKey.workflowId.toString
         val newData = data.withSubWorkflow(subId.toString, js)
 
@@ -343,6 +345,9 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, isForSubworkflo
       if (query.includeKeysOption.isDefined || isForSubworkflows)
         intermediate
       else
+        // There's some smart logic inside `processMetadataEvents` which doesn't append subworkflows metadata
+        // to the root workflows metadata, if they are the same. But we actually only care about combined metadata size
+        // growing together with number of subworkflows, so here we just append them raw to the root metadata
         intermediate + ("subwfs" -> expandedValues.toJson) + (WorkflowMetadataKeys.MetadataSource -> JsString("Unarchived"))
     target ! SuccessfulMetadataJsonResponse(originalRequest, JsObject(res))
     allDone()
@@ -350,11 +355,8 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, isForSubworkflo
 
   def processMetadataResponse(query: MetadataQuery, eventsList: Seq[MetadataEvent], target: ActorRef, originalRequest: BuildMetadataJsonAction) = {
     if (query.expandSubWorkflows) {
-      // Let's pretend that workflow has 10000 subworkflows with random UUIDs
+      // If it's a root workflow, let's pretend that it has x subworkflows with random UUIDs
       val subWorkflowIds = if (isForSubworkflows || x.isEmpty) List() else (1 to x.get).map(_ => UUID.randomUUID.toString)
-      /*eventsList.collect({
-        case MetadataEvent(key, value, _) if key.key.endsWith(CallMetadataKeys.SubWorkflowId) => value map { _.value }
-      }).flatten.distinct*/
 
       // If none is found just proceed to build metadata
       if (subWorkflowIds.isEmpty) {
@@ -368,7 +370,6 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, isForSubworkflo
           // Make fake subworkflow metadata request.
           // Actually request the root workflow's metadata, but handle response as if it was a subworkflow with random uuid
           subMetadataBuilder ! GetMetadataAction(query.copy(), fakeSubWfId = Option(subId))
-          //subMetadataBuilder ! GetMetadataAction(query.copy(workflowId = WorkflowId.fromString(subId)))
         }
         goto(WaitingForSubWorkflows) using HasReceivedEventsData(target, originalRequest, query, eventsList, Map.empty, subWorkflowIds.size)
       }

@@ -28,13 +28,13 @@ import git
 import os
 import zipfile
 import logging
-from metadata_comparison.lib.argument_regex import url_regex_validator, gcs_path_regex_validator, \
-    workflow_regex_validator
-from metadata_comparison.lib.operation_ids import get_operation_id_number, find_operation_ids_in_metadata
+from metadata_comparison.lib.argument_regex import gcs_path_regex_validator, workflow_regex_validator
+from metadata_comparison.lib.operation_ids import get_operation_id_number, visit_papi_operations, CallNameSequence, \
+    JsonObject, OperationId
 from metadata_comparison.lib.papi.papi_clients import PapiClients
 from metadata_comparison.lib.storage import upload_blob
-from metadata_comparison.lib.logging import set_log_verbosity, quieten_chatty_imports
-from typing import Mapping, Any, Union
+from typing import Any, AnyStr, List, Mapping, Sequence, Union
+from metadata_comparison.lib.logging import quieten_chatty_imports, set_log_verbosity
 
 logger = logging.getLogger('metadata_comparison.extractor')
 
@@ -81,7 +81,7 @@ def upload_local_config(config_path: Path, gcs_bucket: str, gcs_path: str, gcs_s
     upload_blob(gcs_bucket, config_path.read_text(), f"{gcs_path}/{configuration_file_name}", gcs_storage_client, logger)
 
 
-def fetch_raw_workflow_metadata(cromwell_url: str, workflow: str) -> (requests.Response, Mapping[str, Any]):
+def fetch_raw_workflow_metadata(cromwell_url: str, workflow: str) -> (requests.Response, JsonObject):
     """Fetches workflow metadata for a workflow. Returns the raw response and the dict read from json"""
     url = f'{cromwell_url}/api/workflows/v1/{workflow}/metadata?expandSubWorkflows=true'
     logger.info(f'Fetching Cromwell metadata from {url}...')
@@ -94,7 +94,7 @@ def upload_workflow_metadata_json(bucket_name: str,
                                   workflow_gcs_base_path: str,
                                   gcs_storage_client: storage.Client) -> None:
     workflow_gcs_metadata_upload_path = f'{workflow_gcs_base_path}/metadata.json'
-    upload_blob(bucket_name, raw_workflow_metadata, workflow_gcs_metadata_upload_path, gcs_storage_client)
+    upload_blob(bucket_name, raw_workflow_metadata, workflow_gcs_metadata_upload_path, gcs_storage_client, logger)
 
 
 def upload_operations_metadata_json(bucket_name: str,
@@ -105,7 +105,27 @@ def upload_operations_metadata_json(bucket_name: str,
     """Uploads metadata to cloud storage, as json"""
     operation_upload_path = f'{workflow_gcs_base_path}/operations/{get_operation_id_number(operation_id)}.json'
     formatted_metadata = json.dumps(operations_metadata, indent=2)
-    upload_blob(bucket_name, bytes(formatted_metadata, 'utf-8'), operation_upload_path, gcs_storage_client)
+    upload_blob(bucket_name, bytes(formatted_metadata, 'utf-8'), operation_upload_path, gcs_storage_client, logger)
+
+
+def find_operation_ids_in_metadata(json_metadata: JsonObject) -> Sequence[AnyStr]:
+    """Finds all instances of PAPI operations IDs in a workflow"""
+    # Eg given:
+    # {
+    #   "calls": {
+    #     "workflow_name.task_name": [
+    #       {
+    #         "jobId": "projects/broad-dsde-cromwell-dev/operations/01234567891011121314",
+    # ...
+    #
+    # We want to extract "projects/broad-dsde-cromwell-dev/operations/01234567891011121314"
+    def call_fn(acc: List[AnyStr],
+                operation_id: OperationId,
+                call_name_sequence: CallNameSequence,
+                attempt: JsonObject) -> None:
+        acc.append(operation_id)
+
+    return visit_papi_operations(json_metadata, call_fn, initial_accumulator=[])
 
 
 def process_workflow(cromwell_url: str,

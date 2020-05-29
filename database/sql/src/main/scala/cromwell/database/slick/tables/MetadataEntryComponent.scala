@@ -78,6 +78,21 @@ trait MetadataEntryComponent {
     }
   )
 
+  val metadataTotalSizeRowsForRootWorkflowId = Compiled(
+    (rootWorkflowId: Rep[String]) => {
+      val targetWorkflowIds = for {
+        summary <- workflowMetadataSummaryEntries
+        // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
+        if summary.rootWorkflowExecutionUuid === rootWorkflowId || summary.workflowExecutionUuid === rootWorkflowId
+      } yield summary.workflowExecutionUuid
+
+      for {
+        metadata <- metadataEntries
+        if metadata.workflowExecutionUuid in targetWorkflowIds // Uses `METADATA_WORKFLOW_IDX`
+      } yield metadata
+    }.size
+  )
+
   val metadataEntryExistsForWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => (for {
       metadataEntry <- metadataEntries

@@ -33,6 +33,11 @@ sealed trait WorkflowSourceFilesCollection {
   }
 }
 
+trait HasWorkflowIdAndSources {
+  def sources: WorkflowSourceFilesCollection
+  def id: WorkflowId
+}
+
 object WorkflowSourceFilesCollection {
   def apply(workflowSource: Option[WorkflowSource],
             workflowUrl: Option[WorkflowUrl],

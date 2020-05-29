@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet id="delete_non_summarizable_metadata_from_queue" author="mcovarr" dbms="hsqldb">
+        <comment>
+            Delete rows from the summary queue corresponding to metadata that will not be summarized.
+        </comment>
+        <sql>
+            DELETE FROM SUMMARY_QUEUE_ENTRY queue WHERE queue.METADATA_JOURNAL_ID NOT IN (
+                SELECT metadata.METADATA_JOURNAL_ID FROM METADATA_ENTRY metadata WHERE
+                    metadata.METADATA_JOURNAL_ID = queue.METADATA_JOURNAL_ID AND
+                    metadata.CALL_FQN IS NULL AND
+                    metadata.JOB_SCATTER_INDEX IS NULL AND
+                    metadata.JOB_RETRY_ATTEMPT IS NULL AND (
+                        metadata.METADATA_KEY in
+                            ('start', 'end', 'workflowName', 'status', 'submission', 'parentWorkflowId', 'rootWorkflowId')
+                        OR
+                        metadata.METADATA_KEY LIKE 'labels%'
+                    )
+                )
+        </sql>
+    </changeSet>
+
+    <changeSet id="delete_non_summarizable_metadata_from_queue" author="mcovarr" dbms="postgresql">
+        <comment>
+            Delete rows from the summary queue corresponding to metadata that will not be summarized.
+        </comment>
+        <sql>
+            DELETE FROM "SUMMARY_QUEUE_ENTRY" queue WHERE queue."METADATA_JOURNAL_ID" NOT IN (
+                SELECT metadata."METADATA_JOURNAL_ID" FROM "METADATA_ENTRY" metadata WHERE
+                    metadata."METADATA_JOURNAL_ID" = queue."METADATA_JOURNAL_ID" AND
+                    metadata."CALL_FQN" IS NULL AND
+                    metadata."JOB_SCATTER_INDEX" IS NULL AND
+                    metadata."JOB_RETRY_ATTEMPT" IS NULL AND (
+                        metadata."METADATA_KEY" in
+                            ('start', 'end', 'workflowName', 'status', 'submission', 'parentWorkflowId', 'rootWorkflowId')
+                        OR
+                        metadata."METADATA_KEY" LIKE 'labels%'
+                    )
+            )
+        </sql>
+    </changeSet>
+
+    <changeSet id="delete_non_summarizable_metadata_from_queue" author="mcovarr" dbms="mariadb,mysql">
+        <comment>
+            Delete rows from the summary queue corresponding to metadata that will not be summarized.
+        </comment>
+        <sql>
+            DELETE SUMMARY_QUEUE_ENTRY FROM SUMMARY_QUEUE_ENTRY
+                INNER JOIN METADATA_ENTRY ON
+                SUMMARY_QUEUE_ENTRY.METADATA_JOURNAL_ID = METADATA_ENTRY.METADATA_JOURNAL_ID WHERE NOT (
+                    METADATA_ENTRY.CALL_FQN IS NULL AND
+                    METADATA_ENTRY.JOB_SCATTER_INDEX IS NULL AND
+                    METADATA_ENTRY.JOB_RETRY_ATTEMPT IS NULL AND (
+                        METADATA_ENTRY.METADATA_KEY in
+                            ('start', 'end', 'workflowName', 'status', 'submission', 'parentWorkflowId', 'rootWorkflowId')
+                        OR
+                        METADATA_ENTRY.METADATA_KEY LIKE 'labels%'
+                    )
+                )
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

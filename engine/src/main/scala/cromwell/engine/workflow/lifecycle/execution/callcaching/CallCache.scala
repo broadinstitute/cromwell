@@ -16,11 +16,11 @@ import cromwell.database.sql.tables._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadActor.AggregatedCallHashes
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CallCacheHashes
+import cromwell.services.CallCaching.CallCachingEntryId
 import wom.core._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-final case class CallCachingEntryId(id: Int)
 /**
   * Given a database-layer CallCacheStore, this accessor can access the database with engine-friendly data types.
   */

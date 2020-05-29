@@ -1,0 +1,13 @@
+name: sizerelativepath
+testFormat: workflowsuccess
+
+backends: [Local, LocalNoDocker, Slurm, SlurmNoDocker]
+backendsMode: "only"
+
+files {
+  workflow: sizerelativepath/sizerelativepath.wdl
+}
+
+metadata {
+        "outputs.sizerelativepath.size_string": "1495"
+}

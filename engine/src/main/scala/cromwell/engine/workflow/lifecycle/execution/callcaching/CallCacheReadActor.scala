@@ -13,6 +13,7 @@ import cromwell.services.EnhancedThrottlerActor
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 import CallCache._
+import cromwell.services.CallCaching.CallCachingEntryId
 
 /**
   * Queues up work sent to it because its receive is non-blocking.

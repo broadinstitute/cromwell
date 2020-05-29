@@ -4,11 +4,11 @@ import cromwell.backend.BackendCacheHitCopyingActor.{CopyingOutputsFailedRespons
 import cromwell.backend.{BackendJobDescriptor, MetricableCacheCopyErrorCategory}
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.core.callcaching._
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CallCacheHashes, FileHashes}
 import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor.{EJEAData, SucceededResponseData, UpdatingCallCache, UpdatingJobStore}
 import cromwell.jobstore.JobStoreActor.RegisterJobCompleted
 import cromwell.jobstore.{JobResultFailure, JobResultSuccess, JobStoreKey}
+import cromwell.services.CallCaching.CallCachingEntryId
 import cromwell.util.WomMocks
 import org.scalatest.concurrent.Eventually
 import wom.values.{WomInteger, WomString}

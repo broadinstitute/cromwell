@@ -3,9 +3,10 @@ package cromwell.backend
 import cromwell.backend.MetricableCacheCopyErrorCategory.MetricableCacheCopyErrorCategory
 import cromwell.core.JobKey
 import cromwell.core.simpleton.WomValueSimpleton
+import cromwell.services.CallCaching.CallCachingEntryId
 
 object BackendCacheHitCopyingActor {
-  final case class CopyOutputsCommand(womValueSimpletons: Seq[WomValueSimpleton], jobDetritusFiles: Map[String, String], returnCode: Option[Int])
+  final case class CopyOutputsCommand(womValueSimpletons: Seq[WomValueSimpleton], jobDetritusFiles: Map[String, String], cacheHit: CallCachingEntryId, returnCode: Option[Int])
 
   final case class CopyingOutputsFailedResponse(jobKey: JobKey, cacheCopyAttempt: Int, failure: CacheCopyError)
 
@@ -20,4 +21,5 @@ object MetricableCacheCopyErrorCategory {
     override def toString: String = getClass.getSimpleName.stripSuffix("$").toLowerCase
   }
   final case object BucketBlacklisted extends MetricableCacheCopyErrorCategory
+  final case object HitBlacklisted extends MetricableCacheCopyErrorCategory
 }

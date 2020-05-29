@@ -2,7 +2,26 @@
 
 ## 51 Release Notes
 
+### Changes and Warnings
+
+The configuration format for call cache blacklisting has been updated, please see the [call caching documentation](
+https://cromwell.readthedocs.io/en/stable/Configuring/#call-caching) for details.
+
+### Bug fixes
+
+* Fixed a bug where the `size(...)` function did not work correctly on files 
+  from a shared filesystem if `size(...)` was called in the input section on a 
+  relative path.
++ Fixed a bug where the `use_relative_output_paths` option would not preserve intermediate folders.
+
 ### New functionality
+
+#### Call caching blacklisting improvements
+
+Cromwell previously supported blacklisting GCS buckets containing cache hits which could not be copied for permissions 
+reasons. Cromwell now adds support for blacklisting individual cache hits which could not be copied for any reason,
+as well as grouping blacklist caches according to a workflow option key. More information available in the [
+call caching documentation]( https://cromwell.readthedocs.io/en/stable/Configuring/#call-caching). 
 
 #### new xxh64 and fingerprint strategies for call caching
 
@@ -12,13 +31,6 @@ Two faster strategies have been added for this use case: `xxh64` and
 `fingerprint`. `xxh64` is a lightweight hashing algorithm, `fingerprint` is a strategy designed to be very 
 lightweight. Read more about it in the [call caching documentation](
 https://cromwell.readthedocs.io/en/stable/Configuring/#call-caching).
-
-### Bug fixes
-
-* Fixed a bug where the `size(...)` function did not work correctly on files 
-  from a shared filesystem if `size(...)` was called in the input section on a 
-  relative path.
-+ Fixed a bug where the `use_relative_output_paths` option would not preserve intermediate folders.
 
 ## 50 Release Notes
 

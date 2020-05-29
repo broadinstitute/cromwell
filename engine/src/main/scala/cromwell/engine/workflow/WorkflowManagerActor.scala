@@ -9,9 +9,9 @@ import cats.data.NonEmptyList
 import com.typesafe.config.Config
 import common.exception.ThrowableAggregation
 import cromwell.backend.async.KnownJobFailureException
-import cromwell.backend.standard.callcaching.{BlacklistCache, RootWorkflowFileHashCacheActor}
+import cromwell.backend.standard.callcaching.{CallCachingBlacklistManager, RootWorkflowFileHashCacheActor}
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.core.{CacheConfig, WorkflowId}
+import cromwell.core.WorkflowId
 import cromwell.engine.SubWorkflowStart
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
@@ -25,7 +25,6 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.language.postfixOps
 import scala.util.Try
 
 object WorkflowManagerActor {
@@ -278,6 +277,8 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       logger.debug(s"$tag transitioning from $fromState to $toState")
   }
 
+  private val callCachingBlacklistManager = new CallCachingBlacklistManager(config, logger)
+
   /**
     * Submit the workflow and return an updated copy of the state data reflecting the addition of a
     * Workflow ID -> WorkflowActorRef entry.
@@ -292,11 +293,6 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     }
 
     val fileHashCacheActorProps: Option[Props] = fileHashCacheEnabled.option(RootWorkflowFileHashCacheActor.props(params.ioActor, workflowId))
-
-    val callCachingBlacklistCache: Option[BlacklistCache] = for {
-      config <- config.as[Option[Config]]("call-caching.blacklist-cache")
-      cacheConfig <- CacheConfig.optionalConfig(config, defaultConcurrency = 1000, defaultSize = 1000, defaultTtl = 1 hour)
-    } yield BlacklistCache(cacheConfig)
 
     val wfProps = WorkflowActor.props(
       workflowToStart = workflow,
@@ -318,7 +314,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       workflowHeartbeatConfig = params.workflowHeartbeatConfig,
       totalJobsByRootWf = new AtomicInteger(),
       fileHashCacheActorProps = fileHashCacheActorProps,
-      blacklistCache = callCachingBlacklistCache)
+      blacklistCache = callCachingBlacklistManager.blacklistCacheFor(workflow))
     val wfActor = context.actorOf(wfProps, name = s"WorkflowActor-$workflowId")
 
     wfActor ! SubscribeTransitionCallBack(self)

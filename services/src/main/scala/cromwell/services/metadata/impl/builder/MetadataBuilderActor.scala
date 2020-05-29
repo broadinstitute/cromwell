@@ -44,8 +44,8 @@ object MetadataBuilderActor {
     def isComplete = subWorkflowsMetadata.size == waitFor
   }
 
-  def props(readMetadataWorkerMaker: () => Props, isForSubworkflows: Boolean = false, x: Option[Int] = None) = {
-    Props(new MetadataBuilderActor(readMetadataWorkerMaker, isForSubworkflows, x))
+  def props(readMetadataWorkerMaker: () => Props, isForSubworkflows: Boolean = false, numOfFakeSubWfs: Option[Int] = None) = {
+    Props(new MetadataBuilderActor(readMetadataWorkerMaker, isForSubworkflows, numOfFakeSubWfs))
   }
 
   val log = LoggerFactory.getLogger("MetadataBuilder")
@@ -242,7 +242,7 @@ object MetadataBuilderActor {
   }
 }
 
-class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, isForSubworkflows: Boolean, x: Option[Int] = None)
+class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, isForSubworkflows: Boolean, numOfFakeSubWfs: Option[Int] = None)
   extends LoggingFSM[MetadataBuilderActorState, MetadataBuilderActorData] with DefaultJsonProtocol {
 
   import MetadataBuilderActor._
@@ -356,7 +356,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, isForSubworkflo
   def processMetadataResponse(query: MetadataQuery, eventsList: Seq[MetadataEvent], target: ActorRef, originalRequest: BuildMetadataJsonAction) = {
     if (query.expandSubWorkflows) {
       // If it's a root workflow, let's pretend that it has x subworkflows with random UUIDs
-      val subWorkflowIds = if (isForSubworkflows || x.isEmpty) List() else (1 to x.get).map(_ => UUID.randomUUID.toString)
+      val subWorkflowIds = if (isForSubworkflows || numOfFakeSubWfs.isEmpty) List() else (1 to numOfFakeSubWfs.get).map(_ => UUID.randomUUID.toString)
 
       // If none is found just proceed to build metadata
       if (subWorkflowIds.isEmpty) {

@@ -1,5 +1,13 @@
 # Cromwell Change Log
 
+## 52 Release Notes
+
+### Documentation
+
+Information on how to properly use the Singularity cache with Cromwell is now
+provided in the [Cromwell Singularity documentation](
+https://cromwell.readthedocs.io/en/stable/tutorials/Containers/#singularity).
+
 ## 51 Release Notes
 
 ### Changes and Warnings
@@ -31,12 +39,6 @@ Two faster strategies have been added for this use case: `xxh64` and
 `fingerprint`. `xxh64` is a lightweight hashing algorithm, `fingerprint` is a strategy designed to be very 
 lightweight. Read more about it in the [call caching documentation](
 https://cromwell.readthedocs.io/en/stable/Configuring/#call-caching).
-
-### Documentation
-
-Information on how to properly use the Singularity cache with Cromwell is now
-provided in the [Cromwell Singularity documentation](
-https://cromwell.readthedocs.io/en/stable/tutorials/Containers/#singularity).
 
 ## 50 Release Notes
 

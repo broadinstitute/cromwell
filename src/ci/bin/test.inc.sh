@@ -113,11 +113,21 @@ cromwell::private::create_build_variables() {
     fi
 
     local git_commit_message
-    git_commit_message="$(git log --format=%B --max-count=1 HEAD 2>/dev/null || true)"
+    # The commit message to analyze should be the last one in the commit range.
+    # This works for both pull_request and push builds, unlike using 'git log HEAD' which gives a merge commit message
+    # on pull requests:
+    git_commit_message="$(git log --reverse ${TRAVIS_COMMIT_RANGE} | tail -n1 2>/dev/null || true)"
+    echo "Building for git commit message: ${git_commit_message}"
+
     if [[ "${git_commit_message}" == *"[force ci]"* ]]; then
         CROMWELL_BUILD_FORCE_TESTS=true
-    else
+        CROMWELL_BUILD_MINIMAL_TESTS=false
+    elif [[ "${git_commit_message}" == *"[minimal ci]"* ]]; then
         CROMWELL_BUILD_FORCE_TESTS=false
+        CROMWELL_BUILD_MINIMAL_TESTS=true
+    else
+      CROMWELL_BUILD_FORCE_TESTS=false
+      CROMWELL_BUILD_MINIMAL_TESTS=false
     fi
 
     local git_revision
@@ -132,7 +142,7 @@ cromwell::private::create_build_variables() {
     # branch. So, in case of push builds `git diff` will always return empty result. This is why we only use this short
     # circuiting logic for pull request builds
     cromwell::private::set_variable_if_only_some_files_changed "^mkdocs.yml|^docs/" "CROMWELL_BUILD_ONLY_DOCS_CHANGED"
-    cromwell::private::set_variable_if_only_some_files_changed "^scripts/" "CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED"
+    cromwell::private::set_variable_if_only_some_files_changed "^src/ci/bin/testMetadataComparisonPython.sh|^scripts/" "CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED"
 
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
@@ -157,7 +167,11 @@ cromwell::private::create_build_variables() {
             elif [[ "${CROMWELL_BUILD_ONLY_DOCS_CHANGED}" == "true" ]] && \
                 [[ "${BUILD_TYPE}" != "checkPublish" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=false
-            elif [[ "${CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED}" == "true" ]]; then
+            elif [[ "${CROMWELL_BUILD_MINIMAL_TESTS}" == "true" ]] && \
+                [[ "${TRAVIS_EVENT_TYPE}" != "push" ]]; then
+                CROMWELL_BUILD_RUN_TESTS=false
+            elif [[ "${CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED}" == "true" ]] && \
+                [[ "${BUILD_TYPE}" != "metadataComparisonPython" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=false
             elif [[ "${TRAVIS_EVENT_TYPE}" == "push" ]] && \
                 [[ "${BUILD_TYPE}" != "sbt" ]]; then

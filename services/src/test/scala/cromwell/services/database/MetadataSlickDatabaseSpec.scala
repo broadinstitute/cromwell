@@ -4,13 +4,18 @@ import java.time.OffsetDateTime
 
 import com.dimafeng.testcontainers.Container
 import cromwell.core.Tags.DbmsTest
+import cromwell.core.{WorkflowId, WorkflowMetadataKeys}
+import cromwell.database.migration.metadata.table.symbol.MetadataStatement._
+import cromwell.database.slick.MetadataSlickDatabase
+import cromwell.database.slick.MetadataSlickDatabase.SummarizationPartitionedMetadata
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
+import cromwell.services.metadata.CallMetadataKeys
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
 
 class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures {
 
@@ -23,9 +28,8 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
     val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
 
     lazy val database = DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, MetadataDatabaseType, databaseSystem)
-    import database.dataAccess.driver.api._
-
     import cromwell.database.migration.metadata.table.symbol.MetadataStatement.OffsetDateTimeToSystemTimestamp
+    import database.dataAccess.driver.api._
     val now = OffsetDateTime.now().toSystemTimestamp
 
     it should "start container if required" taggedAs DbmsTest in {
@@ -94,5 +98,119 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
       containerOpt.foreach { _.stop }
     }
 
+  }
+
+  behavior of "MetadataSlickDatabase"
+  it should "partition metadata for summarization correctly" in {
+
+    def partition(metadata: Seq[MetadataEntry]): SummarizationPartitionedMetadata = {
+      MetadataSlickDatabase.partitionSummarizationMetadata(
+        rawMetadataEntries = metadata,
+        startMetadataKey = WorkflowMetadataKeys.StartTime,
+        endMetadataKey = WorkflowMetadataKeys.EndTime,
+        nameMetadataKey = WorkflowMetadataKeys.Name,
+        statusMetadataKey = WorkflowMetadataKeys.Status,
+        submissionMetadataKey = WorkflowMetadataKeys.SubmissionTime,
+        parentWorkflowIdKey = WorkflowMetadataKeys.ParentWorkflowId,
+        rootWorkflowIdKey = WorkflowMetadataKeys.RootWorkflowId,
+        labelMetadataKey = WorkflowMetadataKeys.Labels)
+    }
+
+    {
+      // Edge condition: empty input
+      val partitioned = partition(List.empty)
+      partitioned.nonSummarizableMetadata shouldBe empty
+      partitioned.summarizableMetadata shouldBe empty
+    }
+
+    {
+      // A mix of summarizable and non-summarizable keys specified at workflow and call levels.
+      val wfid = WorkflowId.randomId().id.toString
+      val callName = "my.call"
+
+      def callEntry(key: String): MetadataEntry =
+        MetadataEntry(wfid, Option(callName), None, Option(1), key, None, None, OffsetDateTime.now().toSystemTimestamp)
+
+      def workflowEntry(key: String): MetadataEntry =
+        MetadataEntry(wfid, None, None, None, key, None, None, OffsetDateTime.now().toSystemTimestamp)
+
+      val rightKeysCallLevel = List(
+        callEntry(WorkflowMetadataKeys.StartTime),
+        callEntry(WorkflowMetadataKeys.EndTime),
+        callEntry(WorkflowMetadataKeys.Name),
+        callEntry(WorkflowMetadataKeys.Status),
+        callEntry(WorkflowMetadataKeys.SubmissionTime),
+        callEntry(WorkflowMetadataKeys.ParentWorkflowId),
+        callEntry(WorkflowMetadataKeys.RootWorkflowId),
+        callEntry(WorkflowMetadataKeys.Labels + ":arbitrary-label")
+      )
+
+      val wrongKeysCallLevel = List(
+        callEntry("complete"),
+        callEntry("rubbish")
+      )
+
+      val thingsThatLookKindOfLikeTheRightWorkflowKeysButActuallyAreNotAndAreCallScopedAnyway = List(
+        callEntry(CallMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.StartTime),
+        callEntry(CallMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.EndTime),
+        callEntry(CallMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.Name),
+        callEntry(CallMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.Status),
+        callEntry(CallMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.SubmissionTime),
+        callEntry(CallMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.ParentWorkflowId),
+        callEntry(CallMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.RootWorkflowId),
+        callEntry(CallMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.Labels + ":arbitrary-label"),
+        callEntry(CallMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.StartTime),
+        callEntry(CallMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.EndTime),
+        callEntry(CallMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.Name),
+        callEntry(CallMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.Status),
+        callEntry(CallMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.SubmissionTime),
+        callEntry(CallMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.ParentWorkflowId),
+        callEntry(CallMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.RootWorkflowId),
+        callEntry(CallMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.Labels + ":arbitrary-label")
+      )
+
+      val rightKeysWorkflowLevel = List(
+        workflowEntry(WorkflowMetadataKeys.StartTime),
+        workflowEntry(WorkflowMetadataKeys.EndTime),
+        workflowEntry(WorkflowMetadataKeys.Name),
+        workflowEntry(WorkflowMetadataKeys.Status),
+        workflowEntry(WorkflowMetadataKeys.SubmissionTime),
+        workflowEntry(WorkflowMetadataKeys.ParentWorkflowId),
+        workflowEntry(WorkflowMetadataKeys.RootWorkflowId),
+        workflowEntry(WorkflowMetadataKeys.Labels + ":arbitrary-label")
+      )
+
+      val wrongKeysWorkflowLevel = List(
+        workflowEntry("total"),
+        workflowEntry("garbage")
+      )
+
+      val thingsThatLookKindOfLikeTheRightWorkflowKeysButActuallyAreNot = List(
+        workflowEntry(WorkflowMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.StartTime),
+        workflowEntry(WorkflowMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.EndTime),
+        workflowEntry(WorkflowMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.Name),
+        workflowEntry(WorkflowMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.Status),
+        workflowEntry(WorkflowMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.SubmissionTime),
+        workflowEntry(WorkflowMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.ParentWorkflowId),
+        workflowEntry(WorkflowMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.RootWorkflowId),
+        workflowEntry(WorkflowMetadataKeys.Inputs + ":" + WorkflowMetadataKeys.Labels + ":arbitrary-label"),
+        workflowEntry(WorkflowMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.StartTime),
+        workflowEntry(WorkflowMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.EndTime),
+        workflowEntry(WorkflowMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.Name),
+        workflowEntry(WorkflowMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.Status),
+        workflowEntry(WorkflowMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.SubmissionTime),
+        workflowEntry(WorkflowMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.ParentWorkflowId),
+        workflowEntry(WorkflowMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.RootWorkflowId),
+        workflowEntry(WorkflowMetadataKeys.Outputs + ":" + WorkflowMetadataKeys.Labels + ":arbitrary-label")
+      )
+
+      val allTheWrongThings = rightKeysCallLevel ++ wrongKeysCallLevel ++ wrongKeysWorkflowLevel ++
+        thingsThatLookKindOfLikeTheRightWorkflowKeysButActuallyAreNot ++
+        thingsThatLookKindOfLikeTheRightWorkflowKeysButActuallyAreNotAndAreCallScopedAnyway
+
+      val partitioned = partition(rightKeysWorkflowLevel ++ allTheWrongThings)
+      partitioned.nonSummarizableMetadata.toSet shouldBe (allTheWrongThings).toSet
+      partitioned.summarizableMetadata shouldBe rightKeysWorkflowLevel
+    }
   }
 }

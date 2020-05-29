@@ -32,17 +32,17 @@ class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Call
   when(WaitingForMetadata) {
     // First Response
     // Response A
-    case Event(SuccessfulMetadataJsonResponse(GetMetadataAction(originalQuery, _), responseJson), data@CallCacheDiffWithRequest(queryA, _, None, None, _)) if queryA == originalQuery =>
+    case Event(SuccessfulMetadataJsonResponse(GetMetadataAction(originalQuery, _, _), responseJson), data@CallCacheDiffWithRequest(queryA, _, None, None, _)) if queryA == originalQuery =>
       stay() using data.copy(responseA = Option(WorkflowMetadataJson(responseJson)))
     // Response B
-    case Event(SuccessfulMetadataJsonResponse(GetMetadataAction(originalQuery, _), responseJson), data@CallCacheDiffWithRequest(_, queryB, None, None, _)) if queryB == originalQuery =>
+    case Event(SuccessfulMetadataJsonResponse(GetMetadataAction(originalQuery, _, _), responseJson), data@CallCacheDiffWithRequest(_, queryB, None, None, _)) if queryB == originalQuery =>
       stay() using data.copy(responseB = Option(WorkflowMetadataJson(responseJson)))
     // Second Response
     // Response A
-    case Event(SuccessfulMetadataJsonResponse(GetMetadataAction(originalQuery, _), responseJson), CallCacheDiffWithRequest(queryA, queryB, None, Some(responseB), replyTo)) if queryA == originalQuery =>
+    case Event(SuccessfulMetadataJsonResponse(GetMetadataAction(originalQuery, _, _), responseJson), CallCacheDiffWithRequest(queryA, queryB, None, Some(responseB), replyTo)) if queryA == originalQuery =>
       buildDiffAndRespond(queryA, queryB, WorkflowMetadataJson(responseJson), responseB, replyTo)
     // Response B
-    case Event(SuccessfulMetadataJsonResponse(GetMetadataAction(originalQuery, _), responseJson), CallCacheDiffWithRequest(queryA, queryB, Some(responseA), None, replyTo)) if queryB == originalQuery =>
+    case Event(SuccessfulMetadataJsonResponse(GetMetadataAction(originalQuery, _, _), responseJson), CallCacheDiffWithRequest(queryA, queryB, Some(responseA), None, replyTo)) if queryB == originalQuery =>
       buildDiffAndRespond(queryA, queryB, responseA, WorkflowMetadataJson(responseJson), replyTo)
     case Event(FailedMetadataJsonResponse(_, failure), data: CallCacheDiffWithRequest) =>
       data.replyTo ! FailedCallCacheDiffResponse(failure)

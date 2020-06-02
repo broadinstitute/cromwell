@@ -1,4 +1,4 @@
-FROM openjdk:8u171
+FROM openjdk:8u252
 
 # docker build -t vanessa/cromwell-dev .
 

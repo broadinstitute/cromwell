@@ -138,7 +138,11 @@ trait GetRequestHandler { this: RequestHandler =>
     // BA-6455: since v2beta version of Life Sciences API, `a.getLabels` would return `null` for empty labels, unlike
     // v2alpha1 version, where it returned empty list in the same case
     val actionIndexToEventType: Map[Int, String] = List(Key.Logging, Key.Tag).flatMap { k =>
-      actions.zipWithIndex collect { case (a, i) if a.getLabels != null && a.getLabels.containsKey(k) => (i + 1) -> a.getLabels.get(k) } } toMap
+      actions.zipWithIndex collect {
+        case (a, i) if Option(a.getLabels).getOrElse(Map.empty[String, String].asJava).containsKey(k) =>
+          (i + 1) -> a.getLabels.get(k)
+      }
+    } toMap
 
     val executionEvents = events.map(toExecutionEvent(actionIndexToEventType))
     // The Docker image used for CWL output parsing causes some complications for the timing diagram. Docker image

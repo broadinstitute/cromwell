@@ -734,6 +734,10 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     )
   }
 
+  private def publishCopySuccessMetrics(data: ResponsePendingData): Unit = {
+    val
+  }
+
   private def publishBlacklistReadMetrics(data: ResponsePendingData, failureCategory: MetricableCacheCopyErrorCategory): Unit = {
     val callCachingErrorsMetricPath: NonEmptyList[String] =
       NonEmptyList.of(

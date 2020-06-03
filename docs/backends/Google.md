@@ -11,7 +11,7 @@ The instructions below assume you have created a Google Cloud Storage bucket and
 
 **Configuring Authentication**
 
-The `google` stanza in the Cromwell configuration file defines how to authenticate to Google.  There are four different
+The `google` stanza in the Cromwell configuration file defines how to authenticate to Google.  There are five different
 authentication schemes that might be used:
 
 * `application_default` (default, recommended) - Use [application default](https://developers.google.com/identity/protocols/application-default-credentials) credentials.
@@ -55,7 +55,7 @@ the `genomics` and `filesystems.gcs` sections within a Google configuration bloc
 The auth for the `genomics` section governs the interactions with Google itself, while `filesystems.gcs` governs the localization
 of data into and out of GCE VMs.
 
-**Application Default Credentials**
+***Application Default Credentials***
 
 By default, application default credentials will be used.  Only `name` and `scheme` are required for application default credentials.
 
@@ -66,7 +66,7 @@ $ gcloud auth login
 $ gcloud config set project my-project
 ```
 
-**Service Account**
+***Service Account***
 
 First create a new service account through the [API Credentials](https://console.developers.google.com/apis/credentials) page.  Go to **Create credentials -> Service account key**.  Then in the **Service account** dropdown select **New service account**.  Fill in a name (e.g. `my-account`), and select key type of JSON.
 

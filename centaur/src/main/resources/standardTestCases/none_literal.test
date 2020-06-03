@@ -11,5 +11,6 @@ metadata {
   "outputs.none_literal.out": null
   "outputs.none_literal.out2": null
   "outputs.none_literal.out3": 3
+  "outputs.none_literal.none_from_struct": null
   "outputs.none_literal.out_none": "None"
 }

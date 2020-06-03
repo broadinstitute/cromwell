@@ -4,13 +4,13 @@ import cats.syntax.apply._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import cats.instances.list._
-import common.validation.ErrorOr.ErrorOr
+import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.{FileEvaluator, ValueEvaluator}
 import wdl.model.draft3.graph.expression.FileEvaluator.ops._
 import wom.expression.IoFunctionSet
-import wom.types.{WomCompositeType, WomSingleFileType, WomType}
+import wom.types.{WomCompositeType, WomSingleFileType, WomStringType, WomType}
 import wom.values.{WomFile, WomSingleFile, WomValue}
 
 
@@ -33,6 +33,39 @@ object LiteralEvaluators {
                                               valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] = coerceTo match {
       case WomSingleFileType => Set[WomFile](WomSingleFile(a.value)).validNel
       case _ => Set.empty[WomFile].validNel
+    }
+  }
+
+  implicit val stringExpressionEvaluator: FileEvaluator[StringExpression] = new FileEvaluator[StringExpression] {
+    override def predictFilesNeededToEvaluate(a: StringExpression,
+                                              inputs: Map[String, WomValue],
+                                              ioFunctionSet: IoFunctionSet,
+                                              coerceTo: WomType)
+                                             (implicit fileEvaluator: FileEvaluator[ExpressionElement], valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[WomFile]] = {
+
+      val filesNeededToEvaluateString = {
+        val resultPerPiece = a.pieces.toList.traverse {
+          case e: StringPlaceholder => fileEvaluator.evaluateFilesNeededToEvaluate(e.expr, inputs, ioFunctionSet, WomStringType)
+          case _ => Set.empty[WomFile].validNel
+        }
+        resultPerPiece.map(_.flatten.toSet)
+      }
+
+      val fileIdentifiedByEvaluatingString = coerceTo match {
+        case WomSingleFileType =>
+          val resultPerPiece = a.pieces.toList.traverse {
+            case e: StringPlaceholder => fileEvaluator.evaluateFilesNeededToEvaluate(e.expr, inputs, ioFunctionSet, WomStringType)
+            case _ => Set.empty[WomFile].validNel
+          }
+          resultPerPiece.map(_.flatten.toSet)
+        case _ => Set.empty[WomFile].validNel
+      }
+
+      for {
+        a <- filesNeededToEvaluateString
+        b <- fileIdentifiedByEvaluatingString
+      } yield (a ++ b)
+
     }
   }
 

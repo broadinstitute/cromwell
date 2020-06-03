@@ -1,0 +1,12 @@
+name: string_interpolation_outputs
+testFormat: workflowsuccess
+
+files {
+  workflow: string_interpolation_outputs/string_interpolation_outputs.wdl
+}
+
+metadata {
+  workflowName: string_interpolation_outputs
+  status: Succeeded
+  "outputs.string_interpolation_outputs.one_is": "one is one"
+}

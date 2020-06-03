@@ -138,13 +138,25 @@ As the configuration will require more knowledge about your execution environmen
 
 ##### Local environments
 
-On local backends, you have to configure Cromwell to use a different `submit-docker` script that would start Singularity instead of docker. Singularity requires docker images to be prefixed with the prefix `docker://`.
+On local backends, you have to configure Cromwell to use a different 
+`submit-docker` script that would start Singularity instead of docker. 
+Singularity requires docker images to be prefixed with the prefix `docker://`.
 An example submit script for Singularity is:
 ```bash
-singularity exec --bind ${cwd}:${docker_cwd} docker://${docker} ${job_shell} ${script}
+singularity exec --containall --bind ${cwd}:${docker_cwd} docker://${docker} ${job_shell} ${script}
 ```
 
 As the `Singularity exec` command does not emit a job-id, we must include the `run-in-background` tag within the the provider section in addition to the docker-submit script. As Cromwell watches for the existence of the `rc` file, the `run-in-background` option has the caveat that we require the Singularity container to successfully complete, otherwise the workflow might hang indefinitely.
+
+To ensure reproducibility and an isolated environment inside the container, 
+`--containall` is an **important** function. By default, Singularity will mount
+the user's home directory and import the user's environment as well as some 
+other things that make Singularity easier to use in an interactive shell. 
+Unfortunately settings in the home directory and the user's environment may 
+affect the outcome of the tools that are used. This means different users may
+get different results. Therefore, to ensure reproducibility while using 
+Singularity, the `--containall` flag should be used. This will make sure the 
+environment is cleaned and the HOME directory is not mounted.
 
 Putting this together, we have an example base configuration for a local environment:
 ```hocon
@@ -163,7 +175,7 @@ backend {
                   String? docker
                 """
                 submit-docker = """
-                  singularity exec --bind ${cwd}:${docker_cwd} docker://${docker} ${job_shell} ${script}
+                  singularity exec --containall --bind ${cwd}:${docker_cwd} docker://${docker} ${job_shell} ${script}
                 """
             }
         }
@@ -178,27 +190,48 @@ To run Singularity on a job scheduler, the singularity command needs to be passe
 For example, in SLURM, we can use the normal SLURM configuration as explained in the [SLURM documentation](../backends/SLURM), however we'll add a `submit-docker` block to execute when a task is tagged with a docker container. 
 
 When constructing this block, there are a few things to keep in mind:
-- Make sure Singularity is loaded (and in our path), for example you can call `module load Singularity/3.0.1`.
-- We should treat worker nodes as if they do not have stable access to the internet or build access, so we will pull the container before execution of the task.
-- It's a good idea to ask Singularity to build the image into the execution directory of the task as an artifact, and to save rendering time on the worker node.
-- We'll use the docker name (potentially including the docker hash) to generate a compliant filename that can be looked up later.
-- If the container exists, there is no need to rebuild the container.
+- Make sure Singularity is loaded (and in PATH). If `module` is installed for 
+  example you can call `module load Singularity`. If the cluster admin has made
+  a Singularity module available. Alternatively you can alter the `PATH` 
+  variable directly or simply use `/path/to/singularity` 
+  directly in the config.
+- We should treat worker nodes as if they do not have stable access to the 
+  internet or build access, so we will pull the container before the task is 
+  submit to the cluster.
+- It's a good idea to use a Singularity cache so that same images should only
+  have to be pulled once. Make sure you set the `SINGULARITY_CACHEDIR` 
+  environment variable to a location on the filesystem that is reachable by the
+  worker nodes!
+- If we are using a cache we need to ensure that submit processes started by
+  Cromwell do not pull to the same cache at the same time. This may corrupt the
+  cache. We can prevent this by implementing a filelock with `flock` and 
+  pulling the image before the job is submitted. The flock and pull command 
+  needs to be placed *before* the submit command so all pull commands are 
+  executed on the same node. This is necessary for the filelock to work.
+- As mentioned above the `--containall` flag is **important** for 
+  reproducibility.
 
 ```
 submit-docker = """
-    module load Singularity/3.0.1
-  
-    # Build the Docker image into a singularity image, using the head node
-    DOCKER_NAME=$(sed -e 's/[^A-Za-z0-9._-]/_/g' <<< ${docker})
-    IMAGE=${cwd}/$DOCKER_NAME.sif
-    if [ ! -f $IMAGE ]; then
-        singularity pull $IMAGE docker://${docker}
+    # Make sure the SINGULARITY_CACHEDIR variable is set. If not use a default
+    # based on the users home.
+    if [ -z $SINGULARITY_CACHEDIR ]; 
+        then CACHE_DIR=$HOME/.singularity/cache
+        else CACHE_DIR=$SINGULARITY_CACHEDIR
     fi
-  
+    # Make sure cache dir exists so lock file can be created by flock
+    mkdir -p $CACHE_DIR  
+    LOCK_FILE=$CACHE_DIR/singularity_pull_flock
+    # Create an exclusive filelock with flock. --verbose is useful for 
+    # for debugging, as is the echo command. These show up in `stdout.submit`.
+    flock --verbose --exclusive --timeout 900 $LOCK_FILE \
+    singularity exec --containall docker://${docker} \
+    echo "successfully pulled ${docker}!"
+
     # Submit the script to SLURM
     sbatch \
       [...]
-      --wrap "singularity exec --bind ${cwd}:${docker_cwd} $IMAGE ${job_shell} ${script}"
+      --wrap "singularity exec --containall --bind ${cwd}:${docker_cwd} $IMAGE ${job_shell} ${script}"
   """
 ```
 
@@ -233,15 +266,20 @@ backend {
         """
 
         submit-docker = """
-            # Ensure singularity is loaded if it's installed as a module
-            module load Singularity/3.0.1
-            
-            # Build the Docker image into a singularity image
-            DOCKER_NAME=$(sed -e 's/[^A-Za-z0-9._-]/_/g' <<< ${docker})
-            IMAGE=${cwd}/$DOCKER_NAME.sif
-            if [ ! -f $IMAGE ]; then
-                singularity pull $IMAGE docker://${docker}
+            # Make sure the SINGULARITY_CACHEDIR variable is set. If not use a default
+            # based on the users home.
+            if [ -z $SINGULARITY_CACHEDIR ]; 
+                then CACHE_DIR=$HOME/.singularity/cache
+                else CACHE_DIR=$SINGULARITY_CACHEDIR
             fi
+            # Make sure cache dir exists so lock file can be created by flock
+            mkdir -p $CACHE_DIR  
+            LOCK_FILE=$CACHE_DIR/singularity_pull_flock
+            # Create an exclusive filelock with flock. --verbose is useful for 
+            # for debugging, as is the echo command. These show up in `stdout.submit`.
+            flock --verbose --exclusive --timeout 900 $LOCK_FILE \
+            singularity exec --containall docker://${docker} \
+            echo "successfully pulled ${docker}!"
 
             # Submit the script to SLURM
             sbatch \
@@ -253,7 +291,7 @@ backend {
               -t ${runtime_minutes} \
               ${"-c " + cpus} \
               --mem-per-cpu=${requested_memory_mb_per_core} \
-              --wrap "singularity exec --bind ${cwd}:${docker_cwd} $IMAGE ${job_shell} ${script}"
+              --wrap "singularity exec --containall --bind ${cwd}:${docker_cwd} $IMAGE ${job_shell} ${script}"
         """
 
         kill = "scancel ${job_id}"

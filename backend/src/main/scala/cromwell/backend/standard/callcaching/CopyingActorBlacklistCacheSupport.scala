@@ -51,11 +51,11 @@ trait CopyingActorBlacklistCacheSupport {
     ()
   }
 
-  def publishBlacklistMetric(blacklistCache: BlacklistCache, verb: Verb, entityType: EntityType, key: String, value: BlacklistStatus): Unit = {
+  def publishBlacklistMetric(blacklistCache: BlacklistCache, verb: Verb, entityType: EntityType, value: BlacklistStatus): Unit = {
     val group = blacklistCache.name.getOrElse("none")
     val metricPath = NonEmptyList.of(
       "job",
-      "callcaching", "blacklist", verb.metricFormat, entityType.metricFormat, jobDescriptor.taskCall.localName, group, key, value.toString)
+      "callcaching", "blacklist", verb.metricFormat, entityType.metricFormat, group, value.toString)
     increment(metricPath)
   }
 
@@ -63,7 +63,7 @@ trait CopyingActorBlacklistCacheSupport {
     blacklistCache.getBlacklistStatus(hit) match {
       case UntestedCacheResult =>
         blacklistCache.blacklist(hit)
-        publishBlacklistMetric(blacklistCache, Write, Hit, hit.id.toString, value = BadCacheResult)
+        publishBlacklistMetric(blacklistCache, Write, Hit, value = BadCacheResult)
       case BadCacheResult =>
       // Not a surprise, race conditions abound in cache hit copying. Do not overwrite with the same value or
       // multiply publish metrics for this hit.
@@ -74,7 +74,7 @@ trait CopyingActorBlacklistCacheSupport {
           "Cache hit {} found in GoodCacheResult blacklist state, but cache hit copying has failed for permissions reasons. Overwriting status to BadCacheResult state.",
           hit.id)
         blacklistCache.blacklist(hit)
-        publishBlacklistMetric(blacklistCache, Write, Hit, hit.id.toString, value = BadCacheResult)
+        publishBlacklistMetric(blacklistCache, Write, Hit, value = BadCacheResult)
     }
   }
 
@@ -82,7 +82,7 @@ trait CopyingActorBlacklistCacheSupport {
     blacklistCache.getBlacklistStatus(bucket) match {
       case UntestedCacheResult =>
         blacklistCache.blacklist(bucket)
-        publishBlacklistMetric(blacklistCache, Write, Bucket, bucket, value = BadCacheResult)
+        publishBlacklistMetric(blacklistCache, Write, Bucket, value = BadCacheResult)
       case BadCacheResult =>
       // Not a surprise, race conditions abound in cache hit copying. Do not overwrite with the same value or
       // multiply publish metrics for this bucket.
@@ -93,7 +93,7 @@ trait CopyingActorBlacklistCacheSupport {
           "Bucket {} found in GoodCacheResult blacklist state, but cache hit copying has failed for permissions reasons. Overwriting status to BadCacheResult state.",
           bucket)
         blacklistCache.blacklist(bucket)
-        publishBlacklistMetric(blacklistCache, Write, Bucket, bucket, value = BadCacheResult)
+        publishBlacklistMetric(blacklistCache, Write, Bucket, value = BadCacheResult)
     }
   }
 
@@ -101,7 +101,7 @@ trait CopyingActorBlacklistCacheSupport {
     blacklistCache.getBlacklistStatus(hit) match {
       case UntestedCacheResult =>
         blacklistCache.whitelist(hit)
-        publishBlacklistMetric(blacklistCache, Write, Hit, hit.id.toString, value = GoodCacheResult)
+        publishBlacklistMetric(blacklistCache, Write, Hit, value = GoodCacheResult)
       case GoodCacheResult => // This hit is already known to be good, no need to rewrite or spam metrics.
       case BadCacheResult =>
         // This is surprising, a hit that we failed to copy before has now been the source of a successful copy.
@@ -116,7 +116,7 @@ trait CopyingActorBlacklistCacheSupport {
     blacklistCache.getBlacklistStatus(bucket) match {
       case UntestedCacheResult =>
         blacklistCache.whitelist(bucket)
-        publishBlacklistMetric(blacklistCache, Write, Bucket, bucket, value = GoodCacheResult)
+        publishBlacklistMetric(blacklistCache, Write, Bucket, value = GoodCacheResult)
       case GoodCacheResult => // This bucket is already known to be good, no need to rewrite or spam metrics.
       case BadCacheResult =>
         // This is surprising, a bucket that we failed to copy from before for auth reasons has now been the source
@@ -132,13 +132,13 @@ trait CopyingActorBlacklistCacheSupport {
       c <- standardParams.blacklistCache
       hitBlacklistStatus = c.getBlacklistStatus(cacheHit)
       // If blacklisting is on the hit cache is always checked so publish a hit read metric.
-      _ = publishBlacklistMetric(c, Read, Hit, cacheHit.id.toString, hitBlacklistStatus)
+      _ = publishBlacklistMetric(c, Read, Hit, hitBlacklistStatus)
       // Conditionally publish the bucket read if the backend supports bucket / prefix blacklisting and the bucket was read.
       _ <- Option(cacheReadType).collect { case ReadHitAndBucket => () }
       path = sourcePathFromCopyOutputsCommand(command)
       prefix <- extractBlacklistPrefix(path)
       bucketBlacklistStatus = c.getBlacklistStatus(prefix)
-      _ = publishBlacklistMetric(c, Read, Bucket, prefix, bucketBlacklistStatus)
+      _ = publishBlacklistMetric(c, Read, Bucket, bucketBlacklistStatus)
     } yield ()
   }
 

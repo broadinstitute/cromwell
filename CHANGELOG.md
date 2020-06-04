@@ -1,5 +1,13 @@
 # Cromwell Change Log
 
+## 52 Release Notes
+
+### Documentation
+
+Information on how to properly use the Singularity cache with Cromwell is now
+provided in the [Cromwell Singularity documentation](
+https://cromwell.readthedocs.io/en/stable/tutorials/Containers/#singularity).
+
 ## 51 Release Notes
 
 ### Changes and Warnings

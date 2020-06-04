@@ -129,6 +129,10 @@ trait MetadataDatabaseAccess {
     }
   }
 
+  def queryMetadataEventsTotalRowNumber(workflowId: WorkflowId, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
+    metadataDatabaseInterface.getMetadataTotalRowNumberByRootWorkflowId(workflowId.toString, timeout)
+  }
+
   def queryMetadataEvents(query: MetadataQuery, timeout: Duration)(implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
 
     def listKeyRequirements(keyRequirementsInput: Option[NonEmptyList[String]]): List[String] = keyRequirementsInput.map(_.toList).toList.flatten.map(_ + "%")

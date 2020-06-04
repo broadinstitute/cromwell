@@ -10,6 +10,7 @@ import cromwell.engine.io.IoAttempts.EnhancedCromwellIoException
 import cromwell.engine.workflow.lifecycle.deletion.DeleteWorkflowFilesActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching._
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
+import cromwell.services.CallCaching.CallCachingEntryId
 import cromwell.services.EngineServicesStore
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.impl.FileDeletionStatus

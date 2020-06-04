@@ -103,7 +103,12 @@ object MetadataService {
     }
   }
 
-  final case class GetMetadataAction(key: MetadataQuery, metadataSourceOverride: Option[MetadataSourceOverride] = None, fakeSubWfId: Option[String] = None) extends BuildWorkflowMetadataJsonWithOverridableSourceAction {
+  final case class GetMetadataAction(key: MetadataQuery,
+                                     metadataSourceOverride: Option[MetadataSourceOverride] = None,
+                                     checkTotalMetadataRowNumberBeforeQuerying: Boolean = true
+                                     fakeSubWfId: Option[String] = None)
+    extends BuildWorkflowMetadataJsonWithOverridableSourceAction {
+
     override def workflowId: WorkflowId = key.workflowId
   }
   final case class GetStatus(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
@@ -132,7 +137,8 @@ object MetadataService {
   }
 
   final case class MetadataLookupJsonResponse(query: MetadataQuery, result: Json) extends MetadataServiceResponse
-  final case class MetadataLookupFailed(query: MetadataQuery, reason: Throwable)
+  final case class MetadataLookupFailedTooLargeResponse(query: MetadataQuery, metadataSizeRows: Int) extends MetadataServiceResponse
+  final case class MetadataLookupFailedTimeoutResponse(query: MetadataQuery) extends MetadataServiceResponse
 
   final case class MetadataLookupResponse(query: MetadataQuery, eventList: Seq[MetadataEvent]) extends MetadataServiceResponse
   final case class MetadataServiceKeyLookupFailed(query: MetadataQuery, reason: Throwable) extends MetadataServiceFailure

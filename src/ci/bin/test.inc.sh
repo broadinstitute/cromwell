@@ -141,7 +141,7 @@ cromwell::private::create_build_variables() {
     # will be the name of the branch targeted by the pull request, and for push builds it will be the name of the
     # branch. So, in case of push builds `git diff` will always return empty result. This is why we only use this short
     # circuiting logic for pull request builds
-    cromwell::private::set_variable_if_only_some_files_changed "^mkdocs.yml|^docs/" "CROMWELL_BUILD_ONLY_DOCS_CHANGED"
+    cromwell::private::set_variable_if_only_some_files_changed "^mkdocs.yml|^docs/|^CHANGELOG.md" "CROMWELL_BUILD_ONLY_DOCS_CHANGED"
     cromwell::private::set_variable_if_only_some_files_changed "^src/ci/bin/testMetadataComparisonPython.sh|^scripts/" "CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED"
 
     case "${CROMWELL_BUILD_PROVIDER}" in

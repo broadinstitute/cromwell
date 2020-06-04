@@ -3,6 +3,7 @@ package cromwell.engine.workflow.lifecycle.execution.callcaching
 import akka.actor.{Actor, ActorLogging, Props}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.database.sql.tables.CallCachingEntry
+import cromwell.services.CallCaching.CallCachingEntryId
 
 import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Success}

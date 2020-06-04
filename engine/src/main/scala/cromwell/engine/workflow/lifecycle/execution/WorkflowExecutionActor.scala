@@ -621,6 +621,16 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     val ejeaName = s"${workflowDescriptor.id}-EngineJobExecutionActor-${jobKey.tag}"
     val backendName = backendLifecycleActorFactory.name
     val backendSingleton = params.backendSingletonCollection.backendSingletonActors(backendName)
+
+    val callCachingParameters = EngineJobExecutionActor.CallCachingParameters(
+      mode = workflowDescriptor.callCachingMode,
+      readActor = params.callCacheReadActor,
+      writeActor = params.callCacheWriteActor,
+      fileHashCacheActor = params.fileHashCacheActor,
+      maxFailedCopyAttempts = params.rootConfig.getInt("call-caching.max-failed-copy-attempts"),
+      blacklistCache = params.blacklistCache
+    )
+
     val ejeaProps = EngineJobExecutionActor.props(
       self,
       jobKey,
@@ -631,15 +641,11 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       serviceRegistryActor = serviceRegistryActor,
       ioActor = params.ioActor,
       jobStoreActor = params.jobStoreActor,
-      callCacheReadActor = params.callCacheReadActor,
-      callCacheWriteActor = params.callCacheWriteActor,
       workflowDockerLookupActor = params.workflowDockerLookupActor,
       jobTokenDispenserActor = params.jobTokenDispenserActor,
       backendSingleton,
-      workflowDescriptor.callCachingMode,
       command,
-      fileHashCacheActor = params.fileHashCacheActor,
-      blacklistCache = params.blacklistCache
+      callCachingParameters
     )
 
     val ejeaRef = context.actorOf(ejeaProps, ejeaName)

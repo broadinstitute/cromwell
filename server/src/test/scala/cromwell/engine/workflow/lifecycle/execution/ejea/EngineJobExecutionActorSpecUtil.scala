@@ -1,14 +1,14 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
-import cromwell.backend.BackendCacheHitCopyingActor.{CopyingOutputsFailedResponse, LoggableCacheCopyError, MetricableCacheCopyError}
+import cromwell.backend.BackendCacheHitCopyingActor.{CopyingOutputsFailedResponse, CopyAttemptError, BlacklistSkip}
 import cromwell.backend.{BackendJobDescriptor, MetricableCacheCopyErrorCategory}
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.core.callcaching._
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CallCacheHashes, FileHashes}
 import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor.{EJEAData, SucceededResponseData, UpdatingCallCache, UpdatingJobStore}
 import cromwell.jobstore.JobStoreActor.RegisterJobCompleted
 import cromwell.jobstore.{JobResultFailure, JobResultSuccess, JobStoreKey}
+import cromwell.services.CallCaching.CallCachingEntryId
 import cromwell.util.WomMocks
 import org.scalatest.concurrent.Eventually
 import wom.values.{WomInteger, WomString}
@@ -120,6 +120,6 @@ private[ejea] trait HasCopyFailureResponses { self: EngineJobExecutionActorSpec 
     new Exception("Deliberate failure for test case: failed to copy cache outputs!") with NoStackTrace
 
   // Need to delay making the response because job descriptors come from the per-test "helper", which is null outside tests!
-  def loggableFailedToCopyResponse(attemptNumber: Int) = CopyingOutputsFailedResponse(helper.jobDescriptorKey, attemptNumber, LoggableCacheCopyError(copyFailureReason))
-  def metricableFailedToCopyResponse(attemptNumber: Int) = CopyingOutputsFailedResponse(helper.jobDescriptorKey, attemptNumber, MetricableCacheCopyError(MetricableCacheCopyErrorCategory.BucketBlacklisted))
+  def copyAttemptFailedResponse(attemptNumber: Int) = CopyingOutputsFailedResponse(helper.jobDescriptorKey, attemptNumber, CopyAttemptError(copyFailureReason))
+  def cacheHitBlacklistedResponse(attemptNumber: Int) = CopyingOutputsFailedResponse(helper.jobDescriptorKey, attemptNumber, BlacklistSkip(MetricableCacheCopyErrorCategory.BucketBlacklisted))
 }

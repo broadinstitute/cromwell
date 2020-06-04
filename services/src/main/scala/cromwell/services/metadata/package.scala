@@ -12,15 +12,18 @@ sealed trait MetadataJsonResponse extends MetadataServiceResponse { def original
 final case class SuccessfulMetadataJsonResponse(originalRequest: BuildMetadataJsonAction, responseJson: JsObject) extends MetadataJsonResponse
 final case class FailedMetadataJsonResponse(originalRequest: BuildMetadataJsonAction, reason: Throwable) extends MetadataJsonResponse
 
-class MetadataTooLargeException(message: String) extends RuntimeException(message)
+class MetadataTooLargeException(message: String) extends RuntimeException(message) {
+  // we don't want to show stacktrace for these errors, so suppress stacktrace's population
+  override def fillInStackTrace(): Throwable = this
+}
 
 final class MetadataTooLargeNumberOfRowsException(workflowId: WorkflowId, metadataSizeRows: Int, metadataLimitRows: Int)
-  extends MetadataTooLargeException(s"Metadata for workflow $workflowId exists in" +
+  extends MetadataTooLargeException(s"Metadata for workflow $workflowId exists in " +
     s"database, but cannot be served. This is done in order to avoid Cromwell failure: metadata is too large - " +
     s"$metadataSizeRows rows, and may cause Cromwell instance to die on attempt to read it in memory. Configured " +
     s"metadata safety limit is $metadataLimitRows.")
 
 final class MetadataTooLargeTimeoutException(workflowId: WorkflowId)
-  extends MetadataTooLargeException(s"Metadata for workflow $workflowId exists in" +
+  extends MetadataTooLargeException(s"Metadata for workflow $workflowId exists in " +
     s"database, but cannot be served. This is done in order to avoid Cromwell failure: metadata is probably too " +
     s"large - timeout occurred on attempt to fetch it from the database.")

@@ -748,15 +748,16 @@ class EngineJobExecutionActor(replyTo: ActorRef,
         "job",
         "callcaching", "read", "error", "invalidhits", data.jobDescriptor.workflowDescriptor.hogGroup.value, "blacklisted")
 
-    sendGauge(copyErrorsPerHitPath, data.failedCopyAttempts)
-    sendGauge(copyBlacklistsPerHitPath, data.cacheHitFailureCount - data.failedCopyAttempts)
+    sendGauge(copyErrorsPerHitPath, data.failedCopyAttempts.longValue)
+    sendGauge(copyBlacklistsPerHitPath, data.cacheHitFailureCount - data.failedCopyAttempts.longValue)
   }
 
   private def publishCopyAttemptAbandonedMetric(data: ResponsePendingData): Unit = {
-    val copyErrorsPerHitPath: NonEmptyList[String] =
+    val cacheCopyAttemptAbandonedPath: NonEmptyList[String] =
       NonEmptyList.of(
         "job",
-        "callcaching", "read", "error", "invalidhit", "copyerrors", "abandoned")
+        "callcaching", "read", "error", "invalidhits",  data.jobDescriptor.workflowDescriptor.hogGroup.value, "abandonments")
+    increment(cacheCopyAttemptAbandonedPath)
   }
 
   private def publishBlacklistReadMetrics(data: ResponsePendingData, failureCategory: MetricableCacheCopyErrorCategory): Unit = {

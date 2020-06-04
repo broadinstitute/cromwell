@@ -45,7 +45,7 @@ object MetadataBuilderActor {
   }
 
   def props(readMetadataWorkerMaker: () => Props, metadataReadRowNumberSafetyThreshold: Int, isForSubworkflows: Boolean = false, numOfFakeSubWfs: Option[Int] = None) = {
-    Props(new MetadataBuilderActor(readMetadataWorkerMaker, isForSubworkflows, numOfFakeSubWfs))
+    Props(new MetadataBuilderActor(readMetadataWorkerMaker, metadataReadRowNumberSafetyThreshold, isForSubworkflows, numOfFakeSubWfs))
   }
 
   val log = LoggerFactory.getLogger("MetadataBuilder")
@@ -319,7 +319,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, metadataReadRow
 
   def processSubWorkflowMetadata(metadataResponse: MetadataJsonResponse, data: HasReceivedEventsData) = {
     metadataResponse match {
-      case SuccessfulMetadataJsonResponse(GetMetadataAction(queryKey, _, fakeSubId), js) =>
+      case SuccessfulMetadataJsonResponse(GetMetadataAction(queryKey, _, _, fakeSubId), js) =>
         // Substitute root workflow id with fake sub workflow id if needed. Otherwise we'll never reach `newData.isComplete`
         // since it's checking size of the `subWorkflowsMetadata` map, where key is workflow id
         val subId: String = if (fakeSubId.isDefined) fakeSubId.get else queryKey.workflowId.toString

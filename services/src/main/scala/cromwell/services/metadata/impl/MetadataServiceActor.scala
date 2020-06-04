@@ -53,10 +53,11 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
     serviceConfig.getOrElse[Int]("metadata-read-row-number-safety-threshold", 1000000)
 
   private val numOfFakeSubWfs = serviceConfig.getInt("metadata-subwf-num")
+  private val simulateMetadataRowNumberError = serviceConfig.getBoolean("metadata-simulate-rownum-error")
 
   def readMetadataWorkerActorProps(): Props =
     ReadDatabaseMetadataWorkerActor
-      .props(metadataReadTimeout, metadataReadRowNumberSafetyThreshold)
+      .props(metadataReadTimeout, metadataReadRowNumberSafetyThreshold, simulateMetadataRowNumberError)
       .withDispatcher(ServiceDispatcher)
   def metadataBuilderActorProps(): Props = MetadataBuilderActor
     .props(readMetadataWorkerActorProps, metadataReadRowNumberSafetyThreshold, numOfFakeSubWfs = Option(numOfFakeSubWfs))

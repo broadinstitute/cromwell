@@ -105,7 +105,7 @@ object MetadataService {
 
   final case class GetMetadataAction(key: MetadataQuery,
                                      metadataSourceOverride: Option[MetadataSourceOverride] = None,
-                                     checkTotalMetadataRowNumberBeforeQuerying: Boolean = true
+                                     checkTotalMetadataRowNumberBeforeQuerying: Boolean = true,
                                      fakeSubWfId: Option[String] = None)
     extends BuildWorkflowMetadataJsonWithOverridableSourceAction {
 

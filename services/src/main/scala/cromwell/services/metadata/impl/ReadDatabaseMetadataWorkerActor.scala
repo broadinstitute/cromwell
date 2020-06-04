@@ -14,11 +14,11 @@ import scala.concurrent.duration.Duration
 import scala.util.Try
 
 object ReadDatabaseMetadataWorkerActor {
-  def props(metadataReadTimeout: Duration, metadataReadRowNumberSafetyThreshold: Int) =
-    Props(new ReadDatabaseMetadataWorkerActor(metadataReadTimeout, metadataReadRowNumberSafetyThreshold)).withDispatcher(ServiceDispatcher)
+  def props(metadataReadTimeout: Duration, metadataReadRowNumberSafetyThreshold: Int, simulateMetadataRowNumError: Boolean = false) =
+    Props(new ReadDatabaseMetadataWorkerActor(metadataReadTimeout, metadataReadRowNumberSafetyThreshold, simulateMetadataRowNumError)).withDispatcher(ServiceDispatcher)
 }
 
-class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataReadRowNumberSafetyThreshold: Int)
+class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataReadRowNumberSafetyThreshold: Int, simulateMetadataRowNumError: Boolean)
   extends Actor
     with ActorLogging
     with MetadataDatabaseAccess
@@ -28,7 +28,7 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
 
   def receive = {
     case GetMetadataAction(query: MetadataQuery, _, checkTotalMetadataRowNumberBeforeQuerying: Boolean, _) =>
-      evaluateRespondAndStop(sender(), getMetadata(query))
+      evaluateRespondAndStop(sender(), getMetadata(query, checkTotalMetadataRowNumberBeforeQuerying, simulateMetadataRowNumError))
     case GetStatus(workflowId) => evaluateRespondAndStop(sender(), getStatus(workflowId))
     case GetLabels(workflowId) => evaluateRespondAndStop(sender(), queryLabelsAndRespond(workflowId))
     case GetRootAndSubworkflowLabels(rootWorkflowId: WorkflowId) => evaluateRespondAndStop(sender(), queryRootAndSubworkflowLabelsAndRespond(rootWorkflowId))
@@ -49,11 +49,12 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
     ()
   }
 
-  private def getMetadata(query: MetadataQuery, checkResultSizeBeforeQuerying: Boolean): Future[MetadataServiceResponse] = {
+  private def getMetadata(query: MetadataQuery, checkResultSizeBeforeQuerying: Boolean, simulateMetadataRowNumError: Boolean): Future[MetadataServiceResponse] = {
     if (checkResultSizeBeforeQuerying) {
       queryMetadataEventsTotalRowNumber(query.workflowId, metadataReadTimeout) flatMap { size =>
-        if (size > metadataReadRowNumberSafetyThreshold) {
-          Future.successful(MetadataLookupFailedTooLargeResponse(query, size))
+        val effectiveSize = if (simulateMetadataRowNumError) size * 1000000 else size
+        if (effectiveSize > metadataReadRowNumberSafetyThreshold) {
+          Future.successful(MetadataLookupFailedTooLargeResponse(query, effectiveSize))
         } else {
           queryMetadata(query)
         }

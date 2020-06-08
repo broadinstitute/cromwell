@@ -688,8 +688,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
           callCachingHitResultMetadataKey -> false,
           callCachingReadResultMetadataKey -> s"Cache Miss (${callCachingParameters.maxFailedCopyAttempts} failed copy attempts)"))
         log.warning("Cache miss for job {} due to exceeding the maximum of {} failed copy attempts.", jobTag, callCachingParameters.maxFailedCopyAttempts)
-        publishCopyAttemptFailuresMetrics(data)
-        publishCopyAttemptAbandonedMetric(data)
+        publishCopyAttemptAbandonedMetrics(data)
         runJob(data)
       case _ =>
         workflowLogger.error("Programmer error: We got a cache failure but there was no hashing actor scanning for hits. Falling back to running job")
@@ -752,12 +751,15 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     sendGauge(copyBlacklistsPerHitPath, data.cacheHitFailureCount - data.failedCopyAttempts.longValue)
   }
 
-  private def publishCopyAttemptAbandonedMetric(data: ResponsePendingData): Unit = {
+  private def publishCopyAttemptAbandonedMetrics(data: ResponsePendingData): Unit = {
     val cacheCopyAttemptAbandonedPath: NonEmptyList[String] =
       NonEmptyList.of(
         "job",
         "callcaching", "read", "error", "invalidhits",  data.jobDescriptor.workflowDescriptor.hogGroup.value, "abandonments")
     increment(cacheCopyAttemptAbandonedPath)
+
+    // Also publish the attempt failure metrics
+    publishCopyAttemptFailuresMetrics(data)
   }
 
   private def publishBlacklistReadMetrics(data: ResponsePendingData, failureCategory: MetricableCacheCopyErrorCategory): Unit = {

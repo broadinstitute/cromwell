@@ -18,8 +18,6 @@ class EjeaMultipleCallCacheCopyAttemptsSpec
     with HasCopyFailureResponses
     with HasJobFailureResponses
     with CanExpectJobStoreWrites
-//    with CanExpectCacheWrites
-//    with CanExpectCacheInvalidation
     with CanExpectFetchCachedResults {
 
   override implicit val stateUnderTest = BackendIsCopyingCachedOutputs

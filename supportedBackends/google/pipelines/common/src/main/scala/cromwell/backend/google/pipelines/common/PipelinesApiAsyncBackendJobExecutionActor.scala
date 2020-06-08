@@ -398,6 +398,10 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.EnableFuse).toOption.getOrElse(jesAttributes.enableFuse)
   }
 
+  protected def legacyMachineSelection(descriptor: BackendWorkflowDescriptor): Boolean = {
+    descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.LegacyMachineSelection).getOrElse(false)
+  }
+
   override def isTerminal(runStatus: RunStatus): Boolean = {
     runStatus match {
       case _: TerminalRunStatus => true

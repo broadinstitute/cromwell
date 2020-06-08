@@ -69,9 +69,13 @@ object MachineConstraints {
     message foreach { m => logger.info("To comply with GCE custom machine requirements, " + m) }
   }
 
-  def machineType(memory: MemorySize, cpu: Int Refined Positive, jobLogger: Logger) = {
-    val (validCpu, validMemory) = balanceMemoryAndCpu(memory |> validateMemory, cpu |> validateCpu)
-    logAdjustment(cpu.value, validCpu, memory, validMemory, jobLogger)
-    s"custom-$validCpu-${validMemory.to(MemoryUnit.MB).amount.intValue()}"
+  def machineType(memory: MemorySize, cpu: Int Refined Positive, legacyMachineSelection: Boolean, jobLogger: Logger) = {
+    if (legacyMachineSelection) {
+      s"predefined-$cpu-${memory.to(MemoryUnit.MB).amount.intValue()}"
+    } else {
+      val (validCpu, validMemory) = balanceMemoryAndCpu(memory |> validateMemory, cpu |> validateCpu)
+      logAdjustment(cpu.value, validCpu, memory, validMemory, jobLogger)
+      s"custom-$validCpu-${validMemory.to(MemoryUnit.MB).amount.intValue()}"
+    }
   }
 }

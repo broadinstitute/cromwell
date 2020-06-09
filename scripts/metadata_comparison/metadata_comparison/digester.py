@@ -91,7 +91,12 @@ def digest(workflow_path: ComparisonPath, operations_path: ComparisonPath) -> Js
                 "papiEnd": operation.end_time(),
                 "papiTotalTimeSeconds": operation.total_time_seconds(),
                 "cromwellAdditionalTotalTimeSeconds": cromwell_additional_total_time_seconds,
-                "dockerImagePullSeconds": operation.docker_image_pull_seconds()
+                "startupTimeSeconds": operation.startup_time_seconds(),
+                "dockerImagePullSeconds": operation.docker_image_pull_seconds(),
+                "localizationTimeSeconds": operation.localization_time_seconds(),
+                "userCommandSeconds": operation.user_command_seconds(),
+                "delocalizationTimeSeconds": operation.delocalization_time_seconds(),
+                "otherTimeSeconds": operation.other_time_seconds()
             }
 
     data = workflow_path.read_text()

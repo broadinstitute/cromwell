@@ -7,5 +7,5 @@ object WorkflowOptionKeys {
   val GoogleProject = "google_project"
   val GoogleComputeServiceAccount = "google_compute_service_account"
   val EnableFuse = "enable_fuse"
-  val LegacyMachineSelection = "legacy_machine_selection"
+  val GoogleLegacyMachineSelection = "google_legacy_machine_selection"
 }

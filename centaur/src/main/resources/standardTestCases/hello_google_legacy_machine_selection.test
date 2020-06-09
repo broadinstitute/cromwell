@@ -1,4 +1,4 @@
-name: hello_legacy_machine_selection
+name: hello_google_legacy_machine_selection
 testFormat: workflowsuccess
 backends: [ Papiv2 ]
 

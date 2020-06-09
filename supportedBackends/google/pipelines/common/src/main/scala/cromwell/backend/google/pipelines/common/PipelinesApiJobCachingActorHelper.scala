@@ -23,7 +23,7 @@ trait PipelinesApiJobCachingActorHelper extends StandardCachingActorHelper {
   lazy val runtimeAttributes = PipelinesApiRuntimeAttributes(
     validatedRuntimeAttributes,
     pipelinesConfiguration.runtimeConfig,
-    legacyMachineSelection(jobDescriptor.workflowDescriptor)
+    googleLegacyMachineSelection(jobDescriptor.workflowDescriptor)
   )
 
   lazy val workingDisk: PipelinesApiAttachedDisk = runtimeAttributes.disks.find(_.name == PipelinesApiWorkingDisk.Name).get

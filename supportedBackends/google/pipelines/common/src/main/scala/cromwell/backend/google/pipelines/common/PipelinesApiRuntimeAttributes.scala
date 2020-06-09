@@ -49,7 +49,7 @@ final case class PipelinesApiRuntimeAttributes(cpu: Int Refined Positive,
                                                failOnStderr: Boolean,
                                                continueOnReturnCode: ContinueOnReturnCode,
                                                noAddress: Boolean,
-                                               legacyMachineSelection: Boolean)
+                                               googleLegacyMachineSelection: Boolean)
 
 object PipelinesApiRuntimeAttributes {
 
@@ -162,7 +162,7 @@ object PipelinesApiRuntimeAttributes {
     )
   }
 
-  def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, runtimeAttrsConfig: Option[Config], legacyMachineSelection: Boolean = false): PipelinesApiRuntimeAttributes = {
+  def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, runtimeAttrsConfig: Option[Config], googleLegacyMachineSelection: Boolean = false): PipelinesApiRuntimeAttributes = {
     val cpu: Int Refined Positive = RuntimeAttributesValidation.extract(cpuValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val cpuPlatform: Option[String] = RuntimeAttributesValidation.extractOption(cpuPlatformValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
 
@@ -209,7 +209,7 @@ object PipelinesApiRuntimeAttributes {
       failOnStderr,
       continueOnReturnCode,
       noAddress,
-      legacyMachineSelection
+      googleLegacyMachineSelection
     )
   }
 }

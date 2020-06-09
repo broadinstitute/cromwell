@@ -14,7 +14,7 @@ class MachineConstraintsSpec extends FlatSpec with Matchers {
 
   it should "generate valid machine types" in {
     val validTypes = Table(
-      ("memory", "cpu", "legacyMachineSelection", "machineTypeString"),
+      ("memory", "cpu", "googleLegacyMachineSelection", "machineTypeString"),
       // Already ok tuple
       (MemorySize(1024, MemoryUnit.MB), refineMV[Positive](1), false, "custom-1-1024"),
       // CPU must be even (except if it's 1)
@@ -42,8 +42,8 @@ class MachineConstraintsSpec extends FlatSpec with Matchers {
       (MemorySize(1024.0, MemoryUnit.MB), refineMV[Positive](1), true, "predefined-1-1024"),
     )
 
-    forAll(validTypes) { (memory, cpu, legacyMachineSelection, expected) =>
-      MachineConstraints.machineType(memory, cpu, legacyMachineSelection, NOPLogger.NOP_LOGGER) shouldBe expected
+    forAll(validTypes) { (memory, cpu, googleLegacyMachineSelection, expected) =>
+      MachineConstraints.machineType(memory, cpu, googleLegacyMachineSelection, NOPLogger.NOP_LOGGER) shouldBe expected
     }
   }
 }

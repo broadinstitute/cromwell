@@ -210,8 +210,7 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
     }
   }
 
-  override def runtimeAttributeDefinitions(initializationDataOption: Option[BackendInitializationData]):
-  Set[RuntimeAttributeDefinition] = {
+  override def runtimeAttributeDefinitions(initializationDataOption: Option[BackendInitializationData]): Set[RuntimeAttributeDefinition] = {
     val initializationData = BackendInitializationData.
       as[StandardInitializationData](initializationDataOption)
 

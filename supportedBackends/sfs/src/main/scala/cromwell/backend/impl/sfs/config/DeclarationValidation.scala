@@ -8,6 +8,8 @@ import wom.RuntimeAttributesKeys
 import wom.types._
 import wom.values.WomValue
 
+import scala.annotation.tailrec
+
 /**
   * Creates instances of runtime attribute validations from WDL declarations.
   */
@@ -22,11 +24,11 @@ object DeclarationValidation {
     * @param declaration The declaration.
     * @return The DeclarationValidation object for the declaration.
     */
-  def fromDeclaration(declaration: Declaration): DeclarationValidation = {
+  def fromDeclaration(declaration: Declaration, usedInCallCachingMapping: Map[String, Boolean]): DeclarationValidation = {
     declaration.unqualifiedName match {
       // Docker and CPU are special keys understood by cromwell.
       case name if name == DockerValidation.instance.key =>
-        new DeclarationValidation(declaration, DockerValidation.instance)
+        new DeclarationValidation(declaration, DockerValidation.instance, usedInCallCachingOverride = None)
       case RuntimeAttributesKeys.CpuKey => new CpuDeclarationValidation(declaration, CpuValidation.instance)
       case RuntimeAttributesKeys.CpuMinKey => new CpuDeclarationValidation(declaration, CpuValidation.instanceMin)
       case RuntimeAttributesKeys.CpuMaxKey => new CpuDeclarationValidation(declaration, CpuValidation.instanceMax)
@@ -42,10 +44,15 @@ object DeclarationValidation {
       // All other declarations must be a Boolean, Float, Integer, or String.
       case _ =>
         val validatedRuntimeAttr = validator(declaration.womType, declaration.unqualifiedName)
-        new DeclarationValidation(declaration, validatedRuntimeAttr)
+        new DeclarationValidation(
+          declaration = declaration,
+          instanceValidation = validatedRuntimeAttr,
+          usedInCallCachingOverride = usedInCallCachingMapping.get(declaration.unqualifiedName)
+        )
     }
   }
 
+  @tailrec
   private def validator(womType: WomType, unqualifiedName: String): PrimitiveRuntimeAttributesValidation[_, _] = {
     womType match {
       case WomBooleanType => new BooleanRuntimeAttributesValidation(unqualifiedName)
@@ -64,7 +71,7 @@ object DeclarationValidation {
   * @param declaration        The declaration from the config "runtime-attributes".
   * @param instanceValidation A basic instance validation for the declaration.
   */
-class DeclarationValidation(declaration: Declaration, instanceValidation: RuntimeAttributesValidation[_]) {
+class DeclarationValidation(declaration: Declaration, instanceValidation: RuntimeAttributesValidation[_], usedInCallCachingOverride: Option[Boolean]) {
   val key: String = declaration.unqualifiedName
 
   /**
@@ -84,10 +91,14 @@ class DeclarationValidation(declaration: Declaration, instanceValidation: Runtim
     * @return The validation.
     */
   def makeValidation(): RuntimeAttributesValidation[_] = {
-    val validationDefault = if (declaration.expression.isDefined)
-      default(instanceValidation, declaration.expression.get)
-    else instanceValidation
-    if (declaration.womType.isInstanceOf[WomOptionalType]) validationDefault.optional else validationDefault
+    val validationWithDefault = if (declaration.expression.isDefined) default(instanceValidation, declaration.expression.get) else instanceValidation
+    val validationWithDefaultAndOptionality = if (declaration.womType.isInstanceOf[WomOptionalType]) validationWithDefault.optional else validationWithDefault
+    val validationWithDefaultAndOptionalityAndCallCaching = usedInCallCachingOverride match {
+      case Some(usedInCallCachingValue) => RuntimeAttributesValidation.withUsedInCallCaching(validationWithDefaultAndOptionality, usedInCallCachingValue)
+      case None => validationWithDefaultAndOptionality
+    }
+
+    validationWithDefaultAndOptionalityAndCallCaching
   }
 
   /**

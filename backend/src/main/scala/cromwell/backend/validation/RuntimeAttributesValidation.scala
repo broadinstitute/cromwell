@@ -103,6 +103,30 @@ object RuntimeAttributesValidation {
     }
   }
 
+  def withUsedInCallCaching[ValidatedType](validation: RuntimeAttributesValidation[ValidatedType],
+                                           usedInCallCachingValue: Boolean): RuntimeAttributesValidation[ValidatedType] = {
+    new RuntimeAttributesValidation[ValidatedType] {
+      override def key: String = validation.key
+
+      override def coercion: Traversable[WomType] = validation.coercion
+
+      override protected def validateValue: PartialFunction[WomValue, ErrorOr[ValidatedType]] =
+        validation.validateValuePackagePrivate
+
+      override protected def validateExpression: PartialFunction[WomValue, Boolean] =
+        validation.validateExpressionPackagePrivate
+
+      override protected def invalidValueMessage(value: WomValue): String =
+        validation.invalidValueMessagePackagePrivate(value)
+
+      override protected def missingValueMessage: String = validation.missingValueMessage
+
+      override protected def usedInCallCaching: Boolean = usedInCallCachingValue
+
+      override protected def staticDefaultOption = validation.staticDefaultOption
+    }
+  }
+
   def optional[ValidatedType](validation: RuntimeAttributesValidation[ValidatedType]):
   OptionalRuntimeAttributesValidation[ValidatedType] = {
     new OptionalRuntimeAttributesValidation[ValidatedType] {

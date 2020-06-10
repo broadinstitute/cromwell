@@ -30,7 +30,8 @@ class MachineConstraintsSpec extends FlatSpec with Matchers {
       (MemorySize(1520.96, MemoryUnit.MB), refineMV[Positive](1), false, "custom-1-1536"),
       (MemorySize(1024.0, MemoryUnit.MB), refineMV[Positive](1), false, "custom-1-1024"),
 
-      /* Same tests as above but with legacy machine type selection (cpu and memory as specified, no adjustments, except float->int)  */
+      // Same tests as above but with legacy machine type selection (cpu and memory as specified. No 'custom machine
+      // requirement' adjustments are expected this time, except float->int)
 
       (MemorySize(1024, MemoryUnit.MB), refineMV[Positive](1), true, "predefined-1-1024"),
       (MemorySize(4, MemoryUnit.GB), refineMV[Positive](3), true, "predefined-3-4096"),

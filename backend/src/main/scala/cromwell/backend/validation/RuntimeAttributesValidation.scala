@@ -97,7 +97,7 @@ object RuntimeAttributesValidation {
 
       override protected def missingValueMessage: String = validation.missingValueMessage
 
-      override protected def usedInCallCaching: Boolean = validation.usedInCallCachingPackagePrivate
+      override def usedInCallCaching: Boolean = validation.usedInCallCachingPackagePrivate
 
       override protected def staticDefaultOption = Option(default)
     }
@@ -121,7 +121,7 @@ object RuntimeAttributesValidation {
 
       override protected def missingValueMessage: String = validation.missingValueMessage
 
-      override protected def usedInCallCaching: Boolean = usedInCallCachingValue
+      override def usedInCallCaching: Boolean = usedInCallCachingValue
 
       override protected def staticDefaultOption = validation.staticDefaultOption
     }
@@ -145,7 +145,7 @@ object RuntimeAttributesValidation {
 
       override protected def missingValueMessage: String = validation.missingValueMessage
 
-      override protected def usedInCallCaching: Boolean = validation.usedInCallCachingPackagePrivate
+      override def usedInCallCaching: Boolean = validation.usedInCallCachingPackagePrivate
 
       override protected def staticDefaultOption = validation.staticDefaultOption
     }
@@ -394,12 +394,12 @@ trait RuntimeAttributesValidation[ValidatedType] {
     }
   }
   /**
-    * Used to convert this instance to a `RuntimeAttributeDefinition`.
+    * Indicates whether this runtime attribute should be used in call caching calculations.
     *
     * @see [[RuntimeAttributeDefinition.usedInCallCaching]]
     * @return Value for [[RuntimeAttributeDefinition.usedInCallCaching]].
     */
-  protected def usedInCallCaching: Boolean = false
+  def usedInCallCaching: Boolean = false
 
   /**
     * Returns this as an instance of a runtime attribute definition.

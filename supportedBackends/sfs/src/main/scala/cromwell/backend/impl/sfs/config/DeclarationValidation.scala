@@ -14,8 +14,8 @@ import scala.annotation.tailrec
   * Creates instances of runtime attribute validations from WDL declarations.
   */
 object DeclarationValidation {
-  def fromDeclarations(declarations: Seq[Declaration]): Seq[DeclarationValidation] = {
-    declarations map fromDeclaration
+  def fromDeclarations(declarations: Seq[Declaration], callCachedRuntimeAttributes: Map[String, Boolean]): Seq[DeclarationValidation] = {
+    declarations map fromDeclaration(callCachedRuntimeAttributesMap = callCachedRuntimeAttributes) _
   }
 
   /**
@@ -24,7 +24,7 @@ object DeclarationValidation {
     * @param declaration The declaration.
     * @return The DeclarationValidation object for the declaration.
     */
-  def fromDeclaration(declaration: Declaration, usedInCallCachingMapping: Map[String, Boolean]): DeclarationValidation = {
+  def fromDeclaration(callCachedRuntimeAttributesMap: Map[String, Boolean])(declaration: Declaration): DeclarationValidation = {
     declaration.unqualifiedName match {
       // Docker and CPU are special keys understood by cromwell.
       case name if name == DockerValidation.instance.key =>
@@ -47,7 +47,7 @@ object DeclarationValidation {
         new DeclarationValidation(
           declaration = declaration,
           instanceValidation = validatedRuntimeAttr,
-          usedInCallCachingOverride = usedInCallCachingMapping.get(declaration.unqualifiedName)
+          usedInCallCachingOverride = callCachedRuntimeAttributesMap.get(declaration.unqualifiedName)
         )
     }
   }
@@ -91,6 +91,7 @@ class DeclarationValidation(declaration: Declaration, instanceValidation: Runtim
     * @return The validation.
     */
   def makeValidation(): RuntimeAttributesValidation[_] = {
+    import scala.language.existentials
     val validationWithDefault = if (declaration.expression.isDefined) default(instanceValidation, declaration.expression.get) else instanceValidation
     val validationWithDefaultAndOptionality = if (declaration.womType.isInstanceOf[WomOptionalType]) validationWithDefault.optional else validationWithDefault
     val validationWithDefaultAndOptionalityAndCallCaching = usedInCallCachingOverride match {

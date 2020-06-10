@@ -49,13 +49,13 @@ class OperationDigester(ABC):
             raise ValueError(f"Unrecognized format for PAPI operation ID {operation_id}")
 
     @abstractmethod
-    def docker_image_pull_seconds(self) -> float: pass
+    def docker_image_pull_time_seconds(self) -> float: pass
 
     @abstractmethod
     def localization_time_seconds(self) -> float: pass
 
     @abstractmethod
-    def user_command_seconds(self) -> float: pass
+    def user_command_time_seconds(self) -> float: pass
 
     @abstractmethod
     def delocalization_time_seconds(self) -> float: pass
@@ -70,8 +70,8 @@ class OperationDigester(ABC):
         accounted_for_time = \
             self.startup_time_seconds() + \
             self.localization_time_seconds() + \
-            self.docker_image_pull_seconds() + \
-            self.user_command_seconds() + \
+            self.docker_image_pull_time_seconds() + \
+            self.user_command_time_seconds() + \
             self.delocalization_time_seconds()
 
         return total_time - accounted_for_time
@@ -102,7 +102,7 @@ class PapiV1OperationDigester(OperationDigester):
         pulling_image_timestamp, create_timestamp = [dateutil.parser.parse(d) for d in [pulling_image, create]]
         return (pulling_image_timestamp - create_timestamp).total_seconds()
 
-    def docker_image_pull_seconds(self) -> float:
+    def docker_image_pull_time_seconds(self) -> float:
         descriptions = ['localizing-files', 'pulling-image']
         end, start = [dateutil.parser.parse(self.event_with_description(d).get('startTime')) for d in descriptions]
         return (end - start).total_seconds()
@@ -112,7 +112,7 @@ class PapiV1OperationDigester(OperationDigester):
         end, start = [dateutil.parser.parse(self.event_with_description(d).get('startTime')) for d in descriptions]
         return (end - start).total_seconds()
 
-    def user_command_seconds(self) -> float:
+    def user_command_time_seconds(self) -> float:
         descriptions = ['delocalizing-files', 'running-docker']
         end, start = [dateutil.parser.parse(self.event_with_description(d).get('startTime')) for d in descriptions]
         return (end - start).total_seconds()
@@ -136,7 +136,7 @@ class PapiV2OperationDigester(OperationDigester, ABC):
         events.sort()
         return (events[-1] - events[0]).total_seconds()
 
-    def docker_image_pull_seconds(self) -> float:
+    def docker_image_pull_time_seconds(self) -> float:
         description = "^(Started|Stopped) pulling .*"
         events = [dateutil.parser.parse(d.get('timestamp')) for d in self.event_with_description_like(description)]
         events.sort()
@@ -148,7 +148,7 @@ class PapiV2OperationDigester(OperationDigester, ABC):
         events.sort()
         return (events[-1] - events[0]).total_seconds()
 
-    def user_command_seconds(self) -> float:
+    def user_command_time_seconds(self) -> float:
         started_running_description = "^Started running .* /cromwell_root/script\"$"
         started_running_events = [dateutil.parser.parse(d.get('timestamp')) for d in
                                   self.event_with_description_like(started_running_description)]

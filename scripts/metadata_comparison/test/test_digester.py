@@ -6,7 +6,7 @@ from typing import AnyStr, Callable
 from metadata_comparison.lib.comparison_paths import ComparisonPath
 from pathlib import Path
 import logging
-from metadata_comparison.digester import digest
+from metadata_comparison.digester import digest, Keys
 from metadata_comparison.lib.logging import quieten_chatty_imports, set_log_verbosity
 from metadata_comparison.lib.operation_ids import JsonObject
 import google.auth
@@ -72,7 +72,7 @@ class DigesterTestMethods(unittest.TestCase):
                         self.assertEqual(actual_len, expectation)
 
                     # Currently just a smoke test to assert not-completely-insane results for both v1 and v2 digesters.
-                    self.assertTrue(all([calls[name].get('dockerImagePullSeconds') > 0 for name in calls]))
+                    self.assertTrue(all([calls[name].get(Keys.DockerImagePullTimeSeconds) > 0 for name in calls]))
 
 
 def read_resource(filename: AnyStr) -> AnyStr:

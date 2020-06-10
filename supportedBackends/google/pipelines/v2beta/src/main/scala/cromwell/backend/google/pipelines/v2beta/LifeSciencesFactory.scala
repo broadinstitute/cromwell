@@ -7,6 +7,7 @@ import com.google.api.client.http.{HttpRequest, HttpRequestInitializer, HttpResp
 import com.google.api.services.bigquery.BigqueryScopes
 import com.google.api.services.cloudresourcemanager.CloudResourceManager
 import com.google.api.services.compute.ComputeScopes
+import com.google.api.services.dataproc.DataprocScopes
 import com.google.api.services.lifesciences.v2beta.model._
 import com.google.api.services.lifesciences.v2beta.{CloudLifeSciences, CloudLifeSciencesScopes}
 import com.google.api.services.oauth2.Oauth2Scopes
@@ -166,7 +167,9 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
             // Monitoring scope as POC
             LifeSciencesFactory.MonitoringWrite,
             // Allow read/write with BigQuery
-            BigqueryScopes.BIGQUERY
+            BigqueryScopes.BIGQUERY,
+            // Allow spinning up DataProc resources
+            DataprocScopes.CLOUD_PLATFORM
           ).asJava
         )
 

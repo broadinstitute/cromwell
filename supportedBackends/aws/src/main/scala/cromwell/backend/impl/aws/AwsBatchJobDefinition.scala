@@ -98,7 +98,7 @@ trait AwsBatchJobDefinitionBuilder {
     def buildVolumes(disks: Seq[AwsBatchVolume]): List[Volume] = {
 
       //all the configured disks plus the fetch and run volume and the aws-cli volume
-      disks.map(d => d.toVolume( /*getVolPath(d) */)).toList ++ List(
+      disks.map(d => d.toVolume()).toList ++ List(
         Volume.builder()
         .name("fetchAndRunScript")
         .host(Host.builder().sourcePath("/usr/local/bin/fetch_and_run.sh").build())

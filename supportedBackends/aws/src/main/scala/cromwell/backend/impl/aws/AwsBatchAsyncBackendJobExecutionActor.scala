@@ -55,7 +55,6 @@ import cromwell.core.io.{DefaultIoCommandBuilder, IoCommandBuilder}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.s3.S3Path
 import cromwell.filesystems.s3.batch.S3BatchCommandBuilder
-import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import org.slf4j.{Logger, LoggerFactory}
 import software.amazon.awssdk.services.batch.model.{BatchException, SubmitJobResponse}
@@ -107,7 +106,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override type StandardAsyncRunState = RunStatus
 
   /**
-    * Determines if two run statuses equal
+    * Determines if two run statuses are equal
     * @param thiz a `RunStatus`
     * @param that a `RunStatus`
     * @return true if they are equal, else false
@@ -261,7 +260,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   }
 
   /**
-    * Given a path (relative or absolute), returns a (Path, AwsBatchVolume.scala) tuple where the Path is
+    * Given a path (relative or absolute), returns a (Path, AwsBatchVolume) tuple where the Path is
     * relative to the Volume's mount point
     *
     * @throws Exception if the `path` does not live in one of the supplied `disks`
@@ -433,12 +432,6 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     tryAbort(jobId)
     reconnectAsync(jobId)
   }
-
-
-  //uniquely identify the current job
-  val futureKvJobKey: KvJobKey = KvJobKey(jobDescriptor.key.call.fullyQualifiedName,
-                                          jobDescriptor.key.index,
-                                          jobDescriptor.key.attempt + 1)
 
   // This is called by Cromwell after initial execution (see executeAsync above)
   // It expects a Future[RunStatus]. In this case we'll simply call the

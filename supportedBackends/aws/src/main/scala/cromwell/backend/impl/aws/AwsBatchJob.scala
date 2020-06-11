@@ -162,7 +162,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
     //generate a series of s3 commands to delocalize artifacts from the container to storage at the end of the task
     val outputCopyCommand = outputs.map {
-      case output: AwsBatchFileOutput if output.local.pathAsString.endsWith("*") => "" //filter out globs
+      case output: AwsBatchFileOutput if output.local.pathAsString.contains("*") => "" //filter out globs
       case output: AwsBatchFileOutput if output.name.endsWith(".list") && output.name.contains("glob-") =>
 
         val s3GlobOutDirectory = output.s3key.replace(".list", "")

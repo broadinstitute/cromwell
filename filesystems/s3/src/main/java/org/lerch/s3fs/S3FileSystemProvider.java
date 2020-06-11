@@ -425,14 +425,14 @@ public class S3FileSystemProvider extends FileSystemProvider {
             throw new FileAlreadyExistsException(format("target already exists: %s", target));
         }
 
-        String bucketNameOrigin = s3Source.getFileStore().name();
+        String sourceBucketName = s3Source.getFileStore().name();
         String keySource = s3Source.getKey();
         String bucketNameTarget = s3Target.getFileStore().name();
         String keyTarget = s3Target.getKey();
         s3Source.getFileSystem()
                 .getClient()
                 .copyObject(CopyObjectRequest.builder()
-                        .copySource(bucketNameOrigin + "/" + keySource)
+                        .copySource(sourceBucketName + "/" + keySource)
                         .bucket(bucketNameTarget)
                         .key(keyTarget)
                         .build());

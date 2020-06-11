@@ -13,7 +13,7 @@ sealed trait MetadataArchiveStatus {
 
 object MetadataArchiveStatus {
 
-  lazy val MetadataArchiveStatusValues = Seq(Unarchived, Archived, ArchivedAndPurged, ArchiveFailed)
+  lazy val MetadataArchiveStatusValues = Seq(Unarchived, Archived, ArchivedAndPurged, ArchiveFailed, TooLargeToArchive)
 
   def toDatabaseValue(status: MetadataArchiveStatus): Option[String] = status match {
     case Unarchived => None

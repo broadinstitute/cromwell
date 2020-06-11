@@ -72,7 +72,15 @@ class DigesterTestMethods(unittest.TestCase):
                         self.assertEqual(actual_len, expectation)
 
                     # Currently just a smoke test to assert not-completely-insane results for both v1 and v2 digesters.
-                    self.assertTrue(all([calls[name].get(Keys.DockerImagePullTimeSeconds) > 0 for name in calls]))
+
+                    keys = [Keys.StartupTimeSeconds, Keys.DockerImagePullTimeSeconds, Keys.LocalizationTimeSeconds,
+                            Keys.UserCommandTimeSeconds, Keys.DelocalizationTimeSeconds, Keys.PapiTotalTimeSeconds,
+                            Keys.CromwellTotalTimeSeconds, Keys.OtherTimeSeconds]
+
+                    for key in keys:
+                        for name in calls:
+                            self.assertTrue(calls[name].get(key) >= 0,
+                                            f"failed for {papi_version} / {sample_name} / {key}")
 
 
 def read_resource(filename: AnyStr) -> AnyStr:
@@ -123,8 +131,8 @@ EXPECTATIONS = {
             'more_than_1_attempts': 19,
             'more_than_2_attempts': 3,
             'more_than_3_attempts': 1,
-            'cromwell_time_more_than_3_minutes_longer_total': 16,
-            'cromwell_time_more_than_4_minutes_longer_total': 6,
+            'cromwell_time_more_than_3_minutes_longer_total': 15,
+            'cromwell_time_more_than_4_minutes_longer_total': 4,
             'cromwell_time_more_than_5_minutes_longer_total': 2,
             'cromwell_time_more_than_6_minutes_longer_total': 1,
             'cromwell_time_more_than_7_minutes_longer_total': 1,
@@ -135,7 +143,7 @@ EXPECTATIONS = {
             'more_than_1_attempts': 12,
             'more_than_2_attempts': 1,
             'more_than_3_attempts': 0,
-            'cromwell_time_more_than_3_minutes_longer_total': 23,
+            'cromwell_time_more_than_3_minutes_longer_total': 21,
             'cromwell_time_more_than_4_minutes_longer_total': 7,
             'cromwell_time_more_than_5_minutes_longer_total': 4,
             'cromwell_time_more_than_6_minutes_longer_total': 2,

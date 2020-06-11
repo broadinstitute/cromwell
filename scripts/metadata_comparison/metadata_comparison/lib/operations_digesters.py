@@ -33,7 +33,7 @@ class OperationDigester(ABC):
         return self.__metadata().get('endTime')
 
     def total_time_seconds(self) -> float:
-        return (dateutil.parser.parse(self.end_time()) - dateutil.parser.parse(self.start_time())).total_seconds()
+        return (dateutil.parser.parse(self.end_time()) - dateutil.parser.parse(self.create_time())).total_seconds()
 
     @staticmethod
     def create(operation_json: JsonObject):
@@ -74,7 +74,7 @@ class OperationDigester(ABC):
             self.user_command_time_seconds() + \
             self.delocalization_time_seconds()
 
-        return total_time - accounted_for_time
+        return max(total_time - accounted_for_time, 0)
 
     def event_with_description(self, description: AnyStr) -> JsonObject:
         def has_description(event: JsonObject) -> bool:
@@ -118,7 +118,7 @@ class PapiV1OperationDigester(OperationDigester):
         return (end - start).total_seconds()
 
     def delocalization_time_seconds(self) -> float:
-        descriptions = ['ok', 'running-docker']
+        descriptions = ['ok', 'delocalizing-files']
         end, start = [dateutil.parser.parse(self.event_with_description(d).get('startTime')) for d in descriptions]
         return (end - start).total_seconds()
 

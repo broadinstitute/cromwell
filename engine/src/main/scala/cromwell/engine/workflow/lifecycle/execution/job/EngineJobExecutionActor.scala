@@ -688,6 +688,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
           callCachingHitResultMetadataKey -> false,
           callCachingReadResultMetadataKey -> s"Cache Miss (${callCachingParameters.maxFailedCopyAttempts} failed copy attempts)"))
         log.warning("Cache miss for job {} due to exceeding the maximum of {} failed copy attempts.", jobTag, callCachingParameters.maxFailedCopyAttempts)
+        publishCopyAttemptAbandonedMetrics(data)
         runJob(data)
       case _ =>
         workflowLogger.error("Programmer error: We got a cache failure but there was no hashing actor scanning for hits. Falling back to running job")
@@ -717,6 +718,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     } else {
       workflowLogger.info("Call cache hit process had 0 total hit failures before completing successfully")
     }
+
+    publishCopyAttemptFailuresMetrics(data)
   }
 
   private def logCacheHitFailure(data: ResponsePendingData, reason: Throwable): Unit = {
@@ -732,6 +735,31 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       s"Failure copying cache results for job $jobDescriptorKey (${reason.getClass.getSimpleName}: ${reason.getMessage})"
       + multipleFailuresContext
     )
+  }
+
+  private def publishCopyAttemptFailuresMetrics(data: ResponsePendingData): Unit = {
+    val copyErrorsPerHitPath: NonEmptyList[String] =
+      NonEmptyList.of(
+        "job",
+        "callcaching", "read", "error", "invalidhits", data.jobDescriptor.workflowDescriptor.hogGroup.value, "copyerrors")
+    val copyBlacklistsPerHitPath: NonEmptyList[String] =
+      NonEmptyList.of(
+        "job",
+        "callcaching", "read", "error", "invalidhits", data.jobDescriptor.workflowDescriptor.hogGroup.value, "blacklisted")
+
+    sendGauge(copyErrorsPerHitPath, data.failedCopyAttempts.longValue)
+    sendGauge(copyBlacklistsPerHitPath, data.cacheHitFailureCount - data.failedCopyAttempts.longValue)
+  }
+
+  private def publishCopyAttemptAbandonedMetrics(data: ResponsePendingData): Unit = {
+    val cacheCopyAttemptAbandonedPath: NonEmptyList[String] =
+      NonEmptyList.of(
+        "job",
+        "callcaching", "read", "error", "invalidhits",  data.jobDescriptor.workflowDescriptor.hogGroup.value, "abandonments")
+    increment(cacheCopyAttemptAbandonedPath)
+
+    // Also publish the attempt failure metrics
+    publishCopyAttemptFailuresMetrics(data)
   }
 
   private def publishBlacklistReadMetrics(data: ResponsePendingData, failureCategory: MetricableCacheCopyErrorCategory): Unit = {

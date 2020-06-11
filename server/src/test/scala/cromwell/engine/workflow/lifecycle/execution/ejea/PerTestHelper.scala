@@ -123,7 +123,8 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
   }
 
   def buildEJEA(restarting: Boolean = true,
-                callCachingMode: CallCachingMode = CallCachingOff)
+                callCachingMode: CallCachingMode = CallCachingOff,
+                callCachingMaxFailedCopyAttempts: Int = 1000000)
                (implicit startingState: EngineJobExecutionActorState): TestFSMRef[EngineJobExecutionActorState, EJEAData, MockEjea] = {
 
     val factory: BackendLifecycleActorFactory = buildFactory()
@@ -134,7 +135,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
       readActor = callCacheReadActorProbe.ref,
       writeActor = callCacheWriteActorProbe.ref,
       fileHashCacheActor = Option(dockerHashActorProbe.ref),
-      maxFailedCopyAttempts = 1000000,
+      maxFailedCopyAttempts = callCachingMaxFailedCopyAttempts,
       blacklistCache = None
     )
 

@@ -12,7 +12,6 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
-import software.amazon.awssdk.services.s3.model.S3Object;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -25,7 +24,6 @@ import org.lerch.s3fs.util.AttributesUtils;
 import org.lerch.s3fs.util.Cache;
 import org.lerch.s3fs.util.S3Utils;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -37,6 +35,7 @@ import java.nio.file.spi.FileSystemProvider;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.function.Function;
 
 import static com.google.common.collect.Sets.difference;
 import static org.lerch.s3fs.AmazonS3Factory.*;
@@ -90,19 +89,49 @@ public class S3FileSystemProvider extends FileSystemProvider {
 
     @Override
     public FileSystem newFileSystem(URI uri, Map<String, ?> env) {
+        return newFileSystem(uri, env, props -> createFileSystem(uri, props), true);
+    }
+
+    /**
+     * Get existing filesystem based on a combination of URI and env settings. Create new filesystem otherwise.
+     *
+     * @param uri URI of existing, or to be created filesystem.
+     * @param env environment settings.
+     * @return new or existing filesystem.
+     */
+    public FileSystem getFileSystem(URI uri, Map<String, ?> env, S3Client client) {
+        return newFileSystem(uri, env, props -> createFileSystem(uri, props, client), false);
+    }
+
+    private FileSystem newFileSystem(URI uri, Map<String, ?> env,
+                                     Function<Properties, S3FileSystem> createFileSystemFunc,
+                                     boolean throwExceptionIfAlreadyExists) {
         validateUri(uri);
         // get properties for the env or properties or system
         Properties props = getProperties(uri, env);
         validateProperties(props);
         // try to get the filesystem by the key
         String key = getFileSystemKey(uri, props);
-        if (fileSystems.containsKey(key)) {
-            throw new FileSystemAlreadyExistsException("File system " + uri.getScheme() + ':' + key + " already exists");
+        FileSystemAlreadyExistsException alreadyExistsException = new FileSystemAlreadyExistsException("File system " + uri.getScheme() + ':' + key + " already exists");
+        if (!fileSystems.containsKey(key)) {
+            synchronized (fileSystems) {
+                if (!fileSystems.containsKey(key)) {
+                    // create the filesystem with the final properties, store and return
+                    S3FileSystem fileSystem = createFileSystemFunc.apply(props);
+                    fileSystems.put(fileSystem.getKey(), fileSystem);
+                } else {
+                    if (throwExceptionIfAlreadyExists) {
+                        throw alreadyExistsException;
+                    }
+                }
+            }
+        } else {
+            if (throwExceptionIfAlreadyExists) {
+                throw alreadyExistsException;
+            }
         }
-        // create the filesystem with the final properties, store and return
-        S3FileSystem fileSystem = createFileSystem(uri, props);
-        fileSystems.put(fileSystem.getKey(), fileSystem);
-        return fileSystem;
+
+        return fileSystems.get(key);
     }
 
     private void validateProperties(Properties props) {
@@ -568,6 +597,18 @@ public class S3FileSystemProvider extends FileSystemProvider {
      * @return S3FileSystem never null
      */
     public S3FileSystem createFileSystem(URI uri, Properties props) {
+        return new S3FileSystem(this, getFileSystemKey(uri, props), getS3Client(uri, props), uri.getHost());
+    }
+
+        /**
+         * Create the fileSystem
+         *
+         * @param uri   URI
+         * @param props Properties
+         * @param client
+         * @return S3FileSystem never null
+         */
+    public S3FileSystem createFileSystem(URI uri, Properties props, S3Client client) {
         return new S3FileSystem(this, getFileSystemKey(uri, props), getS3Client(uri, props), uri.getHost());
     }
 

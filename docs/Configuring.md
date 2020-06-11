@@ -523,6 +523,13 @@ config section:
       config {
         filesystems {
           local {
+            # When localizing a file, what type of file duplication should occur. 
+            # possible values: "hard-link", "soft-link", "copy", "cached-copy".
+            # For more information check: https://cromwell.readthedocs.io/en/stable/backends/HPC/#shared-filesystem
+            localization: [
+              "hard-link", "soft-link", "copy"
+            ]
+
             caching {
               # When copying a cached result, what type of file duplication should occur. 
               # possible values: "hard-link", "soft-link", "copy", "cached-copy".

@@ -479,8 +479,8 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
   }
 
   //TODO: Wrap in cats Effect
-  def abort(jobId: String): CancelJobResponse = {
-    batchClient.cancelJob(CancelJobRequest.builder.jobId(jobId).reason("cromwell abort called").build)
+  def abort(jobId: String): TerminateJobResponse = {
+    batchClient.terminateJob(TerminateJobRequest.builder.jobId(jobId).reason("cromwell abort called").build)
   }
 
   /**

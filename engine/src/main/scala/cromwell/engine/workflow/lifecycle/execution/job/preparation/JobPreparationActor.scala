@@ -149,9 +149,9 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
       case Success(_: DockerImageIdentifierWithoutHash) if !hasDockerDefinition => 
         lookupKvsOrBuildDescriptorAndStop(inputs, attributes, NoDocker, None)
 
-      // Even if the docker image has a hash, we need to (try to) find out the size, so send a request
-      case Success(dockerImageId: DockerImageIdentifierWithHash) =>
-        sendDockerRequest(dockerImageId)
+      // If there's a digest, we'll skip looking up the container because it just looks up the compressed size
+       case Success(dockerImageId: DockerImageIdentifierWithHash) =>
+        lookupKvsOrBuildDescriptorAndStop(inputs, attributes, DockerWithHash(dockerImageId.fullName), None)
 
       case Failure(failure) => sendFailureAndStop(failure)
     }

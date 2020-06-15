@@ -92,8 +92,15 @@ class DeclarationValidation(declaration: Declaration, instanceValidation: Runtim
     */
   def makeValidation(): RuntimeAttributesValidation[_] = {
     import scala.language.existentials
+
+    // The RuntimeAttributesValidation object contains functions to wrap existing validation functions into new validations with modified behaviors.
+    // As a first approximation, think "caseClass.copy, but for validation functions"
+    // In this case, we might (or might not) want to make our validations:
+    // 1. have defaults:
     val validationWithDefault = if (declaration.expression.isDefined) default(instanceValidation, declaration.expression.get) else instanceValidation
+    // 2. be optional:
     val validationWithDefaultAndOptionality = if (declaration.womType.isInstanceOf[WomOptionalType]) validationWithDefault.optional else validationWithDefault
+    // Or 3. have customized call caching properties:
     val validationWithDefaultAndOptionalityAndCallCaching = usedInCallCachingOverride match {
       case Some(usedInCallCachingValue) => RuntimeAttributesValidation.withUsedInCallCaching(validationWithDefaultAndOptionality, usedInCallCachingValue)
       case None => validationWithDefaultAndOptionality

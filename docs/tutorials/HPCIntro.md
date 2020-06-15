@@ -155,7 +155,9 @@ backend.providers.SGE.config {
 }
 ```
 
-Note: Only *custom* attributes can be altered like this. Memory, CPU and docker will always have their default cache-consideration behavior.
+* Note: Only *custom* attributes can be altered like this. Memory, CPU and docker will always have their default cache-consideration behavior.
+* Note: Unlike memory, cpu and docker attributes which inherit validation and hash-lookup behavior, any custom attributes will be simple primitive comparisons.
+    * For example, a `docker` attribute will be cached by looking up docker hashes against a docker repository, but a custom `singularity` attribute would be a primitive string match.
 
 #### How Cromwell should start an HPC job
 

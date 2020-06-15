@@ -4,6 +4,7 @@ import java.io.{FileNotFoundException, InputStream}
 
 import akka.event.LoggingAdapter
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.standard.StandardInitializationData
 import cromwell.backend.standard.callcaching.StandardFileHashingActor.SingleFileHashRequest
 import cromwell.core.path.{Path, PathFactory}
@@ -41,7 +42,7 @@ object ConfigHashingStrategy {
   }
 }
 
-abstract class ConfigHashingStrategy {
+abstract class ConfigHashingStrategy extends LazyLogging {
   def checkSiblingMd5: Boolean
   protected def hash(file: Path): Try[String]
   protected def description: String
@@ -49,10 +50,24 @@ abstract class ConfigHashingStrategy {
   protected lazy val checkSiblingMessage: String =
     if (checkSiblingMd5) "Check first for sibling md5 and if not found " else ""
 
+  //noinspection ScalaUnusedSymbol
   def getHash(request: SingleFileHashRequest, log: LoggingAdapter): Try[String] = {
     def usingStandardInitData(initData: StandardInitializationData) = {
       val pathBuilders = initData.workflowPaths.pathBuilders
-      val file = PathFactory.buildPath(request.file.valueString, pathBuilders).followSymbolicLinks
+      /*
+      TODO: Logging needs help. The workflowLogger provides both slf4j and akka logging, but isn't plumbed everywhere.
+      This leads to things like this function call where we have an akka log but need the slf4j log. Bonus: The `log`
+      passed into this function isn't even used elsewhere.
+
+      So, attach this "to do" under any of your favorite "logging needs work" issues. Here are a few options:
+      - https://broadworkbench.atlassian.net/browse/BA-4310
+      - https://broadworkbench.atlassian.net/browse/BA-3226
+      - https://broadworkbench.atlassian.net/browse/BA-2036
+      - https://broadworkbench.atlassian.net/browse/BA-1808
+      - https://broadworkbench.atlassian.net/browse/BA-1622
+      - etc.
+       */
+      val file = PathFactory.buildPath(logger.underlying, request.file.valueString, pathBuilders).followSymbolicLinks
       if (!file.exists) Failure(new FileNotFoundException(s"Cannot hash file $file because it can't be found")) else {
         if (checkSiblingMd5) {
           precomputedMd5(file) match {

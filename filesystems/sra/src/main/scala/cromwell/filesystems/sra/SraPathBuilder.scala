@@ -7,7 +7,7 @@ import scala.util.{Failure, Success, Try}
 class SraPathBuilder extends PathBuilder {
   override def name: String = "NIH Sequence Read Archive"
 
-  def build(path: String): Try[SraPath] = {
+  override def build(path: String): Try[SraPath] = {
     if (!path.startsWith(SraPath.Scheme)) {
       return Failure(new IllegalArgumentException(s"$path is not a SRA path"))
     }

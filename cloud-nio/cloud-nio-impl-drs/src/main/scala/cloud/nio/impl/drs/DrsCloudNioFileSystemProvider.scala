@@ -4,11 +4,12 @@ import java.net.URI
 import java.nio.channels.ReadableByteChannel
 
 import cats.effect.IO
-import cloud.nio.spi.{CloudNioFileProvider, CloudNioFileSystemProvider}
+import cloud.nio.spi.CloudNioFileSystemProvider
 import com.google.auth.oauth2.OAuth2Credentials
 import com.typesafe.config.Config
-import org.apache.http.impl.client.HttpClientBuilder
 import net.ceedubs.ficus.Ficus._
+import org.apache.http.impl.client.HttpClientBuilder
+
 import scala.concurrent.duration.FiniteDuration
 
 
@@ -27,7 +28,15 @@ class DrsCloudNioFileSystemProvider(rootConfig: Config,
 
   override def config: Config = rootConfig
 
-  override def fileProvider: CloudNioFileProvider = new DrsCloudNioFileProvider(getScheme, accessTokenAcceptableTTL, drsPathResolver, authCredentials, httpClientBuilder, drsReadInterpreter)
+  override def fileProvider: DrsCloudNioFileProvider = {
+    new DrsCloudNioFileProvider(
+      scheme = getScheme,
+      accessTokenAcceptableTTL = accessTokenAcceptableTTL,
+      drsPathResolver = drsPathResolver,
+      credential = authCredentials,
+      drsReadInterpreter = drsReadInterpreter,
+    )
+  }
 
   override def isFatal(exception: Exception): Boolean = false
 

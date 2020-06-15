@@ -1,5 +1,6 @@
 package cromwell.core.path
 
+import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.Matchers._
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop._
@@ -23,7 +24,7 @@ case class BadPath(description: String, path: String, exceptionMessage: String)
 /**
   * Tests various methods of Path objects.
   */
-trait PathBuilderSpecUtils {
+trait PathBuilderSpecUtils extends LazyLogging {
   this: FlatSpecLike =>
 
   def truncateCommonRoots(builder: => PathBuilder,
@@ -33,8 +34,8 @@ trait PathBuilderSpecUtils {
 
     it should "truncate common roots" taggedAs tag in {
       forAll(pathsToTruncate) { (context, file, relative) =>
-        val contextPath = builder.build(context).get
-        val filePath = builder.build(file).get
+        val contextPath = builder.build(logger.underlying, context, Nil).get
+        val filePath = builder.build(logger.underlying, file, Nil).get
         val actual = PathCopier.truncateCommonRoot(contextPath, filePath)
         actual should be(relative)
       }
@@ -45,7 +46,7 @@ trait PathBuilderSpecUtils {
     behavior of s"Building ${goodPath.description}"
 
     lazy val path = {
-      val path = builder.build(goodPath.path).get
+      val path = builder.build(logger.underlying, goodPath.path, Nil).get
       if (goodPath.normalize) path.normalize() else path
     }
 
@@ -100,7 +101,7 @@ trait PathBuilderSpecUtils {
 
     it should "fail to build a path" taggedAs tag in
       withClue(s"for path ${badPath.path}:") {
-        val exception = intercept[Exception](builder.build(badPath.path).get)
+        val exception = intercept[Exception](builder.build(logger.underlying, badPath.path, Nil).get)
         exception.getMessage should be(badPath.exceptionMessage)
       }
   }

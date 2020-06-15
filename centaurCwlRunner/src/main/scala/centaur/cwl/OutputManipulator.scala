@@ -1,5 +1,6 @@
 package centaur.cwl
 
+import com.typesafe.scalalogging.StrictLogging
 import common.util.StringUtil._
 import cromwell.core.path.{Path, PathBuilder}
 import cwl.CwlCodecs._
@@ -15,7 +16,7 @@ import shapeless.{Inl, Poly1}
 import spray.json.{JsArray, JsBoolean, JsNull, JsNumber, JsObject, JsString, JsValue}
 
 //Take cromwell's outputs and format them as expected by the spec
-object OutputManipulator extends Poly1 {
+object OutputManipulator extends Poly1 with StrictLogging {
 
   //In an Ideal world I'd return a Coproduct of these types and leave the asJson-ing to the handleOutput
   def resolveOutput(jsValue: JsValue,
@@ -29,7 +30,7 @@ object OutputManipulator extends Poly1 {
   private def sizeFile(path: Path): Option[Long] = path.exists.option(path.size)
 
   private def stringToFile(pathAsString: String, pathBuilder: PathBuilder): Json = {
-    val path = pathBuilder.build(pathAsString).get
+    val path = pathBuilder.build(logger.underlying, pathAsString, Nil).get
 
     if (path.exists()) {
       CwlFile(
@@ -45,7 +46,7 @@ object OutputManipulator extends Poly1 {
   private def populateFileFields(pathBuilder: PathBuilder,
                                  schemaOption: Option[Schema]
                                 )(obj: JsonObject): JsonObject = {
-    val path = pathBuilder.build(obj.kleisli("location").get.asString.get).get
+    val path = pathBuilder.build(logger.underlying, obj.kleisli("location").get.asString.get, Nil).get
     val isFile = obj.kleisli("class").exists(_.asString.contains("File"))
     val isDirectory = obj.kleisli("class").exists(_.asString.contains("Directory"))
 
@@ -183,7 +184,7 @@ object OutputManipulator extends Poly1 {
           l <- o.kleisli("location")
           s <- l.asString
           c = if (a.contains(Inl(CwlType.Directory))) s.ensureSlashed else s
-          p <- pathBuilder.build(c).toOption
+          p <- pathBuilder.build(logger.underlying, c, Nil).toOption
         } yield p.exists).getOrElse(false)
         if (fileExists) json.mapObject(populateFileFields(pathBuilder, schemaOption)) else Json.Null
       case (JsNumber(metadata), Array(Inl(CwlType.Long))) => metadata.longValue.asJson

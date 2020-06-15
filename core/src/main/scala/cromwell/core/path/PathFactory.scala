@@ -1,12 +1,13 @@
 package cromwell.core.path
 
 import cats.data.NonEmptyList
-import cats.syntax.validated._
 import cats.data.Validated.{Invalid, Valid}
-import common.validation.Validation._
+import cats.syntax.validated._
+import com.typesafe.scalalogging.LazyLogging
 import common.validation.ErrorOr._
-import common.validation.ErrorOr.ErrorOr
+import common.validation.Validation._
 import cromwell.core.path.PathFactory.PathBuilders
+import org.slf4j.Logger
 
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
@@ -33,27 +34,29 @@ trait PathFactory {
   /**
     * Attempts to build a Path from a String
     */
-  def buildPath(string: String): Path = PathFactory.buildPath(string, pathBuilders, preMapping, postMapping)
+  def buildPath(string: String): Path = PathFactory.buildPath(string, pathBuilders, preMapping _, postMapping _)
 }
 
-object PathFactory {
+object PathFactory extends LazyLogging {
   type PathBuilders = List[PathBuilder]
 
   @tailrec
-  private def findFirstSuccess(string: String,
-                               pathBuilders: PathBuilders,
-                               failures: Vector[String]): ErrorOr[Path] = pathBuilders match {
+  private def findFirstSuccess(logger: Logger,
+                               string: String,
+                               allPathBuilders: PathBuilders,
+                               restPathBuilders: PathBuilders,
+                               failures: Vector[String]): ErrorOr[Path] = restPathBuilders match {
     case Nil => NonEmptyList.fromList(failures.toList) match {
       case Some(errors) => Invalid(errors)
       case None => s"Could not parse '$string' to path. No PathBuilders were provided".invalidNel
     }
     case pb :: rest =>
-      pb.build(string) match {
+      pb.build(logger, string, allPathBuilders) match {
         case Success(path) =>
           path.validNel
         case Failure(f) =>
           val newFailure = s"${pb.name}: ${f.getMessage} (${f.getClass.getSimpleName})"
-          findFirstSuccess(string, rest, failures :+ newFailure)
+          findFirstSuccess(logger, string, allPathBuilders, rest, failures :+ newFailure)
       }
   }
 
@@ -62,6 +65,24 @@ object PathFactory {
     */
   def buildPath(string: String,
                 pathBuilders: PathBuilders,
+                preMapping: String => String,
+                postMapping: Path => Path,
+               ): Path = {
+    buildPath(logger.underlying, string, pathBuilders, preMapping, postMapping)
+  }
+
+  /**
+    * Attempts to build a Path from a String
+    */
+  def buildPath(string: String,
+                pathBuilders: PathBuilders,
+               ): Path = {
+    buildPath(logger.underlying, string, pathBuilders, identity, identity)
+  }
+
+  def buildPath(logger: Logger,
+                string: String,
+                pathBuilders: PathBuilders,
                 preMapping: String => String = identity[String],
                 postMapping: Path => Path = identity[Path]): Path = {
 
@@ -69,7 +90,7 @@ object PathFactory {
 
     val path = for {
       preMapped <- Try(preMapping(string)).toErrorOr.contextualizeErrors(s"pre map $string")
-      path <- findFirstSuccess(preMapped, pathBuilders, Vector.empty)
+      path <- findFirstSuccess(logger, preMapped, pathBuilders, pathBuilders, Vector.empty)
       postMapped <- Try(postMapping(path)).toErrorOr.contextualizeErrors(s"post map $path")
     } yield postMapped
 

@@ -153,7 +153,7 @@ class GcsPathBuilder(apiStorage: com.google.api.services.storage.Storage,
     *
     * Also see https://github.com/GoogleCloudPlatform/google-cloud-java/issues/1343
     */
-  def build(string: String): Try[GcsPath] = {
+  override def build(string: String): Try[GcsPath] = {
     validateGcsPath(string) match {
       case ValidFullGcsPath(bucket, path) =>
         Try {

@@ -139,7 +139,7 @@ class S3PathBuilder(client: S3Client,
                      configuration: S3Configuration
                      ) extends PathBuilder {
   // Tries to create a new S3Path from a String representing an absolute s3 path: s3://<bucket>[/<key>].
-  def build(string: String): Try[S3Path] = {
+  override def build(string: String): Try[S3Path] = {
     validatePath(string) match {
       case ValidFullS3Path(bucket, path) =>
         Try {

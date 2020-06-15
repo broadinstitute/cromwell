@@ -110,7 +110,7 @@ object OssPathBuilder {
 }
 
 final case class OssPathBuilder(ossStorageConfiguration: OssStorageConfiguration) extends PathBuilder {
-  def build(string: String): Try[OssPath] = {
+  override def build(string: String): Try[OssPath] = {
     validateOssPath(string) match {
       case ValidFullOssPath(bucket, path) =>
         Try {

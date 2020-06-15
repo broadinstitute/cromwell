@@ -1,11 +1,30 @@
 package cromwell.core.path
 
+import org.slf4j.Logger
+
 import scala.util.Try
 
 trait PathBuilder {
   def name: String
 
-  def build(pathAsString: String): Try[Path]
+  /**
+    * Builds a path from a string.
+    *
+    * @param logger Logger for providing additional information
+    * @param pathAsString The path to build
+    * @param pathBuilders Nil, or others potential builders, for example internally map GCS to a pre-signed HTTPS url
+    * @return A Success(path) or a Failure(throwable)
+    */
+  def build(logger: Logger, pathAsString: String, pathBuilders: List[PathBuilder]): Try[Path] = build(pathAsString)
+
+  /**
+    * Alternative, simpler method of building a Path from a String.
+    *
+    * Not directly invoked, but left for backwards compatibility / simplicity.
+    */
+  protected def build(pathAsString: String): Try[Path] = {
+    throw new NotImplementedError(this.getClass + " did not override any of the build() methods")
+  }
 }
 
 /**

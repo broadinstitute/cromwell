@@ -6,6 +6,7 @@ import cats.effect.IO
 import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, MarthaResponse}
 import com.google.cloud.NoCredentials
 import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.pipelines.common.PipelinesApiFileInput
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiWorkingDisk}
@@ -17,7 +18,7 @@ import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.JavaConverters._
 
-class PipelinesConversionsSpec extends FlatSpec with Matchers {
+class PipelinesConversionsSpec extends FlatSpec with Matchers with StrictLogging {
 
   behavior of "PipelinesConversions"
   implicit val gcsTransferConfiguration =
@@ -35,6 +36,7 @@ class PipelinesConversionsSpec extends FlatSpec with Matchers {
 
   private lazy val httpClientBuilder = HttpClientBuilder.create()
 
+  //noinspection ScalaUnusedSymbol
   private def drsReadInterpreter(marthaResponse: MarthaResponse): IO[ReadableByteChannel] =
     throw new UnsupportedOperationException("Currently PipelinesConversionsSpec doesn't need to use drs read interpreter.")
 
@@ -44,7 +46,9 @@ class PipelinesConversionsSpec extends FlatSpec with Matchers {
       new DrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials, httpClientBuilder, drsReadInterpreter),
       None,
     )
-    val drsPath = drsPathBuilder.build("drs://drs.example.org/aaaabbbb-cccc-dddd-eeee-abcd0000dcba").get
+    val drsPath = drsPathBuilder
+      .build(logger.underlying,"drs://drs.example.org/aaaabbbb-cccc-dddd-eeee-abcd0000dcba", Nil)
+      .get
     val containerRelativePath = DefaultPathBuilder.get("path/to/file.bai")
     val mount = PipelinesApiWorkingDisk(DiskType.LOCAL, 1)
     val input = PipelinesApiFileInput("example", drsPath, containerRelativePath, mount)

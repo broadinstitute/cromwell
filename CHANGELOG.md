@@ -10,7 +10,7 @@ https://cromwell.readthedocs.io/en/stable/tutorials/Containers/#singularity).
 
 ### Bug fixes
 
-* Introduced a DNS TTL of three minutes, overriding the JVM default of infinity. This setting is not user-configurable. 
+* Introduced a JVM DNS TTL of three minutes, overriding the JVM default of infinity. This setting is not user-configurable. 
 
 ## 51 Release Notes
 

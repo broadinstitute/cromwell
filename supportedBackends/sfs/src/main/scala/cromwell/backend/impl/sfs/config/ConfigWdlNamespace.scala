@@ -62,6 +62,7 @@ class ConfigWdlNamespace(backendConfig: Config) {
     * The declarations of runtime attributes.
     */
   val runtimeDeclarations = runtimeAttributesTask.declarations
+  val callCachedRuntimeAttributes = backendConfig.as[Option[Map[String, Boolean]]](RuntimeAttributesCachingConfig).getOrElse(Map.empty)
 
 }
 

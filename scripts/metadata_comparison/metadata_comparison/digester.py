@@ -2,6 +2,7 @@ import argparse
 import json
 from metadata_comparison.lib import logging, operation_ids
 from metadata_comparison.lib.digester_keys import *
+from metadata_comparison.lib.digester_keys import OperationId as OperationIdKey
 from metadata_comparison.lib.operation_ids import CallNameSequence, JsonObject, OperationId
 from metadata_comparison.lib.comparison_paths import ComparisonPath
 from metadata_comparison.lib.operations_digesters import OperationDigester
@@ -84,7 +85,7 @@ def digest(workflow_path: ComparisonPath, operations_path: ComparisonPath) -> Js
             succeeded_operations[string_path] = {
                 Attempt: attempt.get('attempt'),
                 ShardIndex: attempt.get('shardIndex'),
-                OperationId: operation_id,
+                OperationIdKey: operation_id,
                 CromwellStart: cromwell_start,
                 CromwellEnd: cromwell_end,
                 CromwellTotalTimeSeconds: cromwell_total_time_seconds,

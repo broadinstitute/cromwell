@@ -6,7 +6,8 @@ from typing import AnyStr, Callable
 from metadata_comparison.lib.comparison_paths import ComparisonPath
 from pathlib import Path
 import logging
-from metadata_comparison.digester import digest, Keys
+from metadata_comparison.digester import digest
+from metadata_comparison.lib.digester_keys import *
 from metadata_comparison.lib.logging import quieten_chatty_imports, set_log_verbosity
 from metadata_comparison.lib.operation_ids import JsonObject
 import google.auth
@@ -73,9 +74,9 @@ class DigesterTestMethods(unittest.TestCase):
 
                     # Currently just a smoke test to assert not-completely-insane results for both v1 and v2 digesters.
 
-                    keys = [Keys.StartupTimeSeconds, Keys.DockerImagePullTimeSeconds, Keys.LocalizationTimeSeconds,
-                            Keys.UserCommandTimeSeconds, Keys.DelocalizationTimeSeconds, Keys.PapiTotalTimeSeconds,
-                            Keys.CromwellTotalTimeSeconds, Keys.OtherTimeSeconds]
+                    keys = [StartupTimeSeconds, DockerImagePullTimeSeconds, LocalizationTimeSeconds,
+                            UserCommandTimeSeconds, DelocalizationTimeSeconds, PapiTotalTimeSeconds,
+                            CromwellTotalTimeSeconds, OtherTimeSeconds]
 
                     for key in keys:
                         for name in calls:
@@ -111,7 +112,8 @@ def subdir_for_papi_version(papi_version: AnyStr) -> AnyStr:
     return f'exome_germline_single_sample_v1.3/{path_element}'
 
 
-def download_metadata_from_gcs_if_needed(sample_name: AnyStr, local_parent: ComparisonPath, bucket: storage.Bucket) -> None:
+def download_metadata_from_gcs_if_needed(
+        sample_name: AnyStr, local_parent: ComparisonPath, bucket: storage.Bucket) -> None:
     """
     Copy down workflow and PAPI operations metadata from GCS if needed to test Local.
     """

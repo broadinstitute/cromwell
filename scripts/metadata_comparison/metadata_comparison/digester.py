@@ -1,6 +1,7 @@
 import argparse
 import json
 from metadata_comparison.lib import logging, operation_ids
+from metadata_comparison.lib.digester_keys import *
 from metadata_comparison.lib.operation_ids import CallNameSequence, JsonObject, OperationId
 from metadata_comparison.lib.comparison_paths import ComparisonPath
 from metadata_comparison.lib.operations_digesters import OperationDigester
@@ -81,23 +82,23 @@ def digest(workflow_path: ComparisonPath, operations_path: ComparisonPath) -> Js
                 float("%.3f" % (cromwell_total_time_seconds - papi_total_time_seconds))
 
             succeeded_operations[string_path] = {
-                Keys.Attempt: attempt.get('attempt'),
-                Keys.ShardIndex: attempt.get('shardIndex'),
-                Keys.OperationId: operation_id,
-                Keys.CromwellStart: cromwell_start,
-                Keys.CromwellEnd: cromwell_end,
-                Keys.CromwellTotalTimeSeconds: cromwell_total_time_seconds,
-                Keys.PapiCreate: operation.create_time(),
-                Keys.PapiStart: operation.start_time(),
-                Keys.PapiEnd: operation.end_time(),
-                Keys.PapiTotalTimeSeconds: operation.total_time_seconds(),
-                Keys.CromwellAdditionalTotalTimeSeconds: cromwell_additional_total_time_seconds,
-                Keys.StartupTimeSeconds: operation.startup_time_seconds(),
-                Keys.DockerImagePullTimeSeconds: operation.docker_image_pull_time_seconds(),
-                Keys.LocalizationTimeSeconds: operation.localization_time_seconds(),
-                Keys.UserCommandTimeSeconds: operation.user_command_time_seconds(),
-                Keys.DelocalizationTimeSeconds: operation.delocalization_time_seconds(),
-                Keys.OtherTimeSeconds: operation.other_time_seconds()
+                Attempt: attempt.get('attempt'),
+                ShardIndex: attempt.get('shardIndex'),
+                OperationId: operation_id,
+                CromwellStart: cromwell_start,
+                CromwellEnd: cromwell_end,
+                CromwellTotalTimeSeconds: cromwell_total_time_seconds,
+                PapiCreate: operation.create_time(),
+                PapiStart: operation.start_time(),
+                PapiEnd: operation.end_time(),
+                PapiTotalTimeSeconds: operation.total_time_seconds(),
+                CromwellAdditionalTotalTimeSeconds: cromwell_additional_total_time_seconds,
+                StartupTimeSeconds: operation.startup_time_seconds(),
+                DockerImagePullTimeSeconds: operation.docker_image_pull_time_seconds(),
+                LocalizationTimeSeconds: operation.localization_time_seconds(),
+                UserCommandTimeSeconds: operation.user_command_time_seconds(),
+                DelocalizationTimeSeconds: operation.delocalization_time_seconds(),
+                OtherTimeSeconds: operation.other_time_seconds()
             }
 
     data = workflow_path.read_text()
@@ -105,26 +106,6 @@ def digest(workflow_path: ComparisonPath, operations_path: ComparisonPath) -> Js
 
     shards = operation_ids.visit_papi_operations(metadata, call_fn, initial_accumulator={})
     return {'version': Version, 'calls': shards, 'workflowId': metadata['id']}
-
-
-class Keys:
-    Attempt = "attempt"
-    ShardIndex = "shardIndex"
-    OperationId = "operationId"
-    CromwellStart = "cromwellStart"
-    CromwellEnd = "cromwellEnd"
-    CromwellTotalTimeSeconds = "cromwellTotalTimeSeconds"
-    PapiCreate = "papiCreate"
-    PapiStart = "papiStart"
-    PapiEnd = "papiEnd"
-    PapiTotalTimeSeconds = "papiTotalTimeSeconds"
-    CromwellAdditionalTotalTimeSeconds = "cromwellAdditionalTotalTimeSeconds"
-    StartupTimeSeconds = "startupTimeSeconds"
-    DockerImagePullTimeSeconds = "dockerImagePullTimeSeconds"
-    LocalizationTimeSeconds = "localizationTimeSeconds"
-    UserCommandTimeSeconds = "userCommandTimeSeconds"
-    DelocalizationTimeSeconds = "delocalizationTimeSeconds"
-    OtherTimeSeconds = "otherTimeSeconds"
 
 
 if __name__ == "__main__":

@@ -44,6 +44,9 @@ object CromwellEntryPoint extends GracefulStopSupport {
 
   val gracefulShutdown = config.as[Boolean]("system.graceful-server-shutdown")
 
+  // 3 minute DNS TTL down from JVM default of infinite [BA-6454]
+  java.security.Security.setProperty("networkaddress.cache.ttl" , "180")
+
   /**
     * Run Cromwell in server mode.
     */

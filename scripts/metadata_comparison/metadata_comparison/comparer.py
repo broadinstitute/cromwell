@@ -29,12 +29,13 @@ from metadata_comparison.lib.argument_regex import gcs_path_regex_validator, dig
 
 logger = logging.getLogger('metadata_comparison.comparer')
 
+
 def read_digester_jsons_from_gcs(bucket_name: str,
                                  base_path: str,
                                  digester_version: str,
                                  workflow_ids: List[str],
-                                 storage_client: storage.Client) -> List[Tuple[str, dict]]:
-    bucket = storage_client.get_bucket(bucket_name)
+                                 _storage_client: storage.Client) -> List[Tuple[str, dict]]:
+    bucket = _storage_client.get_bucket(bucket_name)
     result = []
     for workflow_id in workflow_ids:
         blob = bucket.blob(f"{base_path}/{workflow_id}/digests/{digester_version}/digest.json")
@@ -44,30 +45,32 @@ def read_digester_jsons_from_gcs(bucket_name: str,
     return result
 
 
-def compare_jsons(workflow_ids_and_jsons: List[Tuple[str, dict]]) -> pandas.DataFrame:
+def compare_jsons(_workflow_ids_and_jsons: List[Tuple[str, dict]]) -> pandas.DataFrame:
     """
     Uses pandas library to convert JSONs into dataframes, and concatenate those dataframes into a single one.
     Performs sanity check, producing exception, if at least one of the JSONs doesn't have matching subset of keys.
     """
-    columnToCompareNameEnding = ".cromwellTotalTimeSeconds"
-    versionColumnName = "version"
+    column_to_compare_name_ending = ".cromwellTotalTimeSeconds"
+    version_column_name = "version"
     result = pandas.DataFrame()
     last_cols = []
-    for workflow_id_and_json in workflow_ids_and_jsons:
+    for workflow_id_and_json in _workflow_ids_and_jsons:
         df = pandas.json_normalize(workflow_id_and_json[1])
-        cols = [c for c in df.columns if c.endswith(columnToCompareNameEnding)]
+        cols = [c for c in df.columns if c.endswith(column_to_compare_name_ending)]
         cols.sort()
-        cols.insert(0, versionColumnName)
+        cols.insert(0, version_column_name)
 
         if last_cols and last_cols != cols:
-            raise Exception(f"JSON data at {workflow_ids_and_jsons[0]} doesn't have matching subset of columns. Expected: {last_cols} but got {cols}")
+            at = _workflow_ids_and_jsons[0]
+            msg = f"JSON data at {at} doesn't have matching subset of columns. Expected: {last_cols} but got {cols}"
+            raise Exception(msg)
 
         last_cols = cols
         df.index = [workflow_id_and_json[0]]
         result = pandas.concat([result, df[cols]])
 
-    renameVersionColumnTo = "digester format version"
-    result.rename(columns={versionColumnName: renameVersionColumnTo}, inplace=True)
+    rename_version_column_to = "digester format version"
+    result.rename(columns={version_column_name: rename_version_column_to}, inplace=True)
     result.index.name = "workflow id"
 
     return result
@@ -91,10 +94,11 @@ if __name__ == "__main__":
     logger.info("Starting Comparer operation.")
 
     credentials, project_id = google.auth.default()
-    storage_client = storage.Client(credentials = credentials)
+    storage_client = storage.Client(credentials=credentials)
     input_gcs_bucket, input_gcs_path = args.digest_gcs_base_path[0]
 
-    workflow_ids_and_jsons = read_digester_jsons_from_gcs(input_gcs_bucket, input_gcs_path, args.digester_version[0], args.workflow_ids, storage_client)
+    workflow_ids_and_jsons = read_digester_jsons_from_gcs(input_gcs_bucket, input_gcs_path, args.digester_version[0],
+                                                          args.workflow_ids, storage_client)
     comparison_result_df = compare_jsons(workflow_ids_and_jsons)
     result_csv_string = comparison_result_df.to_csv()
 

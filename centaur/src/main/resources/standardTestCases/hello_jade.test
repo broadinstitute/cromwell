@@ -1,0 +1,20 @@
+name: hello_jade
+testFormat: WorkflowSuccess
+backends: [papi-v2-gcsa]
+retryTestFailures: false # do not merge this into develop! great for quick testing
+
+files {
+  workflow: hello_jade/hello_jade.wdl
+  options-dir: ../../../../../target/ci/resources/
+  options-dir: ${?CROMWELL_BUILD_RESOURCES_DIRECTORY}
+  options: ${files.options-dir}/papi_v2_gcsa.options.json
+}
+
+metadata {
+  workflowName: hello_jade
+  status: Succeeded
+
+  "outputs.hello_jade.out.0": "15235464"
+  "outputs.hello_jade.out.1":
+    "/cromwell_root/broad-jade-dev-data-bucket/fd8d8492-ad02-447d-b54e-35a7ffd0e7a5/8b07563a-542f-4b5c-9e00-e8fe6b1861de"
+}

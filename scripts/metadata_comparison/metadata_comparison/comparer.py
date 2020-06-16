@@ -15,32 +15,29 @@
 # Remember to login to create application default credentials before use:
 #   % gcloud auth application-default login
 
-from typing import List, Tuple
+from typing import AnyStr, List, Tuple
 import argparse
 import json
 import pandas
 import google.auth
 from google.cloud import storage
 import logging
+from metadata_comparison.lib.comparison_paths import ComparisonPath, validate_path
 from metadata_comparison.lib.logging import set_log_verbosity, quieten_chatty_imports
 from metadata_comparison.lib.storage import upload_blob
-from metadata_comparison.lib.argument_regex import gcs_path_regex_validator, digester_version_regex_validator, \
-    workflow_regex_validator
+from metadata_comparison.lib.argument_regex import gcs_path_regex_validator
 
 logger = logging.getLogger('metadata_comparison.comparer')
 
 
-def read_digester_jsons_from_gcs(bucket_name: str,
-                                 base_path: str,
-                                 digester_version: str,
-                                 workflow_ids: List[str],
-                                 _storage_client: storage.Client) -> List[Tuple[str, dict]]:
-    bucket = _storage_client.get_bucket(bucket_name)
+def read_digester_jsons(path_strings: List[AnyStr],
+                        _storage_client: storage.Client) -> List[Tuple[str, dict]]:
+
     result = []
-    for workflow_id in workflow_ids:
-        blob = bucket.blob(f"{base_path}/{workflow_id}/digests/{digester_version}/digest.json")
-        json_string_bytes = blob.download_as_string()
-        result.append((workflow_id, json.loads(json_string_bytes)))
+    for path_string in path_strings:
+        path = ComparisonPath.create(path_string)
+        _json = json.loads(path.read_text())
+        result.append((_json.get('workflowId'), _json))
 
     return result
 
@@ -79,14 +76,14 @@ def compare_jsons(_workflow_ids_and_jsons: List[Tuple[str, dict]]) -> pandas.Dat
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Compare performance metadata JSONs and produce CSV result')
     parser.add_argument('-v', '--verbose', action='store_true')
-    parser.add_argument('--digester-version', metavar='DIGESTERVERSION', type=digester_version_regex_validator, nargs=1,
-                        help='Compare digests produced by this version of the digester')
-    parser.add_argument('--digest-gcs-base-path', metavar='DIGESTGCSBASEPATH', type=gcs_path_regex_validator, nargs=1,
-                        help='GCS base path to the directory containing JSONs produced by digester')
-    parser.add_argument('--output-gcs-file-path', metavar='OUTPUTGCSFILE', type=gcs_path_regex_validator, nargs=1,
-                        help='GCS path to output CSV file')
-    parser.add_argument('--workflow-ids', metavar='WORKFLOWIDS', type=workflow_regex_validator, nargs='+',
-                        help='Workflow ids for performance comparison')
+    parser.add_argument('output_path', metavar='OUTPUT_PATH', type=validate_path, nargs=1,
+                        help='Path to output CSV file.')
+    parser.add_argument('digest_1', nargs=1, metavar='REQUIRED_DIGEST_1', type=validate_path,
+                        help='First required digest path to compare.')
+    parser.add_argument('digest_2', nargs=1, metavar='REQUIRED_DIGEST_2', type=validate_path,
+                        help='Second required digest path to compare.')
+    parser.add_argument('digests_more', nargs='*', metavar='OPTIONAL_MORE_DIGESTS', type=validate_path,
+                        help='Any additional digest paths to compare.')
 
     args = parser.parse_args()
     set_log_verbosity(args.verbose)
@@ -95,14 +92,13 @@ if __name__ == "__main__":
 
     credentials, project_id = google.auth.default()
     storage_client = storage.Client(credentials=credentials)
-    input_gcs_bucket, input_gcs_path = args.digest_gcs_base_path[0]
 
-    workflow_ids_and_jsons = read_digester_jsons_from_gcs(input_gcs_bucket, input_gcs_path, args.digester_version[0],
-                                                          args.workflow_ids, storage_client)
+    paths = args.digest_1 + args.digest_2 + args.digests_more
+    workflow_ids_and_jsons = read_digester_jsons(paths, storage_client)
     comparison_result_df = compare_jsons(workflow_ids_and_jsons)
     result_csv_string = comparison_result_df.to_csv()
 
-    output_gcs_bucket, output_gcs_path = args.output_gcs_file_path[0]
-    upload_blob(output_gcs_bucket, result_csv_string, output_gcs_path, storage_client, logger)
+    out = ComparisonPath.create(args.output_path[0])
+    out.write_text(result_csv_string)
 
     logger.info('Comparer operation completed successfully.')

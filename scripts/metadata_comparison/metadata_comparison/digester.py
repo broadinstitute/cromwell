@@ -4,7 +4,7 @@ from metadata_comparison.lib import logging, operation_ids
 from metadata_comparison.lib.digester_keys import *
 from metadata_comparison.lib.digester_keys import OperationId as OperationIdKey
 from metadata_comparison.lib.operation_ids import CallNameSequence, JsonObject, OperationId
-from metadata_comparison.lib.comparison_paths import ComparisonPath
+from metadata_comparison.lib.comparison_paths import ComparisonPath, validate_path
 from metadata_comparison.lib.operations_digesters import OperationDigester
 
 import dateutil.parser
@@ -33,11 +33,6 @@ def main(args: argparse.Namespace) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    def validate_path(p: AnyStr) -> AnyStr:
-        if ComparisonPath.is_valid_path_string(p):
-            return p
-        raise ValueError(f'{p} is not a valid path whatsoever')
-
     parser = argparse.ArgumentParser(
         description='Digest workflow metadata and job operation details, reading from and reuploading to GCS.')
     parser.add_argument('-v', '--verbose', action='store_true',

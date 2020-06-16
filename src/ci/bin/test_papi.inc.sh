@@ -84,7 +84,7 @@ cromwell::private::papi::gcr_image_delete() {
 }
 
 cromwell::private::papi::setup_papi_gcr() {
-    if command -v docker; then
+    if false; then
         # Upload images built from this commit
         gcloud auth configure-docker --quiet
         CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS="gcr.io/${CROMWELL_BUILD_PAPI_PROJECT_ID}/cromwell-drs-localizer:${CROMWELL_BUILD_CENTAUR_DOCKER_TAG}"

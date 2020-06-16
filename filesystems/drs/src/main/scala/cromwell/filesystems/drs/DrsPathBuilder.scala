@@ -86,9 +86,9 @@ case class DrsPathBuilder(fileSystemProvider: DrsCloudNioFileSystemProvider,
       // Right now, only pre-resolving GCS. In the future, could pull others like FTP, HTTP, S3, OSS, SRA, etc.
       gcsUrlWithNoCreds <- marthaResponse.googleServiceAccount match {
         case Some(_) => logFailure("convert uri", "requires additional auth")
-        case None => logTry(
+        case None => logAttempt(
           s"retrieve $GcsScheme url from martha response",
-          DrsResolver.extractUrlForScheme(marthaResponse.drs.data_object.urls, GcsScheme).toTry,
+          marthaResponse.gsUri.get,
         )
       }
       gcsPath <- logAttempt(

@@ -1043,9 +1043,10 @@ cromwell::private::build_cromwell_docker() {
 }
 
 cromwell::private::generate_code_coverage() {
-    sbt --warn coverageReport -warn
-    sbt --warn coverageAggregate -warn
-    bash <(curl -s https://codecov.io/bash) > /dev/null || true
+    #sbt --warn coverageReport -warn
+    #sbt --warn coverageAggregate -warn
+    #bash <(curl -s https://codecov.io/bash) > /dev/null || true
+    true
 }
 
 cromwell::private::publish_artifacts_only() {

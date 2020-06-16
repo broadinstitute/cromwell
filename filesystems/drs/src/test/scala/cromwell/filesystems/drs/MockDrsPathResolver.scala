@@ -6,15 +6,12 @@ import cats.effect.IO
 import cloud.nio.impl.drs._
 import com.google.auth.oauth2.OAuth2Credentials
 import com.typesafe.config.Config
-import io.circe.Json
 import org.apache.http.impl.client.HttpClientBuilder
 
 
 class MockDrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBuilder) extends DrsPathResolver(drsConfig, httpClientBuilder){
 
   private lazy val mockMarthaUri = drsConfig.marthaUri
-
-  private val checksumObj = ChecksumObject("12345fd2", "md5")
 
   private val gcsUrl = Url("gs://mybucket/foo.txt")
   private val s3Url = Url("s3://mybucket/foo.txt")
@@ -28,14 +25,7 @@ class MockDrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBui
 
 
   private def createMarthaResponse(urlArray: Array[Url]): IO[MarthaResponse] =  {
-    val drsDataObject = DrsDataObject(
-      size = Option(123),
-      checksums = Option(Array(checksumObj)),
-      updated = None,
-      urls = urlArray
-    )
-
-    IO(MarthaResponse(DrsObject(drsDataObject), Option(SADataObject(Json.fromString("{}")))))
+    IO(???)
   }
 
   override def resolveDrsThroughMartha(drsPath: String, serviceAccount: Option[String]): IO[MarthaResponse] = {

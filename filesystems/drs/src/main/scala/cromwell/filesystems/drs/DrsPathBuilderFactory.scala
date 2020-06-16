@@ -87,7 +87,7 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
     for {
       serviceAccountJson <- serviceAccountJsonIo
       //Currently, Martha only supports resolving DRS paths to GCS paths
-      url <- IO.fromEither(DrsResolver.extractUrlForScheme(marthaResponse.drs.data_object.urls, GcsScheme))
+      url <- IO(marthaResponse.gsUri.get)
       readableByteChannel <- inputReadChannel(url, GcsScheme, serviceAccountJson, requesterPaysProjectIdOption)
     } yield readableByteChannel
   }

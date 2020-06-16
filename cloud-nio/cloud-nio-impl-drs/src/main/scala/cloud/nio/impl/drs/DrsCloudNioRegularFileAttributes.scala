@@ -24,9 +24,7 @@ class DrsCloudNioRegularFileAttributes(drsPath: String, drsPathResolver: DrsPath
 
   override def fileHash: Option[String] = {
     drsPathResolver.resolveDrsThroughMartha(drsPath).map(marthaResponse => {
-      marthaResponse.drs.data_object.checksums.flatMap {
-        _.collectFirst{ case c if c.`type`.equalsIgnoreCase("md5") => c.checksum }
-      }
+      Option(marthaResponse.hashes.md5)
     }).unsafeRunSync()
   }
 
@@ -34,7 +32,7 @@ class DrsCloudNioRegularFileAttributes(drsPath: String, drsPathResolver: DrsPath
   override def lastModifiedTime(): FileTime = {
     val lastModifiedIO = for {
       marthaResponse <- drsPathResolver.resolveDrsThroughMartha(drsPath)
-      lastModifiedInString <- IO.fromEither(marthaResponse.drs.data_object.updated.toRight(throwRuntimeException("updated")))
+      lastModifiedInString <- IO.fromEither(marthaResponse.updated.toRight(throwRuntimeException("updated")))
       lastModified <- convertToFileTime(lastModifiedInString)
     } yield lastModified
 
@@ -45,7 +43,7 @@ class DrsCloudNioRegularFileAttributes(drsPath: String, drsPathResolver: DrsPath
   override def size(): Long = {
     val sizeIO = for {
       marthaResponse <- drsPathResolver.resolveDrsThroughMartha(drsPath)
-      size <- IO.fromEither(marthaResponse.drs.data_object.size.toRight(throwRuntimeException("size")))
+      size <- IO.fromEither(marthaResponse.size.toRight(throwRuntimeException("size")))
     } yield size
 
     sizeIO.unsafeRunSync()

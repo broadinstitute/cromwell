@@ -10,7 +10,9 @@ https://cromwell.readthedocs.io/en/stable/tutorials/Containers/#singularity).
 
 ### Bug fixes
 
-* Introduced a JVM DNS TTL of three minutes, overriding the default of infinity. This setting is not user-configurable. 
+* Fixed a bug that required Cromwell to be restarted in order to pick up DNS changes.
+    * By default, the JVM caches DNS records with a TTL of infinity.
+    * Cromwell now configures its JVM with a 3-minute TTL. This value can be customized by setting `system.dns-cache-ttl`.  
 
 ## 51 Release Notes
 

@@ -79,22 +79,23 @@ def digest(workflow_path: ComparisonPath, operations_path: ComparisonPath) -> Js
 
             succeeded_operations[string_path] = {
                 Attempt: attempt.get('attempt'),
-                ShardIndex: attempt.get('shardIndex'),
-                OperationIdKey: operation_id,
-                CromwellStart: cromwell_start,
-                CromwellEnd: cromwell_end,
-                CromwellTotalTimeSeconds: cromwell_total_time_seconds,
-                PapiCreate: operation.create_time(),
-                PapiStart: operation.start_time(),
-                PapiEnd: operation.end_time(),
-                PapiTotalTimeSeconds: operation.total_time_seconds(),
                 CromwellAdditionalTotalTimeSeconds: cromwell_additional_total_time_seconds,
-                StartupTimeSeconds: operation.startup_time_seconds(),
+                CromwellEnd: cromwell_end,
+                CromwellStart: cromwell_start,
+                CromwellTotalTimeSeconds: cromwell_total_time_seconds,
+                DelocalizationTimeSeconds: operation.delocalization_time_seconds(),
                 DockerImagePullTimeSeconds: operation.docker_image_pull_time_seconds(),
                 LocalizationTimeSeconds: operation.localization_time_seconds(),
+                MachineType: operation.machine_type(),
+                OperationIdKey: operation_id,
+                OtherTimeSeconds: operation.other_time_seconds(),
+                PapiCreate: operation.create_time(),
+                PapiEnd: operation.end_time(),
+                PapiStart: operation.start_time(),
+                PapiTotalTimeSeconds: operation.total_time_seconds(),
+                ShardIndex: attempt.get('shardIndex'),
+                StartupTimeSeconds: operation.startup_time_seconds(),
                 UserCommandTimeSeconds: operation.user_command_time_seconds(),
-                DelocalizationTimeSeconds: operation.delocalization_time_seconds(),
-                OtherTimeSeconds: operation.other_time_seconds()
             }
 
     data = workflow_path.read_text()

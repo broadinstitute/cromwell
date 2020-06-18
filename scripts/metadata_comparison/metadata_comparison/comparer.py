@@ -22,13 +22,44 @@ import logging
 from metadata_comparison.lib.comparison_paths import ComparisonPath, validate_path
 from metadata_comparison.lib.logging import set_log_verbosity, quieten_chatty_imports
 from metadata_comparison.lib.operation_ids import JsonObject
+from metadata_comparison.lib.digester_keys import *
 
 logger = logging.getLogger('metadata_comparison.comparer')
+
+DigesterKeys = [
+    {
+        'jsonKey': PapiTotalTimeSeconds,
+        'displayText': "Total PAPI time (seconds)"
+    },
+    {
+        'jsonKey': StartupTimeSeconds,
+        'displayText': 'Startup (seconds)'
+    },
+    {
+        'jsonKey': DockerImagePullTimeSeconds,
+        'displayText': 'Docker Pull (seconds)'
+    },
+    {
+        'jsonKey': LocalizationTimeSeconds,
+        'displayText': 'Localization (seconds)'
+    },
+    {
+        'jsonKey': UserCommandTimeSeconds,
+        'displayText': 'User command (seconds)'
+    },
+    {
+        'jsonKey': DelocalizationTimeSeconds,
+        'displayText': 'Delocalization (seconds)'
+    },
+    {
+        'jsonKey': OtherTimeSeconds,
+        'displayText': 'Other time (seconds)'
+    },
+]
 
 
 def read_digester_jsons(path_strings: List[AnyStr],
                         _storage_client: storage.Client) -> List[Tuple[str, dict]]:
-
     result = []
     for path_string in path_strings:
         path = ComparisonPath.create(path_string)
@@ -39,23 +70,48 @@ def read_digester_jsons(path_strings: List[AnyStr],
 
 
 def compare_jsons() -> List[List[AnyStr]]:
-    columns = [
-        {'PAPI Total Time': '.papiTotalTimeSeconds'}
-    ]
     return [["foo"]]
 
 
-def check_digest_versions():
+def error_checks():
     version_1, version_2 = [j.get('version') for j in [json_1, json_2]]
 
     if version_1 != version_2:
         msg = f"Inconsistent digest versions: First JSON digest is {version_1} but second is {version_2}"
         raise ValueError(msg)
 
-    call_keys_1, call_keys_2 = [j.get('calls').keys() for j in [json_1, json_2]]
+    call_keys_1, call_keys_2 = [list(j.get('calls').keys()) for j in [json_1, json_2]]
+    call_keys_1.sort()
+    call_keys_2.sort()
 
     if call_keys_1 != call_keys_2:
-        raise ValueError("Digest files do not have the same call keys, not the same workflow and/or sample.")
+        raise ValueError('The specified digest files do not have the same call keys. These digests cannot be ' +
+                         'compared and likely do not derive from the same workflow and/or sample.')
+
+    def machine_types(j: JsonObject, keys: List[AnyStr]) -> List[AnyStr]:
+        return [j.get('calls').get(k).get('machineType') for k in keys]
+
+    machine_types_1, machine_types_2 = [machine_types(j, call_keys_1) for j in [json_1, json_2]]
+
+    if machine_types_1 != machine_types_2:
+        raise ValueError('The specified digest files cannot be meaningfully compared as they contain calls with '
+                         'different machine types for corresponding jobs.')
+
+    for call_key in call_keys_1:
+        call_1 = json_1.get('calls').get(call_key)
+        call_2 = json_2.get('calls').get(call_key)
+        for call in [call_1, call_2]:
+            for digester_key in DigesterKeys:
+                json_key = digester_key.get('jsonKey')
+                if json_key not in call_1:
+                    if call == call_1:
+                        nth = "first"
+                        json_file = args.digest1
+                    else:
+                        nth = "second"
+                        json_file = args.digest2
+                    raise ValueError(
+                        f"In {nth} JSON '{json_file[0]}': call '{call_key}' does not contain required key '{json_key}'")
 
 
 def json_from_path_string(path_string: AnyStr) -> JsonObject:
@@ -89,7 +145,7 @@ if __name__ == "__main__":
 
     json_1, json_2 = [json_from_path_string(p[0]) for p in [args.digest1, args.digest2]]
     name_1, name_2 = args.name1, args.name2
-    check_digest_versions()
+    error_checks()
 
     comparison_data = compare_jsons()
     out = ComparisonPath.create(args.output_path[0])

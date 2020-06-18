@@ -35,6 +35,9 @@ class OperationDigester(ABC):
     def total_time_seconds(self) -> float:
         return (dateutil.parser.parse(self.end_time()) - dateutil.parser.parse(self.create_time())).total_seconds()
 
+    def metadata(self):
+        return self.__metadata()
+
     @staticmethod
     def create(operation_json: JsonObject):
         operation_id = operation_json.get('name')
@@ -62,6 +65,9 @@ class OperationDigester(ABC):
 
     @abstractmethod
     def startup_time_seconds(self) -> float: pass
+
+    @abstractmethod
+    def machine_type(self) -> AnyStr: pass
 
     def other_time_seconds(self) -> float:
         end, create = [dateutil.parser.parse(t) for t in [self.end_time(), self.create_time()]]
@@ -122,6 +128,10 @@ class PapiV1OperationDigester(OperationDigester):
         end, start = [dateutil.parser.parse(self.event_with_description(d).get('startTime')) for d in descriptions]
         return (end - start).total_seconds()
 
+    def machine_type(self) -> AnyStr:
+        machine_type_with_zone_prefix = self.metadata().get('runtimeMetadata').get('computeEngine').get('machineType')
+        return machine_type_with_zone_prefix.split('/')[-1]
+
 
 class PapiV2OperationDigester(OperationDigester, ABC):
     def __init__(self, operation_json: JsonObject):
@@ -166,6 +176,10 @@ class PapiV2OperationDigester(OperationDigester, ABC):
         events = [dateutil.parser.parse(d.get('timestamp')) for d in self.event_with_description_like(description)]
         events.sort()
         return (events[-1] - events[0]).total_seconds()
+
+    def machine_type(self) -> AnyStr:
+        event = next(self.event_with_description_like('^Worker .* assigned in .*'))
+        return event.get('details').get('machineType')
 
 
 class PapiV2AlphaOperationDigester(PapiV2OperationDigester):

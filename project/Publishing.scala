@@ -62,7 +62,7 @@ object Publishing {
           s"java $${JAVA_OPTS} -jar /app/$projectName.jar $${${projectName.toUpperCase.replaceAll("-", "_")}_ARGS} $${*}",
           "--"
         )
-        // for each custom setting (instruction) run addInstruction function
+        // for each custom setting (instruction) run addInstruction()
         additionalDockerInstr.foreach(addInstruction)
       }
     },

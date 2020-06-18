@@ -35,7 +35,6 @@ import java.nio.file.spi.FileSystemProvider;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.function.Function;
 
 import static com.google.common.collect.Sets.difference;
 import static org.lerch.s3fs.AmazonS3Factory.*;
@@ -71,8 +70,7 @@ import static java.lang.String.format;
  */
 public class S3FileSystemProvider extends FileSystemProvider {
 
-    public static final String CHARSET_KEY = "s3fs_charset";
-    public static final String AMAZON_S3_FACTORY_CLASS = "s3fs_amazon_s3_factory";
+    private static final String AMAZON_S3_FACTORY_CLASS = "s3fs_amazon_s3_factory";
 
     private static final ConcurrentMap<String, S3FileSystem> fileSystems = new ConcurrentHashMap<>();
     private static final List<String> PROPS_TO_OVERLOAD = Arrays.asList(ACCESS_KEY, SECRET_KEY, REQUEST_METRIC_COLLECTOR_CLASS, CONNECTION_TIMEOUT, MAX_CONNECTIONS, MAX_ERROR_RETRY, PROTOCOL, PROXY_DOMAIN,
@@ -89,45 +87,19 @@ public class S3FileSystemProvider extends FileSystemProvider {
 
     @Override
     public FileSystem newFileSystem(URI uri, Map<String, ?> env) {
-        return newFileSystem(uri, env, props -> createFileSystem(uri, props), true);
-    }
-
-    /**
-     * Get existing filesystem based on a combination of URI and env settings. Create new filesystem otherwise.
-     *
-     * @param uri URI of existing, or to be created filesystem.
-     * @param env environment settings.
-     * @return new or existing filesystem.
-     */
-    public FileSystem getFileSystem(URI uri, Map<String, ?> env, S3Client client) {
-        return newFileSystem(uri, env, props -> createFileSystem(uri, props, client), false);
-    }
-
-    private FileSystem newFileSystem(URI uri, Map<String, ?> env,
-                                     Function<Properties, S3FileSystem> createFileSystemFunc,
-                                     boolean throwExceptionIfAlreadyExists) {
         validateUri(uri);
         // get properties for the env or properties or system
         Properties props = getProperties(uri, env);
         validateProperties(props);
         // try to get the filesystem by the key
         String key = getFileSystemKey(uri, props);
-        FileSystemAlreadyExistsException alreadyExistsException = new FileSystemAlreadyExistsException("File system " + uri.getScheme() + ':' + key + " already exists");
         if (!fileSystems.containsKey(key)) {
             synchronized (fileSystems) {
                 if (!fileSystems.containsKey(key)) {
                     // create the filesystem with the final properties, store and return
-                    S3FileSystem fileSystem = createFileSystemFunc.apply(props);
+                    S3FileSystem fileSystem = createFileSystem(uri, props);
                     fileSystems.put(fileSystem.getKey(), fileSystem);
-                } else {
-                    if (throwExceptionIfAlreadyExists) {
-                        throw alreadyExistsException;
-                    }
                 }
-            }
-        } else {
-            if (throwExceptionIfAlreadyExists) {
-                throw alreadyExistsException;
             }
         }
 

@@ -9,7 +9,7 @@ import sbt.Keys._
 import sbt._
 import sbtassembly.AssemblyPlugin
 import sbtassembly.AssemblyPlugin.autoImport._
-import sbtdocker.DockerPlugin
+import sbtdocker.{DockerPlugin, Instruction, Instructions}
 import sbtrelease.ReleasePlugin
 
 object Settings {
@@ -113,10 +113,26 @@ object Settings {
     addCompilerPlugin(paradisePlugin)
   )
 
+  /*
+      Docker instructions to install Google Cloud SDK image in docker image
+      Reference: https://stackoverflow.com/questions/28372328/how-to-install-the-google-cloud-sdk-in-a-docker-image
+   */
+  val installGcloudSettings: List[Def.Setting[Seq[Instruction]]] = List(
+    dockerCustomSettings := List(
+      Instructions.Run("curl https://dl.google.com/dl/cloudsdk/release/google-cloud-sdk.tar.gz > /tmp/google-cloud-sdk.tar.gz"),
+      Instructions.Run("""mkdir -p /usr/local/gcloud \
+                         | && tar -C /usr/local/gcloud -xvf /tmp/google-cloud-sdk.tar.gz \
+                         | && /usr/local/gcloud/google-cloud-sdk/install.sh"""
+        .stripMargin),
+      Instructions.Env("PATH", "$PATH:/usr/local/gcloud/google-cloud-sdk/bin")
+    )
+  )
+
   val swaggerUiSettings = List(resourceGenerators in Compile += writeSwaggerUiVersionConf)
   val backendSettings = List(addCompilerPlugin(kindProjectorPlugin))
   val engineSettings = swaggerUiSettings
   val cromiamSettings = swaggerUiSettings
+  val drsLocalizerSettings = installGcloudSettings
 
   private def buildProject(project: Project,
                            projectName: String,

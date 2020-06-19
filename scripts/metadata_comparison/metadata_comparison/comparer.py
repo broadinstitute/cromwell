@@ -21,48 +21,47 @@ from metadata_comparison.lib.digester_keys import *
 from metadata_comparison.lib.comparison_paths import ComparisonPath, validate_path
 from metadata_comparison.lib.logging import set_log_verbosity, quieten_chatty_imports
 from metadata_comparison.lib.operation_ids import JsonObject
-from typing import AnyStr, List, Tuple
+from typing import AnyStr, List
 
 logger = logging.getLogger('metadata_comparison.comparer')
 
 
 class DigesterKey:
-    def __init__(self, jsonKey: AnyStr, displayText: AnyStr):
-        self.jsonKey = jsonKey
-        self.displayText = displayText
+    def __init__(self, json_key: AnyStr, display_text: AnyStr):
+        self.json_key = json_key
+        self.display_text = display_text
 
 
 DigesterKeys = [
-    DigesterKey(jsonKey=PapiTotalTimeSeconds, displayText='Total PAPI time (seconds)'),
-    DigesterKey(jsonKey=StartupTimeSeconds, displayText='Startup (seconds)'),
-    DigesterKey(jsonKey=DockerImagePullTimeSeconds, displayText='Docker Pull (seconds)'),
-    DigesterKey(jsonKey=LocalizationTimeSeconds, displayText='Localization (seconds)'),
-    DigesterKey(jsonKey=UserCommandTimeSeconds, displayText='User command (seconds)'),
-    DigesterKey(jsonKey=DelocalizationTimeSeconds, displayText='Delocalization (seconds)'),
-    DigesterKey(jsonKey=OtherTimeSeconds, displayText='Other time (seconds)'),
-    DigesterKey(jsonKey=MachineType, displayText='Machine type')
+    DigesterKey(json_key=PapiTotalTimeSeconds, display_text='Total PAPI time (seconds)'),
+    DigesterKey(json_key=StartupTimeSeconds, display_text='Startup (seconds)'),
+    DigesterKey(json_key=DockerImagePullTimeSeconds, display_text='Docker Pull (seconds)'),
+    DigesterKey(json_key=LocalizationTimeSeconds, display_text='Localization (seconds)'),
+    DigesterKey(json_key=UserCommandTimeSeconds, display_text='User command (seconds)'),
+    DigesterKey(json_key=DelocalizationTimeSeconds, display_text='Delocalization (seconds)'),
+    DigesterKey(json_key=OtherTimeSeconds, display_text='Other time (seconds)'),
+    DigesterKey(json_key=MachineType, display_text='Machine type')
 ]
 
 
 class CallKey:
-    def __init__(self, full, prefixRemoved):
+    def __init__(self, full, prefix_removed):
         self.full = full
-        self.prefixRemoved = prefixRemoved
+        self.prefix_removed = prefix_removed
 
 
 def compare_jsons(json_1: JsonObject, json_2: JsonObject, call_prefixes_to_remove: List[AnyStr]) -> List[List[AnyStr]]:
-    call_keys = list(json_1.get('calls').keys())
+    full_call_keys = list(json_1.get('calls').keys())
+    call_keys = []
 
-    call_key_list = []
-    for call_key in call_keys:
+    for full_call_key in full_call_keys:
+        prefix_removed = full_call_key
         for prefix in call_prefixes_to_remove:
-            # default value if no prefix removed
-            prefix_removed = call_key
-            if call_key.startswith(prefix):
-                prefix_removed = call_key[len(prefix):]
+            if full_call_key.startswith(prefix):
+                prefix_removed = full_call_key[len(prefix):]
                 break
-
-            call_key_list.append({call_key : prefix_removed})
+        call_key = CallKey(full=full_call_key, prefix_removed=prefix_removed)
+        call_keys.append(call_key)
 
     rows = []
     for call_key in call_keys:

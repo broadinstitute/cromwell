@@ -14,66 +14,75 @@
 # Remember to login to create application default credentials before use:
 #   % gcloud auth application-default login
 
-from typing import AnyStr, List, Tuple
 import argparse
 import json
-from google.cloud import storage
 import logging
+from metadata_comparison.lib.digester_keys import *
 from metadata_comparison.lib.comparison_paths import ComparisonPath, validate_path
 from metadata_comparison.lib.logging import set_log_verbosity, quieten_chatty_imports
 from metadata_comparison.lib.operation_ids import JsonObject
-from metadata_comparison.lib.digester_keys import *
+from typing import AnyStr, List, Tuple
 
 logger = logging.getLogger('metadata_comparison.comparer')
 
+
+class DigesterKey:
+    def __init__(self, jsonKey: AnyStr, displayText: AnyStr):
+        self.jsonKey = jsonKey
+        self.displayText = displayText
+
+
 DigesterKeys = [
-    {
-        'jsonKey': PapiTotalTimeSeconds,
-        'displayText': "Total PAPI time (seconds)"
-    },
-    {
-        'jsonKey': StartupTimeSeconds,
-        'displayText': 'Startup (seconds)'
-    },
-    {
-        'jsonKey': DockerImagePullTimeSeconds,
-        'displayText': 'Docker Pull (seconds)'
-    },
-    {
-        'jsonKey': LocalizationTimeSeconds,
-        'displayText': 'Localization (seconds)'
-    },
-    {
-        'jsonKey': UserCommandTimeSeconds,
-        'displayText': 'User command (seconds)'
-    },
-    {
-        'jsonKey': DelocalizationTimeSeconds,
-        'displayText': 'Delocalization (seconds)'
-    },
-    {
-        'jsonKey': OtherTimeSeconds,
-        'displayText': 'Other time (seconds)'
-    },
+    DigesterKey(jsonKey=PapiTotalTimeSeconds, displayText='Total PAPI time (seconds)'),
+    DigesterKey(jsonKey=StartupTimeSeconds, displayText='Startup (seconds)'),
+    DigesterKey(jsonKey=DockerImagePullTimeSeconds, displayText='Docker Pull (seconds)'),
+    DigesterKey(jsonKey=LocalizationTimeSeconds, displayText='Localization (seconds)'),
+    DigesterKey(jsonKey=UserCommandTimeSeconds, displayText='User command (seconds)'),
+    DigesterKey(jsonKey=DelocalizationTimeSeconds, displayText='Delocalization (seconds)'),
+    DigesterKey(jsonKey=OtherTimeSeconds, displayText='Other time (seconds)'),
+    DigesterKey(jsonKey=MachineType, displayText='Machine type')
 ]
 
 
-def read_digester_jsons(path_strings: List[AnyStr],
-                        _storage_client: storage.Client) -> List[Tuple[str, dict]]:
-    result = []
-    for path_string in path_strings:
-        path = ComparisonPath.create(path_string)
-        _json = json.loads(path.read_text())
-        result.append((_json.get('workflowId'), _json))
-
-    return result
+class CallKey:
+    def __init__(self, full, prefixRemoved):
+        self.full = full
+        self.prefixRemoved = prefixRemoved
 
 
-def compare_jsons() -> List[List[AnyStr]]:
-    return [["foo"]]
+def compare_jsons(json_1: JsonObject, json_2: JsonObject, call_prefixes_to_remove: List[AnyStr]) -> List[List[AnyStr]]:
+    call_keys = list(json_1.get('calls').keys())
+
+    call_key_list = []
+    for call_key in call_keys:
+        for prefix in call_prefixes_to_remove:
+            # default value if no prefix removed
+            prefix_removed = call_key
+            if call_key.startswith(prefix):
+                prefix_removed = call_key[len(prefix):]
+                break
+
+            call_key_list.append({call_key : prefix_removed})
+
+    rows = []
+    for call_key in call_keys:
+        row = []
+        call_1, call_2 = [j.get('calls').get(call_key) for j in [json_1, json_2]]
+
+        cleaned_call_key = call_key
+        for prefix in call_prefixes_to_remove:
+            if call_key.startswith(prefix):
+                cleaned_call_key = call_key[len(prefix):]
+                break
+        row.append(cleaned_call_key)
+        row.append(call_1.get(MachineType))
+
+        rows.append(row)
+
+    return rows
 
 
-def error_checks():
+def error_checks(json_1: JsonObject, json_2: JsonObject):
     version_1, version_2 = [j.get('version') for j in [json_1, json_2]]
 
     if version_1 != version_2:
@@ -86,7 +95,7 @@ def error_checks():
 
     if call_keys_1 != call_keys_2:
         raise ValueError('The specified digest files do not have the same call keys. These digests cannot be ' +
-                         'compared and likely do not derive from the same workflow and/or sample.')
+                         'compared and probably are not from the same workflow and sample.')
 
     def machine_types(j: JsonObject, keys: List[AnyStr]) -> List[AnyStr]:
         return [j.get('calls').get(k).get('machineType') for k in keys]
@@ -94,6 +103,8 @@ def error_checks():
     machine_types_1, machine_types_2 = [machine_types(j, call_keys_1) for j in [json_1, json_2]]
 
     if machine_types_1 != machine_types_2:
+        # This should perhaps become a warning or something the user can --force there way through if we want to
+        # allow experimentation with different machine types to reduce cost, but for the time being it's unexpected.
         raise ValueError('The specified digest files cannot be meaningfully compared as they contain calls with '
                          'different machine types for corresponding jobs.')
 
@@ -103,15 +114,15 @@ def error_checks():
         for call in [call_1, call_2]:
             for digester_key in DigesterKeys:
                 json_key = digester_key.get('jsonKey')
-                if json_key not in call_1:
+                if json_key not in call:
                     if call == call_1:
                         nth = "first"
-                        json_file = args.digest1
+                        json_file = args.digest1[0]
                     else:
                         nth = "second"
-                        json_file = args.digest2
+                        json_file = args.digest2[0]
                     raise ValueError(
-                        f"In {nth} JSON '{json_file[0]}': call '{call_key}' does not contain required key '{json_key}'")
+                        f"In {nth} digest JSON '{json_file}': call '{call_key}' does not contain required key '{json_key}'")
 
 
 def json_from_path_string(path_string: AnyStr) -> JsonObject:
@@ -137,17 +148,18 @@ if __name__ == "__main__":
                         required=True, help='Second digest path to compare.')
     parser.add_argument('--output-path', metavar='OUTPUT_PATH', type=validate_path, nargs=1,
                         required=True, help='Path to output CSV file.')
+    parser.add_argument('--call-prefix-to-remove', metavar='CALL_PREFIX_TO_REMOVE', type=str, nargs='*',
+                        help='Call prefix to remove if present.')
 
     args = parser.parse_args()
     set_log_verbosity(args.verbose)
     quieten_chatty_imports()
     logger.info("Starting Comparer operation.")
 
-    json_1, json_2 = [json_from_path_string(p[0]) for p in [args.digest1, args.digest2]]
-    name_1, name_2 = args.name1, args.name2
-    error_checks()
+    _json_1, _json_2 = [json_from_path_string(p[0]) for p in [args.digest1, args.digest2]]
+    error_checks(_json_1, _json_2)
 
-    comparison_data = compare_jsons()
+    comparison_data = compare_jsons(_json_1, _json_2, args.call_prefix_to_remove)
     out = ComparisonPath.create(args.output_path[0])
     out.write_text(csv_string_from_data(comparison_data))
 

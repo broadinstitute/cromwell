@@ -65,5 +65,5 @@ class ContinueOnReturnCodeValidation extends RuntimeAttributesValidation[Continu
   override protected def missingValueMessage: String = s"Expecting $key" +
     " runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
 
-  override protected def usedInCallCaching: Boolean = true
+  override def usedInCallCaching: Boolean = true
 }

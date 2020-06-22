@@ -108,7 +108,7 @@ task hello {
 }
 ```
 
-You declare your runtime attribute in your config by adding a new input:
+You declare your runtime attribute in your config by adding any other custom value to the `runtime-attributes` section:
 
 ```hocon
 backend.providers.SGE.config {
@@ -131,6 +131,33 @@ backend.providers.SGE.config {
   """
 }
 ```
+
+##### Call Caching based on runtime attributes
+
+The rules for call caching in HPC backends are:
+* `docker`: Will be considered when call caching.
+* Memory options: Will *not* be considered when call caching.
+* CPU options: Will *not* be considered when call caching.
+* Custom Attributes: Will *not* be considered when call caching (by default).
+ 
+Although custom attributes will not be considered when call caching by default, you can override this in a `runtime-attributes-for-caching` section. Eg:
+```hocon
+backend.providers.SGE.config {
+  runtime-attributes = """
+  String sge_queue = "short"
+  String singularity_image
+  # ...
+  """
+  runtime-attributes-for-caching {
+    sge_queue: false
+    singularity_image: true
+  }
+}
+```
+
+* Note: Only *custom* attributes can be altered like this. Memory, CPU and docker will always have their default cache-consideration behavior.
+* Note: Unlike memory, cpu and docker attributes which inherit validation and hash-lookup behavior, any custom attributes will be simple primitive comparisons.
+    * For example, a `docker` attribute will be cached by looking up docker hashes against a docker repository, but a custom `singularity` attribute would be a primitive string match.
 
 #### How Cromwell should start an HPC job
 

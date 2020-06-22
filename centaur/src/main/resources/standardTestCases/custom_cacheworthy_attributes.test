@@ -1,0 +1,19 @@
+name: custom_cacheworthy_attributes
+testFormat: workflowsuccess
+backends: [LocalCacheableRuntimeAttribute]
+retryTestFailures: false
+
+files {
+  workflow: custom_cacheworthy_attributes/custom_cacheworthy_attributes.wdl
+}
+
+metadata {
+  workflowName: test_custom_cacheworthy_attributes
+  status: Succeeded
+  "calls.test_custom_cacheworthy_attributes.custom_cacheworthy_attributes_task_origin.callCaching.hit": false
+  "calls.test_custom_cacheworthy_attributes.custom_cacheworthy_attributes_task_should_cache.callCaching.hit": true
+  "calls.test_custom_cacheworthy_attributes.custom_cacheworthy_attributes_task_should_not_cache.callCaching.hit": false
+
+  "calls.test_custom_cacheworthy_attributes.custom_cacheworthy_attributes_task_should_cache.callCaching.result":
+    "Cache Hit: <<UUID>>:test_custom_cacheworthy_attributes.custom_cacheworthy_attributes_task_origin:-1"
+}

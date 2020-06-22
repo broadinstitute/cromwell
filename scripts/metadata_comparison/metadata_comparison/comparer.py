@@ -67,28 +67,47 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
 
     rows = []
     header_row = []
+    percent_contrib_row = []
+    total_row = []
+    machine_type_weighted_row = []
     first = True
     for call_key in call_keys_sorted_without_prefix:
         row = []
         call_1, call_2 = [j.get('calls').get(call_key.full) for j in [json_1, json_2]]
         if first:
-            header_row.append('Call name')
+            header_row.append('job')
+            percent_contrib_row.append('% contribution to total run time')
+            total_row.append('Total')
+            machine_type_weighted_row.append('Machine-type weighted total (cost-ish)')
         row.append(call_key.without_prefix)
 
         if first:
             header_row.append('Machine type')
+            percent_contrib_row.append('')
+            total_row.append('')
+            machine_type_weighted_row.append('')
         row.append(call_1.get(MachineType))
 
+        time_1 = call_1.get(PapiTotalTimeSeconds)
+        time_2 = call_2.get(PapiTotalTimeSeconds)
+        row.append(f'{time_1:.2f}')
+        row.append(f'{time_2:.2f})')
         if first:
             for name in [name_1, name_2]:
-                header_row.append(f'{name} PAPI Total Time')
-        row.append(str(call_1.get(PapiTotalTimeSeconds)))
-        row.append(str(call_2.get(PapiTotalTimeSeconds)))
+                header_row.append(f'{name} Total Time PAPI')
+            header_row.append(f'Percent increase PAPI Total time {name_1} -> {name_2}')
+            percent_contrib_row.append(f'{100:.2f}')
+            contrib_2 = (time_2 / time_1) * 100
+            percent_contrib_row.append(f'{contrib_2:.2f}')
+            percent_contrib_row.append(f'{contrib_2 - 100:.2f}')
 
         rows.append(row)
 
         first = False
 
+    rows.insert(0, machine_type_weighted_row)
+    rows.insert(0, total_row)
+    rows.insert(0, percent_contrib_row)
     rows.insert(0, header_row)
     return rows
 
@@ -169,8 +188,6 @@ if __name__ == "__main__":
 
     _json_1, _json_2 = [json_from_path_string(p[0]) for p in [args.digest1, args.digest2]]
     error_checks(_json_1, _json_2)
-
-    print(f'Call prefix to remove is {" ".join(args.call_prefix_to_remove)}')
 
     prefixes = [] if not args.call_prefix_to_remove else args.call_prefix_to_remove
 

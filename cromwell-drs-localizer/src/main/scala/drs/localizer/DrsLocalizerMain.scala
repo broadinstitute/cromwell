@@ -90,7 +90,7 @@ object DrsLocalizerMain extends IOApp {
     val requestBody = raw"""{"url":"$drsUrl"}"""
     val marthaErrorMsg = s"Something went wrong while trying to resolve $drsUrl through Martha $marthaUrl."
 
-    logger.info("Resolving DRS uri through Martha")
+    logger.info(s"Resolving DRS uri `$drsUrl` through Martha")
 
     val scopedCredentials = GoogleCredentials.getApplicationDefault().createScoped(UserInfoScopes.asJava)
     val accessToken = scopedCredentials.refreshAccessToken().getTokenValue
@@ -146,7 +146,7 @@ object DrsLocalizerMain extends IOApp {
              |else
              |  echo "Successfully activated service account; Will continue with download. $$(cat gcloud_output.txt)"
              |fi
-           """.stripMargin
+             |""".stripMargin
         case None => ""
       }
     }
@@ -163,11 +163,12 @@ object DrsLocalizerMain extends IOApp {
              |else
              |  echo "Failed to download the file. Error: $$(cat gsutil_output.txt)" >&2
              |  exit "$$RC_GSUTIL"
-             |fi""".stripMargin
+             |fi
+             |""".stripMargin
         case None =>
           s"""  echo "Failed to download the file. Error: $$(cat gsutil_output.txt)" >&2
              |  exit "$$RC_GSUTIL"
-           """.stripMargin
+             |""".stripMargin
       }
     }
 
@@ -177,6 +178,7 @@ object DrsLocalizerMain extends IOApp {
          |set +e
          |
          |${setServiceAccount(saJsonPathOption)}
+         |
          |# Run gsutil copy without using project flag
          |${gcsCopyCommand()} > gsutil_output.txt 2>&1
          |RC_GSUTIL=$$?
@@ -186,7 +188,7 @@ object DrsLocalizerMain extends IOApp {
          |  echo "Download complete!"
          |  exit 0
          |fi
-       """.stripMargin
+         |""".stripMargin
 
       // log the script for easier debugging
       logger.info(s"Bash script to download file: \n$downloadBashScript")

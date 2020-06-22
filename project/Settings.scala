@@ -138,7 +138,7 @@ object Settings {
       Instructions.Run("pip3 uninstall crcmod"),
       Instructions.Run("pip3 install --no-cache-dir -U crcmod"),
       Instructions.Run("update-alternatives --install /usr/bin/python python /usr/bin/python3.7 1"),
-      Instructions.Env(" CLOUDSDK_PYTHON", "python3.7"),
+      Instructions.Env("CLOUDSDK_PYTHON", "python3.7"),
     )
   )
 

@@ -111,6 +111,9 @@ env:
     - >-
       BUILD_TYPE=metadataComparisonPython
 script:
+  # print result of `uptime` command to stdout every 5 minutes in order to avoid Travis log silence timeout (10 minutes)
+  - while sleep 300; do uptime; done &
+  # execute test suite
   - src/ci/bin/test.sh > logfile.txt
 after_failure:
   # Travis fails the job when log size grows over 4 Mb. Here we try to overcome this by using `grep` in order to only

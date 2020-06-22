@@ -45,39 +45,51 @@ DigesterKeys = [
 
 
 class CallKey:
-    def __init__(self, full, prefix_removed):
+    def __init__(self, full, call_prefixes: List[AnyStr]):
         self.full = full
-        self.prefix_removed = prefix_removed
-
-
-def compare_jsons(json_1: JsonObject, json_2: JsonObject, call_prefixes_to_remove: List[AnyStr]) -> List[List[AnyStr]]:
-    full_call_keys = list(json_1.get('calls').keys())
-    call_keys = []
-
-    for full_call_key in full_call_keys:
-        prefix_removed = full_call_key
-        for prefix in call_prefixes_to_remove:
-            if full_call_key.startswith(prefix):
-                prefix_removed = full_call_key[len(prefix):]
+        # Call keys without repetitive prefixes are useful for building comparer reports.
+        self.without_prefix = full
+        for prefix in call_prefixes:
+            if self.full.startswith(prefix):
+                self.without_prefix = self.full[len(prefix):]
                 break
-        call_key = CallKey(full=full_call_key, prefix_removed=prefix_removed)
-        call_keys.append(call_key)
+
+
+def compare_jsons(json_1: JsonObject, json_2: JsonObject,
+                  name_1: AnyStr, name_2: AnyStr,
+                  call_prefixes_to_remove: List[AnyStr]) -> List[List[AnyStr]]:
+    call_keys = [CallKey(k, call_prefixes_to_remove) for k in json_1.get('calls').keys()]
+
+    def without_prefix(call_key: CallKey) -> AnyStr:
+        return call_key.without_prefix
+
+    call_keys_sorted_without_prefix = sorted(call_keys, key=without_prefix)
 
     rows = []
-    for call_key in call_keys:
+    header_row = []
+    first = True
+    for call_key in call_keys_sorted_without_prefix:
         row = []
-        call_1, call_2 = [j.get('calls').get(call_key) for j in [json_1, json_2]]
+        call_1, call_2 = [j.get('calls').get(call_key.full) for j in [json_1, json_2]]
+        if first:
+            header_row.append('Call name')
+        row.append(call_key.without_prefix)
 
-        cleaned_call_key = call_key
-        for prefix in call_prefixes_to_remove:
-            if call_key.startswith(prefix):
-                cleaned_call_key = call_key[len(prefix):]
-                break
-        row.append(cleaned_call_key)
+        if first:
+            header_row.append('Machine type')
         row.append(call_1.get(MachineType))
+
+        if first:
+            for name in [name_1, name_2]:
+                header_row.append(f'{name} PAPI Total Time')
+        row.append(str(call_1.get(PapiTotalTimeSeconds)))
+        row.append(str(call_2.get(PapiTotalTimeSeconds)))
 
         rows.append(row)
 
+        first = False
+
+    rows.insert(0, header_row)
     return rows
 
 
@@ -102,7 +114,7 @@ def error_checks(json_1: JsonObject, json_2: JsonObject):
     machine_types_1, machine_types_2 = [machine_types(j, call_keys_1) for j in [json_1, json_2]]
 
     if machine_types_1 != machine_types_2:
-        # This should perhaps become a warning or something the user can --force there way through if we want to
+        # This should perhaps become a warning or something the user can --force their way through if we want to
         # allow experimentation with different machine types to reduce cost, but for the time being it's unexpected.
         raise ValueError('The specified digest files cannot be meaningfully compared as they contain calls with '
                          'different machine types for corresponding jobs.')
@@ -112,7 +124,7 @@ def error_checks(json_1: JsonObject, json_2: JsonObject):
         call_2 = json_2.get('calls').get(call_key)
         for call in [call_1, call_2]:
             for digester_key in DigesterKeys:
-                json_key = digester_key.get('jsonKey')
+                json_key = digester_key.json_key
                 if json_key not in call:
                     if call == call_1:
                         nth = "first"
@@ -158,7 +170,11 @@ if __name__ == "__main__":
     _json_1, _json_2 = [json_from_path_string(p[0]) for p in [args.digest1, args.digest2]]
     error_checks(_json_1, _json_2)
 
-    comparison_data = compare_jsons(_json_1, _json_2, args.call_prefix_to_remove)
+    print(f'Call prefix to remove is {" ".join(args.call_prefix_to_remove)}')
+
+    prefixes = [] if not args.call_prefix_to_remove else args.call_prefix_to_remove
+
+    comparison_data = compare_jsons(_json_1, _json_2, args.name1[0], args.name2[0], prefixes)
     out = ComparisonPath.create(args.output_path[0])
     out.write_text(csv_string_from_data(comparison_data))
 

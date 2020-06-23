@@ -120,7 +120,7 @@ after_failure:
   # show 10 lines before and after each occurrence of `*** FAILED ***` pattern (Centaur error) in case of build failure.
   # If grep returns no matches, it means that error is not Centaur-related and we try to print the whole log to stdout.
   # In case of successful build we won't print out the Centaur log at all.
-  - cat logfile.txt | grep -B 10 -A 10 "\*\*\* FAILED \*\*\*" || cat logfile.txt
+  - grep -C 10 "\*\*\* FAILED \*\*\*" logfile.txt || cat logfile.txt
 notifications:
   slack:
     rooms:

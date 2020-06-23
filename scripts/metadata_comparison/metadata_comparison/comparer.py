@@ -33,13 +33,13 @@ class DigesterKey:
 
 
 DigesterKeys = [
-    DigesterKey(json_key=PapiTotalTimeSeconds, display_text='Total PAPI time (seconds)'),
-    DigesterKey(json_key=StartupTimeSeconds, display_text='Startup (seconds)'),
-    DigesterKey(json_key=DockerImagePullTimeSeconds, display_text='Docker Pull (seconds)'),
-    DigesterKey(json_key=LocalizationTimeSeconds, display_text='Localization (seconds)'),
-    DigesterKey(json_key=UserCommandTimeSeconds, display_text='User command (seconds)'),
-    DigesterKey(json_key=DelocalizationTimeSeconds, display_text='Delocalization (seconds)'),
-    DigesterKey(json_key=OtherTimeSeconds, display_text='Other time (seconds)'),
+    DigesterKey(json_key=PapiTotalTimeSeconds, display_text='Total PAPI time'),
+    DigesterKey(json_key=StartupTimeSeconds, display_text='Startup'),
+    DigesterKey(json_key=DockerImagePullTimeSeconds, display_text='Docker Pull'),
+    DigesterKey(json_key=LocalizationTimeSeconds, display_text='Localization'),
+    DigesterKey(json_key=UserCommandTimeSeconds, display_text='User command'),
+    DigesterKey(json_key=DelocalizationTimeSeconds, display_text='Delocalization'),
+    DigesterKey(json_key=OtherTimeSeconds, display_text='Other time'),
     DigesterKey(json_key=MachineType, display_text='Machine type')
 ]
 
@@ -50,15 +50,16 @@ def digester_key_by_json_key(json_key: AnyStr) -> DigesterKey:
 
 MachineTypesCostPerHour = {
     'n1-highcpu-16': 0.5672,
-    'n1-highmem-2': 0.12,
-    'n1-standard-1': 0.05,
-    'n1-standard-2': 0.10,
-    'g1-small': 0.03
+    'n1-highmem-2': 0.1184,
+    'n1-standard-1': 0.0475,
+    'n1-standard-2': 0.095,
+    'g1-small': 0.0257
 }
 
 # A machine type-weighted dictionary used for getting more accurate cost estimates.
 MachineTypeCostMultiplier = {}
 for key in MachineTypesCostPerHour.keys():
+    # Normalize to g1-small, currently the least expensive machine type used.
     MachineTypeCostMultiplier[key] = MachineTypesCostPerHour[key] / MachineTypesCostPerHour['g1-small']
 
 
@@ -119,22 +120,22 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
             total_time_1, total_time_2 = [
                 sum_call_times(j, digester_key_name) for j in [json_1, json_2]]
 
-            percent_contrib_row.append(f'{(total_time_1 / total_total_time_1) * 100:.2f}')
-            percent_contrib_row.append(f'{(total_time_2 / total_total_time_2) * 100:.2f}')
-            total_percent_increase = ((total_time_2 - total_time_1) * 100) / total_time_1
-            percent_contrib_row.append(f'{total_percent_increase :.2f}')
+            percent_contrib_row.append(f'{(total_time_1 / total_total_time_1) * 100:.2f}%')
+            percent_contrib_row.append(f'{(total_time_2 / total_total_time_2) * 100:.2f}%')
+            percent_contrib_row.append('')
 
             total_row.append(format_seconds(total_time_1))
             total_row.append(format_seconds(total_time_2))
-            total_row.append(f'{total_percent_increase :.2f}')
+            total_percent_increase = ((total_time_2 - total_time_1) * 100) / total_time_1
+            total_row.append(f'{total_percent_increase :.2f}%')
 
             weighted_total_time_1, weighted_total_time_2 = [
-                sum_call_times_weighted(j, PapiTotalTimeSeconds) for j in [json_1, json_2]]
+                sum_call_times_weighted(j, digester_key_name) for j in [json_1, json_2]]
 
             machine_type_weighted_row.append(format_seconds(weighted_total_time_1))
             machine_type_weighted_row.append(format_seconds(weighted_total_time_2))
             weighted_percent = ((weighted_total_time_2 - weighted_total_time_1) / weighted_total_time_1) * 100
-            machine_type_weighted_row.append(f'{weighted_percent:.2f}')
+            machine_type_weighted_row.append(f'{weighted_percent:.2f}%')
 
         return [top_header_row, percent_contrib_row, total_row, machine_type_weighted_row]
 
@@ -150,7 +151,7 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
         time_2 = call_2.get(PapiTotalTimeSeconds)
         row.append(format_seconds(time_1))
         row.append(format_seconds(time_2))
-        row.append(f'{((time_2 - time_1) / time_1) * 100:.2f}')
+        row.append(f'{((time_2 - time_1) / time_1) * 100:.2f}%')
 
         rows.append(row)
 

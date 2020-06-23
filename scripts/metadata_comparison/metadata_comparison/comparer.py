@@ -55,6 +55,12 @@ class CallKey:
                 break
 
 
+def format_seconds(total_seconds: int) -> AnyStr:
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f'{hours}:{minutes:02}:{seconds:02}'
+
+
 def compare_jsons(json_1: JsonObject, json_2: JsonObject,
                   name_1: AnyStr, name_2: AnyStr,
                   call_prefixes_to_remove: List[AnyStr]) -> List[List[AnyStr]]:
@@ -97,9 +103,21 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
                 header_row.append(f'{name} Total Time PAPI')
             header_row.append(f'Percent increase PAPI Total time {name_1} -> {name_2}')
             percent_contrib_row.append(f'{100:.2f}')
-            contrib_2 = (time_2 / time_1) * 100
-            percent_contrib_row.append(f'{contrib_2:.2f}')
-            percent_contrib_row.append(f'{contrib_2 - 100:.2f}')
+
+            def sum_call_times(j: JsonObject, key: AnyStr):
+                times = [j.get('calls').get(ck.full).get(key) for ck in call_keys]
+                return sum(times)
+
+            total_time_1, total_time_2 = [
+                sum_call_times(j, PapiTotalTimeSeconds) for j in [json_1, json_2]]
+
+            total_percent_2 = (total_time_2 / total_time_1) * 100
+            percent_contrib_row.append(f'{total_percent_2:.2f}')
+            total_percent_percent = ((total_time_2 - total_time_1) * 100) / total_time_1
+            percent_contrib_row.append(f'{total_percent_percent:.2f}')
+
+            total_row.append(format_seconds(int(time_1)))
+            total_row.append(format_seconds(int(time_2)))
 
         rows.append(row)
 
@@ -196,3 +214,6 @@ if __name__ == "__main__":
     out.write_text(csv_string_from_data(comparison_data))
 
     logger.info('Comparer operation completed successfully.')
+
+
+

@@ -44,13 +44,18 @@ DigesterKeys = [
 ]
 
 
-MachineTypes = {
+MachineTypesCostPerHour = {
     'n1-highcpu-16': 	0.5672,
     'n1-highmem-2': 	0.12,
     'n1-standard-1':	0.05,
     'n1-standard-2':	0.10,
     'g1-small':	0.03
 }
+
+# A machine type-weighted dictionary used for getting more accurate cost estimates.
+MachineTypeCostMultiplier = {}
+for key in MachineTypesCostPerHour.keys():
+    MachineTypeCostMultiplier[key] = MachineTypesCostPerHour[key] / MachineTypesCostPerHour['g1-small']
 
 
 class CallKey:
@@ -101,6 +106,7 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
             percent_contrib_row.append('')
             total_row.append('')
             machine_type_weighted_row.append('')
+
         row.append(call_1.get(MachineType))
 
         time_1 = call_1.get(PapiTotalTimeSeconds)
@@ -108,10 +114,11 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
         row.append(format_seconds(time_1))
         row.append(format_seconds(time_2))
         row.append(f'{((time_2 - time_1) / time_1) * 100:.2f}')
+
         if first:
             for name in [name_1, name_2]:
                 header_row.append(f'{name} Total PAPI Time')
-            header_row.append(f'Percent increase Total PAPI time {name_1} -> {name_2}')
+            header_row.append(f'Percent increase')
             percent_contrib_row.append(f'{100:.2f}')
 
             def sum_call_times(j: JsonObject, key: AnyStr):
@@ -129,6 +136,19 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
             total_row.append(format_seconds(total_time_1))
             total_row.append(format_seconds(total_time_2))
             total_row.append(f'{total_percent_percent:.2f}')
+
+            def sum_call_times_weighted(j: JsonObject, key: AnyStr):
+                times = [j.get('calls').get(ck.full).get(key) *
+                         MachineTypeCostMultiplier[j.get('calls').get(ck.full).get('machineType')] for ck in call_keys]
+                return sum(times)
+
+            weighted_total_time_1, weighted_total_time_2 = [
+                sum_call_times_weighted(j, PapiTotalTimeSeconds) for j in [json_1, json_2]]
+
+            machine_type_weighted_row.append(format_seconds(weighted_total_time_1))
+            machine_type_weighted_row.append(format_seconds(weighted_total_time_2))
+            weighted_percent = ((weighted_total_time_2 - weighted_total_time_1) / weighted_total_time_1) * 100
+            machine_type_weighted_row.append(f'{weighted_percent:.2f}')
 
         rows.append(row)
 

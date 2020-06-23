@@ -44,12 +44,16 @@ DigesterKeys = [
 ]
 
 
+def digester_key_by_json_key(json_key: AnyStr) -> DigesterKey:
+    return next(dk for dk in DigesterKeys if dk.json_key == json_key)
+
+
 MachineTypesCostPerHour = {
-    'n1-highcpu-16': 	0.5672,
-    'n1-highmem-2': 	0.12,
-    'n1-standard-1':	0.05,
-    'n1-standard-2':	0.10,
-    'g1-small':	0.03
+    'n1-highcpu-16': 0.5672,
+    'n1-highmem-2': 0.12,
+    'n1-standard-1': 0.05,
+    'n1-standard-2': 0.10,
+    'g1-small': 0.03
 }
 
 # A machine type-weighted dictionary used for getting more accurate cost estimates.
@@ -86,9 +90,8 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
     call_keys_sorted_without_prefix = sorted(call_keys, key=without_prefix)
 
     def build_header_rows():
-        top_header_row = ['job', 'Machine type'] + [f'{name} Total PAPI Time' for name in [name_1, name_2]] + \
-                     ['Percent increase']
-        percent_contrib_row = ['% contribution to total run time', '', '100.00']
+        top_header_row = ['job', 'Machine type']
+        percent_contrib_row = ['% contribution to total run time', '']
         total_row = ['Total', '']
         machine_type_weighted_row = ['Machine-type weighted total (cost-ish)', '']
 
@@ -101,25 +104,37 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
                      MachineTypeCostMultiplier[j.get('calls').get(ck.full).get('machineType')] for ck in call_keys]
             return sum(times)
 
-        total_time_1, total_time_2 = [
+        total_total_time_1, total_total_time_2 = [
             sum_call_times(j, PapiTotalTimeSeconds) for j in [json_1, json_2]]
 
-        total_percent_2 = (total_time_2 / total_time_1) * 100
-        percent_contrib_row.append(f'{total_percent_2:.2f}')
-        total_percent_percent = ((total_time_2 - total_time_1) * 100) / total_time_1
-        percent_contrib_row.append(f'{total_percent_percent:.2f}')
+        for digester_key_name in [PapiTotalTimeSeconds, StartupTimeSeconds, DockerImagePullTimeSeconds,
+                                  LocalizationTimeSeconds, UserCommandTimeSeconds, DelocalizationTimeSeconds,
+                                  OtherTimeSeconds]:
 
-        total_row.append(format_seconds(total_time_1))
-        total_row.append(format_seconds(total_time_2))
-        total_row.append(f'{total_percent_percent:.2f}')
+            digester_key = digester_key_by_json_key(digester_key_name)
+            top_header_row.append(f'{name_1} {digester_key.display_text}')
+            top_header_row.append(f'{name_2} {digester_key.display_text}')
+            top_header_row.append('% increase')
 
-        weighted_total_time_1, weighted_total_time_2 = [
-            sum_call_times_weighted(j, PapiTotalTimeSeconds) for j in [json_1, json_2]]
+            total_time_1, total_time_2 = [
+                sum_call_times(j, digester_key_name) for j in [json_1, json_2]]
 
-        machine_type_weighted_row.append(format_seconds(weighted_total_time_1))
-        machine_type_weighted_row.append(format_seconds(weighted_total_time_2))
-        weighted_percent = ((weighted_total_time_2 - weighted_total_time_1) / weighted_total_time_1) * 100
-        machine_type_weighted_row.append(f'{weighted_percent:.2f}')
+            percent_contrib_row.append(f'{(total_time_1 / total_total_time_1) * 100:.2f}')
+            percent_contrib_row.append(f'{(total_time_2 / total_total_time_2) * 100:.2f}')
+            total_percent_increase = ((total_time_2 - total_time_1) * 100) / total_time_1
+            percent_contrib_row.append(f'{total_percent_increase :.2f}')
+
+            total_row.append(format_seconds(total_time_1))
+            total_row.append(format_seconds(total_time_2))
+            total_row.append(f'{total_percent_increase :.2f}')
+
+            weighted_total_time_1, weighted_total_time_2 = [
+                sum_call_times_weighted(j, PapiTotalTimeSeconds) for j in [json_1, json_2]]
+
+            machine_type_weighted_row.append(format_seconds(weighted_total_time_1))
+            machine_type_weighted_row.append(format_seconds(weighted_total_time_2))
+            weighted_percent = ((weighted_total_time_2 - weighted_total_time_1) / weighted_total_time_1) * 100
+            machine_type_weighted_row.append(f'{weighted_percent:.2f}')
 
         return [top_header_row, percent_contrib_row, total_row, machine_type_weighted_row]
 

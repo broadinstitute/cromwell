@@ -44,6 +44,15 @@ DigesterKeys = [
 ]
 
 
+MachineTypes = {
+    'n1-highcpu-16': 	0.5672,
+    'n1-highmem-2': 	0.12,
+    'n1-standard-1':	0.05,
+    'n1-standard-2':	0.10,
+    'g1-small':	0.03
+}
+
+
 class CallKey:
     def __init__(self, full, call_prefixes: List[AnyStr]):
         self.full = full
@@ -55,8 +64,8 @@ class CallKey:
                 break
 
 
-def format_seconds(total_seconds: int) -> AnyStr:
-    hours, remainder = divmod(total_seconds, 3600)
+def format_seconds(total_seconds: float) -> AnyStr:
+    hours, remainder = divmod(int(total_seconds), 3600)
     minutes, seconds = divmod(remainder, 60)
     return f'{hours}:{minutes:02}:{seconds:02}'
 
@@ -96,12 +105,13 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
 
         time_1 = call_1.get(PapiTotalTimeSeconds)
         time_2 = call_2.get(PapiTotalTimeSeconds)
-        row.append(f'{time_1:.2f}')
-        row.append(f'{time_2:.2f})')
+        row.append(format_seconds(time_1))
+        row.append(format_seconds(time_2))
+        row.append(f'{((time_2 - time_1) / time_1) * 100:.2f}')
         if first:
             for name in [name_1, name_2]:
-                header_row.append(f'{name} Total Time PAPI')
-            header_row.append(f'Percent increase PAPI Total time {name_1} -> {name_2}')
+                header_row.append(f'{name} Total PAPI Time')
+            header_row.append(f'Percent increase Total PAPI time {name_1} -> {name_2}')
             percent_contrib_row.append(f'{100:.2f}')
 
             def sum_call_times(j: JsonObject, key: AnyStr):
@@ -116,8 +126,9 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
             total_percent_percent = ((total_time_2 - total_time_1) * 100) / total_time_1
             percent_contrib_row.append(f'{total_percent_percent:.2f}')
 
-            total_row.append(format_seconds(int(time_1)))
-            total_row.append(format_seconds(int(time_2)))
+            total_row.append(format_seconds(total_time_1))
+            total_row.append(format_seconds(total_time_2))
+            total_row.append(f'{total_percent_percent:.2f}')
 
         rows.append(row)
 
@@ -214,6 +225,3 @@ if __name__ == "__main__":
     out.write_text(csv_string_from_data(comparison_data))
 
     logger.info('Comparer operation completed successfully.')
-
-
-

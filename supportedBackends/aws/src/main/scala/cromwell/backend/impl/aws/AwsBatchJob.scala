@@ -83,7 +83,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                              parameters: Seq[AwsBatchParameter],
                              configRegion: Option[Region],
                              optAwsAuthMode: Option[AwsAuthMode] = None
-                             ) {
+                            ) {
 
   val Log: Logger = LoggerFactory.getLogger(AwsBatchJob.getClass)
 
@@ -215,16 +215,15 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     //find or create the script in s3 to execute
     val scriptKey = findOrCreateS3Script(reconfiguredScript, runtimeAttributes.scriptS3BucketName)
 
-    //calls the client to submit the job
+    val regex = "s3://([^/]*)/(.*)".r
+    val regex(bucketName, key) = jobPaths.callExecutionRoot.toString
+
+    writeReconfiguredScriptForAudit(reconfiguredScript, bucketName, key+"/reconfigured-script.sh")
+
+    //calls the client to submi the job
     def callClient(definitionArn: String, awsBatchAttributes: AwsBatchAttributes): Aws[F, SubmitJobResponse] = {
 
       Log.info(s"Submitting taskId: $taskId, job definition : $definitionArn, script: s3://${runtimeAttributes.scriptS3BucketName}/$scriptKeyPrefix$scriptKey")
-
-      val outputinfo = outputs.map(o => "%s,%s,%s,%s".format(o.name, o.s3key, o.local, o.mount))
-        .mkString(";")
-      val inputinfo = inputs.collect{case i: AwsBatchFileInput => i}
-        .map(i => "%s,%s,%s,%s".format(i.name, i.s3key, i.local, i.mount))
-        .mkString(";")
 
       val submit: F[SubmitJobResponse] =
         async.delay(batchClient.submitJob(
@@ -238,14 +237,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                 .environment(
                   buildKVPair("BATCH_FILE_TYPE", "script"),
                   buildKVPair("BATCH_FILE_S3_URL",
-                    s"s3://${runtimeAttributes.scriptS3BucketName}/$scriptKeyPrefix$scriptKey"),
-                  buildKVPair("AWS_CROMWELL_CALL_ROOT", jobPaths.callExecutionRoot.toString),
-                  buildKVPair("AWS_CROMWELL_WORKFLOW_ROOT", jobPaths.workflowPaths.workflowRoot.toString),
-                  gzipKeyValuePair("AWS_CROMWELL_INPUTS", inputinfo),
-                  buildKVPair("AWS_CROMWELL_OUTPUTS", outputinfo),
-                  buildKVPair("AWS_CROMWELL_STDOUT_FILE", dockerStdout),
-                  buildKVPair("AWS_CROMWELL_STDERR_FILE", dockerStderr),
-                  buildKVPair("AWS_CROMWELL_RC_FILE", dockerRc),
+                    s"s3://${runtimeAttributes.scriptS3BucketName}/$scriptKeyPrefix$scriptKey")
                 )
                 .memory(runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt)
                 .vcpus(runtimeAttributes.cpu.##).build
@@ -310,13 +302,18 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     key
   }
 
+  private def writeReconfiguredScriptForAudit( reconfiguredScript: String, bucketName: String, key: String) = {
+    val putObjectRequest = PutObjectRequest.builder().bucket(bucketName).key(key).build()
+    s3Client.putObject(putObjectRequest, RequestBody.fromString(reconfiguredScript))
+  }
+
   /** Creates a job definition in AWS Batch
-   *
-   * @return Arn for newly created job definition
-   *
-   */
+    *
+    * @return Arn for newly created job definition
+    *
+    */
   private def findOrCreateDefinition[F[_]]()
-                                    (implicit async: Async[F], timer: Timer[F]): Aws[F, String] = ReaderT { awsBatchAttributes =>
+                                          (implicit async: Async[F], timer: Timer[F]): Aws[F, String] = ReaderT { awsBatchAttributes =>
 
     // this is a call back that is executed below by the async.recoverWithRetry(retry)
     val submit = async.delay({
@@ -405,11 +402,11 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
 
   /** Gets the status of a job by its Id, converted to a RunStatus
-   *
-   *  @param jobId Job ID as defined in AWS Batch
-   *  @return Current RunStatus
-   *
-   */
+    *
+    *  @param jobId Job ID as defined in AWS Batch
+    *  @return Current RunStatus
+    *
+    */
   def status(jobId: String): Try[RunStatus] = for {
     statusString <- Try(detail(jobId).status)
     batchJobContainerContext <- Try(batchJobContainerContext(jobId))
@@ -463,24 +460,27 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
   }
 
   def rc(detail: JobDetail): Integer = {
-     detail.container.exitCode
+    detail.container.exitCode
   }
 
   //todo: unused at present??
   def output(detail: JobDetail): String = {
-     val events: Seq[OutputLogEvent] = cloudWatchLogsClient.getLogEvents(GetLogEventsRequest.builder
-                                            // http://aws-java-sdk-javadoc.s3-website-us-west-2.amazonaws.com/latest/software/amazon/awssdk/services/batch/model/ContainerDetail.html#logStreamName--
-                                            .logGroupName("/aws/batch/job")
-                                            .logStreamName(detail.container.logStreamName)
-                                            .startFromHead(true)
-                                            .build).events.asScala
-     val eventMessages = for ( event <- events ) yield event.message
-     eventMessages mkString "\n"
+    val events: Seq[OutputLogEvent] = cloudWatchLogsClient.getLogEvents(GetLogEventsRequest.builder
+      // http://aws-java-sdk-javadoc.s3-website-us-west-2.amazonaws.com/latest/software/amazon/awssdk/services/batch/model/ContainerDetail.html#logStreamName--
+      .logGroupName("/aws/batch/job")
+      .logStreamName(detail.container.logStreamName)
+      .startFromHead(true)
+      .build).events.asScala
+    val eventMessages = for ( event <- events ) yield event.message
+    eventMessages mkString "\n"
   }
 
-  //TODO: Wrap in cats Effect
   def abort(jobId: String): TerminateJobResponse = {
-    batchClient.terminateJob(TerminateJobRequest.builder.jobId(jobId).reason("cromwell abort called").build)
+    /*
+     * Using Terminate here because it will work on jobs at any stage of their lifecycle whereas cancel will only work
+     * on jobs that are not yet at the STARTING or RUNNING phase
+     */
+    batchClient.terminateJob(TerminateJobRequest.builder.jobId(jobId).reason("cromwell abort called").build())
   }
 
   /**
@@ -488,7 +488,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     * @return a description of the instance
     */
   override def toString: String = {
-     new ToStringBuilder(this, ToStringStyle.JSON_STYLE)
+    new ToStringBuilder(this, ToStringStyle.JSON_STYLE)
       .append("jobDescriptor", jobDescriptor)
       .append("runtimeAttributes", runtimeAttributes)
       .append("commandLine", commandLine)

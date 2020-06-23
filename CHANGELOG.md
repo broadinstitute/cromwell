@@ -8,6 +8,12 @@ Information on how to properly use the Singularity cache with Cromwell is now
 provided in the [Cromwell Singularity documentation](
 https://cromwell.readthedocs.io/en/stable/tutorials/Containers/#singularity).
 
+### Bug fixes
+
+* Fixed a bug that required Cromwell to be restarted in order to pick up DNS changes.
+    * By default, the JVM caches DNS records with a TTL of infinity.
+    * Cromwell now configures its JVM with a 3-minute TTL. This value can be customized by setting `system.dns-cache-ttl`.  
+
 ## 51 Release Notes
 
 ### Changes and Warnings

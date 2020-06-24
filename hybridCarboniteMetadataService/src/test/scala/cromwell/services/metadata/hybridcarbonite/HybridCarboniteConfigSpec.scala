@@ -123,7 +123,7 @@ class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec"
     carboniteConfig match {
       case Left(e) => fail(s"Expected to parse correctly but got failure. Reason: $e")
       case Right(c) =>
-        c.bucketReadLimit shouldBe 150000
+        c.bucketReadLimit shouldBe 150000000
     }
   }
 

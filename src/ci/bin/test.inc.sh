@@ -157,7 +157,6 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_URL="https://travis-ci.com/${TRAVIS_REPO_SLUG}/jobs/${TRAVIS_JOB_ID}"
             CROMWELL_BUILD_GIT_USER_EMAIL="travis@travis-ci.com"
             CROMWELL_BUILD_GIT_USER_NAME="Travis CI"
-            CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
             CROMWELL_BUILD_GENERATE_COVERAGE=true
 
             # For solely documentation updates run only checkPublish. Otherwise always run sbt, even for 'push'.
@@ -192,7 +191,6 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_URL="${BUILD_URL}"
             CROMWELL_BUILD_GIT_USER_EMAIL="jenkins@jenkins.io"
             CROMWELL_BUILD_GIT_USER_NAME="Jenkins CI"
-            CROMWELL_BUILD_HEARTBEAT_PATTERN="…\n"
             CROMWELL_BUILD_GENERATE_COVERAGE=false
             CROMWELL_BUILD_RUN_TESTS=true
             ;;
@@ -207,7 +205,6 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_URL=""
             CROMWELL_BUILD_GIT_USER_EMAIL="unknown.git.user@example.org"
             CROMWELL_BUILD_GIT_USER_NAME="Unknown Git User"
-            CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
             CROMWELL_BUILD_GENERATE_COVERAGE=true
             CROMWELL_BUILD_RUN_TESTS=true
 
@@ -278,10 +275,6 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_CROMWELL_DOCKER_COMPOSE="${CROMWELL_BUILD_DOCKER_DIRECTORY}/docker-compose-horicromtal.yml"
     VAULT_TOKEN="${VAULT_TOKEN-vault token is not set as an environment variable}"
 
-    local hours_to_minutes
-    hours_to_minutes=60
-    CROMWELL_BUILD_HEARTBEAT_MINUTES=$((20 * hours_to_minutes))
-
     export CROMWELL_BUILD_UNIT_TEST_EXCLUDE_TAGS
     export CROMWELL_BUILD_BACKEND_TYPE
     export CROMWELL_BUILD_BRANCH
@@ -298,8 +291,6 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_GIT_SECRETS_DIRECTORY
     export CROMWELL_BUILD_GIT_USER_EMAIL
     export CROMWELL_BUILD_GIT_USER_NAME
-    export CROMWELL_BUILD_HEARTBEAT_MINUTES
-    export CROMWELL_BUILD_HEARTBEAT_PATTERN
     export CROMWELL_BUILD_HOME_DIRECTORY
     export CROMWELL_BUILD_IS_CI
     export CROMWELL_BUILD_IS_HOTFIX
@@ -1082,17 +1073,6 @@ cromwell::private::push_publish_complete() {
     popd > /dev/null
 }
 
-cromwell::private::start_build_heartbeat() {
-    # Sleep one minute between printouts, but don't zombie forever
-    for ((i=0; i < "${CROMWELL_BUILD_HEARTBEAT_MINUTES}"; i++)); do
-        sleep 60
-        # shellcheck disable=SC2059
-        printf "${CROMWELL_BUILD_HEARTBEAT_PATTERN}"
-    done &
-    CROMWELL_BUILD_HEARTBEAT_PID=$!
-    cromwell::private::add_exit_function cromwell::private::kill_build_heartbeat
-}
-
 cromwell::private::start_cromwell_log_tail() {
     while [[ ! -f "${CROMWELL_BUILD_CROMWELL_LOG}" ]]; do
         sleep 2
@@ -1117,12 +1097,6 @@ cromwell::private::cat_centaur_log() {
 cromwell::private::cat_conformance_log() {
     echo "CONFORMANCE LOG"
     cat "${CROMWELL_BUILD_CWL_TEST_OUTPUT}"
-}
-
-cromwell::private::kill_build_heartbeat() {
-    if [[ -n "${CROMWELL_BUILD_HEARTBEAT_PID:+set}" ]]; then
-        cromwell::private::kill_tree "${CROMWELL_BUILD_HEARTBEAT_PID}"
-    fi
 }
 
 cromwell::private::kill_cromwell_log_tail() {
@@ -1267,7 +1241,6 @@ cromwell::build::setup_common_environment() {
 
 cromwell::build::setup_centaur_environment() {
     cromwell::private::create_centaur_variables
-    cromwell::private::start_build_heartbeat
     cromwell::private::start_cromwell_log_tail
     cromwell::private::start_centaur_log_tail
     if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
@@ -1283,13 +1256,10 @@ cromwell::build::setup_conformance_environment() {
     fi
     cromwell::private::checkout_pinned_cwl
     cromwell::private::write_cwl_test_inputs
-    cromwell::private::start_build_heartbeat
     cromwell::private::add_exit_function cromwell::private::cat_conformance_log
 }
 
 cromwell::build::setup_docker_environment() {
-    cromwell::private::start_build_heartbeat
-
     if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ]]; then
         # Upgrade docker-compose so that we get the correct exit codes
         docker-compose -version
@@ -1423,10 +1393,6 @@ cromwell::build::exec_silent_function() {
 
 cromwell::build::pip_install() {
     cromwell::private::pip_install "$@"
-}
-
-cromwell::build::start_build_heartbeat() {
-    cromwell::private::start_build_heartbeat
 }
 
 cromwell::build::add_exit_function() {

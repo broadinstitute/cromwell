@@ -49,11 +49,11 @@ def digester_key_by_json_key(json_key: AnyStr) -> DigesterKey:
 
 
 MachineTypesCostPerHour = {
-    'n1-highcpu-16': 0.5672,
-    'n1-highmem-2': 0.1184,
-    'n1-standard-1': 0.0475,
-    'n1-standard-2': 0.095,
-    'g1-small': 0.0257
+    'n1-highcpu-16': 0.5672,  # https://cloud.google.com/compute/vm-instance-pricing#n1_highcpu_machine_types
+    'n1-highmem-2': 0.1184,   # https://cloud.google.com/compute/vm-instance-pricing#n1_highmem_machine_types
+    'n1-standard-1': 0.0475,  # https://cloud.google.com/compute/vm-instance-pricing#n1_standard_machine_types
+    'n1-standard-2': 0.0950,  # https://cloud.google.com/compute/vm-instance-pricing#n1_standard_machine_types
+    'g1-small': 0.0257        # https://cloud.google.com/compute/all-pricing#n1_sharedcore_machine_types
 }
 
 # A machine type-weighted dictionary used for getting more accurate cost estimates.
@@ -90,6 +90,9 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
 
     call_keys_sorted_without_prefix = sorted(call_keys, key=without_prefix)
 
+    digester_key_names = [PapiTotalTimeSeconds, StartupTimeSeconds, DockerImagePullTimeSeconds, LocalizationTimeSeconds,
+                          UserCommandTimeSeconds, DelocalizationTimeSeconds]
+
     def build_header_rows():
         top_header_row = ['job', 'Machine type']
         percent_contrib_row = ['% contribution to total run time', '']
@@ -108,10 +111,7 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
         total_total_time_1, total_total_time_2 = [
             sum_call_times(j, PapiTotalTimeSeconds) for j in [json_1, json_2]]
 
-        for digester_key_name in [PapiTotalTimeSeconds, StartupTimeSeconds, DockerImagePullTimeSeconds,
-                                  LocalizationTimeSeconds, UserCommandTimeSeconds, DelocalizationTimeSeconds,
-                                  OtherTimeSeconds]:
-
+        for digester_key_name in digester_key_names:
             digester_key = digester_key_by_json_key(digester_key_name)
             top_header_row.append(f'{name_1} {digester_key.display_text}')
             top_header_row.append(f'{name_2} {digester_key.display_text}')
@@ -134,7 +134,7 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
 
             machine_type_weighted_row.append(format_seconds(weighted_total_time_1))
             machine_type_weighted_row.append(format_seconds(weighted_total_time_2))
-            weighted_percent = ((weighted_total_time_2 - weighted_total_time_1) / weighted_total_time_1) * 100
+            weighted_percent = ((weighted_total_time_2 - weighted_total_time_1) * 100) / weighted_total_time_1
             machine_type_weighted_row.append(f'{weighted_percent:.2f}%')
 
         return [top_header_row, percent_contrib_row, total_row, machine_type_weighted_row]
@@ -147,11 +147,15 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
         row.append(call_key.without_prefix)
         row.append(call_1.get(MachineType))
 
-        time_1 = call_1.get(PapiTotalTimeSeconds)
-        time_2 = call_2.get(PapiTotalTimeSeconds)
-        row.append(format_seconds(time_1))
-        row.append(format_seconds(time_2))
-        row.append(f'{((time_2 - time_1) / time_1) * 100:.2f}%')
+        for digester_key_name in digester_key_names:
+            time_1 = call_1.get(digester_key_name)
+            time_2 = call_2.get(digester_key_name)
+            row.append(format_seconds(time_1))
+            row.append(format_seconds(time_2))
+            if time_1:
+                row.append(f'{((time_2 - time_1)  * 100) / time_1:.2f}%')
+            else:
+                row.append('---')
 
         rows.append(row)
 

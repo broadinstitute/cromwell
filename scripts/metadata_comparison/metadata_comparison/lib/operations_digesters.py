@@ -102,31 +102,31 @@ class PapiV1OperationDigester(OperationDigester):
     def __init__(self, operation_json: JsonObject):
         super(PapiV1OperationDigester, self).__init__(operation_json)
 
+    @staticmethod
+    def __total_seconds_between_events(start: JsonObject, end: JsonObject) -> float:
+        _start, _end = [dateutil.parser.parse(e.get('startTime')) for e in [start, end]]
+        return (_end - _start).total_seconds()
+
     def startup_time_seconds(self) -> float:
         # Look at `pulling_image` as that is the next lifecycle phase after startup.
-        pulling_image, create = self.event_with_description('pulling-image').get('startTime'), self.create_time()
-        pulling_image_timestamp, create_timestamp = [dateutil.parser.parse(d) for d in [pulling_image, create]]
-        return (pulling_image_timestamp - create_timestamp).total_seconds()
+        create, pulling_image = self.create_time(), self.event_with_description('pulling-image').get('startTime')
+        return self.__total_seconds_between_events(create, pulling_image)
 
     def docker_image_pull_time_seconds(self) -> float:
-        descriptions = ['localizing-files', 'pulling-image']
-        end, start = [dateutil.parser.parse(self.event_with_description(d).get('startTime')) for d in descriptions]
-        return (end - start).total_seconds()
+        start, end = [self.event_with_description(d) for d in ['pulling-image', 'localizing-files']]
+        return self.__total_seconds_between_events(start, end)
 
     def localization_time_seconds(self) -> float:
-        descriptions = ['running-docker', 'localizing-files']
-        end, start = [dateutil.parser.parse(self.event_with_description(d).get('startTime')) for d in descriptions]
-        return (end - start).total_seconds()
+        start, end = [self.event_with_description(d) for d in ['localizing-files', 'running-docker']]
+        return self.__total_seconds_between_events(start, end)
 
     def user_command_time_seconds(self) -> float:
-        descriptions = ['delocalizing-files', 'running-docker']
-        end, start = [dateutil.parser.parse(self.event_with_description(d).get('startTime')) for d in descriptions]
-        return (end - start).total_seconds()
+        start, end = [self.event_with_description(d) for d in ['running-docker', 'delocalizing-files']]
+        return self.__total_seconds_between_events(start, end)
 
     def delocalization_time_seconds(self) -> float:
-        descriptions = ['ok', 'delocalizing-files']
-        end, start = [dateutil.parser.parse(self.event_with_description(d).get('startTime')) for d in descriptions]
-        return (end - start).total_seconds()
+        start, end = [self.event_with_description(d) for d in ['delocalizing-files', 'ok']]
+        return self.__total_seconds_between_events(start, end)
 
     def machine_type(self) -> AnyStr:
         machine_type_with_zone_prefix = self.metadata().get('runtimeMetadata').get('computeEngine').get('machineType')

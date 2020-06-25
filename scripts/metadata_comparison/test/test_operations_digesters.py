@@ -107,6 +107,12 @@ EXPECTATIONS = {
     'dev_C1963.CHMI_CHMI3_Nex1': {
         'PAPIv1': {
             'EODRwtmGLhiUmLjJhoTsspABIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl': {
+                'total_time_seconds': 466,
+                'startup_time_seconds': 34.263103,
+                'docker_image_pull_time_seconds': 88.822075,
+                'localization_time_seconds': 47.902792,
+                'user_command_time_seconds': 286.993021,
+                'delocalization_time_seconds': 8.452244
             }
         },
         'PAPIv2_alpha1': {

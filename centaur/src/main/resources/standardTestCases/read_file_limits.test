@@ -28,5 +28,5 @@ metadata {
   "calls.read_file_limits.readInt.executionStatus": Failed
   "calls.read_file_limits.readInt.failures.0.causedBy.0.message": ~~"is larger than requested maximum of 19 Bytes."
   "calls.read_file_limits.readFloat.executionStatus": Failed
-  "calls.read_file_limits.readFloat.failures.0.causedBy.0.message": ~~"is larger than requested maximum of requested maximum of 50 Bytes."
+  "calls.read_file_limits.readFloat.failures.0.causedBy.0.message": ~~"is larger than requested maximum of 50 Bytes."
 }

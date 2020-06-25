@@ -103,14 +103,19 @@ class PapiV1OperationDigester(OperationDigester):
         super(PapiV1OperationDigester, self).__init__(operation_json)
 
     @staticmethod
-    def __total_seconds_between_events(start: JsonObject, end: JsonObject) -> float:
-        _start, _end = [dateutil.parser.parse(e.get('startTime')) for e in [start, end]]
+    def __total_seconds_between_timestamps(start: AnyStr, end: AnyStr) -> float:
+        _start, _end = [dateutil.parser.parse(t) for t in [start, end]]
         return (_end - _start).total_seconds()
+
+    @staticmethod
+    def __total_seconds_between_events(start: JsonObject, end: JsonObject) -> float:
+        _start, _end = [e.get('startTime') for e in [start, end]]
+        return PapiV1OperationDigester.__total_seconds_between_timestamps(_start, _end)
 
     def startup_time_seconds(self) -> float:
         # Look at `pulling_image` as that is the next lifecycle phase after startup.
         create, pulling_image = self.create_time(), self.event_with_description('pulling-image').get('startTime')
-        return self.__total_seconds_between_events(create, pulling_image)
+        return self.__total_seconds_between_timestamps(create, pulling_image)
 
     def docker_image_pull_time_seconds(self) -> float:
         start, end = [self.event_with_description(d) for d in ['pulling-image', 'localizing-files']]
@@ -142,9 +147,8 @@ class PapiV2OperationDigester(OperationDigester, ABC):
         docker_description = "^Started pulling .*"
         docker_events = [dateutil.parser.parse(d.get('timestamp')) for d in
                          self.event_with_description_like(docker_description)]
-        events = [create] + docker_events
-        events.sort()
-        return (events[-1] - events[0]).total_seconds()
+        docker_events.sort()
+        return (docker_events[0] - create).total_seconds()
 
     def docker_image_pull_time_seconds(self) -> float:
         description = "^(Started|Stopped) pulling .*"

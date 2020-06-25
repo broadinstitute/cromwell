@@ -4,7 +4,20 @@
 #
 # Purpose: Compare performance metadata JSON files produced by Digester and produce result in CSV format
 #
-# Usage: python3 comparer.py [-h] [-v] [--json_paths JSONPATH [JSONPATH ...]] [--output_path OUTPUTPATH]
+# Usage: python3 -m metadata_comparison.comparer [-h] [-v] --name1 NAME_FOR_DIGEST_1 --name2 NAME_FOR_DIGEST_2
+#                            --digest1 PATH_TO_DIGEST_1 --digest2 PATH_TO_DIGEST_2
+#                            --output-path OUTPUT_PATH
+#                            [--call-prefix-to-remove [CALL_PREFIX_TO_REMOVE [CALL_PREFIX_TO_REMOVE ...]]]
+#
+# For ExomeGermlineSingleSample workflows the local call names are globally unique so all
+# FQN prefixes can be removed for ease of interpretation. An invocation to compare PAPI v1
+# to PAPI v2 might look like:
+#
+# python3 -m metadata_comparison.comparer --name1 PAPIv1 --name2 PAPIv2 \
+#         --digest1 papiv1.json --digest2 papiv2.json --output-path foo.csv \
+#         --call-prefix-to-remove ExomeGermlineSingleSample.AggregatedBamQC. \
+#         ExomeGermlineSingleSample.BamToCram. ExomeGermlineSingleSample.BamToGvcf.VariantCalling. \
+#         ExomeGermlineSingleSample.UnmappedBamToAlignedBam. ExomeGermlineSingleSample.
 #
 # Python Prereqs (at least, the ones which I needed to manually install... YMMV):
 #

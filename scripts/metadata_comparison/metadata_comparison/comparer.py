@@ -64,17 +64,21 @@ for key in MachineTypesCostPerHour.keys():
 
 
 class CallKey:
-    def __init__(self, full, call_prefixes: List[AnyStr]):
+    def __init__(self, full, call_prefixes_to_remove: List[AnyStr]):
         self.full = full
         # Call keys without repetitive prefixes are useful for building comparer reports.
+        # Assign `without_prefix` to the full prefix in case none of the `call_prefixes_to_remove` match.
         self.without_prefix = full
-        for prefix in call_prefixes:
+        for prefix in call_prefixes_to_remove:
             if self.full.startswith(prefix):
                 self.without_prefix = self.full[len(prefix):]
                 break
 
 
 def format_seconds(total_seconds: float) -> AnyStr:
+    """
+    Format the specified number of seconds as HH:MM:SS.
+    """
     hours, remainder = divmod(int(total_seconds), 3600)
     minutes, seconds = divmod(remainder, 60)
     return f'{hours}:{minutes:02}:{seconds:02}'
@@ -83,31 +87,39 @@ def format_seconds(total_seconds: float) -> AnyStr:
 def compare_jsons(json_1: JsonObject, json_2: JsonObject,
                   name_1: AnyStr, name_2: AnyStr,
                   call_prefixes_to_remove: List[AnyStr]) -> List[List[AnyStr]]:
+    """
+    Produce a CSV representing the comparison of the specified JSONs.
+    """
     call_keys = [CallKey(k, call_prefixes_to_remove) for k in json_1.get('calls').keys()]
 
-    def without_prefix(call_key: CallKey) -> AnyStr:
-        return call_key.without_prefix
+    call_keys_sorted_without_prefix = sorted(call_keys, key=lambda k: k.without_prefix)
 
-    call_keys_sorted_without_prefix = sorted(call_keys, key=without_prefix)
-
+    # Columns to produce in triplets: name_1, name_2, percent increase from name_1 to name_2.
     digester_key_names = [PapiTotalTimeSeconds, StartupTimeSeconds, DockerImagePullTimeSeconds, LocalizationTimeSeconds,
                           UserCommandTimeSeconds, DelocalizationTimeSeconds]
 
     def build_header_rows():
+        """ Builds the header rows of the spreadsheet. """
         top_header_row = ['job', 'Machine type']
         percent_contrib_row = ['% contribution to total run time', '']
         total_row = ['Total', '']
         machine_type_weighted_row = ['Machine-type weighted total (cost-ish)', '']
 
         def sum_call_times(j: JsonObject, key: AnyStr):
+            """ Sums raw call times for a column. """
             times = [j.get('calls').get(ck.full).get(key) for ck in call_keys]
             return sum(times)
 
         def sum_call_times_weighted(j: JsonObject, key: AnyStr):
+            """
+            Sums call times for a column weighted by the machine type used as a more accurate estimation
+            of cost.
+            """
             times = [j.get('calls').get(ck.full).get(key) *
                      MachineTypeCostMultiplier[j.get('calls').get(ck.full).get('machineType')] for ck in call_keys]
             return sum(times)
 
+        # Treat the total time specially to be able to report percentages of time for individual lifecycle phases.
         total_total_time_1, total_total_time_2 = [
             sum_call_times(j, PapiTotalTimeSeconds) for j in [json_1, json_2]]
 
@@ -117,6 +129,7 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
             top_header_row.append(f'{name_2} {digester_key.display_text}')
             top_header_row.append('% increase')
 
+            # Total times within a column, not necessarily total time of the job.
             total_time_1, total_time_2 = [
                 sum_call_times(j, digester_key_name) for j in [json_1, json_2]]
 
@@ -137,10 +150,11 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
             weighted_percent = ((weighted_total_time_2 - weighted_total_time_1) * 100) / weighted_total_time_1
             machine_type_weighted_row.append(f'{weighted_percent:.2f}%')
 
-        return [top_header_row, percent_contrib_row, total_row, machine_type_weighted_row]
+        return [top_header_row, percent_contrib_row, total_row, machine_type_weighted_row, []]
 
     rows = []
 
+    # Produce data for individual lifecycle phases of individual calls.
     for call_key in call_keys_sorted_without_prefix:
         row = []
         call_1, call_2 = [j.get('calls').get(call_key.full) for j in [json_1, json_2]]

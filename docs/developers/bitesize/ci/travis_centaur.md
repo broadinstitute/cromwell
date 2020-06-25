@@ -51,9 +51,9 @@ or `papi_v2beta_centaur_application.conf`
 
 - Engine Upgrade: Retrieves the [Cromwell Version](https://github.com/broadinstitute/cromwell/blob/47/project/Version.scala#L8) then retrieves the previous jar/docker-image from DockerHub. Centaur starts with the prior version, then restarts with the compiled source code.
 - Horicromtal: Runs a [docker-compose](https://github.com/broadinstitute/cromwell/blob/47/src/ci/docker-compose/docker-compose-horicromtal.yml) with:
-    1. cromwell-database-master: started first
-    2. cromwell-summarizer-plus-backend: runs summarizer
-    3. cromwell-frontend-plus-backend: exposes HTTP
+    1. db-mstr: started first
+    2. sum-back: runs summarizer
+    3. front-back: exposes HTTP
 - Horicromtal Engine Upgrade: Combination of Horicromtal and Engine Upgrade
 - PAPI Upgrade: Tests run with Papi V1 and upon restart use Papi V2
 - PAPI Upgrade New Workflows: Test definition [does not run any tests](https://travis-ci.org/broadinstitute/cromwell/jobs/475378412)

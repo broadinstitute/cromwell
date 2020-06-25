@@ -76,7 +76,7 @@ services:
   # - Running the summarizer
   # - Running the carboniter
   # - Running the archived-metadata-deleter
-  crm-front-back:
+  crom-front-back:
     image: "broadinstitute/cromwell:${CROMWELL_TAG}"
     network_mode: host
     working_dir: ${CROMWELL_BUILD_ROOT_DIRECTORY}

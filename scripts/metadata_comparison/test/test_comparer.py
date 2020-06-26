@@ -2,12 +2,12 @@
 
 from copy import deepcopy
 import json
-import unittest
-from typing import AnyStr, List, Tuple
 from metadata_comparison.lib.comparison_paths import ComparisonPath
 from metadata_comparison.lib.operation_ids import JsonObject
 from metadata_comparison.comparer import compare_jsons, csv_string_from_data
 from test.lib.storage import RESOURCES
+from typing import AnyStr, List, Tuple
+import unittest
 
 
 class ComparerTestMethods(unittest.TestCase):

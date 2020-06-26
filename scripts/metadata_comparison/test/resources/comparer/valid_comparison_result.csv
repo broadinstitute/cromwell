@@ -1,3 +1,0 @@
-workflow id,digester format version,calls.root_wf.baz.cromwellTotalTimeSeconds,calls.root_wf.sub_wf.shard_0.call_foo.shard_0.cromwellTotalTimeSeconds,calls.root_wf.sub_wf.shard_1.call_bar.shard_2.cromwellTotalTimeSeconds
-111,0.0.1,99,9,42
-222,0.0.1,93,11,99

@@ -176,7 +176,7 @@ class ComparerTestMethods(unittest.TestCase):
                     self.__compare_for_exome_germline_single_sample_list(first, second)
                 self.assertEqual(message, str(cm.exception))
 
-    def test_missing_required_key(self)
+    def test_missing_required_key(self):
         del(self.updated_first_digest['calls']['foo']['machineType'])
         del(self.updated_second_digest['calls']['foo']['papiTotalTimeSeconds'])
 

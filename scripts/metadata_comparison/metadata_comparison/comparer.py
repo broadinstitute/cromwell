@@ -62,11 +62,12 @@ def digester_key_by_json_key(json_key: AnyStr) -> DigesterKey:
 
 
 MachineTypesCostPerHour = {
-    'n1-highcpu-16': 0.5672,  # https://cloud.google.com/compute/vm-instance-pricing#n1_highcpu_machine_types
-    'n1-highmem-2': 0.1184,   # https://cloud.google.com/compute/vm-instance-pricing#n1_highmem_machine_types
-    'n1-standard-1': 0.0475,  # https://cloud.google.com/compute/vm-instance-pricing#n1_standard_machine_types
-    'n1-standard-2': 0.0950,  # https://cloud.google.com/compute/vm-instance-pricing#n1_standard_machine_types
-    'g1-small': 0.0257        # https://cloud.google.com/compute/all-pricing#n1_sharedcore_machine_types
+    'n1-highcpu-16': 0.5672,   # https://cloud.google.com/compute/vm-instance-pricing#n1_highcpu_machine_types
+    'n1-highmem-2': 0.1184,    # https://cloud.google.com/compute/vm-instance-pricing#n1_highmem_machine_types
+    'n1-standard-1': 0.0475,   # https://cloud.google.com/compute/vm-instance-pricing#n1_standard_machine_types
+    'n1-standard-2': 0.0950,   # https://cloud.google.com/compute/vm-instance-pricing#n1_standard_machine_types
+    'g1-small': 0.0257,        # https://cloud.google.com/compute/all-pricing#n1_sharedcore_machine_types
+    'e2-standard-2': 0.067006  # https://cloud.google.com/compute/vm-instance-pricing#e2_standard_machine-types
 }
 
 # A machine type-weighted dictionary used for getting more accurate cost estimates.
@@ -99,11 +100,12 @@ def format_seconds(total_seconds: float) -> AnyStr:
 
 def compare_jsons(json_1: JsonObject, json_2: JsonObject,
                   name_1: AnyStr, name_2: AnyStr,
-                  call_prefixes_to_remove: List[AnyStr]) -> List[List[AnyStr]]:
+                  call_prefixes_to_remove: List[AnyStr],
+                  force: bool = False) -> List[List[AnyStr]]:
     """
     Produce a CSV representing the comparison of the specified JSONs.
     """
-    error_checks(json_1, json_2)
+    error_checks(json_1, json_2, force)
 
     call_keys = [CallKey(k, call_prefixes_to_remove) for k in json_1.get('calls').keys()]
 
@@ -191,7 +193,7 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
     return build_header_rows() + rows
 
 
-def error_checks(json_1: JsonObject, json_2: JsonObject):
+def error_checks(json_1: JsonObject, json_2: JsonObject, force: bool = False):
     version_1, version_2 = [j.get('version') for j in [json_1, json_2]]
 
     if version_1 != version_2:
@@ -220,16 +222,26 @@ def error_checks(json_1: JsonObject, json_2: JsonObject):
                     raise ValueError(
                         f"In {nth} digest JSON: call '{call_key}' missing required key '{json_key}'")
 
-    def machine_types(j: JsonObject, keys: List[AnyStr]) -> List[AnyStr]:
-        return [j.get('calls').get(k).get('machineType') for k in keys]
+    discrepancies = []
 
-    machine_types_1, machine_types_2 = [machine_types(j, call_keys_1) for j in [json_1, json_2]]
+    for k in call_keys_1:
+        machine_type_1 = json_1.get('calls').get(k).get('machineType')
+        machine_type_2 = json_2.get('calls').get(k).get('machineType')
+        if machine_type_1 != machine_type_2:
+            discrepancies.append({
+                'key': k,
+                'machine_type_1': machine_type_1,
+                'machine_type_2': machine_type_2
+            })
 
-    if machine_types_1 != machine_types_2:
-        # This should perhaps become a warning or something the user can --force their way through if we want to
-        # allow experimentation with different machine types to reduce cost, but for the time being it's unexpected.
-        raise ValueError('The specified digest files cannot be meaningfully compared as they contain calls with '
-                         'different machine types for corresponding jobs.')
+    if discrepancies:
+        string = ', '.join(f'{e["key"]}: {e["machine_type_1"]} vs {e["machine_type_2"]}' for e in discrepancies)
+        message = 'The specified digest files unexpectedly contain corresponding jobs that ran with ' + \
+                  'different machine types: ' + string
+        if force:
+            logger.warning(message)
+        else:
+            raise ValueError(message + '. Specify the --force argument to force comparison anyway.')
 
 
 def json_from_path_string(path_string: AnyStr) -> JsonObject:
@@ -245,6 +257,8 @@ def csv_string_from_data(data: List[List[AnyStr]]) -> AnyStr:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Compare performance digest JSONs and produce CSV result')
     parser.add_argument('-v', '--verbose', action='store_true')
+    parser.add_argument('--force', action='store_true',
+                        help='Whether to force the comparer to run through certain warning conditions')
     parser.add_argument('--name1', nargs=1, metavar='NAME_FOR_DIGEST_1', type=str,
                         required=True, help='Name to use for the first digest')
     parser.add_argument('--name2', nargs=1, metavar='NAME_FOR_DIGEST_2', type=str,
@@ -267,7 +281,7 @@ if __name__ == "__main__":
 
     prefixes = [] if not args.call_prefix_to_remove else args.call_prefix_to_remove
 
-    comparison_data = compare_jsons(_json_1, _json_2, args.name1[0], args.name2[0], prefixes)
+    comparison_data = compare_jsons(_json_1, _json_2, args.name1[0], args.name2[0], prefixes, args.force)
     out = ComparisonPath.create(args.output_path[0])
     out.write_text(csv_string_from_data(comparison_data))
 

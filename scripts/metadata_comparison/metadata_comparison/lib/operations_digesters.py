@@ -75,8 +75,8 @@ class OperationDigester(ABC):
 
         accounted_for_time = \
             self.startup_time_seconds() + \
-            self.localization_time_seconds() + \
             self.docker_image_pull_time_seconds() + \
+            self.localization_time_seconds() + \
             self.user_command_time_seconds() + \
             self.delocalization_time_seconds()
 

@@ -151,10 +151,15 @@ class ComparerTestMethods(unittest.TestCase):
         self.updated_first_digest['calls']['foo']['machineType'] = 'n1-standard-2'
         self.updated_second_digest['calls']['foo']['machineType'] = 'n1-standard-2'
 
-        message = 'The specified digest files cannot be meaningfully compared as they contain calls with different ' + \
-                  'machine types for corresponding jobs.'
+        message_1 = 'The specified digest files unexpectedly contain corresponding jobs that ran with different ' + \
+                    'machine types: foo: n1-standard-2 vs n1-standard-1. ' + \
+                    'Specify the --force argument to force comparison anyway.'
 
-        self.__run_negative_test(message, message)
+        message_2 = 'The specified digest files unexpectedly contain corresponding jobs that ran with different ' + \
+                    'machine types: foo: n1-standard-1 vs n1-standard-2. ' + \
+                    'Specify the --force argument to force comparison anyway.'
+
+        self.__run_negative_test(message_1, message_2)
 
     def test_missing_required_key(self):
         del(self.updated_first_digest['calls']['foo']['machineType'])

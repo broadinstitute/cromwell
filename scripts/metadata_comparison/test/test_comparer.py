@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from copy import deepcopy
 import json
 import unittest
 from typing import AnyStr, List, Tuple
@@ -26,18 +27,16 @@ class ComparerTestMethods(unittest.TestCase):
         return [(workflow_id_and_filename_1[0], json1), (workflow_id_and_filename_2[0], json2)]
 
     @staticmethod
-    def __compare_for_exome_germline_single_sample_list(json_1: JsonObject, json_2: JsonObject,
-                                                        name_1: AnyStr, name_2: AnyStr) -> List[List[AnyStr]]:
+    def __compare_for_exome_germline_single_sample_list(json_1: JsonObject, json_2: JsonObject) -> List[List[AnyStr]]:
 
-        return compare_jsons(json_1, json_2, name_1, name_2, [
+        return compare_jsons(json_1, json_2, "PAPIv1", "PAPIv2", [
             "ExomeGermlineSingleSample.AggregatedBamQC.",
             "ExomeGermlineSingleSample.BamToCram.", "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.",
             "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.", "ExomeGermlineSingleSample."])
 
     @staticmethod
-    def __compare_for_exome_germline_single_sample(json_1: JsonObject, json_2: JsonObject,
-                                                   name_1: AnyStr, name_2: AnyStr) -> AnyStr:
-        data = ComparerTestMethods.__compare_for_exome_germline_single_sample_list(json_1, json_2, name_1, name_2)
+    def __compare_for_exome_germline_single_sample(json_1: JsonObject, json_2: JsonObject) -> AnyStr:
+        data = ComparerTestMethods.__compare_for_exome_germline_single_sample_list(json_1, json_2)
         actual = csv_string_from_data(data)
         return actual
 
@@ -49,7 +48,7 @@ class ComparerTestMethods(unittest.TestCase):
         for case in cases:
             with self.subTest(case=case):
                 json_1, json_2 = [json_from_path(p) for p in [case[0], case[1]]]
-                actual = self.__compare_for_exome_germline_single_sample(json_1, json_2, "PAPIv1", "PAPIv2")
+                actual = self.__compare_for_exome_germline_single_sample(json_1, json_2)
                 expected = self.__read_resource("good_comparison.csv")
                 self.assertEqual(actual, expected)
 
@@ -63,7 +62,7 @@ class ComparerTestMethods(unittest.TestCase):
         for case in cases:
             with self.subTest(case=case):
                 json_1, json_2 = [json_from_path(p) for p in [case[0], case[1]]]
-                actual = self.__compare_for_exome_germline_single_sample_list(json_1, json_2, "PAPIv1", "PAPIv2")
+                actual = self.__compare_for_exome_germline_single_sample_list(json_1, json_2)
                 # Get the indexes for all the '% increase' columns.
                 percent_column_indexes = [idx for idx, val in enumerate(actual[0]) if val == '% increase']
                 print('foo')
@@ -73,21 +72,127 @@ class ComparerTestMethods(unittest.TestCase):
                     for j in percent_column_indexes:
                         self.assertEqual(actual[i][j], "0.00%")
 
-#
-#    def test_compare_invalid_jsons(self) -> None:
-#        cases = [
-#            ("performance_json_workflow_111.json", "performance_json_changed_key.json"),
-#            ("performance_json_workflow_111.json", "performance_json_missing_key.json"),
-#            ("performance_json_workflow_111.json", "performance_json_additional_key.json")
-#        ]
-#
-#        for case in cases:
-#            with self.subTest(case=case):
-#                json_1, json_2 = [json_from_path(p) for p in [case[0], case[1]]]
-#                with self.assertRaises(Exception) as context:
-#                    compare_jsons(json_1, json_2)
-#
-#                self.assertTrue("doesn't have matching subset of columns" in str(context.exception))
+    first_digest = json.loads("""
+        {
+            "version": "0.0.2",
+            "id": "e7933689-7891-44b1-a06c-0650fcd8f72c",
+            "calls": {
+                "foo": {
+                    "delocalizationTimeSeconds": 6.280967,
+                    "dockerImagePullTimeSeconds": 74.051255,
+                    "localizationTimeSeconds": 359.455651,
+                    "machineType": "n1-standard-1",
+                    "otherTimeSeconds": 0.00,
+                    "papiTotalTimeSeconds": 485.0,
+                    "startupTimeSeconds": 33.132954,
+                    "userCommandTimeSeconds": 11.998067
+                }
+            }
+        }
+        """)
+
+    second_digest = json.loads("""
+        {
+            "version": "0.0.2",
+            "workflowId": "c4002d69-06fb-4d9f-89f3-5b4acf333e7d",
+            "calls": {
+                "foo": {
+                    "delocalizationTimeSeconds": 10.250919,
+                    "dockerImagePullTimeSeconds": 89.463444,
+                    "localizationTimeSeconds": 385.235749,
+                    "machineType": "n1-standard-1",
+                    "otherTimeSeconds": 18.655614000000128,
+                    "papiTotalTimeSeconds": 548.142499,
+                    "startupTimeSeconds": 34.831524,
+                    "userCommandTimeSeconds": 9.705249
+                }
+            }
+        }
+        """)
+
+    def setUp(self) -> None:
+        self.updated_first_digest = deepcopy(self.first_digest)
+        self.updated_second_digest = deepcopy(self.second_digest)
+        super().setUp()
+
+    def test_different_versions(self):
+        self.updated_first_digest['version'] = '0.0.1'
+        self.updated_second_digest['version'] = '0.0.1'
+
+        cases = [
+            (self.updated_first_digest, self.second_digest,
+             'Inconsistent digest versions: First JSON digest is 0.0.1 but second is 0.0.2'),
+            (self.first_digest, self.updated_second_digest,
+             'Inconsistent digest versions: First JSON digest is 0.0.2 but second is 0.0.1')
+        ]
+
+        for case in cases:
+            with self.subTest(case=case):
+                first, second, message = case
+                with self.assertRaises(ValueError) as cm:
+                    self.__compare_for_exome_germline_single_sample_list(first, second)
+                self.assertEqual(message, str(cm.exception))
+
+    def test_different_calls(self):
+        self.updated_first_digest['calls']['bar'] = self.first_digest['calls']['foo']
+        del self.updated_first_digest['calls']['foo']
+
+        self.updated_second_digest['calls']['bar'] = self.second_digest['calls']['foo']
+        del self.updated_second_digest['calls']['foo']
+
+        cases = [
+            (self.updated_first_digest, self.second_digest,
+             'The specified digest files do not have the same call keys. ' +
+             'These digests cannot be compared and probably are not from the same workflow and sample.'),
+            (self.first_digest, self.updated_second_digest,
+             'The specified digest files do not have the same call keys. ' +
+             'These digests cannot be compared and probably are not from the same workflow and sample.'),
+        ]
+
+        for case in cases:
+            with self.subTest(case=case):
+                first, second, message = case
+                with self.assertRaises(ValueError) as cm:
+                    self.__compare_for_exome_germline_single_sample_list(first, second)
+                self.assertEqual(message, str(cm.exception))
+
+    def test_different_machine_types(self):
+        self.updated_first_digest['calls']['foo']['machineType'] = 'n1-standard-2'
+        self.updated_second_digest['calls']['foo']['machineType'] = 'n1-standard-2'
+
+        cases = [
+            (self.updated_first_digest, self.second_digest,
+             'The specified digest files cannot be meaningfully compared as they contain calls with different ' +
+             'machine types for corresponding jobs.'),
+            (self.first_digest, self.updated_second_digest,
+             'The specified digest files cannot be meaningfully compared as they contain calls with different ' +
+             'machine types for corresponding jobs.'),
+        ]
+
+        for case in cases:
+            with self.subTest(case=case):
+                first, second, message = case
+                with self.assertRaises(ValueError) as cm:
+                    self.__compare_for_exome_germline_single_sample_list(first, second)
+                self.assertEqual(message, str(cm.exception))
+
+    def test_missing_required_key(self)
+        del(self.updated_first_digest['calls']['foo']['machineType'])
+        del(self.updated_second_digest['calls']['foo']['papiTotalTimeSeconds'])
+
+        cases = [
+            (self.updated_first_digest, self.second_digest,
+             "In first digest JSON: call 'foo' missing required key 'machineType'"),
+            (self.first_digest, self.updated_second_digest,
+             "In second digest JSON: call 'foo' missing required key 'papiTotalTimeSeconds'"),
+        ]
+
+        for case in cases:
+            with self.subTest(case=case):
+                first, second, message = case
+                with self.assertRaises(ValueError) as cm:
+                    self.__compare_for_exome_germline_single_sample_list(first, second)
+                self.assertEqual(message, str(cm.exception))
 
 
 def json_from_path(string: AnyStr) -> ComparisonPath:

@@ -103,6 +103,8 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
     """
     Produce a CSV representing the comparison of the specified JSONs.
     """
+    error_checks(json_1, json_2)
+
     call_keys = [CallKey(k, call_prefixes_to_remove) for k in json_1.get('calls').keys()]
 
     call_keys_sorted_without_prefix = sorted(call_keys, key=lambda k: k.without_prefix)
@@ -204,6 +206,20 @@ def error_checks(json_1: JsonObject, json_2: JsonObject):
         raise ValueError('The specified digest files do not have the same call keys. These digests cannot be ' +
                          'compared and probably are not from the same workflow and sample.')
 
+    for call_key in call_keys_1:
+        call_1 = json_1.get('calls').get(call_key)
+        call_2 = json_2.get('calls').get(call_key)
+        for call in [call_1, call_2]:
+            for digester_key in DigesterKeys:
+                json_key = digester_key.json_key
+                if json_key not in call:
+                    if call == call_1:
+                        nth = "first"
+                    else:
+                        nth = "second"
+                    raise ValueError(
+                        f"In {nth} digest JSON: call '{call_key}' missing required key '{json_key}'")
+
     def machine_types(j: JsonObject, keys: List[AnyStr]) -> List[AnyStr]:
         return [j.get('calls').get(k).get('machineType') for k in keys]
 
@@ -214,22 +230,6 @@ def error_checks(json_1: JsonObject, json_2: JsonObject):
         # allow experimentation with different machine types to reduce cost, but for the time being it's unexpected.
         raise ValueError('The specified digest files cannot be meaningfully compared as they contain calls with '
                          'different machine types for corresponding jobs.')
-
-    for call_key in call_keys_1:
-        call_1 = json_1.get('calls').get(call_key)
-        call_2 = json_2.get('calls').get(call_key)
-        for call in [call_1, call_2]:
-            for digester_key in DigesterKeys:
-                json_key = digester_key.json_key
-                if json_key not in call:
-                    if call == call_1:
-                        nth = "first"
-                        json_file = args.digest1[0]
-                    else:
-                        nth = "second"
-                        json_file = args.digest2[0]
-                    raise ValueError(
-                        f"In {nth} digest JSON '{json_file}': call '{call_key}' does not contain required key '{json_key}'")
 
 
 def json_from_path_string(path_string: AnyStr) -> JsonObject:
@@ -264,7 +264,6 @@ if __name__ == "__main__":
     logger.info("Starting Comparer operation.")
 
     _json_1, _json_2 = [json_from_path_string(p[0]) for p in [args.digest1, args.digest2]]
-    error_checks(_json_1, _json_2)
 
     prefixes = [] if not args.call_prefix_to_remove else args.call_prefix_to_remove
 

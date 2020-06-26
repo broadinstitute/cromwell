@@ -115,15 +115,10 @@ class ComparerTestMethods(unittest.TestCase):
         self.updated_second_digest = deepcopy(self.second_digest)
         super().setUp()
 
-    def test_different_versions(self):
-        self.updated_first_digest['version'] = '0.0.1'
-        self.updated_second_digest['version'] = '0.0.1'
-
+    def __run_negative_test(self, message_1: AnyStr, message_2: AnyStr):
         cases = [
-            (self.updated_first_digest, self.second_digest,
-             'Inconsistent digest versions: First JSON digest is 0.0.1 but second is 0.0.2'),
-            (self.first_digest, self.updated_second_digest,
-             'Inconsistent digest versions: First JSON digest is 0.0.2 but second is 0.0.1')
+            (self.updated_first_digest, self.second_digest, message_1),
+            (self.first_digest, self.updated_second_digest, message_2),
         ]
 
         for case in cases:
@@ -132,6 +127,13 @@ class ComparerTestMethods(unittest.TestCase):
                 with self.assertRaises(ValueError) as cm:
                     self.__compare_for_exome_germline_single_sample_list(first, second)
                 self.assertEqual(message, str(cm.exception))
+
+    def test_different_versions(self):
+        self.updated_first_digest['version'] = '0.0.1'
+        self.updated_second_digest['version'] = '0.0.1'
+
+        self.__run_negative_test('Inconsistent digest versions: First JSON digest is 0.0.1 but second is 0.0.2',
+                                 'Inconsistent digest versions: First JSON digest is 0.0.2 but second is 0.0.1')
 
     def test_different_calls(self):
         self.updated_first_digest['calls']['bar'] = self.first_digest['calls']['foo']
@@ -140,59 +142,27 @@ class ComparerTestMethods(unittest.TestCase):
         self.updated_second_digest['calls']['bar'] = self.second_digest['calls']['foo']
         del self.updated_second_digest['calls']['foo']
 
-        cases = [
-            (self.updated_first_digest, self.second_digest,
-             'The specified digest files do not have the same call keys. ' +
-             'These digests cannot be compared and probably are not from the same workflow and sample.'),
-            (self.first_digest, self.updated_second_digest,
-             'The specified digest files do not have the same call keys. ' +
-             'These digests cannot be compared and probably are not from the same workflow and sample.'),
-        ]
+        message = 'The specified digest files do not have the same call keys. ' + \
+                  'These digests cannot be compared and probably are not from the same workflow and sample.'
 
-        for case in cases:
-            with self.subTest(case=case):
-                first, second, message = case
-                with self.assertRaises(ValueError) as cm:
-                    self.__compare_for_exome_germline_single_sample_list(first, second)
-                self.assertEqual(message, str(cm.exception))
+        self.__run_negative_test(message, message)
 
     def test_different_machine_types(self):
         self.updated_first_digest['calls']['foo']['machineType'] = 'n1-standard-2'
         self.updated_second_digest['calls']['foo']['machineType'] = 'n1-standard-2'
 
-        cases = [
-            (self.updated_first_digest, self.second_digest,
-             'The specified digest files cannot be meaningfully compared as they contain calls with different ' +
-             'machine types for corresponding jobs.'),
-            (self.first_digest, self.updated_second_digest,
-             'The specified digest files cannot be meaningfully compared as they contain calls with different ' +
-             'machine types for corresponding jobs.'),
-        ]
+        message = 'The specified digest files cannot be meaningfully compared as they contain calls with different ' + \
+                  'machine types for corresponding jobs.'
 
-        for case in cases:
-            with self.subTest(case=case):
-                first, second, message = case
-                with self.assertRaises(ValueError) as cm:
-                    self.__compare_for_exome_germline_single_sample_list(first, second)
-                self.assertEqual(message, str(cm.exception))
+        self.__run_negative_test(message, message)
 
     def test_missing_required_key(self):
         del(self.updated_first_digest['calls']['foo']['machineType'])
         del(self.updated_second_digest['calls']['foo']['papiTotalTimeSeconds'])
 
-        cases = [
-            (self.updated_first_digest, self.second_digest,
-             "In first digest JSON: call 'foo' missing required key 'machineType'"),
-            (self.first_digest, self.updated_second_digest,
-             "In second digest JSON: call 'foo' missing required key 'papiTotalTimeSeconds'"),
-        ]
-
-        for case in cases:
-            with self.subTest(case=case):
-                first, second, message = case
-                with self.assertRaises(ValueError) as cm:
-                    self.__compare_for_exome_germline_single_sample_list(first, second)
-                self.assertEqual(message, str(cm.exception))
+        self.__run_negative_test(
+             "In first digest JSON: call 'foo' missing required key 'machineType'",
+             "In second digest JSON: call 'foo' missing required key 'papiTotalTimeSeconds'")
 
 
 def json_from_path(string: AnyStr) -> ComparisonPath:

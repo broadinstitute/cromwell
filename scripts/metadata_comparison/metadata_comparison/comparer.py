@@ -14,7 +14,7 @@
 # to PAPI v2 might look like:
 #
 # python3 -m metadata_comparison.comparer --name1 PAPIv1 --name2 PAPIv2 \
-#         --digest1 papiv1.json --digest2 papiv2.json --output-path foo.csv \
+#         --digest1 papiv1.json --digest2 papiv2.json --output-path comparison.csv \
 #         --call-prefix-to-remove ExomeGermlineSingleSample.AggregatedBamQC. \
 #         ExomeGermlineSingleSample.BamToCram. ExomeGermlineSingleSample.BamToGvcf.VariantCalling. \
 #         ExomeGermlineSingleSample.UnmappedBamToAlignedBam. ExomeGermlineSingleSample.

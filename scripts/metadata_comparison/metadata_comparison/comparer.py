@@ -4,10 +4,10 @@
 #
 # Purpose: Compare performance metadata JSON files produced by Digester and produce result in CSV format
 #
-# Usage: python3 -m metadata_comparison.comparer [-h] [-v] --name1 NAME_FOR_DIGEST_1 --name2 NAME_FOR_DIGEST_2
-#                            --digest1 PATH_TO_DIGEST_1 --digest2 PATH_TO_DIGEST_2
-#                            --output-path OUTPUT_PATH
-#                            [--call-prefix-to-remove [CALL_PREFIX_TO_REMOVE [CALL_PREFIX_TO_REMOVE ...]]]
+# Usage: python3 -m metadata_comparison.comparer [-h] [-v] [--force]
+#                --name1 NAME_FOR_DIGEST_1 --name2 NAME_FOR_DIGEST_2
+#                --digest1 PATH_TO_DIGEST_1 --digest2 PATH_TO_DIGEST_2 --output-path OUTPUT_PATH
+#                [--call-prefix-to-remove [CALL_PREFIX_TO_REMOVE [CALL_PREFIX_TO_REMOVE ...]]]
 #
 # For ExomeGermlineSingleSample workflows the local call names are globally unique so all
 # FQN prefixes can be removed for ease of interpretation. An invocation to compare PAPI v1
@@ -282,7 +282,10 @@ if __name__ == "__main__":
     prefixes = [] if not args.call_prefix_to_remove else args.call_prefix_to_remove
 
     comparison_data = compare_jsons(_json_1, _json_2, args.name1[0], args.name2[0], prefixes, args.force)
-    out = ComparisonPath.create(args.output_path[0])
+    out_path = args.output_path[0]
+    out = ComparisonPath.create(out_path)
+    if out.exists() and not args.force:
+        raise ValueError(f"Specified output file '{out_path}' already exists and --force not specified.")
     out.write_text(csv_string_from_data(comparison_data))
 
     logger.info('Comparer operation completed successfully.')

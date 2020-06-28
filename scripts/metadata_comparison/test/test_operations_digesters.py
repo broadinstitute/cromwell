@@ -21,8 +21,8 @@ class OperationsDigesterTestMethods(unittest.TestCase):
         """
         This uses "real" metadata from the PAPI v2 performance spike to drive operations digester testing.
         The metadata is stored in GCS and copied down to the local machine if not already present from an earlier run.
-        Operations digesters can run against either local or GCS paths using `ComparisonPath`s. Since it is slow GCS
-        testing is off by default, it can be turned on by setting the DIGESTER_TEST_GCS environment variable.
+        Operations digesters can run against either local or GCS paths using `ComparisonPath`s. Since GCS testing is
+        slow it's turned off by default, it can be turned on by setting the DIGESTER_TEST_GCS environment variable.
         """
 
         credentials, project_id = google.auth.default()

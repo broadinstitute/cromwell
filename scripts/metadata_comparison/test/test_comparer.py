@@ -28,7 +28,6 @@ class ComparerTestMethods(unittest.TestCase):
 
     @staticmethod
     def __compare_for_exome_germline_single_sample_list(json_1: JsonObject, json_2: JsonObject) -> List[List[AnyStr]]:
-
         return compare_jsons(json_1, json_2, "PAPIv1", "PAPIv2", [
             "ExomeGermlineSingleSample.AggregatedBamQC.",
             "ExomeGermlineSingleSample.BamToCram.", "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.",
@@ -65,7 +64,6 @@ class ComparerTestMethods(unittest.TestCase):
                 actual = self.__compare_for_exome_germline_single_sample_list(json_1, json_2)
                 # Get the indexes for all the '% increase' columns.
                 percent_column_indexes = [idx for idx, val in enumerate(actual[0]) if val == '% increase']
-                print('foo')
 
                 # Skip the four header rows + blank line.
                 for i in range(5, len(actual)):

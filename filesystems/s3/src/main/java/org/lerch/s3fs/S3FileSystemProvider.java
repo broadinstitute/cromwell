@@ -1,6 +1,6 @@
 package org.lerch.s3fs;
 
-import com.google.cloud.Tuple;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -66,12 +66,14 @@ import static org.lerch.s3fs.AmazonS3Factory.*;
  * </p>
  */
 public class S3FileSystemProvider extends FileSystemProvider {
-    public static final String AMAZON_S3_FACTORY_CLASS = "s3fs_amazon_s3_factory";
+    private static final String AMAZON_S3_FACTORY_CLASS = "s3fs_amazon_s3_factory";
 
     private static final ConcurrentMap<String, S3FileSystem> fileSystems = new ConcurrentHashMap<>();
     private static final List<String> PROPS_TO_OVERLOAD = Arrays.asList(ACCESS_KEY, SECRET_KEY, REQUEST_METRIC_COLLECTOR_CLASS, CONNECTION_TIMEOUT, MAX_CONNECTIONS, MAX_ERROR_RETRY, PROTOCOL, PROXY_DOMAIN,
             PROXY_HOST, PROXY_PASSWORD, PROXY_PORT, PROXY_USERNAME, PROXY_WORKSTATION, SOCKET_SEND_BUFFER_SIZE_HINT, SOCKET_RECEIVE_BUFFER_SIZE_HINT, SOCKET_TIMEOUT,
             USER_AGENT, AMAZON_S3_FACTORY_CLASS, SIGNER_OVERRIDE, PATH_STYLE_ACCESS);
+
+    private static final ExecutorService MULTIPART_OPERATION_EXECUTOR_SERVICE =  Executors.newWorkStealingPool(100);
 
     private final S3Utils s3Utils = new S3Utils();
     private Cache cache = new Cache();
@@ -467,9 +469,6 @@ public class S3FileSystemProvider extends FileSystemProvider {
 
         List<CompletableFuture<UploadPartCopyResponse>> uploadFutures = new ArrayList<>();
 
-        // these are short running async I/O threads so we can have a lot of them
-        final ExecutorService executorService =  Executors.newWorkStealingPool(100);
-
         // Generate the copy part requests
         while (bytePosition < objectSize) {
             // The last part might be smaller than partSize, so check to make sure
@@ -491,7 +490,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
                         .partNumber(finalPartNum)
                         .build();
                 return s3Client.uploadPartCopy(uploadPartCopyRequest);
-            }, executorService);
+            }, MULTIPART_OPERATION_EXECUTOR_SERVICE);
 
             uploadFutures.add(uploadPartCopyResponseFuture);
 
@@ -502,14 +501,14 @@ public class S3FileSystemProvider extends FileSystemProvider {
         // Collect the futures into a list of completed parts
         List<CompletedPart> completedParts = IntStream.range(0, uploadFutures.size())
                 .peek(i -> log.fine("Joining future "+i))
-                .mapToObj(i -> Tuple.of(i, uploadFutures.get(i).join()) )
+                .mapToObj(i -> ImmutablePair.of(i, uploadFutures.get(i).join()) )
                 .map(tuple -> CompletedPart.builder()
-                        .partNumber(tuple.x() +1 ) //part numbers start at 1
-                        .eTag(tuple.y().copyPartResult().eTag())
+                        .partNumber(tuple.getLeft() +1 ) //part numbers start at 1
+                        .eTag(tuple.getRight().copyPartResult().eTag())
                         .build())
                 .collect(Collectors.toList());
 
-        executorService.shutdown();
+        MULTIPART_OPERATION_EXECUTOR_SERVICE.shutdown();
 
         // build a request to complete the upload
         final CompleteMultipartUploadRequest completeMultipartUploadRequest = CompleteMultipartUploadRequest.builder()

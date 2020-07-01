@@ -28,7 +28,7 @@ pip install --upgrade requests
 pip install --upgrade google-api-python-client
 pip install --upgrade google-cloud
 pip install --upgrade google-cloud-storage
-pip install --upgrade pandas
 pip install --upgrade gitpython
+pip install --upgrade python-dateutil
 python -m unittest discover -v /metadata_comparison
 "

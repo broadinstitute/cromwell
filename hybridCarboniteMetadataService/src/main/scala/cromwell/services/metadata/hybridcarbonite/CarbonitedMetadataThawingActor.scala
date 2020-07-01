@@ -40,7 +40,11 @@ class CarbonitedMetadataThawingActor(carboniterConfig: HybridCarboniteConfig, se
     case Event(action: BuildWorkflowMetadataJsonAction, PendingData) =>
       val rootWorkflowIdAndJson = for {
         rootWorkflowId <- getRootWorkflowId(action.workflowId.toString).map(_.getOrElse(action.workflowId.toString))
-        rawResponseFromIoActor <- asyncIo.contentAsStringAsync(carboniterConfig.makePath(WorkflowId.fromString(rootWorkflowId)), maxBytes = Option(30 * 1024 * 1024), failOnOverflow = true)
+        rawResponseFromIoActor <- asyncIo.contentAsStringAsync(
+          path = carboniterConfig.makePath(WorkflowId.fromString(rootWorkflowId)),
+          maxBytes = Option(carboniterConfig.bucketReadLimit),
+          failOnOverflow = true
+        )
         parsedResponse <- Future.fromTry(parse(rawResponseFromIoActor).toTry)
       } yield (rootWorkflowId, parsedResponse)
 

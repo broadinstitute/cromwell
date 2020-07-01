@@ -125,3 +125,9 @@ class LocalPath(ComparisonPath):
 
     def description(self) -> AnyStr:
         return 'Local filesystem'
+
+
+def validate_path(p: AnyStr) -> AnyStr:
+    if ComparisonPath.is_valid_path_string(p):
+        return p
+    raise ValueError(f'{p} is not a valid path whatsoever')

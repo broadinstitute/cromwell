@@ -22,6 +22,7 @@ import scala.util.Try
 
 final case class HybridCarboniteConfig(pathBuilders: PathBuilders,
                                        bucket: String,
+                                       bucketReadLimit: Int,
                                        freezingConfig: MetadataFreezingConfig,
                                        deletionConfig: MetadataDeletionConfig) {
   def makePath(workflowId: WorkflowId)= PathFactory.buildPath(HybridCarboniteConfig.pathForWorkflow(workflowId, bucket), pathBuilders)
@@ -113,8 +114,9 @@ object HybridCarboniteConfig {
       pathBuilders <- Try(Await.result(PathBuilderFactory.instantiatePathBuilders(pathBuilderFactories.values.toList, WorkflowOptions.empty), 60.seconds))
         .toCheckedWithContext("construct Carboniter path builders from factories")
       bucket <- Try(carboniterConfig.getString("bucket")).toCheckedWithContext("parse Carboniter 'bucket' field from config")
+      bucketReadLimit <- Try(carboniterConfig.getOrElse[Int]("bucket-read-limit-bytes", 150000000)).toCheckedWithContext("parse Carboniter 'bucket-read-limit-bytes' field from config")
       freezingConfig <- metadataFreezingConfig
       metadataDeletion <- metadataDeletionConfig
-    } yield HybridCarboniteConfig(pathBuilders, bucket, freezingConfig, metadataDeletion)
+    } yield HybridCarboniteConfig(pathBuilders, bucket, bucketReadLimit, freezingConfig, metadataDeletion)
   }
 }

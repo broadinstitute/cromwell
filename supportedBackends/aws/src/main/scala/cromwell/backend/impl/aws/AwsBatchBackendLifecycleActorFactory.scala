@@ -37,10 +37,17 @@ import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardFinalizat
 import cromwell.core.CallOutputs
 import wom.graph.CommandCallNode
 
+/**
+  * Factory to create `Actor` objects to manage the lifecycle of a backend job on AWS Batch. This factory provides an
+  * object from the `AwsBatchAsyncBackendJobExecutionActor` class to create and manage the job.
+  * @param name Factory name
+  * @param configurationDescriptor configuration descriptor for the backend
+  */
 case class AwsBatchBackendLifecycleActorFactory(
   name: String,
   configurationDescriptor: BackendConfigurationDescriptor)
     extends StandardLifecycleActorFactory {
+
   override lazy val initializationActorClass: Class[_ <: StandardInitializationActor]
     = classOf[AwsBatchInitializationActor]
 

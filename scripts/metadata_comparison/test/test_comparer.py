@@ -140,10 +140,15 @@ class ComparerTestMethods(unittest.TestCase):
         self.updated_second_digest['calls']['bar'] = self.second_digest['calls']['foo']
         del self.updated_second_digest['calls']['foo']
 
-        message = 'The specified digest files do not have the same call keys. ' + \
-                  'These digests cannot be compared and probably are not from the same workflow and sample.'
+        message_1 = 'The specified digest files do not have the same call keys. ' + \
+                    'These digests cannot be compared and probably are not from the same workflow and sample. ' + \
+                    'In PAPIv1 but not PAPIv2: bar. In PAPIv1 but not PAPIv2: foo.'
 
-        self.__run_negative_test(message, message)
+        message_2 = 'The specified digest files do not have the same call keys. ' + \
+                    'These digests cannot be compared and probably are not from the same workflow and sample. ' + \
+                    'In PAPIv1 but not PAPIv2: foo. In PAPIv1 but not PAPIv2: bar.'
+
+        self.__run_negative_test(message_1, message_2)
 
     def test_different_machine_types(self):
         self.updated_first_digest['calls']['foo']['machineType'] = 'n1-standard-2'

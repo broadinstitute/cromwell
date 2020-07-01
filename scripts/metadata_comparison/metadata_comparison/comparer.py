@@ -105,7 +105,7 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
     """
     Produce a CSV representing the comparison of the specified JSONs.
     """
-    error_checks(json_1, json_2, force)
+    error_checks(name_1, name_2, json_1, json_2, force)
 
     call_keys = [CallKey(k, call_prefixes_to_remove) for k in json_1.get('calls').keys()]
 
@@ -193,7 +193,7 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
     return build_header_rows() + rows
 
 
-def error_checks(json_1: JsonObject, json_2: JsonObject, force: bool = False):
+def error_checks(name_1: AnyStr, name_2: AnyStr, json_1: JsonObject, json_2: JsonObject, force: bool = False):
     version_1, version_2 = [j.get('version') for j in [json_1, json_2]]
 
     if version_1 != version_2:
@@ -205,8 +205,17 @@ def error_checks(json_1: JsonObject, json_2: JsonObject, force: bool = False):
     call_keys_2.sort()
 
     if call_keys_1 != call_keys_2:
+        in_1 = ', '.join(set(call_keys_1) - set(call_keys_2))
+        in_2 = ', '.join(set(call_keys_2) - set(call_keys_1))
+        msg_1 = None
+        msg_2 = None
+        if in_1:
+            msg_1 = f"In {name_1} but not {name_2}: {in_1}."
+        if in_2:
+            msg_2 = f"In {name_1} but not {name_2}: {in_2}."
+
         raise ValueError('The specified digest files do not have the same call keys. These digests cannot be ' +
-                         'compared and probably are not from the same workflow and sample.')
+                         f'compared and probably are not from the same workflow and sample. {msg_1} {msg_2}')
 
     for call_key in call_keys_1:
         call_1 = json_1.get('calls').get(call_key)

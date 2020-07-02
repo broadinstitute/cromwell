@@ -73,7 +73,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
             PROXY_HOST, PROXY_PASSWORD, PROXY_PORT, PROXY_USERNAME, PROXY_WORKSTATION, SOCKET_SEND_BUFFER_SIZE_HINT, SOCKET_RECEIVE_BUFFER_SIZE_HINT, SOCKET_TIMEOUT,
             USER_AGENT, AMAZON_S3_FACTORY_CLASS, SIGNER_OVERRIDE, PATH_STYLE_ACCESS);
 
-    private static final ExecutorService MULTIPART_OPERATION_EXECUTOR_SERVICE =  Executors.newWorkStealingPool(100);
+    private static final ExecutorService MULTIPART_OPERATION_EXECUTOR_SERVICE = Executors.newWorkStealingPool(100);
 
     private final S3Utils s3Utils = new S3Utils();
     private Cache cache = new Cache();
@@ -239,8 +239,9 @@ public class S3FileSystemProvider extends FileSystemProvider {
     /**
      * The system envs have preference over the properties files.
      * So we overload it
+     *
      * @param props Properties
-     * @param key String
+     * @param key   String
      * @return true if the key are overloaded by a system property
      */
     public boolean overloadPropertiesWithSystemEnv(Properties props, String key) {
@@ -253,6 +254,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
 
     /**
      * Get the system env with the key param
+     *
      * @param key String
      * @return String or null
      */
@@ -424,7 +426,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
 
         long objectSize = this.objectSize(s3Source);
         long threshold = 5L * 1024L * 1024L * 1024L; //5GB
-        if (objectSize >=  threshold ){
+        if (objectSize >= threshold) {
             // large file, do a multipart copy
             multiPartCopy(s3Source, objectSize, s3Target, options);
 
@@ -447,8 +449,9 @@ public class S3FileSystemProvider extends FileSystemProvider {
     /**
      * Copy large files
      * https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPartCopy.html
-     * @param source the object being copied
-     * @param target the destination
+     *
+     * @param source  the object being copied
+     * @param target  the destination
      * @param options copy options
      */
     private void multiPartCopy(S3Path source, long objectSize, S3Path target, CopyOption... options) {
@@ -463,7 +466,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
         final String uploadId = createMultipartUploadResponse.uploadId();
 
         // you can have at most 10K parts with at least one 5MB part
-        long partSize = Math.max((objectSize / 10000L )+1, 5 * 1024 * 1024);
+        long partSize = Math.max((objectSize / 10000L) + 1, 5 * 1024 * 1024);
         long bytePosition = 0;
         int partNum = 1;
 
@@ -477,14 +480,14 @@ public class S3FileSystemProvider extends FileSystemProvider {
 
             // make this effectively final so we can use it in a lambda
             long finalBytePosition = bytePosition;
-            log.fine(() ->"Requesting copy of bytes from: "+finalBytePosition+" to: "+lastByte);
+            log.fine(() -> "Requesting copy of bytes from: " + finalBytePosition + " to: " + lastByte);
 
             int finalPartNum = partNum;
-            CompletableFuture<UploadPartCopyResponse> uploadPartCopyResponseFuture = CompletableFuture.supplyAsync( () -> {
+            CompletableFuture<UploadPartCopyResponse> uploadPartCopyResponseFuture = CompletableFuture.supplyAsync(() -> {
                 final UploadPartCopyRequest uploadPartCopyRequest = UploadPartCopyRequest.builder()
                         .uploadId(uploadId)
                         .copySource(source.getFileStore().name() + "/" + source.getKey())
-                        .copySourceRange("bytes="+ finalBytePosition +"-"+lastByte)
+                        .copySourceRange("bytes=" + finalBytePosition + "-" + lastByte)
                         .bucket(target.getFileStore().name())
                         .key(target.getKey())
                         .partNumber(finalPartNum)
@@ -500,10 +503,10 @@ public class S3FileSystemProvider extends FileSystemProvider {
 
         // Collect the futures into a list of completed parts
         List<CompletedPart> completedParts = IntStream.range(0, uploadFutures.size())
-                .peek(i -> log.fine("Joining future "+i))
-                .mapToObj(i -> ImmutablePair.of(i, uploadFutures.get(i).join()) )
+                .peek(i -> log.fine("Joining future " + i))
+                .mapToObj(i -> ImmutablePair.of(i, uploadFutures.get(i).join()))
                 .map(tuple -> CompletedPart.builder()
-                        .partNumber(tuple.getLeft() +1 ) //part numbers start at 1
+                        .partNumber(tuple.getLeft() + 1) //part numbers start at 1
                         .eTag(tuple.getRight().copyPartResult().eTag())
                         .build())
                 .collect(Collectors.toList());
@@ -526,6 +529,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
 
     /**
      * Obtain the size of an s3 object using a HEAD operation
+     *
      * @param object the object of interest
      * @return the size in bytes
      */
@@ -540,11 +544,11 @@ public class S3FileSystemProvider extends FileSystemProvider {
                 .build());
 
         Integer partCount = headObjectResponse.partsCount();
-        if( partCount != null && partCount  > 1 ) {
+        if (partCount != null && partCount > 1) {
             //this is a multi-part object
             long totalLength = 0;
 
-            for (int i = 1; i <= partCount ; i++) {
+            for (int i = 1; i <= partCount; i++) {
                 int finalI = i;
                 totalLength += s3Client.headObject(builder -> builder.bucket(bucket).key(key).partNumber(finalI)).contentLength();
             }

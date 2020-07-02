@@ -115,7 +115,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     //this is the location of the aws cli mounted into the container by the ec2 launch template
     val s3Cmd = "/usr/local/aws-cli/v2/current/bin/aws s3"
     //internal to the container, therefore not mounted
-    val workDir = "/scratch"
+    val workDir = "/tmp/scratch"
     //working in a mount will cause collisions in long running workers
     val replaced = commandScript.replaceAllLiterally(AwsBatchWorkingDisk.MountPoint.pathAsString, workDir)
     val insertionPoint = replaced.indexOf("\n", replaced.indexOf("#!")) +1 //just after the new line after the shebang!
@@ -220,7 +220,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
     writeReconfiguredScriptForAudit(reconfiguredScript, bucketName, key+"/reconfigured-script.sh")
 
-    //calls the client to submi the job
+    //calls the client to submit the job
     def callClient(definitionArn: String, awsBatchAttributes: AwsBatchAttributes): Aws[F, SubmitJobResponse] = {
 
       Log.info(s"Submitting taskId: $taskId, job definition : $definitionArn, script: s3://${runtimeAttributes.scriptS3BucketName}/$scriptKeyPrefix$scriptKey")
@@ -244,7 +244,6 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
             )
             .jobQueue(runtimeAttributes.queueArn)
             .jobDefinition(definitionArn)
-            // todo add JobRetryStrategy with retry attempts
             .build
         ))
 
@@ -463,7 +462,6 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     detail.container.exitCode
   }
 
-  //todo: unused at present??
   def output(detail: JobDetail): String = {
     val events: Seq[OutputLogEvent] = cloudWatchLogsClient.getLogEvents(GetLogEventsRequest.builder
       // http://aws-java-sdk-javadoc.s3-website-us-west-2.amazonaws.com/latest/software/amazon/awssdk/services/batch/model/ContainerDetail.html#logStreamName--

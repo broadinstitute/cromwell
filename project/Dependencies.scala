@@ -54,7 +54,7 @@ object Dependencies {
   private val kindProjectorV = "0.9.9"
   private val kittensV = "2.0.0"
   private val liquibaseSlf4jV = "2.0.0"
-  private val liquibaseV = "3.8.8"
+  private val liquibaseV = "3.10.0"
   private val logbackV = "1.2.3"
   private val mariadbV = "2.4.2"
   private val metrics3ScalaV = "3.5.10" // https://github.com/erikvanoosten/metrics-scala/tree/f733e26#download-4x
@@ -86,7 +86,7 @@ object Dependencies {
   private val simulacrumV = "0.15.0"
   private val slf4jV = "1.7.25"
   private val slickCatsV = "0.9.0"
-  private val sqliteV = "3.30.1"
+  private val sqliteV = "3.32.3"
   private val testContainersScalaV = "0.35.2"
 
   /* If you're about to update our Slick version:

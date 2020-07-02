@@ -99,7 +99,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId, override val ioActor: Act
     // compiled for every single file.
     // "execution" should be optional, because its not created on AWS.
     // Also cacheCopy or attempt-<int> folders are optional.
-    lazy val truncateRegex = ".*/call-[^/]*/(cacheCopy/)?(attempt-[1-9]+/)?(execution/)?".r
+    lazy val truncateRegex = ".*/call-[^/]*/(shard-[0-9]+/)?(cacheCopy/)?(attempt-[0-9]+/)?(execution/)?".r
     val outputFileDestinations = rootAndFiles flatMap {
       case (workflowRoot, outputs) =>
         outputs map { output => 

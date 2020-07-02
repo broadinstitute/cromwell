@@ -10,6 +10,7 @@ import cromwell.engine.io.IoAttempts.EnhancedCromwellIoException
 import cromwell.engine.workflow.lifecycle.deletion.DeleteWorkflowFilesActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching._
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
+import cromwell.services.CallCaching.CallCachingEntryId
 import cromwell.services.EngineServicesStore
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.impl.FileDeletionStatus
@@ -48,7 +49,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
       }
       else {
         log.info(s"Root workflow ${rootWorkflowId.id} does not have any intermediate output files to delete.")
-        stopSelf()
+        respondAndStop(Nil, Nil, Nil)
       }
   }
 

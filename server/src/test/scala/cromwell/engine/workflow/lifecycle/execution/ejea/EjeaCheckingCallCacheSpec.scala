@@ -2,9 +2,9 @@ package cromwell.engine.workflow.lifecycle.execution.ejea
 
 import cromwell.core.callcaching.{CallCachingActivity, CallCachingOff, ReadCache}
 import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor.{CheckingCallCache, FetchingCachedOutputsFromDatabase, ResponsePendingData, RunningJob}
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, HashError}
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec.EnhancedTestEJEA
+import cromwell.services.CallCaching.CallCachingEntryId
 import org.scalatest.concurrent.Eventually
 
 import scala.util.control.NoStackTrace

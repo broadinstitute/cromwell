@@ -1,0 +1,696 @@
+{
+  "workflowName": "forkjoin",
+  "workflowProcessingEvents": [
+    {
+      "cromwellId": "cromid-65ffba4",
+      "description": "PickedUp",
+      "timestamp": "2020-04-22T20:47:53.884Z",
+      "cromwellVersion": "cromwell-version.conf-to-be-generated-by-sbt"
+    },
+    {
+      "cromwellId": "cromid-65ffba4",
+      "description": "Finished",
+      "timestamp": "2020-04-22T20:57:15.733Z",
+      "cromwellVersion": "cromwell-version.conf-to-be-generated-by-sbt"
+    }
+  ],
+  "metadataSource": "Unarchived",
+  "actualWorkflowLanguageVersion": "draft-2",
+  "submittedFiles": {
+    "workflow": "##\n# Checks a simple branch and join operation.\n# We start with a task, branch into two parallel executions, and then rejoin to calculate the result.\n##\n\ntask mkFile {\n  command {\n    for i in `seq 1 1000`\n    do\n      echo $i\n    done\n  }\n  output {\n    File numbers = stdout()\n  }\n  runtime {docker: \"ubuntu:latest\"}\n}\n\ntask grep {\n  String pattern\n  File in_file\n  command {\n    grep '${pattern}' ${in_file} | wc -l\n  }\n  output {\n    Int count = read_int(stdout())\n  }\n  runtime {docker: \"ubuntu:latest\"}\n}\n\ntask wc {\n  File in_file\n  command {\n    cat ${in_file} | wc -l\n  }\n  output {\n    Int count = read_int(stdout())\n  }\n  runtime {docker: \"ubuntu:latest\"}\n}\n\ntask join {\n  Int grepCount\n  Int wcCount\n  command {\n    expr ${wcCount} / ${grepCount}\n  }\n  output {\n    Int proportion = read_int(stdout())\n  }\n  runtime {docker: \"ubuntu:latest\"}\n}\n\nworkflow forkjoin {\n  call mkFile\n  call grep { input: in_file = mkFile.numbers }\n  call wc { input: in_file=mkFile.numbers }\n  call join { input: wcCount = wc.count, grepCount = grep.count }\n  output {\n    join.proportion\n  }\n}\n",
+    "root": "",
+    "options": "{\n  \"default_runtime_attributes\": {\n    \"docker\": \"ubuntu:latest\"\n  },\n  \"read_from_cache\": false\n}",
+    "inputs": "{\"forkjoin.grep.pattern\":\"10\"}",
+    "workflowUrl": "",
+    "labels": "{}"
+  },
+  "calls": {
+    "forkjoin.wc": [
+      {
+        "preemptible": false,
+        "executionStatus": "Done",
+        "stdout": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/forkjoin/6803d4ce-d912-41c6-be26-df1e483d6480/call-wc/wc-stdout.log",
+        "backendStatus": "Success",
+        "compressedDockerSize": 26726969,
+        "commandLine": "cat /cromwell_root/cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/forkjoin/6803d4ce-d912-41c6-be26-df1e483d6480/call-mkFile/stdout | wc -l",
+        "shardIndex": -1,
+        "jes": {
+          "endpointUrl": "https://genomics.googleapis.com/",
+          "machineType": "us-central1-b/n1-standard-1",
+          "googleProject": "broad-dsde-cromwell-dev",
+          "executionBucket": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci",
+          "zone": "us-central1-b",
+          "instanceName": "ggp-8579800723739687163"
+        },
+        "outputs": {
+          "count": 1000
+        },
+        "runtimeAttributes": {
+          "preemptible": "0",
+          "failOnStderr": "false",
+          "bootDiskSizeGb": "10",
+          "disks": "local-disk 10 SSD",
+          "continueOnReturnCode": "0",
+          "docker": "ubuntu:latest",
+          "maxRetries": "0",
+          "cpu": "1",
+          "cpuMin": "1",
+          "noAddress": "false",
+          "zones": "us-central1-b",
+          "memoryMin": "2 GB",
+          "memory": "2 GB"
+        },
+        "callCaching": {
+          "allowResultReuse": true,
+          "effectiveCallCachingMode": "WriteCache",
+          "hashes": {
+            "output count": "C4CA4238A0B923820DCC509A6F75849B",
+            "runtime attribute": {
+              "docker": "5E7DF90C2675647DEC5193F290917C18",
+              "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+              "failOnStderr": "68934A3E9455FA72420237EB05902327"
+            },
+            "output expression": {
+              "Int count": "93114C80C6826C071C28393FDD0D5F73"
+            },
+            "input count": "C4CA4238A0B923820DCC509A6F75849B",
+            "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+            "command template": "D357F0A427A86FF1FED64C347D4DFBAA",
+            "input": {
+              "File in_file": "4DC9uA=="
+            }
+          }
+        },
+        "inputs": {
+          "in_file": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/forkjoin/6803d4ce-d912-41c6-be26-df1e483d6480/call-mkFile/stdout"
+        },
+        "backendLabels": {
+          "wdl-task-name": "wc",
+          "cromwell-workflow-id": "cromwell-6803d4ce-d912-41c6-be26-df1e483d6480"
+        },
+        "returnCode": 0,
+        "labels": {
+          "wdl-task-name": "wc",
+          "cromwell-workflow-id": "cromwell-6803d4ce-d912-41c6-be26-df1e483d6480"
+        },
+        "jobId": "operations/EMj9o52aLhj78ZLxzunkiHcg0e2BmaAdKg9wcm9kdWN0aW9uUXVldWU",
+        "backend": "Papi",
+        "end": "2020-04-22T20:53:17.893Z",
+        "dockerImageUsed": "ubuntu@sha256:e5dd9dbb37df5b731a6688fa49f4003359f6f126958c9c928f937bec69836320",
+        "stderr": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/forkjoin/6803d4ce-d912-41c6-be26-df1e483d6480/call-wc/wc-stderr.log",
+        "callRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/forkjoin/6803d4ce-d912-41c6-be26-df1e483d6480/call-wc",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2020-04-22T20:51:39.000Z",
+            "description": "initializing VM",
+            "endTime": "2020-04-22T20:51:58.529Z"
+          },
+          {
+            "startTime": "2020-04-22T20:51:10.114Z",
+            "description": "WaitingForValueStore",
+            "endTime": "2020-04-22T20:51:10.115Z"
+          },
+          {
+            "startTime": "2020-04-22T20:53:16.898Z",
+            "description": "UpdatingJobStore",
+            "endTime": "2020-04-22T20:53:17.893Z"
+          },
+          {
+            "startTime": "2020-04-22T20:52:01.470Z",
+            "description": "pulling-image",
+            "endTime": "2020-04-22T20:53:03.760Z"
+          },
+          {
+            "startTime": "2020-04-22T20:51:10.115Z",
+            "description": "PreparingJob",
+            "endTime": "2020-04-22T20:51:10.122Z"
+          },
+          {
+            "startTime": "2020-04-22T20:53:05.708Z",
+            "description": "running-docker",
+            "endTime": "2020-04-22T20:53:07.329Z"
+          },
+          {
+            "startTime": "2020-04-22T20:53:11.514Z",
+            "description": "cromwell poll interval",
+            "endTime": "2020-04-22T20:53:15.625Z"
+          },
+          {
+            "startTime": "2020-04-22T20:51:58.529Z",
+            "description": "start",
+            "endTime": "2020-04-22T20:52:01.470Z"
+          },
+          {
+            "startTime": "2020-04-22T20:51:09.916Z",
+            "description": "Pending",
+            "endTime": "2020-04-22T20:51:09.917Z"
+          },
+          {
+            "startTime": "2020-04-22T20:53:11.514Z",
+            "description": "ok",
+            "endTime": "2020-04-22T20:53:11.514Z"
+          },
+          {
+            "startTime": "2020-04-22T20:53:07.329Z",
+            "description": "delocalizing-files",
+            "endTime": "2020-04-22T20:53:11.514Z"
+          },
+          {
+            "startTime": "2020-04-22T20:51:10.122Z",
+            "description": "RunningJob",
+            "endTime": "2020-04-22T20:51:33.000Z"
+          },
+          {
+            "startTime": "2020-04-22T20:53:15.625Z",
+            "description": "UpdatingCallCache",
+            "endTime": "2020-04-22T20:53:16.898Z"
+          },
+          {
+            "startTime": "2020-04-22T20:51:33.000Z",
+            "description": "waiting for quota",
+            "endTime": "2020-04-22T20:51:39.000Z"
+          },
+          {
+            "startTime": "2020-04-22T20:51:09.917Z",
+            "description": "RequestingExecutionToken",
+            "endTime": "2020-04-22T20:51:10.114Z"
+          },
+          {
+            "startTime": "2020-04-22T20:53:03.760Z",
+            "description": "localizing-files",
+            "endTime": "2020-04-22T20:53:05.708Z"
+          }
+        ],
+        "backendLogs": {
+          "log": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/forkjoin/6803d4ce-d912-41c6-be26-df1e483d6480/call-wc/wc.log"
+        },
+        "start": "2020-04-22T20:51:09.916Z"
+      }
+    ],
+    "forkjoin.mkFile": [
+      {
+        "preemptible": false,
+        "executionStatus": "Done",
+        "stdout": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/forkjoin/6803d4ce-d912-41c6-be26-df1e483d6480/call-mkFile/mkFile-stdout.log",
+        "backendStatus": "Success",
+        "compressedDockerSize": 26726969,
+        "commandLine": "for i in `seq 1 1000`\ndo\n  echo $i\ndone",
+        "shardIndex": -1,
+        "jes": {
+          "endpointUrl": "https://genomics.googleapis.com/",
+          "machineType": "us-central1-b/n1-standard-1",
+          "googleProject": "broad-dsde-cromwell-dev",
+          "executionBucket": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci",
+          "zone": "us-central1-b",
+          "instanceName": "ggp-16523913534194097095"
+        },
+        "outputs": {
+          "numbers": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/forkjoin/6803d4ce-d912-41c6-be26-df1e483d6480/call-mkFile/stdout"
+        },
+        "runtimeAttributes": {
+          "preemptible": "0",
+          "failOnStderr": "false",
+          "bootDiskSizeGb": "10",
+          "disks": "local-disk 10 SSD",
+          "continueOnReturnCode": "0",
+          "docker": "ubuntu:latest",
+          "maxRetries": "0",
+          "cpu": "1",
+          "cpuMin": "1",
+          "noAddress": "false",
+          "zones": "us-central1-b",
+          "memoryMin": "2 GB",
+          "memory": "2 GB"
+        },
+        "callCaching": {
+          "allowResultReuse": true,
+          "effectiveCallCachingMode": "WriteCache",
+          "hashes": {
+            "output count": "C4CA4238A0B923820DCC509A6F75849B",
+            "runtime attribute": {
+              "docker": "5E7DF90C2675647DEC5193F290917C18",
+              "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+              "failOnStderr": "68934A3E9455FA72420237EB05902327"
+            },
+            "output expression": {
+              "File numbers": "174A537D0C36799273C5E3539866FDF4"
+            },
+            "input count": "CFCD208495D565EF66E7DFF9F98764DA",
+            "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+            "command template": "22653C31522C78A881EEC11AA2F1D871"
+          }
+        },
+        "inputs": {},
+        "backendLabels": {
+          "wdl-task-name": "mkfile",
+          "cromwell-workflow-id": "cromwell-6803d4ce-d912-41c6-be26-df1e483d6480"
+        },
+        "returnCode": 0,
+        "labels": {
+          "wdl-task-name": "mkFile",
+          "cromwell-workflow-id": "cromwell-6803d4ce-d912-41c6-be26-df1e483d6480"
+        },
+        "jobId": "operations/EMLel52aLhjHt6LH_fmuqOUBINHtgZmgHSoPcHJvZHVjdGlvblF1ZXVl",
+        "backend": "Papi",
+        "end": "2020-04-22T20:51:08.889Z",
+        "dockerImageUsed": "ubuntu@sha256:e5dd9dbb37df5b731a6688fa49f4003359f6f126958c9c928f937bec69836320",
+        "stderr": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/forkjoin/6803d4ce-d912-41c6-be26-df1e483d6480/call-mkFile/mkFile-stderr.log",
+        "callRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/forkjoin/6803d4ce-d912-41c6-be26-df1e483d6480/call-mkFile",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2020-04-22T20:51:07.894Z",
+            "description": "UpdatingJobStore",
+            "endTime": "2020-04-22T20:51:08.889Z"
+          },
+          {
+            "startTime": "2020-04-22T20:47:57.129Z",
+            "description": "Pending",
+            "endTime": "2020-04-22T20:47:57.129Z"
+          },
+          {
+            "startTime": "2020-04-22T20:49:30.752Z",
+            "description": "pulling-image",
+            "endTime": "2020-04-22T20:50:05.612Z"
+          },
+          {
+            "startTime": "2020-04-22T20:50:12.579Z",
+            "description": "ok",
+            "endTime": "2020-04-22T20:50:13.000Z"
+          },
+          {
+            "startTime": "2020-04-22T20:47:57.129Z",
+            "description": "RequestingExecutionToken",
+            "endTime": "2020-04-22T20:47:58.099Z"
+          },
+          {
+            "startTime": "2020-04-22T20:50:06.653Z",
+            "description": "running-docker",
+            "endTime": "2020-04-22T20:50:08.340Z"
+          },
+          {
+            "startTime": "2020-04-22T20:47:58.100Z",
+            "description": "PreparingJob",
+            "endTime": "2020-04-22T20:47:58.110Z"
+          },
+          {
+            "startTime": "2020-04-22T20:48:19.000Z",
+            "description": "initializing VM",
+            "endTime": "2020-04-22T20:49:27.848Z"
+          },
+          {
+            "startTime": "2020-04-22T20:51:05.492Z",
+            "description": "UpdatingCallCache",
+            "endTime": "2020-04-22T20:51:07.894Z"
+          },
+          {
+            "startTime": "2020-04-22T20:47:58.099Z",
+            "description": "WaitingForValueStore",
+            "endTime": "2020-04-22T20:47:58.100Z"
+          },
+          {
+            "startTime": "2020-04-22T20:50:08.340Z",
+            "description": "delocalizing-files",
+            "endTime": "2020-04-22T20:50:12.579Z"
+          },
+          {
+            "startTime": "2020-04-22T20:50:05.612Z",
+            "description": "localizing-files",
+            "endTime": "2020-04-22T20:50:06.653Z"
+          },
+          {
+            "startTime": "2020-04-22T20:50:13.000Z",
+            "description": "cromwell poll interval",
+            "endTime": "2020-04-22T20:51:05.492Z"
+          },
+          {
+            "startTime": "2020-04-22T20:49:27.848Z",
+            "description": "start",
+            "endTime": "2020-04-22T20:49:30.752Z"
+          },
+          {
+            "startTime": "2020-04-22T20:47:58.110Z",
+            "description": "RunningJob",
+            "endTime": "2020-04-22T20:48:13.000Z"
+          },
+          {
+            "startTime": "2020-04-22T20:48:13.000Z",
+            "description": "waiting for quota",
+            "endTime": "2020-04-22T20:48:19.000Z"
+          }
+        ],
+        "backendLogs": {
+          "log": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/forkjoin/6803d4ce-d912-41c6-be26-df1e483d6480/call-mkFile/mkFile.log"
+        },
+        "start": "2020-04-22T20:47:57.129Z"
+      }
+    ],
+    "forkjoin.join": [
+      {
+        "preemptible": false,
+        "executionStatus": "Done",
+        "stdout": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/forkjoin/6803d4ce-d912-41c6-be26-df1e483d6480/call-join/join-stdout.log",
+        "backendStatus": "Success",
+        "compressedDockerSize": 26726969,
+        "commandLine": "expr 1000 / 21",
+        "shardIndex": -1,
+        "jes": {
+          "endpointUrl": "https://genomics.googleapis.com/",
+          "machineType": "us-central1-b/n1-standard-1",
+          "googleProject": "broad-dsde-cromwell-dev",
+          "executionBucket": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci",
+          "zone": "us-central1-b",
+          "instanceName": "ggp-17002370843040315057"
+        },
+        "outputs": {
+          "proportion": 47
+        },
+        "runtimeAttributes": {
+          "preemptible": "0",
+          "failOnStderr": "false",
+          "bootDiskSizeGb": "10",
+          "disks": "local-disk 10 SSD",
+          "continueOnReturnCode": "0",
+          "docker": "ubuntu:latest",
+          "maxRetries": "0",
+          "cpu": "1",
+          "cpuMin": "1",
+          "noAddress": "false",
+          "zones": "us-central1-b",
+          "memoryMin": "2 GB",
+          "memory": "2 GB"
+        },
+        "callCaching": {
+          "allowResultReuse": true,
+          "effectiveCallCachingMode": "WriteCache",
+          "hashes": {
+            "output count": "C4CA4238A0B923820DCC509A6F75849B",
+            "runtime attribute": {
+              "docker": "5E7DF90C2675647DEC5193F290917C18",
+              "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+              "failOnStderr": "68934A3E9455FA72420237EB05902327"
+            },
+            "output expression": {
+              "Int proportion": "93114C80C6826C071C28393FDD0D5F73"
+            },
+            "input count": "C81E728D9D4C2F636F067F89CC14862C",
+            "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+            "command template": "CB9A57DD4ABEC16E2C1284E5D31249CD",
+            "input": {
+              "Int wcCount": "A9B7BA70783B617E9998DC4DD82EB3C5",
+              "Int grepCount": "3C59DC048E8850243BE8079A5C74D079"
+            }
+          }
+        },
+        "inputs": {
+          "wcCount": 1000,
+          "grepCount": 21
+        },
+        "backendLabels": {
+          "wdl-task-name": "join",
+          "cromwell-workflow-id": "cromwell-6803d4ce-d912-41c6-be26-df1e483d6480"
+        },
+        "returnCode": 0,
+        "labels": {
+          "wdl-task-name": "join",
+          "cromwell-workflow-id": "cromwell-6803d4ce-d912-41c6-be26-df1e483d6480"
+        },
+        "jobId": "operations/EJGZrp2aLhix7YG3sMaj-usBINHtgZmgHSoPcHJvZHVjdGlvblF1ZXVl",
+        "backend": "Papi",
+        "end": "2020-04-22T20:57:11.901Z",
+        "dockerImageUsed": "ubuntu@sha256:e5dd9dbb37df5b731a6688fa49f4003359f6f126958c9c928f937bec69836320",
+        "stderr": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/forkjoin/6803d4ce-d912-41c6-be26-df1e483d6480/call-join/join-stderr.log",
+        "callRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/forkjoin/6803d4ce-d912-41c6-be26-df1e483d6480/call-join",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2020-04-22T20:57:10.805Z",
+            "description": "UpdatingCallCache",
+            "endTime": "2020-04-22T20:57:10.905Z"
+          },
+          {
+            "startTime": "2020-04-22T20:53:56.121Z",
+            "description": "PreparingJob",
+            "endTime": "2020-04-22T20:53:56.125Z"
+          },
+          {
+            "startTime": "2020-04-22T20:53:56.121Z",
+            "description": "WaitingForValueStore",
+            "endTime": "2020-04-22T20:53:56.121Z"
+          },
+          {
+            "startTime": "2020-04-22T20:57:10.905Z",
+            "description": "UpdatingJobStore",
+            "endTime": "2020-04-22T20:57:11.901Z"
+          },
+          {
+            "startTime": "2020-04-22T20:53:55.161Z",
+            "description": "RequestingExecutionToken",
+            "endTime": "2020-04-22T20:53:56.121Z"
+          },
+          {
+            "startTime": "2020-04-22T20:54:21.000Z",
+            "description": "waiting for quota",
+            "endTime": "2020-04-22T20:54:26.000Z"
+          },
+          {
+            "startTime": "2020-04-22T20:56:16.578Z",
+            "description": "cromwell poll interval",
+            "endTime": "2020-04-22T20:57:10.805Z"
+          },
+          {
+            "startTime": "2020-04-22T20:56:09.720Z",
+            "description": "localizing-files",
+            "endTime": "2020-04-22T20:56:10.680Z"
+          },
+          {
+            "startTime": "2020-04-22T20:56:10.680Z",
+            "description": "running-docker",
+            "endTime": "2020-04-22T20:56:12.392Z"
+          },
+          {
+            "startTime": "2020-04-22T20:56:12.392Z",
+            "description": "delocalizing-files",
+            "endTime": "2020-04-22T20:56:16.578Z"
+          },
+          {
+            "startTime": "2020-04-22T20:53:56.125Z",
+            "description": "RunningJob",
+            "endTime": "2020-04-22T20:54:21.000Z"
+          },
+          {
+            "startTime": "2020-04-22T20:54:47.338Z",
+            "description": "start",
+            "endTime": "2020-04-22T20:54:50.227Z"
+          },
+          {
+            "startTime": "2020-04-22T20:56:16.578Z",
+            "description": "ok",
+            "endTime": "2020-04-22T20:56:16.578Z"
+          },
+          {
+            "startTime": "2020-04-22T20:54:26.000Z",
+            "description": "initializing VM",
+            "endTime": "2020-04-22T20:54:47.338Z"
+          },
+          {
+            "startTime": "2020-04-22T20:54:50.227Z",
+            "description": "pulling-image",
+            "endTime": "2020-04-22T20:56:09.720Z"
+          },
+          {
+            "startTime": "2020-04-22T20:53:55.160Z",
+            "description": "Pending",
+            "endTime": "2020-04-22T20:53:55.161Z"
+          }
+        ],
+        "backendLogs": {
+          "log": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/forkjoin/6803d4ce-d912-41c6-be26-df1e483d6480/call-join/join.log"
+        },
+        "start": "2020-04-22T20:53:55.160Z"
+      }
+    ],
+    "forkjoin.grep": [
+      {
+        "preemptible": false,
+        "executionStatus": "Done",
+        "stdout": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/forkjoin/6803d4ce-d912-41c6-be26-df1e483d6480/call-grep/grep-stdout.log",
+        "backendStatus": "Success",
+        "compressedDockerSize": 26726969,
+        "commandLine": "grep '10' /cromwell_root/cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/forkjoin/6803d4ce-d912-41c6-be26-df1e483d6480/call-mkFile/stdout | wc -l",
+        "shardIndex": -1,
+        "jes": {
+          "endpointUrl": "https://genomics.googleapis.com/",
+          "machineType": "us-central1-b/n1-standard-1",
+          "googleProject": "broad-dsde-cromwell-dev",
+          "executionBucket": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci",
+          "zone": "us-central1-b",
+          "instanceName": "ggp-13734775585776215084"
+        },
+        "outputs": {
+          "count": 21
+        },
+        "runtimeAttributes": {
+          "preemptible": "0",
+          "failOnStderr": "false",
+          "bootDiskSizeGb": "10",
+          "disks": "local-disk 10 SSD",
+          "continueOnReturnCode": "0",
+          "docker": "ubuntu:latest",
+          "maxRetries": "0",
+          "cpu": "1",
+          "cpuMin": "1",
+          "noAddress": "false",
+          "zones": "us-central1-b",
+          "memoryMin": "2 GB",
+          "memory": "2 GB"
+        },
+        "callCaching": {
+          "allowResultReuse": true,
+          "effectiveCallCachingMode": "WriteCache",
+          "hashes": {
+            "output count": "C4CA4238A0B923820DCC509A6F75849B",
+            "runtime attribute": {
+              "docker": "5E7DF90C2675647DEC5193F290917C18",
+              "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+              "failOnStderr": "68934A3E9455FA72420237EB05902327"
+            },
+            "output expression": {
+              "Int count": "93114C80C6826C071C28393FDD0D5F73"
+            },
+            "input count": "C81E728D9D4C2F636F067F89CC14862C",
+            "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+            "command template": "B473D09A649FA4B1E4646844E5DE04C6",
+            "input": {
+              "File in_file": "4DC9uA==",
+              "String pattern": "C76A2042F6D6B4BABE36D71F036740E2"
+            }
+          }
+        },
+        "inputs": {
+          "in_file": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/forkjoin/6803d4ce-d912-41c6-be26-df1e483d6480/call-mkFile/stdout",
+          "pattern": "10"
+        },
+        "backendLabels": {
+          "wdl-task-name": "grep",
+          "cromwell-workflow-id": "cromwell-6803d4ce-d912-41c6-be26-df1e483d6480"
+        },
+        "returnCode": 0,
+        "labels": {
+          "wdl-task-name": "grep",
+          "cromwell-workflow-id": "cromwell-6803d4ce-d912-41c6-be26-df1e483d6480"
+        },
+        "jobId": "operations/EM79o52aLhisyJifgbTuzb4BINHtgZmgHSoPcHJvZHVjdGlvblF1ZXVl",
+        "backend": "Papi",
+        "end": "2020-04-22T20:53:53.899Z",
+        "dockerImageUsed": "ubuntu@sha256:e5dd9dbb37df5b731a6688fa49f4003359f6f126958c9c928f937bec69836320",
+        "stderr": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/forkjoin/6803d4ce-d912-41c6-be26-df1e483d6480/call-grep/grep-stderr.log",
+        "callRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/forkjoin/6803d4ce-d912-41c6-be26-df1e483d6480/call-grep",
+        "attempt": 1,
+        "executionEvents": [
+          {
+            "startTime": "2020-04-22T20:53:05.386Z",
+            "description": "localizing-files",
+            "endTime": "2020-04-22T20:53:07.131Z"
+          },
+          {
+            "startTime": "2020-04-22T20:52:01.380Z",
+            "description": "pulling-image",
+            "endTime": "2020-04-22T20:53:05.386Z"
+          },
+          {
+            "startTime": "2020-04-22T20:51:09.916Z",
+            "description": "Pending",
+            "endTime": "2020-04-22T20:51:09.916Z"
+          },
+          {
+            "startTime": "2020-04-22T20:53:50.682Z",
+            "description": "UpdatingCallCache",
+            "endTime": "2020-04-22T20:53:52.895Z"
+          },
+          {
+            "startTime": "2020-04-22T20:51:39.000Z",
+            "description": "initializing VM",
+            "endTime": "2020-04-22T20:51:58.506Z"
+          },
+          {
+            "startTime": "2020-04-22T20:53:13.000Z",
+            "description": "cromwell poll interval",
+            "endTime": "2020-04-22T20:53:50.682Z"
+          },
+          {
+            "startTime": "2020-04-22T20:51:58.506Z",
+            "description": "start",
+            "endTime": "2020-04-22T20:52:01.380Z"
+          },
+          {
+            "startTime": "2020-04-22T20:53:08.791Z",
+            "description": "delocalizing-files",
+            "endTime": "2020-04-22T20:53:12.878Z"
+          },
+          {
+            "startTime": "2020-04-22T20:51:10.115Z",
+            "description": "PreparingJob",
+            "endTime": "2020-04-22T20:51:10.126Z"
+          },
+          {
+            "startTime": "2020-04-22T20:51:09.916Z",
+            "description": "RequestingExecutionToken",
+            "endTime": "2020-04-22T20:51:10.114Z"
+          },
+          {
+            "startTime": "2020-04-22T20:51:33.000Z",
+            "description": "waiting for quota",
+            "endTime": "2020-04-22T20:51:39.000Z"
+          },
+          {
+            "startTime": "2020-04-22T20:53:12.878Z",
+            "description": "ok",
+            "endTime": "2020-04-22T20:53:13.000Z"
+          },
+          {
+            "startTime": "2020-04-22T20:51:10.114Z",
+            "description": "WaitingForValueStore",
+            "endTime": "2020-04-22T20:51:10.115Z"
+          },
+          {
+            "startTime": "2020-04-22T20:51:10.126Z",
+            "description": "RunningJob",
+            "endTime": "2020-04-22T20:51:33.000Z"
+          },
+          {
+            "startTime": "2020-04-22T20:53:52.895Z",
+            "description": "UpdatingJobStore",
+            "endTime": "2020-04-22T20:53:53.899Z"
+          },
+          {
+            "startTime": "2020-04-22T20:53:07.131Z",
+            "description": "running-docker",
+            "endTime": "2020-04-22T20:53:08.791Z"
+          }
+        ],
+        "backendLogs": {
+          "log": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/forkjoin/6803d4ce-d912-41c6-be26-df1e483d6480/call-grep/grep.log"
+        },
+        "start": "2020-04-22T20:51:09.916Z"
+      }
+    ]
+  },
+  "outputs": {
+    "forkjoin.join.proportion": 47
+  },
+  "workflowRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/forkjoin/6803d4ce-d912-41c6-be26-df1e483d6480/",
+  "actualWorkflowLanguage": "WDL",
+  "id": "6803d4ce-d912-41c6-be26-df1e483d6480",
+  "inputs": {
+    "forkjoin.grep.pattern": "10"
+  },
+  "labels": {
+    "cromwell-workflow-id": "cromwell-6803d4ce-d912-41c6-be26-df1e483d6480"
+  },
+  "submission": "2020-04-22T20:47:53.006Z",
+  "status": "Succeeded",
+  "end": "2020-04-22T20:57:15.733Z",
+  "start": "2020-04-22T20:47:53.885Z"
+}

@@ -48,7 +48,8 @@ final case class PipelinesApiRuntimeAttributes(cpu: Int Refined Positive,
                                                dockerImage: String,
                                                failOnStderr: Boolean,
                                                continueOnReturnCode: ContinueOnReturnCode,
-                                               noAddress: Boolean)
+                                               noAddress: Boolean,
+                                               googleLegacyMachineSelection: Boolean)
 
 object PipelinesApiRuntimeAttributes {
 
@@ -161,7 +162,7 @@ object PipelinesApiRuntimeAttributes {
     )
   }
 
-  def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, runtimeAttrsConfig: Option[Config]): PipelinesApiRuntimeAttributes = {
+  def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, runtimeAttrsConfig: Option[Config], googleLegacyMachineSelection: Boolean = false): PipelinesApiRuntimeAttributes = {
     val cpu: Int Refined Positive = RuntimeAttributesValidation.extract(cpuValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val cpuPlatform: Option[String] = RuntimeAttributesValidation.extractOption(cpuPlatformValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
 
@@ -207,7 +208,8 @@ object PipelinesApiRuntimeAttributes {
       docker,
       failOnStderr,
       continueOnReturnCode,
-      noAddress
+      noAddress,
+      googleLegacyMachineSelection
     )
   }
 }

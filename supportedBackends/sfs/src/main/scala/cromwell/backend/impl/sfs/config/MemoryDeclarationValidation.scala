@@ -31,7 +31,7 @@ import wom.values._
   * @param declaration The declaration used to create this memory validation.
   */
 class MemoryDeclarationValidation(declaration: Declaration, attributeName: String, attributeNamePrefix: String)
-  extends DeclarationValidation(declaration, MemoryValidation.instance(attributeName)) {
+  extends DeclarationValidation(declaration, MemoryValidation.instance(attributeName), usedInCallCachingOverride = Option(false)) {
 
   import MemoryDeclarationValidation._
 

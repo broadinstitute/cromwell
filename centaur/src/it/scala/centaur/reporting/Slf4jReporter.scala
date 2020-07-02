@@ -28,7 +28,13 @@ class Slf4jReporter(override val params: ErrorReporterParams)
           s"of ${testEnvironment.retries + 1} " +
           centaurTestException.workflowIdOption.map("with workflow id '" + _ + "' ").getOrElse("")
 
-      logger.error(message, centaurTestException)
+      // Only log fully on the final attempt. Otherwise log a shortened version
+      if (testEnvironment.attempt >= testEnvironment.retries) {
+        logger.error(message, centaurTestException)
+      } else {
+        val messageWithShortExceptionContext = message + " (" + centaurTestException.message.replace("\n", " ").take(150) + "[...])"
+        logger.warn(messageWithShortExceptionContext)
+      }
     }
   }
 }

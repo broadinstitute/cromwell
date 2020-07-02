@@ -5,20 +5,21 @@ import java.nio.file.StandardOpenOption
 import akka.actor.{ActorRef, LoggingFSM, Props}
 import cromwell.core.WorkflowId
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
-import cromwell.services.metadata.MetadataArchiveStatus.{ArchiveFailed, Archived}
+import cromwell.services.metadata.MetadataArchiveStatus.{ArchiveFailed, Archived, TooLargeToArchive}
 import cromwell.services.metadata.MetadataService.GetMetadataAction
 import cromwell.services.metadata.hybridcarbonite.CarboniteWorkerActor.CarboniteWorkflowComplete
 import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActor._
 import cromwell.services.metadata.impl.MetadataDatabaseAccess
 import cromwell.services.metadata.{MetadataArchiveStatus, MetadataQuery}
-import cromwell.services.{FailedMetadataJsonResponse, MetadataServicesStore, SuccessfulMetadataJsonResponse}
+import cromwell.services.{FailedMetadataJsonResponse, MetadataServicesStore, MetadataTooLargeException, SuccessfulMetadataJsonResponse}
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-class CarbonitingMetadataFreezerActor(carboniterConfig: HybridCarboniteConfig,
+class CarbonitingMetadataFreezerActor(freezingConfig: ActiveMetadataFreezingConfig,
+                                      carboniterConfig: HybridCarboniteConfig,
                                       carboniteWorkerActor: ActorRef,
                                       serviceRegistry: ActorRef,
                                       ioActor: ActorRef) extends
@@ -53,6 +54,10 @@ class CarbonitingMetadataFreezerActor(carboniterConfig: HybridCarboniteConfig,
         result => self ! CarbonitingFreezeResult(result)
       }
       goto(Freezing) using FreezingData(workflowId)
+
+    case Event(FailedMetadataJsonResponse(_, reason: MetadataTooLargeException), FetchingData(workflowId)) =>
+      log.error(reason, s"Carboniting failure: $reason. Marking as $TooLargeToArchive")
+      scheduleDatabaseUpdateAndAwaitResult(workflowId, TooLargeToArchive)
 
     case Event(FailedMetadataJsonResponse(_, reason), FetchingData(workflowId)) =>
       log.error(reason, s"Failed to fetch workflow $workflowId's metadata to archive. Marking as $ArchiveFailed")
@@ -109,8 +114,8 @@ class CarbonitingMetadataFreezerActor(carboniterConfig: HybridCarboniteConfig,
 
 object CarbonitingMetadataFreezerActor {
 
-  def props(carboniterConfig: HybridCarboniteConfig, carboniteWorkerActor: ActorRef, serviceRegistry: ActorRef, ioActor: ActorRef) =
-    Props(new CarbonitingMetadataFreezerActor(carboniterConfig, carboniteWorkerActor, serviceRegistry, ioActor))
+  def props(freezingConfig: ActiveMetadataFreezingConfig, carboniterConfig: HybridCarboniteConfig, carboniteWorkerActor: ActorRef, serviceRegistry: ActorRef, ioActor: ActorRef) =
+    Props(new CarbonitingMetadataFreezerActor(freezingConfig, carboniterConfig, carboniteWorkerActor, serviceRegistry, ioActor))
 
   sealed trait CarbonitingMetadataFreezingState
   case object Pending extends CarbonitingMetadataFreezingState

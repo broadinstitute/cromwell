@@ -2,12 +2,18 @@ package cromwell.services.metadata
 
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
+import MetadataArchiveStatus._
 
-sealed trait MetadataArchiveStatus
+sealed trait MetadataArchiveStatus {
+  final def isArchived = this match {
+    case Archived | ArchivedAndPurged => true
+    case ArchiveFailed | Unarchived | TooLargeToArchive => false
+  }
+}
 
 object MetadataArchiveStatus {
 
-  lazy val MetadataArchiveStatusValues = Seq(Unarchived, Archived, ArchivedAndPurged, ArchiveFailed)
+  lazy val MetadataArchiveStatusValues = Seq(Unarchived, Archived, ArchivedAndPurged, ArchiveFailed, TooLargeToArchive)
 
   def toDatabaseValue(status: MetadataArchiveStatus): Option[String] = status match {
     case Unarchived => None
@@ -28,5 +34,6 @@ object MetadataArchiveStatus {
   case object Archived extends MetadataArchiveStatus
   case object ArchivedAndPurged extends MetadataArchiveStatus // `purged` means that original data is deleted from METADATA_ENTRY table
   case object ArchiveFailed extends MetadataArchiveStatus
+  case object TooLargeToArchive extends MetadataArchiveStatus // would cause OOM on attempt to load metadata in memory
 
 }

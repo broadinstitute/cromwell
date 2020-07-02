@@ -11,9 +11,8 @@ object Dependencies {
   private val ammoniteOpsV = "1.6.3"
   private val apacheCommonNetV = "3.6"
   private val apacheHttpClientV = "4.5.7"
-  private val awsSdkV = "2.3.9"
+  private val awsSdkV = "2.10.71"
   private val betterFilesV = "3.8.0"
-  private val amazonAwsV = "1.11.500"
   private val catsEffectV = "2.0.0"
   private val catsV = "2.0.0"
   private val circeOpticsV = "0.12.0"
@@ -56,6 +55,7 @@ object Dependencies {
   private val liquibaseSlf4jV = "2.0.0"
   private val liquibaseV = "3.10.0"
   private val logbackV = "1.2.3"
+  private val lz4JavaV = "1.7.1"
   private val mariadbV = "2.4.2"
   private val metrics3ScalaV = "3.5.10" // https://github.com/erikvanoosten/metrics-scala/tree/f733e26#download-4x
   private val metrics3StatsdV = "4.2.0"
@@ -63,7 +63,7 @@ object Dependencies {
   private val mockserverNettyV = "5.5.1"
   private val mouseV = "0.23"
   private val mysqlV = "8.0.15"
-  private val nettyV = "4.1.33.Final"
+  private val nettyV = "4.1.46.Final"
   private val owlApiV = "5.1.9"
   private val paradiseV = "2.1.1"
   private val pegdownV = "1.6.0"
@@ -281,13 +281,13 @@ object Dependencies {
 
   private val awsCloudDependencies = List(
     "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonV,
-    "com.amazonaws" % "aws-java-sdk-s3" % amazonAwsV
   ) ++ s3fsDependencies ++ List(
     "batch",
     "core",
     "cloudwatchlogs",
     "s3",
     "sts",
+    "ecs"
   ).map(artifactName => "software.amazon.awssdk" % artifactName % awsSdkV)
 
   private val googleCloudDependencies = List(
@@ -528,6 +528,9 @@ object Dependencies {
   val bcsBackendDependencies = commonDependencies ++ refinedTypeDependenciesList ++ aliyunBatchComputeDependencies
   val tesBackendDependencies = akkaHttpDependencies
   val sparkBackendDependencies = akkaHttpDependencies
+  val sfsBackendDependencies = List (
+    "org.lz4" % "lz4-java" % lz4JavaV
+  )
 
   val testDependencies = List(
     "org.scalatest" %% "scalatest" % scalatestV,
@@ -581,6 +584,7 @@ object Dependencies {
       ossFileSystemDependencies ++
       perfDependencies ++
       serverDependencies ++
+      sfsBackendDependencies ++
       sparkBackendDependencies ++
       spiDependencies ++
       spiUtilDependencies ++

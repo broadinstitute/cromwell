@@ -7,6 +7,7 @@ import akka.stream._
 import akka.stream.scaladsl.{Flow, GraphDSL, MergePreferred, Partition}
 import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
+import com.google.api.services.storage.Storage
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.engine.io.IoActor._
@@ -48,7 +49,8 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     }
   }
 
-  private val batch: BatchRequest = new BatchRequest(GcsStorage.HttpTransport, httpRequestInitializer)
+  val stupidJavaThing: Storage = new com.google.api.services.storage.Storage(GcsStorage.HttpTransport, com.google.api.client.json.jackson2.JacksonFactory.getDefaultInstance, httpRequestInitializer)
+  private val batch: BatchRequest = stupidJavaThing.batch()
 
   val flow = GraphDSL.create() { implicit builder =>
     import GraphDSL.Implicits._

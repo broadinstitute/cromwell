@@ -316,8 +316,8 @@ object LiquibaseComparisonSpec {
   private val HsqldbTypeClob = ColumnType("CLOB", Option(1073741824))
   private val HsqldbTypeInteger = ColumnType("INTEGER", Option(32))
   private val HsqldbTypeTimestamp = ColumnType("TIMESTAMP")
-  private val HsqldbTypeVarchar = ColumnType("VARCHAR", Option(255))
-
+  private val HsqldbTypeVarchar255 = ColumnType("VARCHAR", Option(255))
+  private val HsqldbTypeVarchar100 = ColumnType("VARCHAR", Option(100))
   // Nothing to map as the original is also HSQLDB
   private val HsqldbColumnMapping = ColumnMapping()
 
@@ -362,7 +362,8 @@ object LiquibaseComparisonSpec {
         HsqldbTypeClob -> ColumnType("TEXT", Option(2000000000)),
         HsqldbTypeInteger -> ColumnType("INTEGER", Option(2000000000)),
         HsqldbTypeTimestamp -> ColumnType("TEXT", Option(2000000000)),
-        HsqldbTypeVarchar -> ColumnType("TEXT", Option(2000000000))
+        HsqldbTypeVarchar255 -> ColumnType("TEXT", Option(2000000000)),
+        HsqldbTypeVarchar100 -> ColumnType("TEXT", Option(2000000000))
       )
     )
 

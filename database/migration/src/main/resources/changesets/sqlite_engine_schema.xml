@@ -156,7 +156,7 @@
             <column name="JOB_ATTEMPT" type="INTEGER">
                 <constraints nullable="false" uniqueConstraintName="UC_JOB_STORE_ENTRY_WEU_CFQN_JI_JA" unique="true"/>
             </column>
-            <column name="JOB_SUCCESSFUL" type="INTEGER">
+            <column name="JOB_SUCCESSFUL" type="BOOLEAN">
                 <constraints nullable="false"/>
             </column>
             <column name="RETURN_CODE" type="INTEGER"/>

@@ -162,17 +162,17 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
 
   private val debugExitConfigPath = "danger.debug.only.exit-on-rollback-exception-with-status-code"
   private val debugExitStatusCodeOption = ConfigFactory.load.getAs[Int](debugExitConfigPath)
-
-  protected[this] def runTransaction[R](action: DBIO[R],
-                                        isolationLevel: TransactionIsolation = TransactionIsolation.RepeatableRead,
-                                        timeout: Duration = Duration.Inf): Future[R] = {
-    dataAccess.driver match {
-      // SQLite supports only TRANSACTION_SERIALIZABLE and TRANSACTION_READ_UNCOMMITTED
-      case SQLiteProfile => runActionInternal(action.transactionally, timeout = timeout)
-      case _ => runActionInternal(action.transactionally.withTransactionIsolation(isolationLevel), timeout = timeout)
-    }
+  private val defaultTransactionIsolation = dataAccess.driver match {
+    // SQLite supports only TRANSACTION_SERIALIZABLE and TRANSACTION_READ_UNCOMMITTED
+    case SQLiteProfile => TransactionIsolation.ReadUncommitted
+    case _ => TransactionIsolation.RepeatableRead
   }
 
+  protected[this] def runTransaction[R](action: DBIO[R],
+                                        isolationLevel: TransactionIsolation = defaultTransactionIsolation,
+                                        timeout: Duration = Duration.Inf): Future[R] = {
+    runActionInternal(action.transactionally.withTransactionIsolation(isolationLevel), timeout = timeout)
+  }
   /* Note that this is only appropriate for actions that do not involve Blob
    * or Clob fields in Postgres, since large object support requires running
    * transactionally.  Use runLobAction instead, which will still run in

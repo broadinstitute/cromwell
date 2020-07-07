@@ -21,14 +21,16 @@ import scala.concurrent.duration.Duration
 object DatabaseTestKit extends StrictLogging {
 
   private lazy val hsqldbDatabaseConfig = ConfigFactory.load().getConfig("database")
-  private lazy val sqliteDatabaseConfig = ConfigFactory.parseString(
-    s"""|profile = "slick.jdbc.SQLiteProfile$$"
-        |db {
-        |  driver = "org.sqlite.JDBC"
-        |  url = "jdbc:sqlite::memory:?foreign_keys=true"
-        |}
-        |""".stripMargin)
-
+  private lazy val sqliteDatabaseConfig = {
+    val tmpDb = java.io.File.createTempFile("cromwell", ".sqlite")
+    ConfigFactory.parseString(
+      s"""|profile = "slick.jdbc.SQLiteProfile$$"
+          |db {
+          |  driver = "org.sqlite.JDBC"
+          |  url = "jdbc:sqlite:${tmpDb.getAbsolutePath}?foreign_keys=true"
+          |}
+          |""".stripMargin)
+  }
   /**
     * Lends a connection to a block of code.
     *

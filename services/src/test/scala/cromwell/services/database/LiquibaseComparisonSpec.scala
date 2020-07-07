@@ -226,7 +226,11 @@ class LiquibaseComparisonSpec extends FlatSpec with Matchers with ScalaFutures {
 object LiquibaseComparisonSpec {
   private def get[T <: DatabaseObject : ClassTag : Ordering](databaseSnapshot: DatabaseSnapshot): Seq[T] = {
     val databaseObjectClass = classTag[T].runtimeClass.asInstanceOf[Class[T]]
-    databaseSnapshot.get(databaseObjectClass).asScala.toSeq.sorted
+    try {
+      databaseSnapshot.get(databaseObjectClass).asScala.toSeq.sorted
+    } catch {
+      case _: NullPointerException => Array.empty[T]
+    }
   }
 
   private val DefaultNullBoolean = Boolean.box(false)

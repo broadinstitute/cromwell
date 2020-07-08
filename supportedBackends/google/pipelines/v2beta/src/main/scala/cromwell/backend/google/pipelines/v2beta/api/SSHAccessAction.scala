@@ -19,8 +19,7 @@ trait SSHAccessAction {
   }
 
   private def sshAccessAction(mounts: List[Mount]): List[Action] = {
-    val port22: Integer = 22  // Explicitly create java.lang.Integer
-    val ports = Map("22" -> port22)
+    val ports = Map("22" -> new Integer(22))
 
     val sshAction = ActionBuilder.withImage("gcr.io/cloud-genomics-pipelines/tools")
       .setEntrypoint("ssh-server")

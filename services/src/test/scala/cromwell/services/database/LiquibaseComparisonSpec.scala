@@ -3,7 +3,7 @@ package cromwell.services.database
 import com.dimafeng.testcontainers.Container
 import cromwell.core.Tags._
 import cromwell.database.slick.SlickDatabase
-import cromwell.services.database.LiquibaseComparisonSpec._
+import cromwell.services.database.LiquibaseComparisonSpec.{ColumnType, _}
 import cromwell.services.database.LiquibaseOrdering._
 import liquibase.snapshot.DatabaseSnapshot
 import liquibase.statement.DatabaseFunction
@@ -316,8 +316,7 @@ object LiquibaseComparisonSpec {
   private val HsqldbTypeClob = ColumnType("CLOB", Option(1073741824))
   private val HsqldbTypeInteger = ColumnType("INTEGER", Option(32))
   private val HsqldbTypeTimestamp = ColumnType("TIMESTAMP")
-  private val HsqldbTypeVarchar255 = ColumnType("VARCHAR", Option(255))
-  private val HsqldbTypeVarchar100 = ColumnType("VARCHAR", Option(100))
+
   // Nothing to map as the original is also HSQLDB
   private val HsqldbColumnMapping = ColumnMapping()
 
@@ -353,18 +352,29 @@ object LiquibaseComparisonSpec {
       ),
     )
 
+  private val SQLiteTypeText = ColumnType("TEXT", Option(2000000000))
+  private val SQLiteTypeInteger = ColumnType("INTEGER", Option(2000000000))
   private val SQLiteColumnMapping =
     ColumnMapping(
       typeMapping = Map(
-        HsqldbTypeBigInt -> ColumnType("INTEGER", Option(2000000000)),
+        HsqldbTypeBigInt -> SQLiteTypeInteger,
         HsqldbTypeBlob -> ColumnType("BLOB", Option(2000000000)),
         HsqldbTypeBoolean -> ColumnType("BOOLEAN", Option(2000000000)),
-        HsqldbTypeClob -> ColumnType("TEXT", Option(2000000000)),
-        HsqldbTypeInteger -> ColumnType("INTEGER", Option(2000000000)),
-        HsqldbTypeTimestamp -> ColumnType("TEXT", Option(2000000000)),
-        HsqldbTypeVarchar255 -> ColumnType("TEXT", Option(2000000000)),
-        HsqldbTypeVarchar100 -> ColumnType("TEXT", Option(2000000000))
-      )
+        HsqldbTypeClob -> SQLiteTypeText,
+        HsqldbTypeInteger -> SQLiteTypeInteger,
+        HsqldbTypeTimestamp -> SQLiteTypeText,
+        ColumnType("VARCHAR", Option(10))-> SQLiteTypeText,
+        ColumnType("VARCHAR", Option(20))-> SQLiteTypeText,
+        ColumnType("VARCHAR", Option(30))-> SQLiteTypeText,
+        ColumnType("VARCHAR", Option(50))-> SQLiteTypeText,
+        ColumnType("VARCHAR", Option(100))-> SQLiteTypeText,
+        ColumnType("VARCHAR", Option(255)) -> SQLiteTypeText,
+        ColumnType("VARCHAR", Option(2000)) -> SQLiteTypeText,
+      ),
+      defaultMapping = Map(
+        ColumnDefault(HsqldbTypeBoolean, Boolean.box(true)) ->
+          ColumnDefault(ColumnType("BOOLEAN", Option(2000000000)), Int.box(1)),
+      ),
     )
 
   /**

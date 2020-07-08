@@ -50,8 +50,10 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     }
   }
 
-  val stupidJavaThing: Storage = new Storage(GcsStorage.HttpTransport, JacksonFactory.getDefaultInstance, httpRequestInitializer)
-  private val batch: BatchRequest = stupidJavaThing.batch()
+  private val batchRequest: BatchRequest = {
+    val storage = new Storage(GcsStorage.HttpTransport, JacksonFactory.getDefaultInstance, httpRequestInitializer)
+    storage.batch()
+  }
 
   val flow = GraphDSL.create() { implicit builder =>
     import GraphDSL.Implicits._

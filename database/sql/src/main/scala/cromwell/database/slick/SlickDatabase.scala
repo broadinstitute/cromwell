@@ -162,17 +162,33 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
 
   private val debugExitConfigPath = "danger.debug.only.exit-on-rollback-exception-with-status-code"
   private val debugExitStatusCodeOption = ConfigFactory.load.getAs[Int](debugExitConfigPath)
-  private val defaultTransactionIsolation = dataAccess.driver match {
+
+  private val sqliteTransactionIsolationMap: Map[TransactionIsolation, TransactionIsolation] = {
     // SQLite supports only TRANSACTION_SERIALIZABLE and TRANSACTION_READ_UNCOMMITTED
-    case SQLiteProfile => TransactionIsolation.ReadUncommitted
-    case _ => TransactionIsolation.RepeatableRead
+    Map(
+      TransactionIsolation.RepeatableRead -> TransactionIsolation.Serializable,
+      TransactionIsolation.ReadUncommitted -> TransactionIsolation.ReadUncommitted,
+      TransactionIsolation.ReadCommitted -> TransactionIsolation.Serializable,
+      TransactionIsolation.Serializable -> TransactionIsolation.Serializable
+    )
+  }
+
+  private val isSQLite: Boolean = {
+    dataAccess.driver match {
+      case _: SQLiteProfile => true
+      case _ => false
+    }
   }
 
   protected[this] def runTransaction[R](action: DBIO[R],
-                                        isolationLevel: TransactionIsolation = defaultTransactionIsolation,
+                                        isolationLevel: TransactionIsolation = TransactionIsolation.RepeatableRead,
                                         timeout: Duration = Duration.Inf): Future[R] = {
-    runActionInternal(action.transactionally.withTransactionIsolation(isolationLevel), timeout = timeout)
+    val isoLevel: TransactionIsolation = if (isSQLite) {
+      sqliteTransactionIsolationMap.getOrElse(isolationLevel, isolationLevel)
+    } else isolationLevel
+    runActionInternal(action.transactionally.withTransactionIsolation(isoLevel), timeout = timeout)
   }
+
   /* Note that this is only appropriate for actions that do not involve Blob
    * or Clob fields in Postgres, since large object support requires running
    * transactionally.  Use runLobAction instead, which will still run in

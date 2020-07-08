@@ -84,7 +84,6 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
       requestDockerHash(request, data)
     case Event(dockerResponse: DockerInfoSuccessResponse, data) =>
       persistDockerHash(dockerResponse, data)
-      stay()
     case Event(dockerResponse: DockerHashFailureResponse, data) =>
       handleLookupFailure(dockerResponse, data)
     case Event(DockerHashStoreSuccess(response), data) =>
@@ -200,12 +199,20 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
     respondToAllRequests(reason, data, WorkflowDockerTerminalFailure.apply)
   }
 
-  private def persistDockerHash(response: DockerInfoSuccessResponse, data: WorkflowDockerLookupActorData): Unit = {
-    val dockerHashStoreEntry = DockerHashStoreEntry(workflowId.toString, response.request.dockerImageID.fullName, response.dockerInformation.dockerHash.algorithmAndHash, response.dockerInformation.dockerCompressedSize.map(_.compressedSize))
-    databaseInterface.addDockerHashStoreEntry(dockerHashStoreEntry) onComplete {
-      case Success(_) => self ! DockerHashStoreSuccess(response)
-      case Failure(ex) => self ! DockerHashStoreFailure(response.request, ex)
+  private def persistDockerHash(response: DockerInfoSuccessResponse, data: WorkflowDockerLookupActorData): State = {
+    // BA-6495 if there are actors awaiting for this data, then proceed, otherwise - don't bother to persist
+    if (data.hashRequests.contains(response.request.dockerImageID)) {
+      val dockerHashStoreEntry = DockerHashStoreEntry(workflowId.toString, response.request.dockerImageID.fullName, response.dockerInformation.dockerHash.algorithmAndHash, response.dockerInformation.dockerCompressedSize.map(_.compressedSize))
+      databaseInterface.addDockerHashStoreEntry(dockerHashStoreEntry) onComplete {
+        case Success(_) => self ! DockerHashStoreSuccess(response)
+        case Failure(ex) => self ! DockerHashStoreFailure(response.request, ex)
+      }
+    } else {
+      log.debug(s"Unable to find requesters for succeeded lookup of Docker image " +
+        s"'${response.request.dockerImageID}'. Most likely reason is that requesters have already been cleaned out " +
+        s"earlier by the timeout.")
     }
+    stay()
   }
 
   private def handleLookupFailure(dockerResponse: DockerHashFailureResponse, data: WorkflowDockerLookupActorData): State = {
@@ -219,8 +226,9 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
         val updatedData = data.copy(hashRequests = data.hashRequests - request.dockerImageID)
         stay using updatedData
       case None =>
-        val message = s"Unable to find requesters for failed lookup of Docker image '${request.dockerImageID}'"
-        fail(new RuntimeException(message, failureResponse.reason))
+        log.debug(s"Unable to find requesters for failed lookup of Docker image '${request.dockerImageID}'. " +
+          s"Most likely reason is that requesters have already been cleaned out earlier by the timeout.")
+        stay()
     }
   }
 
@@ -231,8 +239,10 @@ class WorkflowDockerLookupActor private[workflow](workflowId: WorkflowId,
         // Remove these requesters from the collection of those awaiting hashes.
         stay() using data.copy(hashRequests = data.hashRequests - dockerHashRequest.dockerImageID)
       case None =>
-        val message = s"Unable to find requesters for failed store of hash for Docker image '${dockerHashRequest.dockerImageID}'"
-        fail(new RuntimeException(message, reason))
+        log.debug(s"Unable to find requesters for failed store of hash for Docker image " +
+          s"'${dockerHashRequest.dockerImageID}'. Most likely reason is that requesters have already been cleaned " +
+          s"out earlier by the timeout.")
+        stay()
     }
   }
 
@@ -285,7 +295,7 @@ object WorkflowDockerLookupActor {
   def props(workflowId: WorkflowId,
             dockerHashingActor: ActorRef,
             isRestart: Boolean,
-            databaseInterface: EngineSqlDatabase = EngineServicesStore.engineDatabaseInterface) = {
+            databaseInterface: EngineSqlDatabase = EngineServicesStore.engineDatabaseInterface): Props = {
     Props(new WorkflowDockerLookupActor(workflowId, dockerHashingActor, isRestart, databaseInterface)).withDispatcher(EngineDispatcher)
   }
 

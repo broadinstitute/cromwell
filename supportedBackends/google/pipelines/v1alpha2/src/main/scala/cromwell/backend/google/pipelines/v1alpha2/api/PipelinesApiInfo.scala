@@ -41,7 +41,6 @@ trait PipelineInfoBuilder {
       setGpu(resources, runtimeAttributes)
   }
 
-//  def build(commandLine: String, runtimeAttributes: PipelinesApiRuntimeAttributes, docker: String): PipelineInfo
   def build(commandLine: String, createPipelineParameters: CreatePipelineParameters): PipelineInfo
 }
 

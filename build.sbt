@@ -150,7 +150,7 @@ lazy val centaur = project
   .dependsOn(womtool)
 
 lazy val services = project
-  .withLibrarySettings("cromwell-services")
+  .withLibrarySettings("cromwell-services", servicesDependencies)
   .dependsOn(databaseSql)
   .dependsOn(databaseMigration)
   .dependsOn(cloudSupport)

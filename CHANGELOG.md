@@ -8,6 +8,10 @@ Information on how to properly use the Singularity cache with Cromwell is now
 provided in the [Cromwell Singularity documentation](
 https://cromwell.readthedocs.io/en/stable/tutorials/Containers/#singularity).
 
+### Google Library Upgrade [(#5565)](https://github.com/broadinstitute/cromwell/pull/5565)
+
+Previous versions of Cromwell use Google libraries that have been deprecated and will [stop working in August 2020](https://developers.googleblog.com/2018/03/discontinuing-support-for-json-rpc-and.html). This release adopts updated libraries to ensure continued smooth operation. No user action is required aside from upgrading Cromwell.   
+
 ### Bug fixes
 
 * Fixed a bug that required Cromwell to be restarted in order to pick up DNS changes.

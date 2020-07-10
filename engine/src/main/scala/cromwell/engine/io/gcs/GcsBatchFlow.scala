@@ -39,7 +39,7 @@ object GcsBatchFlow {
   }
 }
 
-class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandContext[_] => Throwable => Unit)(implicit ec: ExecutionContext) {
+class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandContext[_] => Throwable => Unit, applicationName: String)(implicit ec: ExecutionContext) {
 
   // Does not carry any authentication, assumes all underlying requests are properly authenticated
   private val httpRequestInitializer = new HttpRequestInitializer {
@@ -51,8 +51,13 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
   }
 
   private val batchRequest: BatchRequest = {
-    val storage = new Storage(GcsStorage.HttpTransport, JacksonFactory.getDefaultInstance, httpRequestInitializer)
-    storage.batch()
+    val storage = new Storage.Builder(
+      GcsStorage.HttpTransport,
+      JacksonFactory.getDefaultInstance,
+      httpRequestInitializer
+    ).setApplicationName(applicationName)
+
+    storage.build().batch()
   }
 
   val flow = GraphDSL.create() { implicit builder =>

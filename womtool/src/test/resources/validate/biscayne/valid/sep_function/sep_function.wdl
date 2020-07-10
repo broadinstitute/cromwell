@@ -1,5 +1,10 @@
 version development
 
+workflow SepWorkflow {
+  input {}
+  call SepTestInInterpolatorBlock
+}
+
 task SepTestInInterpolatorBlock {
     input {
         Array[String] inp = ["value1", "value2", "value3"]

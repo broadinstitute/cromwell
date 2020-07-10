@@ -178,7 +178,7 @@ class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
     val str = """ sep(" ", prefix("-i ", ["a", "b", "c"])) """
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
-    val expectedString: WomString = WomString("a b c")
+    val expectedString: WomString = WomString("-i a -i b -i c")
 
     expr.shouldBeValidPF {
       case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedString, Seq.empty)

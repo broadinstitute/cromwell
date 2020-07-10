@@ -632,7 +632,7 @@ object EngineFunctionEvaluators {
     }
   }
 
-  private def processTwoValidatedValues[A <: WomValue, B <: WomValue, R <: WomValue](arg1: ErrorOr[EvaluatedValue[_ <: WomValue]], arg2: ErrorOr[EvaluatedValue[_ <: WomValue]])
+  def processTwoValidatedValues[A <: WomValue, B <: WomValue, R <: WomValue](arg1: ErrorOr[EvaluatedValue[_ <: WomValue]], arg2: ErrorOr[EvaluatedValue[_ <: WomValue]])
                                                                      (f: (A, B) => ErrorOr[EvaluatedValue[R]])
                                                                      (implicit coercerA: WomTypeCoercer[A],
                                                                       coercerB: WomTypeCoercer[B]): ErrorOr[EvaluatedValue[R]] = {

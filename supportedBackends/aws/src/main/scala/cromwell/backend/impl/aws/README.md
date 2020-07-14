@@ -11,7 +11,9 @@ backend originally, then modified to work with AWS.
 Fundamentally, Google Pipelines API (a.k.a. PAPI) works pretty differently from
 AWS Batch. In Pipelines, all the infrastructure is completely managed by Google,
 while AWS Batch exposes that infrastructure to a large degree so that customers
-can fine tune it as necessary.
+can fine tune it as necessary. An implementation that uses Fargate might be an 
+alternative that is closer or an implementation that uses Step Functions although
+that would be a separate backend.
 
 From a Cromwell perspective, this means that unlike Pipelines, where
 infrastructure details are defined in the configuration or the WDL, in AWS
@@ -34,10 +36,10 @@ Because AWS Batch is so different from PAPI, those familiar only with PAPI
 would be best off with an overview of AWS Batch. If you are familiar with
 the workings of Batch, feel free to skip this section, and move on.
 
-AWS Batch fundamentally is a service to allow batch jobs to run easily and
+[AWS Batch](https://aws.amazon.com/batch/) fundamentally is a service to allow batch jobs to run easily and
 efficiently. To use it effectively, however, you need to understand its own
 technical stack. To create a job, you need a "Job Queue". That job queue allows
-jobs to be scheduled onto one of several "Compte Environments". This can
+jobs to be scheduled onto one or more "Compute Environments". This can
 be managed through AWS Batch, but when AWS Batch sets up a compute environment,
 it's simply setting up an Elastic Container Service (ECS) Cluster. The ECS
 cluster, in turn is just a few managed CloudFormation templates, that is
@@ -56,9 +58,16 @@ will be discussed later. These are:
 * [AWS Batch Limits](https://docs.aws.amazon.com/batch/latest/userguide/service_limits.html)
 * [8k container overrides limit.](https://docs.aws.amazon.com/cli/latest/reference/ecs/run-task.html)
 
-ECS will run a special Amazon Machine Image (AMI) with a modified ecs agent,
-a process for automatically expanding the Elastic Block Store (EBS) volumes,
-and a proxy container. This will be discussed in more detail later.
+The ECS workers used by the AWS Batch backend can be any instance type and should
+be based on an AMI running the ECS agent and docker. An ECS optimized AMI is recommended.
+An EC2 LaunchTemplate is used to provide some additional "on first boot" configuration that:
+1. Installs AWS CLI v2,
+1. Installs a script to mount an EBS as a `btrfs` file system that will auto-expand,
+1. Configures docker to use that file system so that the "filesystem" of the container
+will auto-expand,
+1. Installs a `fetch_and_run.sh` script that allows the container to download 
+generated shell scripts from S3 that contain the instructions of the workflow
+task 
 
 ```text
                   +-------------+
@@ -136,21 +145,19 @@ arrows represent the flow of job submission.
                +---------------+                 +-------------------------+
 ```
 
-1. The AwsBatchBackendLifecycleActorFactory class is configured by the user
+1. The `AwsBatchBackendLifecycleActorFactory` class is configured by the user
    as the Cromwell backend. This factory provides an object from the
-   AwsBatchAsyncBackendJobExecutionActor class to create and manage the job.
-2. The AwsBatchAsyncBackendJobExecutionActor creates and manages the job.
-   The job itself is encapsulated by the functionality in AwsBatchJob.
-3. AwsBatchJob is the primary interface to AWS Batch. It creates the
-   necessary AwsBatchJobDefinition, then submits the job using the SubmitJob
+   `AwsBatchAsyncBackendJobExecutionActor` class to create and manage the job.
+2. The `AwsBatchAsyncBackendJobExecutionActor` creates and manages the job.
+   The job itself is encapsulated by the functionality in `AwsBatchJob`.
+3. `AwsBatchJob` is the primary interface to AWS Batch. It creates the
+   necessary `AwsBatchJobDefinition`, then submits the job using the SubmitJob
    API.
-4. AwsBatchJobDefinition is responsible for the creation of the job definition.
-   In AWS Batch, every job must have a definition. In the current backend,
-   the job definition is a 1:1 with a job. Note that the job definition
-   can be overridden by the SubmitJob, but in testing, container overrides
-   have become problematic, possibly due to long environment variable values.
-   Partly for this reason, all configuration information is stored in the
-   Job Definition.
+4. `AwsBatchJobDefinition` is responsible for the creation of the job definition.
+   In AWS Batch, every job must have a definition. Note that the job definition
+   can be overridden by the `SubmitJob`, so the `JobDefinition` contains core information such
+   as the docker image type while the `SubmitJob` contains details that are more related to
+   the actual task.
 
 AWS Batch Job Instantiation
 ---------------------------
@@ -179,65 +186,39 @@ AWS Batch Job Instantiation
                 |             |
                 |  ECS Agent  |
                 |             |
-                ++-----------++
-                 |           |
-              Creates     Launches/
-                 |        Monitors
-                 |           |
-+----------------v-+     +---v----------------+
-|                  |     |                    |
-|  Task Container  |     |   Proxy Container  |
-|                  |     |                    |
-+--------^---------+     +---------+----------+
-         |                         |
-         |                         |
-         |                         |
-         +---------Manages---------+
+                +------+------+
+                       |
+           Creates, Launches and Monitors
+                       |
+              +--------v---------+ 
+              |                  |
+              |  Task Container  |
+              |                  |
+              +------------------+
+
 ```
 
 When a Cromwell task begins, the Cromwell backend will call the SubmitJob
-API of AWS Batch. From there, the backend will call the AWS Batch DescribeJobs
+API of AWS Batch. From there, the backend will call the AWS Batch `DescribeJobs`
 API to provide status to the Cromwell engine as requested.
 
 Once the job is Submitted in AWS Batch, one of the EC2 instances assigned
 to the compute environment (a.k.a. ECS Cluster) with a running agent will
 pick up the Cromwell Job/AWS Batch Job/ECS Task and run it. Importantly,
-AWS Batch calls ECS' RunTask API when submitting the job. It uses the
+AWS Batch calls ECS' `RunTask` API when submitting the job. It uses the
 task definition, and overrides both the command text and the environment
 variables.
 
-The agent is specifically modified for use with Cromwell. The agent will first
-create the task container (but not start it), then duplicate all parameters
-with a few exceptions (e.g. image name and task container ID environment
-variable) as a proxy container. The agent, from then on, will launch and track
-the proxy container rather than the task container.
+Input files are read into the container from S3 and output files are copied back to
+S3. Three additional files are also written to the S3 bucket using the names of these
+environment variables:
 
-Since the entire lifecycle of the task container is now the responsibility
-of the proxy, the proxy can localize and delocalize files as it sees fit.
-It uses 3 environment variables from the Task Container to do so:
+* AWS_CROMWELL_RC_FILE (the return code of the task)
+* AWS_CROMWELL_STDOUT_FILE (STDOUT of the task)
+* AWS_CROMWELL_STDERR_FILE (STDERR of the task)
 
-* AWS_CROMWELL_OUTPUTS
-* AWS_CROMWELL_INPUTS
-* AWS_CROMWELL_INPUTS_GZ
-
-These files describe the s3 key for the file, the location within the container,
-and the mount point. The _GZ variant was added to avoid exceeding the AWS Batch
-Limits, and is currently only used for inputs as fan-in is much more common
-then fan out. However, this is easy to extend for outputs as well.
-
-A few other variables are also important, and those are:
-
-* AWS_CROMWELL_RC_FILE
-* AWS_CROMWELL_STDOUT_FILE
-* AWS_CROMWELL_STDERR_FILE
-
-These files are placed in the correct location in S3 after task execution.
-
-Logs for the task are added in the appropriate place so the normal assumptions
-and console links operate as expected. In addition, the proxy is configured
-by the agent to log side by side with the task container, such that if a
-task is logging to the cloudwatch log stream abcdef-ghi, the proxy will
-log to the log stream abcdef-ghi-proxy.
+These files are placed in the correct location in S3 after task execution. In addition
+STDOUT and STDERR are fed to the tasks cloudwatch log.
 
 Input and Command Compression
 -----------------------------
@@ -260,40 +241,6 @@ based solely on RunTask. While a lot of effort was initially placed on
 balancing payloads between RegisterJobDefinition and SubmitJob, because
 everything is passed as an override to RunTask, we're gated by the ECS
 RunTask 8KiB limit.
-
-To address this issue and maximize the job size available, two changes were
-made to the Cromwell backend. First, the AWS_CROMWELL_INPUTS environment
-variable was gzip compressed and base64 encoded. Secondly, the command
-itself was also compressed and encoded.
-
-The AWS_CROMWELL_INPUTS environment variable describes all the inputs and
-allows the proxy container to localize these files, copying them down from
-S3. To compress this variable, code was added to the proxy to also look
-for an AWS_CROMWELL_INPUTS_GZ variable. If found, the variable will be
-base64 decoded and uncompressed, then processed as normal. The proxy is simply
-a shell script, so this becomes a couple pipe commands input | base64 -d | zcat.
-
-The command is much, much more difficult, but necessary as some instances of
-MergeVCFs involve the command itself being upwards of 17KiB. As the container
-command is processed entirely by the ecs-agent docker container, a second
-change was made to the ecs-agent code base to inspect the command array. If
-the magic string "gzipdata" was at element 0, the remaining array would be
-copied to a new command array to be passed to docker. The last element of the
-new array, however, would be base64 decoded, then uncompressed to the original.
-
-At least in the Haplotype caller test, both the inputs and the command
-text are highly compressible with lots of repeating text, so this scheme
-should give a significant amount of headroom for other operations. The inputs
-example can be easily extended by a small amount of change to the proxy and the
-AwsBatchJobDefinition.scala code base. The downside is that from a Cromwell
-user perspective, there is no specific limit on the size of commands as the
-gzip operation will depend on the nuances of the underlying text.
-
-In both cases (input and command text), this compression is conditional. The
-idea here being that in the normal case, we want things in the console to
-"look normal" to the customer. This also eases debugging. The downside, of
-course, is that we add cyclomatic complexity and introduce the possibility
-of things only failing when really big tasks are run.
 
 Dependencies
 ------------
@@ -345,8 +292,8 @@ of #2 below.
 NOTE: The Java properties check is specific and unique to the Java SDK. This
       does not apply to other SDKs or tools (e.g. the CLI).
 
-Normally customers will be using an EC2 Instance role or file configuration
-as described in #3.
+Normally customers will be using an EC2 Instance role (recommended) or file configuration
+as described in #3 (not recommended in production).
 
 Permissions
 -----------
@@ -354,17 +301,19 @@ Permissions
 Within AWS, everything must be authorized. This is a consistent rule, and as
 such, AWS Services themselves are not immune to the rule. Therefore, customers
 of AWS are responsible for granting services access to APIs within their account.
-The flow described below is represents from Cromwell through the task running,
-and the permissions needed to run. This includes the permissions needed for
+The flow described below represents the permissions needed by each stage, from 
+Cromwell server through the task running. This includes the permissions needed for
 the AWS Services involved in the processing of the work.
 
 ```text
 +----------------------------+
-|                            |  s3:GetObject on bucket for workflow
-|                            |  batch:RegisterTaskDefinition
-|          Cromwell          |  batch:SubmitJob
+|                            |  s3:GetObject on bucket for workflow and script bucket
+|                            |  s3:ListObjects on script bucket
+|                            |  s3:PutObject on script bucket
+|          Cromwell          |  batch:RegisterTaskDefinition
+|                            |  batch:SubmitJob
 |                            |  batch:DescribeJobs
-|                            |  batch:DescribeJobDefinitions (retry only)
+|                            |  batch:DescribeJobDefinitions
 +-------------+--------------+
               |
               |
@@ -404,13 +353,10 @@ the AWS Services involved in the processing of the work.
 |                            |  Task Role permissions. These are user defined, but ecs-tasks.amazon.com must have sts:AssumeRole trust relationship defined. Documentation:
 |       Task Container       |
 |                            |     https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_IAM_role.html
-|                            |
+|                            |  s3:GetObject, s3:PutObject, s3:ListObjects
 +----------------------------+
 ```
 
-Note that while the ECS Agent 
-Additional permissions are needed for the proxy container, and that will be
-discussed in #2 below.
 
 1. ECS has several sets of permissions for various items. AWS Batch, however,
    does not take advantage of certain features of ECS, most importantly
@@ -418,13 +364,11 @@ discussed in #2 below.
    like load balancing registration and DNS updates. While there is
    documentation regarding roles related to ECS services, these are
    irrelevant to the Cromwell use case.
-2. The task container itself does not need additional permissions unless
+2. Other than access to the main Cromwell bucket, the task container itself 
+   does not need additional permissions unless
    the task in the WDL has been defined with a command that interfaces
-   with AWS directly. However, the proxy container needs to send stdout,
-   stderr, and the return code information to S3 for Cromwell to read after
-   processing. Given that the task container and the proxy container currently
-   share permissions, the task container must have s3:PutObject permissions
-   for stdout/stderr/rc files for the workflow bucket.
+   with AWS directly. This may include access to additional s3 buckets containing
+   things like reference genome files.
 
    Task container permissions are currently supported through ECS and AWS
    Batch, but there is no configuration currently wired for the Cromwell
@@ -433,9 +377,7 @@ discussed in #2 below.
    with permissions necessary for both the ECS Agent and the task container.
 
 NOTE: ECS Agent permissions currently must use the permissions as outlined
-      in the AmazonEC2ContainerServiceForEC2Role managed policy. Since
-      Cromwell on AWS currently requires a custom AMI and modified ECS agent,
-      Fargate is not an option and therefore EC2 permissions apply.
+      in the AmazonEC2ContainerServiceForEC2Role managed policy.
 
 Future considerations
 ---------------------
@@ -447,17 +389,10 @@ AWS Batch Backend
 * The intent is to be able to override the queueArn between the
   default-runtime-attributes and the runtime attributes in the WDL. This
   appears broken at the moment.
-* In retrospect it's unclear that the AWS Java SDK v2 was strictly needed,
-  and because no S3 Filesystem provider existed, there was an impact to the
-  speed of delivery. It did, however, position the backend better for the
-  future.
-* Job Definitions can be shared, but no attempt has been made to do so.
-  Some hashing technique could be leveraged to re-use job definitions. However,
-  in doing so there may be loss of information, as the only deterministic way
-  to do this would be to make the job definition name a hash. This name
-  is used in the Amazon Resource Name (ARN), and can thus be easily verified.
-  Unfortunately, from a user perspective, the console would simply show a bunch
-  of hashes rather than anything super useful.
+* Job caching appears to be broken at the moment. Identical tasks need not be repeated
+  if the results of a previous run of the task are still available.
+* Retrying failed jobs is not currently attempted. Adding this would be beneficial 
+  especially in conjunction with result caching
 * Some S3 FS stuff can be removed: It looks like there’s a bunch of leftover
   unused code here from before having the nio implementation
   [here](https://github.com/broadinstitute/cromwell/tree/develop/filesystems/s3/src/main/scala/cromwell/filesystems/s3/batch)

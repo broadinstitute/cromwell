@@ -36,10 +36,10 @@ class ConfigInitializationData
 class ConfigInitializationActor(params: StandardInitializationActorParams)
   extends SharedFileSystemInitializationActor(params) {
 
-  lazy val configWdlNamespace = new ConfigWdlNamespace(params.configurationDescriptor.backendConfig)
+  private lazy val configWdlNamespace = new ConfigWdlNamespace(params.configurationDescriptor.backendConfig)
 
   lazy val declarationValidations: Seq[DeclarationValidation] = {
-    DeclarationValidation.fromDeclarations(configWdlNamespace.runtimeDeclarations)
+    DeclarationValidation.fromDeclarations(configWdlNamespace.runtimeDeclarations, configWdlNamespace.callCachedRuntimeAttributes)
   }
 
   override lazy val initializationData: Future[ConfigInitializationData] = {

@@ -40,6 +40,11 @@ object AwsBatchJobPaths {
   val AwsBatchExecParamName = "exec"
 }
 
+/**
+ * Paths of files or directories relavent to the execution of a job such as stdout and stderr logs
+ * @param workflowPaths the paths for the job
+ * @param jobKey the job
+ */
 final case class AwsBatchJobPaths(override val workflowPaths: AwsBatchWorkflowPaths, jobKey: BackendJobDescriptorKey, override val isCallCacheCopyAttempt: Boolean = false) extends JobPaths {
 
   def logBasename = {

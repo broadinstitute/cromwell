@@ -163,4 +163,25 @@ class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
     }
   }
 
+  it should "evaluate a simple sep expression correctly" in {
+    val str = """ sep(" ", ["a", "b", "c"]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedString: WomString = WomString("a b c")
+
+    expr.shouldBeValidPF {
+      case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedString, Seq.empty)
+    }
+  }
+
+  it should "evaluate a sep expression containing a sub-call to prefix correctly" in {
+    val str = """ sep(" ", prefix("-i ", ["a", "b", "c"])) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedString: WomString = WomString("-i a -i b -i c")
+
+    expr.shouldBeValidPF {
+      case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedString, Seq.empty)
+    }
+  }
 }

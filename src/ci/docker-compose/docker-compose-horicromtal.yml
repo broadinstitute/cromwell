@@ -7,7 +7,7 @@ services:
   # - Running the summarizer
   # - Running the carboniter
   # - Running the archived-metadata-deleter
-  cromwell-database-master:
+  db-mstr:
     image: "broadinstitute/cromwell:${CROMWELL_TAG}"
     network_mode: host
     working_dir: ${CROMWELL_BUILD_ROOT_DIRECTORY}
@@ -41,7 +41,7 @@ services:
   # Is a regular Cromwell workflow-running backend.
   # Makes no changes to the config file we bring in, so always summarizes, and sometimes does carboniting and metadata
   # deletion things, but only if the underlying config file says that we do.
-  cromwell-summarizer-plus-backend:
+  sum-back:
     image: "broadinstitute/cromwell:${CROMWELL_TAG}"
     network_mode: host
     working_dir: ${CROMWELL_BUILD_ROOT_DIRECTORY}
@@ -63,7 +63,7 @@ services:
       - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_PASSWORD
       - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL
     depends_on:
-      cromwell-database-master:
+      db-mstr:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8000"]
@@ -76,14 +76,14 @@ services:
   # - Running the summarizer
   # - Running the carboniter
   # - Running the archived-metadata-deleter
-  cromwell-frontend-plus-backend:
+  front-back:
     image: "broadinstitute/cromwell:${CROMWELL_TAG}"
     network_mode: host
     working_dir: ${CROMWELL_BUILD_ROOT_DIRECTORY}
     volumes:
       - ${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}
     depends_on:
-      cromwell-database-master:
+      db-mstr:
         condition: service_healthy
     command: ["server"]
     environment:

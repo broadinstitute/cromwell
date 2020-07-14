@@ -1,6 +1,7 @@
 package cromwell.backend.google.pipelines.v1alpha2.api
 
 import com.google.api.services.genomics.model.{DockerExecutor, PipelineResources}
+import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.{GpuResource, PipelinesApiRuntimeAttributes}
 import cromwell.backend.google.pipelines.v1alpha2.PipelinesConversions._
 import wdl4s.parser.MemoryUnit
@@ -27,32 +28,33 @@ trait PipelineInfoBuilder {
     }
   }
 
-  def buildResources(runtimeAttributes: PipelinesApiRuntimeAttributes): PipelineResources = {
+  def buildResources(createPipelineParameters: CreatePipelineParameters): PipelineResources = {
+    val runtimeAttributes =createPipelineParameters.runtimeAttributes
     val resources = new PipelineResources()
       .setMinimumRamGb(runtimeAttributes.memory.to(MemoryUnit.GB).amount)
       .setMinimumCpuCores(runtimeAttributes.cpu.value)
       .setZones(runtimeAttributes.zones.asJava)
       .setDisks(runtimeAttributes.disks.map(_.toGoogleDisk).asJava)
       .setBootDiskSizeGb(runtimeAttributes.bootDiskSize)
-      .setNoAddress(runtimeAttributes.noAddress)
+      .setNoAddress(createPipelineParameters.effectiveNoAddressValue)
 
       setGpu(resources, runtimeAttributes)
   }
 
-  def build(commandLine: String, runtimeAttributes: PipelinesApiRuntimeAttributes, docker: String): PipelineInfo
+  def build(commandLine: String, createPipelineParameters: CreatePipelineParameters): PipelineInfo
 }
 
 object NonPreemptiblePipelineInfoBuilder extends PipelineInfoBuilder {
-  def build(commandLine: String, runtimeAttributes: PipelinesApiRuntimeAttributes, dockerImage: String): PipelineInfo = {
-    val resources = buildResources(runtimeAttributes).setPreemptible(false)
-    new NonPreemptiblePipelineInfoBuilder(resources, buildDockerExecutor(commandLine, dockerImage))
+  def build(commandLine: String, createPipelineParameters: CreatePipelineParameters): PipelineInfo = {
+    val resources = buildResources(createPipelineParameters).setPreemptible(false)
+    new NonPreemptiblePipelineInfoBuilder(resources, buildDockerExecutor(commandLine, createPipelineParameters.dockerImage))
   }
 }
 
 object PreemptiblePipelineInfoBuilder extends PipelineInfoBuilder {
-  def build(commandLine: String, runtimeAttributes: PipelinesApiRuntimeAttributes, dockerImage: String): PipelineInfo = {
-    val resources = buildResources(runtimeAttributes).setPreemptible(true)
-    new PreemptiblePipelineInfoBuilder(resources, buildDockerExecutor(commandLine, dockerImage))
+  def build(commandLine: String, createPipelineParameters: CreatePipelineParameters): PipelineInfo = {
+    val resources = buildResources(createPipelineParameters).setPreemptible(true)
+    new PreemptiblePipelineInfoBuilder(resources, buildDockerExecutor(commandLine, createPipelineParameters.dockerImage))
   }
 }
 

@@ -251,7 +251,9 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     // - The job lasted too long (eg PAPI 6 day timeout)
     // Treat it like any other non-retryable failure:
     case Event(JobAbortedResponse(jobKey), stateData) =>
-      val cause = new Exception("The job was aborted from outside Cromwell")
+      val cause = new Exception(
+        "The compute backend terminated the job. If this termination is unexpected, examine likely causes such as preemption, running out of disk or memory on the compute instance, or exceeding the backend's maximum job duration."
+      )
       handleNonRetryableFailure(stateData, jobKey, cause)
     // Sub Workflow - sub workflow failures are always non retryable
     case Event(SubWorkflowFailedResponse(jobKey, descendantJobKeys, reason), stateData) =>

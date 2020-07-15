@@ -18,6 +18,7 @@ object ConfigConstants {
   val CheckAliveConfig = "check-alive"
   val ExitCodeTimeoutConfig = "exit-code-timeout-seconds"
   val RuntimeAttributesConfig = "runtime-attributes"
+  val RuntimeAttributesCachingConfig = "runtime-attributes-for-caching"
   val JobIdRegexConfig = "job-id-regex"
   val RunInBackgroundConfig = "run-in-background"
 

@@ -73,8 +73,11 @@ private[ejea] trait CanExpectHashingInitialization extends Eventually { self: En
 
 private[ejea] trait CanExpectFetchCachedResults extends Eventually { self: EngineJobExecutionActorSpec =>
   def expectFetchCachedResultsActor(expectedCallCachingEntryId: CallCachingEntryId): Unit = {
-    eventually { helper.fetchCachedResultsActorCreations.hasExactlyOne should be(true) }
-    helper.fetchCachedResultsActorCreations.checkIt {
+    eventually {
+      if (allowMultipleCacheCycles) { helper.fetchCachedResultsActorCreations.hasAtLeastOne should be(true) }
+      else { helper.fetchCachedResultsActorCreations.hasExactlyOne should be(true) }
+    }
+    helper.fetchCachedResultsActorCreations.checkLatest {
       case (callCachingEntryId, _) => callCachingEntryId should be(expectedCallCachingEntryId)
       case _ => fail("Incorrect creation of the fetchCachedResultsActor")
     }

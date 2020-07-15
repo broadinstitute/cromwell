@@ -34,12 +34,11 @@ import java.net.URI
 
 import com.google.common.net.UrlEscapers
 import cromwell.cloudsupport.aws.auth.AwsAuthMode
-import cromwell.cloudsupport.aws.s3.S3Storage
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.s3.S3PathBuilder._
-import org.lerch.s3fs.S3FileSystemProvider
-import org.lerch.s3fs.util.{AmazonS3ClientProvider, S3Utils}
+import org.lerch.s3fs.{AmazonS3ClientFactory, S3FileSystemProvider}
+import org.lerch.s3fs.util.S3Utils
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.{S3Client, S3Configuration}
@@ -130,25 +129,22 @@ object S3PathBuilder {
                    configuration: S3Configuration,
                    options: WorkflowOptions,
                    storageRegion: Option[Region]): S3PathBuilder = {
-    AmazonS3ClientProvider.init(provider, storageRegion.getOrElse(Region.US_EAST_2))
-    new S3PathBuilder(S3Storage.s3Client(provider, storageRegion), configuration)
+    new S3PathBuilder(configuration)
   }
 }
 
-class S3PathBuilder(client: S3Client,
-                     configuration: S3Configuration
+class S3PathBuilder(configuration: S3Configuration
                      ) extends PathBuilder {
   // Tries to create a new S3Path from a String representing an absolute s3 path: s3://<bucket>[/<key>].
   def build(string: String): Try[S3Path] = {
     validatePath(string) match {
       case ValidFullS3Path(bucket, path) =>
         Try {
-          // TODO: System.getenv needs to turn into a full Auth thingy
-          // TODO: This assumes the "global endpoint". Need to handle other endpoints
           val s3Path = new S3FileSystemProvider()
-            .getFileSystem(URI.create("s3:////"), System.getenv, client)
+            .getFileSystem(URI.create("s3:////"), System.getenv)
             .getPath(s"""/$bucket/$path""")
-          S3Path(s3Path, bucket, client)
+          S3Path(s3Path, bucket,
+            new AmazonS3ClientFactory().getS3Client(URI.create("s3:////"), System.getProperties))
         }
       case PossiblyValidRelativeS3Path => Failure(new IllegalArgumentException(s"$string does not have a s3 scheme"))
       case invalid: InvalidS3Path => Failure(new IllegalArgumentException(invalid.errorMessage))

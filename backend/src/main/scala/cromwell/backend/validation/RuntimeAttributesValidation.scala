@@ -97,9 +97,33 @@ object RuntimeAttributesValidation {
 
       override protected def missingValueMessage: String = validation.missingValueMessage
 
-      override protected def usedInCallCaching: Boolean = validation.usedInCallCachingPackagePrivate
+      override def usedInCallCaching: Boolean = validation.usedInCallCachingPackagePrivate
 
       override protected def staticDefaultOption = Option(default)
+    }
+  }
+
+  def withUsedInCallCaching[ValidatedType](validation: RuntimeAttributesValidation[ValidatedType],
+                                           usedInCallCachingValue: Boolean): RuntimeAttributesValidation[ValidatedType] = {
+    new RuntimeAttributesValidation[ValidatedType] {
+      override def key: String = validation.key
+
+      override def coercion: Traversable[WomType] = validation.coercion
+
+      override protected def validateValue: PartialFunction[WomValue, ErrorOr[ValidatedType]] =
+        validation.validateValuePackagePrivate
+
+      override protected def validateExpression: PartialFunction[WomValue, Boolean] =
+        validation.validateExpressionPackagePrivate
+
+      override protected def invalidValueMessage(value: WomValue): String =
+        validation.invalidValueMessagePackagePrivate(value)
+
+      override protected def missingValueMessage: String = validation.missingValueMessage
+
+      override def usedInCallCaching: Boolean = usedInCallCachingValue
+
+      override protected def staticDefaultOption = validation.staticDefaultOption
     }
   }
 
@@ -121,7 +145,7 @@ object RuntimeAttributesValidation {
 
       override protected def missingValueMessage: String = validation.missingValueMessage
 
-      override protected def usedInCallCaching: Boolean = validation.usedInCallCachingPackagePrivate
+      override def usedInCallCaching: Boolean = validation.usedInCallCachingPackagePrivate
 
       override protected def staticDefaultOption = validation.staticDefaultOption
     }
@@ -370,12 +394,12 @@ trait RuntimeAttributesValidation[ValidatedType] {
     }
   }
   /**
-    * Used to convert this instance to a `RuntimeAttributeDefinition`.
+    * Indicates whether this runtime attribute should be used in call caching calculations.
     *
     * @see [[RuntimeAttributeDefinition.usedInCallCaching]]
     * @return Value for [[RuntimeAttributeDefinition.usedInCallCaching]].
     */
-  protected def usedInCallCaching: Boolean = false
+  def usedInCallCaching: Boolean = false
 
   /**
     * Returns this as an instance of a runtime attribute definition.

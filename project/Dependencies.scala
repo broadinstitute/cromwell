@@ -11,9 +11,8 @@ object Dependencies {
   private val ammoniteOpsV = "1.6.3"
   private val apacheCommonNetV = "3.6"
   private val apacheHttpClientV = "4.5.7"
-  private val awsSdkV = "2.3.9"
+  private val awsSdkV = "2.10.71"
   private val betterFilesV = "3.8.0"
-  private val amazonAwsV = "1.11.500"
   private val catsEffectV = "2.0.0"
   private val catsV = "2.0.0"
   private val circeOpticsV = "0.12.0"
@@ -29,19 +28,22 @@ object Dependencies {
   private val ficusV = "1.4.4"
   private val fs2V = "2.0.0"
   private val fs2VStatsDProxy = "1.0.3"
-  private val googleApiClientV = "1.28.0"
-  private val googleCloudCoreV = "1.61.0"
+  private val googleApiClientV = "1.30.9"
+  private val googleCloudBigQueryV = "1.116.3"
   private val googleCloudKmsV = "v1-rev63-1.25.0"
-  private val googleCloudMonitoringV = "1.70.0"
+  private val googleCloudMonitoringV = "1.100.1"
   private val googleCloudNioV = "0.61.0-alpha"
+  private val googleCloudStorageV = "1.111.1"
+  private val googleGaxGrpcV = "1.57.0"
   private val googleGenomicsServicesV1ApiV = "v1alpha2-rev495-1.23.0"
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev31-1.25.0"
+  private val googleHttpClientApacheV = "2.1.2"
+  private val googleHttpClientV = "1.36.0"
   private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev5-1.25.0"
-  private val googleHttpClientApacheV = "2.1.1"
-  private val googleHttpClientV = "1.29.1"
-  private val googleOauth2V = "0.13.0"
+  private val googleOauth2V = "0.21.0"
+  private val googleOauthClientV = "1.31.0"
   private val googleCloudResourceManagerV = "0.87.0-alpha"
-  private val grpcV = "1.20.0"
+  private val grpcV = "1.30.1"
   private val guavaV = "27.0.1-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.4.1"
@@ -172,8 +174,8 @@ object Dependencies {
 
   val implDrsDependencies = List(
     "org.apache.commons" % "commons-lang3" % commonsLang3V,
-    "com.google.cloud" % "google-cloud-storage" % googleCloudCoreV,
-    "com.google.oauth-client" % "google-oauth-client" % googleApiClientV
+    "com.google.cloud" % "google-cloud-storage" % googleCloudStorageV,
+    "com.google.oauth-client" % "google-oauth-client" % googleOauthClientV
   ) ++ circeDependencies ++ catsDependencies
 
   // Internal collections of dependencies
@@ -281,13 +283,13 @@ object Dependencies {
 
   private val awsCloudDependencies = List(
     "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonV,
-    "com.amazonaws" % "aws-java-sdk-s3" % amazonAwsV
   ) ++ s3fsDependencies ++ List(
     "batch",
     "core",
     "cloudwatchlogs",
     "s3",
     "sts",
+    "ecs"
   ).map(artifactName => "software.amazon.awssdk" % artifactName % awsSdkV)
 
   private val googleCloudDependencies = List(
@@ -488,7 +490,7 @@ object Dependencies {
   val centaurDependencies = List(
     "org.apache.commons" % "commons-math3" % commonsMathV,
     "com.github.kxbmap" %% "configs" % configsV,
-    "com.google.cloud" % "google-cloud-bigquery" % googleCloudCoreV % IntegrationTest,
+    "com.google.cloud" % "google-cloud-bigquery" % googleCloudBigQueryV % IntegrationTest,
     "org.gnieh" %% "diffson-spray-json" % "4.0.1"
   ) ++ circeDependencies ++ slf4jBindingDependencies ++ cloudSupportDependencies ++ http4sDependencies
 
@@ -505,6 +507,10 @@ object Dependencies {
 
   val hybridCarboniteMetadataServiceDependencies = List(
     "net.thisptr" % "jackson-jq" % jacksonJqV % Test
+  )
+
+  val servicesDependencies = List(
+    "com.google.api" % "gax-grpc" % googleGaxGrpcV
   )
 
   val serverDependencies = slf4jBindingDependencies
@@ -552,7 +558,7 @@ object Dependencies {
 
   val drsLocalizerDependencies = List(
     "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
-    "com.google.cloud" % "google-cloud-storage" % googleCloudCoreV,
+    "com.google.cloud" % "google-cloud-storage" % googleCloudStorageV,
     "org.typelevel" %% "cats-effect" % catsEffectV,
     "com.iheart" %% "ficus" % ficusV,
     "com.softwaremill.sttp" %% "circe" % sttpV

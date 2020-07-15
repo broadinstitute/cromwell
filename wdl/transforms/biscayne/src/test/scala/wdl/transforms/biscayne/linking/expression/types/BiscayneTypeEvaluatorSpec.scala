@@ -35,4 +35,23 @@ class BiscayneTypeEvaluatorSpec extends FlatSpec with Matchers {
       case e => e.evaluateType(Map.empty) shouldBeValid WomArrayType(WomPairType(WomStringType, WomIntegerType))
     }
   }
+
+  it should "evaluate the type of a sep() function as String" in {
+    val str = """ sep(' ', ["a", "b", "c"]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    expr.shouldBeValidPF {
+      case e => e.evaluateType(Map.empty) shouldBeValid WomStringType
+    }
+  }
+
+  it should "evaluate the type of a sep() function with a sub-call to prefix as String" in {
+    val str = """ sep(' ', prefix("-i ", ["a", "b", "c"])) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    expr.shouldBeValidPF {
+      case e => e.evaluateType(Map.empty) shouldBeValid WomStringType
+    }
+  }
+
 }

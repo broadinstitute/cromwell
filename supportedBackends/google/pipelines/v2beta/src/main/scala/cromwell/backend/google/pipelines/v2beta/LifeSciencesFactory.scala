@@ -88,7 +88,6 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
         }
       }
 
-
       def networkFromLabels(vpcConfig: VirtualPrivateCloudConfiguration, projectLabels: ProjectLabels): Network = {
         val networkLabelOption = projectLabels.labels.find(l => l._1.equals(vpcConfig.name))
         val subnetworkLabelOption = vpcConfig.subnetwork.flatMap(s => projectLabels.labels.find(l => l._1.equals(s)))
@@ -96,7 +95,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
         networkLabelOption match {
           case Some(networkLabel) =>
             val network = new Network()
-              .setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)
+              .setUsePrivateAddress(createPipelineParameters.effectiveNoAddressValue)
               .setNetwork(VirtualPrivateCloudNetworkPath.format(createPipelineParameters.projectId, networkLabel._2))
 
             subnetworkLabelOption foreach { case(_, subnet) => network.setSubnetwork(subnet) }
@@ -104,7 +103,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
           case None =>
             // Falling back to running the job on default network since the project does not provide the custom network
             // specifying keys in its metadata
-            new Network().setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)
+            new Network().setUsePrivateAddress(createPipelineParameters.effectiveNoAddressValue)
         }
       }
 
@@ -120,7 +119,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
 
       def createNetwork(): Network = {
         createPipelineParameters.virtualPrivateCloudConfiguration match {
-          case None => new Network().setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)
+          case None => new Network().setUsePrivateAddress(createPipelineParameters.effectiveNoAddressValue)
           case Some(vpcConfig) =>
             createNetworkWithVPC(vpcConfig).handleErrorWith {
               e => IO.raiseError(new RuntimeException(s"Failed to create Network object for project `${createPipelineParameters.projectId}`. " +

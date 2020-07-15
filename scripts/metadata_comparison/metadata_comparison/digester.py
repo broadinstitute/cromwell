@@ -1,14 +1,16 @@
 import argparse
 import json
 from metadata_comparison.lib import logging, operation_ids
+from metadata_comparison.lib.digester_keys import *
+from metadata_comparison.lib.digester_keys import OperationId as OperationIdKey
 from metadata_comparison.lib.operation_ids import CallNameSequence, JsonObject, OperationId
-from metadata_comparison.lib.comparison_paths import ComparisonPath
+from metadata_comparison.lib.comparison_paths import ComparisonPath, validate_path
 from metadata_comparison.lib.operations_digesters import OperationDigester
 
 import dateutil.parser
 from typing import AnyStr, Dict
 
-Version = "0.0.1"
+Version = "0.0.2"
 
 
 def main(args: argparse.Namespace) -> None:
@@ -31,11 +33,6 @@ def main(args: argparse.Namespace) -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    def validate_path(p: AnyStr) -> AnyStr:
-        if ComparisonPath.is_valid_path_string(p):
-            return p
-        raise ValueError(f'{p} is not a valid path whatsoever')
-
     parser = argparse.ArgumentParser(
         description='Digest workflow metadata and job operation details, reading from and reuploading to GCS.')
     parser.add_argument('-v', '--verbose', action='store_true',
@@ -81,17 +78,24 @@ def digest(workflow_path: ComparisonPath, operations_path: ComparisonPath) -> Js
                 float("%.3f" % (cromwell_total_time_seconds - papi_total_time_seconds))
 
             succeeded_operations[string_path] = {
-                "attempt": attempt.get('attempt'),
-                "shardIndex": attempt.get('shardIndex'),
-                "operationId": operation_id,
-                "cromwellStart": cromwell_start,
-                "cromwellEnd": cromwell_end,
-                "cromwellTotalTimeSeconds": cromwell_total_time_seconds,
-                "papiStart": operation.start_time(),
-                "papiEnd": operation.end_time(),
-                "papiTotalTimeSeconds": operation.total_time_seconds(),
-                "cromwellAdditionalTotalTimeSeconds": cromwell_additional_total_time_seconds,
-                "dockerImagePullSeconds": operation.docker_image_pull_seconds()
+                Attempt: attempt.get('attempt'),
+                CromwellAdditionalTotalTimeSeconds: cromwell_additional_total_time_seconds,
+                CromwellEnd: cromwell_end,
+                CromwellStart: cromwell_start,
+                CromwellTotalTimeSeconds: cromwell_total_time_seconds,
+                DelocalizationTimeSeconds: operation.delocalization_time_seconds(),
+                DockerImagePullTimeSeconds: operation.docker_image_pull_time_seconds(),
+                LocalizationTimeSeconds: operation.localization_time_seconds(),
+                MachineType: operation.machine_type(),
+                OperationIdKey: operation_id,
+                OtherTimeSeconds: operation.other_time_seconds(),
+                PapiCreate: operation.create_time(),
+                PapiEnd: operation.end_time(),
+                PapiStart: operation.start_time(),
+                PapiTotalTimeSeconds: operation.total_time_seconds(),
+                ShardIndex: attempt.get('shardIndex'),
+                StartupTimeSeconds: operation.startup_time_seconds(),
+                UserCommandTimeSeconds: operation.user_command_time_seconds(),
             }
 
     data = workflow_path.read_text()

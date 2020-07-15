@@ -7,6 +7,8 @@ import akka.stream._
 import akka.stream.scaladsl.{Flow, GraphDSL, MergePreferred, Partition}
 import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
+import com.google.api.client.json.jackson2.JacksonFactory
+import com.google.api.services.storage.Storage
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.engine.io.IoActor._
@@ -37,7 +39,7 @@ object GcsBatchFlow {
   }
 }
 
-class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandContext[_] => Throwable => Unit)(implicit ec: ExecutionContext) {
+class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandContext[_] => Throwable => Unit, applicationName: String)(implicit ec: ExecutionContext) {
 
   // Does not carry any authentication, assumes all underlying requests are properly authenticated
   private val httpRequestInitializer = new HttpRequestInitializer {
@@ -48,7 +50,15 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     }
   }
 
-  private val batch: BatchRequest = new BatchRequest(GcsStorage.HttpTransport, httpRequestInitializer)
+  private val batchRequest: BatchRequest = {
+    val storage = new Storage.Builder(
+      GcsStorage.HttpTransport,
+      JacksonFactory.getDefaultInstance,
+      httpRequestInitializer
+    ).setApplicationName(applicationName)
+
+    storage.build().batch()
+  }
 
   val flow = GraphDSL.create() { implicit builder =>
     import GraphDSL.Implicits._
@@ -114,12 +124,12 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     }
 
     // Add all requests to the batch
-    contexts foreach { _.queue(batch) }
+    contexts foreach { _.queue(batchRequest) }
 
     // Try to execute the batch request.
     // If it fails with an IO Exception, fail all the underlying promises with a retyrable BatchFailedException
     // Otherwise fail with the original exception
-    Try(batch.execute()) match {
+    Try(batchRequest.execute()) match {
       case Failure(failure: IOException) => failAllPromisesWith(BatchFailedException(failure))
       case Failure(failure) => failAllPromisesWith(failure)
       case _ =>

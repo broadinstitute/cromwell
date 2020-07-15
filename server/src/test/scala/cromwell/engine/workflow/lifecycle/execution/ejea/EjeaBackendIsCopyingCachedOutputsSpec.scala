@@ -103,7 +103,20 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
 
         if (mode.readFromCache) {
           s"invalidate a call for caching if backend copying failed when it was going to receive $hashComboName, if call caching is $mode" in {
+
             ejea = ejeaInBackendIsCopyingCachedOutputsState(initialHashData, mode)
+
+            ejea.stateData should be(ResponsePendingData(
+              helper.backendJobDescriptor,
+              helper.bjeaProps,
+              initialHashData,
+              Option(helper.ejhaProbe.ref),
+              cacheHit,
+              None,
+              cacheHitFailureCount = 0,
+              failedCopyAttempts = 0
+            ))
+
             // Send the response from the copying actor
             ejea ! copyAttemptFailedResponse(cacheHitNumber)
 

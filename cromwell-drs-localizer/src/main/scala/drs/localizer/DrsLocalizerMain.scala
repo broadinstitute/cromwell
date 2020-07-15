@@ -1,12 +1,9 @@
 package drs.localizer
 
-import java.io.ByteArrayInputStream
-import java.nio.file.{Files, Paths}
+import java.nio.file.{Files, Path}
 
 import cats.effect.{ExitCode, IO, IOApp}
 import com.google.auth.oauth2.GoogleCredentials
-import com.google.cloud.storage.Storage.BlobGetOption
-import com.google.cloud.storage.{Blob, StorageException, StorageOptions}
 import com.softwaremill.sttp._
 import com.softwaremill.sttp.circe._
 import drs.localizer.MarthaResponseJsonSupport._
@@ -15,6 +12,7 @@ import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
+import scala.sys.process._
 
 object DrsLocalizerMain extends IOApp {
 
@@ -55,7 +53,7 @@ object DrsLocalizerMain extends IOApp {
 
 
   def resolveAndDownload(drsUrl: String, downloadLoc: String, requesterPaysId: Option[String]): IO[ExitCode] = {
-    val exitStateIO = for {
+    for {
       marthaUrlString <- IO(sys.env("MARTHA_URL"))
       marthaUri <- IO(uri"$marthaUrlString")
       marthaResponse <- resolveDrsThroughMartha(drsUrl, marthaUri)
@@ -64,8 +62,6 @@ object DrsLocalizerMain extends IOApp {
       gcsUrl <- extractFirstGcsUrl(marthaResponse.drs.data_object.urls)
       exitState <- downloadFileFromGcs(gcsUrl, marthaResponse.googleServiceAccount.map(_.data.toString), downloadLoc, requesterPaysId)
     } yield exitState
-
-    exitStateIO.map(_ => ExitCode.Success)
   }
 
 
@@ -93,6 +89,8 @@ object DrsLocalizerMain extends IOApp {
   private def resolveDrsThroughMartha(drsUrl: String, marthaUrl: Uri): IO[MarthaResponse] = {
     val requestBody = raw"""{"url":"$drsUrl"}"""
     val marthaErrorMsg = s"Something went wrong while trying to resolve $drsUrl through Martha $marthaUrl."
+
+    logger.info(s"Resolving DRS uri `$drsUrl` through Martha")
 
     val scopedCredentials = GoogleCredentials.getApplicationDefault().createScoped(UserInfoScopes.asJava)
     val accessToken = scopedCredentials.refreshAccessToken().getTokenValue
@@ -132,43 +130,94 @@ object DrsLocalizerMain extends IOApp {
 
 
   private def downloadFileFromGcs(gcsUrl: String,
-                          serviceAccountJsonOption: Option[String],
-                          downloadLoc: String,
-                          requesterPaysProjectIdOption: Option[String]) : IO[Unit] = {
-    logger.info(s"Requester Pays project ID is $requesterPaysProjectIdOption")
+                                  serviceAccountJsonOption: Option[String],
+                                  downloadLoc: String,
+                                  requesterPaysProjectIdOption: Option[String]) : IO[ExitCode] = {
 
-    val gcsUrlArray = gcsUrl.replace(GcsScheme, "").split("/", 2)
-    val fileToBeLocalized = gcsUrlArray(1)
-    val gcsBucket = gcsUrlArray(0)
-
-    val unscopedCredentials = serviceAccountJsonOption match {
-      case None => GoogleCredentials.getApplicationDefault()
-      case Some(serviceAccountJson) => GoogleCredentials.fromStream(new ByteArrayInputStream(serviceAccountJson.getBytes()))
-    }
-
-    val credentials = unscopedCredentials.createScoped(List(CloudPlatformAuthScope).asJava)
-
-    val storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService
-    Files.createDirectories(Paths.get(downloadLoc).getParent)
-
-    logger.info(s"Attempting to download $gcsUrl to $downloadLoc")
-
-    IO.delay {
-      val blob = storage.get(gcsBucket, fileToBeLocalized)
-      blob.downloadTo(Paths.get(downloadLoc))
-      logger.info(s"Download complete!")
-    } handleErrorWith { throwable =>
-      (requesterPaysProjectIdOption, throwable) match {
-        case (Some(requesterPaysProjectId), storageException: StorageException) if storageException.getMessage == RequesterPaysErrorMsg => {
-          logger.info(s"Received 'Bucket is requester pays' error. Attempting again using Requester Pays billing project")
-          IO.delay {
-            val blob = storage.get(gcsBucket, fileToBeLocalized, BlobGetOption.userProject(requesterPaysProjectId))
-            blob.downloadTo(Paths.get(downloadLoc), Blob.BlobSourceOption.userProject(requesterPaysProjectId))
-            logger.info(s"Download complete with Requester Pays!")
-          }
-        }
-        case _ => IO.raiseError(throwable)
+    def setServiceAccount(saJsonPathOption: Option[Path]): String = {
+      saJsonPathOption match {
+        case Some(saJsonPath) =>
+          s"""# Set gsutil to use the service account returned from Martha
+             |gcloud auth activate-service-account --key-file=$saJsonPath > gcloud_output.txt 2>&1
+             |RC_GCLOUD=$$?
+             |if [ "$$RC_GCLOUD" != "0" ]; then
+             |  echo "Failed to activate service account returned from Martha. File won't be downloaded. Error: $$(cat gcloud_output.txt)" >&2
+             |  exit "$$RC_GCLOUD"
+             |else
+             |  echo "Successfully activated service account; Will continue with download. $$(cat gcloud_output.txt)"
+             |fi
+             |""".stripMargin
+        case None => ""
       }
     }
+
+    def gcsCopyCommand(flag: String = ""): String = s"gsutil $flag cp $gcsUrl $downloadLoc"
+
+    def recoverWithRequesterPays(): String = {
+      requesterPaysProjectIdOption match {
+        case Some(userProject) =>
+          s"""# Check if error is requester pays. If yes, retry gsutil copy using project flag
+             |if grep -q '$RequesterPaysErrorMsg' gsutil_output.txt; then
+             |  echo "Received 'Bucket is requester pays' error. Attempting again using Requester Pays billing project"
+             |  ${gcsCopyCommand(s"-u $userProject")}
+             |else
+             |  echo "Failed to download the file. Error: $$(cat gsutil_output.txt)" >&2
+             |  exit "$$RC_GSUTIL"
+             |fi
+             |""".stripMargin
+        case None =>
+          s"""  echo "Failed to download the file. Error: $$(cat gsutil_output.txt)" >&2
+             |  exit "$$RC_GSUTIL"
+             |""".stripMargin
+      }
+    }
+
+    // bash to download the GCS file using gsutil
+    def downloadScript(saJsonPathOption: Option[Path]): String = {
+      val downloadBashScript = s"""set -euo pipefail
+         |set +e
+         |
+         |${setServiceAccount(saJsonPathOption)}
+         |
+         |# Run gsutil copy without using project flag
+         |${gcsCopyCommand()} > gsutil_output.txt 2>&1
+         |RC_GSUTIL=$$?
+         |if [ "$$RC_GSUTIL" != "0" ]; then
+         |  ${recoverWithRequesterPays()}
+         |else
+         |  echo "Download complete!"
+         |  exit 0
+         |fi
+         |""".stripMargin
+
+      // log the script for easier debugging
+      logger.info(s"Bash script to download file: \n$downloadBashScript")
+
+      downloadBashScript
+    }
+
+    logger.info(s"Requester Pays project ID is $requesterPaysProjectIdOption")
+    logger.info(s"Attempting to download $gcsUrl to $downloadLoc")
+
+    val returnCode = serviceAccountJsonOption match {
+      case Some(sa) =>
+        // if Martha returned a SA, use that SA for gsutil instead of default credentials
+        val tempCredentialDir: Path = Files.createTempDirectory("gcloudTemp_").toAbsolutePath
+        val saJsonPath: Path = tempCredentialDir.resolve("sa.json")
+        Files.write(saJsonPath, sa.getBytes("UTF-8")) // set to UTF-8
+        val extraEnv = Map("CLOUDSDK_CONFIG" -> tempCredentialDir.toString)
+
+        val copyCommand = Seq("bash", "-c", downloadScript(Option(saJsonPath)))
+        // run the multiple bash script to download file and log stream sent to stdout and stderr using ProcessLogger
+        Process(copyCommand, None, extraEnv.toSeq: _*) ! ProcessLogger(logger.info, logger.error)
+      case None =>
+        /*
+          No SA returned from Martha. gsutil will use the application default credentials.
+          Run the multiple bash script to download file and log stream sent to stdout and stderr using ProcessLogger
+         */
+        Process(Seq("bash", "-c", downloadScript(None))) ! ProcessLogger(logger.info, logger.error)
+    }
+
+    IO(ExitCode(returnCode))
   }
 }

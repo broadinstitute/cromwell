@@ -15,7 +15,8 @@ class DeclarationValidationSpec extends FlatSpec with Matchers with TableDrivenP
   
   def validateCpu(key: String) = {
     val expression = WdlExpression.fromString("5")
-    val declarationValidation = DeclarationValidation.fromDeclaration(Declaration(WomIntegerType, key, Option(expression), None, null))
+    val declarationValidation = DeclarationValidation.fromDeclaration(callCachedRuntimeAttributesMap = Map.empty)(
+      Declaration(WomIntegerType, key, Option(expression), None, null))
     declarationValidation.extractWdlValueOption(ValidatedRuntimeAttributes(Map(key -> refineMV[Positive](5)))) shouldBe Some(WomInteger(5))
   }
   

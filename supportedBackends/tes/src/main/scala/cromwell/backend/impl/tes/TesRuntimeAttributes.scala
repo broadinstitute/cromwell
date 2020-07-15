@@ -110,7 +110,7 @@ object PreemptibleValidation {
 }
 
 class PreemptibleValidation extends BooleanRuntimeAttributesValidation(TesRuntimeAttributes.PreemptibleKey) {
-  override protected def usedInCallCaching: Boolean = false
+  override def usedInCallCaching: Boolean = false
 
   override protected def missingValueMessage: String =
     s"Expecting $key runtime attribute to be a Boolean or a String with values of 'true' or 'false'"

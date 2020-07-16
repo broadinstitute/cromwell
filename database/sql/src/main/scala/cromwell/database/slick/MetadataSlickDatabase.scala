@@ -74,15 +74,15 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                  (implicit ec: ExecutionContext): Future[Unit] = {
 
     val partitioned = partitionSummarizationMetadata(
-        rawMetadataEntries = metadataEntries.toSeq,
-        startMetadataKey,
-        endMetadataKey,
-        nameMetadataKey,
-        statusMetadataKey,
-        submissionMetadataKey,
-        parentWorkflowIdKey,
-        rootWorkflowIdKey,
-        labelMetadataKey)
+      rawMetadataEntries = metadataEntries.toSeq,
+      startMetadataKey,
+      endMetadataKey,
+      nameMetadataKey,
+      statusMetadataKey,
+      submissionMetadataKey,
+      parentWorkflowIdKey,
+      rootWorkflowIdKey,
+      labelMetadataKey)
 
     // These entries also require a write to the summary queue.
     def writeSummarizable(): Future[Unit] = if (partitioned.summarizableMetadata.isEmpty) Future.successful(()) else {
@@ -124,12 +124,28 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action, timeout = timeout)
   }
 
+  override def countMetadataEntries(workflowExecutionUuid: String,
+                                    timeout: Duration)
+                                   (implicit ec: ExecutionContext): Future[Int] = {
+    val action = dataAccess.countMetadataEntriesForWorkflowExecutionUuid(workflowExecutionUuid).result
+    runTransaction(action, timeout = timeout)
+  }
+
   override def queryMetadataEntries(workflowExecutionUuid: String,
                                     metadataKey: String,
                                     timeout: Duration)
                                    (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
     val action =
       dataAccess.metadataEntriesForWorkflowExecutionUuidAndMetadataKey((workflowExecutionUuid, metadataKey)).result
+    runTransaction(action, timeout = timeout)
+  }
+
+  override def countMetadataEntries(workflowExecutionUuid: String,
+                                    metadataKey: String,
+                                    timeout: Duration)
+                                   (implicit ec: ExecutionContext): Future[Int] = {
+    val action =
+      dataAccess.countMetadataEntriesForWorkflowExecutionUuidAndMetadataKey((workflowExecutionUuid, metadataKey)).result
     runTransaction(action, timeout = timeout)
   }
 
@@ -144,6 +160,17 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action, timeout = timeout)
   }
 
+  override def countMetadataEntries(workflowExecutionUuid: String,
+                                    callFullyQualifiedName: String,
+                                    jobIndex: Option[Int],
+                                    jobAttempt: Option[Int],
+                                    timeout: Duration)
+                                   (implicit ec: ExecutionContext): Future[Int] = {
+    val action = dataAccess.
+      countMetadataEntriesForJobKey((workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt)).result
+    runTransaction(action, timeout = timeout)
+  }
+
   override def queryMetadataEntries(workflowUuid: String,
                                     metadataKey: String,
                                     callFullyQualifiedName: String,
@@ -155,6 +182,19 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       workflowUuid, metadataKey, callFullyQualifiedName, jobIndex, jobAttempt)).result
     runTransaction(action, timeout = timeout)
   }
+
+  override def countMetadataEntries(workflowUuid: String,
+                                    metadataKey: String,
+                                    callFullyQualifiedName: String,
+                                    jobIndex: Option[Int],
+                                    jobAttempt: Option[Int],
+                                    timeout: Duration)
+                                   (implicit ec: ExecutionContext): Future[Int] = {
+    val action = dataAccess.countMetadataEntriesForJobKeyAndMetadataKey((
+      workflowUuid, metadataKey, callFullyQualifiedName, jobIndex, jobAttempt)).result
+    runTransaction(action, timeout = timeout)
+  }
+
 
   override def queryMetadataEntryWithKeyConstraints(workflowExecutionUuid: String,
                                                     metadataKeysToFilterFor: List[String],
@@ -172,6 +212,24 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     }
     runTransaction(action, timeout = timeout)
   }
+
+  override def countMetadataEntryWithKeyConstraints(workflowExecutionUuid: String,
+                                                    metadataKeysToFilterFor: List[String],
+                                                    metadataKeysToFilterOut: List[String],
+                                                    metadataJobQueryValue: MetadataJobQueryValue,
+                                                    timeout: Duration)
+                                                   (implicit ec: ExecutionContext): Future[Int] = {
+    val action = metadataJobQueryValue match {
+      case CallQuery(callFqn, jobIndex, jobAttempt) =>
+        dataAccess.countMetadataEntriesForJobWithKeyConstraints(workflowExecutionUuid, metadataKeysToFilterFor, metadataKeysToFilterOut, callFqn, jobIndex, jobAttempt).result
+      case WorkflowQuery =>
+        dataAccess.countMetadataEntriesWithKeyConstraints(workflowExecutionUuid, metadataKeysToFilterFor, metadataKeysToFilterOut, requireEmptyJobKey = true).result
+      case CallOrWorkflowQuery =>
+        dataAccess.countMetadataEntriesWithKeyConstraints(workflowExecutionUuid, metadataKeysToFilterFor, metadataKeysToFilterOut, requireEmptyJobKey = false).result
+    }
+    runTransaction(action, timeout = timeout)
+  }
+
 
   private def updateWorkflowMetadataSummaryEntry(buildUpdatedWorkflowMetadataSummaryEntry:
                                                  (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry]) =>
@@ -344,10 +402,10 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       workflowStatuses: Set[String],
                                       workflowNames: Set[String],
                                       workflowExecutionUuids: Set[String],
-                                      labelAndKeyLabelValues: Set[(String,String)],
-                                      labelOrKeyLabelValues: Set[(String,String)],
-                                      excludeLabelAndValues: Set[(String,String)],
-                                      excludeLabelOrValues: Set[(String,String)],
+                                      labelAndKeyLabelValues: Set[(String, String)],
+                                      labelOrKeyLabelValues: Set[(String, String)],
+                                      excludeLabelAndValues: Set[(String, String)],
+                                      excludeLabelOrValues: Set[(String, String)],
                                       submissionTimestampOption: Option[Timestamp],
                                       startTimestampOption: Option[Timestamp],
                                       endTimestampOption: Option[Timestamp],
@@ -368,10 +426,10 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       workflowStatuses: Set[String],
                                       workflowNames: Set[String],
                                       workflowExecutionUuids: Set[String],
-                                      labelAndKeyLabelValues: Set[(String,String)],
-                                      labelOrKeyLabelValues: Set[(String,String)],
-                                      excludeLabelAndValues: Set[(String,String)],
-                                      excludeLabelOrValues: Set[(String,String)],
+                                      labelAndKeyLabelValues: Set[(String, String)],
+                                      labelOrKeyLabelValues: Set[(String, String)],
+                                      excludeLabelAndValues: Set[(String, String)],
+                                      excludeLabelOrValues: Set[(String, String)],
                                       submissionTimestampOption: Option[Timestamp],
                                       startTimestampOption: Option[Timestamp],
                                       endTimestampOption: Option[Timestamp],
@@ -423,7 +481,4 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       countSummaryQueueEntries()
     )
 
-  override def getMetadataTotalRowNumberByRootWorkflowId(rootWorkflowId: String, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
-    runTransaction(dataAccess.metadataTotalSizeRowsForRootWorkflowId(rootWorkflowId).result, timeout = timeout)
-  }
 }

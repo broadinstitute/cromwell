@@ -62,6 +62,21 @@ trait MetadataEntryComponent {
     } yield metadataEntry).sortBy(_.metadataTimestamp)
   )
 
+  val countMetadataEntriesForWorkflowExecutionUuid = Compiled(
+    (rootWorkflowId: Rep[String]) => {
+      val targetWorkflowIds = for {
+        summary <- workflowMetadataSummaryEntries
+        // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
+        if summary.rootWorkflowExecutionUuid === rootWorkflowId || summary.workflowExecutionUuid === rootWorkflowId
+      } yield summary.workflowExecutionUuid
+
+      for {
+        metadata <- metadataEntries
+        if metadata.workflowExecutionUuid in targetWorkflowIds // Uses `METADATA_WORKFLOW_IDX`
+      } yield metadata
+    }.size
+  )
+
   val metadataEntriesWithoutLabelsForRootWorkflowId = Compiled(
     (rootWorkflowId: Rep[String]) => {
       val targetWorkflowIds = for {
@@ -76,21 +91,6 @@ trait MetadataEntryComponent {
         if !(metadata.metadataKey like "labels:%")
       } yield metadata
     }
-  )
-
-  val metadataTotalSizeRowsForRootWorkflowId = Compiled(
-    (rootWorkflowId: Rep[String]) => {
-      val targetWorkflowIds = for {
-        summary <- workflowMetadataSummaryEntries
-        // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
-        if summary.rootWorkflowExecutionUuid === rootWorkflowId || summary.workflowExecutionUuid === rootWorkflowId
-      } yield summary.workflowExecutionUuid
-
-      for {
-        metadata <- metadataEntries
-        if metadata.workflowExecutionUuid in targetWorkflowIds // Uses `METADATA_WORKFLOW_IDX`
-      } yield metadata
-    }.size
   )
 
   val metadataEntryExistsForWorkflowExecutionUuid = Compiled(
@@ -119,6 +119,25 @@ trait MetadataEntryComponent {
     } yield metadataEntry).sortBy(_.metadataTimestamp)
   )
 
+  val countMetadataEntriesForWorkflowExecutionUuidAndMetadataKey = Compiled(
+    (rootWorkflowId: Rep[String], metadataKey: Rep[String]) => {
+      val targetWorkflowIds = for {
+        summary <- workflowMetadataSummaryEntries
+        // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
+        if summary.rootWorkflowExecutionUuid === rootWorkflowId || summary.workflowExecutionUuid === rootWorkflowId
+      } yield summary.workflowExecutionUuid
+
+      for {
+        metadata <- metadataEntries
+        if metadata.workflowExecutionUuid in targetWorkflowIds // Uses `METADATA_WORKFLOW_IDX`
+        if metadata.metadataKey === metadataKey
+        if metadata.callFullyQualifiedName.isEmpty
+        if metadata.jobIndex.isEmpty
+        if metadata.jobAttempt.isEmpty
+      } yield metadata
+    }.size
+  )
+
   val metadataEntriesForJobKey = Compiled(
     (workflowExecutionUuid: Rep[String], callFullyQualifiedName: Rep[String], jobIndex: Rep[Option[Int]],
      jobAttempt: Rep[Option[Int]]) => (for {
@@ -128,6 +147,25 @@ trait MetadataEntryComponent {
       if hasSameIndex(metadataEntry, jobIndex)
       if hasSameAttempt(metadataEntry, jobAttempt)
     } yield metadataEntry).sortBy(_.metadataTimestamp)
+  )
+
+  val countMetadataEntriesForJobKey = Compiled(
+    (rootWorkflowId: Rep[String], callFullyQualifiedName: Rep[String], jobIndex: Rep[Option[Int]],
+     jobAttempt: Rep[Option[Int]]) => {
+      val targetWorkflowIds = for {
+        summary <- workflowMetadataSummaryEntries
+        // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
+        if summary.rootWorkflowExecutionUuid === rootWorkflowId || summary.workflowExecutionUuid === rootWorkflowId
+      } yield summary.workflowExecutionUuid
+
+      for {
+        metadata <- metadataEntries
+        if metadata.workflowExecutionUuid in targetWorkflowIds // Uses `METADATA_WORKFLOW_IDX`
+        if metadata.callFullyQualifiedName === callFullyQualifiedName
+        if hasSameIndex(metadata, jobIndex)
+        if hasSameAttempt(metadata, jobAttempt)
+      } yield metadata
+    }.size
   )
 
   val metadataEntriesForJobKeyAndMetadataKey = Compiled(
@@ -140,6 +178,26 @@ trait MetadataEntryComponent {
       if hasSameIndex(metadataEntry, jobIndex)
       if hasSameAttempt(metadataEntry, jobAttempt)
     } yield metadataEntry).sortBy(_.metadataTimestamp)
+  )
+
+  val countMetadataEntriesForJobKeyAndMetadataKey = Compiled(
+    (rootWorkflowId: Rep[String], metadataKey: Rep[String], callFullyQualifiedName: Rep[String],
+     jobIndex: Rep[Option[Int]], jobAttempt: Rep[Option[Int]]) => {
+      val targetWorkflowIds = for {
+        summary <- workflowMetadataSummaryEntries
+        // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
+        if summary.rootWorkflowExecutionUuid === rootWorkflowId || summary.workflowExecutionUuid === rootWorkflowId
+      } yield summary.workflowExecutionUuid
+
+      for {
+        metadata <- metadataEntries
+        if metadata.workflowExecutionUuid in targetWorkflowIds // Uses `METADATA_WORKFLOW_IDX`
+        if metadata.metadataKey === metadataKey
+        if metadata.callFullyQualifiedName === callFullyQualifiedName
+        if hasSameIndex(metadata, jobIndex)
+        if hasSameAttempt(metadata, jobAttempt)
+      } yield metadata
+    }.size
   )
 
   val metadataEntriesForIdRange = Compiled(

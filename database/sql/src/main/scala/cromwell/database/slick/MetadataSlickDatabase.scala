@@ -74,15 +74,15 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                  (implicit ec: ExecutionContext): Future[Unit] = {
 
     val partitioned = partitionSummarizationMetadata(
-      rawMetadataEntries = metadataEntries.toSeq,
-      startMetadataKey,
-      endMetadataKey,
-      nameMetadataKey,
-      statusMetadataKey,
-      submissionMetadataKey,
-      parentWorkflowIdKey,
-      rootWorkflowIdKey,
-      labelMetadataKey)
+        rawMetadataEntries = metadataEntries.toSeq,
+        startMetadataKey,
+        endMetadataKey,
+        nameMetadataKey,
+        statusMetadataKey,
+        submissionMetadataKey,
+        parentWorkflowIdKey,
+        rootWorkflowIdKey,
+        labelMetadataKey)
 
     // These entries also require a write to the summary queue.
     def writeSummarizable(): Future[Unit] = if (partitioned.summarizableMetadata.isEmpty) Future.successful(()) else {

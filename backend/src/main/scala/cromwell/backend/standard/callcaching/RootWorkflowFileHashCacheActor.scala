@@ -80,8 +80,6 @@ class RootWorkflowFileHashCacheActor private[callcaching](override val ioActor: 
       case FileHashValueNotRequested =>
         log.info(msgIoAckWithNoRequesters.format(fileHashContext.file))
         notifyRequestersAndCacheValue(List.empty[FileHashRequester])
-      case _ =>
-        log.error(s"Programmer error! Not expecting message type ${ioAck.getClass.getSimpleName} when the hash value has already been received: $fileHashContext")
     }
   }
 
@@ -95,7 +93,7 @@ class RootWorkflowFileHashCacheActor private[callcaching](override val ioActor: 
             // Allow for the possibility of trying again on a timeout.
             cache.put(fileHashContext.file, FileHashValueNotRequested)
           case FileHashValueNotRequested =>
-            log.error(s"Programmer error! Not expecting a hash request timeout when a hash value has not been requested: ${fileHashContext.file}")
+            // Due to race condition timeout came after the actual response. This is fine and no further action required.
           case v =>
             log.info(msgTimeoutAfterIoAck.format(v, fileHashContext.file))
         }

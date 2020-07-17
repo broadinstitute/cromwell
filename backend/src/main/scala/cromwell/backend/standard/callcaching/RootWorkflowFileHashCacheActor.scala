@@ -80,6 +80,9 @@ class RootWorkflowFileHashCacheActor private[callcaching](override val ioActor: 
       case FileHashValueNotRequested =>
         log.info(msgIoAckWithNoRequesters.format(fileHashContext.file))
         notifyRequestersAndCacheValue(List.empty[FileHashRequester])
+      case _ =>
+        // IoAck arrived when hash result is already saved in cache. This is a result of benign race condition.
+        // No further action is required.
     }
   }
 
@@ -93,7 +96,7 @@ class RootWorkflowFileHashCacheActor private[callcaching](override val ioActor: 
             // Allow for the possibility of trying again on a timeout.
             cache.put(fileHashContext.file, FileHashValueNotRequested)
           case FileHashValueNotRequested =>
-            // Due to race condition timeout came after the actual response. This is fine and no further action required.
+            // Due to race condition, timeout came after the actual response. This is fine and no further action required.
           case v =>
             log.info(msgTimeoutAfterIoAck.format(v, fileHashContext.file))
         }

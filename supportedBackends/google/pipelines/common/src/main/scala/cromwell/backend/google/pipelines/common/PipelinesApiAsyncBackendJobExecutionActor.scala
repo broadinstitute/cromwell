@@ -458,6 +458,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           virtualPrivateCloudConfiguration = jesAttributes.virtualPrivateCloudConfiguration,
           retryWithMoreMemoryKeys = jesAttributes.memoryRetryConfiguration.map(_.errorKeys),
           fuseEnabled = fuseEnabled(jobDescriptor.workflowDescriptor),
+          allowNoAddress = pipelinesConfiguration.papiAttributes.allowNoAddress
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")

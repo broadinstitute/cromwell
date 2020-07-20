@@ -62,7 +62,7 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with FlatSpecLike with Match
   }
 
   def testWith(src: GcsPath, dst: GcsPath, directory: GcsPath) = {
-    val testActor = TestActorRef(new IoActor(10, 10, 10, None, TestProbe().ref))
+    val testActor = TestActorRef(new IoActor(10, 10, 10, None, TestProbe().ref, "cromwell test"))
 
     val copyCommand = GcsBatchCopyCommand(src, dst, overwrite = false)
     val sizeCommand = GcsBatchSizeCommand(src)
@@ -123,7 +123,7 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with FlatSpecLike with Match
   }
 
   it should "copy files across GCS storage classes" taggedAs IntegrationTest in {
-    val testActor = TestActorRef(new IoActor(10, 10, 10, None, TestProbe().ref))
+    val testActor = TestActorRef(new IoActor(10, 10, 10, None, TestProbe().ref, "cromwell test"))
 
     val copyCommand = GcsBatchCopyCommand(srcRegional, dstMultiRegional, overwrite = false)
 

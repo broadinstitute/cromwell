@@ -29,4 +29,13 @@ class BiscayneFileEvaluatorSpec extends FlatSpec with Matchers {
       case e => e.predictFilesNeededToEvaluate(Map.empty, NoIoFunctionSet, WomArrayType(WomPairType(WomStringType, WomStringType))) shouldBeValid Set(WomSingleFile("my_map.txt"))
     }
   }
+
+  it should "discover the file which would be required to evaluate a sep() function" in {
+    val str = """ sep(' ', read_lines("foo.txt")) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    expr.shouldBeValidPF {
+      case e => e.predictFilesNeededToEvaluate(Map.empty, NoIoFunctionSet, WomStringType) shouldBeValid Set(WomSingleFile("foo.txt"))
+    }
+  }
 }

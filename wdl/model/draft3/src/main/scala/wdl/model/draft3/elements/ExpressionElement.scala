@@ -149,6 +149,7 @@ object ExpressionElement {
   }
   final case class Min(arg1: ExpressionElement, arg2: ExpressionElement) extends TwoParamFunctionCallElement
   final case class Max(arg1: ExpressionElement, arg2: ExpressionElement) extends TwoParamFunctionCallElement
+  final case class Sep(arg1: ExpressionElement, arg2: ExpressionElement) extends TwoParamFunctionCallElement
 
   // 3-param functions:
   sealed trait ThreeParamFunctionCallElement extends FunctionCallElement {

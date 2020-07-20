@@ -32,12 +32,15 @@
 package cromwell.backend.impl.aws
 
 import akka.actor.Actor
-import cromwell.backend.impl.aws.io.AwsBatchVolume
-import cromwell.backend.impl.aws.io.AwsBatchWorkingDisk
+import cromwell.backend.impl.aws.io.{AwsBatchVolume, AwsBatchWorkingDisk}
 import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.Path
 
+/**
+ * Mixin for AWS Batch caching functionality. The sub trait is mixed into a pair of actors, the first that does
+ * the (async-)execution, the second that responds to cache hits.
+ */
 trait AwsBatchJobCachingActorHelper extends StandardCachingActorHelper {
   this: Actor with JobLogging =>
 
@@ -50,7 +53,7 @@ trait AwsBatchJobCachingActorHelper extends StandardCachingActorHelper {
   // TODO: Determine if call paths are relevant
   lazy val callPaths: AwsBatchJobPaths = jobPaths.asInstanceOf[AwsBatchJobPaths]
 
-  lazy val runtimeAttributes = AwsBatchRuntimeAttributes(validatedRuntimeAttributes, configuration.runtimeConfig)
+  lazy val runtimeAttributes: AwsBatchRuntimeAttributes = AwsBatchRuntimeAttributes(validatedRuntimeAttributes, configuration.runtimeConfig)
 
   lazy val workingDisk: AwsBatchVolume = runtimeAttributes.disks.find(x => configuration.fileSystem match {
     case AWSBatchStorageSystems.s3 => x.name == AwsBatchWorkingDisk.Name

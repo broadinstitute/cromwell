@@ -31,9 +31,14 @@
 
 package cromwell.backend.impl.aws
 
-import software.amazon.awssdk.services.batch.model.JobStatus
 import cromwell.core.ExecutionEvent
+import software.amazon.awssdk.services.batch.model.JobStatus
+
 import scala.util.{Failure, Success, Try}
+
+/**
+ * A set of available statuses for a job
+ */
 sealed trait RunStatus {
   import RunStatus._
 

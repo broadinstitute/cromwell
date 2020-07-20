@@ -7,7 +7,7 @@ import cromwell.database.sql.tables.MetadataEntry
 
 trait MetadataEntryComponent {
 
-  this: DriverComponent =>
+  this: DriverComponent with WorkflowMetadataSummaryEntryComponent =>
 
   import driver.api._
 
@@ -62,6 +62,37 @@ trait MetadataEntryComponent {
     } yield metadataEntry).sortBy(_.metadataTimestamp)
   )
 
+  val metadataEntriesWithoutLabelsForRootWorkflowId = Compiled(
+    (rootWorkflowId: Rep[String]) => {
+      val targetWorkflowIds = for {
+        summary <- workflowMetadataSummaryEntries
+        // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
+        if summary.rootWorkflowExecutionUuid === rootWorkflowId || summary.workflowExecutionUuid === rootWorkflowId
+      } yield summary.workflowExecutionUuid
+
+      for {
+        metadata <- metadataEntries
+        if metadata.workflowExecutionUuid in targetWorkflowIds // Uses `METADATA_WORKFLOW_IDX`
+        if !(metadata.metadataKey like "labels:%")
+      } yield metadata
+    }
+  )
+
+  val metadataTotalSizeRowsForRootWorkflowId = Compiled(
+    (rootWorkflowId: Rep[String]) => {
+      val targetWorkflowIds = for {
+        summary <- workflowMetadataSummaryEntries
+        // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
+        if summary.rootWorkflowExecutionUuid === rootWorkflowId || summary.workflowExecutionUuid === rootWorkflowId
+      } yield summary.workflowExecutionUuid
+
+      for {
+        metadata <- metadataEntries
+        if metadata.workflowExecutionUuid in targetWorkflowIds // Uses `METADATA_WORKFLOW_IDX`
+      } yield metadata
+    }.size
+  )
+
   val metadataEntryExistsForWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => (for {
       metadataEntry <- metadataEntries
@@ -112,38 +143,12 @@ trait MetadataEntryComponent {
   )
 
   val metadataEntriesForIdRange = Compiled(
-    (minMetadataEntryId: Rep[Long], maxMetadataEntryId: Rep[Long],
-     startMetadataKey: Rep[String], endMetadataKey: Rep[String],
-     nameMetadataKey: Rep[String], statusMetadataKey: Rep[String], submissionMetadataKey: Rep[String],
-     parentWorkflowIdMetadataKey: Rep[String], rootWorkflowIdMetadataKey: Rep[String],
-     likeLabelMetadataKey: Rep[String]) => {
+    (minMetadataEntryId: Rep[Long], maxMetadataEntryId: Rep[Long]) => {
       for {
         metadataEntry <- metadataEntries
         if metadataEntry.metadataEntryId >= minMetadataEntryId
         if metadataEntry.metadataEntryId <= maxMetadataEntryId
-        if metadataEntry.metadataKey === startMetadataKey ||
-          metadataEntry.metadataKey === endMetadataKey ||
-          metadataEntry.metadataKey === nameMetadataKey ||
-          metadataEntry.metadataKey === statusMetadataKey ||
-          metadataEntry.metadataKey === submissionMetadataKey ||
-          metadataEntry.metadataKey === parentWorkflowIdMetadataKey ||
-          metadataEntry.metadataKey === rootWorkflowIdMetadataKey ||
-          // http://slick.lightbend.com/doc/3.2.3/queries.html#expressions
-          metadataEntry.metadataKey.like(likeLabelMetadataKey ++ ("%": Rep[String]))
-        if metadataEntry.callFullyQualifiedName.isEmpty
-        if metadataEntry.jobIndex.isEmpty
-        if metadataEntry.jobAttempt.isEmpty
       } yield metadataEntry
-    }
-  )
-
-  val existsMetadataEntriesGreaterThanMetadataEntryId = Compiled(
-    (metadataEntryId: Rep[Long]) => {
-      val query = for {
-        metadataEntry <- metadataEntries
-        if metadataEntry.metadataEntryId > metadataEntryId
-      } yield metadataEntry.metadataEntryId
-      query.exists
     }
   )
 

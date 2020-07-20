@@ -10,6 +10,7 @@ object JobPaths {
   val CallPrefix = "call"
   val ShardPrefix = "shard"
   val AttemptPrefix = "attempt"
+  val CacheCopyPrefix = "cacheCopy"
   val ScriptPathKey = "script"
   val StdoutPathKey = "stdout"
   val StdErrPathKey = "stderr"
@@ -17,21 +18,29 @@ object JobPaths {
   val CallRootPathKey = "callRootPath"
   val DockerCidPathKey = "dockerCidPath"
 
-  def callPathBuilder(root: Path, jobKey: JobKey) = {
+  def callPathBuilder(root: Path, jobKey: JobKey, isCallCacheCopyAttempt: Boolean) = {
     val callName = jobKey.node.localName
     val call = s"$CallPrefix-$callName"
     val shard = jobKey.index map { s => s"$ShardPrefix-$s" } getOrElse ""
-    val retry = if (jobKey.attempt > 1) s"$AttemptPrefix-${jobKey.attempt}" else ""
 
-    List(call, shard, retry).foldLeft(root)((path, dir) => path.resolve(dir))
+    val retryOrCallCache =
+      if (isCallCacheCopyAttempt) CacheCopyPrefix
+      else if (jobKey.attempt > 1) s"$AttemptPrefix-${jobKey.attempt}"
+      else ""
+
+    List(call, shard, retryOrCallCache).foldLeft(root)((path, dir) => path.resolve(dir))
   }
 }
 
 trait JobPaths {
   import JobPaths._
 
+  def forCallCacheCopyAttempts: JobPaths
+  val isCallCacheCopyAttempt: Boolean
+
   def workflowPaths: WorkflowPaths
   def returnCodeFilename: String = "rc"
+  def memoryRetryRCFilename: String = "memory_retry_rc"
   def defaultStdoutFilename = "stdout"
   def defaultStderrFilename = "stderr"
   def isDocker: Boolean = false
@@ -59,7 +68,7 @@ trait JobPaths {
   def dockerCidFilename: String = "docker_cid"
 
   def jobKey: BackendJobDescriptorKey
-  lazy val callRoot = callPathBuilder(workflowPaths.workflowRoot, jobKey)
+  lazy val callRoot = callPathBuilder(workflowPaths.workflowRoot, jobKey, isCallCacheCopyAttempt)
   lazy val callExecutionRoot = callRoot
 
   // Use default stdout and stderr names by default. This StandardPaths `var` may be reassigned later to
@@ -72,6 +81,7 @@ trait JobPaths {
   lazy val script = callExecutionRoot.resolve(scriptFilename)
   lazy val dockerCid = callExecutionRoot.resolve(dockerCidFilename)
   lazy val returnCode = callExecutionRoot.resolve(returnCodeFilename)
+  lazy val memoryRetryRC = callExecutionRoot.resolve(memoryRetryRCFilename)
 
   // This is a `def` because `standardPaths` is a `var` that may be reassigned during the calculation of
   // standard output and error file names.

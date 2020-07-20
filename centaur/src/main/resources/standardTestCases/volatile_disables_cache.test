@@ -1,0 +1,12 @@
+name: volatile_disables_cache
+testFormat: runtwiceexpectingnocallcaching
+
+files {
+  workflow: volatile_disables_cache/volatile_disables_cache.wdl
+  options: volatile_disables_cache/volatile_disables_cache.options
+}
+
+metadata {
+  workflowName: volatile_disables_cache
+  status: Succeeded
+}

@@ -20,7 +20,11 @@ trait PipelinesApiJobCachingActorHelper extends StandardCachingActorHelper {
 
   lazy val pipelinesApiCallPaths: PipelinesApiJobPaths = jobPaths.asInstanceOf[PipelinesApiJobPaths]
 
-  lazy val runtimeAttributes = PipelinesApiRuntimeAttributes(validatedRuntimeAttributes, pipelinesConfiguration.runtimeConfig)
+  lazy val runtimeAttributes = PipelinesApiRuntimeAttributes(
+    validatedRuntimeAttributes,
+    pipelinesConfiguration.runtimeConfig,
+    googleLegacyMachineSelection(jobDescriptor.workflowDescriptor)
+  )
 
   lazy val workingDisk: PipelinesApiAttachedDisk = runtimeAttributes.disks.find(_.name == PipelinesApiWorkingDisk.Name).get
 
@@ -28,6 +32,8 @@ trait PipelinesApiJobCachingActorHelper extends StandardCachingActorHelper {
   lazy val returnCodeFilename: String = pipelinesApiCallPaths.returnCodeFilename
   lazy val returnCodeGcsPath: Path = pipelinesApiCallPaths.returnCode
   lazy val jesLogPath: Path = pipelinesApiCallPaths.jesLogPath
+  lazy val memoryRetryRCFilename: String = pipelinesApiCallPaths.memoryRetryRCFilename
+  lazy val memoryRetryRCGcsPath: Path = pipelinesApiCallPaths.memoryRetryRC
 
   lazy val maxPreemption: Int = runtimeAttributes.preemptible
   def preemptible: Boolean

@@ -2,6 +2,7 @@ package cromwell.database.slick
 
 import java.sql.Timestamp
 
+import cats.implicits._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.database.slick.tables.MetadataDataAccessComponent
 import cromwell.database.sql.MetadataSqlDatabase
@@ -17,25 +18,93 @@ object MetadataSlickDatabase {
     val databaseConfig = SlickDatabase.getDatabaseConfig("metadata", parentConfig)
     new MetadataSlickDatabase(databaseConfig)
   }
+
+  case class SummarizationPartitionedMetadata(nonSummarizableMetadata: Seq[MetadataEntry],
+                                              summarizableMetadata: Seq[MetadataEntry])
+
+  def partitionSummarizationMetadata(rawMetadataEntries: Seq[MetadataEntry],
+                                     startMetadataKey: String,
+                                     endMetadataKey: String,
+                                     nameMetadataKey: String,
+                                     statusMetadataKey: String,
+                                     submissionMetadataKey: String,
+                                     parentWorkflowIdKey: String,
+                                     rootWorkflowIdKey: String,
+                                     labelMetadataKey: String): SummarizationPartitionedMetadata = {
+
+    val exactMatchMetadataKeys = Set(startMetadataKey, endMetadataKey, nameMetadataKey, statusMetadataKey, submissionMetadataKey, parentWorkflowIdKey, rootWorkflowIdKey)
+    val startsWithMetadataKeys = Set(labelMetadataKey)
+
+    val (summarizable, nonSummarizable) = rawMetadataEntries partition { entry =>
+      entry.callFullyQualifiedName.isEmpty && entry.jobIndex.isEmpty && entry.jobAttempt.isEmpty &&
+        (exactMatchMetadataKeys.contains(entry.metadataKey) || startsWithMetadataKeys.exists(entry.metadataKey.startsWith))
+    }
+
+    SummarizationPartitionedMetadata(
+      summarizableMetadata = summarizable,
+      nonSummarizableMetadata = nonSummarizable
+    )
+  }
 }
 
 class MetadataSlickDatabase(originalDatabaseConfig: Config)
   extends SlickDatabase(originalDatabaseConfig)
     with MetadataSqlDatabase
-    with SummaryStatusSlickDatabase {
+    with SummaryStatusSlickDatabase
+    with SummaryQueueSlickDatabase {
   override lazy val dataAccess = new MetadataDataAccessComponent(slickConfig.profile)
 
   import dataAccess.driver.api._
+  import MetadataSlickDatabase._
 
   override def existsMetadataEntries()(implicit ec: ExecutionContext): Future[Boolean] = {
     val action = dataAccess.metadataEntriesExists.result
     runTransaction(action)
   }
 
-  override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])
+  override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry],
+                                  startMetadataKey: String,
+                                  endMetadataKey: String,
+                                  nameMetadataKey: String,
+                                  statusMetadataKey: String,
+                                  submissionMetadataKey: String,
+                                  parentWorkflowIdKey: String,
+                                  rootWorkflowIdKey: String,
+                                  labelMetadataKey: String)
                                  (implicit ec: ExecutionContext): Future[Unit] = {
-    val action = DBIO.seq(metadataEntries.grouped(insertBatchSize).map(dataAccess.metadataEntries ++= _).toSeq:_*)
-    runLobAction(action)
+
+    val partitioned = partitionSummarizationMetadata(
+        rawMetadataEntries = metadataEntries.toSeq,
+        startMetadataKey,
+        endMetadataKey,
+        nameMetadataKey,
+        statusMetadataKey,
+        submissionMetadataKey,
+        parentWorkflowIdKey,
+        rootWorkflowIdKey,
+        labelMetadataKey)
+
+    // These entries also require a write to the summary queue.
+    def writeSummarizable(): Future[Unit] = if (partitioned.summarizableMetadata.isEmpty) Future.successful(()) else {
+      val batchesToWrite = partitioned.summarizableMetadata.grouped(insertBatchSize).toList
+      val insertActions = batchesToWrite.map { batch =>
+        val insertMetadata = dataAccess.metadataEntryIdsAutoInc ++= batch
+        insertMetadata.flatMap(ids => writeSummaryQueueEntries(ids))
+      }
+      runTransaction(DBIO.sequence(insertActions)).void
+    }
+
+    // Non-summarizable metadata that only needs to go to the metadata table can be written much more efficiently
+    // than summarizable metadata.
+    def writeNonSummarizable(): Future[Unit] = if (partitioned.nonSummarizableMetadata.isEmpty) Future.successful(()) else {
+      val action = DBIO.sequence(partitioned.nonSummarizableMetadata.grouped(insertBatchSize).map(dataAccess.metadataEntries ++= _))
+      runLobAction(action).void
+    }
+
+    for {
+      _ <- writeSummarizable()
+      _ <- writeNonSummarizable()
+    } yield ()
   }
 
   override def metadataEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Boolean] = {
@@ -167,72 +236,29 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     }
   }
 
-  override def summarizeIncreasing(summarizeNameIncreasing: String,
-                                   startMetadataKey: String,
-                                   endMetadataKey: String,
-                                   nameMetadataKey: String,
-                                   statusMetadataKey: String,
-                                   submissionMetadataKey: String,
-                                   parentWorkflowIdKey: String,
-                                   rootWorkflowIdKey: String,
-                                   labelMetadataKey: String,
+  override def summarizeIncreasing(labelMetadataKey: String,
                                    limit: Int,
                                    buildUpdatedSummary:
                                    (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                                      => WorkflowMetadataSummaryEntry)
-                                  (implicit ec: ExecutionContext): Future[(Long, Long)] = {
+                                  (implicit ec: ExecutionContext): Future[Long] = {
     val action = for {
-      previousMetadataEntryIdOption <- getSummaryStatusEntrySummaryPosition(summarizeNameIncreasing)
-      previousMaxMetadataEntryId = previousMetadataEntryIdOption.getOrElse(-1L)
-      nextMaxMetadataEntryId = previousMaxMetadataEntryId + limit
-      maximumMetadataEntryIdConsidered <- summarizeMetadata(
-        minMetadataEntryId = previousMaxMetadataEntryId + 1L,
-        maxMetadataEntryId = nextMaxMetadataEntryId,
-        startMetadataKey = startMetadataKey,
-        endMetadataKey = endMetadataKey,
-        nameMetadataKey = nameMetadataKey,
-        statusMetadataKey = statusMetadataKey,
-        submissionMetadataKey = submissionMetadataKey,
-        parentWorkflowIdKey = parentWorkflowIdKey,
-        rootWorkflowIdKey = rootWorkflowIdKey,
-        labelMetadataKey = labelMetadataKey,
-        buildUpdatedSummary = buildUpdatedSummary,
-        summaryPositionFunction =
-          metadataEntries => {
-            if (metadataEntries.nonEmpty) {
-              DBIO.successful(metadataEntries.map(_.metadataEntryId.get).max)
-            } else {
-              /*
-              Nothing seen within the window of (previousMetadataEntryId, nextMaxMetadataEntryId].
-              Check if there are more entries above nextMaxMetadataEntryId.
-              If yes, then start next time after nextMaxMetadataEntryId, otherwise reuse previousMetadataEntryId.
-               */
-              dataAccess.existsMetadataEntriesGreaterThanMetadataEntryId(nextMaxMetadataEntryId).result map {
-                existsGreater => if (existsGreater) nextMaxMetadataEntryId else previousMaxMetadataEntryId
-              }
-            }
-          },
-        summaryName = summarizeNameIncreasing
-      )
-      maximumMetadataEntryIdInTableOption <- dataAccess.metadataEntries.map(_.metadataEntryId).max.result
-      maximumMetadataEntryIdInTable = maximumMetadataEntryIdInTableOption.getOrElse {
-        // TODO: Add a logging framework to this 'database' project and log this weirdness.
-        maximumMetadataEntryIdConsidered
-      }
-    } yield (maximumMetadataEntryIdConsidered - previousMaxMetadataEntryId, maximumMetadataEntryIdInTable - maximumMetadataEntryIdConsidered)
+      rawMetadataEntries <- dataAccess.metadataEntriesToSummarizeQuery(limit.toLong).result
+      _ <-
+        buildMetadataSummaryFromRawMetadataAndWriteToDb(
+          rawMetadataEntries = rawMetadataEntries,
+          labelMetadataKey = labelMetadataKey,
+          buildUpdatedSummary = buildUpdatedSummary
+        )
+      summarizedMetadataEntryIds = rawMetadataEntries.flatMap(_.metadataEntryId)
+      _ <- deleteSummaryQueueEntriesByMetadataJournalIds(summarizedMetadataEntryIds)
+    } yield summarizedMetadataEntryIds.length.toLong
 
     runTransaction(action)
   }
 
   override def summarizeDecreasing(summaryNameDecreasing: String,
                                    summaryNameIncreasing: String,
-                                   startMetadataKey: String,
-                                   endMetadataKey: String,
-                                   nameMetadataKey: String,
-                                   statusMetadataKey: String,
-                                   submissionMetadataKey: String,
-                                   parentWorkflowIdKey: String,
-                                   rootWorkflowIdKey: String,
                                    labelMetadataKey: String,
                                    limit: Int,
                                    buildUpdatedSummary:
@@ -248,22 +274,17 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       newMinimumMetadataEntryId <- previousInitializedMetadataEntryIdOption match {
         case None => DBIO.successful(0L)
         case Some(startingValue) =>
-          val minimumMetadataEntryId = 0L max (startingValue - limit)
-          summarizeMetadata(
-            minMetadataEntryId = minimumMetadataEntryId,
-            maxMetadataEntryId = startingValue - 1L,
-            startMetadataKey = startMetadataKey,
-            endMetadataKey = endMetadataKey,
-            nameMetadataKey = nameMetadataKey,
-            statusMetadataKey = statusMetadataKey,
-            submissionMetadataKey = submissionMetadataKey,
-            parentWorkflowIdKey = parentWorkflowIdKey,
-            rootWorkflowIdKey = rootWorkflowIdKey,
-            labelMetadataKey = labelMetadataKey,
-            buildUpdatedSummary = buildUpdatedSummary,
-            summaryPositionFunction = _ => DBIO.successful(minimumMetadataEntryId),
-            summaryName = summaryNameDecreasing
-          )
+          val summaryPosition = 0L max (startingValue - limit)
+          for {
+            rawMetadataEntries <- dataAccess.metadataEntriesForIdRange((summaryPosition, startingValue - 1L)).result
+            _ <-
+              buildMetadataSummaryFromRawMetadataAndWriteToDb(
+                rawMetadataEntries = rawMetadataEntries,
+                labelMetadataKey = labelMetadataKey,
+                buildUpdatedSummary = buildUpdatedSummary
+              )
+            _ <- upsertSummaryStatusEntrySummaryPosition(summaryNameDecreasing, summaryPosition)
+          } yield summaryPosition
       }
       rowsProcessed = previousExistingMetadataEntryIdOption.map(_ - newMinimumMetadataEntryId).getOrElse(0L)
     } yield (rowsProcessed, newMinimumMetadataEntryId)
@@ -271,44 +292,24 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action)
   }
 
-  private def summarizeMetadata(minMetadataEntryId: Long,
-                                maxMetadataEntryId: Long,
-                                startMetadataKey: String,
-                                endMetadataKey: String,
-                                nameMetadataKey: String,
-                                statusMetadataKey: String,
-                                submissionMetadataKey: String,
-                                parentWorkflowIdKey: String,
-                                rootWorkflowIdKey: String,
-                                labelMetadataKey: String,
-                                buildUpdatedSummary:
-                                (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
-                                  => WorkflowMetadataSummaryEntry,
-                                summaryPositionFunction: Seq[MetadataEntry] => DBIO[Long],
-                                summaryName: String
-                               )(implicit ec: ExecutionContext): DBIO[Long] = {
+  private def buildMetadataSummaryFromRawMetadataAndWriteToDb(rawMetadataEntries: Seq[MetadataEntry],
+                                                              labelMetadataKey: String,
+                                                              buildUpdatedSummary:
+                                                              (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry]) => WorkflowMetadataSummaryEntry
+                                                             )(implicit ec: ExecutionContext): DBIO[Unit] = {
+
+    val (summarizableLabelsMetadata, summarizableRegularMetadata) = rawMetadataEntries.partition(_.metadataKey.contains(labelMetadataKey))
+    val groupedSummarizableRegularMetadata = summarizableRegularMetadata.groupBy(_.workflowExecutionUuid)
+
     for {
-      metadataEntries <- dataAccess.metadataEntriesForIdRange((
-        minMetadataEntryId,
-        maxMetadataEntryId,
-        startMetadataKey,
-        endMetadataKey,
-        nameMetadataKey,
-        statusMetadataKey,
-        submissionMetadataKey,
-        parentWorkflowIdKey,
-        rootWorkflowIdKey,
-        labelMetadataKey
-      )).result
-      metadataWithoutLabels = metadataEntries
-        .filterNot(_.metadataKey.contains(labelMetadataKey))
-        .groupBy(_.workflowExecutionUuid)
-      customLabelEntries = metadataEntries.filter(_.metadataKey.contains(labelMetadataKey))
-      _ <- DBIO.sequence(metadataWithoutLabels map updateWorkflowMetadataSummaryEntry(buildUpdatedSummary))
-      _ <- DBIO.sequence(customLabelEntries map toCustomLabelEntry map upsertCustomLabelEntry)
-      summaryPosition <- summaryPositionFunction(metadataEntries)
-      _ <- upsertSummaryStatusEntrySummaryPosition(summaryName, summaryPosition)
-    } yield summaryPosition
+      _ <- DBIO.sequence(groupedSummarizableRegularMetadata map updateWorkflowMetadataSummaryEntry(buildUpdatedSummary))
+      _ <- DBIO.sequence(summarizableLabelsMetadata map toCustomLabelEntry map upsertCustomLabelEntry)
+    } yield ()
+  }
+
+  override def updateMetadataArchiveStatus(workflowExecutionUuid: String, newArchiveStatus: Option[String]): Future[Int] = {
+    val action = dataAccess.metadataArchiveStatusByWorkflowIdOrRootWorkflowId(workflowExecutionUuid).update(newArchiveStatus)
+    runTransaction(action)
   }
 
   override def getWorkflowStatus(workflowExecutionUuid: String)
@@ -324,7 +325,20 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action).map(_.toMap)
   }
 
+  override def getRootAndSubworkflowLabels(rootWorkflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Map[String, Map[String, String]]] = {
+    val action = dataAccess.labelsForWorkflowAndSubworkflows(rootWorkflowExecutionUuid).result
+    // An empty Map of String workflow IDs to an inner Map of label keys to label values.
+    // The outer Map has a default value so any request for a workflow ID not already present
+    // will return an empty inner Map.
+    val zero: Map[String, Map[String, String]] = Map.empty.withDefaultValue(Map.empty)
 
+    runTransaction(action) map { seq =>
+      seq.foldLeft(zero) { case (labels, (id, labelKey, labelValue)) =>
+        val labelsForId = labels(id)
+        labels + (id -> (labelsForId + (labelKey -> labelValue)))
+      }
+    }
+  }
 
   override def queryWorkflowSummaries(parentIdWorkflowMetadataKey: String,
                                       workflowStatuses: Set[String],
@@ -337,13 +351,16 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       submissionTimestampOption: Option[Timestamp],
                                       startTimestampOption: Option[Timestamp],
                                       endTimestampOption: Option[Timestamp],
+                                      metadataArchiveStatus: Set[Option[String]],
                                       includeSubworkflows: Boolean,
+                                      minimumSummaryEntryId: Option[Long],
                                       page: Option[Int],
                                       pageSize: Option[Int])
                                      (implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = {
 
     val action = dataAccess.queryWorkflowMetadataSummaryEntries(parentIdWorkflowMetadataKey, workflowStatuses, workflowNames, workflowExecutionUuids,
-      labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption, endTimestampOption, includeSubworkflows, page, pageSize)
+      labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption,
+      endTimestampOption, metadataArchiveStatus, includeSubworkflows, minimumSummaryEntryId, page, pageSize)
     runTransaction(action)
   }
 
@@ -358,10 +375,55 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       submissionTimestampOption: Option[Timestamp],
                                       startTimestampOption: Option[Timestamp],
                                       endTimestampOption: Option[Timestamp],
-                                      includeSubworkflows: Boolean)
+                                      metadataArchiveStatus: Set[Option[String]],
+                                      includeSubworkflows: Boolean,
+                                      minimumSummaryEntryId: Option[Long])
                                      (implicit ec: ExecutionContext): Future[Int] = {
     val action = dataAccess.countWorkflowMetadataSummaryEntries(parentIdWorkflowMetadataKey, workflowStatuses, workflowNames, workflowExecutionUuids,
-      labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption, endTimestampOption, includeSubworkflows)
+      labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption,
+      endTimestampOption, metadataArchiveStatus, includeSubworkflows, minimumSummaryEntryId)
     runTransaction(action)
+  }
+
+  override def deleteNonLabelMetadataForWorkflowAndUpdateArchiveStatus(rootWorkflowId: String, newArchiveStatus: Option[String])(implicit ec: ExecutionContext): Future[Int] = {
+    runTransaction {
+      for {
+        numDeleted <- dataAccess.metadataEntriesWithoutLabelsForRootWorkflowId(rootWorkflowId).delete
+        _ <- dataAccess.metadataArchiveStatusByWorkflowIdOrRootWorkflowId(rootWorkflowId).update(newArchiveStatus)
+      } yield numDeleted
+    }
+  }
+
+  override def isRootWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Option[Boolean]] = {
+    runTransaction(
+      dataAccess.isRootWorkflow(rootWorkflowId).result.headOption
+    )
+  }
+
+  override def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = {
+    runAction(
+      dataAccess.rootWorkflowId(workflowId).result.headOption
+    )
+  }
+
+  override def queryRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp, batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[String]] = {
+    runAction(
+      dataAccess.rootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp((archiveStatus, thresholdTimestamp, batchSize)).result
+    )
+  }
+
+  override def countRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp)(implicit ec: ExecutionContext): Future[Int] = {
+    runAction(
+      dataAccess.countRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp((archiveStatus, thresholdTimestamp)).result
+    )
+  }
+
+  override def getSummaryQueueSize()(implicit ec: ExecutionContext): Future[Int] =
+    runAction(
+      countSummaryQueueEntries()
+    )
+
+  override def getMetadataTotalRowNumberByRootWorkflowId(rootWorkflowId: String, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
+    runTransaction(dataAccess.metadataTotalSizeRowsForRootWorkflowId(rootWorkflowId).result, timeout = timeout)
   }
 }

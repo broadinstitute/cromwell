@@ -110,7 +110,7 @@ class PipelinesApiConfigurationSpec extends FlatSpec with Matchers with TableDri
     forAll(configs) { (backend, global) =>
       an[Exception] shouldBe thrownBy {
         val failingGoogleConf = GoogleConfiguration(global)
-        val failingAttributes = PipelinesApiConfigurationAttributes(failingGoogleConf, backend)
+        val failingAttributes = PipelinesApiConfigurationAttributes(failingGoogleConf, backend, "papi")
         new PipelinesApiConfiguration(BackendConfigurationDescriptor(backend, global), genomicsFactory, failingGoogleConf, failingAttributes)
       }
     }
@@ -124,6 +124,21 @@ class PipelinesApiConfigurationSpec extends FlatSpec with Matchers with TableDri
     val dockerConf = new PipelinesApiConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig), genomicsFactory, googleConfiguration, papiAttributes).dockerCredentials
     dockerConf shouldBe defined
     dockerConf.get.token shouldBe "dockerToken"
+  }
+
+  it should "correctly default allowNoAddress to true" in {
+    val noAddressConf = new PipelinesApiConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig), genomicsFactory, googleConfiguration, papiAttributes)
+    noAddressConf.papiAttributes.allowNoAddress should be(true)
+  }
+
+  it should "be able to set allowNoAddress to false" in {
+    val updatedBackendConfig = backendConfig.withValue(
+      PipelinesApiConfigurationAttributes.allowNoAddressAttributeKey,
+      ConfigValueFactory.fromAnyRef(false)
+    )
+    val updatedPapiAttributes = PipelinesApiConfigurationAttributes(googleConfiguration, updatedBackendConfig, "papi")
+    val noAddressConf = new PipelinesApiConfiguration(BackendConfigurationDescriptor(updatedBackendConfig, globalConfig), genomicsFactory, googleConfiguration, updatedPapiAttributes)
+    noAddressConf.papiAttributes.allowNoAddress should be(false)
   }
 
   it should "have correct needAuthFileUpload" in {
@@ -141,7 +156,7 @@ class PipelinesApiConfigurationSpec extends FlatSpec with Matchers with TableDri
 
     forAll(configs) { (backend, needAuthFileUpload) =>
       val customGoogleConfig = GoogleConfiguration(globalConfig)
-      val attributes = PipelinesApiConfigurationAttributes(customGoogleConfig, backend)
+      val attributes = PipelinesApiConfigurationAttributes(customGoogleConfig, backend, "papi")
       new PipelinesApiConfiguration(BackendConfigurationDescriptor(backend, globalConfig), genomicsFactory, googleConfiguration, attributes).needAuthFileUpload shouldBe needAuthFileUpload
     }
   }

@@ -25,7 +25,15 @@ trait MetadataSqlDatabase extends SqlDatabase {
   /**
     * Add metadata events to the database transactionally.
     */
-  def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])(implicit ec: ExecutionContext): Future[Unit]
+  def addMetadataEntries(metadataEntries: Iterable[MetadataEntry],
+                         startMetadataKey: String,
+                         endMetadataKey: String,
+                         nameMetadataKey: String,
+                         statusMetadataKey: String,
+                         submissionMetadataKey: String,
+                         parentWorkflowIdKey: String,
+                         rootWorkflowIdKey: String,
+                         labelMetadataKey: String)(implicit ec: ExecutionContext): Future[Unit]
 
   def metadataEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Boolean]
 
@@ -68,20 +76,12 @@ trait MetadataSqlDatabase extends SqlDatabase {
     * @param buildUpdatedSummary Takes in the optional existing summary and the metadata, returns the new summary.
     * @return A `Future` with the number of rows summarized by the invocation, and the number of rows still to summarize.
     */
-  def summarizeIncreasing(summaryNameIncreasing: String,
-                          startMetadataKey: String,
-                          endMetadataKey: String,
-                          nameMetadataKey: String,
-                          statusMetadataKey: String,
-                          submissionMetadataKey: String,
-                          parentWorkflowIdKey: String,
-                          rootWorkflowIdKey: String,
-                          labelMetadataKey: String,
+  def summarizeIncreasing(labelMetadataKey: String,
                           limit: Int,
                           buildUpdatedSummary:
                           (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
                             => WorkflowMetadataSummaryEntry)
-                         (implicit ec: ExecutionContext): Future[(Long, Long)]
+                         (implicit ec: ExecutionContext): Future[Long]
 
   /**
     * Retrieves a window of summarizable metadata satisfying the specified criteria.
@@ -91,13 +91,6 @@ trait MetadataSqlDatabase extends SqlDatabase {
     */
   def summarizeDecreasing(summaryNameDecreasing: String,
                           summaryNameIncreasing: String,
-                          startMetadataKey: String,
-                          endMetadataKey: String,
-                          nameMetadataKey: String,
-                          statusMetadataKey: String,
-                          submissionMetadataKey: String,
-                          parentWorkflowIdKey: String,
-                          rootWorkflowIdKey: String,
                           labelMetadataKey: String,
                           limit: Int,
                           buildUpdatedSummary:
@@ -105,9 +98,13 @@ trait MetadataSqlDatabase extends SqlDatabase {
                             => WorkflowMetadataSummaryEntry)
                          (implicit ec: ExecutionContext): Future[(Long, Long)]
 
+  def updateMetadataArchiveStatus(workflowExecutionUuid: String, newArchiveStatus: Option[String]): Future[Int]
+
   def getWorkflowStatus(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Option[String]]
 
   def getWorkflowLabels(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Map[String, String]]
+
+  def getRootAndSubworkflowLabels(rootWorkflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Map[String, Map[String, String]]]
 
   def queryWorkflowSummaries(parentIdWorkflowMetadataKey: String,
                              workflowStatuses: Set[String],
@@ -120,7 +117,9 @@ trait MetadataSqlDatabase extends SqlDatabase {
                              submissionTimestamp: Option[Timestamp],
                              startTimestampOption: Option[Timestamp],
                              endTimestampOption: Option[Timestamp],
+                             metadataArchiveStatus: Set[Option[String]],
                              includeSubworkflows: Boolean,
+                             minimumSummaryEntryId: Option[Long],
                              page: Option[Int],
                              pageSize: Option[Int])
                              (implicit ec: ExecutionContext): Future[Traversable[WorkflowMetadataSummaryEntry]]
@@ -135,6 +134,22 @@ trait MetadataSqlDatabase extends SqlDatabase {
                              submissionTimestamp: Option[Timestamp],
                              startTimestampOption: Option[Timestamp],
                              endTimestampOption: Option[Timestamp],
-                             includeSubworkflows: Boolean)
+                             metadataArchiveStatus: Set[Option[String]],
+                             includeSubworkflows: Boolean,
+                             minimumSummaryEntryId: Option[Long])
                              (implicit ec: ExecutionContext): Future[Int]
+
+  def deleteNonLabelMetadataForWorkflowAndUpdateArchiveStatus(rootWorkflowId: String, newArchiveStatus: Option[String])(implicit ec: ExecutionContext): Future[Int]
+
+  def isRootWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Option[Boolean]]
+
+  def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]]
+
+  def queryRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp, batchSizeOpt: Long)(implicit ec: ExecutionContext): Future[Seq[String]]
+
+  def countRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp)(implicit ec: ExecutionContext): Future[Int]
+
+  def getSummaryQueueSize()(implicit ec: ExecutionContext): Future[Int]
+
+  def getMetadataTotalRowNumberByRootWorkflowId(rootWorkflowId: String, timeout: Duration)(implicit ec: ExecutionContext): Future[Int]
 }

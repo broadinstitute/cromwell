@@ -1,6 +1,6 @@
 package cromwell.backend.impl.aws
 
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.backend.impl.aws.IntervalLimitedAwsJobSubmitActor.IntervalLimitedAwsJobSubmitActorMessage
 import cromwell.backend.impl.aws.OccasionalStatusPollingActor.OccasionalStatusPollingActorMessage
 import cromwell.cloudsupport.aws.auth.AwsAuthMode
@@ -8,8 +8,8 @@ import cromwell.core.Mailbox
 import software.amazon.awssdk.regions.Region
 
 class AwsBatchSingletonActor(configRegion: Option[Region], optAwsAuthMode: Option[AwsAuthMode] = None) extends Actor with ActorLogging {
-  val awsOccasionalStatusPoller = context.actorOf(OccasionalStatusPollingActor.props(configRegion, optAwsAuthMode).withMailbox(Mailbox.PriorityMailbox), "OccasionalStatusPollingActor")
-  val awsIntervalLimitedSubmitActor = context.actorOf(IntervalLimitedAwsJobSubmitActor.props(configRegion).withMailbox(Mailbox.PriorityMailbox), "IntervalLimitedAWSSubmitActor")
+  val awsOccasionalStatusPoller: ActorRef = context.actorOf(OccasionalStatusPollingActor.props(configRegion, optAwsAuthMode).withMailbox(Mailbox.PriorityMailbox), "OccasionalStatusPollingActor")
+  val awsIntervalLimitedSubmitActor: ActorRef = context.actorOf(IntervalLimitedAwsJobSubmitActor.props(configRegion).withMailbox(Mailbox.PriorityMailbox), "IntervalLimitedAWSSubmitActor")
 
   override def receive = {
 

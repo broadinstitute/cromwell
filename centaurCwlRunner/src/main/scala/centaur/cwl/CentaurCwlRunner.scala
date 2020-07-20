@@ -13,6 +13,7 @@ import common.util.VersionUtil
 import cromwell.api.model.{Aborted, Failed, NonTerminalStatus, Succeeded}
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.PathBuilderFactory
+import cromwell.core.path.BetterFileMethods.Cmds
 import cwl.preprocessor.{CwlFileReference, CwlPreProcessor}
 import spray.json._
 
@@ -173,7 +174,8 @@ object CentaurCwlRunner extends StrictLogging {
       directoryContentCounts,
       backends,
       retryTestFailures = false,
-      allowOtherOutputs = true
+      allowOtherOutputs = true,
+      skipDescribeEndpointValidation = true
     )
 
     val testCase = CentaurTestCase(workflow, testFormat, testOptions, submitResponseOption)(cromwellTracker = None)

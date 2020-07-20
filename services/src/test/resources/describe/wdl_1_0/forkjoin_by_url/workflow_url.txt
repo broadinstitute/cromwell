@@ -1,0 +1,1 @@
+https://raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/forkjoin/forkjoin.wdl

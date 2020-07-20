@@ -26,7 +26,7 @@ workflow Gutenberg {
     call text_to_file as great_press {
         input:
             text="This press is working great!",
-            filepath="greatpress.txt"
+            filepath="greatpress/typeset.txt"
     }
     output {
         File typeset = set_type.text_file

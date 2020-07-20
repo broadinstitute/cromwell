@@ -136,8 +136,7 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
 
   protected[this] lazy val insertBatchSize = databaseConfig.getOrElse("insert-batch-size", 2000)
 
-  protected[this] lazy val useSlickUpserts =
-    dataAccess.driver.capabilities.contains(JdbcCapabilities.insertOrUpdate)
+  protected[this] lazy val useSlickUpserts = dataAccess.driver.capabilities.contains(JdbcCapabilities.insertOrUpdate)
 
   protected[this] def assertUpdateCount(description: String, updates: Int, expected: Int): DBIO[Unit] = {
     if (updates == expected) {

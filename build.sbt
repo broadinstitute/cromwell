@@ -71,10 +71,6 @@ lazy val cwl = project
   .dependsOn(wom)
   .dependsOn(wom % "test->test")
 
-lazy val cwlEncoder = project
-  .withLibrarySettings("cromwell-cwl-encoder")
-  .dependsOn(cwl)
-
 lazy val core = project
   .withLibrarySettings("cromwell-core", coreDependencies)
   .dependsOn(wom)
@@ -154,7 +150,7 @@ lazy val centaur = project
   .dependsOn(womtool)
 
 lazy val services = project
-  .withLibrarySettings("cromwell-services")
+  .withLibrarySettings("cromwell-services", servicesDependencies)
   .dependsOn(databaseSql)
   .dependsOn(databaseMigration)
   .dependsOn(cloudSupport)
@@ -165,12 +161,17 @@ lazy val services = project
   .dependsOn(wdlBiscayneLanguageFactory % "test->test")
   .dependsOn(cwlV1_0LanguageFactory % "test->test")
   .dependsOn(core % "test->test")
+  .dependsOn(ftpFileSystem % "test->test")
 
 lazy val hybridCarboniteMetadataService = project
-  .withLibrarySettings("hybrid-carbonite-metadata-service")
+  .withLibrarySettings("hybrid-carbonite-metadata-service", hybridCarboniteMetadataServiceDependencies)
   .dependsOn(services)
   .dependsOn(engine)
   .dependsOn(core % "test->test")
+  .dependsOn(services % "test->test")
+  .dependsOn(ftpFileSystem % "test->test")
+  .dependsOn(httpFileSystem % "test->test")
+
 
 lazy val backendRoot = Path("supportedBackends")
 
@@ -197,7 +198,13 @@ lazy val googlePipelinesV1Alpha2 = (project in backendRoot / "google" / "pipelin
   .dependsOn(core % "test->test")
 
 lazy val googlePipelinesV2Alpha1 = (project in backendRoot / "google" / "pipelines" / "v2alpha1")
-  .withLibrarySettings("cromwell-pipelines-v2-backend")
+  .withLibrarySettings("cromwell-pipelines-v2-alpha1-backend")
+  .dependsOn(googlePipelinesCommon)
+  .dependsOn(googlePipelinesCommon % "test->test")
+  .dependsOn(core % "test->test")
+
+lazy val googlePipelinesV2Beta = (project in backendRoot / "google" / "pipelines" / "v2beta")
+  .withLibrarySettings("cromwell-pipelines-v2-beta-backend")
   .dependsOn(googlePipelinesCommon)
   .dependsOn(googlePipelinesCommon % "test->test")
   .dependsOn(core % "test->test")
@@ -216,7 +223,7 @@ lazy val awsBackend = (project in backendRoot / "aws")
   .dependsOn(services % "test->test")
 
 lazy val sfsBackend = (project in backendRoot / "sfs")
-  .withLibrarySettings("cromwell-sfs-backend")
+  .withLibrarySettings("cromwell-sfs-backend", sfsBackendDependencies)
   .dependsOn(backend)
   .dependsOn(gcsFileSystem)
   .dependsOn(httpFileSystem)
@@ -356,13 +363,14 @@ lazy val perf = project
   .dependsOn(common)
 
 lazy val `cromwell-drs-localizer` = project
-  .withExecutableSettings("cromwell-drs-localizer", drsLocalizerDependencies)
+  .withExecutableSettings("cromwell-drs-localizer", drsLocalizerDependencies, drsLocalizerSettings)
 
 lazy val server = project
   .withExecutableSettings("cromwell", serverDependencies)
   .dependsOn(engine)
   .dependsOn(googlePipelinesV1Alpha2)
   .dependsOn(googlePipelinesV2Alpha1)
+  .dependsOn(googlePipelinesV2Beta)
   .dependsOn(jesBackend)
   .dependsOn(bcsBackend)
   .dependsOn(awsBackend)
@@ -373,6 +381,7 @@ lazy val server = project
   .dependsOn(wdlDraft3LanguageFactory)
   .dependsOn(wdlBiscayneLanguageFactory)
   .dependsOn(cwlV1_0LanguageFactory)
+  .dependsOn(hybridCarboniteMetadataService)
   .dependsOn(engine % "test->test")
   .dependsOn(common % "test->test")
 
@@ -407,6 +416,7 @@ lazy val root = (project in file("."))
   .aggregate(googlePipelinesCommon)
   .aggregate(googlePipelinesV1Alpha2)
   .aggregate(googlePipelinesV2Alpha1)
+  .aggregate(googlePipelinesV2Beta)
   .aggregate(httpFileSystem)
   .aggregate(jesBackend)
   .aggregate(languageFactoryCore)
@@ -434,4 +444,5 @@ lazy val root = (project in file("."))
   .aggregate(wes2cromwell)
   .aggregate(wom)
   .aggregate(womtool)
+  .aggregate(hybridCarboniteMetadataService)
   .withAggregateSettings()

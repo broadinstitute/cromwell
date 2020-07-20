@@ -1,0 +1,18 @@
+name: hello_google_legacy_machine_selection
+testFormat: workflowsuccess
+backends: [ Papiv2 ]
+
+files {
+  workflow: hello/hello.wdl
+  inputs: hello/hello.inputs
+  options: hello/hello.options
+}
+
+metadata {
+  workflowName: wf_hello
+  status: Succeeded
+  "calls.wf_hello.hello.jes.machineType": "predefined-1-2048"
+  "calls.wf_hello.hello.runtimeAttributes.docker": "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+  "outputs.wf_hello.hello.salutation": "Hello m'Lord!"
+  "inputs.wf_hello.hello.addressee": "m'Lord"
+}

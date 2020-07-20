@@ -16,7 +16,7 @@ source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 #     Functions for use only within this file by cromwell::build::slurm::* functions
 #
 
-cromwell::build::slurm::slurm_install() {
+cromwell::build::slurm::setup_slurm_environment() {
     # Installs the Slurm Workload Manager (WLM) on Ubuntu
     # https://slurm.schedmd.com/
     sudo apt-get update
@@ -45,17 +45,6 @@ SelectType=select/cons_res
 SelectTypeParameters=CR_CPU
 SlurmctldDebug=3
 SLURM_CONF
-
-    # Munge will run as the munge user, so change the owner of the directory
-    sudo chown munge:munge /var/run/munge
-
-    # Create a munge key, required for slurm-llnl
-    dd if=/dev/random bs=1 count=1024 | sudo tee /etc/munge/munge.key >/dev/null
-    sudo chown munge:munge /etc/munge/munge.key
-    sudo chmod 400 /etc/munge/munge.key
-
-    # Start munge as the munge user
-    sudo -u munge munged
 
     # Start the slurm master
     sudo slurmctld

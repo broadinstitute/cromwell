@@ -7,6 +7,7 @@ import akka.pattern.GracefulStopSupport
 import akka.routing.RoundRobinPool
 import akka.stream.ActorMaterializer
 import com.typesafe.config.Config
+import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core._
 import cromwell.core.actor.StreamActorHelper.ActorRestartException
 import cromwell.core.filesystem.CromwellFileSystems
@@ -25,6 +26,7 @@ import cromwell.engine.workflow.tokens.{DynamicRateLimiter, JobExecutionTokenDis
 import cromwell.engine.workflow.workflowstore.AbortRequestScanningActor.AbortConfig
 import cromwell.engine.workflow.workflowstore._
 import cromwell.jobstore.{JobStore, JobStoreActor, SqlJobStore}
+import cromwell.services.ServiceRegistryActor.IoActorRef
 import cromwell.services.{EngineServicesStore, ServiceRegistryActor}
 import cromwell.subworkflowstore.{SqlSubWorkflowStore, SubWorkflowStore, SubWorkflowStoreActor}
 import cromwell.util.GracefulShutdownHelper
@@ -106,13 +108,21 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
   lazy val nioParallelism = systemConfig.as[Option[Int]]("io.nio.parallelism").getOrElse(10)
   lazy val gcsParallelism = systemConfig.as[Option[Int]]("io.gcs.parallelism").getOrElse(10)
   lazy val ioThrottle = systemConfig.getAs[Throttle]("io").getOrElse(Throttle(100000, 100.seconds, 100000))
-  lazy val ioActor = context.actorOf(IoActor.props(LoadConfig.IoQueueSize, nioParallelism, gcsParallelism, Option(ioThrottle), serviceRegistryActor), "IoActor")
+  lazy val ioActor = context.actorOf(IoActor.props(LoadConfig.IoQueueSize, nioParallelism, gcsParallelism, Option(ioThrottle), serviceRegistryActor, GoogleConfiguration(config).applicationName), "IoActor")
   lazy val ioActorProxy = context.actorOf(IoActorProxy.props(ioActor), "IoProxy")
+
+  // Register the IoActor with the service registry:
+  serviceRegistryActor ! IoActorRef(ioActorProxy)
 
   lazy val workflowLogCopyRouter: ActorRef = context.actorOf(RoundRobinPool(numberOfWorkflowLogCopyWorkers)
     .withSupervisorStrategy(CopyWorkflowLogsActor.strategy)
     .props(CopyWorkflowLogsActor.props(serviceRegistryActor, ioActor)),
     "WorkflowLogCopyRouter")
+
+  //Call-caching config validation
+  lazy val callCachingConfig = config.getConfig("call-caching")
+  lazy val callCachingEnabled = callCachingConfig.getBoolean("enabled")
+  lazy val callInvalidateBadCacheResults = callCachingConfig.getBoolean("invalidate-bad-cache-results")
 
   lazy val callCache: CallCache = new CallCache(EngineServicesStore.engineDatabaseInterface)
 
@@ -151,6 +161,8 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
   lazy val workflowManagerActor = context.actorOf(
     WorkflowManagerActor.props(
       config = config,
+      callCachingEnabled = callCachingEnabled,
+      invalidateBadCacheResults = callInvalidateBadCacheResults,
       workflowStore = workflowStoreActor,
       ioActor = ioActorProxy,
       serviceRegistryActor = serviceRegistryActor,

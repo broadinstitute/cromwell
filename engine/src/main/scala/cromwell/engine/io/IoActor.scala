@@ -37,7 +37,8 @@ final class IoActor(queueSize: Int,
                     nioParallelism: Int,
                     gcsParallelism: Int,
                     throttle: Option[Throttle],
-                    override val serviceRegistryActor: ActorRef)(implicit val materializer: ActorMaterializer) 
+                    override val serviceRegistryActor: ActorRef,
+                    applicationName: String)(implicit val materializer: ActorMaterializer)
   extends Actor with ActorLogging with StreamActorHelper[IoCommandContext[_]] with IoInstrumentation with Timers {
   implicit val ec = context.dispatcher
 
@@ -56,7 +57,7 @@ final class IoActor(queueSize: Int,
   }
   
   private [io] lazy val defaultFlow = new NioFlow(parallelism = nioParallelism, context.system.scheduler, onRetry).flow.withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
-  private [io] lazy val gcsBatchFlow = new ParallelGcsBatchFlow(parallelism = gcsParallelism, batchSize = 100, context.system.scheduler, onRetry).flow.withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
+  private [io] lazy val gcsBatchFlow = new ParallelGcsBatchFlow(parallelism = gcsParallelism, batchSize = 100, context.system.scheduler, onRetry, applicationName).flow.withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
   
   protected val source = Source.queue[IoCommandContext[_]](queueSize, OverflowStrategy.dropNew)
 
@@ -179,6 +180,21 @@ object IoActor {
     case _ => false
   }
 
+  def isGcs500(failure: Throwable): Boolean = {
+    val serverErrorPattern = ".*Could not read from gs.+500 Internal Server Error.*"
+    Option(failure.getMessage).exists(_.matches(serverErrorPattern))
+  }
+
+  def isGcs503(failure: Throwable): Boolean = {
+    val serverErrorPattern = ".*Could not read from gs.+503 Service Unavailable.*"
+    Option(failure.getMessage).exists(_.matches(serverErrorPattern))
+  }
+
+  def isGcs504(failure: Throwable): Boolean = {
+    val serverErrorPattern = ".*Could not read from gs.+504 Gateway Timeout.*"
+    Option(failure.getMessage).exists(_.matches(serverErrorPattern))
+  }
+
   val AdditionalRetryableHttpCodes = List(
     // HTTP 410: Gone
     // From Google doc (https://cloud.google.com/storage/docs/json_api/v1/status-codes):
@@ -191,32 +207,33 @@ object IoActor {
     // For now explicitly lists 503 as a retryable code here to work around that.
     503
   )
-  
+
   // Error messages not included in the list of built-in GCS retryable errors (com.google.cloud.storage.StorageException) but that we still want to retry
   val AdditionalRetryableErrorMessages = List(
     "Connection closed prematurely"
   ).map(_.toLowerCase)
-  
+
   /**
     * Failures that are considered retryable.
     * Retrying them should increase the "retry counter"
     */
   def isRetryable(failure: Throwable): Boolean = failure match {
-    case gcs: StorageException => gcs.isRetryable || 
+    case gcs: StorageException => gcs.isRetryable ||
       isRetryable(gcs.getCause) ||
-      AdditionalRetryableHttpCodes.contains(gcs.getCode) || 
+      AdditionalRetryableHttpCodes.contains(gcs.getCode) ||
       AdditionalRetryableErrorMessages.exists(gcs.getMessage.toLowerCase.contains)
     case _: SSLException => true
     case _: BatchFailedException => true
     case _: SocketException => true
     case _: SocketTimeoutException => true
     case ioE: IOException if Option(ioE.getMessage).exists(_.contains("Error getting access token for service account")) => true
+    case ioE: IOException => isGcs500(ioE) || isGcs503(ioE) || isGcs504(ioE)
     case other => isTransient(other)
   }
 
   def isFatal(failure: Throwable) = !isRetryable(failure)
   
-  def props(queueSize: Int, nioParallelism: Int, gcsParallelism: Int, throttle: Option[Throttle], serviceRegistryActor: ActorRef)(implicit materializer: ActorMaterializer) = {
-    Props(new IoActor(queueSize, nioParallelism, gcsParallelism, throttle, serviceRegistryActor)).withDispatcher(IoDispatcher)
+  def props(queueSize: Int, nioParallelism: Int, gcsParallelism: Int, throttle: Option[Throttle], serviceRegistryActor: ActorRef, applicationName: String)(implicit materializer: ActorMaterializer) = {
+    Props(new IoActor(queueSize, nioParallelism, gcsParallelism, throttle, serviceRegistryActor, applicationName)).withDispatcher(IoDispatcher)
   }
 }

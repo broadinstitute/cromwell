@@ -5,9 +5,11 @@ import java.time.OffsetDateTime
 
 import better.files.File
 import common.util.TimeUtil._
+import common.validation.Validation._
 import cromwell.core._
 import cromwell.engine._
 import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{StatusCheckResponse, SubsystemStatus}
+import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataService._
 import cromwell.util.JsonFormatting.WomValueJsonFormatter._
 import cromwell.webservice.routes.CromwellApiService.BackendResponse
@@ -45,6 +47,13 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
 
   implicit val workflowSourceDataWithImports = jsonFormat11(WorkflowSourceFilesWithDependenciesZip)
   implicit val errorResponse = jsonFormat3(FailureResponse)
+
+  // By default the formatter for JsValues prints them out ADT-style.
+  // In the case of SuccessResponses, we just want raw JsValues to be included in our output verbatim.
+  private implicit val identityJsValueFormatter = new RootJsonFormat[JsValue] {
+    override def read(json: JsValue): JsValue = json
+    override def write(obj: JsValue): JsValue = obj
+  }
   implicit val successResponse = jsonFormat3(SuccessResponse)
 
   implicit object DateJsonFormat extends RootJsonFormat[OffsetDateTime] {
@@ -56,6 +65,15 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
     }
   }
 
-  implicit val workflowQueryResult = jsonFormat9(WorkflowQueryResult)
+  implicit object MetadataArchiveStatusFormat extends RootJsonFormat[MetadataArchiveStatus] {
+    override def write(obj: MetadataArchiveStatus): JsValue = JsString(obj.toString)
+
+    override def read(json: JsValue): MetadataArchiveStatus = json match {
+      case JsString(str) => MetadataArchiveStatus.withName(str).toTry.get
+      case unknown => throw new UnsupportedOperationException(s"Cannot parse $unknown to a MetadataArchiveStatus")
+    }
+  }
+
+  implicit val workflowQueryResult = jsonFormat10(WorkflowQueryResult)
   implicit val workflowQueryResponse = jsonFormat2(WorkflowQueryResponse)
 }

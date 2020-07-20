@@ -2,13 +2,20 @@ package cromwell.util
 
 import java.nio.file.{Files, Paths}
 
-import JsonEditor._
 import cats.data.NonEmptyList
 import cats.syntax.either._
+import cromwell.util.ErrorOrUtil._
+import cromwell.util.JsonEditor._
+import io.circe.Json
 import io.circe.parser.parse
 import org.scalameter.api._
 import org.scalameter.picklers.Implicits._
 
+// Run with:
+//   sbt "core/benchmark:testOnly cromwell.util.JsonEditorBenchmark"
+// Needs:
+//   * A file called bad.json and a file called bec.json in your pwd.
+//   * Each json must have at least an "id" field.
 object JsonEditorBenchmark extends Bench[Double] {
 
   /* Mock Json */
@@ -20,11 +27,11 @@ object JsonEditorBenchmark extends Bench[Double] {
   val excludeKeys = Map(14 -> "mt_", 32 -> "status")
 
   def loadJson(fileName: String) : String =  new String(Files.readAllBytes(Paths.get(
-    new java.io.File(".")
+    new java.io.File("./engine/src/test/resources")
     .getCanonicalPath, fileName)))
 
   val jsonStrs = jsonPool map { case (sz, fn) => sz → loadJson(fn) }
-  val jsonTree = jsonStrs map { case (sz, fn) => sz → parse(fn).leftMap(_.toString) }
+  val jsonTree: Map[Int, Either[String, Json]] = jsonStrs map { case (sz, fn) => sz → parse(fn).leftMap(_.toString) }
 
   /* Benchmark configuration */
   lazy val measurer = new Measurer.Default
@@ -33,7 +40,7 @@ object JsonEditorBenchmark extends Bench[Double] {
   lazy val persistor = Persistor.None
 
   // Increase or decrease exec.benchRuns to repeat the same test numerous times.
-  // The avaerage measured clock time will be the output.
+  // The average measured clock time will be the output.
   performance of "JsonEditor with circe" in {
     // Measures how fast the JsonEditor can exclude keys using circe.
     measure method "parse" in {
@@ -73,7 +80,9 @@ object JsonEditorBenchmark extends Bench[Double] {
         exec.maxWarmupRuns -> 1,
         exec.benchRuns -> 1
       ) in { sz =>
-        jsonTree(sz).map(augmentLabels(_, Map(("new","label")))).right.get // traversal
+        jsonTree(sz).map { json =>
+          updateLabels(json, Map(json.workflowId.get -> Map(("new", "label"))))
+        }.right.get // traversal
       }
     }
   }

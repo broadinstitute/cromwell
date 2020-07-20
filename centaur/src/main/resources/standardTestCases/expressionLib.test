@@ -3,6 +3,7 @@ cwlVersion: 1.0
 testFormat: workflowsuccess
 workflowType: CWL
 workflowTypeVersion: v1.0
+skipDescribeEndpointValidation: true
 
 files {
   workflow: expressionLib/expressionLib.cwl

@@ -1,9 +1,10 @@
 package cromwell.languages.util
 
-import java.nio.file.Paths
+import java.nio.file.{Files, Paths}
 
 import common.assertion.ErrorOrAssertions._
 import cromwell.core.path.DefaultPath
+import cromwell.core.WorkflowId
 import cromwell.languages.util.ImportResolver.{DirectoryResolver, HttpResolver}
 import org.scalatest.{FlatSpec, Matchers}
 
@@ -203,6 +204,20 @@ class ImportResolverSpec extends FlatSpec with Matchers {
   it should "not resolve outside of its protected directory" in {
     val pathToLookup = protectedRelativeDirectoryResolver.resolveAndMakeAbsolute("../file.wdl")
     pathToLookup shouldBeInvalid "../file.wdl is not an allowed import path"
+  }
+
+  it should "resolve paths in zips" in {
+    val zipResource = getClass.getResource("/QC.zip").toURI
+    val zipBytes = Files.readAllBytes(Paths.get(zipResource))
+    val resolvers = ImportResolver.zippedImportResolver(zipBytes, WorkflowId.randomId())
+
+    // Not the most elegant way to get the paths, but gets the job done.
+    val resolver = resolvers.toList.head
+    resolver.resolveAndMakeAbsolute("QC.wdl").map(Files.exists(_)).toOption shouldBe Some(true)
+    resolver.resolveAndMakeAbsolute("tasks/cutadapt.wdl").map(Files.exists(_)).toOption shouldBe Some(true)
+    resolver.resolveAndMakeAbsolute("tasks/fastqc.wdl").map(Files.exists(_)).toOption shouldBe Some(true)
+      // Make sure above testing is correct by testing for a non-existent wdl.
+    resolver.resolveAndMakeAbsolute("machine_learning_skynet.wdl").map(Files.exists(_)).toOption shouldBe Some(false)
   }
 
 }

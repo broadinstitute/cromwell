@@ -9,9 +9,9 @@ import cats.data.NonEmptyList
 import com.typesafe.config.Config
 import common.exception.ThrowableAggregation
 import cromwell.backend.async.KnownJobFailureException
-import cromwell.backend.standard.callcaching.{BlacklistCache, RootWorkflowFileHashCacheActor}
+import cromwell.backend.standard.callcaching.{CallCachingBlacklistManager, RootWorkflowFileHashCacheActor}
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.core.{CacheConfig, WorkflowId}
+import cromwell.core.WorkflowId
 import cromwell.engine.SubWorkflowStart
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
@@ -19,12 +19,12 @@ import cromwell.engine.workflow.WorkflowManagerActor._
 import cromwell.engine.workflow.workflowstore.{WorkflowHeartbeatConfig, WorkflowStoreActor, WorkflowStoreEngineActor}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteFailure, JobStoreWriteSuccess, RegisterWorkflowCompleted}
 import cromwell.webservice.EngineStatsActor
+import mouse.boolean._
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.language.postfixOps
 import scala.util.Try
 
 object WorkflowManagerActor {
@@ -49,6 +49,8 @@ object WorkflowManagerActor {
   case class AbortWorkflowsCommand(ids: Set[WorkflowId]) extends WorkflowManagerActorCommand
 
   def props(config: Config,
+            callCachingEnabled: Boolean,
+            invalidateBadCacheResults: Boolean,
             workflowStore: ActorRef,
             ioActor: ActorRef,
             serviceRegistryActor: ActorRef,
@@ -64,6 +66,8 @@ object WorkflowManagerActor {
             workflowHeartbeatConfig: WorkflowHeartbeatConfig): Props = {
     val params = WorkflowManagerActorParams(
       config = config,
+      callCachingEnabled = callCachingEnabled,
+      invalidateBadCacheResults = invalidateBadCacheResults,
       workflowStore = workflowStore,
       ioActor = ioActor,
       serviceRegistryActor = serviceRegistryActor,
@@ -110,6 +114,8 @@ object WorkflowManagerActor {
 }
 
 case class WorkflowManagerActorParams(config: Config,
+                                      callCachingEnabled: Boolean,
+                                      invalidateBadCacheResults: Boolean,
                                       workflowStore: ActorRef,
                                       ioActor: ActorRef,
                                       serviceRegistryActor: ActorRef,
@@ -128,6 +134,8 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
   extends LoggingFSM[WorkflowManagerState, WorkflowManagerData] with WorkflowMetadataHelper with Timers {
 
   private val config = params.config
+  private val callCachingEnabled: Boolean = params.callCachingEnabled
+  private val invalidateBadCacheResults = params.invalidateBadCacheResults
   override val serviceRegistryActor = params.serviceRegistryActor
 
   private val maxWorkflowsRunning = config.getConfig("system").as[Option[Int]]("max-concurrent-workflows").getOrElse(DefaultMaxWorkflowsToRun)
@@ -137,6 +145,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
 
   private val logger = Logging(context.system, this)
   private val tag = self.path.name
+
 
   override def preStart(): Unit = {
     // Starts the workflow polling cycle
@@ -268,6 +277,8 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       logger.debug(s"$tag transitioning from $fromState to $toState")
   }
 
+  private val callCachingBlacklistManager = new CallCachingBlacklistManager(config, logger)
+
   /**
     * Submit the workflow and return an updated copy of the state data reflecting the addition of a
     * Workflow ID -> WorkflowActorRef entry.
@@ -281,17 +292,13 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       logger.info(s"$tag Starting workflow UUID($workflowId)")
     }
 
-    val fileHashCacheActor: Option[ActorRef] =
-      if (fileHashCacheEnabled) Option(context.system.actorOf(RootWorkflowFileHashCacheActor.props(params.ioActor))) else None
-
-    val callCachingBlacklistCache: Option[BlacklistCache] = for {
-      config <- config.as[Option[Config]]("call-caching.blacklist-cache")
-      cacheConfig <- CacheConfig.optionalConfig(config, defaultConcurrency = 1000, defaultSize = 1000, defaultTtl = 1 hour)
-    } yield BlacklistCache(cacheConfig)
+    val fileHashCacheActorProps: Option[Props] = fileHashCacheEnabled.option(RootWorkflowFileHashCacheActor.props(params.ioActor, workflowId))
 
     val wfProps = WorkflowActor.props(
       workflowToStart = workflow,
       conf = config,
+      callCachingEnabled = callCachingEnabled ,
+      invalidateBadCacheResults = invalidateBadCacheResults,
       ioActor = params.ioActor,
       serviceRegistryActor = params.serviceRegistryActor,
       workflowLogCopyRouter = params.workflowLogCopyRouter,
@@ -306,8 +313,8 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       serverMode = params.serverMode,
       workflowHeartbeatConfig = params.workflowHeartbeatConfig,
       totalJobsByRootWf = new AtomicInteger(),
-      fileHashCacheActor = fileHashCacheActor,
-      blacklistCache = callCachingBlacklistCache)
+      fileHashCacheActorProps = fileHashCacheActorProps,
+      blacklistCache = callCachingBlacklistManager.blacklistCacheFor(workflow))
     val wfActor = context.actorOf(wfProps, name = s"WorkflowActor-$workflowId")
 
     wfActor ! SubscribeTransitionCallBack(self)

@@ -1,0 +1,1 @@
+Failed to process scatter block (reason 1 of 1): Failed to call CramFoo (reason 1 of 1): Failed to read value for key 'intervals' (reason 1 of 1): No expected attribute 'value' found

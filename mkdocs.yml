@@ -5,7 +5,7 @@ site_author: Red Team at Broad Institute
 
 repo_url: https://github.com/broadinstitute/cromwell/
 
-pages:
+nav:
 - Introduction: index.md
 - Tutorials:
 #    - Tutorial Map: tutorials/Overview.md
@@ -41,7 +41,9 @@ pages:
 - Workflow Optimizations:
   - Optimizations: optimizations/optimizations.md
   - "Task inputs: localization_optional": optimizations/FileLocalization.md
+  - "Volatile Tasks: volatile": optimizations/VolatileTasks.md
 - Configuration: Configuring.md
+- Ecosystem: Ecosystem.md
 - WOMtool: WOMtool.md
 - Imports: Imports.md
 - Sub-Workflows: SubWorkflows.md
@@ -78,6 +80,28 @@ pages:
     - Security: developers/Security.md
     - Contribute to docs: developers/Contribute.md
     - CWL Parsing: developers/CwlParsing.md
+    - Bitesize Design Docs:
+        - Workflow Parsing & Graph Construction:
+            - What is WOM?: developers/bitesize/workflowParsing/whatIsWom.md
+            - From WDL Source to WOM:
+                - Overview: developers/bitesize/workflowParsing/wdlParsingOverview.md
+                - From WDL to WDLOM: developers/bitesize/workflowParsing/wdlToWdlom.md
+                - Adding new WDL Engine Functions: developers/bitesize/workflowParsing/engineFunctionAddition.md
+            - From CWL Source to WOM: developers/bitesize/workflowParsing/cwlParsingOverview.md
+        - Cromwell Actor System:
+            - High level view: developers/bitesize/majorActorSystem/5000FtActorSystem.md
+            - Workflow Execution:
+                - Main Actors: developers/bitesize/workflowExecution/majorActors.md
+                - Workflow, Subworkflow and Job Stores: developers/bitesize/workflowExecution/workflowSubworkflowAndJobStores.md
+                - Job Key / Value Store: developers/bitesize/workflowExecution/jobKeyValueStore.md
+                - Job retry decision logic: developers/bitesize/jobRetryLogic/jobRetryLogic.md
+                - Evaluating WDL expressions in WOM: developers/bitesize/workflowExecution/wdlExpressionEvaluation.md
+            - IoActor: developers/bitesize/IoActor/IoActor.md
+        - Horizontal Cromwell ("Horicromtal"): developers/bitesize/horicromtal.md
+        - General Topics:
+            - Simpletons: developers/bitesize/general/simpletons.md
+        - Continuous Integration (CI) / Continuous Delivery (CD): developers/bitesize/ci/CICD.md
+        - Travis Centaur: developers/bitesize/ci/travis_centaur.md
 
 theme: readthedocs
 
@@ -86,5 +110,5 @@ extra_css:
 extra_javascript:
     - js/extra.js
 
-copyright: Copyright &copy; 2017 <a href="https://broadinstitute.org">Broad Institute</a>
+copyright: Copyright &copy; 2019 <a href="https://broadinstitute.org">Broad Institute</a>
 # google_analytics: ['identifierID', 'URL.org']

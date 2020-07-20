@@ -1,0 +1,111 @@
+# Set CROMWELL_BUILD_RESOURCES_DIRECTORY explicitly so fully qualified paths to required credential files are rendered
+# into the CI config files.
+version: '2.3'
+services:
+  # Runs the database initialization but is NOT a workflow-running backend.
+  # Opts out of:
+  # - Running the summarizer
+  # - Running the carboniter
+  # - Running the archived-metadata-deleter
+  db-mstr:
+    image: "broadinstitute/cromwell:${CROMWELL_TAG}"
+    network_mode: host
+    working_dir: ${CROMWELL_BUILD_ROOT_DIRECTORY}
+    volumes:
+      - ${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}
+    command: ["server"]
+    environment:
+      - >-
+        JAVA_OPTS=-Dconfig.file=${CROMWELL_CONFIG}
+        -Dwebservice.port=8080
+        -Dsystem.cromwell_id=master
+        -Dsystem.max-workflow-launch-count=0
+        -Dsystem.new-workflow-poll-rate=999999
+        -Dservices.MetadataService.config.metadata-summary-refresh-interval=Inf
+        -Dservices.MetadataService.config.carbonite-metadata-service.metadata-freezing.initial-interval=Inf
+        -Dservices.MetadataService.config.carbonite-metadata-service.metadata-deletion.interval=Inf
+      - CROMWELL_BUILD_RESOURCES_DIRECTORY
+      - CROMWELL_BUILD_CENTAUR_SLICK_PROFILE
+      - CROMWELL_BUILD_CENTAUR_JDBC_DRIVER
+      - CROMWELL_BUILD_CENTAUR_JDBC_URL
+      - CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE
+      - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER
+      - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_USERNAME
+      - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_PASSWORD
+      - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080"]
+      interval: 2s
+      timeout: 120s
+      retries: 60
+  # Is a regular Cromwell workflow-running backend.
+  # Makes no changes to the config file we bring in, so always summarizes, and sometimes does carboniting and metadata
+  # deletion things, but only if the underlying config file says that we do.
+  sum-back:
+    image: "broadinstitute/cromwell:${CROMWELL_TAG}"
+    network_mode: host
+    working_dir: ${CROMWELL_BUILD_ROOT_DIRECTORY}
+    volumes:
+      - ${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}
+    command: ["server"]
+    environment:
+      - >-
+        JAVA_OPTS=-Dconfig.file=${CROMWELL_CONFIG}
+        -Dwebservice.port=8000
+        -Dsystem.cromwell_id=summarizer
+      - CROMWELL_BUILD_RESOURCES_DIRECTORY
+      - CROMWELL_BUILD_CENTAUR_SLICK_PROFILE
+      - CROMWELL_BUILD_CENTAUR_JDBC_DRIVER
+      - CROMWELL_BUILD_CENTAUR_JDBC_URL
+      - CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE
+      - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER
+      - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_USERNAME
+      - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_PASSWORD
+      - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL
+    depends_on:
+      db-mstr:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8000"]
+      interval: 2s
+      timeout: 120s
+      retries: 60
+  # Is the Cromwell which Centaur communicates with (hence "frontend")
+  # Is also a regular Cromwell workflow-running "backend".
+  # Opts out of:
+  # - Running the summarizer
+  # - Running the carboniter
+  # - Running the archived-metadata-deleter
+  front-back:
+    image: "broadinstitute/cromwell:${CROMWELL_TAG}"
+    network_mode: host
+    working_dir: ${CROMWELL_BUILD_ROOT_DIRECTORY}
+    volumes:
+      - ${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}
+    depends_on:
+      db-mstr:
+        condition: service_healthy
+    command: ["server"]
+    environment:
+      - >-
+        JAVA_OPTS=-Dconfig.file=${CROMWELL_CONFIG}
+        -Dwebservice.port=${MANAGED_CROMWELL_PORT-8008}
+        -Dsystem.cromwell_id=frontend
+        -Dservices.MetadataService.config.metadata-summary-refresh-interval=Inf
+        -Dservices.MetadataService.config.carbonite-metadata-service.metadata-freezing.initial-interval=Inf
+        -Dservices.MetadataService.config.carbonite-metadata-service.metadata-deletion.interval=Inf
+      - CROMWELL_BUILD_RESOURCES_DIRECTORY
+      - CROMWELL_BUILD_CENTAUR_SLICK_PROFILE
+      - CROMWELL_BUILD_CENTAUR_JDBC_DRIVER
+      - CROMWELL_BUILD_CENTAUR_JDBC_URL
+      - CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE
+      - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER
+      - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_USERNAME
+      - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_PASSWORD
+      - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL
+      - MANAGED_CROMWELL_PORT
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:${MANAGED_CROMWELL_PORT-8008}"]
+      interval: 2s
+      timeout: 120s
+      retries: 60

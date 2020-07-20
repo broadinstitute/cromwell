@@ -1,0 +1,6 @@
+{
+  "use_relative_output_paths":true,
+  "final_workflow_outputs_dir":"gs://<<bucket-name-placeholder>>/wf_results",
+  "final_workflow_log_dir":"gs://<<bucket-name-placeholder>>/wf_logs",
+  "final_call_logs_dir":"gs://<<bucket-name-placeholder>>/cl_logs"
+}

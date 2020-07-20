@@ -3,14 +3,14 @@ package cromwell.engine.workflow.lifecycle
 import akka.actor.Props
 import akka.testkit.TestDuration
 import com.typesafe.config.ConfigFactory
-import cromwell.{CromwellTestKitSpec, CromwellTestKitWordSpec}
 import cromwell.core.CromwellGraphNode._
-import cromwell.core.labels.Labels
 import cromwell.core._
+import cromwell.core.labels.Labels
 import cromwell.engine.backend.{BackendConfigurationEntry, CromwellBackends}
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorCommand, MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse}
 import cromwell.util.SampleWdl.HelloWorld
+import cromwell.{CromwellTestKitSpec, CromwellTestKitWordSpec}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.mockito.MockitoSugar
 import spray.json.DefaultJsonProtocol._
@@ -52,6 +52,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
   val workflowSourceNoDocker = HelloWorld.workflowSource(""" runtime { } """)
   val Timeout = 10.second.dilated
   val NoBehaviorActor = system.actorOf(Props.empty)
+  val callCachingEnabled = true
+  val invalidateBadCacheResults = true
 
   before {
   }
@@ -76,7 +78,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowOptions = validOptions,
         labelsJson = validCustomLabelsFile,
         warnings = Vector.empty)
-      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf, callCachingEnabled,
+        invalidateBadCacheResults)
 
       within(Timeout) {
         expectMsgPF() {
@@ -119,7 +122,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowOptions = WorkflowOptions.empty,
         labelsJson = "{}",
         warnings = Vector.empty)
-      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf, callCachingEnabled,
+        invalidateBadCacheResults)
 
       within(Timeout) {
         expectMsgPF() {
@@ -174,7 +178,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowOptions = WorkflowOptions.empty,
         labelsJson = validCustomLabelsFile,
         warnings = Vector.empty)
-      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, differentDefaultBackendConf)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, differentDefaultBackendConf, callCachingEnabled,
+        invalidateBadCacheResults)
 
       within(Timeout) {
         expectMsgPF() {
@@ -218,7 +223,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowOptions = WorkflowOptions.empty,
         labelsJson = "{}",
         warnings = Vector.empty)
-      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, differentDefaultBackendConf)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, differentDefaultBackendConf, callCachingEnabled,
+        invalidateBadCacheResults)
 
       within(Timeout) {
         expectMsgPF() {
@@ -246,7 +252,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowOptions = validOptions,
         labelsJson = validCustomLabelsFile,
         warnings = Vector.empty)
-      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf, callCachingEnabled,
+        invalidateBadCacheResults)
 
       within(Timeout) {
         expectMsgPF() {
@@ -275,7 +282,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowOptions = WorkflowOptions.empty,
         labelsJson = "{}",
         warnings = Vector.empty)
-      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf, callCachingEnabled,
+        invalidateBadCacheResults)
 
       within(Timeout) {
         expectMsgPF() {
@@ -311,7 +319,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowOptions = validOptions,
         labelsJson = validCustomLabelsFile,
         warnings = Vector.empty)
-      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf, callCachingEnabled,
+        invalidateBadCacheResults)
 
       within(Timeout) {
         expectMsgPF() {
@@ -338,7 +347,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowOptions = validOptions,
         labelsJson = validCustomLabelsFile,
         warnings = Vector.empty)
-      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf, callCachingEnabled,
+        invalidateBadCacheResults)
 
       within(Timeout) {
         expectMsgPF() {
@@ -366,7 +376,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowOptions = validOptions,
         labelsJson = validCustomLabelsFile,
         warnings = Vector.empty)
-      materializeWfActor ! MaterializeWorkflowDescriptorCommand(badOptionsSources, minimumConf)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(badOptionsSources, minimumConf, callCachingEnabled,
+        invalidateBadCacheResults)
 
       within(Timeout) {
         expectMsgPF() {
@@ -401,7 +412,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowOptions = validOptions,
         labelsJson = validCustomLabelsFile,
         warnings = Vector.empty)
-      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf, callCachingEnabled,
+        invalidateBadCacheResults)
 
       within(Timeout) {
         expectMsgPF() {
@@ -445,7 +457,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         workflowOptions = validOptions,
         labelsJson = validCustomLabelsFile,
         warnings = Vector.empty)
-      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf, callCachingEnabled,
+        invalidateBadCacheResults)
 
       within(Timeout) {
         expectMsgPF() {
@@ -463,3 +476,4 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
     }
   }
 }
+

@@ -71,18 +71,19 @@ object Executable {
       case optional: OptionalGraphInputNode => IOChecked.pure(Coproduct[ResolvedExecutableInput](optional.womType.none: WomValue))
     }
 
-    val providedInputsValidation: IOChecked[ResolvedExecutableInputs] = graph.inputNodes.toList.parTraverse[IOChecked, IOCheckedPar, Option[(OutputPort, ResolvedExecutableInput)]]({
+    val providedInputsValidation: IOChecked[ResolvedExecutableInputs] = graph.inputNodes.toList.parTraverse[IOChecked, Option[(OutputPort, ResolvedExecutableInput)]]({
       case gin: ExternalGraphInputNode =>
         // The compiler needs the type ascription for some reason
         fromInputMapping(gin).getOrElse(fallBack(gin)).map((gin.singleOutputPort: OutputPort) -> _).map(Option(_))
       case _ => Option.empty[(OutputPort, ResolvedExecutableInput)].validIOChecked
     }).map(_.flatten).map(_.toMap)
 
-    val unwantedInputs = if (strictValidation) inputCoercionMap.keySet.diff(graph.externalInputNodes.map(_.nameInInputSet)) else Set.empty
+    val wantedInputs = graph.externalInputNodes.map(_.nameInInputSet)
+    val unwantedInputs = if (strictValidation) inputCoercionMap.keySet.diff(wantedInputs) else Set.empty
 
     val wantedInputsValidation: ErrorOr[Unit] = NonEmptyList.fromList(unwantedInputs.toList) match {
       case None => ().validNel
-      case Some(unwanteds) => Invalid(unwanteds.map(unwanted => s"WARNING: Unexpected input provided: $unwanted"))
+      case Some(unwanteds) => Invalid(unwanteds.map(unwanted => s"WARNING: Unexpected input provided: $unwanted (expected inputs: [${wantedInputs.mkString(", ")}])"))
     }
 
     (providedInputsValidation, wantedInputsValidation.toIOChecked) mapN { (providedInputs, _) => providedInputs }

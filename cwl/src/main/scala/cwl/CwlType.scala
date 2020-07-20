@@ -6,6 +6,7 @@ import cats.syntax.traverse._
 import cats.syntax.functor._
 import cats.syntax.validated._
 import common.validation.ErrorOr._
+import common.validation.IOChecked
 import common.validation.IOChecked._
 import eu.timepit.refined._
 import mouse.all._
@@ -63,7 +64,7 @@ case class File private
         case (None, Some(content)) =>
           val initializeFunction: WomMaybePopulatedFile => IoFunctionSet => IOChecked[WomValue] = { file =>ioFunctionSet =>
             val name = basename.getOrElse(content.hashCode.toString)
-            ioFunctionSet.writeFile(name, content).toIOChecked map { writtenFile =>
+            ioFunctionSet.writeFile(name, content).toIOChecked(ioFunctionSet.cs) map { writtenFile =>
               file.copy(valueOption = Option(writtenFile.value))
             }
           }
@@ -124,7 +125,7 @@ object File {
 
   def recursivelyBuildDirectory(directory: String, ioFunctions: IoFunctionSet)(visited: Vector[String] = Vector.empty): IOChecked[WomMaybeListedDirectory] = {
     for {
-      listing <- ioFunctions.listDirectory(directory)(visited).toIOChecked
+      listing <- ioFunctions.listDirectory(directory)(visited).toIOChecked(ioFunctions.cs)
       fileListing <- listing.toList.traverse[IOChecked, WomFile]({
         case IoDirectory(e) => recursivelyBuildDirectory(e, ioFunctions)(visited :+ directory).widen
         case IoFile(e) => WomMaybePopulatedFile(e).validIOChecked.widen
@@ -148,7 +149,7 @@ object File {
 
     // If the secondary file is in fact a directory, look into it and build its listing
     for {
-      isDirectory <- ioFunctions.isDirectory(filePath).toIOChecked
+      isDirectory <- ioFunctions.isDirectory(filePath).toIOChecked(ioFunctions.cs)
       file <- if (isDirectory) recursivelyBuildDirectory(filePath, ioFunctions)() else WomFile(stringWomFileType, filePath).validIOChecked
     } yield file
   }
@@ -249,7 +250,7 @@ case class Directory private
         WomMaybeListedDirectory(Option(value), listingOption, basename).valid
       } getOrElse {
         val initializeFunction: WomMaybeListedDirectory => IoFunctionSet => IOChecked[WomValue] = { dir =>ioFunctionSet =>
-          ioFunctionSet.createTemporaryDirectory(basename).toIOChecked map { tempDir =>
+          ioFunctionSet.createTemporaryDirectory(basename).toIOChecked(ioFunctionSet.cs) map { tempDir =>
             dir.copy(valueOption = Option(tempDir))
           } 
         }

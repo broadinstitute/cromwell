@@ -16,7 +16,7 @@ task get_network {
   }
 
   runtime {
-    docker: "google/cloud-sdk:slim"
+    docker: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
     backend: "Papiv2-Virtual-Private-Cloud"
   }
 

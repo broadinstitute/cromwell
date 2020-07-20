@@ -1,8 +1,11 @@
 package cromwell.services.womtool
 
+import java.nio.file.Files
+
 import better.files.File
-import cromwell.core.{WorkflowOptions, WorkflowSourceFilesCollection}
+import cromwell.core.{WorkflowOptions, WorkflowSourceFilesCollection, WorkflowSourceFilesWithoutImports}
 import cromwell.languages.config.{CromwellLanguages, LanguageConfiguration}
+import cromwell.services.womtool.DescriberSpec._
 import cromwell.services.womtool.WomtoolServiceMessages.DescribeSuccess
 import io.circe.Json
 import org.scalatest.{Assertion, FlatSpec, Matchers}
@@ -26,14 +29,14 @@ class DescriberSpec extends FlatSpec with Matchers {
   languageVersions.filterNot(f => f.name.contains(".DS")) foreach { versionDirectory =>
     versionDirectory.path.toFile.listFiles().filterNot(f => f.getName.contains(".DS")) foreach { caseDirectory: java.io.File =>
       it should s" describe ${caseDirectory.getName} (${versionDirectory.name})" in {
-        val workflow = scala.io.Source.fromFile(caseDirectory.toPath.resolve("workflow.wdl").toFile).mkString
-        val description = scala.io.Source.fromFile(caseDirectory.toPath.resolve("description.json").toFile).mkString
+
+        val testCase = DescriberSpec.interpretTestCase(caseDirectory)
 
         val workflowType = Try(scala.io.Source.fromFile(caseDirectory.toPath.resolve("workflowType").toFile).mkString.stripLineEnd).toOption
         val workflowTypeVersion = Try(scala.io.Source.fromFile(caseDirectory.toPath.resolve("workflowTypeVersion").toFile).mkString.stripLineEnd).toOption
 
-        val wsfc = WorkflowSourceFilesCollection(
-          workflowSource = Some(workflow),
+        val interimWsfc = WorkflowSourceFilesWithoutImports(
+          workflowSource = None,
           workflowUrl = None,
           workflowRoot = None,
           workflowType = workflowType,
@@ -41,12 +44,15 @@ class DescriberSpec extends FlatSpec with Matchers {
           inputsJson = "",
           workflowOptions = WorkflowOptions.empty,
           labelsJson = "",
-          importsFile = None,
-          workflowOnHold = false,
           warnings = Seq.empty
         )
 
-        check(wsfc, io.circe.parser.parse(description).getOrElse(???))
+        val wsfc = testCase match {
+          case FileAndDescription(file, _) => interimWsfc.copy(workflowSource = Option(file))
+          case UrlAndDescription(url, _) => interimWsfc.copy(workflowUrl = Option(url))
+        }
+
+        check(wsfc, io.circe.parser.parse(testCase.expectedDescription).getOrElse(???))
       }
     }
   }
@@ -65,5 +71,23 @@ class DescriberSpec extends FlatSpec with Matchers {
     // the end product instead of an intermediate case class hierarchy
     Describer.describeWorkflow(wsfc).asInstanceOf[DescribeSuccess].description.asJson shouldBe expectedJson
   }
+}
 
+object DescriberSpec {
+  sealed trait DescriberSpecTestCase { def expectedDescription: String }
+  final case class FileAndDescription(file: String, override val expectedDescription: String) extends DescriberSpecTestCase
+  final case class UrlAndDescription(url: String, override val expectedDescription: String) extends DescriberSpecTestCase
+
+  def interpretTestCase(caseDirectory: java.io.File): DescriberSpecTestCase = {
+    val description = scala.io.Source.fromFile(caseDirectory.toPath.resolve("description.json").toFile).mkString
+    if (Files.exists(caseDirectory.toPath.resolve("workflow.wdl"))) {
+      val workflow = scala.io.Source.fromFile(caseDirectory.toPath.resolve("workflow.wdl").toFile).mkString
+      FileAndDescription(workflow, description)
+    } else if (Files.exists(caseDirectory.toPath.resolve("workflow_url.txt"))) {
+      val workflowUrl = scala.io.Source.fromFile(caseDirectory.toPath.resolve("workflow_url.txt").toFile).mkString.trim
+      UrlAndDescription(workflowUrl, description)
+    } else throw new RuntimeException("Bad test case setup: Expected one of workflow.wdl or workflow_url.txt")
+
+
+  }
 }

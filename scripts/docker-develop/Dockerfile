@@ -1,4 +1,4 @@
-FROM openjdk:8u171
+FROM openjdk:8u252
 
 # docker build -t vanessa/cromwell-dev .
 
@@ -12,9 +12,6 @@ FROM openjdk:8u171
 # Env variables
 ENV SCALA_VERSION 2.12.9
 ENV SBT_VERSION 1.2.8
-
-# Scala expects this file
-RUN touch /usr/lib/jvm/java-8-openjdk-amd64/release
 
 #
 ## Scala

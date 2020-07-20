@@ -9,7 +9,6 @@ import cats.instances.vector._
 import cats.syntax.apply._
 import cats.syntax.traverse._
 import io.circe._
-import io.circe.java8.time._
 import io.circe.parser._
 
 /**

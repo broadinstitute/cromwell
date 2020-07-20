@@ -17,9 +17,9 @@ case object WomUnlistedDirectoryType extends WomPrimitiveFileType {
   override val stableName: String = "Directory"
 
   override protected def coercion: PartialFunction[Any, WomUnlistedDirectory] = {
-    case s: String => WomUnlistedDirectory(s)
-    case s: JsString => WomUnlistedDirectory(s.value)
-    case s: WomString => WomUnlistedDirectory(s.valueString)
+    case s: String => WomUnlistedDirectory(s.trim)
+    case s: JsString => WomUnlistedDirectory(s.value.trim)
+    case s: WomString => WomUnlistedDirectory(s.valueString.trim)
     case d: WomUnlistedDirectory => d
   }
 
@@ -43,12 +43,12 @@ case object WomSingleFileType extends WomPrimitiveFileType {
   override protected def coercion: PartialFunction[Any, WomSingleFile] = {
     case s: String =>
       if (s != "")
-        WomSingleFile(s)
+        WomSingleFile(s.trim)
       else
         throw new IllegalArgumentException("""Cannot coerce the empty String value "" into a File.""")
-    case s: JsString => WomSingleFile(s.value)
-    case s: WomString => coercion.apply(s.valueString)
-    case f: WomSingleFile => f
+    case s: JsString => WomSingleFile(s.value.trim)
+    case s: WomString => coercion.apply(s.valueString.trim)
+    case f: WomSingleFile => WomSingleFile(f.value.trim)
   }
 
   override def equalsType(rhs: WomType): Try[WomType] = rhs match {
@@ -70,9 +70,9 @@ case object WomGlobFileType extends WomPrimitiveFileType {
   override val stableName: String = "Glob"
 
   override protected def coercion: PartialFunction[Any, WomGlobFile] = {
-    case s: String => WomGlobFile(s)
-    case s: JsString => WomGlobFile(s.value)
-    case s: WomString => WomGlobFile(s.valueString)
+    case s: String => WomGlobFile(s.trim)
+    case s: JsString => WomGlobFile(s.value.trim)
+    case s: WomString => WomGlobFile(s.valueString.trim)
     case f: WomGlobFile => f
   }
 
@@ -93,9 +93,9 @@ case object WomGlobFileType extends WomPrimitiveFileType {
 
 case object WomMaybeListedDirectoryType extends WomFileType {
   override protected def coercion: PartialFunction[Any, WomMaybeListedDirectory] = {
-    case s: String => WomMaybeListedDirectory(s)
-    case s: JsString => WomMaybeListedDirectory(s.value)
-    case s: WomString => WomMaybeListedDirectory(s.valueString)
+    case s: String => WomMaybeListedDirectory(s.trim)
+    case s: JsString => WomMaybeListedDirectory(s.value.trim)
+    case s: WomString => WomMaybeListedDirectory(s.valueString.trim)
     case d: WomUnlistedDirectory => WomMaybeListedDirectory(d.value)
     case d: WomMaybeListedDirectory => d
   }
@@ -103,9 +103,9 @@ case object WomMaybeListedDirectoryType extends WomFileType {
 
 case object WomMaybePopulatedFileType extends WomFileType {
   override protected def coercion: PartialFunction[Any, WomMaybePopulatedFile] = {
-    case s: String => WomMaybePopulatedFile(s)
-    case s: JsString => WomMaybePopulatedFile(s.value)
-    case s: WomString => WomMaybePopulatedFile(s.valueString)
+    case s: String => WomMaybePopulatedFile(s.trim)
+    case s: JsString => WomMaybePopulatedFile(s.value.trim)
+    case s: WomString => WomMaybePopulatedFile(s.valueString.trim)
     case f: WomSingleFile => WomMaybePopulatedFile(f.value)
     case f: WomMaybePopulatedFile => f
   }

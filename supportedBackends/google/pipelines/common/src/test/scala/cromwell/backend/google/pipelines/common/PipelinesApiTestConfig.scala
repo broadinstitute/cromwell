@@ -23,7 +23,8 @@ object PipelinesApiTestConfig {
       |
       |genomics {
       |  auth = "application-default"
-      |  endpoint-url = "https://genomics.googleapis.com/"
+      |  endpoint-url = "https://lifesciences.googleapis.com/"
+      |  location = "us-central1"
       |}
       |
       |filesystems.gcs.auth = "application-default"
@@ -111,6 +112,6 @@ object PipelinesApiTestConfig {
   }
   def pathBuilders()(implicit as: ActorSystem) = Await.result(PapiBackendConfigurationDescriptor.pathBuilders(WorkflowOptions.empty), 5.seconds)
   val googleConfiguration = GoogleConfiguration(PapiGlobalConfig)
-  val papiAttributes = PipelinesApiConfigurationAttributes(googleConfiguration, PapiBackendConfig)
+  val papiAttributes = PipelinesApiConfigurationAttributes(googleConfiguration, PapiBackendConfig, "papi")
   val papiConfiguration = new PipelinesApiConfiguration(PapiBackendConfigurationDescriptor, genomicsFactory, googleConfiguration, papiAttributes)
 }

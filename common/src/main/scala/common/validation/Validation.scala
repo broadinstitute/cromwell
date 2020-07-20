@@ -1,6 +1,7 @@
 package common.validation
 
 import java.io.{PrintWriter, StringWriter}
+import java.lang.reflect.InvocationTargetException
 
 import cats.data.Validated.{Invalid, Valid}
 import cats.data.{NonEmptyList, Validated, ValidatedNel}
@@ -9,6 +10,9 @@ import cats.syntax.validated._
 import common.Checked
 import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
+import eu.timepit.refined.numeric.GreaterEqual
+import eu.timepit.refined._
+import eu.timepit.refined.api.Refined
 import org.slf4j.Logger
 
 import scala.concurrent.Future
@@ -16,8 +20,14 @@ import scala.util.{Failure, Success, Try}
 
 object Validation {
 
+  type GreaterEqualOne = GreaterEqual[W.`1.0`.T]
+  type GreaterEqualRefined = Refined[Double, GreaterEqualOne]
+
   private type ThrowableToStringFunction = Throwable => String
-  private def defaultThrowableToString: ThrowableToStringFunction = t => t.getMessage
+  private def defaultThrowableToString: ThrowableToStringFunction = {
+    case ite: InvocationTargetException => ite.getTargetException.getMessage
+    case t => t.getMessage
+  }
 
   def warnNotRecognized(keys: Set[String], reference: Set[String], context: String, logger: Logger): Unit = {
     val unrecognizedKeys = keys.diff(reference)

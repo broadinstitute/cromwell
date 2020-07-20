@@ -11,6 +11,8 @@ import cromwell.core.logging.JobLogger
 import cromwell.core.path.Path
 import wom.runtime.WomOutputRuntimeExtractor
 
+import scala.concurrent.duration._
+
 /**
   * The PipelinesApiRequestFactory defines the HttpRequests needed to run jobs
   */
@@ -37,9 +39,10 @@ object PipelinesApiRequestFactory {
     */
   case class DetritusOutputParameters(
                                        monitoringScriptOutputParameter: Option[PipelinesApiFileOutput],
-                                       rcFileOutputParameter: PipelinesApiFileOutput
+                                       rcFileOutputParameter: PipelinesApiFileOutput,
+                                       memoryRetryRCFileOutputParameter: PipelinesApiFileOutput
                                     ) {
-    def all: List[PipelinesApiFileOutput] = List(rcFileOutputParameter) ++ monitoringScriptOutputParameter
+    def all: List[PipelinesApiFileOutput] = memoryRetryRCFileOutputParameter :: List(rcFileOutputParameter) ++ monitoringScriptOutputParameter
   }
 
   /**
@@ -55,7 +58,7 @@ object PipelinesApiRequestFactory {
                                     literalInputParameters: List[PipelinesApiLiteralInput]
                                   ) {
     lazy val fileInputParameters: List[PipelinesApiInput] = jobInputParameters ++ detritusInputParameters.all
-    lazy val fileOutputParameters: List[PipelinesApiOutput] = jobOutputParameters ++ detritusOutputParameters.all
+    lazy val fileOutputParameters: List[PipelinesApiOutput] = detritusOutputParameters.all ++ jobOutputParameters
   }
 
   case class CreatePipelineDockerKeyAndToken(key: String, encryptedToken: String)
@@ -72,14 +75,21 @@ object PipelinesApiRequestFactory {
                                       computeServiceAccount: String,
                                       googleLabels: Seq[GoogleLabel],
                                       preemptible: Boolean,
+                                      pipelineTimeout: FiniteDuration,
                                       jobShell: String,
                                       privateDockerKeyAndEncryptedToken: Option[CreatePipelineDockerKeyAndToken],
                                       womOutputRuntimeExtractor: Option[WomOutputRuntimeExtractor],
                                       adjustedSizeDisks: Seq[PipelinesApiAttachedDisk],
-                                      virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration]) {
+                                      virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
+                                      retryWithMoreMemoryKeys: Option[List[String]],
+                                      fuseEnabled: Boolean,
+                                      allowNoAddress: Boolean) {
     def literalInputs = inputOutputParameters.literalInputParameters
     def inputParameters = inputOutputParameters.fileInputParameters
     def outputParameters = inputOutputParameters.fileOutputParameters
     def allParameters = inputParameters ++ outputParameters
+
+    // Takes into account the 'noAddress' runtime attribute and the allowNoAddress configuration option:
+    def effectiveNoAddressValue: Boolean = allowNoAddress && runtimeAttributes.noAddress
   }
 }

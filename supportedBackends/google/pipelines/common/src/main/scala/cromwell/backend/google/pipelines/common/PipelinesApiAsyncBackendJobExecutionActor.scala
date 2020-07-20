@@ -14,7 +14,7 @@ import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.backend._
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle}
-import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.LocalizationConfiguration
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.pipelines.common.PipelinesApiJobPaths.GcsTransferLibraryName
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory._
 import cromwell.backend.google.pipelines.common.api.RunStatus.TerminalRunStatus
@@ -35,11 +35,9 @@ import cromwell.filesystems.http.HttpPath
 import cromwell.filesystems.sra.SraPath
 import cromwell.google.pipelines.common.PreviousRetryReasons
 import cromwell.services.keyvalue.KeyValueServiceActor._
-import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
 import shapeless.Coproduct
 import wdl4s.parser.MemoryUnit
-import wom.CommandSetupSideEffectFile
 import wom.callable.AdHocValue
 import wom.callable.Callable.OutputDefinition
 import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
@@ -92,8 +90,12 @@ object PipelinesApiAsyncBackendJobExecutionActor {
 }
 
 class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
-  extends BackendJobLifecycleActor with StandardAsyncExecutionActor with PipelinesApiJobCachingActorHelper
-    with PipelinesApiStatusRequestClient with PipelinesApiRunCreationClient with PipelinesApiAbortClient with KvClient
+  extends BackendJobLifecycleActor
+    with StandardAsyncExecutionActor
+    with PipelinesApiJobCachingActorHelper
+    with PipelinesApiStatusRequestClient
+    with PipelinesApiRunCreationClient
+    with PipelinesApiAbortClient
     with PapiInstrumentation {
 
   override lazy val ioCommandBuilder = GcsBatchCommandBuilder
@@ -141,6 +143,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     case _ => false
   }
 
+  override lazy val memoryRetryFactor: Option[GreaterEqualRefined] = initializationData.papiConfiguration.papiAttributes.memoryRetryConfiguration.map(_.multiplier)
+
   override def tryAbort(job: StandardAsyncJob): Unit = abortJob(job)
 
   override def requestsAbortAndDiesImmediately: Boolean = false
@@ -172,7 +176,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     * relativeLocalizationPath("foo/bar.txt") -> "foo/bar.txt"
     * relativeLocalizationPath("gs://some/bucket/foo.txt") -> "some/bucket/foo.txt"
     */
-  protected def relativeLocalizationPath(file: WomFile): WomFile = {
+  override protected def relativeLocalizationPath(file: WomFile): WomFile = {
     file.mapFile(value =>
       getPath(value) match {
         case Success(drsPath: DrsPath) => DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()
@@ -182,7 +186,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     )
   }
 
-  protected def fileName(file: WomFile): WomFile = {
+  override protected def fileName(file: WomFile): WomFile = {
     file.mapFile(value =>
       getPath(value) match {
         case Success(drsPath: DrsPath) => DefaultPathBuilder.get(DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()).name
@@ -215,11 +219,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           case womFile: WomFile => womFile
         }
     }
-  }
-
-  protected def localizationPath(f: CommandSetupSideEffectFile) = {
-    val fileTransformer = if (isAdHocFile(f.file)) fileName _ else relativeLocalizationPath _
-    f.relativeLocalPath.fold(ifEmpty = fileTransformer(f.file))(WomFile(f.file.womFileType, _))
   }
 
   private[pipelines] def generateInputs(jobDescriptor: BackendJobDescriptor): Set[PipelinesApiInput] = {
@@ -395,6 +394,14 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.GoogleComputeServiceAccount, jesAttributes.computeServiceAccount)
   }
 
+  protected def fuseEnabled(descriptor: BackendWorkflowDescriptor): Boolean = {
+    descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.EnableFuse).toOption.getOrElse(jesAttributes.enableFuse)
+  }
+
+  protected def googleLegacyMachineSelection(descriptor: BackendWorkflowDescriptor): Boolean = {
+    descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.GoogleLegacyMachineSelection).getOrElse(false)
+  }
+
   override def isTerminal(runStatus: RunStatus): Boolean = {
     runStatus match {
       case _: TerminalRunStatus => true
@@ -443,11 +450,15 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           computeServiceAccount = computeServiceAccount(jobDescriptor.workflowDescriptor),
           googleLabels = backendLabels ++ customLabels,
           preemptible = preemptible,
+          pipelineTimeout = pipelinesConfiguration.pipelineTimeout,
           jobShell = pipelinesConfiguration.jobShell,
           privateDockerKeyAndEncryptedToken = dockerKeyAndToken,
           womOutputRuntimeExtractor = jobDescriptor.workflowDescriptor.outputRuntimeExtractor,
           adjustedSizeDisks = adjustedSizeDisks,
-          virtualPrivateCloudConfiguration = jesAttributes.virtualPrivateCloudConfiguration
+          virtualPrivateCloudConfiguration = jesAttributes.virtualPrivateCloudConfiguration,
+          retryWithMoreMemoryKeys = jesAttributes.memoryRetryConfiguration.map(_.errorKeys),
+          fuseEnabled = fuseEnabled(jobDescriptor.workflowDescriptor),
+          allowNoAddress = pipelinesConfiguration.papiAttributes.allowNoAddress
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")
@@ -475,17 +486,17 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     Future.successful(PendingExecutionHandle(jobDescriptor, jobForResumption, Option(Run(jobForResumption)), previousState = None))
   }
 
-  protected def uploadGcsTransferLibrary(createPipelineParameters: CreatePipelineParameters, cloudPath: Path, localizationConfiguration: LocalizationConfiguration): Future[Unit] = Future.successful(())
+  protected def uploadGcsTransferLibrary(createPipelineParameters: CreatePipelineParameters, cloudPath: Path, gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = Future.successful(())
 
   protected def uploadGcsLocalizationScript(createPipelineParameters: CreatePipelineParameters,
                                             cloudPath: Path,
                                             transferLibraryContainerPath: Path,
-                                            localizationConfiguration: LocalizationConfiguration): Future[Unit] = Future.successful(())
+                                            gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = Future.successful(())
 
   protected def uploadGcsDelocalizationScript(createPipelineParameters: CreatePipelineParameters,
                                               cloudPath: Path,
                                               transferLibraryContainerPath: Path,
-                                              localizationConfiguration: LocalizationConfiguration): Future[Unit] = Future.successful(())
+                                              gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = Future.successful(())
 
   private def createNewJob(): Future[ExecutionHandle] = {
     // Want to force runtimeAttributes to evaluate so we can fail quickly now if we need to:
@@ -494,6 +505,16 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     def generateInputOutputParameters: Future[InputOutputParameters] = Future.fromTry(Try {
       val rcFileOutput = PipelinesApiFileOutput(returnCodeFilename, returnCodeGcsPath, DefaultPathBuilder.get(returnCodeFilename), workingDisk, optional = false, secondary = false,
         contentType = plainTextContentType)
+
+      val memoryRetryRCFileOutput = PipelinesApiFileOutput(
+        memoryRetryRCFilename,
+        memoryRetryRCGcsPath,
+        DefaultPathBuilder.get(memoryRetryRCFilename),
+        workingDisk,
+        optional = true,
+        secondary = false,
+        contentType = plainTextContentType
+      )
 
       case class StandardStream(name: String, f: StandardPaths => Path) {
         val filename = f(pipelinesApiCallPaths.standardPaths).name
@@ -513,10 +534,11 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           monitoringScriptInputParameter = monitoringScript
         ),
         generateInputs(jobDescriptor).toList,
-        generateOutputs(jobDescriptor).toList ++ standardStreams,
+        standardStreams ++ generateOutputs(jobDescriptor).toList,
         DetritusOutputParameters(
           monitoringScriptOutputParameter = monitoringOutput,
-          rcFileOutputParameter = rcFileOutput
+          rcFileOutputParameter = rcFileOutput,
+          memoryRetryRCFileOutputParameter = memoryRetryRCFileOutput
         ),
         gcsAuthParameter.toList
       )
@@ -538,14 +560,14 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       customLabels <- Future.fromTry(GoogleLabels.fromWorkflowOptions(workflowDescriptor.workflowOptions))
       jesParameters <- generateInputOutputParameters
       createParameters = createPipelineParameters(jesParameters, customLabels)
-      localizationConfiguration = initializationData.papiConfiguration.papiAttributes.localizationConfiguration
+      gcsTransferConfiguration = initializationData.papiConfiguration.papiAttributes.gcsTransferConfiguration
       gcsTransferLibraryCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsTransferLibraryName
       transferLibraryContainerPath = createParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
-      _ <- uploadGcsTransferLibrary(createParameters, gcsTransferLibraryCloudPath, localizationConfiguration)
+      _ <- uploadGcsTransferLibrary(createParameters, gcsTransferLibraryCloudPath, gcsTransferConfiguration)
       gcsLocalizationScriptCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsLocalizationScriptName
-      _ <- uploadGcsLocalizationScript(createParameters, gcsLocalizationScriptCloudPath, transferLibraryContainerPath, localizationConfiguration)
+      _ <- uploadGcsLocalizationScript(createParameters, gcsLocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration)
       gcsDelocalizationScriptCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsDelocalizationScriptName
-      _ <- uploadGcsDelocalizationScript(createParameters, gcsDelocalizationScriptCloudPath, transferLibraryContainerPath, localizationConfiguration)
+      _ <- uploadGcsDelocalizationScript(createParameters, gcsDelocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration)
       _ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined
       runId <- runPipeline(workflowId, createParameters, jobLogger)
       _ = sendGoogleLabelsToMetadata(customLabels)
@@ -567,7 +589,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       AbortedExecutionHandle
     case (oldHandle: JesPendingExecutionHandle@unchecked, e: GoogleJsonResponseException) if e.getStatusCode == 404 =>
       jobLogger.error(s"JES Job ID ${oldHandle.runInfo.get.job} has not been found, failing call")
-      FailedNonRetryableExecutionHandle(e)
+      FailedNonRetryableExecutionHandle(e, kvPairsToSave = None)
   }
 
   override lazy val startMetadataKeyValues: Map[String, Any] = super[PipelinesApiJobCachingActorHelper].startMetadataKeyValues
@@ -641,14 +663,20 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
     // Inner function: Handles a 'Failed' runStatus (or Preempted if preemptible was false)
     def handleFailedRunStatus(runStatus: RunStatus.UnsuccessfulRunStatus,
-                              returnCode: Option[Int]): Future[ExecutionHandle] = {
+                              returnCode: Option[Int]): ExecutionHandle = {
 
       lazy val prettyError = runStatus.prettyPrintedError
+
       def isDockerPullFailure: Boolean = prettyError.contains("not found: does not exist or no pull access")
 
       (runStatus.errorCode, runStatus.jesCode) match {
-        case (Status.NOT_FOUND, Some(JesFailedToDelocalize)) => Future.successful(FailedNonRetryableExecutionHandle(FailedToDelocalizeFailure(prettyError, jobTag, Option(standardPaths.error))))
-        case (Status.ABORTED, Some(JesUnexpectedTermination)) => handleUnexpectedTermination(runStatus.errorCode, prettyError, returnCode)
+        case (Status.NOT_FOUND, Some(JesFailedToDelocalize)) =>
+          FailedNonRetryableExecutionHandle(
+            FailedToDelocalizeFailure(prettyError, jobTag, Option(standardPaths.error)),
+            kvPairsToSave = None
+          )
+        case (Status.ABORTED, Some(JesUnexpectedTermination)) =>
+          handleUnexpectedTermination(runStatus.errorCode, prettyError, returnCode)
         case _ if isDockerPullFailure =>
           val unable = s"Unable to pull Docker image '$jobDockerImage' "
           val details = if (hasDockerCredentials)
@@ -656,57 +684,71 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
             "and there are effectively no Docker credentials present (one or more of token, authorization, or Google KMS key may be missing). " +
             "Please check your private Docker configuration and/or the pull access for this image. "
           val message = unable + details + prettyError
-          Future.successful(FailedNonRetryableExecutionHandle(StandardException(
-            runStatus.errorCode, message, jobTag, returnCode, standardPaths.error), returnCode))
+          FailedNonRetryableExecutionHandle(
+            StandardException(runStatus.errorCode, message, jobTag, returnCode, standardPaths.error),
+            returnCode,
+            None
+          )
         case _ =>
           val finalPrettyPrintedError = generateBetterErrorMsg(runStatus, prettyError)
-          Future.successful(FailedNonRetryableExecutionHandle(StandardException(
-            runStatus.errorCode, finalPrettyPrintedError, jobTag, returnCode, standardPaths.error), returnCode))
+          FailedNonRetryableExecutionHandle(
+            StandardException(runStatus.errorCode, finalPrettyPrintedError, jobTag, returnCode, standardPaths.error),
+            returnCode,
+            None
+          )
       }
     }
 
-    runStatus match {
-      case preemptedStatus: RunStatus.Preempted if preemptible => handlePreemption(preemptedStatus, returnCode)
-      case _: RunStatus.Cancelled => Future.successful(AbortedExecutionHandle)
-      case failedStatus: RunStatus.UnsuccessfulRunStatus => handleFailedRunStatus(failedStatus, returnCode)
-      case unknown => throw new RuntimeException(s"handleExecutionFailure not called with RunStatus.Failed or RunStatus.Preempted. Instead got $unknown")
+    Future.fromTry {
+      Try {
+        runStatus match {
+          case preemptedStatus: RunStatus.Preempted if preemptible => handlePreemption(preemptedStatus, returnCode)
+          case _: RunStatus.Cancelled => AbortedExecutionHandle
+          case failedStatus: RunStatus.UnsuccessfulRunStatus => handleFailedRunStatus(failedStatus, returnCode)
+          case unknown => throw new RuntimeException(s"handleExecutionFailure not called with RunStatus.Failed or RunStatus.Preempted. Instead got $unknown")
+        }
+      }
     }
   }
 
-  private def writeFuturePreemptedAndUnexpectedRetryCounts(p: Int, ur: Int): Future[Unit] = {
-    val updateRequests = Seq(
-      KvPut(KvPair(ScopedKey(workflowId, futureKvJobKey, PipelinesApiBackendLifecycleActorFactory.unexpectedRetryCountKey), ur.toString)),
-      KvPut(KvPair(ScopedKey(workflowId, futureKvJobKey, PipelinesApiBackendLifecycleActorFactory.preemptionCountKey), p.toString))
+  private def nextAttemptPreemptedAndUnexpectedRetryCountsToKvPairs(p: Int, ur: Int): Seq[KvPair] = {
+    Seq(
+      KvPair(ScopedKey(workflowId, futureKvJobKey, PipelinesApiBackendLifecycleActorFactory.unexpectedRetryCountKey), ur.toString),
+      KvPair(ScopedKey(workflowId, futureKvJobKey, PipelinesApiBackendLifecycleActorFactory.preemptionCountKey), p.toString)
     )
-
-    makeKvRequest(updateRequests).map(_ => ())
   }
 
-  private def handleUnexpectedTermination(errorCode: Status, errorMessage: String, jobReturnCode: Option[Int]): Future[ExecutionHandle] = {
-
+  private def handleUnexpectedTermination(errorCode: Status, errorMessage: String, jobReturnCode: Option[Int]): ExecutionHandle = {
     val msg = s"Retrying. $errorMessage"
-
     previousRetryReasons match {
       case Valid(PreviousRetryReasons(p, ur)) =>
         val thisUnexpectedRetry = ur + 1
         if (thisUnexpectedRetry <= maxUnexpectedRetries) {
+          val preemptionAndUnexpectedRetryCountsKvPairs = nextAttemptPreemptedAndUnexpectedRetryCountsToKvPairs(p, thisUnexpectedRetry)
           // Increment unexpected retry count and preemption count stays the same
-          writeFuturePreemptedAndUnexpectedRetryCounts(p, thisUnexpectedRetry).map { _ =>
-            FailedRetryableExecutionHandle(StandardException(
-              errorCode, msg, jobTag, jobReturnCode, standardPaths.error), jobReturnCode)
-          }
+          FailedRetryableExecutionHandle(
+            StandardException(errorCode, msg, jobTag, jobReturnCode, standardPaths.error),
+            jobReturnCode,
+            kvPairsToSave = Option(preemptionAndUnexpectedRetryCountsKvPairs)
+          )
         }
         else {
-          Future.successful(FailedNonRetryableExecutionHandle(StandardException(
-            errorCode, errorMessage, jobTag, jobReturnCode, standardPaths.error), jobReturnCode))
+          FailedNonRetryableExecutionHandle(
+            StandardException(errorCode, errorMessage, jobTag, jobReturnCode, standardPaths.error),
+            jobReturnCode,
+            None
+          )
         }
       case Invalid(_) =>
-        Future.successful(FailedNonRetryableExecutionHandle(StandardException(
-          errorCode, errorMessage, jobTag, jobReturnCode, standardPaths.error), jobReturnCode))
+        FailedNonRetryableExecutionHandle(
+          StandardException(errorCode, errorMessage, jobTag, jobReturnCode, standardPaths.error),
+          jobReturnCode,
+          None
+        )
     }
   }
 
-  private def handlePreemption(runStatus: RunStatus.Preempted, jobReturnCode: Option[Int]): Future[ExecutionHandle] = {
+  private def handlePreemption(runStatus: RunStatus.Preempted, jobReturnCode: Option[Int]): ExecutionHandle = {
     import common.numeric.IntegerUtil._
 
     val errorCode: Status = runStatus.errorCode
@@ -717,23 +759,30 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         val taskName = s"${workflowDescriptor.id}:${call.localName}"
         val baseMsg = s"Task $taskName was preempted for the ${thisPreemption.toOrdinal} time."
 
-        writeFuturePreemptedAndUnexpectedRetryCounts(thisPreemption, ur).map { _ =>
-          if (thisPreemption < maxPreemption) {
-            // Increment preemption count and unexpectedRetryCount stays the same
-            val msg =
-              s"""$baseMsg The call will be restarted with another preemptible VM (max preemptible attempts number is $maxPreemption). Error code $errorCode.$prettyPrintedError""".stripMargin
-            FailedRetryableExecutionHandle(StandardException(
-              errorCode, msg, jobTag, jobReturnCode, standardPaths.error), jobReturnCode)
-          }
-          else {
-            val msg = s"""$baseMsg The maximum number of preemptible attempts ($maxPreemption) has been reached. The call will be restarted with a non-preemptible VM. Error code $errorCode.$prettyPrintedError)""".stripMargin
-            FailedRetryableExecutionHandle(StandardException(
-              errorCode, msg, jobTag, jobReturnCode, standardPaths.error), jobReturnCode)
-          }
+        val preemptionAndUnexpectedRetryCountsKvPairs = nextAttemptPreemptedAndUnexpectedRetryCountsToKvPairs(thisPreemption, ur)
+        if (thisPreemption < maxPreemption) {
+          // Increment preemption count and unexpectedRetryCount stays the same
+          val msg =
+            s"$baseMsg The call will be restarted with another preemptible VM (max preemptible attempts number is " +
+              s"$maxPreemption). Error code $errorCode.$prettyPrintedError"
+          FailedRetryableExecutionHandle(
+            StandardException(errorCode, msg, jobTag, jobReturnCode, standardPaths.error),
+            jobReturnCode,
+            kvPairsToSave = Option(preemptionAndUnexpectedRetryCountsKvPairs)
+          )
+        }
+        else {
+          val msg = s"$baseMsg The maximum number of preemptible attempts ($maxPreemption) has been reached. The " +
+            s"call will be restarted with a non-preemptible VM. Error code $errorCode.$prettyPrintedError)"
+          FailedRetryableExecutionHandle(StandardException(
+            errorCode, msg, jobTag, jobReturnCode, standardPaths.error), jobReturnCode, kvPairsToSave = Option(preemptionAndUnexpectedRetryCountsKvPairs))
         }
       case Invalid(_) =>
-        Future.successful(FailedNonRetryableExecutionHandle(StandardException(
-          errorCode, prettyPrintedError, jobTag, jobReturnCode, standardPaths.error), jobReturnCode))
+        FailedNonRetryableExecutionHandle(
+          StandardException(errorCode, prettyPrintedError, jobTag, jobReturnCode, standardPaths.error),
+          jobReturnCode,
+          None
+        )
     }
   }
 

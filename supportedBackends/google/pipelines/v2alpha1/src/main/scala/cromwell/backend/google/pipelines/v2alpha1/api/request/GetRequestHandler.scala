@@ -128,6 +128,10 @@ trait GetRequestHandler { this: RequestHandler =>
       metadata.get("createTime") map { time => ExecutionEvent("waiting for quota", OffsetDateTime.parse(time.toString)) }
     }
 
+    val completionEvent: Option[ExecutionEvent] = {
+      metadata.get("endTime") map { time => ExecutionEvent("Complete in GCE / Cromwell Poll Interval", OffsetDateTime.parse(time.toString)) }
+    }
+
     // Map action indexes to event types. Action indexes are 1-based for some reason.
     val actionIndexToEventType: Map[Int, String] = List(Key.Logging, Key.Tag).flatMap { k =>
       actions.zipWithIndex collect { case (a, i) if a.getLabels.containsKey(k) => (i + 1) -> a.getLabels.get(k) } } toMap
@@ -151,6 +155,6 @@ trait GetRequestHandler { this: RequestHandler =>
         executionEvents filterNot { e => (e.name.startsWith("Started pulling ") || e.name.startsWith("Stopped pulling ")) && e.offsetDateTime.compareTo(start.offsetDateTime) > 0 }
     }
 
-    starterEvent.toList ++ filteredExecutionEvents
+    starterEvent.toList ++ filteredExecutionEvents ++ completionEvent
   }
 }

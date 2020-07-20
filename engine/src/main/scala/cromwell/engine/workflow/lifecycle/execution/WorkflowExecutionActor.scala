@@ -47,6 +47,7 @@ import wom.values._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.util.control.NoStackTrace
 
 case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] with WorkflowLogging with CallMetadataHelper with StopAndLogSupervisor with Timers {
@@ -152,7 +153,9 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
     // A job not found here means we were trying to reconnect to a job that was likely never started. Indicate this in the message.
     case Event(JobFailedNonRetryableResponse(jobKey, _: JobNotFoundException, _), _) if restarting =>
-      val benignException = new Exception("Cromwell server was restarted while this workflow was running. As part of the restart process, Cromwell attempted to reconnect to this job, however it was never started in the first place. This is a benign failure and not the cause of failure for this workflow, it can be safely ignored.")
+      val benignException =
+        new Exception("Cromwell server was restarted while this workflow was running. As part of the restart process, Cromwell attempted to reconnect to this job, however it was never started in the first place. This is a benign failure and not the cause of failure for this workflow, it can be safely ignored.")
+          with NoStackTrace
       handleNonRetryableFailure(stateData, jobKey, benignException)
   }
 
@@ -208,9 +211,9 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       if (r.resultGenerationMode != RunOnBackend) {
         workflowLogger.info(s"Job results retrieved (${r.resultGenerationMode}): '${r.jobKey.call.fullyQualifiedName}' (scatter index: ${r.jobKey.index}, attempt ${r.jobKey.attempt})")
       }
-      handleCallSuccessful(r.jobKey, r.jobOutputs, r.returnCode, stateData, Map.empty)
+      handleCallSuccessful(r.jobKey, r.jobOutputs, r.returnCode, stateData, Map.empty, Set(workflowDescriptor.id))
     // Sub Workflow
-    case Event(SubWorkflowSucceededResponse(jobKey, descendantJobKeys, callOutputs), currentStateData) =>
+    case Event(SubWorkflowSucceededResponse(jobKey, descendantJobKeys, rootAndSubworklowIds, callOutputs, cumulativeOutputs), currentStateData) =>
       // Update call outputs to come from sub-workflow output ports:
       val subworkflowOutputs: Map[OutputPort, WomValue] = callOutputs.outputs flatMap { case (port, value) =>
         jobKey.node.subworkflowCallOutputPorts collectFirst {
@@ -219,7 +222,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       }
 
       if(subworkflowOutputs.size == callOutputs.outputs.size) {
-        handleCallSuccessful(jobKey, CallOutputs(subworkflowOutputs), None, currentStateData, descendantJobKeys)
+        handleCallSuccessful(jobKey, CallOutputs(subworkflowOutputs), None, currentStateData, descendantJobKeys, rootAndSubworklowIds, cumulativeOutputs)
       } else {
         handleNonRetryableFailure(currentStateData, jobKey, new Exception(s"Subworkflow produced outputs: [${callOutputs.outputs.keys.mkString(", ")}], but we expected all of [${jobKey.node.subworkflowCallOutputPorts.map(_.internalName)}]"))
       }
@@ -241,14 +244,16 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     case Event(JobFailedNonRetryableResponse(jobKey, reason, returnCode), stateData) =>
       handleNonRetryableFailure(stateData, jobKey, reason, returnCode)
     // Job Retryable
-    case Event(JobFailedRetryableResponse(jobKey, reason, returnCode), _) =>
-      handleRetryableFailure(jobKey, reason, returnCode)
+    case Event(JobFailedRetryableResponse(jobKey, reason, returnCode, memoryMultiplier), _) =>
+      handleRetryableFailure(jobKey, reason, returnCode, memoryMultiplier)
     // Aborted? But we're outside of the AbortingState!?? Could happen if
     // - The job was aborted by something external to Cromwell
     // - The job lasted too long (eg PAPI 6 day timeout)
     // Treat it like any other non-retryable failure:
     case Event(JobAbortedResponse(jobKey), stateData) =>
-      val cause = new Exception("The job was aborted from outside Cromwell")
+      val cause = new Exception(
+        "The compute backend terminated the job. If this termination is unexpected, examine likely causes such as preemption, running out of disk or memory on the compute instance, or exceeding the backend's maximum job duration."
+      )
       handleNonRetryableFailure(stateData, jobKey, cause)
     // Sub Workflow - sub workflow failures are always non retryable
     case Event(SubWorkflowFailedResponse(jobKey, descendantJobKeys, reason), stateData) =>
@@ -334,7 +339,11 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
         case (outputNode, value) => outputNode.graphOutputPort -> value
       })
 
-      context.parent ! WorkflowExecutionSucceededResponse(data.jobExecutionMap, localOutputs)
+      val currentCumulativeOutputs = data.cumulativeOutputs ++ localOutputs.outputs.values
+
+      val currentRootAndSubworkflowIds = data.rootAndSubworkflowIds + workflowDescriptor.id
+
+      context.parent ! WorkflowExecutionSucceededResponse(data.jobExecutionMap, currentRootAndSubworkflowIds, localOutputs, currentCumulativeOutputs)
       goto(WorkflowExecutionSuccessfulState) using data
     }
 
@@ -445,10 +454,10 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     serviceRegistryActor ! PutMetadataAction(unknownBackendStatus)
   }
 
-  private def handleRetryableFailure(jobKey: BackendJobDescriptorKey, reason: Throwable, returnCode: Option[Int]) = {
+  private def handleRetryableFailure(jobKey: BackendJobDescriptorKey, reason: Throwable, returnCode: Option[Int], memoryMultiplier: GreaterEqualRefined) = {
     pushFailedCallMetadata(jobKey, returnCode, reason, retryableFailure = true)
 
-    val newJobKey = jobKey.copy(attempt = jobKey.attempt + 1)
+    val newJobKey = jobKey.copy(attempt = jobKey.attempt + 1, memoryMultiplier = memoryMultiplier)
     workflowLogger.info(s"Retrying job execution for ${newJobKey.tag}")
 
     // Update current key to RetryableFailure status and add new key with attempt incremented and NotStarted status
@@ -457,9 +466,15 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     stay() using stateData.mergeExecutionDiff(executionDiff)
   }
 
-  private def handleCallSuccessful(jobKey: JobKey, outputs: CallOutputs, returnCode: Option[Int], data: WorkflowExecutionActorData, jobExecutionMap: JobExecutionMap) = {
+  private def handleCallSuccessful(jobKey: JobKey,
+                                   outputs: CallOutputs,
+                                   returnCode: Option[Int],
+                                   data: WorkflowExecutionActorData,
+                                   jobExecutionMap: JobExecutionMap,
+                                   rootAndSubworkflowIds: Set[WorkflowId],
+                                   cumulativeOutputs: Set[WomValue] = Set.empty) = {
     pushSuccessfulCallMetadata(jobKey, returnCode, outputs)
-    stay() using data.callExecutionSuccess(jobKey, outputs).addExecutions(jobExecutionMap)
+    stay() using data.callExecutionSuccess(jobKey, outputs, cumulativeOutputs, rootAndSubworkflowIds).addExecutions(jobExecutionMap)
   }
 
   private def handleDeclarationEvaluationSuccessful(key: ExpressionKey, values: Map[OutputPort, WomValue], data: WorkflowExecutionActorData) = {
@@ -608,6 +623,16 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     val ejeaName = s"${workflowDescriptor.id}-EngineJobExecutionActor-${jobKey.tag}"
     val backendName = backendLifecycleActorFactory.name
     val backendSingleton = params.backendSingletonCollection.backendSingletonActors(backendName)
+
+    val callCachingParameters = EngineJobExecutionActor.CallCachingParameters(
+      mode = workflowDescriptor.callCachingMode,
+      readActor = params.callCacheReadActor,
+      writeActor = params.callCacheWriteActor,
+      fileHashCacheActor = params.fileHashCacheActor,
+      maxFailedCopyAttempts = params.rootConfig.getInt("call-caching.max-failed-copy-attempts"),
+      blacklistCache = params.blacklistCache
+    )
+
     val ejeaProps = EngineJobExecutionActor.props(
       self,
       jobKey,
@@ -618,15 +643,11 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       serviceRegistryActor = serviceRegistryActor,
       ioActor = params.ioActor,
       jobStoreActor = params.jobStoreActor,
-      callCacheReadActor = params.callCacheReadActor,
-      callCacheWriteActor = params.callCacheWriteActor,
       workflowDockerLookupActor = params.workflowDockerLookupActor,
       jobTokenDispenserActor = params.jobTokenDispenserActor,
       backendSingleton,
-      workflowDescriptor.callCachingMode,
       command,
-      fileHashCacheActor = params.fileHashCacheActor,
-      blacklistCache = params.blacklistCache
+      callCachingParameters
     )
 
     val ejeaRef = context.actorOf(ejeaProps, ejeaName)
@@ -726,7 +747,10 @@ object WorkflowExecutionActor {
     def jobExecutionMap: JobExecutionMap
   }
 
-  case class WorkflowExecutionSucceededResponse(jobExecutionMap: JobExecutionMap, outputs: CallOutputs)
+  case class WorkflowExecutionSucceededResponse(jobExecutionMap: JobExecutionMap,
+                                                rootAndSubworklowIds: Set[WorkflowId],
+                                                outputs: CallOutputs,
+                                                cumulativeOutputs: Set[WomValue] = Set.empty)
     extends WorkflowExecutionActorResponse {
     override def toString = "WorkflowExecutionSucceededResponse"
   }
@@ -758,7 +782,11 @@ object WorkflowExecutionActor {
     */
   private case object ExecutionHeartBeatKey
 
-  case class SubWorkflowSucceededResponse(key: SubWorkflowKey, jobExecutionMap: JobExecutionMap, outputs: CallOutputs)
+  case class SubWorkflowSucceededResponse(key: SubWorkflowKey,
+                                          jobExecutionMap: JobExecutionMap,
+                                          rootAndSubworklowIds: Set[WorkflowId],
+                                          outputs: CallOutputs,
+                                          cumulativeOutputs: Set[WomValue] = Set.empty)
 
   case class SubWorkflowFailedResponse(key: SubWorkflowKey, jobExecutionMap: JobExecutionMap, reason: Throwable)
 

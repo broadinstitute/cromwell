@@ -1,4 +1,3 @@
-
 **Google Cloud Backend**
 
 Google Genomics Pipelines API is a Docker-as-a-service from Google. It was formerly called JES (Job Execution Service);
@@ -147,7 +146,7 @@ backend {
 
 `token` is the standard base64-encoded username:password for the appropriate Docker Hub account.
 
-For PAPI version 2:
+For PAPI version 2 alpha 1:
 
 ```
 backend {
@@ -155,6 +154,26 @@ backend {
   providers {
     PAPIv2 {
       actor-factory = "cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory"
+      config {
+        dockerhub {
+          token = "base64-encoded-docker-hub-username:password"
+          key-name = "name/of/the/kms/key/used/for/encrypting/and/decrypting/the/docker/hub/token"
+          auth = "reference-to-the-auth-cromwell-should-use-for-kms-encryption"
+        }
+      }
+    }
+  }
+}
+```
+
+For PAPI version 2 beta:
+
+```
+backend {
+  default = "PAPIv2"
+  providers {
+    PAPIv2 {
+      actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
       config {
         dockerhub {
           token = "base64-encoded-docker-hub-username:password"
@@ -222,6 +241,75 @@ On the Local, SGE, and associated backends any GCS URI will be downloaded locall
 precedence over the `root` specified at `backend.providers.JES.config.root` in the configuration file. Google Cloud Storage URIs are the only acceptable values for `File` inputs for
 workflows using the Google backend.
 
+**Retry with More Memory**
+
+With `memory-retry` you can specify an array of strings which when encountered in the `stderr` file by Cromwell, allows the task to be retried with more memory.
+The optional `multiplier` config specifies the factor by which the memory should be multiplied while retrying. This multiplier should be greater than 1.0. 
+If the value is not mentioned in config, it will default to 2.0. The retry will be counted against the `maxRetries` count mentioned in the `runtimeAtrributes` in the task. 
+For example,
+```hocon
+backend.providers.Papiv2.config {
+  memory-retry {
+    error-keys = ["OutOfMemoryError", "Killed"]
+    multiplier = 1.1
+  }
+}
+```  
+this tells Cromwell to retry the task with 1.1x memory when it sees either `OutOfMemoryError` or `Killed` in the `stderr` file. If the task has 
+runtime attributes as below 
+```hocon
+runtimeAtrributes {
+  memory: "1 GB"
+  continueOnReturnCode: true
+  maxRetries: 1
+}
+``` 
+the task will be retried at max 1 more time, and this time with "1.1 GB" memory. Please note that Pipelines API will adjust the memory value based on their
+standards for memory for a VM. So it's possible that even though the request says 1.1 GB memory, it actually allocated a bit more memory to the VM.
+
+Two environment variables called `${MEM_UNIT}` and `${MEM_SIZE}` are also available inside the command block of a task,
+making it easy to retrieve the new value of memory on the machine.
+
+**Pipeline timeout**
+
+Google sets a default pipeline timeout of 7 days, after which the pipeline will abort. Setting `pipeline-timeout` overrides this limit to a maximum of 30 days.
+
+```hocon
+backend.providers.PAPIv2.config {
+    pipeline-timeout: 14 days
+}
+```
+
+**Enabling FUSE capabilities**
+
+*This is a community contribution and not officially supported by the Cromwell team.*
+By default Cromwell task containers doesn't allow to mount any FUSE filesystems. It happens because containers are launched without specific linux capabilities being enabled. 
+Google pipelines backend supports running containers with the enabled capabilities and so does Cromwell. 
+
+If you need to use fuses within task containers then you can set `enable_fuse` workflow option. 
+
+```
+{
+    "enable_fuse": true
+}
+```
+
+Differently you can enable support for fuses right in your backend configuration.
+
+```
+backend.providers.Papiv2.config {
+    genomics {
+        enable-fuse = true
+    }
+}
+```
+
+There is a list of limitations regarding the usage of FUSE filesystems:
+
++ Any inputs brought in via a FUSE filesystem will not be considered for call caching.
++ Any outputs stored via a FUSE filesystem will not be recreated if a task is replayed from a call-cache hit.
++ If the filesystem is writable, your job is potentially no longer idempotent - Cromwell may decide to retry your job for you, and you might get unforeseen file collisions or even incorrect results if that happens.
+
 #### Google Labels
 
 Every call run on the Pipelines API backend is given certain labels by default, so that Google resources can be queried by these labels later. 
@@ -238,7 +326,7 @@ Any custom labels provided as '`google_labels`' in the [workflow options](../wf_
 
 ## Using NCBI Sequence Read Archive (SRA) Data
 
-The v2alpha1 backend supports accessing [NCBI
+The v2alpha1 and v2beta backends support accessing [NCBI
 SRA](https://www.ncbi.nlm.nih.gov/sra) accessions natively.  To configure this
 support you'll need to enable it in your config file like so:
 
@@ -273,7 +361,7 @@ backend {
   providers {
   	...
   	PapiV2 {
-  	  actor-factory = "cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory"
+  	  actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
   	  config {
   		...
   		virtual-private-cloud {
@@ -302,3 +390,86 @@ For example, if your `virtual-private-cloud` config looks like the one above, an
 Cromwell will get labels from the project's metadata and look for a label whose key is `my-private-network`.
 Then it will use the value of the label, which is `vpc-network` here, as the name of private network and run the jobs on this network.
 If the network key is not present in the project's metadata Cromwell will fall back to running jobs on the default network.
+
+### Parallel Composite Uploads
+
+Cromwell can be configured to use GCS parallel composite uploads which can greatly improve delocalization performance. This feature
+is turned off by default but can be enabled backend-wide by specifying a `gsutil`-compatible memory specification for the key
+`genomics.parallel-composite-upload-threshold` in backend configuration. This memory value represents the minimum size an output file
+must have to be a candidate for `gsutil` parallel composite uploading:
+
+```
+backend {
+  ...
+  providers {
+    ...
+    PapiV2 {
+      actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
+      config {
+        ...
+        genomics {
+          ...
+          parallel-composite-upload-threshold = 150M
+          ...
+        }
+        ...
+      }
+    }
+  }
+}
+```
+
+Alternatively this threshold can be specified in workflow options using the key `parallel-composite-upload-threshold`,
+which takes precedence over a setting in configuration. The default setting for this threshold is `0` which turns off
+parallel composite uploads; a value of `0` can also be used in workflow options to turn off parallel composite uploads
+in a Cromwell deployment where they are turned on in config.
+
+#### Issues with composite files
+
+Please see the [Google documentation](https://cloud.google.com/storage/docs/gsutil/commands/cp#parallel-composite-uploads)
+describing the benefits and drawbacks of parallel composite uploads.
+
+The actual error message observed when attempting to download a composite file on a system without a compiled `crcmod`
+looks like the following:
+
+```
+/ # gsutil -o GSUtil:parallel_composite_upload_threshold=150M cp gs://my-bucket/composite.bam .
+Copying gs://my-bucket/composite.bam...
+==> NOTE: You are downloading one or more large file(s), which would
+run significantly faster if you enabled sliced object downloads. This
+feature is enabled by default but requires that compiled crcmod be
+installed (see "gsutil help crcmod").
+
+CommandException:
+Downloading this composite object requires integrity checking with CRC32c,
+but your crcmod installation isn't using the module's C extension, so the
+hash computation will likely throttle download performance. For help
+installing the extension, please see "gsutil help crcmod".
+
+To download regardless of crcmod performance or to skip slow integrity
+checks, see the "check_hashes" option in your boto config file.
+
+NOTE: It is strongly recommended that you not disable integrity checks. Doing so
+could allow data corruption to go undetected during uploading/downloading.
+/ #
+```
+
+As the message states, the best option would be to have a compiled `crcmod` installed on the system.
+Turning off integrity checks on downloads does get around this issue but really isn't a great idea.
+
+#### Parallel composite uploads and call caching
+
+Because the parallel composite upload threshold is not considered part of the hash used for call caching purposes, calls
+which would be expected to generate non-composite outputs may call cache to results that did generate composite
+outputs. Calls which are executed and not cached will always honor the parallel composite upload setting at the time of
+their execution.
+
+### Migration from Google Cloud Genomics v2alpha1 to Google Cloud Life Sciences v2beta
+
+1. If you currently run your workflows using Cloud Genomics v2alpha1 and would like to switch to Google Cloud Life 
+Sciences v2beta, you will need to do a few changes to your configuration file: `actor-factory` value should be changed 
+from `cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory` to `cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory`.
+2. Parameter `genomics.endpoint-url` value should be changed from `https://genomics.googleapis.com/` to 
+`https://lifesciences.googleapis.com/`.
+3. Also you should add a new mandatory parameter `genomics.location` to your backend configuration. Currently Google Cloud 
+Life Sciences API is available only in `us-central1` and `europe-west2` locations.

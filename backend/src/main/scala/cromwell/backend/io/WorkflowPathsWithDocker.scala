@@ -17,7 +17,7 @@ final case class WorkflowPathsWithDocker(workflowDescriptor: BackendWorkflowDesc
   val dockerWorkflowRoot: Path = workflowPathBuilder(dockerRoot)
 
   override def toJobPaths(workflowPaths: WorkflowPaths, jobKey: BackendJobDescriptorKey): JobPathsWithDocker = {
-    new JobPathsWithDocker(workflowPaths.asInstanceOf[WorkflowPathsWithDocker], jobKey)
+    new JobPathsWithDocker(workflowPaths.asInstanceOf[WorkflowPathsWithDocker], jobKey, isCallCacheCopyAttempt = false)
   }
 
   override protected def withDescriptor(workflowDescriptor: BackendWorkflowDescriptor): WorkflowPaths = this.copy(workflowDescriptor = workflowDescriptor)

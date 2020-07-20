@@ -1,0 +1,62 @@
+digraph "WDL_MAP" 
+{
+	compound=true;
+
+	# WDL 1_0 standard path
+	wdldraft2 -> wdldraft2ast [label="Hermes Parser (draft 2)"]
+	wdldraft2ast -> wdldraft2model [label="WdlNamespace constructor"]
+	wdldraft2model -> validatedwomnamespace [label="inputs.json,\noptions.json"]
+
+	# 1.0 standard path
+	wdl1_0 -> wdl1_0ast [label="Hermes Parser (1.0)"]
+	wdl1_0ast -> wdlom [label=" draft3.ast2wdlom"]
+	wdlbiscayne -> wdlbiscayneast [label="Hermes Parser (Biscayne)"]
+	wdlbiscayneast -> wdlom [label=" biscayne.ast2wdlom"]
+	wdlom -> wdlomandimports 
+	#wdlom -> importedbundles [style=invis]  # [label=" recurse to import"]
+	importedbundles -> wdlomandimports
+	wdlomandimports -> linkedgraph [label=" draft3.linking"]
+	#linkedgraph -> fileandlinksandimports
+	linkedgraph -> wombundle [label=" draft3.wdlom2wom"]
+	#importedbundles -> fileandlinksandimports
+	#wdlom -> fileandlinksandimports
+	#fileandlinksandimports -> wombundle [label=" draft3.wdlom2wom"]
+	#wombundle -> importablebundle
+	wombundle -> importedbundles [ style=dotted]
+	wombundle -> validatedwomnamespace [label="inputs.json,\noptions.json"]
+
+	# Upgrade script
+	# wdldraft2model -> wdlom [label="Draft 2 to 1.0 converter"]
+	# wdlom -> wdl1_0 [label="1.0 WDL generator"]
+
+	# Draft 2 model
+	wdldraft2 [shape=invtriangle label="WDL Draft 2 file" ];
+	wdldraft2ast [shape=oval label="WDL Draft 2 AST"];
+	wdldraft2model [shape=oval label="WDL Draft 2 Namespace"];
+
+	# 1.0 model
+	wdl1_0 [shape=invtriangle label="WDL 1.0 file"];
+	wdl1_0ast [shape=oval label="WDL 1.0 AST"];
+	wdlbiscayne [shape=invtriangle label="WDL Biscayne file"];
+	wdlbiscayneast [shape=oval label="WDL Biscayne AST"];
+	wdlom [shape=oval label="WDL Object Model"];
+	wdlomandimports [shape=circle fixedsize=true width=0.3 label="+"]  # [shape=oval label="File WDLOM + 'import' WOM Bundles"];
+	linkedgraph [shape=oval label="Linked inputs\n(with resolved types, value lookups, graph edges)"];
+	#fileandlinksandimports [shape=oval label="File WDLOM + linking information + 'import' WOM Bundles"];
+	wombundle [shape=oval label="WOM Bundle"];
+	importedbundles [shape=oval label="WOM Bundles from imports\n(generated recursively)"];
+	#importablebundle [shape=oval label="WOM Bundle available for import"];
+
+	validatedwomnamespace [shape=oval label="Validated WOM Namespace" peripheries=2];
+
+	{rank = same; wdldraft2; wdl1_0; wdlbiscayne}
+	{rank = same; wdldraft2ast; wdl1_0ast; wdlbiscayneast}
+	{rank = same; wdldraft2model; wdlom; importedbundles}
+
+
+	#importablebundle -> importedbundles [ style=dotted]
+
+    # This "rank + invisible edge" combo is just to force importablebundle to be on the RHS of validatedwomnamespace
+    #{rank = same; validatedwomnamespace; importablebundle}
+	#importablebundle -> validatedwomnamespace [style=invis]
+}

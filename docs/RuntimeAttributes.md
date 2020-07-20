@@ -51,7 +51,8 @@ There are a number of additional runtime attributes that apply to the Google Clo
 - [preemptible](#preemptible)
 - [bootDiskSizeGb](#bootdisksizegb)
 - [noAddress](#noaddress)
-- [gpuCount and gpuType](#gpucount-and-gputype)
+- [gpuCount, gpuType, and nvidiaDriverVersion](#gpucount-gputype-and-nvidiadriverversion)
+- [cpuPlatform](#cpuplatform)
 
 
 
@@ -193,7 +194,7 @@ This attribute specifies volumes that will be mounted to the VM for your job. Th
 They are specified as a comma separated list of disks. Each disk is further separated as a space separated triplet (e.g. `local-disk 10 SSD`) consisting of:
 
 1. Mount point (absolute path), or `local-disk` to reference the mount point where Google Cloud will localize files and the task's current working directory will be
-2. Disk size in GB (ignored for disk type LOCAL)
+2. Disk size in GB (rounded to the next 375 GB for LOCAL)
 3. Disk type.  One of: "LOCAL", "SSD", or "HDD" ([documentation](https://cloud.google.com/compute/docs/disks/#overview))
 
 All tasks launched on Google Cloud *must* have a `local-disk`.  If one is not specified in the runtime section of the task, then a default of `local-disk 10 SSD` will be used.  The `local-disk` will be mounted to `/cromwell_root`.
@@ -201,7 +202,7 @@ All tasks launched on Google Cloud *must* have a `local-disk`.  If one is not sp
 For the AWS Batch backend, the disk volume is managed by AWS EBS with autoscaling capabilities.  As such, the Disk size and disk type will be ignored. If provided, the mount point will be verified at runtime.
 
 
-The Disk type must be one of "LOCAL", "SSD", or "HDD". When set to "LOCAL", the size of the drive is automatically provisioned by Google so any size specified in WDL will be ignored. All disks are set to auto-delete after the job completes.
+The Disk type must be one of "LOCAL", "SSD", or "HDD". When set to "LOCAL", the size of the drive is constrained to 375 GB intervals so intermediate values will be rounded up to the next 375 GB. All disks are set to auto-delete after the job completes.
 
 *Example 1: Changing the Localization Disk*
 
@@ -405,3 +406,17 @@ runtime {
     zones: ["us-central1-c"]
 }
 ```
+
+### `cpuPlatform`
+
+This option is specific to the Google Cloud backend, specifically [this](https://cloud.google.com/compute/docs/instances/specify-min-cpu-platform) feature when a certain minimum CPU platform is desired.
+
+A usage example:
+
+```
+runtime {
+    cpu: 2
+    cpuPlatform: "Intel Skylake"
+}
+```
+Note that when this options is specified, make sure the requested CPU platform is [available](https://cloud.google.com/compute/docs/regions-zones/#available) in the `zones` you selected.

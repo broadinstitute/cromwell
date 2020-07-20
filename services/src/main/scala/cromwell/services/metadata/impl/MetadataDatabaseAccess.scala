@@ -1,11 +1,15 @@
 package cromwell.services.metadata.impl
 
+import java.time.OffsetDateTime
+
 import cats.Semigroup
 import cats.data.NonEmptyList
 import cats.instances.future._
 import cats.instances.list._
+import cats.syntax.apply._
 import cats.syntax.semigroup._
 import cats.syntax.traverse._
+import common.validation.Validation._
 import cromwell.core._
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, WorkflowQuery}
@@ -40,12 +44,13 @@ object MetadataDatabaseAccess {
         submissionTimestamp = summary1.submissionTimestamp orElse summary2.submissionTimestamp,
         parentWorkflowExecutionUuid = summary1.parentWorkflowExecutionUuid orElse summary2.parentWorkflowExecutionUuid,
         rootWorkflowExecutionUuid = summary1.rootWorkflowExecutionUuid orElse summary2.rootWorkflowExecutionUuid,
+        metadataArchiveStatus = summary1.metadataArchiveStatus,
       )
     }
   }
 
   def baseSummary(workflowUuid: String) =
-    WorkflowMetadataSummaryEntry(workflowUuid, None, None, None, None, None, None, None)
+    WorkflowMetadataSummaryEntry(workflowUuid, None, None, None, None, None, None, None, None, None)
 
   // If visibility is made `private`, there's a bogus warning about this being unused.
   implicit class MetadatumEnhancer(val metadatum: MetadataEntry) extends AnyVal {
@@ -78,7 +83,7 @@ object MetadataDatabaseAccess {
     }
   }
 
-  case class SummaryResult(rowsProcessedIncreasing: Long, increasingGap: Long, rowsProcessedDecreasing: Long, decreasingGap: Long)
+  case class SummaryResult(rowsProcessedIncreasing: Long, rowsProcessedDecreasing: Long, decreasingGap: Long)
 }
 
 trait MetadataDatabaseAccess {
@@ -95,7 +100,16 @@ trait MetadataDatabaseAccess {
       MetadataEntry(workflowUuid, jobKey.map(_._1), jobKey.flatMap(_._2), jobKey.map(_._3),
         key.key, value.toClobOption, valueType, timestamp)
     }
-    metadataDatabaseInterface.addMetadataEntries(metadata)
+    metadataDatabaseInterface.addMetadataEntries(
+      metadataEntries = metadata,
+      startMetadataKey = WorkflowMetadataKeys.StartTime,
+      endMetadataKey = WorkflowMetadataKeys.EndTime,
+      nameMetadataKey = WorkflowMetadataKeys.Name,
+      statusMetadataKey = WorkflowMetadataKeys.Status,
+      submissionMetadataKey = WorkflowMetadataKeys.SubmissionTime,
+      parentWorkflowIdKey = WorkflowMetadataKeys.ParentWorkflowId,
+      rootWorkflowIdKey = WorkflowMetadataKeys.RootWorkflowId,
+      labelMetadataKey = WorkflowMetadataKeys.Labels)
   }
 
   private def metadataToMetadataEvents(workflowId: WorkflowId)(metadata: Seq[MetadataEntry]): Seq[MetadataEvent] = {
@@ -113,6 +127,10 @@ trait MetadataDatabaseAccess {
 
       MetadataEvent(key, value, m.metadataTimestamp.toSystemOffsetDateTime)
     }
+  }
+
+  def queryMetadataEventsTotalRowNumber(workflowId: WorkflowId, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
+    metadataDatabaseInterface.getMetadataTotalRowNumberByRootWorkflowId(workflowId.toString, timeout)
   }
 
   def queryMetadataEvents(query: MetadataQuery, timeout: Duration)(implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
@@ -164,32 +182,22 @@ trait MetadataDatabaseAccess {
 
   def refreshWorkflowMetadataSummaries(limit: Int)(implicit ec: ExecutionContext): Future[SummaryResult] = {
     for {
-      (increasingProcessed, increasingGap) <- metadataDatabaseInterface.summarizeIncreasing(
-        summaryNameIncreasing = WorkflowMetadataKeys.SummaryNameIncreasing,
-        startMetadataKey = WorkflowMetadataKeys.StartTime,
-        endMetadataKey = WorkflowMetadataKeys.EndTime,
-        nameMetadataKey = WorkflowMetadataKeys.Name,
-        statusMetadataKey = WorkflowMetadataKeys.Status,
-        submissionMetadataKey = WorkflowMetadataKeys.SubmissionTime,
-        parentWorkflowIdKey = WorkflowMetadataKeys.ParentWorkflowId,
-        rootWorkflowIdKey = WorkflowMetadataKeys.RootWorkflowId,
+      increasingProcessed <- metadataDatabaseInterface.summarizeIncreasing(
         labelMetadataKey = WorkflowMetadataKeys.Labels,
         limit = limit,
         buildUpdatedSummary = MetadataDatabaseAccess.buildUpdatedSummary)
       (decreasingProcessed, decreasingGap) <- metadataDatabaseInterface.summarizeDecreasing(
         summaryNameDecreasing = WorkflowMetadataKeys.SummaryNameDecreasing,
         summaryNameIncreasing = WorkflowMetadataKeys.SummaryNameIncreasing,
-        startMetadataKey = WorkflowMetadataKeys.StartTime,
-        endMetadataKey = WorkflowMetadataKeys.EndTime,
-        nameMetadataKey = WorkflowMetadataKeys.Name,
-        statusMetadataKey = WorkflowMetadataKeys.Status,
-        submissionMetadataKey = WorkflowMetadataKeys.SubmissionTime,
-        parentWorkflowIdKey = WorkflowMetadataKeys.ParentWorkflowId,
-        rootWorkflowIdKey = WorkflowMetadataKeys.RootWorkflowId,
         labelMetadataKey = WorkflowMetadataKeys.Labels,
         limit = limit,
         buildUpdatedSummary = MetadataDatabaseAccess.buildUpdatedSummary)
-    } yield SummaryResult(increasingProcessed, increasingGap, decreasingProcessed, decreasingGap)
+    } yield SummaryResult(increasingProcessed, decreasingProcessed, decreasingGap)
+  }
+
+  def updateMetadataArchiveStatus(workflowId: WorkflowId, newStatus: MetadataArchiveStatus): Future[Int] = {
+    val databaseStatusValue = MetadataArchiveStatus.toDatabaseValue(newStatus)
+    metadataDatabaseInterface.updateMetadataArchiveStatus(workflowId.toString, databaseStatusValue)
   }
 
   def getWorkflowStatus(id: WorkflowId)
@@ -197,9 +205,14 @@ trait MetadataDatabaseAccess {
     metadataDatabaseInterface.getWorkflowStatus(id.toString) map { _ map WorkflowState.withName }
   }
 
-
   def getWorkflowLabels(id: WorkflowId)(implicit ec: ExecutionContext): Future[Map[String, String]] = {
     metadataDatabaseInterface.getWorkflowLabels(id.toString)
+  }
+
+  def getRootAndSubworkflowLabels(rootWorkflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Map[WorkflowId, Map[String, String]]] = {
+    metadataDatabaseInterface.getRootAndSubworkflowLabels(rootWorkflowId.toString) map {
+      _ map { case (id, labelsForId) => WorkflowId.fromString(id) -> labelsForId }
+    }
   }
 
   def workflowWithIdExistsInMetadata(possibleWorkflowId: String)(implicit ec: ExecutionContext): Future[Boolean] = {
@@ -231,7 +244,9 @@ trait MetadataDatabaseAccess {
       queryParameters.submissionTime.map(_.toSystemTimestamp),
       queryParameters.startDate.map(_.toSystemTimestamp),
       queryParameters.endDate.map(_.toSystemTimestamp),
+      queryParameters.metadataArchiveStatus.map(MetadataArchiveStatus.toDatabaseValue),
       queryParameters.includeSubworkflows,
+      queryParameters.minimumSummaryEntryId,
       queryParameters.page,
       queryParameters.pageSize
     )
@@ -248,7 +263,9 @@ trait MetadataDatabaseAccess {
       queryParameters.submissionTime.map(_.toSystemTimestamp),
       queryParameters.startDate.map(_.toSystemTimestamp),
       queryParameters.endDate.map(_.toSystemTimestamp),
-      queryParameters.includeSubworkflows
+      queryParameters.metadataArchiveStatus.map(MetadataArchiveStatus.toDatabaseValue),
+      queryParameters.includeSubworkflows,
+      queryParameters.minimumSummaryEntryId
     )
 
     def queryMetadata(count: Int): Option[QueryMetadata] = {
@@ -270,8 +287,12 @@ trait MetadataDatabaseAccess {
         queryParameters.additionalQueryResultFields.contains(WorkflowMetadataKeys.Labels).fold(
           metadataDatabaseInterface.getWorkflowLabels(workflow.workflowExecutionUuid), Future.successful(Map.empty))
 
-      workflowLabels map { labels =>
-        MetadataService.WorkflowQueryResult(
+      val archiveStatus = MetadataArchiveStatus.fromDatabaseValue(workflow.metadataArchiveStatus)
+
+      for {
+        labels <- workflowLabels
+        archived <- Future.fromTry(archiveStatus.toTry)
+      } yield MetadataService.WorkflowQueryResult(
           id = workflow.workflowExecutionUuid,
           name = workflow.workflowName,
           status = workflow.workflowStatus,
@@ -280,9 +301,9 @@ trait MetadataDatabaseAccess {
           end = workflow.endTimestamp map { _.toSystemOffsetDateTime },
           labels = labels.nonEmpty.option(labels),
           parentWorkflowId = workflow.parentWorkflowExecutionUuid,
-          rootWorkflowId = workflow.rootWorkflowExecutionUuid
+          rootWorkflowId = workflow.rootWorkflowExecutionUuid,
+          metadataArchiveStatus = archived
         )
-      }
     }
 
     for {
@@ -290,6 +311,35 @@ trait MetadataDatabaseAccess {
       workflows <- workflowSummaries
       queryResults <- summariesToQueryResults(workflows)
     } yield (WorkflowQueryResponse(queryResults, count), queryMetadata(count))
-
   }
+
+  def deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(rootWorkflowId: WorkflowId, newArchiveStatus: Option[String])(implicit ec: ExecutionContext): Future[Int] = {
+    import cromwell.core.WorkflowState
+
+    ((metadataDatabaseInterface.isRootWorkflow(rootWorkflowId.toString), metadataDatabaseInterface.getWorkflowStatus(rootWorkflowId.toString)) mapN {
+      case (None, _) =>
+        Future.failed(new Exception(s"""Metadata deletion precondition failed: workflow ID "$rootWorkflowId" not found in summary table"""))
+      case (Some(false), _) =>
+        Future.failed(new Exception(s"""Metadata deletion precondition failed: workflow ID "$rootWorkflowId" is not a root workflow"""))
+      case (_, None) =>
+        Future.failed(new Exception(s"""Metadata deletion precondition failed: workflow ID "$rootWorkflowId" did not have a status in the summary table"""))
+      case (Some(true), Some(status)) =>
+        if (WorkflowState.withName(status).isTerminal)
+          metadataDatabaseInterface.deleteNonLabelMetadataForWorkflowAndUpdateArchiveStatus(rootWorkflowId.toString, newArchiveStatus)
+        else
+          Future.failed(new Exception(s"""Metadata deletion precondition failed: workflow ID "$rootWorkflowId" was in non-terminal status "$status""""))
+
+    }).flatten
+  }
+
+  def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = metadataDatabaseInterface.getRootWorkflowId(workflowId)
+
+  def queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(archiveStatus: Option[String], thresholdTimestamp: OffsetDateTime, batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[String]] =
+    metadataDatabaseInterface.queryRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus, thresholdTimestamp.toSystemTimestamp, batchSize)
+
+  def countRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(archiveStatus: Option[String], thresholdTimestamp: OffsetDateTime)(implicit ec: ExecutionContext): Future[Int] =
+    metadataDatabaseInterface.countRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus, thresholdTimestamp.toSystemTimestamp)
+
+  def getSummaryQueueSize()(implicit ec: ExecutionContext): Future[Int] =
+    metadataDatabaseInterface.getSummaryQueueSize()
 }

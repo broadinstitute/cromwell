@@ -6,6 +6,7 @@ import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor.
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor.NextHit
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheInvalidatedFailure, CallCacheInvalidatedSuccess}
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
+import cromwell.services.CallCaching.CallCachingEntryId
 
 class EjeaInvalidatingCacheEntrySpec extends EngineJobExecutionActorSpec {
 
@@ -13,9 +14,10 @@ class EjeaInvalidatingCacheEntrySpec extends EngineJobExecutionActorSpec {
 
   "An EJEA in InvalidatingCacheEntry state" should {
 
+    val randomCallCacheEntryId = CallCachingEntryId(123)
     val invalidationErrorCause = new Exception("blah")
-    val invalidateSuccess = CallCacheInvalidatedSuccess(None)
-    val invalidateFailure = CallCacheInvalidatedFailure(invalidationErrorCause)
+    val invalidateSuccess = CallCacheInvalidatedSuccess(randomCallCacheEntryId, None)
+    val invalidateFailure = CallCacheInvalidatedFailure(randomCallCacheEntryId, invalidationErrorCause)
 
     List(invalidateSuccess, invalidateFailure) foreach { invalidateActorResponse =>
       s"ask the ejha for the next hit when response is $invalidateActorResponse" in {

@@ -103,6 +103,7 @@ object ScatterElementToGraphNode {
       val graphLikeConvertInputs = GraphLikeConvertInputs(graphElements.toSet, ogins ++ Set(womInnerGraphScatterVariableInput), foundOuterGenerators.completionPorts, a.availableTypeAliases, a.workflowName,
                                                           insideAScatter = true,
                                                           convertNestedScatterToSubworkflow = a.convertNestedScatterToSubworkflow,
+                                                          allowNestedInputs = a.allowNestedInputs,
                                                           a.callables)
       val innerGraph: ErrorOr[Graph] = WorkflowDefinitionElementToWomWorkflowDefinition.convertGraphElements(graphLikeConvertInputs)
 
@@ -131,6 +132,7 @@ object ScatterElementToGraphNode {
       val graphLikeConvertInputs = GraphLikeConvertInputs(Set(a.node), subWorkflowInputs, Map.empty, a.availableTypeAliases, a.workflowName,
                                                           insideAScatter = false,
                                                           convertNestedScatterToSubworkflow = a.convertNestedScatterToSubworkflow,
+                                                          allowNestedInputs = a.allowNestedInputs,
                                                           a.callables)
       val subWorkflowGraph = WorkflowDefinitionElementToWomWorkflowDefinition.convertGraphElements(graphLikeConvertInputs)
       subWorkflowGraph map { WomGraphMakerTools.addDefaultOutputs(_) }
@@ -150,10 +152,11 @@ object ScatterElementToGraphNode {
       val graphNodeSetter = new GraphNodeSetter[CallNode]
 
       val unsatisfiedInputs = subWorkflowDefinition.inputs filter { i => !a.linkablePorts.contains(i.name) }
+      def inputNodeIdentifier(input: InputDefinition) = WomIdentifier(localName = input.name, fullyQualifiedName = a.workflowName + "." + input.name)
       val newInputNodes: Map[String, ExternalGraphInputNode] = (unsatisfiedInputs collect {
-        case i: RequiredInputDefinition => i.name -> RequiredGraphInputNode(WomIdentifier(i.name), i.womType, i.name, Callable.InputDefinition.IdentityValueMapper)
-        case i: OptionalInputDefinition => i.name -> OptionalGraphInputNode(WomIdentifier(i.name), i.womType, i.name, Callable.InputDefinition.IdentityValueMapper)
-        case i: OverridableInputDefinitionWithDefault => i.name -> OptionalGraphInputNodeWithDefault(WomIdentifier(i.name), i.womType, i.default, i.name, Callable.InputDefinition.IdentityValueMapper)
+        case i: RequiredInputDefinition => i.name -> RequiredGraphInputNode(inputNodeIdentifier(i), i.womType, a.workflowName + "." + i.name, Callable.InputDefinition.IdentityValueMapper)
+        case i: OptionalInputDefinition => i.name -> OptionalGraphInputNode(inputNodeIdentifier(i), i.womType, a.workflowName + "." + i.name, Callable.InputDefinition.IdentityValueMapper)
+        case i: OverridableInputDefinitionWithDefault => i.name -> OptionalGraphInputNodeWithDefault(inputNodeIdentifier(i), i.womType, i.default, a.workflowName + "." + i.name, Callable.InputDefinition.IdentityValueMapper)
       }).toMap
 
       val mappingAndPorts: List[((InputDefinition, InputDefinitionPointer), InputPort)] = subWorkflowDefinition.inputs map { i =>
@@ -187,4 +190,5 @@ final case class ScatterNodeMakerInputs(node: ScatterElement,
                                         workflowName: String,
                                         insideAnotherScatter: Boolean,
                                         convertNestedScatterToSubworkflow: Boolean,
+                                        allowNestedInputs: Boolean,
                                         callables: Map[String, Callable])

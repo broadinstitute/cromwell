@@ -6,26 +6,26 @@
   "PreProcessingForVariantDiscovery_GATK4.unmapped_bam_suffix": ".bam",
 
   "##_COMMENT2": "REFERENCE FILES",
-  "PreProcessingForVariantDiscovery_GATK4.ref_dict": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.dict",
-  "PreProcessingForVariantDiscovery_GATK4.ref_fasta": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta",
-  "PreProcessingForVariantDiscovery_GATK4.ref_fasta_index": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.fai",
-  "PreProcessingForVariantDiscovery_GATK4.SamToFastqAndBwaMem.ref_alt": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.alt",
-  "PreProcessingForVariantDiscovery_GATK4.SamToFastqAndBwaMem.ref_sa": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.sa",
-  "PreProcessingForVariantDiscovery_GATK4.SamToFastqAndBwaMem.ref_amb": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.amb",
-  "PreProcessingForVariantDiscovery_GATK4.SamToFastqAndBwaMem.ref_bwt": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.bwt",
-  "PreProcessingForVariantDiscovery_GATK4.SamToFastqAndBwaMem.ref_ann": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.ann",
-  "PreProcessingForVariantDiscovery_GATK4.SamToFastqAndBwaMem.ref_pac": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.pac",
+  "PreProcessingForVariantDiscovery_GATK4.ref_dict": "gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.dict",
+  "PreProcessingForVariantDiscovery_GATK4.ref_fasta": "gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.fasta",
+  "PreProcessingForVariantDiscovery_GATK4.ref_fasta_index": "gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.fai",
+  "PreProcessingForVariantDiscovery_GATK4.SamToFastqAndBwaMem.ref_alt": "gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.alt",
+  "PreProcessingForVariantDiscovery_GATK4.SamToFastqAndBwaMem.ref_sa": "gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.sa",
+  "PreProcessingForVariantDiscovery_GATK4.SamToFastqAndBwaMem.ref_amb": "gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.amb",
+  "PreProcessingForVariantDiscovery_GATK4.SamToFastqAndBwaMem.ref_bwt": "gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.bwt",
+  "PreProcessingForVariantDiscovery_GATK4.SamToFastqAndBwaMem.ref_ann": "gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.ann",
+  "PreProcessingForVariantDiscovery_GATK4.SamToFastqAndBwaMem.ref_pac": "gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.64.pac",
 
   "##_COMMENT3": "KNOWN SITES RESOURCES",
-  "PreProcessingForVariantDiscovery_GATK4.dbSNP_vcf": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf",
-  "PreProcessingForVariantDiscovery_GATK4.dbSNP_vcf_index": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf.idx",
+  "PreProcessingForVariantDiscovery_GATK4.dbSNP_vcf": "gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf",
+  "PreProcessingForVariantDiscovery_GATK4.dbSNP_vcf_index": "gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf.idx",
   "PreProcessingForVariantDiscovery_GATK4.known_indels_sites_VCFs": [
-    "gs://broad-references/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz",
-    "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz"
+    "gs://gcp-public-data--broad-references/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz",
+    "gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz"
   ],
   "PreProcessingForVariantDiscovery_GATK4.known_indels_sites_indices": [
-    "gs://broad-references/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz.tbi",
-    "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz.tbi"
+    "gs://gcp-public-data--broad-references/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz.tbi",
+    "gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.known_indels.vcf.gz.tbi"
   ],
 
   "##_COMMENT4": "MISC PARAMETERS",

@@ -130,7 +130,15 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
 
     var requestsSinceLastSuccess = 0
     // Return successful
-    override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry])
+    override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry],
+                                    startMetadataKey: String,
+                                    endMetadataKey: String,
+                                    nameMetadataKey: String,
+                                    statusMetadataKey: String,
+                                    submissionMetadataKey: String,
+                                    parentWorkflowIdKey: String,
+                                    rootWorkflowIdKey: String,
+                                    labelMetadataKey: String)
                                    (implicit ec: ExecutionContext): Future[Unit] = {
       if (requestsSinceLastSuccess == failuresBetweenEachSuccess) {
         requestsSinceLastSuccess = 0
@@ -175,15 +183,7 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
                                              timeout: Duration)
                                             (implicit ec: ExecutionContext): Nothing = notImplemented()
 
-    override def summarizeIncreasing(summaryNameIncreasing: String,
-                                     startMetadataKey: String,
-                                     endMetadataKey: String,
-                                     nameMetadataKey: String,
-                                     statusMetadataKey: String,
-                                     submissionMetadataKey: String,
-                                     parentWorkflowIdKey: String,
-                                     rootWorkflowIdKey: String,
-                                     labelMetadataKey: String,
+    override def summarizeIncreasing(labelMetadataKey: String,
                                      limit: Int,
                                      buildUpdatedSummary:
                                      (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
@@ -198,13 +198,6 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
       */
     override def summarizeDecreasing(summaryNameDecreasing: String,
                                      summaryNameIncreasing: String,
-                                     startMetadataKey: String,
-                                     endMetadataKey: String,
-                                     nameMetadataKey: String,
-                                     statusMetadataKey: String,
-                                     submissionMetadataKey: String,
-                                     parentWorkflowIdKey: String,
-                                     rootWorkflowIdKey: String,
                                      labelMetadataKey: String,
                                      limit: Int,
                                      buildUpdatedSummary:
@@ -218,6 +211,9 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
     override def getWorkflowLabels(workflowExecutionUuid: String)
                                   (implicit ec: ExecutionContext): Nothing = notImplemented()
 
+    override def getRootAndSubworkflowLabels(rootWorkflowExecutionUuid: String)
+                                  (implicit ec: ExecutionContext): Nothing = notImplemented()
+
     override def queryWorkflowSummaries(parentWorkflowIdMetadataKey: String,
                                         workflowStatuses: Set[String],
                                         workflowNames: Set[String],
@@ -229,7 +225,9 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
                                         submissionTimestamp: Option[Timestamp],
                                         startTimestampOption: Option[Timestamp],
                                         endTimestampOption: Option[Timestamp],
+                                        metadataArchiveStatus: Set[Option[String]],
                                         includeSubworkflows: Boolean,
+                                        minimumSummaryEntryId: Option[Long],
                                         page: Option[Int],
                                         pageSize: Option[Int])
                                        (implicit ec: ExecutionContext): Nothing = {
@@ -247,15 +245,48 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
                                         submissionTimestamp: Option[Timestamp],
                                         startTimestampOption: Option[Timestamp],
                                         endTimestampOption: Option[Timestamp],
-                                        includeSubworkflows: Boolean)(implicit ec: ExecutionContext): Nothing = {
+                                        metadataArchiveStatus: Set[Option[String]],
+                                        includeSubworkflows: Boolean,
+                                        minimumSummaryEntryId: Option[Long])
+                                       (implicit ec: ExecutionContext): Nothing = {
       notImplemented()
     }
+
+    override def updateMetadataArchiveStatus(workflowExecutionUuid: String, newArchiveStatus: Option[String]): Future[Int] = notImplemented()
 
     override def withConnection[A](block: Connection => A): Nothing = {
       notImplemented()
     }
 
     override def close(): Nothing = notImplemented()
+
+    override def deleteNonLabelMetadataForWorkflowAndUpdateArchiveStatus(rootWorkflowId: String, newArchiveStatus: Option[String])(implicit ec: ExecutionContext): Future[Int] = {
+      notImplemented()
+    }
+
+    override def isRootWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Option[Boolean]] = {
+      notImplemented()
+    }
+
+    override def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = {
+      notImplemented()
+    }
+
+    override def queryRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp, batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[String]] = {
+      notImplemented()
+    }
+
+    override def countRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp)(implicit ec: ExecutionContext): Future[Int] = {
+      notImplemented()
+    }
+
+    override def getSummaryQueueSize()(implicit ec: ExecutionContext): Future[Int] = {
+      notImplemented()
+    }
+
+    override def getMetadataTotalRowNumberByRootWorkflowId(rootWorkflowId: String, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
+      notImplemented()
+    }
   }
 }
 

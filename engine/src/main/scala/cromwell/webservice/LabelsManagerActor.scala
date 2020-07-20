@@ -5,7 +5,7 @@ import cromwell.core._
 import cromwell.core.labels.{Label, Labels}
 import cromwell.services.metadata.MetadataEvent
 import cromwell.services.metadata.MetadataService._
-import cromwell.services.metadata.impl.builder.MetadataBuilderActor.BuiltMetadataResponse
+import cromwell.services.SuccessfulMetadataJsonResponse
 import cromwell.webservice.LabelsManagerActor._
 import spray.json.{DefaultJsonProtocol, JsObject, JsString}
 
@@ -21,8 +21,6 @@ object LabelsManagerActor {
 
   sealed trait LabelsAction extends LabelsMessage
   final case class LabelsAddition(data: LabelsData) extends LabelsAction
-
-  sealed trait LabelsResponse extends LabelsMessage
 
   sealed abstract class LabelsManagerActorResponse
   final case class BuiltLabelsManagerResponse(response: JsObject) extends LabelsManagerActorResponse
@@ -52,7 +50,7 @@ class LabelsManagerActor(serviceRegistryActor: ActorRef) extends Actor with Acto
         At this point in the actor lifecycle, wfId has already been filled out so the .get is safe
       */
       serviceRegistryActor ! GetLabels(wfId.get)
-    case BuiltMetadataResponse(_, jsObject) =>
+    case SuccessfulMetadataJsonResponse(_, jsObject) =>
       /*
         There's some trickery going on here. We've updated the labels in the metadata store but almost certainly when
         the store received the GetLabels request above the summarizer will not have been run so our new values are

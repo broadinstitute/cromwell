@@ -3,6 +3,7 @@
 .DS_Store
 .artifactory
 .idea/*
+**/.idea/*
 .ensime_cache/*
 .config/*
 .local/*
@@ -47,3 +48,6 @@ private_docker_papi_v2_usa.options
 tesk_application_ftp.conf
 ftp_centaur_cwl_runner.conf
 tesk_application.conf
+**/__pycache__/
+**/venv/
+exome_germline_single_sample_v1.3/

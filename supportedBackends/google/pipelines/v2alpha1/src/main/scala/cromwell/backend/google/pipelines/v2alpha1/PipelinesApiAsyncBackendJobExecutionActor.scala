@@ -7,7 +7,7 @@ import cats.syntax.foldable._
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import common.util.StringUtil._
 import cromwell.backend.BackendJobDescriptor
-import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.LocalizationConfiguration
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.pipelines.common._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.io.PipelinesApiWorkingDisk
@@ -24,6 +24,7 @@ import wom.values.{GlobFunctions, WomFile, WomGlobFile, WomMaybeListedDirectory,
 import scala.concurrent.Future
 import scala.io.Source
 import scala.language.postfixOps
+import scala.util.control.NoStackTrace
 
 class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExecutionActorParams) extends cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor(standardParams) {
 
@@ -56,9 +57,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   private lazy val gcsTransferLibrary =
     Source.fromInputStream(Thread.currentThread.getContextClassLoader.getResourceAsStream("gcs_transfer.sh")).mkString
 
-  private def gcsLocalizationTransferBundle[T <: PipelinesApiInput](localizationConfiguration: LocalizationConfiguration)(bucket: String, inputs: NonEmptyList[T]): String = {
+  private def gcsLocalizationTransferBundle[T <: PipelinesApiInput](gcsTransferConfiguration: GcsTransferConfiguration)(bucket: String, inputs: NonEmptyList[T]): String = {
     val project = inputs.head.cloudPath.asInstanceOf[GcsPath].projectId
-    val maxAttempts = localizationConfiguration.localizationAttempts
+    val maxAttempts = gcsTransferConfiguration.transferAttempts
 
     // Split files and directories out so files can possibly benefit from a `gsutil -m cp -I ...` optimization
     // on a per-container-parent-directory basis.
@@ -127,9 +128,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
     (directoryTransferBundle :: (filesWithSameNamesTransferBundles ++ filesWithDifferentNamesTransferBundles)) mkString "\n\n"
   }
 
-  private def gcsDelocalizationTransferBundle[T <: PipelinesApiOutput](localizationConfiguration: LocalizationConfiguration)(bucket: String, outputs: NonEmptyList[T]): String = {
+  private def gcsDelocalizationTransferBundle[T <: PipelinesApiOutput](transferConfiguration: GcsTransferConfiguration)(bucket: String, outputs: NonEmptyList[T]): String = {
     val project = outputs.head.cloudPath.asInstanceOf[GcsPath].projectId
-    val maxAttempts = localizationConfiguration.localizationAttempts
+    val maxAttempts = transferConfiguration.transferAttempts
 
     val transferItems = outputs.toList.flatMap { output =>
       val kind = output match {
@@ -144,6 +145,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
       List(kind, output.cloudPath, output.containerPath, optional, contentType)
     } mkString("\"", "\"\n|  \"", "\"")
 
+    val parallelCompositeUploadThreshold = jobDescriptor.workflowDescriptor.workflowOptions.getOrElse(
+      "parallel_composite_upload_threshold", transferConfiguration.parallelCompositeUploadThreshold)
 
     // Use a digest as bucket names can contain characters that are not legal in bash identifiers.
     val arrayIdentifier = s"delocalize_" + DigestUtils.md5Hex(bucket)
@@ -152,6 +155,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
        |$arrayIdentifier=(
        |  "$project"       # project
        |  "$maxAttempts"   # max attempts
+       |  "$parallelCompositeUploadThreshold" # parallel composite upload threshold, will not be used for directory types
        |  $transferItems
        |)
        |
@@ -159,14 +163,24 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
       """.stripMargin
   }
 
-  private def generateGcsLocalizationScript(inputs: List[PipelinesApiInput])(implicit localizationConfiguration: LocalizationConfiguration): String = {
-    val bundleFunction = (gcsLocalizationTransferBundle(localizationConfiguration) _).tupled
-    generateGcsTransferScript(inputs, bundleFunction)
+  private def bracketTransfersWithMessages(activity: String)(transferBody: String): String = {
+    List(
+      s"timestamped_message '$activity script execution started...'",
+      transferBody,
+      s"timestamped_message '$activity script execution complete.'"
+    ) mkString "\n"
   }
 
-  private def generateGcsDelocalizationScript(outputs: List[PipelinesApiOutput])(implicit localizationConfiguration: LocalizationConfiguration): String = {
-    val bundleFunction = (gcsDelocalizationTransferBundle(localizationConfiguration) _).tupled
-    generateGcsTransferScript(outputs, bundleFunction)
+  import mouse.all._
+
+  private def generateGcsLocalizationScript(inputs: List[PipelinesApiInput])(implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
+    val bundleFunction = (gcsLocalizationTransferBundle(gcsTransferConfiguration) _).tupled
+    generateGcsTransferScript(inputs, bundleFunction) |> bracketTransfersWithMessages("Localization")
+  }
+
+  private def generateGcsDelocalizationScript(outputs: List[PipelinesApiOutput])(implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
+    val bundleFunction = (gcsDelocalizationTransferBundle(gcsTransferConfiguration) _).tupled
+    generateGcsTransferScript(outputs, bundleFunction) |> bracketTransfersWithMessages("Delocalization")
   }
 
   private def generateGcsTransferScript[T <: PipelinesParameter](items: List[T], bundleFunction: ((String, NonEmptyList[T])) => String): String = {
@@ -176,7 +190,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
 
   override protected def uploadGcsTransferLibrary(createPipelineParameters: CreatePipelineParameters,
                                                   cloudPath: Path,
-                                                  localizationConfiguration: LocalizationConfiguration): Future[Unit] = {
+                                                  gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = {
 
     asyncIo.writeAsync(cloudPath, gcsTransferLibrary, Seq(CloudStorageOptions.withMimeType("text/plain")))
   }
@@ -184,16 +198,16 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   override def uploadGcsLocalizationScript(createPipelineParameters: CreatePipelineParameters,
                                            cloudPath: Path,
                                            transferLibraryContainerPath: Path,
-                                           localizationConfiguration: LocalizationConfiguration): Future[Unit] = {
-    val content = generateGcsLocalizationScript(createPipelineParameters.inputOutputParameters.fileInputParameters)(localizationConfiguration)
+                                           gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = {
+    val content = generateGcsLocalizationScript(createPipelineParameters.inputOutputParameters.fileInputParameters)(gcsTransferConfiguration)
     asyncIo.writeAsync(cloudPath, s"source '$transferLibraryContainerPath'\n\n" + content, Seq(CloudStorageOptions.withMimeType("text/plain")))
   }
 
   override def uploadGcsDelocalizationScript(createPipelineParameters: CreatePipelineParameters,
                                              cloudPath: Path,
                                              transferLibraryContainerPath: Path,
-                                             localizationConfiguration: LocalizationConfiguration): Future[Unit] = {
-    val content = generateGcsDelocalizationScript(createPipelineParameters.inputOutputParameters.fileOutputParameters)(localizationConfiguration)
+                                             gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = {
+    val content = generateGcsDelocalizationScript(createPipelineParameters.inputOutputParameters.fileOutputParameters)(gcsTransferConfiguration)
     asyncIo.writeAsync(cloudPath, s"source '$transferLibraryContainerPath'\n\n" + content, Seq(CloudStorageOptions.withMimeType("text/plain")))
   }
 
@@ -297,15 +311,31 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
 }
 
 object PipelinesApiAsyncBackendJobExecutionActor {
-  private val gcsPathMatcher = "^gs://?([^/]+)/.*".r
+  // GCS path regexes comments:
+  // - The (?s) option at the start makes '.' expression to match any symbol, including '\n'
+  // - All valid GCS paths start with gs://
+  // - Bucket names:
+  //  - The bucket name is matched inside a set of '()'s so it can be used later.
+  //  - The bucket name must start with a letter or number (https://cloud.google.com/storage/docs/naming)
+  //  - Then, anything that is not a '/' is part of the bucket name
+  // - Allow zero or more subdirectories, with (/[^/]+)*
+  // - Then, for files:
+  //  - There must be at least one '/', followed by some content in the file name.
+  // - Or, then, for directories:
+  //  - If we got this far, we already have a valid directory path. Allow it to optionally end with a `/` character.
+  private val gcsFilePathMatcher =      "(?s)^gs://([a-zA-Z0-9][^/]+)(/[^/]+)*/[^/]+$".r
+  private val gcsDirectoryPathMatcher = "(?s)^gs://([a-zA-Z0-9][^/]+)(/[^/]+)*/?$".r
 
   private [v2alpha1] def groupParametersByGcsBucket[T <: PipelinesParameter](parameters: List[T]): Map[String, NonEmptyList[T]] = {
     parameters.map { param =>
-      param.cloudPath.toString match {
-        case gcsPathMatcher(bucket) =>
-          Map(bucket -> NonEmptyList.of(param))
+      def pathTypeString = if (param.isFileParameter) "File" else "Directory"
+      val regexToUse = if (param.isFileParameter) gcsFilePathMatcher else gcsDirectoryPathMatcher
+
+      param.cloudPath.pathAsString match {
+        case regexToUse(bucket) => Map(bucket -> NonEmptyList.of(param))
+        case regexToUse(bucket, _) => Map(bucket -> NonEmptyList.of(param))
         case other =>
-          throw new RuntimeException(s"Programmer error: Path '$other' did not match the expected regex. This should have been impossible")
+          throw new Exception(s"$pathTypeString path '$other' did not match the expected regex: ${regexToUse.pattern.toString}") with NoStackTrace
       }
     } combineAll
   }

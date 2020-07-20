@@ -21,10 +21,12 @@ case class WorkflowQueryParameters private(statuses: Set[String],
                                            submissionTime: Option[OffsetDateTime],
                                            startDate: Option[OffsetDateTime],
                                            endDate: Option[OffsetDateTime],
+                                           metadataArchiveStatus: Set[MetadataArchiveStatus],
                                            page: Option[Int],
                                            pageSize: Option[Int],
                                            additionalQueryResultFields: Set[String],
-                                           includeSubworkflows: Boolean)
+                                           includeSubworkflows: Boolean,
+                                           minimumSummaryEntryId: Option[Long])
 
 object WorkflowQueryParameters {
 
@@ -81,6 +83,7 @@ object WorkflowQueryParameters {
     val pageSizeValidation = PageSize.validate(valuesByCanonicalCapitalization)
     val additionalQueryResultFieldsValidation: ErrorOr[Set[String]] = AdditionalQueryResultFields.validate(valuesByCanonicalCapitalization).map(_.toSet)
     val includeSubworkflowsValidation = IncludeSubworkflows.validate(valuesByCanonicalCapitalization)
+    val metadataArchiveStatusValidation: ErrorOr[Set[MetadataArchiveStatus]] = WorkflowQueryKey.MetadataArchiveStatus.validate(valuesByCanonicalCapitalization).map(_.toSet)
 
     // Only validate start before end if both of the individual date parsing validations have already succeeded.
     val startBeforeEndValidation: ErrorOr[Unit] = (startDateValidation, endDateValidation) match {
@@ -93,6 +96,8 @@ object WorkflowQueryParameters {
       case (Valid(sub), Valid(st)) => validateDate1BeforeDate2(sub, st, "submission", "start")
       case _ => ().validNel[String]
     }
+
+    val minimumSummaryEntryIdValidation: ErrorOr[Option[Long]] = WorkflowQueryKey.MinimumSummaryEntryId.validate(valuesByCanonicalCapitalization)
 
     (onlyRecognizedKeysValidation,
       startBeforeEndValidation,
@@ -110,10 +115,29 @@ object WorkflowQueryParameters {
       pageValidation,
       pageSizeValidation,
       additionalQueryResultFieldsValidation,
-      includeSubworkflowsValidation
+      includeSubworkflowsValidation,
+      metadataArchiveStatusValidation,
+      minimumSummaryEntryIdValidation
     ) mapN {
-      (_, _, _, statuses, names, ids, labelsAnd, labelsOr, excludeLabelsAnd, excludeLabelsOr, submissionTime, startDate, endDate, page, pageSize, additionalQueryResultFields, includeSubworkflows) =>
-        WorkflowQueryParameters(statuses, names, ids, labelsAnd, labelsOr, excludeLabelsAnd, excludeLabelsOr, submissionTime, startDate, endDate, page, pageSize, additionalQueryResultFields, includeSubworkflows)
+      (_, _, _, statuses, names, ids, labelsAnd, labelsOr, excludeLabelsAnd, excludeLabelsOr, submissionTime, startDate, endDate, page, pageSize, additionalQueryResultFields, includeSubworkflows, metadataArchiveStatus, minimumSummaryEntryId) =>
+        WorkflowQueryParameters(
+          statuses,
+          names,
+          ids,
+          labelsAnd,
+          labelsOr,
+          excludeLabelsAnd,
+          excludeLabelsOr,
+          submissionTime,
+          startDate,
+          endDate,
+          metadataArchiveStatus,
+          page,
+          pageSize,
+          additionalQueryResultFields,
+          includeSubworkflows,
+          minimumSummaryEntryId
+        )
     }
   }
 

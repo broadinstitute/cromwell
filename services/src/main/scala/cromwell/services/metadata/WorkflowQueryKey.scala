@@ -8,9 +8,11 @@ import cats.syntax.validated._
 import cromwell.core.labels.Label
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
 import common.validation.ErrorOr._
+import common.validation.Validation._
 import cats.data.Validated._
 import cats.instances.list._
 import mouse.boolean._
+import cromwell.services.metadata.{MetadataArchiveStatus => MetadataArchiveStatusImported}
 
 import scala.util.{Success, Try}
 
@@ -29,7 +31,9 @@ object WorkflowQueryKey {
     PageSize,
     AdditionalQueryResultFields,
     SubmissionTime,
-    IncludeSubworkflows
+    IncludeSubworkflows,
+    MetadataArchiveStatus,
+    MinimumSummaryEntryId
   ) map { _.name }
 
   case object StartDate extends DateTimeWorkflowQueryKey {
@@ -108,7 +112,7 @@ object WorkflowQueryKey {
     override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[List[String]] = {
       val values = valuesFromMap(grouped).toList
       val nels = values map { v =>
-        if (Try(WorkflowId.fromString(v.toLowerCase.capitalize)).isSuccess) v.validNel[String] else v.invalidNel[String]
+        if (Try(WorkflowId.fromString(v.toLowerCase.capitalize)).isSuccess) v.validNel[String] else s"invalid Id value: '$v'".invalidNel[String]
       }
       sequenceListOfValidatedNels("Id values do match allowed workflow id pattern", nels)
     }
@@ -126,6 +130,31 @@ object WorkflowQueryKey {
         }
       }
       sequenceListOfValidatedNels("Unrecognized status values", nels)
+    }
+  }
+
+  case object MetadataArchiveStatus extends SeqWorkflowQueryKey[MetadataArchiveStatusImported] {
+    override val name = "Metadataarchivestatus"
+
+    override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[List[MetadataArchiveStatusImported]] = {
+      val values = valuesFromMap(grouped).toList
+      val nels = values map { v => MetadataArchiveStatusImported.withName(v) }
+      sequenceListOfValidatedNels("Unrecognized 'metadata archive status' value(s)", nels)
+    }
+  }
+
+  case object MinimumSummaryEntryId extends WorkflowQueryKey[Option[Long]] {
+    override val name = "Minimumsummaryentryid"
+
+    override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Option[Long]] = {
+      val values = valuesFromMap(grouped).toList
+      if (values.isEmpty) {
+        None.validNel
+      } else if (values.length == 1) {
+        Try(Option(values.head.toLong)).toErrorOr
+      } else {
+        "Cannot specify more than one minimum summary entry ID".invalidNel
+      }
     }
   }
 

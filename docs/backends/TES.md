@@ -46,14 +46,14 @@ Currently this backend only works with files on a Local or Shared File System.
 
 **Docker**
 
-This backend supports the following optional [Runtime Attributes](RuntimeAttributes) and [Workflow Options](wf_options/Overview/) for working with Docker:
+This backend supports the following optional [Runtime Attributes](../RuntimeAttributes) and [Workflow Options](../wf_options/Overview/) for working with Docker:
 
 * `docker`: Docker image to use such as "Ubuntu".
 * `dockerWorkingDir`: defines the working directory in the container.
 
 **CPU, Memory and Disk** 
 
-This backend supports CPU, memory and disk size configuration through the use of the following [Runtime Attributes](RuntimeAttributes) and [Workflow Options](wf_options/Overview/):  
+This backend supports CPU, memory and disk size configuration through the use of the following [Runtime Attributes](../RuntimeAttributes) and [Workflow Options](../wf_options/Overview/):  
 
 * `cpu` defines the amount of CPU to use. 
     * Type: Integer (ex: 4)
@@ -61,6 +61,8 @@ This backend supports CPU, memory and disk size configuration through the use of
     * Type: String (ex: "4 GB" or "4096 MB")
 * `disk` defines the amount of disk to use. 
     * Type: String (ex: "1 GB" or "1024 MB")
+* `preemptible` defines whether or not to use preemptible VMs. 
+    * Type: Boolean (ex: "true" or "false")
 
 If they are not set, the TES backend may use default values.
 

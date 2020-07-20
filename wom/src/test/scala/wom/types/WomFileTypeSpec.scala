@@ -30,7 +30,28 @@ class WomFileTypeSpec extends FlatSpec with Matchers with TableDrivenPropertyChe
     ("a wom dir to a dir", WomUnlistedDirectory("example/dir"),
       WomUnlistedDirectory("example/dir")),
     ("a wom file to a file", WomSingleFile("example/dir"), WomSingleFile("example/dir")),
-    ("a wom glob to a glob", WomGlobFile("example/glob*"), WomGlobFile("example/glob*"))
+    ("a wom glob to a glob", WomGlobFile("example/glob*"), WomGlobFile("example/glob*")),
+
+    ("a string with leading and trailing special symbols to a dir", "  \n\r\t example/string \n\r\t ",
+      WomUnlistedDirectory("example/string")),
+    ("a string with leading and trailing special symbols to a file", "  \n\r\t example/string \n\r\t ",
+      WomSingleFile("example/string")),
+    ("a string with leading and trailing special symbols to a glob", "  \n\r\t example/string \n\r\t ",
+      WomGlobFile("example/string")),
+
+    ("a js string with leading and trailing special symbols to a dir", JsString("  \n\r\t example/js \n\r\t "),
+      WomUnlistedDirectory("example/js")),
+    ("a js string with leading and trailing special symbols to a file", JsString("  \n\r\t example/js \n\r\t "),
+      WomSingleFile("example/js")),
+    ("a js string with leading and trailing special symbols to a glob", JsString("  \n\r\t example/js \n\r\t "),
+      WomGlobFile("example/js")),
+
+    ("a wom string with leading and trailing special symbols to a dir", WomString("  \n\r\t example/wom \n\r\t "),
+      WomUnlistedDirectory("example/wom")),
+    ("a wom string with leading and trailing special symbols to a file", WomString("  \n\r\t example/wom \n\r\t "),
+      WomSingleFile("example/wom")),
+    ("a wom string with leading and trailing special symbols to a glob", WomString("  \n\r\t example/wom \n\r\t "),
+      WomGlobFile("example/wom")),
   )
 
   forAll(coercionTests) { (description, value, expected) =>

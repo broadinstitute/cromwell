@@ -3,6 +3,7 @@ package cromwell.backend.google.pipelines.v2alpha1.api
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount, Secret}
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineDockerKeyAndToken
 import cromwell.backend.google.pipelines.common.{PipelinesApiInput, PipelinesApiOutput, PipelinesParameter}
+import cromwell.backend.google.pipelines.v2alpha1.GenomicsFactory
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder.Labels._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionFlag.ActionFlag
 import cromwell.docker.DockerImageIdentifier
@@ -33,6 +34,7 @@ object ActionBuilder {
       val Localization = "Localization"
       val Delocalization = "Delocalization"
       val Background = "Background"
+      val RetryWithMoreMemory = "CheckingForMemoryRetry"
     }
   }
 
@@ -58,10 +60,7 @@ object ActionBuilder {
     }
   }
 
-  // TODO revert this to google/cloud-sdk:slim once latest is unbroken
-  // TODO https://github.com/GoogleCloudPlatform/gsutil/issues/806
-  val cloudSdkImage = "google/cloud-sdk:251.0.0-slim"
-  def cloudSdkAction: Action = new Action().setImageUri(cloudSdkImage)
+  def cloudSdkAction: Action = new Action().setImageUri(GenomicsFactory.CloudSdkImage)
 
   def withImage(image: String) = new Action()
     .setImageUri(image)
@@ -86,12 +85,10 @@ object ActionBuilder {
     * A fixed timeout is used to avoid hunting for monitoring PID.
     */
 
-  private val monitoringTerminationImage = "alpine"
   private val monitoringTerminationGraceTime = 10
 
   def monitoringTerminationAction(): Action =
-    new Action()
-      .setImageUri(monitoringTerminationImage)
+    cloudSdkAction
       .withCommand(s"/bin/sh", "-c", s"kill -TERM -1 && sleep $monitoringTerminationGraceTime")
       .withFlags(List(ActionFlag.AlwaysRun))
       .setPidNamespace(monitoringPidNamespace)
@@ -100,7 +97,8 @@ object ActionBuilder {
                  scriptContainerPath: String,
                  mounts: List[Mount],
                  jobShell: String,
-                 privateDockerKeyAndToken: Option[CreatePipelineDockerKeyAndToken]): Action = {
+                 privateDockerKeyAndToken: Option[CreatePipelineDockerKeyAndToken],
+                 fuseEnabled: Boolean): Action = {
 
     val dockerImageIdentifier = DockerImageIdentifier.fromString(docker)
 
@@ -118,6 +116,15 @@ object ActionBuilder {
       .setEntrypoint("")
       .setLabels(Map(Key.Tag -> Value.UserAction).asJava)
       .setCredentials(secret.orNull)
+      .setFlags((if (fuseEnabled) List(ActionFlag.EnableFuse.toString) else List.empty).asJava)
+  }
+
+  def checkForMemoryRetryAction(retryLookupKeys: List[String], mounts: List[Mount]): Action = {
+    cloudSdkAction
+      .withCommand("/bin/sh", "-c", ActionCommands.checkIfStderrContainsRetryKeys(retryLookupKeys))
+      .withFlags(List(ActionFlag.AlwaysRun))
+      .withLabels(Map(Key.Tag -> Value.RetryWithMoreMemory))
+      .withMounts(mounts)
   }
 
   def cloudSdkShellAction(shellCommand: String)(mounts: List[Mount] = List.empty,

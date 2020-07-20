@@ -4,7 +4,6 @@ import akka.actor.{Actor, ActorLogging, Props}
 import cromwell.backend.impl.aws.OccasionalStatusPollingActor._
 import cromwell.backend.impl.aws.RunStatus.{Initializing, Running}
 import cromwell.cloudsupport.aws.auth.AwsAuthMode
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.batch.BatchClient
 import software.amazon.awssdk.services.batch.model.ListJobsRequest
@@ -35,11 +34,7 @@ class OccasionalStatusPollingActor(configRegion: Option[Region], optAwsAuthMode:
 
   lazy val client = {
     val builder = BatchClient.builder()
-    optAwsAuthMode.foreach { awsAuthMode =>
-      builder.credentialsProvider(StaticCredentialsProvider.create(awsAuthMode.credential(_ => "")))
-    }
-    configRegion.foreach(builder.region)
-    builder.build
+    configureClient(builder, optAwsAuthMode, configRegion)
   }
 
   // Maps job ID to status

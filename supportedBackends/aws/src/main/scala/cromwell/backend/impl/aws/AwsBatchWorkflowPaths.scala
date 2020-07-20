@@ -31,7 +31,6 @@
 
 package cromwell.backend.impl.aws
 
-import software.amazon.awssdk.auth.credentials.AwsCredentials
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import cromwell.backend.io.WorkflowPaths
@@ -39,14 +38,22 @@ import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.PathBuilder
 import cromwell.filesystems.s3.S3PathBuilderFactory
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 
 object AwsBatchWorkflowPaths {
   private val RootOptionKey = "aws_s3_root"
 }
 
+/**
+ * Paths in the container where the workflow executes, reads from and writes to
+ * @param workflowDescriptor
+ * @param provider
+ * @param configuration
+ * @param actorSystem
+ */
 case class AwsBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
-                            credentials: AwsCredentials,
-                            configuration: AwsBatchConfiguration)(implicit actorSystem: ActorSystem) extends WorkflowPaths {
+                                 provider: AwsCredentialsProvider,
+                                 configuration: AwsBatchConfiguration)(implicit actorSystem: ActorSystem) extends WorkflowPaths {
 
   override lazy val executionRootString: String =  configuration.fileSystem match {
     case AWSBatchStorageSystems.s3  => workflowDescriptor.workflowOptions.getOrElse(AwsBatchWorkflowPaths.RootOptionKey, configuration.root)
@@ -63,7 +70,7 @@ case class AwsBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
   override def config: Config = configuration.configurationDescriptor.backendConfig
   override def pathBuilders: List[PathBuilder] = {
     if (configuration.fileSystem == "s3") {
-      List(configuration.pathBuilderFactory.asInstanceOf[S3PathBuilderFactory].fromCredentials(workflowOptions, credentials))
+      List(configuration.pathBuilderFactory.asInstanceOf[S3PathBuilderFactory].fromProvider(workflowOptions, provider))
     } else {
       WorkflowPaths.DefaultPathBuilders}
   }

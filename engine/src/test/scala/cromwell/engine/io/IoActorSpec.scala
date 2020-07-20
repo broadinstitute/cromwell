@@ -1,5 +1,6 @@
 package cromwell.engine.io
 
+import java.io.IOException
 import java.net.{SocketException, SocketTimeoutException}
 
 import akka.stream.ActorMaterializer
@@ -31,7 +32,7 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   }
   
   it should "copy a file" in {
-    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref))
+    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref, "cromwell test"))
     
     val src = DefaultPathBuilder.createTempFile()
     val dst: Path = src.parent.resolve(src.name + "-dst")
@@ -50,11 +51,11 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   }
 
   it should "write to a file" in {
-    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref))
+    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref, "cromwell test"))
 
     val src = DefaultPathBuilder.createTempFile()
 
-    val writeCommand = DefaultIoWriteCommand(src, "hello", OpenOptions.default)
+    val writeCommand = DefaultIoWriteCommand(src, "hello", OpenOptions.default, compressPayload = false)
 
     testActor ! writeCommand
     expectMsgPF(5 seconds) {
@@ -67,7 +68,7 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   }
 
   it should "delete a file" in {
-    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref))
+    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref, "cromwell test"))
 
     val src = DefaultPathBuilder.createTempFile()
 
@@ -83,7 +84,7 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   }
 
   it should "read a file" in {
-    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref))
+    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref, "cromwell test"))
 
     val src = DefaultPathBuilder.createTempFile()
     src.write("hello")
@@ -102,7 +103,7 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   }
 
   it should "read only the first bytes of file" in {
-    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref))
+    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref, "cromwell test"))
 
     val src = DefaultPathBuilder.createTempFile()
     src.write("hello")
@@ -121,7 +122,7 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   }
 
   it should "read the file if it's under the byte limit" in {
-    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref))
+    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref, "cromwell test"))
 
     val src = DefaultPathBuilder.createTempFile()
     src.write("hello")
@@ -140,7 +141,7 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   }
 
   it should "fail if the file is larger than the read limit" in {
-    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref))
+    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref, "cromwell test"))
 
     val src = DefaultPathBuilder.createTempFile()
     src.write("hello")
@@ -150,14 +151,14 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
     testActor ! readCommand
     expectMsgPF(5 seconds) {
       case _: IoSuccess[_] => fail("Command should have failed because the read limit was < file size and failOnOverflow was true")
-      case response: IoFailure[_] => response.failure.getMessage shouldBe s"[Attempted 1 time(s)] - IOException: Could not read from ${src.pathAsString}: File ${src.pathAsString} is larger than 2 Bytes. Maximum read limits can be adjusted in the configuration under system.input-read-limits."
+      case response: IoFailure[_] => response.failure.getMessage shouldBe s"[Attempted 1 time(s)] - IOException: Could not read from ${src.pathAsString}: File ${src.pathAsString} is larger than requested maximum of 2 Bytes."
     }
 
     src.delete()
   }
 
   it should "return a file size" in {
-    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref))
+    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref, "cromwell test"))
 
     val src = DefaultPathBuilder.createTempFile()
     src.write("hello")
@@ -176,7 +177,7 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   }
 
   it should "return a file md5 hash (local)" in {
-    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref))
+    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref, "cromwell test"))
 
     val src = DefaultPathBuilder.createTempFile()
     src.write("hello")
@@ -195,7 +196,7 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   }
 
   it should "touch a file (local)" in {
-    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref))
+    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref, "cromwell test"))
 
     val src = DefaultPathBuilder.createTempFile()
     src.write("hello")
@@ -221,10 +222,29 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
       new StorageException(429, "message"),
       BatchFailedException(new Exception),
       new SocketException(),
-      new SocketTimeoutException()
+      new SocketTimeoutException(),
+      new IOException("text Error getting access token for service account some other text"),
+      new IOException("Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 500 Internal Server Error Backend Error"),
+      new IOException("Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 503 Service Unavailable Backend Error"),
+      new IOException("Some other text. Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 503 Service Unavailable"),
+      new IOException("Some other text. Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 504 Gateway Timeout"),
     )
 
     retryables foreach { IoActor.isRetryable(_) shouldBe true }
     retryables foreach { IoActor.isFatal(_) shouldBe false }
+  }
+
+  it should "have correct non-retryable exceptions" in {
+    val nonRetryables = List(
+      new IOException("message: 500 Internal Server Error Backend Error"),
+      new IOException("404 File Not Found"),
+      new IOException("502 HTTP Status Code"),
+      new Exception("502 HTTP Status Code"),
+      new Exception("5xx HTTP Status Code"),
+      new IOException("Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-500/rc: 404 File Not Found")
+    )
+
+    nonRetryables foreach {IoActor.isRetryable(_) shouldBe false}
+    nonRetryables foreach {IoActor.isFatal(_) shouldBe true}
   }
 }

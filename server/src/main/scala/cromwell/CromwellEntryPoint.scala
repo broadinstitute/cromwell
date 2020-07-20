@@ -44,10 +44,16 @@ object CromwellEntryPoint extends GracefulStopSupport {
 
   val gracefulShutdown = config.as[Boolean]("system.graceful-server-shutdown")
 
+  // 3 minute DNS TTL down from JVM default of infinite [BA-6454]
+  val dnsCacheTtl = config.getOrElse("system.dns-cache-ttl", 3 minutes)
+  java.security.Security.setProperty("networkaddress.cache.ttl", dnsCacheTtl.toSeconds.toString)
+
   /**
     * Run Cromwell in server mode.
     */
   def runServer() = {
+    initLogging(Server)
+
     val system = buildCromwellSystem(Server)
     waitAndExit(CromwellServer.run(gracefulShutdown, abortJobsOnTerminate.getOrElse(false)) _, system)
   }
@@ -56,10 +62,13 @@ object CromwellEntryPoint extends GracefulStopSupport {
     * Run a single workflow using the successfully parsed but as yet not validated arguments.
     */
   def runSingle(args: CommandLineArguments): Unit = {
+    initLogging(Run)
+
+    val sources = validateRunArguments(args)
+
     val cromwellSystem = buildCromwellSystem(Run)
     implicit val actorSystem = cromwellSystem.actorSystem
 
-    val sources = validateRunArguments(args)
     val runnerProps = SingleWorkflowRunnerActor.props(
       source = sources,
       metadataOutputFile = args.metadataOutput,
@@ -82,6 +91,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
     implicit val actorSystem = ActorSystem("SubmitSystem")
     implicit val materializer = ActorMaterializer()
     implicit val ec = actorSystem.dispatcher
+    implicit val cs = IO.contextShift(ec)
 
     val cromwellClient = new CromwellClient(args.host, "v2")
 
@@ -111,7 +121,6 @@ object CromwellEntryPoint extends GracefulStopSupport {
   }
 
   private def buildCromwellSystem(command: Command): CromwellSystem = {
-    initLogging(command)
     lazy val Log = LoggerFactory.getLogger("cromwell")
     Try {
       new CromwellSystem {
@@ -199,8 +208,14 @@ object CromwellEntryPoint extends GracefulStopSupport {
     import spray.json._
 
     val validation = args.validateSubmission(EntryPointLogger) map {
-      case ValidSubmission(w, u, r, i, o, l, z) =>
-        val finalWorkflowSourceAndUrl: WorkflowSourceOrUrl = getFinalWorkflowSourceAndUrl(w, u)
+      case ValidSubmission(s, u, r, i, o, l, z) =>
+        val finalWorkflowSourceAndUrl: WorkflowSourceOrUrl =
+          (s, u) match {
+            case (None, Some(url)) if !url.startsWith("http") => //case where url is a WDL/CWL file
+              WorkflowSourceOrUrl(Option(DefaultPathBuilder.get(url).contentAsString), None)
+            case _ =>
+              WorkflowSourceOrUrl(s, u)
+          }
 
         WorkflowSingleSubmission(
           workflowSource = finalWorkflowSourceAndUrl.source,
@@ -220,12 +235,11 @@ object CromwellEntryPoint extends GracefulStopSupport {
   def validateRunArguments(args: CommandLineArguments): WorkflowSourceFilesCollection = {
 
     val sourceFileCollection = (args.validateSubmission(EntryPointLogger), writeableMetadataPath(args.metadataOutput)) mapN {
-      case (ValidSubmission(w, u, r, i, o, l, Some(z)), _) =>
-        val finalWorkflowSourceAndUrl: WorkflowSourceOrUrl = getFinalWorkflowSourceAndUrl(w, u)
+      case (ValidSubmission(s, u, r, i, o, l, Some(z)), _) =>
         //noinspection RedundantDefaultArgument
         WorkflowSourceFilesWithDependenciesZip.apply(
-          workflowSource = finalWorkflowSourceAndUrl.source,
-          workflowUrl = finalWorkflowSourceAndUrl.url,
+          workflowSource = s,
+          workflowUrl = u,
           workflowRoot = r,
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,
@@ -235,12 +249,11 @@ object CromwellEntryPoint extends GracefulStopSupport {
           importsZip = z.loadBytes,
           warnings = Vector.empty,
           workflowOnHold = false)
-      case (ValidSubmission(w, u, r, i, o, l, None), _) =>
-        val finalWorkflowSourceAndUrl: WorkflowSourceOrUrl = getFinalWorkflowSourceAndUrl(w, u)
+      case (ValidSubmission(s, u, r, i, o, l, None), _) =>
         //noinspection RedundantDefaultArgument
         WorkflowSourceFilesWithoutImports.apply(
-          workflowSource = finalWorkflowSourceAndUrl.source,
-          workflowUrl = finalWorkflowSourceAndUrl.url,
+          workflowSource = s,
+          workflowUrl = u,
           workflowRoot = r,
           workflowType = args.workflowType,
           workflowTypeVersion = args.workflowTypeVersion,
@@ -264,12 +277,6 @@ object CromwellEntryPoint extends GracefulStopSupport {
       override def exceptionContext: String = "ERROR: Unable to submit workflow to Cromwell:"
       override def errorMessages: Traversable[String] = errors.toList
     })
-  }
-
-  private def getFinalWorkflowSourceAndUrl(workflowSource: Option[String], workflowUrl: Option[String]): WorkflowSourceOrUrl = {
-    if (workflowSource.isDefined) WorkflowSourceOrUrl(workflowSource, workflowUrl) // submission has CWL workflow file path and no imports
-    else if (workflowUrl.get.startsWith("http")) WorkflowSourceOrUrl(workflowSource, workflowUrl)
-    else WorkflowSourceOrUrl(Option(DefaultPathBuilder.get(workflowUrl.get).contentAsString), None) //case where url is a WDL/CWL file
   }
 
   private def writeableMetadataPath(path: Option[Path]): ErrorOr[Unit] = {

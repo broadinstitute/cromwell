@@ -49,15 +49,24 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
 
   private val metadataReadTimeout: Duration =
     serviceConfig.getOrElse[Duration]("metadata-read-query-timeout", Duration.Inf)
+  private val metadataReadRowNumberSafetyThreshold: Int =
+    serviceConfig.getOrElse[Int]("metadata-read-row-number-safety-threshold", 1000000)
 
-  def readMetadataWorkerActorProps(): Props = ReadDatabaseMetadataWorkerActor.props(metadataReadTimeout).withDispatcher(ServiceDispatcher)
-  def metadataBuilderActorProps(): Props = MetadataBuilderActor.props(readMetadataWorkerActorProps).withDispatcher(ServiceDispatcher)
+  def readMetadataWorkerActorProps(): Props =
+    ReadDatabaseMetadataWorkerActor
+      .props(metadataReadTimeout, metadataReadRowNumberSafetyThreshold)
+      .withDispatcher(ServiceDispatcher)
 
-  val readActor = context.actorOf(ReadMetadataRegulatorActor.props(metadataBuilderActorProps, readMetadataWorkerActorProps), "singleton-ReadMetadataRegulatorActor")
+  def metadataBuilderActorProps(): Props = MetadataBuilderActor
+    .props(readMetadataWorkerActorProps, metadataReadRowNumberSafetyThreshold)
+    .withDispatcher(ServiceDispatcher)
+
+  val readActor = context.actorOf(ReadMetadataRegulatorActor.props(metadataBuilderActorProps, readMetadataWorkerActorProps), "ClassicMSA-ReadMetadataRegulatorActor")
 
   val dbFlushRate = serviceConfig.getOrElse("db-flush-rate", 5.seconds)
   val dbBatchSize = serviceConfig.getOrElse("db-batch-size", 200)
   val writeActor = context.actorOf(WriteMetadataActor.props(dbBatchSize, dbFlushRate, serviceRegistryActor, LoadConfig.MetadataWriteThreshold), "WriteMetadataActor")
+
   implicit val ec = context.dispatcher
   //noinspection ActorMutableStateInspection
   private var summaryRefreshCancellable: Option[Cancellable] = None
@@ -105,7 +114,15 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
     }
   }
 
-  def receive = {
+  def summarizerReceive: Receive = {
+    case RefreshSummary => summaryActor foreach { _ ! SummarizeMetadata(metadataSummaryRefreshLimit, sender()) }
+    case MetadataSummarySuccess => scheduleSummary()
+    case MetadataSummaryFailure(t) =>
+      log.error(t, "Error summarizing metadata")
+      scheduleSummary()
+  }
+
+  def receive = summarizerReceive orElse {
     case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(writeActor))
     case action: PutMetadataAction => writeActor forward action
     case action: PutMetadataActionAndRespond => writeActor forward action
@@ -113,11 +130,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
     case listen: Listen => writeActor forward listen
     case v: ValidateWorkflowIdInMetadata => validateWorkflowIdInMetadata(v.possibleWorkflowId, sender())
     case v: ValidateWorkflowIdInMetadataSummaries => validateWorkflowIdInMetadataSummaries(v.possibleWorkflowId, sender())
-    case action: MetadataReadAction => readActor forward action
-    case RefreshSummary => summaryActor foreach { _ ! SummarizeMetadata(metadataSummaryRefreshLimit, sender()) }
-    case MetadataSummarySuccess => scheduleSummary()
-    case MetadataSummaryFailure(t) =>
-      log.error(t, "Error summarizing metadata")
-      scheduleSummary()
+    case action: BuildMetadataJsonAction => readActor forward action
+
   }
 }

@@ -60,7 +60,7 @@ object DockerImageIdentifier {
        """.trim.r
   
   def fromString(dockerString: String): Try[DockerImageIdentifier] = {
-    dockerString match {
+    dockerString.trim match {
       case DockerStringRegex(name, tag, hash) => buildId(name, Option(tag), Option(hash))
       case _ => Failure(new IllegalArgumentException(s"Docker image $dockerString has an invalid syntax."))
     }

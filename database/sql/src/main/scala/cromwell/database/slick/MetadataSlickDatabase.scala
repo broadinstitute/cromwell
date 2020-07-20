@@ -195,7 +195,6 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action, timeout = timeout)
   }
 
-
   override def queryMetadataEntryWithKeyConstraints(workflowExecutionUuid: String,
                                                     metadataKeysToFilterFor: List[String],
                                                     metadataKeysToFilterOut: List[String],
@@ -229,7 +228,6 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     }
     runTransaction(action, timeout = timeout)
   }
-
 
   private def updateWorkflowMetadataSummaryEntry(buildUpdatedWorkflowMetadataSummaryEntry:
                                                  (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry]) =>

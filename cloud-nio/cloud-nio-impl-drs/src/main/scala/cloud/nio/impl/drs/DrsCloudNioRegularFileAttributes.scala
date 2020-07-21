@@ -5,6 +5,7 @@ import java.time.{LocalDateTime, ZoneOffset}
 
 import cats.effect.IO
 import cloud.nio.spi.CloudNioRegularFileAttributes
+import io.circe.Json
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 
@@ -24,8 +25,19 @@ class DrsCloudNioRegularFileAttributes(drsPath: String, drsPathResolver: DrsPath
 
   override def fileHash: Option[String] = {
     drsPathResolver.resolveDrsThroughMartha(drsPath).map(marthaResponse => {
-      marthaResponse.drs.data_object.checksums.flatMap {
-        _.collectFirst{ case c if c.`type`.equalsIgnoreCase("md5") => c.checksum }
+      marthaResponse.hashes.flatMap { h =>
+
+        val hashMap: Map[String, Json] = h.toMap
+        val preferredHash: Option[Json] = hashMap.keys.collectFirst {
+          case k if k.equalsIgnoreCase("crc32c") => hashMap.get(k)
+          case k if k.equalsIgnoreCase("md5") => hashMap.get(k)
+          case k if k.equalsIgnoreCase("sha256") => hashMap.get(k)
+        }.flatten
+
+        preferredHash match {
+          case Some(hash) => hash.asString
+          case None => hashMap.toSeq.minBy(_._1)._2.asString
+        }
       }
     }).unsafeRunSync()
   }
@@ -34,7 +46,7 @@ class DrsCloudNioRegularFileAttributes(drsPath: String, drsPathResolver: DrsPath
   override def lastModifiedTime(): FileTime = {
     val lastModifiedIO = for {
       marthaResponse <- drsPathResolver.resolveDrsThroughMartha(drsPath)
-      lastModifiedInString <- IO.fromEither(marthaResponse.drs.data_object.updated.toRight(throwRuntimeException("updated")))
+      lastModifiedInString <- IO.fromEither(marthaResponse.timeUpdated.toRight(throwRuntimeException("updated")))
       lastModified <- convertToFileTime(lastModifiedInString)
     } yield lastModified
 
@@ -45,7 +57,7 @@ class DrsCloudNioRegularFileAttributes(drsPath: String, drsPathResolver: DrsPath
   override def size(): Long = {
     val sizeIO = for {
       marthaResponse <- drsPathResolver.resolveDrsThroughMartha(drsPath)
-      size <- IO.fromEither(marthaResponse.drs.data_object.size.toRight(throwRuntimeException("size")))
+      size <- IO.fromEither(marthaResponse.size.toRight(throwRuntimeException("size")))
     } yield size
 
     sizeIO.unsafeRunSync()

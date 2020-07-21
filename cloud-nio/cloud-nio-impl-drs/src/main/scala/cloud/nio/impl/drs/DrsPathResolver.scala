@@ -3,6 +3,7 @@ package cloud.nio.impl.drs
 import cats.effect.{IO, Resource}
 import cats.instances.option._
 import cats.instances.string._
+import com.google.auth.oauth2.{AccessToken, OAuth2Credentials}
 import common.exception._
 import io.circe._
 import io.circe.generic.semiauto._
@@ -15,27 +16,38 @@ import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.util.EntityUtils
 import org.apache.http.{HttpResponse, HttpStatus}
 
-case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBuilder) {
+import scala.concurrent.duration._
 
-  implicit lazy val urlDecoder: Decoder[Url] = deriveDecoder
-  implicit lazy val checksumDecoder: Decoder[ChecksumObject] = deriveDecoder
-  implicit lazy val dataObjectDecoder: Decoder[DrsDataObject] = deriveDecoder
-  implicit lazy val drsObjectDecoder: Decoder[DrsObject] = deriveDecoder
+case class DrsPathResolver(drsConfig: DrsConfig,
+                           httpClientBuilder: HttpClientBuilder,
+                           accessTokenAcceptableTTL: Duration,
+                           authCredentials: OAuth2Credentials) {
+
   implicit lazy val saDataObjectDecoder: Decoder[SADataObject] = deriveDecoder
-  // Martha is still returning objects keyed by the obsolete "dos" terminology rather than the current term "drs".
-  // In order to avoid having Cromwell's case classes use the obsolete terminology that would arise from a derived
-  // decoder, this `forProduct2` construct instructs Circe to take the value keyed by `dos` and pass that as the
-  // first argument to `MarthaResponse.apply`, which happens to be the constructor parameter formally named `drs`.
-  implicit lazy val marthaResponseDecoder: Decoder[MarthaResponse] = Decoder.forProduct2("dos", "googleServiceAccount")(MarthaResponse.apply)
+  implicit lazy val marthaResponseDecoder: Decoder[MarthaResponse] = deriveDecoder
 
   private val DrsPathToken = "${drsPath}"
 
+  //Based on method from GcrRegistry
+  private def getAccessToken: String = {
+    def accessTokenTTLIsAcceptable(accessToken: AccessToken): Boolean = {
+      (accessToken.getExpirationTime.getTime - System.currentTimeMillis()).millis.gteq(accessTokenAcceptableTTL)
+    }
 
-  private def makeHttpRequestToMartha(drsPath: String, serviceAccount: Option[String]): HttpPost = {
+    Option(authCredentials.getAccessToken) match {
+      case Some(accessToken) if accessTokenTTLIsAcceptable(accessToken) => accessToken.getTokenValue
+      case _ =>
+        authCredentials.refresh()
+        authCredentials.getAccessToken.getTokenValue
+    }
+  }
+
+
+  private def makeHttpRequestToMartha(drsPath: String): HttpPost = {
     val postRequest = new HttpPost(drsConfig.marthaUri)
     val requestJson = drsConfig.marthaRequestJsonTemplate.replace(DrsPathToken, drsPath)
     postRequest.setEntity(new StringEntity(requestJson, ContentType.APPLICATION_JSON))
-    serviceAccount.foreach(sa => postRequest.setHeader("Authorization", s"Bearer $sa"))
+    postRequest.setHeader("Authorization", s"Bearer $getAccessToken")
     postRequest
   }
 
@@ -61,8 +73,8 @@ case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBu
   }
 
 
-  def rawMarthaResponse(drsPath: String, serviceAccount: Option[String] = None): Resource[IO, HttpResponse] = {
-    val httpPost = makeHttpRequestToMartha(drsPath, serviceAccount)
+  def rawMarthaResponse(drsPath: String): Resource[IO, HttpResponse] = {
+    val httpPost = makeHttpRequestToMartha(drsPath)
     executeMarthaRequest(httpPost)
   }
 
@@ -70,25 +82,21 @@ case class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBu
     * Resolves the DRS path through Martha url provided in the config.
     * Please note, this method returns an IO that would make a synchronous HTTP request to Martha when run.
     */
-  def resolveDrsThroughMartha(drsPath: String, serviceAccount: Option[String] = None): IO[MarthaResponse] = {
-    rawMarthaResponse(drsPath, serviceAccount).use(httpResponseToMarthaResponse)
+  def resolveDrsThroughMartha(drsPath: String): IO[MarthaResponse] = {
+    rawMarthaResponse(drsPath).use(httpResponseToMarthaResponse)
   }
 }
 
 case class DrsConfig(marthaUri: String, marthaRequestJsonTemplate: String)
 
-
-case class Url(url: String)
-
-case class ChecksumObject(checksum: String, `type`: String)
-
-case class DrsDataObject(size: Option[Long],
-                         checksums: Option[Array[ChecksumObject]],
-                         updated: Option[String],
-                         urls: Array[Url])
-
-case class DrsObject(data_object: DrsDataObject)
-
 case class SADataObject(data: Json)
 
-case class MarthaResponse(drs: DrsObject, googleServiceAccount: Option[SADataObject])
+case class MarthaResponse(contentType: Option[String],
+                          size: Option[Long],
+                          timeCreated: Option[String],
+                          timeUpdated: Option[String],
+                          bucket: Option[String],
+                          name: Option[String],
+                          gsUri: Option[String],
+                          googleServiceAccount: Option[SADataObject],
+                          hashes: Option[JsonObject])

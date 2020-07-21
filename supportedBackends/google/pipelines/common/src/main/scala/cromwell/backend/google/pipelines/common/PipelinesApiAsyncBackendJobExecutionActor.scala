@@ -151,6 +151,16 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse abortActorClientReceive orElse kvClientReceive orElse super.receive
 
+//  lazy val drsCredentials = {
+//    val marthaScopes = List(
+//      // Profile and Email scopes are requirements for interacting with Martha v2
+//      Oauth2Scopes.USERINFO_EMAIL,
+//      Oauth2Scopes.USERINFO_PROFILE
+//    )
+//    val workflowOptions = workflowDescriptor.workflowOptions
+//    jesAttributes.auths.gcs.credentials(workflowOptions.get(_).get, marthaScopes)
+//  }
+
   private def gcsAuthParameter: Option[PipelinesApiLiteralInput] = {
     if (jesAttributes.auths.gcs.requiresAuthFile || dockerConfiguration.isDefined)
       Option(PipelinesApiLiteralInput(ExtraConfigParamName, pipelinesApiCallPaths.workflowPaths.gcsAuthFilePath.pathAsString))

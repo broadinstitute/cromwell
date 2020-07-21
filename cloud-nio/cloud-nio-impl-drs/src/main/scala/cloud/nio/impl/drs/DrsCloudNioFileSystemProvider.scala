@@ -23,11 +23,11 @@ class DrsCloudNioFileSystemProvider(rootConfig: Config,
 
   private lazy val accessTokenAcceptableTTL = rootConfig.as[FiniteDuration]("access-token-acceptable-ttl")
 
-  lazy val drsPathResolver = DrsPathResolver(drsConfig, httpClientBuilder)
+  lazy val drsPathResolver = DrsPathResolver(drsConfig, httpClientBuilder, accessTokenAcceptableTTL, authCredentials)
 
   override def config: Config = rootConfig
 
-  override def fileProvider: CloudNioFileProvider = new DrsCloudNioFileProvider(getScheme, accessTokenAcceptableTTL, drsPathResolver, authCredentials, httpClientBuilder, drsReadInterpreter)
+  override def fileProvider: CloudNioFileProvider = new DrsCloudNioFileProvider(getScheme, drsPathResolver, httpClientBuilder, drsReadInterpreter)
 
   override def isFatal(exception: Exception): Boolean = false
 

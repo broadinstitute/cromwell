@@ -31,7 +31,7 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
 
   private lazy val googleConfiguration: GoogleConfiguration = GoogleConfiguration(globalConfig)
   private lazy val scheme = instanceConfig.getString("auth")
-  private lazy val googleAuthMode = googleConfiguration.auth(scheme) match {
+  private lazy val googleAuthMode: GoogleAuthMode = googleConfiguration.auth(scheme) match {
     case Valid(auth) => auth
     case Invalid(error) => throw new RuntimeException(s"Error while instantiating DRS path builder factory. Errors: ${error.toString}")
   }
@@ -64,19 +64,6 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
   }
 
 
-  private def inputReadChannel(url: String,
-                               urlScheme: String,
-                               serviceAccountJson: String,
-                               requesterPaysProjectIdOption: Option[String]): IO[ReadableByteChannel] =  {
-    urlScheme match {
-      case GcsScheme =>
-        val Array(bucket, fileToBeLocalized) = url.replace(s"$GcsScheme://", "").split("/", 2)
-        gcsInputStream(GcsFilePath(bucket, fileToBeLocalized), serviceAccountJson, requesterPaysProjectIdOption)
-      case otherScheme => IO.raiseError(new UnsupportedOperationException(s"DRS currently doesn't support reading files for $otherScheme."))
-    }
-  }
-
-
   private def drsReadInterpreter(options: WorkflowOptions, requesterPaysProjectIdOption: Option[String])
                                 (marthaResponse: MarthaResponse): IO[ReadableByteChannel] = {
     val serviceAccountJsonIo = marthaResponse.googleServiceAccount match {
@@ -87,8 +74,10 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
     for {
       serviceAccountJson <- serviceAccountJsonIo
       //Currently, Martha only supports resolving DRS paths to GCS paths
-      url <- IO.fromEither(DrsResolver.extractUrlForScheme(marthaResponse.drs.data_object.urls, GcsScheme))
-      readableByteChannel <- inputReadChannel(url, GcsScheme, serviceAccountJson, requesterPaysProjectIdOption)
+      _ <- IO.fromEither(marthaResponse.gsUri.toRight(UrlNotFoundException(GcsScheme)))
+      bucket <- IO.fromEither(marthaResponse.bucket.toRight(MarthaResponseMissingKeyException("bucket")))
+      filePath <- IO.fromEither(marthaResponse.name.toRight(MarthaResponseMissingKeyException("name")))
+      readableByteChannel <- gcsInputStream(GcsFilePath(bucket, filePath), serviceAccountJson, requesterPaysProjectIdOption)
     } yield readableByteChannel
   }
 
@@ -120,3 +109,5 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
 
 
 case class UrlNotFoundException(scheme: String) extends Exception(s"No $scheme url associated with given DRS path.")
+
+case class MarthaResponseMissingKeyException(missingKey: String) extends Exception(s"The response from Martha doesn't contain the key '$missingKey'.")

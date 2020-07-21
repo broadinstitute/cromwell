@@ -21,7 +21,7 @@ import scala.language.postfixOps
 
 class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures {
 
-  List(HsqldbDatabaseSystem) foreach { databaseSystem =>
+  DatabaseSystem.All foreach { databaseSystem =>
 
     implicit val ec: ExecutionContextExecutor = ExecutionContext.global
 

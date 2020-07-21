@@ -19,6 +19,7 @@ export AWS_CONFIG_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_config
 
 # "space" and "scatter" tests are disabled because hey intermittently fail on AWS
 # https://broadworkbench.atlassian.net/browse/BA-6152
+# NOTE! For some reason, exclusions must all be lower case even if the test name is a mixture of upper and lower
 cromwell::build::run_centaur \
     -p 100 \
     -e smartseq2singlesample \
@@ -38,6 +39,10 @@ cromwell::build::run_centaur \
     -e relative_output_paths_colliding \
     -e standard_output_paths_colliding_prevented \
     -e space \
-    -e scatter
+    -e scatter \
+    -e long_cmd \
+    -e runtwiceexpectingcallcaching \
+    -e cwl_cache_within_workflow \
+    -e cachewithinwf
 
 cromwell::build::generate_code_coverage

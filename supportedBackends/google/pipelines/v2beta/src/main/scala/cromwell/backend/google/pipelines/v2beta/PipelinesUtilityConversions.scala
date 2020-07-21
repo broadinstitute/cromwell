@@ -12,11 +12,10 @@ import mouse.all._
 import PipelinesUtilityConversions._
 
 import scala.language.postfixOps
-import scala.util.Try
 
 trait PipelinesUtilityConversions {
   def toAccelerator(gpuResource: GpuResource) = new Accelerator().setCount(gpuResource.gpuCount.value.toLong).setType(gpuResource.gpuType.toString)
-  def toMachineType(jobLogger: JobLogger)(attributes: PipelinesApiRuntimeAttributes) = MachineConstraints.machineType(attributes.memory, attributes.cpu, jobLogger)
+  def toMachineType(jobLogger: JobLogger)(attributes: PipelinesApiRuntimeAttributes) = MachineConstraints.machineType(attributes.memory, attributes.cpu, attributes.googleLegacyMachineSelection, jobLogger)
   def toMounts(parameters: CreatePipelineParameters): List[Mount] = parameters.adjustedSizeDisks.map(toMount).toList
   def toDisks(parameters: CreatePipelineParameters): List[Disk] = parameters.adjustedSizeDisks.map(toDisk).toList
   def toMount(disk: PipelinesApiAttachedDisk) = new Mount()
@@ -57,11 +56,17 @@ object PipelinesUtilityConversions {
 
   implicit class EnhancedEvent(val event: Event) extends AnyVal {
     def getActionId: Option[Integer] = {
-      Try(event.getContainerKilled.getActionId)
-        .orElse(Try(event.getContainerStarted.getActionId))
-        .orElse(Try(event.getContainerStopped.getActionId))
-        .orElse(Try(event.getUnexpectedExitStatus.getActionId))
-        .toOption
+      if (event.getContainerKilled != null) {
+        Option(event.getContainerKilled.getActionId)
+      } else if (event.getContainerStarted != null) {
+        Option(event.getContainerStarted.getActionId)
+      } else if (event.getContainerStopped != null) {
+        Option(event.getContainerStopped.getActionId)
+      } else if (event.getUnexpectedExitStatus != null) {
+        Option(event.getUnexpectedExitStatus.getActionId)
+      } else {
+        None
+      }
     }
   }
 }

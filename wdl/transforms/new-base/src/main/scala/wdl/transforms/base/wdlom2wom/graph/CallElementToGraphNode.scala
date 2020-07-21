@@ -54,7 +54,7 @@ object CallElementToGraphNode {
 
     def supplyableInput(definition: Callable.InputDefinition): Boolean = {
         !definition.isInstanceOf[FixedInputDefinitionWithDefault] &&
-        !definition.name.contains(".") // NB: Remove this check when sub-workflows allow pass-through task inputs
+          (!definition.name.contains(".") || a.allowNestedInputs)
     }
 
     def validInput(name: String, definition: Callable.InputDefinition): Boolean = {
@@ -224,4 +224,5 @@ case class CallNodeMakerInputs(node: CallElement,
                                availableTypeAliases: Map[String, WomType],
                                workflowName: String,
                                insideAnotherScatter: Boolean,
+                               allowNestedInputs: Boolean,
                                callables: Map[String, Callable])

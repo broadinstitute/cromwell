@@ -27,14 +27,8 @@ or **referenced from the original cached job** depending on the Cromwell
 Cromwell offers the option to cache file hashes within the scope of a root workflow to prevent repeatedly requesting the hashes of the
 same files multiple times. File hash caching is off by default and can be turned on with the configuration option `system.file-hash-cache=true`.
 
-***Call cache copy authorization failure prefix blacklisting***
-
-Cromwell has the option to filter call cache hits based on authorization failures copying previous 
-call cache hits. In a multi-user environment user A might cache hit to one of user B's results
-but that doesn't necessarily mean user A is authorized to read user B's outputs from the filesystem. Call cache blacklisting
-allows Cromwell to record on a per-root-workflow level which file path prefixes were involved in cache result copy authorization failures.
-If Cromwell sees that the file paths for a candidate cache hit have a blacklisted prefix, Cromwell will quickly 
-fail the copy attempt without doing any potentially expensive I/O.
+***Call cache blacklisting***
+Cromwell offers the ability to filter cache hits based on copying failures. 
 
 Call cache blacklisting configuration looks like:
 
@@ -47,23 +41,82 @@ call-caching {
   invalidate-bad-cache-results = false
 
   blacklist-cache {
-    # The call caching blacklist cache is off by default. This is used to blacklist cache hit paths based on the
-    # prefixes of cache hit paths that Cromwell previously failed to copy for authorization reasons.
-    enabled: true
-    # Guava cache concurrency.
-    concurrency: 10000
-    # How long entries in the cache should live from the time of their last access.
-    ttl: 20 minutes
-    # Maximum number of entries in the cache.
-    size: 1000
+     # The call caching blacklist cache is off by default. This cache is used to blacklist cache hits based on cache
+     # hit ids or buckets of cache hit paths that Cromwell has previously failed to copy for permissions reasons.
+     enabled: true
+
+     # All blacklisting values below are optional. In order to use groupings (blacklist caches shared among root
+     # workflows) a value must be specified for `groupings.workflow-option` in configuration and the workflows to
+     # be grouped must be submitted with workflow options specifying the same group.
+     groupings {
+       workflow-option: call-cache-blacklist-group
+       concurrency: 10000
+       ttl: 2 hours
+       size: 1000
+     }
+
+     buckets {
+       # Guava cache concurrency.
+       concurrency: 10000
+       # How long entries in the cache should live from the time of their last access.
+       ttl: 1 hour
+       # Maximum number of entries in the cache.
+       size: 1000
+     }
+
+     hits {
+       # Guava cache concurrency.
+       concurrency: 10000
+       # How long entries in the cache should live from the time of their last access.
+       ttl: 1 hour
+       # Maximum number of entries in the cache.
+       size: 20000
+     }
   }
 }
 ```
 
-Call cache blacklisting could be supported by any backend type though is currently implemented only for the Google Pipelines API (PAPI) backends.
-For PAPI backends the bucket is considered the prefix for blacklisting purposes.
+**** Blacklist cache grouping ****
 
-***Call cache hit path prefixes***
+By default Cromwell's blacklist caches work at the granularity of root workflows, but Cromwell can also be configured to
+share a blacklist cache among a group of workflows. 
+If a value is specified for `call-caching.blacklisting.groupings.workflow-option` and a workflow option is specified
+having a matching key, all workflows specifying the same value will share a blacklist cache. 
+
+For example, if Cromwell configuration contains `call-caching.blacklisting.groupings.workflow-option = "project"` and
+a workflow is submitted with the options
+
+```json
+{
+  "project": "Mary"
+}
+```
+
+then this workflow will share a blacklist cache with any other workflows whose workflow options contain `"project": "Mary"`.
+
+Grouping of blacklist caches can significantly improve blacklisting effectiveness and overall call caching performance.
+Workflows should be grouped by their effective authorization to ensure the same filesystem/object store permissions
+exist for every workflow in the group.
+
+**** Hit blacklisting ****
+
+If a cache hit fails copying for any reason, Cromwell will record that failure in the blacklist cache and will not use
+the hit again. Hit blacklisting is particularly effective at improving call caching performance in conjunction with the 
+grouping feature described above.
+
+**** Path prefix (GCS bucket) blacklisting on 403 Forbidden errors ****
+
+In a multi-user environment user A might cache hit to one of user B's results
+but that doesn't necessarily mean user A is authorized to read user B's outputs from the filesystem. Call cache blacklisting
+allows Cromwell to record which file path prefixes were involved in cache result copy authorization failures.
+If Cromwell sees that the file paths for a candidate cache hit have a blacklisted prefix, Cromwell will quickly 
+fail the copy attempt without doing any potentially expensive I/O.
+
+Path prefix blacklisting could be supported by any backend type though it is currently implemented only for Google
+(PAPI) backends. For Google backends the GCS bucket is considered the prefix for blacklisting purposes.
+
+
+***Call cache whitelisting***
  
 In a multi-user environment where access to job outputs may be restricted among different users, it can be useful to limit
 cache hits to those that are more likely to actually be readable for cache hit copies.

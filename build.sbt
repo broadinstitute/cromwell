@@ -150,7 +150,7 @@ lazy val centaur = project
   .dependsOn(womtool)
 
 lazy val services = project
-  .withLibrarySettings("cromwell-services")
+  .withLibrarySettings("cromwell-services", servicesDependencies)
   .dependsOn(databaseSql)
   .dependsOn(databaseMigration)
   .dependsOn(cloudSupport)
@@ -223,7 +223,7 @@ lazy val awsBackend = (project in backendRoot / "aws")
   .dependsOn(services % "test->test")
 
 lazy val sfsBackend = (project in backendRoot / "sfs")
-  .withLibrarySettings("cromwell-sfs-backend")
+  .withLibrarySettings("cromwell-sfs-backend", sfsBackendDependencies)
   .dependsOn(backend)
   .dependsOn(gcsFileSystem)
   .dependsOn(httpFileSystem)
@@ -363,7 +363,7 @@ lazy val perf = project
   .dependsOn(common)
 
 lazy val `cromwell-drs-localizer` = project
-  .withExecutableSettings("cromwell-drs-localizer", drsLocalizerDependencies)
+  .withExecutableSettings("cromwell-drs-localizer", drsLocalizerDependencies, drsLocalizerSettings)
 
 lazy val server = project
   .withExecutableSettings("cromwell", serverDependencies)

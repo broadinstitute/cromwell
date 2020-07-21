@@ -51,8 +51,8 @@ There are a number of additional runtime attributes that apply to the Google Clo
 - [preemptible](#preemptible)
 - [bootDiskSizeGb](#bootdisksizegb)
 - [noAddress](#noaddress)
-- [gpuCount and gpuType](#gpucount-and-gputype)
-- [cpuPlatform](#cpuPlatform)
+- [gpuCount, gpuType, and nvidiaDriverVersion](#gpucount-gputype-and-nvidiadriverversion)
+- [cpuPlatform](#cpuplatform)
 
 
 

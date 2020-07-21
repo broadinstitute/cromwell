@@ -9,10 +9,14 @@ import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.batch.BatchClient
 import software.amazon.awssdk.services.batch.model.SubmitJobResponse
 
-import scala.concurrent.{ExecutionContext, Promise}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.{Failure, Success}
 
+/**
+ * An actor that receives requests to submit jobs to, schedule work on, and check for work on the work queue
+ * @param configRegion
+ */
 class IntervalLimitedAwsJobSubmitActor(configRegion: Option[Region]) extends Actor with ActorLogging {
 
   implicit val ec: ExecutionContext = context.dispatcher

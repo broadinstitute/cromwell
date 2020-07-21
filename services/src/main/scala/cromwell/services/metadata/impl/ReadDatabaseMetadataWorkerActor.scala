@@ -1,5 +1,7 @@
 package cromwell.services.metadata.impl
 
+import java.sql.SQLTimeoutException
+
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.{WorkflowId, WorkflowSubmitted}
@@ -12,15 +14,21 @@ import scala.concurrent.duration.Duration
 import scala.util.Try
 
 object ReadDatabaseMetadataWorkerActor {
-  def props(metadataReadTimeout: Duration) = Props(new ReadDatabaseMetadataWorkerActor(metadataReadTimeout)).withDispatcher(ServiceDispatcher)
+  def props(metadataReadTimeout: Duration, metadataReadRowNumberSafetyThreshold: Int) =
+    Props(new ReadDatabaseMetadataWorkerActor(metadataReadTimeout, metadataReadRowNumberSafetyThreshold)).withDispatcher(ServiceDispatcher)
 }
 
-class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration) extends Actor with ActorLogging with MetadataDatabaseAccess with MetadataServicesStore {
+class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataReadRowNumberSafetyThreshold: Int)
+  extends Actor
+    with ActorLogging
+    with MetadataDatabaseAccess
+    with MetadataServicesStore {
 
   implicit val ec = context.dispatcher
 
   def receive = {
-    case GetMetadataAction(query: MetadataQuery, _) => evaluateRespondAndStop(sender(), getMetadata(query))
+    case GetMetadataAction(query: MetadataQuery, _, checkTotalMetadataRowNumberBeforeQuerying: Boolean) =>
+      evaluateRespondAndStop(sender(), getMetadata(query, checkTotalMetadataRowNumberBeforeQuerying))
     case GetStatus(workflowId) => evaluateRespondAndStop(sender(), getStatus(workflowId))
     case GetLabels(workflowId) => evaluateRespondAndStop(sender(), queryLabelsAndRespond(workflowId))
     case GetRootAndSubworkflowLabels(rootWorkflowId: WorkflowId) => evaluateRespondAndStop(sender(), queryRootAndSubworkflowLabelsAndRespond(rootWorkflowId))
@@ -41,14 +49,30 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration) extends Act
     ()
   }
 
-  private def getMetadata(query: MetadataQuery): Future[MetadataServiceResponse] = {
+  private def getMetadata(query: MetadataQuery, checkResultSizeBeforeQuerying: Boolean): Future[MetadataServiceResponse] = {
+    if (checkResultSizeBeforeQuerying) {
+      queryMetadataEventsTotalRowNumber(query.workflowId, metadataReadTimeout) flatMap { size =>
+        if (size > metadataReadRowNumberSafetyThreshold) {
+          Future.successful(MetadataLookupFailedTooLargeResponse(query, size))
+        } else {
+          queryMetadata(query)
+        }
+      } recoverWith {
+        case _: SQLTimeoutException => Future.successful(MetadataLookupFailedTimeoutResponse(query))
+        case t => Future.successful(MetadataServiceKeyLookupFailed(query, t))
+      }
+    } else {
+      queryMetadata(query)
+    }
+  }
 
+  private def queryMetadata(query: MetadataQuery): Future[MetadataServiceResponse] =
     queryMetadataEvents(query, metadataReadTimeout) map {
       m => MetadataLookupResponse(query, m)
     } recover {
+      case _: SQLTimeoutException => MetadataLookupFailedTimeoutResponse(query)
       case t => MetadataServiceKeyLookupFailed(query, t)
     }
-  }
 
   private def getStatus(id: WorkflowId): Future[MetadataServiceResponse] = {
 

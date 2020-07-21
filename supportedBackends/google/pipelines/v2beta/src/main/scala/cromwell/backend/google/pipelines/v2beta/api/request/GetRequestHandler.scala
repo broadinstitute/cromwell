@@ -135,8 +135,13 @@ trait GetRequestHandler { this: RequestHandler =>
     }
 
     // Map action indexes to event types. Action indexes are 1-based for some reason.
+    // BA-6455: since v2beta version of Life Sciences API, `a.getLabels` would return `null` for empty labels, unlike
+    // v2alpha1 version, where it returned empty list in the same case
     val actionIndexToEventType: Map[Int, String] = List(Key.Logging, Key.Tag).flatMap { k =>
-      actions.zipWithIndex collect { case (a, i) if a.getLabels.containsKey(k) => (i + 1) -> a.getLabels.get(k) } } toMap
+      actions.map(a => Option(a.getLabels)).zipWithIndex collect {
+        case (Some(labels), i) if labels.containsKey(k) => (i + 1) -> labels.get(k)
+      }
+    } toMap
 
     val executionEvents = events.map(toExecutionEvent(actionIndexToEventType))
     // The Docker image used for CWL output parsing causes some complications for the timing diagram. Docker image

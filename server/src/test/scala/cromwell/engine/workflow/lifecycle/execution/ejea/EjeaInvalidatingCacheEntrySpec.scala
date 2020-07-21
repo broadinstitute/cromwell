@@ -4,8 +4,9 @@ import akka.actor.ActorRef
 import cromwell.core.callcaching.{CallCachingActivity, ReadCache}
 import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor.NextHit
-import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheInvalidatedFailure, CallCacheInvalidatedSuccess, CallCachingEntryId}
+import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheInvalidatedFailure, CallCacheInvalidatedSuccess}
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
+import cromwell.services.CallCaching.CallCachingEntryId
 
 class EjeaInvalidatingCacheEntrySpec extends EngineJobExecutionActorSpec {
 

@@ -43,7 +43,8 @@ case class PipelinesApiConfigurationAttributes(project: String,
                                                gcsTransferConfiguration: GcsTransferConfiguration,
                                                virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
                                                batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
-                                               memoryRetryConfiguration: Option[MemoryRetryConfiguration])
+                                               memoryRetryConfiguration: Option[MemoryRetryConfiguration],
+                                               allowNoAddress: Boolean)
 
 object PipelinesApiConfigurationAttributes {
 
@@ -63,6 +64,8 @@ object PipelinesApiConfigurationAttributes {
   val DefaultGcsTransferAttempts = refineMV[Positive](3)
 
   lazy val DefaultMemoryRetryFactor: GreaterEqualRefined = refineMV[GreaterEqualOne](2.0)
+
+  val allowNoAddressAttributeKey = "allow-noAddress-attribute"
 
   private val papiKeys = CommonBackendConfigurationAttributes.commonValidConfigurationAttributeKeys ++ Set(
     "project",
@@ -98,6 +101,7 @@ object PipelinesApiConfigurationAttributes {
     "virtual-private-cloud.auth",
     "memory-retry.error-keys",
     "memory-retry.multiplier",
+    allowNoAddressAttributeKey
   )
 
   private val deprecatedJesKeys: Map[String, String] = Map(
@@ -149,6 +153,7 @@ object PipelinesApiConfigurationAttributes {
     val genomicsAuthName: ErrorOr[String] = validate { backendConfig.as[String]("genomics.auth") }
     val genomicsRestrictMetadataAccess: ErrorOr[Boolean] = validate { backendConfig.as[Option[Boolean]]("genomics.restrict-metadata-access").getOrElse(false) }
     val genomicsEnableFuse: ErrorOr[Boolean] = validate { backendConfig.as[Option[Boolean]]("genomics.enable-fuse").getOrElse(false) }
+    val allowNoAddress: ErrorOr[Boolean] = validate { backendConfig.as[Option[Boolean]](allowNoAddressAttributeKey).getOrElse(true) }
     val gcsFilesystemAuthName: ErrorOr[String] = validate { backendConfig.as[String]("filesystems.gcs.auth") }
     val qpsValidation = validateQps(backendConfig)
     val duplicationStrategy = validate { backendConfig.as[Option[String]]("filesystems.gcs.caching.duplication-strategy").getOrElse("copy") match {
@@ -217,7 +222,8 @@ object PipelinesApiConfigurationAttributes {
                                                        gcsTransferConfiguration: GcsTransferConfiguration,
                                                        virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
                                                        batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
-                                                       memoryRetryConfig: Option[MemoryRetryConfiguration]): ErrorOr[PipelinesApiConfigurationAttributes] =
+                                                       memoryRetryConfig: Option[MemoryRetryConfiguration],
+                                                       allowNoAddress: Boolean): ErrorOr[PipelinesApiConfigurationAttributes] =
       (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN {
         (genomicsAuth, gcsAuth) =>
           PipelinesApiConfigurationAttributes(
@@ -239,6 +245,7 @@ object PipelinesApiConfigurationAttributes {
             virtualPrivateCloudConfiguration = virtualPrivateCloudConfiguration,
             batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration,
             memoryRetryConfiguration = memoryRetryConfig,
+            allowNoAddress
           )
     }
 
@@ -257,6 +264,7 @@ object PipelinesApiConfigurationAttributes {
       virtualPrivateCloudConfiguration,
       batchRequestTimeoutConfigurationValidation,
       memoryRetryConfig,
+      allowNoAddress
     ) flatMapN authGoogleConfigForPapiConfigurationAttributes match {
       case Valid(r) => r
       case Invalid(f) =>

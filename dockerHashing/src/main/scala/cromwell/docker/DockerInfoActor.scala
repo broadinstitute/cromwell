@@ -109,6 +109,7 @@ final class DockerInfoActor(
   }
 
   private def backpressure(commandContext: DockerInfoContext) = IO {
+    logger.warn(s"Backpressuring DockerInfoActor enqueue for image ${commandContext.dockerImageID.fullName}")
     commandContext.replyTo ! BackPressure(commandContext.request)
   }
 

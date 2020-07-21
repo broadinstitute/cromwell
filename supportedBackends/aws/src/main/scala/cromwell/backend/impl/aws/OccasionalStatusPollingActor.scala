@@ -34,11 +34,7 @@ class OccasionalStatusPollingActor(configRegion: Option[Region], optAwsAuthMode:
 
   lazy val client = {
     val builder = BatchClient.builder()
-    optAwsAuthMode.foreach { awsAuthMode =>
-      builder.credentialsProvider(awsAuthMode.provider())
-    }
-    configRegion.foreach(builder.region)
-    builder.build
+    configureClient(builder, optAwsAuthMode, configRegion)
   }
 
   // Maps job ID to status

@@ -8,7 +8,7 @@ import cromwell.core.{WorkflowId, WorkflowMetadataKeys}
 import cromwell.database.migration.metadata.table.symbol.MetadataStatement._
 import cromwell.database.slick.MetadataSlickDatabase
 import cromwell.database.slick.MetadataSlickDatabase.SummarizationPartitionedMetadata
-import cromwell.database.sql.joins.CallQuery
+import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, WorkflowQuery}
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 import cromwell.services.metadata.CallMetadataKeys
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
@@ -21,7 +21,7 @@ import scala.language.postfixOps
 
 class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures {
 
-  DatabaseSystem.All foreach { databaseSystem =>
+  List(HsqldbDatabaseSystem) foreach { databaseSystem =>
 
     implicit val ec: ExecutionContextExecutor = ExecutionContext.global
 
@@ -134,6 +134,28 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
           metadataKeysToFilterOut = List("excludable%"),
           CallQuery("includableCall", Option(0), Option(1)),
           10 seconds)
+        count.futureValue(Timeout(10 seconds)) should be(1)
+      }
+
+      {
+        val count = database.countMetadataEntryWithKeyConstraints(
+          workflowExecutionUuid = rootCountableId,
+          metadataKeysToFilterFor = List("includable%"),
+          metadataKeysToFilterOut = List("excludable%"),
+          CallOrWorkflowQuery,
+          10 seconds
+        )
+        count.futureValue(Timeout(10 seconds)) should be(4)
+      }
+
+      {
+        val count = database.countMetadataEntryWithKeyConstraints(
+          workflowExecutionUuid = rootCountableId,
+          metadataKeysToFilterFor = List("includable%"),
+          metadataKeysToFilterOut = List("excludable%"),
+          WorkflowQuery,
+          10 seconds
+        )
         count.futureValue(Timeout(10 seconds)) should be(1)
       }
     }

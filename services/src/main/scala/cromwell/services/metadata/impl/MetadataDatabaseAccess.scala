@@ -129,7 +129,7 @@ trait MetadataDatabaseAccess {
     }
   }
 
-  def queryMetadataEventsTotalRowNumber(query: MetadataQuery, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
+  def getMetadataReadRowNumber(query: MetadataQuery, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
 
     def listKeyRequirements(keyRequirementsInput: Option[NonEmptyList[String]]): List[String] = keyRequirementsInput.map(_.toList).toList.flatten.map(_ + "%")
 

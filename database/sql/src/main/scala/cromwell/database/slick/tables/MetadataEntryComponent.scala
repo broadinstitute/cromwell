@@ -228,9 +228,9 @@ trait MetadataEntryComponent {
   }
 
   /**
-    * Returns metadata entries that are "like" metadataKeys for the specified workflow.
-    * If requireEmptyJobKey is true, only workflow level keys are returned, otherwise both workflow and call level
-    * keys are returned.
+    * Counts metadata entries that are "like" metadataKeys for the specified workflow.
+    * If requireEmptyJobKey is true, only workflow level keys are counted, otherwise both workflow and call level
+    * keys are counted.
     */
   def countMetadataEntriesWithKeyConstraints(rootWorkflowId: String,
                                              metadataKeysToFilterFor: List[String],
@@ -275,8 +275,8 @@ trait MetadataEntryComponent {
   }
 
   /**
-    * Returns metadata entries that are "like" metadataKeys for the specified call.
-    * If jobAttempt has no value, all metadata keys for all attempts are returned.
+    * Counts metadata entries that are "like" metadataKeys for the specified call.
+    * If jobAttempt has no value, all metadata keys for all attempts are counted.
     */
   def countMetadataEntriesForJobWithKeyConstraints(rootWorkflowId: String,
                                                    metadataKeysToFilterFor: List[String],

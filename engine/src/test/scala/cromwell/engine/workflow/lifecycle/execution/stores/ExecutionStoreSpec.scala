@@ -22,7 +22,7 @@ class ExecutionStoreSpec extends FlatSpec with Matchers {
     while (store.needsUpdate) {
       val update = store.update
       update.runnableKeys.size should be(1000)
-      print("Started 1000 jobs...")
+      println("Started 1000 jobs...")
       store = update.updatedStore.updateKeys(update.runnableKeys.map(_ -> QueuedInCromwell).toMap)
     }
 

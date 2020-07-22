@@ -154,7 +154,7 @@ final case class SealedExecutionStore private[stores](private val statusStore: M
 sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, ExecutionStatus], val needsUpdate: Boolean) {
   // View of the statusStore more suited for lookup based on status
   lazy val store: Map[ExecutionStatus, List[JobKey]] = statusStore.groupBy(_._2).safeMapValues(_.keys.toList)
-  lazy val queuedJobsAboveThreshold = queuedJobs > MaxJobsToStartPerTick
+  lazy val queuedJobsAboveThreshold = queuedJobs >= MaxJobsToStartPerTick
 
   def backendJobDescriptorKeyForNode(node: GraphNode): Option[BackendJobDescriptorKey] = {
     statusStore.keys collectFirst { case k: BackendJobDescriptorKey if k.node eq node => k }
@@ -174,7 +174,11 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     * Update key statuses
     */
   def updateKeys(values: Map[JobKey, ExecutionStatus]): ExecutionStore = {
-    updateKeys(values, needsUpdate || values.values.exists(_.isTerminalOrRetryable))
+    // The store might newly need updating now if keys have changed and either:
+    // - A job has completed -> downstream jobs might now be runnable
+    // - The store had jobs waiting for queue space -> more queue space might have been freed up
+    val needsNewUpdate = values.nonEmpty && (values.values.exists(_.isTerminalOrRetryable) || store.contains(WaitingForQueueSpace))
+    updateKeys(values, needsUpdate || needsNewUpdate)
   }
 
   /**

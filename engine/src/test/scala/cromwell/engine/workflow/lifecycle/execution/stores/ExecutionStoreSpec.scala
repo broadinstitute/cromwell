@@ -19,14 +19,22 @@ class ExecutionStoreSpec extends FlatSpec with Matchers {
 
     var store: ExecutionStore = ActiveExecutionStore(jobKeys, needsUpdate = true)
 
-    while (store.needsUpdate) {
-      val update = store.update
-      update.runnableKeys.size should be(1000)
-      println("Started 1000 jobs...")
-      store = update.updatedStore.updateKeys(update.runnableKeys.map(_ -> QueuedInCromwell).toMap)
+    def updateStoreToEnqueueNewlyRunnableJobs(): Unit = {
+      while (store.needsUpdate) {
+        val update = store.update
+        store = update.updatedStore.updateKeys(update.runnableKeys.map(_ -> QueuedInCromwell).toMap)
+      }
     }
 
-    store.store(QueuedInCromwell).size should be(10000)
+    updateStoreToEnqueueNewlyRunnableJobs()
+
+    store.store(QueuedInCromwell).size should be(1000)
+    store.store(WaitingForQueueSpace).size should be(9000)
+
+    while(store.store.getOrElse(Running, List.empty).size < 10000) {
+      store = store.updateKeys(store.store(QueuedInCromwell).map(j => j -> Running).toMap)
+      updateStoreToEnqueueNewlyRunnableJobs()
+    }
   }
 }
 

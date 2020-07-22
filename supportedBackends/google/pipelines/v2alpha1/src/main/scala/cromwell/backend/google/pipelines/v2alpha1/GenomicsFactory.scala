@@ -72,6 +72,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
           val httpCredentialsAdapter = new HttpCredentialsAdapter(credentials)
           val cloudResourceManagerBuilder = new CloudResourceManager
           .Builder(GoogleAuthMode.httpTransport, GoogleAuthMode.jsonFactory, httpCredentialsAdapter)
+            .setApplicationName(applicationName)
             .build()
 
           val project = cloudResourceManagerBuilder.projects().get(createPipelineParameters.projectId)

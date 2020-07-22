@@ -2,7 +2,7 @@ package cromwell.engine.workflow.lifecycle.execution.stores
 
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.ExecutionStatus.{ExecutionStatus, _}
-import cromwell.core.{CallKey, JobKey}
+import cromwell.core.JobKey
 import cromwell.engine.workflow.lifecycle.execution.stores.ExecutionStoreSpec._
 import org.scalatest.{FlatSpec, Matchers}
 import wom.graph._

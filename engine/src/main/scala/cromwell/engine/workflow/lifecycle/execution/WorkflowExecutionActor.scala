@@ -510,7 +510,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       else updatedData.mergeExecutionDiffs(diffs)
     }
 
-    val DataStoreUpdate(runnableKeys, statusChanges, updatedData) = data.executionStoreUpdate
+    val DataStoreUpdate(runnableKeys, _, updatedData) = data.executionStoreUpdate
     val runnableCalls = runnableKeys.view
       .collect({ case k: BackendJobDescriptorKey => k })
       .groupBy(_.node)
@@ -523,10 +523,6 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       })
     val mode = if (restarting) "Restarting" else "Starting"
     if (runnableCalls.nonEmpty) workflowLogger.info(s"$mode " + runnableCalls.mkString(", "))
-
-    statusChanges.collect({
-      case (jobKey, WaitingForQueueSpace) => pushWaitingForQueueSpaceCallMetadata(jobKey)
-    })
 
     val keyStartDiffs: List[WorkflowExecutionDiff] = runnableKeys map { k => k -> (k match {
       case key: BackendJobDescriptorKey => processRunnableJob(key, data)

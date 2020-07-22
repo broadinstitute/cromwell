@@ -20,9 +20,9 @@ class ExecutionStoreSpec extends FlatSpec with Matchers {
     var store: ExecutionStore = ActiveExecutionStore(jobKeys, needsUpdate = true)
 
     while (store.needsUpdate) {
-      print("cycle")
       val update = store.update
       update.runnableKeys.size should be(1000)
+      print("Started 1000 jobs...")
       store = update.updatedStore.updateKeys(update.runnableKeys.map(_ -> QueuedInCromwell).toMap)
     }
 
@@ -31,12 +31,6 @@ class ExecutionStoreSpec extends FlatSpec with Matchers {
 }
 
 object ExecutionStoreSpec {
-  final case class MockJobKey(i: Int) extends CallKey {
-    override def node: CallNode = noConnectionsGraphNode
-    override def index: Option[Int] = Option(0)
-    override def attempt: Int = 0
-    override def tag: String = s"test_job_0"
-  }
 
   val noConnectionsGraphNode: CommandCallNode = CommandCallNode(
     identifier = WomIdentifier("mock_task", "mock_wf.mock_task"),

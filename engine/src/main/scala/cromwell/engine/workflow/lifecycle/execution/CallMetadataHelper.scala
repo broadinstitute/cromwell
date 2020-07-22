@@ -65,11 +65,6 @@ trait CallMetadataHelper {
 
     serviceRegistryActor ! PutMetadataAction(events)
   }
-  
-  def pushWaitingForQueueSpaceCallMetadata(jobKey: JobKey) = {
-    val event = MetadataEvent(metadataKeyForCall(jobKey, CallMetadataKeys.ExecutionStatus), MetadataValue(WaitingForQueueSpace))
-    serviceRegistryActor ! PutMetadataAction(event)
-  }
 
   def pushSuccessfulCallMetadata(jobKey: JobKey, returnCode: Option[Int], outputs: CallOutputs) = {
     val completionEvents = completedCallMetadataEvents(jobKey, ExecutionStatus.Done, returnCode)

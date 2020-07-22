@@ -391,6 +391,32 @@ Cromwell will get labels from the project's metadata and look for a label whose 
 Then it will use the value of the label, which is `vpc-network` here, as the name of private network and run the jobs on this network.
 If the network key is not present in the project's metadata Cromwell will fall back to running jobs on the default network.
 
+
+### Custom Google Cloud SDK container
+Cromwell can't use Google's container registry if VPC Perimeter is used in project.
+Own repository can be used by adding `cloud-sdk-image-url` reference to used container:
+
+```
+backend {
+  ...
+  providers {
+  	...
+  	PapiV2 {
+  	  actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
+  	  config {
+  		...
+      filesystems {
+        gcs {
+          cloud-sdk-image-url = "eu.gcr.io/your-project-id/cloudsdktool/cloud-sdk:275.0.0-slim"
+          cloud-sdk-image-size-gb = 1
+        }
+      ...
+  	  }  
+    }
+  }
+}
+```
+
 ### Parallel Composite Uploads
 
 Cromwell can be configured to use GCS parallel composite uploads which can greatly improve delocalization performance. This feature

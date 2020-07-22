@@ -12,6 +12,7 @@ import com.google.api.services.lifesciences.v2beta.{CloudLifeSciences, CloudLife
 import com.google.api.services.oauth2.Oauth2Scopes
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.http.HttpCredentialsAdapter
+import com.typesafe.config.ConfigFactory
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{GcsTransferConfiguration, VirtualPrivateCloudConfiguration}
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiFactoryInterface, PipelinesApiRequestFactory}
@@ -231,6 +232,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
 }
 
 object LifeSciencesFactory {
+  private val config = ConfigFactory.load().getConfig("backend.providers.PAPIv2.config.filesystems.gcs")
   /**
     * More restricted version of com.google.api.services.cloudkms.v1.CloudKMSScopes.CLOUD_PLATFORM
     * Could use that scope to keep things simple, but docs say to use a more restricted scope:
@@ -258,12 +260,12 @@ object LifeSciencesFactory {
     *
     * When updating this value, also consider updating the CromwellImagesSizeRoundedUpInGB below.
     */
-  val CloudSdkImage = "gcr.io/google.com/cloudsdktool/cloud-sdk:276.0.0-slim"
+  val CloudSdkImage: String = if (config.hasPath("cloud-sdk-image-url")) { config.getString("cloud-sdk-image-url").toString } else "gcr.io/google.com/cloudsdktool/cloud-sdk:276.0.0-slim"
 
   /*
    * At the moment, the cloud-sdk:slim (727MB on 2019-09-26) and possibly stedolan/jq (182MB) decompressed ~= 1 GB
    */
-  val CromwellImagesSizeRoundedUpInGB = 1
+  val CromwellImagesSizeRoundedUpInGB: Int = if (config.hasPath("cloud-sdk-image-size-gb")) { config.getInt("cloud-sdk-image-size-gb") } else 1
 }
 
 case class ProjectLabels(labels: Map[String, String])

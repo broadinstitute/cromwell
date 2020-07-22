@@ -281,7 +281,7 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
         // Even if the key is runnable, if it's a call key and there's already too many queued jobs,
         // don't start it and mark it as WaitingForQueueSpace
         // TODO maybe also limit the number of expression keys to run somehow ?
-        case callKey: CallKey if runnable && startableJobLimit > 0 =>
+        case callKey: CallKey if runnable && startableJobLimit <= 0 =>
           internalUpdates = internalUpdates + (callKey -> WaitingForQueueSpace)
           false
         case _ => runnable

@@ -4,36 +4,58 @@ import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.ExecutionStatus.{ExecutionStatus, _}
 import cromwell.core.JobKey
 import cromwell.engine.workflow.lifecycle.execution.stores.ExecutionStoreSpec._
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
 import wom.graph._
 
-class ExecutionStoreSpec extends FlatSpec with Matchers {
+import scala.util.Random
 
+class ExecutionStoreSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
+  var store: ExecutionStore = _
 
-  it should "keep requiring an update until all 10000 call keys are started" in {
-
+  before {
     def jobKeys: Map[JobKey, ExecutionStatus] = (0.until(10000).toList map {
       i => BackendJobDescriptorKey(noConnectionsGraphNode, Option(i), 1) -> NotStarted })
       .toMap
 
-    var store: ExecutionStore = ActiveExecutionStore(jobKeys, needsUpdate = true)
+    store = ActiveExecutionStore(jobKeys, needsUpdate = true)
+  }
 
-    def updateStoreToEnqueueNewlyRunnableJobs(): Unit = {
-      while (store.needsUpdate) {
-        val update = store.update
-        store = update.updatedStore.updateKeys(update.runnableKeys.map(_ -> QueuedInCromwell).toMap)
-      }
+  def updateStoreToEnqueueNewlyRunnableJobs(): Unit = {
+    while (store.needsUpdate) {
+      val update = store.update
+      store = update.updatedStore.updateKeys(update.runnableKeys.map(_ -> QueuedInCromwell).toMap)
     }
+  }
+
+  it should "keep allowing updates while 10000 call keys are enqueued and then started" in {
 
     updateStoreToEnqueueNewlyRunnableJobs()
 
     store.store(QueuedInCromwell).size should be(1000)
     store.store(WaitingForQueueSpace).size should be(9000)
+    store.store.contains(Running) should be(false)
 
     while(store.store.getOrElse(Running, List.empty).size < 10000) {
       store = store.updateKeys(store.store(QueuedInCromwell).map(j => j -> Running).toMap)
       updateStoreToEnqueueNewlyRunnableJobs()
+    }
+  }
+
+  it should "never enqueue more than the total allowed queue space" in {
+
+    updateStoreToEnqueueNewlyRunnableJobs()
+
+    while(store.store.getOrElse(Running, List.empty).size < 10000) {
+      val newlyRunning = Random.nextInt(1000)
+      store = store.updateKeys(store.store(QueuedInCromwell).take(newlyRunning).map(j => j -> Running).toMap)
+      updateStoreToEnqueueNewlyRunnableJobs()
+
+      // In all situations, the queue should never go above the queue limit:
+      (store.store.getOrElse(QueuedInCromwell, List.empty).size <= 1000) should be(true)
+
+      // Additionally, as long as elements are waiting for queue space, the queue should be exactly 1000 long
+      if (store.store.contains(WaitingForQueueSpace)) { store.store(QueuedInCromwell).size should be(1000) }
     }
   }
 }

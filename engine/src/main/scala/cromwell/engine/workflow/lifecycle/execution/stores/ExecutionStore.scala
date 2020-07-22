@@ -22,7 +22,7 @@ object ExecutionStore {
 
   type StatusTable = Table[GraphNode, ExecutionIndex.ExecutionIndex, JobKey]
 
-  val MaxJobsToStartPerTick = 1000
+  val MaxJobsAllowedInQueuedState = 1000
 
   implicit class EnhancedJobKey(val key: JobKey) extends AnyVal {
     /**
@@ -154,7 +154,10 @@ final case class SealedExecutionStore private[stores](private val statusStore: M
 sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, ExecutionStatus], val needsUpdate: Boolean) {
   // View of the statusStore more suited for lookup based on status
   lazy val store: Map[ExecutionStatus, List[JobKey]] = statusStore.groupBy(_._2).safeMapValues(_.keys.toList)
-  lazy val queuedJobsAboveThreshold = queuedJobs >= MaxJobsToStartPerTick
+  lazy val startableJobLimit = {
+    val diff = MaxJobsAllowedInQueuedState - queuedJobs
+    if (diff < 0) 0 else diff
+  }
 
   def backendJobDescriptorKeyForNode(node: GraphNode): Option[BackendJobDescriptorKey] = {
     statusStore.keys collectFirst { case k: BackendJobDescriptorKey if k.node eq node => k }
@@ -200,7 +203,7 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     * Create 2 Tables, one for keys in done status and one for keys in terminal status.
     * A Table is nothing more than a Map[R, Map[C, V]], see Table trait for more details
     * In this case, rows are GraphNodes, columns are ExecutionIndexes, and values are JobKeys
-    * This allows for quick lookup of all shards for a node, as well as accessing a specific key with a 
+    * This allows for quick lookup of all shards for a node, as well as accessing a specific key with a
     * (node, index) pair
    */
   lazy val (doneStatus, terminalStatus) = {
@@ -278,7 +281,7 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
         // Even if the key is runnable, if it's a call key and there's already too many queued jobs,
         // don't start it and mark it as WaitingForQueueSpace
         // TODO maybe also limit the number of expression keys to run somehow ?
-        case callKey: CallKey if runnable && queuedJobsAboveThreshold =>
+        case callKey: CallKey if runnable && startableJobLimit > 0 =>
           internalUpdates = internalUpdates + (callKey -> WaitingForQueueSpace)
           false
         case _ => runnable
@@ -286,16 +289,16 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     }
 
     // If the queued jobs are not above the threshold, use the nodes that are already waiting for queue space
-    val runnableWaitingForQueueSpace = if (!queuedJobsAboveThreshold) keysWithStatus(WaitingForQueueSpace).toStream else Stream.empty[JobKey]
-    
+    val runnableWaitingForQueueSpace = if (startableJobLimit > 0) keysWithStatus(WaitingForQueueSpace).toStream else Stream.empty[JobKey]
+
     // Start with keys that are waiting for queue space as we know they're runnable already. Then filter the not started ones
     val readyToStart = runnableWaitingForQueueSpace ++ keysWithStatus(NotStarted).toStream.filter(filterFunction)
 
     // Compute the first ExecutionStore.MaxJobsToStartPerTick + 1 runnable keys
-    val keysToStartPlusOne = readyToStart.take(MaxJobsToStartPerTick + 1).toList
+    val keysToStartPlusOne = readyToStart.take(startableJobLimit + 1).toList
 
     // Will be true if the result is truncated, in which case we'll need to do another pass later
-    val truncated = keysToStartPlusOne.size > MaxJobsToStartPerTick
+    val truncated = keysToStartPlusOne.size > startableJobLimit
 
     // If we found unstartable keys, update their status, and set needsUpdate to true (it might unblock other keys)
     val updated = if (internalUpdates.nonEmpty) {
@@ -307,6 +310,6 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     } else withNeedsUpdateFalse
 
     // Only take the first ExecutionStore.MaxJobsToStartPerTick from the above list.
-    ExecutionStoreUpdate(keysToStartPlusOne.take(MaxJobsToStartPerTick), updated, internalUpdates)
+    ExecutionStoreUpdate(keysToStartPlusOne.take(startableJobLimit), updated, internalUpdates)
   } else ExecutionStoreUpdate(List.empty, this, Map.empty)
 }

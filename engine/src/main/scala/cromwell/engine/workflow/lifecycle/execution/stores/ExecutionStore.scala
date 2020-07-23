@@ -173,9 +173,7 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     * Update key statuses
     */
   def updateKeys(values: Map[JobKey, ExecutionStatus]): ExecutionStore = {
-    // The store might newly need updating now if keys have changed and either:
-    // - A job has completed -> downstream jobs might now be runnable
-    // - The store had jobs waiting for queue space -> more queue space might have been freed up
+    // The store might newly need updating now if a job has completed because downstream jobs might now be runnable
     updateKeys(values, needsUpdate || values.values.exists(_.isTerminalOrRetryable))
   }
 
@@ -259,7 +257,6 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     */
   def update: ExecutionStoreUpdate = if (needsUpdate) {
     // When looking for runnable keys, keep track of the ones that are unstartable so we can mark them as such
-    // Also keep track of jobs that need to be updated to WaitingForQueueSpace
     var internalUpdates = Map.empty[JobKey, ExecutionStatus]
 
     // Returns true if a key should be run now. Update its status if necessary
@@ -275,11 +272,7 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
       runnable
     }
 
-//    // If the queued jobs are not above the threshold, use the nodes that are already waiting for queue space
-//    val runnableWaitingForQueueSpace = if (startableJobLimit > 0) keysWithStatus(WaitingForQueueSpace).toStream else Stream.empty[JobKey]
-
-    // Start with keys that are waiting for queue space as we know they're runnable already. Then filter the not started ones
-//    val readyToStart = runnableWaitingForQueueSpace ++ keysWithStatus(NotStarted).toStream.filter(filterFunction)
+    // Filter for unstarted keys:
     val readyToStart = keysWithStatus(NotStarted).toStream.filter(filterFunction)
 
     // Compute the first ExecutionStore.MaxJobsToStartPerTick + 1 runnable keys

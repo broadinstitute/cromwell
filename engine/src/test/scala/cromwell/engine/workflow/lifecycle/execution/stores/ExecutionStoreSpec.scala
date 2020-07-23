@@ -11,34 +11,41 @@ import scala.util.Random
 
 class ExecutionStoreSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
-  var store: ExecutionStore = _
 
-  before {
+  it should "allow 10000 unconnected call keys to be enqueued and started in small batches" in {
+
     def jobKeys: Map[JobKey, ExecutionStatus] = (0.until(10000).toList map {
       i => BackendJobDescriptorKey(noConnectionsGraphNode, Option(i), 1) -> NotStarted })
       .toMap
 
-    store = ActiveExecutionStore(jobKeys, needsUpdate = true)
-  }
+    var store: ExecutionStore = ActiveExecutionStore(jobKeys, needsUpdate = true)
 
-  def updateStoreToEnqueueNewlyRunnableJobs(): Unit = {
+    var iterationNumber = 0
     while (store.needsUpdate) {
+      // Assert that we're increasing the queue size by 1000 each time
+      store.store.getOrElse(NotStarted, List.empty).size should be(10000 - iterationNumber * ExecutionStore.MaxJobsToStartPerTick)
+      store.store.getOrElse(QueuedInCromwell, List.empty).size should be(iterationNumber * ExecutionStore.MaxJobsToStartPerTick)
       val update = store.update
       store = update.updatedStore.updateKeys(update.runnableKeys.map(_ -> QueuedInCromwell).toMap)
+      iterationNumber = iterationNumber + 1
     }
-  }
-
-  it should "keep allowing updates while 10000 call keys are enqueued and then started in small batches" in {
-
-    updateStoreToEnqueueNewlyRunnableJobs()
 
     store.store.getOrElse(QueuedInCromwell, List.empty).size should be(10000)
-    store.store.getOrElse(Running, List.empty).size should be(0)
+    var currentlyRunning = store.store.getOrElse(Running, List.empty).size
+    currentlyRunning should be(0)
 
     while(store.store.getOrElse(Running, List.empty).size < 10000) {
-      val newlyRunning = Random.nextInt(1000)
-      store = store.updateKeys(store.store(QueuedInCromwell).take(newlyRunning).map(j => j -> Running).toMap)
-      updateStoreToEnqueueNewlyRunnableJobs()
+      val toStartRunning = store.store(QueuedInCromwell).take(Random.nextInt(1000))
+      store = store.updateKeys(toStartRunning.map(j => j -> Running).toMap)
+      val newlyRunning = store.store.getOrElse(Running, List.empty).size
+
+      if (currentlyRunning + toStartRunning.size < 10000)
+        newlyRunning should be(currentlyRunning + toStartRunning.size)
+      else
+        newlyRunning should be(10000)
+
+      currentlyRunning = newlyRunning
+      store.store.getOrElse(QueuedInCromwell, List.empty).size should be(10000 - currentlyRunning)
     }
 
     store.store.getOrElse(QueuedInCromwell, List.empty).size should be(0)

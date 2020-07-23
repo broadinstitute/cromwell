@@ -7,8 +7,8 @@ import com.google.auth.oauth2.GoogleCredentials
 import com.softwaremill.sttp._
 import com.softwaremill.sttp.circe._
 import drs.localizer.MarthaResponseJsonSupport._
-import io.circe.parser.decode
 import org.slf4j.LoggerFactory
+import io.circe.parser._
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -59,30 +59,9 @@ object DrsLocalizerMain extends IOApp {
       marthaResponse <- resolveDrsThroughMartha(drsUrl, marthaUri)
       _ = httpBackendConnection.close()
       // Currently Martha only supports resolving DRS paths to GCS paths
-      gcsUrl <- extractFirstGcsUrl(marthaResponse.drs.data_object.urls)
+      gcsUrl <- IO.fromEither(marthaResponse.gsUri.toRight(new Exception(ExtractGcsUrlErrorMsg)))
       exitState <- downloadFileFromGcs(gcsUrl, marthaResponse.googleServiceAccount.map(_.data.toString), downloadLoc, requesterPaysId)
     } yield exitState
-  }
-
-
-  /*
-    Extract the response from Sam. Martha usually responds with 502 on an error, but the response body does contain the
-    response from Sam. Extract that for a more helpful error message. We parse the error response twice because
-    for some error codes, Sam does not return a text message, and in those situations the parsing fails and we
-    are unable to even see the actual status code (which is always present).
-  */
-  private def samErrorResponseMsg(error: String): String = {
-    val samErrorResponseCode = decode[SamErrorResponseCode](error) match {
-      case Left(samError) => s"Unable to parse response status from Sam. Error: $samError."
-      case Right(samResponse) => s"Response status from Sam ${samResponse.status}."
-    }
-
-    val samErrorResponseText = decode[MarthaErrorResponse](error) match {
-      case Left(samError) => s"Unable to parse response body from Sam. Error: $samError"
-      case Right(samResponse) => s"Error text- \n${samResponse.response.text}."
-    }
-
-    s"Additional parsing for error message from Sam: $samErrorResponseCode $samErrorResponseText"
   }
 
 
@@ -106,7 +85,15 @@ object DrsLocalizerMain extends IOApp {
 
     response.body match {
       // non-2xx status code
-      case Left(error) => IO.raiseError(new Exception(s"$marthaErrorMsg Expected 200 but got ${response.code} from Martha. ${samErrorResponseMsg(error)}"))
+      case Left(errorString) => {
+        val errorJsonEither = parse(errorString)
+        val additionalErrorDetails = errorJsonEither match {
+          case Left(parseError) => s"Something went wrong while parsing the error response from Martha. Parsing error: ${parseError.message}. " +
+            s"Entire error response received from Martha as String: $errorString"
+          case Right(parsedJson) => parsedJson.asObject.map(jsonObj => jsonObj.keys)
+        }
+        IO.raiseError(new Exception(s"$marthaErrorMsg Expected 200 but got ${response.code} from Martha. $additionalErrorDetails"))
+      }
       case Right(marthaResponseEither) => {
         logger.info("Received successful response from Martha")
         marthaResponseEither match {
@@ -115,16 +102,6 @@ object DrsLocalizerMain extends IOApp {
           case Right(marthaResponse) => IO(marthaResponse)
         }
       }
-    }
-  }
-
-
-  private def extractFirstGcsUrl(urlArray: Array[Url]): IO[String] = {
-    val urlOption = urlArray.find(_.url.startsWith(GcsScheme))
-
-    urlOption match {
-      case Some(url) => IO(url.url)
-      case None => IO.raiseError(new Exception(ExtractGcsUrlErrorMsg))
     }
   }
 

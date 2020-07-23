@@ -24,19 +24,58 @@ class DrsCloudNioRegularFileAttributes(drsPath: String, drsPathResolver: DrsPath
 
 
   override def fileHash: Option[String] = {
+    /* ###### ANOTHER APPROACH FOR GETTING HASHES #######
+    val predicates = List[String => Boolean](
+      x => x.equalsIgnoreCase("crc32c"),
+      x => x.equalsIgnoreCase("md5"),
+      x => x.equalsIgnoreCase("sha256")
+    )
+    val indexedPredicates = predicates.reverse.zipWithIndex
+    def score(x: String): Option[Int] = indexedPredicates.find(_._1(x)).map(_._2)
+
+    def priorityFind( l: List[String] ): Option[String] = {
+      val filtered = l.view.flatMap{x => score(x).map(x -> _) }
+      if ( filtered.isEmpty ) None
+      else Some( filtered.maxBy(_._2)._1 )
+    }
+     */
+
     drsPathResolver.resolveDrsThroughMartha(drsPath).map(marthaResponse => {
+
+      println(s"############## MARTHA RESPONSE ##############")
+      println(marthaResponse.hashes)
+
       marthaResponse.hashes.flatMap { h =>
 
         val hashMap: Map[String, Json] = h.toMap
-        val preferredHash: Option[Json] = hashMap.keys.collectFirst {
-          case k if k.equalsIgnoreCase("crc32c") => hashMap.get(k)
-          case k if k.equalsIgnoreCase("md5") => hashMap.get(k)
-          case k if k.equalsIgnoreCase("sha256") => hashMap.get(k)
-        }.flatten
+
+//        val prefHash = priorityFind(hashMap.keys.toList)
+//        println(prefHash)
+
+        val preferredHash: Option[Json] = hashMap.keys.toList match {
+          case k if k.contains("crc32c") => hashMap.get("crc32c")
+          case k if k.contains("md5") => hashMap.get("md5")
+          case k if k.contains("sha256") => hashMap.get("sha256")
+          case _ => None
+        }
+
+//        val preferredHash: Option[Json] = hashMap.keys.collectFirst {
+//          case k if k.equalsIgnoreCase("md5") =>
+//            println("hit md5")
+//            hashMap.get(k)
+//          case k if k.equalsIgnoreCase("crc32c") =>
+//            println("hit crc")
+//            hashMap.get(k)
+//          case k if k.equalsIgnoreCase("sha256") =>
+//            println("hit sha")
+//            hashMap.get(k)
+//        }.flatten
 
         preferredHash match {
-          case Some(hash) => hash.asString
-          case None => hashMap.toSeq.minBy(_._1)._2.asString
+          case Some(hash) =>
+            hash.asString
+          case None =>
+            hashMap.toSeq.minBy(_._1)._2.asString
         }
       }
     }).unsafeRunSync()

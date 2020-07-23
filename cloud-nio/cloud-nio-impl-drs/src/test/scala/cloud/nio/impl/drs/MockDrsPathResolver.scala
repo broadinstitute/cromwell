@@ -1,16 +1,15 @@
-package cromwell.filesystems.drs
+package cloud.nio.impl.drs
 
 import java.nio.channels.ReadableByteChannel
 
 import cats.effect.IO
-import cloud.nio.impl.drs._
+import cloud.nio.spi.CloudNioFileProvider
 import com.google.auth.oauth2.OAuth2Credentials
 import com.typesafe.config.Config
 import io.circe.{Json, JsonObject}
 import org.apache.http.impl.client.HttpClientBuilder
 
 import scala.concurrent.duration.Duration
-
 
 class MockDrsPathResolver(drsConfig: DrsConfig,
                           httpClientBuilder: HttpClientBuilder,
@@ -25,9 +24,12 @@ class MockDrsPathResolver(drsConfig: DrsConfig,
 
   private def createMarthaResponse(url: Option[String]): IO[MarthaResponse] =  {
     val hashesObj = JsonObject(
-      "md5" -> Json.fromString("336ea55913bc261b72875bd259753046"),
       "sha256" -> Json.fromString("f76877f8e86ec3932fd2ae04239fbabb8c90199dab0019ae55fa42b31c314c44"),
-      "crc32c" -> Json.fromString("8a366443")
+//      "crc32c" -> Json.fromString("8a366443"),
+      "md5" -> Json.fromString("336ea55913bc261b72875bd259753046"),
+//      "bec" -> Json.fromString("abc123"),
+//      "saloni" -> Json.fromString("456"),
+      "alfred" -> Json.fromString("xrd"),
     )
 
     val drsResponse = MarthaResponse(
@@ -56,19 +58,6 @@ class MockDrsPathResolver(drsConfig: DrsConfig,
 }
 
 
-class MockDrsCloudNioFileSystemProvider(config: Config,
-                                        credentials: OAuth2Credentials,
-                                        httpClientBuilder: HttpClientBuilder,
-                                        drsReadInterpreter: MarthaResponse => IO[ReadableByteChannel]) extends DrsCloudNioFileSystemProvider(config, credentials, httpClientBuilder, drsReadInterpreter) {
-
-  private lazy val fakeDrsConfig = DrsConfig("http://martha-url", "{}")
-
-  private lazy val accessTokenAcceptableTTL: Duration = Duration.Inf
-
-  override lazy val drsPathResolver: DrsPathResolver = new MockDrsPathResolver(fakeDrsConfig , httpClientBuilder, credentials, accessTokenAcceptableTTL)
-}
-
-
 object MockDrsPaths {
   private val drsPathPrefix = "drs://drs-host/"
 
@@ -79,4 +68,32 @@ object MockDrsPaths {
   val drsPathResolvingToNoGcsPath = s"$drsPathPrefix/226686cf-22c9-4472-9f79-7a0b0044f253"
 
   val drsPathNotExistingInMartha = s"$drsPathPrefix/5e21b8c3-8eda-48d5-9a04-2b32e1571765"
+}
+
+
+class MockDrsCloudNioFileSystemProvider(config: Config,
+                                        credentials: OAuth2Credentials,
+                                        httpClientBuilder: HttpClientBuilder,
+                                        drsReadInterpreter: MarthaResponse => IO[ReadableByteChannel]) extends DrsCloudNioFileSystemProvider(config, credentials, httpClientBuilder, drsReadInterpreter) {
+
+  private lazy val fakeDrsConfig = DrsConfig("http://martha-url", "{}")
+
+  private lazy val accessTokenAcceptableTTL: Duration = Duration.Inf
+
+  override lazy val drsPathResolver: DrsPathResolver = new MockDrsPathResolver(fakeDrsConfig , httpClientBuilder, credentials, accessTokenAcceptableTTL)
+
+  override def fileProvider: CloudNioFileProvider = new MockDrsCloudNioFileProvider(getScheme, drsPathResolver, httpClientBuilder, drsReadInterpreter)
+}
+
+
+class MockDrsCloudNioFileProvider(scheme: String,
+                                  drsPathResolver: DrsPathResolver,
+                                  httpClientBuilder: HttpClientBuilder,
+                                  drsReadInterpreter: MarthaResponse => IO[ReadableByteChannel]) extends DrsCloudNioFileProvider(scheme, drsPathResolver, httpClientBuilder, drsReadInterpreter) {
+
+}
+
+class MockDrsCloudNioRegularFileAttributes(drsPath: String,
+                                           drsPathResolver: DrsPathResolver) extends DrsCloudNioRegularFileAttributes(drsPath, drsPathResolver) {
+
 }

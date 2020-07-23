@@ -30,21 +30,13 @@ class DrsResolverSpec extends FlatSpec with Matchers {
   private val mockFileSystemProvider = new MockDrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials, httpClientBuilder, drsReadInterpreter)
   private val drsPathBuilder = DrsPathBuilder(mockFileSystemProvider, None)
 
-  val gcsRelativePath = "mybucket/foo.txt"
-
 
   behavior of "DrsResolver"
 
-  it should "find GCS path when its the only one in url array" in {
-    val drsPath = drsPathBuilder.build(MockDrsPaths.drsPathResolvingToOneGcsPath).get.asInstanceOf[DrsPath]
+  it should "find GCS path" in {
+    val drsPath = drsPathBuilder.build(MockDrsPaths.drsPathResolvingGcsPath).get.asInstanceOf[DrsPath]
 
-    DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync() should be (gcsRelativePath)
-  }
-
-  it should "find GCS path when DRS path resolves to multiple urls" in {
-    val drsPath = drsPathBuilder.build(MockDrsPaths.drsPathResolvingToMultiplePaths).get.asInstanceOf[DrsPath]
-
-    DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync() should be (gcsRelativePath)
+    DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync() should be (MockDrsPaths.gcsRelativePath)
   }
 
   it should "throw GcsUrlNotFoundException when DRS path doesn't resolve to at least one GCS url" in {
@@ -60,6 +52,6 @@ class DrsResolverSpec extends FlatSpec with Matchers {
 
     the[RuntimeException] thrownBy {
       DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()
-    } should have message s"Unexpected response resolving ${drsPath.pathAsString} through Martha url http://martha-url. Error: 502 Bad Gateway."
+    } should have message s"Unexpected response resolving ${drsPath.pathAsString} through Martha url http://martha-url. Error: 404 Not Found."
   }
 }

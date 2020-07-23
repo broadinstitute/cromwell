@@ -3,6 +3,7 @@ package org.broadinstitute.manifestcreator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.broadinstitute.manifestcreator.exception.CRC32Exception;
 import org.broadinstitute.manifestcreator.model.ReferenceDiskManifest;
 import org.broadinstitute.manifestcreator.model.ReferenceFile;
 
@@ -53,7 +54,15 @@ public class CromwellRefdiskManifestCreatorApp {
     stack.push(rootDirectory);
     List<ReferenceFile> referenceFiles = Collections.synchronizedList(new ArrayList<>());
     for (int i = 0; i < nThreads; i++) {
-      executorService.submit(() -> doWork(rootPath, referenceFiles, stack, totalNumberOfFiles, countDownLatch));
+      executorService.submit(() -> {
+        try {
+          doWork(rootPath, referenceFiles, stack, totalNumberOfFiles, countDownLatch);
+        } catch (CRC32Exception e) {
+          logger.error("Error occurred. Shutting down.", e);
+          executorService.shutdownNow();
+          System.exit(1);
+        }
+      });
     }
 
     countDownLatch.await();
@@ -71,7 +80,7 @@ public class CromwellRefdiskManifestCreatorApp {
     executorService.shutdown();
   }
 
-  private static void doWork(Path rootPath, List<ReferenceFile> accumulator, Stack<File> stack, int totalNumberOfFiles, CountDownLatch countDownLatch) {
+  private static void doWork(Path rootPath, List<ReferenceFile> accumulator, Stack<File> stack, int totalNumberOfFiles, CountDownLatch countDownLatch) throws CRC32Exception {
     while(!stack.isEmpty() || accumulator.size() != totalNumberOfFiles) {
       if (stack.isEmpty()) {
         continue;
@@ -102,7 +111,7 @@ public class CromwellRefdiskManifestCreatorApp {
     countDownLatch.countDown();
   }
 
-  private static long calculateCrc32(File file) {
+  private static long calculateCrc32(File file) throws CRC32Exception {
     CRC32 crc32 = new CRC32();
     int bufferSize = 32768;
     try (InputStream is = new BufferedInputStream(new FileInputStream(file), bufferSize)) {
@@ -112,8 +121,7 @@ public class CromwellRefdiskManifestCreatorApp {
         crc32.update(buff, 0, bytesRead);
       }
     } catch (IOException e) {
-      logger.error("Cannot read from file " + file.getAbsolutePath(), e);
-      System.exit(1);
+      throw new CRC32Exception("Cannot read from file " + file.getAbsolutePath(), e);
     }
     return crc32.getValue();
   }

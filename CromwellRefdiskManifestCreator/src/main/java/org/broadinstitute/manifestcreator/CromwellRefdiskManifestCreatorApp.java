@@ -31,7 +31,7 @@ public class CromwellRefdiskManifestCreatorApp {
     if (args.length < 4) {
       logger.error("Wrong number of parameters.");
       logger.error("Usage: java -jar cromwell-refdisk-manifest-creator-app.jar <number of parallel threads> " +
-              "<image_name> <directory_path_to_scan> <output file path");
+              "<image_name> <directory_path_to_scan> <output file path>");
       System.exit(1);
     }
 

@@ -1,8 +1,10 @@
 package org.broadinstitute.manifestcreator;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.broadinstitute.manifestcreator.exception.CRC32Exception;
 import org.broadinstitute.manifestcreator.model.ReferenceDiskManifest;
 import org.broadinstitute.manifestcreator.model.ReferenceFile;
@@ -24,6 +26,8 @@ public class CromwellRefdiskManifestCreatorApp {
   private static final Logger logger = LogManager.getLogger(CromwellRefdiskManifestCreatorApp.class);
 
   public static void main(String[] args) throws IOException, InterruptedException {
+    Configurator.setRootLevel(Level.DEBUG);
+
     if (args.length < 4) {
       logger.error("Wrong number of parameters.");
       logger.error("Usage: java -jar cromwell-refdisk-manifest-creator-app.jar <number of parallel threads> " +

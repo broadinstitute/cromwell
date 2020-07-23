@@ -2,7 +2,7 @@ package org.broadinstitute.manifestcreator.model;
 
 public class ReferenceFile {
   private String path;
-  private long crc32;
+  private long crc32c;
 
   public String getPath() {
     return path;
@@ -12,11 +12,11 @@ public class ReferenceFile {
     this.path = path;
   }
 
-  public long getCrc32() {
-    return crc32;
+  public long getCrc32c() {
+    return crc32c;
   }
 
-  public void setCrc32(long crc32) {
-    this.crc32 = crc32;
+  public void setCrc32c(long crc32c) {
+    this.crc32c = crc32c;
   }
 }

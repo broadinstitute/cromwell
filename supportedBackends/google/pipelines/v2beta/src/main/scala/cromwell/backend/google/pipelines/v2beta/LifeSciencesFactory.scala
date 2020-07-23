@@ -233,7 +233,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
 }
 
 object LifeSciencesFactory {
-  private val config = ConfigFactory.load().getConfig("backend.providers.PAPIv2.config.filesystems.gcs")
+  private val config = ConfigFactory.load().getConfig("google")
   /**
     * More restricted version of com.google.api.services.cloudkms.v1.CloudKMSScopes.CLOUD_PLATFORM
     * Could use that scope to keep things simple, but docs say to use a more restricted scope:

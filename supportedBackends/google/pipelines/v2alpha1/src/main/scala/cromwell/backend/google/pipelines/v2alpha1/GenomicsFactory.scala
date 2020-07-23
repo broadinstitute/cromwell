@@ -234,7 +234,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
 }
 
 object GenomicsFactory {
-  private val config = ConfigFactory.load().getConfig("backend.providers.PAPIv2.config.filesystems.gcs")
+  private val config = ConfigFactory.load().getConfig("google")
 
   /**
     * More restricted version of com.google.api.services.cloudkms.v1.CloudKMSScopes.CLOUD_PLATFORM

@@ -397,23 +397,10 @@ Cromwell can't use Google's container registry if VPC Perimeter is used in proje
 Own repository can be used by adding `cloud-sdk-image-url` reference to used container:
 
 ```
-backend {
+google {
   ...
-  providers {
-  	...
-  	PapiV2 {
-  	  actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
-  	  config {
-  		...
-      filesystems {
-        gcs {
-          cloud-sdk-image-url = "eu.gcr.io/your-project-id/cloudsdktool/cloud-sdk:275.0.0-slim"
-          cloud-sdk-image-size-gb = 1
-        }
-      ...
-  	  }  
-    }
-  }
+  cloud-sdk-image-url = "eu.gcr.io/your-project-id/cloudsdktool/cloud-sdk:275.0.0-slim"
+  cloud-sdk-image-size-gb = 1
 }
 ```
 

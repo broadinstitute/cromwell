@@ -22,6 +22,6 @@ class DrsCloudNioRegularFileAttributesSpec extends FlatSpecLike with Matchers {
   behavior of "fileHash()"
 
   it should "return proper hash from `hashes` in Martha response" in {
-    mockDrsFileAttributes.fileHash shouldBe "8a366443"
+    mockDrsFileAttributes.fileHash shouldBe Option("8a366443")
   }
 }

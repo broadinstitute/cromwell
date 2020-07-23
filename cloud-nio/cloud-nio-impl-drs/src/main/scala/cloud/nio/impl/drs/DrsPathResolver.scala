@@ -99,4 +99,4 @@ case class MarthaResponse(contentType: Option[String],
                           name: Option[String],
                           gsUri: Option[String],
                           googleServiceAccount: Option[SADataObject],
-                          hashes: Option[JsonObject])
+                          hashes: Option[Map[String, String]])

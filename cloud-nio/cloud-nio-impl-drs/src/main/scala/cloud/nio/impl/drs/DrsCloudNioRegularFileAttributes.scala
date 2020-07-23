@@ -5,13 +5,12 @@ import java.time.{LocalDateTime, ZoneOffset}
 
 import cats.effect.IO
 import cloud.nio.spi.CloudNioRegularFileAttributes
-import io.circe.Json
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 
 class DrsCloudNioRegularFileAttributes(drsPath: String, drsPathResolver: DrsPathResolver) extends CloudNioRegularFileAttributes{
 
-  private def throwRuntimeException(missingKey: String) = {
+  private def createMissingKeyException(missingKey: String) = {
     new RuntimeException(s"Failed to resolve DRS path $drsPath. The response from Martha doesn't contain the key '$missingKey'.")
   }
 
@@ -40,43 +39,26 @@ class DrsCloudNioRegularFileAttributes(drsPath: String, drsPathResolver: DrsPath
     }
      */
 
-    drsPathResolver.resolveDrsThroughMartha(drsPath).map(marthaResponse => {
+    drsPathResolver.resolveDrsThroughMartha(drsPath).map((marthaResponse: MarthaResponse) => {
 
       println(s"############## MARTHA RESPONSE ##############")
       println(marthaResponse.hashes)
 
-      marthaResponse.hashes.flatMap { h =>
+      val maybeHashes: Option[Map[String, String]] = marthaResponse.hashes
+      val hashes: Map[String, String] = maybeHashes match {
+        case Some(value) => value
+        case None => throw createMissingKeyException("hashes")
+      }
 
-        val hashMap: Map[String, Json] = h.toMap
+      val preferredHash: Option[String] = List("crc32c", "md5", "sha256").collectFirst {
+        case k if hashes.contains(k) => hashes(k)
+      }
 
-//        val prefHash = priorityFind(hashMap.keys.toList)
-//        println(prefHash)
-
-        val preferredHash: Option[Json] = hashMap.keys.toList match {
-          case k if k.contains("crc32c") => hashMap.get("crc32c")
-          case k if k.contains("md5") => hashMap.get("md5")
-          case k if k.contains("sha256") => hashMap.get("sha256")
-          case _ => None
-        }
-
-//        val preferredHash: Option[Json] = hashMap.keys.collectFirst {
-//          case k if k.equalsIgnoreCase("md5") =>
-//            println("hit md5")
-//            hashMap.get(k)
-//          case k if k.equalsIgnoreCase("crc32c") =>
-//            println("hit crc")
-//            hashMap.get(k)
-//          case k if k.equalsIgnoreCase("sha256") =>
-//            println("hit sha")
-//            hashMap.get(k)
-//        }.flatten
-
-        preferredHash match {
-          case Some(hash) =>
-            hash.asString
-          case None =>
-            hashMap.toSeq.minBy(_._1)._2.asString
-        }
+      preferredHash match {
+        case Some(hash) =>
+          Option(hash)
+        case None =>
+          Option(hashes.toSeq.minBy(_._1)._2)
       }
     }).unsafeRunSync()
   }
@@ -85,7 +67,7 @@ class DrsCloudNioRegularFileAttributes(drsPath: String, drsPathResolver: DrsPath
   override def lastModifiedTime(): FileTime = {
     val lastModifiedIO = for {
       marthaResponse <- drsPathResolver.resolveDrsThroughMartha(drsPath)
-      lastModifiedInString <- IO.fromEither(marthaResponse.timeUpdated.toRight(throwRuntimeException("updated")))
+      lastModifiedInString <- IO.fromEither(marthaResponse.timeUpdated.toRight(createMissingKeyException("updated")))
       lastModified <- convertToFileTime(lastModifiedInString)
     } yield lastModified
 
@@ -96,7 +78,7 @@ class DrsCloudNioRegularFileAttributes(drsPath: String, drsPathResolver: DrsPath
   override def size(): Long = {
     val sizeIO = for {
       marthaResponse <- drsPathResolver.resolveDrsThroughMartha(drsPath)
-      size <- IO.fromEither(marthaResponse.size.toRight(throwRuntimeException("size")))
+      size <- IO.fromEither(marthaResponse.size.toRight(createMissingKeyException("size")))
     } yield size
 
     sizeIO.unsafeRunSync()

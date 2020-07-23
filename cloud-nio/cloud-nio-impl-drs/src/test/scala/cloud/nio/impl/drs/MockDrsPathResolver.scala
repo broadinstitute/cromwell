@@ -6,7 +6,6 @@ import cats.effect.IO
 import cloud.nio.spi.CloudNioFileProvider
 import com.google.auth.oauth2.OAuth2Credentials
 import com.typesafe.config.Config
-import io.circe.{Json, JsonObject}
 import org.apache.http.impl.client.HttpClientBuilder
 
 import scala.concurrent.duration.Duration
@@ -23,13 +22,13 @@ class MockDrsPathResolver(drsConfig: DrsConfig,
   val marthaObjWithNoGcsPath: IO[MarthaResponse] = createMarthaResponse(None)
 
   private def createMarthaResponse(url: Option[String]): IO[MarthaResponse] =  {
-    val hashesObj = JsonObject(
-      "sha256" -> Json.fromString("f76877f8e86ec3932fd2ae04239fbabb8c90199dab0019ae55fa42b31c314c44"),
-//      "crc32c" -> Json.fromString("8a366443"),
-      "md5" -> Json.fromString("336ea55913bc261b72875bd259753046"),
-//      "bec" -> Json.fromString("abc123"),
-//      "saloni" -> Json.fromString("456"),
-      "alfred" -> Json.fromString("xrd"),
+    val hashesObj = Map(
+      "sha256" -> "f76877f8e86ec3932fd2ae04239fbabb8c90199dab0019ae55fa42b31c314c44",
+      "crc32c" -> "8a366443",
+      "md5" -> "336ea55913bc261b72875bd259753046",
+      "bec" -> "abc123",
+      "saloni" -> "456",
+      "alfred" -> "xrd",
     )
 
     val drsResponse = MarthaResponse(

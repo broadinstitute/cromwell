@@ -24,7 +24,7 @@ public class CromwellRefdiskManifestCreatorAppTest {
     String pathToExpectedManifest = "src/test/resources/reference_manifest.json";
     ReferenceDiskManifest expectedManifest = new ObjectMapper().readValue(new File(pathToExpectedManifest), ReferenceDiskManifest.class);
 
-    assertThat(expectedManifest.getImageIdentifier(), is(equalTo(actualManifest.getImageIdentifier())));
+    assertThat(actualManifest.getImageIdentifier(), is(equalTo(expectedManifest.getImageIdentifier())));
     assertThat(actualManifest.getFiles(), containsInAnyOrder(expectedManifest.getFiles().toArray()));
   }
 

@@ -11,8 +11,6 @@ class StringUtilSpec extends FlatSpec with Matchers {
     def longLine(i: Int) = s"blah$i" * 100
     val longList = Foo("long long list", (0.until(100)).map(i => longLine(i)).toList)
 
-    println(longList.toPrettyElidedString(1000))
-
     longList.toPrettyElidedString(1000) should be("""Foo(
                                                     |  "long long list",
                                                     |  List(

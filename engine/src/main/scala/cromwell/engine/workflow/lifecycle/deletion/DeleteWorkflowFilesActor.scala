@@ -3,6 +3,7 @@ package cromwell.engine.workflow.lifecycle.deletion
 import java.io.FileNotFoundException
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
+import common.util.StringUtil._
 import cromwell.core.io._
 import cromwell.core.path.{Path, PathBuilder, PathFactory}
 import cromwell.core.{RootWorkflowId, WorkflowId, WorkflowMetadataKeys}
@@ -162,7 +163,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
       stay
     case Event(ShutdownCommand, _) => stopSelf()
     case other =>
-      log.error(s"Programmer Error: Unexpected message to ${getClass.getSimpleName} ${self.path.name} in state $stateName with $stateData: ${other.toString.take(300)}")
+      log.error(s"Programmer Error: Unexpected message to ${getClass.getSimpleName} ${self.path.name} in state $stateName with $stateData: ${other.toString.elided(300)}")
       stay()
   }
 

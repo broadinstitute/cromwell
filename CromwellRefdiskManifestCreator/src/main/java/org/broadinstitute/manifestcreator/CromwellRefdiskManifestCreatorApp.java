@@ -47,12 +47,11 @@ public class CromwellRefdiskManifestCreatorApp {
     ExecutorService executorService = Executors.newFixedThreadPool(arguments.nThreads);
 
     Path rootPath = rootDirectory.toPath();
-    int totalNumberOfFiles = allFilesInRootRecurStack.size();
     List<ReferenceFile> referenceFiles = Collections.synchronizedList(new ArrayList<>());
     for (int i = 0; i < arguments.nThreads; i++) {
       executorService.submit(() -> {
         try {
-          doWork(rootPath, referenceFiles, allFilesInRootRecurStack, totalNumberOfFiles, countDownLatch);
+          doWork(rootPath, referenceFiles, allFilesInRootRecurStack, countDownLatch);
         } catch (CRC32CException e) {
           logger.error("Error occurred. Shutting down.", e);
           System.exit(1);
@@ -78,19 +77,15 @@ public class CromwellRefdiskManifestCreatorApp {
   private static void doWork(Path rootPath,
                              List<ReferenceFile> accumulator,
                              Stack<File> fileStack,
-                             int totalNumberOfFiles,
                              CountDownLatch countDownLatch) throws CRC32CException {
-    while(!fileStack.isEmpty() || accumulator.size() != totalNumberOfFiles) {
-      if (fileStack.isEmpty()) {
-        continue;
-      }
-
+    List<ReferenceFile> interimResult = new ArrayList<>();
+    while(!fileStack.isEmpty()) {
       File curFile;
       try {
         curFile = fileStack.pop();
       } catch (EmptyStackException e) {
         // it's ok - benign race condition
-        continue;
+        break;
       }
 
       String relativePath = rootPath.relativize(curFile.toPath()).toString();
@@ -100,9 +95,10 @@ public class CromwellRefdiskManifestCreatorApp {
       long crc32c = calculateCrc32c(curFile);
       refFile.setCrc32c(crc32c);
 
-      accumulator.add(refFile);
+      interimResult.add(refFile);
       logger.info(Thread.currentThread().getName() + " finished processing file " + curFile.getAbsolutePath());
     }
+    accumulator.addAll(interimResult);
 
     logger.info("Thread " + Thread.currentThread().getName() + " finished processing.");
     countDownLatch.countDown();

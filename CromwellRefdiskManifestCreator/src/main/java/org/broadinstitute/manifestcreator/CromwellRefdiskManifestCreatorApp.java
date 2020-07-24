@@ -28,27 +28,41 @@ public class CromwellRefdiskManifestCreatorApp {
   public static void main(String[] args) throws IOException, InterruptedException {
     Configurator.setRootLevel(Level.INFO);
 
-    Arguments arguments = parseArguments(args);
+    Arguments inputArguments = parseArguments(args);
 
-    File rootDirectory = new File(arguments.directoryToScan);
+    ReferenceDiskManifest manifest = createManifestForDirectory(inputArguments);
+
+    logger.info("Writing file to disk...");
+    File manifestFile = new File(inputArguments.manifestFilePath);
+    if (manifestFile.exists() || !manifestFile.createNewFile()) {
+      logger.error("File {} already exists or cannot be created.", manifestFile.getAbsolutePath());
+      printUsageAndExit();
+    } else {
+      new ObjectMapper().writerWithDefaultPrettyPrinter().writeValue(manifestFile, manifest);
+      logger.info("Completed");
+    }
+  }
+
+  static ReferenceDiskManifest createManifestForDirectory(Arguments inputArguments) throws InterruptedException {
+    File rootDirectory = new File(inputArguments.directoryToScan);
     if (!rootDirectory.exists() || !rootDirectory.isDirectory()) {
-      logger.error("Root directory " + arguments.directoryToScan + " doesn't exist.");
+      logger.error("Root directory {} doesn't exist.", inputArguments.directoryToScan);
       printUsageAndExit();
     }
 
     logger.info("Populating list of files to process...");
     Stack<File> allFilesInRootRecurStack = prepopulateStackWithFiles(rootDirectory);
-    logger.info("Need to process " + allFilesInRootRecurStack.size() + " files");
+    logger.info("Need to process {} files", allFilesInRootRecurStack.size());
 
     ReferenceDiskManifest manifest = new ReferenceDiskManifest();
-    manifest.setImageIdentifier(arguments.imageName);
+    manifest.setImageIdentifier(inputArguments.imageName);
 
-    CountDownLatch countDownLatch = new CountDownLatch(arguments.nThreads);
-    ExecutorService executorService = Executors.newFixedThreadPool(arguments.nThreads);
+    CountDownLatch countDownLatch = new CountDownLatch(inputArguments.nThreads);
+    ExecutorService executorService = Executors.newFixedThreadPool(inputArguments.nThreads);
 
     Path rootPath = rootDirectory.toPath();
     List<ReferenceFile> referenceFiles = Collections.synchronizedList(new ArrayList<>());
-    for (int i = 0; i < arguments.nThreads; i++) {
+    for (int i = 0; i < inputArguments.nThreads; i++) {
       executorService.submit(() -> {
         try {
           doWork(rootPath, referenceFiles, allFilesInRootRecurStack, countDownLatch);
@@ -60,18 +74,12 @@ public class CromwellRefdiskManifestCreatorApp {
     }
 
     countDownLatch.await();
-
-    File manifestFile = new File(arguments.manifestFilePath);
-    if (manifestFile.exists() || !manifestFile.createNewFile()) {
-      logger.error("File " + manifestFile.getAbsolutePath() + " already exists or cannot be created.");
-      printUsageAndExit();
-    } else {
-      referenceFiles.forEach(referenceFile -> manifest.getFiles().add(referenceFile));
-      new ObjectMapper().writerWithDefaultPrettyPrinter().writeValue(manifestFile, manifest);
-      logger.info("Finished. Total number of reference files: " + manifest.getFiles().size());
-    }
-
     executorService.shutdown();
+
+    manifest.getFiles().addAll(referenceFiles);
+    logger.info("Finished created manifest. Total number of reference files: {}", manifest.getFiles().size());
+
+    return manifest;
   }
 
   private static void doWork(Path rootPath,
@@ -96,11 +104,11 @@ public class CromwellRefdiskManifestCreatorApp {
       refFile.setCrc32c(crc32c);
 
       interimResult.add(refFile);
-      logger.info(Thread.currentThread().getName() + " finished processing file " + curFile.getAbsolutePath());
+      logger.info( "{} finished processing file {}", Thread.currentThread().getName(), curFile.getAbsolutePath());
     }
     accumulator.addAll(interimResult);
 
-    logger.info("Thread " + Thread.currentThread().getName() + " finished processing.");
+    logger.info("Thread {} finished processing.", Thread.currentThread().getName());
     countDownLatch.countDown();
   }
 
@@ -168,7 +176,7 @@ public class CromwellRefdiskManifestCreatorApp {
     System.exit(1);
   }
 
-  private static class Arguments {
+  static class Arguments {
 
     int nThreads;
     String imageName;

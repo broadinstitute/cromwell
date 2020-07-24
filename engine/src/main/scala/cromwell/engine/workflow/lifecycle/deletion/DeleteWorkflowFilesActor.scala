@@ -162,7 +162,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
       stay
     case Event(ShutdownCommand, _) => stopSelf()
     case other =>
-      log.error(s"Programmer Error: Unexpected message to ${getClass.getSimpleName} ${self.path.name} in state $stateName with $stateData: $other")
+      log.error(s"Programmer Error: Unexpected message to ${getClass.getSimpleName} ${self.path.name} in state $stateName with $stateData: ${other.toString.take(300)}")
       stay()
   }
 

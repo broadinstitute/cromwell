@@ -4,10 +4,13 @@ import java.io.FileNotFoundException
 
 import akka.actor.ActorRef
 import akka.testkit.{TestFSMRef, TestProbe}
+import common.util.Backoff
 import cromwell.core._
+import cromwell.core.actor.StreamIntegration.BackPressure
 import cromwell.core.io.{IoDeleteCommand, IoFailure, IoSuccess}
 import cromwell.core.path.Path
 import cromwell.core.path.PathFactory.PathBuilders
+import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.engine.io.IoAttempts.EnhancedCromwellIoException
 import cromwell.engine.workflow.lifecycle.deletion.DeleteWorkflowFilesActor.{StartWorkflowFilesDeletion, WaitingForIoResponses}
 import cromwell.filesystems.gcs.batch.GcsBatchDeleteCommand
@@ -107,6 +110,51 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
     testProbe.expectTerminated(testDeleteWorkflowFilesActor, 10.seconds)
   }
 
+  it should "be resilient to backpressure from the IoActor in an otherwise golden-path lifecycle" in {
+
+    testDeleteWorkflowFilesActor ! StartWorkflowFilesDeletion
+
+    serviceRegistryActor.expectMsgPF(10.seconds) {
+      case m: PutMetadataAction =>
+        val event = m.events.head
+        m.events.size shouldBe 1
+        event.key.workflowId shouldBe rootWorkflowId
+        event.key.key shouldBe WorkflowMetadataKeys.FileDeletionStatus
+        event.value.get.value shouldBe FileDeletionStatus.toDatabaseValue(InProgress)
+    }
+
+    val expectedDeleteCommand = GcsBatchDeleteCommand(gcsFilePath, swallowIOExceptions = false)
+
+    ioActor.expectMsgPF(10.seconds) {
+      case `expectedDeleteCommand` => // woohoo!
+    }
+
+    eventually {
+      testDeleteWorkflowFilesActor.stateName shouldBe WaitingForIoResponses
+    }
+
+    // Simulate a few backpressure events before we get the success:
+    (0.until(10)) foreach { _ =>
+      ioActor.send(testDeleteWorkflowFilesActor, BackPressure(expectedDeleteCommand))
+      ioActor.expectMsgPF(10.seconds) {
+        case cmd: IoDeleteCommand => cmd.file shouldBe gcsFilePath
+        case other => fail(s"Bad message: $other")
+      }
+    }
+
+    ioActor.send(testDeleteWorkflowFilesActor, IoSuccess(expectedDeleteCommand, ()))
+
+    serviceRegistryActor.expectMsgPF(10.seconds) {
+      case m: PutMetadataAction =>
+        val event = m.events.head
+        m.events.size shouldBe 1
+        event.key.workflowId shouldBe rootWorkflowId
+        event.key.key shouldBe WorkflowMetadataKeys.FileDeletionStatus
+        event.value.get.value shouldBe FileDeletionStatus.toDatabaseValue(Succeeded)
+    }
+
+    testProbe.expectTerminated(testDeleteWorkflowFilesActor, 10.seconds)
+  }
 
   it should "send failure when delete is unsuccessful for a file" in {
 
@@ -298,4 +346,7 @@ class MockDeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
     pathBuilders,
     serviceRegistryActor,
     ioActor
-  )
+  ) {
+  // Override the IO actor backoff for the benefit of the backpressure tests:
+  override def initialBackoff(): Backoff = SimpleExponentialBackoff(100.millis, 1.second, 1.2D)
+}

@@ -36,19 +36,9 @@ class ExecutionStoreSpec extends FlatSpec with Matchers with BeforeAndAfter {
     store.store(WaitingForQueueSpace).size should be(9000)
     store.store.contains(Running) should be(false)
 
+    var iteration = 0
     while(store.store.getOrElse(Running, List.empty).size < 10000) {
       store = store.updateKeys(store.store(QueuedInCromwell).map(j => j -> Running).toMap)
-      updateStoreToEnqueueNewlyRunnableJobs()
-    }
-  }
-
-  it should "never enqueue more than the total allowed queue space" in {
-
-    updateStoreToEnqueueNewlyRunnableJobs()
-
-    while(store.store.getOrElse(Running, List.empty).size < 10000) {
-      val newlyRunning = Random.nextInt(1000)
-      store = store.updateKeys(store.store(QueuedInCromwell).take(newlyRunning).map(j => j -> Running).toMap)
       updateStoreToEnqueueNewlyRunnableJobs()
 
       // In all situations, the queue should never go above the queue limit:
@@ -56,6 +46,34 @@ class ExecutionStoreSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
       // Additionally, as long as elements are waiting for queue space, the queue should be exactly 1000 long
       if (store.store.contains(WaitingForQueueSpace)) { store.store(QueuedInCromwell).size should be(1000) }
+
+      iteration = iteration + 1
+      store.store.getOrElse(Running, List.empty).size should be(iteration * 1000)
+    }
+  }
+
+  it should "never enqueue more than the total allowed queue space" in {
+
+    updateStoreToEnqueueNewlyRunnableJobs()
+
+    store.store(QueuedInCromwell).size should be(1000)
+    store.store(WaitingForQueueSpace).size should be(9000)
+    store.store.contains(Running) should be(false)
+    var currentlyRunning = 0
+
+    while(store.store.getOrElse(Running, List.empty).size < 10000) {
+      val newlyRunning: Iterable[JobKey] = store.store(QueuedInCromwell).take(Random.nextInt(1000))
+      store = store.updateKeys(newlyRunning.map(j => j -> Running).toMap)
+      updateStoreToEnqueueNewlyRunnableJobs()
+
+      // In all situations, the queue should never go above the queue limit:
+      (store.store.getOrElse(QueuedInCromwell, List.empty).size <= 1000) should be(true)
+
+      // Additionally, as long as elements are waiting for queue space, the queue should be exactly 1000 long
+      if (store.store.contains(WaitingForQueueSpace)) { store.store(QueuedInCromwell).size should be(1000) }
+
+      store.store.getOrElse(Running, List.empty).size should be(currentlyRunning + newlyRunning.size)
+      currentlyRunning = currentlyRunning + newlyRunning.size
     }
   }
 }

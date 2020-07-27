@@ -154,7 +154,7 @@ final case class SealedExecutionStore private[stores](private val statusStore: M
 sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, ExecutionStatus], val needsUpdate: Boolean) {
   // View of the statusStore more suited for lookup based on status
   lazy val store: Map[ExecutionStatus, List[JobKey]] = statusStore.groupBy(_._2).safeMapValues(_.keys.toList)
-  lazy val startableJobLimit = {
+  lazy val queueableJobLimit = {
     val diff = MaxJobsAllowedInQueuedState - queuedJobs
     if (diff < 0) 0 else diff
   }
@@ -281,7 +281,7 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
         // Even if the key is runnable, if it's a call key and there's already too many queued jobs,
         // don't start it and mark it as WaitingForQueueSpace
         // TODO maybe also limit the number of expression keys to run somehow ?
-        case callKey: CallKey if runnable && startableJobLimit <= 0 =>
+        case callKey: CallKey if runnable && queueableJobLimit <= 0 =>
           internalUpdates = internalUpdates + (callKey -> WaitingForQueueSpace)
           false
         case _ => runnable
@@ -289,16 +289,16 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     }
 
     // If the queued jobs are not above the threshold, use the nodes that are already waiting for queue space
-    val runnableWaitingForQueueSpace = if (startableJobLimit > 0) keysWithStatus(WaitingForQueueSpace).toStream else Stream.empty[JobKey]
+    val runnableWaitingForQueueSpace = if (queueableJobLimit > 0) keysWithStatus(WaitingForQueueSpace).toStream else Stream.empty[JobKey]
 
     // Start with keys that are waiting for queue space as we know they're runnable already. Then filter the not started ones
     val readyToStart = runnableWaitingForQueueSpace ++ keysWithStatus(NotStarted).toStream.filter(filterFunction)
 
-    // Compute the first ExecutionStore.MaxJobsToStartPerTick + 1 runnable keys
-    val keysToStartPlusOne = readyToStart.take(startableJobLimit + 1).toList
+    // Take up to queueableJobLimit + 1 runnable keys
+    val keysToStartPlusOne = readyToStart.take(queueableJobLimit + 1).toList
 
     // Will be true if the result is truncated, in which case we'll need to do another pass later
-    val truncated = keysToStartPlusOne.size > startableJobLimit
+    val truncated = keysToStartPlusOne.size > queueableJobLimit
 
     // If we found unstartable keys, update their status, and set needsUpdate to true (it might unblock other keys)
     val updated = if (internalUpdates.nonEmpty) {
@@ -309,7 +309,7 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
       // Otherwise we can reset it, nothing else will be runnable / unstartable until some new keys become terminal
     } else withNeedsUpdateFalse
 
-    // Only take the first ExecutionStore.MaxJobsToStartPerTick from the above list.
-    ExecutionStoreUpdate(keysToStartPlusOne.take(startableJobLimit), updated, internalUpdates)
+    // Only take the first queueableJobLimit keys from the list.
+    ExecutionStoreUpdate(keysToStartPlusOne.take(queueableJobLimit), updated, internalUpdates)
   } else ExecutionStoreUpdate(List.empty, this, Map.empty)
 }

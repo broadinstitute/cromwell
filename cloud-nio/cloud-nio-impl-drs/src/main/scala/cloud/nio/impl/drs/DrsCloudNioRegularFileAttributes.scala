@@ -8,7 +8,7 @@ import cloud.nio.spi.CloudNioRegularFileAttributes
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 
-class DrsCloudNioRegularFileAttributes(drsPath: String, drsPathResolver: DrsPathResolver) extends CloudNioRegularFileAttributes{
+class DrsCloudNioRegularFileAttributes(drsPath: String, drsPathResolver: EngineDrsPathResolver) extends CloudNioRegularFileAttributes{
 
   private val priorityHashList: Seq[String] = Seq("crc32c", "md5", "sha256")
 

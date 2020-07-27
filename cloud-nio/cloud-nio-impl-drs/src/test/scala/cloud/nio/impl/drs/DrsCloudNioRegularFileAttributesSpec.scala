@@ -16,7 +16,7 @@ class DrsCloudNioRegularFileAttributesSpec extends FlatSpecLike with Matchers {
 //  private def drsReadInterpreter(marthaResponse: MarthaResponse): IO[ReadableByteChannel] =
 //    throw new UnsupportedOperationException("Currently DrsResolverSpec doesn't need to use drs read interpreter.")
 
-  val mockDrsPathResolver = new MockDrsPathResolver(fakeDrsConfig, httpClientBuilder, fakeCredentials, accessTokenAcceptableTTL)
+  val mockDrsPathResolver = new MockEngineDrsPathResolver(fakeDrsConfig, httpClientBuilder, fakeCredentials, accessTokenAcceptableTTL)
   val mockDrsFileAttributes = new MockDrsCloudNioRegularFileAttributes(MockDrsPaths.drsPathResolvingGcsPath, mockDrsPathResolver)
 
   behavior of "fileHash()"

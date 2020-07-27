@@ -3,14 +3,11 @@ package drs.localizer
 import java.nio.file.{Files, Path}
 
 import cats.effect.{ExitCode, IO, IOApp}
-import com.google.auth.oauth2.GoogleCredentials
+import cloud.nio.impl.drs.DrsConfig
 import com.softwaremill.sttp._
-import com.softwaremill.sttp.circe._
-import drs.localizer.MarthaResponseJsonSupport._
+import org.apache.http.impl.client.HttpClientBuilder
 import org.slf4j.LoggerFactory
-import io.circe.parser._
 
-import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.sys.process._
 
@@ -53,56 +50,17 @@ object DrsLocalizerMain extends IOApp {
 
 
   def resolveAndDownload(drsUrl: String, downloadLoc: String, requesterPaysId: Option[String]): IO[ExitCode] = {
+    val httpClientBuilder = HttpClientBuilder.create()
+    val requestTemplate = """{"url": "${drsPath}"}"""
     for {
-      marthaUrlString <- IO(sys.env("MARTHA_URL"))
-      marthaUri <- IO(uri"$marthaUrlString")
-      marthaResponse <- resolveDrsThroughMartha(drsUrl, marthaUri)
-      _ = httpBackendConnection.close()
+      marthaUrl <- IO(sys.env("MARTHA_URL"))
+      drsConfig = DrsConfig(marthaUrl, requestTemplate)
+      localizerDrsPathResolver = new LocalizerDrsPathResolver(drsConfig, httpClientBuilder)
+      marthaResponse <- localizerDrsPathResolver.resolveDrsThroughMartha(drsUrl)
       // Currently Martha only supports resolving DRS paths to GCS paths
       gcsUrl <- IO.fromEither(marthaResponse.gsUri.toRight(new Exception(ExtractGcsUrlErrorMsg)))
       exitState <- downloadFileFromGcs(gcsUrl, marthaResponse.googleServiceAccount.map(_.data.toString), downloadLoc, requesterPaysId)
     } yield exitState
-  }
-
-
-  private def resolveDrsThroughMartha(drsUrl: String, marthaUrl: Uri): IO[MarthaResponse] = {
-    val requestBody = raw"""{"url":"$drsUrl"}"""
-    val marthaErrorMsg = s"Something went wrong while trying to resolve $drsUrl through Martha $marthaUrl."
-
-    logger.info(s"Resolving DRS uri `$drsUrl` through Martha")
-
-    val scopedCredentials = GoogleCredentials.getApplicationDefault().createScoped(UserInfoScopes.asJava)
-    val accessToken = scopedCredentials.refreshAccessToken().getTokenValue
-
-    val request = sttp
-      .headers(Map(HeaderNames.ContentType -> MediaTypes.Json, "Authorization" -> s"Bearer $accessToken"))
-      .body(requestBody)
-      .post(marthaUrl)
-      .response(asJson[MarthaResponse])
-      .readTimeout(5.minutes)
-
-    val response = request.send()
-
-    response.body match {
-      // non-2xx status code
-      case Left(errorString) => {
-        val errorJsonEither = parse(errorString)
-        val additionalErrorDetails = errorJsonEither match {
-          case Left(parseError) => s"Something went wrong while parsing the error response from Martha. Parsing error: ${parseError.message}. " +
-            s"Entire error response received from Martha as String: $errorString"
-          case Right(parsedJson) => parsedJson.asObject.map(jsonObj => jsonObj.keys)
-        }
-        IO.raiseError(new Exception(s"$marthaErrorMsg Expected 200 but got ${response.code} from Martha. $additionalErrorDetails"))
-      }
-      case Right(marthaResponseEither) => {
-        logger.info("Received successful response from Martha")
-        marthaResponseEither match {
-          case Left(deserializationError) => IO.raiseError(new Exception(s"$marthaErrorMsg Failed to parse Martha response. " +
-            s"Deserialization error: ${deserializationError.message}"))
-          case Right(marthaResponse) => IO(marthaResponse)
-        }
-      }
-    }
   }
 
 

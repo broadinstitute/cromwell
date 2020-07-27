@@ -11,7 +11,7 @@ import org.apache.http.impl.client.HttpClientBuilder
 
 
 class DrsCloudNioFileProvider(scheme: String,
-                              drsPathResolver: DrsPathResolver,
+                              drsPathResolver: EngineDrsPathResolver,
                               httpClientBuilder: HttpClientBuilder,
                               drsReadInterpreter: MarthaResponse => IO[ReadableByteChannel]) extends CloudNioFileProvider {
 

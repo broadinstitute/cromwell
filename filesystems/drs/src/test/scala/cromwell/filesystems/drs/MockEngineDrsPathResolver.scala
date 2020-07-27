@@ -6,16 +6,15 @@ import cats.effect.IO
 import cloud.nio.impl.drs._
 import com.google.auth.oauth2.OAuth2Credentials
 import com.typesafe.config.Config
-import io.circe.{Json, JsonObject}
 import org.apache.http.impl.client.HttpClientBuilder
 
 import scala.concurrent.duration.Duration
 
 
-class MockDrsPathResolver(drsConfig: DrsConfig,
-                          httpClientBuilder: HttpClientBuilder,
-                          credentials: OAuth2Credentials,
-                          accessTokenAcceptableTTL: Duration) extends DrsPathResolver(drsConfig, httpClientBuilder, accessTokenAcceptableTTL, credentials){
+class MockEngineDrsPathResolver(drsConfig: DrsConfig,
+                                httpClientBuilder: HttpClientBuilder,
+                                credentials: OAuth2Credentials,
+                                accessTokenAcceptableTTL: Duration) extends EngineDrsPathResolver(drsConfig, httpClientBuilder, accessTokenAcceptableTTL, credentials){
 
   private lazy val mockMarthaUri = drsConfig.marthaUri
 
@@ -24,16 +23,14 @@ class MockDrsPathResolver(drsConfig: DrsConfig,
   val marthaObjWithNoGcsPath: IO[MarthaResponse] = createMarthaResponse(None)
 
   private def createMarthaResponse(url: Option[String]): IO[MarthaResponse] =  {
-    val hashesObj = JsonObject(
-      "md5" -> Json.fromString("336ea55913bc261b72875bd259753046"),
-      "sha256" -> Json.fromString("f76877f8e86ec3932fd2ae04239fbabb8c90199dab0019ae55fa42b31c314c44"),
-      "crc32c" -> Json.fromString("8a366443")
+    val hashesObj = Map(
+      "md5" -> "336ea55913bc261b72875bd259753046",
+      "sha256" -> "f76877f8e86ec3932fd2ae04239fbabb8c90199dab0019ae55fa42b31c314c44",
+      "crc32c" -> "8a366443"
     )
 
     val drsResponse = MarthaResponse(
-      contentType = Option("application/octet-stream"),
       size = Option(156018255),
-      timeCreated = Option("2020-04-27T15:56:09.696Z"),
       timeUpdated = Option("2020-04-27T15:56:09.696Z"),
       bucket = Option("my-bucket"),
       name = Option("dd3c716a-852f-4d74-9073-9920e835ec8a/f3b148ac-1802-4acc-a0b9-610ea266fb61"),
@@ -65,7 +62,7 @@ class MockDrsCloudNioFileSystemProvider(config: Config,
 
   private lazy val accessTokenAcceptableTTL: Duration = Duration.Inf
 
-  override lazy val drsPathResolver: DrsPathResolver = new MockDrsPathResolver(fakeDrsConfig , httpClientBuilder, credentials, accessTokenAcceptableTTL)
+  override lazy val drsPathResolver: EngineDrsPathResolver = new MockEngineDrsPathResolver(fakeDrsConfig , httpClientBuilder, credentials, accessTokenAcceptableTTL)
 }
 
 

@@ -26,9 +26,9 @@ class MockDrsPathResolver(drsConfig: DrsConfig,
       "sha256" -> "f76877f8e86ec3932fd2ae04239fbabb8c90199dab0019ae55fa42b31c314c44",
       "crc32c" -> "8a366443",
       "md5" -> "336ea55913bc261b72875bd259753046",
-      "bec" -> "abc123",
-      "saloni" -> "456",
-      "alfred" -> "xrd",
+//      "bec" -> "abc123",
+//      "saloni" -> "456",
+//      "alfred" -> "xrd",
     )
 
     val drsResponse = MarthaResponse(

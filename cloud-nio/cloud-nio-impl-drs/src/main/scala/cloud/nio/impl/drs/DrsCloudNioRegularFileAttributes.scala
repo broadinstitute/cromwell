@@ -10,6 +10,8 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 
 class DrsCloudNioRegularFileAttributes(drsPath: String, drsPathResolver: DrsPathResolver) extends CloudNioRegularFileAttributes{
 
+  private val priorityHashList: Seq[String] = Seq("crc32c", "md5", "sha256")
+
   private def createMissingKeyException(missingKey: String) = {
     new RuntimeException(s"Failed to resolve DRS path $drsPath. The response from Martha doesn't contain the key '$missingKey'.")
   }
@@ -23,42 +25,21 @@ class DrsCloudNioRegularFileAttributes(drsPath: String, drsPathResolver: DrsPath
 
 
   override def fileHash: Option[String] = {
-    /* ###### ANOTHER APPROACH FOR GETTING HASHES #######
-    val predicates = List[String => Boolean](
-      x => x.equalsIgnoreCase("crc32c"),
-      x => x.equalsIgnoreCase("md5"),
-      x => x.equalsIgnoreCase("sha256")
-    )
-    val indexedPredicates = predicates.reverse.zipWithIndex
-    def score(x: String): Option[Int] = indexedPredicates.find(_._1(x)).map(_._2)
-
-    def priorityFind( l: List[String] ): Option[String] = {
-      val filtered = l.view.flatMap{x => score(x).map(x -> _) }
-      if ( filtered.isEmpty ) None
-      else Some( filtered.maxBy(_._2)._1 )
-    }
-     */
-
-    drsPathResolver.resolveDrsThroughMartha(drsPath).map((marthaResponse: MarthaResponse) => {
-
-      println(s"############## MARTHA RESPONSE ##############")
-      println(marthaResponse.hashes)
-
-      val maybeHashes: Option[Map[String, String]] = marthaResponse.hashes
-      val hashes: Map[String, String] = maybeHashes match {
-        case Some(value) => value
-        case None => throw createMissingKeyException("hashes")
-      }
-
-      val preferredHash: Option[String] = List("crc32c", "md5", "sha256").collectFirst {
-        case k if hashes.contains(k) => hashes(k)
+    def getPreferredHash(hashes: Map[String, String]): Option[String] = {
+      val preferredHash: Option[String] = priorityHashList.collectFirst {
+        case hashKey if hashes.contains(hashKey) => hashes(hashKey)
       }
 
       preferredHash match {
-        case Some(hash) =>
-          Option(hash)
-        case None =>
-          Option(hashes.toSeq.minBy(_._1)._2)
+        case Some(_) => preferredHash
+        case None => Option(hashes.toSeq.minBy(_._1)._2)
+      }
+    }
+
+    drsPathResolver.resolveDrsThroughMartha(drsPath).map( marthaResponse => {
+      marthaResponse.hashes match {
+        case Some(hashes) => getPreferredHash(hashes)
+        case None => throw createMissingKeyException("hashes")
       }
     }).unsafeRunSync()
   }

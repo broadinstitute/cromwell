@@ -65,7 +65,7 @@ public class CromwellRefdiskManifestCreatorApp {
     for (int i = 0; i < inputArguments.nThreads; i++) {
       executorService.submit(() -> {
         try {
-          doWork(rootPath, referenceFiles, allFilesInRootRecurStack, countDownLatch);
+          processFileStackIntoReferences(rootPath, referenceFiles, allFilesInRootRecurStack, countDownLatch);
         } catch (CRC32CException e) {
           logger.error("Error occurred. Shutting down.", e);
           System.exit(1);
@@ -82,7 +82,7 @@ public class CromwellRefdiskManifestCreatorApp {
     return manifest;
   }
 
-  private static void doWork(Path rootPath,
+  private static void processFileStackIntoReferences(Path rootPath,
                              List<ReferenceFile> accumulator,
                              Stack<File> fileStack,
                              CountDownLatch countDownLatch) throws CRC32CException {

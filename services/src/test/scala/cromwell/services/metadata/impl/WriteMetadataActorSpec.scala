@@ -284,7 +284,23 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
       notImplemented()
     }
 
-    override def getMetadataTotalRowNumberByRootWorkflowId(rootWorkflowId: String, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
+    override def countMetadataEntries(workflowExecutionUuid: String, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
+      notImplemented()
+    }
+
+    override def countMetadataEntries(workflowExecutionUuid: String, metadataKey: String, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
+      notImplemented()
+    }
+
+    override def countMetadataEntries(workflowExecutionUuid: String, callFullyQualifiedName: String, jobIndex: Option[Int], jobAttempt: Option[Int], timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
+      notImplemented()
+    }
+
+    override def countMetadataEntries(workflowUuid: String, metadataKey: String, callFullyQualifiedName: String, jobIndex: Option[Int], jobAttempt: Option[Int], timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
+      notImplemented()
+    }
+
+    override def countMetadataEntryWithKeyConstraints(workflowExecutionUuid: String, metadataKeysToFilterFor: List[String], metadataKeysToFilterAgainst: List[String], metadataJobQueryValue: MetadataJobQueryValue, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
       notImplemented()
     }
   }

@@ -8,20 +8,22 @@ import cromwell.core.{WorkflowId, WorkflowMetadataKeys}
 import cromwell.database.migration.metadata.table.symbol.MetadataStatement._
 import cromwell.database.slick.MetadataSlickDatabase
 import cromwell.database.slick.MetadataSlickDatabase.SummarizationPartitionedMetadata
+import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, WorkflowQuery}
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 import cromwell.services.metadata.CallMetadataKeys
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.{FlatSpec, Matchers}
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
 class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures {
 
   DatabaseSystem.All foreach { databaseSystem =>
 
-    implicit val ec = ExecutionContext.global
+    implicit val ec: ExecutionContextExecutor = ExecutionContext.global
 
     behavior of s"MetadataSlickDatabase on ${databaseSystem.name}"
 
@@ -35,6 +37,8 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
     it should "start container if required" taggedAs DbmsTest in {
       containerOpt.foreach { _.start }
     }
+
+    val rootCountableId = "root workflow id: countable stuff"
 
     it should "set up the test data" taggedAs DbmsTest in {
       database.runTestTransaction(
@@ -53,6 +57,18 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
           MetadataEntry("nested subworkflows: first nesting", None, None, None, "please do delete me", None, None, OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry("nested subworkflows: second nesting", None, None, None, "please do delete me", None, None, OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry("nested subworkflows: third nesting", None, None, None, "please do delete me", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+
+          // Workflow level
+          MetadataEntry(rootCountableId, None, None, None, "includableKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(rootCountableId, None, None, None, "excludableKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          // Call level
+          MetadataEntry(rootCountableId, Option("includableCall"), Option(0), Option(1), "includableKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(rootCountableId, Option("includableCall"), Option(0), Option(1), "excludableKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          //   Excludable call index
+          MetadataEntry(rootCountableId, Option("includableCall"), Option(1), Option(1), "includableKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          //   Excludable call attempt
+          MetadataEntry(rootCountableId, Option("includableCall"), Option(0), Option(2), "includableKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(rootCountableId, Option("excludableCall"), Option(0), Option(1), "whateverKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
         )
       ).futureValue(Timeout(10.seconds))
 
@@ -67,6 +83,8 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
           WorkflowMetadataSummaryEntry("nested subworkflows: first nesting", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option("nested subworkflows: root"), Option("nested subworkflows: root"), None, None),
           WorkflowMetadataSummaryEntry("nested subworkflows: second nesting", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option("nested subworkflows: first nesting"), Option("nested subworkflows: root"), None, None),
           WorkflowMetadataSummaryEntry("nested subworkflows: third nesting", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option("nested subworkflows: second nesting"), Option("nested subworkflows: root"), None, None),
+
+          WorkflowMetadataSummaryEntry(rootCountableId, Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), None, None, None, None)
         )
       ).futureValue(Timeout(10.seconds))
     }
@@ -84,6 +102,62 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
     it should "delete the right number of rows for a nested subworkflow" taggedAs DbmsTest in {
       val delete = database.deleteNonLabelMetadataForWorkflowAndUpdateArchiveStatus("nested subworkflows: root", None)
       delete.futureValue(Timeout(10.seconds)) should be(4)
+    }
+
+    it should "count up rows" taggedAs DbmsTest in {
+      // Everything
+      {
+        val count = database.countMetadataEntries(rootCountableId, 10 seconds)
+        count.futureValue(Timeout(10.seconds)) should be(7)
+      }
+
+      // Only includable keys - this looks for workflow level data only
+      {
+        val count = database.countMetadataEntries(rootCountableId, "includableKey", 10 seconds)
+        count.futureValue(Timeout(10.seconds)) should be(1)
+      }
+
+      {
+        val count = database.countMetadataEntries(rootCountableId, "includableCall", Option(0), Option(1), 10 seconds)
+        count.futureValue(Timeout(10 seconds)) should be(2)
+      }
+
+      {
+        val count = database.countMetadataEntries(rootCountableId, "includableKey", "includableCall", Option(0), Option(1), 10 seconds)
+        count.futureValue(Timeout(10 seconds)) should be(1)
+      }
+
+      {
+        val count = database.countMetadataEntryWithKeyConstraints(
+          workflowExecutionUuid = rootCountableId,
+          metadataKeysToFilterFor = List("includable%"),
+          metadataKeysToFilterOut = List("excludable%"),
+          CallQuery("includableCall", Option(0), Option(1)),
+          10 seconds)
+        count.futureValue(Timeout(10 seconds)) should be(1)
+      }
+
+      {
+        val count = database.countMetadataEntryWithKeyConstraints(
+          workflowExecutionUuid = rootCountableId,
+          metadataKeysToFilterFor = List("includable%"),
+          metadataKeysToFilterOut = List("excludable%"),
+          CallOrWorkflowQuery,
+          10 seconds
+        )
+        count.futureValue(Timeout(10 seconds)) should be(4)
+      }
+
+      {
+        val count = database.countMetadataEntryWithKeyConstraints(
+          workflowExecutionUuid = rootCountableId,
+          metadataKeysToFilterFor = List("includable%"),
+          metadataKeysToFilterOut = List("excludable%"),
+          WorkflowQuery,
+          10 seconds
+        )
+        count.futureValue(Timeout(10 seconds)) should be(1)
+      }
     }
 
     it should "clean up & close the database" taggedAs DbmsTest in {
@@ -209,7 +283,7 @@ class MetadataSlickDatabaseSpec extends FlatSpec with Matchers with ScalaFutures
         thingsThatLookKindOfLikeTheRightWorkflowKeysButActuallyAreNotAndAreCallScopedAnyway
 
       val partitioned = partition(rightKeysWorkflowLevel ++ allTheWrongThings)
-      partitioned.nonSummarizableMetadata.toSet shouldBe (allTheWrongThings).toSet
+      partitioned.nonSummarizableMetadata.toSet shouldBe allTheWrongThings.toSet
       partitioned.summarizableMetadata shouldBe rightKeysWorkflowLevel
     }
   }

@@ -22,7 +22,7 @@ object ExecutionStore {
 
   type StatusTable = Table[GraphNode, ExecutionIndex.ExecutionIndex, JobKey]
 
-  val MaxJobsToStartPerTick = 1000
+  val MaxJobsToStartPerTick = 10
 
   implicit class EnhancedJobKey(val key: JobKey) extends AnyVal {
     /**

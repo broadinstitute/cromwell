@@ -1,6 +1,6 @@
 package cromwell.backend.sfs
 
-import java.nio.file.FileAlreadyExistsException
+//import java.nio.file.FileAlreadyExistsException
 import java.time.Instant
 
 import cromwell.backend._
@@ -232,35 +232,45 @@ trait SharedFileSystemAsyncJobExecutionActor
 
   override def requestsAbortAndDiesImmediately: Boolean = false
 
-  override def tryAbort(job: StandardAsyncJob): Unit = {
-    val returnCodeTmp = jobPaths.returnCode.plusExt("kill")
-    returnCodeTmp.write(s"$SIGTERM\n")
-    try {
-      returnCodeTmp.moveTo(jobPaths.returnCode)
-    } catch {
-      case _: FileAlreadyExistsException =>
-        // If the process has already completed, there will be an existing rc file.
-        returnCodeTmp.delete(true)
-    }
-    val stderrTmp = standardPaths.error.plusExt("kill")
-    stderrTmp.touch()
-    try {
-      stderrTmp.moveTo(standardPaths.error)
-    } catch {
-      case _: FileAlreadyExistsException =>
-        // If the process has already started, there will be an existing stderr file.
-        stderrTmp.delete(true)
-    }
-    val argv = killArgs(job).argv
-    val stdout = standardPaths.output.plusExt("kill")
-    val stderr = standardPaths.error.plusExt("kill")
-    val killer = new ProcessRunner(argv, stdout, stderr)
-    killer.run()
-    ()
-  }
+  var pegAborting: Boolean = false
+  override def tryAbort(job: StandardAsyncJob): Unit = {pegAborting = true}
+//  {
+//    val returnCodeTmp = jobPaths.returnCode.plusExt("kill")
+//    returnCodeTmp.write(s"$SIGTERM\n")
+//    try {
+//      returnCodeTmp.moveTo(jobPaths.returnCode)
+//    } catch {
+//      case _: FileAlreadyExistsException =>
+//        // If the process has already completed, there will be an existing rc file.
+//        returnCodeTmp.delete(true)
+//    }
+//    val stderrTmp = standardPaths.error.plusExt("kill")
+//    stderrTmp.touch()
+//    try {
+//      stderrTmp.moveTo(standardPaths.error)
+//    } catch {
+//      case _: FileAlreadyExistsException =>
+//        // If the process has already started, there will be an existing stderr file.
+//        stderrTmp.delete(true)
+//    }
+//    val argv = killArgs(job).argv
+//    val stdout = standardPaths.output.plusExt("kill")
+//    val stderr = standardPaths.error.plusExt("kill")
+//    val killer = new ProcessRunner(argv, stdout, stderr)
+//    killer.run()
+//    ()
+//  }
 
   override def pollStatus(handle: StandardAsyncPendingExecutionHandle): SharedFileSystemRunState = {
-    if (jobPaths.returnCode.exists) SharedFileSystemJobDone
+    // Fail on shard 50. You can never trust shard 50s:
+    if (pegAborting) {
+      SharedFileSystemJobWaitingForReturnCode(waitUntil = None)
+    }
+    if (jobDescriptor.key.index.contains(50)) {
+//      return SharedFileSystemJobFailed
+      throw new RuntimeException("boo hoo")
+    }
+    else if (jobPaths.returnCode.exists) SharedFileSystemJobDone
     else SharedFileSystemJobWaitingForReturnCode(waitUntil = None)
   }
 

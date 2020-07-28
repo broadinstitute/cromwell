@@ -562,7 +562,6 @@ object Dependencies {
     "org.typelevel" %% "cats-effect" % catsEffectV,
     "com.iheart" %% "ficus" % ficusV,
     "com.softwaremill.sttp" %% "circe" % sttpV,
-    "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV,
   ) ++ circeDependencies ++ catsDependencies ++ slf4jBindingDependencies ++ languageFactoryDependencies
 
   val allProjectDependencies =

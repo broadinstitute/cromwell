@@ -22,5 +22,5 @@ workflow echo_wf {
   input {
     String? str
   }
-  call string_interpolation_task
+  call string_interpolation_task { input: str = str }
 }

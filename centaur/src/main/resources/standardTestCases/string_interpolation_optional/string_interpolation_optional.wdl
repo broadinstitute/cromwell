@@ -12,6 +12,10 @@ task string_interpolation_task {
   output {
     String out = read_string(stdout())
   }
+  
+  runtime {
+    docker: "ubuntu:latest"
+  }
 }
 
 workflow echo_wf {

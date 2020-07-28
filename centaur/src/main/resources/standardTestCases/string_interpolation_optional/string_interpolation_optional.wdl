@@ -19,5 +19,8 @@ task string_interpolation_task {
 }
 
 workflow echo_wf {
+  input {
+    String? str
+  }
   call string_interpolation_task
 }

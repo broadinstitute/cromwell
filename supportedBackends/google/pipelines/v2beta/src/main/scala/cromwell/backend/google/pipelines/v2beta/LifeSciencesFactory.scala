@@ -13,8 +13,10 @@ import com.google.api.services.oauth2.Oauth2Scopes
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.http.HttpCredentialsAdapter
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{GcsTransferConfiguration, VirtualPrivateCloudConfiguration}
+import cromwell.backend.google.pipelines.common.PipelinesApiInput
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiFactoryInterface, PipelinesApiRequestFactory}
+import cromwell.backend.google.pipelines.common.io.PipelinesApiAttachedDisk
 import cromwell.backend.google.pipelines.v2beta.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2beta.api._
 import cromwell.backend.standard.StandardAsyncJob
@@ -129,10 +131,25 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
         }
       }
 
-      // Disks defined in the runtime attributes
-      val disks = createPipelineParameters |> toDisks
-      // Mounts for disks defined in the runtime attributes
-      val mounts = createPipelineParameters |> toMounts
+      // TODO: properly implement case when option is non-empty in order to analyze manifest files and task inputs and
+      //  figure out which reference disks have to be attached
+      def getReferenceDisksToBeMountedFromManifests(manifestFilesOpt: Option[List[String]],
+                                                    fileInputs: List[PipelinesApiInput]): List[PipelinesApiAttachedDisk] = {
+        manifestFilesOpt match {
+          case None => List.empty
+            // TODO: implement this case for reference disks to be mounted
+          case Some(_)  => List.empty
+        }
+      }
+
+      val refDisksToBeMounted =
+        getReferenceDisksToBeMountedFromManifests(createPipelineParameters.referenceDiskLocalizationManifestFiles, createPipelineParameters.inputOutputParameters.fileInputParameters)
+      val allDisksToBeMounted = createPipelineParameters.adjustedSizeDisks ++ refDisksToBeMounted
+
+      // Disks defined in the runtime attributes and reference-files-localization disks
+      val disks = allDisksToBeMounted |> toDisks
+      // Mounts for disks defined in the runtime attributes and reference-files-localization disks
+      val mounts = allDisksToBeMounted |> toMounts
 
       val containerSetup: List[Action] = containerSetupActions(mounts)
       val localization: List[Action] = localizeActions(createPipelineParameters, mounts)

@@ -400,4 +400,14 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
       case _ =>
     }
   }
+
+  it should "parse correct reference-disk-localization-manifest-files config" in {
+    val manifest1Path = "gs://bucket/manifest1.json"
+    val manifest2Path = "gs://bucket/manifest2.json"
+    val manifestConfigStr = s"""reference-disk-localization-manifest-files = ["$manifest1Path", "$manifest2Path"]""".stripMargin
+    val backendConfig =ConfigFactory.parseString(configString(manifestConfigStr))
+
+    val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig, "papi")
+    pipelinesApiAttributes.referenceDiskLocalizationManifestFiles should be(Option(List(manifest1Path, manifest2Path)))
+  }
 }

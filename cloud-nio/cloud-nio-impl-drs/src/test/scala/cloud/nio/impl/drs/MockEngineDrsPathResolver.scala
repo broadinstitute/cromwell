@@ -100,8 +100,6 @@ abstract class MockDrsCloudNioFileSystemProvider(config: Config,
 
   private lazy val fakeDrsConfig = DrsConfig("http://martha-url", "{}")
 
-  private lazy val accessTokenAcceptableTTL: Duration = Duration.Inf
-
   override lazy val drsPathResolver: EngineDrsPathResolver = new MockEngineDrsPathResolver(fakeDrsConfig , httpClientBuilder, credentials, accessTokenAcceptableTTL)
 
   override def fileProvider: CloudNioFileProvider = new MockDrsCloudNioFileProvider(getScheme, drsPathResolver, httpClientBuilder, drsReadInterpreter)

@@ -19,9 +19,10 @@ class DrsCloudNioFileSystemProvider(rootConfig: Config,
 
   private lazy val marthaUri = rootConfig.getString("martha.url")
   private lazy val marthaRequestJsonTemplate = rootConfig.getString("martha.request.json-template")
-  private lazy val drsConfig = DrsConfig(marthaUri, marthaRequestJsonTemplate)
 
-  private lazy val accessTokenAcceptableTTL = rootConfig.as[FiniteDuration]("access-token-acceptable-ttl")
+  lazy val drsConfig = DrsConfig(marthaUri, marthaRequestJsonTemplate)
+
+  lazy val accessTokenAcceptableTTL = rootConfig.as[FiniteDuration]("access-token-acceptable-ttl")
 
   lazy val drsPathResolver = EngineDrsPathResolver(drsConfig, httpClientBuilder, accessTokenAcceptableTTL, authCredentials)
 

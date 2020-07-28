@@ -58,11 +58,9 @@ class MockDrsCloudNioFileSystemProvider(config: Config,
                                         httpClientBuilder: HttpClientBuilder,
                                         drsReadInterpreter: MarthaResponse => IO[ReadableByteChannel]) extends DrsCloudNioFileSystemProvider(config, credentials, httpClientBuilder, drsReadInterpreter) {
 
-  private lazy val fakeDrsConfig = DrsConfig("http://martha-url", "{}")
+  private val accessTokenTTL: Duration = Duration.Inf
 
-  private lazy val accessTokenAcceptableTTL: Duration = Duration.Inf
-
-  override lazy val drsPathResolver: EngineDrsPathResolver = new MockEngineDrsPathResolver(fakeDrsConfig , httpClientBuilder, credentials, accessTokenAcceptableTTL)
+  override lazy val drsPathResolver: EngineDrsPathResolver = new MockEngineDrsPathResolver(drsConfig , httpClientBuilder, credentials, accessTokenTTL)
 }
 
 

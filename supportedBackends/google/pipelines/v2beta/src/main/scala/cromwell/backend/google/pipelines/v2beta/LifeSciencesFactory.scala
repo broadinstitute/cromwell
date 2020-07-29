@@ -142,9 +142,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
         }
       }
 
-      val refDisksToBeMounted =
-        getReferenceDisksToBeMountedFromManifests(createPipelineParameters.referenceDiskLocalizationManifestFiles, createPipelineParameters.inputOutputParameters.fileInputParameters)
-      val allDisksToBeMounted = createPipelineParameters.adjustedSizeDisks ++ refDisksToBeMounted
+      val allDisksToBeMounted = createPipelineParameters.adjustedSizeDisks ++ createPipelineParameters.referenceDisksForLocalization
 
       // Disks defined in the runtime attributes and reference-files-localization disks
       val disks = allDisksToBeMounted |> toDisks

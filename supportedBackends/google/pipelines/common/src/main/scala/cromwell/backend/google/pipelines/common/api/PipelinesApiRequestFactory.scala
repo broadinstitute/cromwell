@@ -84,7 +84,7 @@ object PipelinesApiRequestFactory {
                                       retryWithMoreMemoryKeys: Option[List[String]],
                                       fuseEnabled: Boolean,
                                       allowNoAddress: Boolean,
-                                      referenceDiskLocalizationManifestFiles: Option[List[String]]) {
+                                      referenceDisksForLocalization: List[PipelinesApiAttachedDisk]) {
     def literalInputs = inputOutputParameters.literalInputParameters
     def inputParameters = inputOutputParameters.fileInputParameters
     def outputParameters = inputOutputParameters.fileOutputParameters

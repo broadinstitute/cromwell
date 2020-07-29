@@ -112,17 +112,15 @@ object MarthaResponseSupport {
 
 
   private def extractGcsUrl(urls: Array[Url]): Option[String] = {
-    urls.map { urlObj =>
-      if (urlObj.url.startsWith("gs://")) Option(urlObj.url)
-      else None
-    }.head
+    urls.collectFirst{
+      case urlObj: Url if urlObj.url.startsWith("gs://") => urlObj.url
+    }
   }
-
 
   private def getGcsBucketAndName(gcsUrlOption: Option[String]): (Option[String], Option[String]) = {
     gcsUrlOption match {
       case Some(gcsUrl) =>
-        val array = gcsUrl.substring(5).split("/", 1)
+       val array = gcsUrl.substring(5).split("/", 2)
         (Option(array(0)), Option(array(1)))
       case None => (None, None)
     }

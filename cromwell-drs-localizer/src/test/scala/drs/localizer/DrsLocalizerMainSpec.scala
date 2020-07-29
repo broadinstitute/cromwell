@@ -9,8 +9,6 @@ import org.scalatest.{FlatSpec, Matchers}
 
 class DrsLocalizerMainSpec extends FlatSpec with Matchers {
 
-  val mockDrsLocalizer = new MockDrsLocalizerMain()
-
   val fakeDownloadLocation = "/root/foo/foo-123.bam"
   val fakeRequesterPaysId = "fake-billing-project"
 
@@ -18,28 +16,33 @@ class DrsLocalizerMainSpec extends FlatSpec with Matchers {
   behavior of "DrsLocalizerMain"
 
   it should "fail if drs input is not passed" in {
-    mockDrsLocalizer.run(List(fakeDownloadLocation)).unsafeRunSync() shouldBe ExitCode.Error
+    DrsLocalizerMain.run(List(fakeDownloadLocation)).unsafeRunSync() shouldBe ExitCode.Error
   }
 
   it should "fail if download location is not passed" in {
-    mockDrsLocalizer.run(List(MockDrsPaths.fakeDrsUrl)).unsafeRunSync() shouldBe ExitCode.Error
+    DrsLocalizerMain.run(List(MockDrsPaths.fakeDrsUrl)).unsafeRunSync() shouldBe ExitCode.Error
   }
 
   it should "accept arguments and run successfully without Requester Pays ID" in {
-    mockDrsLocalizer.run(List(MockDrsPaths.fakeDrsUrl, fakeDownloadLocation)).unsafeRunSync() shouldBe ExitCode.Success
+    val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrl, fakeDownloadLocation, None)
+    mockDrsLocalizer.resolveAndDownload().unsafeRunSync() shouldBe ExitCode.Success
   }
 
   it should "run successfully with all 3 arguments" in {
-    mockDrsLocalizer.run(List(MockDrsPaths.fakeDrsUrl, fakeDownloadLocation, fakeRequesterPaysId)).unsafeRunSync() shouldBe ExitCode.Success
+    val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrl, fakeDownloadLocation, Option(fakeRequesterPaysId))
+    mockDrsLocalizer.resolveAndDownload().unsafeRunSync() shouldBe ExitCode.Success
   }
 
   it should "fail and throw error if Martha response does not have gs:// url" in {
+    val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithoutGcsResolution, fakeDownloadLocation, None)
+
     the[RuntimeException] thrownBy {
-      mockDrsLocalizer.run(List(MockDrsPaths.fakeDrsUrlWithoutGcsResolution, fakeDownloadLocation)).unsafeRunSync()
+      mockDrsLocalizer.resolveAndDownload().unsafeRunSync()
     } should have message "No resolved url starting with 'gs://' found from Martha response!"
   }
 
   it should "return correct download script for a drs url without Requester Pays ID and Google SA returned from Martha" in {
+    val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrl, fakeDownloadLocation, None)
     val expectedDownloadScript =
       s"""set -euo pipefail
         |set +e
@@ -63,6 +66,8 @@ class DrsLocalizerMainSpec extends FlatSpec with Matchers {
   }
 
   it should "inject Requester Pays flag & gcloud auth using SA returned from Martha" in {
+    val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrl, fakeDownloadLocation, Option(fakeRequesterPaysId))
+
     val tempCredentialDir: Path = Files.createTempDirectory("gcloudTemp_").toAbsolutePath
     val fakeSAJsonPath: Path = tempCredentialDir.resolve("sa.json")
 
@@ -110,7 +115,9 @@ object MockDrsPaths {
 }
 
 
-class MockDrsLocalizerMain extends DrsLocalizerMain {
+class MockDrsLocalizerMain(drsUrl: String,
+                           downloadLoc: String,
+                           requesterPaysId: Option[String]) extends DrsLocalizerMain(drsUrl, downloadLoc, requesterPaysId) {
 
   override def getDrsPathResolver: IO[LocalizerDrsPathResolver] = {
     val mockDrsConfig = DrsConfig("https://abc/martha_v3", requestTemplate)

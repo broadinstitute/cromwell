@@ -13,10 +13,8 @@ import com.google.api.services.oauth2.Oauth2Scopes
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.http.HttpCredentialsAdapter
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{GcsTransferConfiguration, VirtualPrivateCloudConfiguration}
-import cromwell.backend.google.pipelines.common.PipelinesApiInput
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiFactoryInterface, PipelinesApiRequestFactory}
-import cromwell.backend.google.pipelines.common.io.PipelinesApiAttachedDisk
 import cromwell.backend.google.pipelines.v2beta.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2beta.api._
 import cromwell.backend.standard.StandardAsyncJob
@@ -128,17 +126,6 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
               e => IO.raiseError(new RuntimeException(s"Failed to create Network object for project `${createPipelineParameters.projectId}`. " +
                 s"Error(s): ${ExceptionUtils.getMessage(e)}", e))
             }.unsafeRunSync()
-        }
-      }
-
-      // TODO: properly implement case when option is non-empty in order to analyze manifest files and task inputs and
-      //  figure out which reference disks have to be attached
-      def getReferenceDisksToBeMountedFromManifests(manifestFilesOpt: Option[List[String]],
-                                                    fileInputs: List[PipelinesApiInput]): List[PipelinesApiAttachedDisk] = {
-        manifestFilesOpt match {
-          case None => List.empty
-            // TODO: implement this case for reference disks to be mounted
-          case Some(_)  => List.empty
         }
       }
 

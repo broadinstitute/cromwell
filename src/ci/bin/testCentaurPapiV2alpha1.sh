@@ -18,10 +18,11 @@ cromwell::build::assemble_jars
 
 cromwell::build::run_centaur \
     -p 100 \
-    -e localdockertest \
-    -e relative_output_paths \
-    -e relative_output_paths_colliding \
-    -e standard_output_paths_colliding_prevented \
-    -e papi_v2beta_gcsa \
+    -i drs_usa_jdr \
+#    -e localdockertest \
+#    -e relative_output_paths \
+#    -e relative_output_paths_colliding \
+#    -e standard_output_paths_colliding_prevented \
+#    -e papi_v2beta_gcsa \
 
 cromwell::build::generate_code_coverage

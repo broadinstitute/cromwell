@@ -105,20 +105,20 @@ class DrsLocalizerMain(drsUrl: String, downloadLoc: String, requesterPaysId: Opt
 
     // bash to download the GCS file using gsutil
     val downloadBashScript = s"""set -euo pipefail
-                                |set +e
-                                |
+       |set +e
+       |
        |${setServiceAccount(saJsonPathOption)}
-                                |
+       |
        |# Run gsutil copy without using project flag
-                                |${gcsCopyCommand()} > gsutil_output.txt 2>&1
-                                |RC_GSUTIL=$$?
-                                |if [ "$$RC_GSUTIL" != "0" ]; then
-                                |  ${recoverWithRequesterPays()}
-                                |else
-                                |  echo "Download complete!"
-                                |  exit 0
-                                |fi
-                                |""".stripMargin
+       |${gcsCopyCommand()} > gsutil_output.txt 2>&1
+       |RC_GSUTIL=$$?
+       |if [ "$$RC_GSUTIL" != "0" ]; then
+       |  ${recoverWithRequesterPays()}
+       |else
+       |  echo "Download complete!"
+       |  exit 0
+       |fi
+       |""".stripMargin
 
     // log the script for easier debugging
     DrsLocalizerMain.logger.info(s"Bash script to download file: \n$downloadBashScript")

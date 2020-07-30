@@ -5,6 +5,7 @@ import java.time.OffsetDateTime
 import cats.effect.{IO, Resource}
 import cats.instances.option._
 import cats.instances.string._
+import cloud.nio.impl.drs.MarthaResponseSupport._
 import common.exception.toIO
 import io.circe._
 import io.circe.generic.semiauto._
@@ -18,10 +19,7 @@ import org.apache.http.util.EntityUtils
 import org.apache.http.{HttpResponse, HttpStatus}
 
 
-abstract class DrsPathResolver(drsConfig: DrsConfig,
-                               httpClientBuilder: HttpClientBuilder) {
-
-  import MarthaResponseSupport._
+abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBuilder) {
 
   private val DrsPathToken = "${drsPath}"
 

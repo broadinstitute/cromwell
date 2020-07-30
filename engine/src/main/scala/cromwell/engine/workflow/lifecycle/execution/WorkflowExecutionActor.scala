@@ -529,7 +529,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       case (jobKey, WaitingForQueueSpace) => pushWaitingForQueueSpaceCallMetadata(jobKey)
     })
 
-    val diffValidation = runnableKeys.traverse[ErrorOr, WorkflowExecutionDiff]({
+    val keyStartDiffs: List[WorkflowExecutionDiff] = runnableKeys map { k => k -> (k match {
       case key: BackendJobDescriptorKey => processRunnableJob(key, data)
       case key: SubWorkflowKey => processRunnableSubWorkflow(key, data)
       case key: ConditionalCollectorKey => key.processRunnable(data)
@@ -542,12 +542,16 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       case other =>
         workflowLogger.error(s"${other.tag} is not a runnable key")
         WorkflowExecutionDiff.empty.validNel
-    })
+    })} map {
+      case (key: JobKey, value: ErrorOr[WorkflowExecutionDiff]) => value.valueOr(errors => {
+        self ! JobFailedNonRetryableResponse(key, new Exception(errors.toList.mkString(System.lineSeparator)) with NoStackTrace, None)
+        // Don't update the execution store now - the failure message we just sent to ourselves will take care of that:
+        WorkflowExecutionDiff.empty
+      })
+    }
 
     // Merge the execution diffs upon success
-    diffValidation.map(diffs => updateExecutionStore(diffs, updatedData)).valueOr(errors =>
-      throw AggregatedMessageException("Workflow execution failure", errors.toList)
-    )
+    updateExecutionStore(keyStartDiffs, updatedData)
   }
 
   /*
@@ -608,7 +612,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
       // Any other case is unexpected and is considered a failure (we should not be trying to start a job in any other state)
       case other =>
-        s"Cannot start job ${key.tag} in $other state with restarting = $restarting".invalidNelCheck
+        s"Will not start job ${key.tag} when workflow state is '$other' and when 'restarting'=$restarting".invalidNelCheck
     }
 
     (for {

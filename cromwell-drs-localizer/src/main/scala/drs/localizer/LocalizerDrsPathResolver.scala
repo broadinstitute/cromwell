@@ -6,12 +6,13 @@ import org.apache.http.impl.client.HttpClientBuilder
 
 import scala.collection.JavaConverters._
 
+
 class LocalizerDrsPathResolver(drsConfig: DrsConfig,
                                httpClientBuilder: HttpClientBuilder) extends DrsPathResolver(drsConfig, httpClientBuilder) {
 
-  private val UserInfoEmailScope = "https://www.googleapis.com/auth/userinfo.email"
-  private val UserInfoProfileScope = "https://www.googleapis.com/auth/userinfo.profile"
-  private val UserInfoScopes = List(UserInfoEmailScope, UserInfoProfileScope)
+  private final val UserInfoEmailScope = "https://www.googleapis.com/auth/userinfo.email"
+  private final val UserInfoProfileScope = "https://www.googleapis.com/auth/userinfo.profile"
+  private final val UserInfoScopes = List(UserInfoEmailScope, UserInfoProfileScope)
 
   override def getAccessToken: String = {
     val scopedCredentials = GoogleCredentials.getApplicationDefault().createScoped(UserInfoScopes.asJava)

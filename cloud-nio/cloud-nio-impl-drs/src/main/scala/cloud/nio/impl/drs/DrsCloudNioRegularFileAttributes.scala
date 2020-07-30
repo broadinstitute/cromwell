@@ -61,10 +61,8 @@ object DrsCloudNioRegularFileAttributes {
       case hashKey if hashes.contains(hashKey) => hashes(hashKey)
     }
 
-    preferredHash match {
-      case Some(_) => preferredHash
-      case None => Option(hashes.toSeq.minBy(_._1)._2)
-    }
+    // if no preferred hash was found, sort the hashes alphabetically by type and take the first one
+    Option(preferredHash.getOrElse(hashes.toSeq.minBy(_._1)._2))
   }
 
   def createMissingKeyException(drsPath: String, missingKey: String) = {

@@ -39,14 +39,12 @@ object DrsLocalizerMain extends IOApp {
 
 class DrsLocalizerMain(drsUrl: String, downloadLoc: String, requesterPaysId: Option[String]) {
 
-  val httpClientBuilder = HttpClientBuilder.create()
-  val requestTemplate = """{"url": "${drsPath}"}"""
+  private final val RequesterPaysErrorMsg = "Bucket is requester pays bucket but no user project provided."
+  private final val ExtractGcsUrlErrorMsg = "No resolved url starting with 'gs://' found from Martha response!"
 
-  val GcsScheme = "gs://"
-  val RequesterPaysErrorMsg = "Bucket is requester pays bucket but no user project provided."
-  val ExtractGcsUrlErrorMsg = "No resolved url starting with 'gs://' found from Martha response!"
+  final val requestTemplate = """{"url": "${drsPath}"}"""
 
-  val CloudPlatformAuthScope = "https://www.googleapis.com/auth/cloud-platform"
+  val httpClientBuilder: HttpClientBuilder = HttpClientBuilder.create()
 
   def getDrsPathResolver: IO[LocalizerDrsPathResolver] = {
     IO.pure {

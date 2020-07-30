@@ -7,6 +7,7 @@ import cloud.nio.impl.drs.{DrsConfig, MarthaResponse}
 import org.apache.http.impl.client.HttpClientBuilder
 import org.scalatest.{FlatSpec, Matchers}
 
+
 class DrsLocalizerMainSpec extends FlatSpec with Matchers {
 
   val fakeDownloadLocation = "/root/foo/foo-123.bam"

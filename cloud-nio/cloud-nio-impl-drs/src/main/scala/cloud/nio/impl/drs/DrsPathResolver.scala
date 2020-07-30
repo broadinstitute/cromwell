@@ -25,7 +25,7 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClie
 
   def getAccessToken: String
 
-  def makeHttpRequestToMartha(drsPath: String): HttpPost = {
+  private def makeHttpRequestToMartha(drsPath: String): HttpPost = {
     val postRequest = new HttpPost(drsConfig.marthaUri)
     val requestJson = drsConfig.marthaRequestJsonTemplate.replace(DrsPathToken, drsPath)
     postRequest.setEntity(new StringEntity(requestJson, ContentType.APPLICATION_JSON))
@@ -33,7 +33,7 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClie
     postRequest
   }
 
-  def httpResponseToMarthaResponse(httpResponse: HttpResponse): IO[MarthaResponse] = {
+  private def httpResponseToMarthaResponse(httpResponse: HttpResponse): IO[MarthaResponse] = {
     val marthaResponseEntityOption = Option(httpResponse.getEntity).map(EntityUtils.toString)
     val responseStatusLine = httpResponse.getStatusLine
 
@@ -49,7 +49,7 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClie
     }
   }
 
-  def executeMarthaRequest(httpPost: HttpPost): Resource[IO, HttpResponse]= {
+  private def executeMarthaRequest(httpPost: HttpPost): Resource[IO, HttpResponse]= {
     for {
       httpClient <- Resource.fromAutoCloseable(IO(httpClientBuilder.build()))
       httpResponse <- Resource.fromAutoCloseable(IO(httpClient.execute(httpPost)))
@@ -102,35 +102,29 @@ object MarthaResponseSupport {
   implicit lazy val marthaV2ResponseDecoder: Decoder[MarthaV2Response] = deriveDecoder
   implicit lazy val marthaV3ResponseDecoder: Decoder[MarthaResponse] = deriveDecoder
 
+  private final val GcsScheme = "gs://"
+
   private def convertChecksumsToHashesMap(checksums: Array[ChecksumObject]): Map[String, String] = {
     checksums.flatMap { checksumObj =>
       Map(checksumObj.`type` -> checksumObj.checksum)
     }.toMap
   }
 
-
-  private def extractGcsUrl(urls: Array[Url]): Option[String] = {
-    urls.collectFirst{
-      case urlObj: Url if urlObj.url.startsWith("gs://") => urlObj.url
-    }
-  }
-
   private def getGcsBucketAndName(gcsUrlOption: Option[String]): (Option[String], Option[String]) = {
     gcsUrlOption match {
       case Some(gcsUrl) =>
-       val array = gcsUrl.substring(5).split("/", 2)
+       val array = gcsUrl.substring(GcsScheme.length).split("/", 2)
         (Option(array(0)), Option(array(1)))
       case None => (None, None)
     }
   }
-
 
   def convertMarthaResponseV2ToV3(response: MarthaV2Response): MarthaResponse = {
     val dataObject = response.dos.data_object
     val size = dataObject.size
     val timeUpdated = dataObject.updated.map(OffsetDateTime.parse(_).toString)
     val hashesMap = dataObject.checksums.map(convertChecksumsToHashesMap)
-    val gcsUrl = extractGcsUrl(dataObject.urls)
+    val gcsUrl = dataObject.urls.find(_.url.startsWith(GcsScheme)).map(_.url)
     val (bucketName, fileName) = getGcsBucketAndName(gcsUrl)
 
     MarthaResponse(
@@ -144,4 +138,3 @@ object MarthaResponseSupport {
     )
   }
 }
-

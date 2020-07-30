@@ -31,7 +31,7 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
 
   private lazy val googleConfiguration: GoogleConfiguration = GoogleConfiguration(globalConfig)
   private lazy val scheme = instanceConfig.getString("auth")
-  private lazy val googleAuthMode: GoogleAuthMode = googleConfiguration.auth(scheme) match {
+  private lazy val googleAuthMode = googleConfiguration.auth(scheme) match {
     case Valid(auth) => auth
     case Invalid(error) => throw new RuntimeException(s"Error while instantiating DRS path builder factory. Errors: ${error.toString}")
   }
@@ -94,6 +94,8 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
     // ONLY use the project id from the User Service Account for requester pays
     val requesterPaysProjectIdOption = options.get("google_project").toOption
 
+    // `override_martha_url_for_test` is a workflow option to override the default `martha.url` specified in the global config.
+    // This is only used for testing purposes.
     val marthaUrlOverrideForTest: Option[String] = options.get("override_martha_url_for_test").toOption
 
     Future(DrsPathBuilder(

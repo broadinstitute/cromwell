@@ -94,12 +94,15 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
     // ONLY use the project id from the User Service Account for requester pays
     val requesterPaysProjectIdOption = options.get("google_project").toOption
 
+    val marthaUrlOverrideForTest: Option[String] = options.get("override_martha_url_for_test").toOption
+
     Future(DrsPathBuilder(
       new DrsCloudNioFileSystemProvider(
         singletonConfig.config,
         authCredentials,
         httpClientBuilder,
-        drsReadInterpreter(options, requesterPaysProjectIdOption)
+        drsReadInterpreter(options, requesterPaysProjectIdOption),
+        marthaUrlOverrideForTest
       ),
       requesterPaysProjectIdOption,
     ))

@@ -15,10 +15,11 @@ import scala.concurrent.duration.FiniteDuration
 class DrsCloudNioFileSystemProvider(rootConfig: Config,
                                     authCredentials: OAuth2Credentials,
                                     httpClientBuilder: HttpClientBuilder,
-                                    drsReadInterpreter: MarthaResponse => IO[ReadableByteChannel]) extends CloudNioFileSystemProvider {
+                                    drsReadInterpreter: MarthaResponse => IO[ReadableByteChannel],
+                                    marthaUrlOverrideForTest: Option[String] = None) extends CloudNioFileSystemProvider {
 
-  private lazy val marthaUri = rootConfig.getString("martha.url")
-  private lazy val marthaRequestJsonTemplate = rootConfig.getString("martha.request.json-template")
+  lazy val marthaUri = marthaUrlOverrideForTest.getOrElse(rootConfig.getString("martha.url"))
+  lazy val marthaRequestJsonTemplate = rootConfig.getString("martha.request.json-template")
 
   lazy val drsConfig = DrsConfig(marthaUri, marthaRequestJsonTemplate)
 

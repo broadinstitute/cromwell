@@ -626,7 +626,7 @@ cromwell::private::create_centaur_variables() {
 
 cromwell::private::create_conformance_variables() {
     CROMWELL_BUILD_CWL_RUNNER_MODE="${CROMWELL_BUILD_BACKEND_TYPE}"
-    CROMWELL_BUILD_CWL_TOOL_VERSION="1.0.20190228155703"
+    CROMWELL_BUILD_CWL_TOOL_VERSION="1.0.20191225192155"
     CROMWELL_BUILD_CWL_TEST_VERSION="1.0.20190228134645"
     CROMWELL_BUILD_CWL_TEST_COMMIT="1f501e38ff692a408e16b246ac7d64d32f0822c2" # use known git hash to avoid changes
     CROMWELL_BUILD_CWL_TEST_RUNNER="${CROMWELL_BUILD_ROOT_DIRECTORY}/centaurCwlRunner/src/bin/centaur-cwl-runner.bash"

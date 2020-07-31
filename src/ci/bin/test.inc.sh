@@ -1276,12 +1276,6 @@ cromwell::build::setup_centaur_environment() {
 }
 
 cromwell::build::setup_conformance_environment() {
-    echo dumping python /opt/python
-    ls -l /opt/python/3.7.1/bin
-    which python
-    python --version
-    which python3
-    python3 --version
     cromwell::private::create_centaur_variables
     cromwell::private::create_conformance_variables
     if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then

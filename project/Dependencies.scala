@@ -53,7 +53,7 @@ object Dependencies {
   private val janinoV = "3.0.16"
   private val javaxActivationV = "1.2.0"
   private val jaxbV = "2.3.3"
-  private val kindProjectorV = "0.9.9"
+  private val kindProjectorV = "0.9.10"
   private val kittensV = "2.0.0"
   private val liquibaseSlf4jV = "2.0.0"
   private val liquibaseV = "3.10.2"

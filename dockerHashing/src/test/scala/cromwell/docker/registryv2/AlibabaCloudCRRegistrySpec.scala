@@ -8,8 +8,8 @@ import net.ceedubs.ficus.Ficus._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.TestKitSuite
 import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
-import org.scalatest.mockito.MockitoSugar
 import spray.json._
+import org.scalatestplus.mockito.MockitoSugar
 
 object AlibabaCloudCRRegistrySpec {
 

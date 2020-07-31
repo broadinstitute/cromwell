@@ -4,7 +4,7 @@ import java.net.URI
 import com.typesafe.config.ConfigFactory
 import cromwell.core.TestKitSuite
 import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 
 
 object TTLOssStorageConfigurationSpec {

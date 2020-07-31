@@ -20,6 +20,7 @@ import org.apache.http.impl.client.HttpClientBuilder
 
 import scala.concurrent.{ExecutionContext, Future}
 
+
 /**
   * Cromwell Wrapper around DrsFileSystems to load the configuration.
   * This class is used as the global configuration class in the drs filesystem
@@ -35,11 +36,9 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
     case Valid(auth) => auth
     case Invalid(error) => throw new RuntimeException(s"Error while instantiating DRS path builder factory. Errors: ${error.toString}")
   }
-
   private lazy val httpClientBuilder = HttpClientBuilder.create()
 
   private val GcsScheme = "gs"
-
 
   private def gcsInputStream(gcsFile: GcsFilePath,
                              serviceAccountJson: String,
@@ -63,7 +62,6 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
     }
   }
 
-
   private def drsReadInterpreter(options: WorkflowOptions, requesterPaysProjectIdOption: Option[String])
                                 (marthaResponse: MarthaResponse): IO[ReadableByteChannel] = {
     val serviceAccountJsonIo = marthaResponse.googleServiceAccount match {
@@ -80,7 +78,6 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
       readableByteChannel <- gcsInputStream(GcsFilePath(bucket, filePath), serviceAccountJson, requesterPaysProjectIdOption)
     } yield readableByteChannel
   }
-
 
   override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[PathBuilder] = {
     val marthaScopes = List(
@@ -110,7 +107,6 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
     ))
   }
 }
-
 
 
 case class UrlNotFoundException(scheme: String) extends Exception(s"No $scheme url associated with given DRS path.")

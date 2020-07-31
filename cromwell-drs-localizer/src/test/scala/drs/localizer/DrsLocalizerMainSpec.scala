@@ -10,9 +10,8 @@ import org.scalatest.{FlatSpec, Matchers}
 
 class DrsLocalizerMainSpec extends FlatSpec with Matchers {
 
-  val fakeDownloadLocation = "/root/foo/foo-123.bam"
-  val fakeRequesterPaysId = "fake-billing-project"
-
+  final val fakeDownloadLocation = "/root/foo/foo-123.bam"
+  final val fakeRequesterPaysId = "fake-billing-project"
 
   behavior of "DrsLocalizerMain"
 
@@ -109,6 +108,7 @@ class DrsLocalizerMainSpec extends FlatSpec with Matchers {
     mockDrsLocalizer.downloadScript(MockDrsPaths.fakeDrsUrl, fakeDownloadLocation, Option(fakeSAJsonPath), Option(fakeRequesterPaysId)) shouldBe expectedDownloadScript
   }
 }
+
 
 object MockDrsPaths {
   val fakeDrsUrl = "drs://abc/foo-123/abc123"

@@ -8,7 +8,7 @@ import shapeless.syntax.typeable._
 
 
 object DrsResolver {
-  private val GcsScheme: String = "gs"
+  private final val GcsScheme: String = "gs"
 
   private def urlProtocolLength(scheme: String): Int = scheme.length + 3 //3: length of '://'
 

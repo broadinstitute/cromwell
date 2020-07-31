@@ -9,10 +9,10 @@ import org.slf4j.LoggerFactory
 
 import scala.sys.process._
 
+
 object DrsLocalizerMain extends IOApp {
 
   val logger = LoggerFactory.getLogger("DrsLocalizerLogger")
-
 
   /* This assumes the args are as follows:
       0: DRS input
@@ -26,12 +26,11 @@ object DrsLocalizerMain extends IOApp {
     argsLength match {
       case 2 => new DrsLocalizerMain(args.head, args(1), None).resolveAndDownload()
       case 3 => new DrsLocalizerMain(args.head, args(1), Option(args(2))).resolveAndDownload()
-      case _ => {
+      case _ =>
         val argsList = if (args.nonEmpty) args.mkString(",") else "None"
         logger.error(s"Received $argsLength arguments. DRS input and download location path is required. Requester Pays billing project ID is optional. " +
           s"Arguments received: $argsList")
         IO(ExitCode.Error)
-      }
     }
   }
 }
@@ -53,7 +52,6 @@ class DrsLocalizerMain(drsUrl: String, downloadLoc: String, requesterPaysId: Opt
       new LocalizerDrsPathResolver(drsConfig, httpClientBuilder)
     }
   }
-
 
   /*
      Bash to download the GCS file using `gsutil`
@@ -123,7 +121,6 @@ class DrsLocalizerMain(drsUrl: String, downloadLoc: String, requesterPaysId: Opt
     downloadBashScript
   }
 
-
   def downloadFileFromGcs(gcsUrl: String,
                           serviceAccountJsonOption: Option[String],
                           downloadLoc: String,
@@ -153,7 +150,6 @@ class DrsLocalizerMain(drsUrl: String, downloadLoc: String, requesterPaysId: Opt
 
     IO(ExitCode(returnCode))
   }
-
 
   def resolveAndDownload(): IO[ExitCode] = {
     for {

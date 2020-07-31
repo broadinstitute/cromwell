@@ -1,18 +1,18 @@
 package cloud.nio.impl.drs
 
 import java.time.OffsetDateTime
+
+import cloud.nio.impl.drs.MarthaResponseSupport.convertMarthaResponseV2ToV3
 import io.circe.{Json, JsonObject}
 import org.scalatest.{FlatSpecLike, Matchers}
 
-import cloud.nio.impl.drs.MarthaResponseSupport.convertMarthaResponseV2ToV3
-
 
 class DrsPathResolverSpec extends FlatSpecLike with Matchers {
-  private val mockGSA = SADataObject(data = Json.fromJsonObject(JsonObject("key"-> Json.fromString("value"))))
-  private val crcHashValue = "8a366443"
-  private val md5HashValue = "336ea55913bc261b72875bd259753046"
-  private val shaHashValue = "f76877f8e86ec3932fd2ae04239fbabb8c90199dab0019ae55fa42b31c314c44"
-  private val fullMarthaV2Response = MarthaV2Response(
+  private final val mockGSA = SADataObject(data = Json.fromJsonObject(JsonObject("key"-> Json.fromString("value"))))
+  private final val crcHashValue = "8a366443"
+  private final val md5HashValue = "336ea55913bc261b72875bd259753046"
+  private final val shaHashValue = "f76877f8e86ec3932fd2ae04239fbabb8c90199dab0019ae55fa42b31c314c44"
+  private final val fullMarthaV2Response = MarthaV2Response(
     dos = DrsObject(
       data_object = DrsDataObject(
         size = Option(34905345),
@@ -23,8 +23,7 @@ class DrsPathResolverSpec extends FlatSpecLike with Matchers {
     ),
     googleServiceAccount = Option(mockGSA)
   )
-
-  private val fullMarthaResponse =  MarthaResponse(
+  private final val fullMarthaResponse =  MarthaResponse(
     size = Option(34905345),
     timeUpdated = Option(OffsetDateTime.parse("2020-04-27T15:56:09.696Z").toString),
     bucket = Option("my-gs-bucket"),
@@ -33,9 +32,8 @@ class DrsPathResolverSpec extends FlatSpecLike with Matchers {
     googleServiceAccount = Option(mockGSA),
     hashes = Option(Map("md5" -> md5HashValue, "crc32c" -> crcHashValue))
   )
-
-  private val alfredHashValue = "xrd"
-  private val completeHashesMap = Map(
+  private final val alfredHashValue = "xrd"
+  private final val completeHashesMap = Map(
     "betty" -> "abc123",
     "charles" -> "456",
     "alfred" -> alfredHashValue,
@@ -43,23 +41,20 @@ class DrsPathResolverSpec extends FlatSpecLike with Matchers {
     "crc32c" -> crcHashValue,
     "md5" -> md5HashValue,
   )
-
-  private val missingCRCHashesMap = Map(
+  private final val missingCRCHashesMap = Map(
     "alfred" -> alfredHashValue,
     "sha256" -> shaHashValue,
     "betty" -> "abc123",
     "md5" -> md5HashValue,
     "charles" -> "456",
   )
-
-  private val onlySHAHashesMap = Map(
+  private final val onlySHAHashesMap = Map(
     "betty" -> "abc123",
     "charles" -> "456",
     "alfred" -> alfredHashValue,
     "sha256" -> shaHashValue,
   )
-
-  private val noPreferredHashesMap = Map(
+  private final val noPreferredHashesMap = Map(
     "alfred" -> alfredHashValue,
     "betty" -> "abc123",
     "charles" -> "456",

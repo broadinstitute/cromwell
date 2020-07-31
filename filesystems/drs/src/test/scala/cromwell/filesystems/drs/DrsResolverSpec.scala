@@ -20,26 +20,22 @@ class DrsResolverSpec extends FlatSpec with Matchers {
       "martha.request.json-template" -> """{"url": "${drsPath}"}"""
     ).asJava
   )
-
   private val marthaV3Config: Config = ConfigFactory.parseMap(
     Map(
       "martha.url" -> "https://martha-url/martha_v3",
       "martha.request.json-template" -> """{"url": "${drsPath}"}"""
     ).asJava
   )
+  private val mockFileSystemProviderForMarthaV2 = new MockDrsCloudNioFileSystemProvider(marthaV2Config, fakeCredentials, httpClientBuilder, drsReadInterpreter)
+  private val drsPathBuilderForMarthaV2 = DrsPathBuilder(mockFileSystemProviderForMarthaV2, None)
+  private val mockFileSystemProviderForMarthaV3 = new MockDrsCloudNioFileSystemProvider(marthaV3Config, fakeCredentials, httpClientBuilder, drsReadInterpreter)
+  private val drsPathBuilderForMarthaV3 = DrsPathBuilder(mockFileSystemProviderForMarthaV3, None)
 
   private lazy val fakeCredentials = NoCredentials.getInstance
-
   private lazy val httpClientBuilder = HttpClientBuilder.create()
 
   private def drsReadInterpreter(marthaResponse: MarthaResponse): IO[ReadableByteChannel] =
     throw new UnsupportedOperationException("Currently DrsResolverSpec doesn't need to use drs read interpreter.")
-
-  private val mockFileSystemProviderForMarthaV2 = new MockDrsCloudNioFileSystemProvider(marthaV2Config, fakeCredentials, httpClientBuilder, drsReadInterpreter)
-  private val drsPathBuilderForMarthaV2 = DrsPathBuilder(mockFileSystemProviderForMarthaV2, None)
-
-  private val mockFileSystemProviderForMarthaV3 = new MockDrsCloudNioFileSystemProvider(marthaV3Config, fakeCredentials, httpClientBuilder, drsReadInterpreter)
-  private val drsPathBuilderForMarthaV3 = DrsPathBuilder(mockFileSystemProviderForMarthaV3, None)
 
 
   behavior of "DrsResolver"

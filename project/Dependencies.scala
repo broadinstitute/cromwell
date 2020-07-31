@@ -82,7 +82,7 @@ object Dependencies {
   private val scalameterV = "0.10.1"
   private val scalamockV = "4.1.0"
   private val scalatestV = "3.0.5"
-  private val scalazV = "7.2.27"
+  private val scalazV = "7.2.30"
   private val scoptV = "3.7.1"
   private val sentryLogbackV = "1.7.17"
   private val shapelessV = "2.3.3"

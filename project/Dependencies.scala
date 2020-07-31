@@ -28,7 +28,7 @@ object Dependencies {
   private val ficusV = "1.4.4"
   private val fs2V = "2.0.0"
   private val fs2VStatsDProxy = "1.0.3"
-  private val googleApiClientV = "1.30.9"
+  private val googleApiClientV = "1.30.10"
   private val googleCloudBigQueryV = "1.116.3"
   private val googleCloudKmsV = "v1-rev63-1.25.0"
   private val googleCloudMonitoringV = "1.100.1"

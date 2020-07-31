@@ -16,7 +16,7 @@ object Dependencies {
   private val catsEffectV = "2.0.0"
   private val catsV = "2.0.0"
   private val circeOpticsV = "0.12.0"
-  private val circeV = "0.12.1"
+  private val circeV = "0.12.3"
   private val circeYamlV = "0.11.0-M1"
   private val commonsCodecV = "1.11"
   private val commonsIoV = "2.6"

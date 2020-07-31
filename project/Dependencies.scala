@@ -108,7 +108,7 @@ object Dependencies {
   private val swaggerUiV = "3.23.11"
   private val tikaV = "1.20"
   private val typesafeConfigV = "1.3.3"
-  private val workbenchGoogleV = "0.15-2fc79a3"
+  private val workbenchGoogleV = "0.100-762d0c1-SNAP"
   private val workbenchModelV = "0.10-6800f3a"
   private val workbenchUtilV = "0.3-f3ce961"
 

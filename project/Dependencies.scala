@@ -67,7 +67,7 @@ object Dependencies {
   private val mouseV = "0.23"
   private val mysqlV = "8.0.21"
   private val nettyV = "4.1.46.Final"
-  private val owlApiV = "5.1.9"
+  private val owlApiV = "5.1.16"
   private val paradiseV = "2.1.1"
   private val pegdownV = "1.6.0"
   private val postgresV = "42.2.5"

@@ -86,7 +86,7 @@ object Dependencies {
   private val scoptV = "3.7.1"
   private val sentryLogbackV = "1.7.17"
   private val shapelessV = "2.3.3"
-  private val simulacrumV = "0.15.0"
+  private val simulacrumV = "0.19.0"
   private val slf4jV = "1.7.25"
   private val slickCatsV = "0.9.0"
   private val testContainersScalaV = "0.35.2"

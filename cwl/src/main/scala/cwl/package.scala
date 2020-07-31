@@ -21,7 +21,7 @@ import scala.util.{Failure, Success, Try}
  * It makes heavy use of Circe YAML/Json auto derivation feature and
  * Circe modules that support the Scala libraries shapeless and Refined.
  *
- * The [[https://oss.sonatype.org/service/local/repositories/releases/archive/com/chuusai/shapeless_2.12/2.3.2/shapeless_2.12-2.3.2-javadoc.jar/!/shapeless/Coproduct.html shapeless.coproduct]] feature allows us to specify a large
+ * The [[https://oss.sonatype.org/service/local/repositories/releases/archive/com/chuusai/shapeless_2.12/2.3.2/shapeless_2.12-2.3.3-javadoc.jar/!/shapeless/Coproduct.html shapeless.coproduct]] feature allows us to specify a large
  * number of potential types to be parsed.  A.k.a. a "disjunction" or "OR" relationship amongst these types.
  *
  * The [[https://github.com/fthomas/refined/blob/master/modules/core/shared/src/main/scala/eu/timepit/refined/string.scala MatchesRegex]] "refined type" is used

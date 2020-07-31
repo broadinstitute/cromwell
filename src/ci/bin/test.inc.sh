@@ -700,7 +700,7 @@ cromwell::private::pip_install() {
     pip_package="${1:?pip_install called without a package}"; shift
 
     if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
-        sudo -H pip install "${pip_package}" "$@"
+        sudo -H /opt/python/3.7.1/bin/pip install "${pip_package}" "$@"
     elif [[ "${CROMWELL_BUILD_IS_VIRTUAL_ENV}" == "true" ]]; then
         pip install "${pip_package}" "$@"
     else

@@ -55,7 +55,7 @@ object Dependencies {
   private val jaxbV = "2.3.2"
   private val kindProjectorV = "0.9.9"
   private val kittensV = "2.0.0"
-  private val liquibaseSlf4jV = "2.0.0"
+  private val liquibaseSlf4jV = "3.0.0"
   private val liquibaseV = "3.6.3"
   private val logbackV = "1.2.3"
   private val lz4JavaV = "1.7.1"

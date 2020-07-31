@@ -20,7 +20,7 @@ object Dependencies {
   private val circeV = "0.12.3"
   private val circeYamlV = "0.13.1"
   private val commonsCodecV = "1.14"
-  private val commonsIoV = "2.6"
+  private val commonsIoV = "2.7"
   private val commonsLang3V = "3.11"
   private val commonsMathV = "3.6.1"
   private val commonsTextV = "1.9"

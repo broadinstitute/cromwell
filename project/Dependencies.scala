@@ -13,7 +13,7 @@ object Dependencies {
   private val apacheHttpClientV = "4.5.7"
   private val awsSdkV = "2.10.71"
   private val betterFilesV = "3.8.0"
-  private val catsEffectV = "2.0.0"
+  private val catsEffectV = "2.1.4"
   private val catsV = "2.0.0"
   private val circeOpticsV = "0.12.0"
   private val circeV = "0.12.1"

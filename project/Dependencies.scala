@@ -110,7 +110,7 @@ object Dependencies {
   private val typesafeConfigV = "1.3.3"
   private val workbenchGoogleV = "0.100-762d0c1-SNAP"
   private val workbenchModelV = "0.14-27810079-SNAP"
-  private val workbenchUtilV = "0.3-f3ce961"
+  private val workbenchUtilV = "0.6-27810079-SNAP"
 
   private val slf4jFacadeDependencies = List(
     "org.slf4j" % "slf4j-api" % slf4jV,

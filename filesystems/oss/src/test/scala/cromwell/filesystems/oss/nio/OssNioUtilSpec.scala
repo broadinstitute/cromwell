@@ -4,10 +4,10 @@ import java.io.ByteArrayInputStream
 
 import com.aliyun.oss.OSSClient
 import org.scalatest._
-import org.scalatest.mockito.MockitoSugar
 
 import scala.util.control.Breaks
 import scala.util.{Failure, Success, Try}
+import org.scalatestplus.mockito.MockitoSugar
 
 object NeedAK extends Tag("this test need oss storage access id and key")
 

@@ -10,10 +10,10 @@ import cromwell.filesystems.oss.OssPathBuilder
 import cromwell.filesystems.oss.nio.DefaultOssStorageConfiguration
 import cromwell.util.SampleWdl
 import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
-import org.scalatest.mockito.MockitoSugar
 import org.slf4j.helpers.NOPLogger
 import spray.json.{JsObject, JsString}
 import wom.values.WomValue
+import org.scalatestplus.mockito.MockitoSugar
 
 object BcsTestUtilSpec {
 

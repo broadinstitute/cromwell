@@ -15,13 +15,13 @@ import cromwell.core.{TestKitSuite, WorkflowOptions}
 import org.mockito.Mockito
 import org.mockito.Mockito._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
-import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{BeforeAndAfter, Matchers, WordSpecLike}
 import wom.core.WorkflowSource
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.sys.process.{Process, ProcessLogger}
+import org.scalatestplus.mockito.MockitoSugar
 
 class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
   with WordSpecLike

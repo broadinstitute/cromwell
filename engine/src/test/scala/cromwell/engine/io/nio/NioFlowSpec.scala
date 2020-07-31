@@ -14,8 +14,8 @@ import cromwell.core.path.DefaultPathBuilder
 import cromwell.core.{CromwellFatalExceptionMarker, TestKitSuite}
 import cromwell.engine.io.IoActor.DefaultCommandContext
 import cromwell.engine.io.IoCommandContext
-import org.scalatest.mockito.MockitoSugar
 import org.scalatest.{AsyncFlatSpecLike, Matchers}
+import org.scalatestplus.mockito.MockitoSugar
 
 class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with MockitoSugar {
 

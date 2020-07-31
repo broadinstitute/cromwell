@@ -22,7 +22,7 @@ before_cache:
   - find $HOME/.sbt -name "*.lock" -print -delete
 env:
   global:
-    - PATH=/opt/python/3.7/bin\:$PATH
+    - PATH=/opt/python/3.7.1/bin\:$PATH
   matrix:
     # Setting this variable twice will cause the 'script' section to run twice with the respective env var invoked
     - >-

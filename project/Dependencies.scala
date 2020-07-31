@@ -104,7 +104,7 @@ object Dependencies {
   private val specs2MockV = "4.4.1"
   private val sprayJsonV = "1.3.5"
   private val sttpV = "1.5.8"
-  private val swaggerParserV = "1.0.41"
+  private val swaggerParserV = "1.0.51"
   private val swaggerUiV = "3.23.11"
   private val tikaV = "1.20"
   private val typesafeConfigV = "1.3.3"

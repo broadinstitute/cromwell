@@ -18,6 +18,7 @@ class DrsCloudNioRegularFileAttributes(drsPath: String, drsPathResolver: EngineD
     }
   }
 
+
   override def fileHash: Option[String] = {
     drsPathResolver.resolveDrsThroughMartha(drsPath).map( marthaResponse => {
       marthaResponse.hashes match {
@@ -26,6 +27,7 @@ class DrsCloudNioRegularFileAttributes(drsPath: String, drsPathResolver: EngineD
       }
     }).unsafeRunSync()
   }
+
 
   override def lastModifiedTime(): FileTime = {
     val lastModifiedIO = for {
@@ -37,6 +39,7 @@ class DrsCloudNioRegularFileAttributes(drsPath: String, drsPathResolver: EngineD
     lastModifiedIO.unsafeRunSync()
   }
 
+
   override def size(): Long = {
     val sizeIO = for {
       marthaResponse <- drsPathResolver.resolveDrsThroughMartha(drsPath)
@@ -46,12 +49,12 @@ class DrsCloudNioRegularFileAttributes(drsPath: String, drsPathResolver: EngineD
     sizeIO.unsafeRunSync()
   }
 
+
   override def fileKey(): String = drsPath
 }
 
-
 object DrsCloudNioRegularFileAttributes {
-  private final val priorityHashList: Seq[String] = Seq("crc32c", "md5", "sha256")
+  private val priorityHashList: Seq[String] = Seq("crc32c", "md5", "sha256")
 
   def getPreferredHash(hashes: Map[String, String]): Option[String] = {
     val preferredHash: Option[String] = priorityHashList.collectFirst {
@@ -66,3 +69,4 @@ object DrsCloudNioRegularFileAttributes {
     new RuntimeException(s"Failed to resolve DRS path $drsPath. The response from Martha doesn't contain the key '$missingKey'.")
   }
 }
+

@@ -21,7 +21,7 @@ import org.apache.http.{HttpResponse, HttpStatus}
 
 abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBuilder) {
 
-  private final val DrsPathToken = "${drsPath}"
+  private val DrsPathToken = "${drsPath}"
 
   def getAccessToken: String
 
@@ -74,16 +74,12 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClie
 case class DrsConfig(marthaUri: String, marthaRequestJsonTemplate: String)
 
 case class Url(url: String)
-
 case class ChecksumObject(checksum: String, `type`: String)
-
 case class DrsDataObject(size: Option[Long],
                          checksums: Option[Array[ChecksumObject]],
                          updated: Option[String],
                          urls: Array[Url])
-
 case class DrsObject(data_object: DrsDataObject)
-
 case class SADataObject(data: Json)
 
 case class MarthaV2Response(dos: DrsObject, googleServiceAccount: Option[SADataObject])
@@ -95,7 +91,6 @@ case class MarthaResponse(size: Option[Long],
                           gsUri: Option[String],
                           googleServiceAccount: Option[SADataObject],
                           hashes: Option[Map[String, String]])
-
 
 object MarthaResponseSupport {
 

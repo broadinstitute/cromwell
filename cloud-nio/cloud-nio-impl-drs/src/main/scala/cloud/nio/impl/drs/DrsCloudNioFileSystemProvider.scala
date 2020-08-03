@@ -22,10 +22,12 @@ class DrsCloudNioFileSystemProvider(rootConfig: Config,
    * `marthaUrlOverrideForTest` is a workflow option to override the default `martha.url` specified in the global config.
    * This is only used for testing purposes.
    */
-  lazy final val marthaUri = marthaUrlOverrideForTest.getOrElse(rootConfig.getString("martha.url"))
-  lazy final val marthaRequestJsonTemplate = rootConfig.getString("martha.request.json-template")
-  lazy final val drsConfig = DrsConfig(marthaUri, marthaRequestJsonTemplate)
-  lazy final val accessTokenAcceptableTTL = rootConfig.as[FiniteDuration]("access-token-acceptable-ttl")
+  lazy val marthaUri = marthaUrlOverrideForTest.getOrElse(rootConfig.getString("martha.url"))
+  lazy val marthaRequestJsonTemplate = rootConfig.getString("martha.request.json-template")
+
+  lazy val drsConfig = DrsConfig(marthaUri, marthaRequestJsonTemplate)
+
+  lazy val accessTokenAcceptableTTL = rootConfig.as[FiniteDuration]("access-token-acceptable-ttl")
 
   lazy val drsPathResolver = EngineDrsPathResolver(drsConfig, httpClientBuilder, accessTokenAcceptableTTL, authCredentials)
 

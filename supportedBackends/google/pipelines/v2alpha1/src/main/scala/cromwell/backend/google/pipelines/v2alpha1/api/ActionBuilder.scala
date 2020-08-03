@@ -113,7 +113,7 @@ object ActionBuilder {
       .setImageUri(docker)
       .setCommands(List(jobShell, scriptContainerPath).asJava)
       .setMounts(mounts.asJava)
-      .setEntrypoint("")
+      .setEntrypoint("/bin/sh")
       .setLabels(Map(Key.Tag -> Value.UserAction).asJava)
       .setCredentials(secret.orNull)
       .setFlags((if (fuseEnabled) List(ActionFlag.EnableFuse.toString) else List.empty).asJava)

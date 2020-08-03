@@ -26,7 +26,8 @@ TableDrivenPropertyChecks with SwaggerResourceHttpService {
 trait SwaggerUiResourceHttpServiceSpec extends SwaggerUiHttpServiceSpec with SwaggerResourceHttpServiceSpec with SwaggerUiResourceHttpService
 
 object SwaggerUiHttpServiceSpec {
-  val TestSwaggerUiVersion = "3.23.11" // TODO: Re-common-ize swagger out of cromwell's engine and reuse.
+  // TODO: Re-common-ize swagger out of cromwell's engine and reuse.
+  val TestSwaggerUiVersion = "3.23.11" // scala-steward:off
   val SwaggerIndexPreamble =
     """
       |<!-- HTML for static distribution bundle build -->

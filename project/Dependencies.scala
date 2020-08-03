@@ -101,7 +101,7 @@ object Dependencies {
   */
   private val slickV = "3.3.2-2076hotfix"
   private val snakeyamlV = "1.23"
-  private val specs2MockV = "4.4.1"
+  private val specs2MockV = "4.10.2"
   private val sprayJsonV = "1.3.5"
   private val sttpV = "1.5.8"
   private val swaggerParserV = "1.0.41"

@@ -102,12 +102,10 @@ object MarthaResponseSupport {
   implicit lazy val marthaV2ResponseDecoder: Decoder[MarthaV2Response] = deriveDecoder
   implicit lazy val marthaV3ResponseDecoder: Decoder[MarthaResponse] = deriveDecoder
 
-  private final val GcsScheme = "gs://"
+  private val GcsScheme = "gs://"
 
   private def convertChecksumsToHashesMap(checksums: Array[ChecksumObject]): Map[String, String] = {
-    checksums.flatMap { checksumObj =>
-      Map(checksumObj.`type` -> checksumObj.checksum)
-    }.toMap
+    checksums.flatMap (checksumObj => Map(checksumObj.`type` -> checksumObj.checksum)).toMap
   }
 
   private def getGcsBucketAndName(gcsUrlOption: Option[String]): (Option[String], Option[String]) = {

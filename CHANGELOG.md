@@ -1,5 +1,12 @@
 # Cromwell Change Log
 
+## 53 Release Notes
+
+### Martha V3 Support
+
+Cromwell now supports resolving DRS URIs through martha_v3. Update the `martha.url` found in the [filesystems config](https://cromwell.readthedocs.io/en/stable/filesystems/Filesystems/#overview) to
+point to martha_v3. More information on martha_v3 request and response schema can be found [here](https://github.com/broadinstitute/martha#martha-v3). 
+
 ## 52 Release Notes
 
 ### Documentation

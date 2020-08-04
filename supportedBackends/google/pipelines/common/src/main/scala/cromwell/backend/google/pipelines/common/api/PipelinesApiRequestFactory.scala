@@ -83,7 +83,8 @@ object PipelinesApiRequestFactory {
                                       virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
                                       retryWithMoreMemoryKeys: Option[List[String]],
                                       fuseEnabled: Boolean,
-                                      allowNoAddress: Boolean) {
+                                      allowNoAddress: Boolean,
+                                      referenceDisksForLocalization: List[PipelinesApiAttachedDisk]) {
     def literalInputs = inputOutputParameters.literalInputParameters
     def inputParameters = inputOutputParameters.fileInputParameters
     def outputParameters = inputOutputParameters.fileOutputParameters

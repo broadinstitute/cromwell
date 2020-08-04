@@ -129,10 +129,12 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
         }
       }
 
-      // Disks defined in the runtime attributes
-      val disks = createPipelineParameters |> toDisks
-      // Mounts for disks defined in the runtime attributes
-      val mounts = createPipelineParameters |> toMounts
+      val allDisksToBeMounted = createPipelineParameters.adjustedSizeDisks ++ createPipelineParameters.referenceDisksForLocalization
+
+      // Disks defined in the runtime attributes and reference-files-localization disks
+      val disks = allDisksToBeMounted |> toDisks
+      // Mounts for disks defined in the runtime attributes and reference-files-localization disks
+      val mounts = allDisksToBeMounted |> toMounts
 
       val containerSetup: List[Action] = containerSetupActions(mounts)
       val localization: List[Action] = localizeActions(createPipelineParameters, mounts)

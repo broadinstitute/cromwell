@@ -102,7 +102,7 @@ object Dependencies {
   private val scoptV = "3.7.1"
   private val sentryLogbackV = "1.7.30"
   private val shapelessV = "2.3.3"
-  private val simulacrumV = "0.19.0"
+  private val simulacrumV = "1.0.0"
   private val slf4jV = "1.7.30"
   private val slickCatsV = "0.9.1"
   private val testContainersScalaV = "0.38.1"
@@ -425,7 +425,7 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "io.spray" %% "spray-json" % sprayJsonV,
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
-    "com.github.mpilquist" %% "simulacrum" % simulacrumV,
+    "org.typelevel" %% "simulacrum" % simulacrumV,
     "commons-codec" % "commons-codec" % commonsCodecV,
   ) ++ circeDependencies ++ refinedTypeDependenciesList
 

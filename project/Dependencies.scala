@@ -16,7 +16,7 @@ object Dependencies {
   private val catsEffectV = "2.1.4"
   private val catsV = "2.1.1"
   private val circeOpticsV = "0.13.0"
-  private val circeV = "0.12.3"
+  private val circeV = "0.12.1"
   private val circeYamlV = "0.13.1"
   private val commonsCodecV = "1.11"
   private val commonsIoV = "2.6"
@@ -108,9 +108,14 @@ object Dependencies {
   private val swaggerUiV = "3.23.11" // scala-steward:off
   private val tikaV = "1.24.1"
   private val typesafeConfigV = "1.3.3"
-  private val workbenchGoogleV = "0.100-762d0c1-SNAP"
-  private val workbenchModelV = "0.14-27810079-SNAP"
-  private val workbenchUtilV = "0.6-27810079-SNAP"
+
+  // scala-steward:off
+  //  - These Workbench libs don't seem to follow standard semver AND scala-steward is picking up SNAP versions.
+  //  - We might be able to control allowed update types if there's method behind the versioning, but for now let's keep it manual.
+  private val workbenchGoogleV = "0.15-2fc79a3"
+  private val workbenchModelV = "0.10-6800f3a"
+  private val workbenchUtilV = "0.3-f3ce961"
+  // scala-steward:on
 
   private val slf4jFacadeDependencies = List(
     "org.slf4j" % "slf4j-api" % slf4jV,
@@ -120,14 +125,14 @@ object Dependencies {
   private val circeYamlDependency = "io.circe" %% "circe-yaml" % circeYamlV
 
   private val circeDependencies = List(
-    "core",
-    "parser",
-    "generic",
-    "generic-extras",
-    "shapes",
-    "refined",
-    "literal"
-  ).map(m => "io.circe" %% s"circe-$m" % circeV) :+ circeYamlDependency
+    "io.circe" %% s"circe-core" % circeV,
+    "io.circe" %% s"circe-parser" % circeV,
+    "io.circe" %% s"circe-generic" % circeV,
+    "io.circe" %% s"circe-generic-extras" % circeV,
+    "io.circe" %% s"circe-shapes" % circeV,
+    "io.circe" %% s"circe-refined" % circeV,
+    "io.circe" %% s"circe-literal" % circeV
+  ) :+ circeYamlDependency
 
   private val catsDependencies = List(
     "org.typelevel" %% "cats-core" % catsV,

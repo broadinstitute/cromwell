@@ -9,7 +9,7 @@ point to `/martha_v3`. More information on Martha v3 request and response schema
 
 ### Bug fixes
 
-* Fixed a bug that made all WDL optional output files required. 
+* Wired through support for WDL optional output files on the PAPI v2 backend.
 
 ## 52 Release Notes
 

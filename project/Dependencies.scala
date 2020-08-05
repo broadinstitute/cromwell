@@ -219,7 +219,9 @@ object Dependencies {
   )
 
   private val liquibaseDependencies = List(
-    "org.liquibase" % "liquibase-core" % liquibaseV,
+    "org.liquibase" % "liquibase-core" % liquibaseV
+      // Colliding with jakarta.xml.bind-api
+      exclude("javax.xml.bind", "jaxb-api"),
     // This is to stop liquibase from being so noisy by default
     // See: http://stackoverflow.com/questions/20880783/how-to-get-liquibase-to-log-using-slf4j
     "com.mattbertolini" % "liquibase-slf4j" % liquibaseSlf4jV

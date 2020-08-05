@@ -25,8 +25,8 @@ object Dependencies {
   private val commonsMathV = "3.6.1"
   private val commonsTextV = "1.9"
   private val configsV = "0.4.4"
-  private val delightRhinoSandboxV = "0.0.10"
   private val ficusV = "1.4.7"
+  private val delightRhinoSandboxV = "0.0.11"
   private val fs2V = "2.0.1"
   private val fs2VStatsDProxy = "1.0.5"
   private val googleApiClientV = "1.30.10"
@@ -47,24 +47,24 @@ object Dependencies {
   private val grpcV = "1.30.2"
   private val guavaV = "27.1-jre"
   private val heterodonV = "1.0.0-beta3"
-  private val hsqldbV = "2.4.1"
+  private val hsqldbV = "2.5.1"
   private val http4sVersion = "0.20.0-M5"
   private val jacksonV = "2.10.5"
   private val jacksonJqV = "1.0.0-preview.20191208"
-  private val janinoV = "3.0.12"
+  private val janinoV = "3.0.16"
   private val javaxActivationV = "1.2.0"
-  private val jaxbV = "2.3.2"
+  private val jaxbV = "2.3.3"
   private val kindProjectorV = "0.9.9"
   private val kittensV = "2.0.0"
   private val liquibaseSlf4jV = "3.0.0"
-  private val liquibaseV = "3.6.3"
+  private val liquibaseV = "3.10.2"
   private val logbackV = "1.2.3"
   private val lz4JavaV = "1.7.1"
-  private val mariadbV = "2.4.2"
+  private val mariadbV = "2.4.4"
   private val metrics3ScalaV = "4.0.0" // https://github.com/erikvanoosten/metrics-scala/tree/f733e26#download-4x
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "2.7.1"
-  private val mockserverNettyV = "5.5.1"
+  private val mockserverNettyV = "5.5.4"
   private val mouseV = "0.23"
   private val mysqlV = "8.0.21"
   private val nettyV = "4.1.46.Final"
@@ -110,8 +110,8 @@ object Dependencies {
   private val tikaV = "1.24.1"
   private val typesafeConfigV = "1.3.3"
   private val workbenchGoogleV = "0.15-2fc79a3"
-  private val workbenchModelV = "0.10-6800f3a"
-  private val workbenchUtilV = "0.3-f3ce961"
+  private val workbenchModelV = "0.14-27810079-SNAP"
+  private val workbenchUtilV = "0.6-27810079-SNAP"
 
   private val slf4jFacadeDependencies = List(
     "org.slf4j" % "slf4j-api" % slf4jV,
@@ -493,7 +493,7 @@ object Dependencies {
     "org.apache.commons" % "commons-math3" % commonsMathV,
     "com.github.kxbmap" %% "configs" % configsV,
     "com.google.cloud" % "google-cloud-bigquery" % googleCloudBigQueryV % IntegrationTest,
-    "org.gnieh" %% "diffson-spray-json" % "4.0.1"
+    "org.gnieh" %% "diffson-spray-json" % "4.0.3"
   ) ++ circeDependencies ++ slf4jBindingDependencies ++ cloudSupportDependencies ++ http4sDependencies
 
   val engineDependencies = List(

@@ -7,6 +7,10 @@
 Cromwell now supports resolving DRS URIs through Martha v3 (in addition to Martha v2). To switch to the new version of Martha, update the `martha.url` found in the [filesystems config](https://cromwell.readthedocs.io/en/stable/filesystems/Filesystems/#overview) to
 point to `/martha_v3`. More information on Martha v3 request and response schema can be found [here](https://github.com/broadinstitute/martha#martha-v3).
 
+### Bug fixes
+
+* Fixed a bug that made all WDL optional output files required. 
+
 ## 52 Release Notes
 
 ### Documentation

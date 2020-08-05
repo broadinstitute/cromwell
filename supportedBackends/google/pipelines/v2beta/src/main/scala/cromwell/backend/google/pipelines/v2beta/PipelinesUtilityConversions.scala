@@ -3,7 +3,6 @@ package cromwell.backend.google.pipelines.v2beta
 import java.time.OffsetDateTime
 
 import com.google.api.services.lifesciences.v2beta.model.{Accelerator, Disk, Event, Mount}
-import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiAttachedDisk}
 import cromwell.backend.google.pipelines.common.{GpuResource, PipelinesApiRuntimeAttributes}
 import cromwell.core.ExecutionEvent
@@ -16,8 +15,8 @@ import scala.language.postfixOps
 trait PipelinesUtilityConversions {
   def toAccelerator(gpuResource: GpuResource) = new Accelerator().setCount(gpuResource.gpuCount.value.toLong).setType(gpuResource.gpuType.toString)
   def toMachineType(jobLogger: JobLogger)(attributes: PipelinesApiRuntimeAttributes) = MachineConstraints.machineType(attributes.memory, attributes.cpu, attributes.googleLegacyMachineSelection, jobLogger)
-  def toMounts(parameters: CreatePipelineParameters): List[Mount] = parameters.adjustedSizeDisks.map(toMount).toList
-  def toDisks(parameters: CreatePipelineParameters): List[Disk] = parameters.adjustedSizeDisks.map(toDisk).toList
+  def toMounts(disks: Seq[PipelinesApiAttachedDisk]): List[Mount] = disks.map(toMount).toList
+  def toDisks(disks: Seq[PipelinesApiAttachedDisk]): List[Disk] = disks.map(toDisk).toList
   def toMount(disk: PipelinesApiAttachedDisk) = new Mount()
     .setDisk(disk.name)
     .setPath(disk.mountPoint.pathAsString)

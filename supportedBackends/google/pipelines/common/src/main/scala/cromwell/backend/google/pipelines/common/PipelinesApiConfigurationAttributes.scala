@@ -3,8 +3,7 @@ package cromwell.backend.google.pipelines.common
 import java.net.URL
 
 import cats.data.Validated._
-import cats.syntax.apply._
-import cats.syntax.validated._
+import cats.implicits._
 import com.typesafe.config.{Config, ConfigValue}
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
@@ -15,6 +14,8 @@ import cromwell.backend.google.pipelines.common.authentication.PipelinesApiAuths
 import cromwell.backend.google.pipelines.common.callcaching.{CopyCachedOutputs, PipelinesCacheHitDuplicationStrategy, UseOriginalCachedOutputs}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
+import cromwell.filesystems.gcs.GcsPathBuilder
+import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.{refineMV, refineV}
@@ -45,7 +46,7 @@ case class PipelinesApiConfigurationAttributes(project: String,
                                                batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
                                                memoryRetryConfiguration: Option[MemoryRetryConfiguration],
                                                allowNoAddress: Boolean,
-                                               referenceDiskLocalizationManifestFiles: Option[List[String]])
+                                               referenceDiskLocalizationManifestFiles: Option[List[ValidFullGcsPath]])
 
 object PipelinesApiConfigurationAttributes {
 
@@ -210,8 +211,7 @@ object PipelinesApiConfigurationAttributes {
       (memoryRetryKeys, memoryRetryMultiplier) flatMapN validateMemoryRetryConfig
     }
 
-    val referenceDiskLocalizationManifestFiles: ErrorOr[Option[List[String]]] =
-      validate { backendConfig.getAs[List[String]]("reference-disk-localization-manifest-files") }
+    val referenceDiskLocalizationManifestFiles: ErrorOr[Option[List[ValidFullGcsPath]]] = validateGcsPathToManifestFile(backendConfig)
 
     def authGoogleConfigForPapiConfigurationAttributes(project: String,
                                                        bucket: String,
@@ -229,7 +229,7 @@ object PipelinesApiConfigurationAttributes {
                                                        batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
                                                        memoryRetryConfig: Option[MemoryRetryConfiguration],
                                                        allowNoAddress: Boolean,
-                                                       referenceDiskLocalizationManifestFiles: Option[List[String]]): ErrorOr[PipelinesApiConfigurationAttributes] =
+                                                       referenceDiskLocalizationManifestFiles: Option[List[ValidFullGcsPath]]): ErrorOr[PipelinesApiConfigurationAttributes] =
       (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN {
         (genomicsAuth, gcsAuth) =>
           PipelinesApiConfigurationAttributes(
@@ -282,6 +282,23 @@ object PipelinesApiConfigurationAttributes {
         }
     }
   }
+
+  def validateGcsPathToManifestFile(backendConfig: Config): ErrorOr[Option[List[ValidFullGcsPath]]] = {
+    def validate(gcsPaths: List[String]): ErrorOr[List[ValidFullGcsPath]] = {
+      val result = gcsPaths.map(GcsPathBuilder.validateGcsPath) traverse {
+        case validPath: ValidFullGcsPath => validPath.validNel
+        case invalidPath => s"Invalid GCS path: $invalidPath".invalidNel
+      }
+
+      result.contextualizeErrors("parse paths to manifest files as valid GCS paths")
+    }
+
+    backendConfig.getAs[List[String]]("reference-disk-localization-manifest-files") match {
+      case Some(gcsPaths) => validate(gcsPaths).map(Option.apply)
+      case None => None.validNel
+    }
+  }
+
 
   def validateQps(config: Config): ErrorOr[Int Refined Positive] = {
     import eu.timepit.refined._

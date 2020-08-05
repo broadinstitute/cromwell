@@ -111,23 +111,23 @@ class PipelinesApiConfigurationSpec extends FlatSpec with Matchers with TableDri
       an[Exception] shouldBe thrownBy {
         val failingGoogleConf = GoogleConfiguration(global)
         val failingAttributes = PipelinesApiConfigurationAttributes(failingGoogleConf, backend, "papi")
-        new PipelinesApiConfiguration(BackendConfigurationDescriptor(backend, global), genomicsFactory, failingGoogleConf, failingAttributes)
+        new PipelinesApiConfiguration(BackendConfigurationDescriptor(backend, global), genomicsFactory, failingGoogleConf, failingAttributes, PipelinesApiReferenceFilesMapping.empty)
       }
     }
   }
 
   it should "have correct root" in {
-    new PipelinesApiConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig), genomicsFactory, googleConfiguration, papiAttributes).root shouldBe "gs://my-cromwell-workflows-bucket"
+    new PipelinesApiConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig), genomicsFactory, googleConfiguration, papiAttributes, PipelinesApiReferenceFilesMapping.empty).root shouldBe "gs://my-cromwell-workflows-bucket"
   }
 
   it should "have correct docker" in {
-    val dockerConf = new PipelinesApiConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig), genomicsFactory, googleConfiguration, papiAttributes).dockerCredentials
+    val dockerConf = new PipelinesApiConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig), genomicsFactory, googleConfiguration, papiAttributes, PipelinesApiReferenceFilesMapping.empty).dockerCredentials
     dockerConf shouldBe defined
     dockerConf.get.token shouldBe "dockerToken"
   }
 
   it should "correctly default allowNoAddress to true" in {
-    val noAddressConf = new PipelinesApiConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig), genomicsFactory, googleConfiguration, papiAttributes)
+    val noAddressConf = new PipelinesApiConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig), genomicsFactory, googleConfiguration, papiAttributes, PipelinesApiReferenceFilesMapping.empty)
     noAddressConf.papiAttributes.allowNoAddress should be(true)
   }
 
@@ -137,7 +137,7 @@ class PipelinesApiConfigurationSpec extends FlatSpec with Matchers with TableDri
       ConfigValueFactory.fromAnyRef(false)
     )
     val updatedPapiAttributes = PipelinesApiConfigurationAttributes(googleConfiguration, updatedBackendConfig, "papi")
-    val noAddressConf = new PipelinesApiConfiguration(BackendConfigurationDescriptor(updatedBackendConfig, globalConfig), genomicsFactory, googleConfiguration, updatedPapiAttributes)
+    val noAddressConf = new PipelinesApiConfiguration(BackendConfigurationDescriptor(updatedBackendConfig, globalConfig), genomicsFactory, googleConfiguration, updatedPapiAttributes, PipelinesApiReferenceFilesMapping.empty)
     noAddressConf.papiAttributes.allowNoAddress should be(false)
   }
 
@@ -157,7 +157,7 @@ class PipelinesApiConfigurationSpec extends FlatSpec with Matchers with TableDri
     forAll(configs) { (backend, needAuthFileUpload) =>
       val customGoogleConfig = GoogleConfiguration(globalConfig)
       val attributes = PipelinesApiConfigurationAttributes(customGoogleConfig, backend, "papi")
-      new PipelinesApiConfiguration(BackendConfigurationDescriptor(backend, globalConfig), genomicsFactory, googleConfiguration, attributes).needAuthFileUpload shouldBe needAuthFileUpload
+      new PipelinesApiConfiguration(BackendConfigurationDescriptor(backend, globalConfig), genomicsFactory, googleConfiguration, attributes, PipelinesApiReferenceFilesMapping.empty).needAuthFileUpload shouldBe needAuthFileUpload
     }
   }
 }

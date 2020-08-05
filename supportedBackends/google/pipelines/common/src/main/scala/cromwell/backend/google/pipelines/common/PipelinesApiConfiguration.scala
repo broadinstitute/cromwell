@@ -11,7 +11,8 @@ import spray.json._
 class PipelinesApiConfiguration(val configurationDescriptor: BackendConfigurationDescriptor,
                                 val genomicsFactory: PipelinesApiFactoryInterface,
                                 val googleConfig: GoogleConfiguration,
-                                val papiAttributes: PipelinesApiConfigurationAttributes) extends DefaultJsonProtocol {
+                                val papiAttributes: PipelinesApiConfigurationAttributes,
+                                val pipelinesApiReferenceFilesMapping: PipelinesApiReferenceFilesMapping) extends DefaultJsonProtocol {
 
   val jesAuths = papiAttributes.auths
   val root = configurationDescriptor.backendConfig.getString("root")

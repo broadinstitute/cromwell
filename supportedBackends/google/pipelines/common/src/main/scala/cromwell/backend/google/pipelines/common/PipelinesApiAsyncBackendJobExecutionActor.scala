@@ -1,17 +1,14 @@
 package cromwell.backend.google.pipelines.common
 
 import java.net.SocketTimeoutException
-import java.util
 
 import _root_.io.grpc.Status
 import akka.actor.ActorRef
 import akka.http.scaladsl.model.ContentTypes
 import cats.data.Validated.{Invalid, Valid}
-import cats.implicits._
+import cats.syntax.validated._
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
-import com.google.common.io.BaseEncoding
-import com.google.common.primitives.Longs
 import common.util.StringUtil._
 import common.validation.ErrorOr._
 import common.validation.Validation._
@@ -90,9 +87,6 @@ object PipelinesApiAsyncBackendJobExecutionActor {
 
     new Exception(s"Task $jobTag failed. $returnCodeMessage PAPI error code ${errorCode.getCode.value}. $message")
   }
-
-  private case class ReferenceFile(path: String, crc32c: Long)
-  private case class ManifestFile(imageIdentifier: String, diskSizeGb: Int, files: List[ReferenceFile])
 }
 
 class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
@@ -379,18 +373,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   private val DockerMonitoringScriptPath: Path = PipelinesApiWorkingDisk.MountPoint.resolve(pipelinesApiCallPaths.jesMonitoringScriptFilename)
   private var hasDockerCredentials: Boolean = false
 
-  private lazy val validReferenceFilesMap: Future[Map[String, PipelinesApiReferenceFilesDisk]] = {
-    pipelinesConfiguration.papiAttributes.referenceDiskLocalizationManifestFiles match {
-      case None =>
-        Future.successful(Map.empty[String, PipelinesApiReferenceFilesDisk])
-      case Some(manifestFilesPaths) =>
-        val manifestFilesFuture = manifestFilesPaths traverse { manifestFilePath => readReferenceDiskManifestFileFromGCS(manifestFilePath) }
-        manifestFilesFuture flatMap { manifestFiles =>
-          manifestFiles.traverse(manifestFileToMapOfValidReferences).map(_.flatten.toMap)
-        }
-    }
-  }
-
   override def scriptPreamble: String = {
     if (monitoringOutput.isDefined) {
       s"""|touch $DockerMonitoringLogPath
@@ -427,64 +409,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     }
   }
 
-  private def readReferenceDiskManifestFileFromGCS(gcsPathStr: String): Future[ManifestFile] = {
-    import spray.json._
-    object ManifestFileJsonProtocol extends DefaultJsonProtocol {
-      implicit val referenceFileFormat: RootJsonFormat[ReferenceFile] = jsonFormat2(ReferenceFile)
-      implicit val manifestFileFormat: RootJsonFormat[ManifestFile] = jsonFormat3(ManifestFile)
-    }
-    import ManifestFileJsonProtocol._
-
-    val manifestFilePathFuture = Future.fromTry(workflowPaths.getPath(gcsPathStr))
-    manifestFilePathFuture flatMap { path =>
-      val jsonStrFuture = asyncIo.contentAsStringAsync(path, None, failOnOverflow = true)
-      jsonStrFuture.map(_.parseJson.convertTo[ManifestFile])
-    }
-  }
-
-  private def manifestFileToMapOfValidReferences(manifestFile: ManifestFile): Future[Map[String, PipelinesApiReferenceFilesDisk]] = {
-    def isReferenceFileChecksumValid(referenceFile: ReferenceFile): Future[Boolean] =
-      for {
-        filePath <- Future.fromTry(workflowPaths.getPath(s"gs://${referenceFile.path}"))
-        actualFileCrc32c <- asyncIo.hashAsync(filePath)
-        // drop 4 leading bytes from Long crc32c value
-        // https://stackoverflow.com/a/25111119/1794750
-        crc32cFromManifest = BaseEncoding.base64.encode(
-          util.Arrays.copyOfRange(Longs.toByteArray(referenceFile.crc32c), 4, 8)
-        )
-      } yield actualFileCrc32c === crc32cFromManifest
-
-    val refDisk = PipelinesApiReferenceFilesDisk(manifestFile.imageIdentifier, manifestFile.diskSizeGb)
-    val allReferenceFilesFromManifestMap = manifestFile.files.map(refFile => (refFile, refDisk)).toMap
-
-    // validate checksums of reference files and keep only those matching
-    val validReferenceFilesFromManifestMapFuture = for {
-      checkedFiles <-
-        Future.sequence(
-          allReferenceFilesFromManifestMap
-            .keySet
-            .map(refFile =>
-              isReferenceFileChecksumValid(refFile).map(isValid => (refFile, isValid))
-            )
-        )
-    } yield allReferenceFilesFromManifestMap.filterKeys { key =>
-      checkedFiles.collect {
-        case (refFile, isValid) if isValid => refFile
-      }.contains(key)
-    }
-
-    validReferenceFilesFromManifestMapFuture map { validReferenceFilesFromManifestMap =>
-      val invalidReferenceFiles = allReferenceFilesFromManifestMap.keySet -- validReferenceFilesFromManifestMap.keySet
-      log.warning(s"The following files listed in references manifest have checksum mismatch with actual files in GCS: ${invalidReferenceFiles.mkString(",")}")
-      validReferenceFilesFromManifestMap map {
-        case (refFile, disk) => (refFile.path, disk)
-      }
-    }
-  }
-
   private def createPipelineParameters(inputOutputParameters: InputOutputParameters,
                                        customLabels: Seq[GoogleLabel],
-                                       referenceFilesAndDisks: Map[String, PipelinesApiReferenceFilesDisk]): CreatePipelineParameters = {
+                                       referenceFilesMapping: PipelinesApiReferenceFilesMapping): CreatePipelineParameters = {
     standardParams.backendInitializationDataOption match {
       case Some(data: PipelinesApiBackendInitializationData) =>
         val dockerKeyAndToken: Option[CreatePipelineDockerKeyAndToken] = for {
@@ -512,10 +439,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           )
         } getOrElse runtimeAttributes.disks
 
-        val referenceDisksToMount = referenceFilesAndDisks.filterKeys { key =>
-          inputOutputParameters.jobInputParameters.map(_.cloudPath.pathAsString).contains(s"gs://$key")
-        }.values.toList
-
+        val inputFilePaths = inputOutputParameters.jobInputParameters.map(_.cloudPath.pathAsString).toSet
+        val referenceDisksToMount = referenceFilesMapping.getReferenceDisksToMount(inputFilePaths)
         CreatePipelineParameters(
           jobDescriptor = jobDescriptor,
           runtimeAttributes = runtimeAttributes,
@@ -639,8 +564,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       _ <- uploadScriptFile
       customLabels <- Future.fromTry(GoogleLabels.fromWorkflowOptions(workflowDescriptor.workflowOptions))
       jesParameters <- generateInputOutputParameters
-      referenceDisks <- validReferenceFilesMap
-      createParameters = createPipelineParameters(jesParameters, customLabels, referenceDisks)
+      createParameters = createPipelineParameters(jesParameters, customLabels, initializationData.papiConfiguration.pipelinesApiReferenceFilesMapping)
       gcsTransferConfiguration = initializationData.papiConfiguration.papiAttributes.gcsTransferConfiguration
       gcsTransferLibraryCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsTransferLibraryName
       transferLibraryContainerPath = createParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)

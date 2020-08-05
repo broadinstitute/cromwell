@@ -27,6 +27,8 @@ abstract class PipelinesApiBackendLifecycleActorFactory(override val name: Strin
 
   protected val papiAttributes = PipelinesApiConfigurationAttributes(googleConfig, configurationDescriptor.backendConfig, name)
 
+  protected val referenceFilesMapping = PipelinesApiReferenceFilesMapping(papiAttributes.auths.gcs, papiAttributes.referenceDiskLocalizationManifestFiles)
+
   override lazy val initializationActorClass: Class[_ <: StandardInitializationActor] = classOf[PipelinesApiInitializationActor]
 
   override lazy val asyncExecutionActorClass: Class[_ <: StandardAsyncExecutionActor] =

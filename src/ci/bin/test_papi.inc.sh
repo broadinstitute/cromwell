@@ -91,8 +91,10 @@ cromwell::private::papi::setup_papi_gcr() {
         cromwell::private::papi::gcr_image_push cromwell-drs-localizer "${CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS}"
     else
         # Just use the default images
-        CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS="broadinstitute/cromwell-drs-localizer:45-d46ff9f"
+        CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS="broadinstitute/cromwell-drs-localizer:45-d46ff9f-in-test-papi-inc-sh"
     fi
+
+    echo "#### FIND ME #### CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS = '${CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS}'"
 
     export CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
 }

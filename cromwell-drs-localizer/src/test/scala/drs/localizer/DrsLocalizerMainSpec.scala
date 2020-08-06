@@ -120,9 +120,9 @@ class MockDrsLocalizerMain(drsUrl: String,
                            downloadLoc: String,
                            requesterPaysId: Option[String]) extends DrsLocalizerMain(drsUrl, downloadLoc, requesterPaysId) {
 
-  override def getDrsPathResolver: IO[LocalizerDrsPathResolver] = {
+  override def getGcsDrsPathResolver: IO[GcsLocalizerDrsPathResolver] = {
     val mockDrsConfig = DrsConfig("https://abc/martha_v3", requestTemplate)
-    IO.pure(new MockLocalizerDrsPathResolver(mockDrsConfig, httpClientBuilder))
+    IO.pure(new MockGcsLocalizerDrsPathResolver(mockDrsConfig, httpClientBuilder))
   }
 
   override def downloadFileFromGcs(gcsUrl: String,
@@ -132,8 +132,8 @@ class MockDrsLocalizerMain(drsUrl: String,
 }
 
 
-class MockLocalizerDrsPathResolver(drsConfig: DrsConfig,
-                                   httpClientBuilder: HttpClientBuilder) extends LocalizerDrsPathResolver(drsConfig, httpClientBuilder) {
+class MockGcsLocalizerDrsPathResolver(drsConfig: DrsConfig,
+                                      httpClientBuilder: HttpClientBuilder) extends GcsLocalizerDrsPathResolver(drsConfig, httpClientBuilder) {
 
   override def resolveDrsThroughMartha(drsPath: String): IO[MarthaResponse] = {
     val (gcsUrl, bucketName, fileName) = drsPath match {

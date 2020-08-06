@@ -7,8 +7,8 @@ import org.apache.http.impl.client.HttpClientBuilder
 import scala.collection.JavaConverters._
 
 
-class LocalizerDrsPathResolver(drsConfig: DrsConfig,
-                               httpClientBuilder: HttpClientBuilder) extends DrsPathResolver(drsConfig, httpClientBuilder) {
+class GcsLocalizerDrsPathResolver(drsConfig: DrsConfig,
+                                  httpClientBuilder: HttpClientBuilder) extends DrsPathResolver(drsConfig, httpClientBuilder) {
 
   private final val UserInfoEmailScope = "https://www.googleapis.com/auth/userinfo.email"
   private final val UserInfoProfileScope = "https://www.googleapis.com/auth/userinfo.profile"

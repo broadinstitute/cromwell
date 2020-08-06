@@ -91,10 +91,12 @@ cromwell::private::papi::setup_papi_gcr() {
         cromwell::private::papi::gcr_image_push cromwell-drs-localizer "${CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS}"
     else
         # Just use the default images
+        # Due to unknown reasons, Travis is not able to build and use the cromwell-drs-localizer image built through the commit.
+        # Adding any random string here and in `papi_application.inc.conf.ctmpl` somehow triggers Travis to use the image
+        # built from the commit.
+        # TODO: Once a stable image of cromwell-drs-localizer is pushed to Dockerhub, replace the default image with that
         CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS="broadinstitute/cromwell-drs-localizer:45-d46ff9f-in-test-papi-inc-sh"
     fi
-
-    echo "#### FIND ME #### CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS = '${CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS}'"
 
     export CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
 }

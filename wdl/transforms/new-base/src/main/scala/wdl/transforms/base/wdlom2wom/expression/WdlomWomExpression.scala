@@ -11,7 +11,7 @@ import wdl.model.draft3.graph.{ExpressionValueConsumer, GeneratedValueHandle, Un
 import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
 import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.expressionElementWriter
 import wom.expression.{FileEvaluation, IoFunctionSet, WomExpression}
-import wom.types.{WomOptionalType, WomType}
+import wom.types._
 import wom.values.WomValue
 
 final case class WdlomWomExpression private (expressionElement: ExpressionElement, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])
@@ -35,11 +35,25 @@ final case class WdlomWomExpression private (expressionElement: ExpressionElemen
   // NB types can be determined using the linked values, so we don't need the inputMap:
   override def evaluateType(inputMap: Map[String, WomType]): ErrorOr[WomType] = evaluatedType
 
-  override def evaluateFiles(inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] =
+  /** Returns `true` if the specified `WomType` contains only optional file types. If the specified `WomType` is
+    * complex and we can't work out definitively whether all its file types are optional, return `false` to be on the
+    * safe side. */
+  def areAllFileTypesInWomTypeOptional(womType: WomType): Boolean = womType match {
+    case WomOptionalType(_: WomPrimitiveFileType) => true
+    case _: WomPrimitiveFileType => false
+    case _: WomPrimitiveType => true // WomPairTypes may have a non-File component here, this is fine.
+    case WomArrayType(inner) => areAllFileTypesInWomTypeOptional(inner)
+    case WomMapType(_, inner) => areAllFileTypesInWomTypeOptional(inner)
+    case WomPairType(leftType, rightType) => areAllFileTypesInWomTypeOptional(leftType) && areAllFileTypesInWomTypeOptional(rightType)
+    case _ => false
+  }
+
+  override def evaluateFiles(inputs: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]] = {
     expressionElement.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo) map { _ map {
-      FileEvaluation(_, optional = coerceTo.isInstanceOf[WomOptionalType], secondary = false)
+      FileEvaluation(_, optional = areAllFileTypesInWomTypeOptional(coerceTo), secondary = false)
     }}
   }
+}
 
 object WdlomWomExpression {
   def make(expressionElement: ExpressionElement, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])

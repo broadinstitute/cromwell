@@ -71,26 +71,26 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClie
 }
 
 
-case class DrsConfig(marthaUri: String, marthaRequestJsonTemplate: String)
+final case class DrsConfig(marthaUri: String, marthaRequestJsonTemplate: String)
 
-case class Url(url: String)
-case class ChecksumObject(checksum: String, `type`: String)
-case class DrsDataObject(size: Option[Long],
-                         checksums: Option[Array[ChecksumObject]],
-                         updated: Option[String],
-                         urls: Array[Url])
-case class DrsObject(data_object: DrsDataObject)
-case class SADataObject(data: Json)
+final case class Url(url: String)
+final case class ChecksumObject(checksum: String, `type`: String)
+final case class DrsDataObject(size: Option[Long],
+                               checksums: Option[Array[ChecksumObject]],
+                               updated: Option[String],
+                               urls: Array[Url])
+final case class DrsObject(data_object: DrsDataObject)
+final case class SADataObject(data: Json)
 
-case class MarthaV2Response(dos: DrsObject, googleServiceAccount: Option[SADataObject])
+final case class MarthaV2Response(dos: DrsObject, googleServiceAccount: Option[SADataObject])
 
-case class MarthaResponse(size: Option[Long],
-                          timeUpdated: Option[String],
-                          bucket: Option[String],
-                          name: Option[String],
-                          gsUri: Option[String],
-                          googleServiceAccount: Option[SADataObject],
-                          hashes: Option[Map[String, String]])
+final case class MarthaResponse(size: Option[Long],
+                                timeUpdated: Option[String],
+                                bucket: Option[String],
+                                name: Option[String],
+                                gsUri: Option[String],
+                                googleServiceAccount: Option[SADataObject],
+                                hashes: Option[Map[String, String]])
 
 object MarthaResponseSupport {
 
@@ -100,7 +100,7 @@ object MarthaResponseSupport {
   implicit lazy val drsObjectDecoder: Decoder[DrsObject] = deriveDecoder
   implicit lazy val saDataObjectDecoder: Decoder[SADataObject] = deriveDecoder
   implicit lazy val marthaV2ResponseDecoder: Decoder[MarthaV2Response] = deriveDecoder
-  implicit lazy val marthaV3ResponseDecoder: Decoder[MarthaResponse] = deriveDecoder
+  implicit lazy val marthaResponseDecoder: Decoder[MarthaResponse] = deriveDecoder
 
   private val GcsScheme = "gs://"
 

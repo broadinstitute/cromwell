@@ -46,11 +46,11 @@ class DrsLocalizerMain(drsUrl: String, downloadLoc: String, requesterPaysId: Opt
 
   val httpClientBuilder: HttpClientBuilder = HttpClientBuilder.create()
 
-  def getDrsPathResolver: IO[LocalizerDrsPathResolver] = {
+  def getGcsDrsPathResolver: IO[GcsLocalizerDrsPathResolver] = {
     IO.pure {
       val marthaUrl = sys.env("MARTHA_URL")
       val drsConfig = DrsConfig(marthaUrl, requestTemplate)
-      new LocalizerDrsPathResolver(drsConfig, httpClientBuilder)
+      new GcsLocalizerDrsPathResolver(drsConfig, httpClientBuilder)
     }
   }
 
@@ -102,7 +102,7 @@ class DrsLocalizerMain(drsUrl: String, downloadLoc: String, requesterPaysId: Opt
     }
 
     // bash to download the GCS file using gsutil
-    val downloadBashScript = s"""set -euo pipefail
+    s"""set -euo pipefail
        |set +e
        |
        |${setServiceAccount(saJsonPathOption)}
@@ -117,10 +117,6 @@ class DrsLocalizerMain(drsUrl: String, downloadLoc: String, requesterPaysId: Opt
        |  exit 0
        |fi
        |""".stripMargin
-
-    // log the script for easier debugging
-    DrsLocalizerMain.logger.info(s"Bash script to download file: \n$downloadBashScript")
-    downloadBashScript
   }
 
 
@@ -157,8 +153,8 @@ class DrsLocalizerMain(drsUrl: String, downloadLoc: String, requesterPaysId: Opt
 
   def resolveAndDownload(): IO[ExitCode] = {
     for {
-      localizerDrsPathResolver <- getDrsPathResolver
-      marthaResponse <- localizerDrsPathResolver.resolveDrsThroughMartha(drsUrl)
+      localizerGcsDrsPathResolver <- getGcsDrsPathResolver
+      marthaResponse <- localizerGcsDrsPathResolver.resolveDrsThroughMartha(drsUrl)
       // Currently Martha only supports resolving DRS paths to GCS paths
       gcsUrl <- IO.fromEither(marthaResponse.gsUri.toRight(new RuntimeException(ExtractGcsUrlErrorMsg)))
       exitState <- downloadFileFromGcs(gcsUrl, marthaResponse.googleServiceAccount.map(_.data.toString), downloadLoc, requesterPaysId)

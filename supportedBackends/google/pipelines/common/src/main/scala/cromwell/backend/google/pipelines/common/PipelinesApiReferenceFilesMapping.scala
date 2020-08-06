@@ -96,14 +96,16 @@ class PipelinesApiReferenceFilesMapping(auth: GoogleAuthMode,
             (referenceFile, blobGetResult)
         }
         gcsBatch.submit()
+
         filesAndBlobResults.map {
           case (referenceFile, blobGetResult) =>
-            val crc32FromManifest = BaseEncoding.base64.encode(
+            val crc32cFromManifest = BaseEncoding.base64.encode(
               // drop 4 leading bytes from Long crc32c value
               // https://stackoverflow.com/a/25111119/1794750
               util.Arrays.copyOfRange(Longs.toByteArray(referenceFile.crc32c), 4, 8)
             )
-            (referenceFile, crc32FromManifest === blobGetResult.get().getCrc32c)
+
+            (referenceFile, crc32cFromManifest === blobGetResult.get().getCrc32c)
         }
       }
     }

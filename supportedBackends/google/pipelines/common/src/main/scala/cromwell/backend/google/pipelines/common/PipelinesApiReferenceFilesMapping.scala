@@ -10,8 +10,9 @@ import com.google.common.io.BaseEncoding
 import com.google.common.primitives.Longs
 import cromwell.backend.google.pipelines.common.io.PipelinesApiReferenceFilesDisk
 import cromwell.filesystems.gcs.GcsPathBuilder
-import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
+import cromwell.filesystems.gcs.GcsPathBuilder.{InvalidFullGcsPath, ValidFullGcsPath}
 import PipelinesApiReferenceFilesMapping._
+import com.google.cloud.storage.Storage.{BlobField, BlobGetOption}
 import cromwell.cloudsupport.gcp.auth.{ApplicationDefaultMode, GoogleAuthMode}
 import org.slf4j.{Logger, LoggerFactory}
 
@@ -68,41 +69,58 @@ class PipelinesApiReferenceFilesMapping(auth: GoogleAuthMode,
     }
   }
 
-  protected def isReferenceFileChecksumValid(gcsClient: Storage, referenceFile: ReferenceFile): IO[Boolean] = {
-    GcsPathBuilder.validateGcsPath(s"gs://${referenceFile.path}") match {
-      case ValidFullGcsPath(bucket, path) =>
-        val gcsFileBlobIo = IO { gcsClient.get(BlobId.of(bucket, path.substring(1))) }
-        val crc32cFromManifest = BaseEncoding.base64.encode(
-          // drop 4 leading bytes from Long crc32c value
-          // https://stackoverflow.com/a/25111119/1794750
-          util.Arrays.copyOfRange(Longs.toByteArray(referenceFile.crc32c), 4, 8)
-        )
-        gcsFileBlobIo.map(gcsFileBlob => gcsFileBlob.getCrc32c === crc32cFromManifest)
-      case _ =>
-        IO.pure(false)
+  protected def bulkValidateCrc32cs(referenceFiles: Set[ReferenceFile]): IO[Map[ReferenceFile, Boolean]] = {
+    val gcsClient = createGcsClient()
+
+    val filesAndValidatedPaths = referenceFiles.map {
+      referenceFile => (referenceFile, GcsPathBuilder.validateGcsPath(s"gs://${referenceFile.path}"))
+    }.toMap
+
+    val filesWithValidPaths = filesAndValidatedPaths.collect {
+      case (referenceFile, validPath: ValidFullGcsPath) => (referenceFile, validPath)
+    }
+    val filesWithInvalidPaths = filesAndValidatedPaths.collect {
+      case (referenceFile, invalidPath: InvalidFullGcsPath) => (referenceFile, invalidPath)
+    }
+
+    if (filesWithInvalidPaths.nonEmpty) {
+      IO.raiseError(new RuntimeException(s"Some of the paths in manifest file are not valid GCS paths: " +
+        s"${filesWithInvalidPaths.keySet.map(_.path).toList.mkString(", ")}")
+      )
+    } else {
+      IO {
+        val gcsBatch = gcsClient.batch()
+        val filesAndBlobResults = filesWithValidPaths.map {
+          case (referenceFile, ValidFullGcsPath(bucket, path)) =>
+            val blobGetResult = gcsBatch.get(BlobId.of(bucket, path.substring(1)), BlobGetOption.fields(BlobField.CRC32C))
+            (referenceFile, blobGetResult)
+        }
+        gcsBatch.submit()
+        filesAndBlobResults.map {
+          case (referenceFile, blobGetResult) =>
+            val crc32FromManifest = BaseEncoding.base64.encode(
+              // drop 4 leading bytes from Long crc32c value
+              // https://stackoverflow.com/a/25111119/1794750
+              util.Arrays.copyOfRange(Longs.toByteArray(referenceFile.crc32c), 4, 8)
+            )
+            (referenceFile, crc32FromManifest === blobGetResult.get().getCrc32c)
+        }
+      }
     }
   }
 
   private def manifestFileToMapOfValidReferences(manifestFile: ManifestFile): IO[Map[String, PipelinesApiReferenceFilesDisk]] = {
-    val gcsClient = createGcsClient()
     val refDisk = PipelinesApiReferenceFilesDisk(manifestFile.imageIdentifier, manifestFile.diskSizeGb)
     val allReferenceFilesFromManifestMap = manifestFile.files.map(refFile => (refFile, refDisk)).toMap
+    val filesWithValidatedCrc32csIo = bulkValidateCrc32cs(allReferenceFilesFromManifestMap.keySet)
 
-    // validate checksums of reference files and keep only matching ones
-    val validReferenceFilesFromManifestMapFuture = for {
-      checkedFiles <-
-        allReferenceFilesFromManifestMap
-          .keySet
-          .map(refFile =>
-            isReferenceFileChecksumValid(gcsClient, refFile).map(isValid => (refFile, isValid))
-          ).toList.sequence
-    } yield allReferenceFilesFromManifestMap.filterKeys { key =>
-      checkedFiles.collect {
-        case (refFile, isValid) if isValid => refFile
-      }.contains(key)
+    val validReferenceFilesFromManifestMapIo = filesWithValidatedCrc32csIo map {
+      filesWithValidatedCrc32c => {
+        allReferenceFilesFromManifestMap.filterKeys(key => filesWithValidatedCrc32c.getOrElse(key, false))
+      }
     }
 
-    validReferenceFilesFromManifestMapFuture map { validReferenceFilesFromManifestMap =>
+    validReferenceFilesFromManifestMapIo map { validReferenceFilesFromManifestMap =>
       val invalidReferenceFiles = allReferenceFilesFromManifestMap.keySet -- validReferenceFilesFromManifestMap.keySet
       if (invalidReferenceFiles.nonEmpty) {
         logger.warn(s"The following files listed in references manifest have checksum mismatch with actual files in GCS: ${invalidReferenceFiles.mkString(",")}")

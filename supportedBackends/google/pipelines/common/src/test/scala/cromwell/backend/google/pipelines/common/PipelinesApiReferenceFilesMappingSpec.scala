@@ -1,7 +1,6 @@
 package cromwell.backend.google.pipelines.common
 
 import cats.effect.IO
-import com.google.cloud.storage.Storage
 import cromwell.backend.google.pipelines.common.PipelinesApiReferenceFilesMapping.{ManifestFile, ReferenceFile}
 import cromwell.backend.google.pipelines.common.io.PipelinesApiReferenceFilesDisk
 import cromwell.cloudsupport.gcp.auth.ApplicationDefaultMode
@@ -75,7 +74,8 @@ class PipelinesApiReferenceFilesMappingSpec extends FlatSpecLike with Matchers {
         }
       }
 
-      override def isReferenceFileChecksumValid(gcsClient: Storage, referenceFile: ReferenceFile): IO[Boolean] =
-        IO.pure(referenceFile.path != refFile4Disk2MismatchingChecksum)
+      override protected def bulkValidateCrc32cs(referenceFiles: Set[ReferenceFile]): IO[Map[ReferenceFile, Boolean]] = {
+        IO.pure(referenceFiles.map(file => (file, file.path != refFile4Disk2MismatchingChecksum)).toMap)
+      }
     }
 }

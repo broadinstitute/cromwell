@@ -35,9 +35,8 @@ final case class WdlomWomExpression private (expressionElement: ExpressionElemen
   // NB types can be determined using the linked values, so we don't need the inputMap:
   override def evaluateType(inputMap: Map[String, WomType]): ErrorOr[WomType] = evaluatedType
 
-  /** Returns `true` if the specified `WomType` contains only optional file types. If the specified `WomType` is
-    * complex and we can't work out definitively whether all its file types are optional, return `false` to be on the
-    * safe side. */
+  /** Returns `true` if all file types within the specified `WomType` are optional. If the specified `WomType` is
+    * complex and we can't definitively work out whether all its file types are optional, return `false`. */
   def areAllFileTypesInWomTypeOptional(womType: WomType): Boolean = womType match {
     case WomOptionalType(_: WomPrimitiveFileType) => true
     case _: WomPrimitiveFileType => false
@@ -45,6 +44,7 @@ final case class WdlomWomExpression private (expressionElement: ExpressionElemen
     case WomArrayType(inner) => areAllFileTypesInWomTypeOptional(inner)
     case WomMapType(_, inner) => areAllFileTypesInWomTypeOptional(inner)
     case WomPairType(leftType, rightType) => areAllFileTypesInWomTypeOptional(leftType) && areAllFileTypesInWomTypeOptional(rightType)
+    case WomCompositeType(typeMap, _) => typeMap.values.forall(areAllFileTypesInWomTypeOptional)
     case _ => false
   }
 

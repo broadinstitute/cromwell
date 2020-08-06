@@ -1,5 +1,10 @@
 version 1.0
 
+struct NameAndMaybeFile {
+    String name
+    File? file
+}
+
 task maybe_create_file {
     input {
         Boolean do_it
@@ -27,6 +32,16 @@ task more_complicated_maybe_file_tests {
     output {
         Array[File?] array_of_maybe_files = ["yes", "no"]
         Map[String, File?] map_with_maybe_file_values = { "yes": "yes", "no": "no" }
+        NameAndMaybeFile no_struct = object { name: "no", file: "no" }
+        NameAndMaybeFile yes_struct = object { name: "yes", file: "yes" }
+        Array[NameAndMaybeFile] array_of_structs = [
+          object { name: "yes", file: "yes"},
+          object { name: "no", file: "no" }
+        ]
+        Map[String, NameAndMaybeFile] map_of_structs = {
+          "yes": object { name: "yes", file: "yes"},
+          "no": object { name: "no", file: "no"}
+        }
     }
     runtime {
         docker: "ubuntu:latest"

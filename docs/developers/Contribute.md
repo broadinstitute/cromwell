@@ -32,8 +32,8 @@ The documentation is written in Markdown. Click here for a [Github Guide on Mark
 
 **Links:**
 
-* Absolute: `[link text](www.destinationURL.com)`  
-_Example:_ `[Broad Institute](www.broadinstitute.org)` _produces this link_ [Broad Institute](www.broadinstitute.org).
+* Absolute: `[link text](www.destinationURL.com)`
+_Example:_ `[Broad Institute](www.broadinstitute.org)` _produces this link_ [Broad Institute](https://www.broadinstitute.org).
 * Relative: `[link text](Destination_Page)`, where `Destination_Page` is the file name without the `.md` extension  
 _Example:_ `[How to use the Cromwell CLI](CommandLine)` _produces this link_ [How to use the Cromwell CLI](CommandLine).
 * Anchor link: `[anchor text](../Path/To/Page#Anchor)`  
@@ -73,8 +73,8 @@ _produces this block_
 **Images**
 
 * Relative: `![](ImgName.png)`
-	* _Example:_ `![](jamie_the_cromwell_pig.png)` _produces this image_  
-	![](jamie_the_cromwell_pig.png)  
+	* _Example:_ `![](../jamie_the_cromwell_pig.png)` _produces this image_  
+	![](../jamie_the_cromwell_pig.png)  
 * Absolute: `![](URLofImg.png)`
 	* _Example:_ `![](https://www.broadinstitute.org/sites/all/themes/custom/at_broad/logo.png)` _produces this image_  
 	![](https://www.broadinstitute.org/sites/all/themes/custom/at_broad/logo.png)  

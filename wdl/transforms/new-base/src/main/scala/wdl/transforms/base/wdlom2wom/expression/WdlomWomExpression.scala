@@ -41,7 +41,7 @@ final case class WdlomWomExpression private (expressionElement: ExpressionElemen
   def areAllFileTypesInWomTypeOptional(womType: WomType): Boolean = womType match {
     case WomOptionalType(_: WomPrimitiveFileType) => true
     case _: WomPrimitiveFileType => false
-    case _: WomPrimitiveType => true // WomPairTypes may have a non-File component here, this is fine.
+    case _: WomPrimitiveType => true // WomPairTypes and WomCompositeTypes may have non-File components here which is fine.
     case WomArrayType(inner) => areAllFileTypesInWomTypeOptional(inner)
     case WomMapType(_, inner) => areAllFileTypesInWomTypeOptional(inner)
     case WomPairType(leftType, rightType) => areAllFileTypesInWomTypeOptional(leftType) && areAllFileTypesInWomTypeOptional(rightType)

@@ -52,12 +52,13 @@ import scala.util.{Failure, Success}
   * @param serviceConfig the source of service config information
   * @param globalConfig the source of global config information
   * @param serviceRegistryActor the actor for registering services
+  * @see cromwell.services.metadata.impl.sns.HybridSnsMetadataServiceActor
   */
 class AwsSnsMetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor with ActorLogging {
   implicit val ec: ExecutionContextExecutor = context.dispatcher
 
   //setup sns client
-  val topicArn = "arn:aws:sns:us-east-1:251159210224:cromwell-metadata" //todo get this from serviceConfig
+  val topicArn: String = serviceConfig.getString("aws.topicArn")
 
   val awsConfig: AwsConfiguration = AwsConfiguration(globalConfig)
   val credentialsProviderChain: AwsCredentialsProviderChain =
@@ -66,7 +67,7 @@ class AwsSnsMetadataServiceActor(serviceConfig: Config, globalConfig: Config, se
   lazy val snsClient: SnsClient = SnsClient.builder()
     .region(awsConfig.region.getOrElse(Region.US_EAST_1))
     .credentialsProvider(credentialsProviderChain)
-    .build();
+    .build()
 
   def publishMessages(events: Iterable[MetadataEvent]): Future[Unit] = {
     import AwsSnsMetadataServiceActor.EnhancedMetadataEvents
@@ -74,7 +75,7 @@ class AwsSnsMetadataServiceActor(serviceConfig: Config, globalConfig: Config, se
     val eventsJson = events.toJson
     //if there are no events then don't publish anything
     if( eventsJson.length < 1) { return Future(())}
-    log.info("Publishing to " + topicArn + ": " + eventsJson)
+    log.debug("Publishing to " + topicArn + ": " + eventsJson)
 
     def publish(): Unit = {
       snsClient.publish(PublishRequest.builder()

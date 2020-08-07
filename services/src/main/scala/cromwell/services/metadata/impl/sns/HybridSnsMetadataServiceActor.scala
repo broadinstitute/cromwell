@@ -47,8 +47,27 @@ import cromwell.services.metadata.impl.MetadataServiceActor
   * messages will be sent to the SnsMetadataServiceActor as a standard PutMetadataAction, i.e. only the standard
   * metadata service will be ACKing the request.
   *
-  * It is expected that the user will supply any desired config fields for both MetadataServiceActor and
-  * AwsSnsMetadataServiceActor as the serviceConfig block will be passed along to both of them.
+  * To use this actor something similar to the following should be present in the cromwell.conf file:
+  * <pre>
+  * services {
+  *   MetadataService {
+  *     class="cromwell.services.metadata.impl.sns.HybridSnsMetadataServiceActor"
+  *     config {
+  *       aws {
+  *         application-name = "cromwell"
+  *         auths = [{
+  *           name = "default"
+  *           scheme = "default"
+  *         }]
+  *         region = "us-east-1"
+  *         topicArn = "arn:aws:sns:us-east-1:1111111111111:cromwell-metadata"
+  *       }
+  *     }
+  *   }
+  * }
+  * </pre>
+  *
+  * @see cromwell.services.metadata.impl.sns.AwsSnsMetadataServiceActor
   */
 class HybridSnsMetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor with ActorLogging  {
   val standardMetadataActor: ActorRef = context.actorOf(MetadataServiceActor.props(serviceConfig, globalConfig, serviceRegistryActor))

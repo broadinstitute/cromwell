@@ -3,7 +3,6 @@ package cloud.nio.impl.ftp
 import java.io.OutputStream
 
 import cats.effect.IO
-import cats.syntax.functor._
 import cloud.nio.impl.ftp.FtpUtil.autoRelease
 import cloud.nio.impl.ftp.operations.FtpCompletePendingCommand
 import io.github.andrebeat.pool.Lease

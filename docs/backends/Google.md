@@ -473,3 +473,38 @@ from `cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFacto
 `https://lifesciences.googleapis.com/`.
 3. Also you should add a new mandatory parameter `genomics.location` to your backend configuration. Currently Google Cloud 
 Life Sciences API is available only in `us-central1` and `europe-west2` locations.
+
+### Alpha support for WDL optional outputs on PAPI v2
+
+Cromwell 53 adds alpha-quality support for WDL optional outputs on PAPI v2 backends. Constructs such as: 
+
+```
+  struct MyStruct {
+    String name
+    File? file
+  }
+  .
+  .
+  .
+  output {
+    File? file_does_not_exist = "does_not_exist"
+    Pair[String, File?] pair_file_does_not_exist = ("this", "does_not_exist")
+    Map[String, File?] map_file_does_not_exist = { "does_not_exist": "does_not_exist" }
+    Array[File?] array_file_does_not_exist = ["does_not_exist"]
+    MyStruct struct_file_does_not_exist = object { name: "this", file: "does_not_exist" } 
+  }
+```
+
+will not produce errors if the file `does_not_exist` does not exist. This support for optional files is considered alpha
+quality for two reasons:
+
+1. As seen in the example above, support for optional files extends to complex WDL types but there is a restriction that
+all `File` components of non-primitive types must be optional. e.g. Cromwell would not allow the assignment of a 
+missing file to the right side of a pair of type `Pair[File, File?]` since the left member of the pair is a non-optional
+file. This restriction exists solely due to technical limitations in how type evaluation works in Cromwell today and
+may be removed in a future Cromwell release.
+
+2. Call caching does not work for calls with empty optional outputs. Cromwell currently does not recognize
+that it is okay for optional output files to be missing, will incorrectly claim that any cache hits with missing 
+optional output files are unusable, and will proceed to search for more cache hits which if found will also be unusable,
+before eventually giving up and running the job. This behavior may be corrected in a future Cromwell release. 

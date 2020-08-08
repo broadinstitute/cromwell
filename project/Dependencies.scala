@@ -34,7 +34,7 @@ object Dependencies {
   private val googleCloudMonitoringV = "1.100.1"
   private val googleCloudNioV = "0.61.0-alpha"
   private val googleCloudStorageV = "1.111.1"
-  private val googleGaxGrpcV = "1.57.1"
+  private val googleGaxGrpcV = "1.58.2"
   private val googleGenomicsServicesV1ApiV = "v1alpha2-rev495-1.23.0"
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20200330-1.30.9"
   private val googleHttpClientApacheV = "2.1.2"

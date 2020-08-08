@@ -24,7 +24,7 @@ object Dependencies {
   private val commonsMathV = "3.2"
   private val commonsTextV = "1.6"
   private val configsV = "0.4.4"
-  private val delightRhinoSandboxV = "0.0.10"
+  private val delightRhinoSandboxV = "0.0.11"
   private val ficusV = "1.4.7"
   private val fs2V = "2.0.1"
   private val fs2VStatsDProxy = "1.0.5"

@@ -44,7 +44,8 @@ case class PipelinesApiConfigurationAttributes(project: String,
                                                virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
                                                batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
                                                memoryRetryConfiguration: Option[MemoryRetryConfiguration],
-                                               allowNoAddress: Boolean)
+                                               allowNoAddress: Boolean,
+                                               referenceDiskLocalizationManifestFiles: Option[List[String]])
 
 object PipelinesApiConfigurationAttributes {
 
@@ -101,7 +102,8 @@ object PipelinesApiConfigurationAttributes {
     "virtual-private-cloud.auth",
     "memory-retry.error-keys",
     "memory-retry.multiplier",
-    allowNoAddressAttributeKey
+    allowNoAddressAttributeKey,
+    "reference-disk-localization-manifest-files"
   )
 
   private val deprecatedJesKeys: Map[String, String] = Map(
@@ -208,6 +210,9 @@ object PipelinesApiConfigurationAttributes {
       (memoryRetryKeys, memoryRetryMultiplier) flatMapN validateMemoryRetryConfig
     }
 
+    val referenceDiskLocalizationManifestFiles: ErrorOr[Option[List[String]]] =
+      validate { backendConfig.getAs[List[String]]("reference-disk-localization-manifest-files") }
+
     def authGoogleConfigForPapiConfigurationAttributes(project: String,
                                                        bucket: String,
                                                        endpointUrl: URL,
@@ -223,7 +228,8 @@ object PipelinesApiConfigurationAttributes {
                                                        virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
                                                        batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
                                                        memoryRetryConfig: Option[MemoryRetryConfiguration],
-                                                       allowNoAddress: Boolean): ErrorOr[PipelinesApiConfigurationAttributes] =
+                                                       allowNoAddress: Boolean,
+                                                       referenceDiskLocalizationManifestFiles: Option[List[String]]): ErrorOr[PipelinesApiConfigurationAttributes] =
       (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN {
         (genomicsAuth, gcsAuth) =>
           PipelinesApiConfigurationAttributes(
@@ -245,7 +251,8 @@ object PipelinesApiConfigurationAttributes {
             virtualPrivateCloudConfiguration = virtualPrivateCloudConfiguration,
             batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration,
             memoryRetryConfiguration = memoryRetryConfig,
-            allowNoAddress
+            allowNoAddress,
+            referenceDiskLocalizationManifestFiles = referenceDiskLocalizationManifestFiles
           )
     }
 
@@ -264,7 +271,8 @@ object PipelinesApiConfigurationAttributes {
       virtualPrivateCloudConfiguration,
       batchRequestTimeoutConfigurationValidation,
       memoryRetryConfig,
-      allowNoAddress
+      allowNoAddress,
+      referenceDiskLocalizationManifestFiles
     ) flatMapN authGoogleConfigForPapiConfigurationAttributes match {
       case Valid(r) => r
       case Invalid(f) =>

@@ -88,7 +88,7 @@ object Dependencies {
   private val shapelessV = "2.3.3"
   private val simulacrumV = "0.19.0"
   private val slf4jV = "1.7.25"
-  private val slickCatsV = "0.9.1"
+  private val slickCatsV = "0.10.2"
   private val testContainersScalaV = "0.38.1"
 
   /* If you're about to update our Slick version:

@@ -364,6 +364,7 @@ lazy val perf = project
 
 lazy val `cromwell-drs-localizer` = project
   .withExecutableSettings("cromwell-drs-localizer", drsLocalizerDependencies, drsLocalizerSettings)
+  .dependsOn(`cloud-nio-impl-drs`)
 
 lazy val server = project
   .withExecutableSettings("cromwell", serverDependencies)

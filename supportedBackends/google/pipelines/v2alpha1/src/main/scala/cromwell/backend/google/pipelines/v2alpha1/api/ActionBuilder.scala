@@ -111,9 +111,9 @@ object ActionBuilder {
 
     new Action()
       .setImageUri(docker)
-      .setCommands(List(jobShell, scriptContainerPath).asJava)
+      .setCommands(List(scriptContainerPath).asJava)
       .setMounts(mounts.asJava)
-      .setEntrypoint("/bin/sh")
+      .setEntrypoint(jobShell)
       .setLabels(Map(Key.Tag -> Value.UserAction).asJava)
       .setCredentials(secret.orNull)
       .setFlags((if (fuseEnabled) List(ActionFlag.EnableFuse.toString) else List.empty).asJava)

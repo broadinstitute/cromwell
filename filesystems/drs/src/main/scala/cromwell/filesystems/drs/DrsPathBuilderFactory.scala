@@ -64,19 +64,6 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
   }
 
 
-  private def inputReadChannel(url: String,
-                               urlScheme: String,
-                               serviceAccountJson: String,
-                               requesterPaysProjectIdOption: Option[String]): IO[ReadableByteChannel] =  {
-    urlScheme match {
-      case GcsScheme =>
-        val Array(bucket, fileToBeLocalized) = url.replace(s"$GcsScheme://", "").split("/", 2)
-        gcsInputStream(GcsFilePath(bucket, fileToBeLocalized), serviceAccountJson, requesterPaysProjectIdOption)
-      case otherScheme => IO.raiseError(new UnsupportedOperationException(s"DRS currently doesn't support reading files for $otherScheme."))
-    }
-  }
-
-
   private def drsReadInterpreter(options: WorkflowOptions, requesterPaysProjectIdOption: Option[String])
                                 (marthaResponse: MarthaResponse): IO[ReadableByteChannel] = {
     val serviceAccountJsonIo = marthaResponse.googleServiceAccount match {
@@ -87,8 +74,10 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
     for {
       serviceAccountJson <- serviceAccountJsonIo
       //Currently, Martha only supports resolving DRS paths to GCS paths
-      url <- IO.fromEither(DrsResolver.extractUrlForScheme(marthaResponse.drs.data_object.urls, GcsScheme))
-      readableByteChannel <- inputReadChannel(url, GcsScheme, serviceAccountJson, requesterPaysProjectIdOption)
+      _ <- IO.fromEither(marthaResponse.gsUri.toRight(UrlNotFoundException(GcsScheme)))
+      bucket <- IO.fromEither(marthaResponse.bucket.toRight(MarthaResponseMissingKeyException("bucket")))
+      filePath <- IO.fromEither(marthaResponse.name.toRight(MarthaResponseMissingKeyException("name")))
+      readableByteChannel <- gcsInputStream(GcsFilePath(bucket, filePath), serviceAccountJson, requesterPaysProjectIdOption)
     } yield readableByteChannel
   }
 
@@ -105,12 +94,17 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
     // ONLY use the project id from the User Service Account for requester pays
     val requesterPaysProjectIdOption = options.get("google_project").toOption
 
+    // `override_martha_url_for_test` is a workflow option to override the default `martha.url` specified in the global config.
+    // This is only used for testing purposes.
+    val marthaUrlOverrideForTest: Option[String] = options.get("override_martha_url_for_test").toOption
+
     Future(DrsPathBuilder(
       new DrsCloudNioFileSystemProvider(
         singletonConfig.config,
         authCredentials,
         httpClientBuilder,
-        drsReadInterpreter(options, requesterPaysProjectIdOption)
+        drsReadInterpreter(options, requesterPaysProjectIdOption),
+        marthaUrlOverrideForTest
       ),
       requesterPaysProjectIdOption,
     ))
@@ -120,3 +114,5 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
 
 
 case class UrlNotFoundException(scheme: String) extends Exception(s"No $scheme url associated with given DRS path.")
+
+case class MarthaResponseMissingKeyException(missingKey: String) extends Exception(s"The response from Martha doesn't contain the key '$missingKey'.")

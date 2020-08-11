@@ -95,7 +95,7 @@ cromwell::private::papi::setup_papi_gcr() {
         # We built a SNAPSHOT image of the current localizer script in develop, pushed it and are setting it as a default here.
         # Bug ticket: https://broadworkbench.atlassian.net/browse/BA-6546
         # TODO: Once a stable image of cromwell-drs-localizer is pushed to Dockerhub, replace the default image with that
-        CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS="broadinstitute/cromwell-drs-localizer:53-ea36a7b-SNAP"
+        CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS="broadinstitute/cromwell-drs-localizer:53-0341123-SNAP"
     fi
 
     export CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS

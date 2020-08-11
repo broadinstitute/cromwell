@@ -9,7 +9,7 @@ import common.collections.EnhancedCollections._
 import cromwell.backend.google.pipelines.common.PipelinesApiInitializationActorSpec._
 import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig.genomicsFactory
 import cromwell.backend.google.pipelines.common.authentication.{GcsLocalizing, PipelinesApiAuthObject}
-import cromwell.backend.google.pipelines.common.{PipelinesApiConfiguration, PipelinesApiConfigurationAttributes, PipelinesApiInitializationActorParams, PipelinesApiReferenceFilesMapping}
+import cromwell.backend.google.pipelines.common.{PipelinesApiConfiguration, PipelinesApiConfigurationAttributes, PipelinesApiInitializationActorParams}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWorkflowDescriptor}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.{RefreshTokenMode, SimpleClientSecrets}
@@ -97,7 +97,7 @@ class PipelinesApiInitializationActorSpec extends TestKitSuite("PipelinesApiInit
     val backendConfigurationDescriptor = BackendConfigurationDescriptor(backendConfig, globalConfig)
     val customGoogleConfig = GoogleConfiguration(globalConfig)
     val customAttributes = PipelinesApiConfigurationAttributes(customGoogleConfig, backendConfig, "papi")
-    val jesConfiguration = new PipelinesApiConfiguration(backendConfigurationDescriptor, genomicsFactory, customGoogleConfig, customAttributes, PipelinesApiReferenceFilesMapping.empty)
+    val jesConfiguration = new PipelinesApiConfiguration(backendConfigurationDescriptor, genomicsFactory, customGoogleConfig, customAttributes)
 
     val actorRef = TestActorRef[PipelinesApiInitializationActor](
       getJesBackendProps(workflowDescriptor, calls, jesConfiguration),

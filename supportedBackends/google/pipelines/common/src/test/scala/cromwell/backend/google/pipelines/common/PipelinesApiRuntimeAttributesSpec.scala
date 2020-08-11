@@ -306,7 +306,7 @@ trait PipelinesApiRuntimeAttributesSpecsMixin { this: TestSuite =>
 
   val emptyWorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
   val defaultZones = NonEmptyList.of("us-central1-b", "us-central1-a")
-  val noDefaultsPapiConfiguration = new PipelinesApiConfiguration(PipelinesApiTestConfig.NoDefaultsConfigurationDescriptor, genomicsFactory, googleConfiguration, papiAttributes, PipelinesApiReferenceFilesMapping.empty)
+  val noDefaultsPapiConfiguration = new PipelinesApiConfiguration(PipelinesApiTestConfig.NoDefaultsConfigurationDescriptor, genomicsFactory, googleConfiguration, papiAttributes)
   val staticRuntimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
     PipelinesApiRuntimeAttributes.runtimeAttributesBuilder(PipelinesApiTestConfig.papiConfiguration).definitions.toSet
 }

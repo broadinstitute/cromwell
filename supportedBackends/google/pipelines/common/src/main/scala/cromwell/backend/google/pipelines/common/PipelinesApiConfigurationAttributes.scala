@@ -46,7 +46,7 @@ case class PipelinesApiConfigurationAttributes(project: String,
                                                batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
                                                memoryRetryConfiguration: Option[MemoryRetryConfiguration],
                                                allowNoAddress: Boolean,
-                                               referenceDiskLocalizationManifestFiles: Option[List[ValidFullGcsPath]])
+                                               referenceFilesMapping: PipelinesApiReferenceFilesMapping)
 
 object PipelinesApiConfigurationAttributes {
 
@@ -232,6 +232,7 @@ object PipelinesApiConfigurationAttributes {
                                                        referenceDiskLocalizationManifestFiles: Option[List[ValidFullGcsPath]]): ErrorOr[PipelinesApiConfigurationAttributes] =
       (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN {
         (genomicsAuth, gcsAuth) =>
+          val generatedReferenceFilesMapping = PipelinesApiReferenceFilesMapping.generateReferenceFilesMapping(gcsAuth, referenceDiskLocalizationManifestFiles)
           PipelinesApiConfigurationAttributes(
             project = project,
             computeServiceAccount = computeServiceAccount,
@@ -252,7 +253,7 @@ object PipelinesApiConfigurationAttributes {
             batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration,
             memoryRetryConfiguration = memoryRetryConfig,
             allowNoAddress,
-            referenceDiskLocalizationManifestFiles = referenceDiskLocalizationManifestFiles
+            referenceFilesMapping = generatedReferenceFilesMapping
           )
     }
 

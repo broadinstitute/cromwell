@@ -27,8 +27,6 @@ abstract class PipelinesApiBackendLifecycleActorFactory(override val name: Strin
 
   protected val papiAttributes = PipelinesApiConfigurationAttributes(googleConfig, configurationDescriptor.backendConfig, name)
 
-  protected val referenceFilesMapping = PipelinesApiReferenceFilesMapping(papiAttributes.auths.gcs, papiAttributes.referenceDiskLocalizationManifestFiles)
-
   override lazy val initializationActorClass: Class[_ <: StandardInitializationActor] = classOf[PipelinesApiInitializationActor]
 
   override lazy val asyncExecutionActorClass: Class[_ <: StandardAsyncExecutionActor] =
@@ -62,7 +60,7 @@ abstract class PipelinesApiBackendLifecycleActorFactory(override val name: Strin
 
   override lazy val fileHashingActorClassOption: Option[Class[_ <: StandardFileHashingActor]] = Option(classOf[PipelinesApiBackendFileHashingActor])
 
-  override def dockerHashCredentials(workflowDescriptor: BackendWorkflowDescriptor, initializationData: Option[BackendInitializationData]) = {
+  override def dockerHashCredentials(workflowDescriptor: BackendWorkflowDescriptor, initializationData: Option[BackendInitializationData]): List[Any] = {
     Try(BackendInitializationData.as[PipelinesApiBackendInitializationData](initializationData)) match {
       case Success(papiData) =>
         val tokenFromWorkflowOptions = workflowDescriptor.workflowOptions.get(GoogleAuthMode.DockerCredentialsTokenKey).toOption

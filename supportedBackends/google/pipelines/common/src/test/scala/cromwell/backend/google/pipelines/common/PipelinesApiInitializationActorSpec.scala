@@ -56,7 +56,7 @@ class PipelinesApiInitializationActorSpec extends TestKitSuite("PipelinesApiInit
   }
 
   private def getJesBackend(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[CommandCallNode], conf: BackendConfigurationDescriptor) = {
-    val props = getJesBackendProps(workflowDescriptor, calls, new PipelinesApiConfiguration(conf, genomicsFactory, googleConfiguration, papiAttributes, PipelinesApiReferenceFilesMapping.empty))
+    val props = getJesBackendProps(workflowDescriptor, calls, new PipelinesApiConfiguration(conf, genomicsFactory, googleConfiguration, papiAttributes))
     system.actorOf(props, "TestableJesInitializationActor-" + UUID.randomUUID)
   }
 

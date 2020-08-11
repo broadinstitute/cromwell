@@ -2,6 +2,8 @@ package cromwell.backend.google.pipelines.common
 
 import java.util
 
+import _root_.io.circe.generic.auto._
+import _root_.io.circe.parser._
 import cats.effect.IO
 import cats.implicits._
 import com.google.api.services.storage.StorageScopes
@@ -11,67 +13,65 @@ import com.google.common.primitives.Longs
 import cromwell.backend.google.pipelines.common.io.PipelinesApiReferenceFilesDisk
 import cromwell.filesystems.gcs.GcsPathBuilder
 import cromwell.filesystems.gcs.GcsPathBuilder.{InvalidFullGcsPath, ValidFullGcsPath}
-import PipelinesApiReferenceFilesMapping._
 import com.google.cloud.storage.Storage.{BlobField, BlobGetOption}
-import cromwell.cloudsupport.gcp.auth.{ApplicationDefaultMode, GoogleAuthMode}
+import cromwell.backend.google.pipelines.common.errors.InvalidGcsPathsInManifestFileException
+import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import org.slf4j.{Logger, LoggerFactory}
 
 /**
- * This class contains logic related to public Broad reference files stored in public GCS bucket.
+ * This file contains logic related to public Broad reference files stored in public GCS bucket.
  * During instance creation it will read and parse Broad reference disk manifest files from GCS and populate internal
  * map containing relations between reference file paths and reference disks. This may take significant time, so the
  * best way to do it is during Cromwell startup.
  *
- * @param auth - authentication to be use to access GCS
- * @param referenceDiskLocalizationManifestFiles - optional list of reference disk manifest files to parse
  */
-class PipelinesApiReferenceFilesMapping(auth: GoogleAuthMode,
-                                        referenceDiskLocalizationManifestFiles: Option[List[ValidFullGcsPath]]) {
+case class PipelinesApiReferenceFilesMapping(validReferenceFilesMap: Map[String, PipelinesApiReferenceFilesDisk])
 
+case object PipelinesApiReferenceFilesMapping extends PipelinesApiReferenceFilesMappingOperations
+
+// functionality extracted into the trait for testing purposes
+protected trait PipelinesApiReferenceFilesMappingOperations {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 
-  private val validReferenceFilesMap: Map[String, PipelinesApiReferenceFilesDisk] = {
+  case class ReferenceFile(path: String, crc32c: Long)
+  case class ManifestFile(imageIdentifier: String, diskSizeGb: Int, files: List[ReferenceFile])
+
+  def generateReferenceFilesMapping(auth: GoogleAuthMode,
+                                    referenceDiskLocalizationManifestFiles: Option[List[ValidFullGcsPath]]): PipelinesApiReferenceFilesMapping = {
+
     val validReferenceFilesMapIO = referenceDiskLocalizationManifestFiles match {
       case None =>
         IO.pure(Map.empty[String, PipelinesApiReferenceFilesDisk])
       case Some(manifestFilesPaths) =>
-        val manifestFilesIo = manifestFilesPaths traverse { manifestFilePath => readReferenceDiskManifestFileFromGCS(manifestFilePath) }
+        val gcsClient = StorageOptions
+          .newBuilder()
+          .setCredentials(auth.credentials(Set(StorageScopes.DEVSTORAGE_READ_ONLY)))
+          .build
+          .getService
+        val manifestFilesIo = manifestFilesPaths traverse { manifestFilePath => readReferenceDiskManifestFileFromGCS(gcsClient, manifestFilePath) }
         manifestFilesIo flatMap { manifestFiles =>
-          manifestFiles.traverse(manifestFileToMapOfValidReferences).map(_.flatten.toMap)
+          manifestFiles
+            .traverse(manifestFile => getMapOfValidReferenceFilePathsToDisks(gcsClient, manifestFile))
+            .map(_.flatten.toMap)
         }
     }
-    validReferenceFilesMapIO.unsafeRunSync()
+    PipelinesApiReferenceFilesMapping(validReferenceFilesMapIO.unsafeRunSync())
   }
 
-  def getReferenceDisksToMount(inputFilePaths: Set[String]): List[PipelinesApiReferenceFilesDisk] = {
-    validReferenceFilesMap.filterKeys(key => inputFilePaths.contains(s"gs://$key")).values.toList.distinct
+  def getReferenceDisksToMount(pipelinesApiReferenceFilesMapping: PipelinesApiReferenceFilesMapping,
+                               inputFilePaths: Set[String]): List[PipelinesApiReferenceFilesDisk] = {
+    pipelinesApiReferenceFilesMapping.validReferenceFilesMap.filterKeys(key => inputFilePaths.contains(s"gs://$key")).values.toList.distinct
   }
 
-  private def createGcsClient(): Storage = StorageOptions
-    .newBuilder()
-    .setCredentials(auth.credentials(Set(StorageScopes.DEVSTORAGE_READ_ONLY)))
-    .build
-    .getService
-
-  protected def readReferenceDiskManifestFileFromGCS(gcsPath: ValidFullGcsPath): IO[ManifestFile] = {
-    import spray.json._
-    object ManifestFileJsonProtocol extends DefaultJsonProtocol {
-      implicit val referenceFileFormat: RootJsonFormat[ReferenceFile] = jsonFormat2(ReferenceFile)
-      implicit val manifestFileFormat: RootJsonFormat[ManifestFile] = jsonFormat3(ManifestFile)
-    }
-    import ManifestFileJsonProtocol._
-
-    val gcsClient = createGcsClient()
+  def readReferenceDiskManifestFileFromGCS(gcsClient: Storage, gcsPath: ValidFullGcsPath): IO[ManifestFile] = {
     val manifestFileBlobIo = IO { gcsClient.get(BlobId.of(gcsPath.bucket, gcsPath.path.substring(1))) }
     manifestFileBlobIo flatMap { manifestFileBlob =>
       val jsonStringIo = IO { manifestFileBlob.getContent().map(_.toChar).mkString }
-      jsonStringIo.map(_.parseJson.convertTo[ManifestFile])
+      jsonStringIo.flatMap(jsonStr => IO.fromEither(decode[ManifestFile](jsonStr)))
     }
   }
 
-  protected def bulkValidateCrc32cs(referenceFiles: Set[ReferenceFile]): IO[Map[ReferenceFile, Boolean]] = {
-    val gcsClient = createGcsClient()
-
+  private def getReferenceFileToValidatedGcsPathMap(referenceFiles: Set[ReferenceFile]): IO[Map[ReferenceFile, ValidFullGcsPath]] = {
     val filesAndValidatedPaths = referenceFiles.map {
       referenceFile => (referenceFile, GcsPathBuilder.validateGcsPath(s"gs://${referenceFile.path}"))
     }.toMap
@@ -84,37 +84,44 @@ class PipelinesApiReferenceFilesMapping(auth: GoogleAuthMode,
     }
 
     if (filesWithInvalidPaths.nonEmpty) {
-      IO.raiseError(new RuntimeException(s"Some of the paths in manifest file are not valid GCS paths: " +
-        s"${filesWithInvalidPaths.keySet.map(_.path).toList.mkString(", ")}")
-      )
+      IO.raiseError(new InvalidGcsPathsInManifestFileException(filesWithInvalidPaths.keySet.map(_.path).toList))
     } else {
-      IO {
-        val gcsBatch = gcsClient.batch()
-        val filesAndBlobResults = filesWithValidPaths.map {
-          case (referenceFile, ValidFullGcsPath(bucket, path)) =>
-            val blobGetResult = gcsBatch.get(BlobId.of(bucket, path.substring(1)), BlobGetOption.fields(BlobField.CRC32C))
-            (referenceFile, blobGetResult)
-        }
-        gcsBatch.submit()
+      IO.pure(filesWithValidPaths)
+    }
+  }
 
-        filesAndBlobResults.map {
-          case (referenceFile, blobGetResult) =>
-            val crc32cFromManifest = BaseEncoding.base64.encode(
-              // drop 4 leading bytes from Long crc32c value
-              // https://stackoverflow.com/a/25111119/1794750
-              util.Arrays.copyOfRange(Longs.toByteArray(referenceFile.crc32c), 4, 8)
-            )
+  def bulkValidateCrc32cs(gcsClient: Storage,
+                          filesWithValidPathsIo: IO[Map[ReferenceFile, ValidFullGcsPath]]): IO[Map[ReferenceFile, Boolean]] = {
+    val gcsBatch = gcsClient.batch()
+    val filesAndBlobResultsIo = filesWithValidPathsIo.map { filesWithValidPaths =>
+      val filesAndBlobResults = filesWithValidPaths map {
+        case (referenceFile, ValidFullGcsPath(bucket, path)) =>
+          val blobGetResult = gcsBatch.get(BlobId.of(bucket, path.substring(1)), BlobGetOption.fields(BlobField.CRC32C))
+          (referenceFile, blobGetResult)
+      }
+      gcsBatch.submit()
+      filesAndBlobResults
+    }
 
-            (referenceFile, crc32cFromManifest === blobGetResult.get().getCrc32c)
-        }
+    filesAndBlobResultsIo.map { filesAndBlobResults =>
+      filesAndBlobResults map {
+        case (referenceFile, blobGetResult) =>
+          val crc32cFromManifest = BaseEncoding.base64.encode(
+            // drop 4 leading bytes from Long crc32c value
+            // https://stackoverflow.com/a/25111119/1794750
+            util.Arrays.copyOfRange(Longs.toByteArray(referenceFile.crc32c), 4, 8)
+          )
+
+          (referenceFile, crc32cFromManifest === blobGetResult.get().getCrc32c)
       }
     }
   }
 
-  private def manifestFileToMapOfValidReferences(manifestFile: ManifestFile): IO[Map[String, PipelinesApiReferenceFilesDisk]] = {
+  private def getMapOfValidReferenceFilePathsToDisks(gcsClient: Storage, manifestFile: ManifestFile): IO[Map[String, PipelinesApiReferenceFilesDisk]] = {
     val refDisk = PipelinesApiReferenceFilesDisk(manifestFile.imageIdentifier, manifestFile.diskSizeGb)
     val allReferenceFilesFromManifestMap = manifestFile.files.map(refFile => (refFile, refDisk)).toMap
-    val filesWithValidatedCrc32csIo = bulkValidateCrc32cs(allReferenceFilesFromManifestMap.keySet)
+    val referenceFilesWithValidPathsIo = getReferenceFileToValidatedGcsPathMap(allReferenceFilesFromManifestMap.keySet)
+    val filesWithValidatedCrc32csIo = bulkValidateCrc32cs(gcsClient, referenceFilesWithValidPathsIo)
 
     val validReferenceFilesFromManifestMapIo = filesWithValidatedCrc32csIo map {
       filesWithValidatedCrc32c => {
@@ -132,15 +139,4 @@ class PipelinesApiReferenceFilesMapping(auth: GoogleAuthMode,
       }
     }
   }
-}
-
-object PipelinesApiReferenceFilesMapping {
-  case class ReferenceFile(path: String, crc32c: Long)
-  case class ManifestFile(imageIdentifier: String, diskSizeGb: Int, files: List[ReferenceFile])
-
-  def apply(auth: GoogleAuthMode, referenceDiskLocalizationManifestFiles: Option[List[ValidFullGcsPath]]): PipelinesApiReferenceFilesMapping = {
-    new PipelinesApiReferenceFilesMapping(auth, referenceDiskLocalizationManifestFiles)
-  }
-
-  def empty: PipelinesApiReferenceFilesMapping = new PipelinesApiReferenceFilesMapping(ApplicationDefaultMode("default"), None)
 }

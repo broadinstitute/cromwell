@@ -2,11 +2,10 @@ package cromwell.backend.google.pipelines.common
 
 import java.net.URL
 
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import common.exception.MessageAggregation
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.BatchRequestTimeoutConfiguration
-import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.duration._
@@ -18,7 +17,7 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
   behavior of "PipelinesApiAttributes"
 
   val googleConfig = GoogleConfiguration(PapiGlobalConfig)
-  val runtimeConfig = ConfigFactory.load()
+  val runtimeConfig: Config = ConfigFactory.load()
 
   it should "parse correct PAPI config" in {
 
@@ -32,6 +31,7 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
     pipelinesApiAttributes.computeServiceAccount should be("default")
     pipelinesApiAttributes.restrictMetadataAccess should be(false)
     pipelinesApiAttributes.memoryRetryConfiguration should be(None)
+    pipelinesApiAttributes.referenceFilesMapping.validReferenceFilesMap.isEmpty should be(true)
   }
 
   it should "parse correct preemptible config" in {
@@ -403,18 +403,4 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
     }
   }
 
-  it should "parse correct reference-disk-localization-manifest-files config" in {
-    val bucket = "bucket"
-    val manifestName1 = "manifest1.json"
-    val manifestName2 = "manifest2.json"
-    val manifest1Path = s"gs://$bucket/$manifestName1"
-    val manifest2Path = s"gs://$bucket/$manifestName2"
-    val manifestConfigStr = s"""reference-disk-localization-manifest-files = ["$manifest1Path", "$manifest2Path"]""".stripMargin
-    val backendConfig = ConfigFactory.parseString(configString(manifestConfigStr))
-
-    val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig, "papi")
-    pipelinesApiAttributes.referenceDiskLocalizationManifestFiles should be {
-      Option(List(ValidFullGcsPath(bucket, s"/$manifestName1"), ValidFullGcsPath(bucket, s"/$manifestName2")))
-    }
-  }
 }

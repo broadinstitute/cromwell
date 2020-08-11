@@ -1,7 +1,7 @@
 package cromwell.backend.google.pipelines.common
 
 import cats.effect.IO
-import cromwell.backend.google.pipelines.common.PipelinesApiReferenceFilesMapping.{ManifestFile, ReferenceFile}
+import com.google.cloud.storage.Storage
 import cromwell.backend.google.pipelines.common.io.PipelinesApiReferenceFilesDisk
 import cromwell.cloudsupport.gcp.auth.ApplicationDefaultMode
 import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
@@ -19,36 +19,28 @@ class PipelinesApiReferenceFilesMappingSpec extends FlatSpecLike with Matchers {
 
   it should "correctly figure out which disks have to be mounted based on provided input file paths" in {
     val nonReferenceInputFilePaths = Set("gs://not/a/reference/file")
-    val forNonReferenceFile = refFileMappingsMock.getReferenceDisksToMount(nonReferenceInputFilePaths)
+    val forNonReferenceFile = refFileMappingOperationsMockObject.getReferenceDisksToMount(refFileMappingsMock, nonReferenceInputFilePaths)
     forNonReferenceFile.isEmpty shouldBe true
 
     val referenceInputFilePathsFrom2Disks = Set(s"gs://$refFile1Disk1", s"gs://$refFile3Disk2")
-    val forReferencesFrom2Disks = refFileMappingsMock.getReferenceDisksToMount(referenceInputFilePathsFrom2Disks)
+    val forReferencesFrom2Disks = refFileMappingOperationsMockObject.getReferenceDisksToMount(refFileMappingsMock, referenceInputFilePathsFrom2Disks)
     forReferencesFrom2Disks should contain theSameElementsAs List(disk1, disk2)
 
     val referenceInputFilePathsFromSingleDisk = Set(s"gs://$refFile1Disk1", s"gs://$refFile2Disk1")
-    val forReferencesFromSingleDisk = refFileMappingsMock.getReferenceDisksToMount(referenceInputFilePathsFromSingleDisk)
+    val forReferencesFromSingleDisk = refFileMappingOperationsMockObject.getReferenceDisksToMount(refFileMappingsMock, referenceInputFilePathsFromSingleDisk)
     forReferencesFromSingleDisk.size shouldBe 1
     forReferencesFromSingleDisk.head shouldBe disk1
   }
 
   it should "not consider valid a reference file with mismatching checksum" in {
     val mismatchingChecksumReferenceFile = Set(refFile4Disk2MismatchingChecksum)
-    val forMismatchingChecksumReferenceFile = refFileMappingsMock.getReferenceDisksToMount(mismatchingChecksumReferenceFile)
+    val forMismatchingChecksumReferenceFile = refFileMappingOperationsMockObject.getReferenceDisksToMount(refFileMappingsMock, mismatchingChecksumReferenceFile)
     forMismatchingChecksumReferenceFile.isEmpty shouldBe true
   }
 
-  private val refFileMappingsMock =
-    new PipelinesApiReferenceFilesMapping (
-      ApplicationDefaultMode("default"),
-      Some (
-        List (
-          ValidFullGcsPath("bucketname", "manifest1"),
-          ValidFullGcsPath("bucketname2", "manifest2"),
-        )
-      )
-    ) {
-      override def readReferenceDiskManifestFileFromGCS(gcsPath: ValidFullGcsPath): IO[ManifestFile] = {
+  private val refFileMappingOperationsMockObject: PipelinesApiReferenceFilesMappingOperations =
+    new PipelinesApiReferenceFilesMappingOperations {
+      override def readReferenceDiskManifestFileFromGCS(gcsClient: Storage, gcsPath: ValidFullGcsPath): IO[ManifestFile] =
         IO.pure {
           gcsPath match {
             case ValidFullGcsPath("bucketname", "manifest1") =>
@@ -72,10 +64,18 @@ class PipelinesApiReferenceFilesMappingSpec extends FlatSpecLike with Matchers {
             case _ => throw new RuntimeException("Exception in mock object. This should not happen")
           }
         }
-      }
 
-      override protected def bulkValidateCrc32cs(referenceFiles: Set[ReferenceFile]): IO[Map[ReferenceFile, Boolean]] = {
-        IO.pure(referenceFiles.map(file => (file, file.path != refFile4Disk2MismatchingChecksum)).toMap)
-      }
+      override def bulkValidateCrc32cs(gcsClient: Storage, filesWithValidPathsIo: IO[Map[ReferenceFile, ValidFullGcsPath]]): IO[Map[ReferenceFile, Boolean]] =
+        filesWithValidPathsIo.map(filesWithValidPaths => filesWithValidPaths.keySet.map(file => (file, file.path != refFile4Disk2MismatchingChecksum)).toMap)
     }
+
+  private val refFileMappingsMock = refFileMappingOperationsMockObject.generateReferenceFilesMapping(
+    ApplicationDefaultMode("default"),
+    Some (
+      List (
+        ValidFullGcsPath("bucketname", "manifest1"),
+        ValidFullGcsPath("bucketname2", "manifest2"),
+      )
+    )
+  )
 }

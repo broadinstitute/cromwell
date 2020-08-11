@@ -440,7 +440,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         } getOrElse runtimeAttributes.disks
 
         val inputFilePaths = inputOutputParameters.jobInputParameters.map(_.cloudPath.pathAsString).toSet
-        val referenceDisksToMount = referenceFilesMapping.getReferenceDisksToMount(inputFilePaths)
+        val referenceDisksToMount = PipelinesApiReferenceFilesMapping.getReferenceDisksToMount(jesAttributes.referenceFilesMapping, inputFilePaths)
         CreatePipelineParameters(
           jobDescriptor = jobDescriptor,
           runtimeAttributes = runtimeAttributes,
@@ -564,7 +564,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       _ <- uploadScriptFile
       customLabels <- Future.fromTry(GoogleLabels.fromWorkflowOptions(workflowDescriptor.workflowOptions))
       jesParameters <- generateInputOutputParameters
-      createParameters = createPipelineParameters(jesParameters, customLabels, initializationData.papiConfiguration.pipelinesApiReferenceFilesMapping)
+      createParameters = createPipelineParameters(jesParameters, customLabels, jesAttributes.referenceFilesMapping)
       gcsTransferConfiguration = initializationData.papiConfiguration.papiAttributes.gcsTransferConfiguration
       gcsTransferLibraryCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsTransferLibraryName
       transferLibraryContainerPath = createParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)

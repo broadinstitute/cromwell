@@ -27,7 +27,7 @@ import org.slf4j.{Logger, LoggerFactory}
  */
 case class PipelinesApiReferenceFilesMapping(validReferenceFilesMap: Map[String, PipelinesApiReferenceFilesDisk])
 
-case object PipelinesApiReferenceFilesMapping extends PipelinesApiReferenceFilesMappingOperations
+object PipelinesApiReferenceFilesMapping extends PipelinesApiReferenceFilesMappingOperations
 
 // functionality extracted into the trait for testing purposes
 protected trait PipelinesApiReferenceFilesMappingOperations {
@@ -63,7 +63,7 @@ protected trait PipelinesApiReferenceFilesMappingOperations {
     pipelinesApiReferenceFilesMapping.validReferenceFilesMap.filterKeys(key => inputFilePaths.contains(s"gs://$key")).values.toList.distinct
   }
 
-  def readReferenceDiskManifestFileFromGCS(gcsClient: Storage, gcsPath: ValidFullGcsPath): IO[ManifestFile] = {
+  protected def readReferenceDiskManifestFileFromGCS(gcsClient: Storage, gcsPath: ValidFullGcsPath): IO[ManifestFile] = {
     val manifestFileBlobIo = IO { gcsClient.get(BlobId.of(gcsPath.bucket, gcsPath.path.substring(1))) }
     manifestFileBlobIo flatMap { manifestFileBlob =>
       val jsonStringIo = IO { manifestFileBlob.getContent().map(_.toChar).mkString }
@@ -90,7 +90,7 @@ protected trait PipelinesApiReferenceFilesMappingOperations {
     }
   }
 
-  def bulkValidateCrc32cs(gcsClient: Storage,
+  protected def bulkValidateCrc32cs(gcsClient: Storage,
                           filesWithValidPathsIo: IO[Map[ReferenceFile, ValidFullGcsPath]]): IO[Map[ReferenceFile, Boolean]] = {
     val gcsBatch = gcsClient.batch()
     val filesAndBlobResultsIo = filesWithValidPathsIo.map { filesWithValidPaths =>

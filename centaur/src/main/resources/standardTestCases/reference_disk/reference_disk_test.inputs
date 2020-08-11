@@ -1,0 +1,3 @@
+{
+  "wf_reference_disk_test.check_if_localized_as_symlink.reference_file_input": "gs://gcp-public-data--broad-references/hg19/v0/README"
+}

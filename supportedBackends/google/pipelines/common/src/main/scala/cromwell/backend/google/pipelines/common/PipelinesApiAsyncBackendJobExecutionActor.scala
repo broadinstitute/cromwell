@@ -409,6 +409,16 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     }
   }
 
+  // TODO: properly implement case when option is non-empty in order to analyze manifest files and task inputs and
+  //  figure out which reference disks have to be attached
+  private def getReferenceDisksToBeMountedFromManifests(manifestFilesOpt: Option[List[String]],
+                                                        fileInputs: List[PipelinesApiInput]): List[PipelinesApiAttachedDisk] =
+    manifestFilesOpt match {
+      case None => List.empty
+      // TODO: implement this case for reference disks to be mounted
+      case Some(_)  => List.empty
+    }
+
   private def createPipelineParameters(inputOutputParameters: InputOutputParameters, customLabels: Seq[GoogleLabel]): CreatePipelineParameters = {
     standardParams.backendInitializationDataOption match {
       case Some(data: PipelinesApiBackendInitializationData) =>
@@ -437,6 +447,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           )
         } getOrElse runtimeAttributes.disks
 
+        val referenceDisks = getReferenceDisksToBeMountedFromManifests(pipelinesConfiguration.papiAttributes.referenceDiskLocalizationManifestFiles, inputOutputParameters.fileInputParameters)
+
         CreatePipelineParameters(
           jobDescriptor = jobDescriptor,
           runtimeAttributes = runtimeAttributes,
@@ -458,7 +470,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           virtualPrivateCloudConfiguration = jesAttributes.virtualPrivateCloudConfiguration,
           retryWithMoreMemoryKeys = jesAttributes.memoryRetryConfiguration.map(_.errorKeys),
           fuseEnabled = fuseEnabled(jobDescriptor.workflowDescriptor),
-          allowNoAddress = pipelinesConfiguration.papiAttributes.allowNoAddress
+          allowNoAddress = pipelinesConfiguration.papiAttributes.allowNoAddress,
+          referenceDisksForLocalization = referenceDisks
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")

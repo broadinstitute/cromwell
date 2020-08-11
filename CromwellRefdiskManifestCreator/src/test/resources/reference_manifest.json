@@ -1,5 +1,6 @@
 {
   "imageIdentifier" : "testImageName",
+  "diskSizeGb": 500,
   "files" : [ {
     "path" : "nested-directory/test-file-nested.txt",
     "crc32c" : 1256132599

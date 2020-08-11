@@ -182,6 +182,7 @@ object EngineFunctionEvaluators {
                              (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
       a.param.evaluateType(linkedValues).flatMap {
         case WomArrayType(WomOptionalType(inner)) => inner.validNel
+        case WomArrayType(alreadyNonOptional) => alreadyNonOptional.validNel
         case foundType => s"Invalid parameter '${a.param}'. Expected an array of optional values (eg 'Array[X?]') but got '${foundType.stableName}'".invalidNel
       }
     }
@@ -192,6 +193,7 @@ object EngineFunctionEvaluators {
                              (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
       a.param.evaluateType(linkedValues).flatMap {
         case WomArrayType(WomOptionalType(inner)) => WomArrayType(inner).validNel
+        case alreadyNonOptional: WomArrayType => alreadyNonOptional.validNel
         case foundType => s"Invalid parameter '${a.param}'. Expected an array of optional values (eg 'Array[X?]') but got '${foundType.stableName}'".invalidNel
       }
     }

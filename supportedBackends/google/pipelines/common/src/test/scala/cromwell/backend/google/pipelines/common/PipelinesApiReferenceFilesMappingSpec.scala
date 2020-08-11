@@ -61,7 +61,8 @@ class PipelinesApiReferenceFilesMappingSpec extends FlatSpecLike with Matchers {
                   ReferenceFile(path = refFile4Disk2MismatchingChecksum, crc32c = 12345L),
                 )
               )
-            case _ => throw new RuntimeException("Exception in mock object. This should not happen")
+            case _ => throw new RuntimeException(s"Exception in mock object. This should not happen. " +
+              s"Expecting valid full GCS path, but got: $gcsPath")
           }
         }
 

@@ -11,8 +11,8 @@ import com.google.cloud.storage.{BlobId, Storage, StorageOptions}
 import com.google.common.io.BaseEncoding
 import com.google.common.primitives.Longs
 import cromwell.backend.google.pipelines.common.io.PipelinesApiReferenceFilesDisk
-import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder}
-import cromwell.filesystems.gcs.GcsPathBuilder.{InvalidFullGcsPath, ValidFullGcsPath}
+import cromwell.filesystems.gcs.GcsPathBuilder
+import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import com.google.cloud.storage.Storage.{BlobField, BlobGetOption}
 import cromwell.backend.google.pipelines.common.errors.InvalidGcsPathsInManifestFileException
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
@@ -85,17 +85,12 @@ protected trait PipelinesApiReferenceFilesMappingOperations {
       referenceFile => (referenceFile, GcsPathBuilder.validateGcsPath(s"gs://${referenceFile.path}"))
     }.toMap
 
-    val filesWithValidPaths = filesAndValidatedPaths.collect {
-      case (referenceFile, validPath: ValidFullGcsPath) => (referenceFile, validPath)
-    }
-    val filesWithInvalidPaths = filesAndValidatedPaths.collect {
-      case (referenceFile, invalidPath: InvalidFullGcsPath) => (referenceFile, invalidPath)
-    }
+    val (filesWithValidPaths, filesWithInvalidPaths) = filesAndValidatedPaths.partition(_._2.isInstanceOf[ValidFullGcsPath])
 
     if (filesWithInvalidPaths.nonEmpty) {
       IO.raiseError(new InvalidGcsPathsInManifestFileException(filesWithInvalidPaths.keySet.map(_.path).toList))
     } else {
-      IO.pure(filesWithValidPaths)
+      IO.pure(filesWithValidPaths.mapValues(_.asInstanceOf[ValidFullGcsPath]))
     }
   }
 

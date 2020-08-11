@@ -11,7 +11,7 @@ import com.google.cloud.storage.{BlobId, Storage, StorageOptions}
 import com.google.common.io.BaseEncoding
 import com.google.common.primitives.Longs
 import cromwell.backend.google.pipelines.common.io.PipelinesApiReferenceFilesDisk
-import cromwell.filesystems.gcs.GcsPathBuilder
+import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder}
 import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import com.google.cloud.storage.Storage.{BlobField, BlobGetOption}
 import cromwell.backend.google.pipelines.common.errors.InvalidGcsPathsInManifestFileException

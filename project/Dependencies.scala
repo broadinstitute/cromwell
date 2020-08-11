@@ -15,7 +15,7 @@ object Dependencies {
   private val betterFilesV = "3.9.1"
   private val catsEffectV = "2.0.0"
   private val catsV = "2.0.0"
-  private val circeGenericExtrasV = "0.12.2"
+  private val circeGenericExtrasV = "0.13.0"
   private val circeOpticsV = "0.13.0"
   private val circeV = "0.12.3"
   private val circeYamlV = "0.13.1"

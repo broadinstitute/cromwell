@@ -626,7 +626,7 @@ cromwell::private::create_centaur_variables() {
 
 cromwell::private::create_conformance_variables() {
     CROMWELL_BUILD_CWL_RUNNER_MODE="${CROMWELL_BUILD_BACKEND_TYPE}"
-    CROMWELL_BUILD_CWL_TOOL_VERSION="1.0.20190228155703"
+    CROMWELL_BUILD_CWL_TOOL_VERSION="3.0.20200724003302"
     CROMWELL_BUILD_CWL_TEST_VERSION="1.0.20190228134645"
     CROMWELL_BUILD_CWL_TEST_COMMIT="1f501e38ff692a408e16b246ac7d64d32f0822c2" # use known git hash to avoid changes
     CROMWELL_BUILD_CWL_TEST_RUNNER="${CROMWELL_BUILD_ROOT_DIRECTORY}/centaurCwlRunner/src/bin/centaur-cwl-runner.bash"
@@ -700,7 +700,7 @@ cromwell::private::pip_install() {
     pip_package="${1:?pip_install called without a package}"; shift
 
     if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
-        sudo -H pip install "${pip_package}" "$@"
+        sudo -H "${PYTHON3_HOME}/bin/pip" install "${pip_package}" "$@"
     elif [[ "${CROMWELL_BUILD_IS_VIRTUAL_ENV}" == "true" ]]; then
         pip install "${pip_package}" "$@"
     else

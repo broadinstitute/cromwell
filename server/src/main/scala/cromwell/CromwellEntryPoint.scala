@@ -172,7 +172,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
     ConfigFactory.invalidateCaches()
 
     // Quiet warnings about missing sentry DSNs by just providing the default.
-    val dsn = Option(Lookup.lookup("dsn")).filterNot(Util.isNullOrEmpty).getOrElse(
+    val dsn = Option(Lookup.getDefault().get("dsn")).filterNot(Util.isNullOrEmpty).getOrElse(
       Dsn.DEFAULT_DSN + "&stacktrace.app.packages=quieted_with_any_value_because_empty_was_not_working")
     Sentry.init(dsn)
     ()

@@ -2,10 +2,12 @@ package cromwell.backend.google.pipelines.common
 
 import java.net.URL
 
+import cats.data.Validated.{Invalid, Valid}
 import com.typesafe.config.{Config, ConfigFactory}
 import common.exception.MessageAggregation
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.BatchRequestTimeoutConfiguration
+import cromwell.filesystems.gcs.GcsPathBuilder
 import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.duration._
@@ -403,4 +405,53 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
     }
   }
 
+  it should "parse correct existing reference-disk-localization-manifest-files config" in {
+    val manifest1Path = "gs://bucket/manifest1.json"
+    val manifest2Path = "gs://bucket/manifest2.json"
+    val manifestConfigStr = s"""reference-disk-localization-manifest-files = ["$manifest1Path", "$manifest2Path"]""".stripMargin
+    val backendConfig = ConfigFactory.parseString(configString(manifestConfigStr))
+
+    val validatedGcsPathsToManifestFilesErrorOr = PipelinesApiConfigurationAttributes.validateGcsPathToManifestFile(backendConfig)
+    validatedGcsPathsToManifestFilesErrorOr match {
+      case Valid(validatedGcsPathsToManifestFilesOpt) =>
+        validatedGcsPathsToManifestFilesOpt match {
+          case Some(validatedGcsPathsToManifestFiles) =>
+            validatedGcsPathsToManifestFiles should contain allElementsOf List(GcsPathBuilder.validateGcsPath(manifest1Path), GcsPathBuilder.validateGcsPath(manifest2Path))
+          case None =>
+            fail("GCS paths to manifest files, parsed from config, should not be empty")
+        }
+      case Invalid(ex) =>
+        fail(s"Error while parsing GCS paths to manifest files from config: $ex")
+    }
+  }
+
+  it should "parse correct missing reference-disk-localization-manifest-files config" in {
+    val backendConfig = ConfigFactory.parseString(configString())
+
+    val validatedGcsPathsToManifestFilesErrorOr = PipelinesApiConfigurationAttributes.validateGcsPathToManifestFile(backendConfig)
+    validatedGcsPathsToManifestFilesErrorOr match {
+      case Valid(validatedGcsPathsToManifestFilesOpt) =>
+        validatedGcsPathsToManifestFilesOpt shouldBe None
+      case Invalid(ex) =>
+        fail(s"Error while parsing GCS paths to manifest files from config: $ex")
+    }
+  }
+
+  it should "parse correct empty reference-disk-localization-manifest-files config" in {
+    val manifestConfigStr = "reference-disk-localization-manifest-files = []"
+    val backendConfig = ConfigFactory.parseString(configString(manifestConfigStr))
+
+    val validatedGcsPathsToManifestFilesErrorOr = PipelinesApiConfigurationAttributes.validateGcsPathToManifestFile(backendConfig)
+    validatedGcsPathsToManifestFilesErrorOr match {
+      case Valid(validatedGcsPathsToManifestFilesOpt) =>
+        validatedGcsPathsToManifestFilesOpt match {
+          case Some(validatedGcsPathsToManifestFiles) =>
+            validatedGcsPathsToManifestFiles.isEmpty shouldBe true
+          case None =>
+            fail("GCS paths to manifest files, parsed from config, should not be None")
+        }
+      case Invalid(ex) =>
+        fail(s"Error while parsing GCS paths to manifest files from config: $ex")
+    }
+  }
 }

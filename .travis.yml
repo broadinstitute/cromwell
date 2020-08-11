@@ -21,6 +21,9 @@ before_cache:
   - find $HOME/.coursier/cache -name "ivydata-*.properties" -print -delete
   - find $HOME/.sbt -name "*.lock" -print -delete
 env:
+  global:
+    - PYTHON3_HOME=/opt/python/3.7.1
+    - PATH=$PYTHON3_HOME/bin\:$PATH
   matrix:
     # Setting this variable twice will cause the 'script' section to run twice with the respective env var invoked
     - >-
@@ -110,6 +113,8 @@ env:
       BUILD_TYPE=singleWorkflowRunner
     - >-
       BUILD_TYPE=metadataComparisonPython
+    - >-
+      BUILD_TYPE=referenceDiskManifestBuilderApp
 script:
   - src/ci/bin/test.sh
 notifications:

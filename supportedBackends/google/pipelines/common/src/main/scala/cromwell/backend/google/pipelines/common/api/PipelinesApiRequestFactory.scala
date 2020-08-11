@@ -62,8 +62,9 @@ object PipelinesApiRequestFactory {
   }
 
   case class CreatePipelineDockerKeyAndToken(key: String, encryptedToken: String)
-  
-  case class CreatePipelineParameters(jobDescriptor: BackendJobDescriptor,
+
+  case class CreatePipelineParameters(jobPaths: PipelinesApiJobPaths,
+                                      jobDescriptor: BackendJobDescriptor,
                                       runtimeAttributes: PipelinesApiRuntimeAttributes,
                                       dockerImage: String,
                                       cloudWorkflowRoot: Path,

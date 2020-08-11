@@ -140,6 +140,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       val userAction: List[Action] = userActions(createPipelineParameters, mounts)
       val memoryRetryAction: List[Action] = checkForMemoryRetryActions(createPipelineParameters, mounts)
       val deLocalization: List[Action] = deLocalizeActions(createPipelineParameters, mounts)
+      val localizeMonitoring: List[Action] = monitoringLocalizationActions(createPipelineParameters, mounts)
       val monitoring: List[Action] = monitoringActions(createPipelineParameters, mounts)
       val sshAccess: List[Action] = sshAccessActions(createPipelineParameters, mounts)
       val allActions = containerSetup ++ localization ++ userAction ++ memoryRetryAction ++ deLocalization ++ monitoring ++ sshAccess
@@ -150,7 +151,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       val environment = Map("MEM_UNIT" -> runtimeMemory.unit.toString, "MEM_SIZE" -> runtimeMemory.amount.toString).asJava
 
       // Start background actions first, leave the rest as is
-      val sortedActions = allActions.sortWith({
+      val sortedActions = localizeMonitoring ++ allActions.sortWith({
         case (a1, _) => Option(a1.getFlags).map(_.asScala).toList.flatten.contains(ActionFlag.RunInBackground.toString)
       })
 
@@ -220,7 +221,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         .setResources(resources)
         .setActions(sortedActions.asJava)
         .setEnvironment(environment)
-        .setTimeout(createPipelineParameters.pipelineTimeout.toSeconds.toString() + "s")
+        .setTimeout(createPipelineParameters.pipelineTimeout.toSeconds.toString + "s")
 
       val pipelineRequest = new RunPipelineRequest()
         .setPipeline(pipeline)

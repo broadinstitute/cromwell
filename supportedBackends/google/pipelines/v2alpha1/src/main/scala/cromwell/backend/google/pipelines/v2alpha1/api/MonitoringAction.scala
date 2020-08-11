@@ -1,8 +1,14 @@
 package cromwell.backend.google.pipelines.v2alpha1.api
 
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount}
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.pipelines.common.WorkflowOptionKeys
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
+import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder.Labels.{Key, Value}
+import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder.cloudSdkShellAction
+import cromwell.backend.google.pipelines.v2alpha1.api.ActionCommands.localizeFile
+import cromwell.core.path.{Path, PathFactory}
+
 import scala.collection.JavaConverters._
 
 trait MonitoringAction {
@@ -43,6 +49,31 @@ trait MonitoringAction {
 
     workflowOptions.get(WorkflowOptionKeys.MonitoringImage).toOption match {
       case Some(image) => monitoringAction(createPipelineParameters, image, mounts)
+      case None => List.empty
+    }
+  }
+
+  def monitoringLocalizationActions(createPipelineParameters: CreatePipelineParameters, mounts: List[Mount])(implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Action] = {
+    val workflowOptions = createPipelineParameters.jobDescriptor.workflowDescriptor.workflowOptions
+    val monitoringImageScriptOption = for {
+      _ <- workflowOptions.get(WorkflowOptionKeys.MonitoringImage).toOption
+      scriptValue <- workflowOptions.get(WorkflowOptionKeys.MonitoringImageScript).toOption
+    } yield scriptValue
+
+    // TODO: un-hard-code name of script
+    monitoringImageScriptOption match {
+      case Some(imageScript) =>
+        val cloudLocation: Path = PathFactory.buildPath(
+          imageScript,
+          createPipelineParameters.jobPaths.workflowPaths.pathBuilders,
+        )
+        val localLocation: Path = createPipelineParameters.commandScriptContainerPath.sibling("imageMonitoring.sh")
+        val localizeMonitorAction = cloudSdkShellAction(
+          localizeFile(cloudLocation, localLocation)
+        )(mounts = mounts, labels = Map(Key.Tag -> Value.Localization))
+        val describeLocalizeMonitorAction = ActionBuilder.describeDocker("localizing the image monitoring script",
+          localizeMonitorAction)
+        List(describeLocalizeMonitorAction, localizeMonitorAction)
       case None => List.empty
     }
   }

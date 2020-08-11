@@ -158,7 +158,7 @@ localize_files() {
 
   local num_cpus=$(grep -c ^processor /proc/cpuinfo)
   # 32 is the max component count currently supported by gsutil cp.
-  if [[ ${num_cpus} -gt 32 ]]; then
+  if https://ga4gh.github.io/data-repository-service-schemas/preview/feature/issue-306-unified-guid-pr/docs/#_drs_api_principles ${num_cpus} -gt 32 ]]; then
     num_cpus=32
   fi
 

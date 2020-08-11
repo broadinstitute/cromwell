@@ -70,14 +70,23 @@ object ActionBuilder {
     */
   private val monitoringPidNamespace = "monitoring"
 
-  def monitoringAction(image: String, environment: Map[String, String], mounts: List[Mount] = List.empty): Action =
-    new Action()
+  def monitoringAction(image: String,
+                       environment: Map[String, String],
+                       mounts: List[Mount] = List.empty,
+                       imageMonitoringScript: Option[String] = None): Action = {
+
+    val actionTemplate = new Action()
       .setImageUri(image)
       .withFlags(List(ActionFlag.RunInBackground))
       .withMounts(mounts)
       .setEnvironment(environment.asJava)
       .setPidNamespace(monitoringPidNamespace)
 
+    imageMonitoringScript match {
+      case Some(value) => actionTemplate.withCommand("/bin/sh", value).setEntrypoint("")
+      case None => actionTemplate
+    }
+  }
   /**
     * monitoringTerminationAction is needed to gracefully terminate monitoring action,
     * because PAPIv2 currently sends SIGKILL to terminate background actions.

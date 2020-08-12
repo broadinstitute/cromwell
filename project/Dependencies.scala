@@ -65,7 +65,12 @@ object Dependencies {
   private val kindProjectorV = "0.9.9"
   private val kittensV = "2.0.0"
   private val liquibaseSlf4jV = "3.0.0"
-  private val liquibaseV = "4.0.0"
+  // Scala Steward wanted to upgrade liquibase-core to 3.10.2 but that version had bugs with not finding uniqueness
+  // constraints and modeling datatypes in ways that were incompatible with our test expectations.
+  // liquibase-core 4.0.0 did not have either of those problems but produced tons of strange warnings at runtime
+  // similar in form to this: https://github.com/liquibase/liquibase/issues/1294
+  // Pinning Liquibase version for the time being.
+  private val liquibaseV = "3.6.3" // scala-steward:off
   private val logbackV = "1.2.3"
   private val lz4JavaV = "1.7.1"
   private val mariadbV = "2.4.4"
@@ -227,9 +232,10 @@ object Dependencies {
   )
 
   private val liquibaseDependencies = List(
-    "org.liquibase" % "liquibase-core" % liquibaseV
-      // Colliding with jakarta.xml.bind-api
-      exclude("javax.xml.bind", "jaxb-api"),
+    "org.liquibase" % "liquibase-core" % liquibaseV,
+      // The exclusion below will be needed if / when liquibase-core is upgraded to 3.10+
+      // Avert collision with jakarta.xml.bind-api
+      // exclude("javax.xml.bind", "jaxb-api"),
     // This is to stop liquibase from being so noisy by default
     // See: http://stackoverflow.com/questions/20880783/how-to-get-liquibase-to-log-using-slf4j
     "com.mattbertolini" % "liquibase-slf4j" % liquibaseSlf4jV

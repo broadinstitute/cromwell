@@ -53,6 +53,14 @@ object Dependencies {
   private val jacksonJqV = "1.0.0-preview.20191208"
   private val janinoV = "3.0.16"
   private val javaxActivationV = "1.2.0"
+  // jaxb-impl 2.3.3 depends on com.sun.activation:jakarta.activation and jakarta.xml.bind:jakarta.xml.bind-api
+  // which jaxb-impl 2.3.2 did not. The former corresponds to the "updated" Maven coordinates for the Java Activation
+  // Framework (https://wiki.eclipse.org/Jakarta_EE_Maven_Coordinates), but Cromwell has many transitive dependencies
+  // on the "old" javax.activation coordinates as well. At assembly merge time the classes from these two different jars
+  // collide and produce assembly merge conflicts.
+  // It's possible that after updating all other dependencies in Cromwell we might purge the references to
+  // javax.activation and then be able to upgrade to jaxb 2.3.3 or beyond, but some of those other dependencies
+  // such as googleCloudNioV have already been pinned so this might not be a trivial undertaking.
   private val jaxbV = "2.3.2" // scala-steward:off
   private val kindProjectorV = "0.9.9"
   private val kittensV = "2.0.0"

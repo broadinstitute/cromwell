@@ -428,8 +428,7 @@ trait StandardAsyncExecutionActor
         |ENVIRONMENT_VARIABLES
         |INSTANTIATED_COMMAND
         |) $stdinRedirection > "$$$out" 2> "$$$err"
-        |rc=$$?
-        |echo $$rc > $rcTmpPath
+        |echo $$? > $rcTmpPath
         |$emptyDirectoryFillCommand
         |(
         |cd ${cwd.pathAsString}
@@ -438,7 +437,6 @@ trait StandardAsyncExecutionActor
         |${directoryScripts(directoryOutputs)}
         |)
         |mv $rcTmpPath $rcPath
-        |exit $$rc
         |""".stripMargin
       .replace("SCRIPT_PREAMBLE", scriptPreamble)
       .replace("ENVIRONMENT_VARIABLES", environmentVariables)

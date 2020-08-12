@@ -1,6 +1,7 @@
 package centaur.reporting
 
 import cats.effect.IO
+import cats.syntax.functor._
 import centaur.test.CentaurTestException
 import centaur.{CentaurConfig, CromwellDatabase}
 import com.typesafe.config.{Config, ConfigFactory}

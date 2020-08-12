@@ -84,7 +84,9 @@ object Dependencies {
   private val owlApiV = "5.1.16"
   private val paradiseV = "2.1.1"
   private val pegdownV = "1.6.0"
-  private val postgresV = "42.2.14"
+  // For org.postgresql:postgresql 42.2.6 - 42.2.14:
+  // java.lang.NoSuchFieldException: m_mesgParts in KeyValueSpec "fail if one of the inserts fails"
+  private val postgresV = "42.2.5" // scala-steward:off
   private val rdf4jV = "2.4.2"
   private val refinedV = "0.9.15"
   private val rhinoV = "1.7.12"

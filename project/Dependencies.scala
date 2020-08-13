@@ -2,7 +2,7 @@ import sbt._
 
 object Dependencies {
   private val akkaHttpCirceIntegrationV = "1.33.0"
-  private val akkaHttpV = "10.1.12"
+  private val akkaHttpV = "10.2.0"
   private val akkaV = "2.5.31"
   private val aliyunBcsV = "6.2.4"
   private val aliyunCoreV = "4.3.9"

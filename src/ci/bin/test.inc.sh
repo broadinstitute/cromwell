@@ -1279,7 +1279,6 @@ cromwell::build::setup_common_environment() {
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")
             cromwell::private::delete_boto_config
             cromwell::private::delete_sbt_boot
-            cromwell::private::upgrade_pip
             ;;
         *)
             cromwell::private::pull_common_docker_images

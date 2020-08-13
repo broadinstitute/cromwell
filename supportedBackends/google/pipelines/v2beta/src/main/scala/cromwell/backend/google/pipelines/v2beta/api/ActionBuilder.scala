@@ -90,7 +90,7 @@ object ActionBuilder {
 
   def monitoringTerminationAction(): Action =
     cloudSdkAction
-      .withCommand(s"/bin/sh", "-c", s"kill -TERM -1 && sleep $monitoringTerminationGraceTime")
+      .withCommand(s"/bin/sh", "-c", s"kill -TERM -1 && sleep $monitoringTerminationGraceTime || true")
       .withAlwaysRun(true)
       .setPidNamespace(monitoringPidNamespace)
 

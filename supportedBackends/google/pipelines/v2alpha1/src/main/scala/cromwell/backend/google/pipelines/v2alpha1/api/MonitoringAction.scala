@@ -23,7 +23,12 @@ trait MonitoringAction {
     val DiskMounts = "DISK_MOUNTS"
   }
 
-  private def monitoringAction(createPipelineParameters: CreatePipelineParameters, image: String, mounts: List[Mount], imageMonitoringScript: Option[String]): List[Action] = {
+  private def monitoringAction(createPipelineParameters: CreatePipelineParameters,
+                               image: String,
+                               imageMonitoringScript: Option[String],
+                               directory: String,
+                               mounts: List[Mount],
+                              ): List[Action] = {
     val job = createPipelineParameters.jobDescriptor
 
     val environment = Map(
@@ -34,7 +39,13 @@ trait MonitoringAction {
       Env.DiskMounts -> mounts.map(_.getPath).mkString(" "),
     )
 
-    val monitoringAction = ActionBuilder.monitoringAction(image, environment, mounts, imageMonitoringScript)
+    val monitoringAction = ActionBuilder.monitoringAction(
+      image,
+      imageMonitoringScript,
+      directory,
+      environment,
+      mounts,
+    )
 
     val describeAction = ActionBuilder.describeDocker("monitoring action", monitoringAction)
       .setFlags(List(ActionFlag.RunInBackground.toString).asJava)
@@ -48,7 +59,22 @@ trait MonitoringAction {
     val workflowOptions = createPipelineParameters.jobDescriptor.workflowDescriptor.workflowOptions
 
     workflowOptions.get(WorkflowOptionKeys.MonitoringImage).toOption match {
-      case Some(image) => monitoringAction(createPipelineParameters, image, mounts, workflowOptions.get(WorkflowOptionKeys.MonitoringImageScript).toOption)
+      case Some(image) =>
+        val localLocation: Option[String] = workflowOptions.get(WorkflowOptionKeys.MonitoringImageScript).toOption map {
+          _ =>
+            createPipelineParameters
+              .commandScriptContainerPath
+              .sibling("imageMonitoring.sh")
+              .toAbsolutePath
+              .pathAsString
+        }
+        monitoringAction(
+          createPipelineParameters = createPipelineParameters,
+          image = image,
+          imageMonitoringScript = localLocation,
+          directory = createPipelineParameters.commandDirectory.pathAsString,
+          mounts = mounts,
+        )
       case None => List.empty
     }
   }

@@ -450,6 +450,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         val referenceDisks = getReferenceDisksToBeMountedFromManifests(pipelinesConfiguration.papiAttributes.referenceDiskLocalizationManifestFiles, inputOutputParameters.fileInputParameters)
 
         CreatePipelineParameters(
+          commandDirectory = commandDirectory,
           jobPaths = jobPaths.asInstanceOf[PipelinesApiJobPaths],
           jobDescriptor = jobDescriptor,
           runtimeAttributes = runtimeAttributes,

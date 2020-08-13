@@ -71,21 +71,26 @@ object ActionBuilder {
   private val monitoringPidNamespace = "monitoring"
 
   def monitoringAction(image: String,
+                       imageMonitoringScript: Option[String],
+                       directory: String,
                        environment: Map[String, String],
                        mounts: List[Mount] = List.empty,
-                       imageMonitoringScript: Option[String] = None): Action = {
+                      ): Action = {
 
     val actionTemplate = new Action()
       .setImageUri(image)
-      .withFlags(List(ActionFlag.RunInBackground))
+      .withFlags(List(ActionFlag.RunInBackground, ActionFlag.IgnoreExitStatus))
       .withMounts(mounts)
       .setEnvironment(environment.asJava)
       .setPidNamespace(monitoringPidNamespace)
 
-    imageMonitoringScript match {
-      case Some(value) => actionTemplate.withCommand("/bin/sh", value).setEntrypoint("")
-      case None => actionTemplate
+    imageMonitoringScript foreach { script =>
+      actionTemplate
+        .withCommand("/bin/sh", "-c", s"cd '$directory' && chmod +x '$script' && '$script'")
+        .setEntrypoint("")
     }
+
+    actionTemplate
   }
   /**
     * monitoringTerminationAction is needed to gracefully terminate monitoring action,
@@ -98,7 +103,7 @@ object ActionBuilder {
 
   def monitoringTerminationAction(): Action =
     cloudSdkAction
-      .withCommand(s"/bin/sh", "-c", s"kill -TERM -1 && sleep $monitoringTerminationGraceTime")
+      .withCommand(s"/bin/sh", "-c", s"kill -TERM -1 && sleep $monitoringTerminationGraceTime || true")
       .withFlags(List(ActionFlag.AlwaysRun))
       .setPidNamespace(monitoringPidNamespace)
 

@@ -422,7 +422,8 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("Pipeline
       virtualPrivateCloudConfiguration = None,
       batchRequestTimeoutConfiguration = null,
       memoryRetryConfiguration = None,
-      allowNoAddress = true
+      allowNoAddress = true,
+      referenceDiskLocalizationManifestFiles = None
     )
 
     val papiConfiguration = mock[PipelinesApiConfiguration]

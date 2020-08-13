@@ -8,6 +8,8 @@ import cromwell.engine.workflow.tokens.{NullTokenEventLogger, RoundRobinQueueIte
 import cromwell.engine.workflow.tokens.TokenQueue.TokenQueuePlaceholder
 import org.scalameter.api._
 import org.scalameter.picklers.Implicits._
+import org.scalameter.reporting.RegressionReporter.Historian.Window
+import org.scalameter.reporting.RegressionReporter.Tester.Accepter
 import spray.json.DefaultJsonProtocol
 
 /**
@@ -25,7 +27,7 @@ object TokenDispenserBenchmark extends Bench[Double] with DefaultJsonProtocol {
   override lazy val measurer = new Measurer.Default
 //  override lazy val executor = SeparateJvmsExecutor(new Executor.Warmer.Default, Aggregator.average, measurer)
   override lazy val executor = LocalExecutor(new Executor.Warmer.Default, Aggregator.average, measurer)
-  override lazy val reporter = new LoggingReporter[Double]
+  override lazy val reporter = new RegressionReporter[Double](Accepter(), Window(0))
   override lazy val persistor = Persistor.None
 
   def fillQueue(tokenQueueIn: TokenQueue, jobsPerGroup: Int, hogGroups: Int): TokenQueue = {

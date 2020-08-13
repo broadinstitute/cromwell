@@ -56,6 +56,7 @@ public class CromwellRefdiskManifestCreatorApp {
 
     ReferenceDiskManifest manifest = new ReferenceDiskManifest();
     manifest.setImageIdentifier(inputArguments.imageName);
+    manifest.setDiskSizeGb(inputArguments.diskSizeGb);
 
     CountDownLatch countDownLatch = new CountDownLatch(inputArguments.nThreads);
     ExecutorService executorService = Executors.newFixedThreadPool(inputArguments.nThreads);
@@ -148,31 +149,37 @@ public class CromwellRefdiskManifestCreatorApp {
   }
 
   private static Arguments parseArguments(String[] args) {
-    if (args.length < 4) {
+    if (args.length < 5) {
       logger.error("Wrong number of parameters.");
       printUsageAndExit();
     }
 
-    int nThreads = 1;
+    int nThreads = parseIntArg(args[0], "number of threads");
+    String imageName = args[1];
+    int diskSizeGb = parseIntArg(args[2], "disk size");
+    String directoryToScan = args[3];
+    String manifestFilePath = args[4];
+
+    return new Arguments(nThreads, imageName, diskSizeGb, directoryToScan, manifestFilePath);
+  }
+
+  private static int parseIntArg(String arg, String argName) {
     try {
-      nThreads = Integer.parseInt(args[0]);
-      if (nThreads < 1) {
+      int intVal = Integer.parseInt(arg);
+      if (intVal < 1) {
         throw new NumberFormatException();
       }
+      return intVal;
     } catch (NumberFormatException e) {
-      logger.error("Wrong argument type - number of threads should be a positive integer");
+      logger.error("Wrong argument type - {} should be a positive integer", argName);
       printUsageAndExit();
+      return -1;
     }
-    String imageName = args[1];
-    String directoryToScan = args[2];
-    String manifestFilePath = args[3];
-
-    return new Arguments(nThreads, imageName, directoryToScan, manifestFilePath);
   }
 
   private static void printUsageAndExit() {
     logger.error("Usage: java -jar cromwell-refdisk-manifest-creator-app.jar <number of parallel threads> " +
-            "<image_name> <directory_path_to_scan> <output file path>");
+            "<image identifier> <disk size Gb> <directory path to scan> <output file path>");
     System.exit(1);
   }
 
@@ -180,12 +187,14 @@ public class CromwellRefdiskManifestCreatorApp {
 
     int nThreads;
     String imageName;
+    int diskSizeGb;
     String directoryToScan;
     String manifestFilePath;
 
-    Arguments(int nThreads, String imageName, String directoryToScan, String manifestFilePath) {
+    Arguments(int nThreads, String imageName, int diskSizeGb, String directoryToScan, String manifestFilePath) {
       this.nThreads = nThreads;
       this.imageName = imageName;
+      this.diskSizeGb = diskSizeGb;
       this.directoryToScan = directoryToScan;
       this.manifestFilePath = manifestFilePath;
     }

@@ -167,7 +167,7 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
 
     the[GoogleConfigurationException] thrownBy {
       GoogleConfiguration(ConfigFactory.parseString(applessGoogleConfig))
-    } should have message "Google configuration:\nNo configuration setting found for key 'application-name'"
+    } should have message "Google configuration:\nString: 2: No configuration setting found for key 'application-name'"
   }
 
   it should "not parse a configuration stanza with double service account credentials" in {
@@ -254,7 +254,7 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
 
     the[ConfigException.Missing] thrownBy {
       GoogleConfiguration(ConfigFactory.parseString(schemeless))
-    } should have message "No configuration setting found for key 'scheme'"
+    } should have message "String: 6: No configuration setting found for key 'scheme'"
   }
 
   it should "not parse a configuration stanza without an auth name" in {
@@ -273,7 +273,7 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
 
     the[ConfigException.Missing] thrownBy {
       GoogleConfiguration(ConfigFactory.parseString(nameless))
-    } should have message "No configuration setting found for key 'name'"
+    } should have message "String: 6: No configuration setting found for key 'name'"
   }
 
   it should "not parse a configuration stanza with a bad client-id in refresh token mode" in {
@@ -298,7 +298,7 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
 
     the[GoogleConfigurationException] thrownBy {
       GoogleConfiguration(ConfigFactory.parseString(badKeyInRefreshTokenMode))
-    } should have message "Google configuration:\nNo configuration setting found for key 'client-id'"
+    } should have message "Google configuration:\nString: 6: No configuration setting found for key 'client-id'"
   }
 
   it should "not parse a configuration stanza without a user in user mode" in {
@@ -321,7 +321,7 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
 
     the[GoogleConfigurationException] thrownBy {
       GoogleConfiguration(ConfigFactory.parseString(badKeyInUserMode))
-    } should have message "Google configuration:\nNo configuration setting found for key 'user'"
+    } should have message "Google configuration:\nString: 6: No configuration setting found for key 'user'"
   }
 
   it should "not parse a configuration stanza without a service-account-id in service account mode" in {
@@ -343,7 +343,7 @@ class GoogleConfigurationSpec extends FlatSpec with Matchers {
 
     the[GoogleConfigurationException] thrownBy {
       GoogleConfiguration(ConfigFactory.parseString(badKeyInServiceAccountMode))
-    } should have message "Google configuration:\nNo configuration setting found for key 'service-account-id'"
+    } should have message "Google configuration:\nString: 6: No configuration setting found for key 'service-account-id'"
   }
 
   it should "not parse a configuration stanza with a duplicate auth name" in {

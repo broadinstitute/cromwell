@@ -116,7 +116,7 @@ class ServiceRegistryActorSpec extends TestKitSuite("service-registry-actor-spec
     probe.expectMsgPF(AwaitTimeout) {
       case e: ActorInitializationException =>
         e.getCause shouldBe a [ConfigException.Missing]
-        e.getCause.getMessage shouldBe "No configuration setting found for key 'services'"
+        e.getCause.getMessage shouldBe "String: 1: No configuration setting found for key 'services'"
     }
   }
 

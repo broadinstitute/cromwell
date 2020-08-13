@@ -31,9 +31,9 @@ class StatsDConfigSpec extends FlatSpec with Matchers {
     val exception = the[IllegalArgumentException] thrownBy StatsDConfig(config)
 
     exception.getMessage shouldBe """StatsD config is invalid:
-                                    |No configuration setting found for key 'hostname'
-                                    |No configuration setting found for key 'port'
-                                    |No configuration setting found for key 'flush-rate'""".stripMargin
+                                    |String: 1: No configuration setting found for key 'hostname'
+                                    |String: 1: No configuration setting found for key 'port'
+                                    |String: 1: No configuration setting found for key 'flush-rate'""".stripMargin
   }
 
 }

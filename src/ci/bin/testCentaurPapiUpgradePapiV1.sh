@@ -13,6 +13,8 @@ cromwell::build::setup_common_environment
 
 cromwell::build::setup_centaur_environment
 
+cromwell::build::papi::setup_papi_centaur_environment
+
 cromwell::build::assemble_jars
 
 cromwell::build::run_centaur \

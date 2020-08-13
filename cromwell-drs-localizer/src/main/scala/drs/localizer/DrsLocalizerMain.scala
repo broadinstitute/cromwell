@@ -85,19 +85,15 @@ class DrsLocalizerMain(drsUrl: String, downloadLoc: String, requesterPaysId: Opt
     def recoverWithRequesterPays(): String = {
       requesterPaysProjectIdOption match {
         case Some(userProject) =>
-          s"""# Check if error is requester pays. If yes, retry gsutil copy using project flag
-             |if grep -q '$RequesterPaysErrorMsg' gsutil_output.txt; then
-             |  echo "Received 'Bucket is requester pays' error. Attempting again using Requester Pays billing project"
-             |  ${gcsCopyCommand(s"-u $userProject")}
-             |else
-             |  echo "Failed to download the file. Error: $$(cat gsutil_output.txt)" >&2
-             |  exit "$$RC_GSUTIL"
-             |fi
-             |""".stripMargin
-        case None =>
-          s"""  echo "Failed to download the file. Error: $$(cat gsutil_output.txt)" >&2
-             |  exit "$$RC_GSUTIL"
-             |""".stripMargin
+          s"""if [ "$$RC_GSUTIL" != "0" ]; then
+             |  # Check if error is requester pays. If yes, retry gsutil copy using project flag
+             |  if grep -q '$RequesterPaysErrorMsg' gsutil_output.txt; then
+             |    echo "Received 'Bucket is requester pays' error. Attempting again using Requester Pays billing project"
+             |    ${gcsCopyCommand(s"-u $userProject")} >> gsutil_output.txt 2>&1
+             |    RC_GSUTIL=$$?
+             |  fi
+             |fi""".stripMargin
+        case None => ""
       }
     }
 
@@ -110,13 +106,16 @@ class DrsLocalizerMain(drsUrl: String, downloadLoc: String, requesterPaysId: Opt
        |# Run gsutil copy without using project flag
        |${gcsCopyCommand()} > gsutil_output.txt 2>&1
        |RC_GSUTIL=$$?
+       |
+       |${recoverWithRequesterPays()}
+       |
        |if [ "$$RC_GSUTIL" != "0" ]; then
-       |  ${recoverWithRequesterPays()}
+       |  echo "Failed to download the file. Error: $$(cat gsutil_output.txt)" >&2
+       |  exit "$$RC_GSUTIL"
        |else
        |  echo "Download complete!"
        |  exit 0
-       |fi
-       |""".stripMargin
+       |fi""".stripMargin
   }
 
 

@@ -1,0 +1,15 @@
+name: coerce_to_array_of_optionals
+testFormat: workflowsuccess
+
+files {
+  workflow: coerce_to_array_of_optionals/coerce_to_array_of_optionals.wdl
+}
+
+metadata {
+  workflowName: coerce_to_array_of_optionals
+  status: Succeeded
+  "outputs.coerce_to_array_of_optionals.first_out": "hello"
+  "outputs.coerce_to_array_of_optionals.all_out.0": "hello"
+  "outputs.coerce_to_array_of_optionals.all_out.1": "world"
+
+}

@@ -17,7 +17,7 @@ lazy val root = (project in file(".")).
       "com.squareup.okhttp3" % "okhttp" % "3.12.1",
       "com.squareup.okhttp3" % "logging-interceptor" % "3.12.1",
       "com.google.code.gson" % "gson" % "2.8.5",
-      "org.apache.commons" % "commons-lang3" % "3.8.1",
+      "org.apache.commons" % "commons-lang3" % "3.11",
       "org.apache.oltu.oauth2" % "org.apache.oltu.oauth2.client" % "1.0.1",
       "org.threeten" % "threetenbp" % "1.3.5" % "compile",
       "io.gsonfire" % "gson-fire" % "1.8.0" % "compile",

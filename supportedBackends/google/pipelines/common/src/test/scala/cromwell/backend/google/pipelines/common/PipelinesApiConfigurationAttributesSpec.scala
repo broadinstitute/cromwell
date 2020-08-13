@@ -210,10 +210,10 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
       PipelinesApiConfigurationAttributes(googleConfig, nakedConfig, "papi")
     }
     val errorsList = exception.errorMessages.toList
-    errorsList should contain("No configuration setting found for key 'project'")
-    errorsList should contain("No configuration setting found for key 'root'")
-    errorsList should contain("No configuration setting found for key 'genomics.auth'")
-    errorsList should contain("No configuration setting found for key 'filesystems'")
+    errorsList should contain("String: 2: No configuration setting found for key 'project'")
+    errorsList should contain("String: 2: No configuration setting found for key 'root'")
+    errorsList should contain("String: 3: No configuration setting found for key 'genomics.auth'")
+    errorsList should contain("String: 2: No configuration setting found for key 'filesystems'")
     errorsList should contain("String: 2: genomics.endpoint-url has type String rather than java.net.URL")
   }
 
@@ -399,5 +399,15 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
       case invalid@PipelinesApiConfigurationAttributes.GsutilHumanBytes(_, _) => fail(s"Memory specification $invalid not expected to be accepted")
       case _ =>
     }
+  }
+
+  it should "parse correct reference-disk-localization-manifest-files config" in {
+    val manifest1Path = "gs://bucket/manifest1.json"
+    val manifest2Path = "gs://bucket/manifest2.json"
+    val manifestConfigStr = s"""reference-disk-localization-manifest-files = ["$manifest1Path", "$manifest2Path"]""".stripMargin
+    val backendConfig = ConfigFactory.parseString(configString(manifestConfigStr))
+
+    val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig, "papi")
+    pipelinesApiAttributes.referenceDiskLocalizationManifestFiles should be(Option(List(manifest1Path, manifest2Path)))
   }
 }

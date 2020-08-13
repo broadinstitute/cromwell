@@ -15,7 +15,7 @@ class ValidatingCachingConfigSpec extends FlatSpec with Matchers with TableDrive
         ("enabled = true"         , true                                                                            ),
         ("enabled = false"        , false                                                                           ),
         ("enabled = 1"            , "String: 1: enabled has type NUMBER rather than BOOLEAN"                        ),
-        (""                       , "No configuration setting found for key 'enabled'"                              )
+        (""                       , "String: 1: No configuration setting found for key 'enabled'"                   )
       )
 
       forEvery(cases) { (config, expected) =>

@@ -19,17 +19,15 @@ engine {
 {{with $cromwellRefreshToken := vault (printf "secret/dsde/cromwell/common/cromwell-refresh-token")}}
 google {
   application-name = "cromwell"
-  json-dir = "target/ci/resources"
+  json-dir = "Error: BA-6546 The environment variable CROMWELL_BUILD_RESOURCES_DIRECTORY must be set/export pointing to a valid path such as '${YOUR_CROMWELL_DIR}/target/ci/resources'"
   json-dir = ${?CROMWELL_BUILD_RESOURCES_DIRECTORY}
   auths = [
     {
       name = "service_account"
       scheme = "service_account"
-      # This service account does not have billing permission, and therefore cannot be used for requester pays
-      json-file = ${google.json-dir}/cromwell-centaur-service-account.json
-      # Allow downgrading to an older service account on Papi V1 until refresh_token_no_auth_bucket.test is
-      # migrated/fixed/added for the Papi V2 credential above.
-      json-file = ${?GOOGLE_SERVICE_ACCOUNT_JSON}
+      # See cromwell::private::papi::setup_papi_service_account() for more info
+      json-dir = "Error: BA-6546 The environment variable CROMWELL_BUILD_PAPI_JSON_FILE must be set/export pointing to a valid json path for your specific Papi backend"
+      json-file = ${?CROMWELL_BUILD_PAPI_JSON_FILE}
     }
     {
       name = "requester_pays_service_account"
@@ -75,11 +73,11 @@ services {
   }
 }
 
-filesystems.drs.global.config.martha.url = "https://us-central1-broad-dsde-dev.cloudfunctions.net/martha_v2"
+filesystems.drs.global.config.martha.url = "https://us-central1-broad-dsde-dev.cloudfunctions.net/martha_v3"
 
 drs {
   localization {
-    docker-image = "broadinstitute/cromwell-drs-localizer:45-d46ff9f"
+    docker-image = "Error: BA-6546 The environment variable CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS must be set/export pointing to a valid docker image"
     docker-image = ${?CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS}
   }
 }

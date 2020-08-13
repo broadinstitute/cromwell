@@ -17,7 +17,7 @@ task custom_entrypoint_task {
     >>>
     runtime {
         # This image has a pre-defined entrypoint so we _have_ to override it:
-        docker: "denvazh/gatling:3.2.1"
+        docker: "broadinstitute/cromwell-docker-test:custom_entrypoints"
     }
     output {
         String hello = read_string(stdout())

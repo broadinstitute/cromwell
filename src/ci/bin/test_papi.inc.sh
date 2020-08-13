@@ -123,7 +123,7 @@ cromwell::private::papi::setup_papi_endpoint_url() {
 
 cromwell::build::papi::setup_papi_centaur_environment() {
     cromwell::private::papi::setup_papi_gcloud
-    if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ]]
+    if [[ "${CROMWELL_BUILD_PROVIDER}" != "${CROMWELL_BUILD_PROVIDER_JENKINS}" ]]
     then
         cromwell::private::papi::setup_papi_gcr
     fi

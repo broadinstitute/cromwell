@@ -54,6 +54,7 @@ import software.amazon.awssdk.services.ecs.model.DescribeContainerInstancesReque
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.{GetObjectRequest, HeadObjectRequest, NoSuchKeyException, PutObjectRequest}
 import wdl4s.parser.MemoryUnit
+import wom.expression.NoIoFunctionSet
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -131,9 +132,12 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
 
       case input: AwsBatchFileInput if input.s3key.startsWith("s3://") =>
-        s"$s3Cmd cp --no-progress ${input.s3key} ${input.mount.mountPoint.pathAsString}/${input.local}"
+        var cmd = s"$s3Cmd cp --no-progress ${input.s3key} ${input.mount.mountPoint.pathAsString}/${input.local}"
           .replaceAllLiterally(AwsBatchWorkingDisk.MountPoint.pathAsString, workDir)
 
+        // if the file is missing the s3 command will fail but if it is optional we want to make it succeed anyway
+        if( isInputFileOptional(input)) cmd = cmd + " || true"
+        cmd
       case input: AwsBatchFileInput =>
         //here we don't need a copy command but the centaurTests expect us to verify the existence of the file
         val filePath = s"${input.mount.mountPoint.pathAsString}/${input.local.pathAsString}"
@@ -180,12 +184,22 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
       case output: AwsBatchFileOutput if output.s3key.startsWith("s3://") && output.mount.mountPoint.pathAsString == AwsBatchWorkingDisk.MountPoint.pathAsString =>
         //output is on working disk mount
-        s"""
+        var cmd = s"""
            |$s3Cmd cp --no-progress $workDir/${output.local.pathAsString} ${output.s3key}
            |""".stripMargin
+        if(isOutputFileOptional(output)) {
+          cmd = decorateOptionalOutputParameter(cmd, output.name)
+        }
+        cmd
+
       case output: AwsBatchFileOutput =>
         //output on a different mount
-        s"$s3Cmd cp --no-progress ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} ${output.s3key}"
+        var cmd = s"$s3Cmd cp --no-progress ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} ${output.s3key}"
+        if(isOutputFileOptional(output)) {
+          cmd = decorateOptionalOutputParameter(cmd, output.name)
+        }
+        cmd
+
       case _ => ""
     }.mkString("\n") + "\n" +
       s"""
@@ -207,6 +221,40 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
          |""".stripMargin
   }
 
+  /**
+    * Surrounds a delocalization command with a shell <code>if [ -e file]</code> block
+    * so that the operation becomes optional. This allows support of optional outputs and inputs
+    * @param command the command to decorate
+    * @param name the name of the file to test for presence
+    * @return the decorated command
+    */
+  def decorateOptionalOutputParameter(command: String, name: String): String = {
+     s"if [ -e $name ]; then\n\t$command; \nfi"
+  }
+
+  /**
+    * Used to test if an input file is declared optional in a WDL inputs block
+    * @param file the input file
+    * @return true is optional, otherwise false
+    */
+  def isInputFileOptional(file: AwsBatchFileInput): Boolean = {
+    jobDescriptor.taskCall.callable.inputs.find(_.name == file.name) match {
+      case Some(value) => value.optional
+      case None => false
+    }
+  }
+
+  /**
+    * Test is an output file is declared optional in a WDL outputs block
+    * @param file the name of the file
+    * @return true if optional otherwise false
+    */
+  def isOutputFileOptional(file: AwsBatchFileOutput): Boolean = {
+    jobDescriptor.taskCall.callable.outputs
+      .exists(x => x.expression.evaluateFiles(jobDescriptor.localInputs, NoIoFunctionSet, x.womType)
+        .getOrElse(Set.empty).exists( f => f.file.value == file.name && f.optional))
+
+  }
 
   def submitJob[F[_]]()( implicit timer: Timer[F], async: Async[F]): Aws[F, SubmitJobResponse] = {
 

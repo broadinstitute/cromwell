@@ -35,7 +35,7 @@ backend {
           #cluster: "OnDemand ecs.sn1.medium img-ubuntu"
           # Alternatively leave a fixed cluster spun up via:
           # bcs cc cromwell_test_cluster -i img-ubuntu -t ecs.sn1.medium -n 1 -d 'cromwell test cluster'
-          cluster: "OnDemand ecs.sn1.medium img-ubuntu"
+          cluster: "Error: BA-6546 The environment variable CROMWELL_BUILD_BCS_CLUSTER_ID must be set/export pointing to a valid cluster id"
           cluster: ${?CROMWELL_BUILD_BCS_CLUSTER_ID}
 
           # TODO: We should continue to allow users and our CI tests to cache images in their own OSS bucket

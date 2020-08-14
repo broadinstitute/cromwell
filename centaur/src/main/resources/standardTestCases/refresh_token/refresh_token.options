@@ -1,5 +1,0 @@
-{
-    "backend": "Papi-Refresh",
-    "refresh_token": "",
-    "auth_bucket": "gs://centaur-auth"
-}

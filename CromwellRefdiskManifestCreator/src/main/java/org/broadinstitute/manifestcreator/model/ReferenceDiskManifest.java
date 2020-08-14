@@ -5,6 +5,7 @@ import java.util.List;
 
 public class ReferenceDiskManifest {
   private String imageIdentifier;
+  private int diskSizeGb;
   private List<ReferenceFile> files;
 
   public String getImageIdentifier() {
@@ -13,6 +14,14 @@ public class ReferenceDiskManifest {
 
   public void setImageIdentifier(String imageIdentifier) {
     this.imageIdentifier = imageIdentifier;
+  }
+
+  public int getDiskSizeGb() {
+    return diskSizeGb;
+  }
+
+  public void setDiskSizeGb(int diskSizeGb) {
+    this.diskSizeGb = diskSizeGb;
   }
 
   public List<ReferenceFile> getFiles() {

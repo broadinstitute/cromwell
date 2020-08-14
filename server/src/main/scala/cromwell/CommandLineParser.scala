@@ -28,7 +28,7 @@ object CommandLineParser {
 //  -v, --type-version <value>
 //                           Workflow type version.
 //  -l, --labels <value>     Workflow labels file.
-//  -p, --imports <value>    A directory or zipfile to search for workflow imports.
+//  -p, --imports <value>    A zip file to search for workflow imports.
 //  -m, --metadata-output <value>
 //                           An optional JSON file path to output metadata.
 //  -h, --host               Cromwell server URL
@@ -57,7 +57,7 @@ class CommandLineParser extends scopt.OptionParser[CommandLineArguments]("java -
       action((s, c) =>
         c.copy(workflowLabels = Option(DefaultPathBuilder.get(s)))),
     opt[String]('p', "imports").text(
-      "A directory or zipfile to search for workflow imports.").
+      "A zip file to search for workflow imports.").
       action((s, c) =>
         c.copy(imports = Option(DefaultPathBuilder.get(s))))
   )

@@ -22,6 +22,11 @@ set -o errexit -o nounset -o pipefail
 #
 #   - crmcit
 #     Simulate a centaur integration test build. Example: `crmcit=y src/ci/bin/testCentaurPapiV2beta.sh`
+#
+#   - crmddm
+#     Use "Docker Desktop for Mac" DNS names instead of `localhost`.
+#     Example: `crmddm=y src/ci/bin/testCentaurHoricromtalPapiV2alpha1.sh`
+#     More info: https://docs.docker.com/docker-for-mac/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host
 
 cromwell::private::check_debug() {
     # shellcheck disable=SC2154
@@ -33,6 +38,11 @@ cromwell::private::check_debug() {
     if [[ -n "${crmcit:+set}" ]]; then
         CROMWELL_BUILD_CENTAUR_TYPE="integration"
     fi
+
+    # shellcheck disable=SC2154
+    if [[ -n "${crmddm:+set}" ]]; then
+        CROMWELL_BUILD_DOCKER_LOCALHOST="host.docker.internal"
+    fi
 }
 
 cromwell::private::set_variable_if_only_some_files_changed() {
@@ -41,7 +51,7 @@ cromwell::private::set_variable_if_only_some_files_changed() {
 
     if [[ "${TRAVIS_EVENT_TYPE:-unset}" != "pull_request" ]]; then
         export "${variable_to_set}=false"
-    elif git diff --name-only "origin/${TRAVIS_BRANCH}" 2>&1 | egrep -q --invert-match "${files_changed_regex}"; then
+    elif git diff --name-only "origin/${TRAVIS_BRANCH}" 2>&1 | grep -E -q --invert-match "${files_changed_regex}"; then
         export "${variable_to_set}=false"
     else
         export "${variable_to_set}=true"
@@ -109,25 +119,7 @@ cromwell::private::create_build_variables() {
     if [[ "${CROMWELL_BUILD_IS_HOTFIX}" == "true" ]]; then
         CROMWELL_BUILD_PRIOR_VERSION_NUMBER=${CROMWELL_BUILD_CURRENT_VERSION_NUMBER}
     else
-        CROMWELL_BUILD_PRIOR_VERSION_NUMBER=$((${CROMWELL_BUILD_CURRENT_VERSION_NUMBER} - 1))
-    fi
-
-    local git_commit_message
-    # The commit message to analyze should be the last one in the commit range.
-    # This works for both pull_request and push builds, unlike using 'git log HEAD' which gives a merge commit message
-    # on pull requests:
-    git_commit_message="$(git log --reverse ${TRAVIS_COMMIT_RANGE} | tail -n1 2>/dev/null || true)"
-    echo "Building for git commit message: ${git_commit_message}"
-
-    if [[ "${git_commit_message}" == *"[force ci]"* ]]; then
-        CROMWELL_BUILD_FORCE_TESTS=true
-        CROMWELL_BUILD_MINIMAL_TESTS=false
-    elif [[ "${git_commit_message}" == *"[minimal ci]"* ]]; then
-        CROMWELL_BUILD_FORCE_TESTS=false
-        CROMWELL_BUILD_MINIMAL_TESTS=true
-    else
-      CROMWELL_BUILD_FORCE_TESTS=false
-      CROMWELL_BUILD_MINIMAL_TESTS=false
+        CROMWELL_BUILD_PRIOR_VERSION_NUMBER=$((CROMWELL_BUILD_CURRENT_VERSION_NUMBER - 1))
     fi
 
     local git_revision
@@ -160,14 +152,41 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
             CROMWELL_BUILD_GENERATE_COVERAGE=true
 
+            local travis_commit_message
+            local travis_force_tests
+            local travis_minimal_tests
+            if [[ -n "${TRAVIS_COMMIT_RANGE:+set}" ]]; then
+                # The commit message to analyze should be the last one in the commit range.
+                # This works for both pull_request and push builds, unlike using 'git log HEAD' which
+                # gives a merge commit message on pull requests.
+                travis_commit_message="$(git log --reverse "${TRAVIS_COMMIT_RANGE}" | tail -n1 2>/dev/null || true)"
+            fi
+
+            if [[ -z "${travis_commit_message:+set}" ]]; then
+                travis_commit_message="$(git log --format=%B --max-count=1 HEAD 2>/dev/null || true)"
+            fi
+
+            if [[ "${travis_commit_message}" == *"[force ci]"* ]]; then
+                travis_force_tests=true
+                travis_minimal_tests=false
+            elif [[ "${travis_commit_message}" == *"[minimal ci]"* ]]; then
+                travis_force_tests=false
+                travis_minimal_tests=true
+            else
+                travis_force_tests=false
+                travis_minimal_tests=false
+            fi
+
+            echo "Building for commit message='${travis_commit_message}' with force=${travis_force_tests} and minimal=${travis_minimal_tests}"
+
             # For solely documentation updates run only checkPublish. Otherwise always run sbt, even for 'push'.
             # This allows quick sanity checks before starting PRs *and* publishing after merges into develop.
-            if [[ "${CROMWELL_BUILD_FORCE_TESTS}" == "true" ]]; then
+            if [[ "${travis_force_tests}" == "true" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=true
             elif [[ "${CROMWELL_BUILD_ONLY_DOCS_CHANGED}" == "true" ]] && \
                 [[ "${BUILD_TYPE}" != "checkPublish" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=false
-            elif [[ "${CROMWELL_BUILD_MINIMAL_TESTS}" == "true" ]] && \
+            elif [[ "${travis_minimal_tests}" == "true" ]] && \
                 [[ "${TRAVIS_EVENT_TYPE}" != "push" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=false
             elif [[ "${CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED}" == "true" ]] && \
@@ -270,12 +289,21 @@ cromwell::private::create_build_variables() {
             ;;
     esac
 
+    if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
+        CROMWELL_BUILD_DOCKER_TAG="${CROMWELL_BUILD_PROVIDER}-${CROMWELL_BUILD_NUMBER}"
+    else
+        CROMWELL_BUILD_DOCKER_TAG="${CROMWELL_BUILD_PROVIDER}-${CROMWELL_BUILD_TYPE}-${CROMWELL_BUILD_GIT_HASH_SUFFIX}"
+    fi
+
+    # Trim and replace invalid characters in the docker tag
+    # https://docs.docker.com/engine/reference/commandline/tag/#extended-description
+    CROMWELL_BUILD_DOCKER_TAG="${CROMWELL_BUILD_DOCKER_TAG:0:128}"
+    CROMWELL_BUILD_DOCKER_TAG="${CROMWELL_BUILD_DOCKER_TAG//[^a-zA-Z0-9.-]/_}"
+
     CROMWELL_BUILD_OPTIONAL_SECURE="${CROMWELL_BUILD_OPTIONAL_SECURE-false}"
     CROMWELL_BUILD_REQUIRES_SECURE="${CROMWELL_BUILD_REQUIRES_SECURE-false}"
     CROMWELL_BUILD_REQUIRES_PRIOR_VERSION="${CROMWELL_BUILD_REQUIRES_PRIOR_VERSION-false}"
     CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND="${CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND-assembly}"
-    CROMWELL_BUILD_CROMWELL_DOCKER_TAG="${CROMWELL_BUILD_CROMWELL_DOCKER_TAG-just-testing-horicromtal}"
-    CROMWELL_BUILD_CROMWELL_DOCKER_COMPOSE="${CROMWELL_BUILD_DOCKER_DIRECTORY}/docker-compose-horicromtal.yml"
     VAULT_TOKEN="${VAULT_TOKEN-vault token is not set as an environment variable}"
 
     local hours_to_minutes
@@ -289,9 +317,9 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_CROMWELL_LOG
     export CROMWELL_BUILD_CURRENT_VERSION_NUMBER
     export CROMWELL_BUILD_DOCKER_DIRECTORY
+    export CROMWELL_BUILD_DOCKER_TAG
     export CROMWELL_BUILD_EVENT
     export CROMWELL_BUILD_EXIT_FUNCTIONS
-    export CROMWELL_BUILD_FORCE_TESTS
     export CROMWELL_BUILD_GENERATE_COVERAGE
     export CROMWELL_BUILD_GIT_HASH_SUFFIX
     export CROMWELL_BUILD_GIT_SECRETS_COMMIT
@@ -325,8 +353,6 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND
     export CROMWELL_BUILD_SCRIPTS_DIRECTORY
     export CROMWELL_BUILD_TAG
-    export CROMWELL_BUILD_CROMWELL_DOCKER_COMPOSE
-    export CROMWELL_BUILD_CROMWELL_DOCKER_TAG
     export CROMWELL_BUILD_TYPE
     export CROMWELL_BUILD_URL
     export CROMWELL_BUILD_WAIT_FOR_IT_BRANCH
@@ -404,22 +430,26 @@ cromwell::private::create_database_variables() {
             CROMWELL_BUILD_POSTGRESQL_LATEST_TAG=""
             ;;
         *)
-            CROMWELL_BUILD_MARIADB_HOSTNAME="${CROMWELL_BUILD_MARIADB_HOSTNAME-localhost}"
+            if [[ -z "${CROMWELL_BUILD_DOCKER_LOCALHOST-}" ]]; then
+                CROMWELL_BUILD_DOCKER_LOCALHOST="localhost"
+            fi
+
+            CROMWELL_BUILD_MARIADB_HOSTNAME="${CROMWELL_BUILD_MARIADB_HOSTNAME-${CROMWELL_BUILD_DOCKER_LOCALHOST}}"
             CROMWELL_BUILD_MARIADB_PORT="${CROMWELL_BUILD_MARIADB_PORT-13306}"
             CROMWELL_BUILD_MARIADB_DOCKER_TAG=""
-            CROMWELL_BUILD_MARIADB_LATEST_HOSTNAME="${CROMWELL_BUILD_MARIADB_LATEST_HOSTNAME-localhost}"
+            CROMWELL_BUILD_MARIADB_LATEST_HOSTNAME="${CROMWELL_BUILD_MARIADB_LATEST_HOSTNAME-${CROMWELL_BUILD_DOCKER_LOCALHOST}}"
             CROMWELL_BUILD_MARIADB_LATEST_PORT="${CROMWELL_BUILD_MARIADB_LATEST_PORT-13306}"
             CROMWELL_BUILD_MARIADB_LATEST_TAG=""
-            CROMWELL_BUILD_MYSQL_HOSTNAME="${CROMWELL_BUILD_MYSQL_HOSTNAME-localhost}"
+            CROMWELL_BUILD_MYSQL_HOSTNAME="${CROMWELL_BUILD_MYSQL_HOSTNAME-${CROMWELL_BUILD_DOCKER_LOCALHOST}}"
             CROMWELL_BUILD_MYSQL_PORT="${CROMWELL_BUILD_MYSQL_PORT-3306}"
             CROMWELL_BUILD_MYSQL_DOCKER_TAG=""
-            CROMWELL_BUILD_MYSQL_LATEST_HOSTNAME="${CROMWELL_BUILD_MYSQL_LATEST_HOSTNAME-localhost}"
+            CROMWELL_BUILD_MYSQL_LATEST_HOSTNAME="${CROMWELL_BUILD_MYSQL_LATEST_HOSTNAME-${CROMWELL_BUILD_DOCKER_LOCALHOST}}"
             CROMWELL_BUILD_MYSQL_LATEST_PORT="${CROMWELL_BUILD_MYSQL_LATEST_PORT-13306}"
             CROMWELL_BUILD_MYSQL_LATEST_TAG=""
-            CROMWELL_BUILD_POSTGRESQL_HOSTNAME="${CROMWELL_BUILD_POSTGRESQL_HOSTNAME-localhost}"
+            CROMWELL_BUILD_POSTGRESQL_HOSTNAME="${CROMWELL_BUILD_POSTGRESQL_HOSTNAME-${CROMWELL_BUILD_DOCKER_LOCALHOST}}"
             CROMWELL_BUILD_POSTGRESQL_PORT="${CROMWELL_BUILD_POSTGRESQL_PORT-5432}"
             CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG=""
-            CROMWELL_BUILD_POSTGRESQL_LATEST_HOSTNAME="${CROMWELL_BUILD_POSTGRESQL_LATEST_HOSTNAME-localhost}"
+            CROMWELL_BUILD_POSTGRESQL_LATEST_HOSTNAME="${CROMWELL_BUILD_POSTGRESQL_LATEST_HOSTNAME-${CROMWELL_BUILD_DOCKER_LOCALHOST}}"
             CROMWELL_BUILD_POSTGRESQL_LATEST_PORT="${CROMWELL_BUILD_POSTGRESQL_LATEST_PORT-13306}"
             CROMWELL_BUILD_POSTGRESQL_LATEST_TAG=""
             ;;
@@ -564,17 +594,6 @@ cromwell::private::create_centaur_variables() {
             ;;
     esac
 
-    if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
-        CROMWELL_BUILD_CENTAUR_DOCKER_TAG="${CROMWELL_BUILD_PROVIDER}-${CROMWELL_BUILD_NUMBER}"
-    else
-        CROMWELL_BUILD_CENTAUR_DOCKER_TAG="${CROMWELL_BUILD_PROVIDER}-${CROMWELL_BUILD_TYPE}-${CROMWELL_BUILD_GIT_HASH_SUFFIX}"
-    fi
-
-    # Trim and replace invalid characters in the docker tag
-    # https://docs.docker.com/engine/reference/commandline/tag/#extended-description
-    CROMWELL_BUILD_CENTAUR_DOCKER_TAG="${CROMWELL_BUILD_CENTAUR_DOCKER_TAG:0:128}"
-    CROMWELL_BUILD_CENTAUR_DOCKER_TAG="${CROMWELL_BUILD_CENTAUR_DOCKER_TAG//[^a-zA-Z0-9.-]/_}"
-
     case "${CROMWELL_BUILD_CENTAUR_TYPE}" in
         "${CROMWELL_BUILD_CENTAUR_TYPE_INTEGRATION}")
             CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT=512000
@@ -602,11 +621,9 @@ cromwell::private::create_centaur_variables() {
 
     export CROMWELL_BUILD_CENTAUR_256_BITS_KEY
     export CROMWELL_BUILD_CENTAUR_CONFIG
-    export CROMWELL_BUILD_CENTAUR_DOCKER_TAG
+    export CROMWELL_BUILD_DOCKER_TAG
     export CROMWELL_BUILD_CENTAUR_JDBC_DRIVER
-    export CROMWELL_BUILD_CENTAUR_JDBC_PASSWORD
     export CROMWELL_BUILD_CENTAUR_JDBC_URL
-    export CROMWELL_BUILD_CENTAUR_JDBC_USERNAME
     export CROMWELL_BUILD_CENTAUR_LOG
     export CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS
     export CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY
@@ -619,14 +636,12 @@ cromwell::private::create_centaur_variables() {
     export CROMWELL_BUILD_CENTAUR_TYPE_ENGINE_UPGRADE
     export CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE
     export CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER
-    export CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_USERNAME
-    export CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_PASSWORD
     export CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL
 }
 
 cromwell::private::create_conformance_variables() {
     CROMWELL_BUILD_CWL_RUNNER_MODE="${CROMWELL_BUILD_BACKEND_TYPE}"
-    CROMWELL_BUILD_CWL_TOOL_VERSION="1.0.20190228155703"
+    CROMWELL_BUILD_CWL_TOOL_VERSION="3.0.20200724003302"
     CROMWELL_BUILD_CWL_TEST_VERSION="1.0.20190228134645"
     CROMWELL_BUILD_CWL_TEST_COMMIT="1f501e38ff692a408e16b246ac7d64d32f0822c2" # use known git hash to avoid changes
     CROMWELL_BUILD_CWL_TEST_RUNNER="${CROMWELL_BUILD_ROOT_DIRECTORY}/centaurCwlRunner/src/bin/centaur-cwl-runner.bash"
@@ -635,8 +650,21 @@ cromwell::private::create_conformance_variables() {
     CROMWELL_BUILD_CWL_TEST_WDL="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cwl_conformance_test.wdl"
     CROMWELL_BUILD_CWL_TEST_INPUTS="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cwl_conformance_test.inputs.json"
     CROMWELL_BUILD_CWL_TEST_OUTPUT="${CROMWELL_BUILD_LOG_DIRECTORY}/cwl_conformance_test.out.txt"
-    CROMWELL_BUILD_CWL_TEST_PARALLELISM=10 # Set too high will cause false negatives due to cromwell server timeouts.
 
+    # Setting CROMWELL_BUILD_CWL_TEST_PARALLELISM too high will cause false negatives due to cromwell server timeouts.
+    case "${CROMWELL_BUILD_TYPE}" in
+        conformanceTesk)
+            # BA-6547: TESK is not currently tested in GOTC-Jenkins, FC-Jenkins, nor Travis
+            CROMWELL_BUILD_CWL_RUNNER_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/ftp_centaur_cwl_runner.conf"
+            CROMWELL_BUILD_CWL_TEST_PARALLELISM=8
+            ;;
+        *)
+            CROMWELL_BUILD_CWL_RUNNER_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_cwl_runner_application.conf"
+            CROMWELL_BUILD_CWL_TEST_PARALLELISM=10
+            ;;
+    esac
+
+    export CROMWELL_BUILD_CWL_RUNNER_CONFIG
     export CROMWELL_BUILD_CWL_RUNNER_MODE
     export CROMWELL_BUILD_CWL_TOOL_VERSION
     export CROMWELL_BUILD_CWL_TEST_VERSION
@@ -700,7 +728,7 @@ cromwell::private::pip_install() {
     pip_package="${1:?pip_install called without a package}"; shift
 
     if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
-        sudo -H pip install "${pip_package}" "$@"
+        sudo -H "${PYTHON3_HOME}/bin/pip" install "${pip_package}" "$@"
     elif [[ "${CROMWELL_BUILD_IS_VIRTUAL_ENV}" == "true" ]]; then
         pip install "${pip_package}" "$@"
     else
@@ -849,7 +877,8 @@ cromwell::private::pull_common_docker_images() {
     # All tests use ubuntu:latest - make sure it's there before starting the tests
     # because pulling the image during some of the tests would cause them to fail
     # (specifically output_redirection which expects a specific value in stderr)
-    docker pull ubuntu
+    # Use cat to quiet docker: https://github.com/moby/moby/issues/36655#issuecomment-375136087
+    docker pull ubuntu | cat
 }
 
 cromwell::private::install_cwltest() {
@@ -1002,39 +1031,31 @@ cromwell::private::setup_prior_version_resources() {
         prior_jar="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell_${CROMWELL_BUILD_PRIOR_VERSION_NUMBER}.jar"
 
         if [[ -f "${prior_config}" ]]; then
-            CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_CONFIG="${prior_config}"
+            CROMWELL_BUILD_PRE_RESTART_CROMWELL_CONFIG="${prior_config}"
         else
-            CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_CONFIG="${CROMWELL_BUILD_CROMWELL_CONFIG}"
+            CROMWELL_BUILD_PRE_RESTART_CROMWELL_CONFIG="${CROMWELL_BUILD_CROMWELL_CONFIG}"
         fi
 
-        CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_DOCKER_TAG="${CROMWELL_BUILD_PRIOR_VERSION_NUMBER}"
-        CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_JAR="${prior_jar}"
+        CROMWELL_BUILD_PRE_RESTART_DOCKER_TAG="${CROMWELL_BUILD_PRIOR_VERSION_NUMBER}"
+        CROMWELL_BUILD_PRE_RESTART_CROMWELL_JAR="${prior_jar}"
 
         # Copy the prior versions jar out of the previously published docker image
         docker run \
             --rm \
             --entrypoint= \
             --volume "${CROMWELL_BUILD_RESOURCES_DIRECTORY}:${CROMWELL_BUILD_RESOURCES_DIRECTORY}" \
-            broadinstitute/cromwell:"${CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_DOCKER_TAG}" \
-            cp /app/cromwell.jar "${CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_JAR}"
+            broadinstitute/cromwell:"${CROMWELL_BUILD_PRE_RESTART_DOCKER_TAG}" \
+            cp /app/cromwell.jar "${CROMWELL_BUILD_PRE_RESTART_CROMWELL_JAR}"
     else
         # In tests that are looking for a prior version, actually just use the current version
-        CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_CONFIG="${CROMWELL_BUILD_CROMWELL_CONFIG}"
-        CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_DOCKER_TAG="${CROMWELL_BUILD_CROMWELL_DOCKER_TAG}"
-        CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_JAR="${CROMWELL_BUILD_CROMWELL_JAR}"
+        CROMWELL_BUILD_PRE_RESTART_CROMWELL_CONFIG="${CROMWELL_BUILD_CROMWELL_CONFIG}"
+        CROMWELL_BUILD_PRE_RESTART_DOCKER_TAG="${CROMWELL_BUILD_DOCKER_TAG}"
+        CROMWELL_BUILD_PRE_RESTART_CROMWELL_JAR="${CROMWELL_BUILD_CROMWELL_JAR}"
     fi
 
-    export CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_CONFIG
-    export CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_DOCKER_TAG
-    export CROMWELL_BUILD_CROMWELL_PRIOR_VERSION_JAR
-}
-
-cromwell::private::exists_cromwell_docker() {
-    docker image ls --quiet broadinstitute/cromwell:"${CROMWELL_BUILD_CROMWELL_DOCKER_TAG}" | grep .
-}
-
-cromwell::private::build_cromwell_docker() {
-    CROMWELL_SBT_DOCKER_TAGS="${CROMWELL_BUILD_CROMWELL_DOCKER_TAG}" sbt server/docker -error
+    export CROMWELL_BUILD_PRE_RESTART_CROMWELL_CONFIG
+    export CROMWELL_BUILD_PRE_RESTART_DOCKER_TAG
+    export CROMWELL_BUILD_PRE_RESTART_CROMWELL_JAR
 }
 
 cromwell::private::generate_code_coverage() {
@@ -1214,7 +1235,8 @@ cromwell::private::kill_conformance_cromwell() {
 cromwell::private::run_conformance_wdl() {
     pushd "${CROMWELL_BUILD_CWL_TEST_RESOURCES}" > /dev/null
 
-    java \
+    CENTAUR_CWL_JAVA_ARGS="-Dconfig.file=${CROMWELL_BUILD_CWL_RUNNER_CONFIG}" \
+        java \
         -Xmx6g \
         -Dbackend.providers.Local.config.concurrent-job-limit="${CROMWELL_BUILD_CWL_TEST_PARALLELISM}" \
         -jar "${CROMWELL_BUILD_CROMWELL_JAR}" \
@@ -1257,7 +1279,6 @@ cromwell::build::setup_common_environment() {
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")
             cromwell::private::delete_boto_config
             cromwell::private::delete_sbt_boot
-            cromwell::private::upgrade_pip
             ;;
         *)
             cromwell::private::pull_common_docker_images
@@ -1321,11 +1342,26 @@ cromwell::build::assemble_jars() {
     cromwell::private::setup_prior_version_resources
 }
 
-cromwell::build::build_cromwell_docker() {
-    if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]] || ! cromwell::private::exists_cromwell_docker; then
-        echo "Please wait, building cromwell docker…"
-        cromwell::private::build_cromwell_docker
+cromwell::build::build_docker_image() {
+    local executable_name
+    local docker_image
+    executable_name="${1:?build_docker_image called without a executable_name}"
+    docker_image="${2:?build_docker_image called without a docker_image}"
+    shift
+    shift
+
+    if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]] || ! docker image ls --quiet "${docker_image}" | grep .; then
+        echo "Please wait, building ${executable_name} into ${docker_image}…"
+
+        sbt \
+            --error \
+            "set \`${executable_name}\`/docker/imageNames := List(ImageName(\"${docker_image}\"))" \
+            "${executable_name}/docker"
     fi
+}
+
+cromwell::build::build_cromwell_docker() {
+    cromwell::build::build_docker_image server broadinstitute/cromwell:"${CROMWELL_BUILD_DOCKER_TAG}"
 }
 
 cromwell::build::run_centaur() {

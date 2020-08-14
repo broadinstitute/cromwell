@@ -84,11 +84,11 @@ _If a job fails with a retryable failure (e.g is preempted), it will **not** be 
 
 ## Restart
 
-When Cromwell is run in server mode, it is likely that the server will have to be stopped and started again at some point (for example to upgrade Cromwell to a new version).
-In such cases, Cromwell will reconnect to all workflows that were in progress and attempt to reconnect to all running jobs of a workflow. Note that because a workflow
+When Cromwell is run in server mode it is likely that the server will have to be stopped and started again at some point (for example to upgrade Cromwell to a new version).
+In such cases Cromwell will reconnect to all workflows that were in progress and attempt to reconnect to all running jobs of a workflow. Note that because a workflow
 does not "belong" to any one Cromwell instance (it belongs to the cluster), a different instance in a horizontal cluster might reconnect to the workflow instead of the original.
 
-The ability to reconnect to an existing job is, backend dependent. The Google Backend and the HPC backends currently support it.
+The ability to reconnect to an existing job is backend dependent. The Google Backend and the HPC backends currently support it.
 
 If the workflow was in state `Aborting`, Cromwell will ask all running jobs to abort again. No new jobs will be started.
 

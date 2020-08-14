@@ -26,7 +26,7 @@ import cromwell.backend.google.pipelines.common.io._
 import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.standard.{StandardAdHocValue, StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
-import cromwell.core.path.{DefaultPathBuilder, Path}
+import cromwell.core.path.{DefaultPathBuilder, Path, PathFactory}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
 import cromwell.filesystems.gcs.GcsPath
@@ -354,6 +354,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   lazy val jesMonitoringParamName: String = PipelinesApiJobPaths.JesMonitoringKey
   lazy val localMonitoringLogPath: Path = DefaultPathBuilder.get(pipelinesApiCallPaths.jesMonitoringLogFilename)
   lazy val localMonitoringScriptPath: Path = DefaultPathBuilder.get(pipelinesApiCallPaths.jesMonitoringScriptFilename)
+  lazy val localMonitoringImageScriptPath: Path =
+    DefaultPathBuilder.get(pipelinesApiCallPaths.jesMonitoringImageScriptFilename)
 
   lazy val monitoringScript: Option[PipelinesApiFileInput] = {
     pipelinesApiCallPaths.workflowPaths.monitoringScriptPath map { path =>
@@ -449,16 +451,61 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
         val referenceDisks = getReferenceDisksToBeMountedFromManifests(pipelinesConfiguration.papiAttributes.referenceDiskLocalizationManifestFiles, inputOutputParameters.fileInputParameters)
 
+        val workflowOptions = workflowDescriptor.workflowOptions
+        val monitoringImageOption = workflowOptions.get(WorkflowOptionKeys.MonitoringImage).toOption
+        val monitoringImageScriptOption =
+          for {
+            _ <- monitoringImageOption
+            monitoringImageScript <- workflowOptions.get(WorkflowOptionKeys.MonitoringImageScript).toOption
+          } yield {
+            PathFactory.buildPath(
+              monitoringImageScript,
+              workflowPaths.pathBuilders,
+            )
+          }
+
+        object Env {
+          /**
+            * Name of an environmental variable
+            */
+          val WorkflowId = "WORKFLOW_ID"
+          val TaskCallName = "TASK_CALL_NAME"
+          val TaskCallIndex = "TASK_CALL_INDEX"
+          val TaskCallAttempt = "TASK_CALL_ATTEMPT"
+          val DiskMounts = "DISK_MOUNTS"
+        }
+
+        def monitoringImageEnvironment(mountPaths: List[String]) =
+          Map(
+            Env.WorkflowId -> jobDescriptor.workflowDescriptor.id.toString,
+            Env.TaskCallName -> jobDescriptor.taskCall.localName,
+            Env.TaskCallIndex -> jobDescriptor.key.index.map(_.toString).getOrElse("NA"),
+            Env.TaskCallAttempt -> jobDescriptor.key.attempt.toString,
+            Env.DiskMounts -> mountPaths.mkString(" "),
+          )
+
+        val monitoringImageCommand = monitoringImageScriptOption match {
+          case Some(_) => List(
+            "/bin/sh",
+            "-c",
+            s"cd '$commandDirectory' && " +
+              s"chmod +x '${localMonitoringImageScriptPath.pathAsString}' && " +
+              s"'${localMonitoringImageScriptPath.pathAsString}'"
+          )
+          case None => Nil
+        }
+
         CreatePipelineParameters(
-          commandDirectory = commandDirectory,
-          jobPaths = jobPaths.asInstanceOf[PipelinesApiJobPaths],
           jobDescriptor = jobDescriptor,
           runtimeAttributes = runtimeAttributes,
           dockerImage = jobDockerImage,
+          jobPaths = jobPaths.asInstanceOf[PipelinesApiJobPaths],
           cloudWorkflowRoot = workflowPaths.workflowRoot,
           cloudCallRoot = callRootPath,
           commandScriptContainerPath = cmdInput.containerPath,
           logGcsPath = jesLogPath,
+          monitoringImageScriptContainerPath = localMonitoringImageScriptPath,
+          monitoringImageCommand = monitoringImageCommand,
           inputOutputParameters = inputOutputParameters,
           projectId = googleProject(jobDescriptor.workflowDescriptor),
           computeServiceAccount = computeServiceAccount(jobDescriptor.workflowDescriptor),
@@ -473,7 +520,10 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           retryWithMoreMemoryKeys = jesAttributes.memoryRetryConfiguration.map(_.errorKeys),
           fuseEnabled = fuseEnabled(jobDescriptor.workflowDescriptor),
           allowNoAddress = pipelinesConfiguration.papiAttributes.allowNoAddress,
-          referenceDisksForLocalization = referenceDisks
+          referenceDisksForLocalization = referenceDisks,
+          monitoringImage = monitoringImageOption,
+          monitoringImageScript = monitoringImageScriptOption,
+          monitoringImageEnvironment = monitoringImageEnvironment,
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")

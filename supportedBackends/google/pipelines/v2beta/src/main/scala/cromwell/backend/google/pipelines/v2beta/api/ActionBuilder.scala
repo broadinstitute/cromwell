@@ -63,7 +63,7 @@ object ActionBuilder {
 
   def cloudSdkAction: Action = new Action().setImageUri(LifeSciencesFactory.CloudSdkImage)
 
-  def withImage(image: String) = new Action()
+  def withImage(image: String): Action = new Action()
     .setImageUri(image)
 
   /**
@@ -71,13 +71,28 @@ object ActionBuilder {
     */
   private val monitoringPidNamespace = "monitoring"
 
-  def monitoringAction(image: String, environment: Map[String, String], mounts: List[Mount] = List.empty): Action =
-    new Action()
+  def monitoringAction(image: String,
+                       command: List[String],
+                       environment: Map[String, String],
+                       mounts: List[Mount] = List.empty,
+                      ): Action = {
+
+    val actionTemplate = new Action()
       .setImageUri(image)
       .withRunInBackground(true)
+      .withIgnoreExitStatus(true)
       .withMounts(mounts)
       .setEnvironment(environment.asJava)
       .setPidNamespace(monitoringPidNamespace)
+
+    command match {
+      case Nil => actionTemplate
+      case _ =>
+        actionTemplate
+          .setCommands(command.asJava)
+          .setEntrypoint("")
+    }
+  }
 
   /**
     * monitoringTerminationAction is needed to gracefully terminate monitoring action,

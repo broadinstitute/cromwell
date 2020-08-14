@@ -62,7 +62,7 @@ object ActionBuilder {
 
   def cloudSdkAction: Action = new Action().setImageUri(GenomicsFactory.CloudSdkImage)
 
-  def withImage(image: String) = new Action()
+  def withImage(image: String): Action = new Action()
     .setImageUri(image)
 
   /**
@@ -71,8 +71,7 @@ object ActionBuilder {
   private val monitoringPidNamespace = "monitoring"
 
   def monitoringAction(image: String,
-                       imageMonitoringScript: Option[String],
-                       directory: String,
+                       command: List[String],
                        environment: Map[String, String],
                        mounts: List[Mount] = List.empty,
                       ): Action = {
@@ -84,14 +83,15 @@ object ActionBuilder {
       .setEnvironment(environment.asJava)
       .setPidNamespace(monitoringPidNamespace)
 
-    imageMonitoringScript foreach { script =>
-      actionTemplate
-        .withCommand("/bin/sh", "-c", s"cd '$directory' && chmod +x '$script' && '$script'")
-        .setEntrypoint("")
+    command match {
+      case Nil => actionTemplate
+      case _ =>
+        actionTemplate
+          .setCommands(command.asJava)
+          .setEntrypoint("")
     }
-
-    actionTemplate
   }
+
   /**
     * monitoringTerminationAction is needed to gracefully terminate monitoring action,
     * because PAPIv2 currently sends SIGKILL to terminate background actions.

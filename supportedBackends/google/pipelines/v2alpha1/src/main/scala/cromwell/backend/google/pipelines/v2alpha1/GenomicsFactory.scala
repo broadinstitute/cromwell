@@ -46,7 +46,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
     val ResourceManagerAuthScopes = List(GenomicsScopes.CLOUD_PLATFORM)
     val VirtualPrivateCloudNetworkPath = "projects/%s/global/networks/%s/"
 
-    val genomics = new Genomics.Builder(
+    val genomics: Genomics = new Genomics.Builder(
       GoogleAuthMode.httpTransport,
       GoogleAuthMode.jsonFactory,
       initializer)
@@ -54,11 +54,11 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       .setRootUrl(endpointUrl.toString)
       .build
 
-    override def cancelRequest(job: StandardAsyncJob) = {
+    override def cancelRequest(job: StandardAsyncJob): HttpRequest = {
       genomics.projects().operations().cancel(job.jobId, new CancelOperationRequest()).buildHttpRequest()
     }
 
-    override def getRequest(job: StandardAsyncJob) = {
+    override def getRequest(job: StandardAsyncJob): HttpRequest = {
       genomics.projects().operations().get(job.jobId).buildHttpRequest()
     }
 
@@ -140,10 +140,11 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       val userAction: List[Action] = userActions(createPipelineParameters, mounts)
       val memoryRetryAction: List[Action] = checkForMemoryRetryActions(createPipelineParameters, mounts)
       val deLocalization: List[Action] = deLocalizeActions(createPipelineParameters, mounts)
-      val localizeMonitoring: List[Action] = monitoringLocalizationActions(createPipelineParameters, mounts)
       val monitoring: List[Action] = monitoringActions(createPipelineParameters, mounts)
       val sshAccess: List[Action] = sshAccessActions(createPipelineParameters, mounts)
       val allActions = containerSetup ++ localization ++ userAction ++ memoryRetryAction ++ deLocalization ++ monitoring ++ sshAccess
+
+      val monitoringPreamble: List[Action] = monitoringPreambleActions(createPipelineParameters, mounts)
 
       // adding memory as environment variables makes it easy for a user to retrieve the new value of memory
       // on the machine to utilize in their command blocks if needed
@@ -151,7 +152,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       val environment = Map("MEM_UNIT" -> runtimeMemory.unit.toString, "MEM_SIZE" -> runtimeMemory.amount.toString).asJava
 
       // Start background actions first, leave the rest as is
-      val sortedActions = localizeMonitoring ++ allActions.sortWith({
+      val sortedActions = monitoringPreamble ++ allActions.sortWith({
         case (a1, _) => Option(a1.getFlags).map(_.asScala).toList.flatten.contains(ActionFlag.RunInBackground.toString)
       })
 

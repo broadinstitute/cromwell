@@ -46,7 +46,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
     val ResourceManagerAuthScopes = List(CloudLifeSciencesScopes.CLOUD_PLATFORM)
     val VirtualPrivateCloudNetworkPath = "projects/%s/global/networks/%s/"
 
-    val lifeSciences = new CloudLifeSciences.Builder(
+    val lifeSciences: CloudLifeSciences = new CloudLifeSciences.Builder(
       GoogleAuthMode.httpTransport,
       GoogleAuthMode.jsonFactory,
       initializer)
@@ -54,11 +54,11 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
       .setRootUrl(endpointUrl.toString)
       .build
 
-    override def cancelRequest(job: StandardAsyncJob) = {
+    override def cancelRequest(job: StandardAsyncJob): HttpRequest = {
       lifeSciences.projects().locations().operations().cancel(job.jobId, new CancelOperationRequest()).buildHttpRequest()
     }
 
-    override def getRequest(job: StandardAsyncJob) = {
+    override def getRequest(job: StandardAsyncJob): HttpRequest = {
       lifeSciences.projects().locations().operations().get(job.jobId).buildHttpRequest()
     }
 
@@ -145,13 +145,15 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
       val sshAccess: List[Action] = sshAccessActions(createPipelineParameters, mounts)
       val allActions = containerSetup ++ localization ++ userAction ++ memoryRetryAction ++ deLocalization ++ monitoring ++ sshAccess
 
+      val monitoringPreamble: List[Action] = monitoringPreambleActions(createPipelineParameters, mounts)
+
       // adding memory as environment variables makes it easy for a user to retrieve the new value of memory
       // on the machine to utilize in their command blocks if needed
       val runtimeMemory = createPipelineParameters.runtimeAttributes.memory
       val environment = Map("MEM_UNIT" -> runtimeMemory.unit.toString, "MEM_SIZE" -> runtimeMemory.amount.toString).asJava
 
       // Start background actions first, leave the rest as is
-      val sortedActions = allActions.sortWith({
+      val sortedActions: List[Action] = monitoringPreamble ++ allActions.sortWith({
         case (a1, _) => a1.getRunInBackground
       })
 

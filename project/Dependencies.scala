@@ -77,7 +77,7 @@ object Dependencies {
   private val metrics3ScalaV = "4.0.0" // https://github.com/erikvanoosten/metrics-scala/tree/f733e26#download-4x
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "2.7.1"
-  private val mockserverNettyV = "5.5.4"
+  private val mockserverNettyV = "5.11.1"
   private val mouseV = "0.23"
   private val mysqlV = "8.0.21"
   private val nettyV = "4.1.46.Final"

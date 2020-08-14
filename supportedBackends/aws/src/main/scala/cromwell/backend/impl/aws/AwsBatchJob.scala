@@ -229,7 +229,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     * @return the decorated command
     */
   def decorateOptionalOutputParameter(command: String, name: String): String = {
-     s"if [ -e $name ]; then\n\t$command; \nfi"
+     s"if [ -e $name ]; then ${command.trim}; fi"
   }
 
   /**

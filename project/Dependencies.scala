@@ -62,7 +62,7 @@ object Dependencies {
   // javax.activation and then be able to upgrade to jaxb-impl 2.3.3 or beyond, but some of those other dependencies
   // such as googleCloudNioV have already been pinned for Scala Steward so this might not be a trivial undertaking.
   private val jaxbV = "2.3.2" // scala-steward:off
-  private val kindProjectorV = "0.9.9"
+  private val kindProjectorV = "0.9.10"
   private val kittensV = "2.0.0"
   private val liquibaseSlf4jV = "3.0.0"
   // Scala Steward wanted to upgrade liquibase-core to 3.10.2 but that version does not find some uniqueness

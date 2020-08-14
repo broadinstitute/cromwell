@@ -4,7 +4,7 @@ import java.net.SocketTimeoutException
 
 import _root_.io.grpc.Status
 import akka.actor.ActorRef
-import akka.http.scaladsl.model.ContentTypes
+import akka.http.scaladsl.model.{ContentType, ContentTypes}
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
@@ -21,11 +21,13 @@ import cromwell.backend.google.pipelines.common.api.RunStatus.TerminalRunStatus
 import cromwell.backend.google.pipelines.common.api._
 import cromwell.backend.google.pipelines.common.api.clients.PipelinesApiRunCreationClient.JobAbortedException
 import cromwell.backend.google.pipelines.common.api.clients.{PipelinesApiAbortClient, PipelinesApiRunCreationClient, PipelinesApiStatusRequestClient}
+import cromwell.backend.google.pipelines.common.authentication.PipelinesApiDockerCredentials
 import cromwell.backend.google.pipelines.common.errors.FailedToDelocalizeFailure
 import cromwell.backend.google.pipelines.common.io._
 import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.standard.{StandardAdHocValue, StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
+import cromwell.core.io.IoCommandBuilder
 import cromwell.core.path.{DefaultPathBuilder, Path, PathFactory}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
@@ -38,7 +40,7 @@ import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.CallMetadataKeys
 import shapeless.Coproduct
 import wdl4s.parser.MemoryUnit
-import wom.callable.AdHocValue
+import wom.callable.{AdHocValue, RuntimeEnvironment}
 import wom.callable.Callable.OutputDefinition
 import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
 import wom.core.FullyQualifiedName
@@ -72,13 +74,13 @@ object PipelinesApiAsyncBackendJobExecutionActor {
   val FailedToStartDueToPreemptionSubstring = "failed to start due to preemption"
   val FailedV2Style = "The assigned worker has failed to complete the operation"
 
-  val plainTextContentType = Option(ContentTypes.`text/plain(UTF-8)`)
+  val plainTextContentType: Option[ContentType.WithCharset] = Option(ContentTypes.`text/plain(UTF-8)`)
 
   def StandardException(errorCode: Status,
                         message: String,
                         jobTag: String,
                         returnCodeOption: Option[Int],
-                        stderrPath: Path) = {
+                        stderrPath: Path): Exception = {
     val returnCodeMessage = returnCodeOption match {
       case Some(returnCode) if returnCode == 0 => "Job exited without an error, exit code 0."
       case Some(returnCode) => s"Job exit code $returnCode. Check $stderrPath for more information."
@@ -98,12 +100,12 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     with PipelinesApiAbortClient
     with PapiInstrumentation {
 
-  override lazy val ioCommandBuilder = GcsBatchCommandBuilder
+  override lazy val ioCommandBuilder: IoCommandBuilder = GcsBatchCommandBuilder
 
   import PipelinesApiAsyncBackendJobExecutionActor._
 
-  override lazy val workflowId = jobDescriptor.workflowDescriptor.id
-  override lazy val requestFactory = initializationData.genomicsRequestFactory
+  override lazy val workflowId: WorkflowId = jobDescriptor.workflowDescriptor.id
+  override lazy val requestFactory: PipelinesApiRequestFactory = initializationData.genomicsRequestFactory
 
   val jesBackendSingletonActor: ActorRef =
     standardParams.backendSingletonActorOption.getOrElse(
@@ -117,24 +119,24 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override val papiApiActor: ActorRef = jesBackendSingletonActor
 
-  override lazy val pollBackOff = SimpleExponentialBackoff(
+  override lazy val pollBackOff: SimpleExponentialBackoff = SimpleExponentialBackoff(
     initialInterval = 30 seconds, maxInterval = jesAttributes.maxPollingInterval seconds, multiplier = 1.1)
 
-  override lazy val executeOrRecoverBackOff = SimpleExponentialBackoff(
+  override lazy val executeOrRecoverBackOff: SimpleExponentialBackoff = SimpleExponentialBackoff(
     initialInterval = 3 seconds, maxInterval = 20 seconds, multiplier = 1.1)
 
-  override lazy val runtimeEnvironment = {
+  override lazy val runtimeEnvironment: RuntimeEnvironment = {
     RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, PipelinesApiWorkingDisk.MountPoint, PipelinesApiWorkingDisk.MountPoint)(standardParams.minimumRuntimeSettings)
   }
 
-  protected lazy val cmdInput =
+  protected lazy val cmdInput: PipelinesApiFileInput =
     PipelinesApiFileInput(PipelinesApiJobPaths.JesExecParamName, pipelinesApiCallPaths.script, DefaultPathBuilder.get(pipelinesApiCallPaths.scriptFilename), workingDisk)
 
-  protected lazy val dockerConfiguration = pipelinesConfiguration.dockerCredentials
+  protected lazy val dockerConfiguration: Option[PipelinesApiDockerCredentials] = pipelinesConfiguration.dockerCredentials
 
   protected val previousRetryReasons: ErrorOr[PreviousRetryReasons] = PreviousRetryReasons.tryApply(jobDescriptor.prefetchedKvStoreEntries, jobDescriptor.key.attempt)
 
-  protected lazy val jobDockerImage = jobDescriptor.maybeCallCachingEligible.dockerHash.getOrElse(runtimeAttributes.dockerImage)
+  protected lazy val jobDockerImage: String = jobDescriptor.maybeCallCachingEligible.dockerHash.getOrElse(runtimeAttributes.dockerImage)
 
   override lazy val dockerImageUsed: Option[String] = Option(jobDockerImage)
 
@@ -261,7 +263,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     * If the desired reference name is too long, we don't want to break JES or risk collisions by arbitrary truncation. So,
     * just use a hash. We only do this when needed to give better traceability in the normal case.
     */
-  protected def makeSafeReferenceName(referenceName: String) = {
+  protected def makeSafeReferenceName(referenceName: String): String = {
     if (referenceName.length <= 127) referenceName else referenceName.md5Sum
   }
 
@@ -373,6 +375,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   private val DockerMonitoringLogPath: Path = PipelinesApiWorkingDisk.MountPoint.resolve(pipelinesApiCallPaths.jesMonitoringLogFilename)
   private val DockerMonitoringScriptPath: Path = PipelinesApiWorkingDisk.MountPoint.resolve(pipelinesApiCallPaths.jesMonitoringScriptFilename)
+  //noinspection ActorMutableStateInspection
   private var hasDockerCredentials: Boolean = false
 
   override def scriptPreamble: String = {
@@ -484,13 +487,15 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
             Env.DiskMounts -> mountPaths.mkString(" "),
           )
 
+        val monitoringImageScriptContainerPath = workingDisk.mountPoint.resolve(localMonitoringImageScriptPath)
+
         val monitoringImageCommand = monitoringImageScriptOption match {
           case Some(_) => List(
             "/bin/sh",
             "-c",
-            s"cd '$commandDirectory' && " +
-              s"chmod +x '${localMonitoringImageScriptPath.pathAsString}' && " +
-              s"'${localMonitoringImageScriptPath.pathAsString}'"
+            s"cd '${commandDirectory.pathAsString}' && " +
+              s"chmod +x '${monitoringImageScriptContainerPath.pathAsString}' && " +
+              s"'${monitoringImageScriptContainerPath.pathAsString}'"
           )
           case None => Nil
         }
@@ -504,7 +509,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           cloudCallRoot = callRootPath,
           commandScriptContainerPath = cmdInput.containerPath,
           logGcsPath = jesLogPath,
-          monitoringImageScriptContainerPath = localMonitoringImageScriptPath,
+          monitoringImageScriptContainerPath = monitoringImageScriptContainerPath,
           monitoringImageCommand = monitoringImageCommand,
           inputOutputParameters = inputOutputParameters,
           projectId = googleProject(jobDescriptor.workflowDescriptor),
@@ -538,7 +543,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override def executeAsync(): Future[ExecutionHandle] = createNewJob()
 
-  val futureKvJobKey = KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)
+  val futureKvJobKey: KvJobKey = KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)
 
   override def recoverAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = reconnectToExistingJob(jobId)
 
@@ -582,7 +587,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       )
 
       case class StandardStream(name: String, f: StandardPaths => Path) {
-        val filename = f(pipelinesApiCallPaths.standardPaths).name
+        val filename: String = f(pipelinesApiCallPaths.standardPaths).name
       }
 
       val standardStreams = List(

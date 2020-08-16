@@ -17,6 +17,12 @@ Cromwell can now support docker images which have custom entrypoints in the PAPI
 [documentation](https://cromwell.readthedocs.io/en/stable/wf_options/Google#alpha-support-for-wdl-optional-outputs-on-papi-v2)
 for known limitations.
 
+### Monitoring Image Script
+
+* Cromwell now supports an optional `monitoring_image_script` workflow option. For more information see the [Google
+Pipelines API Workflow Options
+documentation](https://cromwell.readthedocs.io/en/stable/wf_options/Google#google-pipelines-api-workflow-options).
+
 ## 52 Release Notes
 
 ### Documentation

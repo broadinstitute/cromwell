@@ -13,7 +13,7 @@ trait SSHAccessAction {
     if (createPipelineParameters.enableSshAccess) {
       sshAccessAction(mounts)
     } else {
-      List.empty
+      Nil
     }
   }
 

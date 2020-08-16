@@ -43,18 +43,13 @@ object ActionBuilder {
     }
 
     def withMounts(mounts: List[Mount]): Action = action.setMounts(mounts.asJava)
-
     def withLabels(labels: Map[String, String]): Action = action.setLabels(labels.asJava)
-
     def withTimeout(timeout: Duration): Action = timeout match {
       case fd: FiniteDuration => action.setTimeout(fd.toSeconds + "s")
       case _ => action
     }
-
     def withIgnoreExitStatus(ignoreExitStatus: Boolean): Action = action.setIgnoreExitStatus(ignoreExitStatus)
-
     def withRunInBackground(runInBackground: Boolean): Action = action.setRunInBackground(runInBackground)
-
     def withAlwaysRun(alwaysRun: Boolean): Action = action.setAlwaysRun(alwaysRun)
     def withEnableFuse(enableFuse: Boolean): Action = action.setEnableFuse(enableFuse)
     def withPublishExposedPorts(publishExposedPorts: Boolean): Action = action.setPublishExposedPorts(publishExposedPorts)
@@ -84,7 +79,7 @@ object ActionBuilder {
   def monitoringAction(image: String,
                        command: List[String],
                        environment: Map[String, String],
-                       mounts: List[Mount] = List.empty,
+                       mounts: List[Mount],
                       ): Action = {
     new Action()
       .setImageUri(image)

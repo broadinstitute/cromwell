@@ -1,65 +1,64 @@
 package cromwell.backend.google.pipelines.v2alpha1.api
 
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount}
-import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
-import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.{CreatePipelineParameters, MountsToEnv}
-import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder.Labels.{Key, Value}
-
-import scala.collection.JavaConverters._
+import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 
 trait MonitoringAction {
-  private def monitoringAction(job: BackendJobDescriptor,
-                               monitoringImage: String,
-                               monitoringImageCommand: List[String],
-                               monitoringImageEnvironment: MountsToEnv,
-                               mounts: List[Mount],
-                              ): List[Action] = {
-    val monitoringAction = ActionBuilder.monitoringAction(
-      monitoringImage,
-      monitoringImageCommand,
-      monitoringImageEnvironment(mounts.map(_.getPath)),
-      mounts,
-    )
+  def monitoringSetupActions(createPipelineParameters: CreatePipelineParameters,
+                             mounts: List[Mount]
+                            )(implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Action] = {
 
-    val describeMonitoringAction = ActionBuilder.describeDocker("monitoring action", monitoringAction)
-      .setFlags(List(ActionFlag.RunInBackground.toString).asJava)
+    val monitoringImageScriptActions =
+      createPipelineParameters.monitoringImageScript match {
+        case Some(script) =>
+          val localizeScriptAction =
+            ActionBuilder.monitoringImageScriptAction(
+              script,
+              createPipelineParameters.monitoringImageScriptContainerPath,
+              mounts,
+            )
+          val describeLocalizeScriptAction =
+            ActionBuilder.describeDocker(
+              "localizing monitoring image script action",
+              localizeScriptAction,
+            )
+          List(describeLocalizeScriptAction, localizeScriptAction)
+        case None => Nil
+      }
 
-    val terminationAction = ActionBuilder.monitoringTerminationAction()
-
-    val describeTerminationAction = ActionBuilder.describeDocker("terminate monitoring action", monitoringAction)
-
-    List(describeMonitoringAction, monitoringAction, describeTerminationAction, terminationAction)
-  }
-
-  def monitoringActions(createPipelineParameters: CreatePipelineParameters, mounts: List[Mount]): List[Action] = {
-    createPipelineParameters.monitoringImage match {
+    val monitoringImageActions =
+      createPipelineParameters.monitoringImage match {
       case Some(image) =>
-        monitoringAction(
-          job = createPipelineParameters.jobDescriptor,
-          monitoringImage = image,
-          monitoringImageCommand = createPipelineParameters.monitoringImageCommand,
-          monitoringImageEnvironment = createPipelineParameters.monitoringImageEnvironment,
-          mounts = mounts,
+
+        val monitoringImage = image
+        val monitoringImageCommand = createPipelineParameters.monitoringImageCommand
+        val monitoringImageEnvironment = createPipelineParameters.monitoringImageEnvironment
+
+        val monitoringAction = ActionBuilder.monitoringAction(
+          monitoringImage,
+          monitoringImageCommand,
+          monitoringImageEnvironment(mounts.map(_.getPath)),
+          mounts,
         )
-      case None => List.empty
+        val describeMonitoringAction = ActionBuilder.describeDocker("monitoring action", monitoringAction)
+        List(describeMonitoringAction, monitoringAction)
+
+      case None => Nil
     }
+
+    monitoringImageScriptActions ++ monitoringImageActions
   }
 
-  def monitoringPreambleActions(createPipelineParameters: CreatePipelineParameters,
-                                mounts: List[Mount]
-                               )(implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Action] = {
-    createPipelineParameters.monitoringImageScript match {
-      case Some(script) =>
-        val command = ActionCommands.localizeFile(script, createPipelineParameters.monitoringImageScriptContainerPath)
-        val labels = Map(Key.Tag -> Value.Localization)
-        val localizeScriptAction = ActionBuilder.cloudSdkShellAction(command)(mounts = mounts, labels = labels)
-        val describeLocalizeScriptAction = ActionBuilder.describeDocker(
-          "localizing monitoring image script action",
-          localizeScriptAction,
-        )
-        List(describeLocalizeScriptAction, localizeScriptAction)
-      case None => List.empty
+  def monitoringShutdownActions(createPipelineParameters: CreatePipelineParameters): List[Action] = {
+    createPipelineParameters.monitoringImage match {
+      case Some(_) =>
+        val terminationAction = ActionBuilder.monitoringTerminationAction()
+
+        val describeTerminationAction = ActionBuilder.describeDocker("terminate monitoring action", terminationAction)
+
+        List(describeTerminationAction, terminationAction)
+      case None => Nil
     }
   }
 }

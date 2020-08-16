@@ -4,17 +4,18 @@ import java.util.UUID
 
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount}
 import common.util.StringUtil._
-import cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor
+import cromwell.backend.google.pipelines.common.action.ActionLabels._
+import cromwell.backend.google.pipelines.common.action.ActionUtils._
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.pipelines.common.PipelinesApiJobPaths.GcsDelocalizationScriptName
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
+import cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor
+import cromwell.backend.google.pipelines.common.action.ActionUtils
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
-import cromwell.backend.google.pipelines.v2alpha1.{GenomicsFactory, RuntimeOutputMapping}
+import cromwell.backend.google.pipelines.v2alpha1.RuntimeOutputMapping
 import cromwell.backend.google.pipelines.v2alpha1.ToParameter.ops._
-import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder.Labels.{Key, Value}
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionCommands._
-import cromwell.backend.google.pipelines.v2alpha1.api.Delocalization._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import wom.runtime.WomOutputRuntimeExtractor
 
@@ -22,12 +23,9 @@ import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
 object Delocalization {
-  private val logsRoot = "/google/logs"
 }
 
 trait Delocalization {
-
-  private def aggregatedLog = s"$logsRoot/output"
 
   private def delocalizeLogsAction(gcsLogPath: Path)(implicit gcsTransferConfiguration: GcsTransferConfiguration) = {
     cloudSdkShellAction(
@@ -36,14 +34,14 @@ trait Delocalization {
   }
 
   // Used for the final copy of the logs to make sure we have the most up to date version before terminating the job
-  private def copyAggregatedLogToLegacyPath(callExecutionContainerRoot: Path, gcsLegacyLogPath: Path)(implicit gcsTransferConfiguration: GcsTransferConfiguration): Action = {
+  private def copyAggregatedLogToLegacyPath(gcsLegacyLogPath: Path)(implicit gcsTransferConfiguration: GcsTransferConfiguration): Action = {
     cloudSdkShellAction(
       delocalizeFileTo(DefaultPathBuilder.build(aggregatedLog).get, gcsLegacyLogPath, PipelinesApiAsyncBackendJobExecutionActor.plainTextContentType)
     )(flags = List(ActionFlag.AlwaysRun), labels = Map(Key.Tag -> Value.Delocalization))
   }
 
   // Periodically copies the logs out to GCS
-  private def copyAggregatedLogToLegacyPathPeriodic(callExecutionContainerRoot: Path, gcsLegacyLogPath: Path)(implicit gcsTransferConfiguration: GcsTransferConfiguration): Action = {
+  private def copyAggregatedLogToLegacyPathPeriodic(gcsLegacyLogPath: Path)(implicit gcsTransferConfiguration: GcsTransferConfiguration): Action = {
     cloudSdkShellAction(
       every(30.seconds) { delocalizeFileTo(DefaultPathBuilder.build(aggregatedLog).get, gcsLegacyLogPath, PipelinesApiAsyncBackendJobExecutionActor.plainTextContentType) }
     )(flags = List(ActionFlag.RunInBackground), labels = Map(Key.Tag -> Value.Background))
@@ -63,7 +61,7 @@ trait Delocalization {
     )
 
     ActionBuilder
-      .withImage(womOutputRuntimeExtractor.dockerImage.getOrElse(GenomicsFactory.CloudSdkImage))
+      .withImage(womOutputRuntimeExtractor.dockerImage.getOrElse(ActionUtils.cloudSdkImage))
       .setCommands(commands.asJava)
       .withMounts(mounts)
       .setEntrypoint("/bin/bash")
@@ -141,8 +139,8 @@ trait Delocalization {
         createPipelineParameters.outputParameters.flatMap(_.toActions(mounts).toList) ++
         runtimeExtractionActions
     ) :+
-      copyAggregatedLogToLegacyPath(callExecutionContainerRoot, gcsLegacyLogPath) :+
-      copyAggregatedLogToLegacyPathPeriodic(callExecutionContainerRoot, gcsLegacyLogPath) :+
+      copyAggregatedLogToLegacyPath(gcsLegacyLogPath) :+
+      copyAggregatedLogToLegacyPathPeriodic(gcsLegacyLogPath) :+
       delocalizeLogsAction(gcsLogDirectoryPath)
   }
 }

@@ -1,8 +1,8 @@
 package cromwell.backend.google.pipelines.v2beta.api
 
 import com.google.api.services.lifesciences.v2beta.model.{Action, Mount}
+import cromwell.backend.google.pipelines.common.action.ActionLabels._
 import cromwell.backend.google.pipelines.common.io.PipelinesApiWorkingDisk
-import cromwell.backend.google.pipelines.v2beta.api.ActionBuilder.Labels.{Key, Value}
 
 import scala.collection.JavaConverters._
 

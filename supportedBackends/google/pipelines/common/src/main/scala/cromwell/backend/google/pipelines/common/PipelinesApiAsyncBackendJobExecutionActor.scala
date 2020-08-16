@@ -40,9 +40,9 @@ import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.CallMetadataKeys
 import shapeless.Coproduct
 import wdl4s.parser.MemoryUnit
-import wom.callable.{AdHocValue, RuntimeEnvironment}
 import wom.callable.Callable.OutputDefinition
 import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
+import wom.callable.{AdHocValue, RuntimeEnvironment}
 import wom.core.FullyQualifiedName
 import wom.expression.{FileEvaluation, NoIoFunctionSet}
 import wom.format.MemorySize
@@ -500,11 +500,12 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           case None => Nil
         }
 
+        val enableSshAccess = workflowOptions.getBoolean(WorkflowOptionKeys.EnableSSHAccess).toOption.contains(true)
+
         CreatePipelineParameters(
           jobDescriptor = jobDescriptor,
           runtimeAttributes = runtimeAttributes,
           dockerImage = jobDockerImage,
-          jobPaths = jobPaths.asInstanceOf[PipelinesApiJobPaths],
           cloudWorkflowRoot = workflowPaths.workflowRoot,
           cloudCallRoot = callRootPath,
           commandScriptContainerPath = cmdInput.containerPath,
@@ -529,6 +530,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           monitoringImage = monitoringImageOption,
           monitoringImageScript = monitoringImageScriptOption,
           monitoringImageEnvironment = monitoringImageEnvironment,
+          enableSshAccess = enableSshAccess,
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")

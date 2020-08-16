@@ -13,8 +13,10 @@ import com.google.api.services.oauth2.Oauth2Scopes
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.http.HttpCredentialsAdapter
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{GcsTransferConfiguration, VirtualPrivateCloudConfiguration}
+import cromwell.backend.google.pipelines.common.action.ActionUtils
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiFactoryInterface, PipelinesApiRequestFactory}
+import cromwell.backend.google.pipelines.common.{GoogleCloudScopes, ProjectLabels}
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2alpha1.api._
 import cromwell.backend.standard.StandardAsyncJob
@@ -140,21 +142,33 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       val userAction: List[Action] = userActions(createPipelineParameters, mounts)
       val memoryRetryAction: List[Action] = checkForMemoryRetryActions(createPipelineParameters, mounts)
       val deLocalization: List[Action] = deLocalizeActions(createPipelineParameters, mounts)
-      val monitoring: List[Action] = monitoringActions(createPipelineParameters, mounts)
+      val monitoringSetup: List[Action] = monitoringSetupActions(createPipelineParameters, mounts)
+      val monitoringShutdown: List[Action] = monitoringShutdownActions(createPipelineParameters)
       val sshAccess: List[Action] = sshAccessActions(createPipelineParameters, mounts)
-      val allActions = containerSetup ++ localization ++ userAction ++ memoryRetryAction ++ deLocalization ++ monitoring ++ sshAccess
-
-      val monitoringPreamble: List[Action] = monitoringPreambleActions(createPipelineParameters, mounts)
 
       // adding memory as environment variables makes it easy for a user to retrieve the new value of memory
       // on the machine to utilize in their command blocks if needed
       val runtimeMemory = createPipelineParameters.runtimeAttributes.memory
       val environment = Map("MEM_UNIT" -> runtimeMemory.unit.toString, "MEM_SIZE" -> runtimeMemory.amount.toString).asJava
 
-      // Start background actions first, leave the rest as is
-      val sortedActions = monitoringPreamble ++ allActions.sortWith({
-        case (a1, _) => Option(a1.getFlags).map(_.asScala).toList.flatten.contains(ActionFlag.RunInBackground.toString)
-      })
+      val sortedActions =
+        ActionUtils.sortActions[Action](
+          containerSetup = containerSetup,
+          localization = localization,
+          userAction = userAction,
+          memoryRetryAction = memoryRetryAction,
+          deLocalization = deLocalization,
+          monitoringSetup = monitoringSetup,
+          monitoringShutdown = monitoringShutdown,
+          sshAccess = sshAccess,
+          isBackground =
+            action =>
+              Option(action.getFlags)
+                .map(_.asScala)
+                .toList
+                .flatten
+                .contains(ActionFlag.RunInBackground.toString),
+        )
 
       val serviceAccount = new ServiceAccount()
         .setEmail(createPipelineParameters.computeServiceAccount)
@@ -163,12 +177,12 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
             GenomicsScopes.GENOMICS,
             ComputeScopes.COMPUTE,
             StorageScopes.DEVSTORAGE_FULL_CONTROL,
-            GenomicsFactory.KmsScope,
+            GoogleCloudScopes.KmsScope,
             // Profile and Email scopes are requirements for interacting with Martha v2
             Oauth2Scopes.USERINFO_EMAIL,
             Oauth2Scopes.USERINFO_PROFILE,
             // Monitoring scope as POC
-            GenomicsFactory.MonitoringWrite,
+            GoogleCloudScopes.MonitoringWrite,
             // Allow read/write with BigQuery
             BigqueryScopes.BIGQUERY
           ).asJava
@@ -194,7 +208,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
           jobLogger.info(s"Adjusting boot disk size to $actualSizeRoundedUpInGB GB to account for docker image size")
         }
 
-        Math.max(fromRuntimeAttributes, actualSizeRoundedUpInGB) + GenomicsFactory.CromwellImagesSizeRoundedUpInGB
+        Math.max(fromRuntimeAttributes, actualSizeRoundedUpInGB) + ActionUtils.cromwellImagesSizeRoundedUpInGB
       }
 
       val virtualMachine = new VirtualMachine()
@@ -222,7 +236,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         .setResources(resources)
         .setActions(sortedActions.asJava)
         .setEnvironment(environment)
-        .setTimeout(createPipelineParameters.pipelineTimeout.toSeconds.toString + "s")
+        .setTimeout(createPipelineParameters.pipelineTimeout.toSeconds + "s")
 
       val pipelineRequest = new RunPipelineRequest()
         .setPipeline(pipeline)
@@ -234,41 +248,3 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
 
   override def usesEncryptedDocker: Boolean = true
 }
-
-object GenomicsFactory {
-  /**
-    * More restricted version of com.google.api.services.cloudkms.v1.CloudKMSScopes.CLOUD_PLATFORM
-    * Could use that scope to keep things simple, but docs say to use a more restricted scope:
-    *
-    *   https://cloud.google.com/kms/docs/accessing-the-api#google_compute_engine
-    *
-    * For some reason this scope isn't listed as a constant under CloudKMSScopes.
-    */
-  val KmsScope = "https://www.googleapis.com/auth/cloudkms"
-
-  /**
-    * Scope to write metrics to Stackdriver Monitoring API.
-    * Used by the monitoring action.
-    *
-    * For some reason we couldn't find this scope within Google libraries
-    */
-  val MonitoringWrite = "https://www.googleapis.com/auth/monitoring.write"
-
-  /**
-    * An image with the Google Cloud SDK installed.
-    * http://gcr.io/google.com/cloudsdktool/cloud-sdk
-    *
-    * FYI additional older versions are available on DockerHub at:
-    * https://hub.docker.com/r/google/cloud-sdk
-    *
-    * When updating this value, also consider updating the CromwellImagesSizeRoundedUpInGB below.
-    */
-  val CloudSdkImage = "gcr.io/google.com/cloudsdktool/cloud-sdk:276.0.0-slim"
-
-  /*
-   * At the moment, the cloud-sdk:slim (727MB on 2019-09-26) and possibly stedolan/jq (182MB) decompressed ~= 1 GB
-   */
-  val CromwellImagesSizeRoundedUpInGB = 1
-}
-
-case class ProjectLabels(labels: Map[String, String])

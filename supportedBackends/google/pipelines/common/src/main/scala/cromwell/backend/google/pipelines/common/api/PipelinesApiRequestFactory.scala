@@ -68,7 +68,6 @@ object PipelinesApiRequestFactory {
   case class CreatePipelineParameters(jobDescriptor: BackendJobDescriptor,
                                       runtimeAttributes: PipelinesApiRuntimeAttributes,
                                       dockerImage: String,
-                                      jobPaths: PipelinesApiJobPaths,
                                       cloudWorkflowRoot: Path,
                                       cloudCallRoot: Path,
                                       commandScriptContainerPath: Path,
@@ -93,6 +92,7 @@ object PipelinesApiRequestFactory {
                                       monitoringImage: Option[String],
                                       monitoringImageScript: Option[Path],
                                       monitoringImageEnvironment: MountsToEnv,
+                                      enableSshAccess: Boolean,
                                      ) {
     def literalInputs = inputOutputParameters.literalInputParameters
     def inputParameters = inputOutputParameters.fileInputParameters

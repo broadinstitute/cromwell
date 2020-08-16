@@ -25,7 +25,7 @@ object Dependencies {
   private val commonsMathV = "3.6.1"
   private val commonsTextV = "1.9"
   private val configsV = "0.4.4"
-  private val delightRhinoSandboxV = "0.0.10"
+  private val delightRhinoSandboxV = "0.0.11"
   private val ficusV = "1.4.7"
   private val fs2V = "2.0.1"
   private val fs2VStatsDProxy = "1.0.5"
@@ -47,24 +47,37 @@ object Dependencies {
   private val grpcV = "1.30.2"
   private val guavaV = "27.1-jre"
   private val heterodonV = "1.0.0-beta3"
-  private val hsqldbV = "2.4.1"
+  private val hsqldbV = "2.5.1"
   private val http4sVersion = "0.20.0-M5"
   private val jacksonV = "2.10.5"
   private val jacksonJqV = "1.0.0-preview.20191208"
-  private val janinoV = "3.0.12"
+  private val janinoV = "3.0.16"
   private val javaxActivationV = "1.2.0"
-  private val jaxbV = "2.3.2"
+  // jaxb-impl 2.3.3 depends on com.sun.activation:jakarta.activation and jakarta.xml.bind:jakarta.xml.bind-api,
+  // which jaxb-impl 2.3.2 did not. jakarta.activation corresponds to the "updated" Maven coordinates for the Java
+  // Activation Framework (https://wiki.eclipse.org/Jakarta_EE_Maven_Coordinates), but Cromwell has many transitive
+  // dependencies on the "old" javax.activation coordinates as well. At assembly time the classes from these two
+  // different jars collide and produce merge conflicts.
+  // It's possible that after updating all other dependencies in Cromwell we might purge the transitive dependencies on
+  // javax.activation and then be able to upgrade to jaxb-impl 2.3.3 or beyond, but some of those other dependencies
+  // such as googleCloudNioV have already been pinned for Scala Steward so this might not be a trivial undertaking.
+  private val jaxbV = "2.3.2" // scala-steward:off
   private val kindProjectorV = "0.9.9"
   private val kittensV = "2.0.0"
   private val liquibaseSlf4jV = "3.0.0"
-  private val liquibaseV = "3.6.3"
+  // Scala Steward wanted to upgrade liquibase-core to 3.10.2 but that version does not find some uniqueness
+  // constraints and models datatypes in ways that are incompatible with our test expectations.
+  // liquibase-core 4.0.0 did not have either of those problems but produced tons of strange warnings at runtime
+  // similar in form to this: https://github.com/liquibase/liquibase/issues/1294
+  // Pinning Liquibase version for the time being.
+  private val liquibaseV = "3.6.3" // scala-steward:off
   private val logbackV = "1.2.3"
   private val lz4JavaV = "1.7.1"
-  private val mariadbV = "2.4.2"
+  private val mariadbV = "2.4.4"
   private val metrics3ScalaV = "4.0.0" // https://github.com/erikvanoosten/metrics-scala/tree/f733e26#download-4x
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "2.7.1"
-  private val mockserverNettyV = "5.5.1"
+  private val mockserverNettyV = "5.5.4"
   private val mouseV = "0.23"
   private val mysqlV = "8.0.21"
   private val nettyV = "4.1.46.Final"
@@ -110,8 +123,8 @@ object Dependencies {
   private val tikaV = "1.24.1"
   private val typesafeConfigV = "1.3.4"
   private val workbenchGoogleV = "0.15-2fc79a3"
-  private val workbenchModelV = "0.10-6800f3a"
-  private val workbenchUtilV = "0.3-f3ce961"
+  private val workbenchModelV = "0.14-27810079-SNAP"
+  private val workbenchUtilV = "0.6-27810079-SNAP"
 
   private val slf4jFacadeDependencies = List(
     "org.slf4j" % "slf4j-api" % slf4jV,
@@ -220,6 +233,9 @@ object Dependencies {
 
   private val liquibaseDependencies = List(
     "org.liquibase" % "liquibase-core" % liquibaseV,
+      // The exclusion below will be needed if / when liquibase-core is upgraded to 3.10+
+      // Avert collision with jakarta.xml.bind-api
+      // exclude("javax.xml.bind", "jaxb-api"),
     // This is to stop liquibase from being so noisy by default
     // See: http://stackoverflow.com/questions/20880783/how-to-get-liquibase-to-log-using-slf4j
     "com.mattbertolini" % "liquibase-slf4j" % liquibaseSlf4jV
@@ -493,7 +509,7 @@ object Dependencies {
     "org.apache.commons" % "commons-math3" % commonsMathV,
     "com.github.kxbmap" %% "configs" % configsV,
     "com.google.cloud" % "google-cloud-bigquery" % googleCloudBigQueryV % IntegrationTest,
-    "org.gnieh" %% "diffson-spray-json" % "4.0.1"
+    "org.gnieh" %% "diffson-spray-json" % "4.0.3"
   ) ++ circeDependencies ++ slf4jBindingDependencies ++ cloudSupportDependencies ++ http4sDependencies
 
   val engineDependencies = List(

@@ -96,7 +96,7 @@ object Dependencies {
   private val scalacheckV = "1.14.0"
   private val scalacticV = "3.0.8"
   private val scalameterV = "0.19"
-  private val scalamockV = "4.4.0"
+  private val scalamockV = "5.0.0"
   private val scalatestV = "3.0.5"
   private val scalazV = "7.2.30"
   private val scoptV = "3.7.1"

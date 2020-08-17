@@ -21,7 +21,7 @@ abstract class LoggerWrapper extends MarkerIgnoringBase {
   /**
     * Formats a throwable for akka similar to slf4j's SimpleLogger.
     *
-    * https://github.com/qos-ch/slf4j/blob/v_1.7.25/slf4j-simple/src/main/java/org/slf4j/impl/SimpleLogger.java#L293-L295
+    * https://github.com/qos-ch/slf4j/blob/v_1.7.30/slf4j-simple/src/main/java/org/slf4j/impl/SimpleLogger.java#L293-L295
     */
   private def format(msg: String, throwable: Throwable): String = {
     format(msg) + "\n" + ExceptionUtils.getStackTrace(throwable)

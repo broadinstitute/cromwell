@@ -68,12 +68,10 @@ cromwell::private::papi::gcr_image_push() {
     shift
     shift
 
+    cromwell::build::build_docker_image "${executable_name}" "${docker_image}"
     echo "${docker_image}" >> "${CROMWELL_BUILD_PAPI_GCR_IMAGES}"
-
-    sbt \
-        --error \
-        "set \`${executable_name}\`/docker/imageNames := List(ImageName(\"${docker_image}\"))" \
-        "${executable_name}/dockerBuildAndPush"
+    # Use cat to quiet docker: https://github.com/moby/moby/issues/36655#issuecomment-375136087
+    docker push "${docker_image}" | cat
 }
 
 cromwell::private::papi::gcr_image_delete() {
@@ -87,51 +85,49 @@ cromwell::private::papi::setup_papi_gcr() {
     if command -v docker; then
         # Upload images built from this commit
         gcloud auth configure-docker --quiet
-        CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS="gcr.io/${CROMWELL_BUILD_PAPI_PROJECT_ID}/cromwell-drs-localizer:${CROMWELL_BUILD_CENTAUR_DOCKER_TAG}"
+        CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS="gcr.io/${CROMWELL_BUILD_PAPI_PROJECT_ID}/cromwell-drs-localizer:${CROMWELL_BUILD_DOCKER_TAG}"
         cromwell::private::papi::gcr_image_push cromwell-drs-localizer "${CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS}"
-    else
-        # Just use the default images
-        CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS="broadinstitute/cromwell-drs-localizer:45-d46ff9f"
+        export CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
+    elif [[ -z "${CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS:+set}" ]]; then
+        echo "Error: BA-6546 The environment variable CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS must be set/export pointing to a valid docker image" >&2
+        exit 1
     fi
-
-    export CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
 }
 
 cromwell::private::papi::setup_papi_service_account() {
-    GOOGLE_AUTH_MODE="service-account"
+    CROMWELL_BUILD_PAPI_AUTH_MODE="service-account"
 
-    # See papi_application.inc.conf.ctmpl for more info.
-    # Delete GOOGLE_SERVICE_ACCOUNT_JSON from there if you delete this block!
+    # Delete all usages of CROMWELL_BUILD_PAPI_JSON_FILE from there if you delete this block!
     if [[ "${CROMWELL_BUILD_TYPE}" == "centaurPapiV1" ]]; then
-        GOOGLE_SERVICE_ACCOUNT_JSON="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-service-account.json"
+        # Downgrade to an older service account on Papi V1 until refresh_token_no_auth_bucket.test is
+        # migrated/fixed/added for the Papi V2 credential below
+        CROMWELL_BUILD_PAPI_JSON_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-service-account.json"
     else
-        GOOGLE_SERVICE_ACCOUNT_JSON="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-centaur-service-account.json"
+        # This service account does not have billing permission, and therefore cannot be used for requester pays
+        CROMWELL_BUILD_PAPI_JSON_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-centaur-service-account.json"
     fi
 
-    export GOOGLE_AUTH_MODE
-    export GOOGLE_SERVICE_ACCOUNT_JSON
-}
-
-cromwell::private::papi::setup_papi_refresh_token() {
-    GOOGLE_REFRESH_TOKEN_PATH="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_refresh_token.txt"
-    export GOOGLE_REFRESH_TOKEN_PATH
+    export CROMWELL_BUILD_PAPI_AUTH_MODE
+    export CROMWELL_BUILD_PAPI_JSON_FILE
 }
 
 cromwell::private::papi::setup_papi_endpoint_url() {
     if [[ "${CROMWELL_BUILD_TYPE}" == "centaurPapiV2" ]]; then
-        PAPI_ENDPOINT_URL="https://lifesciences.googleapis.com/"
+        CROMWELL_BUILD_PAPI_ENDPOINT_URL="https://lifesciences.googleapis.com/"
     else
-        PAPI_ENDPOINT_URL="https://genomics.googleapis.com/"
+        CROMWELL_BUILD_PAPI_ENDPOINT_URL="https://genomics.googleapis.com/"
     fi
 
-    export PAPI_ENDPOINT_URL
+    export CROMWELL_BUILD_PAPI_ENDPOINT_URL
 }
 
 cromwell::build::papi::setup_papi_centaur_environment() {
     cromwell::private::papi::setup_papi_gcloud
-    cromwell::private::papi::setup_papi_gcr
+    if [[ "${CROMWELL_BUILD_PROVIDER}" != "${CROMWELL_BUILD_PROVIDER_JENKINS}" ]]
+    then
+        cromwell::private::papi::setup_papi_gcr
+    fi
     cromwell::private::papi::setup_papi_service_account
-    cromwell::private::papi::setup_papi_refresh_token
     cromwell::private::papi::setup_papi_endpoint_url
 }
 

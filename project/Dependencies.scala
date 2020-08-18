@@ -26,7 +26,7 @@ object Dependencies {
   private val commonsTextV = "1.9"
   private val configsV = "0.4.4"
   private val delightRhinoSandboxV = "0.0.11"
-  private val ficusV = "1.4.7"
+  private val ficusV = "1.5.0"
   private val fs2V = "2.0.1"
   private val fs2VStatsDProxy = "1.0.5"
   private val googleApiClientV = "1.30.10"

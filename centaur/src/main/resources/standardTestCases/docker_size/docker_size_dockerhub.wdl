@@ -5,7 +5,7 @@ task large_dockerhub_image {
         String docker_image
     }
     command {
-        apt-get install --assume-yes jq > /dev/null
+        which jq > /dev/null || (apt-get update > /dev/null && apt-get install -y jq > /dev/null)
         NAME=`curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/name`
         ZONE=`basename \`curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/zone\``
         PROJECT=`curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/project/project-id`

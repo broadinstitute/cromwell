@@ -6,6 +6,7 @@ import cromwell.backend.google.pipelines.common.action.ActionLabels._
 import cromwell.backend.google.pipelines.common.action.ActionUtils._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineDockerKeyAndToken
 import cromwell.backend.google.pipelines.common.{PipelinesApiInput, PipelinesApiOutput, PipelinesParameter}
+import cromwell.backend.google.pipelines.v2alpha1.GenomicsFactory
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionFlag.ActionFlag
 import cromwell.core.path.Path
 import cromwell.docker.DockerImageIdentifier
@@ -64,7 +65,7 @@ object ActionBuilder {
     }
   }
 
-  def cloudSdkAction: Action = new Action().setImageUri(cloudSdkImage)
+  def cloudSdkAction: Action = new Action().setImageUri(GenomicsFactory.CloudSdkImage)
 
   def withImage(image: String): Action = new Action()
     .setImageUri(image)

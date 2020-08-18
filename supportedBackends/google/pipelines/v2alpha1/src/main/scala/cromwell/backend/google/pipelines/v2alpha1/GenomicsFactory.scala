@@ -12,6 +12,7 @@ import com.google.api.services.genomics.v2alpha1.{Genomics, GenomicsScopes}
 import com.google.api.services.oauth2.Oauth2Scopes
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.http.HttpCredentialsAdapter
+import com.typesafe.config.ConfigFactory
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{GcsTransferConfiguration, VirtualPrivateCloudConfiguration}
 import cromwell.backend.google.pipelines.common.action.ActionUtils
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
@@ -247,4 +248,24 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
   }
 
   override def usesEncryptedDocker: Boolean = true
+}
+
+object GenomicsFactory {
+  private val config = ConfigFactory.load().getConfig("google")
+
+  /**
+    * An image with the Google Cloud SDK installed.
+    * http://gcr.io/google.com/cloudsdktool/cloud-sdk
+    *
+    * FYI additional older versions are available on DockerHub at:
+    * https://hub.docker.com/r/google/cloud-sdk
+    *
+    * When updating this value, also consider updating the CromwellImagesSizeRoundedUpInGB below.
+    */
+  val CloudSdkImage: String = if (config.hasPath("cloud-sdk-image-url")) { config.getString("cloud-sdk-image-url").toString } else "gcr.io/google.com/cloudsdktool/cloud-sdk:276.0.0-slim"
+
+  /*
+   * At the moment, the cloud-sdk:slim (727MB on 2019-09-26) and possibly stedolan/jq (182MB) decompressed ~= 1 GB
+   */
+  val CromwellImagesSizeRoundedUpInGB: Int = if (config.hasPath("cloud-sdk-image-size-gb")) { config.getInt("cloud-sdk-image-size-gb") } else 1
 }

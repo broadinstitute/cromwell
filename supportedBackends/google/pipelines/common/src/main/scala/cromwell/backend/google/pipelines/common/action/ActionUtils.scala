@@ -3,17 +3,6 @@ package cromwell.backend.google.pipelines.common.action
 import org.apache.commons.text.StringEscapeUtils
 
 object ActionUtils {
-  /**
-    * An image with the Google Cloud SDK installed.
-    * http://gcr.io/google.com/cloudsdktool/cloud-sdk
-    *
-    * FYI additional older versions are available on DockerHub at:
-    * https://hub.docker.com/r/google/cloud-sdk
-    *
-    * When updating this value, also consider updating the CromwellImagesSizeRoundedUpInGB below.
-    */
-  val cloudSdkImage = "gcr.io/google.com/cloudsdktool/cloud-sdk:276.0.0-slim"
-
   /** Image to use for ssh access. */
   val sshImage = "gcr.io/cloud-genomics-pipelines/tools"
 

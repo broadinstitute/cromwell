@@ -38,7 +38,7 @@ final class IoActor(queueSize: Int,
                     gcsParallelism: Int,
                     throttle: Option[Throttle],
                     override val serviceRegistryActor: ActorRef,
-                    applicationName: String)(implicit val materializer: ActorMaterializer)
+                    applicationName: String)
   extends Actor with ActorLogging with StreamActorHelper[IoCommandContext[_]] with IoInstrumentation with Timers {
   implicit val ec = context.dispatcher
 
@@ -233,7 +233,7 @@ object IoActor {
 
   def isFatal(failure: Throwable) = !isRetryable(failure)
   
-  def props(queueSize: Int, nioParallelism: Int, gcsParallelism: Int, throttle: Option[Throttle], serviceRegistryActor: ActorRef, applicationName: String)(implicit materializer: ActorMaterializer) = {
+  def props(queueSize: Int, nioParallelism: Int, gcsParallelism: Int, throttle: Option[Throttle], serviceRegistryActor: ActorRef, applicationName: String) = {
     Props(new IoActor(queueSize, nioParallelism, gcsParallelism, throttle, serviceRegistryActor, applicationName)).withDispatcher(IoDispatcher)
   }
 }

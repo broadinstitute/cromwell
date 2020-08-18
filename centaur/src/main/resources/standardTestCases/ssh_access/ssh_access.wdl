@@ -75,13 +75,16 @@ task ssh {
         }
         trap delete_firewall EXIT
 
-        # Run the actual test
+        # Run the actual test.
+        # If someone understands why the ssh host keys are sometimes other-than-expected please explain in a comment and
+        # possibly remove the `--strict-host-key=no`.
         gcloud \
             --quiet \
             compute ssh \
             --zone "$GCE_ZONE" \
             --project "$GCE_PROJECT" \
             "$GCE_HOST" \
+            --strict-host-key-checking=no \
             --command="echo tt1276104 > $PWD/over_ssh.txt"
     >>>
 

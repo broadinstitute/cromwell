@@ -35,7 +35,7 @@ trait PipelinesParameterConversions {
           val drsFileSystemProvider = drsPath.drsPath.getFileSystem.provider.asInstanceOf[DrsCloudNioFileSystemProvider]
 
           val drsDockerImage = config.getString("drs.localization.docker-image")
-          val drsMarthaUrl = drsFileSystemProvider.config.getString("martha.url")
+          val drsMarthaUrl = drsFileSystemProvider.marthaUri
           val drsCommand = List(fileInput.cloudPath.escape, fileInput.containerPath.escape) ++ drsPath.requesterPaysProjectIdOption.toList
           val marthaEnv = Map("MARTHA_URL" -> drsMarthaUrl)
           val localizationAction = ActionBuilder

@@ -56,10 +56,10 @@ class ActionBuilderSpec extends FlatSpec with Matchers with TableDrivenPropertyC
     }
   }
 
+  private val memoryRetryExpectedEntrypoint = "/bin/sh"
 
   def memoryRetryExpectedCommand(lookupString: String): util.List[String] = {
     List(
-      "/bin/sh",
       "-c",
       s"grep -E -q '$lookupString' /cromwell_root/stderr ; echo $$? > /cromwell_root/memory_retry_rc"
     ).asJava
@@ -74,6 +74,7 @@ class ActionBuilderSpec extends FlatSpec with Matchers with TableDrivenPropertyC
 
     val action = ActionBuilder.checkForMemoryRetryAction(lookupKeyList, mounts)
 
+    action.getEntrypoint shouldBe memoryRetryExpectedEntrypoint
     action.getCommands shouldBe expectedCommand
     action.getAlwaysRun shouldBe true
     action.getLabels shouldBe memoryRetryActionExpectedLabels
@@ -86,6 +87,7 @@ class ActionBuilderSpec extends FlatSpec with Matchers with TableDrivenPropertyC
 
     val action = ActionBuilder.checkForMemoryRetryAction(lookupKeyList, mounts)
 
+    action.getEntrypoint shouldBe memoryRetryExpectedEntrypoint
     action.getCommands shouldBe expectedCommand
     action.getAlwaysRun shouldBe true
     action.getLabels shouldBe memoryRetryActionExpectedLabels

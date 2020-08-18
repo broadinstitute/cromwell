@@ -24,11 +24,12 @@ import cromwell.backend.google.pipelines.common.api.clients.{PipelinesApiAbortCl
 import cromwell.backend.google.pipelines.common.authentication.PipelinesApiDockerCredentials
 import cromwell.backend.google.pipelines.common.errors.FailedToDelocalizeFailure
 import cromwell.backend.google.pipelines.common.io._
+import cromwell.backend.google.pipelines.common.monitoring.MonitoringImage
 import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.standard.{StandardAdHocValue, StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
 import cromwell.core.io.IoCommandBuilder
-import cromwell.core.path.{DefaultPathBuilder, Path, PathFactory}
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
 import cromwell.filesystems.gcs.GcsPath
@@ -455,50 +456,16 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         val referenceDisks = getReferenceDisksToBeMountedFromManifests(pipelinesConfiguration.papiAttributes.referenceDiskLocalizationManifestFiles, inputOutputParameters.fileInputParameters)
 
         val workflowOptions = workflowDescriptor.workflowOptions
-        val monitoringImageOption = workflowOptions.get(WorkflowOptionKeys.MonitoringImage).toOption
-        val monitoringImageScriptOption =
-          for {
-            _ <- monitoringImageOption
-            monitoringImageScript <- workflowOptions.get(WorkflowOptionKeys.MonitoringImageScript).toOption
-          } yield {
-            PathFactory.buildPath(
-              monitoringImageScript,
-              workflowPaths.pathBuilders,
-            )
-          }
 
-        object Env {
-          /**
-            * Name of an environmental variable
-            */
-          val WorkflowId = "WORKFLOW_ID"
-          val TaskCallName = "TASK_CALL_NAME"
-          val TaskCallIndex = "TASK_CALL_INDEX"
-          val TaskCallAttempt = "TASK_CALL_ATTEMPT"
-          val DiskMounts = "DISK_MOUNTS"
-        }
-
-        def monitoringImageEnvironment(mountPaths: List[String]) =
-          Map(
-            Env.WorkflowId -> jobDescriptor.workflowDescriptor.id.toString,
-            Env.TaskCallName -> jobDescriptor.taskCall.localName,
-            Env.TaskCallIndex -> jobDescriptor.key.index.map(_.toString).getOrElse("NA"),
-            Env.TaskCallAttempt -> jobDescriptor.key.attempt.toString,
-            Env.DiskMounts -> mountPaths.mkString(" "),
+        val monitoringImage =
+          new MonitoringImage(
+            jobDescriptor = jobDescriptor,
+            workflowOptions = workflowOptions,
+            workflowPaths = workflowPaths,
+            commandDirectory = commandDirectory,
+            workingDisk = workingDisk,
+            localMonitoringImageScriptPath = localMonitoringImageScriptPath,
           )
-
-        val monitoringImageScriptContainerPath = workingDisk.mountPoint.resolve(localMonitoringImageScriptPath)
-
-        val monitoringImageCommand = monitoringImageScriptOption match {
-          case Some(_) => List(
-            "/bin/sh",
-            "-c",
-            s"cd '${commandDirectory.pathAsString}' && " +
-              s"chmod +x '${monitoringImageScriptContainerPath.pathAsString}' && " +
-              s"'${monitoringImageScriptContainerPath.pathAsString}'"
-          )
-          case None => Nil
-        }
 
         val enableSshAccess = workflowOptions.getBoolean(WorkflowOptionKeys.EnableSSHAccess).toOption.contains(true)
 
@@ -510,8 +477,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           cloudCallRoot = callRootPath,
           commandScriptContainerPath = cmdInput.containerPath,
           logGcsPath = jesLogPath,
-          monitoringImageScriptContainerPath = monitoringImageScriptContainerPath,
-          monitoringImageCommand = monitoringImageCommand,
           inputOutputParameters = inputOutputParameters,
           projectId = googleProject(jobDescriptor.workflowDescriptor),
           computeServiceAccount = computeServiceAccount(jobDescriptor.workflowDescriptor),
@@ -527,9 +492,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           fuseEnabled = fuseEnabled(jobDescriptor.workflowDescriptor),
           allowNoAddress = pipelinesConfiguration.papiAttributes.allowNoAddress,
           referenceDisksForLocalization = referenceDisks,
-          monitoringImage = monitoringImageOption,
-          monitoringImageScript = monitoringImageScriptOption,
-          monitoringImageEnvironment = monitoringImageEnvironment,
+          monitoringImage = monitoringImage,
           enableSshAccess = enableSshAccess,
         )
       case Some(other) =>

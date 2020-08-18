@@ -23,13 +23,14 @@ object ActionBuilder {
       * Only for use with docker images KNOWN to not have entrypoints already set,
       * or used with accompanying call to setEntrypoint("non-empty-string").
       *
-      * Otherwise use withEntrypointCommand() below until the google issues listed in BA-6406 are fixed.
+      * Otherwise use the withEntrypointCommand() workaround below since the google issue listed in BA-6406 is not being
+      * fixed.
       */
     def withCommand(command: String*): Action = action.setCommands(command.toList.asJava)
 
     /**
-      * Useful for any externally provided images that _might_ have entrypoints already set.
-      * Hack for BA-6406. See underlying google issue in that ticket.
+      * Useful for any externally provided images that _might_ have entrypoints already set. This is a workaround for
+      * the issue detailed in BA-6406. See underlying google issue in that ticket for more info.
       */
     def withEntrypointCommand(command: String*): Action = {
       action

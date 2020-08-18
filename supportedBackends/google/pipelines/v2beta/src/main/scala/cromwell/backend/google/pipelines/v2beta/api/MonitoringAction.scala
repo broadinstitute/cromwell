@@ -10,12 +10,12 @@ trait MonitoringAction {
                             )(implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Action] = {
 
     val monitoringImageScriptActions =
-      createPipelineParameters.monitoringImageScript match {
+      createPipelineParameters.monitoringImage.monitoringImageScriptOption match {
         case Some(script) =>
           val localizeScriptAction =
             ActionBuilder.monitoringImageScriptAction(
               script,
-              createPipelineParameters.monitoringImageScriptContainerPath,
+              createPipelineParameters.monitoringImage.monitoringImageScriptContainerPath,
               mounts,
             )
           val describeLocalizeScriptAction =
@@ -28,12 +28,12 @@ trait MonitoringAction {
       }
 
     val monitoringImageActions =
-      createPipelineParameters.monitoringImage match {
+      createPipelineParameters.monitoringImage.monitoringImageOption match {
         case Some(image) =>
 
           val monitoringImage = image
-          val monitoringImageCommand = createPipelineParameters.monitoringImageCommand
-          val monitoringImageEnvironment = createPipelineParameters.monitoringImageEnvironment
+          val monitoringImageCommand = createPipelineParameters.monitoringImage.monitoringImageCommand
+          val monitoringImageEnvironment = createPipelineParameters.monitoringImage.monitoringImageEnvironment
 
           val monitoringAction = ActionBuilder.monitoringAction(
             monitoringImage,
@@ -41,7 +41,9 @@ trait MonitoringAction {
             monitoringImageEnvironment(mounts.map(_.getPath)),
             mounts,
           )
+
           val describeMonitoringAction = ActionBuilder.describeDocker("monitoring action", monitoringAction)
+
           List(describeMonitoringAction, monitoringAction)
 
         case None => Nil
@@ -51,7 +53,7 @@ trait MonitoringAction {
   }
 
   def monitoringShutdownActions(createPipelineParameters: CreatePipelineParameters): List[Action] = {
-    createPipelineParameters.monitoringImage match {
+    createPipelineParameters.monitoringImage.monitoringImageOption match {
       case Some(_) =>
         val terminationAction = ActionBuilder.monitoringTerminationAction()
 

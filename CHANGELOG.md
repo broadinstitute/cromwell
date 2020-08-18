@@ -19,8 +19,8 @@ for known limitations.
 
 ### Monitoring Image Script
 
-* Cromwell now supports an optional `monitoring_image_script` workflow option. For more information see the [Google
-Pipelines API Workflow Options
+* Cromwell now supports an optional `monitoring_image_script` workflow option in addition to the existing
+`monitoring_script` and `monitoring_image` options. For more information see the [Google Pipelines API Workflow Options
 documentation](https://cromwell.readthedocs.io/en/stable/wf_options/Google#google-pipelines-api-workflow-options).
 
 ## 52 Release Notes

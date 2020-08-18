@@ -9,6 +9,9 @@ workflow ssh_access {
 }
 
 task ssh {
+    meta {
+        volatile: true
+    }
     command <<<
         set -euo pipefail
 
@@ -37,13 +40,13 @@ task ssh {
 
         # Retrieve our external IP address
         GCE_IP="$(
-        gcloud \
-        --quiet \
-        compute instances describe \
-        --zone "$GCE_ZONE" \
-        --project "$GCE_PROJECT" \
-        "$GCE_HOST" \
-        --format='get(networkInterfaces[0].accessConfigs[0].natIP)'
+            gcloud \
+                --quiet \
+                compute instances describe \
+                --zone "$GCE_ZONE" \
+                --project "$GCE_PROJECT" \
+                "$GCE_HOST" \
+                --format='get(networkInterfaces[0].accessConfigs[0].natIP)'
         )"
 
         # Retrieve the account we're logged in as assuming it was the SA used to create this machine

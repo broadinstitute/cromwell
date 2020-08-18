@@ -9,6 +9,9 @@ workflow monitoring_image_script {
 }
 
 task create_file_via_monitoring_image_script {
+    meta {
+        volatile: true
+    }
     command {
         sleep 10
     }

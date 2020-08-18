@@ -6,6 +6,7 @@ import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttribu
 import cromwell.backend.google.pipelines.common._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.io.PipelinesApiAttachedDisk
+import cromwell.backend.google.pipelines.common.monitoring.MonitoringImage
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.Path
@@ -72,8 +73,6 @@ object PipelinesApiRequestFactory {
                                       cloudCallRoot: Path,
                                       commandScriptContainerPath: Path,
                                       logGcsPath: Path,
-                                      monitoringImageScriptContainerPath: Path,
-                                      monitoringImageCommand: List[String],
                                       inputOutputParameters: InputOutputParameters,
                                       projectId: String,
                                       computeServiceAccount: String,
@@ -89,9 +88,7 @@ object PipelinesApiRequestFactory {
                                       fuseEnabled: Boolean,
                                       allowNoAddress: Boolean,
                                       referenceDisksForLocalization: List[PipelinesApiAttachedDisk],
-                                      monitoringImage: Option[String],
-                                      monitoringImageScript: Option[Path],
-                                      monitoringImageEnvironment: MountsToEnv,
+                                      monitoringImage: MonitoringImage,
                                       enableSshAccess: Boolean,
                                      ) {
     def literalInputs = inputOutputParameters.literalInputParameters

@@ -1,13 +1,14 @@
 package wdl.transforms.wdlwom
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model.{WdlExpression, WdlWomExpression}
 import wdl.transforms.wdlwom.Draft2ReadFileLimitsSpec._
 import wom.expression.EmptyIoFunctionSet
 
 import scala.concurrent.Future
 
-class Draft2ReadFileLimitsSpec extends FlatSpec with Matchers {
+class Draft2ReadFileLimitsSpec extends AnyFlatSpec with Matchers {
   behavior of "ReadLikeFunctions Size Limit Draft 2"
   
   it should "pass correct size limits to the ioFunctions for read_lines" in {

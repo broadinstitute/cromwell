@@ -6,9 +6,10 @@ import cromwell.docker.{DockerImageIdentifier, DockerInfoActor, DockerInfoReques
 import org.http4s.client.Client
 import org.http4s.headers.`Content-Type`
 import org.http4s.{Header, Headers, MediaType, Request, Response}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class DockerRegistryV2AbstractSpec extends FlatSpec with Matchers {
+class DockerRegistryV2AbstractSpec extends AnyFlatSpec with Matchers {
   behavior of "DockerRegistryV2Abstract"
   
   it should "handle gracefully if a response cannot be parsed" in {
@@ -23,7 +24,7 @@ class DockerRegistryV2AbstractSpec extends FlatSpec with Matchers {
 
     val mockClient = Client({ _: Request[IO] =>
       // This response will have an empty body, so we need to be explicit about the typing:
-      Resource.pure[IO, Response[IO]](Response(headers = Headers(contentType))) : Resource[IO, Response[IO]]
+      Resource.pure[IO, Response[IO]](Response(headers = Headers.of(contentType))) : Resource[IO, Response[IO]]
     })
     
     val dockerImageIdentifier = DockerImageIdentifier.fromString("ubuntu").get

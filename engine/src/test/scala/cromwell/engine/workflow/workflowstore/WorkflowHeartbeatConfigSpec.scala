@@ -2,12 +2,13 @@ package cromwell.engine.workflow.workflowstore
 
 import com.typesafe.config.ConfigFactory
 import common.exception.AggregatedMessageException
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.duration._
 
-class WorkflowHeartbeatConfigSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+class WorkflowHeartbeatConfigSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "WorkflowHeartbeatConfig"
 

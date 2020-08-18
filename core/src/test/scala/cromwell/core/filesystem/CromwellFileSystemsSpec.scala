@@ -6,11 +6,12 @@ import com.typesafe.config.{Config, ConfigFactory}
 import common.exception.AggregatedMessageException
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.MockPathBuilderFactory
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.ExecutionContext
 
-class CromwellFileSystemsSpec extends FlatSpec with Matchers {
+class CromwellFileSystemsSpec extends AnyFlatSpec with Matchers {
   behavior of "CromwellFileSystems"
 
   val globalConfig = ConfigFactory.parseString(

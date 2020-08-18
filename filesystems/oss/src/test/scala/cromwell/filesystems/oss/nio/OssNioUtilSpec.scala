@@ -4,10 +4,12 @@ import java.io.ByteArrayInputStream
 
 import com.aliyun.oss.OSSClient
 import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.mockito.MockitoSugar
 
 import scala.util.control.Breaks
 import scala.util.{Failure, Success, Try}
-import org.scalatestplus.mockito.MockitoSugar
 
 object NeedAK extends Tag("this test need oss storage access id and key")
 
@@ -26,7 +28,7 @@ object OssNioUtilSpec {
   )
 }
 
-trait OssNioUtilSpec extends FlatSpecLike with MockitoSugar with Matchers {
+trait OssNioUtilSpec extends AnyFlatSpecLike with MockitoSugar with Matchers {
 
   override def withFixture(test: NoArgTest): Outcome = {
     if (test.tags.contains(NeedAK.name)) {

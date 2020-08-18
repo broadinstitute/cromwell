@@ -2,11 +2,13 @@ package cwl
 
 import common.validation.Validation._
 import cwl.internal.{EcmaScriptEncoder, EcmaScriptUtil}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
 import wom.values.{WomFloat, WomMaybePopulatedFile, WomString, WomValue}
 
-class CwlEcmaScriptDecoderSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+
+class CwlEcmaScriptDecoderSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
   behavior of "CwlJsDecoder"
 
   val decodeTests= Table[String, String, Map[String, Map[String, WomValue]], WomValue](

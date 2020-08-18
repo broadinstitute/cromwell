@@ -11,23 +11,24 @@ import cromwell.core.io.IoPromiseProxyActor.IoCommandWithPromise
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.services.metadata.MetadataQuery
 import cromwell.services.metadata.MetadataService.{GetLogs, GetMetadataAction, GetRootAndSubworkflowLabels, RootAndSubworkflowLabelsLookupResponse, WorkflowOutputs}
+import cromwell.services.metadata.hybridcarbonite.CarbonitedMetadataThawingActor._
 import cromwell.services.metadata.hybridcarbonite.CarbonitedMetadataThawingActorSpec.{workflowId, _}
 import cromwell.services.{FailedMetadataJsonResponse, SuccessfulMetadataJsonResponse}
 import io.circe.parser._
 import net.thisptr.jackson.jq._
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpecLike, Matchers}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.io.Source
 import scala.language.postfixOps
-import cromwell.services.metadata.hybridcarbonite.CarbonitedMetadataThawingActor._
 
 
-class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadataThawingActorSpec") with FlatSpecLike with Matchers with TableDrivenPropertyChecks {
+class CarbonitedMetadataThawingActorSpec extends TestKitSuite("CarbonitedMetadataThawingActorSpec") with AnyFlatSpecLike with Matchers with TableDrivenPropertyChecks {
 
   implicit val ec: ExecutionContext = system.dispatcher
 

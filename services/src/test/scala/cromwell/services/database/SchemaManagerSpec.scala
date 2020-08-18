@@ -11,7 +11,8 @@ import liquibase.diff.DiffResult
 import liquibase.diff.output.DiffOutputControl
 import liquibase.diff.output.changelog.DiffToChangeLog
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import slick.jdbc.JdbcProfile
 import slick.jdbc.meta._
 
@@ -23,7 +24,7 @@ import scala.xml._
 /**
   * Tests that all table objects are consistently named using in-memory HSQLDB instances.
   */
-class SchemaManagerSpec extends FlatSpec with Matchers with ScalaFutures {
+class SchemaManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
   import SchemaManagerSpec._
 

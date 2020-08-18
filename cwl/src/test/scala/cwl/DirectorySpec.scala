@@ -1,18 +1,20 @@
 package cwl
 
 import common.validation.Validation._
-import eu.timepit.refined.refineMV
 import cwl.CwlDecoder.decodeCwlFile
 import cwl.TestSetup.rootPath
 import eu.timepit.refined.numeric.Positive
-import org.scalatest.{FlatSpec, Matchers}
+import eu.timepit.refined.refineMV
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wom.callable.Callable.InputDefinition
 import wom.callable.{CallableTaskDefinition, RuntimeEnvironment}
 import wom.expression.NoIoFunctionSet
 import wom.graph.OptionalGraphInputNodeWithDefault
 import wom.values.WomValue
 
-class DirectorySpec extends FlatSpec with Matchers {
+
+class DirectorySpec extends AnyFlatSpec with Matchers {
 
   behavior of "Directory"
 

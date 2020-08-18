@@ -27,6 +27,7 @@ object Dependencies {
   private val configsV = "0.4.4"
   private val delightRhinoSandboxV = "0.0.11"
   private val ficusV = "1.4.7"
+  private val flexmarkV = "0.36.8"
   private val fs2V = "2.0.1"
   private val fs2VStatsDProxy = "1.0.5"
   private val googleApiClientV = "1.30.10"
@@ -94,10 +95,11 @@ object Dependencies {
   private val scalaLoggingV = "3.9.2"
   private val scalaPoolV = "0.4.3"
   private val scalacheckV = "1.14.3"
-  private val scalacticV = "3.0.8"
+  private val scalacticV = "3.2.1"
   private val scalameterV = "0.19"
   private val scalamockV = "4.4.0"
-  private val scalatestV = "3.0.8"
+  private val scalatestV = "3.2.1"
+  private val scalatestPlusMockitoV = "1.0.0-M2"
   private val scalazV = "7.2.30"
   private val scoptV = "3.7.1"
   private val sentryLogbackV = "1.7.30"
@@ -559,6 +561,8 @@ object Dependencies {
 
   val testDependencies = List(
     "org.scalatest" %% "scalatest" % scalatestV,
+    "org.scalatestplus" %% "scalatestplus-mockito" % scalatestPlusMockitoV,
+    "com.vladsch.flexmark" % "flexmark-profile-pegdown" % flexmarkV,
     "org.pegdown" % "pegdown" % pegdownV,
     "org.specs2" %% "specs2-mock" % specs2MockV,
     "com.dimafeng" %% "testcontainers-scala-scalatest" % testContainersScalaV,

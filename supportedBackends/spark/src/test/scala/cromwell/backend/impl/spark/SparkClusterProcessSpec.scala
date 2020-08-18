@@ -10,18 +10,20 @@ import cromwell.core.path.Path
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito
 import org.mockito.Mockito._
+import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{BeforeAndAfter, Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatestplus.mockito.MockitoSugar
 import spray.json._
 
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
 import scala.util.control.NoStackTrace
-import org.scalatestplus.mockito.MockitoSugar
 
 class SparkClusterProcessSpec extends TestKitSuite("SparkClusterProcess")
-  with WordSpecLike
+  with AnyWordSpecLike
   with Matchers
   with MockitoSugar
   with BeforeAndAfter

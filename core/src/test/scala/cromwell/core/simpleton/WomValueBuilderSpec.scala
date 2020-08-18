@@ -3,7 +3,8 @@ package cromwell.core.simpleton
 import cromwell.core.simpleton.WomValueBuilderSpec._
 import cromwell.core.simpleton.WomValueSimpleton._
 import cromwell.util.WomMocks
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 import wom.callable.Callable.OutputDefinition
 import wom.expression.PlaceholderWomExpression
@@ -17,7 +18,7 @@ object WomValueBuilderSpec {
   val IgnoredExpression = PlaceholderWomExpression(Set.empty, WomStringType)
 }
 
-class WomValueBuilderSpec extends FlatSpec with Matchers with Mockito {
+class WomValueBuilderSpec extends AnyFlatSpec with Matchers with Mockito {
 
   case class SimpletonConversion(name: String, womValue: WomValue, simpletons: Seq[WomValueSimpleton])
   val simpletonConversions = List(

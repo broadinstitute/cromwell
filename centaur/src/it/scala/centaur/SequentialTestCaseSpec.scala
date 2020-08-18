@@ -1,6 +1,7 @@
 package centaur
 
-import org.scalatest.{DoNotDiscover, Matchers}
+import org.scalatest.DoNotDiscover
+import org.scalatest.matchers.should.Matchers
 
 /**
   * All test cases that trigger a Cromwell restart. Note that this suite does not mix in ParallelTestExecution

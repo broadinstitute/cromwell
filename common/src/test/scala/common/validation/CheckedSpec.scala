@@ -1,10 +1,12 @@
 package common.validation
 
 import cats.data.NonEmptyList
-import org.scalatest.{FlatSpec, Matchers}
 import common.validation.Checked._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class CheckedSpec extends FlatSpec with Matchers {
+
+class CheckedSpec extends AnyFlatSpec with Matchers {
   behavior of "Checked"
   
   it should "provide helper methods" in {

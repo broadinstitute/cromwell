@@ -14,8 +14,10 @@ import cromwell.core.{ExecutionEvent, TestKitSuite}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import io.grpc.Status
+import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually
-import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 
 import scala.collection.immutable.Queue
@@ -24,7 +26,7 @@ import scala.concurrent.{Future, Promise}
 import scala.util.Try
 
 abstract class PipelinesApiRequestWorkerSpec[O >: Null]
-  extends TestKitSuite("PipelinesApiRequestWorker") with FlatSpecLike with Matchers with Eventually with BeforeAndAfter with Mockito {
+  extends TestKitSuite("PipelinesApiRequestWorker") with AnyFlatSpecLike with Matchers with Eventually with BeforeAndAfter with Mockito {
 
   implicit var batchHandler: TestPipelinesApiBatchHandler[O]
   

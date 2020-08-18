@@ -3,12 +3,13 @@ package cromwell.services.metadata.hybridcarbonite
 import akka.actor.ActorSystem
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.TestKitSuite
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec") with FlatSpecLike with Matchers {
+class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec") with AnyFlatSpecLike with Matchers {
 
   behavior of "HybridCarboniteConfig"
 

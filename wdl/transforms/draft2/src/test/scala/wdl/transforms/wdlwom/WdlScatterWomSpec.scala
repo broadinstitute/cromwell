@@ -2,16 +2,17 @@ package wdl.transforms.wdlwom
 
 import cats.data.Validated.{Invalid, Valid}
 import common.collections.EnhancedCollections._
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
+import wdl.transforms.draft2.wdlom2wom._
 import wom.graph.GraphNodePort.ScatterGathererPort
 import wom.graph.expression.ExpressionNode
 import wom.graph.{GraphInputNode, ScatterNode, _}
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wom.types.{WomArrayType, WomIntegerType, WomStringType}
-import wdl.transforms.draft2.wdlom2wom._
 
-class WdlScatterWomSpec extends FlatSpec with Matchers {
+class WdlScatterWomSpec extends AnyFlatSpec with Matchers {
 
   behavior of "WdlNamespaces with scatters"
 

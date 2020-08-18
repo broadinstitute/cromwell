@@ -1,10 +1,12 @@
 package womtool
 
 import better.files.File
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import womtool.WomtoolMain.SuccessfulTermination
 
-class WomtoolInputsSpec extends FlatSpec with Matchers {
+
+class WomtoolInputsSpec extends AnyFlatSpec with Matchers {
 
   val inputsTestCases = File("womtool/src/test/resources/inputs")
   val languageVersions = Option(inputsTestCases.list).toList.flatten

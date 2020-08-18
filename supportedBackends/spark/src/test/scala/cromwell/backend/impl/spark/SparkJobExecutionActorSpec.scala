@@ -6,25 +6,27 @@ import akka.testkit.{ImplicitSender, TestActorRef}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendJobExecutionActor.{JobFailedNonRetryableResponse, JobSucceededResponse}
 import cromwell.backend.impl.spark.SparkClusterProcess._
-import cromwell.backend.io._
 import cromwell.backend.io.JobPathsSpecHelper._
+import cromwell.backend.io._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendSpec}
 import cromwell.core.path.Obsolete._
 import cromwell.core.path.{Path, PathWriter, TailedWriter, UntailedWriter}
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import org.mockito.Mockito
 import org.mockito.Mockito._
+import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
-import org.scalatest.{BeforeAndAfter, Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatestplus.mockito.MockitoSugar
 import wom.core.WorkflowSource
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.sys.process.{Process, ProcessLogger}
-import org.scalatestplus.mockito.MockitoSugar
 
 class SparkJobExecutionActorSpec extends TestKitSuite("SparkJobExecutionActor")
-  with WordSpecLike
+  with AnyWordSpecLike
   with Matchers
   with MockitoSugar
   with BeforeAndAfter

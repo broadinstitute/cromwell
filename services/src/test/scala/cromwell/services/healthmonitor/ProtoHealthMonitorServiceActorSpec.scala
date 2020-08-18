@@ -10,14 +10,15 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.TestKitSuite
 import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor._
 import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActorSpec._
-import org.scalatest.{Assertion, FlatSpecLike}
+import org.scalatest.Assertion
 import org.scalatest.concurrent.{Eventually, ScaledTimeSpans}
+import org.scalatest.flatspec.AnyFlatSpecLike
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor, Future}
 import scala.language.postfixOps
 
-class ProtoHealthMonitorServiceActorSpec extends TestKitSuite with FlatSpecLike with Eventually {
+class ProtoHealthMonitorServiceActorSpec extends TestKitSuite with AnyFlatSpecLike with Eventually {
   implicit val timeout = Timeout(scaled(5.seconds))
   final implicit val blockingEc: ExecutionContextExecutor = ExecutionContext.fromExecutor(
     Executors.newCachedThreadPool()

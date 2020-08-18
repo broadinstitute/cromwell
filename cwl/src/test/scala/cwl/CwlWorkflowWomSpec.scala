@@ -5,8 +5,9 @@ import cwl.CwlDecoder._
 import cwl.ExpressionEvaluator._
 import cwl.command.ParentName
 import eu.timepit.refined._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
 import shapeless._
 import wom.WomMatchers._
 import wom.callable.{Callable, CommandTaskDefinition, WorkflowDefinition}
@@ -15,7 +16,8 @@ import wom.graph._
 import wom.graph.expression.ExpressionNode
 import wom.types.{WomMaybePopulatedFileType, WomStringType, WomType}
 
-class CwlWorkflowWomSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+
+class CwlWorkflowWomSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
   import TestSetup._
 
   implicit val parentName = ParentName.empty

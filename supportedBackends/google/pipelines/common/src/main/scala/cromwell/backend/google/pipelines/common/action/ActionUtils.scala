@@ -62,11 +62,11 @@ object ActionUtils {
                           sshAccess: List[Action],
                           isBackground: Action => Boolean,
                          ): List[Action] = {
-    val toBeSortedActions = containerSetup ++ localization ++ userAction ++ memoryRetryAction ++ deLocalization
+    val toBeSortedActions = localization ++ userAction ++ memoryRetryAction ++ deLocalization
     val sortedActions = toBeSortedActions.sortWith({
       case (action, _) => isBackground(action)
     })
 
-    sshAccess ++ monitoringSetup ++ sortedActions ++ monitoringShutdown
+    sshAccess ++ containerSetup ++ monitoringSetup ++ sortedActions ++ monitoringShutdown
   }
 }

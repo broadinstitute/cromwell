@@ -250,6 +250,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
   override def usesEncryptedDocker: Boolean = true
 }
 
+//noinspection ScalaRedundantConversion
 object GenomicsFactory {
   private val config = ConfigFactory.load().getConfig("google")
 

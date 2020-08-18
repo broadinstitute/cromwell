@@ -244,6 +244,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
   override def usesEncryptedDocker: Boolean = true
 }
 
+//noinspection ScalaRedundantConversion
 object LifeSciencesFactory {
   private val config = ConfigFactory.load().getConfig("google")
 

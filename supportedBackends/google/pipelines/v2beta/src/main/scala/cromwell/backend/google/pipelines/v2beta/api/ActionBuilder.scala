@@ -126,18 +126,21 @@ object ActionBuilder {
   }
 
   def checkForMemoryRetryAction(retryLookupKeys: List[String], mounts: List[Mount]): Action = {
-    cloudSdkAction
-      .withCommand("/bin/sh", "-c", ActionCommands.checkIfStderrContainsRetryKeys(retryLookupKeys))
-      .withAlwaysRun(true)
-      .withLabels(Map(Key.Tag -> Value.RetryWithMoreMemory))
-      .withMounts(mounts)
+    cloudSdkShellAction(ActionCommands.checkIfStderrContainsRetryKeys(retryLookupKeys))(
+      mounts = mounts,
+      labels = Map(Key.Tag -> Value.RetryWithMoreMemory)
+    ).withAlwaysRun(true)
   }
 
   def cloudSdkShellAction(shellCommand: String)(mounts: List[Mount] = List.empty,
                                                 labels: Map[String, String] = Map.empty,
                                                 timeout: Duration = Duration.Inf): Action =
     cloudSdkAction
-      .withCommand("/bin/sh", "-c", if (shellCommand.contains("\n")) shellCommand |> ActionCommands.multiLineCommand else shellCommand)
+      .withEntrypointCommand(
+        "/bin/sh",
+        "-c",
+        if (shellCommand.contains("\n")) shellCommand |> ActionCommands.multiLineCommand else shellCommand
+      )
       .withMounts(mounts)
       .withLabels(labels)
       .withTimeout(timeout)

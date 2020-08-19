@@ -1,12 +1,13 @@
 package wdl
 
 import common.validation.Validation._
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model.WdlNamespaceWithWorkflow
 import wdl.draft2.model.expression.NoFunctions
 import wom.values.WomString
 
-class SameNameParametersSpec extends FlatSpec with Matchers {
+class SameNameParametersSpec extends AnyFlatSpec with Matchers {
   val namespace1 = WdlNamespaceWithWorkflow.load(
     """
        |task test {

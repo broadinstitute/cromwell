@@ -3,10 +3,11 @@ package cromwell.filesystems.gcs
 import cromwell.cloudsupport.gcp.auth.GoogleAuthModeSpec
 import cromwell.core.path._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.Tables.Table
-import org.scalatest.{FlatSpecLike, Matchers}
 
-class GcsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers with PathBuilderSpecUtils {
+class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with PathBuilderSpecUtils {
 
   behavior of "GcsPathBuilder"
 

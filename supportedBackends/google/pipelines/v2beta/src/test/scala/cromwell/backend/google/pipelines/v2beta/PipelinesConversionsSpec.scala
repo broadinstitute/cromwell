@@ -13,14 +13,15 @@ import cromwell.core.path.DefaultPathBuilder
 import cromwell.filesystems.drs.DrsPathBuilder
 import eu.timepit.refined.refineMV
 import org.apache.http.impl.client.HttpClientBuilder
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
 
-class PipelinesConversionsSpec extends FlatSpec with Matchers {
+class PipelinesConversionsSpec extends AnyFlatSpec with Matchers {
 
   behavior of "PipelinesConversions"
-  implicit val gcsTransferConfiguration =
+  implicit val gcsTransferConfiguration: GcsTransferConfiguration =
     GcsTransferConfiguration(transferAttempts = refineMV(1), parallelCompositeUploadThreshold = "0")
 
   private val marthaConfig: Config = ConfigFactory.parseString(
@@ -54,7 +55,7 @@ class PipelinesConversionsSpec extends FlatSpec with Matchers {
     val logging = actions.head
 
     logging.keySet.asScala should contain theSameElementsAs
-      Set("commands", "imageUri", "labels", "mounts", "timeout")
+      Set("entrypoint", "commands", "imageUri", "labels", "mounts", "timeout")
 
     logging.get("commands") should be(a[java.util.List[_]])
     logging.get("commands").asInstanceOf[java.util.List[_]] should contain(

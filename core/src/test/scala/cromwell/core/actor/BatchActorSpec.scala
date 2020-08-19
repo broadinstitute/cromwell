@@ -8,13 +8,14 @@ import cromwell.core.TestKitSuite
 import cromwell.core.actor.BatchActor._
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import org.scalatest.concurrent.Eventually
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 import scala.concurrent.{Future, Promise}
 import scala.util.control.NoStackTrace
 
-class BatchActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Eventually {
+class BatchActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually {
 
   behavior of "BatchingDbWriter"
   

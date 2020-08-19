@@ -6,7 +6,8 @@ import akka.util.Timeout
 import cromwell.languages.config.{CromwellLanguages, LanguageConfiguration}
 import cromwell.webservice.routes.CromwellApiService
 import cromwell.webservice.routes.CromwellApiServiceSpec.MockWorkflowStoreActor
-import org.scalatest.{AsyncFlatSpec, Matchers}
+import org.scalatest.flatspec.AsyncFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 

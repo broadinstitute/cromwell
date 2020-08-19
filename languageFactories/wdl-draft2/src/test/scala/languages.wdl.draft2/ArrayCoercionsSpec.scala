@@ -4,7 +4,8 @@ import com.typesafe.config.ConfigFactory
 import common.assertion.ErrorOrAssertions._
 import common.validation.Validation._
 import languages.wdl.draft2.ArrayCoercionsSpec._
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model.WdlNamespaceWithWorkflow
 import wdl.draft2.model.expression.NoFunctions
 import wom.core.WorkflowSource
@@ -13,7 +14,7 @@ import wom.types.{WomArrayType, WomSingleFileType, WomStringType}
 import wom.values.{WomArray, WomSingleFile, WomString}
 
 
-class ArrayCoercionsSpec extends FlatSpec with Matchers {
+class ArrayCoercionsSpec extends AnyFlatSpec with Matchers {
 
   var factory: WdlDraft2LanguageFactory = new WdlDraft2LanguageFactory(ConfigFactory.parseString(ConfigString))
   val arrayLiteralNamespace: WdlNamespaceWithWorkflow = WdlNamespaceWithWorkflow.load(ArrayDeclarationWorkflow, List.empty).get

@@ -7,11 +7,12 @@ import cromwell.core.TestKitSuite
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.instrumentation._
 import org.scalatest.concurrent.Eventually
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class StackdriverInstrumentationServiceActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Eventually {
+class StackdriverInstrumentationServiceActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually {
   behavior of "StackdriverInstrumentationServiceActor"
 
   val MaxWaitTime = 2.minutes

@@ -4,9 +4,10 @@ import java.nio.file.Paths
 
 import cromwell.core.io.DefaultIoCommand.DefaultIoCopyCommand
 import cromwell.core.path.DefaultPathBuilder
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
-class IoAckSpec extends FlatSpecLike with Matchers {
+class IoAckSpec extends AnyFlatSpecLike with Matchers {
 
   "IoFailAck pattern matching" should "work for both IoFailure and IoReadForbiddenFailure" in {
     import DefaultPathBuilder._

@@ -1,6 +1,5 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
-import wdl.draft2.model.command.StringCommandPart
 import akka.actor.{Actor, ActorRef, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import cats.syntax.validated._
@@ -13,13 +12,15 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashing
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.util.WomMocks
 import org.scalatest.concurrent.Eventually
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpecLike, Matchers}
+import wdl.draft2.model.command.StringCommandPart
 import wom.core.LocallyQualifiedName
 import wom.graph.WomIdentifier
 import wom.values.WomValue
 
-class EngineJobHashingActorSpec extends TestKitSuite with FlatSpecLike with Matchers with BackendSpec with TableDrivenPropertyChecks with Eventually {
+class EngineJobHashingActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with BackendSpec with TableDrivenPropertyChecks with Eventually {
   behavior of "EngineJobHashingActor"
 
   def templateJobDescriptor(inputs: Map[LocallyQualifiedName, WomValue] = Map.empty) = {

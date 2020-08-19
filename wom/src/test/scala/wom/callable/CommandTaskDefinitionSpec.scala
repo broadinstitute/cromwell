@@ -1,13 +1,14 @@
 package wom.callable
 
-import cats.syntax.validated._
 import cats.data.Validated.{Invalid, Valid}
-import org.scalatest.{FlatSpec, Matchers}
-import wom.graph.{CallNode, GraphInputNode, LocalName, PortBasedGraphOutputNode}
+import cats.syntax.validated._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wom.callable.CommandTaskDefinitionSpec._
+import wom.graph.{CallNode, GraphInputNode, LocalName, PortBasedGraphOutputNode}
 import wom.types.{WomIntegerType, WomStringType}
 
-class CommandTaskDefinitionSpec extends FlatSpec with Matchers {
+class CommandTaskDefinitionSpec extends AnyFlatSpec with Matchers {
 
   // Checks that the graph generated from a task definition adds sufficient inputs and outputs, and is correctly linked.
   behavior of "TaskDefinition.graph"

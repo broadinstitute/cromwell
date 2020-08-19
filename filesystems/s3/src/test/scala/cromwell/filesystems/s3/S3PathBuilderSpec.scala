@@ -30,16 +30,17 @@
  */
 package cromwell.filesystems.s3
 
-import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
 import cromwell.cloudsupport.aws.s3.S3Storage
 import cromwell.core.Tags.AwsTest
 import cromwell.core.path._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.Tables.Table
-import org.scalatest.{FlatSpecLike, Matchers}
+import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
 import software.amazon.awssdk.regions.Region
 
-class S3PathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers with PathBuilderSpecUtils {
+class S3PathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with PathBuilderSpecUtils {
 
   behavior of "S3PathBuilder"
 

@@ -3,12 +3,13 @@ package cromwell.backend.standard.callcaching
 import cromwell.core.CacheConfig
 import cromwell.services.CallCaching.CallCachingEntryId
 import org.scalatest.concurrent.Eventually
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class BlacklistCacheSpec extends FlatSpec with Matchers with Eventually {
+class BlacklistCacheSpec extends AnyFlatSpec with Matchers with Eventually {
   "The blacklist cache" should "default, blacklist, whitelist and expire" in {
     val hit = CallCachingEntryId(3)
     val bucket = "foo"

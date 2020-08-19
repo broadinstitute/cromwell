@@ -9,21 +9,22 @@ import common.collections.EnhancedCollections._
 import cromwell.backend.google.pipelines.common.PipelinesApiInitializationActorSpec._
 import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig.genomicsFactory
 import cromwell.backend.google.pipelines.common.authentication.{GcsLocalizing, PipelinesApiAuthObject}
-import cromwell.backend.google.pipelines.common.{PipelinesApiConfigurationAttributes, PipelinesApiConfiguration, PipelinesApiInitializationActorParams}
+import cromwell.backend.google.pipelines.common.{PipelinesApiConfiguration, PipelinesApiConfigurationAttributes, PipelinesApiInitializationActorParams}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWorkflowDescriptor}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.{RefreshTokenMode, SimpleClientSecrets}
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.util.{EncryptionSpec, SampleWdl}
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 import spray.json._
 import wom.graph.CommandCallNode
 
 import scala.concurrent.duration._
 
-class PipelinesApiInitializationActorSpec extends TestKitSuite("PipelinesApiInitializationActorSpecV1") with FlatSpecLike with Matchers
+class PipelinesApiInitializationActorSpec extends TestKitSuite("PipelinesApiInitializationActorSpecV1") with AnyFlatSpecLike with Matchers
   with ImplicitSender with Mockito {
   val Timeout: FiniteDuration = 10.second.dilated
 

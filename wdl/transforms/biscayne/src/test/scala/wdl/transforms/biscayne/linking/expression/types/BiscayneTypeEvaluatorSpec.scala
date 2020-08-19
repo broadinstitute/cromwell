@@ -1,14 +1,15 @@
 package wdl.transforms.biscayne.linking.expression.types
 
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.ErrorOrAssertions._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.graph.expression.TypeEvaluator.ops._
 import wdl.transforms.biscayne.Ast2WdlomSpec.{fromString, parser}
-import common.assertion.ErrorOrAssertions._
-import wom.types._
 import wdl.transforms.biscayne.ast2wdlom._
+import wom.types._
 
-class BiscayneTypeEvaluatorSpec extends FlatSpec with Matchers {
+class BiscayneTypeEvaluatorSpec extends AnyFlatSpec with Matchers {
   it should "return nothing from static integer addition" in {
     val str = "3 + 3"
     val expr = fromString[ExpressionElement](str, parser.parse_e)

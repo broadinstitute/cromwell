@@ -5,13 +5,15 @@ import cats.data.{NonEmptyList, ValidatedNel}
 import cats.syntax.validated._
 import common.exception.AggregatedMessageException
 import common.validation.Validation._
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.slf4j.Logger
 import org.specs2.mock.Mockito
 
 import scala.util.{Failure, Success}
 
-class ValidationSpec extends FlatSpec with Matchers with Mockito {
+
+class ValidationSpec extends AnyFlatSpec with Matchers with Mockito {
 
   behavior of "Validation"
 

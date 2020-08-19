@@ -1,10 +1,12 @@
 package cromwell.services.instrumentation.impl.statsd
 
 import com.typesafe.config.ConfigFactory
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
 import scala.concurrent.duration._
 
-class StatsDConfigSpec extends FlatSpec with Matchers {
+class StatsDConfigSpec extends AnyFlatSpec with Matchers {
   behavior of "StatsDConfig"
   
   it should "parse correct service configuration" in {

@@ -1,6 +1,7 @@
 package wdl.types
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model.WdlExpression
 import wdl.draft2.model.expression.NoFunctions
 import wom.types._
@@ -8,7 +9,8 @@ import wom.values.{WomArray, WomValue}
 
 import scala.util.{Failure, Success}
 
-class WomArrayTypeSpec extends FlatSpec with Matchers  {
+
+class WomArrayTypeSpec extends AnyFlatSpec with Matchers  {
 
   behavior of "WomArrayType"
 

@@ -16,13 +16,14 @@ import cromwell.core.Tags.{IntegrationTest, PostWomTest}
 import cromwell.core.TestKitSuite
 import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.logging.LoggingTest._
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 import wom.graph.CommandCallNode
 
 import scala.concurrent.duration._
 
-class PipelinesApiInitializationActorSpec extends TestKitSuite("PipelinesApiInitializationActorSpec") with FlatSpecLike with Matchers
+class PipelinesApiInitializationActorSpec extends TestKitSuite("PipelinesApiInitializationActorSpec") with AnyFlatSpecLike with Matchers
   with ImplicitSender with Mockito {
   val Timeout: FiniteDuration = 10.second.dilated
 

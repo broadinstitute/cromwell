@@ -1,13 +1,15 @@
 package cromwell.backend.io
 
-import org.scalatest.{FlatSpec, Matchers}
 import better.files._
 import cromwell.core.path.DefaultPathBuilder
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wom.expression.IoFunctionSet.{IoDirectory, IoFile}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.Duration
-class DirectoryFunctionsSpec extends FlatSpec with Matchers {
+
+class DirectoryFunctionsSpec extends AnyFlatSpec with Matchers {
   behavior of "DirectoryFunctions"
 
   val functions = new DirectoryFunctions {

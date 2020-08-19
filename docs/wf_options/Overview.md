@@ -2,7 +2,7 @@
 
 Workflow options can affect the execution of a single workflow without having to change configuration options or restart Cromwell. 
 
-You provide workflow options to Cromwell in a JSON format. This can be supplied at workflow-submit time either via the [CLI](../CommandLine/) or the [REST endpoint](../api/RESTAPI/):
+You provide workflow options to Cromwell in a JSON format. This can be supplied at workflow-submit time either via the [CLI](../CommandLine.md) or the [REST endpoint](../api/RESTAPI.md):
 
 ```json
 {
@@ -11,7 +11,7 @@ You provide workflow options to Cromwell in a JSON format. This can be supplied 
 }
 ```
 
-Unless otherwise specified you can expect workflow options to override any hard-coded defaults in Cromwell or defaults provided in the [configuration file](../Configuring), but to be overridden by any values provided in the workflow definition file itself (WDL or CWL).
+Unless otherwise specified you can expect workflow options to override any hard-coded defaults in Cromwell or defaults provided in the [configuration file](../Configuring.md), but to be overridden by any values provided in the workflow definition file itself (WDL or CWL).
 
 Some workflow options apply only to tasks running on the [Google Pipelines API backend](Google).
 
@@ -25,7 +25,7 @@ Some options allow you to override or set defaults for runtime attributes.
 
 ### Setting Default Runtime Attributes
 
-You can supply a default for any [Runtime Attributes](../RuntimeAttributes) by adding a `default_runtime_attributes` map to your workflow options file. Use the key to provide the attribute name and the value to supply the default. 
+You can supply a default for any [Runtime Attributes](../RuntimeAttributes.md) by adding a `default_runtime_attributes` map to your workflow options file. Use the key to provide the attribute name and the value to supply the default. 
 
 These defaults replace any defaults in the Cromwell configuration file but are themselves replaced by any values explicitly provided by the task in the WDL or CWL file.
 
@@ -45,8 +45,8 @@ In this example, if a task in a workflow specifies a `docker:` attribute, the ta
 
 |Option|Value|Description|
 |---|---|---|
-|`continueOnReturnCode`|`true` or `false` or integer array|Globally overrides the `continueOnReturnCode` [runtime attribute](../RuntimeAttributes) for all tasks| 
-|`backend`|An [available](../Configuring) backend|Set the **default** backend specified in the Cromwell configuration for this workflow only.|
+|`continueOnReturnCode`|`true` or `false` or integer array|Globally overrides the `continueOnReturnCode` [runtime attribute](../RuntimeAttributes.md) for all tasks| 
+|`backend`|An [available](../Configuring.md) backend|Set the **default** backend specified in the Cromwell configuration for this workflow only.|
 
 Example `options.json`:
 ```json

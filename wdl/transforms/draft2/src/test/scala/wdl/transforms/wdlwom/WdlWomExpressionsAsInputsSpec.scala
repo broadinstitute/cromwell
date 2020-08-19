@@ -1,13 +1,14 @@
 package wdl.transforms.wdlwom
 
 import cats.data.Validated.{Invalid, Valid}
-import org.scalatest.{FlatSpec, Matchers}
-import wdl.transforms.wdlwom.WdlWomExpressionsAsInputsSpec._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
+import wdl.transforms.draft2.wdlom2wom._
+import wdl.transforms.wdlwom.WdlWomExpressionsAsInputsSpec._
 import wom.graph.CommandCallNode
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.expression.ExpressionNode
-import wdl.transforms.draft2.wdlom2wom._
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
 
 import scala.language.postfixOps
@@ -34,7 +35,7 @@ object WdlWomExpressionsAsInputsSpec {
 }
 
 
-class WdlWomExpressionsAsInputsSpec extends FlatSpec with Matchers {
+class WdlWomExpressionsAsInputsSpec extends AnyFlatSpec with Matchers {
   behavior of "WdlWomExpressionsAsInputs"
 
   it should "wire up input expressions for a WDL workflow" in {

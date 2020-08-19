@@ -13,15 +13,16 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashing
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CacheMiss
 import cromwell.util.WomMocks
 import org.scalatest.concurrent.Eventually
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpecLike, Matchers}
 import wom.core.LocallyQualifiedName
 import wom.graph.WomIdentifier
 import wom.values.{WomInteger, WomSingleFile, WomString, WomValue}
 
 import scala.util.control.NoStackTrace
 
-class CallCacheHashingJobActorSpec extends TestKitSuite with FlatSpecLike with BackendSpec with Matchers with Eventually with TableDrivenPropertyChecks {
+class CallCacheHashingJobActorSpec extends TestKitSuite with AnyFlatSpecLike with BackendSpec with Matchers with Eventually with TableDrivenPropertyChecks {
   behavior of "CallCacheReadingJobActor"
 
   def templateJobDescriptor(inputs: Map[LocallyQualifiedName, WomValue] = Map.empty) = {

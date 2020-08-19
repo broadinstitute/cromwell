@@ -3,24 +3,25 @@ package cromwell.services.metadata.hybridcarbonite
 import akka.actor.ActorRef
 import akka.testkit.{TestFSMRef, TestProbe}
 import com.typesafe.config.ConfigFactory
-import common.validation.Validation._
 import common.assertion.ManyTimes._
+import common.validation.Validation._
 import cromwell.core.io.IoPromiseProxyActor.IoCommandWithPromise
 import cromwell.core.io.IoWriteCommand
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataService.GetMetadataAction
-import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActor.{Fetching, FreezeMetadata, Freezing, Pending, UpdatingDatabase}
+import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActor._
 import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActorSpec.TestableCarbonitingMetadataFreezerActor
 import cromwell.services.{FailedMetadataJsonResponse, SuccessfulMetadataJsonResponse}
-import org.scalatest.{FlatSpecLike, Matchers}
-import spray.json._
 import org.scalatest.concurrent.Eventually._
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
+import spray.json._
 
-import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future, Promise}
 
-class CarbonitingMetadataFreezerActorSpec extends TestKitSuite("CarbonitedMetadataThawingActorSpec") with FlatSpecLike with Matchers {
+class CarbonitingMetadataFreezerActorSpec extends TestKitSuite("CarbonitedMetadataThawingActorSpec") with AnyFlatSpecLike with Matchers {
 
   implicit val ec: ExecutionContext = system.dispatcher
 

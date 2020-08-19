@@ -1,9 +1,11 @@
 package wdl.util
 
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
 
-class StringUtilSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+
+class StringUtilSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "StringUtilSpec"
 

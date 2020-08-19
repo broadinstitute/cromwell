@@ -6,11 +6,12 @@ import common.validation.ErrorOr.ErrorOr
 import cromwell.util.JsonEditor._
 import io.circe.parser._
 import io.circe.{DecodingFailure, FailedCursor, Json}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.io.Source
 
-class JsonEditorSpec extends FlatSpec with Matchers {
+class JsonEditorSpec extends AnyFlatSpec with Matchers {
   import JsonEditorSpec._
 
   "JsonEditor" should "remove excludes in workflows" in {

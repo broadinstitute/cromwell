@@ -1,8 +1,10 @@
 package cromwell.cloudsupport.gcp.auth
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class UserServiceAccountModeSpec extends FlatSpec with Matchers {
+
+class UserServiceAccountModeSpec extends AnyFlatSpec with Matchers {
 
   behavior of "UserServiceAccountMode"
 

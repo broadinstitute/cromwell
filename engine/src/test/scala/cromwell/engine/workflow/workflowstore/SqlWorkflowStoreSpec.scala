@@ -8,15 +8,18 @@ import cromwell.core.Tags.DbmsTest
 import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{WorkflowStoreAbortResponse, WorkflowStoreState}
 import cromwell.services.database.{DatabaseSystem, DatabaseTestKit, EngineDatabaseType}
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.enablers.Emptiness._
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-class SqlWorkflowStoreSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
+class SqlWorkflowStoreSpec extends AnyFlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
   implicit val ec = ExecutionContext.global
   implicit val defaultPatience = PatienceConfig(scaled(Span(10, Seconds)), scaled(Span(100, Millis)))
   val sourceFilesCollection = NonEmptyList.of(WorkflowSourceFilesCollection(Option("sample"), None, None, None, None, "input", WorkflowOptions.empty, "string", None, workflowOnHold = true, Seq.empty))

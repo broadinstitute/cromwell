@@ -6,10 +6,11 @@ import cats.data.NonEmptyList
 import cromwell.backend.google.pipelines.common.PipelinesApiFileInput
 import cromwell.core.path.DefaultPathBuilder
 import org.mockito.Mockito._
-import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.mockito.MockitoSugar
 
-class PipelinesApiAsyncBackendJobExecutionActorSpec extends FlatSpec with Matchers with MockitoSugar {
+class PipelinesApiAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers with MockitoSugar {
   behavior of "PipelinesParameterConversions"
 
   it should "group files by bucket" in {

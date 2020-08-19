@@ -1,9 +1,10 @@
 package cromwell.core.path
 
-import org.scalatest.Matchers._
+import org.scalatest.Tag
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop._
-import org.scalatest.{FlatSpecLike, Tag}
 
 case class GoodPath(description: String,
                     path: String,
@@ -24,7 +25,7 @@ case class BadPath(description: String, path: String, exceptionMessage: String)
   * Tests various methods of Path objects.
   */
 trait PathBuilderSpecUtils {
-  this: FlatSpecLike =>
+  this: AnyFlatSpecLike with Matchers =>
 
   def truncateCommonRoots(builder: => PathBuilder,
                           pathsToTruncate: TableFor3[String, String, String],

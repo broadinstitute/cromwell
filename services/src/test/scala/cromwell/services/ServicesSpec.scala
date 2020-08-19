@@ -4,9 +4,11 @@ import akka.actor.ActorSystem
 import akka.testkit._
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Minute, Span}
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.concurrent.duration._
 
@@ -69,7 +71,7 @@ object ServicesSpec {
 }
 
 abstract class ServicesSpec(serviceName: String) extends TestKit(ActorSystem(s"${serviceName}ServiceActorSpec", ServicesSpec.config))
-  with Matchers with WordSpecLike with BeforeAndAfterAll with ScalaFutures {
+  with Matchers with AnyWordSpecLike with BeforeAndAfterAll with ScalaFutures {
 
   implicit val timeout = Timeout(20.seconds.dilated)
   implicit val ec = system.dispatcher

@@ -7,7 +7,10 @@ import akka.stream.scaladsl.Sink
 import better.files.File
 import cromwell.api.model.{Label, WorkflowBatchSubmission, WorkflowId, WorkflowSingleSubmission}
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{AsyncFlatSpec, BeforeAndAfterAll, Matchers}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AsyncFlatSpec
+import org.scalatest.matchers.should.Matchers
+
 
 class CromwellClientSpec extends AsyncFlatSpec with BeforeAndAfterAll with Matchers with TableDrivenPropertyChecks {
   behavior of "CromwellClient"

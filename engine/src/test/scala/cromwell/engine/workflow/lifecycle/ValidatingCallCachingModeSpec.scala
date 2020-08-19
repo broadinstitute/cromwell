@@ -4,12 +4,14 @@ import cats.data.Validated.{Invalid, Valid}
 import cromwell.core.WorkflowOptions
 import cromwell.core.callcaching.CallCachingMode
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor
+import org.scalatest.Assertion
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{Assertion, FlatSpec, Matchers}
 
 import scala.util.{Success, Try}
 
-class ValidatingCallCachingModeSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+class ValidatingCallCachingModeSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
 
   def makeOptions(writeOpt: Option[Boolean], readOpt: Option[Boolean]) = {
     val writeValue = writeOpt map { v => s""""write_to_cache": $v""" }

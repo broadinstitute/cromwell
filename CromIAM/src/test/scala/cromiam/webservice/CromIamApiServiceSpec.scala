@@ -8,9 +8,10 @@ import akka.http.scaladsl.server.MissingHeaderRejection
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import com.typesafe.config.Config
 import cromiam.server.status.StatusService
-import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class CromIamApiServiceSpec extends FlatSpec with Matchers with CromIamApiService with ScalatestRouteTest {
+class CromIamApiServiceSpec extends AnyFlatSpec with Matchers with CromIamApiService with ScalatestRouteTest {
   override def testConfigSource = "akka.loglevel = DEBUG"
 
   val log = NoLogging

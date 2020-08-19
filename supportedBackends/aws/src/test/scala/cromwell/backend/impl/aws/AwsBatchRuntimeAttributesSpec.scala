@@ -38,7 +38,8 @@ import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCo
 import cromwell.core.WorkflowOptions
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineMV
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 import org.slf4j.helpers.NOPLogger
 import org.specs2.mock.Mockito
 import spray.json._
@@ -47,7 +48,7 @@ import wom.format.MemorySize
 import wom.types._
 import wom.values._
 
-class AwsBatchRuntimeAttributesSpec extends WordSpecLike with Matchers with Mockito {
+class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with Matchers with Mockito {
 
   def workflowOptionsWithDefaultRA(defaults: Map[String, JsValue]): WorkflowOptions = {
     WorkflowOptions(JsObject(Map(

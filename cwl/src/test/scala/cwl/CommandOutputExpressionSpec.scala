@@ -6,7 +6,8 @@ import cats.implicits._
 import cwl.CommandLineTool.CommandOutputParameter
 import cwl.ExpressionEvaluator._
 import eu.timepit.refined._
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import shapeless.Coproduct
 import wom.expression.{EmptyIoFunctionSet, FileEvaluation, NoIoFunctionSet}
 import wom.types.WomIntegerType
@@ -14,7 +15,8 @@ import wom.values._
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class CommandOutputExpressionSpec extends FlatSpec with Matchers {
+
+class CommandOutputExpressionSpec extends AnyFlatSpec with Matchers {
 
   behavior of "CommandOutputExpression"
 

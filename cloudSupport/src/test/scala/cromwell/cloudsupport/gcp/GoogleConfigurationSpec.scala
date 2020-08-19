@@ -10,10 +10,11 @@ import com.typesafe.config.{ConfigException, ConfigFactory}
 import cromwell.cloudsupport.gcp.GoogleConfiguration.GoogleConfigurationException
 import cromwell.cloudsupport.gcp.auth.ServiceAccountMode.{JsonFileFormat, PemFileFormat}
 import cromwell.cloudsupport.gcp.auth._
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 
-class GoogleConfigurationSpec extends FlatSpec with Matchers {
+class GoogleConfigurationSpec extends AnyFlatSpec with Matchers {
 
   behavior of "GoogleConfiguration"
 

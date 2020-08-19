@@ -1,18 +1,19 @@
 package wdl.transforms.biscayne.linking.expression.values
 
 import common.assertion.ErrorOrAssertions._
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.ManyTimes.intWithTimes
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.graph.expression.EvaluatedValue
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wdl.transforms.biscayne.Ast2WdlomSpec.{fromString, parser}
 import wdl.transforms.biscayne.ast2wdlom._
 import wom.expression.NoIoFunctionSet
-import wom.values.{WomArray, WomInteger, WomMap, WomOptionalValue, WomPair, WomString}
-import common.assertion.ManyTimes.intWithTimes
 import wom.types.{WomIntegerType, WomMapType, WomOptionalType, WomStringType}
+import wom.values.{WomArray, WomInteger, WomMap, WomOptionalValue, WomPair, WomString}
 
-class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
+class BiscayneValueEvaluatorSpec extends AnyFlatSpec with Matchers {
 
   behavior of "biscayne value evaluator"
 

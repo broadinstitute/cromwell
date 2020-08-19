@@ -99,7 +99,7 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
     // If scatter width is more than max allowed limit, it fails the ScatterNode key
     def buildExecutionDiff(scatterSize: Int, arrays: List[ScatterVariableAndValue]): WorkflowExecutionDiff = {
       if(scatterSize > maxScatterWidth) {
-        workflowExecutionActor ! JobFailedNonRetryableResponse(this, new Exception(s"Workflow has scatter width $scatterSize, which is more than the max scatter width $maxScatterWidth allowed per scatter!"), None)
+        workflowExecutionActor ! JobFailedNonRetryableResponse(this, new Exception(s"Workflow scatter width of $scatterSize exceeds configured limit of $maxScatterWidth."), None)
 
         WorkflowExecutionDiff(Map(this -> ExecutionStatus.Failed))
       }

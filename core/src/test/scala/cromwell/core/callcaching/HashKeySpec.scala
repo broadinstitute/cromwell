@@ -1,8 +1,10 @@
 package cromwell.core.callcaching
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class HashKeySpec extends FlatSpec with Matchers {
+
+class HashKeySpec extends AnyFlatSpec with Matchers {
 
   "HashKey" should "produce consistent key value" in {
     val keys = Set(

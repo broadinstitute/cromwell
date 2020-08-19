@@ -1,16 +1,17 @@
 package wdl.values
 
 import common.collections.EnhancedCollections._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
 import wdl.SampleWdl
+import wdl.draft2.model.types.WdlFlavoredWomType._
+import wdl.draft2.model.values.WdlCallOutputsObject
 import wdl.draft2.model.{WdlExpression, WdlNamespaceWithWorkflow}
 import wom.types.{WomArrayType, WomMapType, WomStringType}
 import wom.values._
-import wdl.draft2.model.types.WdlFlavoredWomType._
-import wdl.draft2.model.values.WdlCallOutputsObject
 
-class WdlValueSpec extends FlatSpec with Matchers {
+class WdlValueSpec extends AnyFlatSpec with Matchers {
 
   import TableDrivenPropertyChecks._
 

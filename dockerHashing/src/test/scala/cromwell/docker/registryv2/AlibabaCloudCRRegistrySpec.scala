@@ -1,14 +1,15 @@
 package cromwell.docker.registryv2.flows.alibabacloudcrregistry
 
 import com.aliyuncs.auth.{BasicCredentials, BasicSessionCredentials}
-import cromwell.docker.DockerInfoActor.{DockerInfoContext, DockerInfoFailedResponse, DockerInfoSuccessResponse, DockerInformation}
-import cromwell.docker.{DockerHashResult, DockerImageIdentifier, DockerInfoRequest, DockerRegistryConfig}
-
-import net.ceedubs.ficus.Ficus._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.TestKitSuite
-import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
-import org.scalatest.mockito.MockitoSugar
+import cromwell.docker.DockerInfoActor.{DockerInfoContext, DockerInfoFailedResponse, DockerInfoSuccessResponse, DockerInformation}
+import cromwell.docker.{DockerHashResult, DockerImageIdentifier, DockerInfoRequest, DockerRegistryConfig}
+import net.ceedubs.ficus.Ficus._
+import org.scalatest.BeforeAndAfter
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.mockito.MockitoSugar
 import spray.json._
 
 object AlibabaCloudCRRegistrySpec {
@@ -35,7 +36,7 @@ object AlibabaCloudCRRegistrySpec {
   val AlibabaCloudCRRegistryConfig = ConfigFactory.parseString(AlibabaCloudCRRegistryConfigString)
 }
 
-class AlibabaCloudCRRegistrySpec extends TestKitSuite with FlatSpecLike with Matchers with MockitoSugar with BeforeAndAfter {
+class AlibabaCloudCRRegistrySpec extends TestKitSuite with AnyFlatSpecLike with Matchers with MockitoSugar with BeforeAndAfter {
   behavior of "AlibabaCloudCRRegistry"
 
   val hashValue = "fcf39ed78ef0fa27bcc74713b85259alop1b12e6a201e3083af50fd8eda1cbe1"

@@ -7,12 +7,13 @@ import cloud.nio.impl.drs.MarthaResponse
 import com.google.cloud.NoCredentials
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.http.impl.client.HttpClientBuilder
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
 
 
-class DrsResolverSpec extends FlatSpec with Matchers {
+class DrsResolverSpec extends AnyFlatSpec with Matchers {
 
   private val marthaV2Config: Config = ConfigFactory.parseMap(
     Map(

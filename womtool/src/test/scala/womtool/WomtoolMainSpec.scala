@@ -1,11 +1,14 @@
 package womtool
 
 import better.files._
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
-import womtool.WomtoolMainSpec._
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import womtool.SampleWdl.{EmptyTask, EmptyWorkflow, ThreeStep}
+import womtool.WomtoolMainSpec._
 
-class WomtoolMainSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
+
+class WomtoolMainSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
 
   import WomtoolMain._
 

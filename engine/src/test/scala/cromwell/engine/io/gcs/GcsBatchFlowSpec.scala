@@ -1,10 +1,11 @@
 package cromwell.engine.io.gcs
 
 import com.google.cloud.storage.StorageException
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 
-class GcsBatchFlowSpec extends FlatSpecLike with Matchers {
+class GcsBatchFlowSpec extends AnyFlatSpecLike with Matchers {
 
   "GcsBatchFlow" should "know what read forbidden bucket failures look like" in {
     val ErrorTemplate = "foo@bar.iam.gserviceaccount.com does not have storage.objects.%s access to %s/three_step/f0000000-baaa-f000-baaa-f00000000000/call-foo/foo.log"

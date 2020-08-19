@@ -3,10 +3,12 @@ package cloud.nio.impl.ftp
 import java.io.IOException
 
 import org.apache.commons.net.ftp.FTPClient
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 
-class FtpCredentialsSpec extends FlatSpec with Matchers with Mockito {
+
+class FtpCredentialsSpec extends AnyFlatSpec with Matchers with Mockito {
 
   behavior of "FtpCredentialsSpec"
 

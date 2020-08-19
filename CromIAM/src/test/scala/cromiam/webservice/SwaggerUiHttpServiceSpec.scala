@@ -7,16 +7,18 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import com.typesafe.config.ConfigFactory
 import cromiam.server.config.SwaggerOauthConfig
 import cromiam.webservice.SwaggerUiHttpServiceSpec._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
 
-trait SwaggerUiHttpServiceSpec extends FlatSpec with Matchers with ScalatestRouteTest with SwaggerUiHttpService {
+
+trait SwaggerUiHttpServiceSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest with SwaggerUiHttpService {
   def actorRefFactory = system
 
   override def swaggerUiVersion = TestSwaggerUiVersion
 }
 
-trait SwaggerResourceHttpServiceSpec extends FlatSpec with Matchers with ScalatestRouteTest with
+trait SwaggerResourceHttpServiceSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest with
 TableDrivenPropertyChecks with SwaggerResourceHttpService {
 
   val testPathsForOptions = Table("endpoint", "/", "/swagger", "/swagger/index.html", "/api", "/api/example",

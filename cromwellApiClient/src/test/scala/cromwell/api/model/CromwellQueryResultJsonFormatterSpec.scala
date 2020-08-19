@@ -2,11 +2,13 @@ package cromwell.api.model
 
 import java.time.OffsetDateTime
 
-import org.scalatest.{FlatSpec, Matchers}
-import spray.json._
 import cromwell.api.model.CromwellQueryResultJsonSupport._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import spray.json._
 
-class CromwellQueryResultJsonFormatterSpec extends FlatSpec with Matchers {
+
+class CromwellQueryResultJsonFormatterSpec extends AnyFlatSpec with Matchers {
 
   behavior of "CromwellQueryResultJsonFormat"
 

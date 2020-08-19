@@ -5,12 +5,13 @@ import java.util
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount}
 import cromwell.backend.google.pipelines.common.action.ActionLabels._
 import cromwell.backend.google.pipelines.v2alpha1.GenomicsFactory
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.JavaConverters._
 
-class ActionBuilderSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+class ActionBuilderSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "ActionBuilder"
 

@@ -2,12 +2,13 @@ package cromwell.backend.validation
 
 import cromwell.backend.validation.RuntimeAttributesDefault._
 import cromwell.core.WorkflowOptions
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json._
 import wom.types._
 import wom.values._
 
-class RuntimeAttributesDefaultSpec extends FlatSpec with Matchers {
+class RuntimeAttributesDefaultSpec extends AnyFlatSpec with Matchers {
 
   behavior of "RuntimeAttributesDefaultSpec"
 

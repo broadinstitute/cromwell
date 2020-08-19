@@ -36,7 +36,7 @@ import java.util.UUID
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration}
 import common.collections.EnhancedCollections._
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse}
+import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend._
 import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.aws.AwsBatchAsyncBackendJobExecutionActor.AwsBatchPendingExecutionHandle
@@ -53,11 +53,13 @@ import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.filesystems.s3.{S3Path, S3PathBuilder}
 import cromwell.services.keyvalue.InMemoryKvServiceActor
-import cromwell.services.keyvalue.KeyValueServiceActor.{KvResponse}
+import cromwell.services.keyvalue.KeyValueServiceActor.KvResponse
 import cromwell.util.JsonFormatting.WomValueJsonFormatter._
 import cromwell.util.SampleWdl
 import org.scalatest._
 import org.scalatest.concurrent.PatienceConfiguration
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.slf4j.Logger
 import org.specs2.mock.Mockito
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
@@ -80,7 +82,7 @@ import scala.language.postfixOps
 import scala.util.Success
 
 class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAsyncBackendJobExecutionActorSpec")
-  with FlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter with DefaultJsonProtocol {
+  with AnyFlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter with DefaultJsonProtocol {
   lazy val mockPathBuilder: S3PathBuilder = S3PathBuilder.fromProvider(
     AnonymousCredentialsProvider.create,
     S3Storage.DefaultConfiguration,

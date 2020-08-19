@@ -8,7 +8,7 @@ import org.mockito.Mockito._
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-import org.scalatest.mockito.MockitoSugar
+import org.scalatestplus.mockito.MockitoSugar
 
 
 object OssStorageObjectAttributesSpec extends MockitoSugar{

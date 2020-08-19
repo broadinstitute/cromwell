@@ -1,9 +1,11 @@
 package cromwell.core.path
 
+import org.scalatest.Suite
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.Tables.Table
-import org.scalatest.{FlatSpecLike, Matchers, Suite}
 
-class MappedPathBuilderSpec extends Suite  with FlatSpecLike with Matchers with PathBuilderSpecUtils {
+class MappedPathBuilderSpec extends Suite with AnyFlatSpecLike with Matchers with PathBuilderSpecUtils {
   behavior of "MappedPathBuilder"
 
   it should behave like truncateCommonRoots(prefixedPathBuilder, pathsToTruncate)

@@ -2,23 +2,23 @@ package wdl.transforms.biscayne
 
 import java.util
 
-import wdl.transforms.base.ast2wdlom._
 import cats.instances.either._
 import common.Checked
-import common.transforms.CheckedAtoB
 import common.assertion.ErrorOrAssertions._
-import org.scalatest.{FlatSpec, Matchers}
+import common.transforms.CheckedAtoB
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.biscayne.parser.WdlParser
 import wdl.biscayne.parser.WdlParser.{ParseTree, SyntaxErrorFormatter}
-import wdl.model.draft3.elements._
 import wdl.model.draft3.elements.ExpressionElement._
-import wdl.transforms.base.ast2wdlom.GenericAstNode
-import wdl.transforms.biscayne.parsing.WdlBiscayneSyntaxErrorFormatter
+import wdl.model.draft3.elements._
+import wdl.transforms.base.ast2wdlom.{GenericAstNode, _}
+import wdl.transforms.biscayne.Ast2WdlomSpec._
 import wdl.transforms.biscayne.ast2wdlom._
+import wdl.transforms.biscayne.parsing.WdlBiscayneSyntaxErrorFormatter
 import wom.callable.MetaValueElement.MetaValueElementInteger
 import wom.types.WomIntegerType
 import wom.values.WomInteger
-import wdl.transforms.biscayne.Ast2WdlomSpec._
 
 import scala.collection.JavaConverters._
 
@@ -39,7 +39,7 @@ object Ast2WdlomSpec {
   }
 }
 
-class Ast2WdlomSpec extends FlatSpec with Matchers {
+class Ast2WdlomSpec extends AnyFlatSpec with Matchers {
 
 
 

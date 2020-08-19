@@ -1,12 +1,13 @@
 package cromwell.engine.workflow.lifecycle
 
 import com.typesafe.config.ConfigFactory
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
+
 import scala.util.{Failure, Success, Try}
 
-
-class ValidatingCachingConfigSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+class ValidatingCachingConfigSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
 
     it should "run config tests" in {
       val cases = Table(

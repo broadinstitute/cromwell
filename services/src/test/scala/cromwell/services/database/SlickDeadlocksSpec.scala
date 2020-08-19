@@ -8,7 +8,8 @@ import cromwell.database.sql.joins.JobStoreJoin
 import cromwell.database.sql.tables.JobStoreEntry
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration._
@@ -20,7 +21,7 @@ import scala.util.{Failure, Success, Try}
   *
   * See cromwell.database.slick.SlickDatabase#actionThreadPool for more information.
   */
-class SlickDeadlocksSpec extends FlatSpec with Matchers with ScalaFutures {
+class SlickDeadlocksSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
   implicit val executionContext = ExecutionContext.global
 

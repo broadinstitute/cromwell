@@ -9,14 +9,15 @@ import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.engine.CromwellTerminator
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.WorkflowStoreWriteHeartbeatCommand
 import org.scalatest.concurrent.Eventually
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NoStackTrace
 
 class WorkflowStoreHeartbeatWriteActorSpec extends TestKitSuite("WorkflowStoreHeartbeatWriteActorSpec")
-  with FlatSpecLike with Matchers with Eventually {
+  with AnyFlatSpecLike with Matchers with Eventually {
 
   behavior of "WorkflowStoreHeartbeatWriteActor"
 

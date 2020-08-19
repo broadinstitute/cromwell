@@ -1,14 +1,15 @@
 package wdl.transforms.biscayne.linking.expression.consumed
 
 import common.assertion.ErrorOrAssertions._
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
 import wdl.model.draft3.graph.{UnlinkedCallOutputOrIdentifierAndMemberAccessHook, UnlinkedIdentifierHook}
 import wdl.transforms.biscayne.Ast2WdlomSpec._
 import wdl.transforms.biscayne.ast2wdlom._
 
-class BiscayneExpressionValueConsumersSpec extends FlatSpec with Matchers {
+class BiscayneExpressionValueConsumersSpec extends AnyFlatSpec with Matchers {
   behavior of "WDL Biscayne's expressionValueConsumer"
 
   it should "return nothing from static integer addition" in {

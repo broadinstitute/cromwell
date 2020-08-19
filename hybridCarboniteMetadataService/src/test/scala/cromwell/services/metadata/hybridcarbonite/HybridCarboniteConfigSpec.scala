@@ -97,7 +97,7 @@ class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec"
     val carboniteConfig = HybridCarboniteConfig.parseConfig(config)
 
     carboniteConfig match {
-      case Left(e) => e.head shouldBe "Failed to parse Carboniter 'bucket' field from config (reason 1 of 1): No configuration setting found for key 'bucket'"
+      case Left(e) => e.head shouldBe "Failed to parse Carboniter 'bucket' field from config (reason 1 of 1): String: 1: No configuration setting found for key 'bucket'"
       case Right(_) => fail(s"Expected to fail but the config was parsed correctly!")
     }
   }
@@ -138,7 +138,7 @@ class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec"
     val carboniteConfig = HybridCarboniteConfig.parseConfig(config)
 
     carboniteConfig match {
-      case Left(e) => e.head shouldBe "Failed to parse Carboniter 'filesystems.gcs' field from config (reason 1 of 1): No configuration setting found for key 'filesystems'"
+      case Left(e) => e.head shouldBe "Failed to parse Carboniter 'filesystems.gcs' field from config (reason 1 of 1): String: 1: No configuration setting found for key 'filesystems'"
       case Right(_) => fail(s"Expected to fail but the config was parsed correctly!")
     }
   }
@@ -158,7 +158,7 @@ class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec"
     val carboniteConfig = HybridCarboniteConfig.parseConfig(config)
 
     carboniteConfig match {
-      case Left(e) => e.head shouldBe "No configuration setting found for key 'auth'"
+      case Left(e) => e.head shouldBe "String: 3: No configuration setting found for key 'auth'"
       case Right(_) => fail(s"Expected to fail but the config was parsed correctly!")
     }
   }

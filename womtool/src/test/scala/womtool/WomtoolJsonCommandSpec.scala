@@ -1,7 +1,8 @@
 package womtool
 
 import better.files.File
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import womtool.WomtoolJsonCommandSpec._
 import womtool.WomtoolMain.SuccessfulTermination
 
@@ -12,7 +13,7 @@ object WomtoolJsonCommandSpec {
 }
 
 // Test for womtool command line commands which output JSON
-abstract class WomtoolJsonCommandSpec extends FlatSpec with Matchers {
+abstract class WomtoolJsonCommandSpec extends AnyFlatSpec with Matchers {
 
   val womtoolCommand: String
   val testDefinitions: Seq[TestDefinition]

@@ -5,11 +5,11 @@ object Dependencies {
   private val akkaHttpV = "10.1.12"
   private val akkaV = "2.5.31"
   private val aliyunBcsV = "6.2.4"
-  private val aliyunCoreV = "4.3.9"
-  private val aliyunCrV = "3.0.1"
-  private val aliyunOssV = "3.11.0"
+  private val aliyunCoreV = "4.5.6"
+  private val aliyunCrV = "4.1.1"
+  private val aliyunOssV = "3.10.2"
   private val ammoniteOpsV = "1.6.9"
-  private val apacheCommonNetV = "3.6"
+  private val apacheCommonNetV = "3.7"
   private val apacheHttpClientV = "4.5.12"
   private val awsSdkV = "2.10.71"
   private val betterFilesV = "3.9.1"
@@ -30,12 +30,12 @@ object Dependencies {
   private val fs2V = "2.0.1"
   private val fs2VStatsDProxy = "1.0.5"
   private val googleApiClientV = "1.30.10"
-  private val googleCloudBigQueryV = "1.116.7"
+  private val googleCloudBigQueryV = "1.116.8"
   private val googleCloudKmsV = "v1-rev20200609-1.30.10"
   private val googleCloudMonitoringV = "1.100.1"
   private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off
   private val googleCloudStorageV = "1.111.2"
-  private val googleGaxGrpcV = "1.57.1"
+  private val googleGaxGrpcV = "1.58.0"
   private val googleGenomicsServicesV1ApiV = "v1alpha2-rev495-1.23.0"
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20200330-1.30.9"
   private val googleHttpClientApacheV = "2.1.2"
@@ -49,7 +49,7 @@ object Dependencies {
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.5.1"
   private val http4sVersion = "0.20.0-M5"
-  private val jacksonV = "2.10.5"
+  private val jacksonV = "2.11.2"
   private val jacksonJqV = "1.0.0-preview.20191208"
   private val janinoV = "3.0.16"
   private val javaxActivationV = "1.2.0"
@@ -102,7 +102,7 @@ object Dependencies {
   private val scoptV = "3.7.1"
   private val sentryLogbackV = "1.7.30"
   private val shapelessV = "2.3.3"
-  private val simulacrumV = "0.19.0"
+  private val simulacrumV = "1.0.0"
   private val slf4jV = "1.7.30"
   private val slickCatsV = "0.9.1"
   private val testContainersScalaV = "0.38.1"
@@ -117,7 +117,7 @@ object Dependencies {
   */
   private val slickV = "3.3.2-2076hotfix"
   private val snakeyamlV = "1.23"
-  private val specs2MockV = "4.10.1"
+  private val specs2MockV = "4.10.2"
   private val sprayJsonV = "1.3.5"
   private val sttpV = "1.5.19"
   private val swaggerParserV = "1.0.51"
@@ -425,7 +425,7 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "io.spray" %% "spray-json" % sprayJsonV,
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
-    "com.github.mpilquist" %% "simulacrum" % simulacrumV,
+    "org.typelevel" %% "simulacrum" % simulacrumV,
     "commons-codec" % "commons-codec" % commonsCodecV,
   ) ++ circeDependencies ++ refinedTypeDependenciesList
 

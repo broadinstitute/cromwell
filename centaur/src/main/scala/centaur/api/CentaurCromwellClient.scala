@@ -45,7 +45,7 @@ object CentaurCromwellClient extends StrictLogging {
 
   def submit(workflow: Workflow): IO[SubmittedWorkflow] = {
     sendReceiveFutureCompletion(() => {
-      val submitted = cromwellClient.submit(workflow.toWorkflowSubmission(refreshToken = CentaurConfig.optionalToken))
+      val submitted = cromwellClient.submit(workflow.toWorkflowSubmission)
       submitted.biSemiflatMap(
         httpResponse =>
           for {

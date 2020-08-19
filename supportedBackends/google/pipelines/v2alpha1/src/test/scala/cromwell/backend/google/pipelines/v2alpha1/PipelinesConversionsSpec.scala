@@ -20,7 +20,7 @@ import scala.collection.JavaConverters._
 class PipelinesConversionsSpec extends FlatSpec with Matchers {
 
   behavior of "PipelinesConversions"
-  implicit val gcsTransferConfiguration =
+  implicit val gcsTransferConfiguration: GcsTransferConfiguration =
     GcsTransferConfiguration(transferAttempts = refineMV(1), parallelCompositeUploadThreshold = "0")
 
   private val marthaConfig: Config = ConfigFactory.parseString(
@@ -54,7 +54,7 @@ class PipelinesConversionsSpec extends FlatSpec with Matchers {
     val logging = actions.head
 
     logging.keySet.asScala should contain theSameElementsAs
-      Set("commands", "flags", "imageUri", "labels", "mounts", "timeout")
+      Set("entrypoint", "commands", "flags", "imageUri", "labels", "mounts", "timeout")
 
     logging.get("commands") should be(a[java.util.List[_]])
     logging.get("commands").asInstanceOf[java.util.List[_]] should contain(

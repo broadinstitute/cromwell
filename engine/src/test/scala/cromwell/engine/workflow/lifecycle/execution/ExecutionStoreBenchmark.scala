@@ -8,6 +8,8 @@ import cromwell.engine.workflow.lifecycle.execution.stores.ActiveExecutionStore
 import cromwell.util.SampleWdl
 import org.scalameter.api._
 import org.scalameter.picklers.Implicits._
+import org.scalameter.reporting.RegressionReporter.Historian.Window
+import org.scalameter.reporting.RegressionReporter.Tester.Accepter
 import spray.json.DefaultJsonProtocol
 import wdl.draft2.model.WdlNamespaceWithWorkflow
 import wom.graph.{CommandCallNode, ScatterNode}
@@ -27,7 +29,7 @@ object ExecutionStoreBenchmark extends Bench[Double] with DefaultJsonProtocol {
   /* Benchmark configuration */
   lazy val measurer = new Measurer.Default
   lazy val executor = LocalExecutor(new Executor.Warmer.Default, Aggregator.average, measurer)
-  lazy val reporter = new LoggingReporter[Double]
+  lazy val reporter = new RegressionReporter[Double](Accepter(), Window(0))
   lazy val persistor = Persistor.None
   
   val inputJson = Option(SampleWdl.PrepareScatterGatherWdl().rawInputs.toJson.compactPrint)

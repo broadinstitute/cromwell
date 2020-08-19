@@ -8,6 +8,7 @@ import cromwell.services.metadata.CallMetadataKeys
 object PipelinesApiJobPaths {
   val JesLogPathKey = "jesLog"
   val JesMonitoringKey = "monitoring"
+  val JesMonitoringImageKey = "monitoringImage"
   val JesExecParamName = "exec"
   val GcsTransferLibraryName = "gcs_transfer.sh"
   val GcsLocalizationScriptName = "gcs_localization.sh"
@@ -34,6 +35,7 @@ case class PipelinesApiJobPaths(override val workflowPaths: PipelinesApiWorkflow
   lazy val jesMonitoringLogPath: Path = callExecutionRoot.resolve(jesMonitoringLogFilename)
 
   val jesMonitoringScriptFilename: String = s"${PipelinesApiJobPaths.JesMonitoringKey}.sh"
+  val jesMonitoringImageScriptFilename: String = s"${PipelinesApiJobPaths.JesMonitoringImageKey}.sh"
 
   override lazy val customMetadataPaths = Map(
     CallMetadataKeys.BackendLogsPrefix + ":log" -> jesLogPath

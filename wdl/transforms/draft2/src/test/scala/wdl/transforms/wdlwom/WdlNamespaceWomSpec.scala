@@ -1,16 +1,17 @@
 package wdl.transforms.wdlwom
 
-import common.collections.EnhancedCollections._
 import cats.data.Validated.{Invalid, Valid}
-import org.scalatest.{FlatSpec, Matchers}
+import common.collections.EnhancedCollections._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow, WdlWomExpression}
+import wdl.transforms.draft2.wdlom2wom._
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph._
 import wom.graph.expression.ExpressionNode
-import wdl.transforms.draft2.wdlom2wom._
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
 
-class WdlNamespaceWomSpec extends FlatSpec with Matchers {
+class WdlNamespaceWomSpec extends AnyFlatSpec with Matchers {
 
   "A WdlNamespace for 3step" should "provide conversion to WOM" in {
     val threeStep =

@@ -6,10 +6,11 @@ import cromwell.core.path.DefaultPathBuilder
 import cromwell.core.{JobKey, WorkflowId}
 import cromwell.util.WomMocks
 import org.mockito.Mockito._
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wom.graph.WomIdentifier
 
-class WorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
+class WorkflowPathsSpec extends AnyFlatSpec with Matchers with BackendSpec {
 
   def createConfig(values: Map[String, String]): Config = {
     val config = mock[Config]

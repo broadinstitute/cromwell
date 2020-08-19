@@ -14,15 +14,16 @@ import cromwell.services.metadata.MetadataService.{MetadataWriteAction, Metadata
 import cromwell.services.metadata.impl.WriteMetadataActorSpec.BatchSizeCountingWriteMetadataActor
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import org.scalatest.concurrent.Eventually
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.scalatest.{FlatSpecLike, Matchers}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success}
 
-class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Eventually {
+class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually {
 
   behavior of "WriteMetadataActor"
 

@@ -1,15 +1,18 @@
 package womtool
 
 import java.nio.file.{Files, Path}
-import scala.collection.JavaConverters._
+
 import better.files.File
 import cromwell.core.path.DefaultPathBuilder
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import womtool.WomtoolMain.{SuccessfulTermination, UnsuccessfulTermination}
 
+import scala.collection.JavaConverters._
 import scala.collection.immutable
 
-class WomtoolValidateSpec extends FlatSpec with Matchers {
+
+class WomtoolValidateSpec extends AnyFlatSpec with Matchers {
 
   private val presentWorkingDirectoryName = DefaultPathBuilder.get(".").toAbsolutePath.name
   val validationTestCases = File("womtool/src/test/resources/validate")

@@ -1,13 +1,14 @@
 package wdl.expression
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model._
-
-import scala.util.{Success, Try}
 import wdl.draft2.model.expression.WdlStandardLibraryFunctionsType
 import wom.types._
 
-class DNAxTypeEvalTest extends FlatSpec with Matchers {
+import scala.util.{Success, Try}
+
+class DNAxTypeEvalTest extends AnyFlatSpec with Matchers {
 
   val wdlCode =
     """|task Add {

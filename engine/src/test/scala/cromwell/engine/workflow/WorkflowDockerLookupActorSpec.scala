@@ -16,7 +16,9 @@ import cromwell.engine.workflow.WorkflowDockerLookupActorSpec._
 import cromwell.engine.workflow.workflowstore.{StartableState, Submitted}
 import cromwell.services.EngineServicesStore
 import cromwell.services.ServicesStore._
-import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
+import org.scalatest.BeforeAndAfter
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 
 import scala.concurrent.duration._
@@ -27,7 +29,7 @@ import scala.util.control.NoStackTrace
 
 class WorkflowDockerLookupActorSpec
   extends TestKitSuite("WorkflowDockerLookupActorSpecSystem")
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with Matchers
     with ImplicitSender
     with BeforeAndAfter

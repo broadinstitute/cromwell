@@ -5,10 +5,13 @@ import org.mockserver.integration.ClientAndServer.startClientAndServer
 import org.mockserver.model.HttpRequest.request
 import org.mockserver.model.HttpResponse.response
 import org.mockserver.socket.PortFactory
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model._
 
-class WdlWorkflowHttpImportSpec extends FlatSpec with BeforeAndAfterAll with Matchers  {
+
+class WdlWorkflowHttpImportSpec extends AnyFlatSpec with BeforeAndAfterAll with Matchers  {
   val tinyImport =
     s"""
        |task hello {

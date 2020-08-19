@@ -2,8 +2,10 @@ package cwl
 
 import better.files.{File => BFile}
 import cwl.CwlDecoder.decodeCwlFile
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import shapeless.Coproduct
 import wom.expression.NoIoFunctionSet
 import wom.graph.Graph.ResolvedExecutableInput
@@ -11,7 +13,8 @@ import wom.graph.GraphNodePort
 import wom.types.{WomArrayType, WomStringType}
 import wom.values._
 
-class CwlInputValidationSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks with BeforeAndAfterAll {
+
+class CwlInputValidationSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks with BeforeAndAfterAll {
   behavior of "CWL Wom executable"
 
   var cwlFile: BFile = _

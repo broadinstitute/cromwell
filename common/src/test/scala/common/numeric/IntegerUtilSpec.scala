@@ -1,9 +1,11 @@
 package common.numeric
 
-import org.scalatest.{Matchers, FlatSpec}
 import common.numeric.IntegerUtil.IntEnhanced
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class IntegerUtilSpec extends FlatSpec with Matchers {
+
+class IntegerUtilSpec extends AnyFlatSpec with Matchers {
   it should "return ordinal String for any Int" in {
     val numbers = List(0, 1, 2, 3, 4,
         10, 11, 12, 13, 14,

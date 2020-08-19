@@ -1,24 +1,26 @@
 package wdl.draft3.transforms.expression
 
 import common.assertion.ErrorOrAssertions._
-import org.scalatest.{FlatSpec, Matchers}
-import wdl.draft3.transforms.linking.expression.values.expressionEvaluator
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.draft3.transforms.linking.expression.types.expressionTypeEvaluator
+import wdl.draft3.transforms.linking.expression.values.expressionEvaluator
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.EvaluatedValue
-import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wdl.model.draft3.graph.expression.TypeEvaluator.ops._
+import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wom.expression.NoIoFunctionSet
 import wom.types.{WomBooleanType, WomIntegerType, WomType}
 import wom.values.{WomBoolean, WomInteger, WomValue}
+
 
 /**
   * Checks that the draft3 value evaluators for ExpressionElements are wired to forward values through to the appropriate
   * underlying methods on WomValue.
   * ** Not intended as a thorough test of the underlying methods themselves. **
   */
-class UnaryAndBinaryOperatorsEvaluatorSpec extends FlatSpec with Matchers{
+class UnaryAndBinaryOperatorsEvaluatorSpec extends AnyFlatSpec with Matchers {
 
   val fiveLiteral = PrimitiveLiteralExpressionElement(WomInteger(5))
   val twentyfiveLiteral = PrimitiveLiteralExpressionElement(WomInteger(25))

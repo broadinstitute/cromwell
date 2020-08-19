@@ -12,7 +12,9 @@ import cromiam.webservice._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
 import cromwell.api.model._
 import org.broadinstitute.dsde.workbench.model.WorkbenchUserId
-import org.scalatest.{AsyncFlatSpec, BeforeAndAfterAll, Matchers}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AsyncFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 
 import scala.concurrent.ExecutionContextExecutor

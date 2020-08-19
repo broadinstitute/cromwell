@@ -34,11 +34,12 @@ package cromwell.cloudsupport.aws
 import cats.implicits._
 import com.typesafe.config.{ConfigException, ConfigFactory}
 import cromwell.cloudsupport.aws.AwsConfiguration.AwsConfigurationException
-import cromwell.cloudsupport.aws.auth.{AssumeRoleMode,CustomKeyMode,DefaultMode}
-import org.scalatest.{FlatSpec, Matchers}
+import cromwell.cloudsupport.aws.auth.{AssumeRoleMode, CustomKeyMode, DefaultMode}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 
-class AwsConfigurationSpec extends FlatSpec with Matchers {
+class AwsConfigurationSpec extends AnyFlatSpec with Matchers {
 
   behavior of "AwsConfiguration"
 

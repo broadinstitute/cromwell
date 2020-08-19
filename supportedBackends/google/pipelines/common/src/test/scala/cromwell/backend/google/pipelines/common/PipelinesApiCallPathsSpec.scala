@@ -7,11 +7,12 @@ import cromwell.backend.io.JobPathsSpecHelper._
 import cromwell.cloudsupport.gcp.auth.GoogleAuthModeSpec
 import cromwell.core.TestKitSuite
 import cromwell.util.SampleWdl
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsString}
 
-class PipelinesApiCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers with Mockito {
+class PipelinesApiCallPathsSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Mockito {
 
   import BackendSpec._
   import PipelinesApiTestConfig._

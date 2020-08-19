@@ -8,7 +8,8 @@ import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.OutputEvaluator.{InvalidJobOutputs, JobOutputsEvaluationException, ValidJobOutputs}
 import cromwell.core.CallOutputs
 import cromwell.util.WomMocks
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 import wom.callable.Callable.{InputDefinition, OutputDefinition, RequiredInputDefinition}
 import wom.expression.{FileEvaluation, IoFunctionSet, NoIoFunctionSet, WomExpression}
@@ -19,7 +20,7 @@ import wom.values.{WomInteger, WomValue}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor}
 
-class OutputEvaluatorSpec extends FlatSpec with Matchers with Mockito {
+class OutputEvaluatorSpec extends AnyFlatSpec with Matchers with Mockito {
   behavior of "OutputEvaluator"
 
   val FutureTimeout = 20.seconds

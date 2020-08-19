@@ -1,16 +1,18 @@
 package wdl.draft3.transforms.wdlom2wom
 
-import cats.instances.either._
 import better.files.File
+import cats.instances.either._
 import common.collections.EnhancedCollections._
 import common.transforms.CheckedAtoB
-import org.scalatest.{Assertion, FlatSpec, Matchers, Succeeded}
-import wdl.draft3.transforms.parsing._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.{Assertion, Succeeded}
 import wdl.draft3.transforms.ast2wdlom._
-import wdl.transforms.base.wdlom2wom.expression.WdlomWomExpression
+import wdl.draft3.transforms.parsing._
 import wdl.model.draft3.elements.CommandPartElement.StringCommandPartElement
 import wdl.model.draft3.elements.ExpressionElement.StringLiteral
 import wdl.transforms.base.wdlom2wom._
+import wdl.transforms.base.wdlom2wom.expression.WdlomWomExpression
 import wom.callable.Callable.{FixedInputDefinitionWithDefault, OptionalInputDefinition}
 import wom.callable.MetaValueElement._
 import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
@@ -19,7 +21,7 @@ import wom.graph.expression.{ExposedExpressionNode, TaskCallInputExpressionNode}
 import wom.graph.{ScatterNode, WorkflowCallNode}
 import wom.types._
 
-class WdlFileToWomSpec extends FlatSpec with Matchers {
+class WdlFileToWomSpec extends AnyFlatSpec with Matchers {
   behavior of "WDL File to WOM"
 
   val testCases = File("wdl/transforms/draft3/src/test/cases")

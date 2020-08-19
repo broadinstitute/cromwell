@@ -4,12 +4,14 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.TestConfig
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 import wom.RuntimeAttributesKeys
 import wom.types._
 import wom.values._
 
-class RuntimeAttributesValidationSpec extends WordSpecLike with Matchers with BeforeAndAfterAll {
+class RuntimeAttributesValidationSpec extends AnyWordSpecLike with Matchers with BeforeAndAfterAll {
 
   val mockBackendRuntimeConfig = TestConfig.allRuntimeAttrsConfig
 

@@ -8,7 +8,8 @@ import cromwell.webservice.routes.CromwellApiServiceSpec
 
 import scala.concurrent.duration._
 import cromwell.webservice.routes.CromwellApiServiceSpec.{MockServiceRegistryActor, MockWorkflowManagerActor, MockWorkflowStoreActor}
-import org.scalatest.{AsyncFlatSpec, Matchers}
+import org.scalatest.flatspec.AsyncFlatSpec
+import org.scalatest.matchers.should.Matchers
 import WesResponseJsonSupport._
 import akka.http.scaladsl.server.MethodRejection
 

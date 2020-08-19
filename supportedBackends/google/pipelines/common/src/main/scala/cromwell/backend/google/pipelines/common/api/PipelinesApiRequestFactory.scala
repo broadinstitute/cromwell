@@ -6,6 +6,7 @@ import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttribu
 import cromwell.backend.google.pipelines.common._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.io.PipelinesApiAttachedDisk
+import cromwell.backend.google.pipelines.common.monitoring.MonitoringImage
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.Path
@@ -23,6 +24,8 @@ trait PipelinesApiRequestFactory {
 }
 
 object PipelinesApiRequestFactory {
+
+  type MountsToEnv = List[String] => Map[String, String]
 
   /**
     * Input parameters that are not strictly needed by the user's command but are Cromwell byproducts.
@@ -62,7 +65,7 @@ object PipelinesApiRequestFactory {
   }
 
   case class CreatePipelineDockerKeyAndToken(key: String, encryptedToken: String)
-  
+
   case class CreatePipelineParameters(jobDescriptor: BackendJobDescriptor,
                                       runtimeAttributes: PipelinesApiRuntimeAttributes,
                                       dockerImage: String,
@@ -84,7 +87,10 @@ object PipelinesApiRequestFactory {
                                       retryWithMoreMemoryKeys: Option[List[String]],
                                       fuseEnabled: Boolean,
                                       allowNoAddress: Boolean,
-                                      referenceDisksForLocalization: List[PipelinesApiAttachedDisk]) {
+                                      referenceDisksForLocalization: List[PipelinesApiAttachedDisk],
+                                      monitoringImage: MonitoringImage,
+                                      enableSshAccess: Boolean,
+                                     ) {
     def literalInputs = inputOutputParameters.literalInputParameters
     def inputParameters = inputOutputParameters.fileInputParameters
     def outputParameters = inputOutputParameters.fileOutputParameters

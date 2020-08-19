@@ -5,16 +5,16 @@ object Dependencies {
   private val akkaHttpV = "10.1.12"
   private val akkaV = "2.5.31"
   private val aliyunBcsV = "6.2.4"
-  private val aliyunCoreV = "4.3.9"
-  private val aliyunCrV = "3.0.1"
-  private val aliyunOssV = "3.4.2"
+  private val aliyunCoreV = "4.5.6"
+  private val aliyunCrV = "4.1.1"
+  private val aliyunOssV = "3.10.2"
   private val ammoniteOpsV = "1.6.9"
-  private val apacheCommonNetV = "3.6"
+  private val apacheCommonNetV = "3.7"
   private val apacheHttpClientV = "4.5.12"
-  private val awsSdkV = "2.10.71"
+  private val awsSdkV = "2.10.91"
   private val betterFilesV = "3.9.1"
-  private val catsEffectV = "2.0.0"
-  private val catsV = "2.0.0"
+  private val catsEffectV = "2.1.4"
+  private val catsV = "2.1.1"
   private val circeGenericExtrasV = "0.12.2"
   private val circeOpticsV = "0.13.0"
   private val circeV = "0.12.3"
@@ -27,15 +27,16 @@ object Dependencies {
   private val configsV = "0.4.4"
   private val delightRhinoSandboxV = "0.0.11"
   private val ficusV = "1.4.7"
-  private val fs2V = "2.4.3"
+  private val flexmarkV = "0.36.8"
+  private val fs2V = "2.0.1"
   private val fs2VStatsDProxy = "1.0.5"
   private val googleApiClientV = "1.30.10"
-  private val googleCloudBigQueryV = "1.116.7"
+  private val googleCloudBigQueryV = "1.116.8"
   private val googleCloudKmsV = "v1-rev20200609-1.30.10"
   private val googleCloudMonitoringV = "1.100.1"
   private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off
   private val googleCloudStorageV = "1.111.2"
-  private val googleGaxGrpcV = "1.57.1"
+  private val googleGaxGrpcV = "1.58.0"
   private val googleGenomicsServicesV1ApiV = "v1alpha2-rev495-1.23.0"
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20200330-1.30.9"
   private val googleHttpClientApacheV = "2.1.2"
@@ -48,8 +49,8 @@ object Dependencies {
   private val guavaV = "27.1-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.5.1"
-  private val http4sVersion = "0.20.0-M5"
-  private val jacksonV = "2.10.5"
+  private val http4sVersion = "0.20.23"
+  private val jacksonV = "2.11.2"
   private val jacksonJqV = "1.0.0-preview.20191208"
   private val janinoV = "3.0.16"
   private val javaxActivationV = "1.2.0"
@@ -63,7 +64,7 @@ object Dependencies {
   // such as googleCloudNioV have already been pinned for Scala Steward so this might not be a trivial undertaking.
   private val jaxbV = "2.3.2" // scala-steward:off
   private val kindProjectorV = "0.9.9"
-  private val kittensV = "2.0.0"
+  private val kittensV = "2.1.0"
   private val liquibaseSlf4jV = "3.0.0"
   // Scala Steward wanted to upgrade liquibase-core to 3.10.2 but that version does not find some uniqueness
   // constraints and models datatypes in ways that are incompatible with our test expectations.
@@ -78,7 +79,7 @@ object Dependencies {
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "2.7.1"
   private val mockserverNettyV = "5.5.4"
-  private val mouseV = "0.23"
+  private val mouseV = "0.25"
   private val mysqlV = "8.0.21"
   private val nettyV = "4.1.46.Final"
   private val owlApiV = "5.1.16"
@@ -93,16 +94,17 @@ object Dependencies {
   private val scalaGraphV = "1.13.1"
   private val scalaLoggingV = "3.9.2"
   private val scalaPoolV = "0.4.3"
-  private val scalacheckV = "1.14.0"
-  private val scalacticV = "3.0.8"
+  private val scalacheckV = "1.14.3"
+  private val scalacticV = "3.2.1"
   private val scalameterV = "0.19"
   private val scalamockV = "4.4.0"
-  private val scalatestV = "3.0.5"
+  private val scalatestV = "3.2.1"
+  private val scalatestPlusMockitoV = "1.0.0-M2"
   private val scalazV = "7.2.30"
   private val scoptV = "3.7.1"
   private val sentryLogbackV = "1.7.30"
   private val shapelessV = "2.3.3"
-  private val simulacrumV = "0.19.0"
+  private val simulacrumV = "1.0.0"
   private val slf4jV = "1.7.30"
   private val slickCatsV = "0.9.1"
   private val testContainersScalaV = "0.38.1"
@@ -116,8 +118,8 @@ object Dependencies {
     * Related Slick PR: https://github.com/slick/slick/pull/2101
   */
   private val slickV = "3.3.2-2076hotfix"
-  private val snakeyamlV = "1.23"
-  private val specs2MockV = "4.10.1"
+  private val snakeyamlV = "1.26"
+  private val specs2MockV = "4.10.2"
   private val sprayJsonV = "1.3.5"
   private val sttpV = "1.5.19"
   private val swaggerParserV = "1.0.51"
@@ -425,7 +427,7 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "io.spray" %% "spray-json" % sprayJsonV,
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
-    "com.github.mpilquist" %% "simulacrum" % simulacrumV,
+    "org.typelevel" %% "simulacrum" % simulacrumV,
     "commons-codec" % "commons-codec" % commonsCodecV,
   ) ++ circeDependencies ++ refinedTypeDependenciesList
 
@@ -559,6 +561,8 @@ object Dependencies {
 
   val testDependencies = List(
     "org.scalatest" %% "scalatest" % scalatestV,
+    "org.scalatestplus" %% "scalatestplus-mockito" % scalatestPlusMockitoV,
+    "com.vladsch.flexmark" % "flexmark-profile-pegdown" % flexmarkV,
     "org.pegdown" % "pegdown" % pegdownV,
     "org.specs2" %% "specs2-mock" % specs2MockV,
     "com.dimafeng" %% "testcontainers-scala-scalatest" % testContainersScalaV,

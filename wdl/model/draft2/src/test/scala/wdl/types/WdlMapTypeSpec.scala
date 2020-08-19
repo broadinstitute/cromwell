@@ -1,13 +1,14 @@
 package wdl.types
 
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import wdl.draft2.model.types.WdlFlavoredWomType._
 import wdl.draft2.parser.WdlParser.SyntaxError
 import wom.types.{WomIntegerType, WomMapType, WomStringType}
 import wom.values.{WomInteger, WomMap, WomString}
-import wdl.draft2.model.types.WdlFlavoredWomType._
 
-class WdlMapTypeSpec extends FlatSpec with Matchers  {
+class WdlMapTypeSpec extends AnyFlatSpec with Matchers  {
   val stringIntMap = WomMap(WomMapType(WomStringType, WomIntegerType), Map(
     WomString("a") -> WomInteger(1),
     WomString("b") -> WomInteger(2),

@@ -1,7 +1,8 @@
 package languages.wdl.draft2
 
 import languages.wdl.draft2.MapWorkflowSpec._
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model.expression.{NoFunctions, WdlFunctions}
 import wdl.draft2.model.{Draft2ImportResolver, WdlNamespaceWithWorkflow}
 import wom.types.{WomMapType, WomSingleFileType, WomStringType}
@@ -9,7 +10,8 @@ import wom.values.{WomMap, WomSingleFile, WomString, WomValue}
 
 import scala.util.{Success, Try}
 
-class MapWorkflowSpec extends FlatSpec with Matchers {
+
+class MapWorkflowSpec extends AnyFlatSpec with Matchers {
   val namespace = WdlNamespaceWithWorkflow.load(WorkflowSource, Seq.empty[Draft2ImportResolver]).get
   val expectedMap = WomMap(WomMapType(WomSingleFileType, WomStringType), Map(
     WomSingleFile("f1") -> WomString("alice"),

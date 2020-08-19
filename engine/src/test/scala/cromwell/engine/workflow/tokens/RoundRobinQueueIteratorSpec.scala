@@ -4,9 +4,10 @@ import akka.testkit.TestProbe
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.TestKitSuite
 import cromwell.engine.workflow.tokens.TokenQueue.TokenQueuePlaceholder
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
-class RoundRobinQueueIteratorSpec extends TestKitSuite with FlatSpecLike with Matchers {
+class RoundRobinQueueIteratorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
   behavior of "RoundRobinQueueIterator"
   
   val InfiniteTokenType = JobExecutionTokenType("infinite", None, 1)

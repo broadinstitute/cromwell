@@ -1,13 +1,13 @@
 package cromwell.backend.google.pipelines.v2alpha1.api.request
 
-import cats.data.{NonEmptyList, Reader}
 import cats.data.Validated.{Invalid, Valid}
+import cats.data.{NonEmptyList, Reader}
 import com.google.api.services.genomics.v2alpha1.model._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
-import cromwell.backend.google.pipelines.common.api.RunStatus.{Cancelled, Failed, Preempted, UnsuccessfulRunStatus}
+import cromwell.backend.google.pipelines.common.action.ActionLabels._
 import cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor
-import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder.Labels.Key
+import cromwell.backend.google.pipelines.common.api.RunStatus.{Cancelled, Failed, Preempted, UnsuccessfulRunStatus}
 import cromwell.backend.google.pipelines.v2alpha1.api.Deserialization._
 import cromwell.backend.google.pipelines.v2alpha1.api.request.RequestHandler.logger
 import cromwell.core.{ExecutionEvent, WorkflowId}
@@ -22,7 +22,7 @@ object ErrorReporter {
 
   // This can be used to log non-critical deserialization failures and not fail the task
   implicit class ErrorOrLogger[A](val t: ErrorOr[A]) extends AnyVal {
-    private def logErrors(errors: NonEmptyList[String], workflowId: WorkflowId, operation: Operation) = {
+    private def logErrors(errors: NonEmptyList[String], workflowId: WorkflowId, operation: Operation): Unit = {
       logger.error(s"[$workflowId] Failed to parse PAPI response. Operation Id: ${operation.getName}" + s"${errors.toList.mkString(", ")}")
     }
 

@@ -2,12 +2,13 @@ package cromwell.jobstore
 
 import cromwell.jobstore.JobResultJsonFormatter._
 import cromwell.util.WomMocks
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json._
 import wom.types.{WomIntegerType, WomMapType, WomStringType}
 import wom.values.{WomInteger, WomMap, WomString}
 
-class JobResultSpec extends FlatSpec with Matchers {
+class JobResultSpec extends AnyFlatSpec with Matchers {
 
   behavior of "JobResult Json Serialization"
 

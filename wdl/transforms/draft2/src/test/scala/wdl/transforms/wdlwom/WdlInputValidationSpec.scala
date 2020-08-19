@@ -4,22 +4,24 @@ import cats.data.NonEmptyList
 import cats.syntax.either._
 import common.Checked
 import common.validation.Checked._
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor3}
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import shapeless.Coproduct
 import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
+import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomExecutableMakers._
+import wdl.transforms.draft2.wdlom2wom._
 import wom.executable.Executable.ResolvedExecutableInputs
+import wom.expression.NoIoFunctionSet
 import wom.graph.Graph.ResolvedExecutableInput
 import wom.graph.GraphNodePort.OutputPort
 import wom.transforms.WomExecutableMaker.ops._
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
-import wdl.transforms.draft2.wdlom2wom._
-import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomExecutableMakers._
-import wom.expression.NoIoFunctionSet
 import wom.types._
 import wom.values._
 
-class WdlInputValidationSpec extends FlatSpec with Matchers with BeforeAndAfterAll with TableDrivenPropertyChecks {
+class WdlInputValidationSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll with TableDrivenPropertyChecks {
 
   behavior of "WDL Wom executable"
 

@@ -1,9 +1,11 @@
 package wom.format
 
-import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.parser.MemoryUnit
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class MemorySizeSpec extends FlatSpec with Matchers {
+
+class MemorySizeSpec extends AnyFlatSpec with Matchers {
   behavior of "MemorySize"
   
   it should "provide the rounded up multiple of a number" in {

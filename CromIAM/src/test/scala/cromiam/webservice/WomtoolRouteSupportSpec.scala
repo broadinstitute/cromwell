@@ -3,10 +3,11 @@ package cromiam.webservice
 import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.testkit.ScalatestRouteTest
-import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 
-class WomtoolRouteSupportSpec extends FlatSpec with Matchers with WomtoolRouteSupport with ScalatestRouteTest {
+class WomtoolRouteSupportSpec extends AnyFlatSpec with Matchers with WomtoolRouteSupport with ScalatestRouteTest {
 
   override lazy val cromwellClient = new MockCromwellClient()
 

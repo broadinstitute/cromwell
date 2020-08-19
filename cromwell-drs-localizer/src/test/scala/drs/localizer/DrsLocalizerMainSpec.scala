@@ -53,15 +53,16 @@ class DrsLocalizerMainSpec extends FlatSpec with Matchers {
         |# Run gsutil copy without using project flag
         |gsutil  cp ${MockDrsPaths.fakeDrsUrl} $fakeDownloadLocation > gsutil_output.txt 2>&1
         |RC_GSUTIL=$$?
-        |if [ "$$RC_GSUTIL" != "0" ]; then
-        |    echo "Failed to download the file. Error: $$(cat gsutil_output.txt)" >&2
-        |  exit "$$RC_GSUTIL"
         |
+        |
+        |
+        |if [ "$$RC_GSUTIL" != "0" ]; then
+        |  echo "Failed to download the file. Error: $$(cat gsutil_output.txt)" >&2
+        |  exit "$$RC_GSUTIL"
         |else
         |  echo "Download complete!"
         |  exit 0
-        |fi
-        |""".stripMargin
+        |fi""".stripMargin
 
     mockDrsLocalizer.downloadScript(MockDrsPaths.fakeDrsUrl, fakeDownloadLocation, None, None) shouldBe expectedDownloadScript
   }
@@ -90,21 +91,23 @@ class DrsLocalizerMainSpec extends FlatSpec with Matchers {
         |# Run gsutil copy without using project flag
         |gsutil  cp ${MockDrsPaths.fakeDrsUrl} $fakeDownloadLocation > gsutil_output.txt 2>&1
         |RC_GSUTIL=$$?
+        |
         |if [ "$$RC_GSUTIL" != "0" ]; then
         |  # Check if error is requester pays. If yes, retry gsutil copy using project flag
-        |if grep -q 'Bucket is requester pays bucket but no user project provided.' gsutil_output.txt; then
-        |  echo "Received 'Bucket is requester pays' error. Attempting again using Requester Pays billing project"
-        |  gsutil -u fake-billing-project cp ${MockDrsPaths.fakeDrsUrl} $fakeDownloadLocation
-        |else
-        |  echo "Failed to download the file. Error: $$(cat gsutil_output.txt)" >&2
-        |  exit "$$RC_GSUTIL"
+        |  if grep -q 'Bucket is requester pays bucket but no user project provided.' gsutil_output.txt; then
+        |    echo "Received 'Bucket is requester pays' error. Attempting again using Requester Pays billing project"
+        |    gsutil -u fake-billing-project cp ${MockDrsPaths.fakeDrsUrl} $fakeDownloadLocation >> gsutil_output.txt 2>&1
+        |    RC_GSUTIL=$$?
+        |  fi
         |fi
         |
+        |if [ "$$RC_GSUTIL" != "0" ]; then
+        |  echo "Failed to download the file. Error: $$(cat gsutil_output.txt)" >&2
+        |  exit "$$RC_GSUTIL"
         |else
         |  echo "Download complete!"
         |  exit 0
-        |fi
-        |""".stripMargin
+        |fi""".stripMargin
 
     mockDrsLocalizer.downloadScript(MockDrsPaths.fakeDrsUrl, fakeDownloadLocation, Option(fakeSAJsonPath), Option(fakeRequesterPaysId)) shouldBe expectedDownloadScript
   }

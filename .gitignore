@@ -42,7 +42,7 @@ dockerhub_provider_config_v1.inc.conf
 dockerhub_provider_config_v2.inc.conf
 github_private_deploy_key
 papi_application.inc.conf
-papi_refresh_token.txt
+papi_refresh_token.options.json
 papi_v2_gcsa.options.json
 private_docker_papi_v2_usa.options
 tesk_application_ftp.conf

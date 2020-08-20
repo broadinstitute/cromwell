@@ -3,7 +3,6 @@ package cromiam.sam
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.headers.{Authorization, OAuth2BearerToken}
 import akka.http.scaladsl.model.{HttpEntity, HttpRequest, HttpResponse, StatusCodes}
-import akka.stream.ActorMaterializer
 import cats.Monad
 import cromiam.auth.{Collection, User}
 import cromiam.sam.SamClient.{CollectionAuthorizationRequest, SamDenialException, SamRegisterCollectionException}
@@ -12,7 +11,9 @@ import cromiam.webservice._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
 import cromwell.api.model._
 import org.broadinstitute.dsde.workbench.model.WorkbenchUserId
-import org.scalatest.{AsyncFlatSpec, BeforeAndAfterAll, Matchers}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AsyncFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 
 import scala.concurrent.ExecutionContextExecutor
@@ -21,7 +22,6 @@ class SamClientSpec extends AsyncFlatSpec with Matchers with BeforeAndAfterAll w
 
   implicit val actorSystem: ActorSystem = ActorSystem("SamClientSpec")
   implicit val ece: ExecutionContextExecutor = actorSystem.dispatcher
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   private val expectedErrorResponse =
     HttpResponse(StatusCodes.InternalServerError, entity = HttpEntity("expected error"))

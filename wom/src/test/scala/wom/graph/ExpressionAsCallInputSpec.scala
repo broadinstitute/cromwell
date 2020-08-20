@@ -1,14 +1,15 @@
 package wom.graph
 
 import cats.data.Validated.{Invalid, Valid}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wom.callable.CommandTaskDefinitionSpec
 import wom.expression._
 import wom.graph.CallNode.{CallNodeAndNewNodes, CallNodeBuilder, InputDefinitionFold}
 import wom.graph.expression.{AnonymousExpressionNode, TaskCallInputExpressionNode}
 import wom.types.WomIntegerType
 
-class ExpressionAsCallInputSpec extends FlatSpec with Matchers {
+class ExpressionAsCallInputSpec extends AnyFlatSpec with Matchers {
 
   behavior of "ExpressionBasedGraphOutputNode"
 

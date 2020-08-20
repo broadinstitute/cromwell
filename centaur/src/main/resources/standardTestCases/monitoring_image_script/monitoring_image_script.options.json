@@ -1,0 +1,4 @@
+{
+  "monitoring_image": "ubuntu",
+  "monitoring_image_script": "gs://cloud-cromwell-dev/monitoring_image_script.test.sh"
+}

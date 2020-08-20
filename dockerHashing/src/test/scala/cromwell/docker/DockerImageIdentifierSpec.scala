@@ -1,9 +1,10 @@
 package cromwell.docker
 
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
 
-class DockerImageIdentifierSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+class DockerImageIdentifierSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
   behavior of "DockerImageID"
 
   it should "parse valid docker images" in {

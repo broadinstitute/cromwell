@@ -3,9 +3,11 @@ package cromwell.cloudsupport.gcp.auth
 import java.io.FileNotFoundException
 
 import better.files.File
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class UserModeSpec extends FlatSpec with Matchers {
+
+class UserModeSpec extends AnyFlatSpec with Matchers {
 
   behavior of "UserMode"
 

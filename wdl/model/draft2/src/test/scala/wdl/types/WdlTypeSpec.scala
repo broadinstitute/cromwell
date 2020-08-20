@@ -1,13 +1,14 @@
 package wdl.types
 
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
-import org.scalatest.{FlatSpec, Matchers}
 import wdl.draft2.model.types.WdlFlavoredWomType
 import wdl.draft2.parser.WdlParser.SyntaxError
 import wom.types._
 
-class WdlTypeSpec extends FlatSpec with Matchers {
+class WdlTypeSpec extends AnyFlatSpec with Matchers {
 
   val womValueRawStrings = Table(
     ("DisplayString", "WomType"),

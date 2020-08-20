@@ -1,15 +1,17 @@
 package wom.types
 
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
-import org.scalatest.{FlatSpec, Matchers}
 import spray.json.JsString
 import wom.values._
 
 import scala.runtime.ScalaRunTime
 import scala.util.Random
 
-class WomTypeSpec extends FlatSpec with Matchers {
+
+class WomTypeSpec extends AnyFlatSpec with Matchers {
   "WomType class" should "stringify WomBoolean to 'Boolean'" in {
     WomBooleanType.stableName shouldEqual "Boolean"
   }

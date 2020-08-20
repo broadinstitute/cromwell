@@ -1,18 +1,19 @@
 package wdl
 
-import wdl.draft2.parser.WdlParser.SyntaxError
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 import wdl.draft2.Draft2ResolvedImportBundle
 import wdl.draft2.model.WdlNamespace
+import wdl.draft2.parser.WdlParser.SyntaxError
 import wdl.util.StringUtil
 import wom.ResolvedImportRecord
 import wom.core.WorkflowSource
 
 import scala.util.{Failure, Success}
 
-class SyntaxErrorSpec extends FlatSpec with Matchers {
+class SyntaxErrorSpec extends AnyFlatSpec with Matchers {
   private val psTaskWdl = """
       |task ps {
       |  command {

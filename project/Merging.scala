@@ -3,6 +3,19 @@ import sbtassembly.AssemblyPlugin.autoImport._
 import sbtassembly.{MergeStrategy, PathList}
 
 object Merging {
+  // Based on https://stackoverflow.com/questions/24363363/how-can-a-duplicate-class-be-excluded-from-sbt-assembly#57759013
+  private def excludeFromJar(jarName: String): sbtassembly.MergeStrategy = new sbtassembly.MergeStrategy {
+    override def name: String = "excludeFromJar"
+
+    override def apply(tempDir: File, path: String, files: Seq[File]): Either[String, Seq[(File, String)]] = {
+      val filteredFiles = files flatMap { file =>
+        val (source, _, _, isFromJar) = sbtassembly.AssemblyUtils.sourceOfFileForMerge(tempDir, file)
+        if (isFromJar && source.getName != jarName) Option(file -> path) else None
+      }
+      Right(filteredFiles)
+    }
+  }
+
   val customMergeStrategy: Def.Initialize[String => MergeStrategy] = Def.setting {
     case PathList(ps@_*) if ps.last == "project.properties" =>
       // Merge/Filter project.properties files from Google jars that otherwise collide at merge time.
@@ -40,6 +53,9 @@ object Merging {
       MergeStrategy.discard
     case PathList("mime.types") =>
       MergeStrategy.last
+    case PathList("google", "protobuf", _*) =>
+      // Akka shading bug: https://github.com/akka/akka/issues/29456
+      excludeFromJar(s"akka-protobuf-v3_2.12-${Dependencies.akkaV}.jar")
     case x =>
       val oldStrategy = (assemblyMergeStrategy in assembly).value
       oldStrategy(x)

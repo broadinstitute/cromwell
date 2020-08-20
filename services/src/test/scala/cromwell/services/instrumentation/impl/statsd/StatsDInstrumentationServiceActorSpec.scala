@@ -10,10 +10,13 @@ import com.typesafe.config.ConfigFactory
 import cromwell.core.TestKitSuite
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.instrumentation._
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
-class StatsDInstrumentationServiceActorSpec extends TestKitSuite with FlatSpecLike with BeforeAndAfterAll with Matchers {
+
+class StatsDInstrumentationServiceActorSpec extends TestKitSuite with AnyFlatSpecLike with BeforeAndAfterAll with Matchers {
   behavior of "StatsDInstrumentationServiceActor"
 
   val config = ConfigFactory.parseString(

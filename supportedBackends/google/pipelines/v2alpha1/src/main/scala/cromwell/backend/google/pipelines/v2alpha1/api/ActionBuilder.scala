@@ -1,15 +1,17 @@
 package cromwell.backend.google.pipelines.v2alpha1.api
 
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount, Secret}
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
+import cromwell.backend.google.pipelines.common.action.ActionLabels._
+import cromwell.backend.google.pipelines.common.action.ActionUtils._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineDockerKeyAndToken
 import cromwell.backend.google.pipelines.common.{PipelinesApiInput, PipelinesApiOutput, PipelinesParameter}
 import cromwell.backend.google.pipelines.v2alpha1.GenomicsFactory
-import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder.Labels._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionFlag.ActionFlag
+import cromwell.core.path.Path
 import cromwell.docker.DockerImageIdentifier
 import cromwell.docker.registryv2.flows.dockerhub.DockerHub
 import mouse.all._
-import org.apache.commons.text.StringEscapeUtils
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
@@ -18,30 +20,33 @@ import scala.concurrent.duration._
   * Utility singleton to create high level actions.
   */
 object ActionBuilder {
-  object Labels {
-    object Key {
-      /**
-        * Very short description of the action
-        */
-      val Tag = "tag"
-      val Logging = "logging"
-      val InputName = "inputName"
-      val OutputName = "outputName"
-    }
-    object Value {
-      val ContainerSetup = "ContainerSetup"
-      val UserAction = "UserAction"
-      val Localization = "Localization"
-      val Delocalization = "Delocalization"
-      val Background = "Background"
-      val RetryWithMoreMemory = "CheckingForMemoryRetry"
-    }
-  }
-
   implicit class EnhancedAction(val action: Action) extends AnyVal {
     private def javaFlags(flags: List[ActionFlag]) = flags.map(_.toString).asJava
 
+    /**
+      * Only for use with docker images KNOWN to not have entrypoints already set,
+      * or used with accompanying call to setEntrypoint("non-empty-string").
+      *
+      * Otherwise use the withEntrypointCommand() workaround below since the google issue listed in BA-6406 is not being
+      * fixed.
+      */
     def withCommand(command: String*): Action = action.setCommands(command.toList.asJava)
+
+    /**
+      * Useful for any externally provided images that _might_ have entrypoints already set. This is a workaround for
+      * the issue detailed in BA-6406. See underlying google issue in that ticket for more info.
+      */
+    def withEntrypointCommand(command: String*): Action = {
+      action
+        .setEntrypoint(command.headOption.orNull)
+        .setCommands(
+          Option(command.drop(1))
+            .filter(_.nonEmpty)
+            .map(_.asJava)
+            .orNull
+        )
+    }
+
     def withFlags(flags: List[ActionFlag]): Action = action.setFlags(flags |> javaFlags)
     def withMounts(mounts: List[Mount]): Action = action.setMounts(mounts.asJava)
     def withLabels(labels: Map[String, String]): Action = action.setLabels(labels.asJava)
@@ -62,36 +67,36 @@ object ActionBuilder {
 
   def cloudSdkAction: Action = new Action().setImageUri(GenomicsFactory.CloudSdkImage)
 
-  def withImage(image: String) = new Action()
+  def withImage(image: String): Action = new Action()
     .setImageUri(image)
 
-  /**
-    * Define a shared PID namespace for the monitoring container and its termination controller
-    */
-  private val monitoringPidNamespace = "monitoring"
+  def monitoringImageScriptAction(cloudPath: Path, containerPath: Path, mounts: List[Mount])
+                                 (implicit gcsTransferConfiguration: GcsTransferConfiguration): Action = {
+    val command = ActionCommands.localizeFile(cloudPath, containerPath)
+    val labels = Map(Key.Tag -> Value.Localization)
+    ActionBuilder.cloudSdkShellAction(command)(mounts = mounts, labels = labels)
+  }
 
-  def monitoringAction(image: String, environment: Map[String, String], mounts: List[Mount] = List.empty): Action =
+  def monitoringAction(image: String,
+                       command: List[String],
+                       environment: Map[String, String],
+                       mounts: List[Mount],
+                      ): Action = {
     new Action()
       .setImageUri(image)
-      .withFlags(List(ActionFlag.RunInBackground))
+      .withEntrypointCommand(command: _*)
+      .withFlags(List(ActionFlag.RunInBackground, ActionFlag.IgnoreExitStatus))
       .withMounts(mounts)
       .setEnvironment(environment.asJava)
+      .withLabels(Map(Key.Tag -> Value.Monitoring))
       .setPidNamespace(monitoringPidNamespace)
-
-  /**
-    * monitoringTerminationAction is needed to gracefully terminate monitoring action,
-    * because PAPIv2 currently sends SIGKILL to terminate background actions.
-    *
-    * A fixed timeout is used to avoid hunting for monitoring PID.
-    */
-
-  private val monitoringTerminationGraceTime = 10
+  }
 
   def monitoringTerminationAction(): Action =
-    cloudSdkAction
-      .withCommand(s"/bin/sh", "-c", s"kill -TERM -1 && sleep $monitoringTerminationGraceTime")
-      .withFlags(List(ActionFlag.AlwaysRun))
-      .setPidNamespace(monitoringPidNamespace)
+    cloudSdkShellAction(monitoringTerminationCommand)(
+      flags = List(ActionFlag.AlwaysRun),
+      labels = Map(Key.Tag -> Value.Monitoring)
+    ).setPidNamespace(monitoringPidNamespace)
 
   def userAction(docker: String,
                  scriptContainerPath: String,
@@ -111,20 +116,19 @@ object ActionBuilder {
 
     new Action()
       .setImageUri(docker)
-      .setCommands(List(jobShell, scriptContainerPath).asJava)
+      .setCommands(List(scriptContainerPath).asJava)
       .setMounts(mounts.asJava)
-      .setEntrypoint("")
+      .setEntrypoint(jobShell)
       .setLabels(Map(Key.Tag -> Value.UserAction).asJava)
       .setCredentials(secret.orNull)
       .setFlags((if (fuseEnabled) List(ActionFlag.EnableFuse.toString) else List.empty).asJava)
   }
 
   def checkForMemoryRetryAction(retryLookupKeys: List[String], mounts: List[Mount]): Action = {
-    cloudSdkAction
-      .withCommand("/bin/sh", "-c", ActionCommands.checkIfStderrContainsRetryKeys(retryLookupKeys))
-      .withFlags(List(ActionFlag.AlwaysRun))
-      .withLabels(Map(Key.Tag -> Value.RetryWithMoreMemory))
-      .withMounts(mounts)
+    cloudSdkShellAction(ActionCommands.checkIfStderrContainsRetryKeys(retryLookupKeys))(
+      mounts = mounts,
+      labels = Map(Key.Tag -> Value.RetryWithMoreMemory),
+    ).withFlags(List(ActionFlag.AlwaysRun))
   }
 
   def cloudSdkShellAction(shellCommand: String)(mounts: List[Mount] = List.empty,
@@ -132,7 +136,11 @@ object ActionBuilder {
                                                 labels: Map[String, String] = Map.empty,
                                                 timeout: Duration = Duration.Inf): Action =
     cloudSdkAction
-      .withCommand("/bin/sh", "-c", if (shellCommand.contains("\n")) shellCommand |> ActionCommands.multiLineCommand else shellCommand)
+      .withEntrypointCommand(
+        "/bin/sh",
+        "-c",
+        if (shellCommand.contains("\n")) shellCommand |> ActionCommands.multiLineCommand else shellCommand,
+      )
       .withFlags(flags)
       .withMounts(mounts)
       .withLabels(labels)
@@ -318,18 +326,5 @@ object ActionBuilder {
       imageArg,
       commandArgs,
     ).mkString
-  }
-
-  /** Quotes a string such that it's compatible as a string argument in the shell. */
-  private def shellEscaped(any: Any): String = {
-    val str = String.valueOf(any)
-    /*
-    NOTE: escapeXSI is more compact than wrapping in single quotes. Newlines are also stripped by the shell, as they
-    are by escapeXSI. If for some reason escapeXSI doesn't 100% work, say because it ends up stripping some required
-    newlines, then consider adding a check for newlines and then using:
-
-    "'" + str.replace("'", "'\"'\"'") + "'"
-     */
-    StringEscapeUtils.escapeXSI(str)
   }
 }

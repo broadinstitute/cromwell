@@ -2,10 +2,11 @@ package common.exception
 
 import java.io.FileNotFoundException
 import java.nio.file.NoSuchFileException
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
-import org.scalatest.{FlatSpecLike, Matchers}
 
-class ExceptionAggregationSpec extends FlatSpecLike with Matchers{
+class ExceptionAggregationSpec extends AnyFlatSpecLike with Matchers {
 
   "MessageAggregation" should "aggregate messages" in {
     val aggregatedException = new Exception with MessageAggregation {

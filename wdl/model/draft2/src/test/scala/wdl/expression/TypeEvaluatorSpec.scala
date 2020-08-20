@@ -1,7 +1,6 @@
 package wdl.expression
 
 import org.scalatest.prop.TableDrivenPropertyChecks._
-import org.scalatest.{FlatSpec, Matchers}
 import wdl.SampleWdl
 import wdl.draft2.model.expression.WdlStandardLibraryFunctionsType
 import wdl.draft2.model.types.WdlCallOutputsObjectType
@@ -10,8 +9,10 @@ import wom.types._
 import wom.values.WomPrimitive
 
 import scala.util.{Failure, Success, Try}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class TypeEvaluatorSpec extends FlatSpec with Matchers {
+class TypeEvaluatorSpec extends AnyFlatSpec with Matchers {
   val expr: String => WdlExpression = WdlExpression.fromString
   val namespace = WdlNamespaceWithWorkflow.load(SampleWdl.ThreeStep.workflowSource(), Seq.empty).get
 

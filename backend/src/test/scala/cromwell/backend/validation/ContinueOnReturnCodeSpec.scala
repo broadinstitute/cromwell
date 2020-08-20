@@ -1,9 +1,11 @@
 package cromwell.backend.validation
 
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks._
+import org.scalatest.wordspec.AnyWordSpecLike
 
-class ContinueOnReturnCodeSpec extends WordSpecLike with Matchers with BeforeAndAfterAll {
+class ContinueOnReturnCodeSpec extends AnyWordSpecLike with Matchers with BeforeAndAfterAll {
   "Checking for return codes" should {
     "continue on expected return code flags" in {
       val flagTests = Table(

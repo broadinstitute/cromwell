@@ -2,16 +2,18 @@ package wdl.draft3.transforms.expression
 
 import cats.data.NonEmptyList
 import common.assertion.ErrorOrAssertions._
-import org.scalatest.{FlatSpec, Matchers}
-import wdl.model.draft3.elements.ExpressionElement._
-import wom.values.{WomInteger, WomObject, WomPair, WomString}
-import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
-import wdl.model.draft3.elements.ExpressionElement
-import wom.expression.NoIoFunctionSet
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.draft3.transforms.linking.expression.values.expressionEvaluator
+import wdl.model.draft3.elements.ExpressionElement
+import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.EvaluatedValue
+import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
+import wom.expression.NoIoFunctionSet
+import wom.values.{WomInteger, WomObject, WomPair, WomString}
 
-class MemberAccessValueEvaluatorSpec extends FlatSpec with Matchers{
+
+class MemberAccessValueEvaluatorSpec extends AnyFlatSpec with Matchers {
 
   val fiveLiteral = PrimitiveLiteralExpressionElement(WomInteger(5))
   val sixLiteral = PrimitiveLiteralExpressionElement(WomInteger(6))

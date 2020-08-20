@@ -8,10 +8,11 @@ import com.google.cloud.storage.StorageException
 import com.google.cloud.storage.contrib.nio.CloudStorageFileSystem
 import cromwell.filesystems.gcs.RequesterPaysErrors._
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 
-class GcsEnhancedRequestSpec extends FlatSpec with Matchers with Mockito with MockFactory {
+class GcsEnhancedRequestSpec extends AnyFlatSpec with Matchers with Mockito with MockFactory {
   behavior of "GcsEnhancedRequest"
 
   val path = GcsPath(CloudStorageFileSystem.forBucket("bucket").getPath("test"), any[com.google.api.services.storage.Storage], any[com.google.cloud.storage.Storage], anyString)

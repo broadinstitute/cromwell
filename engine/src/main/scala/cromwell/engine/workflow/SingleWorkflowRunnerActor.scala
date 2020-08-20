@@ -2,7 +2,6 @@ package cromwell.engine.workflow
 
 import akka.actor.FSM.{CurrentState, Transition}
 import akka.actor._
-import akka.stream.ActorMaterializer
 import cats.instances.try_._
 import cats.syntax.functor._
 import com.typesafe.config.Config
@@ -40,7 +39,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
                                 gracefulShutdown: Boolean,
                                 abortJobsOnTerminate: Boolean,
                                 config: Config
-                                )(implicit materializer: ActorMaterializer)
+                                )
   extends CromwellRootActor(terminator, gracefulShutdown, abortJobsOnTerminate, false, config)
     with LoggingFSM[RunnerState, SwraData] {
 
@@ -222,8 +221,7 @@ object SingleWorkflowRunnerActor {
             terminator: CromwellTerminator,
             gracefulShutdown: Boolean,
             abortJobsOnTerminate: Boolean,
-            config: Config)
-           (implicit materializer: ActorMaterializer): Props = {
+            config: Config): Props = {
     Props(
       new SingleWorkflowRunnerActor(
         source = source,

@@ -4,12 +4,14 @@ import java.net.URL
 
 import com.typesafe.config.ConfigFactory
 import common.exception.MessageAggregation
-import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.BatchRequestTimeoutConfiguration
-import org.scalatest.{FlatSpec, Matchers}
+import cromwell.cloudsupport.gcp.GoogleConfiguration
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
 import scala.concurrent.duration._
 
-class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
+class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with Matchers {
 
   import PipelinesApiTestConfig._
 
@@ -210,10 +212,10 @@ class PipelinesApiConfigurationAttributesSpec extends FlatSpec with Matchers {
       PipelinesApiConfigurationAttributes(googleConfig, nakedConfig, "papi")
     }
     val errorsList = exception.errorMessages.toList
-    errorsList should contain("No configuration setting found for key 'project'")
-    errorsList should contain("No configuration setting found for key 'root'")
-    errorsList should contain("No configuration setting found for key 'genomics.auth'")
-    errorsList should contain("No configuration setting found for key 'filesystems'")
+    errorsList should contain("String: 2: No configuration setting found for key 'project'")
+    errorsList should contain("String: 2: No configuration setting found for key 'root'")
+    errorsList should contain("String: 3: No configuration setting found for key 'genomics.auth'")
+    errorsList should contain("String: 2: No configuration setting found for key 'filesystems'")
     errorsList should contain("String: 2: genomics.endpoint-url has type String rather than java.net.URL")
   }
 

@@ -1,11 +1,12 @@
 package cromwell.docker
 
 import cromwell.docker.DockerInfoActor.DockerHashUnknownRegistry
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class DockerEmptyFlowSpec extends DockerRegistrySpec("DockerEmptyFlowSpec") with FlatSpecLike with Matchers {
+class DockerEmptyFlowSpec extends DockerRegistrySpec("DockerEmptyFlowSpec") with AnyFlatSpecLike with Matchers {
   behavior of "An empty docker flow"
 
   override protected def registryFlows: Seq[DockerRegistry] = Seq()

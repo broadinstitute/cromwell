@@ -100,7 +100,7 @@ protected trait PipelinesApiReferenceFilesMappingOperations {
   }
 
   protected def bulkValidateCrc32cs(gcsClient: Storage,
-                          filesWithValidPaths: Map[ReferenceFile, ValidFullGcsPath]): Map[ReferenceFile, Boolean] = {
+                                    filesWithValidPaths: Map[ReferenceFile, ValidFullGcsPath]): Map[ReferenceFile, Boolean] = {
     val gcsBatch = gcsClient.batch()
     val filesAndBlobResults = filesWithValidPaths map {
       case (referenceFile, ValidFullGcsPath(bucket, path)) =>

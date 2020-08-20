@@ -5,9 +5,10 @@ import java.time.OffsetDateTime
 import cats.data.Validated._
 import cromwell.core.labels.Label
 import cromwell.services.metadata.WorkflowQueryKey._
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class QueryForWorkflowsMatchingParametersSpec extends WordSpec with Matchers {
+class QueryForWorkflowsMatchingParametersSpec extends AnyWordSpec with Matchers {
 
   val StartDateString = "2015-11-01T11:11:11Z"
   val EndDateString = "2015-11-01T12:12:12Z"

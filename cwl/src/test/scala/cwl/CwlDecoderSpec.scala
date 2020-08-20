@@ -2,9 +2,11 @@ package cwl
 
 import cats.data.NonEmptyList
 import cwl.CwlDecoder._
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class CwlDecoderSpec extends FlatSpec with Matchers {
+
+class CwlDecoderSpec extends AnyFlatSpec with Matchers {
 
   behavior of "cwl decoder"
 

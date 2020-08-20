@@ -15,7 +15,7 @@ import cromwell.subworkflowstore.SubWorkflowStoreSpec._
 import cromwell.util.WomMocks
 import cromwell.{CromwellTestKitSpec, CromwellTestKitWordSpec}
 import mouse.all._
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 import wdl.draft2.model.WdlExpression
 import wom.graph.{GraphNode, WomIdentifier}
@@ -54,8 +54,11 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with CoordinatedWorkf
       val call = WomMocks.mockTaskCall(WomIdentifier("bar", "foo.bar"))
       val jobKey = new JobKey {
         override def node: GraphNode = call
+
         override def index: Option[Int] = None
+
         override def attempt: Int = 0
+
         override def tag: String = "foobar"
       }
 
@@ -75,7 +78,7 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with CoordinatedWorkf
       // Query for non existing sub workflow
       subWorkflowStoreService ! QuerySubWorkflow(parentWorkflowId, jobKey)
       expectMsgType[SubWorkflowNotFound](MaxWait)
-      
+
       // Register sub workflow
       subWorkflowStoreService ! RegisterSubWorkflow(rootWorkflowId, parentWorkflowId, jobKey, subWorkflowId)
       expectMsgType[SubWorkflowStoreRegisterSuccess](MaxWait)
@@ -93,7 +96,7 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with CoordinatedWorkf
       subWorkflowStoreService ! QuerySubWorkflow(subWorkflowId, jobKey)
       val subSubWorkflowEntry = SubWorkflowStoreEntry(Option(0), subWorkflowId.toString, jobKey.node.fullyQualifiedName, jobKey.index.fromIndex, jobKey.attempt, subSubWorkflowId.toString, Some(1))
       expectMsg[SubWorkflowFound](SubWorkflowFound(subSubWorkflowEntry))
-      
+
       // Delete root workflow
       subWorkflowStoreService ! WorkflowComplete(rootWorkflowId)
 

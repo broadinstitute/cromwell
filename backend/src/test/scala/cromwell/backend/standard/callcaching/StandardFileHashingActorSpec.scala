@@ -8,7 +8,8 @@ import cromwell.core.TestKitSuite
 import cromwell.core.callcaching.HashingFailedMessage
 import cromwell.core.io.{IoCommandBuilder, IoHashCommand, PartialIoCommandBuilder}
 import cromwell.core.path.{DefaultPathBuilder, Path}
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import wom.values.WomSingleFile
 
 import scala.concurrent.TimeoutException
@@ -16,7 +17,7 @@ import scala.concurrent.duration._
 import scala.util.Try
 
 class StandardFileHashingActorSpec extends TestKitSuite("StandardFileHashingActorSpec") with ImplicitSender
-  with FlatSpecLike with Matchers {
+  with AnyFlatSpecLike with Matchers {
 
   behavior of "StandardFileHashingActor"
 

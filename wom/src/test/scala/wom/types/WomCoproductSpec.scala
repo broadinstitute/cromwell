@@ -1,10 +1,12 @@
 package wom.types
 
 import cats.data.NonEmptyList
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wom.values.{WomBoolean, WomCoproductValue, WomString}
 
-class WomCoproductSpec extends FlatSpec with Matchers {
+
+class WomCoproductSpec extends AnyFlatSpec with Matchers {
 
   behavior of "Wom Coproduct Type"
 

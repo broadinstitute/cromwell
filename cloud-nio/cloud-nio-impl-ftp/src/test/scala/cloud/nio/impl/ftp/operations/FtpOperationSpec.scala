@@ -4,10 +4,12 @@ import java.nio.file.{FileAlreadyExistsException, NoSuchFileException}
 
 import cloud.nio.impl.ftp.FtpUtil.FtpIoException
 import org.apache.commons.net.ftp.{FTPClient, FTPReply}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 
-class FtpOperationSpec extends FlatSpec with Matchers with Mockito {
+
+class FtpOperationSpec extends AnyFlatSpec with Matchers with Mockito {
   it should "generate somewhat accurate exceptions" in {
     val client = mock[FTPClient]
     val operation = FtpListFiles("ftp.example.com", "location", "do something")

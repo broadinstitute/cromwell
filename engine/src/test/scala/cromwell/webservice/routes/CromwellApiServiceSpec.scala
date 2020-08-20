@@ -28,7 +28,8 @@ import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.{EngineStatsActor, FailureResponse}
 import mouse.boolean._
-import org.scalatest.{AsyncFlatSpec, Matchers}
+import org.scalatest.flatspec.AsyncFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json._
 
 import scala.concurrent.duration._

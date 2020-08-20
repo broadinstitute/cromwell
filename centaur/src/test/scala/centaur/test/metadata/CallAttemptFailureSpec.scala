@@ -2,9 +2,11 @@ package centaur.test.metadata
 
 import centaur.test.metadata.CallAttemptFailureSpec._
 import io.circe.ParsingFailure
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class CallAttemptFailureSpec extends FlatSpec with Matchers {
+
+class CallAttemptFailureSpec extends AnyFlatSpec with Matchers {
 
   behavior of "CallAttemptFailure"
 

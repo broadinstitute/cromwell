@@ -1,9 +1,10 @@
 package cromwell.util
 
+import cromwell.core.{Aes256Cbc, SecretKey}
 import javax.crypto.Cipher
-
-import cromwell.core.{SecretKey, Aes256Cbc}
-import org.scalatest.{Assertions, FlatSpec, Matchers}
+import org.scalatest.Assertions
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 object EncryptionSpec {
   import Assertions._
@@ -15,7 +16,7 @@ object EncryptionSpec {
        |""".stripMargin)
 }
 
-class EncryptionSpec extends FlatSpec with Matchers {
+class EncryptionSpec extends AnyFlatSpec with Matchers {
   "Aes256Cbc" should "encrypt and decrypt" in {
     EncryptionSpec.assumeAes256Cbc()
     val charSet = "utf-8"

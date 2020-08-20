@@ -1,13 +1,14 @@
 package wdl.expression
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model.expression.PureStandardLibraryFunctions
 import wom.types._
 import wom.values._
 
 import scala.util.{Failure, Success}
 
-class PureStandardLibraryFunctionsSpec extends FlatSpec with Matchers {
+class PureStandardLibraryFunctionsSpec extends AnyFlatSpec with Matchers {
 
   behavior of "transpose"
 

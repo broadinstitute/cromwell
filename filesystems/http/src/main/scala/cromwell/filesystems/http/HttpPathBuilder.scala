@@ -5,7 +5,7 @@ import akka.actor.{ActorContext, ActorSystem}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.HttpRequest
 import akka.stream.scaladsl.{FileIO, Keep}
-import akka.stream.{ActorAttributes, ActorMaterializer}
+import akka.stream.ActorAttributes
 import cromwell.core.Dispatcher
 import cromwell.core.path.{NioPath, Path, PathBuilder}
 
@@ -28,7 +28,7 @@ class HttpPathBuilder extends PathBuilder {
     }
   }
 
-  def content(url: String)(implicit actorContext: ActorContext, actorMaterializer: ActorMaterializer): Future[NioPath] = {
+  def content(url: String)(implicit actorContext: ActorContext): Future[NioPath] = {
     implicit val actorSystem: ActorSystem = actorContext.system
     implicit val executionContext: ExecutionContext = actorContext.dispatcher
 

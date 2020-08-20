@@ -15,7 +15,6 @@ import net.ceedubs.ficus.Ficus._
 import cromiam.webservice.RequestSupport
 import wes2cromwell.WesResponseJsonSupport._
 import WesRunRoutes._
-import akka.stream.ActorMaterializer
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -24,7 +23,6 @@ import scala.util.{Failure, Success}
 
 trait WesRunRoutes extends RequestSupport {
   implicit def system: ActorSystem
-  implicit def materializer: ActorMaterializer
 
   val log: LoggingAdapter
 

@@ -2,7 +2,7 @@ package cromwell.webservice.routes
 
 import java.util.UUID
 
-import akka.actor.{ActorRef, ActorRefFactory}
+import akka.actor.{ActorRef, ActorSystem}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActorJsonFormatting.successfulResponseJsonFormatter
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
@@ -11,7 +11,6 @@ import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{ExceptionHandler, Route}
 import akka.pattern.{AskTimeoutException, ask}
-import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
@@ -45,8 +44,7 @@ import scala.util.{Failure, Success, Try}
 trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport with WomtoolRouteSupport with WebServiceUtils {
   import CromwellApiService._
 
-  implicit def actorRefFactory: ActorRefFactory
-  implicit val materializer: ActorMaterializer
+  implicit def actorSystem: ActorSystem
   implicit val ec: ExecutionContext
 
   val workflowStoreActor: ActorRef
@@ -87,7 +85,7 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
           instrumentRequest {
             CallCacheDiffQueryParameter.fromParameters(parameters) match {
               case Valid(queryParameter) =>
-                val diffActor = actorRefFactory.actorOf(CallCacheDiffActor.props(serviceRegistryActor), "CallCacheDiffActor-" + UUID.randomUUID())
+                val diffActor = actorSystem.actorOf(CallCacheDiffActor.props(serviceRegistryActor), "CallCacheDiffActor-" + UUID.randomUUID())
                 onComplete(diffActor.ask(queryParameter).mapTo[CallCacheDiffActorResponse]) {
                   case Success(r: SuccessfulCallCacheDiffResponse) => complete(r)
                   case Success(r: FailedCallCacheDiffResponse) => r.reason.errorRequest(StatusCodes.InternalServerError)

@@ -1,11 +1,10 @@
 package cromwell.webservice.routes
 
-import akka.actor.{ActorRef, ActorRefFactory}
+import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.pattern.ask
-import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import cromwell.core.{WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.services.womtool.WomtoolServiceMessages.{DescribeFailure, DescribeRequest, DescribeResult, DescribeSuccess}
@@ -17,9 +16,8 @@ import scala.util.{Failure, Success}
 
 trait WomtoolRouteSupport extends WebServiceUtils {
 
-  implicit def actorRefFactory: ActorRefFactory
+  implicit def actorSystem: ActorSystem
   implicit val ec: ExecutionContext
-  implicit val materializer: ActorMaterializer
   implicit val timeout: Timeout
 
   val serviceRegistryActor: ActorRef

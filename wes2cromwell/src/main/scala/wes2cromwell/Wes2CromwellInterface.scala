@@ -8,10 +8,9 @@ import akka.http.scaladsl.model._
 
 import scala.concurrent.{ExecutionContext, Future}
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.ActorMaterializer
 import wes2cromwell.Wes2CromwellInterface._
 
-final class Wes2CromwellInterface(cromwellPath: URL)(implicit system: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext) {
+final class Wes2CromwellInterface(cromwellPath: URL)(implicit system: ActorSystem, ec: ExecutionContext) {
   def runWorkflow(submission: WesSubmission, headers: List[HttpHeader]): Future[WesResponse] = {
     // FIXME - Should be able to get away with these fromJsons by implementing the proper marshalling
     // Because this request has the entity, it's not going through the standard forwardToCromwell method
@@ -44,12 +43,12 @@ final class Wes2CromwellInterface(cromwellPath: URL)(implicit system: ActorSyste
 
 object Wes2CromwellInterface {
   def forwardToCromwell(url: String, headers: List[HttpHeader], method: HttpMethod,
-                        f: String => WesResponse)(implicit system: ActorSystem, mat: ActorMaterializer, ec: ExecutionContext): Future[WesResponse] = {
+                        f: String => WesResponse)(implicit system: ActorSystem, ec: ExecutionContext): Future[WesResponse] = {
     val cromwellRequest = HttpRequest(method = method, uri = url, headers = headers)
     handleCromwellResponse(Http().singleRequest(cromwellRequest), f)
   }
 
-  def handleCromwellResponse(response: Future[HttpResponse], f: String => WesResponse)(implicit mat: ActorMaterializer, ec: ExecutionContext): Future[WesResponse] = {
+  def handleCromwellResponse(response: Future[HttpResponse], f: String => WesResponse)(implicit ec: ExecutionContext, actorSystem: ActorSystem): Future[WesResponse] = {
     response.flatMap({ cr =>
       cr.status match {
         /*

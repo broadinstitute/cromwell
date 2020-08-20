@@ -41,7 +41,7 @@ class StackdriverInstrumentationServiceActor(serviceConfig: Config, globalConfig
   lazy val monitoredResource = MonitoredResource.newBuilder.setType("global").putAllLabels(resourceLabels.asJava).build
 
   // Give the actor time to warm up, then start sending the metrics to Stackdriver at an interval
-  context.system.scheduler.schedule(InitialDelay, stackdriverConfig.flushRate, self, SendStackdriverMetricCommand)
+  context.system.scheduler.scheduleWithFixedDelay(InitialDelay, stackdriverConfig.flushRate, self, SendStackdriverMetricCommand)
 
 
   override def receive = {

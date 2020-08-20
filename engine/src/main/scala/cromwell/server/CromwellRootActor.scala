@@ -5,7 +5,6 @@ import akka.actor.{Actor, ActorInitializationException, ActorLogging, ActorRef, 
 import akka.event.Logging
 import akka.pattern.GracefulStopSupport
 import akka.routing.RoundRobinPool
-import akka.stream.ActorMaterializer
 import com.typesafe.config.Config
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core._
@@ -56,7 +55,6 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
                                  abortJobsOnTerminate: Boolean,
                                  val serverMode: Boolean,
                                  protected val config: Config)
-                                (implicit materializer: ActorMaterializer)
   extends Actor with ActorLogging with GracefulShutdownHelper {
 
   import CromwellRootActor._
@@ -217,8 +215,7 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
       callCacheWriteActor = callCacheWriteActor,
       ioActor = ioActorProxy,
       dockerHashActor = dockerHashActor,
-      serviceRegistryActor = serviceRegistryActor,
-      materializer = materializer
+      serviceRegistryActor = serviceRegistryActor
     )
   } else if (abortJobsOnTerminate) {
     // If gracefulShutdown is false but abortJobsOnTerminate is true, set up a classic JVM shutdown hook

@@ -67,8 +67,8 @@ class PipelinesApiReferenceFilesMappingSpec extends AnyFlatSpecLike with Matcher
           }
         }
 
-      override def bulkValidateCrc32cs(gcsClient: Storage, filesWithValidPaths: Map[ReferenceFile, ValidFullGcsPath]): Map[ReferenceFile, Boolean] =
-        filesWithValidPaths.keySet.map(file => (file, file.path != refFile4Disk2MismatchingChecksum)).toMap
+      override def bulkValidateCrc32cs(gcsClient: Storage, filesWithValidPaths: Map[ReferenceFile, ValidFullGcsPath]): IO[Map[ReferenceFile, Boolean]] =
+        IO.pure(filesWithValidPaths.keySet.map(file => (file, file.path != refFile4Disk2MismatchingChecksum)).toMap)
     }
 
   private val refFileMappingsMock = refFileMappingOperationsMockObject.generateReferenceFilesMapping(

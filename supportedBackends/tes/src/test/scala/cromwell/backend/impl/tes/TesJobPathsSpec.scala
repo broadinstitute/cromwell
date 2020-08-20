@@ -1,12 +1,13 @@
 package cromwell.backend.impl.tes
 
 import better.files._
-import cromwell.backend.{BackendJobDescriptorKey, BackendSpec}
 import cromwell.backend.io.JobPathsSpecHelper._
-import org.scalatest.{FlatSpec, Matchers}
+import cromwell.backend.{BackendJobDescriptorKey, BackendSpec}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wom.graph.CommandCallNode
 
-class TesJobPathsSpec extends FlatSpec with Matchers with BackendSpec {
+class TesJobPathsSpec extends AnyFlatSpec with Matchers with BackendSpec {
 
   "JobPaths" should "provide correct paths for a job" in {
 

@@ -4,15 +4,16 @@ import akka.actor.ActorSystem
 import akka.testkit.{TestFSMRef, TestProbe}
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.services.SuccessfulMetadataJsonResponse
-import cromwell.services.metadata.{MetadataArchiveStatus, MetadataQuery}
 import cromwell.services.metadata.MetadataArchiveStatus._
 import cromwell.services.metadata.MetadataQuery.{MetadataSourceForceArchived, MetadataSourceForceUnarchived}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.hybridcarbonite.HybridReadDeciderActor._
-import org.scalatest.{FlatSpecLike, Matchers}
+import cromwell.services.metadata.{MetadataArchiveStatus, MetadataQuery}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import spray.json._
 
-class HybridReadDeciderActorSpec extends TestKitSuite("HybridReadDeciderActorSpec") with FlatSpecLike with Matchers {
+class HybridReadDeciderActorSpec extends TestKitSuite("HybridReadDeciderActorSpec") with AnyFlatSpecLike with Matchers {
 
   behavior of "HybridReadDeciderActor"
 

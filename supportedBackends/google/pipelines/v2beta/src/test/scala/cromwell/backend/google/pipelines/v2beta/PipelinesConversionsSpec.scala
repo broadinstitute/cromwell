@@ -13,11 +13,12 @@ import cromwell.core.path.DefaultPathBuilder
 import cromwell.filesystems.drs.DrsPathBuilder
 import eu.timepit.refined.refineMV
 import org.apache.http.impl.client.HttpClientBuilder
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
 
-class PipelinesConversionsSpec extends FlatSpec with Matchers {
+class PipelinesConversionsSpec extends AnyFlatSpec with Matchers {
 
   behavior of "PipelinesConversions"
   implicit val gcsTransferConfiguration: GcsTransferConfiguration =

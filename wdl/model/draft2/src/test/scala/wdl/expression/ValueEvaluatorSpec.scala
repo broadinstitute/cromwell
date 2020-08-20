@@ -1,7 +1,8 @@
 package wdl.expression
 
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks._
-import org.scalatest.{FlatSpec, Matchers}
 import wdl.draft2.model
 import wdl.draft2.model.WdlExpression
 import wdl.draft2.model.expression.{NoFunctions, WdlStandardLibraryFunctions, WdlStandardLibraryFunctionsType}
@@ -12,7 +13,7 @@ import wom.values._
 
 import scala.util.{Failure, Success, Try}
 
-class ValueEvaluatorSpec extends FlatSpec with Matchers {
+class ValueEvaluatorSpec extends AnyFlatSpec with Matchers {
   val expr: String => WdlExpression = WdlExpression.fromString
 
   def noLookup(String: String): WomValue = fail("No identifiers should be looked up in this test")

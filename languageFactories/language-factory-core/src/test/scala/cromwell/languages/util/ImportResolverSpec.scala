@@ -3,12 +3,14 @@ package cromwell.languages.util
 import java.nio.file.{Files, Paths}
 
 import common.assertion.ErrorOrAssertions._
-import cromwell.core.path.DefaultPath
 import cromwell.core.WorkflowId
+import cromwell.core.path.DefaultPath
 import cromwell.languages.util.ImportResolver.{DirectoryResolver, HttpResolver}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class ImportResolverSpec extends FlatSpec with Matchers {
+
+class ImportResolverSpec extends AnyFlatSpec with Matchers {
   behavior of "HttpResolver"
 
   val relativeToGithubRoot = "https://raw.githubusercontent.com/broadinstitute/cromwell/develop/"

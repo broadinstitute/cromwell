@@ -3,8 +3,10 @@ package cromwell.filesystems.oss
 import com.typesafe.config.ConfigFactory
 import cromwell.core.TestKitSuite
 import cromwell.filesystems.oss.nio.OssNioUtilSpec
-import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
+import org.scalatest.BeforeAndAfter
 import org.scalatest.TryValues._
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 object OssPathBuilderSpec {
 
@@ -39,7 +41,7 @@ object OssPathBuilderSpec {
   val BcsBackendConfigWithoutRefresh = ConfigFactory.parseString(BcsBackendConfigWithoutRefreshString)
 }
 
-class OssPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers with OssNioUtilSpec with BeforeAndAfter {
+class OssPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with OssNioUtilSpec with BeforeAndAfter {
 
   behavior of "OssPathBuilerSpec"
   val testPathBuiler = OssPathBuilder(mockOssConf)

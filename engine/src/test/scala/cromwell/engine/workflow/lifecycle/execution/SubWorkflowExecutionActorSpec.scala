@@ -25,14 +25,15 @@ import cromwell.engine.{ContinueWhilePossible, EngineIoFunctions, EngineWorkflow
 import cromwell.subworkflowstore.SubWorkflowStoreActor.{QuerySubWorkflow, SubWorkflowFound, SubWorkflowNotFound}
 import cromwell.util.WomMocks
 import org.scalatest.concurrent.Eventually
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 import wom.graph.WomIdentifier
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Mockito with Eventually {
+class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Mockito with Eventually {
   
   behavior of "SubWorkflowExecutionActor"
 

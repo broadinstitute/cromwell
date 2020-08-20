@@ -1,7 +1,9 @@
 package cwl
 
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{BeforeAndAfterEach, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 import spray.json.DefaultJsonProtocol
 import wom.graph.ScatterNode.ScatterVariableAndValue
@@ -10,7 +12,7 @@ import wom.graph.{ScatterNode, ScatterVariableNode, WomIdentifier}
 import wom.types.{WomArrayType, WomStringType}
 import wom.values.{WomArray, WomString, WomValue}
 
-class ScatterLogicSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks with Mockito  with DefaultJsonProtocol with BeforeAndAfterEach {
+class ScatterLogicSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks with Mockito  with DefaultJsonProtocol with BeforeAndAfterEach {
   private val expressionNode = PlainAnonymousExpressionNode(WomIdentifier("name"), null, WomStringType, Map.empty)
   private val arrayStringType = WomArrayType(WomStringType)
 

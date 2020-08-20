@@ -5,19 +5,20 @@ import common.validation.ErrorOr._
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core.labels.Labels
 import cromwell.core.{HogGroup, WorkflowId, WorkflowOptions}
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 import spray.json.{JsBoolean, JsNumber, JsObject, JsString, JsValue}
 import wdl.draft2.model.{Draft2ImportResolver, WdlNamespaceWithWorkflow}
 import wdl.transforms.draft2.wdlom2wom._
 import wom.RuntimeAttributesKeys._
 import wom.core.WorkflowSource
 import wom.expression.NoIoFunctionSet
+import wom.format.MemorySize
 import wom.graph.GraphNodePort.OutputPort
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wom.values.WomValue
-import wom.format.MemorySize
 
-class SparkRuntimeAttributesSpec extends WordSpecLike with Matchers {
+class SparkRuntimeAttributesSpec extends AnyWordSpecLike with Matchers {
 
   val HelloWorld =
     """

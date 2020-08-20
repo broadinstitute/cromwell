@@ -1,6 +1,7 @@
 package wdl
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model.WdlNamespaceWithWorkflow
 import wdl.draft2.model.expression.NoFunctions
 import wom.types._
@@ -8,7 +9,8 @@ import wom.values._
 
 import scala.util.{Failure, Success}
 
-class DeclarationSpec extends FlatSpec with Matchers {
+
+class DeclarationSpec extends AnyFlatSpec with Matchers {
   lazy val wdlSource = (new SampleWdl.DeclarationsWdl).workflowSource()
   lazy val namespace = WdlNamespaceWithWorkflow.load(wdlSource, Seq.empty).get
 

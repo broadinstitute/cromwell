@@ -1,12 +1,13 @@
 package wdl.types
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model.types.WdlFlavoredWomType._
 import wdl.draft2.parser.WdlParser.SyntaxError
 import wom.types.{WomArrayType, WomIntegerType}
 import wom.values.{WomArray, WomInteger}
 
-class WdlArrayTypeSpec extends FlatSpec with Matchers  {
+class WdlArrayTypeSpec extends AnyFlatSpec with Matchers  {
   val intArray = WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(1), WomInteger(2), WomInteger(3)))
 
   it should "convert WDL source code to WdlArray" in {

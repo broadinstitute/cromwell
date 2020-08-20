@@ -2,7 +2,8 @@ package wdl.draft3.transforms.expression
 
 import cats.data.NonEmptyList
 import common.assertion.ErrorOrAssertions._
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.draft3.transforms.linking.expression.types.expressionTypeEvaluator
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
@@ -11,7 +12,8 @@ import wdl.model.draft3.graph.expression.TypeEvaluator.ops._
 import wom.types._
 import wom.values.WomInteger
 
-class MemberAccessTypeEvaluatorSpec extends FlatSpec with Matchers{
+
+class MemberAccessTypeEvaluatorSpec extends AnyFlatSpec with Matchers {
 
   behavior of "member access type evaluator"
 

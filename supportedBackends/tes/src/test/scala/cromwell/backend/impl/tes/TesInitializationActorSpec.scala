@@ -13,13 +13,14 @@ import cromwell.core.Tags.PostWomTest
 import cromwell.core.TestKitSuite
 import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.logging.LoggingTest._
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 import wom.graph.CommandCallNode
 
 import scala.concurrent.duration._
 
 class TesInitializationActorSpec extends TestKitSuite("TesInitializationActorSpec")
-  with WordSpecLike with Matchers with ImplicitSender {
+  with AnyWordSpecLike with Matchers with ImplicitSender {
   val Timeout = 10.second.dilated
 
   val HelloWorld =

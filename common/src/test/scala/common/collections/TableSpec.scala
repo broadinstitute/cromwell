@@ -1,8 +1,10 @@
 package common.collections
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class TableSpec extends FlatSpec with Matchers {
+
+class TableSpec extends AnyFlatSpec with Matchers {
 
   behavior of "Table"
 

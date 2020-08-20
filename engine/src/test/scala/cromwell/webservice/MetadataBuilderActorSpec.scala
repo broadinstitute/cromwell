@@ -14,8 +14,10 @@ import cromwell.services.metadata._
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
 import cromwell.util.AkkaTestUtil.EnhancedTestProbe
 import cromwell.webservice.MetadataBuilderActorSpec._
+import org.scalatest.flatspec.AsyncFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{Assertion, AsyncFlatSpecLike, Matchers, Succeeded}
+import org.scalatest.{Assertion, Succeeded}
 import org.specs2.mock.Mockito
 import spray.json._
 

@@ -52,7 +52,7 @@ object VersionUtil {
   /**
     * A regex compatible with the dependency constants in project/Dependencies.scala.
     */
-  private val SbtDependencyVersionRegex = """\s+private val (\w+)V = "([^"]+)"""".r
+  private val SbtDependencyVersionRegex = """\s+private val (\w+)V = "([^"]+)".*""".r
 
   /**
     * Returns the dependency version grepped from project/Dependencies.scala.

@@ -1,17 +1,18 @@
 package wdl.transforms.biscayne.linking.expression.files
 
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.ErrorOrAssertions._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.graph.expression.FileEvaluator.ops._
 import wdl.transforms.biscayne.Ast2WdlomSpec.{fromString, parser}
-import common.assertion.ErrorOrAssertions._
+import wdl.transforms.biscayne.ast2wdlom._
+import wdl.transforms.biscayne.linking.expression.values.expressionEvaluator
 import wom.expression.NoIoFunctionSet
 import wom.types.{WomArrayType, WomIntegerType, WomPairType, WomStringType}
-import wdl.transforms.biscayne.ast2wdlom._
 import wom.values.WomSingleFile
-import wdl.transforms.biscayne.linking.expression.values.expressionEvaluator
 
-class BiscayneFileEvaluatorSpec extends FlatSpec with Matchers {
+class BiscayneFileEvaluatorSpec extends AnyFlatSpec with Matchers {
   it should "return nothing from static integer addition" in {
     val str = "3 + 3"
     val expr = fromString[ExpressionElement](str, parser.parse_e)

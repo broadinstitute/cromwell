@@ -10,7 +10,8 @@ import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadMet
 import cromwell.services.loadcontroller.impl.LoadControllerServiceActor.ActorAndMetric
 import cromwell.services.loadcontroller.impl.LoadControllerServiceActorSpec._
 import org.scalatest.concurrent.Eventually
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
@@ -18,7 +19,7 @@ object LoadControllerServiceActorSpec {
   val Config = ConfigFactory.parseString("control-frequency = 1 second")
 }
 
-class LoadControllerServiceActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Eventually with ImplicitSender {
+class LoadControllerServiceActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually with ImplicitSender {
   behavior of "LoadControllerServiceActor"
   override implicit val patienceConfig: PatienceConfig = PatienceConfig(scaled(2.seconds))
 

@@ -2,11 +2,13 @@ package cwl
 
 import cwl.internal.EcmaScriptUtil.{ESArray, ESObject, ESPrimitive}
 import cwl.internal.{EcmaScriptEncoder, EcmaScriptUtil}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
 import wom.values.WomMaybePopulatedFile
 
-class CwlEcmaScriptEncoderSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+
+class CwlEcmaScriptEncoderSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "EcmaScriptEncoder"
 

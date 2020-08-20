@@ -48,7 +48,7 @@ object DockerRegistryV2Abstract {
     * and not the traditional "application/json". Adapted from CirceInstances.jsonOf
     */
   private def jsonEntityDecoder[A](mediaRange: MediaRange)(implicit decoder: Decoder[A]): EntityDecoder[IO, A] = EntityDecoder.decodeBy[IO, A](mediaRange) { message =>
-    CirceInstances.defaultJsonDecoder[IO]
+    CirceInstances.builder.build.jsonDecoderByteBuffer[IO]
       .decode(message, strict = false)
       .flatMap({ json =>
         decoder.decodeJson(json)

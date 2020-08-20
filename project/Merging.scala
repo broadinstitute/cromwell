@@ -55,8 +55,7 @@ object Merging {
       MergeStrategy.last
     case PathList("google", "protobuf", _*) =>
       // Akka shading bug: https://github.com/akka/akka/issues/29456
-      //excludeFromJar(s"akka-protobuf-v3_2.12-${Dependencies.akkaV}.jar") // Ugh. akkaV is private... will let others decide this line's fate
-      excludeFromJar("akka-protobuf-v3_2.12-2.6.8.jar")
+      excludeFromJar(s"akka-protobuf-v3_2.12-${Dependencies.akkaV}.jar")
     case x =>
       val oldStrategy = (assemblyMergeStrategy in assembly).value
       oldStrategy(x)

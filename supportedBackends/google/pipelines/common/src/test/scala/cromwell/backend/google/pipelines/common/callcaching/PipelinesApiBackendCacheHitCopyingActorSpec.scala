@@ -24,7 +24,8 @@ import cromwell.services.instrumentation.InstrumentationService.InstrumentationS
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineMV
 import org.scalatest.concurrent.Eventually
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.slf4j.Logger
 import org.specs2.mock.Mockito
 import wom.callable.CommandTaskDefinition
@@ -37,7 +38,7 @@ import scala.util.{Success, Try}
 
 
 class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("PipelinesApiBackendCacheHitCopyingActor")
-  with FlatSpecLike with Matchers with ImplicitSender with Mockito with Eventually {
+  with AnyFlatSpecLike with Matchers with ImplicitSender with Mockito with Eventually {
 
   behavior of "PipelinesApiBackendCacheHitCopyingActor"
 

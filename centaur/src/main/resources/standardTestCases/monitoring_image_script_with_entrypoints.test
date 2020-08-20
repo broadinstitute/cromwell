@@ -1,0 +1,14 @@
+name: monitoring_image_script_with_entrypoints
+testFormat: workflowsuccess
+backends: [Papiv2]
+
+files {
+  workflow: monitoring_image_script/monitoring_image_script.wdl
+  options: monitoring_image_script/monitoring_image_script_with_entrypoints.options.json
+}
+
+metadata {
+  workflowName: monitoring_image_script
+  status: Succeeded
+  "outputs.monitoring_image_script.monitoring_script_created": "I am the Lizard Queen!"
+}

@@ -1,17 +1,19 @@
 package wdl.draft3.transforms.expression.values
 
-import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.draft3.transforms.expression.values.Draft3ReadFileLimitsSpec._
-import wdl.transforms.base.linking.expression.values.EngineFunctionEvaluators._
 import wdl.draft3.transforms.linking.expression.values.expressionEvaluator
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
+import wdl.transforms.base.linking.expression.values.EngineFunctionEvaluators._
 import wom.expression.EmptyIoFunctionSet
 import wom.values.WomSingleFile
 
 import scala.concurrent.Future
 
-class Draft3ReadFileLimitsSpec extends FlatSpec with Matchers {
+
+class Draft3ReadFileLimitsSpec extends AnyFlatSpec with Matchers {
 
   behavior of "ReadLikeFunctions Size Limit Draft 3"
   

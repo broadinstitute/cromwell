@@ -1,16 +1,18 @@
 package wdl.transforms.biscayne.ast2wdlom
 
 import better.files.File
-import org.scalatest.{FlatSpec, Matchers}
-import wdl.transforms.biscayne.ast2wdlom.WdlFileToWdlomSpec._
-import wom.types._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
-import wdl.model.draft3.elements._
 import wdl.model.draft3.elements.ExpressionElement._
+import wdl.model.draft3.elements._
+import wdl.transforms.biscayne.ast2wdlom.WdlFileToWdlomSpec._
 import wom.SourceFileLocation
+import wom.types._
 import wom.values.WomInteger
 
-class WdlFileToWdlomSpec extends FlatSpec with Matchers {
+
+class WdlFileToWdlomSpec extends AnyFlatSpec with Matchers {
 
   behavior of "WDL File to WDLOM"
 

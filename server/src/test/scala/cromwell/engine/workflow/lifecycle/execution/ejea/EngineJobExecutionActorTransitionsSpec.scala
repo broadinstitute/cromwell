@@ -1,9 +1,10 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
 import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor._
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class EngineJobExecutionActorTransitionsSpec extends FlatSpec with Matchers {
+class EngineJobExecutionActorTransitionsSpec extends AnyFlatSpec with Matchers {
 
   val callCachingStateCycle = List(
     CheckingCallCache,

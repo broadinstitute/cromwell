@@ -2,14 +2,14 @@ package cromwell.backend
 
 import _root_.wdl.draft2.model._
 import _root_.wdl.transforms.draft2.wdlom2wom.WdlDraft2WomExecutableMakers._
+import common.exception.AggregatedException
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse, JobSucceededResponse}
 import cromwell.backend.io.TestWorkflows._
 import cromwell.core.callcaching.NoDocker
 import cromwell.core.labels.Labels
 import cromwell.core.{HogGroup, WorkflowId, WorkflowOptions}
-import common.exception.AggregatedException
-import org.scalatest.Matchers
 import org.scalatest.concurrent.{ScalaFutures, ScaledTimeSpans}
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Seconds, Span}
 import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsValue}
@@ -18,8 +18,8 @@ import wom.core.WorkflowSource
 import wom.expression.{NoIoFunctionSet, WomExpression}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.{CommandCallNode, OptionalGraphInputNodeWithDefault}
-import wom.values.WomValue
 import wom.transforms.WomExecutableMaker.ops._
+import wom.values.WomValue
 
 trait BackendSpec extends ScalaFutures with Matchers with Mockito with ScaledTimeSpans {
 

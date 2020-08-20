@@ -8,14 +8,15 @@ import cromwell.core.WorkflowId
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.JobStoreJoin
 import cromwell.database.sql.tables.{JobStoreEntry, JobStoreSimpletonEntry, WorkflowStoreEntry}
-import javax.sql.rowset.serial.{SerialBlob, SerialException}
+import javax.sql.rowset.serial.SerialBlob
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-class LobSpec extends FlatSpec with Matchers with ScalaFutures {
+class LobSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
   implicit val executionContext = ExecutionContext.global
 
@@ -61,19 +62,7 @@ class LobSpec extends FlatSpec with Matchers with ScalaFutures {
 
       val workflowStoreEntries = Seq(workflowStoreEntry)
 
-      val future = databaseSystem.platform match {
-        case MysqlDatabasePlatform =>
-          // MySQL crashes because it calls SerialBlob's getBytes instead of getBinaryStream
-          database.addWorkflowStoreEntries(workflowStoreEntries).failed map { exception =>
-            exception should be(a[SerialException])
-            exception.getMessage should
-              be("Invalid arguments: position cannot be less than 1 or greater than the length of the SerialBlob")
-          }
-        case _ =>
-          database.addWorkflowStoreEntries(workflowStoreEntries)
-      }
-
-      future.futureValue
+      database.addWorkflowStoreEntries(workflowStoreEntries).futureValue
     }
 
     it should "store and retrieve empty clobs" taggedAs DbmsTest in {

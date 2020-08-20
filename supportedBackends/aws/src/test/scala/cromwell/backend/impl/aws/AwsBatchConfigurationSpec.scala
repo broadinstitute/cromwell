@@ -31,13 +31,15 @@
 
 package cromwell.backend.impl.aws
 
-import com.typesafe.config.{ConfigFactory}
+import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendConfigurationDescriptor
 import cromwell.core.path.DefaultPathBuilder
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 
-class AwsBatchConfigurationSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks with BeforeAndAfterAll {
+class AwsBatchConfigurationSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks with BeforeAndAfterAll {
 
   behavior of "AwsBatchConfigurationSpec"
 

@@ -2,7 +2,8 @@ package wom.graph
 
 import cats.data.Validated.{Invalid, Valid}
 import common.validation.ErrorOr.ShortCircuitingFlatMap
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import shapeless.Coproduct
 import wom.RuntimeAttributes
 import wom.callable.Callable.{OutputDefinition, RequiredInputDefinition}
@@ -13,7 +14,8 @@ import wom.graph.GraphNodePort.OutputPort
 import wom.graph.expression.{AnonymousExpressionNode, PlainAnonymousExpressionNode}
 import wom.types.{WomArrayType, WomIntegerType, WomStringType}
 
-class ScatterNodeSpec extends FlatSpec with Matchers {
+
+class ScatterNodeSpec extends AnyFlatSpec with Matchers {
   behavior of "ScatterNode"
 
   val fooInputDef = RequiredInputDefinition("i", WomIntegerType)

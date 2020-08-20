@@ -1,10 +1,12 @@
 package cromwell.services.instrumentation.impl.statsd
 
 import com.typesafe.config.ConfigFactory
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
 import scala.concurrent.duration._
 
-class StatsDConfigSpec extends FlatSpec with Matchers {
+class StatsDConfigSpec extends AnyFlatSpec with Matchers {
   behavior of "StatsDConfig"
   
   it should "parse correct service configuration" in {
@@ -31,9 +33,9 @@ class StatsDConfigSpec extends FlatSpec with Matchers {
     val exception = the[IllegalArgumentException] thrownBy StatsDConfig(config)
 
     exception.getMessage shouldBe """StatsD config is invalid:
-                                    |No configuration setting found for key 'hostname'
-                                    |No configuration setting found for key 'port'
-                                    |No configuration setting found for key 'flush-rate'""".stripMargin
+                                    |String: 1: No configuration setting found for key 'hostname'
+                                    |String: 1: No configuration setting found for key 'port'
+                                    |String: 1: No configuration setting found for key 'flush-rate'""".stripMargin
   }
 
 }

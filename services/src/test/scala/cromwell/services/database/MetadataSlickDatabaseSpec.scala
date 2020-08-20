@@ -108,23 +108,23 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with Matchers with ScalaFutu
     it should "count up rows" taggedAs DbmsTest in {
       // Everything
       {
-        val count = database.countMetadataEntries(rootCountableId, 10 seconds)
+        val count = database.countMetadataEntries(rootCountableId, expandSubWorkflows = false, 10 seconds)
         count.futureValue(Timeout(10.seconds)) should be(7)
       }
 
       // Only includable keys - this looks for workflow level data only
       {
-        val count = database.countMetadataEntries(rootCountableId, "includableKey", 10 seconds)
+        val count = database.countMetadataEntries(rootCountableId, "includableKey", expandSubWorkflows = false, 10 seconds)
         count.futureValue(Timeout(10.seconds)) should be(1)
       }
 
       {
-        val count = database.countMetadataEntries(rootCountableId, "includableCall", Option(0), Option(1), 10 seconds)
+        val count = database.countMetadataEntries(rootCountableId, "includableCall", Option(0), Option(1), expandSubWorkflows = false, 10 seconds)
         count.futureValue(Timeout(10 seconds)) should be(2)
       }
 
       {
-        val count = database.countMetadataEntries(rootCountableId, "includableKey", "includableCall", Option(0), Option(1), 10 seconds)
+        val count = database.countMetadataEntries(rootCountableId, "includableKey", "includableCall", Option(0), Option(1), expandSubWorkflows = false, 10 seconds)
         count.futureValue(Timeout(10 seconds)) should be(1)
       }
 
@@ -134,6 +134,7 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with Matchers with ScalaFutu
           metadataKeysToFilterFor = List("includable%"),
           metadataKeysToFilterOut = List("excludable%"),
           CallQuery("includableCall", Option(0), Option(1)),
+          expandSubWorkflows = false,
           10 seconds)
         count.futureValue(Timeout(10 seconds)) should be(1)
       }
@@ -144,6 +145,7 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with Matchers with ScalaFutu
           metadataKeysToFilterFor = List("includable%"),
           metadataKeysToFilterOut = List("excludable%"),
           CallOrWorkflowQuery,
+          expandSubWorkflows = false,
           10 seconds
         )
         count.futureValue(Timeout(10 seconds)) should be(4)
@@ -155,6 +157,7 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with Matchers with ScalaFutu
           metadataKeysToFilterFor = List("includable%"),
           metadataKeysToFilterOut = List("excludable%"),
           WorkflowQuery,
+          expandSubWorkflows = false,
           10 seconds
         )
         count.futureValue(Timeout(10 seconds)) should be(1)

@@ -67,7 +67,7 @@ trait MetadataEntryComponent {
       val targetWorkflowIds = for {
         summary <- workflowMetadataSummaryEntries
         // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
-        if summary.workflowExecutionUuid === rootWorkflowId || (expandSubWorkflows && summary.rootWorkflowExecutionUuid === rootWorkflowId)
+        if summary.workflowExecutionUuid === rootWorkflowId || ((summary.rootWorkflowExecutionUuid === rootWorkflowId) && expandSubWorkflows)
       } yield summary.workflowExecutionUuid
 
       for {
@@ -124,7 +124,7 @@ trait MetadataEntryComponent {
       val targetWorkflowIds = for {
         summary <- workflowMetadataSummaryEntries
         // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
-        if summary.workflowExecutionUuid === rootWorkflowId || (expandSubWorkflows && summary.rootWorkflowExecutionUuid === rootWorkflowId)
+        if summary.workflowExecutionUuid === rootWorkflowId || ((summary.rootWorkflowExecutionUuid === rootWorkflowId) && expandSubWorkflows)
       } yield summary.workflowExecutionUuid
 
       for {
@@ -155,7 +155,7 @@ trait MetadataEntryComponent {
       val targetWorkflowIds = for {
         summary <- workflowMetadataSummaryEntries
         // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
-        if summary.workflowExecutionUuid === rootWorkflowId || (expandSubWorkflows && summary.rootWorkflowExecutionUuid === rootWorkflowId)
+        if summary.workflowExecutionUuid === rootWorkflowId || ((summary.rootWorkflowExecutionUuid === rootWorkflowId) && expandSubWorkflows)
       } yield summary.workflowExecutionUuid
 
       for {
@@ -186,7 +186,7 @@ trait MetadataEntryComponent {
       val targetWorkflowIds = for {
         summary <- workflowMetadataSummaryEntries
         // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
-        if summary.workflowExecutionUuid === rootWorkflowId || (expandSubWorkflows && summary.rootWorkflowExecutionUuid === rootWorkflowId)
+        if summary.workflowExecutionUuid === rootWorkflowId || ((summary.rootWorkflowExecutionUuid === rootWorkflowId) && expandSubWorkflows)
       } yield summary.workflowExecutionUuid
 
       for {
@@ -241,7 +241,7 @@ trait MetadataEntryComponent {
     val targetWorkflowIds = for {
       summary <- workflowMetadataSummaryEntries
       // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
-      if summary.workflowExecutionUuid === rootWorkflowId || (expandSubWorkflows && summary.rootWorkflowExecutionUuid === rootWorkflowId)
+      if summary.workflowExecutionUuid === rootWorkflowId || ((summary.rootWorkflowExecutionUuid === rootWorkflowId) && expandSubWorkflows)
     } yield summary.workflowExecutionUuid
 
     (for {
@@ -290,7 +290,7 @@ trait MetadataEntryComponent {
     val targetWorkflowIds = for {
       summary <- workflowMetadataSummaryEntries
       // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
-      if summary.workflowExecutionUuid === rootWorkflowId || (expandSubWorkflows && summary.rootWorkflowExecutionUuid === rootWorkflowId)
+      if summary.workflowExecutionUuid === rootWorkflowId || ((summary.rootWorkflowExecutionUuid === rootWorkflowId) && expandSubWorkflows)
     } yield summary.workflowExecutionUuid
 
     (for {

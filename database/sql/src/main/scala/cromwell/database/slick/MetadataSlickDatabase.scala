@@ -128,7 +128,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                     expandSubWorkflows: Boolean,
                                     timeout: Duration)
                                    (implicit ec: ExecutionContext): Future[Int] = {
-    val action = dataAccess.countMetadataEntriesForWorkflowExecutionUuid(workflowExecutionUuid, expandSubWorkflows).result
+    val action = dataAccess.countMetadataEntriesForWorkflowExecutionUuid((workflowExecutionUuid, expandSubWorkflows)).result
     runTransaction(action, timeout = timeout)
   }
 

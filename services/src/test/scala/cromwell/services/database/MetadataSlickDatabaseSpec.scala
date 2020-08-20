@@ -41,6 +41,10 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with Matchers with ScalaFutu
 
     val rootCountableId = "root workflow id: countable stuff"
 
+    val subWorkflowCountableId = "subworkflow id: countable stuff"
+
+    val subSubWorkflowCountableId = "subsubworkflow id: countable stuff"
+
     it should "set up the test data" taggedAs DbmsTest in {
       database.runTestTransaction(
         database.dataAccess.metadataEntries ++= Seq(
@@ -70,6 +74,30 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with Matchers with ScalaFutu
           //   Excludable call attempt
           MetadataEntry(rootCountableId, Option("includableCall"), Option(0), Option(2), "includableKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry(rootCountableId, Option("excludableCall"), Option(0), Option(1), "whateverKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+
+          // Subworkflow level
+          MetadataEntry(subWorkflowCountableId, None, None, None, "includableKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(subWorkflowCountableId, None, None, None, "excludableKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          // Call level
+          MetadataEntry(subWorkflowCountableId, Option("includableCall"), Option(0), Option(1), "includableKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(subWorkflowCountableId, Option("includableCall"), Option(0), Option(1), "excludableKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          //   Excludable call index
+          MetadataEntry(subWorkflowCountableId, Option("includableCall"), Option(1), Option(1), "includableKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          //   Excludable call attempt
+          MetadataEntry(subWorkflowCountableId, Option("includableCall"), Option(0), Option(2), "includableKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(subWorkflowCountableId, Option("excludableCall"), Option(0), Option(1), "whateverKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+
+          // Subsubworkflow level
+          MetadataEntry(subSubWorkflowCountableId, None, None, None, "includableKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(subSubWorkflowCountableId, None, None, None, "excludableKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          // Call level
+          MetadataEntry(subSubWorkflowCountableId, Option("includableCall"), Option(0), Option(1), "includableKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(subSubWorkflowCountableId, Option("includableCall"), Option(0), Option(1), "excludableKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          //   Excludable call index
+          MetadataEntry(subSubWorkflowCountableId, Option("includableCall"), Option(1), Option(1), "includableKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          //   Excludable call attempt
+          MetadataEntry(subSubWorkflowCountableId, Option("includableCall"), Option(0), Option(2), "includableKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry(subSubWorkflowCountableId, Option("excludableCall"), Option(0), Option(1), "whateverKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
         )
       ).futureValue(Timeout(10.seconds))
 
@@ -85,7 +113,9 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with Matchers with ScalaFutu
           WorkflowMetadataSummaryEntry("nested subworkflows: second nesting", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option("nested subworkflows: first nesting"), Option("nested subworkflows: root"), None, None),
           WorkflowMetadataSummaryEntry("nested subworkflows: third nesting", Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option("nested subworkflows: second nesting"), Option("nested subworkflows: root"), None, None),
 
-          WorkflowMetadataSummaryEntry(rootCountableId, Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), None, None, None, None)
+          WorkflowMetadataSummaryEntry(rootCountableId, Option("workflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), None, None, None, None),
+          WorkflowMetadataSummaryEntry(subWorkflowCountableId, Option("subworkflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option(rootCountableId), Option(rootCountableId), None, None),
+          WorkflowMetadataSummaryEntry(subSubWorkflowCountableId, Option("subsubworkflow name"), Option("Succeeded"), Option(now), Option(now), Option(now), Option(subWorkflowCountableId), Option(rootCountableId), None, None)
         )
       ).futureValue(Timeout(10.seconds))
     }
@@ -106,61 +136,64 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with Matchers with ScalaFutu
     }
 
     it should "count up rows" taggedAs DbmsTest in {
-      // Everything
-      {
-        val count = database.countMetadataEntries(rootCountableId, expandSubWorkflows = false, 10 seconds)
-        count.futureValue(Timeout(10.seconds)) should be(7)
-      }
+      List(true, false) foreach { expandSubWorkflows =>
+        val expansionFactor = if (expandSubWorkflows) 3 else 1;
+        // Everything
+        {
+          val count = database.countMetadataEntries(rootCountableId, expandSubWorkflows = expandSubWorkflows, 10 seconds)
+          count.futureValue(Timeout(10.seconds)) should be(7 * expansionFactor)
+        }
 
-      // Only includable keys - this looks for workflow level data only
-      {
-        val count = database.countMetadataEntries(rootCountableId, "includableKey", expandSubWorkflows = false, 10 seconds)
-        count.futureValue(Timeout(10.seconds)) should be(1)
-      }
+        // Only includable keys - this looks for workflow level data only
+        {
+          val count = database.countMetadataEntries(rootCountableId, "includableKey", expandSubWorkflows = expandSubWorkflows, 10 seconds)
+          count.futureValue(Timeout(10.seconds)) should be(1 * expansionFactor)
+        }
 
-      {
-        val count = database.countMetadataEntries(rootCountableId, "includableCall", Option(0), Option(1), expandSubWorkflows = false, 10 seconds)
-        count.futureValue(Timeout(10 seconds)) should be(2)
-      }
+        {
+          val count = database.countMetadataEntries(rootCountableId, "includableCall", Option(0), Option(1), expandSubWorkflows = expandSubWorkflows, 10 seconds)
+          count.futureValue(Timeout(10 seconds)) should be(2 * expansionFactor)
+        }
 
-      {
-        val count = database.countMetadataEntries(rootCountableId, "includableKey", "includableCall", Option(0), Option(1), expandSubWorkflows = false, 10 seconds)
-        count.futureValue(Timeout(10 seconds)) should be(1)
-      }
+        {
+          val count = database.countMetadataEntries(rootCountableId, "includableKey", "includableCall", Option(0), Option(1), expandSubWorkflows = expandSubWorkflows, 10 seconds)
+          count.futureValue(Timeout(10 seconds)) should be(1 * expansionFactor)
+        }
 
-      {
-        val count = database.countMetadataEntryWithKeyConstraints(
-          workflowExecutionUuid = rootCountableId,
-          metadataKeysToFilterFor = List("includable%"),
-          metadataKeysToFilterOut = List("excludable%"),
-          CallQuery("includableCall", Option(0), Option(1)),
-          expandSubWorkflows = false,
-          10 seconds)
-        count.futureValue(Timeout(10 seconds)) should be(1)
-      }
+        {
+          val count = database.countMetadataEntryWithKeyConstraints(
+            workflowExecutionUuid = rootCountableId,
+            metadataKeysToFilterFor = List("includable%"),
+            metadataKeysToFilterOut = List("excludable%"),
+            CallQuery("includableCall", Option(0), Option(1)),
+            expandSubWorkflows = expandSubWorkflows,
+            10 seconds)
+          count.futureValue(Timeout(10 seconds)) should be(1 * expansionFactor)
+        }
 
-      {
-        val count = database.countMetadataEntryWithKeyConstraints(
-          workflowExecutionUuid = rootCountableId,
-          metadataKeysToFilterFor = List("includable%"),
-          metadataKeysToFilterOut = List("excludable%"),
-          CallOrWorkflowQuery,
-          expandSubWorkflows = false,
-          10 seconds
-        )
-        count.futureValue(Timeout(10 seconds)) should be(4)
-      }
+        {
+          val count = database.countMetadataEntryWithKeyConstraints(
+            workflowExecutionUuid = rootCountableId,
+            metadataKeysToFilterFor = List("includable%"),
+            metadataKeysToFilterOut = List("excludable%"),
+            CallOrWorkflowQuery,
+            expandSubWorkflows = expandSubWorkflows,
+            10 seconds
+          )
+          count.futureValue(Timeout(10 seconds)) should be(4 * expansionFactor)
+        }
 
-      {
-        val count = database.countMetadataEntryWithKeyConstraints(
-          workflowExecutionUuid = rootCountableId,
-          metadataKeysToFilterFor = List("includable%"),
-          metadataKeysToFilterOut = List("excludable%"),
-          WorkflowQuery,
-          expandSubWorkflows = false,
-          10 seconds
-        )
-        count.futureValue(Timeout(10 seconds)) should be(1)
+        {
+          val count = database.countMetadataEntryWithKeyConstraints(
+            workflowExecutionUuid = rootCountableId,
+            metadataKeysToFilterFor = List("includable%"),
+            metadataKeysToFilterOut = List("excludable%"),
+            WorkflowQuery,
+            expandSubWorkflows = expandSubWorkflows,
+            10 seconds
+          )
+          count.futureValue(Timeout(10 seconds)) should be(1 * expansionFactor)
+        }
       }
     }
 

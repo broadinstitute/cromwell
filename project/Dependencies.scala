@@ -8,7 +8,7 @@ object Dependencies {
   private val aliyunCoreV = "4.5.6"
   private val aliyunCrV = "4.1.1"
   private val aliyunOssV = "3.10.2"
-  private val ammoniteOpsV = "1.6.9"
+  private val ammoniteOpsV = "1.9.9"
   private val apacheCommonNetV = "3.7"
   private val apacheHttpClientV = "4.5.12"
   private val awsSdkV = "2.10.91"
@@ -33,12 +33,12 @@ object Dependencies {
   private val fs2V = "2.0.1"
   private val fs2VStatsDProxy = "1.0.5"
   private val googleApiClientV = "1.30.10"
-  private val googleCloudBigQueryV = "1.116.8"
-  private val googleCloudKmsV = "v1-rev20200609-1.30.10"
-  private val googleCloudMonitoringV = "1.100.1"
+  private val googleCloudBigQueryV = "1.116.9"
+  private val googleCloudKmsV = "v1-rev20200803-1.30.10"
+  private val googleCloudMonitoringV = "2.0.0"
   private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off
   private val googleCloudStorageV = "1.111.2"
-  private val googleGaxGrpcV = "1.58.0"
+  private val googleGaxGrpcV = "1.58.2"
   private val googleGenomicsServicesV1ApiV = "v1alpha2-rev495-1.23.0"
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20200330-1.30.9"
   private val googleHttpClientApacheV = "2.1.2"
@@ -47,8 +47,8 @@ object Dependencies {
   private val googleOauth2V = "0.21.1"
   private val googleOauthClientV = "1.31.0"
   private val googleCloudResourceManagerV = "0.87.0-alpha"
-  private val grpcV = "1.30.2"
-  private val guavaV = "27.1-jre"
+  private val grpcV = "1.31.0"
+  private val guavaV = "29.0-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.5.1"
   private val http4sVersion = "0.20.23"
@@ -108,7 +108,7 @@ object Dependencies {
   private val shapelessV = "2.3.3"
   private val simulacrumV = "1.0.0"
   private val slf4jV = "1.7.30"
-  private val slickCatsV = "0.9.1"
+  private val slickCatsV = "0.10.2"
   private val testContainersScalaV = "0.38.1"
 
   /* If you're about to update our Slick version:
@@ -393,7 +393,7 @@ object Dependencies {
     "org.typelevel" %% "cats-effect" % catsEffectV,
     "org.apache.commons" % "commons-lang3" % commonsLang3V,
     "org.apache.commons" % "commons-text" % commonsTextV,
-    "com.lihaoyi" %% "pprint" % "0.5.9",
+    "com.lihaoyi" %% "pprint" % "0.6.0",
   ) ++ catsDependencies ++ configDependencies ++ slf4jFacadeDependencies ++ refinedTypeDependenciesList
 
   val cloudSupportDependencies = googleApiClientDependencies ++ googleCloudDependencies ++ betterFilesDependencies ++ awsCloudDependencies

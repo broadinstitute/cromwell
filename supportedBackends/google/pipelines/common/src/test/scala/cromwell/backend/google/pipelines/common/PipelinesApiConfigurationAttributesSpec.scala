@@ -9,7 +9,7 @@ import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttribu
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.filesystems.gcs.GcsPathBuilder
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 

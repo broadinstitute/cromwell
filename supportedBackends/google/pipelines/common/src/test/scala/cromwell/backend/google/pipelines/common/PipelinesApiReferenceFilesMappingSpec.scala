@@ -5,9 +5,10 @@ import com.google.cloud.storage.Storage
 import cromwell.backend.google.pipelines.common.io.PipelinesApiReferenceFilesDisk
 import cromwell.cloudsupport.gcp.auth.ApplicationDefaultMode
 import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.flatspec.AnyFlatSpecLike
 
-class PipelinesApiReferenceFilesMappingSpec extends FlatSpecLike with Matchers {
+class PipelinesApiReferenceFilesMappingSpec extends AnyFlatSpecLike with Matchers {
 
   private val refFile1Disk1 = "bucketname/dir1/dir2/filename1"
   private val refFile2Disk1 = "bucketname/dir1/dir2/dir3/filename2"
@@ -66,8 +67,8 @@ class PipelinesApiReferenceFilesMappingSpec extends FlatSpecLike with Matchers {
           }
         }
 
-      override def bulkValidateCrc32cs(gcsClient: Storage, filesWithValidPathsIo: IO[Map[ReferenceFile, ValidFullGcsPath]]): IO[Map[ReferenceFile, Boolean]] =
-        filesWithValidPathsIo.map(filesWithValidPaths => filesWithValidPaths.keySet.map(file => (file, file.path != refFile4Disk2MismatchingChecksum)).toMap)
+      override def bulkValidateCrc32cs(gcsClient: Storage, filesWithValidPaths: Map[ReferenceFile, ValidFullGcsPath]): Map[ReferenceFile, Boolean] =
+        filesWithValidPaths.keySet.map(file => (file, file.path != refFile4Disk2MismatchingChecksum)).toMap
     }
 
   private val refFileMappingsMock = refFileMappingOperationsMockObject.generateReferenceFilesMapping(

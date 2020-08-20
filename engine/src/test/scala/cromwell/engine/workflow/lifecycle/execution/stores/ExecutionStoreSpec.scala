@@ -4,12 +4,14 @@ import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.ExecutionStatus.{ExecutionStatus, _}
 import cromwell.core.JobKey
 import cromwell.engine.workflow.lifecycle.execution.stores.ExecutionStoreSpec._
-import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
+import org.scalatest.BeforeAndAfter
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wom.graph._
 
 import scala.util.Random
 
-class ExecutionStoreSpec extends FlatSpec with Matchers with BeforeAndAfter {
+class ExecutionStoreSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
 
   var store: ExecutionStore = _
 

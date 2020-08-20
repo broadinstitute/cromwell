@@ -1,14 +1,16 @@
 package wom.types
 
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
 import spray.json.{JsNumber, JsString}
 import wom.WomExpressionException
 import wom.values.{WomFloat, WomGlobFile, WomSingleFile, WomString, WomUnlistedDirectory}
 
 import scala.util.Success
 
-class WomFileTypeSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+
+class WomFileTypeSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "WomFileType"
 

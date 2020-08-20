@@ -23,8 +23,9 @@ import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.util.WomMocks
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{Assertion, FlatSpecLike, OptionValues}
+import org.scalatest.{Assertion, OptionValues}
 import wom.expression.NoIoFunctionSet
 import wom.graph.{CommandCallNode, WomIdentifier}
 import wom.types._
@@ -33,7 +34,7 @@ import wom.values._
 import scala.concurrent.duration._
 
 class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSystemJobExecutionActorSpec")
-  with FlatSpecLike with BackendSpec with TableDrivenPropertyChecks with OptionValues {
+  with AnyFlatSpecLike with BackendSpec with TableDrivenPropertyChecks with OptionValues {
 
   behavior of "SharedFileSystemJobExecutionActor"
 

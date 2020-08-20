@@ -2,14 +2,15 @@ package cromwell.backend.google.pipelines.v2alpha1
 
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineMV
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
-import org.scalatest.{FlatSpec, Matchers}
 import org.slf4j.helpers.NOPLogger
 import wdl4s.parser.MemoryUnit
 import wom.format.MemorySize
 
-class MachineConstraintsSpec extends FlatSpec with Matchers {
+class MachineConstraintsSpec extends AnyFlatSpec with Matchers {
   behavior of "MachineConstraints"
 
   it should "generate valid machine types" in {

@@ -9,13 +9,15 @@ import cromwell.database.sql.tables.JobKeyValueEntry
 import cromwell.services.database._
 import cromwell.services.keyvalue.impl.KeyValueDatabaseSpec._
 import org.postgresql.util.PSQLException
+import org.scalatest.RecoverMethods
 import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.scalatest.{FlatSpec, Matchers, RecoverMethods}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class KeyValueDatabaseSpec extends FlatSpec with Matchers with ScalaFutures with RecoverMethods {
+class KeyValueDatabaseSpec extends AnyFlatSpec with Matchers with ScalaFutures with RecoverMethods {
 
   implicit val ec = ExecutionContext.global
   implicit val defaultPatience = PatienceConfig(scaled(Span(5, Seconds)), scaled(Span(100, Millis)))

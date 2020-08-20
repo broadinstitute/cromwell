@@ -2,15 +2,17 @@ package cromwell.backend.impl.bcs
 
 import com.typesafe.config.ConfigFactory
 import common.collections.EnhancedCollections._
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptorKey, RuntimeAttributeDefinition}
 import cromwell.backend.BackendSpec.buildWdlWorkflowDescriptor
 import cromwell.backend.validation.ContinueOnReturnCodeSet
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptorKey, RuntimeAttributeDefinition}
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.filesystems.oss.OssPathBuilder
 import cromwell.filesystems.oss.nio.DefaultOssStorageConfiguration
 import cromwell.util.SampleWdl
-import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
-import org.scalatest.mockito.MockitoSugar
+import org.scalatest.BeforeAndAfter
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.mockito.MockitoSugar
 import org.slf4j.helpers.NOPLogger
 import spray.json.{JsObject, JsString}
 import wom.values.WomValue
@@ -115,7 +117,7 @@ object BcsTestUtilSpec {
   val EmptyWorkflowOption = WorkflowOptions.fromMap(Map.empty).get
 }
 
-trait BcsTestUtilSpec extends TestKitSuite with FlatSpecLike with Matchers with MockitoSugar with BeforeAndAfter {
+trait BcsTestUtilSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with MockitoSugar with BeforeAndAfter {
 
   before {
     BcsMount.pathBuilders = List(mockPathBuilder)

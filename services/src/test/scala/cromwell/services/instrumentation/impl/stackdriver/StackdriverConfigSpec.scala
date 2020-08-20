@@ -3,11 +3,13 @@ package cromwell.services.instrumentation.impl.stackdriver
 import com.typesafe.config.ConfigFactory
 import common.exception.AggregatedMessageException
 import cromwell.core.TestKitSuite
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class StackdriverConfigSpec extends TestKitSuite with FlatSpecLike with BeforeAndAfterAll with Matchers {
+class StackdriverConfigSpec extends TestKitSuite with AnyFlatSpecLike with BeforeAndAfterAll with Matchers {
   behavior of "StackdriverConfig"
 
   val googleConfig = ConfigFactory.parseString(

@@ -6,10 +6,12 @@ import cwl.internal.EnhancedRhinoSandboxSpec.CachedClassLoader
 import org.apache.commons.io.IOUtils
 import org.mozilla.javascript.ContextFactory
 import org.scalatest.concurrent.ScaledTimeSpans
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
 import scala.concurrent.duration._
 
-class EnhancedRhinoSandboxSpec extends FlatSpec with Matchers with ScaledTimeSpans {
+class EnhancedRhinoSandboxSpec extends AnyFlatSpec with Matchers with ScaledTimeSpans {
 
   behavior of "EnhancedRhinoSandbox"
 

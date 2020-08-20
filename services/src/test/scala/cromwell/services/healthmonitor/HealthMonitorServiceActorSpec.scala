@@ -8,12 +8,13 @@ import cromwell.core.TestKitSuite
 import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse}
 import cromwell.services.healthmonitor.impl.HealthMonitorServiceActor
 import org.scalatest.concurrent.Eventually
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.scalatest.{FlatSpecLike, Matchers}
 
 import scala.concurrent.duration._
 
-class HealthMonitorServiceActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Eventually with AskSupport {
+class HealthMonitorServiceActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually with AskSupport {
 
   override implicit def patienceConfig = PatienceConfig(timeout = scaled(Span(15, Seconds)), interval = Span(500, Millis))
 

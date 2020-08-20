@@ -1,16 +1,18 @@
 package wdl.draft3.transforms.linking.expression.files
 
-import org.scalatest.{FlatSpec, Matchers}
 import common.assertion.ErrorOrAssertions._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import wdl.draft3.transforms.linking.expression.values.expressionEvaluator
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement.{ObjectLiteral, StringLiteral}
 import wdl.model.draft3.graph.expression.FileEvaluator.ops._
 import wom.expression.NoIoFunctionSet
 import wom.types.{WomCompositeType, WomSingleFileType}
 import wom.values.WomSingleFile
-import wdl.draft3.transforms.linking.expression.values.expressionEvaluator
 
-class FileEvaluatorSpec extends FlatSpec with Matchers {
+
+class FileEvaluatorSpec extends AnyFlatSpec with Matchers {
 
   behavior of "FileEvaluator[ExpressionElement]"
 

@@ -2,12 +2,14 @@ package wdl.draft3.transforms.expression.values
 
 import cats.data.Validated.{Invalid, Valid}
 import common.validation.ErrorOr.ErrorOr
-import org.scalatest.{Assertion, FlatSpec, Matchers}
+import org.scalatest.Assertion
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.draft3.transforms.expression.values.Draft3SizeFunctionSpec.testFunctions
-import wdl.transforms.base.linking.expression.values.EngineFunctionEvaluators.sizeFunctionEvaluator
+import wdl.draft3.transforms.linking.expression.values.expressionEvaluator
 import wdl.model.draft3.elements.ExpressionElement.{IdentifierLookup, PrimitiveLiteralExpressionElement, Size}
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
-import wdl.draft3.transforms.linking.expression.values.expressionEvaluator
+import wdl.transforms.base.linking.expression.values.EngineFunctionEvaluators.sizeFunctionEvaluator
 import wom.expression.{EmptyIoFunctionSet, IoFunctionSet}
 import wom.types._
 import wom.values._
@@ -15,7 +17,8 @@ import wom.values._
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
-class Draft3SizeFunctionSpec extends FlatSpec with Matchers {
+
+class Draft3SizeFunctionSpec extends AnyFlatSpec with Matchers {
 
   behavior of "ReadLikeFunctions.size"
 

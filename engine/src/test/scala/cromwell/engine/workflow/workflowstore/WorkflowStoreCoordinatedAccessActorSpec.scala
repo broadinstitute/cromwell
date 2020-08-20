@@ -9,8 +9,9 @@ import akka.util.Timeout
 import cats.data.NonEmptyVector
 import cromwell.core._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreCoordinatedAccessActor.{FetchStartableWorkflows, WriteHeartbeats}
+import org.scalatest.flatspec.AsyncFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{AsyncFlatSpecLike, Matchers}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}

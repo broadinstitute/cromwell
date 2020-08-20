@@ -4,14 +4,16 @@ import common.validation.Validation._
 import cwl.ExpressionEvaluator._
 import eu.timepit.refined._
 import eu.timepit.refined.numeric.Positive
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import shapeless.Coproduct
 import wom.callable.RuntimeEnvironment
 import wom.expression.NoIoFunctionSet
 import wom.graph.LocalName
 import wom.values.WomString
 
-class CwlExpressionCommandPartSpec extends FlatSpec with Matchers {
+
+class CwlExpressionCommandPartSpec extends AnyFlatSpec with Matchers {
 
   behavior of "CwlExpressionCommandPart"
 

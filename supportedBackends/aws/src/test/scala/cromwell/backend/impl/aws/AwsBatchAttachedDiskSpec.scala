@@ -33,13 +33,14 @@ package cromwell.backend.impl.aws
 
 import cromwell.backend.impl.aws.io.{AwsBatchEmptyMountedDisk, AwsBatchWorkingDisk}
 import cromwell.core.path.DefaultPathBuilder
+import org.scalatest.TryValues
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
-import org.scalatest.{FlatSpec, Matchers, TryValues}
 
-// import scala.util.Failure
 
-class AwsBatchAttachedDiskSpec extends FlatSpec with Matchers with TryValues {
+class AwsBatchAttachedDiskSpec extends AnyFlatSpec with Matchers with TryValues {
   val validTable = Table(
     ("unparsed", "parsed"),
     // AwsBatchEmptyMountedDisk has a toString override that uses the MD5sum of

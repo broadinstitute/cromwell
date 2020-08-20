@@ -1,18 +1,19 @@
 package cromwell.backend.google.pipelines.v2beta.api
 
-import com.google.api.services.lifesciences.v2beta.model.Mount
+import com.google.api.services.lifesciences.v2beta.model.{Action, Mount}
+import cromwell.backend.google.pipelines.common.action.ActionLabels._
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.pipelines.common.PipelinesApiJobPaths._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.v2beta.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2beta.ToParameter.ops._
-import cromwell.backend.google.pipelines.v2beta.api.ActionBuilder.Labels.{Key, Value}
 import cromwell.backend.google.pipelines.v2beta.api.ActionBuilder.cloudSdkShellAction
 import cromwell.backend.google.pipelines.v2beta.api.ActionCommands.localizeFile
 
 
 trait Localization {
-  def localizeActions(createPipelineParameters: CreatePipelineParameters, mounts: List[Mount])(implicit gcsTransferConfiguration: GcsTransferConfiguration) = {
+  def localizeActions(createPipelineParameters: CreatePipelineParameters, mounts: List[Mount])
+                     (implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Action] = {
     val localizationLabel = Map(Key.Tag -> Value.Localization)
 
     val gcsTransferLibraryContainerPath = createPipelineParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)

@@ -1,17 +1,19 @@
 package cwl
 
 import common.validation.ErrorOr._
-import eu.timepit.refined.refineMV
-import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
-import wom.callable.RuntimeEnvironment
-import wom.values._
 import common.validation.Validation._
 import cwl.ExpressionInterpolator.SubstitutionException
 import eu.timepit.refined.numeric.Positive
+import eu.timepit.refined.refineMV
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.prop.TableDrivenPropertyChecks
+import wom.callable.RuntimeEnvironment
 import wom.expression.DefaultSizeIoFunctionSet
+import wom.values._
 
-class ExpressionInterpolatorSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+
+class ExpressionInterpolatorSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "ExpressionInterpolator"
 

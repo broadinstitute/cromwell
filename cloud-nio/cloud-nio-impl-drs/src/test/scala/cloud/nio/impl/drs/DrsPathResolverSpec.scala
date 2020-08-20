@@ -1,13 +1,13 @@
 package cloud.nio.impl.drs
 
 import java.time.OffsetDateTime
-import io.circe.{Json, JsonObject}
-import org.scalatest.{FlatSpecLike, Matchers}
 
 import cloud.nio.impl.drs.MarthaResponseSupport.convertMarthaResponseV2ToV3
+import io.circe.{Json, JsonObject}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
-
-class DrsPathResolverSpec extends FlatSpecLike with Matchers {
+class DrsPathResolverSpec extends AnyFlatSpecLike with Matchers {
   private val mockGSA = SADataObject(data = Json.fromJsonObject(JsonObject("key"-> Json.fromString("value"))))
   private val crcHashValue = "8a366443"
   private val md5HashValue = "336ea55913bc261b72875bd259753046"

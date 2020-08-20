@@ -8,12 +8,13 @@ import cromwell.database.slick.MetadataSlickDatabase
 import cromwell.database.sql.tables.{CustomLabelEntry, WorkflowMetadataSummaryEntry}
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-class RootAndSubworkflowLabelsSpec extends FlatSpec with Matchers with ScalaFutures {
+class RootAndSubworkflowLabelsSpec extends AnyFlatSpec with Matchers with ScalaFutures {
   implicit val ec = ExecutionContext.global
 
   DatabaseSystem.All foreach { databaseSystem =>
@@ -24,9 +25,8 @@ class RootAndSubworkflowLabelsSpec extends FlatSpec with Matchers with ScalaFutu
     lazy val database: MetadataSlickDatabase with TestSlickDatabase =
       DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, MetadataDatabaseType, databaseSystem)
 
-    import database.dataAccess.driver.api._
-
     import cromwell.database.migration.metadata.table.symbol.MetadataStatement.OffsetDateTimeToSystemTimestamp
+    import database.dataAccess.driver.api._
     val now = OffsetDateTime.now().toSystemTimestamp
     println(now)
 

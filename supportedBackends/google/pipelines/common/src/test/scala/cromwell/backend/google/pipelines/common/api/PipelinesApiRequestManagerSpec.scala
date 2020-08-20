@@ -15,14 +15,15 @@ import cromwell.util.AkkaTestUtil.DeathTestActor
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric._
 import org.scalatest.concurrent.Eventually
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.immutable.Queue
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.Random
 
-class PipelinesApiRequestManagerSpec extends TestKitSuite("PipelinesApiRequestManagerSpec") with FlatSpecLike with Matchers with Eventually {
+class PipelinesApiRequestManagerSpec extends TestKitSuite("PipelinesApiRequestManagerSpec") with AnyFlatSpecLike with Matchers with Eventually {
 
   behavior of "PipelinesApiRequestManager"
 

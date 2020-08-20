@@ -1,9 +1,11 @@
 package cwl
 
 import CwlDecoder._
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class WorkflowParsingSpec extends FlatSpec with Matchers {
+
+class WorkflowParsingSpec extends AnyFlatSpec with Matchers {
 
   behavior of "Workflow Json Parser"
 
@@ -31,7 +33,7 @@ class WorkflowParsingSpec extends FlatSpec with Matchers {
   }
 }
 
-class CommandLineToolParsingSpec extends FlatSpec with Matchers {
+class CommandLineToolParsingSpec extends AnyFlatSpec with Matchers {
 
   behavior of "CommandLineTool Json Parser"
 

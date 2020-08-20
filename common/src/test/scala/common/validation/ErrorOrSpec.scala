@@ -4,9 +4,11 @@ import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
 import common.validation.ErrorOr._
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class ErrorOrSpec extends FlatSpec with Matchers {
+
+class ErrorOrSpec extends AnyFlatSpec with Matchers {
 
   behavior of "ErrorOr"
 

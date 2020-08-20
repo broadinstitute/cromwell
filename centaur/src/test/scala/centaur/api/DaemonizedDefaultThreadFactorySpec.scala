@@ -1,8 +1,9 @@
 package centaur.api
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class DaemonizedDefaultThreadFactorySpec extends FlatSpec with Matchers {
+class DaemonizedDefaultThreadFactorySpec extends AnyFlatSpec with Matchers {
 
   behavior of "DaemonizedDefaultThreadFactory"
 

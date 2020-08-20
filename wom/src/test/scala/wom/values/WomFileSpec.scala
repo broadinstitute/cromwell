@@ -1,13 +1,15 @@
 package wom.values
 
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
 import wom.WomExpressionException
 import wom.types._
 
 import scala.util.{Success, Try}
 
-class WomFileSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+
+class WomFileSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "WomFile"
 

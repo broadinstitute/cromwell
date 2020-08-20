@@ -2,10 +2,11 @@ package cwl
 
 import cwl.CwlDecoder._
 import cwl.TestSetup._
-import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 
-class ParseBigThreeSpec extends FlatSpec with Matchers {
+class ParseBigThreeSpec extends AnyFlatSpec with Matchers {
   val namespace = "cwl"
 
   it should "parse 1st tool" in {

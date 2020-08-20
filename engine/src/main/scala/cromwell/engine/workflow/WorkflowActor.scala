@@ -250,7 +250,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
   sendHeartbeat()
 
   // Send heartbeats possibly redundantly but unacked.
-  timers.startPeriodicTimer(workflowId, SendWorkflowHeartbeatCommand, workflowHeartbeatConfig.heartbeatInterval)
+  timers.startTimerWithFixedDelay(workflowId, SendWorkflowHeartbeatCommand, workflowHeartbeatConfig.heartbeatInterval)
 
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() {
     case exception if stateName == MaterializingWorkflowDescriptorState =>

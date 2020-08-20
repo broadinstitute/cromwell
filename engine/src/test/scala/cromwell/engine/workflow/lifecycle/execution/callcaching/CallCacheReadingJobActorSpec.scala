@@ -9,9 +9,10 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReading
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CacheMiss, HashError}
 import cromwell.services.CallCaching.CallCachingEntryId
 import org.scalatest.concurrent.Eventually
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
-class CallCacheReadingJobActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Eventually {
+class CallCacheReadingJobActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually {
   behavior of "CallCacheReadingJobActor"
   
   it should "try to match initial hashes against DB" in {

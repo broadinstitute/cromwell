@@ -3,11 +3,12 @@ package cromwell.engine.workflow.tokens
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.engine.workflow.tokens.UnhoggableTokenPool.{HogLimitExceeded, TokenHoggingLease, TokenTypeExhausted, TokensAvailable}
 import org.scalatest.concurrent.Eventually
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class UnhoggableTokenPoolSpec extends FlatSpec with Matchers with Eventually {
+class UnhoggableTokenPoolSpec extends AnyFlatSpec with Matchers with Eventually {
 
   override val patienceConfig = PatienceConfig(timeout = scaled(5.seconds), interval = scaled(1.second))
   implicit val patience = patienceConfig

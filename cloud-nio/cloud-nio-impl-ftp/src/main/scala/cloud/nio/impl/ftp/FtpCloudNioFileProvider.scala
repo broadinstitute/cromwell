@@ -5,7 +5,6 @@ import java.nio.channels.{Channels, ReadableByteChannel, WritableByteChannel}
 import java.nio.file.FileAlreadyExistsException
 
 import cats.effect.IO
-import cats.syntax.functor._
 import cloud.nio.impl.ftp.FtpUtil._
 import cloud.nio.impl.ftp.operations._
 import cloud.nio.spi.{CloudNioFileList, CloudNioFileProvider, CloudNioRegularFileAttributes}

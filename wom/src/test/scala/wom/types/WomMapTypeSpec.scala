@@ -1,12 +1,14 @@
 package wom.types
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json.{JsNumber, JsObject}
 import wom.values.{WomInteger, WomMap, WomObject, WomString}
 
 import scala.util.{Failure, Success}
 
-class WomMapTypeSpec extends FlatSpec with Matchers  {
+
+class WomMapTypeSpec extends AnyFlatSpec with Matchers  {
   val stringIntMap = WomMap(WomMapType(WomStringType, WomIntegerType), Map(
     WomString("a") -> WomInteger(1),
     WomString("b") -> WomInteger(2),

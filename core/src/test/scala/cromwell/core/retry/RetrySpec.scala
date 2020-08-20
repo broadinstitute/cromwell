@@ -3,12 +3,13 @@ package cromwell.core.retry
 import cromwell.core.retry.Retry._
 import cromwell.core.{CromwellFatalException, TestKitSuite}
 import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.scalatest.{FlatSpecLike, Matchers}
 
 import scala.concurrent.Future
 
-class RetrySpec extends TestKitSuite("retry-spec") with FlatSpecLike with Matchers with ScalaFutures {
+class RetrySpec extends TestKitSuite("retry-spec") with AnyFlatSpecLike with Matchers with ScalaFutures {
   class TransientException extends Exception
   class MockWork(n: Int, transients: Int = 0) {
     implicit val ec = system.dispatcher

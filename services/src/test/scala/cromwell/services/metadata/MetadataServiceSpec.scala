@@ -2,16 +2,17 @@ package cromwell.services.metadata
 
 import java.util.UUID
 
-import cromwell.core._
 import common.exception.AggregatedException
+import cromwell.core._
 import cromwell.services.metadata
 import org.scalactic.Equality
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
 import wom.types._
 import wom.values._
 
-class MetadataServiceSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+class MetadataServiceSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "MetadataServiceSpec"
 

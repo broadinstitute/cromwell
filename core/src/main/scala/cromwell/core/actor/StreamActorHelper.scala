@@ -1,10 +1,10 @@
 package cromwell.core.actor
 
-import akka.actor.{Actor, ActorLogging}
+import akka.actor.{Actor, ActorLogging, ActorSystem}
 import akka.pattern.pipe
 import akka.stream.QueueOfferResult.Enqueued
 import akka.stream.scaladsl.{Sink, Source, SourceQueueWithComplete}
-import akka.stream.{ActorAttributes, ActorMaterializer, Supervision}
+import akka.stream.{ActorAttributes, Supervision}
 import cromwell.core.actor.StreamActorHelper.{ActorRestartException, StreamCompleted, StreamFailed}
 import cromwell.core.actor.StreamIntegration._
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
@@ -21,8 +21,7 @@ object StreamActorHelper {
 trait StreamActorHelper[T <: StreamContext] { this: Actor with ActorLogging =>
 
   implicit def ec: ExecutionContext
-
-  implicit def materializer: ActorMaterializer
+  implicit val actorSystem: ActorSystem = context.system
 
   private val decider: Supervision.Decider = _ => Supervision.Resume
   

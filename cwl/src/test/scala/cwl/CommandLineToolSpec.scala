@@ -3,16 +3,18 @@ package cwl
 import cats.instances.list._
 import cats.syntax.traverse._
 import eu.timepit.refined.numeric.Positive
-import org.scalatest.{FlatSpec, Matchers, ParallelTestExecution}
+import eu.timepit.refined.refineMV
+import org.scalatest.ParallelTestExecution
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import shapeless.Coproduct
 import wom.callable.Callable.RequiredInputDefinition
 import wom.callable.RuntimeEnvironment
-import eu.timepit.refined.refineMV
 import wom.expression.NoIoFunctionSet
 import wom.types._
 import wom.values.{WomArray, WomBoolean, WomEvaluatedCallInputs, WomInteger, WomObject, WomSingleFile, WomString, WomValue}
 
-class CommandLineToolSpec extends FlatSpec with Matchers with ParallelTestExecution {
+class CommandLineToolSpec extends AnyFlatSpec with Matchers with ParallelTestExecution {
 
   behavior of "CommandLineTool"
 

@@ -18,8 +18,10 @@ import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder, MockGcsPathBuilder}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.impl.FileDeletionStatus
 import cromwell.services.metadata.impl.FileDeletionStatus.{Failed, InProgress, Succeeded}
+import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually.eventually
-import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import wom.graph.GraphNodePort.{ExpressionBasedOutputPort, GraphNodeOutputPort}
 import wom.graph.{FullyQualifiedName, LocalName, WomIdentifier}
 import wom.types.{WomMaybeEmptyArrayType, WomSingleFileType, WomStringType}
@@ -28,7 +30,7 @@ import wom.values.{WomArray, WomSingleFile, WomString}
 import scala.concurrent.duration._
 
 class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActorSpec")
-  with FlatSpecLike
+  with AnyFlatSpecLike
   with Matchers
   with BeforeAndAfter {
 

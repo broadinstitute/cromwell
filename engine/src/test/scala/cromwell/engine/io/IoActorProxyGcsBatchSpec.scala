@@ -2,7 +2,6 @@ package cromwell.engine.io
 
 import java.util.UUID
 
-import akka.stream.ActorMaterializer
 import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
 import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags.IntegrationTest
@@ -11,23 +10,22 @@ import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.filesystems.gcs.batch._
 import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder, GcsPathBuilderFactory}
 import org.scalatest.concurrent.Eventually
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
 import scala.language.postfixOps
 
-class IoActorProxyGcsBatchSpec extends TestKitSuite with FlatSpecLike with Matchers with ImplicitSender with Eventually {
+class IoActorProxyGcsBatchSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with ImplicitSender with Eventually {
   behavior of "IoActor [GCS Batch]"
 
   implicit val actorSystem = system
   implicit val ec: ExecutionContext = system.dispatcher
-  implicit val materializer = ActorMaterializer()
 
   val instanceConfig = ConfigFactory.parseString("auth = \"application-default\"")
 
   override def afterAll() = {
-    materializer.shutdown()
     src.delete(swallowIOExceptions = true)
     srcRequesterPays.delete(swallowIOExceptions = true)
     dst.delete(swallowIOExceptions = true)

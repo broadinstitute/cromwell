@@ -1,11 +1,12 @@
 package cromwell.docker.local
 
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpecLike, Matchers}
 
 import scala.util.{Failure, Success}
 
-class DockerCliClientSpec extends FlatSpecLike with Matchers with TableDrivenPropertyChecks {
+class DockerCliClientSpec extends AnyFlatSpecLike with Matchers with TableDrivenPropertyChecks {
   behavior of "DockerCliClient"
 
   private val lookupSuccessStdout = Seq(

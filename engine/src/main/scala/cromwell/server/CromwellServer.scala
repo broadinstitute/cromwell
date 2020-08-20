@@ -1,10 +1,9 @@
 package cromwell.server
 
-import akka.actor.{ActorContext, ActorLogging, Props}
+import akka.actor.{ActorLogging, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.stream.ActorMaterializer
 import common.util.VersionUtil
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.services.instrumentation.CromwellInstrumentationActor
@@ -19,13 +18,12 @@ import scala.util.{Failure, Success}
 object CromwellServer {
   def run(gracefulShutdown: Boolean, abortJobsOnTerminate: Boolean)(cromwellSystem: CromwellSystem): Future[Any] = {
     implicit val actorSystem = cromwellSystem.actorSystem
-    implicit val materializer = cromwellSystem.materializer
     actorSystem.actorOf(CromwellServerActor.props(cromwellSystem, gracefulShutdown, abortJobsOnTerminate), "cromwell-service")
     actorSystem.whenTerminated
   }
 }
 
-class CromwellServerActor(cromwellSystem: CromwellSystem, gracefulShutdown: Boolean, abortJobsOnTerminate: Boolean)(override implicit val materializer: ActorMaterializer)
+class CromwellServerActor(cromwellSystem: CromwellSystem, gracefulShutdown: Boolean, abortJobsOnTerminate: Boolean)
   extends CromwellRootActor(
     terminator = cromwellSystem,
     gracefulShutdown = gracefulShutdown,
@@ -40,7 +38,6 @@ class CromwellServerActor(cromwellSystem: CromwellSystem, gracefulShutdown: Bool
     with ActorLogging {
   implicit val actorSystem = context.system
   override implicit val ec = context.dispatcher
-  override def actorRefFactory: ActorContext = context
 
   val webserviceConf = cromwellSystem.config.getConfig("webservice")
   val interface = webserviceConf.getString("interface")
@@ -85,7 +82,7 @@ class CromwellServerActor(cromwellSystem: CromwellSystem, gracefulShutdown: Bool
 }
 
 object CromwellServerActor {
-  def props(cromwellSystem: CromwellSystem, gracefulShutdown: Boolean, abortJobsOnTerminate: Boolean)(implicit materializer: ActorMaterializer): Props = {
+  def props(cromwellSystem: CromwellSystem, gracefulShutdown: Boolean, abortJobsOnTerminate: Boolean): Props = {
     Props(new CromwellServerActor(cromwellSystem, gracefulShutdown, abortJobsOnTerminate)).withDispatcher(EngineDispatcher)
   }
 }

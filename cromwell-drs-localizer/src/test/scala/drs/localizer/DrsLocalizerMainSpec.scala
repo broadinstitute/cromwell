@@ -5,10 +5,11 @@ import java.nio.file.{Files, Path}
 import cats.effect.{ExitCode, IO}
 import cloud.nio.impl.drs.{DrsConfig, MarthaResponse}
 import org.apache.http.impl.client.HttpClientBuilder
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 
-class DrsLocalizerMainSpec extends FlatSpec with Matchers {
+class DrsLocalizerMainSpec extends AnyFlatSpec with Matchers {
 
   val fakeDownloadLocation = "/root/foo/foo-123.bam"
   val fakeRequesterPaysId = "fake-billing-project"

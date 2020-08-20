@@ -12,11 +12,13 @@ import cromwell.util.AkkaTestUtil
 import cromwell.util.AkkaTestUtil.StoppingSupervisor
 import org.scalatest._
 import org.scalatest.concurrent.Eventually
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 import scala.util.Random
 
-class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec")) with ImplicitSender with FlatSpecLike with Matchers with BeforeAndAfter with BeforeAndAfterAll with Eventually {
+class JobExecutionTokenDispenserActorSpec extends TestKit(ActorSystem("JETDASpec")) with ImplicitSender with AnyFlatSpecLike with Matchers with BeforeAndAfter with BeforeAndAfterAll with Eventually {
 
   val MaxWaitTime = 10.seconds
   implicit val pc: PatienceConfig = PatienceConfig(MaxWaitTime)

@@ -5,7 +5,6 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
-import akka.stream.ActorMaterializer
 import com.typesafe.scalalogging.StrictLogging
 import common.util.VersionUtil
 import cromwell.core._
@@ -28,7 +27,8 @@ import cromwell.util.SampleWdl.HelloWorld
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.{EngineStatsActor, FailureResponse}
 import mouse.boolean._
-import org.scalatest.{AsyncFlatSpec, Matchers}
+import org.scalatest.flatspec.AsyncFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json._
 
 import scala.concurrent.duration._
@@ -527,14 +527,11 @@ object CromwellApiServiceSpec {
   val RecognizedWorkflowIds = Set(ExistingWorkflowId, AbortedWorkflowId, OnHoldWorkflowId, RunningWorkflowId, AbortingWorkflowId, SucceededWorkflowId, FailedWorkflowId, SummarizedWorkflowId)
   val SummarizedWorkflowIds = Set(SummarizedWorkflowId, WorkflowIdExistingOnlyInSummaryTable)
 
-  class MockApiService()(implicit val system: ActorSystem) extends CromwellApiService {
-    override def actorRefFactory = system
-
-    override val materializer = ActorMaterializer()
-    override val ec = system.dispatcher
-    override val workflowStoreActor = actorRefFactory.actorOf(Props(new MockWorkflowStoreActor()))
-    override val serviceRegistryActor = actorRefFactory.actorOf(Props(new MockServiceRegistryActor()))
-    override val workflowManagerActor = actorRefFactory.actorOf(Props(new MockWorkflowManagerActor()))
+  class MockApiService()(implicit val actorSystem: ActorSystem) extends CromwellApiService {
+    override val ec = actorSystem.dispatcher
+    override val workflowStoreActor = actorSystem.actorOf(Props(new MockWorkflowStoreActor()))
+    override val serviceRegistryActor = actorSystem.actorOf(Props(new MockServiceRegistryActor()))
+    override val workflowManagerActor = actorSystem.actorOf(Props(new MockWorkflowManagerActor()))
   }
 
   object MockServiceRegistryActor {

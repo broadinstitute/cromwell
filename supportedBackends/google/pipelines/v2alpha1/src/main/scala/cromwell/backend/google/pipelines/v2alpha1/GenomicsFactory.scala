@@ -200,16 +200,13 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       val adjustedBootDiskSize = {
         val fromRuntimeAttributes = createPipelineParameters.runtimeAttributes.bootDiskSize
         // Compute the decompressed size based on the information available
-        val actualSizeInBytes = createPipelineParameters.jobDescriptor.dockerSize.map(_.toFullSize(DockerConfiguration.instance.sizeCompressionFactor)).getOrElse(0L)
-        val actualSizeInGB = MemorySize(actualSizeInBytes.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB).amount
-        val actualSizeRoundedUpInGB = actualSizeInGB.ceil.toInt
+        val userCommandImageSizeInBytes = createPipelineParameters.jobDescriptor.dockerSize.map(_.toFullSize(DockerConfiguration.instance.sizeCompressionFactor)).getOrElse(0L)
+        val userCommandImageSizeInGB = MemorySize(userCommandImageSizeInBytes.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB).amount
+        val userCommandImageSizeRoundedUpInGB = userCommandImageSizeInGB.ceil.toInt
 
-        // If the size of the image is larger than what is in the runtime attributes, adjust it to uncompressed size
-        if (actualSizeRoundedUpInGB > fromRuntimeAttributes) {
-          jobLogger.info(s"Adjusting boot disk size to $actualSizeRoundedUpInGB GB to account for docker image size")
-        }
-
-        Math.max(fromRuntimeAttributes, actualSizeRoundedUpInGB) + ActionUtils.cromwellImagesSizeRoundedUpInGB
+        val totalSize = fromRuntimeAttributes + userCommandImageSizeRoundedUpInGB + ActionUtils.cromwellImagesSizeRoundedUpInGB
+        jobLogger.info(s"Adjusting boot disk size to $totalSize GB: $fromRuntimeAttributes GB (runtime attributes) + $userCommandImageSizeRoundedUpInGB GB (user command image) + ${ActionUtils.cromwellImagesSizeRoundedUpInGB} GB (Cromwell support images)")
+        totalSize
       }
 
       val virtualMachine = new VirtualMachine()
@@ -266,7 +263,7 @@ object GenomicsFactory {
   val CloudSdkImage: String = if (config.hasPath("cloud-sdk-image-url")) { config.getString("cloud-sdk-image-url").toString } else "gcr.io/google.com/cloudsdktool/cloud-sdk:276.0.0-slim"
 
   /*
-   * At the moment, the cloud-sdk:slim (727MB on 2019-09-26) and possibly stedolan/jq (182MB) decompressed ~= 1 GB
+   * At the moment, cloud-sdk (924MB for 276.0.0-slim) and stedolan/jq (182MB) decompressed ~= 1.1 GB
    */
   val CromwellImagesSizeRoundedUpInGB: Int = if (config.hasPath("cloud-sdk-image-size-gb")) { config.getInt("cloud-sdk-image-size-gb") } else 1
 }

@@ -80,7 +80,7 @@ protected trait PipelinesApiReferenceFilesMappingOperations {
     }
   }
 
-  private def getReferenceFileToValidatedGcsPathMap(referenceFiles: Set[ReferenceFile]): Map[ReferenceFile, ValidFullGcsPath] = {
+  private def getReferenceFileToValidatedGcsPathMap(referenceFiles: Set[ReferenceFile]): IO[Map[ReferenceFile, ValidFullGcsPath]] = {
     val filesAndValidatedPaths = referenceFiles.map {
       referenceFile => (referenceFile, GcsPathBuilder.validateGcsPath(s"gs://${referenceFile.path}"))
     }.toMap
@@ -93,31 +93,33 @@ protected trait PipelinesApiReferenceFilesMappingOperations {
     }
 
     if (filesWithInvalidPaths.nonEmpty) {
-      throw new InvalidGcsPathsInManifestFileException(filesWithInvalidPaths.keySet.map(_.path).toList)
+      IO.raiseError(new InvalidGcsPathsInManifestFileException(filesWithInvalidPaths.keySet.map(_.path).toList))
     } else {
-      filesWithValidPaths
+      IO.pure(filesWithValidPaths)
     }
   }
 
   protected def bulkValidateCrc32cs(gcsClient: Storage,
-                                    filesWithValidPaths: Map[ReferenceFile, ValidFullGcsPath]): Map[ReferenceFile, Boolean] = {
-    val gcsBatch = gcsClient.batch()
-    val filesAndBlobResults = filesWithValidPaths map {
-      case (referenceFile, ValidFullGcsPath(bucket, path)) =>
-        val blobGetResult = gcsBatch.get(BlobId.of(bucket, path.substring(1)), BlobGetOption.fields(BlobField.CRC32C))
-        (referenceFile, blobGetResult)
-    }
-    gcsBatch.submit()
+                                    filesWithValidPaths: Map[ReferenceFile, ValidFullGcsPath]): IO[Map[ReferenceFile, Boolean]] = {
+    IO {
+      val gcsBatch = gcsClient.batch()
+      val filesAndBlobResults = filesWithValidPaths map {
+        case (referenceFile, ValidFullGcsPath(bucket, path)) =>
+          val blobGetResult = gcsBatch.get(BlobId.of(bucket, path.substring(1)), BlobGetOption.fields(BlobField.CRC32C))
+          (referenceFile, blobGetResult)
+      }
+      gcsBatch.submit()
 
-    filesAndBlobResults map {
-      case (referenceFile, blobGetResult) =>
-        val crc32cFromManifest = BaseEncoding.base64.encode(
-          // drop 4 leading bytes from Long crc32c value
-          // https://stackoverflow.com/a/25111119/1794750
-          util.Arrays.copyOfRange(Longs.toByteArray(referenceFile.crc32c), 4, 8)
-        )
+      filesAndBlobResults map {
+        case (referenceFile, blobGetResult) =>
+          val crc32cFromManifest = BaseEncoding.base64.encode(
+            // drop 4 leading bytes from Long crc32c value
+            // https://stackoverflow.com/a/25111119/1794750
+            util.Arrays.copyOfRange(Longs.toByteArray(referenceFile.crc32c), 4, 8)
+          )
 
-        (referenceFile, crc32cFromManifest === blobGetResult.get().getCrc32c)
+          (referenceFile, crc32cFromManifest === blobGetResult.get().getCrc32c)
+      }
     }
   }
 
@@ -125,14 +127,11 @@ protected trait PipelinesApiReferenceFilesMappingOperations {
     val refDisk = PipelinesApiReferenceFilesDisk(manifestFile.imageIdentifier, manifestFile.diskSizeGb)
     val allReferenceFilesFromManifestMap = manifestFile.files.map(refFile => (refFile, refDisk)).toMap
 
-    val filesWithValidatedCrc32csIo = IO {
-      val referenceFilesWithValidPaths = getReferenceFileToValidatedGcsPathMap(allReferenceFilesFromManifestMap.keySet)
-      bulkValidateCrc32cs(gcsClient, referenceFilesWithValidPaths)
-    }
-
-    val validReferenceFilesFromManifestMapIo = filesWithValidatedCrc32csIo map { filesWithValidatedCrc32c =>
-      allReferenceFilesFromManifestMap.filterKeys(key => filesWithValidatedCrc32c.getOrElse(key, false))
-    }
+    val validReferenceFilesFromManifestMapIo =
+      for {
+        referenceFilesWithValidPaths <- getReferenceFileToValidatedGcsPathMap(allReferenceFilesFromManifestMap.keySet)
+        filesWithValidatedCrc32cs <- bulkValidateCrc32cs(gcsClient, referenceFilesWithValidPaths)
+      } yield allReferenceFilesFromManifestMap.filterKeys(key => filesWithValidatedCrc32cs.getOrElse(key, false))
 
     validReferenceFilesFromManifestMapIo map { validReferenceFilesFromManifestMap =>
       val invalidReferenceFiles = allReferenceFilesFromManifestMap.keySet -- validReferenceFilesFromManifestMap.keySet

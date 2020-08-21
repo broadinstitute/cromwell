@@ -9,6 +9,7 @@ task check_if_localized_as_symlink {
   }
   runtime {
     docker: "ubuntu:latest"
+    backend: "Papiv2-Reference-Disk-Localization"
   }
 }
 

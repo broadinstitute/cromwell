@@ -415,17 +415,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     }
   }
 
-  // TODO: properly implement case when option is non-empty in order to analyze manifest files and task inputs and
-  //  figure out which reference disks have to be attached
-  private def getReferenceDisksToBeMountedFromManifests(manifestFilesOpt: Option[List[String]],
-                                                        fileInputs: List[PipelinesApiInput]): List[PipelinesApiAttachedDisk] =
-    manifestFilesOpt match {
-      case None => List.empty
-      // TODO: implement this case for reference disks to be mounted
-      case Some(_)  => List.empty
-    }
-
-  private def createPipelineParameters(inputOutputParameters: InputOutputParameters, customLabels: Seq[GoogleLabel]): CreatePipelineParameters = {
+  private def createPipelineParameters(inputOutputParameters: InputOutputParameters,
+                                       customLabels: Seq[GoogleLabel],
+                                       referenceFilesMapping: PipelinesApiReferenceFilesMapping): CreatePipelineParameters = {
     standardParams.backendInitializationDataOption match {
       case Some(data: PipelinesApiBackendInitializationData) =>
         val dockerKeyAndToken: Option[CreatePipelineDockerKeyAndToken] = for {
@@ -453,7 +445,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           )
         } getOrElse runtimeAttributes.disks
 
-        val referenceDisks = getReferenceDisksToBeMountedFromManifests(pipelinesConfiguration.papiAttributes.referenceDiskLocalizationManifestFiles, inputOutputParameters.fileInputParameters)
+        val inputFilePaths = inputOutputParameters.jobInputParameters.map(_.cloudPath.pathAsString).toSet
+        val referenceDisksToMount = PipelinesApiReferenceFilesMapping.getReferenceDisksToMount(jesAttributes.referenceFilesMapping, inputFilePaths)
 
         val workflowOptions = workflowDescriptor.workflowOptions
 
@@ -491,7 +484,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           retryWithMoreMemoryKeys = jesAttributes.memoryRetryConfiguration.map(_.errorKeys),
           fuseEnabled = fuseEnabled(jobDescriptor.workflowDescriptor),
           allowNoAddress = pipelinesConfiguration.papiAttributes.allowNoAddress,
-          referenceDisksForLocalization = referenceDisks,
+          referenceDisksForLocalization = referenceDisksToMount,
           monitoringImage = monitoringImage,
           enableSshAccess = enableSshAccess,
         )
@@ -594,7 +587,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       _ <- uploadScriptFile
       customLabels <- Future.fromTry(GoogleLabels.fromWorkflowOptions(workflowDescriptor.workflowOptions))
       jesParameters <- generateInputOutputParameters
-      createParameters = createPipelineParameters(jesParameters, customLabels)
+      createParameters = createPipelineParameters(jesParameters, customLabels, jesAttributes.referenceFilesMapping)
       gcsTransferConfiguration = initializationData.papiConfiguration.papiAttributes.gcsTransferConfiguration
       gcsTransferLibraryCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsTransferLibraryName
       transferLibraryContainerPath = createParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)

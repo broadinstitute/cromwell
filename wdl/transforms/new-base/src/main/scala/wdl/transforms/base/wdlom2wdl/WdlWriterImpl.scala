@@ -455,6 +455,7 @@ object WdlWriterImpl {
         case _: Prefix => functionCall("prefix")
         case _: Min => functionCall("min")
         case _: Max => functionCall("max")
+        case _: Sep => functionCall("sep")
       }
     }
   }

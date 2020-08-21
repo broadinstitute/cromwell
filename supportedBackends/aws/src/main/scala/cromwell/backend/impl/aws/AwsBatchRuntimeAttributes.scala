@@ -34,10 +34,10 @@ package cromwell.backend.impl.aws
 import cats.syntax.apply._
 import cats.syntax.validated._
 import com.typesafe.config.Config
-import common.validation.ErrorOr._
+import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.impl.aws.io.{AwsBatchVolume, AwsBatchWorkingDisk}
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
-import cromwell.backend.validation.{BooleanRuntimeAttributesValidation, _}
+import cromwell.backend.validation._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import wom.RuntimeAttributesKeys
@@ -45,21 +45,39 @@ import wom.format.MemorySize
 import wom.types._
 import wom.values._
 
+import scala.util.matching.Regex
 
+/**
+ * Attributes that are provided to the job at runtime
+ * @param cpu number of vCPU
+ * @param zones the aws availability zones to run in
+ * @param memory memory to allocate
+ * @param disks a sequence of disk volumes
+ * @param dockerImage the name of the docker image that the job will run in
+ * @param queueArn the arn of the AWS Batch queue that the job will be submitted to
+ * @param failOnStderr should the job fail if something is logged to `stderr`
+ * @param continueOnReturnCode decides if a job continues on receiving a specific return code
+ * @param noAddress is there no address
+ * @param scriptS3BucketName the s3 bucket where the execution command or script will be written and, from there, fetched into the container and executed
+ * @param fileSystem the filesystem type, default is "s3"
+ */
 case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
-                                zones: Vector[String],
-                                memory: MemorySize,
-                                disks: Seq[AwsBatchVolume],
-                                dockerImage: String,
-                                queueArn: String,
-                                failOnStderr: Boolean,
-                                continueOnReturnCode: ContinueOnReturnCode,
-                                noAddress: Boolean,
+                                     zones: Vector[String],
+                                     memory: MemorySize,
+                                     disks: Seq[AwsBatchVolume],
+                                     dockerImage: String,
+                                     queueArn: String,
+                                     failOnStderr: Boolean,
+                                     continueOnReturnCode: ContinueOnReturnCode,
+                                     noAddress: Boolean,
+                                     scriptS3BucketName: String,
                                      fileSystem:String= "s3")
 
 object AwsBatchRuntimeAttributes {
 
   val QueueArnKey = "queueArn"
+
+  val scriptS3BucketKey = "scriptBucketName"
 
   val ZonesKey = "zones"
   private val ZonesDefaultValue = WomString("us-east-1a")
@@ -105,6 +123,11 @@ object AwsBatchRuntimeAttributes {
   private def noAddressValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] = noAddressValidationInstance
     .withDefault(noAddressValidationInstance.configDefaultWomValue(runtimeConfig) getOrElse NoAddressDefaultValue)
 
+  private def scriptS3BucketNameValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[String] = {
+    ScriptS3BucketNameValidation(scriptS3BucketKey).withDefault(ScriptS3BucketNameValidation(scriptS3BucketKey)
+      .configDefaultWomValue(runtimeConfig).getOrElse( throw new RuntimeException( "scriptBucketName is required" )))
+  }
+
   private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
 
   private def queueArnValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[String] =
@@ -122,7 +145,8 @@ object AwsBatchRuntimeAttributes {
       memoryMinValidation(runtimeConfig),
       noAddressValidation(runtimeConfig),
       dockerValidation,
-      queueArnValidation(runtimeConfig)
+      queueArnValidation(runtimeConfig),
+      scriptS3BucketNameValidation(runtimeConfig)
     )
   }
 
@@ -136,6 +160,7 @@ object AwsBatchRuntimeAttributes {
     val failOnStderr: Boolean = RuntimeAttributesValidation.extract(failOnStderrValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val continueOnReturnCode: ContinueOnReturnCode = RuntimeAttributesValidation.extract(continueOnReturnCodeValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val noAddress: Boolean = RuntimeAttributesValidation.extract(noAddressValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val scriptS3BucketName = RuntimeAttributesValidation.extract(scriptS3BucketNameValidation(runtimeAttrsConfig) , validatedRuntimeAttributes)
 
     new AwsBatchRuntimeAttributes(
       cpu,
@@ -146,8 +171,32 @@ object AwsBatchRuntimeAttributes {
       queueArn,
       failOnStderr,
       continueOnReturnCode,
-      noAddress
+      noAddress,
+      scriptS3BucketName
     )
+  }
+}
+
+object ScriptS3BucketNameValidation {
+  def apply(key: String): ScriptS3BucketNameValidation = new ScriptS3BucketNameValidation(key)
+}
+
+class ScriptS3BucketNameValidation( key: String ) extends StringRuntimeAttributesValidation(key) {
+
+  //a reasonable but not perfect regex for a bucket. see https://stackoverflow.com/a/50484916/3573553
+  protected val s3BucketNameRegex: Regex = "(?=^.{3,63}$)(?!^(\\d+\\.)+\\d+$)(^(([a-z0-9]|[a-z0-9][a-z0-9\\-]*[a-z0-9])\\.)*([a-z0-9]|[a-z0-9][a-z0-9\\-]*[a-z0-9])$)"
+    .r
+
+
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[String]] = {
+    case WomString(s) => validateBucketName(s)
+  }
+
+  private def validateBucketName(possibleBucketName: String): ErrorOr[String] = {
+    possibleBucketName match {
+      case s3BucketNameRegex(_@_*) => possibleBucketName.validNel
+      case _ => "The Script Bucket name has an invalid s3 bucket format".invalidNel
+    }
   }
 }
 
@@ -155,7 +204,7 @@ object QueueArnValidation extends ArnValidation(AwsBatchRuntimeAttributes.QueueA
   // queue arn format can be found here
   // https://docs.aws.amazon.com/en_us/general/latest/gr/aws-arns-and-namespaces.html#arn-syntax-batch
   // arn:aws:batch:region:account-id:job-queue/queue-name
-  override protected val arnRegex =
+  override protected val arnRegex: Regex =
   s"""
       (?x)                            # Turn on comments and whitespace insensitivity
       (arn)                           # Every AWS ARN starts with "arn"
@@ -202,7 +251,7 @@ class ArnValidation(override val key: String) extends StringRuntimeAttributesVal
   // Possible ARN formats can be found here
   // https://docs.aws.amazon.com/en_us/general/latest/gr/aws-arns-and-namespaces.html
   // This is quite vague regex, but it allows to support a lot of ARN formats
-  protected val arnRegex =
+  protected val arnRegex: Regex =
   s"""
       (?x)                            # Turn on comments and whitespace insensitivity
       (arn)                           # Every ARN starts with "arn"

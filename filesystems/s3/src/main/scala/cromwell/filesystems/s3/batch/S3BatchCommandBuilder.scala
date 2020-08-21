@@ -30,33 +30,40 @@
  */
 package cromwell.filesystems.s3.batch
 
-import cromwell.core.io.{PartialIoCommandBuilder,IoCommandBuilder}
+import cromwell.core.io.{IoCommandBuilder, PartialIoCommandBuilder}
+import cromwell.core.path.Path
 import cromwell.filesystems.s3.S3Path
 
+/**
+  * Generates commands for IO operations on S3
+  */
 private case object PartialS3BatchCommandBuilder extends PartialIoCommandBuilder {
-  override def sizeCommand = {
+  override def sizeCommand: PartialFunction[Path, S3BatchSizeCommand] = {
     case path: S3Path => S3BatchSizeCommand(path)
   }
 
-  override def deleteCommand = {
+  override def deleteCommand: PartialFunction[(Path, Boolean), S3BatchDeleteCommand] = {
     case (path: S3Path, swallowIoExceptions) => S3BatchDeleteCommand(path, swallowIoExceptions)
   }
 
-  override def copyCommand = {
+  override def copyCommand: PartialFunction[(Path, Path, Boolean), S3BatchCopyCommand] = {
     case (src: S3Path, dest: S3Path, overwrite) => S3BatchCopyCommand(src, dest, overwrite)
   }
 
-  override def hashCommand = {
+  override def hashCommand: PartialFunction[Path, S3BatchEtagCommand] = {
     case path: S3Path => S3BatchEtagCommand(path)
   }
 
-  override def touchCommand = {
+  override def touchCommand: PartialFunction[Path, S3BatchTouchCommand] = {
     case path: S3Path => S3BatchTouchCommand(path)
   }
 
-  override def existsCommand = {
+  override def existsCommand: PartialFunction[Path, S3BatchExistsCommand] = {
     case path: S3Path => S3BatchExistsCommand(path)
   }
 }
 
+/**
+  * Builds `IoCommand` instances for specific actions on S3
+  */
 case object S3BatchCommandBuilder extends IoCommandBuilder(List(PartialS3BatchCommandBuilder))

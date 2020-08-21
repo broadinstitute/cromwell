@@ -6,7 +6,7 @@ import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{WorkflowAborted, WorkflowFailed, WorkflowId, WorkflowSucceeded}
 import cromwell.services.instrumentation.CromwellInstrumentation
-import cromwell.services.metadata.MetadataArchiveStatus.{ArchiveFailed, Archived, Unarchived}
+import cromwell.services.metadata.MetadataArchiveStatus.{ArchiveFailed, Archived, TooLargeToArchive, Unarchived}
 import cromwell.services.metadata.MetadataService
 import cromwell.services.metadata.MetadataService.{QueryForWorkflowsMatchingParameters, WorkflowQueryFailure, WorkflowQuerySuccess}
 import cromwell.services.metadata.WorkflowQueryKey._
@@ -71,7 +71,7 @@ class CarboniteWorkerActor(freezingConfig: ActiveMetadataFreezingConfig,
 
       c.result match {
         case Archived => increment(CarboniteSuccessesMetricPath, InstrumentationPrefix)
-        case ArchiveFailed => increment(CarboniteFailuresMetricPath, InstrumentationPrefix)
+        case ArchiveFailed | TooLargeToArchive => increment(CarboniteFailuresMetricPath, InstrumentationPrefix)
         case _ =>
           log.error(s"Programmer Error! The CarboniteWorkerActor cannot convert this into a completion metric: $c")
       }

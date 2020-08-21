@@ -251,7 +251,9 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     // - The job lasted too long (eg PAPI 6 day timeout)
     // Treat it like any other non-retryable failure:
     case Event(JobAbortedResponse(jobKey), stateData) =>
-      val cause = new Exception("The job was aborted from outside Cromwell")
+      val cause = new Exception(
+        "The compute backend terminated the job. If this termination is unexpected, examine likely causes such as preemption, running out of disk or memory on the compute instance, or exceeding the backend's maximum job duration."
+      )
       handleNonRetryableFailure(stateData, jobKey, cause)
     // Sub Workflow - sub workflow failures are always non retryable
     case Event(SubWorkflowFailedResponse(jobKey, descendantJobKeys, reason), stateData) =>
@@ -527,7 +529,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       case (jobKey, WaitingForQueueSpace) => pushWaitingForQueueSpaceCallMetadata(jobKey)
     })
 
-    val diffValidation = runnableKeys.traverse[ErrorOr, WorkflowExecutionDiff]({
+    val keyStartDiffs: List[WorkflowExecutionDiff] = runnableKeys map { k => k -> (k match {
       case key: BackendJobDescriptorKey => processRunnableJob(key, data)
       case key: SubWorkflowKey => processRunnableSubWorkflow(key, data)
       case key: ConditionalCollectorKey => key.processRunnable(data)
@@ -540,12 +542,16 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       case other =>
         workflowLogger.error(s"${other.tag} is not a runnable key")
         WorkflowExecutionDiff.empty.validNel
-    })
+    })} map {
+      case (key: JobKey, value: ErrorOr[WorkflowExecutionDiff]) => value.valueOr(errors => {
+        self ! JobFailedNonRetryableResponse(key, new Exception(errors.toList.mkString(System.lineSeparator)) with NoStackTrace, None)
+        // Don't update the execution store now - the failure message we just sent to ourselves will take care of that:
+        WorkflowExecutionDiff.empty
+      })
+    }
 
     // Merge the execution diffs upon success
-    diffValidation.map(diffs => updateExecutionStore(diffs, updatedData)).valueOr(errors =>
-      throw AggregatedMessageException("Workflow execution failure", errors.toList)
-    )
+    updateExecutionStore(keyStartDiffs, updatedData)
   }
 
   /*
@@ -606,7 +612,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
       // Any other case is unexpected and is considered a failure (we should not be trying to start a job in any other state)
       case other =>
-        s"Cannot start job ${key.tag} in $other state with restarting = $restarting".invalidNelCheck
+        s"Will not start job ${key.tag} when workflow state is '$other' and when 'restarting'=$restarting".invalidNelCheck
     }
 
     (for {
@@ -621,6 +627,16 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     val ejeaName = s"${workflowDescriptor.id}-EngineJobExecutionActor-${jobKey.tag}"
     val backendName = backendLifecycleActorFactory.name
     val backendSingleton = params.backendSingletonCollection.backendSingletonActors(backendName)
+
+    val callCachingParameters = EngineJobExecutionActor.CallCachingParameters(
+      mode = workflowDescriptor.callCachingMode,
+      readActor = params.callCacheReadActor,
+      writeActor = params.callCacheWriteActor,
+      fileHashCacheActor = params.fileHashCacheActor,
+      maxFailedCopyAttempts = params.rootConfig.getInt("call-caching.max-failed-copy-attempts"),
+      blacklistCache = params.blacklistCache
+    )
+
     val ejeaProps = EngineJobExecutionActor.props(
       self,
       jobKey,
@@ -631,15 +647,11 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       serviceRegistryActor = serviceRegistryActor,
       ioActor = params.ioActor,
       jobStoreActor = params.jobStoreActor,
-      callCacheReadActor = params.callCacheReadActor,
-      callCacheWriteActor = params.callCacheWriteActor,
       workflowDockerLookupActor = params.workflowDockerLookupActor,
       jobTokenDispenserActor = params.jobTokenDispenserActor,
       backendSingleton,
-      workflowDescriptor.callCachingMode,
       command,
-      fileHashCacheActor = params.fileHashCacheActor,
-      blacklistCache = params.blacklistCache
+      callCachingParameters
     )
 
     val ejeaRef = context.actorOf(ejeaProps, ejeaName)

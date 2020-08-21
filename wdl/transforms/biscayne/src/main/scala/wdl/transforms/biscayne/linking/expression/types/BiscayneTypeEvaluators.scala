@@ -81,4 +81,17 @@ object BiscayneTypeEvaluators {
       (type1, type2) flatMapN resultTypeOfIntVsFloat("max")
     }
   }
+
+  implicit val sepFunctionEvaluator: TypeEvaluator[Sep] = new TypeEvaluator[Sep] {
+    override def evaluateType(a: Sep, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])
+                             (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
+      validateParamType(a.arg2, linkedValues, WomArrayType(WomAnyType)) flatMap {
+        case WomArrayType(WomArrayType(_)) => s"Cannot invoke 'sep' on type 'Array[Array[_]]'. Expected an Array[String].".invalidNel
+        case WomArrayType(_) => WomStringType.validNel
+
+        case other => s"Cannot invoke 'sep' on type '${other.stableName}'. Expected an Array[String].".invalidNel
+
+      }
+    }
+  }
 }

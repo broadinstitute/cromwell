@@ -1,8 +1,48 @@
 # Cromwell Change Log
 
+## 52 Release Notes
+
+### Documentation
+
+Information on how to properly use the Singularity cache with Cromwell is now
+provided in the [Cromwell Singularity documentation](
+https://cromwell.readthedocs.io/en/stable/tutorials/Containers/#singularity).
+
+### Google library upgrade [(#5565)](https://github.com/broadinstitute/cromwell/pull/5565)
+
+All previous versions of Cromwell shipped with Google Cloud Storage (GCS) libraries that are now deprecated and will [stop working in August 2020](https://developers.googleblog.com/2018/03/discontinuing-support-for-json-rpc-and.html). This release adopts updated libraries to ensure uninterrupted operation. The only user action required is upgrading Cromwell.   
+
+### Bug fixes
+
+* Fixed a bug that required Cromwell to be restarted in order to pick up DNS changes.
+    * By default, the JVM caches DNS records with a TTL of infinity.
+    * Cromwell now configures its JVM with a 3-minute TTL. This value can be customized by setting `system.dns-cache-ttl`.  
+* Clarified an error message that Cromwell emits when the compute backend terminates a job of its own volition (as opposed to termination in response to an abort request from Cromwell)
+    * Previously, the error read `The job was aborted from outside Cromwell`
+    * The new error reads `The compute backend terminated the job. If this termination is unexpected, examine likely causes such as preemption, running out of disk or memory on the compute instance, or exceeding the backend's maximum job duration.` 
+
 ## 51 Release Notes
 
+### Changes and Warnings
+
+The configuration format for call cache blacklisting has been updated, please see the [call caching documentation](
+https://cromwell.readthedocs.io/en/stable/Configuring/#call-caching) for details.
+
+### Bug fixes
+
+* Fixed a bug where the `size(...)` function did not work correctly on files 
+  from a shared filesystem if `size(...)` was called in the input section on a 
+  relative path.
++ Fixed a bug where the `use_relative_output_paths` option would not preserve intermediate folders.
+
 ### New functionality
+
+#### Call caching blacklisting improvements
+
+Cromwell previously supported blacklisting GCS buckets containing cache hits which could not be copied for permissions 
+reasons. Cromwell now adds support for blacklisting individual cache hits which could not be copied for any reason,
+as well as grouping blacklist caches according to a workflow option key. More information available in the [
+call caching documentation]( https://cromwell.readthedocs.io/en/stable/Configuring/#call-caching). 
 
 #### new xxh64 and fingerprint strategies for call caching
 
@@ -12,10 +52,6 @@ Two faster strategies have been added for this use case: `xxh64` and
 `fingerprint`. `xxh64` is a lightweight hashing algorithm, `fingerprint` is a strategy designed to be very 
 lightweight. Read more about it in the [call caching documentation](
 https://cromwell.readthedocs.io/en/stable/Configuring/#call-caching).
-
-### Bugfixes
-
-+ Fixed a bug where the `use_relative_output_paths` option would not preserve intermediate folders.
 
 ## 50 Release Notes
 

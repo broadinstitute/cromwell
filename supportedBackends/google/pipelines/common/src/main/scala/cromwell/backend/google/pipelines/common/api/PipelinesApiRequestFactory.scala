@@ -82,10 +82,14 @@ object PipelinesApiRequestFactory {
                                       adjustedSizeDisks: Seq[PipelinesApiAttachedDisk],
                                       virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
                                       retryWithMoreMemoryKeys: Option[List[String]],
-                                      fuseEnabled: Boolean) {
+                                      fuseEnabled: Boolean,
+                                      allowNoAddress: Boolean) {
     def literalInputs = inputOutputParameters.literalInputParameters
     def inputParameters = inputOutputParameters.fileInputParameters
     def outputParameters = inputOutputParameters.fileOutputParameters
     def allParameters = inputParameters ++ outputParameters
+
+    // Takes into account the 'noAddress' runtime attribute and the allowNoAddress configuration option:
+    def effectiveNoAddressValue: Boolean = allowNoAddress && runtimeAttributes.noAddress
   }
 }

@@ -18,6 +18,7 @@ class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec"
     val config = ConfigFactory.parseString(
       """{
         |   bucket = "my_test_bucket"
+        |   bucket-read-limit-bytes = 5
         |   filesystems {
         |     gcs {
         |       auth = "application-default"
@@ -37,6 +38,7 @@ class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec"
       case Right(c) =>
         c.freezingConfig.asInstanceOf[ActiveMetadataFreezingConfig]
         c.bucket shouldBe "my_test_bucket"
+        c.bucketReadLimit shouldBe 5
         c.pathBuilders.head.name shouldBe "Google Cloud Storage"
         //noinspection RedundantDefaultArgument
         val defaultFreezeScanConfig = ActiveMetadataFreezingConfig(
@@ -97,6 +99,31 @@ class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec"
     carboniteConfig match {
       case Left(e) => e.head shouldBe "Failed to parse Carboniter 'bucket' field from config (reason 1 of 1): No configuration setting found for key 'bucket'"
       case Right(_) => fail(s"Expected to fail but the config was parsed correctly!")
+    }
+  }
+
+  it should "use the default if 'bucket-read-limit-bytes' is not mentioned" in {
+    val config = ConfigFactory.parseString(
+      """{
+        |   bucket = "my_test_bucket"
+        |   filesystems {
+        |     gcs {
+        |       auth = "application-default"
+        |     }
+        |   }
+        |   metadata-freezing {
+        |     initial-interval: 5 seconds
+        |   }
+        |}
+      """.stripMargin
+    )
+
+    val carboniteConfig = HybridCarboniteConfig.parseConfig(config)
+
+    carboniteConfig match {
+      case Left(e) => fail(s"Expected to parse correctly but got failure. Reason: $e")
+      case Right(c) =>
+        c.bucketReadLimit shouldBe 150000000
     }
   }
 

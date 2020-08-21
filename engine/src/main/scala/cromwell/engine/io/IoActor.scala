@@ -37,7 +37,8 @@ final class IoActor(queueSize: Int,
                     nioParallelism: Int,
                     gcsParallelism: Int,
                     throttle: Option[Throttle],
-                    override val serviceRegistryActor: ActorRef)(implicit val materializer: ActorMaterializer) 
+                    override val serviceRegistryActor: ActorRef,
+                    applicationName: String)(implicit val materializer: ActorMaterializer)
   extends Actor with ActorLogging with StreamActorHelper[IoCommandContext[_]] with IoInstrumentation with Timers {
   implicit val ec = context.dispatcher
 
@@ -56,7 +57,7 @@ final class IoActor(queueSize: Int,
   }
   
   private [io] lazy val defaultFlow = new NioFlow(parallelism = nioParallelism, context.system.scheduler, onRetry).flow.withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
-  private [io] lazy val gcsBatchFlow = new ParallelGcsBatchFlow(parallelism = gcsParallelism, batchSize = 100, context.system.scheduler, onRetry).flow.withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
+  private [io] lazy val gcsBatchFlow = new ParallelGcsBatchFlow(parallelism = gcsParallelism, batchSize = 100, context.system.scheduler, onRetry, applicationName).flow.withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
   
   protected val source = Source.queue[IoCommandContext[_]](queueSize, OverflowStrategy.dropNew)
 
@@ -232,7 +233,7 @@ object IoActor {
 
   def isFatal(failure: Throwable) = !isRetryable(failure)
   
-  def props(queueSize: Int, nioParallelism: Int, gcsParallelism: Int, throttle: Option[Throttle], serviceRegistryActor: ActorRef)(implicit materializer: ActorMaterializer) = {
-    Props(new IoActor(queueSize, nioParallelism, gcsParallelism, throttle, serviceRegistryActor)).withDispatcher(IoDispatcher)
+  def props(queueSize: Int, nioParallelism: Int, gcsParallelism: Int, throttle: Option[Throttle], serviceRegistryActor: ActorRef, applicationName: String)(implicit materializer: ActorMaterializer) = {
+    Props(new IoActor(queueSize, nioParallelism, gcsParallelism, throttle, serviceRegistryActor, applicationName)).withDispatcher(IoDispatcher)
   }
 }

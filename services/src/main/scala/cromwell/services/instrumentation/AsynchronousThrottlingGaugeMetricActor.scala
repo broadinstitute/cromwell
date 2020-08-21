@@ -28,7 +28,7 @@ class AsynchronousThrottlingGaugeMetricActor(metricPath: NonEmptyList[String],
   }
 
   when(MetricCalculationInProgress) {
-    case Event(CalculateMetricValue, _) =>
+    case Event(CalculateMetricValue(_), _) =>
       // metric actor is already busy calculating metric value, so we dismiss this request
       stay()
     case Event(MetricValue(value), _) =>

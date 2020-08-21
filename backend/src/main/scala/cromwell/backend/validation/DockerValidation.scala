@@ -19,7 +19,7 @@ object DockerValidation {
 }
 
 class DockerValidation extends StringRuntimeAttributesValidation(RuntimeAttributesKeys.DockerKey) {
-  override protected def usedInCallCaching: Boolean = true
+  override def usedInCallCaching: Boolean = true
 
   override protected def missingValueMessage: String = "Can't find an attribute value for key docker"
 

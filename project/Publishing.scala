@@ -6,6 +6,7 @@ import sbt._
 import sbtassembly.AssemblyPlugin.autoImport._
 import sbtdocker.DockerPlugin.autoImport._
 import ContinuousIntegration._
+import sbtdocker.Instruction
 
 import scala.sys.process._
 
@@ -13,6 +14,8 @@ object Publishing {
 
   val dockerTags = settingKey[Seq[String]]("The tags for docker builds.")
   val dockerPushCheck = taskKey[Unit]("Check that the public repository exists in DockerHub.")
+
+  val dockerCustomSettings = settingKey[Seq[Instruction]]("Additional instructions for docker image.")
 
   val dockerSettings: Seq[Setting[_]] = List(
     /*
@@ -41,6 +44,7 @@ object Publishing {
       val artifact: File = assembly.value
       val artifactTargetPath = s"/app/${artifact.name}"
       val projectName = name.value
+      val additionalDockerInstr: Seq[Instruction] = dockerCustomSettings.value
 
       new Dockerfile {
         from("openjdk:8")
@@ -58,12 +62,15 @@ object Publishing {
           s"java $${JAVA_OPTS} -jar /app/$projectName.jar $${${projectName.toUpperCase.replaceAll("-", "_")}_ARGS} $${*}",
           "--"
         )
+        // for each custom setting (instruction) run addInstruction()
+        additionalDockerInstr.foreach(addInstruction)
       }
     },
     buildOptions in docker := BuildOptions(
       cache = false,
       removeIntermediateContainers = BuildOptions.Remove.Always
     ),
+    dockerCustomSettings in ThisBuild := Nil, // setting the default value
   )
 
   def dockerPushSettings(pushEnabled: Boolean): Seq[Setting[_]] = {

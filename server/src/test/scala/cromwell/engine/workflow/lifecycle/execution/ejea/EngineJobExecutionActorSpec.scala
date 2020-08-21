@@ -27,6 +27,8 @@ trait EngineJobExecutionActorSpec extends AbstractEngineJobExecutionActorSpec
   // another time!
   val awaitAlmostNothing: FiniteDuration = 100 milliseconds
 
+  val allowMultipleCacheCycles = false
+
   implicit override val patienceConfig: PatienceConfig = PatienceConfig(timeout = scaled(awaitTimeout), interval = scaled(awaitAlmostNothing))
 
   // The default values for these are "null". The helper is created in "before", the ejea is up to the test cases
@@ -42,7 +44,7 @@ trait EngineJobExecutionActorSpec extends AbstractEngineJobExecutionActorSpec
       ("FetchCachedResultsActor", helper.fetchCachedResultsActorCreations),
       ("JobHashingActor", helper.jobHashingInitializations),
       ("CallCacheInvalidateActor", helper.invalidateCacheActorCreations)) foreach {
-      case (name, GotTooMany(list)) => fail(s"Too many $name creations (${list.size})")
+      case (name, GotTooMany(list)) if !allowMultipleCacheCycles => fail(s"Too many $name creations (${list.size})")
       case _ => // Fine.
     }
 

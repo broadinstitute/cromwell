@@ -1,7 +1,7 @@
 package cromwell.engine.workflow
 
 import akka.actor.{ActorRef, Props}
-import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
+import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestProbe}
 import com.typesafe.config.ConfigFactory
 import common.util.Backoff
 import cromwell.core.actor.StreamIntegration.BackPressure
@@ -11,7 +11,7 @@ import cromwell.database.slick.EngineSlickDatabase
 import cromwell.database.sql.tables.DockerHashStoreEntry
 import cromwell.docker.DockerInfoActor.{DockerInfoFailedResponse, DockerInfoSuccessResponse, DockerInformation}
 import cromwell.docker.{DockerHashResult, DockerImageIdentifier, DockerImageIdentifierWithoutHash, DockerInfoRequest}
-import cromwell.engine.workflow.WorkflowDockerLookupActor.{DockerHashActorTimeout, WorkflowDockerLookupFailure, WorkflowDockerTerminalFailure}
+import cromwell.engine.workflow.WorkflowDockerLookupActor.{DockerHashActorTimeout, Running, WorkflowDockerLookupFailure, WorkflowDockerTerminalFailure}
 import cromwell.engine.workflow.WorkflowDockerLookupActorSpec._
 import cromwell.engine.workflow.workflowstore.{StartableState, Submitted}
 import cromwell.services.EngineServicesStore
@@ -25,7 +25,14 @@ import scala.language.postfixOps
 import scala.util.control.NoStackTrace
 
 
-class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupActorSpecSystem") with FlatSpecLike with Matchers with ImplicitSender with BeforeAndAfter with Mockito {
+class WorkflowDockerLookupActorSpec
+  extends TestKitSuite("WorkflowDockerLookupActorSpecSystem")
+    with FlatSpecLike
+    with Matchers
+    with ImplicitSender
+    with BeforeAndAfter
+    with Mockito {
+
   var workflowId: WorkflowId = _
   var dockerHashingActor: TestProbe = _
   var numReads: Int = _
@@ -108,6 +115,36 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
     val hashResponses = responses collect { case msg: DockerInfoSuccessResponse => msg }
     // Success after transient timeout failures:
     hashResponses should equal(Set(LatestSuccessResponse, OlderSuccessResponse))
+  }
+
+  // BA-6495
+  it should "not fail and enter terminal state when response for certain image id from DockerHashingActor arrived after the self-imposed timeout" in {
+    val lookupActor = TestFSMRef(new WorkflowDockerLookupActor(workflowId, dockerHashingActor.ref, isRestart = false, EngineServicesStore.engineDatabaseInterface))
+
+    lookupActor ! LatestRequest
+
+    val timeout = DockerHashActorTimeout(LatestRequest)
+
+    // The WorkflowDockerLookupActor should not have the hash for this tag yet and will need to query the dockerHashingActor.
+    dockerHashingActor.expectMsg(LatestRequest)
+    // WorkflowDockerLookupActor actually sends DockerHashActorTimeout to itself
+    lookupActor.tell(timeout, lookupActor)
+
+    val failedRequest: WorkflowDockerLookupFailure = receiveOne(2 seconds).asInstanceOf[WorkflowDockerLookupFailure]
+    failedRequest.request shouldBe LatestRequest
+
+    lookupActor ! LatestRequest
+    dockerHashingActor.expectMsg(LatestRequest)
+    dockerHashingActor.reply(LatestSuccessResponse) // responding for previously timeouted request
+    dockerHashingActor.reply(LatestSuccessResponse) // responding for current request
+
+    val hashResponse = receiveOne(2 seconds)
+    hashResponse shouldBe LatestSuccessResponse
+
+    // Give WorkflowDockerLookupActor a chance to finish its unfinished business
+    Thread.sleep(5000)
+    // WorkflowLookup actor should not be in terminal state, since nothing bad happened here
+    lookupActor.stateName shouldBe Running
   }
 
   it should "respond appropriately to docker hash lookup failures" in {

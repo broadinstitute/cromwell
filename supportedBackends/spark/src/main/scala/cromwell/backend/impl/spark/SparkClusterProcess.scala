@@ -4,7 +4,6 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse, StatusCodes}
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.ActorMaterializer
 import com.typesafe.scalalogging.Logger
 import cromwell.backend.impl.spark.SparkClusterProcess.{SparkJobSubmissionResponse, TerminalStatus}
 import cromwell.core.path.Obsolete._
@@ -58,7 +57,6 @@ class SparkClusterProcess(implicit system: ActorSystem) extends SparkProcess
   import SparkClusterJsonProtocol._
 
   implicit lazy val ec: ExecutionContext = system.dispatcher
-  implicit val materializer = ActorMaterializer()
   lazy val completionPromise = Promise[TerminalStatus]()
   lazy val monitorPromise = Promise[Unit]()
   val tag = this.getClass.getSimpleName

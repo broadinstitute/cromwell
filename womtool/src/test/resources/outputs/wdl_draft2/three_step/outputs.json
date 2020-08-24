@@ -1,0 +1,5 @@
+{
+  "three_step.ps.procs": "File",
+  "three_step.wc.count": "Int",
+  "three_step.cgrep.count": "Int"
+}

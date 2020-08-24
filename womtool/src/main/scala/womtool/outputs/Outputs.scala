@@ -1,8 +1,8 @@
 package womtool.outputs
 
+import io.circe.syntax._
 import cromwell.core.path.Path
-import spray.json.DefaultJsonProtocol._
-import spray.json._
+import io.circe.{Encoder, Json, JsonObject, Printer}
 import wom.graph.GraphOutputNode
 import wom.types.{WomCompositeType, WomType}
 import womtool.WomtoolMain.{SuccessfulTermination, Termination, UnsuccessfulTermination}
@@ -15,7 +15,7 @@ object Outputs {
 
     WomGraphMaker.fromFiles(main, inputs = None) match {
       case Right(graphWithImports) =>
-        Try(graphWithImports.graph.outputNodes.toJson(outputNodeWriter()).prettyPrint) match {
+        Try(graphWithImports.graph.outputNodes.asJson.printWith(sprayLikePrettyPrinter)) match {
           case Success(json) => SuccessfulTermination(json + System.lineSeparator)
           case Failure(error) => UnsuccessfulTermination(error.getMessage)
         }
@@ -23,19 +23,20 @@ object Outputs {
     }
   }
 
-  private def outputNodeWriter(): JsonWriter[Set[GraphOutputNode]] = set => {
-
-    val valueMap: Seq[(String, JsValue)] = set.toList collect {
-      case node: GraphOutputNode => node.fullyQualifiedName -> womTypeToJson(node.womType)
+  private implicit val e: Encoder[Set[GraphOutputNode]] = (set: Set[GraphOutputNode]) => {
+    val valueMap = set.toList.map {
+      node: GraphOutputNode => node.fullyQualifiedName -> womTypeToJson(node.womType)
     }
 
-    valueMap.toMap.toJson
+    valueMap.toMap.asJson
   }
 
-  private def womTypeToJson(womType: WomType): JsValue = womType match {
-    case WomCompositeType(typeMap, _) => JsObject(
+  private def womTypeToJson(womType: WomType): Json = womType match {
+    case WomCompositeType(typeMap, _) => JsonObject.fromMap(
       typeMap.map { case (name, wt) => name -> womTypeToJson(wt) }
-    )
-    case _ => JsString(s"${womType.stableName}")
+    ).asJson
+    case _ => womType.stableName.asJson
   }
+
+  private val sprayLikePrettyPrinter = Printer.spaces2.copy(dropNullValues = true, colonLeft = "")
 }

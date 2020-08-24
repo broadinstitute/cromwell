@@ -3,6 +3,7 @@ package womtool
 import java.nio.file.Paths
 
 import better.files.File
+import com.typesafe.scalalogging.StrictLogging
 import common.validation.Validation._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.languages.util.ImportResolver.HttpResolver
@@ -22,7 +23,8 @@ import womtool.wom2wdlom.WomToWdlom.womBundleToFileElement
 
 import scala.util.{Failure, Success, Try}
 
-object WomtoolMain extends App {
+object WomtoolMain extends App with StrictLogging {
+
   sealed trait Termination {
     def stdout: Option[String]
     def stderr: Option[String]

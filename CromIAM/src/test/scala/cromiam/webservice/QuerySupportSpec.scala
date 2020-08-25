@@ -7,9 +7,11 @@ import akka.http.scaladsl.testkit.ScalatestRouteTest
 import cromiam.auth.{Collection, User}
 import cromiam.webservice.QuerySupport.LabelContainsOrException
 import org.broadinstitute.dsde.workbench.model.WorkbenchUserId
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class QuerySupportSpec extends FlatSpec with Matchers with ScalatestRouteTest with QuerySupport {
+
+class QuerySupportSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest with QuerySupport {
   override val cromwellClient = new MockCromwellClient()
   override val samClient = new MockSamClient()
   override val log: LoggingAdapter = NoLogging

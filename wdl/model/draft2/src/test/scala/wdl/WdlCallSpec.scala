@@ -1,6 +1,7 @@
 package wdl
 
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 import wdl.draft2.Draft2ResolvedImportBundle
 import wdl.draft2.model.exception.ValidationException
 import wdl.draft2.model.expression.{NoFunctions, PureStandardLibraryFunctionsLike}
@@ -12,7 +13,7 @@ import wom.values._
 
 import scala.util.{Failure, Success, Try}
 
-class WdlCallSpec extends WordSpec with Matchers {
+class WdlCallSpec extends AnyWordSpec with Matchers {
 
   "evaluate its declarations" in {
     val namespace = WdlNamespaceWithWorkflow.load(SampleWdl.TaskDeclarationsWdl.workflowSource(), Seq.empty).get

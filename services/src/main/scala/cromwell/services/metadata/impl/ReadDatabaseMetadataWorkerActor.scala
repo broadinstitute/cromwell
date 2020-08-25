@@ -51,9 +51,9 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
 
   private def getMetadata(query: MetadataQuery, checkResultSizeBeforeQuerying: Boolean): Future[MetadataServiceResponse] = {
     if (checkResultSizeBeforeQuerying) {
-      queryMetadataEventsTotalRowNumber(query.workflowId, metadataReadTimeout) flatMap { size =>
-        if (size > metadataReadRowNumberSafetyThreshold) {
-          Future.successful(MetadataLookupFailedTooLargeResponse(query, size))
+      getMetadataReadRowCount(query, metadataReadTimeout) flatMap { count =>
+        if (count > metadataReadRowNumberSafetyThreshold) {
+          Future.successful(MetadataLookupFailedTooLargeResponse(query, count))
         } else {
           queryMetadata(query)
         }

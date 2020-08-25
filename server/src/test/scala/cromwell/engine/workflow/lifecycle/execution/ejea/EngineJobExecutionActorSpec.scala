@@ -5,17 +5,18 @@ import java.util.concurrent.atomic.AtomicInteger
 import akka.actor.{Actor, ActorSystem}
 import akka.testkit.{DefaultTimeout, ImplicitSender, TestFSMRef, TestKit}
 import com.typesafe.config.ConfigFactory
-import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor._
 import cromwell.backend.BackendJobExecutionActor
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionActorCommand
 import cromwell.core.callcaching._
+import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor._
 import org.scalatest._
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 import org.specs2.mock.Mockito
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
-
 
 trait EngineJobExecutionActorSpec extends AbstractEngineJobExecutionActorSpec
   with Matchers with Mockito with BeforeAndAfterAll with BeforeAndAfter {
@@ -132,4 +133,4 @@ object AbstractEngineJobExecutionActorSpec {
 }
 
 abstract class AbstractEngineJobExecutionActorSpec extends TestKit(AbstractEngineJobExecutionActorSpec.newActorSystem)
-  with DefaultTimeout with ImplicitSender with Matchers with ScalaFutures with Eventually with Suite with OneInstancePerTest with BeforeAndAfterAll with WordSpecLike
+  with DefaultTimeout with ImplicitSender with Matchers with ScalaFutures with Eventually with Suite with OneInstancePerTest with BeforeAndAfterAll with AnyWordSpecLike

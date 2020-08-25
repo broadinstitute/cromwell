@@ -2,11 +2,12 @@ package cromwell.backend.google.pipelines.common
 
 import cromwell.backend.google.pipelines.common.GpuResource.GpuType
 import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig.papiConfiguration
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 import wom.values.{WomFloat, WomInteger, WomSingleFile, WomString, WomValue}
 
 class PipelinesApiGpuAttributesSpec
-  extends WordSpecLike
+  extends AnyWordSpecLike
     with Matchers
     with PipelinesApiRuntimeAttributesSpecsMixin {
 

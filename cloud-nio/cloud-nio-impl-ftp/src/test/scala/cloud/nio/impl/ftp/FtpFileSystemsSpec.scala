@@ -4,9 +4,11 @@ import cloud.nio.impl.ftp.FtpFileSystems.FtpCacheKey
 import com.typesafe.config.ConfigFactory
 import org.scalamock.function.MockFunction1
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class FtpFileSystemsSpec extends FlatSpec with Matchers with MockFactory {
+
+class FtpFileSystemsSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   behavior of "FtpFileSystemsSpec"
 

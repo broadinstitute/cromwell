@@ -7,10 +7,11 @@ import cromwell.core.TestKitSuite
 import cromwell.core.callcaching._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.{CallCacheHashingJobActorData, CompleteFileHashingResult, NoFileHashesResult, PartialFileHashingResult}
 import org.scalatest.concurrent.Eventually
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpecLike, Matchers}
 
-class CallCacheHashingJobActorDataSpec extends TestKitSuite with FlatSpecLike with BackendSpec with Matchers with Eventually with TableDrivenPropertyChecks {
+class CallCacheHashingJobActorDataSpec extends TestKitSuite with AnyFlatSpecLike with BackendSpec with Matchers with Eventually with TableDrivenPropertyChecks {
   behavior of "CallCacheReadingJobActorData"
 
   val fileHash1 = HashResult(HashKey("key"), HashValue("value"))

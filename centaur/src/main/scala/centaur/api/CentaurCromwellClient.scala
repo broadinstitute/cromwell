@@ -8,7 +8,7 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.StatusCodes.ClientError
 import akka.http.scaladsl.model.{HttpRequest, StatusCodes}
 import akka.http.scaladsl.unmarshalling.Unmarshaller.UnsupportedContentTypeException
-import akka.stream.{ActorMaterializer, ActorMaterializerSettings, BufferOverflowException, StreamTcpException}
+import akka.stream.{BufferOverflowException, StreamTcpException}
 import cats.effect.IO
 import centaur.test.workflow.Workflow
 import centaur.{CentaurConfig, CromwellManager}
@@ -36,7 +36,6 @@ object CentaurCromwellClient extends StrictLogging {
 
   // Akka HTTP needs both the actor system and a materializer
   final implicit val system = ActorSystem("centaur-acting-like-a-system")
-  final implicit val materializer: ActorMaterializer = ActorMaterializer(ActorMaterializerSettings(system))
   final val apiVersion = "v1"
   val cromwellClient = new CromwellClient(CentaurConfig.cromwellUrl, apiVersion)
   
@@ -45,7 +44,7 @@ object CentaurCromwellClient extends StrictLogging {
 
   def submit(workflow: Workflow): IO[SubmittedWorkflow] = {
     sendReceiveFutureCompletion(() => {
-      val submitted = cromwellClient.submit(workflow.toWorkflowSubmission(refreshToken = CentaurConfig.optionalToken))
+      val submitted = cromwellClient.submit(workflow.toWorkflowSubmission)
       submitted.biSemiflatMap(
         httpResponse =>
           for {

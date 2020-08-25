@@ -1,5 +1,28 @@
 # Cromwell Change Log
 
+## 53 Release Notes
+
+### Martha v3 Support
+
+Cromwell now supports resolving DRS URIs through Martha v3 (in addition to Martha v2). To switch to the new version of Martha, update the `martha.url` found in the [filesystems config](https://cromwell.readthedocs.io/en/stable/filesystems/Filesystems/#overview) to
+point to `/martha_v3`. More information on Martha v3 request and response schema can be found [here](https://github.com/broadinstitute/martha#martha-v3).
+
+### Support for custom entrypoints on Docker images
+
+Cromwell can now support docker images which have custom entrypoints in the PAPIv2 alpha and beta backends.
+
+### Alpha support for WDL optional outputs on PAPI v2
+
+* Alpha support for WDL optional output files on the PAPI v2 backend has been added, please see the
+[documentation](https://cromwell.readthedocs.io/en/stable/wf_options/Google#alpha-support-for-wdl-optional-outputs-on-papi-v2)
+for known limitations.
+
+### Monitoring Image Script
+
+* Cromwell now supports an optional `monitoring_image_script` workflow option in addition to the existing
+`monitoring_script` and `monitoring_image` options. For more information see the [Google Pipelines API Workflow Options
+documentation](https://cromwell.readthedocs.io/en/stable/wf_options/Google#google-pipelines-api-workflow-options).
+
 ## 52 Release Notes
 
 ### Documentation

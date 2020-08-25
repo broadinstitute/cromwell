@@ -11,18 +11,20 @@ import cromwell.core.{SimpleIoActor, WorkflowId}
 import cromwell.engine.backend.{BackendConfigurationEntry, BackendSingletonCollection, CromwellBackends}
 import cromwell.engine.workflow.WorkflowDescriptorBuilderForSpecs
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{ExecuteWorkflowCommand, WorkflowExecutionFailedResponse}
-import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.engine.workflow.tokens.DynamicRateLimiter.Rate
+import cromwell.engine.workflow.tokens.JobExecutionTokenDispenserActor
 import cromwell.engine.workflow.workflowstore.Submitted
 import cromwell.services.ServiceRegistryActor
 import cromwell.services.metadata.MetadataService
 import cromwell.util.SampleWdl
-import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
+import org.scalatest.BeforeAndAfter
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 
-class WorkflowExecutionActorSpec extends CromwellTestKitSpec with FlatSpecLike with Matchers with BeforeAndAfter with WorkflowDescriptorBuilderForSpecs {
+class WorkflowExecutionActorSpec extends CromwellTestKitSpec with AnyFlatSpecLike with Matchers with BeforeAndAfter with WorkflowDescriptorBuilderForSpecs {
 
   override implicit val actorSystem = system
   implicit val DefaultDuration = 20.seconds.dilated

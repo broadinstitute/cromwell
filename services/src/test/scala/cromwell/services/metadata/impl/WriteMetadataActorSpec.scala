@@ -14,15 +14,16 @@ import cromwell.services.metadata.MetadataService.{MetadataWriteAction, Metadata
 import cromwell.services.metadata.impl.WriteMetadataActorSpec.BatchSizeCountingWriteMetadataActor
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import org.scalatest.concurrent.Eventually
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.scalatest.{FlatSpecLike, Matchers}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success}
 
-class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Eventually {
+class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually {
 
   behavior of "WriteMetadataActor"
 
@@ -284,7 +285,23 @@ class WriteMetadataActorSpec extends TestKitSuite with FlatSpecLike with Matcher
       notImplemented()
     }
 
-    override def getMetadataTotalRowNumberByRootWorkflowId(rootWorkflowId: String, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
+    override def countMetadataEntries(workflowExecutionUuid: String, expandSubWorkflows: Boolean, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
+      notImplemented()
+    }
+
+    override def countMetadataEntries(workflowExecutionUuid: String, metadataKey: String, expandSubWorkflows: Boolean, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
+      notImplemented()
+    }
+
+    override def countMetadataEntries(workflowExecutionUuid: String, callFullyQualifiedName: String, jobIndex: Option[Int], jobAttempt: Option[Int], expandSubWorkflows: Boolean, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
+      notImplemented()
+    }
+
+    override def countMetadataEntries(workflowUuid: String, metadataKey: String, callFullyQualifiedName: String, jobIndex: Option[Int], jobAttempt: Option[Int], expandSubWorkflows: Boolean, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
+      notImplemented()
+    }
+
+    override def countMetadataEntryWithKeyConstraints(workflowExecutionUuid: String, metadataKeysToFilterFor: List[String], metadataKeysToFilterAgainst: List[String], metadataJobQueryValue: MetadataJobQueryValue, expandSubWorkflows: Boolean, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
       notImplemented()
     }
   }

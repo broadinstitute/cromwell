@@ -5,11 +5,12 @@ import com.dimafeng.testcontainers.Container
 import cromwell.core.Tags.DbmsTest
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class QueryTimeoutSpec extends FlatSpec with Matchers with ScalaFutures {
+class QueryTimeoutSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
   DatabaseSystem.All foreach { databaseSystem =>
     testOption(databaseSystem) foreach {

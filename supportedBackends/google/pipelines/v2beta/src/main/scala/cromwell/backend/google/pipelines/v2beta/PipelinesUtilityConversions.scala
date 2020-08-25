@@ -3,8 +3,7 @@ package cromwell.backend.google.pipelines.v2beta
 import java.time.OffsetDateTime
 
 import com.google.api.services.lifesciences.v2beta.model.{Accelerator, Disk, Event, Mount}
-import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
-import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiAttachedDisk}
+import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiAttachedDisk, PipelinesApiReferenceFilesDisk}
 import cromwell.backend.google.pipelines.common.{GpuResource, PipelinesApiRuntimeAttributes}
 import cromwell.core.ExecutionEvent
 import cromwell.core.logging.JobLogger
@@ -14,17 +13,34 @@ import PipelinesUtilityConversions._
 import scala.language.postfixOps
 
 trait PipelinesUtilityConversions {
-  def toAccelerator(gpuResource: GpuResource) = new Accelerator().setCount(gpuResource.gpuCount.value.toLong).setType(gpuResource.gpuType.toString)
-  def toMachineType(jobLogger: JobLogger)(attributes: PipelinesApiRuntimeAttributes) = MachineConstraints.machineType(attributes.memory, attributes.cpu, attributes.googleLegacyMachineSelection, jobLogger)
-  def toMounts(parameters: CreatePipelineParameters): List[Mount] = parameters.adjustedSizeDisks.map(toMount).toList
-  def toDisks(parameters: CreatePipelineParameters): List[Disk] = parameters.adjustedSizeDisks.map(toDisk).toList
-  def toMount(disk: PipelinesApiAttachedDisk) = new Mount()
-    .setDisk(disk.name)
-    .setPath(disk.mountPoint.pathAsString)
-  def toDisk(disk: PipelinesApiAttachedDisk) = new Disk()
-    .setName(disk.name)
-    .setSizeGb(disk.sizeGb)
-    .setType(disk.diskType |> toV2DiskType)
+  def toAccelerator(gpuResource: GpuResource): Accelerator = new Accelerator().setCount(gpuResource.gpuCount.value.toLong).setType(gpuResource.gpuType.toString)
+  def toMachineType(jobLogger: JobLogger)(attributes: PipelinesApiRuntimeAttributes): String = MachineConstraints.machineType(attributes.memory, attributes.cpu, attributes.googleLegacyMachineSelection, jobLogger)
+  def toMounts(disks: Seq[PipelinesApiAttachedDisk]): List[Mount] = disks.map(toMount).toList
+  def toDisks(disks: Seq[PipelinesApiAttachedDisk]): List[Disk] = disks.map(toDisk).toList
+  def toMount(disk: PipelinesApiAttachedDisk): Mount = {
+    val mount = new Mount()
+      .setDisk(disk.name)
+      .setPath(disk.mountPoint.pathAsString)
+    disk match {
+      case _: PipelinesApiReferenceFilesDisk =>
+        mount.setReadOnly(true)
+      case _ =>
+        mount
+    }
+  }
+
+  def toDisk(disk: PipelinesApiAttachedDisk): Disk = {
+    val googleDisk = new Disk()
+      .setName(disk.name)
+      .setType(disk.diskType |> toV2DiskType)
+      .setSizeGb(disk.sizeGb)
+    disk match {
+      case refDisk: PipelinesApiReferenceFilesDisk =>
+        googleDisk.setSourceImage(refDisk.image)
+      case _ =>
+        googleDisk
+    }
+  }
 
   def toExecutionEvent(actionIndexToEventType: Map[Int, String])(event: Event): ExecutionEvent = {
     val groupingFromAction = for {

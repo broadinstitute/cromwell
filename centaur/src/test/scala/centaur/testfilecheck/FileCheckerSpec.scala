@@ -6,13 +6,14 @@ import com.google.api.gax.paging.Page
 import com.google.cloud.storage.Storage.BlobListOption
 import com.google.cloud.storage.{Blob, Storage}
 import org.mockito.Mockito._
-import org.scalatest.FlatSpec
 import org.specs2.matcher.ShouldMatchers
 import org.specs2.mock.Mockito
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.{ListObjectsRequest, ListObjectsResponse, S3Object}
+import org.scalatest.flatspec.AnyFlatSpec
 
-class FileCheckerSpec extends FlatSpec with ShouldMatchers with Mockito {
+
+class FileCheckerSpec extends AnyFlatSpec with ShouldMatchers with Mockito {
 
   import centaur.test.ObjectCounterInstances._
 

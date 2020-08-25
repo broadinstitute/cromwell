@@ -3,7 +3,8 @@ package cromwell.engine.workflow.lifecycle.execution.job.preparation
 import common.assertion.ErrorOrAssertions._
 import cromwell.core.CallKey
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 import shapeless._
 import wom.callable.Callable.RequiredInputDefinition
@@ -13,7 +14,7 @@ import wom.graph.CommandCallNode
 import wom.types.WomSingleFileType
 import wom.values.WomString
 
-class CallPreparationSpec extends FlatSpec with Matchers with Mockito {
+class CallPreparationSpec extends AnyFlatSpec with Matchers with Mockito {
   it should "disallow empty Strings being input as Files" in {
     val callKey = mock[CallKey]
 

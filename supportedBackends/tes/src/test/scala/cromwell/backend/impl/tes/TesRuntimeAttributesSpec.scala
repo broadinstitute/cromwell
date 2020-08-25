@@ -5,14 +5,15 @@ import cromwell.backend.{BackendConfigurationDescriptor, RuntimeAttributeDefinit
 import cromwell.core.WorkflowOptions
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineMV
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 import org.slf4j.helpers.NOPLogger
 import spray.json._
 import wom.format.MemorySize
 import wom.types._
 import wom.values._
 
-class TesRuntimeAttributesSpec extends WordSpecLike with Matchers {
+class TesRuntimeAttributesSpec extends AnyWordSpecLike with Matchers {
 
   val expectedDefaults = new TesRuntimeAttributes(
     ContinueOnReturnCodeSet(Set(0)),

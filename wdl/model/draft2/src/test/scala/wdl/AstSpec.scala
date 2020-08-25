@@ -1,9 +1,10 @@
 package wdl
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model.{AstTools, WdlNamespace}
 
-class AstSpec extends FlatSpec with Matchers {
+class AstSpec extends AnyFlatSpec with Matchers {
   val namespace = WdlNamespace.loadUsingSource(SampleWdl.ThreeStep.workflowSource(), None, None).get
 
   "Parser" should "produce AST with 3 Task nodes" in {

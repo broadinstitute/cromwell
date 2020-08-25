@@ -1,0 +1,17 @@
+{
+  "imageIdentifier" : "testImageName",
+  "diskSizeGb": 500,
+  "files" : [ {
+    "path" : "nested-directory/test-file-nested.txt",
+    "crc32c" : 1256132599
+  }, {
+    "path" : "test-file-1.txt",
+    "crc32c" : 3444297148
+  }, {
+    "path" : "test-file-2.txt",
+    "crc32c" : 4188824869
+  }, {
+    "path" : "test-file-empty.txt",
+    "crc32c" : 0
+  } ]
+}

@@ -52,10 +52,38 @@ object Publishing {
         add(artifact, artifactTargetPath)
         runRaw(s"ln -s $artifactTargetPath /app/$projectName.jar")
 
-        // If you use the 'exec' form for an entry point, shell processing is not performed and
-        // environment variable substitution does not occur.  Thus we have to /bin/bash here
-        // and pass along any subsequent command line arguments
-        // See https://docs.docker.com/engine/reference/builder/#/entrypoint
+        /*
+        If you use the 'exec' form for an entry point, shell processing is not performed and
+        environment variable substitution does not occur.  Thus we have to /bin/bash here
+        and pass along any subsequent command line arguments
+        See https://docs.docker.com/engine/reference/builder/#/entrypoint
+
+        Notes and warnings on JAVA_OPTS in docker-compose YAML files:
+
+        Setting JAVA_OPTS in a docker-compose YAML requires a combination of passing and parsing values through:
+        1. docker-compose
+        2. environment key/values
+        3. bash parameter expansion without full bash command parsing
+
+        Examples:
+        - docker-compose splits the env key/value on the first `=`:
+          - If in the docker-compose YAML:              my_key=my_val1=my_al2
+          - Then in the environment key "my_key" value: my_val1=my_val2
+        - For legibility the YAMLs use chomped-block-scalar for JAVA_OPTS: https://yaml-multiline.info/
+          - Newlines are removed, and the yaml value is compressed into a space separated string.
+          - Again, only the first `=` sign is used by docker-compose to separate the env key/value pair.
+          - The newlines-that-are-now-spaces get included into the env values.
+        - Do not quote args! The quotes will be passed into the env-value by docker-compose. Bash will not remove them.
+          - If in the docker-compose YAML: -Dmy_key="my_val"
+          - Then in the running program:   conf.getString("my_key") == "\"my_val\"")
+        - Spaces are ok in YAML values, but NOT env values! The JAVA_OPTS in the `entrypoint` below does not "quote".
+          - If the env key "ENV_PATH" has value: /path/dir with spaces/file.conf
+          - If in the docker-compose YAML:       JAVA_OPTS=-Dconfig.file=${ENV_PATH} -Dfoo=bar
+          - Then `entryPoint` bash runs command: "java" "-Dconf.file=/path/dir" "with" "spaces/file.conf" "-Dfoo=bar"
+        - If needed use $$ to escape dollar signs: https://docs.docker.com/compose/compose-file/#variable-substitution
+          - Don't have a current example where this is required
+          - Often one can just allow docker-compose to pass or perform environment variable substitution
+         */
         entryPoint(
           "/bin/bash",
           "-c",
@@ -97,7 +125,7 @@ object Publishing {
     } else {
       List(
         DockerKeys.dockerPush := {
-          ()
+          Map.empty[sbtdocker.ImageName,sbtdocker.ImageDigest]
         },
       )
     }

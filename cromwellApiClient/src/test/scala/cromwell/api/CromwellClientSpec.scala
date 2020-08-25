@@ -2,19 +2,19 @@ package cromwell.api
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.{ContentType, HttpEntity}
-import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import better.files.File
 import cromwell.api.model.{Label, WorkflowBatchSubmission, WorkflowId, WorkflowSingleSubmission}
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{AsyncFlatSpec, BeforeAndAfterAll, Matchers}
-import spray.json.JsonParser.ParsingException
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AsyncFlatSpec
+import org.scalatest.matchers.should.Matchers
+
 
 class CromwellClientSpec extends AsyncFlatSpec with BeforeAndAfterAll with Matchers with TableDrivenPropertyChecks {
   behavior of "CromwellClient"
 
-  implicit val system = ActorSystem("CromwellClientSpec")
-  implicit val materializer = ActorMaterializer()
+  implicit val system: ActorSystem = ActorSystem("CromwellClientSpec")
 
   private val tempFile: File = File.newTemporaryFile("cromwell_client_spec.", ".tmp").write("hello")
 
@@ -36,39 +36,7 @@ class CromwellClientSpec extends AsyncFlatSpec with BeforeAndAfterAll with Match
       s"http://submit/$id/endpoint?key1=%25v11%25&key1=v12&key2=v2"
   }
 
-  val okRefreshTokenTests = Table(
-    ("description", "optionsOption", "refreshTokenOption", "expected"),
-    ("ignore bad json when refresh token not provided", Option("{"), None, Option("{")),
-    ("ignore bad json when refresh token provided but not used", Option("{"), Option("myToken"), Option("{")),
-    ("not format json when refresh token key not found", Option("{   }"), Option("myToken"), Option("{   }")),
-    ("replace token when found", Option("""{"refresh_token" : "replace_me"}"""), Option("myToken"),
-      Option("""{"refresh_token":"myToken"}"""))
-  )
-
-  forAll(okRefreshTokenTests) { (description, optionsOption, refreshTokenOption, expected) =>
-    it should description in {
-      val actual = CromwellClient.replaceJson(optionsOption, "refresh_token", refreshTokenOption)
-      actual should be(expected)
-      succeed
-    }
-  }
-
-  it should "throw an exception when inserting a refresh token into bad json using the token" in {
-    val optionsOption = Option("""{"refresh_token" : "replace_me"""")
-    val refreshTokenOption = Option("myToken")
-    val actual = intercept[ParsingException] {
-      CromwellClient.replaceJson(optionsOption, "refresh_token", refreshTokenOption)
-    }
-    actual.summary should be("""Unexpected end-of-input at input index 31 (line 1, position 32), expected '}'""")
-    actual.detail should be(
-      """|
-         |{"refresh_token" : "replace_me"
-         |                               ^
-         |""".stripMargin)
-    succeed
-  }
-
-  val okRequestEntityTests = Table(
+  private val okRequestEntityTests = Table(
     ("description", "workflowSubmission", "expectedJsons", "expectedFiles"),
 
     ("submit a wdl",

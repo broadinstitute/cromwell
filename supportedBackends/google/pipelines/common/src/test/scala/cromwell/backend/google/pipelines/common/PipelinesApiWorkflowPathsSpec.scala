@@ -6,11 +6,12 @@ import cromwell.backend.{BackendSpec, BackendWorkflowDescriptor}
 import cromwell.cloudsupport.gcp.auth.GoogleAuthModeSpec
 import cromwell.core.TestKitSuite
 import cromwell.util.SampleWdl
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsString}
 
-class PipelinesApiWorkflowPathsSpec extends TestKitSuite with FlatSpecLike with Matchers with Mockito {
+class PipelinesApiWorkflowPathsSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Mockito {
   import BackendSpec._
   import PipelinesApiTestConfig._
   import cromwell.filesystems.gcs.MockGcsPathBuilder._

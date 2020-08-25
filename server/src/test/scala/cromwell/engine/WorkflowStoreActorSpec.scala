@@ -27,8 +27,9 @@ import cromwell.util.EncryptionSpec
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.{CromwellTestKitSpec, CromwellTestKitWordSpec}
 import mouse.all._
+import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually
-import org.scalatest.{BeforeAndAfter, Matchers}
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 
 import scala.concurrent.Await

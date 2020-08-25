@@ -1,95 +1,119 @@
 import sbt._
 
 object Dependencies {
-  private val akkaHttpCirceIntegrationV = "1.29.1"
-  private val akkaHttpV = "10.1.9"
-  private val akkaV = "2.5.23"
-  private val aliyunBcsV = "6.2.1"
-  private val aliyunCoreV = "4.3.2"
-  private val aliyunCrV = "3.0.0"
-  private val aliyunOssV = "3.4.0"
-  private val ammoniteOpsV = "1.6.3"
-  private val apacheCommonNetV = "3.6"
-  private val apacheHttpClientV = "4.5.7"
-  private val awsSdkV = "2.10.71"
-  private val betterFilesV = "3.8.0"
-  private val catsEffectV = "2.0.0"
-  private val catsV = "2.0.0"
-  private val circeOpticsV = "0.12.0"
-  private val circeV = "0.12.1"
-  private val circeYamlV = "0.11.0-M1"
-  private val commonsCodecV = "1.11"
-  private val commonsIoV = "2.6"
-  private val commonsLang3V = "3.8.1"
-  private val commonsMathV = "3.2"
-  private val commonsTextV = "1.6"
+  private val akkaHttpCirceIntegrationV = "1.33.0"
+  private val akkaHttpV = "10.1.12"
+  val akkaV = "2.6.8" // When updating: Do we still need the merge "fix" from https://github.com/broadinstitute/cromwell/pull/5776 (not private because used in Merging.scala)
+  private val aliyunBcsV = "6.2.4"
+  private val aliyunCoreV = "4.5.7"
+  private val aliyunCrV = "4.1.1"
+  private val aliyunOssV = "3.10.2"
+  private val ammoniteOpsV = "2.2.0"
+  private val apacheCommonNetV = "3.7"
+  private val apacheHttpClientV = "4.5.12"
+  private val awsSdkV = "2.14.3"
+  private val betterFilesV = "3.9.1"
+  private val catsEffectV = "2.1.4"
+  private val catsV = "2.1.1"
+  private val circeGenericExtrasV = "0.12.2"
+  private val circeOpticsV = "0.13.0"
+  private val circeV = "0.12.3"
+  private val circeYamlV = "0.13.1"
+  private val commonsCodecV = "1.14"
+  private val commonsIoV = "2.7"
+  private val commonsLang3V = "3.11"
+  private val commonsMathV = "3.6.1"
+  private val commonsTextV = "1.9"
   private val configsV = "0.4.4"
-  private val delightRhinoSandboxV = "0.0.10"
-  private val ficusV = "1.4.4"
-  private val fs2V = "2.0.0"
-  private val fs2VStatsDProxy = "1.0.3"
-  private val googleApiClientV = "1.30.9"
-  private val googleCloudBigQueryV = "1.116.3"
-  private val googleCloudKmsV = "v1-rev63-1.25.0"
-  private val googleCloudMonitoringV = "1.100.1"
-  private val googleCloudNioV = "0.61.0-alpha"
-  private val googleCloudStorageV = "1.111.1"
-  private val googleGaxGrpcV = "1.57.0"
+  private val delightRhinoSandboxV = "0.0.11"
+  private val ficusV = "1.5.0"
+  // The "com.vladsch.flexmark" % "flexmark-profile-pegdown" % flexmarkV dependency is an implicit, version-specific
+  // runtime dependency of ScalaTest. At the time of this writing this is the newest version known to work.
+  private val flexmarkV = "0.36.8" // scala-steward:off
+  private val fs2V = "2.0.1"
+  // Scala Steward opened PR #5775 titled "Update fs2-io from 2.0.1 to 2.4.3" to upgrade the following dependency.
+  // However that PR was actually attempting an upgrade from 1.0.5 to 2.4.3 which is a much more significant
+  // undertaking, resulting in some thoroughly broken statsd proxy code. As this component lacks tests and is
+  // probably not the most important corner of the Cromwell repo, going to punt on this for now.
+  private val fs2VStatsDProxy = "1.0.5" // scala-steward:off
+  private val googleApiClientV = "1.30.10"
+  private val googleCloudBigQueryV = "1.116.9"
+  private val googleCloudKmsV = "v1-rev20200814-1.30.10"
+  private val googleCloudMonitoringV = "2.0.1"
+  private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off
+  private val googleCloudStorageV = "1.111.2"
+  private val googleGaxGrpcV = "1.58.2"
   private val googleGenomicsServicesV1ApiV = "v1alpha2-rev495-1.23.0"
-  private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev31-1.25.0"
+  private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20200330-1.30.9"
   private val googleHttpClientApacheV = "2.1.2"
   private val googleHttpClientV = "1.36.0"
-  private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev5-1.25.0"
-  private val googleOauth2V = "0.21.0"
+  private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20200806-1.30.10"
+  private val googleOauth2V = "0.21.1"
   private val googleOauthClientV = "1.31.0"
   private val googleCloudResourceManagerV = "0.87.0-alpha"
-  private val grpcV = "1.30.1"
-  private val guavaV = "27.0.1-jre"
+  private val grpcV = "1.31.0"
+  private val guavaV = "29.0-jre"
   private val heterodonV = "1.0.0-beta3"
-  private val hsqldbV = "2.4.1"
-  private val http4sVersion = "0.20.0-M5"
-  private val jacksonV = "2.10.0"
-  private val jacksonJqV = "1.0.0-preview.20190925"
-  private val janinoV = "3.0.12"
+  private val hsqldbV = "2.5.1"
+  private val http4sVersion = "0.21.7"
+  private val jacksonV = "2.11.2"
+  private val jacksonJqV = "1.0.0-preview.20191208"
+  private val janinoV = "3.0.16"
   private val javaxActivationV = "1.2.0"
-  private val jaxbV = "2.3.2"
+  // jaxb-impl 2.3.3 depends on com.sun.activation:jakarta.activation and jakarta.xml.bind:jakarta.xml.bind-api,
+  // which jaxb-impl 2.3.2 did not. jakarta.activation corresponds to the "updated" Maven coordinates for the Java
+  // Activation Framework (https://wiki.eclipse.org/Jakarta_EE_Maven_Coordinates), but Cromwell has many transitive
+  // dependencies on the "old" javax.activation coordinates as well. At assembly time the classes from these two
+  // different jars collide and produce merge conflicts.
+  // It's possible that after updating all other dependencies in Cromwell we might purge the transitive dependencies on
+  // javax.activation and then be able to upgrade to jaxb-impl 2.3.3 or beyond, but some of those other dependencies
+  // such as googleCloudNioV have already been pinned for Scala Steward so this might not be a trivial undertaking.
+  private val jaxbV = "2.3.2" // scala-steward:off
   private val kindProjectorV = "0.9.9"
-  private val kittensV = "2.0.0"
-  private val liquibaseSlf4jV = "2.0.0"
-  private val liquibaseV = "3.6.3"
+  private val kittensV = "2.1.0"
+  private val liquibaseSlf4jV = "3.0.0"
+  // Scala Steward wanted to upgrade liquibase-core to 3.10.2 but that version does not find some uniqueness
+  // constraints and models datatypes in ways that are incompatible with our test expectations.
+  // liquibase-core 4.0.0 did not have either of those problems but produced tons of strange warnings at runtime
+  // similar in form to this: https://github.com/liquibase/liquibase/issues/1294
+  // Pinning Liquibase version for the time being.
+  private val liquibaseV = "3.6.3" // scala-steward:off
   private val logbackV = "1.2.3"
   private val lz4JavaV = "1.7.1"
-  private val mariadbV = "2.4.2"
-  private val metrics3ScalaV = "3.5.10" // https://github.com/erikvanoosten/metrics-scala/tree/f733e26#download-4x
+  private val mariadbV = "2.4.4"
+  private val metrics3ScalaV = "4.0.0" // https://github.com/erikvanoosten/metrics-scala/tree/f733e26#download-4x
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "2.7.1"
-  private val mockserverNettyV = "5.5.1"
-  private val mouseV = "0.23"
-  private val mysqlV = "8.0.15"
+  private val mockserverNettyV = "5.5.4"
+  private val mouseV = "0.25"
+  private val mysqlV = "8.0.21"
   private val nettyV = "4.1.46.Final"
-  private val owlApiV = "5.1.9"
+  private val owlApiV = "5.1.16"
   private val paradiseV = "2.1.1"
   private val pegdownV = "1.6.0"
-  private val postgresV = "42.2.5"
+  // For org.postgresql:postgresql 42.2.6 - 42.2.14:
+  // java.lang.NoSuchFieldException: m_mesgParts in KeyValueSpec "fail if one of the inserts fails"
+  private val postgresV = "42.2.5" // scala-steward:off
   private val rdf4jV = "2.4.2"
-  private val refinedV = "0.9.8"
-  private val rhinoV = "1.7.10"
-  private val scalaGraphV = "1.12.5"
+  private val refinedV = "0.9.15"
+  private val rhinoV = "1.7.12"
+  private val scalaGraphV = "1.13.1"
   private val scalaLoggingV = "3.9.2"
-  private val scalaPoolV = "0.4.1"
-  private val scalacheckV = "1.14.0"
-  private val scalacticV = "3.0.5"
-  private val scalameterV = "0.10.1"
-  private val scalamockV = "4.1.0"
-  private val scalatestV = "3.0.5"
-  private val scalazV = "7.2.27"
+  private val scalaPoolV = "0.4.3"
+  private val scalacheckV = "1.14.3"
+  private val scalacticV = "3.2.2"
+  private val scalameterV = "0.19"
+  private val scalamockV = "5.0.0"
+  private val scalatestV = "3.2.2"
+  private val scalatestPlusMockitoV = "1.0.0-M2"
+  private val scalazV = "7.3.2"
   private val scoptV = "3.7.1"
-  private val sentryLogbackV = "1.7.17"
+  private val sentryLogbackV = "1.7.30"
   private val shapelessV = "2.3.3"
-  private val simulacrumV = "0.15.0"
-  private val slf4jV = "1.7.25"
-  private val slickCatsV = "0.9.0"
-  private val testContainersScalaV = "0.35.2"
+  private val simulacrumV = "1.0.0"
+  private val slf4jV = "1.7.30"
+  private val slickCatsV = "0.10.2"
+  private val testContainersScalaV = "0.38.1"
 
   /* If you're about to update our Slick version:
     * Consider checking whether the new Slick version passes tests with upserts enabled (eg KeyValueDatabaseSpec)
@@ -100,17 +124,17 @@ object Dependencies {
     * Related Slick PR: https://github.com/slick/slick/pull/2101
   */
   private val slickV = "3.3.2-2076hotfix"
-  private val snakeyamlV = "1.23"
-  private val specs2MockV = "4.4.1"
+  private val snakeyamlV = "1.26"
+  private val specs2MockV = "4.10.2"
   private val sprayJsonV = "1.3.5"
-  private val sttpV = "1.5.8"
-  private val swaggerParserV = "1.0.41"
-  private val swaggerUiV = "3.23.11"
-  private val tikaV = "1.20"
-  private val typesafeConfigV = "1.3.3"
+  private val sttpV = "1.5.19"
+  private val swaggerParserV = "1.0.51"
+  private val swaggerUiV = "3.23.11" // scala-steward:off
+  private val tikaV = "1.24.1"
+  private val typesafeConfigV = "1.3.4"
   private val workbenchGoogleV = "0.15-2fc79a3"
-  private val workbenchModelV = "0.10-6800f3a"
-  private val workbenchUtilV = "0.3-f3ce961"
+  private val workbenchModelV = "0.14-27810079-SNAP"
+  private val workbenchUtilV = "0.6-27810079-SNAP"
 
   private val slf4jFacadeDependencies = List(
     "org.slf4j" % "slf4j-api" % slf4jV,
@@ -123,11 +147,11 @@ object Dependencies {
     "core",
     "parser",
     "generic",
-    "generic-extras",
     "shapes",
     "refined",
     "literal"
-  ).map(m => "io.circe" %% s"circe-$m" % circeV) :+ circeYamlDependency
+  ).map(m => "io.circe" %% s"circe-$m" % circeV) :+ circeYamlDependency :+
+  "io.circe" %% "circe-generic-extras" % circeGenericExtrasV
 
   private val catsDependencies = List(
     "org.typelevel" %% "cats-core" % catsV,
@@ -219,6 +243,9 @@ object Dependencies {
 
   private val liquibaseDependencies = List(
     "org.liquibase" % "liquibase-core" % liquibaseV,
+      // The exclusion below will be needed if / when liquibase-core is upgraded to 3.10+
+      // Avert collision with jakarta.xml.bind-api
+      // exclude("javax.xml.bind", "jaxb-api"),
     // This is to stop liquibase from being so noisy by default
     // See: http://stackoverflow.com/questions/20880783/how-to-get-liquibase-to-log-using-slf4j
     "com.mattbertolini" % "liquibase-slf4j" % liquibaseSlf4jV
@@ -370,6 +397,7 @@ object Dependencies {
     "org.typelevel" %% "cats-effect" % catsEffectV,
     "org.apache.commons" % "commons-lang3" % commonsLang3V,
     "org.apache.commons" % "commons-text" % commonsTextV,
+    "com.lihaoyi" %% "pprint" % "0.6.0",
   ) ++ catsDependencies ++ configDependencies ++ slf4jFacadeDependencies ++ refinedTypeDependenciesList
 
   val cloudSupportDependencies = googleApiClientDependencies ++ googleCloudDependencies ++ betterFilesDependencies ++ awsCloudDependencies
@@ -405,7 +433,7 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "io.spray" %% "spray-json" % sprayJsonV,
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
-    "com.github.mpilquist" %% "simulacrum" % simulacrumV,
+    "org.typelevel" %% "simulacrum" % simulacrumV,
     "commons-codec" % "commons-codec" % commonsCodecV,
   ) ++ circeDependencies ++ refinedTypeDependenciesList
 
@@ -491,7 +519,7 @@ object Dependencies {
     "org.apache.commons" % "commons-math3" % commonsMathV,
     "com.github.kxbmap" %% "configs" % configsV,
     "com.google.cloud" % "google-cloud-bigquery" % googleCloudBigQueryV % IntegrationTest,
-    "org.gnieh" %% "diffson-spray-json" % "4.0.1"
+    "org.gnieh" %% "diffson-spray-json" % "4.0.3"
   ) ++ circeDependencies ++ slf4jBindingDependencies ++ cloudSupportDependencies ++ http4sDependencies
 
   val engineDependencies = List(
@@ -539,6 +567,8 @@ object Dependencies {
 
   val testDependencies = List(
     "org.scalatest" %% "scalatest" % scalatestV,
+    "org.scalatestplus" %% "scalatestplus-mockito" % scalatestPlusMockitoV,
+    "com.vladsch.flexmark" % "flexmark-profile-pegdown" % flexmarkV,
     "org.pegdown" % "pegdown" % pegdownV,
     "org.specs2" %% "specs2-mock" % specs2MockV,
     "com.dimafeng" %% "testcontainers-scala-scalatest" % testContainersScalaV,

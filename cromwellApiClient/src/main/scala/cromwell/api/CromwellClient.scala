@@ -9,7 +9,6 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.{Authorization, HttpCredentials, HttpEncodings}
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
-import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import cats.effect.IO
 import cromwell.api.CromwellClient._
@@ -21,7 +20,7 @@ import scala.concurrent.ExecutionContext
 class CromwellClient(val cromwellUrl: URL,
                      val apiVersion: String,
                      val defaultCredentials: Option[HttpCredentials]=None)
-                    (implicit actorSystem: ActorSystem, materializer: ActorMaterializer) {
+                    (implicit actorSystem: ActorSystem) {
 
   lazy val defaultAuthorization: Option[Authorization] = defaultCredentials.map { Authorization(_) }
   lazy val defaultHeaders: List[HttpHeader] = defaultAuthorization.toList
@@ -220,49 +219,6 @@ object CromwellClient {
   }
 
   final case class UnsuccessfulRequestException(message: String, httpResponse: HttpResponse) extends Exception(message)
-
-  /**
-    * Optionally replace a json value. Returns the original json if:
-    * - The jsonOption is None
-    * - The key is not found in the json
-    * - The valueOption is None
-    *
-    * @param jsonOption The optional json
-    * @param key The key
-    * @param valueOption The optional value
-    * @return The json with the modified value, or the original json
-    */
-  def replaceJson(jsonOption: Option[String], key: String, valueOption: Option[String]): Option[String] = {
-    val newJsonOption = for {
-      value <- valueOption
-      json <- jsonOption
-      newJson = replaceJson(json, key, value)
-    } yield newJson
-
-    newJsonOption orElse jsonOption
-  }
-
-  /**
-    * Replace a json value. Returns the original json if the key is not found in the json.
-    *
-    * @param json The json
-    * @param key The key
-    * @param value The value
-    * @return The json with the modified value, or the original json
-    */
-  def replaceJson(json: String, key: String, value: String): String = {
-    import DefaultJsonProtocol._
-    val newJsonOption = for {
-      _ <- Option(json)
-      if json.contains(key)
-      map = json.parseJson.asJsObject.convertTo[Map[String, JsValue]]
-      if map.contains(key)
-      newMap = map.updated(key, JsString(value))
-      newJson = newMap.toJson.toString
-    } yield newJson
-
-    newJsonOption getOrElse json
-  }
 
   private[api] def requestEntityForSubmit(workflowSubmission: WorkflowSubmission): MessageEntity = {
     import cromwell.api.model.LabelsJsonFormatter._

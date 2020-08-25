@@ -1,12 +1,13 @@
 package wom.types
 
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor2}
-import wom.values._
 import wom.types.WomOptionalTypeSpecDefs._
+import wom.values._
 
 
-class WomOptionalTypeSpec() extends WomCoercionSpec(goodCoercionTable, badCoercionTable, behaviorOf) with FlatSpecLike with Matchers {
+class WomOptionalTypeSpec() extends WomCoercionSpec(goodCoercionTable, badCoercionTable, behaviorOf) with AnyFlatSpecLike with Matchers {
 
   import TableDrivenPropertyChecks._
 

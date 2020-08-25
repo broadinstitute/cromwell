@@ -3,12 +3,12 @@ package cromwell.backend.google.pipelines.v2beta
 import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
 import com.google.api.services.lifesciences.v2beta.model.{Action, Mount}
 import com.typesafe.config.ConfigFactory
+import cromwell.backend.google.pipelines.common.action.ActionLabels._
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.pipelines.common._
-import cromwell.backend.google.pipelines.v2beta.api.ActionBuilder.Labels._
+import cromwell.backend.google.pipelines.v2beta.api.ActionBuilder
 import cromwell.backend.google.pipelines.v2beta.api.ActionBuilder._
 import cromwell.backend.google.pipelines.v2beta.api.ActionCommands._
-import cromwell.backend.google.pipelines.v2beta.api.ActionBuilder
 import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.http.HttpPath
@@ -21,7 +21,7 @@ import scala.language.implicitConversions
 }
 
 trait PipelinesParameterConversions {
-  implicit val fileInputToParameter = new ToParameter[PipelinesApiFileInput] {
+  implicit val fileInputToParameter: ToParameter[PipelinesApiFileInput] = new ToParameter[PipelinesApiFileInput] {
     override def toActions(fileInput: PipelinesApiFileInput, mounts: List[Mount])
                           (implicit retryPolicy: GcsTransferConfiguration): List[Action] = {
       lazy val config = ConfigFactory.load
@@ -35,7 +35,7 @@ trait PipelinesParameterConversions {
           val drsFileSystemProvider = drsPath.drsPath.getFileSystem.provider.asInstanceOf[DrsCloudNioFileSystemProvider]
 
           val drsDockerImage = config.getString("drs.localization.docker-image")
-          val drsMarthaUrl = drsFileSystemProvider.config.getString("martha.url")
+          val drsMarthaUrl = drsFileSystemProvider.marthaUri
           val drsCommand = List(fileInput.cloudPath.escape, fileInput.containerPath.escape) ++ drsPath.requesterPaysProjectIdOption.toList
           val marthaEnv = Map("MARTHA_URL" -> drsMarthaUrl)
           val localizationAction = ActionBuilder
@@ -65,20 +65,14 @@ trait PipelinesParameterConversions {
           val runFusera = s"fusera mount $ngcArgs -a ${sraPath.accession} $mountpoint"
           val localizationAction = ActionBuilder
             .withImage(image)
-            .withCommand("/bin/sh", "-c", s"$createNgc; mkdir $mountpoint; $runFusera")
+            .withEntrypointCommand("/bin/sh", "-c", s"$createNgc; mkdir $mountpoint; $runFusera")
             .withMounts(mounts)
             .withRunInBackground(true)
             .withEnableFuse(true)
           List(ActionBuilder.describeParameter(fileInput, labels), localizationAction)
         case _: HttpPath =>
-          val dockerImage = LifeSciencesFactory.CloudSdkImage
           val command = s"curl --silent --create-dirs --output ${fileInput.containerPath} ${fileInput.cloudPath}"
-          val localizationAction = ActionBuilder
-            .withImage(dockerImage)
-            .withCommand("/bin/sh", "-c", command)
-            .withMounts(mounts)
-            .withLabels(labels)
-            .setEntrypoint("")
+          val localizationAction = ActionBuilder.cloudSdkShellAction(command)(mounts = mounts, labels = labels)
           List(ActionBuilder.describeParameter(fileInput, labels), localizationAction)
         case _: GcsPath =>
           // GCS paths will be localized with a separate localization script.
@@ -87,7 +81,8 @@ trait PipelinesParameterConversions {
     }
   }
 
-  implicit val directoryInputToParameter = new ToParameter[PipelinesApiDirectoryInput] {
+  implicit val directoryInputToParameter: ToParameter[PipelinesApiDirectoryInput] =
+    new ToParameter[PipelinesApiDirectoryInput] {
     override def toActions(directoryInput: PipelinesApiDirectoryInput, mounts: List[Mount])
                           (implicit retryPolicy: GcsTransferConfiguration): List[Action] = {
       directoryInput.cloudPath match {
@@ -103,7 +98,7 @@ trait PipelinesParameterConversions {
     }
   }
 
-  implicit val fileOutputToParameter = new ToParameter[PipelinesApiFileOutput] {
+  implicit val fileOutputToParameter: ToParameter[PipelinesApiFileOutput] = new ToParameter[PipelinesApiFileOutput] {
     override def toActions(fileOutput: PipelinesApiFileOutput, mounts: List[Mount])
                           (implicit retryPolicy: GcsTransferConfiguration): List[Action] = {
 
@@ -151,7 +146,8 @@ trait PipelinesParameterConversions {
     }
   }
 
-  implicit val directoryOutputToParameter = new ToParameter[PipelinesApiDirectoryOutput] {
+  implicit val directoryOutputToParameter: ToParameter[PipelinesApiDirectoryOutput] =
+    new ToParameter[PipelinesApiDirectoryOutput] {
     override def toActions(directoryOutput: PipelinesApiDirectoryOutput, mounts: List[Mount])
                           (implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Action] = {
       directoryOutput.cloudPath match {
@@ -167,15 +163,17 @@ trait PipelinesParameterConversions {
     }
   }
 
-  implicit val inputToParameter = new ToParameter[PipelinesApiInput] {
-    override def toActions(p: PipelinesApiInput, mounts: List[Mount])(implicit gcsTransferConfiguration: GcsTransferConfiguration) = p match {
+  implicit val inputToParameter: ToParameter[PipelinesApiInput] = new ToParameter[PipelinesApiInput] {
+    override def toActions(p: PipelinesApiInput, mounts: List[Mount])
+                          (implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Action] = p match {
       case fileInput: PipelinesApiFileInput => fileInputToParameter.toActions(fileInput, mounts)
       case directoryInput: PipelinesApiDirectoryInput => directoryInputToParameter.toActions(directoryInput, mounts)
     }
   }
 
-  implicit val outputToParameter = new ToParameter[PipelinesApiOutput] {
-    override def toActions(p: PipelinesApiOutput, mounts: List[Mount])(implicit gcsTransferConfiguration: GcsTransferConfiguration) = p match {
+  implicit val outputToParameter: ToParameter[PipelinesApiOutput] = new ToParameter[PipelinesApiOutput] {
+    override def toActions(p: PipelinesApiOutput, mounts: List[Mount])
+                          (implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Action] = p match {
       case fileOutput: PipelinesApiFileOutput => fileOutputToParameter.toActions(fileOutput, mounts)
       case directoryOutput: PipelinesApiDirectoryOutput => directoryOutputToParameter.toActions(directoryOutput, mounts)
     }

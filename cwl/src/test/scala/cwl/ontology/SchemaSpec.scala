@@ -1,11 +1,12 @@
 package cwl.ontology
 
 import com.typesafe.config.ConfigFactory
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
 import org.semanticweb.owlapi.apibinding.OWLManager
 
-class SchemaSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+class SchemaSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "Schema"
 

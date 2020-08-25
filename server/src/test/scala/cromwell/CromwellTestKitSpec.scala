@@ -5,7 +5,6 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props, Terminated}
 import akka.pattern.ask
-import akka.stream.ActorMaterializer
 import akka.testkit._
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import cromwell.CromwellTestKitSpec._
@@ -23,15 +22,17 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.WorkflowS
 import cromwell.engine.workflow.workflowstore.{InMemorySubWorkflowStore, InMemoryWorkflowStore, WorkflowStoreActor}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteSuccess, JobStoreWriterCommand}
 import cromwell.server.{CromwellRootActor, CromwellSystem}
-import cromwell.services.ServiceRegistryActor
+import cromwell.services.{FailedMetadataJsonResponse, MetadataJsonResponse, ServiceRegistryActor, SuccessfulMetadataJsonResponse}
 import cromwell.services.metadata.MetadataService._
 import cromwell.subworkflowstore.EmptySubWorkflowStoreActor
 import cromwell.util.SampleWdl
-import cromwell.services._
 import org.scalactic.Equality
 import org.scalatest._
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
+import org.scalatest.enablers.Retrying
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Seconds, Span}
+import org.scalatest.wordspec.AnyWordSpecLike
 import spray.json._
 import wom.core.FullyQualifiedName
 import wom.types._
@@ -239,7 +240,7 @@ object CromwellTestKitSpec {
     ServiceRegistryActorSystem.actorOf(ServiceRegistryActor.props(CromwellTestKitSpec.DefaultConfig), "ServiceRegistryActor")
   }
 
-  class TestCromwellRootActor(config: Config)(implicit materializer: ActorMaterializer)
+  class TestCromwellRootActor(config: Config)
     extends CromwellRootActor(MockCromwellTerminator, false, false, serverMode = true, config = config) {
 
     override lazy val serviceRegistryActor = ServiceRegistryActorInstance
@@ -256,7 +257,7 @@ object CromwellTestKitSpec {
   def defaultTwms = new CromwellTestKitSpec.TestWorkflowManagerSystem()
 }
 
-abstract class CromwellTestKitWordSpec extends CromwellTestKitSpec with WordSpecLike
+abstract class CromwellTestKitWordSpec extends CromwellTestKitSpec with AnyWordSpecLike
 abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = defaultTwms) extends TestKit(twms.actorSystem)
   with DefaultTimeout with ImplicitSender with Matchers with ScalaFutures with Eventually with Suite with OneInstancePerTest with BeforeAndAfterAll {
 
@@ -264,7 +265,6 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
 
   implicit val defaultPatience = PatienceConfig(timeout = Span(200, Seconds), interval = Span(1000, Millis))
   implicit val ec = system.dispatcher
-  implicit val materializer = twms.materializer
   val dummyServiceRegistryActor = system.actorOf(Props.empty)
   val dummyLogCopyRouter = system.actorOf(Props.empty)
 
@@ -330,7 +330,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
       labels = customLabels
     )
     val workflowId = rootActor.underlyingActor.submitWorkflow(sources)
-    eventually { verifyWorkflowComplete(rootActor.underlyingActor.serviceRegistryActor, workflowId) } (config = patienceConfig, pos = implicitly[org.scalactic.source.Position])
+    eventually { verifyWorkflowComplete(rootActor.underlyingActor.serviceRegistryActor, workflowId) } (config = patienceConfig, pos = implicitly[org.scalactic.source.Position], retrying = implicitly[Retrying[Unit]])
     verifyWorkflowState(rootActor.underlyingActor.serviceRegistryActor, workflowId, terminalState)
 
     val outcome = getWorkflowOutputsFromMetadata(workflowId, rootActor.underlyingActor.serviceRegistryActor)
@@ -353,7 +353,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
     val sources = sampleWdl.asWorkflowSources(runtime, workflowOptions)
 
     val workflowId = rootActor.underlyingActor.submitWorkflow(sources)
-    eventually { verifyWorkflowComplete(rootActor.underlyingActor.serviceRegistryActor, workflowId) } (config = patienceConfig, pos = implicitly[org.scalactic.source.Position])
+    eventually { verifyWorkflowComplete(rootActor.underlyingActor.serviceRegistryActor, workflowId) } (config = patienceConfig, pos = implicitly[org.scalactic.source.Position], retrying = implicitly[Retrying[Unit]])
     verifyWorkflowState(rootActor.underlyingActor.serviceRegistryActor, workflowId, WorkflowSucceeded)
 
     val outputs = getWorkflowOutputsFromMetadata(workflowId, rootActor.underlyingActor.serviceRegistryActor)

@@ -1,14 +1,15 @@
 package common.util
 
 import common.util.IntrospectableLazy._
+import org.scalatest.concurrent.Futures
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.{Await, Future}
-import org.scalatest.{FlatSpec, Matchers}
-import org.scalatest.concurrent.Futures
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
 
-class IntrospectableLazySpec extends FlatSpec with Matchers with Futures {
+class IntrospectableLazySpec extends AnyFlatSpec with Matchers with Futures {
 
   behavior of "IntrospectableLazy"
 

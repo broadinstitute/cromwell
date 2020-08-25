@@ -4,7 +4,7 @@ import java.net.SocketTimeoutException
 
 import _root_.io.grpc.Status
 import akka.actor.ActorRef
-import akka.http.scaladsl.model.ContentTypes
+import akka.http.scaladsl.model.{ContentType, ContentTypes}
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
@@ -21,11 +21,14 @@ import cromwell.backend.google.pipelines.common.api.RunStatus.TerminalRunStatus
 import cromwell.backend.google.pipelines.common.api._
 import cromwell.backend.google.pipelines.common.api.clients.PipelinesApiRunCreationClient.JobAbortedException
 import cromwell.backend.google.pipelines.common.api.clients.{PipelinesApiAbortClient, PipelinesApiRunCreationClient, PipelinesApiStatusRequestClient}
+import cromwell.backend.google.pipelines.common.authentication.PipelinesApiDockerCredentials
 import cromwell.backend.google.pipelines.common.errors.FailedToDelocalizeFailure
 import cromwell.backend.google.pipelines.common.io._
+import cromwell.backend.google.pipelines.common.monitoring.MonitoringImage
 import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.standard.{StandardAdHocValue, StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
+import cromwell.core.io.IoCommandBuilder
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
@@ -38,9 +41,9 @@ import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.CallMetadataKeys
 import shapeless.Coproduct
 import wdl4s.parser.MemoryUnit
-import wom.callable.AdHocValue
 import wom.callable.Callable.OutputDefinition
 import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
+import wom.callable.{AdHocValue, RuntimeEnvironment}
 import wom.core.FullyQualifiedName
 import wom.expression.{FileEvaluation, NoIoFunctionSet}
 import wom.format.MemorySize
@@ -72,13 +75,13 @@ object PipelinesApiAsyncBackendJobExecutionActor {
   val FailedToStartDueToPreemptionSubstring = "failed to start due to preemption"
   val FailedV2Style = "The assigned worker has failed to complete the operation"
 
-  val plainTextContentType = Option(ContentTypes.`text/plain(UTF-8)`)
+  val plainTextContentType: Option[ContentType.WithCharset] = Option(ContentTypes.`text/plain(UTF-8)`)
 
   def StandardException(errorCode: Status,
                         message: String,
                         jobTag: String,
                         returnCodeOption: Option[Int],
-                        stderrPath: Path) = {
+                        stderrPath: Path): Exception = {
     val returnCodeMessage = returnCodeOption match {
       case Some(returnCode) if returnCode == 0 => "Job exited without an error, exit code 0."
       case Some(returnCode) => s"Job exit code $returnCode. Check $stderrPath for more information."
@@ -98,12 +101,12 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     with PipelinesApiAbortClient
     with PapiInstrumentation {
 
-  override lazy val ioCommandBuilder = GcsBatchCommandBuilder
+  override lazy val ioCommandBuilder: IoCommandBuilder = GcsBatchCommandBuilder
 
   import PipelinesApiAsyncBackendJobExecutionActor._
 
-  override lazy val workflowId = jobDescriptor.workflowDescriptor.id
-  override lazy val requestFactory = initializationData.genomicsRequestFactory
+  override lazy val workflowId: WorkflowId = jobDescriptor.workflowDescriptor.id
+  override lazy val requestFactory: PipelinesApiRequestFactory = initializationData.genomicsRequestFactory
 
   val jesBackendSingletonActor: ActorRef =
     standardParams.backendSingletonActorOption.getOrElse(
@@ -117,24 +120,24 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override val papiApiActor: ActorRef = jesBackendSingletonActor
 
-  override lazy val pollBackOff = SimpleExponentialBackoff(
+  override lazy val pollBackOff: SimpleExponentialBackoff = SimpleExponentialBackoff(
     initialInterval = 30 seconds, maxInterval = jesAttributes.maxPollingInterval seconds, multiplier = 1.1)
 
-  override lazy val executeOrRecoverBackOff = SimpleExponentialBackoff(
+  override lazy val executeOrRecoverBackOff: SimpleExponentialBackoff = SimpleExponentialBackoff(
     initialInterval = 3 seconds, maxInterval = 20 seconds, multiplier = 1.1)
 
-  override lazy val runtimeEnvironment = {
+  override lazy val runtimeEnvironment: RuntimeEnvironment = {
     RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, PipelinesApiWorkingDisk.MountPoint, PipelinesApiWorkingDisk.MountPoint)(standardParams.minimumRuntimeSettings)
   }
 
-  protected lazy val cmdInput =
+  protected lazy val cmdInput: PipelinesApiFileInput =
     PipelinesApiFileInput(PipelinesApiJobPaths.JesExecParamName, pipelinesApiCallPaths.script, DefaultPathBuilder.get(pipelinesApiCallPaths.scriptFilename), workingDisk)
 
-  protected lazy val dockerConfiguration = pipelinesConfiguration.dockerCredentials
+  protected lazy val dockerConfiguration: Option[PipelinesApiDockerCredentials] = pipelinesConfiguration.dockerCredentials
 
   protected val previousRetryReasons: ErrorOr[PreviousRetryReasons] = PreviousRetryReasons.tryApply(jobDescriptor.prefetchedKvStoreEntries, jobDescriptor.key.attempt)
 
-  protected lazy val jobDockerImage = jobDescriptor.maybeCallCachingEligible.dockerHash.getOrElse(runtimeAttributes.dockerImage)
+  protected lazy val jobDockerImage: String = jobDescriptor.maybeCallCachingEligible.dockerHash.getOrElse(runtimeAttributes.dockerImage)
 
   override lazy val dockerImageUsed: Option[String] = Option(jobDockerImage)
 
@@ -261,7 +264,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     * If the desired reference name is too long, we don't want to break JES or risk collisions by arbitrary truncation. So,
     * just use a hash. We only do this when needed to give better traceability in the normal case.
     */
-  protected def makeSafeReferenceName(referenceName: String) = {
+  protected def makeSafeReferenceName(referenceName: String): String = {
     if (referenceName.length <= 127) referenceName else referenceName.md5Sum
   }
 
@@ -354,6 +357,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   lazy val jesMonitoringParamName: String = PipelinesApiJobPaths.JesMonitoringKey
   lazy val localMonitoringLogPath: Path = DefaultPathBuilder.get(pipelinesApiCallPaths.jesMonitoringLogFilename)
   lazy val localMonitoringScriptPath: Path = DefaultPathBuilder.get(pipelinesApiCallPaths.jesMonitoringScriptFilename)
+  lazy val localMonitoringImageScriptPath: Path =
+    DefaultPathBuilder.get(pipelinesApiCallPaths.jesMonitoringImageScriptFilename)
 
   lazy val monitoringScript: Option[PipelinesApiFileInput] = {
     pipelinesApiCallPaths.workflowPaths.monitoringScriptPath map { path =>
@@ -371,6 +376,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   private val DockerMonitoringLogPath: Path = PipelinesApiWorkingDisk.MountPoint.resolve(pipelinesApiCallPaths.jesMonitoringLogFilename)
   private val DockerMonitoringScriptPath: Path = PipelinesApiWorkingDisk.MountPoint.resolve(pipelinesApiCallPaths.jesMonitoringScriptFilename)
+  //noinspection ActorMutableStateInspection
   private var hasDockerCredentials: Boolean = false
 
   override def scriptPreamble: String = {
@@ -409,7 +415,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     }
   }
 
-  private def createPipelineParameters(inputOutputParameters: InputOutputParameters, customLabels: Seq[GoogleLabel]): CreatePipelineParameters = {
+  private def createPipelineParameters(inputOutputParameters: InputOutputParameters,
+                                       customLabels: Seq[GoogleLabel],
+                                       referenceFilesMapping: PipelinesApiReferenceFilesMapping): CreatePipelineParameters = {
     standardParams.backendInitializationDataOption match {
       case Some(data: PipelinesApiBackendInitializationData) =>
         val dockerKeyAndToken: Option[CreatePipelineDockerKeyAndToken] = for {
@@ -437,6 +445,23 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           )
         } getOrElse runtimeAttributes.disks
 
+        val inputFilePaths = inputOutputParameters.jobInputParameters.map(_.cloudPath.pathAsString).toSet
+        val referenceDisksToMount = PipelinesApiReferenceFilesMapping.getReferenceDisksToMount(jesAttributes.referenceFilesMapping, inputFilePaths)
+
+        val workflowOptions = workflowDescriptor.workflowOptions
+
+        val monitoringImage =
+          new MonitoringImage(
+            jobDescriptor = jobDescriptor,
+            workflowOptions = workflowOptions,
+            workflowPaths = workflowPaths,
+            commandDirectory = commandDirectory,
+            workingDisk = workingDisk,
+            localMonitoringImageScriptPath = localMonitoringImageScriptPath,
+          )
+
+        val enableSshAccess = workflowOptions.getBoolean(WorkflowOptionKeys.EnableSSHAccess).toOption.contains(true)
+
         CreatePipelineParameters(
           jobDescriptor = jobDescriptor,
           runtimeAttributes = runtimeAttributes,
@@ -458,7 +483,10 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           virtualPrivateCloudConfiguration = jesAttributes.virtualPrivateCloudConfiguration,
           retryWithMoreMemoryKeys = jesAttributes.memoryRetryConfiguration.map(_.errorKeys),
           fuseEnabled = fuseEnabled(jobDescriptor.workflowDescriptor),
-          allowNoAddress = pipelinesConfiguration.papiAttributes.allowNoAddress
+          allowNoAddress = pipelinesConfiguration.papiAttributes.allowNoAddress,
+          referenceDisksForLocalization = referenceDisksToMount,
+          monitoringImage = monitoringImage,
+          enableSshAccess = enableSshAccess,
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")
@@ -473,7 +501,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override def executeAsync(): Future[ExecutionHandle] = createNewJob()
 
-  val futureKvJobKey = KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)
+  val futureKvJobKey: KvJobKey = KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)
 
   override def recoverAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = reconnectToExistingJob(jobId)
 
@@ -491,7 +519,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   protected def uploadGcsLocalizationScript(createPipelineParameters: CreatePipelineParameters,
                                             cloudPath: Path,
                                             transferLibraryContainerPath: Path,
-                                            gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = Future.successful(())
+                                            gcsTransferConfiguration: GcsTransferConfiguration,
+                                            referenceFilesMapping: PipelinesApiReferenceFilesMapping): Future[Unit] = Future.successful(())
 
   protected def uploadGcsDelocalizationScript(createPipelineParameters: CreatePipelineParameters,
                                               cloudPath: Path,
@@ -517,7 +546,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       )
 
       case class StandardStream(name: String, f: StandardPaths => Path) {
-        val filename = f(pipelinesApiCallPaths.standardPaths).name
+        val filename: String = f(pipelinesApiCallPaths.standardPaths).name
       }
 
       val standardStreams = List(
@@ -559,13 +588,13 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       _ <- uploadScriptFile
       customLabels <- Future.fromTry(GoogleLabels.fromWorkflowOptions(workflowDescriptor.workflowOptions))
       jesParameters <- generateInputOutputParameters
-      createParameters = createPipelineParameters(jesParameters, customLabels)
+      createParameters = createPipelineParameters(jesParameters, customLabels, jesAttributes.referenceFilesMapping)
       gcsTransferConfiguration = initializationData.papiConfiguration.papiAttributes.gcsTransferConfiguration
       gcsTransferLibraryCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsTransferLibraryName
       transferLibraryContainerPath = createParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
       _ <- uploadGcsTransferLibrary(createParameters, gcsTransferLibraryCloudPath, gcsTransferConfiguration)
       gcsLocalizationScriptCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsLocalizationScriptName
-      _ <- uploadGcsLocalizationScript(createParameters, gcsLocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration)
+      _ <- uploadGcsLocalizationScript(createParameters, gcsLocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration, jesAttributes.referenceFilesMapping)
       gcsDelocalizationScriptCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsDelocalizationScriptName
       _ <- uploadGcsDelocalizationScript(createParameters, gcsDelocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration)
       _ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined

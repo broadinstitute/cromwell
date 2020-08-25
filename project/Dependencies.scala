@@ -5,13 +5,13 @@ object Dependencies {
   private val akkaHttpV = "10.1.12"
   val akkaV = "2.6.8" // When updating: Do we still need the merge "fix" from https://github.com/broadinstitute/cromwell/pull/5776 (not private because used in Merging.scala)
   private val aliyunBcsV = "6.2.4"
-  private val aliyunCoreV = "4.5.6"
+  private val aliyunCoreV = "4.5.7"
   private val aliyunCrV = "4.1.1"
   private val aliyunOssV = "3.10.2"
-  private val ammoniteOpsV = "1.9.9"
+  private val ammoniteOpsV = "2.2.0"
   private val apacheCommonNetV = "3.7"
   private val apacheHttpClientV = "4.5.12"
-  private val awsSdkV = "2.14.4"
+  private val awsSdkV = "2.14.3"
   private val betterFilesV = "3.9.1"
   private val catsEffectV = "2.1.4"
   private val catsV = "2.1.1"
@@ -26,16 +26,20 @@ object Dependencies {
   private val commonsTextV = "1.9"
   private val configsV = "0.4.4"
   private val delightRhinoSandboxV = "0.0.11"
-  private val ficusV = "1.4.7"
+  private val ficusV = "1.5.0"
   // The "com.vladsch.flexmark" % "flexmark-profile-pegdown" % flexmarkV dependency is an implicit, version-specific
   // runtime dependency of ScalaTest. At the time of this writing this is the newest version known to work.
   private val flexmarkV = "0.36.8" // scala-steward:off
   private val fs2V = "2.0.1"
-  private val fs2VStatsDProxy = "1.0.5"
+  // Scala Steward opened PR #5775 titled "Update fs2-io from 2.0.1 to 2.4.3" to upgrade the following dependency.
+  // However that PR was actually attempting an upgrade from 1.0.5 to 2.4.3 which is a much more significant
+  // undertaking, resulting in some thoroughly broken statsd proxy code. As this component lacks tests and is
+  // probably not the most important corner of the Cromwell repo, going to punt on this for now.
+  private val fs2VStatsDProxy = "1.0.5" // scala-steward:off
   private val googleApiClientV = "1.30.10"
   private val googleCloudBigQueryV = "1.116.9"
-  private val googleCloudKmsV = "v1-rev20200803-1.30.10"
-  private val googleCloudMonitoringV = "2.0.0"
+  private val googleCloudKmsV = "v1-rev20200814-1.30.10"
+  private val googleCloudMonitoringV = "2.0.1"
   private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off
   private val googleCloudStorageV = "1.111.2"
   private val googleGaxGrpcV = "1.58.2"
@@ -43,7 +47,7 @@ object Dependencies {
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20200330-1.30.9"
   private val googleHttpClientApacheV = "2.1.2"
   private val googleHttpClientV = "1.36.0"
-  private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20200603-1.30.10"
+  private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20200806-1.30.10"
   private val googleOauth2V = "0.21.1"
   private val googleOauthClientV = "1.31.0"
   private val googleCloudResourceManagerV = "0.87.0-alpha"
@@ -51,7 +55,7 @@ object Dependencies {
   private val guavaV = "29.0-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.5.1"
-  private val http4sVersion = "0.20.23"
+  private val http4sVersion = "0.21.7"
   private val jacksonV = "2.11.2"
   private val jacksonJqV = "1.0.0-preview.20191208"
   private val janinoV = "3.0.16"
@@ -97,12 +101,12 @@ object Dependencies {
   private val scalaLoggingV = "3.9.2"
   private val scalaPoolV = "0.4.3"
   private val scalacheckV = "1.14.3"
-  private val scalacticV = "3.2.1"
+  private val scalacticV = "3.2.2"
   private val scalameterV = "0.19"
-  private val scalamockV = "4.4.0"
-  private val scalatestV = "3.2.1"
+  private val scalamockV = "5.0.0"
+  private val scalatestV = "3.2.2"
   private val scalatestPlusMockitoV = "1.0.0-M2"
-  private val scalazV = "7.2.30"
+  private val scalazV = "7.3.2"
   private val scoptV = "3.7.1"
   private val sentryLogbackV = "1.7.30"
   private val shapelessV = "2.3.3"

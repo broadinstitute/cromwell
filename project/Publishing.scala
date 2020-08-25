@@ -125,7 +125,7 @@ object Publishing {
     } else {
       List(
         DockerKeys.dockerPush := {
-          ()
+          Map.empty[sbtdocker.ImageName,sbtdocker.ImageDigest]
         },
       )
     }

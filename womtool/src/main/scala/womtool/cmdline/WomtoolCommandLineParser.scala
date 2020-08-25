@@ -15,6 +15,7 @@ object WomtoolCommandLineParser {
   def validateCommandLine(args: PartialWomtoolCommandLineArguments): Option[ValidatedWomtoolCommandLine] = args match {
     case PartialWomtoolCommandLineArguments(Some(Validate), Some(mainFile), inputs, None, None, listDependencies) => Option(ValidateCommandLine(mainFile, inputs, listDependencies.getOrElse(false)))
     case PartialWomtoolCommandLineArguments(Some(Inputs), Some(mainFile), None, showOptionals, None, None) => Option(InputsCommandLine(mainFile, !showOptionals.contains(false)))
+    case PartialWomtoolCommandLineArguments(Some(Outputs), Some(mainFile), None, None, None, None) => Option(OutputsCommandLine(mainFile))
     case PartialWomtoolCommandLineArguments(Some(Parse), Some(mainFile), None, None, None, None) => Option(ParseCommandLine(mainFile))
     case PartialWomtoolCommandLineArguments(Some(Highlight), Some(mainFile), None, None, Some(mode), None) => Option(HighlightCommandLine(mainFile, mode))
     case PartialWomtoolCommandLineArguments(Some(Graph), Some(mainFile), None, None, None, None) => Option(WomtoolGraphCommandLine(mainFile))
@@ -72,6 +73,11 @@ class WomtoolCommandLineParser extends scopt.OptionParser[PartialWomtoolCommandL
     .action((_, c) =>
       c.copy(command = Option(Inputs)))
     .text("Generate and output a new inputs JSON for this workflow." + System.lineSeparator)
+
+  cmd("outputs")
+    .action((_, c) =>
+      c.copy(command = Option(Outputs)))
+    .text("Generate and output a list of output types in JSON for this workflow." + System.lineSeparator)
 
   cmd("parse")
     .action((_, c) => c.copy(command = Option(Parse)))

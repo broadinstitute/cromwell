@@ -33,8 +33,8 @@ object Dependencies {
   private val fs2V = "2.0.1"
   // Scala Steward opened PR #5775 titled "Update fs2-io from 2.0.1 to 2.4.3" to upgrade the following dependency.
   // However that PR was actually attempting an upgrade from 1.0.5 to 2.4.3 which is a much more significant
-  // undertaking, resulting in some thoroughly broken code statsd proxy code. As this is probably not the most important
-  // corner of the Cromwell repo, going to punt on this for now.
+  // undertaking, resulting in some thoroughly broken statsd proxy code. As this component lacks tests and is
+  // probably not the most important corner of the Cromwell repo, going to punt on this for now.
   private val fs2VStatsDProxy = "1.0.5" // scala-steward:off
   private val googleApiClientV = "1.30.10"
   private val googleCloudBigQueryV = "1.116.9"

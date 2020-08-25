@@ -13,7 +13,7 @@ object ActionUtils {
   val sshPortMappings = Map("22" -> new Integer(22))
 
   /*
-   * At the moment, the cloud-sdk:slim (727MB on 2019-09-26) and possibly stedolan/jq (182MB) decompressed ~= 1 GB
+   * At the moment, cloud-sdk (924MB for 276.0.0-slim) and stedolan/jq (182MB) decompressed ~= 1.1 GB
    */
   val cromwellImagesSizeRoundedUpInGB = 1
 

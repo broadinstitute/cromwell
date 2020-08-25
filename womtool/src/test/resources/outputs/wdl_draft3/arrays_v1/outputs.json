@@ -1,0 +1,13 @@
+{
+  "Arrays.arrays_variant_calling_control_metrics": "File",
+  "Arrays.genotype_concordance_detail_metrics": "File",
+  "Arrays.fingerprinting_detail_metrics": "File",
+  "Arrays.fingerprinting_summary_metrics": "File",
+  "Arrays.output_vcf_index": "File",
+  "Arrays.genotype_concordance_contingency_metrics": "File",
+  "Arrays.genotype_concordance_summary_metrics": "File",
+  "Arrays.output_vcf": "File",
+  "Arrays.arrays_variant_calling_detail_metrics": "File",
+  "Arrays.gtc_file": "File",
+  "Arrays.arrays_variant_calling_summary_metrics": "File"
+}

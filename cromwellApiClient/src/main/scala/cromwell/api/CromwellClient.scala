@@ -9,7 +9,6 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.{Authorization, HttpCredentials, HttpEncodings}
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
-import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import cats.effect.IO
 import cromwell.api.CromwellClient._
@@ -21,7 +20,7 @@ import scala.concurrent.ExecutionContext
 class CromwellClient(val cromwellUrl: URL,
                      val apiVersion: String,
                      val defaultCredentials: Option[HttpCredentials]=None)
-                    (implicit actorSystem: ActorSystem, materializer: ActorMaterializer) {
+                    (implicit actorSystem: ActorSystem) {
 
   lazy val defaultAuthorization: Option[Authorization] = defaultCredentials.map { Authorization(_) }
   lazy val defaultHeaders: List[HttpHeader] = defaultAuthorization.toList

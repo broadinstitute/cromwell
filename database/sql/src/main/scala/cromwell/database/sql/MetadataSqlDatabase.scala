@@ -44,6 +44,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
   def countMetadataEntries(workflowExecutionUuid: String,
+                           expandSubWorkflows: Boolean,
                            timeout: Duration)
                           (implicit ec: ExecutionContext): Future[Int]
 
@@ -54,6 +55,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
 
   def countMetadataEntries(workflowExecutionUuid: String,
                            metadataKey: String,
+                           expandSubWorkflows: Boolean,
                            timeout: Duration)
                           (implicit ec: ExecutionContext): Future[Int]
 
@@ -68,6 +70,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
                            callFullyQualifiedName: String,
                            jobIndex: Option[Int],
                            jobAttempt: Option[Int],
+                           expandSubWorkflows: Boolean,
                            timeout: Duration)
                           (implicit ec: ExecutionContext): Future[Int]
 
@@ -84,6 +87,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
                            callFullyQualifiedName: String,
                            jobIndex: Option[Int],
                            jobAttempt: Option[Int],
+                           expandSubWorkflows: Boolean,
                            timeout: Duration)
                           (implicit ec: ExecutionContext): Future[Int]
 
@@ -98,6 +102,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
                                            metadataKeysToFilterFor: List[String],
                                            metadataKeysToFilterAgainst: List[String],
                                            metadataJobQueryValue: MetadataJobQueryValue,
+                                           expandSubWorkflows: Boolean,
                                            timeout: Duration)
                                           (implicit ec: ExecutionContext): Future[Int]
 

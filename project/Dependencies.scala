@@ -1,7 +1,7 @@
 import sbt._
 
 object Dependencies {
-  private val akkaHttpCirceIntegrationV = "1.33.0"
+  private val akkaHttpCirceIntegrationV = "1.34.0"
   private val akkaHttpV = "10.1.12"
   val akkaV = "2.6.8" // When updating: Do we still need the merge "fix" from https://github.com/broadinstitute/cromwell/pull/5776 (not private because used in Merging.scala)
   private val aliyunBcsV = "6.2.4"
@@ -15,9 +15,9 @@ object Dependencies {
   private val betterFilesV = "3.9.1"
   private val catsEffectV = "2.1.4"
   private val catsV = "2.1.1"
-  private val circeGenericExtrasV = "0.12.2"
+  private val circeGenericExtrasV = "0.13.0"
   private val circeOpticsV = "0.13.0"
-  private val circeV = "0.12.3"
+  private val circeV = "0.13.0"
   private val circeYamlV = "0.13.1"
   private val commonsCodecV = "1.14"
   private val commonsIoV = "2.7"

@@ -93,7 +93,7 @@ def upload_workflow_metadata_json(bucket_name: str,
                                   raw_workflow_metadata: bytes,
                                   workflow_gcs_base_path: str,
                                   gcs_storage_client: storage.Client) -> None:
-    workflow_gcs_metadata_upload_path = f'{workflow_gcs_base_path}/metadata.json'
+    workflow_gcs_metadata_upload_path = f'{workflow_gcs_base_path}/workflow.json'
     upload_blob(bucket_name, raw_workflow_metadata, workflow_gcs_metadata_upload_path, gcs_storage_client, logger)
 
 

@@ -62,12 +62,13 @@ def digester_key_by_json_key(json_key: AnyStr) -> DigesterKey:
 
 
 MachineTypesCostPerHour = {
-    'n1-highcpu-16': 0.5672,   # https://cloud.google.com/compute/vm-instance-pricing#n1_highcpu_machine_types
-    'n1-highmem-2': 0.1184,    # https://cloud.google.com/compute/vm-instance-pricing#n1_highmem_machine_types
-    'n1-standard-1': 0.0475,   # https://cloud.google.com/compute/vm-instance-pricing#n1_standard_machine_types
-    'n1-standard-2': 0.0950,   # https://cloud.google.com/compute/vm-instance-pricing#n1_standard_machine_types
-    'g1-small': 0.0257,        # https://cloud.google.com/compute/all-pricing#n1_sharedcore_machine_types
-    'e2-standard-2': 0.067006  # https://cloud.google.com/compute/vm-instance-pricing#e2_standard_machine-types
+    'n1-highcpu-16': 0.5672,    # https://cloud.google.com/compute/vm-instance-pricing#n1_highcpu_machine_types
+    'n1-highmem-2': 0.1184,     # https://cloud.google.com/compute/vm-instance-pricing#n1_highmem_machine_types
+    'n1-standard-1': 0.0475,    # https://cloud.google.com/compute/vm-instance-pricing#n1_standard_machine_types
+    'n1-standard-2': 0.0950,    # https://cloud.google.com/compute/vm-instance-pricing#n1_standard_machine_types
+    'g1-small': 0.0257,         # https://cloud.google.com/compute/all-pricing#n1_sharedcore_machine_types
+    'e2-standard-2': 0.067006,  # https://cloud.google.com/compute/vm-instance-pricing#e2_standard_machine-types
+    'n2-standard-2': 0.0971     # https://cloud.google.com/compute/vm-instance-pricing#n2_standard_machine_types
 }
 
 # A machine type-weighted dictionary used for getting more accurate cost estimates.

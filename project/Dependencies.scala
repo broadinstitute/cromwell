@@ -37,7 +37,7 @@ object Dependencies {
   // probably not the most important corner of the Cromwell repo, going to punt on this for now.
   private val fs2VStatsDProxy = "1.0.5" // scala-steward:off
   private val googleApiClientV = "1.30.10"
-  private val googleCloudBigQueryV = "1.116.9"
+  private val googleCloudBigQueryV = "1.116.10"
   private val googleCloudKmsV = "v1-rev20200814-1.30.10"
   private val googleCloudMonitoringV = "2.0.1"
   private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off
@@ -51,14 +51,14 @@ object Dependencies {
   private val googleOauth2V = "0.21.1"
   private val googleOauthClientV = "1.31.0"
   private val googleCloudResourceManagerV = "0.87.0-alpha"
-  private val grpcV = "1.31.0"
+  private val grpcV = "1.31.1"
   private val guavaV = "29.0-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.5.1"
   private val http4sVersion = "0.21.7"
   private val jacksonV = "2.11.2"
   private val jacksonJqV = "1.0.0-preview.20191208"
-  private val janinoV = "3.0.16"
+  private val janinoV = "3.1.2"
   private val javaxActivationV = "1.2.0"
   // jaxb-impl 2.3.3 depends on com.sun.activation:jakarta.activation and jakarta.xml.bind:jakarta.xml.bind-api,
   // which jaxb-impl 2.3.2 did not. jakarta.activation corresponds to the "updated" Maven coordinates for the Java
@@ -80,7 +80,7 @@ object Dependencies {
   private val liquibaseV = "3.6.3" // scala-steward:off
   private val logbackV = "1.2.3"
   private val lz4JavaV = "1.7.1"
-  private val mariadbV = "2.4.4"
+  private val mariadbV = "2.6.2"
   private val metrics3ScalaV = "4.0.0" // https://github.com/erikvanoosten/metrics-scala/tree/f733e26#download-4x
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "2.7.1"
@@ -131,7 +131,7 @@ object Dependencies {
   private val swaggerParserV = "1.0.51"
   private val swaggerUiV = "3.23.11" // scala-steward:off
   private val tikaV = "1.24.1"
-  private val typesafeConfigV = "1.3.4"
+  private val typesafeConfigV = "1.4.0"
   private val workbenchGoogleV = "0.15-2fc79a3"
   private val workbenchModelV = "0.14-27810079-SNAP"
   private val workbenchUtilV = "0.6-27810079-SNAP"

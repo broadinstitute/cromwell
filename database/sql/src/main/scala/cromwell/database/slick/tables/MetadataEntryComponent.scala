@@ -63,11 +63,11 @@ trait MetadataEntryComponent {
   )
 
   val countMetadataEntriesForWorkflowExecutionUuid = Compiled(
-    (rootWorkflowId: Rep[String]) => {
+    (rootWorkflowId: Rep[String], expandSubWorkflows: Rep[Boolean]) => {
       val targetWorkflowIds = for {
         summary <- workflowMetadataSummaryEntries
         // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
-        if summary.rootWorkflowExecutionUuid === rootWorkflowId || summary.workflowExecutionUuid === rootWorkflowId
+        if summary.workflowExecutionUuid === rootWorkflowId || ((summary.rootWorkflowExecutionUuid === rootWorkflowId) && expandSubWorkflows)
       } yield summary.workflowExecutionUuid
 
       for {
@@ -120,11 +120,11 @@ trait MetadataEntryComponent {
   )
 
   val countMetadataEntriesForWorkflowExecutionUuidAndMetadataKey = Compiled(
-    (rootWorkflowId: Rep[String], metadataKey: Rep[String]) => {
+    (rootWorkflowId: Rep[String], metadataKey: Rep[String], expandSubWorkflows: Rep[Boolean]) => {
       val targetWorkflowIds = for {
         summary <- workflowMetadataSummaryEntries
         // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
-        if summary.rootWorkflowExecutionUuid === rootWorkflowId || summary.workflowExecutionUuid === rootWorkflowId
+        if summary.workflowExecutionUuid === rootWorkflowId || ((summary.rootWorkflowExecutionUuid === rootWorkflowId) && expandSubWorkflows)
       } yield summary.workflowExecutionUuid
 
       for {
@@ -151,11 +151,11 @@ trait MetadataEntryComponent {
 
   val countMetadataEntriesForJobKey = Compiled(
     (rootWorkflowId: Rep[String], callFullyQualifiedName: Rep[String], jobIndex: Rep[Option[Int]],
-     jobAttempt: Rep[Option[Int]]) => {
+     jobAttempt: Rep[Option[Int]], expandSubWorkflows: Rep[Boolean]) => {
       val targetWorkflowIds = for {
         summary <- workflowMetadataSummaryEntries
         // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
-        if summary.rootWorkflowExecutionUuid === rootWorkflowId || summary.workflowExecutionUuid === rootWorkflowId
+        if summary.workflowExecutionUuid === rootWorkflowId || ((summary.rootWorkflowExecutionUuid === rootWorkflowId) && expandSubWorkflows)
       } yield summary.workflowExecutionUuid
 
       for {
@@ -182,11 +182,11 @@ trait MetadataEntryComponent {
 
   val countMetadataEntriesForJobKeyAndMetadataKey = Compiled(
     (rootWorkflowId: Rep[String], metadataKey: Rep[String], callFullyQualifiedName: Rep[String],
-     jobIndex: Rep[Option[Int]], jobAttempt: Rep[Option[Int]]) => {
+     jobIndex: Rep[Option[Int]], jobAttempt: Rep[Option[Int]], expandSubWorkflows: Rep[Boolean]) => {
       val targetWorkflowIds = for {
         summary <- workflowMetadataSummaryEntries
         // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
-        if summary.rootWorkflowExecutionUuid === rootWorkflowId || summary.workflowExecutionUuid === rootWorkflowId
+        if summary.workflowExecutionUuid === rootWorkflowId || ((summary.rootWorkflowExecutionUuid === rootWorkflowId) && expandSubWorkflows)
       } yield summary.workflowExecutionUuid
 
       for {
@@ -235,12 +235,13 @@ trait MetadataEntryComponent {
   def countMetadataEntriesWithKeyConstraints(rootWorkflowId: String,
                                              metadataKeysToFilterFor: List[String],
                                              metadataKeysToFilterOut: List[String],
-                                             requireEmptyJobKey: Boolean) = {
+                                             requireEmptyJobKey: Boolean,
+                                             expandSubWorkflows: Boolean) = {
 
     val targetWorkflowIds = for {
       summary <- workflowMetadataSummaryEntries
       // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
-      if summary.rootWorkflowExecutionUuid === rootWorkflowId || summary.workflowExecutionUuid === rootWorkflowId
+      if summary.workflowExecutionUuid === rootWorkflowId || ((summary.rootWorkflowExecutionUuid === rootWorkflowId) && expandSubWorkflows)
     } yield summary.workflowExecutionUuid
 
     (for {
@@ -283,12 +284,13 @@ trait MetadataEntryComponent {
                                                    metadataKeysToFilterOut: List[String],
                                                    callFqn: String,
                                                    jobIndex: Option[Int],
-                                                   jobAttempt: Option[Int]) = {
+                                                   jobAttempt: Option[Int],
+                                                   expandSubWorkflows: Boolean) = {
 
     val targetWorkflowIds = for {
       summary <- workflowMetadataSummaryEntries
       // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
-      if summary.rootWorkflowExecutionUuid === rootWorkflowId || summary.workflowExecutionUuid === rootWorkflowId
+      if summary.workflowExecutionUuid === rootWorkflowId || ((summary.rootWorkflowExecutionUuid === rootWorkflowId) && expandSubWorkflows)
     } yield summary.workflowExecutionUuid
 
     (for {

@@ -333,7 +333,14 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   }
 
   private def generateAwsBatchSingleFileOutputs(womFile: WomSingleFile): List[AwsBatchFileOutput] = {
-    val destination = callRootPath.resolve(womFile.value.stripPrefix("/")).pathAsString
+    val destination = configuration.fileSystem match {
+      case  AWSBatchStorageSystems.s3 =>  callRootPath.resolve(womFile.value.stripPrefix("/")).pathAsString
+      case _ => DefaultPathBuilder.get(womFile.valueString) match {
+                 case p if !p.isAbsolute =>  callRootPath.resolve(womFile.value.stripPrefix("/")).pathAsString
+                 case p => p.pathAsString
+      }
+
+    }
     val (relpath, disk) = relativePathAndVolume(womFile.value, runtimeAttributes.disks)
     val output = AwsBatchFileOutput(makeSafeAwsBatchReferenceName(womFile.value), destination, relpath, disk)
     List(output)

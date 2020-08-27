@@ -11,7 +11,7 @@ object Dependencies {
   private val ammoniteOpsV = "2.2.0"
   private val apacheCommonNetV = "3.7"
   private val apacheHttpClientV = "4.5.12"
-  private val awsSdkV = "2.14.3"
+  private val awsSdkV = "2.14.6"
   private val betterFilesV = "3.9.1"
   private val catsEffectV = "2.1.4"
   private val catsV = "2.1.1"

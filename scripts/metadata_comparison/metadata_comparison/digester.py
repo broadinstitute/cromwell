@@ -1,3 +1,19 @@
+#!/usr/bin/env python3
+#
+# digester.py
+#
+# Purpose: Digest performance metadata JSON files produced by the Extractor.
+#
+# Usage: python3 -m metadata_comparison.digester PATH [PATHs...]
+#
+# Python Prereqs (at least, the ones which I needed to manually install... YMMV):
+#
+#   * pip3 install --upgrade google-api-python-client
+#   * pip3 install --upgrade google-cloud-storage
+#   * pip3 install --upgrade python-dateutil
+#
+# Remember to login to create application default credentials before use:
+#   % gcloud auth application-default login
 import argparse
 import json
 from metadata_comparison.lib import logging, operation_ids

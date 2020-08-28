@@ -30,7 +30,7 @@
  */
 package cromwell.filesystems.s3
 
-import java.net.URI
+import java.net.{URI, URLDecoder}
 
 import com.google.common.net.UrlEscapers
 import cromwell.cloudsupport.aws.auth.AwsAuthMode
@@ -137,7 +137,7 @@ class S3PathBuilder(configuration: S3Configuration
                      ) extends PathBuilder {
   // Tries to create a new S3Path from a String representing an absolute s3 path: s3://<bucket>[/<key>].
   def build(string: String): Try[S3Path] = {
-    validatePath(string) match {
+    validatePath(URLDecoder.decode(string, "UTF-8")) match {
       case ValidFullS3Path(bucket, path) =>
         Try {
           val s3Path = new S3FileSystemProvider()

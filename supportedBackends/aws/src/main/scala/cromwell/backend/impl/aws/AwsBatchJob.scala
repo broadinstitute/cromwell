@@ -31,6 +31,7 @@
 package cromwell.backend.impl.aws
 
 import java.security.MessageDigest
+import java.net.URLDecoder.decode
 
 import cats.data.ReaderT._
 import cats.data.{Kleisli, ReaderT}
@@ -120,18 +121,19 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     val replaced = commandScript.replaceAllLiterally(AwsBatchWorkingDisk.MountPoint.pathAsString, workDir)
     val insertionPoint = replaced.indexOf("\n", replaced.indexOf("#!")) +1 //just after the new line after the shebang!
 
-    //generate a series of s3 copy statements to copy any s3 files into the container
+    //generate a series of s3 copy statements to copy any s3 files into the container. we decode the, incase they have
+    //been URI encoded
     val inputCopyCommand = inputs.map {
       case input: AwsBatchFileInput if input.s3key.startsWith("s3://") && input.s3key.endsWith(".tmp") =>
         //we are localizing a tmp file which may contain workdirectory paths that need to be reconfigured
         s"""
-           |$s3Cmd cp --no-progress ${input.s3key} $workDir/${input.local}
+           |$s3Cmd cp --no-progress ${decode(input.s3key, "UTF-8")} $workDir/${input.local}
            |sed -i 's#${AwsBatchWorkingDisk.MountPoint.pathAsString}#$workDir#g' $workDir/${input.local}
            |""".stripMargin
 
 
       case input: AwsBatchFileInput if input.s3key.startsWith("s3://") =>
-        s"$s3Cmd cp --no-progress ${input.s3key} ${input.mount.mountPoint.pathAsString}/${input.local}"
+        s"$s3Cmd cp --no-progress ${decode(input.s3key, "UTF-8")} ${input.mount.mountPoint.pathAsString}/${input.local}"
           .replaceAllLiterally(AwsBatchWorkingDisk.MountPoint.pathAsString, workDir)
 
       case input: AwsBatchFileInput =>
@@ -174,24 +176,24 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
          */
         s"""
            |touch ${output.name}
-           |$s3Cmd cp --no-progress ${output.name} ${output.s3key}
-           |if [ -e $globDirectory ]; then $s3Cmd cp --no-progress $globDirectory $s3GlobOutDirectory --recursive --exclude "cromwell_glob_control_file"; fi
+           |$s3Cmd cp --no-progress ${output.name} ${decode(output.s3key, "UTF-8")}
+           |if [ -e $globDirectory ]; then $s3Cmd cp --no-progress $globDirectory ${decode(s3GlobOutDirectory, "UTF-8")} --recursive --exclude "cromwell_glob_control_file"; fi
            |""".stripMargin
 
       case output: AwsBatchFileOutput if output.s3key.startsWith("s3://") && output.mount.mountPoint.pathAsString == AwsBatchWorkingDisk.MountPoint.pathAsString =>
         //output is on working disk mount
         s"""
-           |$s3Cmd cp --no-progress $workDir/${output.local.pathAsString} ${output.s3key}
+           |$s3Cmd cp --no-progress $workDir/${output.local.pathAsString} ${decode(output.s3key, "UTF-8")}
            |""".stripMargin
       case output: AwsBatchFileOutput =>
         //output on a different mount
-        s"$s3Cmd cp --no-progress ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} ${output.s3key}"
+        s"$s3Cmd cp --no-progress ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} ${decode(output.s3key, "UTF-8")}"
       case _ => ""
     }.mkString("\n") + "\n" +
       s"""
-         |if [ -f $workDir/${jobPaths.returnCodeFilename} ]; then $s3Cmd cp --no-progress $workDir/${jobPaths.returnCodeFilename} ${jobPaths.callRoot.pathAsString}/${jobPaths.returnCodeFilename} ; fi\n
-         |if [ -f $stdErr ]; then $s3Cmd cp --no-progress $stdErr ${jobPaths.standardPaths.error.pathAsString}; fi
-         |if [ -f $stdOut ]; then $s3Cmd cp --no-progress $stdOut ${jobPaths.standardPaths.output.pathAsString}; fi
+         |if [ -f $workDir/${jobPaths.returnCodeFilename} ]; then $s3Cmd cp --no-progress $workDir/${jobPaths.returnCodeFilename} ${decode(jobPaths.callRoot.pathAsString, "UTF-8")}/${jobPaths.returnCodeFilename} ; fi\n
+         |if [ -f $stdErr ]; then $s3Cmd cp --no-progress $stdErr ${decode(jobPaths.standardPaths.error.pathAsString, "UTF-8")}; fi
+         |if [ -f $stdOut ]; then $s3Cmd cp --no-progress $stdOut ${decode(jobPaths.standardPaths.output.pathAsString, "UTF-8")}; fi
          |""".stripMargin
 
 
@@ -302,7 +304,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
   }
 
   private def writeReconfiguredScriptForAudit( reconfiguredScript: String, bucketName: String, key: String) = {
-    val putObjectRequest = PutObjectRequest.builder().bucket(bucketName).key(key).build()
+    val putObjectRequest = PutObjectRequest.builder().bucket(bucketName).key(decode(key, "UTF-8")).build()
     s3Client.putObject(putObjectRequest, RequestBody.fromString(reconfiguredScript))
   }
 

@@ -84,11 +84,11 @@ public class S3Path implements Path {
             uriBuilder.append(PATH_SEPARATOR);
         }
         for (String path : pathsURI) {
-            uriBuilder.append(path + PATH_SEPARATOR);
+            uriBuilder.append(path).append(PATH_SEPARATOR);
         }
         if (more != null) {
             for (String path : more) {
-                uriBuilder.append(path + PATH_SEPARATOR);
+                uriBuilder.append(path).append(PATH_SEPARATOR);
             }
         }
         this.uri = normalizeURI(uriBuilder.toString());
@@ -96,8 +96,8 @@ public class S3Path implements Path {
         if (!first.isEmpty() &&
                 // only first param and not ended with PATH_SEPARATOR
                 ((!first.endsWith(PATH_SEPARATOR) && (more == null || more.length == 0))
-                // we have more param and not ended with PATH_SEPARATOR
-                || more != null &&  more.length > 0 && !more[more.length-1].endsWith(PATH_SEPARATOR))) {
+                        // we have more param and not ended with PATH_SEPARATOR
+                        || more != null &&  more.length > 0 && !more[more.length-1].endsWith(PATH_SEPARATOR))) {
             this.uri = this.uri.substring(0, this.uri.length() - 1);
         }
 
@@ -400,7 +400,7 @@ public class S3Path implements Path {
         StringBuilder pathBuilder = new StringBuilder();
         String lastPath = othersPaths.get(othersPaths.size() - 1);
         if (isAbsolute()) {
-            pathBuilder.append(PATH_SEPARATOR + fileStore.name() + PATH_SEPARATOR);
+            pathBuilder.append(PATH_SEPARATOR).append(fileStore.name()).append(PATH_SEPARATOR);
         }
         for (String path : concat(paths.subList(0, paths.size() - 1), othersPaths)) {
             pathBuilder.append(path);
@@ -461,7 +461,7 @@ public class S3Path implements Path {
         if (this.isAbsolute()) {
             StringBuilder builder = new StringBuilder();
             builder.append(fileSystem.getKey());
-            builder.append(PATH_SEPARATOR + fileStore.name() + PATH_SEPARATOR);
+            builder.append(PATH_SEPARATOR).append(fileStore.name()).append(PATH_SEPARATOR);
             builder.append(uri);
             return URI.create("s3://" + normalizeURI(builder.toString()));
         }
@@ -567,6 +567,7 @@ public class S3Path implements Path {
         // remove special case URI starting with //
         uri = uri.replace("//", "/");
         uri = uri.replaceAll(" ", "%20");
+        uri = uri.replaceAll("#", "%23");
         return uri;
     }
 

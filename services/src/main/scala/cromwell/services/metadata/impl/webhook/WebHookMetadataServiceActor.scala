@@ -40,7 +40,7 @@ class WebHookMetadataServiceActor(serviceConfig: Config, globalConfig: Config, s
   implicit val system: ActorSystem = context.system
 //  implicit val materializer = ActorMaterializer(system)
 
-  val httphook: String = serviceConfig.getOrElse("url", "localhost:8080")
+  val httphook: String = serviceConfig.as[String]("url")
 
   override def receive = {
     case action: PutMetadataAction =>
@@ -62,11 +62,14 @@ class WebHookMetadataServiceActor(serviceConfig: Config, globalConfig: Config, s
     val eventsJson = events.toJson
     log.debug("Publishing metadata event to " + httphook)
 
+    // Todo, turn this into a proper JSON object
+    val entity = HttpEntity(ContentTypes.`application/json`, eventsJson.mkString(","))
+
     val httpRequest = HttpRequest(
       method = HttpMethods.POST,
       uri = httphook,
       headers = List[HttpHeader](),
-      entity=HttpEntity(ContentTypes.`application/json`, eventsJson.mkString(","))
+      entity=entity
     )
 
 
@@ -75,7 +78,8 @@ class WebHookMetadataServiceActor(serviceConfig: Config, globalConfig: Config, s
     Future {
       responseFuture
           .onComplete {
-            case Failure(exception) => log.error("Failed to persist metadata: " + exception.toString)
+            case Success(_) => None
+            case Failure(exception) => log.error("Failed to send webhook metadata: " + exception.toString)
           }
     }
   }

@@ -1,6 +1,6 @@
 package cloud.nio.impl.drs
 
-import java.time.OffsetDateTime
+import java.time.{LocalDateTime, OffsetDateTime}
 
 import cats.effect.{IO, Resource}
 import cats.instances.option._
@@ -120,7 +120,15 @@ object MarthaResponseSupport {
   def convertMarthaResponseV2ToV3(response: MarthaV2Response): MarthaResponse = {
     val dataObject = response.dos.data_object
     val size = dataObject.size
-    val timeUpdated = dataObject.updated.map(OffsetDateTime.parse(_).toString)
+
+    val timeUpdated: Option[String] = dataObject.updated map { time: String =>
+      if (time.endsWith("Z")) {
+        OffsetDateTime.parse(time).toString
+      } else {
+        LocalDateTime.parse(time).toString
+      }
+    }
+
     val hashesMap = dataObject.checksums.map(convertChecksumsToHashesMap)
     val gcsUrl = dataObject.urls.find(_.url.startsWith(GcsScheme)).map(_.url)
     val (bucketName, fileName) = getGcsBucketAndName(gcsUrl)

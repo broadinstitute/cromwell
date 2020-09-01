@@ -167,7 +167,7 @@ class PapiV2OperationDigester(OperationDigester, ABC):
         started_running_events = [dateutil.parser.parse(d.get('timestamp')) for d in
                                   self.event_with_description_like(started_running_description)]
 
-        stopped_running_description = "^Stopped running \"/cromwell_root/script\"$"
+        stopped_running_description = "^Stopped running \"/cromwell_root/script\".*"
         stopped_running_events = [dateutil.parser.parse(d.get('timestamp')) for d in
                                   self.event_with_description_like(stopped_running_description)]
 

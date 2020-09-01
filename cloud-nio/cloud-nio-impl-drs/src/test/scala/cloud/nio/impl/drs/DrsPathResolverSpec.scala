@@ -46,7 +46,7 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with Matchers {
     hashes = Option(Map("md5" -> md5HashValue, "crc32c" -> crcHashValue))
   )
 
-  private val fullMarthaResponseNoTz =  MarthaResponse(
+  private val fullMarthaResponseNoTz = MarthaResponse(
     size = Option(34905345),
     timeUpdated = Option(LocalDateTime.parse("2020-01-15T17:46:25.694148").toString),
     bucket = Option("my-gs-bucket"),

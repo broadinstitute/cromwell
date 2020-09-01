@@ -163,11 +163,11 @@ class PapiV2OperationDigester(OperationDigester, ABC):
         return (events[-1] - events[0]).total_seconds()
 
     def user_command_time_seconds(self) -> float:
-        started_running_description = "^Started running .* /cromwell_root/script\"$"
+        started_running_description = "^Started running \"/cromwell_root/script\"$"
         started_running_events = [dateutil.parser.parse(d.get('timestamp')) for d in
                                   self.event_with_description_like(started_running_description)]
 
-        stopped_running_description = "^Stopped running .* /cromwell_root/script\"$"
+        stopped_running_description = "^Stopped running \"/cromwell_root/script\"$"
         stopped_running_events = [dateutil.parser.parse(d.get('timestamp')) for d in
                                   self.event_with_description_like(stopped_running_description)]
 

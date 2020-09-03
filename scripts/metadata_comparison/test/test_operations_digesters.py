@@ -57,8 +57,11 @@ class OperationsDigesterTestMethods(unittest.TestCase):
                         json_str = operations_path.read_text()
                         op_digester = OperationDigester.create(json.loads(json_str))
                         for key, value in EXPECTATIONS.get(sample_name).get(papi_version).get(operation).items():
-                            method_to_call = getattr(op_digester, key)
-                            self.assertEqual(method_to_call(), value, f'{key} was not {value}')
+                            if key == 'disks':
+                                pass
+                            else:
+                                method_to_call = getattr(op_digester, key)
+                                self.assertEqual(method_to_call(), value, f'{key} was not {value}')
 
 
 EXPECTATIONS = {
@@ -70,7 +73,19 @@ EXPECTATIONS = {
                 'docker_image_pull_time_seconds': 88.822075,
                 'localization_time_seconds': 47.902792,
                 'user_command_time_seconds': 286.993021,
-                'delocalization_time_seconds': 8.452244
+                'delocalization_time_seconds': 8.452244,
+                'disks': [
+                    {
+                        'name': 'boot-disk',
+                        'sizeGb': 10,
+                        'type': 'HDD'
+                    },
+                    {
+                        'name': 'local-disk',
+                        'sizeGb': 25,
+                        'type': 'HDD'
+                    }
+                ]
             }
         },
         'PAPIv2_alpha1': {
@@ -80,7 +95,19 @@ EXPECTATIONS = {
                 'docker_image_pull_time_seconds': 63.978705,
                 'localization_time_seconds': 23.193772,
                 'user_command_time_seconds': 2.978336,
-                'delocalization_time_seconds': 13.615169
+                'delocalization_time_seconds': 13.615169,
+                'disks': [
+                    {
+                        'name': 'boot-disk',
+                        'sizeGb': 11,
+                        'type': 'HDD'
+                    },
+                    {
+                        'name': 'local-disk',
+                        'sizeGb': 10,
+                        'type': 'HDD'
+                    }
+                ]
             }
         }
     }

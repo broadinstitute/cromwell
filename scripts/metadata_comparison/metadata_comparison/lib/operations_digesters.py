@@ -1,11 +1,23 @@
 
 from abc import ABC, abstractmethod
 import dateutil.parser
+from enum import Enum
 from metadata_comparison.lib.operation_ids import JsonObject, operation_id_to_api_version, \
     PAPI_V1_API_VERSION, PAPI_V2_ALPHA1_API_VERSION, PAPI_V2_BETA_API_VERSION
 import re
+from typing import AnyStr, Iterator, List
 
-from typing import AnyStr, Iterator
+
+class DiskType(Enum):
+    HDD = 1
+    SSD = 2
+
+
+class Disk:
+    def __init__(self, name: AnyStr, size_gb: int, disk_type: DiskType):
+        self.name = name
+        self.size_gb = size_gb
+        self.disk_type = disk_type
 
 
 class OperationDigester(ABC):
@@ -68,6 +80,9 @@ class OperationDigester(ABC):
 
     @abstractmethod
     def machine_type(self) -> AnyStr: pass
+
+    @abstractmethod
+    def disks(self) -> List[Disk]: pass
 
     def other_time_seconds(self) -> float:
         end, create = [dateutil.parser.parse(t) for t in [self.end_time(), self.create_time()]]
@@ -137,6 +152,23 @@ class PapiV1OperationDigester(OperationDigester):
         machine_type_with_zone_prefix = self.metadata().get('runtimeMetadata').get('computeEngine').get('machineType')
         return machine_type_with_zone_prefix.split('/')[-1]
 
+    def disks(self) -> List[Disk]:
+        resources = self.metadata().get('request').get('pipelineArgs').get('resources')
+        # start with the boot disk and then add any others later
+        disks_ = [Disk('boot-disk', resources.get('bootDiskSizeGb'), DiskType.HDD)]
+
+        def disk_type_from_string(string: AnyStr) -> DiskType:
+            if string == 'PERSISTENT_HDD':
+                return DiskType.HDD
+            elif string == 'PERSISTENT_SSD':
+                return DiskType.SSD
+            else:
+                raise ValueError(f"Unknown disk type: {string}")
+
+        disks_.extend(
+            [Disk(d.get('name'), d.get('sizeGb'), disk_type_from_string(d.get('type'))) for d in resources.get('disks')])
+        return disks_
+
 
 class PapiV2OperationDigester(OperationDigester, ABC):
     def __init__(self, operation_json: JsonObject):
@@ -163,7 +195,7 @@ class PapiV2OperationDigester(OperationDigester, ABC):
         return (events[-1] - events[0]).total_seconds()
 
     def user_command_time_seconds(self) -> float:
-        started_running_description = "^Started running \"/cromwell_root/script\"$"
+        started_running_description = "^Started running .*/cromwell_root/script\"$"
         started_running_events = [dateutil.parser.parse(d.get('timestamp')) for d in
                                   self.event_with_description_like(started_running_description)]
 
@@ -184,6 +216,22 @@ class PapiV2OperationDigester(OperationDigester, ABC):
     def machine_type(self) -> AnyStr:
         event = next(self.event_with_description_like('^Worker .* assigned in .*'))
         return event.get('details').get('machineType')
+
+    def disks(self) -> List[Disk]:
+        vm = self.metadata().get('pipeline').get('resources').get('virtualMachine')
+        # start with the boot disk and then add any others later
+        disks_ = [Disk('boot-disk', vm.get('bootDiskSizeGb'), DiskType.HDD)]
+
+        def disk_type_from_string(string: AnyStr) -> DiskType:
+            if string == 'pd-standard':
+                return DiskType.HDD
+            elif string == 'pd-ssd':
+                return DiskType.SSD
+            else:
+                raise ValueError(f"Unknown disk type '{string}'")
+
+        disks_.extend([Disk(d.get('name'), d.get('size'), disk_type_from_string(d.get('type'))) for d in vm.get('disks')])
+        return disks_
 
 
 class PapiV2AlphaOperationDigester(PapiV2OperationDigester):

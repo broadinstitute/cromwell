@@ -3,7 +3,6 @@ package cromwell.services.metadata.hybridcarbonite
 import akka.actor.{ActorRef, LoggingFSM, Props, Status}
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
-import cats.instances.string._
 import cats.syntax.validated._
 import cats.syntax.eq._
 import mouse.boolean._

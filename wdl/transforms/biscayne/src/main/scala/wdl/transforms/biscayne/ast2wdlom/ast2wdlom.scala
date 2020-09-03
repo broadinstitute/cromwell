@@ -1,7 +1,6 @@
 package wdl.transforms.biscayne
 
 import better.files.File
-import cats.instances.either._
 import common.transforms.CheckedAtoB
 import common.validation.Checked._
 import wdl.biscayne.parser.WdlParser.{Ast, AstNode}

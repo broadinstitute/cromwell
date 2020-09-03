@@ -3,9 +3,6 @@ package centaur.test.metadata
 import java.time.OffsetDateTime
 
 import cats.effect._
-import cats.instances.either._
-import cats.instances.option._
-import cats.instances.vector._
 import cats.syntax.apply._
 import cats.syntax.traverse._
 import io.circe._

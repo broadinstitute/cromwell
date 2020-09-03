@@ -2,7 +2,6 @@ package wdl.transforms.base.ast2wdlom
 
 import cats.syntax.apply._
 import cats.syntax.either._
-import cats.instances.either._
 import common.transforms.CheckedAtoB
 import common.validation.ErrorOr.ErrorOr
 import wdl.model.draft3.elements.{ImportElement, LanguageElement, StaticString}

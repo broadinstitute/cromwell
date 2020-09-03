@@ -10,7 +10,6 @@ import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import cats.data.Validated._
-import cats.instances.list._
 import mouse.boolean._
 import cromwell.services.metadata.{MetadataArchiveStatus => MetadataArchiveStatusImported}
 

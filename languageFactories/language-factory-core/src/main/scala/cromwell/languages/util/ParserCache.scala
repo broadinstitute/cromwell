@@ -3,7 +3,6 @@ package cromwell.languages.util
 import java.util.concurrent.Callable
 
 import cats.data.Validated.{Invalid, Valid}
-import cats.instances.list._
 import cats.syntax.traverse._
 import com.google.common.cache.{Cache, CacheBuilder}
 import com.typesafe.config.Config

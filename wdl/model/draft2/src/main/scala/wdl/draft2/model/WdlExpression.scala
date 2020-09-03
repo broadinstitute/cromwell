@@ -1,7 +1,6 @@
 package wdl.draft2.model
 
 import cats.data.Validated.Valid
-import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr

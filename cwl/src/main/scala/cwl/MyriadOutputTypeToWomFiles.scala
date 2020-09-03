@@ -1,6 +1,4 @@
 package cwl
-
-import cats.instances.list._
 import cats.syntax.traverse._
 import common.validation.IOChecked._
 import cwl.CwlType.CwlType

@@ -3,7 +3,6 @@ package cromwell.backend
 import cats.data.EitherT._
 import cats.data.Validated.{Invalid, Valid}
 import cats.data.{EitherT, NonEmptyList}
-import cats.instances.try_._
 import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.validated._

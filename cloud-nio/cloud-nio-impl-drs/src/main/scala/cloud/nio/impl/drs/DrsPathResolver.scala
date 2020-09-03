@@ -1,8 +1,6 @@
 package cloud.nio.impl.drs
 
 import cats.effect.{IO, Resource}
-import cats.instances.option._
-import cats.instances.string._
 import cloud.nio.impl.drs.MarthaResponseSupport._
 import common.exception.toIO
 import io.circe._

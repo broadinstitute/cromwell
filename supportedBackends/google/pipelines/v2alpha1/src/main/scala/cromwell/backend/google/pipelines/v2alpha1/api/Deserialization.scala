@@ -2,8 +2,6 @@ package cromwell.backend.google.pipelines.v2alpha1.api
 
 import java.lang.reflect.ParameterizedType
 import java.util.{ArrayList => JArrayList, Map => JMap}
-
-import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import com.google.api.client.json.GenericJson

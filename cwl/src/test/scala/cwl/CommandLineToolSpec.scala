@@ -1,6 +1,4 @@
 package cwl
-
-import cats.instances.list._
 import cats.syntax.traverse._
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineMV

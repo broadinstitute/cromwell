@@ -3,7 +3,6 @@ package wdl.transforms.base.wdlom2wom.graph
 import cats.syntax.apply._
 import cats.syntax.validated._
 import cats.syntax.traverse._
-import cats.instances.list._
 import common.validation.ErrorOr.{ErrorOr, _}
 import shapeless.Coproduct
 import wdl.model.draft3.graph.expression.TypeEvaluator.ops._

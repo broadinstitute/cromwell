@@ -1,6 +1,4 @@
 package wdl.transforms.base.ast2wdlom
-
-import cats.instances.vector._
 import cats.syntax.either._
 import cats.syntax.traverse._
 import common.validation.Checked._

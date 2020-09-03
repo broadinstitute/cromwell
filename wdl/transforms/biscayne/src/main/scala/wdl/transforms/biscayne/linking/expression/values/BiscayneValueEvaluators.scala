@@ -3,7 +3,6 @@ package wdl.transforms.biscayne.linking.expression.values
 import cats.data.NonEmptyList
 import cats.syntax.validated._
 import cats.syntax.traverse._
-import cats.instances.list._
 import common.validation.ErrorOr._
 import common.collections.EnhancedCollections._
 import wdl.model.draft3.elements.ExpressionElement

@@ -90,7 +90,6 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     * flag to true
     */
   override def fetchStartableWorkflows(n: Int, cromwellId: String, heartbeatTtl: FiniteDuration)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
-    import cats.instances.list._
     import cats.syntax.traverse._
     import common.validation.Validation._
     sqlDatabase.fetchWorkflowsInState(

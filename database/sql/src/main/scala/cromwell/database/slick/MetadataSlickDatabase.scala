@@ -2,7 +2,7 @@ package cromwell.database.slick
 
 import java.sql.Timestamp
 
-import cats.implicits._
+import cats.syntax.all._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.database.slick.tables.MetadataDataAccessComponent
 import cromwell.database.sql.MetadataSqlDatabase

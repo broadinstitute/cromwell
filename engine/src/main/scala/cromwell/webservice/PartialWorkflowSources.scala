@@ -5,8 +5,6 @@ import java.net.URL
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import cats.data.Validated._
-import cats.instances.list._
-import cats.instances.option._
 import cats.syntax.apply._
 import cats.syntax.functor._
 import cats.syntax.traverse._
@@ -63,7 +61,6 @@ object PartialWorkflowSources {
 
   def fromSubmitRoute(formData: Map[String, ByteString],
                       allowNoInputs: Boolean): Try[Seq[WorkflowSourceFilesCollection]] = {
-    import cats.instances.list._
     import cats.syntax.apply._
     import cats.syntax.traverse._
     import cats.syntax.validated._

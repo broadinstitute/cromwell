@@ -142,12 +142,10 @@ case class CommandLineTool private(
                                                  ioFunctionSet: IoFunctionSet,
                                                  executionContext: ExecutionContext): OutputFunctionResponse = {
     implicit val ec = executionContext
-    import cats.instances.future._
     import cats.syntax.either._
 
     // Convert the parsed json to Wom-usable output values
     def jsonToOutputs(json: Map[String, Json]): Checked[List[(OutputPort, WomValue)]] = {
-      import cats.instances.list._
 
       outputPorts.toList.traverse[ErrorOr, (OutputPort, WomValue)]({ outputPort =>
         // If the type is optional, then we can set the value to none if there's nothing in the json

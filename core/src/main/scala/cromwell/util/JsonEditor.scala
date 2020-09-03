@@ -2,8 +2,6 @@ package cromwell.util
 
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
-import cats.instances.list._
-import cats.instances.vector._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.collections.EnhancedCollections._

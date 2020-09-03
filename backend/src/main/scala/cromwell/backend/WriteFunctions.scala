@@ -3,7 +3,6 @@ package cromwell.backend
 import java.util.UUID
 
 import better.files.File.OpenOptions
-import cats.instances.future._
 import cats.syntax.functor._
 import common.util.StringUtil._
 import cromwell.core.io.AsyncIoFunctions

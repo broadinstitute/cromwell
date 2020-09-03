@@ -1,7 +1,6 @@
 package wdl.draft3.transforms.wdlom2wdl
 
 import better.files.File
-import cats.implicits._
 import common.Checked
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

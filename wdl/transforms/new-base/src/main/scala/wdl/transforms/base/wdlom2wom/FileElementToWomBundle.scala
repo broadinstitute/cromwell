@@ -1,8 +1,6 @@
 package wdl.transforms.base.wdlom2wom
 
 import cats.data.NonEmptyList
-import cats.instances.either._
-import cats.instances.vector._
 import cats.syntax.either._
 import cats.syntax.traverse._
 import cats.syntax.validated._

@@ -4,8 +4,6 @@ import java.io.IOException
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
-import cats.instances.list._
-import cats.instances.option._
 import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.functor._
@@ -460,7 +458,6 @@ trait StandardAsyncExecutionActor
     * Maybe this should be the other way around: the default implementation is noop and SFS / TES override it ?
     */
   lazy val localizeAdHocValues: List[AdHocValue] => ErrorOr[List[StandardAdHocValue]] = { adHocValues =>
-    import cats.instances.future._
 
     // Localize an adhoc file to the callExecutionRoot as needed
     val localize: (AdHocValue, Path) => Future[LocalizedAdHocValue] = { (adHocValue, file) =>

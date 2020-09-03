@@ -5,7 +5,6 @@ import java.nio.file.NoSuchFileException
 
 import cats.effect.IO
 import cats.effect.IO._
-import cats.instances.list._
 import cats.syntax.parallel._
 import common.validation.IOChecked
 import common.validation.IOChecked.IOChecked

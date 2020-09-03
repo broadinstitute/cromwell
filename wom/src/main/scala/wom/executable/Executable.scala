@@ -2,7 +2,6 @@ package wom.executable
 
 import cats.data.NonEmptyList
 import cats.data.Validated.Invalid
-import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.parallel._
 import cats.syntax.validated._

@@ -1,7 +1,4 @@
 package cwl
-
-import cats.instances.list._
-import cats.instances.option._
 import cats.syntax.traverse._
 import cats.syntax.functor._
 import cats.syntax.validated._

@@ -3,8 +3,6 @@ package cromwell.core.path
 import akka.actor.ActorSystem
 import cromwell.core.{Dispatcher, WorkflowOptions}
 import cats.syntax.traverse._
-import cats.instances.list._
-import cats.instances.future._
 
 import scala.concurrent.{ExecutionContext, Future}
 

@@ -1,6 +1,4 @@
 package wdl.transforms.base.wdlom2wom.graph
-
-import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.foldable._
 import cats.syntax.validated._

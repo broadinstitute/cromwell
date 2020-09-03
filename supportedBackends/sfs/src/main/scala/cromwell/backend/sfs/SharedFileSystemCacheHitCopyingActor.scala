@@ -1,6 +1,4 @@
 package cromwell.backend.sfs
-
-import cats.instances.try_._
 import cats.syntax.functor._
 import common.util.TryUtil
 import cromwell.backend.standard.callcaching.StandardCacheHitCopyingActor.PathPair

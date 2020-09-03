@@ -1,7 +1,6 @@
 package wom.graph
 
 import cats.data.NonEmptyList
-import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.functor._
 import cats.syntax.traverse._

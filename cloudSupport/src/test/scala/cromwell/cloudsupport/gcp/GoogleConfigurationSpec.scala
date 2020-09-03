@@ -3,7 +3,7 @@ package cromwell.cloudsupport.gcp
 import java.net.URL
 
 import better.files.File
-import cats.implicits._
+import cats.syntax.all._
 import com.google.api.client.http.GenericUrl
 import com.google.api.client.testing.http.MockHttpTransport
 import com.typesafe.config.{ConfigException, ConfigFactory}

@@ -1,7 +1,8 @@
 package wdl.expression
 
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
 import wdl.draft2.model.expression.{WdlStandardLibraryFunctions, WdlStandardLibraryFunctionsType}
 import wdl.shared.FileSizeLimitationConfig
 import wom.types.{WomArrayType, WomIntegerType, WomOptionalType}
@@ -10,7 +11,7 @@ import wom.values._
 import scala.util.{Success, Try}
 
 
-class WdlStandardLibraryFunctionsSpec extends FlatSpec with Matchers {
+class WdlStandardLibraryFunctionsSpec extends AnyFlatSpec with Matchers {
 
   import TableDrivenPropertyChecks._
 

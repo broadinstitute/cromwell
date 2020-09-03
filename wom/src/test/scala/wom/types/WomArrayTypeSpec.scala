@@ -1,13 +1,15 @@
 package wom.types
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json.{JsArray, JsNumber}
 import wom.values._
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success}
 
-class WomArrayTypeSpec extends FlatSpec with Matchers  {
+
+class WomArrayTypeSpec extends AnyFlatSpec with Matchers  {
   val intArray = WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(1), WomInteger(2), WomInteger(3)))
   "WomArray" should "stringify its value" in {
     intArray.toWomString shouldEqual "[1, 2, 3]"

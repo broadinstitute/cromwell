@@ -1,8 +1,9 @@
 package cwl.preprocessor
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class CwlReferenceSpec extends FlatSpec with Matchers {
+class CwlReferenceSpec extends AnyFlatSpec with Matchers {
   behavior of "CwlReference.apply"
 
   it should "identify a pointerless local file reference" in {

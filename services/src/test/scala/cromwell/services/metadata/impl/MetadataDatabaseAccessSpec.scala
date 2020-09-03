@@ -15,11 +15,14 @@ import cromwell.services.metadata.impl.MetadataDatabaseAccess.SummaryResult
 import org.scalatest.concurrent.PatienceConfiguration.{Interval, Timeout}
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.enablers.Emptiness._
 import org.specs2.mock.Mockito
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 object MetadataDatabaseAccessSpec {
   val AllowFalse = Seq(QueryParameter("allow", "false"))
@@ -35,7 +38,7 @@ object MetadataDatabaseAccessSpec {
   val Subworkflow2Name = "test_subworkflow_2"
 }
 
-class MetadataDatabaseAccessSpec extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Eventually with Mockito {
+class MetadataDatabaseAccessSpec extends AnyFlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Eventually with Mockito {
   import MetadataDatabaseAccessSpec._
 
   implicit val ec = ExecutionContext.global

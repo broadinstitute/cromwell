@@ -81,7 +81,13 @@ object PipelinesApiWorkingDisk {
 }
 
 case class PipelinesApiWorkingDisk(diskType: DiskType, sizeGb: Int) extends PipelinesApiAttachedDisk {
-  val mountPoint = PipelinesApiWorkingDisk.MountPoint
-  val name = PipelinesApiWorkingDisk.Name
+  val mountPoint: Path = PipelinesApiWorkingDisk.MountPoint
+  val name: String = PipelinesApiWorkingDisk.Name
   override def toString: String = s"$name $sizeGb ${diskType.diskTypeName}"
+}
+
+case class PipelinesApiReferenceFilesDisk(image: String, sizeGb: Int) extends PipelinesApiAttachedDisk {
+  val mountPoint: Path = DefaultPathBuilder.get(s"/mnt/${image.md5Sum}")
+  val name: String = s"d-${mountPoint.pathAsString.md5Sum}"
+  val diskType: DiskType = DiskType.SSD
 }

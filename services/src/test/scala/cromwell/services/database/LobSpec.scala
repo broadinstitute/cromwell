@@ -10,12 +10,13 @@ import cromwell.database.sql.joins.JobStoreJoin
 import cromwell.database.sql.tables.{JobStoreEntry, JobStoreSimpletonEntry, WorkflowStoreEntry}
 import javax.sql.rowset.serial.SerialBlob
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-class LobSpec extends FlatSpec with Matchers with ScalaFutures {
+class LobSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
   implicit val executionContext = ExecutionContext.global
 

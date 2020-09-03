@@ -1,6 +1,7 @@
 package wdl
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.draft2.Draft2ResolvedImportBundle
 import wdl.draft2.model.exception.ValidationException
 import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
@@ -8,7 +9,7 @@ import wom.ResolvedImportRecord
 
 import scala.util.Failure
 
-class ThreeStepImportSpec extends FlatSpec with Matchers {
+class ThreeStepImportSpec extends AnyFlatSpec with Matchers {
   val psTaskWdl = """
     |task ps {
     |  command {

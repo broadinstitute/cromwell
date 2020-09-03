@@ -25,7 +25,7 @@ class DeleteMetadataActor(metadataDeletionConfig: ActiveMetadataDeletionConfig, 
   implicit val ec = context.dispatcher
 
   log.info(s"Archived metadata deletion is configured to begin polling after ${metadataDeletionConfig.initialDelay}, and then delete up to ${metadataDeletionConfig.batchSize} workflows worth of metadata every ${metadataDeletionConfig.interval} (for workflows which completed at least ${metadataDeletionConfig.delayAfterWorkflowCompletion} ago).")
-  context.system.scheduler.schedule(metadataDeletionConfig.initialDelay, metadataDeletionConfig.interval, self, DeleteMetadataAction)
+  context.system.scheduler.scheduleWithFixedDelay(metadataDeletionConfig.initialDelay, metadataDeletionConfig.interval, self, DeleteMetadataAction)
 
   private val workflowsToDeleteMetadataMetricPath =
     MetadataServiceActor.MetadataInstrumentationPrefix :+ "delete" :+ "numOfWorkflowsToDeleteMetadata"

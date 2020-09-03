@@ -4,11 +4,12 @@ import java.util
 
 import com.google.api.services.lifesciences.v2beta.model.Operation
 import cromwell.backend.google.pipelines.v2beta.api.Deserialization._
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
 
-class DeserializationSpec extends FlatSpec with Matchers {
+class DeserializationSpec extends AnyFlatSpec with Matchers {
   behavior of "Deserialization"
 
   it should "deserialize events from operation metadata" in {

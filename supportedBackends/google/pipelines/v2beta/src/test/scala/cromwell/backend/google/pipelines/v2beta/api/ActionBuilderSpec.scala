@@ -3,18 +3,19 @@ package cromwell.backend.google.pipelines.v2beta.api
 import java.util
 
 import com.google.api.services.lifesciences.v2beta.model.{Action, Mount}
+import cromwell.backend.google.pipelines.common.action.ActionLabels._
 import cromwell.backend.google.pipelines.v2beta.LifeSciencesFactory
-import cromwell.backend.google.pipelines.v2beta.api.ActionBuilder.Labels.{Key, Value}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
 
 import scala.collection.JavaConverters._
 
-class ActionBuilderSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+class ActionBuilderSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "ActionBuilder"
 
-  val dockerRunActions = Table(
+  private val dockerRunActions = Table(
     ("description", "action", "command"),
     ("a cloud sdk action", ActionBuilder.cloudSdkAction, s"docker run ${LifeSciencesFactory.CloudSdkImage}"),
     ("a cloud sdk action with args",
@@ -56,17 +57,17 @@ class ActionBuilderSpec extends FlatSpec with Matchers with TableDrivenPropertyC
     }
   }
 
+  private val memoryRetryExpectedEntrypoint = "/bin/sh"
 
   def memoryRetryExpectedCommand(lookupString: String): util.List[String] = {
     List(
-      "/bin/sh",
       "-c",
       s"grep -E -q '$lookupString' /cromwell_root/stderr ; echo $$? > /cromwell_root/memory_retry_rc"
     ).asJava
   }
 
   val mounts = List(new Mount().setDisk("read-only-disk").setPath("/read/only/container"))
-  val memoryRetryActionExpectedLabels = Map(Key.Tag -> Value.RetryWithMoreMemory).asJava
+  private val memoryRetryActionExpectedLabels = Map(Key.Tag -> Value.RetryWithMoreMemory).asJava
 
   it should "return cloud sdk action for one key in retry-with-double-memory" in {
     val lookupKeyList = List("OutOfMemory")
@@ -74,6 +75,7 @@ class ActionBuilderSpec extends FlatSpec with Matchers with TableDrivenPropertyC
 
     val action = ActionBuilder.checkForMemoryRetryAction(lookupKeyList, mounts)
 
+    action.getEntrypoint shouldBe memoryRetryExpectedEntrypoint
     action.getCommands shouldBe expectedCommand
     action.getAlwaysRun shouldBe true
     action.getLabels shouldBe memoryRetryActionExpectedLabels
@@ -86,6 +88,7 @@ class ActionBuilderSpec extends FlatSpec with Matchers with TableDrivenPropertyC
 
     val action = ActionBuilder.checkForMemoryRetryAction(lookupKeyList, mounts)
 
+    action.getEntrypoint shouldBe memoryRetryExpectedEntrypoint
     action.getCommands shouldBe expectedCommand
     action.getAlwaysRun shouldBe true
     action.getLabels shouldBe memoryRetryActionExpectedLabels

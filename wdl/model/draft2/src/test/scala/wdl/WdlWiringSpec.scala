@@ -1,7 +1,8 @@
 package wdl
 
 import better.files._
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json._
 import wdl.draft2.Draft2ResolvedImportBundle
 import wdl.draft2.model._
@@ -9,7 +10,7 @@ import wom.ResolvedImportRecord
 
 import scala.collection.immutable.ListMap
 
-class WdlWiringSpec extends FlatSpec with Matchers {
+class WdlWiringSpec extends AnyFlatSpec with Matchers {
   val testCases = File("src/test/cases")
   testCases.createDirectories()
 

@@ -9,7 +9,8 @@ import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import cromwell.core.WorkflowMetadataKeys
 import cromwell.webservice.routes.CromwellApiServiceSpec.MockServiceRegistryActor
 import cromwell.webservice.routes.MetadataRouteSupportSpec.MockMetadataRouteSupport
-import org.scalatest.{AsyncFlatSpec, Matchers}
+import org.scalatest.flatspec.AsyncFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
@@ -379,10 +380,9 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
 }
 
 object MetadataRouteSupportSpec {
-  class MockMetadataRouteSupport()(implicit val system: ActorSystem, routeTestTimeout: RouteTestTimeout) extends MetadataRouteSupport {
-    override def actorRefFactory = system
-    override val ec = system.dispatcher
+  class MockMetadataRouteSupport()(implicit val actorSystem: ActorSystem, routeTestTimeout: RouteTestTimeout) extends MetadataRouteSupport {
+    override val ec = actorSystem.dispatcher
     override val timeout = routeTestTimeout.duration
-    override val serviceRegistryActor = actorRefFactory.actorOf(Props(new MockServiceRegistryActor()))
+    override val serviceRegistryActor = actorSystem.actorOf(Props(new MockServiceRegistryActor()))
   }
 }

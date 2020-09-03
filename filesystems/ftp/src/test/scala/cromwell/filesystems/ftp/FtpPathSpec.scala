@@ -4,13 +4,14 @@ import cloud.nio.impl.ftp.FtpAnonymousCredentials
 import com.typesafe.config.ConfigFactory
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{BadPath, GoodPath, PathBuilderSpecUtils}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.Tables.Table
-import org.scalatest.{FlatSpec, Matchers}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
-class FtpPathSpec extends FlatSpec with Matchers with PathBuilderSpecUtils {
+class FtpPathSpec extends AnyFlatSpec with Matchers with PathBuilderSpecUtils {
 
   behavior of "FtpPathSpec"
 

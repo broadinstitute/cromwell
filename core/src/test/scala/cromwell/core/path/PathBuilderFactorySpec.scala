@@ -4,11 +4,12 @@ import akka.actor.ActorSystem
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class PathBuilderFactorySpec extends TestKitSuite with FlatSpecLike with ScalaFutures with Matchers {
+class PathBuilderFactorySpec extends TestKitSuite with AnyFlatSpecLike with ScalaFutures with Matchers {
   behavior of "PathBuilderFactory"
   implicit val ec = system.dispatcher
   

@@ -1,11 +1,14 @@
 package womtool
 
 import better.files._
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
-import womtool.WomtoolMainSpec._
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import womtool.SampleWdl.{EmptyTask, EmptyWorkflow, ThreeStep}
+import womtool.WomtoolMainSpec._
 
-class WomtoolMainSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
+
+class WomtoolMainSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
 
   import WomtoolMain._
 
@@ -15,7 +18,7 @@ class WomtoolMainSpec extends FlatSpec with Matchers with BeforeAndAfterAll {
 
   it should "print usage" in {
     WomtoolMain.runWomtool(Seq.empty[String]) match{
-      case BadUsageTermination(msg) => msg should include("Usage: java -jar womtool.jar [validate|inputs|parse|highlight|graph|upgrade|womgraph] [options] workflow-source")
+      case BadUsageTermination(msg) => msg should include("Usage: java -jar womtool.jar [validate|inputs|outputs|parse|highlight|graph|upgrade|womgraph] [options] workflow-source")
       case other => fail(s"Expected BadUsageTermination but got $other")
     }
   }

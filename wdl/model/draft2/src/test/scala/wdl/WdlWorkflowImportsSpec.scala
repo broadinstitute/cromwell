@@ -1,10 +1,11 @@
 package wdl
 
 import better.files.File
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model._
 
-class WdlWorkflowImportsSpec extends FlatSpec with Matchers {
+class WdlWorkflowImportsSpec extends AnyFlatSpec with Matchers {
 
   def addAndGetFile(name: String, source: String): String = {
     val tempFile = File.newTemporaryFile(s"$name", ".wdl", Option(wdlDirectory)) write source

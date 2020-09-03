@@ -4,7 +4,6 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.event.NoLogging
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse, StatusCodes}
-import akka.stream.ActorMaterializer
 import cats.Monad
 import cats.effect.IO
 import cromiam.auth.{Collection, User}
@@ -17,9 +16,8 @@ import cromwell.api.model._
 import scala.concurrent.ExecutionContextExecutor
 
 class MockCromwellClient()(implicit system: ActorSystem,
-                                 ece: ExecutionContextExecutor,
-                                 materializer: ActorMaterializer)
-  extends CromwellClient("http", "bar", 1, NoLogging, ActorRef.noSender)(system, ece, materializer) {
+                                 ece: ExecutionContextExecutor)
+  extends CromwellClient("http", "bar", 1, NoLogging, ActorRef.noSender)(system, ece) {
   val version = "v1"
 
   val unauthorizedUserCollectionStr: String = "987654321"
@@ -95,8 +93,7 @@ class MockCromwellClient()(implicit system: ActorSystem,
   */
 class BaseMockSamClient(checkSubmitWhitelist: Boolean = true)
                    (implicit system: ActorSystem,
-                    ece: ExecutionContextExecutor,
-                    materializer: ActorMaterializer)
+                    ece: ExecutionContextExecutor)
   extends SamClient(
     "http",
     "bar",
@@ -104,15 +101,14 @@ class BaseMockSamClient(checkSubmitWhitelist: Boolean = true)
     checkSubmitWhitelist,
     NoLogging,
     ActorRef.noSender
-  )(system, ece, materializer)
+  )(system, ece)
 
 /**
   * Extends the base mock client with overriden methods.
   */
 class MockSamClient(checkSubmitWhitelist: Boolean = true)
                    (implicit system: ActorSystem,
-                      ece: ExecutionContextExecutor,
-                      materializer: ActorMaterializer)
+                      ece: ExecutionContextExecutor)
   extends BaseMockSamClient(checkSubmitWhitelist) {
 
   override def collectionsForUser(user: User, httpRequest: HttpRequest): FailureResponseOrT[List[Collection]] = {

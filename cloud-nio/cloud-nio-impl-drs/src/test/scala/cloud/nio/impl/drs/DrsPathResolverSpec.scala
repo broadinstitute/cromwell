@@ -1,13 +1,13 @@
 package cloud.nio.impl.drs
 
-import java.time.OffsetDateTime
-import io.circe.{Json, JsonObject}
-import org.scalatest.{FlatSpecLike, Matchers}
+import java.time.{LocalDateTime, OffsetDateTime}
 
 import cloud.nio.impl.drs.MarthaResponseSupport.convertMarthaResponseV2ToV3
+import io.circe.{Json, JsonObject}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
-
-class DrsPathResolverSpec extends FlatSpecLike with Matchers {
+class DrsPathResolverSpec extends AnyFlatSpecLike with Matchers {
   private val mockGSA = SADataObject(data = Json.fromJsonObject(JsonObject("key"-> Json.fromString("value"))))
   private val crcHashValue = "8a366443"
   private val md5HashValue = "336ea55913bc261b72875bd259753046"
@@ -24,9 +24,31 @@ class DrsPathResolverSpec extends FlatSpecLike with Matchers {
     googleServiceAccount = Option(mockGSA)
   )
 
+  private val fullMarthaV2ResponseNoTz = MarthaV2Response(
+    dos = DrsObject(
+      data_object = DrsDataObject(
+        size = Option(34905345),
+        checksums = Option(Array(ChecksumObject(checksum = md5HashValue, `type` = "md5"), ChecksumObject(checksum = crcHashValue, `type` = "crc32c"))),
+        updated = Option("2020-01-15T17:46:25.694148"),
+        urls = Array(Url("s3://my-s3-bucket/file-name"), Url("gs://my-gs-bucket/file-name"))
+      )
+    ),
+    googleServiceAccount = Option(mockGSA)
+  )
+
   private val fullMarthaResponse =  MarthaResponse(
     size = Option(34905345),
     timeUpdated = Option(OffsetDateTime.parse("2020-04-27T15:56:09.696Z").toString),
+    bucket = Option("my-gs-bucket"),
+    name = Option("file-name"),
+    gsUri = Option("gs://my-gs-bucket/file-name"),
+    googleServiceAccount = Option(mockGSA),
+    hashes = Option(Map("md5" -> md5HashValue, "crc32c" -> crcHashValue))
+  )
+
+  private val fullMarthaResponseNoTz =  MarthaResponse(
+    size = Option(34905345),
+    timeUpdated = Option(LocalDateTime.parse("2020-01-15T17:46:25.694148").toString),
     bucket = Option("my-gs-bucket"),
     name = Option("file-name"),
     gsUri = Option("gs://my-gs-bucket/file-name"),
@@ -87,5 +109,9 @@ class DrsPathResolverSpec extends FlatSpecLike with Matchers {
 
   it should "convert a full martha_v2 response to a the standard Martha response" in {
     convertMarthaResponseV2ToV3(fullMarthaV2Response) shouldBe fullMarthaResponse
+  }
+
+  it should "convert a full martha_v2 response to a the standard Martha response even if there is no timezone in `updated` field" in {
+    convertMarthaResponseV2ToV3(fullMarthaV2ResponseNoTz) shouldBe fullMarthaResponseNoTz
   }
 }

@@ -1,0 +1,5 @@
+{
+  "scatter_wf.i_yet_again": "Int",
+  "scatter_wf.nope": "Int",
+  "scatter_wf.i_agains": "Array[Int]"
+}

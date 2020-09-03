@@ -1,12 +1,13 @@
 package wom.graph
 
 import cats.data.Validated.{Invalid, Valid}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wom.expression._
 import wom.graph.expression.{AnonymousExpressionNode, ExpressionNode, PlainAnonymousExpressionNode}
 import wom.types.WomIntegerType
 
-class ExpressionNodeSpec extends FlatSpec with Matchers {
+class ExpressionNodeSpec extends AnyFlatSpec with Matchers {
 
   behavior of "ExpressionBasedGraphOutputNode"
 

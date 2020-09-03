@@ -4,8 +4,10 @@ import cwl.CommandLineTool.{BaseCommand, CommandInputParameter}
 import cwl.Workflow.{WorkflowInputParameter, WorkflowOutputParameter}
 import cwl.WorkflowStep.WorkflowStepOutputInnerType
 import cwl.WorkflowStepInput.InputSource
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import shapeless.Coproduct
+
 
 
   /**
@@ -14,7 +16,7 @@ import shapeless.Coproduct
    * (DB)Ability to write JSON removed due to conflicting circe-yaml cats dependency.
    * See issue https://github.com/broadinstitute/wdl4s/issues/216 for more information.
    */
-class ExportCwlSamplesSpec extends FlatSpec with Matchers {
+class ExportCwlSamplesSpec extends AnyFlatSpec with Matchers {
 
   def assertCorrectJson(cwl: Cwl, expectedYaml: String) = throw new UnsupportedOperationException // shouldBe expectedYaml
 

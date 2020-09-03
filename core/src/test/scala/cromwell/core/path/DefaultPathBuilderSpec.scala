@@ -1,10 +1,12 @@
 package cromwell.core.path
 
 import cromwell.util.TestFileUtil
+import org.scalatest.Suite
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.Tables.Table
-import org.scalatest.{FlatSpecLike, Matchers, Suite}
 
-class DefaultPathBuilderSpec extends Suite with FlatSpecLike with Matchers with PathBuilderSpecUtils with TestFileUtil {
+class DefaultPathBuilderSpec extends Suite with AnyFlatSpecLike with Matchers with PathBuilderSpecUtils with TestFileUtil {
 
   private val pwd = BetterFileMethods.Cmds.pwd
   private val parentOption = Option(pwd.parent)

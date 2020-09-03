@@ -9,12 +9,14 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
-import java.net.URL;
+import java.net.URLEncoder;
 import java.net.URLDecoder;
 import java.nio.file.*;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static com.google.common.collect.Iterables.*;
 import static java.lang.String.format;
@@ -36,7 +38,7 @@ public class S3Path implements Path {
     /**
      * actual filesystem
      */
-    private S3FileSystem fileSystem;
+    private final S3FileSystem fileSystem;
 
     /**
      * S3BasicFileAttributes cache
@@ -47,7 +49,7 @@ public class S3Path implements Path {
      * Build an S3Path from path segments. '/' are stripped from each segment.
      *
      * @param fileSystem S3FileSystem
-     * @param first should be start with a '/' and is the bucket name
+     * @param first should start with a '/' and is the bucket name
      * @param more  directories and files
      */
     public S3Path(S3FileSystem fileSystem, String first, String... more) {
@@ -126,7 +128,7 @@ public class S3Path implements Path {
         String key = this.uri;
 
         if (key.startsWith("/")) {
-            key = key.substring(1, key.length());
+            key = key.substring(1);
         }
 
         return key;
@@ -182,7 +184,7 @@ public class S3Path implements Path {
 
         newUri = uri.substring(0, lastPathSeparatorPosition + 1);
 
-        if (newUri.isEmpty())
+        if (newUri.trim().isEmpty())
             return null;
 
         String filestore = isAbsolute() ? PATH_SEPARATOR + fileStore.name() + PATH_SEPARATOR : "";
@@ -207,7 +209,7 @@ public class S3Path implements Path {
         String path = paths.get(index);
         StringBuilder pathsBuilder = new StringBuilder();
         if (isAbsolute() && index == 0) {
-            pathsBuilder.append(PATH_SEPARATOR + fileStore.name() + PATH_SEPARATOR);
+            pathsBuilder.append(PATH_SEPARATOR).append(fileStore.name()).append(PATH_SEPARATOR);
         }
         pathsBuilder.append(path);
 
@@ -245,7 +247,7 @@ public class S3Path implements Path {
         // build path string
 
         if (this.isAbsolute() && beginIndex == 0) {
-            pathsStringBuilder.append(PATH_SEPARATOR + fileStore.name() + PATH_SEPARATOR);
+            pathsStringBuilder.append(PATH_SEPARATOR).append(fileStore.name()).append(PATH_SEPARATOR);
         }
         for (String path : pathSubList) {
             pathsStringBuilder.append(path).append(PATH_SEPARATOR);
@@ -331,7 +333,7 @@ public class S3Path implements Path {
 
         int i = pathsOther.size() - 1;
         int j = paths.size() - 1;
-        for (; i >= 0 && j >= 0; ) {
+        while (i >= 0 && j >= 0) {
 
             if (!pathsOther.get(i).equals(paths.get(j))) {
                 return false;
@@ -363,11 +365,11 @@ public class S3Path implements Path {
         StringBuilder pathBuilder = new StringBuilder();
 
         if (this.isAbsolute()) {
-            pathBuilder.append(PATH_SEPARATOR + this.fileStore.name() + PATH_SEPARATOR);
+            pathBuilder.append(PATH_SEPARATOR).append(this.fileStore.name()).append(PATH_SEPARATOR);
         }
         pathBuilder.append(this.uri);
         if (!otherS3Path.uri.isEmpty())
-            pathBuilder.append(PATH_SEPARATOR + otherS3Path.uri);
+            pathBuilder.append(PATH_SEPARATOR).append(otherS3Path.uri);
 
         return new S3Path(this.fileSystem, pathBuilder.toString());
     }
@@ -459,10 +461,10 @@ public class S3Path implements Path {
         String uri = encode(this.uri);
         // absolute
         if (this.isAbsolute()) {
-            StringBuilder builder = new StringBuilder();
-            builder.append(fileSystem.getKey());
-            builder.append(PATH_SEPARATOR).append(fileStore.name()).append(PATH_SEPARATOR);
-            builder.append(uri);
+            StringBuilder builder = new StringBuilder(fileSystem.getKey())
+                    .append(fileSystem.getKey())
+                    .append(PATH_SEPARATOR).append(fileStore.name()).append(PATH_SEPARATOR)
+                    .append(uri);
             return URI.create("s3://" + normalizeURI(builder.toString()));
         }
         else {
@@ -544,11 +546,9 @@ public class S3Path implements Path {
             return false;
 
         S3Path path = (S3Path) o;
-        if (fileStore != null ? !fileStore.equals(path.fileStore) : path.fileStore != null)
+        if (!Objects.equals(fileStore, path.fileStore))
             return false;
-        if (!uri.equals(path.uri))
-            return false;
-        return true;
+        return uri.equals(path.uri);
     }
 
     @Override
@@ -566,9 +566,19 @@ public class S3Path implements Path {
     private String encode(String uri) {
         // remove special case URI starting with //
         uri = uri.replace("//", "/");
-        uri = uri.replaceAll(" ", "%20");
-        uri = uri.replaceAll("#", "%23");
-        return uri;
+        //get all the path fragments and encode them
+
+        String encodedUri = Arrays.stream(uri.split("/")).map(fragment -> {
+            try {
+                return URLEncoder.encode(fragment, "UTF-8");
+            } catch (UnsupportedEncodingException e) {
+                throw new RuntimeException("URI should be UTF-8 encoded.", e);
+            }
+        }).collect(Collectors.joining("/"));
+        if (uri.startsWith("/") && !encodedUri.startsWith("/")) encodedUri = "/".concat(encodedUri);
+        if (uri.endsWith("/") && !encodedUri.endsWith("/")) encodedUri = encodedUri.concat("/");
+        return encodedUri;
+
     }
 
     /**

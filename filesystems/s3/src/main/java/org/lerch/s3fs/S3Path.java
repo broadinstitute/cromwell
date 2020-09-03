@@ -468,7 +468,7 @@ public class S3Path implements Path {
             return URI.create("s3://" + normalizeURI(builder.toString()));
         }
         else {
-            return URI.create(this.uri);
+            return URI.create(uri);
         }
     }
 
@@ -568,15 +568,15 @@ public class S3Path implements Path {
         uri = uri.replace("//", "/");
         //get all the path fragments and encode them
 
-        String encodedUri = Arrays.stream(uri.split("/")).map(fragment -> {
+        String encodedUri = Arrays.stream(uri.split(PATH_SEPARATOR)).filter(f -> !f.isEmpty()).map(fragment -> {
             try {
                 return URLEncoder.encode(fragment, "UTF-8");
             } catch (UnsupportedEncodingException e) {
                 throw new RuntimeException("URI should be UTF-8 encoded.", e);
             }
-        }).collect(Collectors.joining("/"));
-        if (uri.startsWith("/") && !encodedUri.startsWith("/")) encodedUri = "/".concat(encodedUri);
-        if (uri.endsWith("/") && !encodedUri.endsWith("/")) encodedUri = encodedUri.concat("/");
+        }).collect(Collectors.joining(PATH_SEPARATOR));
+        if (uri.startsWith(PATH_SEPARATOR) && !encodedUri.startsWith(PATH_SEPARATOR)) encodedUri = PATH_SEPARATOR.concat(encodedUri);
+        if (uri.endsWith(PATH_SEPARATOR) && !encodedUri.endsWith(PATH_SEPARATOR)) encodedUri = encodedUri.concat(PATH_SEPARATOR);
         return encodedUri;
 
     }

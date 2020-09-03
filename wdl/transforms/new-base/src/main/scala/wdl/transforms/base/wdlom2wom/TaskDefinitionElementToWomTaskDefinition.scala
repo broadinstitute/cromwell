@@ -2,7 +2,6 @@ package wdl.transforms.base.wdlom2wom
 
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
-import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.traverse._
 import cats.syntax.validated._

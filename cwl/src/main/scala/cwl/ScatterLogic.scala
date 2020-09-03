@@ -74,7 +74,7 @@ object ScatterLogic {
 
   // Build a map (potentially empty) of scatterered input steps with their corresponding SVN node.
   def buildScatterVariableNodes(scatter: ScatterVariables, stepInputMappings: Map[WorkflowStepInput, ExpressionNode], stepId: String): Checked[Map[WorkflowStepInput, ScatterVariableNode]] = {
-    import cats.implicits._
+    import cats.syntax.all._
 
     def buildScatterVariable(scatterVariableName: String): ErrorOr[(WorkflowStepInput, ScatterVariableNode)] = {
       // Assume the variable is a step input (is that always true ??). Find the corresponding expression node

@@ -1,7 +1,6 @@
 package wom.graph
 
 import cats.data.Validated.Valid
-import cats.instances.list._
 import cats.kernel.Monoid
 import cats.syntax.foldable._
 import cats.syntax.validated._

@@ -5,7 +5,6 @@ import java.util.UUID
 
 import cats.Monad
 import cats.effect.IO
-import cats.instances.list._
 import cats.syntax.traverse._
 import centaur._
 import centaur.api.CentaurCromwellClient

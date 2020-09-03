@@ -3,8 +3,6 @@ package cromwell.backend.google.pipelines.v2beta.api
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
 import java.util.{ArrayList => JArrayList, Map => JMap}
-
-import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import com.google.api.client.json.jackson2.JacksonFactory

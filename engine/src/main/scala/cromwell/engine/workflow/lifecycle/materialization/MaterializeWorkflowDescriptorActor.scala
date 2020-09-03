@@ -6,7 +6,6 @@ import cats.data.EitherT._
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import cats.effect.IO
-import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.traverse._

@@ -1,6 +1,4 @@
 package cwl
-
-import cats.instances.option._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr._

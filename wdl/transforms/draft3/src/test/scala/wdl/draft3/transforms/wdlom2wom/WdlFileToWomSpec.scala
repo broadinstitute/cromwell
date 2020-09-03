@@ -1,7 +1,6 @@
 package wdl.draft3.transforms.wdlom2wom
 
 import better.files.File
-import cats.instances.either._
 import common.collections.EnhancedCollections._
 import common.transforms.CheckedAtoB
 import org.scalatest.flatspec.AnyFlatSpec

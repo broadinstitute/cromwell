@@ -4,7 +4,6 @@ import java.net.URL
 
 import akka.actor.ActorRef
 import cats.data.Validated.{Invalid, Valid}
-import cats.instances.future._
 import cats.syntax.functor._
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import com.google.api.gax.retrying.RetrySettings

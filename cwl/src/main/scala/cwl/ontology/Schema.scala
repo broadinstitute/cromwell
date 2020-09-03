@@ -3,7 +3,6 @@ package cwl.ontology
 import java.util.concurrent.Executors
 
 import cats.effect.IO
-import cats.instances.list._
 import cats.syntax.traverse._
 import com.google.common.cache.{Cache, CacheBuilder}
 import com.typesafe.config.{Config, ConfigFactory}

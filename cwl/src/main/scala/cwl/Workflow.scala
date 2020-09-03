@@ -3,7 +3,6 @@ package cwl
 import java.nio.file.Paths
 
 import cats.data.NonEmptyList
-import cats.instances.list._
 import cats.syntax.either._
 import cats.syntax.traverse._
 import common.Checked

@@ -1,7 +1,4 @@
 package womtool.wom2wdlom
-
-import cats.instances.either._
-import cats.instances.list._
 import cats.syntax.traverse._
 import common.Checked
 import common.collections.EnhancedCollections.EnhancedTraversableLike

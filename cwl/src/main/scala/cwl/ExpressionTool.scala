@@ -70,7 +70,6 @@ case class ExpressionTool(
         * because we'd have to create an output port for them now which would be useless anyway since nothing could point to it.
        */
       def mapPortsToValues(values: Map[String, WomValue]): Checked[Map[OutputPort, WomValue]] = {
-        import cats.instances.list._
         import cats.syntax.traverse._
 
         val coercedValues: List[ErrorOr[(OutputPort, WomValue)]] = for {

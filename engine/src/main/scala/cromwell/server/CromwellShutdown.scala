@@ -8,7 +8,6 @@ import akka.http.scaladsl.Http
 import akka.pattern.{AskTimeoutException, GracefulStopSupport}
 import akka.routing.Broadcast
 import akka.util.Timeout
-import cats.instances.future._
 import cats.syntax.functor._
 import cromwell.core.WorkflowId
 import cromwell.core.WorkflowProcessingEvents.DescriptionEventValue.Released

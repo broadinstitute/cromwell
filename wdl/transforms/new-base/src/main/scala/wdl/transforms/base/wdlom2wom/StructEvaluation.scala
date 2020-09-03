@@ -1,7 +1,6 @@
 package wdl.transforms.base.wdlom2wom
 
 import cats.data.Validated.Valid
-import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr

@@ -35,7 +35,7 @@ import java.security.MessageDigest
 import cats.data.ReaderT._
 import cats.data.{Kleisli, ReaderT}
 import cats.effect.{Async, Timer}
-import cats.implicits._
+import cats.syntax.all._
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.impl.aws.io.AwsBatchWorkingDisk
 import cromwell.backend.io.JobPaths

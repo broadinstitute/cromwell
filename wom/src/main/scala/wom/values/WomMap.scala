@@ -8,7 +8,6 @@ import wom.types._
 import wom.util.FileUtil
 import wom.values.WomArray.WomArrayLike
 import cats.syntax.traverse._
-import cats.instances.list._
 import common.validation.IOChecked.IOChecked
 import wom.expression.IoFunctionSet
 

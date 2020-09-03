@@ -1,7 +1,6 @@
 package cwl
 
 import cats.data.Validated.Valid
-import cats.instances.list._
 import cats.syntax.option._
 import cats.syntax.traverse._
 import common.validation.IOChecked.IOChecked

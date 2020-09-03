@@ -1,6 +1,4 @@
 package wdl.transforms.base.ast2wdlom
-
-import cats.instances.either._
 import cats.syntax.either._
 import cats.syntax.apply._
 import common.transforms.CheckedAtoB

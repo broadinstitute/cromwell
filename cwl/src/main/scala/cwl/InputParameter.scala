@@ -1,6 +1,4 @@
 package cwl
-
-import cats.instances.option._
 import cats.syntax.functor._
 import cats.syntax.parallel._
 import cats.syntax.traverse._
@@ -45,8 +43,6 @@ object InputParameter {
   }
 
   type DefaultToWomValueFunction = WomType => ErrorOr[WomValue]
-
-  import cats.instances.list._
 
   object DefaultToWomValuePoly extends Poly1 {
     implicit def caseFileOrDirectory: Case.Aux[FileOrDirectory, DefaultToWomValueFunction] = {

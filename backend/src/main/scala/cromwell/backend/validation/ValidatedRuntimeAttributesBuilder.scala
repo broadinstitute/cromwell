@@ -1,7 +1,6 @@
 package cromwell.backend.validation
 
 import cats.data.Validated._
-import cats.instances.list._
 import cromwell.backend.RuntimeAttributeDefinition
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._

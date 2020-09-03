@@ -1,7 +1,6 @@
 package cwl
 
 import cats.data.NonEmptyList
-import cats.instances.list._
 import cats.syntax.either._
 import cats.syntax.option._
 import cats.syntax.traverse._

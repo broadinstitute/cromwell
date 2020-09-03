@@ -3,7 +3,6 @@ package cwl
 import cats.syntax.validated._
 import cats.syntax.functor._
 import cats.syntax.traverse._
-import cats.instances.list._
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.IOChecked
 import common.validation.Validation._
@@ -57,7 +56,6 @@ final case class InitialWorkDirFileGeneratorExpression(entry: IwdrListingArrayEn
 
   def evaluate(inputValues: Map[String, WomValue], mappedInputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): IOChecked[List[AdHocValue]] = {
     def recursivelyBuildDirectory(directory: String): IOChecked[WomMaybeListedDirectory] = {
-      import cats.instances.list._
       import cats.syntax.traverse._
       for {
         listing <- ioFunctionSet.listDirectory(directory)().toIOChecked(ioFunctionSet.cs)

@@ -3,9 +3,6 @@ package cromwell.backend.standard.callcaching
 import java.util.concurrent.TimeoutException
 
 import akka.actor.{ActorRef, FSM}
-import cats.instances.list._
-import cats.instances.set._
-import cats.instances.tuple._
 import cats.syntax.foldable._
 import cromwell.backend.BackendCacheHitCopyingActor._
 import cromwell.backend.BackendJobExecutionActor._

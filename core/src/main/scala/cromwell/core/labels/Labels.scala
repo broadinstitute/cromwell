@@ -1,7 +1,6 @@
 package cromwell.core.labels
 
 import cats.data.Validated._
-import cats.instances.vector._
 import cats.syntax.traverse._
 import common.validation.ErrorOr
 import common.validation.ErrorOr.ErrorOr

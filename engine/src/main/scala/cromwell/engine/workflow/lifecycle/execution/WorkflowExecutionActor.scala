@@ -6,7 +6,6 @@ import _root_.wdl.draft2.model._
 import akka.actor.{Scope => _, _}
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
-import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import com.typesafe.config.Config
@@ -319,7 +318,6 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
   private def handleWorkflowSuccessful(data: WorkflowExecutionActorData) = {
     import WorkflowExecutionActor.EnhancedWorkflowOutputs
-    import cats.instances.list._
     import cats.syntax.traverse._
     import cromwell.util.JsonFormatting.WomValueJsonFormatter._
     import spray.json._

@@ -5,7 +5,7 @@ import java.util
 import _root_.io.circe.generic.auto._
 import _root_.io.circe.parser._
 import cats.effect.IO
-import cats.implicits._
+import cats.syntax.all._
 import com.google.api.services.storage.StorageScopes
 import com.google.cloud.storage.{BlobId, Storage, StorageOptions}
 import com.google.common.io.BaseEncoding

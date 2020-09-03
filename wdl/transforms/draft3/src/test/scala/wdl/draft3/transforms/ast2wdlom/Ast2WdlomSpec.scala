@@ -1,8 +1,6 @@
 package wdl.draft3.transforms.ast2wdlom
 
 import java.util
-
-import cats.instances.either._
 import common.Checked
 import common.assertion.ErrorOrAssertions._
 import common.transforms.CheckedAtoB

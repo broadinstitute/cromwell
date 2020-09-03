@@ -32,7 +32,6 @@
 package cromwell.cloudsupport.aws
 
 import cats.data.Validated._
-import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigException}

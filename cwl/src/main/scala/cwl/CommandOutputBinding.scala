@@ -2,7 +2,6 @@ package cwl
 
 import cats.effect.IO
 import cats.effect.IO._
-import cats.instances.list._
 import cats.syntax.functor._
 import cats.syntax.traverse._
 import cats.syntax.validated._

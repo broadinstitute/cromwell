@@ -1,6 +1,4 @@
 package wdl.transforms.draft2.wdlom2wom
-
-import cats.instances.list._
 import cats.syntax.foldable._
 import cats.data.NonEmptyList
 import cats.syntax.validated._

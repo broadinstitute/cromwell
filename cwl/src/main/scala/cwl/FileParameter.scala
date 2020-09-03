@@ -1,7 +1,6 @@
 package cwl
 
 import cats.effect.IO
-import cats.instances.list._
 import cats.syntax.traverse._
 import common.validation.ErrorOr._
 import common.validation.IOChecked._

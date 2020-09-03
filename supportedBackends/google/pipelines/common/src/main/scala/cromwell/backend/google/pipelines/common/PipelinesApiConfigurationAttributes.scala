@@ -3,7 +3,7 @@ package cromwell.backend.google.pipelines.common
 import java.net.URL
 
 import cats.data.Validated._
-import cats.implicits._
+import cats.syntax.all._
 import com.typesafe.config.{Config, ConfigValue}
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._

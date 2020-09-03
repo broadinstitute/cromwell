@@ -1,9 +1,6 @@
 package cromwell.core.filesystem
 
 import java.lang.reflect.Constructor
-
-import cats.instances.list._
-import cats.instances.option._
 import cats.syntax.either._
 import cats.syntax.traverse._
 import cats.syntax.validated._

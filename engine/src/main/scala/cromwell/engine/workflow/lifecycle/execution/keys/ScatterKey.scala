@@ -59,7 +59,6 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
   }
 
   def processRunnable(data: WorkflowExecutionActorData, workflowExecutionActor: ActorRef, maxScatterWidth: Int): ErrorOr[WorkflowExecutionDiff] = {
-    import cats.instances.list._
     import cats.syntax.traverse._
 
     def getScatterArray(scatterVariableNode: ScatterVariableNode): ErrorOr[ScatterVariableAndValue] = {

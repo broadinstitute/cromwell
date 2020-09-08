@@ -138,4 +138,10 @@ public class S3FileSystemProviderTest {
 
     }
 
+    @Test
+    public void finalize() throws Throwable {
+        // just to make sure this can exit cleanly without an exception
+        s3fsProvider.finalize();
+    }
+
 }

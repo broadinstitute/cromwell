@@ -73,7 +73,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
             PROXY_HOST, PROXY_PASSWORD, PROXY_PORT, PROXY_USERNAME, PROXY_WORKSTATION, SOCKET_SEND_BUFFER_SIZE_HINT, SOCKET_RECEIVE_BUFFER_SIZE_HINT, SOCKET_TIMEOUT,
             USER_AGENT, AMAZON_S3_FACTORY_CLASS, SIGNER_OVERRIDE, PATH_STYLE_ACCESS);
 
-    private static final ExecutorService MULTIPART_OPERATION_EXECUTOR_SERVICE = Executors.newWorkStealingPool(100);
+    private static final ExecutorService MULTIPART_OPERATION_EXECUTOR_SERVICE = Executors.newWorkStealingPool(1000);
 
     private final S3Utils s3Utils = new S3Utils();
     private Cache cache = new Cache();
@@ -511,7 +511,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
                         .build())
                 .collect(Collectors.toList());
 
-        MULTIPART_OPERATION_EXECUTOR_SERVICE.shutdown();
+        //MULTIPART_OPERATION_EXECUTOR_SERVICE.shutdown();
 
         // build a request to complete the upload
         final CompleteMultipartUploadRequest completeMultipartUploadRequest = CompleteMultipartUploadRequest.builder()
@@ -779,5 +779,11 @@ public class S3FileSystemProvider extends FileSystemProvider {
 
     public void setCache(Cache cache) {
         this.cache = cache;
+    }
+
+    @Override
+    protected void finalize() throws Throwable {
+        super.finalize();
+        MULTIPART_OPERATION_EXECUTOR_SERVICE.shutdown();
     }
 }

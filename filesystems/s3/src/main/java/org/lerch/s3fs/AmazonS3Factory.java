@@ -103,7 +103,7 @@ public abstract class AmazonS3Factory {
 
     protected SdkHttpClient getHttpClient(Properties props) {
         // TODO: custom http configuration based on properties
-        return ApacheHttpClient.builder().build();
+        return ApacheHttpClient.builder().maxConnections(1024).build();
     }
 
     protected S3Configuration getServiceConfiguration(Properties props) {

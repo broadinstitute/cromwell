@@ -32,113 +32,121 @@
 package cromwell.backend.impl.aws
 
 import common.collections.EnhancedCollections._
-import cromwell.backend.BackendJobDescriptorKey
+import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.backend.BackendSpec._
+import cromwell.backend.validation.ContinueOnReturnCodeFlag
 import cromwell.core.TestKitSuite
 import cromwell.util.SampleWdl
+import eu.timepit.refined.api.Refined
+import eu.timepit.refined.auto._
+import eu.timepit.refined.numeric._
+import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
+import software.amazon.awssdk.services.batch.model.KeyValuePair
 import spray.json.{JsObject, JsString}
+import wdl4s.parser.MemoryUnit
+import wom.format.MemorySize
+import wom.graph.CommandCallNode
 
-class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Mockito {
+class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Mockito with PrivateMethodTester {
   import AwsBatchTestConfig._
 
+  System.setProperty("aws.region", "us-east-1")
+
+  val script = """
+                 |tmpDir=mkdir -p "/cromwell-aws/cromwell-execution/wf_hello/2422ea26-2578-48b0-86e9-50cbdda7d70a/call-hello/tmp.39397e83" && echo "/cromwell-aws/cromwell-execution/wf_hello/2422ea26-2578-48b0-86e9-50cbdda7d70a/call-hello/tmp.39397e83"
+                 |chmod 777 "$tmpDir"
+                 |export _JAVA_OPTIONS=-Djava.io.tmpdir="$tmpDir"
+                 |export TMPDIR="$tmpDir"
+                 |export HOME="$HOME"
+                 |(
+                 |  cd /cromwell_root
+                 |
+                 |)
+                 |(
+                 |  cd /cromwell_root
+                 |
+                 |
+                 |  echo "Hello World! Welcome to Cromwell . . . on AWS!" >&2
+                 |)  > '/cromwell_root/hello-stdout.log' 2> '/cromwell_root/hello-stderr.log'
+                 |echo $? > /cromwell_root/hello-rc.txt.tmp
+                 |(
+                 |  # add a .file in every empty directory to facilitate directory delocalization on the cloud
+                 |  cd /cromwell_root
+                 |  find . -type d -empty -print | xargs -I % touch %/.file
+                 |)
+                 |(
+                 |  cd /cromwell_root
+                 |  sync
+                 |
+                 |
+                 |)
+                 |mv /cromwell_root/hello-rc.txt.tmp /cromwell_root/hello-rc.txt"""
+
+  val workFlowDescriptor: BackendWorkflowDescriptor = buildWdlWorkflowDescriptor(
+    SampleWdl.HelloWorld.workflowSource(),
+    inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.safeMapValues(JsString.apply)).compactPrint)
+  )
+  val configuration = new AwsBatchConfiguration(AwsBatchBackendConfigurationDescriptor)
+  val workflowPaths: AwsBatchWorkflowPaths = AwsBatchWorkflowPaths(
+    workFlowDescriptor,
+    AnonymousCredentialsProvider.create,
+    configuration
+  )
+
+  val call: CommandCallNode = workFlowDescriptor.callable.taskCallNodes.head
+  val jobKey: BackendJobDescriptorKey = BackendJobDescriptorKey(call, None, 1)
+  val jobPaths: AwsBatchJobPaths = AwsBatchJobPaths(workflowPaths, jobKey)
+
+  val cpu: Int Refined Positive = 2
+  val runtimeAttributes: AwsBatchRuntimeAttributes = new AwsBatchRuntimeAttributes(
+      cpu = cpu,
+      zones = Vector("us-east-1"),
+      memory = MemorySize(2.0, MemoryUnit.GB),
+      disks = Seq.empty,
+      dockerImage = "ubuntu:latest",
+      queueArn = "arn:aws:batch:us-east-1:123456789:job-queue/default-gwf-core",
+      failOnStderr = true,
+      continueOnReturnCode = ContinueOnReturnCodeFlag(false),
+      noAddress = false,
+      scriptS3BucketName = "script-bucket",
+      fileSystem = "s3")
+
+  private def generateBasicJob: AwsBatchJob = {
+    val job = AwsBatchJob(null, runtimeAttributes, "commandLine", script,
+      "/cromwell_root/hello-rc.txt", "/cromwell_root/hello-stdout.log", "/cromwell_root/hello-stderr.log",
+      Seq.empty[AwsBatchInput].toSet, Seq.empty[AwsBatchFileOutput].toSet,
+      jobPaths, Seq.empty[AwsBatchParameter], None)
+    job
+  }
+
+
+  // TESTS BEGIN HERE
   behavior of "AwsBatchJob"
 
-  /*
-  DB 9/13/18
-  This test is broken!  It does not pass *unless the user is logged in w/ aws cli* (i.e. "auth configure").  Our
-  test server does not have such credentials and I was unsuccessful at setting this value manually.
+  it should "have correctly named AWS constants" in {
 
-  I'm merging this in the interest of time.
+    val job: AwsBatchJob = generateBasicJob
 
-  It throws the following exception:
-  Cause: java.lang.IllegalArgumentException: Could not build the path "s3://my-cromwell-workflows-bucket". It may refer to a filesystem not supported by this instance of Cromwell. Supported filesystems are: s3. Failures: s3: AWS region not provided (SdkClientException) Please refer to the documentation for more information on how to configure filesystems: http://cromwell.readthedocs.io/en/develop/backends/HPC/#filesystems
-[info]   at cromwell.core.path.PathParsingException.<init>(PathParsingException.scala:5)
-[info]   at cromwell.core.path.PathFactory$.$anonfun$buildPath$4(PathFactory.scala:64)
-[info]   at scala.Option.getOrElse(Option.scala:121)
-[info]   at cromwell.core.path.PathFactory$.buildPath(PathFactory.scala:58)
-[info]   at cromwell.core.path.PathFactory.buildPath(PathFactory.scala:30)
-[info]   at cromwell.core.path.PathFactory.buildPath$(PathFactory.scala:30)
-[info]   at cromwell.backend.impl.aws.AwsBatchWorkflowPaths.buildPath(AwsBatchWorkflowPaths.scala:51)
-[info]   at cromwell.backend.io.WorkflowPaths.executionRoot(WorkflowPaths.scala:34)
-[info]   at cromwell.backend.io.WorkflowPaths.executionRoot$(WorkflowPaths.scala:34)
-[info]   at cromwell.backend.impl.aws.AwsBatchWorkflowPaths.executionRoot$lzycompute(AwsBatchWorkflowPaths.scala:51)
-   */
-  it should "alter the commandScript for mime output" ignore {
-    val script = """
-    |tmpDir=mkdir -p "/cromwell-aws/cromwell-execution/wf_hello/2422ea26-2578-48b0-86e9-50cbdda7d70a/call-hello/tmp.39397e83" && echo "/cromwell-aws/cromwell-execution/wf_hello/2422ea26-2578-48b0-86e9-50cbdda7d70a/call-hello/tmp.39397e83"
-    |chmod 777 "$tmpDir"
-    |export _JAVA_OPTIONS=-Djava.io.tmpdir="$tmpDir"
-    |export TMPDIR="$tmpDir"
-    |export HOME="$HOME"
-    |(
-    |  cd /cromwell_root
-    |
-    |)
-    |(
-    |  cd /cromwell_root
-    |
-    |
-    |  echo "Hello World! Welcome to Cromwell . . . on AWS!" >&2
-    |)  > '/cromwell_root/hello-stdout.log' 2> '/cromwell_root/hello-stderr.log'
-    |echo $? > /cromwell_root/hello-rc.txt.tmp
-    |(
-    |  # add a .file in every empty directory to facilitate directory delocalization on the cloud
-    |  cd /cromwell_root
-    |  find . -type d -empty -print | xargs -I % touch %/.file
-    |)
-    |(
-    |  cd /cromwell_root
-    |  sync
-    |
-    |
-    |)
-    |mv /cromwell_root/hello-rc.txt.tmp /cromwell_root/hello-rc.txt"""
+    job.AWS_RETRY_MODE should be ("AWS_RETRY_MODE")
+    job.AWS_RETRY_MODE_DEFAULT_VALUE should be ("adaptive")
+    job.AWS_MAX_ATTEMPTS should be ("AWS_MAX_ATTEMPTS")
+    job.AWS_MAX_ATTEMPTS_DEFAULT_VALUE should be ("14")
+  }
 
-    val boundary = "d283898f11be0dee6f9ac01470450bee"
-    val expectedscript = script.concat(s"""
-    |echo "MIME-Version: 1.0
-    |Content-Type: multipart/alternative; boundary="$boundary"
-    |
-    |--$boundary
-    |Content-Type: text/plain
-    |Content-Disposition: attachment; filename="rc.txt"
-    |"
-    |cat /cromwell_root/hello-rc.txt
-    |echo "--$boundary
-    |Content-Type: text/plain
-    |Content-Disposition: attachment; filename="stdout.txt"
-    |"
-    |cat /cromwell_root/hello-stdout.log
-    |echo "--$boundary
-    |Content-Type: text/plain
-    |Content-Disposition: attachment; filename="stderr.txt"
-    |"
-    |cat /cromwell_root/hello-stderr.log
-    |echo "--$boundary--"
-    |exit $$(cat /cromwell_root/hello-rc.txt)
-    """).stripMargin
+  it should "generate appropriate KV pairs for the container environment" in {
+    val job = generateBasicJob
+    val generateEnvironmentKVPairs = PrivateMethod[List[KeyValuePair]]('generateEnvironmentKVPairs)
 
-    val workFlowDescriptor = buildWdlWorkflowDescriptor(
-      SampleWdl.HelloWorld.workflowSource(),
-      inputFileAsJson = Option(JsObject(SampleWdl.HelloWorld.rawInputs.safeMapValues(JsString.apply)).compactPrint)
-    )
-    val configuration = new AwsBatchConfiguration(AwsBatchBackendConfigurationDescriptor)
-    val workflowPaths = AwsBatchWorkflowPaths(
-      workFlowDescriptor,
-      AnonymousCredentialsProvider.create,
-      configuration
-    )
+    // testing a private method see https://www.scalatest.org/user_guide/using_PrivateMethodTester
+    val kvPairs = job invokePrivate generateEnvironmentKVPairs("script-bucket", "prefix-", "key")
 
-    val call = workFlowDescriptor.callable.taskCallNodes.head
-    val jobKey = BackendJobDescriptorKey(call, None, 1)
-    val jobPaths = AwsBatchJobPaths(workflowPaths, jobKey)
-    val job = AwsBatchJob(null, null, "commandLine", script,
-      "/cromwell_root/hello-rc.txt", "/cromwell_root/hello-stdout.log", "/cromwell_root/hello-stderr.log", Seq.empty[AwsBatchInput].toSet, Seq.empty[AwsBatchFileOutput].toSet, jobPaths, Seq.empty[AwsBatchParameter], None)
-
-    job.reconfiguredScript should be(expectedscript)
+    kvPairs should contain (buildKVPair(job.AWS_MAX_ATTEMPTS, job.AWS_MAX_ATTEMPTS_DEFAULT_VALUE))
+    kvPairs should contain (buildKVPair(job.AWS_RETRY_MODE, "adaptive"))
+    kvPairs should contain (buildKVPair("BATCH_FILE_TYPE", "script"))
+    kvPairs should contain (buildKVPair("BATCH_FILE_S3_URL", "s3://script-bucket/prefix-key"))
   }
 }

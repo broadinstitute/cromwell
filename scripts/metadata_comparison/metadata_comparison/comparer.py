@@ -38,6 +38,8 @@ from typing import AnyStr, List
 
 logger = logging.getLogger('metadata_comparison.comparer')
 
+Version = "0.0.3"
+
 
 class DigesterKey:
     def __init__(self, json_key: AnyStr, display_text: AnyStr):
@@ -69,6 +71,11 @@ MachineTypesCostPerHour = {
     'g1-small': 0.0257,         # https://cloud.google.com/compute/all-pricing#n1_sharedcore_machine_types
     'e2-standard-2': 0.067006,  # https://cloud.google.com/compute/vm-instance-pricing#e2_standard_machine-types
     'n2-standard-2': 0.0971     # https://cloud.google.com/compute/vm-instance-pricing#n2_standard_machine_types
+}
+
+DiskTypesCostPerGbMonth = {
+    'HDD': 0.04,  # https://cloud.google.com/compute/disks-image-pricing#persistentdisk
+    'SSD': 0.17   # https://cloud.google.com/compute/disks-image-pricing#persistentdisk
 }
 
 # A machine type-weighted dictionary used for getting more accurate cost estimates.
@@ -117,11 +124,13 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
                           UserCommandTimeSeconds, DelocalizationTimeSeconds]
 
     def build_header_rows():
-        """ Builds the header rows of the spreadsheet. """
-        top_header_row = ['job', 'Machine type']
-        percent_contrib_row = ['% contribution to total run time', '']
-        total_row = ['Total', '']
-        machine_type_weighted_row = ['Machine-type weighted total (cost-ish)', '']
+        """ Builds the header rows of the spreadsheet. Currently assumes machine types (not disks) are the same. """
+
+        top_header_row = ['job', 'Machine type', f'Machine cost {name_1}', f'Machine cost {name_2}',
+                          f'Disk cost {name_1}', f'Disk cost {name_2}', f'Total cost {name_1}', f'Total cost {name_2}']
+        percent_contrib_row = ['% contribution to total run time', '', '', '', '', '', '', '']
+        total_row = ['Total', '', '', '', '', '', '', '']
+        machine_type_weighted_row = ['Machine-type weighted total (cost-ish)', '', '', '', '', '', '', '']
 
         def sum_call_times(j: JsonObject, key: AnyStr):
             """ Sums raw call times for a column. """
@@ -172,12 +181,42 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
 
     rows = []
 
+    def cost_format(raw) -> AnyStr:
+        return f'{raw:.5f}'
+
     # Produce data for individual lifecycle phases of individual calls.
     for call_key in call_keys_sorted_without_prefix:
         row = []
         call_1, call_2 = [j.get('calls').get(call_key.full) for j in [json_1, json_2]]
+        # Assumes machine types are the same for both calls
+        machine_type = call_1.get(MachineType)
         row.append(call_key.without_prefix)
-        row.append(call_1.get(MachineType))
+        row.append(machine_type)
+
+        machine_rate = MachineTypesCostPerHour[machine_type]
+        hours_1 = call_1[PapiTotalTimeSeconds] / (60.0 * 60.0)
+        machine_cost_1 = machine_rate * hours_1
+        row.append(cost_format(machine_cost_1))
+
+        hours_2 = call_2[PapiTotalTimeSeconds] / (60.0 * 60.0)
+        machine_cost_2 = machine_rate * hours_2
+        row.append(cost_format(machine_cost_2))
+
+        def disk_rate_per_second(call) -> float:
+            if Disks not in call:
+                return 0
+            else:
+                disks = call.get(Disks)
+                rates_per_month = [d.get('sizeGb') * DiskTypesCostPerGbMonth[d.get('type')] for d in disks.values]
+                rate_per_month = sum(rates_per_month)
+                # A monthly rate for cost is kind of strange
+                return rate_per_month / (365 / 12.0)
+
+        [disk_cost_1, disk_cost_2] = [disk_rate_per_second(call) * call[PapiTotalTimeSeconds]
+                                      for call in [call_1, call_2]]
+
+        for cost in [disk_cost_1, disk_cost_2, machine_cost_1 + disk_cost_1, machine_cost_2 + disk_cost_2]:
+            row.append(cost_format(cost))
 
         for digester_key_name in digester_key_names:
             time_1 = call_1.get(digester_key_name)

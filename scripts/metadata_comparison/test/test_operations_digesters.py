@@ -59,7 +59,7 @@ class OperationsDigesterTestMethods(unittest.TestCase):
                         op_digester = OperationDigester.create(json.loads(json_str))
                         for key, value in EXPECTATIONS.get(sample_name).get(papi_version).get(operation).items():
                             if key == 'disks':
-                                self.assertEquals(value, op_digester.disks())
+                                self.assertEqual(value, op_digester.disks())
                             else:
                                 method_to_call = getattr(op_digester, key)
                                 self.assertEqual(method_to_call(), value, f'{key} was not {value}')

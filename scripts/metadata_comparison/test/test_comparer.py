@@ -39,7 +39,7 @@ class ComparerTestMethods(unittest.TestCase):
         actual = csv_string_from_data(data)
         return actual
 
-    def test_compare_valid_jsons(self) -> None:
+    def test_compare_valid_jsons_no_disk_info(self) -> None:
         cases = [
             ("papiv1_version2_good.json", "papiv2_version2_good.json"),
         ]
@@ -48,7 +48,7 @@ class ComparerTestMethods(unittest.TestCase):
             with self.subTest(case=case):
                 json_1, json_2 = [json_from_path(p) for p in [case[0], case[1]]]
                 actual = self.__compare_for_exome_germline_single_sample(json_1, json_2)
-                expected = self.__read_resource("good_comparison.csv")
+                expected = self.__read_resource("version3_comparer_on_version2_digests_good.csv")
                 self.assertEqual(actual, expected)
 
     def test_compare_to_self(self) -> None:
@@ -66,7 +66,7 @@ class ComparerTestMethods(unittest.TestCase):
                 percent_column_indexes = [idx for idx, val in enumerate(actual[0]) if val == '% increase']
 
                 # Skip the four header rows + blank line.
-                for i in range(5, len(actual)):
+                for i in range(11, len(actual)):
                     for j in percent_column_indexes:
                         self.assertEqual(actual[i][j], "0.00%")
 

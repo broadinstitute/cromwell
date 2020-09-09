@@ -1104,11 +1104,25 @@ cromwell::private::push_publish_complete() {
 }
 
 cromwell::private::start_build_heartbeat() {
+    JAVA_EXISTED=false
+    JAVA_ALIVE=false
     # Sleep one minute between printouts, but don't zombie forever
     for ((i=0; i < "${CROMWELL_BUILD_HEARTBEAT_MINUTES}"; i++)); do
         sleep 60
         # shellcheck disable=SC2059
         printf "${CROMWELL_BUILD_HEARTBEAT_PATTERN}"
+        if [ -n "$(ps -ef | grep java)" ]
+        then
+          ps -ef | grep java
+          JAVA_EXISTED=true
+          JAVA_ALIVE=true
+        else
+          JAVA_ALIVE=false
+        fi
+        if [ "${JAVA_EXISTED}" = "true" ] && [ "${JAVA_ALIVE}" = "false" ]
+        then
+          break;
+        fi
     done &
     CROMWELL_BUILD_HEARTBEAT_PID=$!
     cromwell::private::add_exit_function cromwell::private::kill_build_heartbeat

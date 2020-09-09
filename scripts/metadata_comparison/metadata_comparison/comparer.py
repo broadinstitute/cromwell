@@ -207,7 +207,7 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
                 return 0
             else:
                 disks = call.get(Disks)
-                rates_per_month = [d.get('sizeGb') * DiskTypesCostPerGbMonth[d.get('type')] for d in disks.values]
+                rates_per_month = [d.get('sizeGb') * DiskTypesCostPerGbMonth[d.get('type')] for d in disks.values()]
                 rate_per_month = sum(rates_per_month)
                 # A monthly rate for cost is kind of strange
                 return rate_per_month / (365 / 12.0)

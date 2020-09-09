@@ -6,11 +6,12 @@ import json
 import logging
 from metadata_comparison.lib.comparison_paths import ComparisonPath
 from metadata_comparison.lib.logging import quieten_chatty_imports, set_log_verbosity
-from metadata_comparison.lib.operations_digesters import OperationDigester
+from metadata_comparison.lib.operations_digesters import Disk, DiskType, OperationDigester
 import os
 import unittest
 from test.lib.test_digester_helper import download_metadata_from_gcs_if_needed,\
     gcs_parent, subdir_for_papi_version, VERSION_PAPI_V1, VERSION_PAPI_V2
+from typing import Set
 
 
 class OperationsDigesterTestMethods(unittest.TestCase):
@@ -58,7 +59,10 @@ class OperationsDigesterTestMethods(unittest.TestCase):
                         op_digester = OperationDigester.create(json.loads(json_str))
                         for key, value in EXPECTATIONS.get(sample_name).get(papi_version).get(operation).items():
                             if key == 'disks':
-                                pass
+                                expected_disks = [
+                                    Disk(o.get('name'), o.get('sizeGb'), DiskType.from_string(o.get('type')))
+                                    for o in value]
+                                self.assertEquals(set(expected_disks), op_digester.disks())
                             else:
                                 method_to_call = getattr(op_digester, key)
                                 self.assertEqual(method_to_call(), value, f'{key} was not {value}')

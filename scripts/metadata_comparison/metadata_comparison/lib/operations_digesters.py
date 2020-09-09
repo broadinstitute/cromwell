@@ -5,12 +5,21 @@ from enum import Enum
 from metadata_comparison.lib.operation_ids import JsonObject, operation_id_to_api_version, \
     PAPI_V1_API_VERSION, PAPI_V2_ALPHA1_API_VERSION, PAPI_V2_BETA_API_VERSION
 import re
-from typing import AnyStr, Iterator, List
+from typing import AnyStr, Iterator, Set
 
 
 class DiskType(Enum):
     HDD = 1
     SSD = 2
+
+    @staticmethod
+    def from_string(string: AnyStr):
+        if string == 'HDD':
+            return DiskType.HDD
+        elif string == 'SSD':
+            return DiskType.SSD
+        else:
+            raise ValueError("")
 
 
 class Disk:
@@ -18,6 +27,22 @@ class Disk:
         self.name = name
         self.size_gb = size_gb
         self.disk_type = disk_type
+
+    def for_json(self) -> dict:
+        return {
+            'name': self.name,
+            'sizeGb': self.size_gb,
+            'type': self.disk_type
+        }
+
+    def __eq__(self, other) -> bool:
+        return self.name == other.name and self.size_gb == other.size_gb # and self.disk_type == other.disk_type
+
+    def __hash__(self):
+        return hash(self.name) + hash(self.size_gb) # + hash(self.disk_type)
+
+    def __str__(self):
+        return f'Disk(name={self.name}, size_gb={self.size_gb}, disk_type={self.disk_type}'
 
 
 class OperationDigester(ABC):
@@ -82,7 +107,7 @@ class OperationDigester(ABC):
     def machine_type(self) -> AnyStr: pass
 
     @abstractmethod
-    def disks(self) -> List[Disk]: pass
+    def disks(self) -> Set[Disk]: pass
 
     def other_time_seconds(self) -> float:
         end, create = [dateutil.parser.parse(t) for t in [self.end_time(), self.create_time()]]
@@ -152,12 +177,12 @@ class PapiV1OperationDigester(OperationDigester):
         machine_type_with_zone_prefix = self.metadata().get('runtimeMetadata').get('computeEngine').get('machineType')
         return machine_type_with_zone_prefix.split('/')[-1]
 
-    def disks(self) -> List[Disk]:
+    def disks(self) -> Set[Disk]:
         resources = self.metadata().get('request').get('pipelineArgs').get('resources')
         # start with the boot disk and then add any others later
-        disks_ = [Disk('boot-disk', resources.get('bootDiskSizeGb'), DiskType.HDD)]
+        disks_ = {Disk('boot-disk', resources.get('bootDiskSizeGb'), DiskType.HDD)}
 
-        def disk_type_from_string(string: AnyStr) -> DiskType:
+        def disk_type_from_string_v2(string: AnyStr) -> DiskType:
             if string == 'PERSISTENT_HDD':
                 return DiskType.HDD
             elif string == 'PERSISTENT_SSD':
@@ -165,8 +190,10 @@ class PapiV1OperationDigester(OperationDigester):
             else:
                 raise ValueError(f"Unknown disk type: {string}")
 
-        disks_.extend(
-            [Disk(d.get('name'), d.get('sizeGb'), disk_type_from_string(d.get('type'))) for d in resources.get('disks')])
+        non_boot_disks = [
+            Disk(d.get('name'), d.get('sizeGb'), disk_type_from_string_v2(d.get('type'))) for d in resources.get('disks')]
+
+        disks_.update(set(non_boot_disks))
         return disks_
 
 
@@ -217,10 +244,10 @@ class PapiV2OperationDigester(OperationDigester, ABC):
         event = next(self.event_with_description_like('^Worker .* assigned in .*'))
         return event.get('details').get('machineType')
 
-    def disks(self) -> List[Disk]:
+    def disks(self) -> Set[Disk]:
         vm = self.metadata().get('pipeline').get('resources').get('virtualMachine')
         # start with the boot disk and then add any others later
-        disks_ = [Disk('boot-disk', vm.get('bootDiskSizeGb'), DiskType.HDD)]
+        disks_ = {Disk('boot-disk', vm.get('bootDiskSizeGb'), DiskType.HDD)}
 
         def disk_type_from_string(string: AnyStr) -> DiskType:
             if string == 'pd-standard':
@@ -230,7 +257,9 @@ class PapiV2OperationDigester(OperationDigester, ABC):
             else:
                 raise ValueError(f"Unknown disk type '{string}'")
 
-        disks_.extend([Disk(d.get('name'), d.get('size'), disk_type_from_string(d.get('type'))) for d in vm.get('disks')])
+        non_boot_disks = [
+            Disk(d.get('name'), d.get('sizeGb'), disk_type_from_string(d.get('type'))) for d in vm.get('disks')]
+        disks_.update(set(non_boot_disks))
         return disks_
 
 

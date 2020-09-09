@@ -1113,9 +1113,11 @@ cromwell::private::start_build_heartbeat() {
         printf "${CROMWELL_BUILD_HEARTBEAT_PATTERN}"
         if [ -n "$(ps -ef | grep java | grep -v sbt | grep -v grep)" ]
         then
-          ps -ef | grep java
           JAVA_EXISTED=true
           JAVA_ALIVE=true
+          ps -ef | grep java
+          echo "JAVA_EXISTED=${JAVA_EXISTED}"
+          echo "JAVA_ALIVE=${JAVA_ALIVE}"
         else
           JAVA_ALIVE=false
         fi

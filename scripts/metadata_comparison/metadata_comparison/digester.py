@@ -100,6 +100,7 @@ def digest(workflow_path: ComparisonPath, operations_path: ComparisonPath) -> Js
                 CromwellStart: cromwell_start,
                 CromwellTotalTimeSeconds: cromwell_total_time_seconds,
                 DelocalizationTimeSeconds: operation.delocalization_time_seconds(),
+                Disks: operation.disks(),
                 DockerImagePullTimeSeconds: operation.docker_image_pull_time_seconds(),
                 LocalizationTimeSeconds: operation.localization_time_seconds(),
                 MachineType: operation.machine_type(),

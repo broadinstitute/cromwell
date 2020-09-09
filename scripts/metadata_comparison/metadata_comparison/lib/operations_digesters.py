@@ -21,6 +21,9 @@ class DiskType(Enum):
         else:
             raise ValueError("")
 
+    def __str__(self):
+        return "HDD" if self is DiskType.HDD else "SSD"
+
 
 class Disk:
     def __init__(self, name: AnyStr, size_gb: int, disk_type: DiskType):
@@ -30,9 +33,11 @@ class Disk:
 
     def for_json(self) -> dict:
         return {
-            'name': self.name,
-            'sizeGb': self.size_gb,
-            'type': self.disk_type
+            self.name: {
+                'name': self.name,
+                'sizeGb': self.size_gb,
+                'type': str(self.disk_type)
+            }
         }
 
     def __eq__(self, other) -> bool:
@@ -42,7 +47,7 @@ class Disk:
         return hash(self.name) + hash(self.size_gb) # + hash(self.disk_type)
 
     def __str__(self):
-        return f'Disk(name={self.name}, size_gb={self.size_gb}, disk_type={self.disk_type}'
+        return f'Disk(name={self.name}, size_gb={self.size_gb}, disk_type={str(self.disk_type)}'
 
 
 class OperationDigester(ABC):
@@ -107,7 +112,7 @@ class OperationDigester(ABC):
     def machine_type(self) -> AnyStr: pass
 
     @abstractmethod
-    def disks(self) -> Set[Disk]: pass
+    def disks(self) -> dict: pass
 
     def other_time_seconds(self) -> float:
         end, create = [dateutil.parser.parse(t) for t in [self.end_time(), self.create_time()]]
@@ -177,10 +182,11 @@ class PapiV1OperationDigester(OperationDigester):
         machine_type_with_zone_prefix = self.metadata().get('runtimeMetadata').get('computeEngine').get('machineType')
         return machine_type_with_zone_prefix.split('/')[-1]
 
-    def disks(self) -> Set[Disk]:
+    def disks(self) -> dict:
         resources = self.metadata().get('request').get('pipelineArgs').get('resources')
         # start with the boot disk and then add any others later
-        disks_ = {Disk('boot-disk', resources.get('bootDiskSizeGb'), DiskType.HDD)}
+        boot_disk = Disk('boot-disk', resources.get('bootDiskSizeGb'), DiskType.HDD)
+        disks_ = boot_disk.for_json()
 
         def disk_type_from_string_v2(string: AnyStr) -> DiskType:
             if string == 'PERSISTENT_HDD':
@@ -193,7 +199,9 @@ class PapiV1OperationDigester(OperationDigester):
         non_boot_disks = [
             Disk(d.get('name'), d.get('sizeGb'), disk_type_from_string_v2(d.get('type'))) for d in resources.get('disks')]
 
-        disks_.update(set(non_boot_disks))
+        for non_boot_disk in non_boot_disks:
+            disks_.update(non_boot_disk.for_json())
+
         return disks_
 
 
@@ -244,10 +252,11 @@ class PapiV2OperationDigester(OperationDigester, ABC):
         event = next(self.event_with_description_like('^Worker .* assigned in .*'))
         return event.get('details').get('machineType')
 
-    def disks(self) -> Set[Disk]:
+    def disks(self) -> dict:
         vm = self.metadata().get('pipeline').get('resources').get('virtualMachine')
         # start with the boot disk and then add any others later
-        disks_ = {Disk('boot-disk', vm.get('bootDiskSizeGb'), DiskType.HDD)}
+        boot_disk = Disk('boot-disk', vm.get('bootDiskSizeGb'), DiskType.HDD)
+        disks_ = boot_disk.for_json()
 
         def disk_type_from_string(string: AnyStr) -> DiskType:
             if string == 'pd-standard':
@@ -259,7 +268,9 @@ class PapiV2OperationDigester(OperationDigester, ABC):
 
         non_boot_disks = [
             Disk(d.get('name'), d.get('sizeGb'), disk_type_from_string(d.get('type'))) for d in vm.get('disks')]
-        disks_.update(set(non_boot_disks))
+
+        for non_boot_disk in non_boot_disks:
+            disks_.update(non_boot_disk.for_json())
         return disks_
 
 

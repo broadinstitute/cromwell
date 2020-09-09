@@ -1115,12 +1115,14 @@ cromwell::private::start_build_heartbeat() {
         then
           JAVA_EXISTED=true
           JAVA_ALIVE=true
-          ps -ef | grep java
-          echo "JAVA_EXISTED=${JAVA_EXISTED}"
-          echo "JAVA_ALIVE=${JAVA_ALIVE}"
         else
           JAVA_ALIVE=false
         fi
+
+        ps -ef | grep java
+        echo "JAVA_EXISTED=${JAVA_EXISTED}"
+        echo "JAVA_ALIVE=${JAVA_ALIVE}"
+
         if [ "${JAVA_EXISTED}" = "true" ] && [ "${JAVA_ALIVE}" = "false" ]
         then
           break;

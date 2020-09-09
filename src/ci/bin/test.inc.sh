@@ -1111,7 +1111,7 @@ cromwell::private::start_build_heartbeat() {
         sleep 60
         # shellcheck disable=SC2059
         printf "${CROMWELL_BUILD_HEARTBEAT_PATTERN}"
-        if [ -n "$(ps -ef | grep java)" ]
+        if [ -n "$(ps -ef | grep java | grep -v sbt | grep -v grep)" ]
         then
           ps -ef | grep java
           JAVA_EXISTED=true

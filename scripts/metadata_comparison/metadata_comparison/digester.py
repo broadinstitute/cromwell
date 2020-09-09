@@ -26,7 +26,7 @@ from metadata_comparison.lib.operations_digesters import OperationDigester
 import dateutil.parser
 from typing import AnyStr, Dict
 
-Version = "0.0.2"
+Version = "0.0.3"
 
 
 def main(args: argparse.Namespace) -> None:

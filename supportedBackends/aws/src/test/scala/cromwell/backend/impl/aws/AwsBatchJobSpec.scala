@@ -54,6 +54,8 @@ import wom.graph.CommandCallNode
 class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Mockito with PrivateMethodTester {
   import AwsBatchTestConfig._
 
+  System.setProperty("aws.region", "us-east-1")
+
   val script = """
                  |tmpDir=mkdir -p "/cromwell-aws/cromwell-execution/wf_hello/2422ea26-2578-48b0-86e9-50cbdda7d70a/call-hello/tmp.39397e83" && echo "/cromwell-aws/cromwell-execution/wf_hello/2422ea26-2578-48b0-86e9-50cbdda7d70a/call-hello/tmp.39397e83"
                  |chmod 777 "$tmpDir"

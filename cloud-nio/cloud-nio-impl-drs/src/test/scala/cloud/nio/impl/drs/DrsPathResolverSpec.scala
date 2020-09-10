@@ -163,13 +163,13 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with Matchers {
     val failureResponse = Option(failureResponseJson)
 
     MarthaResponseSupport.errorMessageFromResponse(drsPathForDebugging, failureResponse, responseStatusLine, testMarthaUri) shouldBe {
-      "Could not access object 'drs://my_awesome_drs'. Status: 345, message: '{\"msg\":\"User 'null' does not have required action: read_data\",\"status_code\":500}', reason: 'test-reason', Martha location: 'www.martha_v3.com'"
+      "Could not access object 'drs://my_awesome_drs'. Status: 345, reason: 'test-reason', Martha location: 'www.martha_v3.com', message: '{\"msg\":\"User 'null' does not have required action: read_data\",\"status_code\":500}'"
     }
   }
 
   it should "construct an error message from an empty failure response" in {
     MarthaResponseSupport.errorMessageFromResponse(drsPathForDebugging, None, responseStatusLine, testMarthaUri) shouldBe {
-      "Could not access object 'drs://my_awesome_drs'. Status: 345, message: (empty response), reason: 'test-reason', Martha location: 'www.martha_v3.com'"
+      "Could not access object 'drs://my_awesome_drs'. Status: 345, reason: 'test-reason', Martha location: 'www.martha_v3.com', message: (empty response)"
     }
   }
 
@@ -179,7 +179,7 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with Matchers {
     val unparsableFailureResponse = Option("something went horribly wrong")
 
     MarthaResponseSupport.errorMessageFromResponse(drsPathForDebugging, unparsableFailureResponse, responseStatusLine, testMarthaUri) shouldBe {
-      "Could not access object 'drs://my_awesome_drs'. Status: 345, message: 'something went horribly wrong', reason: 'test-reason', Martha location: 'www.martha_v3.com'"
+      "Could not access object 'drs://my_awesome_drs'. Status: 345, reason: 'test-reason', Martha location: 'www.martha_v3.com', message: 'something went horribly wrong'"
     }
   }
 

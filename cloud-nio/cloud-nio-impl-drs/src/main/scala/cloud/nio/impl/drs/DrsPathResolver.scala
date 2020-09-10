@@ -35,7 +35,7 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClie
     val responseStatusLine = httpResponse.getStatusLine
 
     val exceptionMsg: String = errorMessageFromResponse(drsPathForDebugging, marthaResponseEntityOption, responseStatusLine, drsConfig.marthaUri)
-    val responseEntityOption: Option[String] = (responseStatusLine.getStatusCode == HttpStatus.SC_OK).valueOrZero(marthaResponseEntityOption)
+    val responseEntityOption = (responseStatusLine.getStatusCode == HttpStatus.SC_OK).valueOrZero(marthaResponseEntityOption)
     val responseContentIO = toIO(responseEntityOption, exceptionMsg)
 
     responseContentIO.flatMap{ responseContent =>

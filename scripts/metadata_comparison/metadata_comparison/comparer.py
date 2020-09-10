@@ -74,10 +74,47 @@ MachineTypesCostPerHour = {
 }
 
 DiskTypesCostPerGbMonth = {
-    'HDD': 0.04,  # https://cloud.google.com/compute/disks-image-pricing#persistentdisk
-    'SSD': 0.17   # https://cloud.google.com/compute/disks-image-pricing#persistentdisk
+    'HDD': 0.04,                # https://cloud.google.com/compute/disks-image-pricing#persistentdisk
+    'SSD': 0.17                 # https://cloud.google.com/compute/disks-image-pricing#persistentdisk
 }
 
+# These costs use different units. For the *general* case of comparing disk to VM costs normalization would
+# result in way too many decimal places or a need for scientific notation. But normalizing disk costs to an
+# hourly rate for a 500GB SSD is a *specific* case:
+#
+# ($0.17 / (GB * month)) * 500 GB = $85 / month
+#
+# A monthly rate for cost is actually kind of strange when you think about it
+#
+# 365 / 12 = 30.41666...
+#
+# Per Wikipedia https://en.wikipedia.org/wiki/Month#Julian_and_Gregorian_calendars
+# "The mean month length of the Gregorian calendar is 30.436875 days."
+# nb: Not sure this is exactly how Google does its GB month billing.
+#
+days_per_month = 30.436875
+#
+# ($85 / month) / (30.436875 days / month) = $2.792667 / day
+# ($2.792667 / day) / (24 hours / day) = $0.116361 / hour
+#
+# So as we're currently using it the reference disk alone is more expensive than the VM for 90+ % of the jobs
+# in the ExomeGermlineSingleSample v1.3 workflows.
+#
+# Can this be improved? Sure, for EGSS v1.3 a 500 GB disk is way bigger than it needs to be. Making it 50 GB
+# instead reduces disk cost by a factor of 10 for a rate of $0.011636 per hour. Better but relative to
+# machine pricing that's still way too high. Switching from HDD to SSD also helps:
+#
+# $0.011636/hour * (HDD / SSD = 0.04 / 0.17 = $0.00273790/hour
+#
+# Given that running times here
+#
+# https://docs.google.com/spreadsheets/d/1x8TqiVUGZ7nHU-mxPHFdGnJ3U58fPk5l5dR839XsOBI/edit#gid=804873366
+#
+# were reduced by < 10%, even after making these adjustments (and that's assuming the performance
+# benefits of a 500GB SSD will carry over to a 50GB HDD, which they likely won't, and this is one more
+# thing we shouldn't make rosy assumptions about), is using a reference disk going to reduce or increase cost?
+# It's possible the disk size could be reduced even more, but mostly this needs test runs.
+#
 # A machine type-weighted dictionary used for getting more accurate cost estimates.
 MachineTypeCostMultiplier = {}
 for key in MachineTypesCostPerHour.keys():
@@ -209,8 +246,6 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
                 disks = call.get(Disks)
                 rates_per_month = [d.get('sizeGb') * DiskTypesCostPerGbMonth[d.get('type')] for d in disks.values()]
                 rate_per_month = sum(rates_per_month)
-                # A monthly rate for cost is kind of strange
-                days_per_month = 365 / 12.0
                 seconds_per_day = 24 * 60 * 60
                 rate_per_day = rate_per_month / days_per_month
                 rate_per_second = rate_per_day / seconds_per_day

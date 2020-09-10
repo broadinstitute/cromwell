@@ -31,7 +31,7 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClie
     postRequest
   }
 
-  private def httpResponseToMarthaResponse(httpResponse: HttpResponse): IO[MarthaResponse] = {
+  private def httpResponseToMarthaResponse(drsPathForDebugging: String)(httpResponse: HttpResponse): IO[MarthaResponse] = {
     val marthaResponseEntityOption = Option(httpResponse.getEntity).map(EntityUtils.toString)
     val responseStatusLine = httpResponse.getStatusLine
 
@@ -43,7 +43,7 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClie
       if (drsConfig.marthaUri.endsWith("martha_v3")) IO.fromEither(decode[MarthaResponse](responseContent))
       else IO.fromEither(decode[MarthaV2Response](responseContent).map(convertMarthaResponseV2ToV3))
     }.handleErrorWith {
-      e => IO.raiseError(new RuntimeException(s"Failed to parse response from Martha into a case class. Error: ${ExceptionUtils.getMessage(e)}"))
+      e => IO.raiseError(new RuntimeException(s"Could not access object \'$drsPathForDebugging\' Failed to parse response from Martha into a case class. Error: ${ExceptionUtils.getMessage(e)}"))
     }
   }
 
@@ -64,7 +64,7 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClie
     * Please note, this method returns an IO that would make a synchronous HTTP request to Martha when run.
     */
   def resolveDrsThroughMartha(drsPath: String): IO[MarthaResponse] = {
-    rawMarthaResponse(drsPath).use(httpResponseToMarthaResponse)
+    rawMarthaResponse(drsPath).use(httpResponseToMarthaResponse(drsPathForDebugging = drsPath))
   }
 }
 

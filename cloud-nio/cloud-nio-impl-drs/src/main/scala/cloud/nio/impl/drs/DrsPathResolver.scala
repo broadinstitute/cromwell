@@ -9,6 +9,7 @@ import io.circe._
 import io.circe.generic.semiauto._
 import io.circe.parser.decode
 import mouse.boolean._
+import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.http.client.methods.HttpPost
 import org.apache.http.entity.{ContentType, StringEntity}
 import org.apache.http.impl.client.HttpClientBuilder
@@ -42,7 +43,7 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClie
       if (drsConfig.marthaUri.endsWith("martha_v3")) IO.fromEither(decode[MarthaResponse](responseContent))
       else IO.fromEither(decode[MarthaV2Response](responseContent).map(convertMarthaResponseV2ToV3))
     }.handleErrorWith {
-      e => IO.raiseError(e)
+      e => IO.raiseError(new RuntimeException(s"Unexpected response during DRS resolution: ${ExceptionUtils.getMessage(e)}"))
     }
   }
 

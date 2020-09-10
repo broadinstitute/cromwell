@@ -114,4 +114,41 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with Matchers {
   it should "convert a full martha_v2 response to a the standard Martha response even if there is no timezone in `updated` field" in {
     convertMarthaResponseV2ToV3(fullMarthaV2ResponseNoTz) shouldBe fullMarthaResponseNoTz
   }
+
+  private val failureResponseJson = """
+    {
+      "status": 500,
+      "response": {
+        "req": {
+        "method": "GET",
+        "url": "https://jade.datarepo-dev.broadinstitute.org/ga4gh/drs/v1/objects/v1_0c86170e-312d-4b39-a0a4-2a2bfaa24c7a_c0e40912-8b14-43f6-9a2f-b278144d0060",
+        "headers": {
+        "user-agent": "node-superagent/3.8.3",
+        "authori - not gonna get me this time, git-secrets": "A bear with a token"
+      }
+      },
+        "header": {
+        "date": "Wed, 09 Sep 2020 14:52:10 GMT",
+        "server": "nginx/1.18.0",
+        "x-frame-options": "SAMEORIGIN",
+        "content-type": "application/json;charset=UTF-8",
+        "transfer-encoding": "chunked",
+        "via": "1.1 google",
+        "alt-svc": "clear",
+        "connection": "close"
+      },
+        "status": 500,
+        "text": "{\"msg\":\"User 'null' does not have required action: read_data\",\"status_code\":500}"
+      }
+    }"""
+
+  it should "successfully parse a failure" in {
+    import io.circe.parser.decode
+    import cloud.nio.impl.drs.MarthaResponseSupport.marthaFailureResponseDecoder
+
+    val maybeDecoded = decode[MarthaFailureResponse](failureResponseJson)
+    maybeDecoded map { decoded: MarthaFailureResponse =>
+      decoded.response.text shouldBe "{\"msg\":\"User 'null' does not have required action: read_data\",\"status_code\":500}"
+    }
+  }
 }

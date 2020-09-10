@@ -9,7 +9,6 @@ import io.circe._
 import io.circe.generic.semiauto._
 import io.circe.parser.decode
 import mouse.boolean._
-import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.http.client.methods.HttpPost
 import org.apache.http.entity.{ContentType, StringEntity}
 import org.apache.http.impl.client.HttpClientBuilder
@@ -35,15 +34,19 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClie
     val marthaResponseEntityOption = Option(httpResponse.getEntity).map(EntityUtils.toString)
     val responseStatusLine = httpResponse.getStatusLine
 
-    val exceptionMsg = s"Unexpected response resolving DRS path through Martha url ${drsConfig.marthaUri}. Error: ${responseStatusLine.getStatusCode} ${responseStatusLine.getReasonPhrase}."
-    val responseEntityOption = (responseStatusLine.getStatusCode == HttpStatus.SC_OK).valueOrZero(marthaResponseEntityOption)
+//    val exceptionMsg = s"Unexpected response resolving DRS path through Martha url ${drsConfig.marthaUri}. Error: ${responseStatusLine.getStatusCode} ${responseStatusLine.getReasonPhrase}."
+
+    decode[MarthaFailureResponse]("A")
+
+    val exceptionMsg = s"Could not access object \'$drsPathForDebugging\'. Status: ${responseStatusLine.getStatusCode}, message: \'${}\', Martha location: \'${drsConfig.marthaUri}."
+    val responseEntityOption: Option[String] = (responseStatusLine.getStatusCode == HttpStatus.SC_OK).valueOrZero(marthaResponseEntityOption)
     val responseContentIO = toIO(responseEntityOption, exceptionMsg)
 
     responseContentIO.flatMap{ responseContent =>
       if (drsConfig.marthaUri.endsWith("martha_v3")) IO.fromEither(decode[MarthaResponse](responseContent))
       else IO.fromEither(decode[MarthaV2Response](responseContent).map(convertMarthaResponseV2ToV3))
     }.handleErrorWith {
-      e => IO.raiseError(new RuntimeException(s"Could not access object \'$drsPathForDebugging\' Failed to parse response from Martha into a case class. Error: ${ExceptionUtils.getMessage(e)}"))
+      e => IO.raiseError(e)
     }
   }
 
@@ -90,6 +93,10 @@ final case class MarthaResponse(size: Option[Long],
                                 googleServiceAccount: Option[SADataObject],
                                 hashes: Option[Map[String, String]])
 
+// Adapted from https://github.com/broadinstitute/martha/blob/f31933a3a11e20d30698ec4b4dc1e0abbb31a8bc/common/helpers.js#L210-L218
+final case class MarthaFailureResponse(response: MarthaFailureResponsePayload)
+final case class MarthaFailureResponsePayload(text: String)
+
 object MarthaResponseSupport {
 
   implicit lazy val urlDecoder: Decoder[Url] = deriveDecoder
@@ -99,6 +106,9 @@ object MarthaResponseSupport {
   implicit lazy val saDataObjectDecoder: Decoder[SADataObject] = deriveDecoder
   implicit lazy val marthaV2ResponseDecoder: Decoder[MarthaV2Response] = deriveDecoder
   implicit lazy val marthaResponseDecoder: Decoder[MarthaResponse] = deriveDecoder
+
+  implicit lazy val marthaFailureResponseDecoder: Decoder[MarthaFailureResponse] = deriveDecoder
+  implicit lazy val marthaFailureResponsePayloadDecoder: Decoder[MarthaFailureResponsePayload] = deriveDecoder
 
   private val GcsScheme = "gs://"
 

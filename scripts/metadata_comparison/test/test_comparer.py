@@ -66,7 +66,7 @@ class ComparerTestMethods(unittest.TestCase):
                 percent_column_indexes = [idx for idx, val in enumerate(actual[0]) if val == '% increase']
 
                 # Skip the four header rows + blank line.
-                for i in range(11, len(actual)):
+                for i in range(5, len(actual)):
                     for j in percent_column_indexes:
                         self.assertEqual(actual[i][j], "0.00%")
 

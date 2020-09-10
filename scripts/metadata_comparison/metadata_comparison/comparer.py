@@ -160,14 +160,31 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
     digester_key_names = [PapiTotalTimeSeconds, StartupTimeSeconds, DockerImagePullTimeSeconds, LocalizationTimeSeconds,
                           UserCommandTimeSeconds, DelocalizationTimeSeconds]
 
+    def disk_rate_per_second(call) -> float:
+        if Disks not in call:
+            return 0
+        else:
+            disks = call.get(Disks)
+            rates_per_month = [d.get('sizeGb') * DiskTypesCostPerGbMonth[d.get('type')] for d in disks.values()]
+            rate_per_month = sum(rates_per_month)
+            rate_per_day = rate_per_month / days_per_month
+            seconds_per_day = 24 * 60 * 60
+            rate_per_second = rate_per_day / seconds_per_day
+            return rate_per_second
+
+    def cost_format(raw) -> AnyStr:
+        return f'{raw:.5f}'
+
     def build_header_rows():
         """ Builds the header rows of the spreadsheet. Currently assumes machine types (not disks) are the same. """
 
-        top_header_row = ['job', 'Machine type', f'Machine cost {name_1}', f'Machine cost {name_2}',
-                          f'Disk cost {name_1}', f'Disk cost {name_2}', f'Total cost {name_1}', f'Total cost {name_2}']
-        percent_contrib_row = ['% contribution to total run time', '', '', '', '', '', '', '']
-        total_row = ['Total', '', '', '', '', '', '', '']
-        machine_type_weighted_row = ['Machine-type weighted total (cost-ish)', '', '', '', '', '', '', '']
+        top_header_row = ['job', 'Machine type',
+                          f'Machine cost {name_1}', f'Machine cost {name_2}', '% increase',
+                          f'Disk cost {name_1}', f'Disk cost {name_2}', '% increase',
+                          f'Total cost {name_1}', f'Total cost {name_2}', '% increase']
+        percent_contrib_row = ['% contribution to total run time', '', '', '', '', '', '', '', '', '', '']
+        total_row = ['Total', '']
+        machine_type_weighted_row = ['Machine-type weighted total (cost-ish)', '', '', '', '', '', '', '', '', '', '']
 
         def sum_call_times(j: JsonObject, key: AnyStr):
             """ Sums raw call times for a column. """
@@ -182,6 +199,39 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
             times = [j.get('calls').get(ck.full).get(key) *
                      MachineTypeCostMultiplier[j.get('calls').get(ck.full).get('machineType')] for ck in call_keys]
             return sum(times)
+
+        def sum_machine_costs(j: JsonObject):
+            total = 0
+            for ck in call_keys:
+                call = j.get('calls').get(ck.full)
+                machine = call.get(MachineType)
+                total += MachineTypesCostPerHour[machine] * call.get(PapiTotalTimeSeconds)
+            return total
+
+        _machine_cost_1, _machine_cost_2 = [
+            sum_machine_costs(j) for j in [json_1, json_2]]
+        _machine_cost_percent = (_machine_cost_2 - _machine_cost_1) * 100 / _machine_cost_1
+
+        def sum_disk_costs(j: JsonObject):
+            total = 0
+            for ck in call_keys:
+                call = j.get('calls').get(ck.full)
+                total += disk_rate_per_second(call) * call.get(PapiTotalTimeSeconds)
+            return total
+
+        _disk_cost_1, _disk_cost_2 = [
+            sum_disk_costs(j) for j in [json_1, json_2]
+        ]
+        _disk_cost_percent = (_disk_cost_2 - _disk_cost_1) * 100 / _disk_cost_1
+
+        _total_cost_1 = _machine_cost_1 + _disk_cost_1
+        _total_cost_2 = _machine_cost_2 + _disk_cost_2
+        _total_cost_percent = (_total_cost_2 - _total_cost_1) * 100 / _total_cost_1
+
+        for datum in [_machine_cost_1, _machine_cost_2, _machine_cost_percent,
+                      _disk_cost_1, _disk_cost_2, _disk_cost_percent,
+                      _total_cost_1, _total_cost_2, _total_cost_percent]:
+            total_row.append(datum)
 
         # Treat the total time specially to be able to report percentages of time for individual lifecycle phases.
         total_total_time_1, total_total_time_2 = [
@@ -218,9 +268,6 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
 
     rows = []
 
-    def cost_format(raw) -> AnyStr:
-        return f'{raw:.5f}'
-
     # Produce data for individual lifecycle phases of individual calls.
     for call_key in call_keys_sorted_without_prefix:
         row = []
@@ -239,22 +286,20 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
         machine_cost_2 = machine_rate * hours_2
         row.append(cost_format(machine_cost_2))
 
-        def disk_rate_per_second(call) -> float:
-            if Disks not in call:
-                return 0
-            else:
-                disks = call.get(Disks)
-                rates_per_month = [d.get('sizeGb') * DiskTypesCostPerGbMonth[d.get('type')] for d in disks.values()]
-                rate_per_month = sum(rates_per_month)
-                seconds_per_day = 24 * 60 * 60
-                rate_per_day = rate_per_month / days_per_month
-                rate_per_second = rate_per_day / seconds_per_day
-                return rate_per_second
+        machine_cost_percent = ((hours_2 - hours_1) * 100) / hours_1
+        row.append(f'{machine_cost_percent:.2f}%')
 
         [disk_cost_1, disk_cost_2] = [disk_rate_per_second(call) * call[PapiTotalTimeSeconds]
                                       for call in [call_1, call_2]]
 
-        for cost in [disk_cost_1, disk_cost_2, machine_cost_1 + disk_cost_1, machine_cost_2 + disk_cost_2]:
+        disk_cost_percent = ((disk_cost_2 - disk_cost_1) * 100) / disk_cost_1
+        row.append(f'{disk_cost_percent:.2f}%')
+
+        total_cost_1 = disk_cost_1 + hours_1
+        total_cost_2 = disk_cost_2 + hours_2
+        total_cost_percent = ((total_cost_2 - total_cost_1) * 100) / total_cost_1
+
+        for cost in [disk_cost_1, disk_cost_2, disk_cost_percent, total_cost_1, total_cost_2, total_cost_percent]:
             row.append(cost_format(cost))
 
         for digester_key_name in digester_key_names:

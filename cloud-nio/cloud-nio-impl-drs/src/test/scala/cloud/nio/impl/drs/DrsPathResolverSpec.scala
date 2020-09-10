@@ -4,6 +4,7 @@ import java.time.{LocalDateTime, OffsetDateTime}
 
 import cloud.nio.impl.drs.MarthaResponseSupport.convertMarthaResponseV2ToV3
 import io.circe.{Json, JsonObject}
+import org.apache.http.ProtocolVersion
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
@@ -151,4 +152,35 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with Matchers {
       decoded.response.text shouldBe "{\"msg\":\"User 'null' does not have required action: read_data\",\"status_code\":500}"
     }
   }
+
+  import org.apache.http.message.BasicStatusLine
+
+  val drsPathForDebugging = "drs://my_awesome_drs"
+  val responseStatusLine = new BasicStatusLine(new ProtocolVersion("http", 1, 2) , 345, "test-reason")
+  val testMarthaUri = "www.martha_v3.com"
+
+  it should "construct an error message from a populated, well-formed failure response" in {
+    val failureResponse = Option(failureResponseJson)
+
+    MarthaResponseSupport.errorMessageFromResponse(drsPathForDebugging, failureResponse, responseStatusLine, testMarthaUri) shouldBe {
+      "Could not access object 'drs://my_awesome_drs'. Status: 345, message: '{\"msg\":\"User 'null' does not have required action: read_data\",\"status_code\":500}', reason: 'test-reason', Martha location: 'www.martha_v3.com'"
+    }
+  }
+
+  it should "construct an error message from an empty failure response" in {
+    MarthaResponseSupport.errorMessageFromResponse(drsPathForDebugging, None, responseStatusLine, testMarthaUri) shouldBe {
+      "Could not access object 'drs://my_awesome_drs'. Status: 345, message: (empty response), reason: 'test-reason', Martha location: 'www.martha_v3.com'"
+    }
+  }
+
+  // Technically we enter this case when preparing the "error message" for a successful response, because naturally `MarthaResponse` does not deserialize to `MarthaFailureResponse`
+  // But then there's no error so we throw it away :shrug:
+  it should "construct an error message from a malformed failure response" in {
+    val unparsableFailureResponse = Option("something went horribly wrong")
+
+    MarthaResponseSupport.errorMessageFromResponse(drsPathForDebugging, unparsableFailureResponse, responseStatusLine, testMarthaUri) shouldBe {
+      "Could not access object 'drs://my_awesome_drs'. Status: 345, message: 'something went horribly wrong', reason: 'test-reason', Martha location: 'www.martha_v3.com'"
+    }
+  }
+
 }

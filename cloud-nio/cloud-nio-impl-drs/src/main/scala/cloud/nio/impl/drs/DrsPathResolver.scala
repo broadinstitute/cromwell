@@ -13,7 +13,7 @@ import org.apache.http.client.methods.HttpPost
 import org.apache.http.entity.{ContentType, StringEntity}
 import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.util.EntityUtils
-import org.apache.http.{HttpResponse, HttpStatus}
+import org.apache.http.{HttpResponse, HttpStatus, StatusLine}
 
 
 abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBuilder) {
@@ -34,11 +34,7 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClie
     val marthaResponseEntityOption = Option(httpResponse.getEntity).map(EntityUtils.toString)
     val responseStatusLine = httpResponse.getStatusLine
 
-//    val exceptionMsg = s"Unexpected response resolving DRS path through Martha url ${drsConfig.marthaUri}. Error: ${responseStatusLine.getStatusCode} ${responseStatusLine.getReasonPhrase}."
-
-    decode[MarthaFailureResponse]("A")
-
-    val exceptionMsg = s"Could not access object \'$drsPathForDebugging\'. Status: ${responseStatusLine.getStatusCode}, message: \'${}\', Martha location: \'${drsConfig.marthaUri}."
+    val exceptionMsg: String = errorMessageFromResponse(drsPathForDebugging, marthaResponseEntityOption, responseStatusLine, drsConfig.marthaUri)
     val responseEntityOption: Option[String] = (responseStatusLine.getStatusCode == HttpStatus.SC_OK).valueOrZero(marthaResponseEntityOption)
     val responseContentIO = toIO(responseEntityOption, exceptionMsg)
 
@@ -143,4 +139,21 @@ object MarthaResponseSupport {
       hashes = hashesMap
     )
   }
+
+  def errorMessageFromResponse(drsPathForDebugging: String, marthaResponseEntityOption: Option[String], responseStatusLine: StatusLine, marthaUri: String): String =
+    marthaResponseEntityOption match {
+      case Some(entity) =>
+        val maybeErrorResponse: Either[Error, MarthaFailureResponse] = decode[MarthaFailureResponse](entity)
+        maybeErrorResponse match {
+          case Left(_) =>
+            // Not parsable as a `MarthaFailureResponse`
+            s"Could not access object \'$drsPathForDebugging\'. Status: ${responseStatusLine.getStatusCode}, message: \'$entity\', reason: \'${responseStatusLine.getReasonPhrase}\', Martha location: \'$marthaUri\'"
+          case Right(decoded) =>
+            // Is a `MarthaFailureResponse`
+            s"Could not access object \'$drsPathForDebugging\'. Status: ${responseStatusLine.getStatusCode}, message: \'${decoded.response.text}\', reason: \'${responseStatusLine.getReasonPhrase}\', Martha location: \'$marthaUri\'"
+        }
+      case None =>
+        // No entity in HTTP response
+        s"Could not access object \'$drsPathForDebugging\'. Status: ${responseStatusLine.getStatusCode}, message: (empty response), reason: \'${responseStatusLine.getReasonPhrase}\', Martha location: \'$marthaUri\'"
+    }
 }

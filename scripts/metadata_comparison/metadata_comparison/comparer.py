@@ -205,7 +205,7 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
             for ck in call_keys:
                 call = j.get('calls').get(ck.full)
                 machine = call.get(MachineType)
-                total += MachineTypesCostPerHour[machine] * call.get(PapiTotalTimeSeconds)
+                total += (MachineTypesCostPerHour[machine] / (60.0 * 60.0)) * call.get(PapiTotalTimeSeconds)
             return total
 
         _machine_cost_1, _machine_cost_2 = [
@@ -228,9 +228,9 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
         _total_cost_2 = _machine_cost_2 + _disk_cost_2
         _total_cost_percent = (_total_cost_2 - _total_cost_1) * 100 / _total_cost_1
 
-        for datum in [_machine_cost_1, _machine_cost_2, f'{_machine_cost_percent:.2f}',
-                      _disk_cost_1, _disk_cost_2, f'{_disk_cost_percent:.2f}',
-                      _total_cost_1, _total_cost_2, f'{_total_cost_percent:.2f}']:
+        for datum in [cost_format(_machine_cost_1), cost_format(_machine_cost_2), f'{_machine_cost_percent:.2f}%',
+                      cost_format(_disk_cost_1), cost_format(_disk_cost_2), f'{_disk_cost_percent:.2f}%',
+                      cost_format(_total_cost_1), cost_format(_total_cost_2), f'{_total_cost_percent:.2f}%']:
             total_row.append(datum)
 
         # Treat the total time specially to be able to report percentages of time for individual lifecycle phases.
@@ -384,8 +384,11 @@ def json_from_path_string(path_string: AnyStr) -> JsonObject:
 
 
 def csv_string_from_data(data: List[List[AnyStr]]) -> AnyStr:
-    rows = [','.join(row) for row in data]
-    return '\n'.join(rows)
+    try:
+        rows = [','.join(row) for row in data]
+        return '\n'.join(rows)
+    except TypeError as crap:
+        print(f'Aw crap: {crap}')
 
 
 if __name__ == "__main__":

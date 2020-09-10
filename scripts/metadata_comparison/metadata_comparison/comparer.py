@@ -228,9 +228,9 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
         _total_cost_2 = _machine_cost_2 + _disk_cost_2
         _total_cost_percent = (_total_cost_2 - _total_cost_1) * 100 / _total_cost_1
 
-        for datum in [_machine_cost_1, _machine_cost_2, _machine_cost_percent,
-                      _disk_cost_1, _disk_cost_2, _disk_cost_percent,
-                      _total_cost_1, _total_cost_2, _total_cost_percent]:
+        for datum in [_machine_cost_1, _machine_cost_2, f'{_machine_cost_percent:.2f}',
+                      _disk_cost_1, _disk_cost_2, f'{_disk_cost_percent:.2f}',
+                      _total_cost_1, _total_cost_2, f'{_total_cost_percent:.2f}']:
             total_row.append(datum)
 
         # Treat the total time specially to be able to report percentages of time for individual lifecycle phases.

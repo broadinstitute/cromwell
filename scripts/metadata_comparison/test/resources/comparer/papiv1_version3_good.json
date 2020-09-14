@@ -1,0 +1,4262 @@
+{
+  "calls": {
+    "ExomeGermlineSingleSample.AggregatedBamQC.CalculateReadGroupChecksum": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 59.89,
+      "cromwellEnd": "2020-08-27T02:11:05.647Z",
+      "cromwellStart": "2020-08-27T02:06:24.757Z",
+      "cromwellTotalTimeSeconds": 280.89,
+      "delocalizationTimeSeconds": 5.263831,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 77.503782,
+      "localizationTimeSeconds": 90.105283,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/ELS3qu3CLhiw7aPz6uvYzMMBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:06:29Z",
+      "papiEnd": "2020-08-27T02:10:10Z",
+      "papiStart": "2020-08-27T02:06:41Z",
+      "papiTotalTimeSeconds": 221,
+      "shardIndex": -1,
+      "startupTimeSeconds": 35.725128,
+      "userCommandTimeSeconds": 12.960028
+    },
+    "ExomeGermlineSingleSample.AggregatedBamQC.CheckFingerprint": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 63.154,
+      "cromwellEnd": "2020-08-27T02:11:20.952Z",
+      "cromwellStart": "2020-08-27T02:06:26.798Z",
+      "cromwellTotalTimeSeconds": 294.154,
+      "delocalizationTimeSeconds": 6.734145,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 74.908787,
+      "localizationTimeSeconds": 90.522725,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EL23qu3CLhjIpLGU-tym4LgBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0.12806000000000495,
+      "papiCreate": "2020-08-27T02:06:29Z",
+      "papiEnd": "2020-08-27T02:10:20Z",
+      "papiStart": "2020-08-27T02:06:41Z",
+      "papiTotalTimeSeconds": 231,
+      "shardIndex": -1,
+      "startupTimeSeconds": 37.040212,
+      "userCommandTimeSeconds": 21.666071
+    },
+    "ExomeGermlineSingleSample.AggregatedBamQC.CollectAggregationMetrics": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 85.783,
+      "cromwellEnd": "2020-08-27T02:43:18.541Z",
+      "cromwellStart": "2020-08-27T02:06:24.758Z",
+      "cromwellTotalTimeSeconds": 2213.783,
+      "delocalizationTimeSeconds": 20.944902,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 30,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 77.376934,
+      "localizationTimeSeconds": 160.36211,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EI-qq-3CLhiXpdqTxYjI8fIBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:06:44Z",
+      "papiEnd": "2020-08-27T02:42:12Z",
+      "papiStart": "2020-08-27T02:06:55Z",
+      "papiTotalTimeSeconds": 2128,
+      "shardIndex": -1,
+      "startupTimeSeconds": 33.47004,
+      "userCommandTimeSeconds": 1835.969688
+    },
+    "ExomeGermlineSingleSample.AggregatedBamQC.CollectReadgroupBamQualityMetrics": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 122.578,
+      "cromwellEnd": "2020-08-27T02:26:59.335Z",
+      "cromwellStart": "2020-08-27T02:06:24.757Z",
+      "cromwellTotalTimeSeconds": 1234.578,
+      "delocalizationTimeSeconds": 9.120721,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 30,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 62.578771,
+      "localizationTimeSeconds": 102.652496,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EJmqq-3CLhjD28Kez5_n42Ygy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:06:44Z",
+      "papiEnd": "2020-08-27T02:25:16Z",
+      "papiStart": "2020-08-27T02:06:56Z",
+      "papiTotalTimeSeconds": 1112,
+      "shardIndex": -1,
+      "startupTimeSeconds": 28.817538,
+      "userCommandTimeSeconds": 909.435481
+    },
+    "ExomeGermlineSingleSample.BamToCram.CheckPreValidation": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 15.219,
+      "cromwellEnd": "2020-08-27T02:44:58.496Z",
+      "cromwellStart": "2020-08-27T02:43:25.277Z",
+      "cromwellTotalTimeSeconds": 93.219,
+      "delocalizationTimeSeconds": 6.490509,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 10,
+          "type": "SSD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 33.789857,
+      "localizationTimeSeconds": 3.236315,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EO3ese7CLhjcjMDu74S5xhQgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:43:26Z",
+      "papiEnd": "2020-08-27T02:44:44Z",
+      "papiStart": "2020-08-27T02:43:38Z",
+      "papiTotalTimeSeconds": 78,
+      "shardIndex": -1,
+      "startupTimeSeconds": 32.087328,
+      "userCommandTimeSeconds": 3.006526
+    },
+    "ExomeGermlineSingleSample.BamToCram.ConvertToCram": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 116.03,
+      "cromwellEnd": "2020-08-27T03:00:57.288Z",
+      "cromwellStart": "2020-08-27T02:43:24.258Z",
+      "cromwellTotalTimeSeconds": 1053.03,
+      "delocalizationTimeSeconds": 28.490577,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 77.348979,
+      "localizationTimeSeconds": 132.151219,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EOC7su7CLhi2qJzbrt-Ik3Mgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:43:38Z",
+      "papiEnd": "2020-08-27T02:59:15Z",
+      "papiStart": "2020-08-27T02:43:51Z",
+      "papiTotalTimeSeconds": 937,
+      "shardIndex": -1,
+      "startupTimeSeconds": 38.089795,
+      "userCommandTimeSeconds": 661.073202
+    },
+    "ExomeGermlineSingleSample.BamToCram.ValidateCram": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 49.758,
+      "cromwellEnd": "2020-08-27T03:16:36.696Z",
+      "cromwellStart": "2020-08-27T03:00:58.938Z",
+      "cromwellTotalTimeSeconds": 937.758,
+      "delocalizationTimeSeconds": 5.885186,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 65.58507,
+      "localizationTimeSeconds": 85.022395,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EMiQ8-7CLhjE2fil6uXwwkggy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T03:01:18Z",
+      "papiEnd": "2020-08-27T03:16:06Z",
+      "papiStart": "2020-08-27T03:01:28Z",
+      "papiTotalTimeSeconds": 888,
+      "shardIndex": -1,
+      "startupTimeSeconds": 32.064348,
+      "userCommandTimeSeconds": 699.559169
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.CollectVariantCallingMetrics": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 100.155,
+      "cromwellEnd": "2020-08-27T02:41:42.656Z",
+      "cromwellStart": "2020-08-27T02:31:42.501Z",
+      "cromwellTotalTimeSeconds": 600.155,
+      "delocalizationTimeSeconds": 7.018528,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 31,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 72.952474,
+      "localizationTimeSeconds": 158.626171,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EKChh-7CLhiq1eGO-4mgjv4BIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:31:50Z",
+      "papiEnd": "2020-08-27T02:40:10Z",
+      "papiStart": "2020-08-27T02:32:01Z",
+      "papiTotalTimeSeconds": 500,
+      "shardIndex": -1,
+      "startupTimeSeconds": 36.197605,
+      "userCommandTimeSeconds": 225.814592
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0000": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 97.81,
+      "cromwellEnd": "2020-08-27T02:20:03.174Z",
+      "cromwellStart": "2020-08-27T02:08:46.364Z",
+      "cromwellTotalTimeSeconds": 676.81,
+      "delocalizationTimeSeconds": 7.973895,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 91.581067,
+      "localizationTimeSeconds": 53.998492,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EJT8s-3CLhi_yY-Vu46D3_UBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:06Z",
+      "papiEnd": "2020-08-27T02:18:45Z",
+      "papiStart": "2020-08-27T02:09:26Z",
+      "papiTotalTimeSeconds": 579,
+      "shardIndex": 0,
+      "startupTimeSeconds": 46.181412,
+      "userCommandTimeSeconds": 379.509998
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0001": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 111.752,
+      "cromwellEnd": "2020-08-27T02:17:27.119Z",
+      "cromwellStart": "2020-08-27T02:08:46.367Z",
+      "cromwellTotalTimeSeconds": 520.752,
+      "delocalizationTimeSeconds": 7.527207,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 87.029058,
+      "localizationTimeSeconds": 38.270359,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EJX8s-3CLhifmOekgM_j6IQBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:06Z",
+      "papiEnd": "2020-08-27T02:15:55Z",
+      "papiStart": "2020-08-27T02:09:27Z",
+      "papiTotalTimeSeconds": 409,
+      "shardIndex": 1,
+      "startupTimeSeconds": 44.674949,
+      "userCommandTimeSeconds": 231.894275
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0002": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 42.914,
+      "cromwellEnd": "2020-08-27T02:19:17.275Z",
+      "cromwellStart": "2020-08-27T02:08:46.361Z",
+      "cromwellTotalTimeSeconds": 630.914,
+      "delocalizationTimeSeconds": 7.606247,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 87.395734,
+      "localizationTimeSeconds": 48.58352,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EOX2s-3CLhjzwOb8wcGksjUgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0.03218499999991309,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:18:53Z",
+      "papiStart": "2020-08-27T02:09:23Z",
+      "papiTotalTimeSeconds": 588,
+      "shardIndex": 2,
+      "startupTimeSeconds": 43.490499,
+      "userCommandTimeSeconds": 400.891815
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0003": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 141.45,
+      "cromwellEnd": "2020-08-27T02:18:02.815Z",
+      "cromwellStart": "2020-08-27T02:08:46.365Z",
+      "cromwellTotalTimeSeconds": 556.45,
+      "delocalizationTimeSeconds": 8.028703,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 91.56009,
+      "localizationTimeSeconds": 56.390954,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EIP8s-3CLhikn7-rgYfB090BIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0.22741200000001527,
+      "papiCreate": "2020-08-27T02:09:06Z",
+      "papiEnd": "2020-08-27T02:16:01Z",
+      "papiStart": "2020-08-27T02:09:25Z",
+      "papiTotalTimeSeconds": 415,
+      "shardIndex": 3,
+      "startupTimeSeconds": 44.666352,
+      "userCommandTimeSeconds": 214.126489
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0004": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 130.733,
+      "cromwellEnd": "2020-08-27T02:19:08.099Z",
+      "cromwellStart": "2020-08-27T02:08:46.366Z",
+      "cromwellTotalTimeSeconds": 621.733,
+      "delocalizationTimeSeconds": 8.068574,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 88.670158,
+      "localizationTimeSeconds": 46.791637,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EPv7s-3CLhjI6M3M3emP-sEBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0.055803999999966436,
+      "papiCreate": "2020-08-27T02:09:06Z",
+      "papiEnd": "2020-08-27T02:17:17Z",
+      "papiStart": "2020-08-27T02:09:25Z",
+      "papiTotalTimeSeconds": 491,
+      "shardIndex": 4,
+      "startupTimeSeconds": 41.082794,
+      "userCommandTimeSeconds": 306.331033
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0005": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 39.686,
+      "cromwellEnd": "2020-08-27T02:16:32.050Z",
+      "cromwellStart": "2020-08-27T02:08:46.364Z",
+      "cromwellTotalTimeSeconds": 465.686,
+      "delocalizationTimeSeconds": 8.09143,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 92.8674,
+      "localizationTimeSeconds": 54.163475,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/ENL2s-3CLhj5-6_VysfOrZwBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:16:11Z",
+      "papiStart": "2020-08-27T02:09:24Z",
+      "papiTotalTimeSeconds": 426,
+      "shardIndex": 5,
+      "startupTimeSeconds": 42.095667,
+      "userCommandTimeSeconds": 229.520462
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0006": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 51.949,
+      "cromwellEnd": "2020-08-27T02:17:37.315Z",
+      "cromwellStart": "2020-08-27T02:08:46.366Z",
+      "cromwellTotalTimeSeconds": 530.949,
+      "delocalizationTimeSeconds": 8.254949,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 91.491071,
+      "localizationTimeSeconds": 54.920558,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/ENz2s-3CLhiyssnd3o2lxKMBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:17:04Z",
+      "papiStart": "2020-08-27T02:09:23Z",
+      "papiTotalTimeSeconds": 479,
+      "shardIndex": 6,
+      "startupTimeSeconds": 36.640905,
+      "userCommandTimeSeconds": 288.258339
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0007": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 137.291,
+      "cromwellEnd": "2020-08-27T02:21:18.657Z",
+      "cromwellStart": "2020-08-27T02:08:46.366Z",
+      "cromwellTotalTimeSeconds": 752.291,
+      "delocalizationTimeSeconds": 8.044213,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 87.807459,
+      "localizationTimeSeconds": 53.473349,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EO32s-3CLhit5_as7fHmtGQgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:19:20Z",
+      "papiStart": "2020-08-27T02:09:21Z",
+      "papiTotalTimeSeconds": 615,
+      "shardIndex": 7,
+      "startupTimeSeconds": 37.774638,
+      "userCommandTimeSeconds": 428.459428
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0008": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 44.899,
+      "cromwellEnd": "2020-08-27T02:15:52.264Z",
+      "cromwellStart": "2020-08-27T02:08:46.365Z",
+      "cromwellTotalTimeSeconds": 425.899,
+      "delocalizationTimeSeconds": 7.98881,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 88.188912,
+      "localizationTimeSeconds": 36.924742,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/ENv2s-3CLhj58r-x8_u43kwgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:15:26Z",
+      "papiStart": "2020-08-27T02:09:22Z",
+      "papiTotalTimeSeconds": 381,
+      "shardIndex": 8,
+      "startupTimeSeconds": 38.590933,
+      "userCommandTimeSeconds": 209.4627
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0009": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 55.759,
+      "cromwellEnd": "2020-08-27T02:17:27.119Z",
+      "cromwellStart": "2020-08-27T02:08:46.360Z",
+      "cromwellTotalTimeSeconds": 520.759,
+      "delocalizationTimeSeconds": 8.499701,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 94.11266,
+      "localizationTimeSeconds": 58.76532,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EOr2s-3CLhjtotW94cmrxf8BIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:16:50Z",
+      "papiStart": "2020-08-27T02:09:22Z",
+      "papiTotalTimeSeconds": 465,
+      "shardIndex": 9,
+      "startupTimeSeconds": 39.664707,
+      "userCommandTimeSeconds": 264.167808
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0010": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 100.09,
+      "cromwellEnd": "2020-08-27T02:20:17.453Z",
+      "cromwellStart": "2020-08-27T02:08:46.363Z",
+      "cromwellTotalTimeSeconds": 691.09,
+      "delocalizationTimeSeconds": 8.262932,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 93.67441,
+      "localizationTimeSeconds": 56.680095,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EMr2s-3CLhjBha75qs_Fn7wBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:18:56Z",
+      "papiStart": "2020-08-27T02:09:22Z",
+      "papiTotalTimeSeconds": 591,
+      "shardIndex": 10,
+      "startupTimeSeconds": 37.676068,
+      "userCommandTimeSeconds": 395.229235
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0011": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 53.934,
+      "cromwellEnd": "2020-08-27T02:18:27.296Z",
+      "cromwellStart": "2020-08-27T02:08:46.362Z",
+      "cromwellTotalTimeSeconds": 580.934,
+      "delocalizationTimeSeconds": 7.813829,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 88.27455,
+      "localizationTimeSeconds": 48.49589,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EM_2s-3CLhjEvrmAq9qs5D8gy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:17:52Z",
+      "papiStart": "2020-08-27T02:09:24Z",
+      "papiTotalTimeSeconds": 527,
+      "shardIndex": 11,
+      "startupTimeSeconds": 43.478791,
+      "userCommandTimeSeconds": 339.270224
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0012": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 80.733,
+      "cromwellEnd": "2020-08-27T02:19:08.099Z",
+      "cromwellStart": "2020-08-27T02:08:46.366Z",
+      "cromwellTotalTimeSeconds": 621.733,
+      "delocalizationTimeSeconds": 8.749005,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 96.300059,
+      "localizationTimeSeconds": 56.502234,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/ENz2s-3CLhi1j-nosu2uhXUgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:18:06Z",
+      "papiStart": "2020-08-27T02:09:22Z",
+      "papiTotalTimeSeconds": 541,
+      "shardIndex": 12,
+      "startupTimeSeconds": 38.628484,
+      "userCommandTimeSeconds": 341.437595
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0013": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 92.986,
+      "cromwellEnd": "2020-08-27T02:16:47.347Z",
+      "cromwellStart": "2020-08-27T02:08:46.361Z",
+      "cromwellTotalTimeSeconds": 480.986,
+      "delocalizationTimeSeconds": 7.947115,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 87.137794,
+      "localizationTimeSeconds": 47.489636,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EMf2s-3CLhji2O_yzKDz1QIgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0.11844500000000835,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:15:33Z",
+      "papiStart": "2020-08-27T02:09:21Z",
+      "papiTotalTimeSeconds": 388,
+      "shardIndex": 13,
+      "startupTimeSeconds": 37.972403,
+      "userCommandTimeSeconds": 207.334607
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0014": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 49.759,
+      "cromwellEnd": "2020-08-27T02:17:27.120Z",
+      "cromwellStart": "2020-08-27T02:08:46.361Z",
+      "cromwellTotalTimeSeconds": 520.759,
+      "delocalizationTimeSeconds": 7.983907,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 85.606663,
+      "localizationTimeSeconds": 42.358391,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EM72s-3CLhjo15TM1KOF8Hggy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:16:56Z",
+      "papiStart": "2020-08-27T02:09:22Z",
+      "papiTotalTimeSeconds": 471,
+      "shardIndex": 14,
+      "startupTimeSeconds": 39.247267,
+      "userCommandTimeSeconds": 295.99177
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0015": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 78.531,
+      "cromwellEnd": "2020-08-27T02:18:06.895Z",
+      "cromwellStart": "2020-08-27T02:08:46.364Z",
+      "cromwellTotalTimeSeconds": 560.531,
+      "delocalizationTimeSeconds": 7.776324,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 87.786973,
+      "localizationTimeSeconds": 45.778633,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EIn3s-3CLhin7NLRz-r_xs0BIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:17:07Z",
+      "papiStart": "2020-08-27T02:09:26Z",
+      "papiTotalTimeSeconds": 482,
+      "shardIndex": 15,
+      "startupTimeSeconds": 44.417313,
+      "userCommandTimeSeconds": 296.477752
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0016": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 188.293,
+      "cromwellEnd": "2020-08-27T02:21:18.657Z",
+      "cromwellStart": "2020-08-27T02:08:46.364Z",
+      "cromwellTotalTimeSeconds": 752.293,
+      "delocalizationTimeSeconds": 8.358598,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 95.084915,
+      "localizationTimeSeconds": 47.107688,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EN32s-3CLhjQwqv4jfvPgD8gy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:18:29Z",
+      "papiStart": "2020-08-27T02:09:21Z",
+      "papiTotalTimeSeconds": 564,
+      "shardIndex": 16,
+      "startupTimeSeconds": 38.594328,
+      "userCommandTimeSeconds": 375.434872
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0017": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 122.31,
+      "cromwellEnd": "2020-08-27T02:19:37.673Z",
+      "cromwellStart": "2020-08-27T02:08:46.363Z",
+      "cromwellTotalTimeSeconds": 651.31,
+      "delocalizationTimeSeconds": 9.047859,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.056513,
+      "localizationTimeSeconds": 61.362237,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EIH3s-3CLhiXgpfl96awv2cgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:17:54Z",
+      "papiStart": "2020-08-27T02:09:24Z",
+      "papiTotalTimeSeconds": 529,
+      "shardIndex": 17,
+      "startupTimeSeconds": 44.482915,
+      "userCommandTimeSeconds": 317.062144
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0018": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 47.706,
+      "cromwellEnd": "2020-08-27T02:19:58.072Z",
+      "cromwellStart": "2020-08-27T02:08:46.366Z",
+      "cromwellTotalTimeSeconds": 671.706,
+      "delocalizationTimeSeconds": 7.981728,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 87.882921,
+      "localizationTimeSeconds": 48.215232,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/ELL8s-3CLhiVpf_vrqfa1z0gy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:06Z",
+      "papiEnd": "2020-08-27T02:19:30Z",
+      "papiStart": "2020-08-27T02:09:26Z",
+      "papiTotalTimeSeconds": 624,
+      "shardIndex": 18,
+      "startupTimeSeconds": 41.08114,
+      "userCommandTimeSeconds": 439.113661
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0019": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 36.549,
+      "cromwellEnd": "2020-08-27T02:17:16.915Z",
+      "cromwellStart": "2020-08-27T02:08:46.366Z",
+      "cromwellTotalTimeSeconds": 510.549,
+      "delocalizationTimeSeconds": 7.640423,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 86.179507,
+      "localizationTimeSeconds": 47.979999,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/ENH3s-3CLhjI_9eB0rz37mMgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:16:59Z",
+      "papiStart": "2020-08-27T02:09:25Z",
+      "papiTotalTimeSeconds": 474,
+      "shardIndex": 19,
+      "startupTimeSeconds": 45.255574,
+      "userCommandTimeSeconds": 287.58688
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0020": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 53.452,
+      "cromwellEnd": "2020-08-27T02:17:11.815Z",
+      "cromwellStart": "2020-08-27T02:08:46.363Z",
+      "cromwellTotalTimeSeconds": 505.452,
+      "delocalizationTimeSeconds": 8.007721,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 87.808777,
+      "localizationTimeSeconds": 48.529835,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EM_2s-3CLhjiva_7sJ-xlR8gy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:16:37Z",
+      "papiStart": "2020-08-27T02:09:23Z",
+      "papiTotalTimeSeconds": 452,
+      "shardIndex": 20,
+      "startupTimeSeconds": 41.687378,
+      "userCommandTimeSeconds": 266.450122
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0021": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 46.358,
+      "cromwellEnd": "2020-08-27T02:17:06.719Z",
+      "cromwellStart": "2020-08-27T02:08:46.361Z",
+      "cromwellTotalTimeSeconds": 500.358,
+      "delocalizationTimeSeconds": 8.960209,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 91.237632,
+      "localizationTimeSeconds": 55.35196,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EPb7s-3CLhiOoauyne6U0nggy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:06Z",
+      "papiEnd": "2020-08-27T02:16:40Z",
+      "papiStart": "2020-08-27T02:09:27Z",
+      "papiTotalTimeSeconds": 454,
+      "shardIndex": 21,
+      "startupTimeSeconds": 43.751947,
+      "userCommandTimeSeconds": 254.743794
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0022": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 101.634,
+      "cromwellEnd": "2020-08-27T02:19:02.998Z",
+      "cromwellStart": "2020-08-27T02:08:46.364Z",
+      "cromwellTotalTimeSeconds": 616.634,
+      "delocalizationTimeSeconds": 8.360015,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 93.033146,
+      "localizationTimeSeconds": 55.617852,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/ENL2s-3CLhjOgvuRjOumqUogy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:17:40Z",
+      "papiStart": "2020-08-27T02:09:22Z",
+      "papiTotalTimeSeconds": 515,
+      "shardIndex": 22,
+      "startupTimeSeconds": 38.798386,
+      "userCommandTimeSeconds": 319.631566
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0023": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 86.635,
+      "cromwellEnd": "2020-08-27T02:18:11.998Z",
+      "cromwellStart": "2020-08-27T02:08:46.363Z",
+      "cromwellTotalTimeSeconds": 565.635,
+      "delocalizationTimeSeconds": 7.719342,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 87.668611,
+      "localizationTimeSeconds": 53.314941,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EN32s-3CLhiixf6AtNiK7YwBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0.09912900000000491,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:17:04Z",
+      "papiStart": "2020-08-27T02:09:22Z",
+      "papiTotalTimeSeconds": 479,
+      "shardIndex": 23,
+      "startupTimeSeconds": 38.733081,
+      "userCommandTimeSeconds": 291.464896
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0024": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 51.883,
+      "cromwellEnd": "2020-08-27T02:16:42.245Z",
+      "cromwellStart": "2020-08-27T02:08:46.362Z",
+      "cromwellTotalTimeSeconds": 475.883,
+      "delocalizationTimeSeconds": 8.15787,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 94.167581,
+      "localizationTimeSeconds": 54.9582,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EMv2s-3CLhjnxKD2ze-0mQIgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:16:09Z",
+      "papiStart": "2020-08-27T02:09:22Z",
+      "papiTotalTimeSeconds": 424,
+      "shardIndex": 24,
+      "startupTimeSeconds": 40.633337,
+      "userCommandTimeSeconds": 226.296546
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0025": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 58.588,
+      "cromwellEnd": "2020-08-27T02:16:26.950Z",
+      "cromwellStart": "2020-08-27T02:08:46.362Z",
+      "cromwellTotalTimeSeconds": 460.588,
+      "delocalizationTimeSeconds": 7.634753,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 86.729953,
+      "localizationTimeSeconds": 47.537566,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EO72s-3CLhjCm9H_uL7W664BIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:15:47Z",
+      "papiStart": "2020-08-27T02:09:24Z",
+      "papiTotalTimeSeconds": 402,
+      "shardIndex": 25,
+      "startupTimeSeconds": 43.516608,
+      "userCommandTimeSeconds": 217.093099
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0026": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 67.952,
+      "cromwellEnd": "2020-08-27T02:17:37.315Z",
+      "cromwellStart": "2020-08-27T02:08:46.363Z",
+      "cromwellTotalTimeSeconds": 530.952,
+      "delocalizationTimeSeconds": 7.599553,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 84.873985,
+      "localizationTimeSeconds": 40.981317,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EPX7s-3CLhiQyrSn1JzJmD8gy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:06Z",
+      "papiEnd": "2020-08-27T02:16:49Z",
+      "papiStart": "2020-08-27T02:09:27Z",
+      "papiTotalTimeSeconds": 463,
+      "shardIndex": 26,
+      "startupTimeSeconds": 42.021914,
+      "userCommandTimeSeconds": 287.624634
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0027": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 103.213,
+      "cromwellEnd": "2020-08-27T02:19:32.574Z",
+      "cromwellStart": "2020-08-27T02:08:46.361Z",
+      "cromwellTotalTimeSeconds": 646.213,
+      "delocalizationTimeSeconds": 8.50531,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 93.956242,
+      "localizationTimeSeconds": 55.240041,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/ENH2s-3CLhiIgaaj7vH0gBYgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:18:08Z",
+      "papiStart": "2020-08-27T02:09:19Z",
+      "papiTotalTimeSeconds": 543,
+      "shardIndex": 27,
+      "startupTimeSeconds": 35.66388,
+      "userCommandTimeSeconds": 350.187011
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0028": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 22.984,
+      "cromwellEnd": "2020-08-27T02:16:47.346Z",
+      "cromwellStart": "2020-08-27T02:08:46.362Z",
+      "cromwellTotalTimeSeconds": 480.984,
+      "delocalizationTimeSeconds": 8.030704,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 89.991302,
+      "localizationTimeSeconds": 46.338033,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EID8s-3CLhiQ3LuDzIK_uWUgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:06Z",
+      "papiEnd": "2020-08-27T02:16:44Z",
+      "papiStart": "2020-08-27T02:09:27Z",
+      "papiTotalTimeSeconds": 458,
+      "shardIndex": 28,
+      "startupTimeSeconds": 45.620173,
+      "userCommandTimeSeconds": 268.700779
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0029": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 211.292,
+      "cromwellEnd": "2020-08-27T02:21:18.657Z",
+      "cromwellStart": "2020-08-27T02:08:46.365Z",
+      "cromwellTotalTimeSeconds": 752.292,
+      "delocalizationTimeSeconds": 8.01555,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 92.467987,
+      "localizationTimeSeconds": 55.637996,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/ENb8s-3CLhiIysDW_eDDm34gy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:06Z",
+      "papiEnd": "2020-08-27T02:18:07Z",
+      "papiStart": "2020-08-27T02:09:28Z",
+      "papiTotalTimeSeconds": 541,
+      "shardIndex": 29,
+      "startupTimeSeconds": 44.186147,
+      "userCommandTimeSeconds": 341.245516
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0030": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 43.953,
+      "cromwellEnd": "2020-08-27T02:17:37.315Z",
+      "cromwellStart": "2020-08-27T02:08:46.362Z",
+      "cromwellTotalTimeSeconds": 530.953,
+      "delocalizationTimeSeconds": 8.109029,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 92.121398,
+      "localizationTimeSeconds": 54.687256,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EIv8s-3CLhjl-IqZ2KWspdEBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0.36624599999998964,
+      "papiCreate": "2020-08-27T02:09:06Z",
+      "papiEnd": "2020-08-27T02:17:13Z",
+      "papiStart": "2020-08-27T02:09:22Z",
+      "papiTotalTimeSeconds": 487,
+      "shardIndex": 30,
+      "startupTimeSeconds": 37.394446,
+      "userCommandTimeSeconds": 294.321625
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0031": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 123.511,
+      "cromwellEnd": "2020-08-27T02:19:47.873Z",
+      "cromwellStart": "2020-08-27T02:08:46.362Z",
+      "cromwellTotalTimeSeconds": 661.511,
+      "delocalizationTimeSeconds": 7.700837,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 88.215772,
+      "localizationTimeSeconds": 46.5464,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EPX7s-3CLhjrhZLkhrOc7CIgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0.10172099999999773,
+      "papiCreate": "2020-08-27T02:09:06Z",
+      "papiEnd": "2020-08-27T02:18:04Z",
+      "papiStart": "2020-08-27T02:09:25Z",
+      "papiTotalTimeSeconds": 538,
+      "shardIndex": 31,
+      "startupTimeSeconds": 43.381088,
+      "userCommandTimeSeconds": 352.054182
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0032": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 42.455,
+      "cromwellEnd": "2020-08-27T02:17:11.816Z",
+      "cromwellStart": "2020-08-27T02:08:46.361Z",
+      "cromwellTotalTimeSeconds": 505.455,
+      "delocalizationTimeSeconds": 7.822383,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 87.025506,
+      "localizationTimeSeconds": 39.934301,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EIf3s-3CLhioofL16sjoyugBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0.010832999999990989,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:16:48Z",
+      "papiStart": "2020-08-27T02:09:24Z",
+      "papiTotalTimeSeconds": 463,
+      "shardIndex": 32,
+      "startupTimeSeconds": 41.569343,
+      "userCommandTimeSeconds": 286.637634
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0033": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 110.911,
+      "cromwellEnd": "2020-08-27T02:19:17.275Z",
+      "cromwellStart": "2020-08-27T02:08:46.364Z",
+      "cromwellTotalTimeSeconds": 630.911,
+      "delocalizationTimeSeconds": 7.885955,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 88.283762,
+      "localizationTimeSeconds": 48.120875,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EKn8s-3CLhib-aTT_seaus0BIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:06Z",
+      "papiEnd": "2020-08-27T02:17:46Z",
+      "papiStart": "2020-08-27T02:09:28Z",
+      "papiTotalTimeSeconds": 520,
+      "shardIndex": 33,
+      "startupTimeSeconds": 40.542514,
+      "userCommandTimeSeconds": 335.252166
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0034": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 90.734,
+      "cromwellEnd": "2020-08-27T02:18:17.097Z",
+      "cromwellStart": "2020-08-27T02:08:46.363Z",
+      "cromwellTotalTimeSeconds": 570.734,
+      "delocalizationTimeSeconds": 7.958255,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 89.074348,
+      "localizationTimeSeconds": 52.982132,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EOD2s-3CLhim6MySvaTp_IYBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:17:05Z",
+      "papiStart": "2020-08-27T02:09:22Z",
+      "papiTotalTimeSeconds": 480,
+      "shardIndex": 34,
+      "startupTimeSeconds": 38.795536,
+      "userCommandTimeSeconds": 291.791154
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0035": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 120.413,
+      "cromwellEnd": "2020-08-27T02:19:42.774Z",
+      "cromwellStart": "2020-08-27T02:08:46.361Z",
+      "cromwellTotalTimeSeconds": 656.413,
+      "delocalizationTimeSeconds": 9.38734,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 107.767434,
+      "localizationTimeSeconds": 65.902662,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EKP3s-3CLhiqiaXg0vqY6yogy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:18:01Z",
+      "papiStart": "2020-08-27T02:09:23Z",
+      "papiTotalTimeSeconds": 536,
+      "shardIndex": 35,
+      "startupTimeSeconds": 39.911397,
+      "userCommandTimeSeconds": 313.172738
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0036": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 99.132,
+      "cromwellEnd": "2020-08-27T02:18:37.498Z",
+      "cromwellStart": "2020-08-27T02:08:46.366Z",
+      "cromwellTotalTimeSeconds": 591.132,
+      "delocalizationTimeSeconds": 7.980722,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 91.654444,
+      "localizationTimeSeconds": 55.448111,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/ELj8s-3CLhiL9oHGvKeEqdEBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:06Z",
+      "papiEnd": "2020-08-27T02:17:18Z",
+      "papiStart": "2020-08-27T02:09:25Z",
+      "papiTotalTimeSeconds": 492,
+      "shardIndex": 36,
+      "startupTimeSeconds": 40.979895,
+      "userCommandTimeSeconds": 296.366322
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0037": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 22.354,
+      "cromwellEnd": "2020-08-27T02:17:06.719Z",
+      "cromwellStart": "2020-08-27T02:08:46.365Z",
+      "cromwellTotalTimeSeconds": 500.354,
+      "delocalizationTimeSeconds": 7.698489,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 86.0146,
+      "localizationTimeSeconds": 48.830379,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EM38s-3CLhi1-Ki6m-6swWQgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:06Z",
+      "papiEnd": "2020-08-27T02:17:04Z",
+      "papiStart": "2020-08-27T02:09:25Z",
+      "papiTotalTimeSeconds": 478,
+      "shardIndex": 37,
+      "startupTimeSeconds": 42.516573,
+      "userCommandTimeSeconds": 293.509384
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0038": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 189.37,
+      "cromwellEnd": "2020-08-27T02:22:13.734Z",
+      "cromwellStart": "2020-08-27T02:08:46.364Z",
+      "cromwellTotalTimeSeconds": 807.37,
+      "delocalizationTimeSeconds": 8.419038,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 93.038168,
+      "localizationTimeSeconds": 55.165891,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EPT7s-3CLhjmlonxmNaasKwBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0.1789289999999255,
+      "papiCreate": "2020-08-27T02:09:06Z",
+      "papiEnd": "2020-08-27T02:19:24Z",
+      "papiStart": "2020-08-27T02:09:24Z",
+      "papiTotalTimeSeconds": 618,
+      "shardIndex": 38,
+      "startupTimeSeconds": 40.352743,
+      "userCommandTimeSeconds": 420.845231
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0039": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 227.593,
+      "cromwellEnd": "2020-08-27T02:20:42.957Z",
+      "cromwellStart": "2020-08-27T02:08:46.364Z",
+      "cromwellTotalTimeSeconds": 716.593,
+      "delocalizationTimeSeconds": 7.74587,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 87.719929,
+      "localizationTimeSeconds": 48.071438,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EKz8s-3CLhj0tr2Hs7bt85UBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:06Z",
+      "papiEnd": "2020-08-27T02:17:15Z",
+      "papiStart": "2020-08-27T02:09:26Z",
+      "papiTotalTimeSeconds": 489,
+      "shardIndex": 39,
+      "startupTimeSeconds": 42.8367,
+      "userCommandTimeSeconds": 302.739823
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0040": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 70.734,
+      "cromwellEnd": "2020-08-27T02:19:08.099Z",
+      "cromwellStart": "2020-08-27T02:08:46.365Z",
+      "cromwellTotalTimeSeconds": 621.734,
+      "delocalizationTimeSeconds": 7.918333,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 88.870813,
+      "localizationTimeSeconds": 48.534975,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EIf8s-3CLhj38snItIPMh-IBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0.11592900000005102,
+      "papiCreate": "2020-08-27T02:09:06Z",
+      "papiEnd": "2020-08-27T02:18:17Z",
+      "papiStart": "2020-08-27T02:09:28Z",
+      "papiTotalTimeSeconds": 551,
+      "shardIndex": 40,
+      "startupTimeSeconds": 39.017385,
+      "userCommandTimeSeconds": 366.542565
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0041": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 64.133,
+      "cromwellEnd": "2020-08-27T02:18:37.498Z",
+      "cromwellStart": "2020-08-27T02:08:46.365Z",
+      "cromwellTotalTimeSeconds": 591.133,
+      "delocalizationTimeSeconds": 7.806489,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 88.735052,
+      "localizationTimeSeconds": 52.60502,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/ELL3s-3CLhj63OG30ci-7TEgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:17:52Z",
+      "papiStart": "2020-08-27T02:09:23Z",
+      "papiTotalTimeSeconds": 527,
+      "shardIndex": 41,
+      "startupTimeSeconds": 39.02298,
+      "userCommandTimeSeconds": 338.983772
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0042": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 135.533,
+      "cromwellEnd": "2020-08-27T02:18:57.895Z",
+      "cromwellStart": "2020-08-27T02:08:46.362Z",
+      "cromwellTotalTimeSeconds": 611.533,
+      "delocalizationTimeSeconds": 7.921525,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 85.16733,
+      "localizationTimeSeconds": 40.169709,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EIL3s-3CLhi_wNvxmuaKqiEgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:17:01Z",
+      "papiStart": "2020-08-27T02:09:24Z",
+      "papiTotalTimeSeconds": 476,
+      "shardIndex": 42,
+      "startupTimeSeconds": 41.995187,
+      "userCommandTimeSeconds": 301.133986
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0043": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 95.333,
+      "cromwellEnd": "2020-08-27T02:18:47.696Z",
+      "cromwellStart": "2020-08-27T02:08:46.363Z",
+      "cromwellTotalTimeSeconds": 601.333,
+      "delocalizationTimeSeconds": 8.208991,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 92.2494,
+      "localizationTimeSeconds": 54.131402,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EPj7s-3CLhjnsY3w0vf2lywgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:06Z",
+      "papiEnd": "2020-08-27T02:17:32Z",
+      "papiStart": "2020-08-27T02:09:26Z",
+      "papiTotalTimeSeconds": 506,
+      "shardIndex": 43,
+      "startupTimeSeconds": 66.746791,
+      "userCommandTimeSeconds": 284.695959
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0044": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 123.33,
+      "cromwellEnd": "2020-08-27T02:18:47.696Z",
+      "cromwellStart": "2020-08-27T02:08:46.366Z",
+      "cromwellTotalTimeSeconds": 601.33,
+      "delocalizationTimeSeconds": 7.834638,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 87.035433,
+      "localizationTimeSeconds": 46.824461,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EJr8s-3CLhje0oPS_fCasfABIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:06Z",
+      "papiEnd": "2020-08-27T02:17:04Z",
+      "papiStart": "2020-08-27T02:09:25Z",
+      "papiTotalTimeSeconds": 478,
+      "shardIndex": 44,
+      "startupTimeSeconds": 42.298505,
+      "userCommandTimeSeconds": 294.738576
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0045": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 132.137,
+      "cromwellEnd": "2020-08-27T02:18:37.498Z",
+      "cromwellStart": "2020-08-27T02:08:46.361Z",
+      "cromwellTotalTimeSeconds": 591.137,
+      "delocalizationTimeSeconds": 7.638634,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 86.935719,
+      "localizationTimeSeconds": 48.459243,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EIn3s-3CLhjy98r3_eXp58cBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:16:44Z",
+      "papiStart": "2020-08-27T02:09:27Z",
+      "papiTotalTimeSeconds": 459,
+      "shardIndex": 45,
+      "startupTimeSeconds": 45.197638,
+      "userCommandTimeSeconds": 271.156706
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0046": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 61.755,
+      "cromwellEnd": "2020-08-27T02:17:27.119Z",
+      "cromwellStart": "2020-08-27T02:08:46.364Z",
+      "cromwellTotalTimeSeconds": 520.755,
+      "delocalizationTimeSeconds": 8.938626,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 96.312406,
+      "localizationTimeSeconds": 57.619905,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EOT2s-3CLhiIsvD-gdeN6T8gy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0.300420000000031,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:16:44Z",
+      "papiStart": "2020-08-27T02:09:24Z",
+      "papiTotalTimeSeconds": 459,
+      "shardIndex": 46,
+      "startupTimeSeconds": 43.031292,
+      "userCommandTimeSeconds": 252.797351
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0047": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 22.683,
+      "cromwellEnd": "2020-08-27T02:16:32.049Z",
+      "cromwellStart": "2020-08-27T02:08:46.366Z",
+      "cromwellTotalTimeSeconds": 465.683,
+      "delocalizationTimeSeconds": 7.660363,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 88.428542,
+      "localizationTimeSeconds": 48.950368,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EOj3s-3CLhim-6SJ1Ya4rfYBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0.05233900000001768,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:16:28Z",
+      "papiStart": "2020-08-27T02:09:24Z",
+      "papiTotalTimeSeconds": 443,
+      "shardIndex": 47,
+      "startupTimeSeconds": 42.145816,
+      "userCommandTimeSeconds": 255.762572
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0048": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 100.553,
+      "cromwellEnd": "2020-08-27T02:17:16.915Z",
+      "cromwellStart": "2020-08-27T02:08:46.362Z",
+      "cromwellTotalTimeSeconds": 510.553,
+      "delocalizationTimeSeconds": 7.784243,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 86.669822,
+      "localizationTimeSeconds": 38.582878,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EPj7s-3CLhjgyfTPqo-t9zQgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:06Z",
+      "papiEnd": "2020-08-27T02:15:56Z",
+      "papiStart": "2020-08-27T02:09:25Z",
+      "papiTotalTimeSeconds": 410,
+      "shardIndex": 48,
+      "startupTimeSeconds": 41.357305,
+      "userCommandTimeSeconds": 235.952422
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0049": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 36.636,
+      "cromwellEnd": "2020-08-27T02:18:11.997Z",
+      "cromwellStart": "2020-08-27T02:08:46.361Z",
+      "cromwellTotalTimeSeconds": 565.636,
+      "delocalizationTimeSeconds": 8.730027,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 107.392537,
+      "localizationTimeSeconds": 55.225891,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/ELH3s-3CLhj75JO7tIKlsyUgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:09:05Z",
+      "papiEnd": "2020-08-27T02:17:54Z",
+      "papiStart": "2020-08-27T02:09:23Z",
+      "papiTotalTimeSeconds": 529,
+      "shardIndex": 49,
+      "startupTimeSeconds": 42.375002,
+      "userCommandTimeSeconds": 315.80652
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.MergeVCFs": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 300.412,
+      "cromwellEnd": "2020-08-27T02:31:40.855Z",
+      "cromwellStart": "2020-08-27T02:22:18.443Z",
+      "cromwellTotalTimeSeconds": 562.412,
+      "delocalizationTimeSeconds": 8.646657,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 11,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 73.575726,
+      "localizationTimeSeconds": 88.487852,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/ELG48u3CLhjA7MGdn6q10-wBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:26:09Z",
+      "papiEnd": "2020-08-27T02:30:31Z",
+      "papiStart": "2020-08-27T02:26:20Z",
+      "papiTotalTimeSeconds": 262,
+      "shardIndex": -1,
+      "startupTimeSeconds": 29.988107,
+      "userCommandTimeSeconds": 61.821789
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.ScatterIntervalList": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 14.03,
+      "cromwellEnd": "2020-08-27T02:08:39.788Z",
+      "cromwellStart": "2020-08-27T02:06:24.758Z",
+      "cromwellTotalTimeSeconds": 135.03,
+      "delocalizationTimeSeconds": 8.068002,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 10,
+          "type": "SSD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 66.371474,
+      "localizationTimeSeconds": 2.426588,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EOqbqu3CLhio_LmL0tHfp2Mgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:06:26Z",
+      "papiEnd": "2020-08-27T02:08:27Z",
+      "papiStart": "2020-08-27T02:06:37Z",
+      "papiTotalTimeSeconds": 121,
+      "shardIndex": -1,
+      "startupTimeSeconds": 33.265687,
+      "userCommandTimeSeconds": 10.86952
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.ValidateVCF": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 176.751,
+      "cromwellEnd": "2020-08-27T02:47:19.253Z",
+      "cromwellStart": "2020-08-27T02:31:42.502Z",
+      "cromwellTotalTimeSeconds": 936.751,
+      "delocalizationTimeSeconds": 4.862357,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 34,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 91.773184,
+      "localizationTimeSeconds": 222.042268,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EOuXiO7CLhjZneLPl7ah8qUBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:32:05Z",
+      "papiEnd": "2020-08-27T02:44:45Z",
+      "papiStart": "2020-08-27T02:32:16Z",
+      "papiTotalTimeSeconds": 760,
+      "shardIndex": -1,
+      "startupTimeSeconds": 38.835248,
+      "userCommandTimeSeconds": 402.583375
+    },
+    "ExomeGermlineSingleSample.CollectHsMetrics": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 284.695,
+      "cromwellEnd": "2020-08-27T02:49:09.414Z",
+      "cromwellStart": "2020-08-27T02:06:22.719Z",
+      "cromwellTotalTimeSeconds": 2566.695,
+      "delocalizationTimeSeconds": 7.507284,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 29,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 65.742878,
+      "localizationTimeSeconds": 154.792176,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EMKEq-3CLhjZ08eR_4zf_bsBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T02:06:39Z",
+      "papiEnd": "2020-08-27T02:44:41Z",
+      "papiStart": "2020-08-27T02:06:51Z",
+      "papiTotalTimeSeconds": 2282,
+      "shardIndex": -1,
+      "startupTimeSeconds": 34.036751,
+      "userCommandTimeSeconds": 2020.042657
+    },
+    "ExomeGermlineSingleSample.GenerateSubsettedContaminationResources": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 12.084,
+      "cromwellEnd": "2020-08-26T22:25:26.952Z",
+      "cromwellStart": "2020-08-26T22:23:47.868Z",
+      "cromwellTotalTimeSeconds": 99.084,
+      "delocalizationTimeSeconds": 7.837466,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 36.73418,
+      "localizationTimeSeconds": 5.722804,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EK2N--bCLhj2j7mf-4uH2hIgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-26T22:23:51Z",
+      "papiEnd": "2020-08-26T22:25:18Z",
+      "papiStart": "2020-08-26T22:24:03Z",
+      "papiTotalTimeSeconds": 87,
+      "shardIndex": -1,
+      "startupTimeSeconds": 32.594473,
+      "userCommandTimeSeconds": 4.19387
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0000": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 39.554,
+      "cromwellEnd": "2020-08-27T01:51:56.106Z",
+      "cromwellStart": "2020-08-27T01:41:45.552Z",
+      "cromwellTotalTimeSeconds": 610.554,
+      "delocalizationTimeSeconds": 13.429967,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 112.739473,
+      "localizationTimeSeconds": 51.593931,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EMn60OzCLhi1kZHEg9aswwYgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T01:42:03Z",
+      "papiEnd": "2020-08-27T01:51:34Z",
+      "papiStart": "2020-08-27T01:42:17Z",
+      "papiTotalTimeSeconds": 571,
+      "shardIndex": 0,
+      "startupTimeSeconds": 30.370344,
+      "userCommandTimeSeconds": 363.330362
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0001": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 62.697,
+      "cromwellEnd": "2020-08-27T01:50:21.248Z",
+      "cromwellStart": "2020-08-27T01:41:45.551Z",
+      "cromwellTotalTimeSeconds": 515.697,
+      "delocalizationTimeSeconds": 10.326344,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 116.882115,
+      "localizationTimeSeconds": 45.198572,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/ELD60OzCLhjCuO7_koetsbgBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T01:42:03Z",
+      "papiEnd": "2020-08-27T01:49:36Z",
+      "papiStart": "2020-08-27T01:42:17Z",
+      "papiTotalTimeSeconds": 453,
+      "shardIndex": 1,
+      "startupTimeSeconds": 36.20304,
+      "userCommandTimeSeconds": 244.881755
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0002": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 23.916,
+      "cromwellEnd": "2020-08-27T01:48:50.468Z",
+      "cromwellStart": "2020-08-27T01:41:45.552Z",
+      "cromwellTotalTimeSeconds": 424.916,
+      "delocalizationTimeSeconds": 9.790953,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 110.298513,
+      "localizationTimeSeconds": 49.183245,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/ELP60OzCLhid9ci0oJL91Ecgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T01:42:03Z",
+      "papiEnd": "2020-08-27T01:48:44Z",
+      "papiStart": "2020-08-27T01:42:17Z",
+      "papiTotalTimeSeconds": 401,
+      "shardIndex": 2,
+      "startupTimeSeconds": 40.101319,
+      "userCommandTimeSeconds": 191.966915
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0003": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 110.699,
+      "cromwellEnd": "2020-08-27T01:49:30.251Z",
+      "cromwellStart": "2020-08-27T01:41:45.552Z",
+      "cromwellTotalTimeSeconds": 464.699,
+      "delocalizationTimeSeconds": 8.586924,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 107.043057,
+      "localizationTimeSeconds": 47.851952,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EI770OzCLhjjz-StwJfr3WUgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0.10939600000000382,
+      "papiCreate": "2020-08-27T01:42:03Z",
+      "papiEnd": "2020-08-27T01:47:57Z",
+      "papiStart": "2020-08-27T01:42:17Z",
+      "papiTotalTimeSeconds": 354,
+      "shardIndex": 3,
+      "startupTimeSeconds": 37.064024,
+      "userCommandTimeSeconds": 153.344647
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0004": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 69.701,
+      "cromwellEnd": "2020-08-27T01:49:30.251Z",
+      "cromwellStart": "2020-08-27T01:41:45.550Z",
+      "cromwellTotalTimeSeconds": 464.701,
+      "delocalizationTimeSeconds": 8.82383,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 120.305964,
+      "localizationTimeSeconds": 48.691457,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EMz60OzCLhjKxf7e-vaxj3cgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T01:42:03Z",
+      "papiEnd": "2020-08-27T01:48:38Z",
+      "papiStart": "2020-08-27T01:42:17Z",
+      "papiTotalTimeSeconds": 395,
+      "shardIndex": 4,
+      "startupTimeSeconds": 36.180352,
+      "userCommandTimeSeconds": 181.175672
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0005": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 118.995,
+      "cromwellEnd": "2020-08-27T01:49:45.546Z",
+      "cromwellStart": "2020-08-27T01:41:45.551Z",
+      "cromwellTotalTimeSeconds": 479.995,
+      "delocalizationTimeSeconds": 9.217133,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 103.240447,
+      "localizationTimeSeconds": 48.697665,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EL760OzCLhithr7UhsTR02Ygy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T01:42:03Z",
+      "papiEnd": "2020-08-27T01:48:04Z",
+      "papiStart": "2020-08-27T01:42:16Z",
+      "papiTotalTimeSeconds": 361,
+      "shardIndex": 5,
+      "startupTimeSeconds": 29.997441,
+      "userCommandTimeSeconds": 170.069206
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0006": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 129.697,
+      "cromwellEnd": "2020-08-27T01:50:21.248Z",
+      "cromwellStart": "2020-08-27T01:41:45.551Z",
+      "cromwellTotalTimeSeconds": 515.697,
+      "delocalizationTimeSeconds": 8.562179,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 109.928134,
+      "localizationTimeSeconds": 48.612089,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EL760OzCLhiZj7Ctysn1hXUgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0.04491400000000567,
+      "papiCreate": "2020-08-27T01:42:03Z",
+      "papiEnd": "2020-08-27T01:48:29Z",
+      "papiStart": "2020-08-27T01:42:16Z",
+      "papiTotalTimeSeconds": 386,
+      "shardIndex": 6,
+      "startupTimeSeconds": 36.272564,
+      "userCommandTimeSeconds": 182.58012
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0007": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 54.917,
+      "cromwellEnd": "2020-08-27T01:48:50.468Z",
+      "cromwellStart": "2020-08-27T01:41:45.551Z",
+      "cromwellTotalTimeSeconds": 424.917,
+      "delocalizationTimeSeconds": 9.181914,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 118.780469,
+      "localizationTimeSeconds": 49.824363,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EKf60OzCLhi_y5qigceagugBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T01:42:03Z",
+      "papiEnd": "2020-08-27T01:48:13Z",
+      "papiStart": "2020-08-27T01:42:16Z",
+      "papiTotalTimeSeconds": 370,
+      "shardIndex": 7,
+      "startupTimeSeconds": 36.605066,
+      "userCommandTimeSeconds": 156.443011
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0008": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 44.814,
+      "cromwellEnd": "2020-08-27T01:48:45.365Z",
+      "cromwellStart": "2020-08-27T01:41:45.551Z",
+      "cromwellTotalTimeSeconds": 419.814,
+      "delocalizationTimeSeconds": 8.680316,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 111.304802,
+      "localizationTimeSeconds": 48.023153,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EJ_60OzCLhiN7vjFsa6ApqABIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T01:42:03Z",
+      "papiEnd": "2020-08-27T01:48:18Z",
+      "papiStart": "2020-08-27T01:42:15Z",
+      "papiTotalTimeSeconds": 375,
+      "shardIndex": 8,
+      "startupTimeSeconds": 36.150574,
+      "userCommandTimeSeconds": 171.126517
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0009": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 135.095,
+      "cromwellEnd": "2020-08-27T01:49:50.645Z",
+      "cromwellStart": "2020-08-27T01:41:45.550Z",
+      "cromwellTotalTimeSeconds": 485.095,
+      "delocalizationTimeSeconds": 8.84892,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 111.236381,
+      "localizationTimeSeconds": 49.400742,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EMf60OzCLhjWifbi3_vjiGAgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T01:42:03Z",
+      "papiEnd": "2020-08-27T01:47:53Z",
+      "papiStart": "2020-08-27T01:42:17Z",
+      "papiTotalTimeSeconds": 350,
+      "shardIndex": 9,
+      "startupTimeSeconds": 36.23488,
+      "userCommandTimeSeconds": 145.032288
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0010": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 81.495,
+      "cromwellEnd": "2020-08-27T01:50:11.046Z",
+      "cromwellStart": "2020-08-27T01:41:45.551Z",
+      "cromwellTotalTimeSeconds": 505.495,
+      "delocalizationTimeSeconds": 9.482229,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 118.187353,
+      "localizationTimeSeconds": 48.363747,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/ENb60OzCLhijzqW8i9z0ypUBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0.6864019999999869,
+      "papiCreate": "2020-08-27T01:42:03Z",
+      "papiEnd": "2020-08-27T01:49:07Z",
+      "papiStart": "2020-08-27T01:42:17Z",
+      "papiTotalTimeSeconds": 424,
+      "shardIndex": 10,
+      "startupTimeSeconds": 37.372137,
+      "userCommandTimeSeconds": 209.908132
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0011": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 79.874,
+      "cromwellEnd": "2020-08-27T01:50:30.426Z",
+      "cromwellStart": "2020-08-27T01:41:45.552Z",
+      "cromwellTotalTimeSeconds": 524.874,
+      "delocalizationTimeSeconds": 9.868804,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 123.833878,
+      "localizationTimeSeconds": 49.392154,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/ELz60OzCLhi83_bMwNjc6EUgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T01:42:03Z",
+      "papiEnd": "2020-08-27T01:49:28Z",
+      "papiStart": "2020-08-27T01:42:16Z",
+      "papiTotalTimeSeconds": 445,
+      "shardIndex": 11,
+      "startupTimeSeconds": 38.731534,
+      "userCommandTimeSeconds": 223.555589
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0012": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 116.975,
+      "cromwellEnd": "2020-08-27T01:51:26.525Z",
+      "cromwellStart": "2020-08-27T01:41:45.550Z",
+      "cromwellTotalTimeSeconds": 580.975,
+      "delocalizationTimeSeconds": 10.807126,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 117.489536,
+      "localizationTimeSeconds": 44.724348,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EKn60OzCLhiI6t7h1taIjIMBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T01:42:03Z",
+      "papiEnd": "2020-08-27T01:49:47Z",
+      "papiStart": "2020-08-27T01:42:16Z",
+      "papiTotalTimeSeconds": 464,
+      "shardIndex": 12,
+      "startupTimeSeconds": 35.665755,
+      "userCommandTimeSeconds": 255.365199
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0013": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 195.694,
+      "cromwellEnd": "2020-08-27T01:55:27.246Z",
+      "cromwellStart": "2020-08-27T01:41:45.552Z",
+      "cromwellTotalTimeSeconds": 821.694,
+      "delocalizationTimeSeconds": 18.973106,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 120.041032,
+      "localizationTimeSeconds": 48.662478,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EJX60OzCLhiWtOzW4pWbjQ4gy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T01:42:03Z",
+      "papiEnd": "2020-08-27T01:52:29Z",
+      "papiStart": "2020-08-27T01:42:17Z",
+      "papiTotalTimeSeconds": 626,
+      "shardIndex": 13,
+      "startupTimeSeconds": 36.925447,
+      "userCommandTimeSeconds": 401.730274
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0014": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 116.734,
+      "cromwellEnd": "2020-08-27T01:52:56.285Z",
+      "cromwellStart": "2020-08-27T01:41:45.551Z",
+      "cromwellTotalTimeSeconds": 670.734,
+      "delocalizationTimeSeconds": 12.320199,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 118.913203,
+      "localizationTimeSeconds": 48.9216,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EMn70OzCLhiu79WElO_A0vQBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T01:42:03Z",
+      "papiEnd": "2020-08-27T01:51:17Z",
+      "papiStart": "2020-08-27T01:42:17Z",
+      "papiTotalTimeSeconds": 554,
+      "shardIndex": 14,
+      "startupTimeSeconds": 37.155005,
+      "userCommandTimeSeconds": 337.014401
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0015": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 88.417,
+      "cromwellEnd": "2020-08-27T01:49:15.967Z",
+      "cromwellStart": "2020-08-27T01:41:45.550Z",
+      "cromwellTotalTimeSeconds": 450.417,
+      "delocalizationTimeSeconds": 8.812346,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 116.295316,
+      "localizationTimeSeconds": 51.392931,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/ELD70OzCLhjAo6uirruN218gy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T01:42:03Z",
+      "papiEnd": "2020-08-27T01:48:05Z",
+      "papiStart": "2020-08-27T01:42:16Z",
+      "papiTotalTimeSeconds": 362,
+      "shardIndex": 15,
+      "startupTimeSeconds": 37.329142,
+      "userCommandTimeSeconds": 148.535509
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0016": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 100.394,
+      "cromwellEnd": "2020-08-27T01:50:05.945Z",
+      "cromwellStart": "2020-08-27T01:41:45.551Z",
+      "cromwellTotalTimeSeconds": 500.394,
+      "delocalizationTimeSeconds": 9.08324,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 119.557543,
+      "localizationTimeSeconds": 48.698917,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EK_60OzCLhiJs5qe9oi03hQgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0.20740400000005366,
+      "papiCreate": "2020-08-27T01:42:03Z",
+      "papiEnd": "2020-08-27T01:48:43Z",
+      "papiStart": "2020-08-27T01:42:15Z",
+      "papiTotalTimeSeconds": 400,
+      "shardIndex": 16,
+      "startupTimeSeconds": 36.090837,
+      "userCommandTimeSeconds": 186.362059
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0017": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 137.204,
+      "cromwellEnd": "2020-08-27T01:49:55.755Z",
+      "cromwellStart": "2020-08-27T01:41:45.551Z",
+      "cromwellTotalTimeSeconds": 490.204,
+      "delocalizationTimeSeconds": 7.89265,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 121.782892,
+      "localizationTimeSeconds": 44.957609,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EKv60OzCLhjYzeuAwJOY2_ABIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T01:42:03Z",
+      "papiEnd": "2020-08-27T01:47:56Z",
+      "papiStart": "2020-08-27T01:42:15Z",
+      "papiTotalTimeSeconds": 353,
+      "shardIndex": 17,
+      "startupTimeSeconds": 35.323679,
+      "userCommandTimeSeconds": 143.754936
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0018": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 129.036,
+      "cromwellEnd": "2020-08-27T01:48:05.586Z",
+      "cromwellStart": "2020-08-27T01:41:45.550Z",
+      "cromwellTotalTimeSeconds": 380.036,
+      "delocalizationTimeSeconds": 6.569697,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 122.257406,
+      "localizationTimeSeconds": 45.279473,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EIzT0OzCLhjJ662jpcv1uocBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 1.8869430000000023,
+      "papiCreate": "2020-08-27T01:41:58Z",
+      "papiEnd": "2020-08-27T01:46:09Z",
+      "papiStart": "2020-08-27T01:42:12Z",
+      "papiTotalTimeSeconds": 251,
+      "shardIndex": 18,
+      "startupTimeSeconds": 38.410749,
+      "userCommandTimeSeconds": 36.595732
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0000": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 56.537,
+      "cromwellEnd": "2020-08-27T01:34:17.376Z",
+      "cromwellStart": "2020-08-27T01:23:19.839Z",
+      "cromwellTotalTimeSeconds": 657.537,
+      "delocalizationTimeSeconds": 6.222384,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 88.44468,
+      "localizationTimeSeconds": 199.847695,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EJDvjezCLhivxejD-uqD6xQgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T01:23:44Z",
+      "papiEnd": "2020-08-27T01:33:45Z",
+      "papiStart": "2020-08-27T01:23:57Z",
+      "papiTotalTimeSeconds": 601,
+      "shardIndex": 0,
+      "startupTimeSeconds": 35.999006,
+      "userCommandTimeSeconds": 270.997411
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0001": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 29.978,
+      "cromwellEnd": "2020-08-27T01:32:06.818Z",
+      "cromwellStart": "2020-08-27T01:23:19.840Z",
+      "cromwellTotalTimeSeconds": 526.978,
+      "delocalizationTimeSeconds": 5.90396,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 84.081275,
+      "localizationTimeSeconds": 169.757855,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EM7ujezCLhiXwM6ksLHvuiAgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0.24077199999999266,
+      "papiCreate": "2020-08-27T01:23:44Z",
+      "papiEnd": "2020-08-27T01:32:01Z",
+      "papiStart": "2020-08-27T01:23:58Z",
+      "papiTotalTimeSeconds": 497,
+      "shardIndex": 1,
+      "startupTimeSeconds": 30.648597,
+      "userCommandTimeSeconds": 206.367541
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0002": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 168.816,
+      "cromwellEnd": "2020-08-27T01:34:31.656Z",
+      "cromwellStart": "2020-08-27T01:23:19.840Z",
+      "cromwellTotalTimeSeconds": 671.816,
+      "delocalizationTimeSeconds": 5.997597,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 90.530313,
+      "localizationTimeSeconds": 202.732834,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/ELbujezCLhiMr8n1gK34qaoBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0.15948799999995344,
+      "papiCreate": "2020-08-27T01:23:44Z",
+      "papiEnd": "2020-08-27T01:32:07Z",
+      "papiStart": "2020-08-27T01:23:56Z",
+      "papiTotalTimeSeconds": 503,
+      "shardIndex": 2,
+      "startupTimeSeconds": 35.121344,
+      "userCommandTimeSeconds": 168.458424
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0003": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 167.837,
+      "cromwellEnd": "2020-08-27T01:33:41.677Z",
+      "cromwellStart": "2020-08-27T01:23:19.840Z",
+      "cromwellTotalTimeSeconds": 621.837,
+      "delocalizationTimeSeconds": 5.998612,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 88.347926,
+      "localizationTimeSeconds": 196.273254,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/ENDujezCLhiesbbmop7htbwBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0.24506600000000844,
+      "papiCreate": "2020-08-27T01:23:44Z",
+      "papiEnd": "2020-08-27T01:31:18Z",
+      "papiStart": "2020-08-27T01:23:58Z",
+      "papiTotalTimeSeconds": 454,
+      "shardIndex": 3,
+      "startupTimeSeconds": 36.280961,
+      "userCommandTimeSeconds": 126.854181
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0004": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 177.02,
+      "cromwellEnd": "2020-08-27T01:34:41.859Z",
+      "cromwellStart": "2020-08-27T01:23:19.839Z",
+      "cromwellTotalTimeSeconds": 682.02,
+      "delocalizationTimeSeconds": 6.045691,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.009638,
+      "localizationTimeSeconds": 220.547463,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EMjujezCLhjGxs_mjfebiAQgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T01:23:44Z",
+      "papiEnd": "2020-08-27T01:32:09Z",
+      "papiStart": "2020-08-27T01:23:58Z",
+      "papiTotalTimeSeconds": 505,
+      "shardIndex": 4,
+      "startupTimeSeconds": 36.278591,
+      "userCommandTimeSeconds": 145.898296
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0005": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 133.535,
+      "cromwellEnd": "2020-08-27T01:34:17.375Z",
+      "cromwellStart": "2020-08-27T01:23:19.840Z",
+      "cromwellTotalTimeSeconds": 657.535,
+      "delocalizationTimeSeconds": 5.948987,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 93.40395,
+      "localizationTimeSeconds": 219.838999,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EMTujezCLhjd3riYyq2vrFMgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0.06880999999998494,
+      "papiCreate": "2020-08-27T01:23:44Z",
+      "papiEnd": "2020-08-27T01:32:28Z",
+      "papiStart": "2020-08-27T01:23:56Z",
+      "papiTotalTimeSeconds": 524,
+      "shardIndex": 5,
+      "startupTimeSeconds": 55.775124,
+      "userCommandTimeSeconds": 148.96413
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0006": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 152.615,
+      "cromwellEnd": "2020-08-27T01:35:12.455Z",
+      "cromwellStart": "2020-08-27T01:23:19.840Z",
+      "cromwellTotalTimeSeconds": 712.615,
+      "delocalizationTimeSeconds": 6.191775,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 105.142082,
+      "localizationTimeSeconds": 253.486364,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/ELvujezCLhiJ37jLyPOo6p0BIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0.21066799999994146,
+      "papiCreate": "2020-08-27T01:23:44Z",
+      "papiEnd": "2020-08-27T01:33:04Z",
+      "papiStart": "2020-08-27T01:23:57Z",
+      "papiTotalTimeSeconds": 560,
+      "shardIndex": 6,
+      "startupTimeSeconds": 36.590433,
+      "userCommandTimeSeconds": 158.378678
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0007": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 181.817,
+      "cromwellEnd": "2020-08-27T01:34:31.656Z",
+      "cromwellStart": "2020-08-27T01:23:19.839Z",
+      "cromwellTotalTimeSeconds": 671.817,
+      "delocalizationTimeSeconds": 6.43828,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 95.065869,
+      "localizationTimeSeconds": 227.856519,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EMDujezCLhjT4N2025zLrsoBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0.22263800000001766,
+      "papiCreate": "2020-08-27T01:23:44Z",
+      "papiEnd": "2020-08-27T01:31:54Z",
+      "papiStart": "2020-08-27T01:23:55Z",
+      "papiTotalTimeSeconds": 490,
+      "shardIndex": 7,
+      "startupTimeSeconds": 33.996486,
+      "userCommandTimeSeconds": 126.420208
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0008": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 42.796,
+      "cromwellEnd": "2020-08-27T01:31:56.635Z",
+      "cromwellStart": "2020-08-27T01:23:19.839Z",
+      "cromwellTotalTimeSeconds": 516.796,
+      "delocalizationTimeSeconds": 5.996794,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 88.370378,
+      "localizationTimeSeconds": 208.115086,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EL7ujezCLhja3dHi3KLOtAUgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0.22574499999996078,
+      "papiCreate": "2020-08-27T01:23:44Z",
+      "papiEnd": "2020-08-27T01:31:38Z",
+      "papiStart": "2020-08-27T01:23:57Z",
+      "papiTotalTimeSeconds": 474,
+      "shardIndex": 8,
+      "startupTimeSeconds": 35.466466,
+      "userCommandTimeSeconds": 135.825531
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0009": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 95.359,
+      "cromwellEnd": "2020-08-27T01:32:26.200Z",
+      "cromwellStart": "2020-08-27T01:23:19.841Z",
+      "cromwellTotalTimeSeconds": 546.359,
+      "delocalizationTimeSeconds": 6.053514,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 87.692117,
+      "localizationTimeSeconds": 197.776084,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/ENbujezCLhiz9MaWi436tSMgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0.03456399999998894,
+      "papiCreate": "2020-08-27T01:23:44Z",
+      "papiEnd": "2020-08-27T01:31:15Z",
+      "papiStart": "2020-08-27T01:23:57Z",
+      "papiTotalTimeSeconds": 451,
+      "shardIndex": 9,
+      "startupTimeSeconds": 29.690504,
+      "userCommandTimeSeconds": 129.753217
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0010": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 37.759,
+      "cromwellEnd": "2020-08-27T01:32:46.600Z",
+      "cromwellStart": "2020-08-27T01:23:19.841Z",
+      "cromwellTotalTimeSeconds": 566.759,
+      "delocalizationTimeSeconds": 5.806846,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 93.11169,
+      "localizationTimeSeconds": 223.381643,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/ELjujezCLhjB9N6Gw7jwtKIBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T01:23:44Z",
+      "papiEnd": "2020-08-27T01:32:33Z",
+      "papiStart": "2020-08-27T01:23:57Z",
+      "papiTotalTimeSeconds": 529,
+      "shardIndex": 10,
+      "startupTimeSeconds": 36.107757,
+      "userCommandTimeSeconds": 171.247794
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0011": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 59.278,
+      "cromwellEnd": "2020-08-27T01:33:12.118Z",
+      "cromwellStart": "2020-08-27T01:23:19.840Z",
+      "cromwellTotalTimeSeconds": 592.278,
+      "delocalizationTimeSeconds": 6.085957,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 89.064264,
+      "localizationTimeSeconds": 193.955316,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/ENDujezCLhjiqNug-aqFoeoBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T01:23:44Z",
+      "papiEnd": "2020-08-27T01:32:37Z",
+      "papiStart": "2020-08-27T01:23:56Z",
+      "papiTotalTimeSeconds": 533,
+      "shardIndex": 11,
+      "startupTimeSeconds": 35.148974,
+      "userCommandTimeSeconds": 209.399647
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0012": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 192.157,
+      "cromwellEnd": "2020-08-27T01:36:31.996Z",
+      "cromwellStart": "2020-08-27T01:23:19.839Z",
+      "cromwellTotalTimeSeconds": 792.157,
+      "delocalizationTimeSeconds": 6.177183,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 100.532037,
+      "localizationTimeSeconds": 250.824632,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EMfujezCLhio4vzGwrecy9UBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0.12064199999997527,
+      "papiCreate": "2020-08-27T01:23:44Z",
+      "papiEnd": "2020-08-27T01:33:44Z",
+      "papiStart": "2020-08-27T01:23:55Z",
+      "papiTotalTimeSeconds": 600,
+      "shardIndex": 12,
+      "startupTimeSeconds": 34.664964,
+      "userCommandTimeSeconds": 207.680542
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0013": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 70.314,
+      "cromwellEnd": "2020-08-27T01:34:57.155Z",
+      "cromwellStart": "2020-08-27T01:23:19.841Z",
+      "cromwellTotalTimeSeconds": 697.314,
+      "delocalizationTimeSeconds": 9.29625,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 91.013948,
+      "localizationTimeSeconds": 200.538653,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EL7ujezCLhjs44Cu2u2r7QIgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0.1690760000000182,
+      "papiCreate": "2020-08-27T01:23:44Z",
+      "papiEnd": "2020-08-27T01:34:11Z",
+      "papiStart": "2020-08-27T01:23:57Z",
+      "papiTotalTimeSeconds": 627,
+      "shardIndex": 13,
+      "startupTimeSeconds": 35.649268,
+      "userCommandTimeSeconds": 290.332805
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0014": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 139.418,
+      "cromwellEnd": "2020-08-27T01:35:02.258Z",
+      "cromwellStart": "2020-08-27T01:23:19.840Z",
+      "cromwellTotalTimeSeconds": 702.418,
+      "delocalizationTimeSeconds": 5.765082,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 84.698008,
+      "localizationTimeSeconds": 170.819776,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EPLujezCLhjvkrHHo5ua728gy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T01:23:44Z",
+      "papiEnd": "2020-08-27T01:33:07Z",
+      "papiStart": "2020-08-27T01:23:59Z",
+      "papiTotalTimeSeconds": 563,
+      "shardIndex": 14,
+      "startupTimeSeconds": 37.813885,
+      "userCommandTimeSeconds": 264.403638
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0015": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 44.689,
+      "cromwellEnd": "2020-08-27T01:31:51.530Z",
+      "cromwellStart": "2020-08-27T01:23:19.841Z",
+      "cromwellTotalTimeSeconds": 511.689,
+      "delocalizationTimeSeconds": 6.042836,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 87.443028,
+      "localizationTimeSeconds": 192.485938,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EKvujezCLhjQp9SX0MeeklYgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0.2319079999999758,
+      "papiCreate": "2020-08-27T01:23:44Z",
+      "papiEnd": "2020-08-27T01:31:31Z",
+      "papiStart": "2020-08-27T01:23:56Z",
+      "papiTotalTimeSeconds": 467,
+      "shardIndex": 15,
+      "startupTimeSeconds": 63.05473,
+      "userCommandTimeSeconds": 117.74156
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0016": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 58.964,
+      "cromwellEnd": "2020-08-27T01:32:56.805Z",
+      "cromwellStart": "2020-08-27T01:23:19.841Z",
+      "cromwellTotalTimeSeconds": 576.964,
+      "delocalizationTimeSeconds": 6.144384,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 95.063722,
+      "localizationTimeSeconds": 229.91286,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/ENfujezCLhjK8J-9wtT12r4BIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T01:23:44Z",
+      "papiEnd": "2020-08-27T01:32:22Z",
+      "papiStart": "2020-08-27T01:23:57Z",
+      "papiTotalTimeSeconds": 518,
+      "shardIndex": 16,
+      "startupTimeSeconds": 35.767067,
+      "userCommandTimeSeconds": 151.238545
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0017": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 168.214,
+      "cromwellEnd": "2020-08-27T01:34:52.054Z",
+      "cromwellStart": "2020-08-27T01:23:19.840Z",
+      "cromwellTotalTimeSeconds": 692.214,
+      "delocalizationTimeSeconds": 6.245262,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 98.363626,
+      "localizationTimeSeconds": 250.80917,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/ELTujezCLhin0KXtqoif84MBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T01:23:44Z",
+      "papiEnd": "2020-08-27T01:32:28Z",
+      "papiStart": "2020-08-27T01:23:56Z",
+      "papiTotalTimeSeconds": 524,
+      "shardIndex": 17,
+      "startupTimeSeconds": 35.709203,
+      "userCommandTimeSeconds": 133.281565
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CheckContamination": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 73.664,
+      "cromwellEnd": "2020-08-27T01:32:41.504Z",
+      "cromwellStart": "2020-08-27T01:23:19.840Z",
+      "cromwellTotalTimeSeconds": 561.664,
+      "delocalizationTimeSeconds": 5.944611,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 41,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 36.14092,
+      "localizationTimeSeconds": 190.726429,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EIz6jOzCLhipjrD75KHHkrMBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T01:23:29Z",
+      "papiEnd": "2020-08-27T01:31:37Z",
+      "papiStart": "2020-08-27T01:23:41Z",
+      "papiTotalTimeSeconds": 488,
+      "shardIndex": -1,
+      "startupTimeSeconds": 28.407062,
+      "userCommandTimeSeconds": 227.263343
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectQualityYieldMetrics.shard_0000": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 46.584,
+      "cromwellEnd": "2020-08-26T22:29:43.145Z",
+      "cromwellStart": "2020-08-26T22:26:13.561Z",
+      "cromwellTotalTimeSeconds": 209.584,
+      "delocalizationTimeSeconds": 5.341928,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 21,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 73.9986,
+      "localizationTimeSeconds": 19.509923,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EKL-g-fCLhiBx8nahdW2oqQBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0.15129900000002294,
+      "papiCreate": "2020-08-26T22:26:16Z",
+      "papiEnd": "2020-08-26T22:28:59Z",
+      "papiStart": "2020-08-26T22:26:28Z",
+      "papiTotalTimeSeconds": 163,
+      "shardIndex": 0,
+      "startupTimeSeconds": 32.897572,
+      "userCommandTimeSeconds": 31.100678
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectQualityYieldMetrics.shard_0001": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 44.584,
+      "cromwellEnd": "2020-08-26T22:29:43.145Z",
+      "cromwellStart": "2020-08-26T22:26:13.561Z",
+      "cromwellTotalTimeSeconds": 209.584,
+      "delocalizationTimeSeconds": 5.382361,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 21,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 73.411806,
+      "localizationTimeSeconds": 18.231956,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EOX8g-fCLhiMlcv_vJjBiEkgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-26T22:26:16Z",
+      "papiEnd": "2020-08-26T22:29:01Z",
+      "papiStart": "2020-08-26T22:26:31Z",
+      "papiTotalTimeSeconds": 165,
+      "shardIndex": 1,
+      "startupTimeSeconds": 36.820395,
+      "userCommandTimeSeconds": 31.677794
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectQualityYieldMetrics.shard_0002": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 14.795,
+      "cromwellEnd": "2020-08-26T22:29:12.356Z",
+      "cromwellStart": "2020-08-26T22:26:13.561Z",
+      "cromwellTotalTimeSeconds": 178.795,
+      "delocalizationTimeSeconds": 4.996778,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 21,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 73.457106,
+      "localizationTimeSeconds": 18.630575,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EPf-g-fCLhiG493mgdyCo7IBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-26T22:26:17Z",
+      "papiEnd": "2020-08-26T22:29:01Z",
+      "papiStart": "2020-08-26T22:26:30Z",
+      "papiTotalTimeSeconds": 164,
+      "shardIndex": 2,
+      "startupTimeSeconds": 35.902238,
+      "userCommandTimeSeconds": 31.128528
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectQualityYieldMetrics.shard_0003": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 32.1,
+      "cromwellEnd": "2020-08-26T22:29:27.659Z",
+      "cromwellStart": "2020-08-26T22:26:13.559Z",
+      "cromwellTotalTimeSeconds": 194.1,
+      "delocalizationTimeSeconds": 5.27842,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 21,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 72.94911,
+      "localizationTimeSeconds": 16.544208,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EKv-g-fCLhiipKfo5KKn7dcBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-26T22:26:17Z",
+      "papiEnd": "2020-08-26T22:28:59Z",
+      "papiStart": "2020-08-26T22:26:29Z",
+      "papiTotalTimeSeconds": 162,
+      "shardIndex": 3,
+      "startupTimeSeconds": 33.345881,
+      "userCommandTimeSeconds": 34.385847
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectQualityYieldMetrics.shard_0004": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 8.904,
+      "cromwellEnd": "2020-08-26T22:29:17.464Z",
+      "cromwellStart": "2020-08-26T22:26:13.560Z",
+      "cromwellTotalTimeSeconds": 183.904,
+      "delocalizationTimeSeconds": 5.338961,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 21,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 83.018902,
+      "localizationTimeSeconds": 17.632717,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EMODhOfCLhj9sNbAtLbmjswBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0.19715699999997582,
+      "papiCreate": "2020-08-26T22:26:17Z",
+      "papiEnd": "2020-08-26T22:29:12Z",
+      "papiStart": "2020-08-26T22:26:30Z",
+      "papiTotalTimeSeconds": 175,
+      "shardIndex": 4,
+      "startupTimeSeconds": 36.007392,
+      "userCommandTimeSeconds": 32.804871
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectQualityYieldMetrics.shard_0005": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 40.802,
+      "cromwellEnd": "2020-08-26T22:29:48.361Z",
+      "cromwellStart": "2020-08-26T22:26:13.559Z",
+      "cromwellTotalTimeSeconds": 214.802,
+      "delocalizationTimeSeconds": 5.041185,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 21,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 77.936889,
+      "localizationTimeSeconds": 16.210968,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EJv_g-fCLhiZtbCv8Lz5t6sBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0.08848099999997316,
+      "papiCreate": "2020-08-26T22:26:17Z",
+      "papiEnd": "2020-08-26T22:29:11Z",
+      "papiStart": "2020-08-26T22:26:33Z",
+      "papiTotalTimeSeconds": 174,
+      "shardIndex": 5,
+      "startupTimeSeconds": 38.458767,
+      "userCommandTimeSeconds": 36.26371
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectQualityYieldMetrics.shard_0006": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 33.801,
+      "cromwellEnd": "2020-08-26T22:29:48.361Z",
+      "cromwellStart": "2020-08-26T22:26:13.560Z",
+      "cromwellTotalTimeSeconds": 214.801,
+      "delocalizationTimeSeconds": 5.799374,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 21,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 88.984137,
+      "localizationTimeSeconds": 18.439462,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EMP-g-fCLhie56_yzNLkkMUBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-26T22:26:17Z",
+      "papiEnd": "2020-08-26T22:29:18Z",
+      "papiStart": "2020-08-26T22:26:27Z",
+      "papiTotalTimeSeconds": 181,
+      "shardIndex": 6,
+      "startupTimeSeconds": 33.951257,
+      "userCommandTimeSeconds": 34.203126
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectQualityYieldMetrics.shard_0007": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 20.995,
+      "cromwellEnd": "2020-08-26T22:29:22.557Z",
+      "cromwellStart": "2020-08-26T22:26:13.562Z",
+      "cromwellTotalTimeSeconds": 188.995,
+      "delocalizationTimeSeconds": 5.394164,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 21,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 73.12955,
+      "localizationTimeSeconds": 15.219022,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EKP_g-fCLhiC-sTLydWIiIkBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-26T22:26:17Z",
+      "papiEnd": "2020-08-26T22:29:05Z",
+      "papiStart": "2020-08-26T22:26:30Z",
+      "papiTotalTimeSeconds": 168,
+      "shardIndex": 7,
+      "startupTimeSeconds": 35.037632,
+      "userCommandTimeSeconds": 39.308466
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectUnsortedReadgroupBamQualityMetrics.shard_0000": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 29.288,
+      "cromwellEnd": "2020-08-26T22:46:21.528Z",
+      "cromwellStart": "2020-08-26T22:41:41.240Z",
+      "cromwellTotalTimeSeconds": 280.288,
+      "delocalizationTimeSeconds": 14.244424,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 22,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 66.254233,
+      "localizationTimeSeconds": 28.236242,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/ELDXvOfCLhjtxcev99Sz768BIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-26T22:41:45Z",
+      "papiEnd": "2020-08-26T22:45:56Z",
+      "papiStart": "2020-08-26T22:41:56Z",
+      "papiTotalTimeSeconds": 251,
+      "shardIndex": 0,
+      "startupTimeSeconds": 32.738619,
+      "userCommandTimeSeconds": 109.90497
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectUnsortedReadgroupBamQualityMetrics.shard_0001": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 26.119,
+      "cromwellEnd": "2020-08-26T22:46:16.428Z",
+      "cromwellStart": "2020-08-26T22:42:01.309Z",
+      "cromwellTotalTimeSeconds": 255.119,
+      "delocalizationTimeSeconds": 12.739351,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 22,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 68.00789,
+      "localizationTimeSeconds": 24.010134,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/ELn1vefCLhiBxor92aj1oMIBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0.1307950000000062,
+      "papiCreate": "2020-08-26T22:42:06Z",
+      "papiEnd": "2020-08-26T22:45:55Z",
+      "papiStart": "2020-08-26T22:42:17Z",
+      "papiTotalTimeSeconds": 229,
+      "shardIndex": 1,
+      "startupTimeSeconds": 33.156138,
+      "userCommandTimeSeconds": 90.955692
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectUnsortedReadgroupBamQualityMetrics.shard_0002": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 29.791,
+      "cromwellEnd": "2020-08-26T22:46:57.230Z",
+      "cromwellStart": "2020-08-26T22:42:31.439Z",
+      "cromwellTotalTimeSeconds": 265.791,
+      "delocalizationTimeSeconds": 13.956207,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 22,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 66.400787,
+      "localizationTimeSeconds": 29.391479,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EODfv-fCLhidwoab5KbhhvEBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-26T22:42:36Z",
+      "papiEnd": "2020-08-26T22:46:32Z",
+      "papiStart": "2020-08-26T22:42:47Z",
+      "papiTotalTimeSeconds": 236,
+      "shardIndex": 2,
+      "startupTimeSeconds": 31.805798,
+      "userCommandTimeSeconds": 94.552312
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectUnsortedReadgroupBamQualityMetrics.shard_0003": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 36.39,
+      "cromwellEnd": "2020-08-26T22:46:26.628Z",
+      "cromwellStart": "2020-08-26T22:41:46.238Z",
+      "cromwellTotalTimeSeconds": 280.39,
+      "delocalizationTimeSeconds": 13.718367,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 22,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 77.196776,
+      "localizationTimeSeconds": 29.053687,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EP39vOfCLhjkv8zawqCbh2Mgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0.026725999999996475,
+      "papiCreate": "2020-08-26T22:41:50Z",
+      "papiEnd": "2020-08-26T22:45:54Z",
+      "papiStart": "2020-08-26T22:42:03Z",
+      "papiTotalTimeSeconds": 244,
+      "shardIndex": 3,
+      "startupTimeSeconds": 29.790145,
+      "userCommandTimeSeconds": 94.214299
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectUnsortedReadgroupBamQualityMetrics.shard_0004": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 85.329,
+      "cromwellEnd": "2020-08-26T22:47:12.529Z",
+      "cromwellStart": "2020-08-26T22:41:36.200Z",
+      "cromwellTotalTimeSeconds": 336.329,
+      "delocalizationTimeSeconds": 16.202694,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 22,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 69.75957,
+      "localizationTimeSeconds": 34.449698,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EKGxvOfCLhjkn_fl-p3t3xAgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0.1505239999999901,
+      "papiCreate": "2020-08-26T22:41:41Z",
+      "papiEnd": "2020-08-26T22:45:52Z",
+      "papiStart": "2020-08-26T22:41:52Z",
+      "papiTotalTimeSeconds": 251,
+      "shardIndex": 4,
+      "startupTimeSeconds": 32.308226,
+      "userCommandTimeSeconds": 98.129288
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectUnsortedReadgroupBamQualityMetrics.shard_0005": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 21.57,
+      "cromwellEnd": "2020-08-26T22:46:52.129Z",
+      "cromwellStart": "2020-08-26T22:42:21.559Z",
+      "cromwellTotalTimeSeconds": 270.57,
+      "delocalizationTimeSeconds": 14.778426,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 22,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 78.924022,
+      "localizationTimeSeconds": 26.549399,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EKiNv-fCLhjm_96X2LmHhjsgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-26T22:42:25Z",
+      "papiEnd": "2020-08-26T22:46:34Z",
+      "papiStart": "2020-08-26T22:42:36Z",
+      "papiTotalTimeSeconds": 249,
+      "shardIndex": 5,
+      "startupTimeSeconds": 33.103682,
+      "userCommandTimeSeconds": 96.089653
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectUnsortedReadgroupBamQualityMetrics.shard_0006": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 22.369,
+      "cromwellEnd": "2020-08-26T22:46:41.928Z",
+      "cromwellStart": "2020-08-26T22:42:21.559Z",
+      "cromwellTotalTimeSeconds": 260.369,
+      "delocalizationTimeSeconds": 13.435248,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 22,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 64.357336,
+      "localizationTimeSeconds": 28.560338,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EMGNv-fCLhj_o4DzhM7rpnQgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-26T22:42:25Z",
+      "papiEnd": "2020-08-26T22:46:23Z",
+      "papiStart": "2020-08-26T22:42:36Z",
+      "papiTotalTimeSeconds": 238,
+      "shardIndex": 6,
+      "startupTimeSeconds": 31.22497,
+      "userCommandTimeSeconds": 101.075125
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectUnsortedReadgroupBamQualityMetrics.shard_0007": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 53.091,
+      "cromwellEnd": "2020-08-26T22:48:12.710Z",
+      "cromwellStart": "2020-08-26T22:43:16.619Z",
+      "cromwellTotalTimeSeconds": 296.091,
+      "delocalizationTimeSeconds": 13.338437,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 22,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 76.494432,
+      "localizationTimeSeconds": 24.595411,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EPjAwufCLhjahq3Ukfu9-iAgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-26T22:43:21Z",
+      "papiEnd": "2020-08-26T22:47:24Z",
+      "papiStart": "2020-08-26T22:43:31Z",
+      "papiTotalTimeSeconds": 243,
+      "shardIndex": 7,
+      "startupTimeSeconds": 32.119227,
+      "userCommandTimeSeconds": 97.131013
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CreateSequenceGroupingTSV": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 5.835,
+      "cromwellEnd": "2020-08-26T22:26:52.797Z",
+      "cromwellStart": "2020-08-26T22:25:30.962Z",
+      "cromwellTotalTimeSeconds": 81.835,
+      "delocalizationTimeSeconds": 5.928959,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 10,
+          "type": "SSD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 34.199529,
+      "localizationTimeSeconds": 2.332005,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EKOhgefCLhjynO-V2aDR7r8BIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-26T22:25:32Z",
+      "papiEnd": "2020-08-26T22:26:48Z",
+      "papiStart": "2020-08-26T22:25:43Z",
+      "papiTotalTimeSeconds": 76,
+      "shardIndex": -1,
+      "startupTimeSeconds": 31.235966,
+      "userCommandTimeSeconds": 2.964539
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CrossCheckFingerprints": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 63.005,
+      "cromwellEnd": "2020-08-27T01:28:45.874Z",
+      "cromwellStart": "2020-08-27T01:23:20.869Z",
+      "cromwellTotalTimeSeconds": 325.005,
+      "delocalizationTimeSeconds": 5.721582,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 28,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 74.349859,
+      "localizationTimeSeconds": 114.930998,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/ELbDjOzCLhiVlYvB-JLEv24gy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T01:23:22Z",
+      "papiEnd": "2020-08-27T01:27:44Z",
+      "papiStart": "2020-08-27T01:23:34Z",
+      "papiTotalTimeSeconds": 262,
+      "shardIndex": -1,
+      "startupTimeSeconds": 35.06164,
+      "userCommandTimeSeconds": 32.459336
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.GatherBamFiles": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 88.316,
+      "cromwellEnd": "2020-08-27T02:06:20.045Z",
+      "cromwellStart": "2020-08-27T01:55:29.729Z",
+      "cromwellTotalTimeSeconds": 650.316,
+      "delocalizationTimeSeconds": 77.319246,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 36,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 65.165574,
+      "localizationTimeSeconds": 93.849722,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EJOhgu3CLhi7__TpmpCPphQgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T01:55:31Z",
+      "papiEnd": "2020-08-27T02:04:53Z",
+      "papiStart": "2020-08-27T01:55:43Z",
+      "papiTotalTimeSeconds": 562,
+      "shardIndex": -1,
+      "startupTimeSeconds": 37.006646,
+      "userCommandTimeSeconds": 288.844708
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.GatherBqsrReports": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 98.678,
+      "cromwellEnd": "2020-08-27T01:41:44.107Z",
+      "cromwellStart": "2020-08-27T01:36:34.429Z",
+      "cromwellTotalTimeSeconds": 309.678,
+      "delocalizationTimeSeconds": 5.898461,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 20,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 124.847013,
+      "localizationTimeSeconds": 19.766442,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EP35vOzCLhjXlb2fsKnap2Agy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T01:36:36Z",
+      "papiEnd": "2020-08-27T01:40:07Z",
+      "papiStart": "2020-08-27T01:36:48Z",
+      "papiTotalTimeSeconds": 211,
+      "shardIndex": -1,
+      "startupTimeSeconds": 34.738335,
+      "userCommandTimeSeconds": 25.872533
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.GetBwaVersion": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 33.538,
+      "cromwellEnd": "2020-08-26T22:29:17.463Z",
+      "cromwellStart": "2020-08-26T22:25:29.925Z",
+      "cromwellTotalTimeSeconds": 227.538,
+      "delocalizationTimeSeconds": 4.173404,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 10,
+          "type": "SSD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 147.837289,
+      "localizationTimeSeconds": 2.351856,
+      "machineType": "g1-small",
+      "operationId": "operations/EMmbgefCLhiIsIP7gqDBqiIgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-26T22:25:31Z",
+      "papiEnd": "2020-08-26T22:28:45Z",
+      "papiStart": "2020-08-26T22:25:43Z",
+      "papiTotalTimeSeconds": 194,
+      "shardIndex": -1,
+      "startupTimeSeconds": 35.494989,
+      "userCommandTimeSeconds": 4.788625
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.MarkDuplicates": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 497.057,
+      "cromwellEnd": "2020-08-27T00:00:14.396Z",
+      "cromwellStart": "2020-08-26T22:44:44.339Z",
+      "cromwellTotalTimeSeconds": 4530.057,
+      "delocalizationTimeSeconds": 1108.992548,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 59,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 61.904701,
+      "localizationTimeSeconds": 180.85491,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EKjTx-fCLhj5tLmwt4T80tkBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-26T22:44:45Z",
+      "papiEnd": "2020-08-26T23:51:58Z",
+      "papiStart": "2020-08-26T22:44:56Z",
+      "papiTotalTimeSeconds": 4033,
+      "shardIndex": -1,
+      "startupTimeSeconds": 35.86778,
+      "userCommandTimeSeconds": 2646.178615
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.SamToFastqAndBwaMemAndMba.shard_0000": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 71.449,
+      "cromwellEnd": "2020-08-26T22:41:35.929Z",
+      "cromwellStart": "2020-08-26T22:29:19.480Z",
+      "cromwellTotalTimeSeconds": 736.449,
+      "delocalizationTimeSeconds": 34.416037,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 32,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 48.22943,
+      "localizationTimeSeconds": 118.419127,
+      "machineType": "n1-highcpu-16",
+      "operationId": "operations/EM6LkufCLhi56o7Yr9L4-CAgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-26T22:30:08Z",
+      "papiEnd": "2020-08-26T22:41:13Z",
+      "papiStart": "2020-08-26T22:30:19Z",
+      "papiTotalTimeSeconds": 665,
+      "shardIndex": 0,
+      "startupTimeSeconds": 35.449374,
+      "userCommandTimeSeconds": 428.512939
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.SamToFastqAndBwaMemAndMba.shard_0001": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 115.825,
+      "cromwellEnd": "2020-08-26T22:41:55.306Z",
+      "cromwellStart": "2020-08-26T22:29:19.481Z",
+      "cromwellTotalTimeSeconds": 755.825,
+      "delocalizationTimeSeconds": 20.707156,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 32,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 48.240099,
+      "localizationTimeSeconds": 115.667562,
+      "machineType": "n1-highcpu-16",
+      "operationId": "operations/EN6LkufCLhiNmanEj9X0iA0gy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-26T22:30:08Z",
+      "papiEnd": "2020-08-26T22:40:48Z",
+      "papiStart": "2020-08-26T22:30:19Z",
+      "papiTotalTimeSeconds": 640,
+      "shardIndex": 1,
+      "startupTimeSeconds": 36.096307,
+      "userCommandTimeSeconds": 419.636265
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.SamToFastqAndBwaMemAndMba.shard_0002": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 117.427,
+      "cromwellEnd": "2020-08-26T22:42:25.907Z",
+      "cromwellStart": "2020-08-26T22:29:19.480Z",
+      "cromwellTotalTimeSeconds": 786.427,
+      "delocalizationTimeSeconds": 20.454143,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 32,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 48.412581,
+      "localizationTimeSeconds": 114.468539,
+      "machineType": "n1-highcpu-16",
+      "operationId": "operations/EN6LkufCLhikiaLvqtW6_Tkgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-26T22:30:08Z",
+      "papiEnd": "2020-08-26T22:41:17Z",
+      "papiStart": "2020-08-26T22:30:18Z",
+      "papiTotalTimeSeconds": 669,
+      "shardIndex": 2,
+      "startupTimeSeconds": 35.072563,
+      "userCommandTimeSeconds": 451.013267
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.SamToFastqAndBwaMemAndMba.shard_0003": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 119.547,
+      "cromwellEnd": "2020-08-26T22:41:41.028Z",
+      "cromwellStart": "2020-08-26T22:29:19.481Z",
+      "cromwellTotalTimeSeconds": 741.547,
+      "delocalizationTimeSeconds": 19.338283,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 32,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 47.697035,
+      "localizationTimeSeconds": 105.39041,
+      "machineType": "n1-highcpu-16",
+      "operationId": "operations/EOSLkufCLhjs8O-R16fjnugBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-26T22:30:08Z",
+      "papiEnd": "2020-08-26T22:40:30Z",
+      "papiStart": "2020-08-26T22:30:18Z",
+      "papiTotalTimeSeconds": 622,
+      "shardIndex": 3,
+      "startupTimeSeconds": 34.479236,
+      "userCommandTimeSeconds": 415.302465
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.SamToFastqAndBwaMemAndMba.shard_0004": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 75.346,
+      "cromwellEnd": "2020-08-26T22:41:30.826Z",
+      "cromwellStart": "2020-08-26T22:29:19.480Z",
+      "cromwellTotalTimeSeconds": 731.346,
+      "delocalizationTimeSeconds": 20.615351,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 32,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 48.527382,
+      "localizationTimeSeconds": 119.484563,
+      "machineType": "n1-highcpu-16",
+      "operationId": "operations/EKuMkufCLhjG9vXRqtGZkoUBIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-26T22:30:08Z",
+      "papiEnd": "2020-08-26T22:41:04Z",
+      "papiStart": "2020-08-26T22:30:21Z",
+      "papiTotalTimeSeconds": 656,
+      "shardIndex": 4,
+      "startupTimeSeconds": 36.759568,
+      "userCommandTimeSeconds": 431.136177
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.SamToFastqAndBwaMemAndMba.shard_0005": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 128.129,
+      "cromwellEnd": "2020-08-26T22:42:10.608Z",
+      "cromwellStart": "2020-08-26T22:29:19.479Z",
+      "cromwellTotalTimeSeconds": 771.129,
+      "delocalizationTimeSeconds": 24.679244,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 32,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 47.087077,
+      "localizationTimeSeconds": 99.806205,
+      "machineType": "n1-highcpu-16",
+      "operationId": "operations/EMmLkufCLhjSvMT0rp3OlV4gy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-26T22:30:08Z",
+      "papiEnd": "2020-08-26T22:40:51Z",
+      "papiStart": "2020-08-26T22:30:18Z",
+      "papiTotalTimeSeconds": 643,
+      "shardIndex": 5,
+      "startupTimeSeconds": 35.515837,
+      "userCommandTimeSeconds": 436.586274
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.SamToFastqAndBwaMemAndMba.shard_0006": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 134.128,
+      "cromwellEnd": "2020-08-26T22:42:10.608Z",
+      "cromwellStart": "2020-08-26T22:29:19.480Z",
+      "cromwellTotalTimeSeconds": 771.128,
+      "delocalizationTimeSeconds": 21.237189,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 32,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 48.292206,
+      "localizationTimeSeconds": 118.246647,
+      "machineType": "n1-highcpu-16",
+      "operationId": "operations/EISMkufCLhjp-aiBg9Td864BIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-26T22:30:08Z",
+      "papiEnd": "2020-08-26T22:40:45Z",
+      "papiStart": "2020-08-26T22:30:19Z",
+      "papiTotalTimeSeconds": 637,
+      "shardIndex": 6,
+      "startupTimeSeconds": 34.969779,
+      "userCommandTimeSeconds": 414.613505
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.SamToFastqAndBwaMemAndMba.shard_0007": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 199.304,
+      "cromwellEnd": "2020-08-26T22:43:10.784Z",
+      "cromwellStart": "2020-08-26T22:29:19.480Z",
+      "cromwellTotalTimeSeconds": 831.304,
+      "delocalizationTimeSeconds": 19.968204,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 32,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 48.88865,
+      "localizationTimeSeconds": 113.873633,
+      "machineType": "n1-highcpu-16",
+      "operationId": "operations/EOWLkufCLhil2q3LrI24ra0BIMu2sLePDSoPcHJvZHVjdGlvblF1ZXVl",
+      "otherTimeSeconds": 0.09086700000000292,
+      "papiCreate": "2020-08-26T22:30:08Z",
+      "papiEnd": "2020-08-26T22:40:40Z",
+      "papiStart": "2020-08-26T22:30:18Z",
+      "papiTotalTimeSeconds": 632,
+      "shardIndex": 7,
+      "startupTimeSeconds": 34.021788,
+      "userCommandTimeSeconds": 415.156858
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.SortSampleBam": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 247.114,
+      "cromwellEnd": "2020-08-27T01:23:14.373Z",
+      "cromwellStart": "2020-08-27T00:00:16.259Z",
+      "cromwellTotalTimeSeconds": 4978.114,
+      "delocalizationTimeSeconds": 574.125255,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 63,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 75.752545,
+      "localizationTimeSeconds": 219.523623,
+      "machineType": "n1-standard-2",
+      "operationId": "operations/EIGz3OnCLhj_hZuYraernSkgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0,
+      "papiCreate": "2020-08-27T00:00:19Z",
+      "papiEnd": "2020-08-27T01:19:10Z",
+      "papiStart": "2020-08-27T00:00:32Z",
+      "papiTotalTimeSeconds": 4731,
+      "shardIndex": -1,
+      "startupTimeSeconds": 38.663726,
+      "userCommandTimeSeconds": 3823.099196
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.SumFloats": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 4.91,
+      "cromwellEnd": "2020-08-26T22:44:41.569Z",
+      "cromwellStart": "2020-08-26T22:43:18.659Z",
+      "cromwellTotalTimeSeconds": 82.91,
+      "delocalizationTimeSeconds": 4.352955,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 10,
+          "type": "SSD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 36.540818,
+      "localizationTimeSeconds": 1.508893,
+      "machineType": "n1-standard-1",
+      "operationId": "operations/EPK1wufCLhjt4vLkgNSN9Skgy7awt48NKg9wcm9kdWN0aW9uUXVldWU",
+      "otherTimeSeconds": 0.016412000000016747,
+      "papiCreate": "2020-08-26T22:43:19Z",
+      "papiEnd": "2020-08-26T22:44:37Z",
+      "papiStart": "2020-08-26T22:43:31Z",
+      "papiTotalTimeSeconds": 78,
+      "shardIndex": -1,
+      "startupTimeSeconds": 31.509436,
+      "userCommandTimeSeconds": 4.071486
+    }
+  },
+  "version": "0.0.3",
+  "workflowId": "59ab43e3-bb19-4e44-9ba0-fa9d98cffa16"
+}

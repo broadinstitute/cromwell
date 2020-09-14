@@ -294,14 +294,14 @@ def compare_jsons(json_1: JsonObject, json_2: JsonObject,
         disk_cost_percent = ((disk_cost_2 - disk_cost_1) * 100) / disk_cost_1
         for cost in [disk_cost_1, disk_cost_2]:
             row.append(cost_format(cost))
-        row.append(f'{disk_cost_percent:.2f}')
+        row.append(f'{disk_cost_percent:.2f}%')
 
         total_cost_1 = disk_cost_1 + hours_1
         total_cost_2 = disk_cost_2 + hours_2
         total_cost_percent = ((total_cost_2 - total_cost_1) * 100) / total_cost_1
         for cost in [total_cost_1, total_cost_2]:
             row.append(cost_format(cost))
-        row.append(f'{total_cost_percent:.2f}')
+        row.append(f'{total_cost_percent:.2f}%')
 
         for digester_key_name in digester_key_names:
             time_1 = call_1.get(digester_key_name)

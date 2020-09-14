@@ -39,9 +39,9 @@ class ComparerTestMethods(unittest.TestCase):
         actual = csv_string_from_data(data)
         return actual
 
-    def test_compare_valid_jsons_no_disk_info(self) -> None:
+    def test_compare_valid_jsons(self) -> None:
         cases = [
-            ("papiv1_version2_good.json", "papiv2_version2_good.json"),
+            ("papiv1_version3_good.json", "papiv2_version3_good.json"),
         ]
 
         for case in cases:
@@ -54,8 +54,8 @@ class ComparerTestMethods(unittest.TestCase):
     def test_compare_to_self(self) -> None:
         """ Sanity check comparing a digest to itself, which should produce 0.00% increases for everything. """
         cases = [
-            ("papiv1_version2_good.json", "papiv1_version2_good.json"),
-            ("papiv2_version2_good.json", "papiv2_version2_good.json"),
+            ("papiv1_version3_good.json", "papiv1_version3_good.json"),
+            ("papiv2_version3_good.json", "papiv2_version3_good.json"),
         ]
 
         for case in cases:
@@ -68,7 +68,7 @@ class ComparerTestMethods(unittest.TestCase):
                 # Skip the four header rows + blank line.
                 for i in range(5, len(actual)):
                     for j in percent_column_indexes:
-                        self.assertEqual(actual[i][j], "0.00%")
+                        self.assertEqual(actual[i][j], "0.00%", f'with row index = {i} and column index = {j}')
 
     first_digest = json.loads("""
         {

@@ -48,7 +48,7 @@ class ComparerTestMethods(unittest.TestCase):
             with self.subTest(case=case):
                 json_1, json_2 = [json_from_path(p) for p in [case[0], case[1]]]
                 actual = self.__compare_for_exome_germline_single_sample(json_1, json_2)
-                expected = self.__read_resource("version3_comparer_on_version2_digests_good.csv")
+                expected = self.__read_resource("version3_comparison_good.csv")
                 self.assertEqual(actual, expected)
 
     def test_compare_to_self(self) -> None:

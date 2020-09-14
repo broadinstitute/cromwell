@@ -38,8 +38,7 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClie
     val responseContentIO = toIO(responseEntityOption, exceptionMsg)
 
     responseContentIO.flatMap{ responseContent =>
-      if (drsConfig.marthaUri.endsWith("martha_v3")) IO.fromEither(decode[MarthaResponse](responseContent))
-      else IO.fromEither(decode[MarthaV2Response](responseContent).map(convertMarthaResponseV2ToV3))
+      IO.fromEither(decode[MarthaResponse](responseContent))
     }.handleErrorWith {
       e => IO.raiseError(new RuntimeException(s"Unexpected response during DRS resolution: ${ExceptionUtils.getMessage(e)}"))
     }
@@ -86,6 +85,7 @@ final case class MarthaResponse(size: Option[Long],
                                 name: Option[String],
                                 gsUri: Option[String],
                                 googleServiceAccount: Option[SADataObject],
+                                fileName: Option[String],
                                 hashes: Option[Map[String, String]])
 
 // Adapted from https://github.com/broadinstitute/martha/blob/f31933a3a11e20d30698ec4b4dc1e0abbb31a8bc/common/helpers.js#L210-L218
@@ -99,8 +99,11 @@ object MarthaResponseSupport {
   implicit lazy val dataObjectDecoder: Decoder[DrsDataObject] = deriveDecoder
   implicit lazy val drsObjectDecoder: Decoder[DrsObject] = deriveDecoder
   implicit lazy val saDataObjectDecoder: Decoder[SADataObject] = deriveDecoder
-  implicit lazy val marthaV2ResponseDecoder: Decoder[MarthaV2Response] = deriveDecoder
-  implicit lazy val marthaResponseDecoder: Decoder[MarthaResponse] = deriveDecoder
+  private lazy val marthaV3ResponseDecoder: Decoder[MarthaResponse] = deriveDecoder
+  private lazy val marthaV2ResponseDecoder: Decoder[MarthaResponse] =
+    deriveDecoder[MarthaV2Response] map convertMarthaResponseV2ToV3
+  implicit lazy val marthaResponseDecoder: Decoder[MarthaResponse] =
+    marthaV2ResponseDecoder or marthaV3ResponseDecoder
 
   implicit lazy val marthaFailureResponseDecoder: Decoder[MarthaFailureResponse] = deriveDecoder
   implicit lazy val marthaFailureResponsePayloadDecoder: Decoder[MarthaFailureResponsePayload] = deriveDecoder
@@ -135,6 +138,7 @@ object MarthaResponseSupport {
       name = fileName,
       gsUri = gcsUrl,
       googleServiceAccount = response.googleServiceAccount,
+      fileName = None,
       hashes = hashesMap
     )
   }

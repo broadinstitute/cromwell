@@ -44,6 +44,7 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with Matchers {
     name = Option("file-name"),
     gsUri = Option("gs://my-gs-bucket/file-name"),
     googleServiceAccount = Option(mockGSA),
+    fileName = None,
     hashes = Option(Map("md5" -> md5HashValue, "crc32c" -> crcHashValue))
   )
 
@@ -54,6 +55,7 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with Matchers {
     name = Option("file-name"),
     gsUri = Option("gs://my-gs-bucket/file-name"),
     googleServiceAccount = Option(mockGSA),
+    fileName = None,
     hashes = Option(Map("md5" -> md5HashValue, "crc32c" -> crcHashValue))
   )
 

@@ -15,6 +15,7 @@ metadata {
   workflowName: drs_usa_jdr
   status: Succeeded
 
+  "outputs.drs_usa_jdr.path1" = "/cromwell_root/jade.datarepo-dev.broadinstitute.org/v1_0c86170e-312d-4b39-a0a4-2a2bfaa24c7a_c0e40912-8b14-43f6-9a2f-b278144d0060/hapmap_3.3.hg38.vcf.gz"
   "outputs.drs_usa_jdr.hash1" = "d05ac6b9a247a21ce0030c7494194da9"
   "outputs.drs_usa_jdr.size1" = 62043448
 }

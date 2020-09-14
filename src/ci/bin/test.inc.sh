@@ -162,7 +162,7 @@ cromwell::private::create_build_variables() {
                 travis_commit_message="$(git log --reverse "${TRAVIS_COMMIT_RANGE}" | tail -n1 2>/dev/null || true)"
             fi
 
-            if [[ -z "${travis_commit_message:+set}" ]]; then
+            if [[ -z "${travis_commit_message:-}" ]]; then
                 travis_commit_message="$(git log --format=%B --max-count=1 HEAD 2>/dev/null || true)"
             fi
 
@@ -227,7 +227,7 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_GIT_USER_EMAIL="unknown.git.user@example.org"
             CROMWELL_BUILD_GIT_USER_NAME="Unknown Git User"
             CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
-            CROMWELL_BUILD_GENERATE_COVERAGE=true
+            CROMWELL_BUILD_GENERATE_COVERAGE="${CROMWELL_BUILD_GENERATE_COVERAGE:-true}"
             CROMWELL_BUILD_RUN_TESTS=true
 
             local bash_script
@@ -260,6 +260,12 @@ cromwell::private::create_build_variables() {
         CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND="server/assembly centaurCwlRunner/assembly"
     else
         CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND="assembly"
+    fi
+
+    if [[ "${CROMWELL_BUILD_GENERATE_COVERAGE}" == "true" ]]; then
+        CROMWELL_BUILD_SBT_COVERAGE_COMMAND="coverage"
+    else
+        CROMWELL_BUILD_SBT_COVERAGE_COMMAND=""
     fi
 
     case "${CROMWELL_BUILD_TYPE}" in
@@ -303,7 +309,6 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_OPTIONAL_SECURE="${CROMWELL_BUILD_OPTIONAL_SECURE-false}"
     CROMWELL_BUILD_REQUIRES_SECURE="${CROMWELL_BUILD_REQUIRES_SECURE-false}"
     CROMWELL_BUILD_REQUIRES_PRIOR_VERSION="${CROMWELL_BUILD_REQUIRES_PRIOR_VERSION-false}"
-    CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND="${CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND-assembly}"
     VAULT_TOKEN="${VAULT_TOKEN-vault token is not set as an environment variable}"
 
     local hours_to_minutes
@@ -351,6 +356,7 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_ROOT_DIRECTORY
     export CROMWELL_BUILD_RUN_TESTS
     export CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND
+    export CROMWELL_BUILD_SBT_COVERAGE_COMMAND
     export CROMWELL_BUILD_SCRIPTS_DIRECTORY
     export CROMWELL_BUILD_TAG
     export CROMWELL_BUILD_TYPE
@@ -1020,7 +1026,12 @@ cromwell::private::assemble_jars() {
     # CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND allows for an override of the default `assembly` command for assembly.
     # This can be useful to reduce time and memory that might otherwise be spent assembling unused subprojects.
     # shellcheck disable=SC2086
-    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=error sbt --warn coverage ${CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND} -error
+    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=error \
+        sbt \
+        --warn \
+        ${CROMWELL_BUILD_SBT_COVERAGE_COMMAND} \
+        ${CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND} \
+        -error
 }
 
 cromwell::private::setup_prior_version_resources() {
@@ -1364,6 +1375,17 @@ cromwell::build::build_cromwell_docker() {
     cromwell::build::build_docker_image server broadinstitute/cromwell:"${CROMWELL_BUILD_DOCKER_TAG}"
 }
 
+cromwell:build::run_sbt_test() {
+    # CROMWELL_BUILD_SBT_COVERAGE_COMMAND allows enabling or disabling `sbt coverage`.
+    # shellcheck disable=SC2086
+    sbt \
+        -warn \
+        -Dakka.test.timefactor=${CROMWELL_BUILD_UNIT_SPAN_SCALE_FACTOR} \
+        -Dbackend.providers.Local.config.filesystems.local.localization.0=copy \
+        ${CROMWELL_BUILD_SBT_COVERAGE_COMMAND} \
+        test
+}
+
 cromwell::build::run_centaur() {
     local -a additional_args
     additional_args=()
@@ -1373,12 +1395,14 @@ cromwell::build::run_centaur() {
         # shellcheck disable=SC2206
         additional_args=(${CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS})
     fi
+    if [[ "${CROMWELL_BUILD_GENERATE_COVERAGE}" == "true" ]]; then
+        additional_args+=("-g")
+    fi
     # Handle empty arrays in older versions of bash
     # https://stackoverflow.com/questions/7577052/bash-empty-array-expansion-with-set-u#answer-7577209
     "${CROMWELL_BUILD_ROOT_DIRECTORY}/centaur/test_cromwell.sh" \
         -n "${CROMWELL_BUILD_CENTAUR_CONFIG}" \
         -l "${CROMWELL_BUILD_LOG_DIRECTORY}" \
-        -g \
         ${additional_args[@]+"${additional_args[@]}"} \
         "$@"
 }

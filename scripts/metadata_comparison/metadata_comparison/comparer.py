@@ -384,11 +384,8 @@ def json_from_path_string(path_string: AnyStr) -> JsonObject:
 
 
 def csv_string_from_data(data: List[List[AnyStr]]) -> AnyStr:
-    try:
-        rows = [','.join(row) for row in data]
-        return '\n'.join(rows)
-    except TypeError as crap:
-        print(f'Aw crap: {crap}')
+    rows = [','.join(row) for row in data]
+    return '\n'.join(rows)
 
 
 if __name__ == "__main__":

@@ -14,9 +14,10 @@ apt-get install -y \
     gnupg \
     gnupg2 \
     jq \
-    mysql-client \
+    default-mysql-client \
     postgresql-client \
-    python-dev \
+    python3-dev \
+    python3-pip \
     software-properties-common \
     sudo \
 
@@ -27,9 +28,7 @@ apt-get update
 apt-get install -y sbt
 
 # upgrade python dependencies
-curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-python get-pip.py
-pip install --upgrade --force-reinstall pyopenssl
+pip3 install --upgrade --force-reinstall pyopenssl
 
 # install gcloud
 echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" \

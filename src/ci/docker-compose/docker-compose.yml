@@ -14,6 +14,7 @@ services:
       - JENKINS_BUILD_TYPE
       - CENTAUR_TEST_ADDITIONAL_PARAMETERS
       - SBT_OPTS
+      - PYTHON3_HOME
     working_dir: ${PWD}
     volumes:
       - ${PWD}:${PWD}

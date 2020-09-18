@@ -59,7 +59,7 @@
   "PreProcessingForVariantDiscovery_GATK4.GetBwaVersion.mem_size": "1 GB",
   "PreProcessingForVariantDiscovery_GATK4.SamToFastqAndBwaMem.mem_size": "14 GB",
   "PreProcessingForVariantDiscovery_GATK4.MergeBamAlignment.mem_size": "3500 MB",
-  "PreProcessingForVariantDiscovery_GATK4.MarkDuplicates.mem_size": "7 GB",
+  "PreProcessingForVariantDiscovery_GATK4.MarkDuplicates.mem_size": "9 GB",
   "PreProcessingForVariantDiscovery_GATK4.SortAndFixTags.mem_size": "5000 MB",
   "PreProcessingForVariantDiscovery_GATK4.CreateSequenceGroupingTSV.mem_size": "2 GB",
   "PreProcessingForVariantDiscovery_GATK4.BaseRecalibrator.mem_size": "6 GB",

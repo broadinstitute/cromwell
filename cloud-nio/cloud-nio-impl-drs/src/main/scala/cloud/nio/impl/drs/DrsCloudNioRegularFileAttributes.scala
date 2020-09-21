@@ -8,7 +8,9 @@ import cloud.nio.impl.drs.DrsCloudNioRegularFileAttributes._
 import cloud.nio.spi.CloudNioRegularFileAttributes
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-class DrsCloudNioRegularFileAttributes(drsPath: String, drsPathResolver: EngineDrsPathResolver) extends CloudNioRegularFileAttributes{
+class DrsCloudNioRegularFileAttributes(drsPath: String,
+                                       marthaResponseIO: IO[MarthaResponse],
+                                      ) extends CloudNioRegularFileAttributes{
 
   private def convertToOffsetDateTime(timeInString: String): IO[OffsetDateTime] = {
     // Here timeInString is assumed to be a ISO-8601 DateTime with timezone
@@ -38,18 +40,18 @@ class DrsCloudNioRegularFileAttributes(drsPath: String, drsPathResolver: EngineD
   }
 
   override def fileHash: Option[String] = {
-    drsPathResolver.resolveDrsThroughMartha(drsPath).map( marthaResponse => {
-      marthaResponse.hashes match {
-        case Some(hashes) => getPreferredHash(hashes)
-        case None => throw createMissingKeyException(drsPath, "hashes")
-      }
-    }).unsafeRunSync()
+    val fileHashIO = for {
+      marthaResponse <- marthaResponseIO
+      hashes <- IO.fromEither(marthaResponse.hashes.toRight(createMissingKeyException(drsPath, "hashes")))
+    } yield getPreferredHash(hashes)
+
+    fileHashIO.unsafeRunSync()
   }
 
 
   override def lastModifiedTime(): FileTime = {
     val lastModifiedIO = for {
-      marthaResponse <- drsPathResolver.resolveDrsThroughMartha(drsPath)
+      marthaResponse <- marthaResponseIO
       lastModifiedInString <- IO.fromEither(marthaResponse.timeUpdated.toRight(createMissingKeyException(drsPath, "updated")))
       lastModified <- convertToFileTime(lastModifiedInString)
     } yield lastModified
@@ -60,7 +62,7 @@ class DrsCloudNioRegularFileAttributes(drsPath: String, drsPathResolver: EngineD
 
   override def size(): Long = {
     val sizeIO = for {
-      marthaResponse <- drsPathResolver.resolveDrsThroughMartha(drsPath)
+      marthaResponse <- marthaResponseIO
       size <- IO.fromEither(marthaResponse.size.toRight(createMissingKeyException(drsPath, "size")))
     } yield size
 

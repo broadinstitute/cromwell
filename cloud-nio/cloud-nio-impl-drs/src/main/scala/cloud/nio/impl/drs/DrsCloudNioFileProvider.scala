@@ -74,8 +74,12 @@ class DrsCloudNioFileProvider(scheme: String,
     throw new UnsupportedOperationException("DRS currently doesn't support write.")
 
 
-  override def fileAttributes(cloudHost: String, cloudPath: String): Option[CloudNioRegularFileAttributes] =
-    Option(new DrsCloudNioRegularFileAttributes(getDrsPath(cloudHost,cloudPath), drsPathResolver))
+  override def fileAttributes(cloudHost: String, cloudPath: String): Option[CloudNioRegularFileAttributes] = {
+    val drsPath = getDrsPath(cloudHost,cloudPath)
+    val marthaResponseIO = drsPathResolver.resolveDrsThroughMartha(drsPath)
+
+    Option(new DrsCloudNioRegularFileAttributes(getDrsPath(cloudHost,cloudPath), marthaResponseIO))
+  }
 }
 
 

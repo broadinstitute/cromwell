@@ -1,11 +1,8 @@
 package cromwell.engine.workflow.lifecycle.execution
 
-import java.time.OffsetDateTime
-import java.time.temporal.ChronoUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.ActorRef
-import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend._
 import cromwell.core.ExecutionStatus._
 import cromwell.core.io.AsyncIo
@@ -60,7 +57,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
                                       downstreamExecutionMap: JobExecutionMap = Map.empty,
                                       totalJobsByRootWf: AtomicInteger,
                                       cumulativeOutputs: Set[WomValue] = Set.empty,
-                                      rootAndSubworkflowIds: Set[WorkflowId]) extends StrictLogging {
+                                      rootAndSubworkflowIds: Set[WorkflowId]) {
 
   val expressionLanguageFunctions = new EngineIoFunctions(workflowDescriptor.pathBuilders, asyncIo, ec)
 
@@ -116,30 +113,22 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
   }
 
   def mergeExecutionDiff(diff: WorkflowExecutionDiff): WorkflowExecutionActorData = {
-    val tsBefore = OffsetDateTime.now()
-    val result = this.copy(
+    this.copy(
       executionStore = executionStore.updateKeys(diff.executionStoreChanges),
       valueStore = valueStore.add(diff.valueStoreAdditions),
       jobKeyActorMappings = jobKeyActorMappings ++ diff.jobKeyActorMappings,
       cumulativeOutputs = cumulativeOutputs ++ diff.cumulativeOutputsChanges,
       rootAndSubworkflowIds = rootAndSubworkflowIds ++ diff.rootAndSubworkflowIds
     )
-    if (false) logger.warn(s"Merging $diff took ${ChronoUnit.MILLIS.between(OffsetDateTime.now(), tsBefore).abs} millis...")
-    result
   }
 
   def mergeExecutionDiffs(diffs: Traversable[WorkflowExecutionDiff]): WorkflowExecutionActorData = {
-    val tsBefore = OffsetDateTime.now()
-    val result = preconsolidateDiffs(diffs) match {
+    preconsolidateDiffs(diffs) match {
       case Some(preconsolidated) =>
-        logger.warn(s"Preconsolidation of ${diffs.size} diffs successful!")
         this.mergeExecutionDiff(preconsolidated)
       case None =>
-        logger.warn(s"Unable to preconsolidation ${diffs.size} diffs")
         diffs.foldLeft(this)((newData, diff) => newData.mergeExecutionDiff(diff))
     }
-    logger.warn(s"Merging ALL execution diffs took ${ChronoUnit.MILLIS.between(OffsetDateTime.now(), tsBefore).abs} millis...")
-    result
   }
 
   def preconsolidateDiffs(diffs: Traversable[WorkflowExecutionDiff]): Option[WorkflowExecutionDiff] = {

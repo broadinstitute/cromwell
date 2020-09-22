@@ -508,9 +508,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
         })
         updatedData.mergeExecutionDiffs(updatedDiffs)
       }
-      else {
-        updatedData.mergeExecutionDiffs(diffs)
-      }
+      else updatedData.mergeExecutionDiffs(diffs)
     }
 
     val DataStoreUpdate(runnableKeys, statusChanges, updatedData) = data.executionStoreUpdate

@@ -134,10 +134,10 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
   def preconsolidateDiffs(diffs: Traversable[WorkflowExecutionDiff]): Option[WorkflowExecutionDiff] = {
     val result = diffs.foldLeft(WorkflowExecutionDiff.empty)((acc, diff) => {
       if (acc.executionStoreChanges.keySet.intersect(diff.executionStoreChanges.keySet).nonEmpty
-        && acc.jobKeyActorMappings.keySet.intersect(diff.jobKeyActorMappings.keySet).nonEmpty
-        && acc.valueStoreAdditions.keySet.intersect(diff.valueStoreAdditions.keySet).nonEmpty
-        && acc.cumulativeOutputsChanges.intersect(diff.cumulativeOutputsChanges).nonEmpty
-        && acc.rootAndSubworkflowIds.intersect(diff.rootAndSubworkflowIds).nonEmpty
+        || acc.jobKeyActorMappings.keySet.intersect(diff.jobKeyActorMappings.keySet).nonEmpty
+        || acc.valueStoreAdditions.keySet.intersect(diff.valueStoreAdditions.keySet).nonEmpty
+        || acc.cumulativeOutputsChanges.intersect(diff.cumulativeOutputsChanges).nonEmpty
+        || acc.rootAndSubworkflowIds.intersect(diff.rootAndSubworkflowIds).nonEmpty
       ) return None
       else {
         acc.copy(

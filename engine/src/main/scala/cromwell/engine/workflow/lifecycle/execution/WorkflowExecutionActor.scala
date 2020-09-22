@@ -10,7 +10,6 @@ import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import com.typesafe.config.Config
-import com.typesafe.scalalogging.StrictLogging
 import common.Checked
 import common.exception.{AggregatedException, AggregatedMessageException, MessageAggregation}
 import common.validation.ErrorOr.ErrorOr
@@ -51,7 +50,7 @@ import scala.language.postfixOps
 import scala.util.control.NoStackTrace
 
 case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
-  extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] with WorkflowLogging with CallMetadataHelper with StopAndLogSupervisor with Timers with StrictLogging {
+  extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] with WorkflowLogging with CallMetadataHelper with StopAndLogSupervisor with Timers {
 
   implicit val ec = context.dispatcher
   override val serviceRegistryActor = params.serviceRegistryActor
@@ -510,7 +509,6 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
         updatedData.mergeExecutionDiffs(updatedDiffs)
       }
       else {
-        logger.warn(s"Merging ${diffs.size} diffs (execution store change sizes: ${diffs.map(_.executionStoreChanges.size).mkString(", ")})")
         updatedData.mergeExecutionDiffs(diffs)
       }
     }

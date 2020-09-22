@@ -3,7 +3,6 @@ package cromwell.engine.workflow.lifecycle.execution.stores
 import java.util.concurrent.atomic.AtomicInteger
 
 import cats.syntax.validated._
-import com.typesafe.scalalogging.StrictLogging
 import common.collections.EnhancedCollections._
 import common.collections.Table
 import common.validation.ErrorOr.ErrorOr
@@ -152,7 +151,7 @@ final case class SealedExecutionStore private[stores](private val statusStore: M
   *                    when true, something happened since the last update that could yield new runnable keys, so update should be called
   *                    when false, nothing happened between the last update and now that will yield different results so no need to call the update method
   */
-sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, ExecutionStatus], val needsUpdate: Boolean) extends StrictLogging {
+sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, ExecutionStatus], val needsUpdate: Boolean) {
   // View of the statusStore more suited for lookup based on status
   lazy val store: Map[ExecutionStatus, List[JobKey]] = statusStore.groupBy(_._2).safeMapValues(_.keys.toList)
   lazy val queueableJobLimit = {

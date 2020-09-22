@@ -3,6 +3,7 @@ package cromwell.engine.workflow.lifecycle.execution.keys
 import akka.actor.ActorRef
 import cats.syntax.either._
 import cats.syntax.validated._
+import com.typesafe.scalalogging.StrictLogging
 import common.Checked
 import common.collections.EnhancedCollections._
 import common.validation.ErrorOr.ErrorOr
@@ -19,7 +20,7 @@ import wom.values.WomValue
 
 import scala.language.postfixOps
 
-private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
+private [execution] case class ScatterKey(node: ScatterNode) extends JobKey with StrictLogging {
 
   // When scatters are nested, this might become Some(_)
   override val index = None
@@ -118,9 +119,13 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
     }
 
 
-    (for {
+    val result = (for {
       arrays <- scatterArraysValuesCheck
       scatterSize <- node.scatterProcessingFunction(arrays)
     } yield buildExecutionDiff(scatterSize, arrays)).toValidated
+
+    logger.warn(s"Evaluating scatter key generated ${result.map(x => x.executionStoreChanges.size)} execution store changes")
+
+    result
   }
 }

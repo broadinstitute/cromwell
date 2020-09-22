@@ -3,6 +3,7 @@ package cromwell.engine.workflow.lifecycle.execution.stores
 import java.util.concurrent.atomic.AtomicInteger
 
 import cats.syntax.validated._
+import com.typesafe.scalalogging.StrictLogging
 import common.collections.EnhancedCollections._
 import common.collections.Table
 import common.validation.ErrorOr.ErrorOr
@@ -151,7 +152,7 @@ final case class SealedExecutionStore private[stores](private val statusStore: M
   *                    when true, something happened since the last update that could yield new runnable keys, so update should be called
   *                    when false, nothing happened between the last update and now that will yield different results so no need to call the update method
   */
-sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, ExecutionStatus], val needsUpdate: Boolean) {
+sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, ExecutionStatus], val needsUpdate: Boolean) extends StrictLogging {
   // View of the statusStore more suited for lookup based on status
   lazy val store: Map[ExecutionStatus, List[JobKey]] = statusStore.groupBy(_._2).safeMapValues(_.keys.toList)
   lazy val queueableJobLimit = {
@@ -181,7 +182,12 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     // - A job has completed -> downstream jobs might now be runnable
     // - The store had jobs waiting for queue space -> more queue space might have been freed up
     val needsNewUpdate = values.nonEmpty && (values.values.exists(_.isTerminalOrRetryable) || store.contains(WaitingForQueueSpace))
-    updateKeys(values, needsUpdate || needsNewUpdate)
+//    val tsBefore = OffsetDateTime.now()
+    val result = updateKeys(values, needsUpdate || needsNewUpdate)
+//    logger.warn(s"Updating keys took ${ChronoUnit.SECONDS.between(OffsetDateTime.now(), tsBefore)} seconds...")
+//    logger.warn(s"Result needs update?: ${result.needsUpdate}")
+
+    result
   }
 
   /**

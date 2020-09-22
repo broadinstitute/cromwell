@@ -181,12 +181,7 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     // - A job has completed -> downstream jobs might now be runnable
     // - The store had jobs waiting for queue space -> more queue space might have been freed up
     val needsNewUpdate = values.nonEmpty && (values.values.exists(_.isTerminalOrRetryable) || store.contains(WaitingForQueueSpace))
-//    val tsBefore = OffsetDateTime.now()
-    val result = updateKeys(values, needsUpdate || needsNewUpdate)
-//    logger.warn(s"Updating keys took ${ChronoUnit.SECONDS.between(OffsetDateTime.now(), tsBefore)} seconds...")
-//    logger.warn(s"Result needs update?: ${result.needsUpdate}")
-
-    result
+    updateKeys(values, needsUpdate || needsNewUpdate)
   }
 
   /**

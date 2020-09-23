@@ -6,6 +6,7 @@ import java.time.{Duration, OffsetDateTime}
 import better.files.File
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.all._
+import cats.instances.list._
 import com.google.auth.oauth2.GoogleCredentials
 import com.google.cloud.storage.StorageOptions
 import com.typesafe.scalalogging.StrictLogging

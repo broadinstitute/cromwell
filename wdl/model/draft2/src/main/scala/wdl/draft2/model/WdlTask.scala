@@ -3,6 +3,7 @@ package wdl.draft2.model
 import java.util.regex.Pattern
 
 import cats.syntax.all._
+import cats.instances.all._
 import common.validation.ErrorOr.ErrorOr
 import wdl.draft2.model.command._
 import wdl.draft2.model.AstTools._

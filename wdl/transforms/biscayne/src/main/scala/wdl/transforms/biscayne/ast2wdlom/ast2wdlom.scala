@@ -1,5 +1,6 @@
 package wdl.transforms.biscayne
 
+import cats.instances.either._
 import better.files.File
 import common.transforms.CheckedAtoB
 import common.validation.Checked._

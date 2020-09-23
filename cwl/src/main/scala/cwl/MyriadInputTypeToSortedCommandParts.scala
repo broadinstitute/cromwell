@@ -8,6 +8,8 @@ import shapeless.{Coproduct, Poly1}
 import wom.values.{WomArray, WomCoproductValue, WomObjectLike, WomOptionalValue, WomValue}
 import cats.syntax.option._
 import cats.syntax.traverse._
+import cats.instances.list._
+import cats.instances.option._
 
 /**
   * Poly1 to fold over a MyriadInputType and create a List of SortingKeyAndCommandPart based on the rules described here:

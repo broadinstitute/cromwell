@@ -5,7 +5,7 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
 import better.files.File
-import cats.syntax.all._
+import cats.implicits._
 import common.Checked
 import common.transforms.CheckedAtoB
 import common.validation.Validation._

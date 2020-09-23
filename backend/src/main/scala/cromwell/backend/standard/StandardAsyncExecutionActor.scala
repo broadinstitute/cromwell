@@ -4,10 +4,7 @@ import java.io.IOException
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
-import cats.syntax.apply._
-import cats.syntax.either._
-import cats.syntax.functor._
-import cats.syntax.traverse._
+import cats.implicits._
 import common.Checked
 import common.exception.MessageAggregation
 import common.util.StringUtil._

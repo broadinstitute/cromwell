@@ -4,6 +4,7 @@ import java.util.concurrent.Executors
 
 import cats.effect.IO
 import cats.syntax.traverse._
+import cats.instances.list._
 import com.google.common.cache.{Cache, CacheBuilder}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.Logger

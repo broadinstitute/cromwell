@@ -4,6 +4,7 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.data.{NonEmptyList, Validated}
 import cats.syntax.apply._
 import cats.syntax.traverse._
+import cats.instances.list._
 
 object ErrorOr {
   type ErrorOr[+A] = Validated[NonEmptyList[String], A]

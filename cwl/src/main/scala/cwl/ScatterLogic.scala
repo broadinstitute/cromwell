@@ -1,6 +1,7 @@
 package cwl
 
 import cats.data.NonEmptyList
+import cats.instances.list._
 import common.Checked
 import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr

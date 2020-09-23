@@ -5,6 +5,7 @@ import java.time.OffsetDateTime
 import cats.data
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
 import cromwell.core.labels.Label
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
 import common.validation.ErrorOr._

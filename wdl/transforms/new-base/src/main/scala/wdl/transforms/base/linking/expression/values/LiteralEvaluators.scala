@@ -3,6 +3,7 @@ package wdl.transforms.base.linking.expression.values
 import cats.syntax.apply._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
 import common.validation.ErrorOr.ErrorOr
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
@@ -10,7 +11,6 @@ import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiatio
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wom.expression.IoFunctionSet
 import wom.values.{WomArray, WomMap, WomObject, WomPair, WomString, WomValue}
-
 
 object LiteralEvaluators {
 

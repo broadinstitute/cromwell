@@ -2,6 +2,7 @@ package wom.callable
 
 import cats.data.OptionT
 import cats.syntax.all._
+import cats.instances.all._
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._

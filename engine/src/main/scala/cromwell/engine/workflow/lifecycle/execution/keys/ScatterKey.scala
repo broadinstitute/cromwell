@@ -3,6 +3,7 @@ package cromwell.engine.workflow.lifecycle.execution.keys
 import akka.actor.ActorRef
 import cats.syntax.either._
 import cats.syntax.validated._
+import cats.instances.list._
 import common.Checked
 import common.collections.EnhancedCollections._
 import common.validation.ErrorOr.ErrorOr

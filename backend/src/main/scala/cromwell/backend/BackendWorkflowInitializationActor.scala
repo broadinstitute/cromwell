@@ -5,6 +5,7 @@ import akka.event.LoggingReceive
 import cats.data.Validated.{Invalid, Valid, _}
 import cats.data.{NonEmptyList, ValidatedNel}
 import cats.syntax.traverse._
+import cats.instances.list._
 import common.collections.EnhancedCollections._
 import common.validation.Validation._
 import cromwell.backend.BackendLifecycleActor._

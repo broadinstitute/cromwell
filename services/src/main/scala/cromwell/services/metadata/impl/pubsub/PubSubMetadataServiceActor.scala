@@ -5,6 +5,7 @@ import java.nio.file.{Files, Paths}
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.functor._
+import cats.instances.future._
 import com.typesafe.config.Config
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.ServiceAccountMode

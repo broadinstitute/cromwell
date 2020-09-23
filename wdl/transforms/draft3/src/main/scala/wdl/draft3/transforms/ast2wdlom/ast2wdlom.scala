@@ -1,5 +1,6 @@
 package wdl.draft3.transforms
 
+import cats.instances.either._
 import better.files.File
 import common.transforms.CheckedAtoB
 import common.validation.Checked._

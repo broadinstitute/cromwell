@@ -2,6 +2,7 @@ package cwl
 
 import cats.effect.IO
 import cats.syntax.traverse._
+import cats.instances.list._
 import common.validation.ErrorOr._
 import common.validation.IOChecked._
 import common.validation.Validation._

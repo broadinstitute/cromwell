@@ -2,7 +2,7 @@ package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.actor.{ActorRef, Props}
 import cats.data.{NonEmptyList, NonEmptyVector}
-import cats.syntax.foldable._
+import cats.implicits._
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.LoadConfig
 import cromwell.core.actor.BatchActor._

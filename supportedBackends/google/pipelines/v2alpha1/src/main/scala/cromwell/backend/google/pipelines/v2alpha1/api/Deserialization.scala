@@ -4,6 +4,7 @@ import java.lang.reflect.ParameterizedType
 import java.util.{ArrayList => JArrayList, Map => JMap}
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
 import com.google.api.client.json.GenericJson
 import com.google.api.services.genomics.v2alpha1.model._
 import common.validation.ErrorOr._

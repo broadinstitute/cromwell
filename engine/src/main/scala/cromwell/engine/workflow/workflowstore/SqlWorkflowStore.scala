@@ -4,6 +4,7 @@ import java.time.OffsetDateTime
 
 import cats.data.NonEmptyList
 import cats.syntax.apply._
+import cats.instances.list._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.core.{HogGroup, WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}

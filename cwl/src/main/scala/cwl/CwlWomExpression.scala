@@ -3,6 +3,7 @@ package cwl
 import cats.syntax.validated._
 import cats.syntax.functor._
 import cats.syntax.traverse._
+import cats.instances.list._
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.IOChecked
 import common.validation.Validation._

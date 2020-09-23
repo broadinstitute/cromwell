@@ -2,6 +2,7 @@ package wdl.transforms.base.linking.expression.values
 
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
 import common.validation.ErrorOr._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._

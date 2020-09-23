@@ -2,6 +2,7 @@ package cwl
 
 import java.nio.file.Paths
 
+import cats.instances.list._
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._

@@ -5,6 +5,7 @@ import akka.stream._
 import cats.effect.IO
 import cats.effect.IO._
 import cats.syntax.parallel._
+import cats.instances.list._
 import com.google.common.cache.CacheBuilder
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr

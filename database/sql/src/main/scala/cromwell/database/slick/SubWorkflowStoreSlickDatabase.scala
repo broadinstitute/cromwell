@@ -1,5 +1,6 @@
 package cromwell.database.slick
 import cats.syntax.functor._
+import cats.instances.future._
 import cromwell.database.sql.SubWorkflowStoreSqlDatabase
 import cromwell.database.sql.tables.SubWorkflowStoreEntry
 

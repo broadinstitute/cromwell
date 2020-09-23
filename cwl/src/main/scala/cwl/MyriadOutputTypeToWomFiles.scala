@@ -1,5 +1,7 @@
 package cwl
+
 import cats.syntax.traverse._
+import cats.instances.list._
 import common.validation.IOChecked._
 import cwl.CwlType.CwlType
 import cwl.MyriadOutputTypeToWomFiles.EvaluationFunction

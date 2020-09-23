@@ -2,6 +2,7 @@ package wdl.transforms.draft2.wdlom2wom
 
 import cats.syntax.apply._
 import cats.syntax.traverse._
+import cats.instances.list._
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow, WdlNamespaceWithoutWorkflow}

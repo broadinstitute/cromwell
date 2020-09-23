@@ -4,6 +4,8 @@ import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
+import cats.instances.vector._
 import common.collections.EnhancedCollections._
 import common.util.StringUtil._
 import common.validation.ErrorOr._

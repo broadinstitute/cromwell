@@ -3,6 +3,7 @@ package cromwell.engine.workflow
 import akka.actor.FSM.{CurrentState, Transition}
 import akka.actor._
 import cats.syntax.functor._
+import cats.instances.try_._
 import com.typesafe.config.Config
 import common.util.VersionUtil
 import cromwell.core.Dispatcher.EngineDispatcher

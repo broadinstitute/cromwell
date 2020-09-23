@@ -2,6 +2,7 @@ package wdl.transforms.base.linking.graph
 
 import cats.syntax.validated._
 import cats.syntax.traverse._
+import cats.instances.list._
 import common.validation.ErrorOr._
 import common.validation.ErrorOr.ErrorOr
 import wdl.model.draft3.elements.{ExpressionElement, WorkflowGraphElement}

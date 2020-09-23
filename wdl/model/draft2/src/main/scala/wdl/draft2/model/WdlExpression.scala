@@ -3,6 +3,7 @@ package wdl.draft2.model
 import cats.data.Validated.Valid
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import wdl.draft2.model.AstTools.{EnhancedAstNode, VariableReference}

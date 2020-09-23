@@ -1,5 +1,6 @@
 package cwl
 import cats.syntax.traverse._
+import cats.instances.list._
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineMV
 import org.scalatest.ParallelTestExecution

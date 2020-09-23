@@ -2,6 +2,7 @@ package cwl.preprocessor
 
 import cats.effect.{ContextShift, IO}
 import cats.syntax.parallel._
+import cats.instances.list._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.IOChecked._
 import common.validation.Validation._

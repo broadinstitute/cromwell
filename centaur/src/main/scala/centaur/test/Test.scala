@@ -5,7 +5,7 @@ import java.util.UUID
 
 import cats.Monad
 import cats.effect.IO
-import cats.syntax.traverse._
+import cats.implicits._
 import centaur._
 import centaur.api.CentaurCromwellClient
 import centaur.test.metadata.WorkflowFlatMetadata

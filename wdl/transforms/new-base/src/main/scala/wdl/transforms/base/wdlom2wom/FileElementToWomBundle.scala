@@ -4,6 +4,8 @@ import cats.data.NonEmptyList
 import cats.syntax.either._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.vector._
+import cats.instances.either._
 import common.Checked
 import common.transforms.CheckedAtoB
 import common.validation.Checked._

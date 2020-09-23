@@ -10,6 +10,7 @@ import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import common.exception.{AggregatedMessageException, MessageAggregation}

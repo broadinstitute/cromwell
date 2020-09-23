@@ -2,6 +2,7 @@ package wdl.transforms.wdlwom
 
 import cats.data.Validated.Invalid
 import cats.syntax.functor._
+import cats.instances.list._
 import common.validation.ErrorOr.ErrorOr
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

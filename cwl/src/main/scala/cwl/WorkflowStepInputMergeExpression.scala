@@ -5,6 +5,7 @@ import cats.syntax.either._
 import cats.syntax.option._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import cwl.InputParameter.DefaultToWomValuePoly

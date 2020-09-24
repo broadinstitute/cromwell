@@ -4,6 +4,7 @@ import java.time.OffsetDateTime
 
 import cats.data.NonEmptyList
 import cats.syntax.apply._
+import cats.instances.list._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.core.{HogGroup, WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
@@ -90,7 +91,6 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     * flag to true
     */
   override def fetchStartableWorkflows(n: Int, cromwellId: String, heartbeatTtl: FiniteDuration)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
-    import cats.instances.list._
     import cats.syntax.traverse._
     import common.validation.Validation._
     sqlDatabase.fetchWorkflowsInState(

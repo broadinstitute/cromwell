@@ -1,7 +1,7 @@
 package languages.wdl.draft2
 
-import cats.instances.list._
 import cats.syntax.functor._
+import cats.instances.list._
 import com.typesafe.config.ConfigFactory
 import common.Checked
 import cromwell.core.{CacheConfig, WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
@@ -14,7 +14,6 @@ import wom.expression.NoIoFunctionSet
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
-
 
 class NamespaceCacheSpec extends AnyFlatSpec with BeforeAndAfterAll with Matchers {
 

@@ -3,8 +3,8 @@ package cromwell.backend.sfs
 import java.io.{FileNotFoundException, IOException}
 
 import akka.actor.ActorContext
-import cats.instances.try_._
 import cats.syntax.functor._
+import cats.instances.try_._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import common.collections.EnhancedCollections._

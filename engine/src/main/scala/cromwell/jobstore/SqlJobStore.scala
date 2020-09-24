@@ -1,8 +1,6 @@
 package cromwell.jobstore
 
-import cats.instances.future._
-import cats.instances.list._
-import cats.syntax.traverse._
+import cats.implicits._
 import cromwell.Simpletons._
 import cromwell.backend.async.JobAlreadyFailedInJobStore
 import cromwell.core.ExecutionIndex._

@@ -12,7 +12,6 @@ import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wom.expression.IoFunctionSet
 import wom.values.{WomArray, WomMap, WomObject, WomPair, WomString, WomValue}
 
-
 object LiteralEvaluators {
 
   implicit val primitiveValueEvaluator: ValueEvaluator[PrimitiveLiteralExpressionElement] = new ValueEvaluator[PrimitiveLiteralExpressionElement] {

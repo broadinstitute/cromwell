@@ -1,8 +1,8 @@
 package wdl.transforms.base.linking
 
-import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
 import common.validation.ErrorOr._
 import wdl.transforms.base.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements.ExpressionElement

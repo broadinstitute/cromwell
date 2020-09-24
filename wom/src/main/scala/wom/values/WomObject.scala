@@ -1,9 +1,9 @@
 package wom.values
 
 import cats.Applicative
-import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.functor._
+import cats.instances.list._
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import common.validation.IOChecked.IOChecked

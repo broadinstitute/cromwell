@@ -2,7 +2,7 @@ package centaur.test.standard
 
 import better.files._
 import cats.data.Validated._
-import cats.implicits._
+import cats.syntax.all._
 import centaur.CromwellTracker
 import centaur.test._
 import centaur.test.formulas.TestFormulas

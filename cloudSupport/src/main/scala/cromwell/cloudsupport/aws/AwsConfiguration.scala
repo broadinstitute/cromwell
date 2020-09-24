@@ -32,9 +32,9 @@
 package cromwell.cloudsupport.aws
 
 import cats.data.Validated._
-import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
 import com.typesafe.config.{Config, ConfigException}
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._

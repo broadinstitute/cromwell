@@ -1,7 +1,7 @@
 package wdl.draft2.model.expression
 
-import cats.instances.try_._
 import cats.syntax.apply._
+import cats.instances.all._
 import common.exception.AggregatedException
 import common.util.TryUtil
 import spray.json._

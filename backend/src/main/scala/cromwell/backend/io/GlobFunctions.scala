@@ -1,7 +1,6 @@
 package cromwell.backend.io
 
-import cats.instances.list._
-import cats.syntax.traverse._
+import cats.implicits._
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.BackendJobDescriptor
 import cromwell.core.CallContext

@@ -4,11 +4,11 @@ import java.time.OffsetDateTime
 
 import cats.Semigroup
 import cats.data.NonEmptyList
-import cats.instances.future._
-import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.semigroup._
 import cats.syntax.traverse._
+import cats.instances.list._
+import cats.instances.future._
 import common.validation.Validation._
 import cromwell.core._
 import cromwell.database.sql.SqlConverters._

@@ -1,12 +1,11 @@
 package cromwell.core.filesystem
 
 import java.lang.reflect.Constructor
-
-import cats.instances.list._
-import cats.instances.option._
 import cats.syntax.either._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
+import cats.instances.option._
 import com.typesafe.config.{Config, ConfigFactory, ConfigObject}
 import common.Checked
 import common.validation.Checked._

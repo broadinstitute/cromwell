@@ -13,7 +13,6 @@ import wom.expression.IoFunctionSet
 import wom.types.{WomCompositeType, WomSingleFileType, WomType}
 import wom.values.{WomFile, WomSingleFile, WomValue}
 
-
 object LiteralEvaluators {
   implicit val primitiveValueEvaluator: FileEvaluator[PrimitiveLiteralExpressionElement] = new FileEvaluator[PrimitiveLiteralExpressionElement] {
     override def predictFilesNeededToEvaluate(a: PrimitiveLiteralExpressionElement,

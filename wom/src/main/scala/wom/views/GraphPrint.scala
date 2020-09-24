@@ -2,7 +2,9 @@ package wom.views
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import cats.implicits._
+import cats.syntax.all._
+import cats.instances.set._
+import cats.instances.list._
 import cats.Monoid
 import wom.callable.ExecutableCallable
 import wom.graph.GraphNodePort.{ConditionalOutputPort, OutputPort, ScatterGathererPort}

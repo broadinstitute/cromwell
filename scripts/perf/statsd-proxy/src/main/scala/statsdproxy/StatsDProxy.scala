@@ -5,7 +5,6 @@ import java.nio.file.{Paths, StandardOpenOption}
 import java.util.concurrent.Executors
 
 import cats.effect.{ExitCode, IO, IOApp}
-import cats.implicits._
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.StrictLogging
 import fs2.io.file.pulls.{fromPath, writeAllToFileHandle}

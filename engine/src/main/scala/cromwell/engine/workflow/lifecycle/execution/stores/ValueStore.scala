@@ -13,6 +13,7 @@ import wom.values.WomArray.WomArrayLike
 import wom.values.{WomArray, WomOptionalValue, WomValue}
 import common.validation.Validation._
 import scala.util.Try
+import common.util.StringUtil._
 
 object ValueStore {
   def initialize(knownValues: Map[OutputPort, WomValue]): ValueStore = {
@@ -83,7 +84,7 @@ case class ValueStore(store: Table[OutputPort, ExecutionIndex, WomValue]) {
         Map(ValueKey(scatterGatherPort, None) -> collectedResult).validNel
       case None =>
         // If we don't find any shards, this collector was found "runnable" when it shouldn't have
-        s"Scatter collector cannot find any values for ${sourcePort.identifier.fullyQualifiedName.value} in value store: $this".invalidNel
+        s"Programmer Error: Scatter collector cannot find any values for ${sourcePort.identifier.fullyQualifiedName.value} in value store: ${this.toPrettyElidedString(1000)}".invalidNel
     }
   }
 
@@ -92,7 +93,7 @@ case class ValueStore(store: Table[OutputPort, ExecutionIndex, WomValue]) {
     val sourcePort = conditionalPort.outputToExpose.source
     store.getValue(sourcePort, collector.index) match {
       case Some(womValue) => Map(ValueKey(conditionalPort, collector.index) -> WomOptionalValue(womValue).flattenOptional).validNel
-      case None => s"Conditional collector cannot find a value for output port ${sourcePort.identifier.fullyQualifiedName.value} in value store: $this".invalidNel
+      case None => s"Programmer Error: Conditional collector cannot find a value for output port ${sourcePort.identifier.fullyQualifiedName.value} in value store: ${this.toPrettyElidedString(1000)}".invalidNel
     }
   }
 
@@ -119,7 +120,7 @@ case class ValueStore(store: Table[OutputPort, ExecutionIndex, WomValue]) {
     def forGraphNodePort(p: OutputPort, index: ExecutionIndex) = get(p, index) match {
       case Some(value) => value.validNel
       case None =>
-        s"Can't find a ValueStore value for $p at index $index in $this".invalidNel
+        s"Programmer Error: Can't find a ValueStore value for $p at index $index in ${this.toPrettyElidedString(1000)}".invalidNel
     }
 
     def findValueStorePort(p: OutputPort, index: ExecutionIndex): ErrorOr[WomValue] = {

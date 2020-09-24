@@ -1,10 +1,7 @@
 package cloud.nio.impl.drs
 
-import java.time.OffsetDateTime
-
 import cats.effect.{IO, Resource}
-import cats.instances.option._
-import cats.instances.string._
+import cats.implicits._
 import cloud.nio.impl.drs.MarthaResponseSupport._
 import common.exception.toIO
 import io.circe._
@@ -16,8 +13,7 @@ import org.apache.http.client.methods.HttpPost
 import org.apache.http.entity.{ContentType, StringEntity}
 import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.util.EntityUtils
-import org.apache.http.{HttpResponse, HttpStatus}
-
+import org.apache.http.{HttpResponse, HttpStatus, StatusLine}
 
 abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBuilder) {
 
@@ -33,11 +29,11 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClie
     postRequest
   }
 
-  private def httpResponseToMarthaResponse(httpResponse: HttpResponse): IO[MarthaResponse] = {
+  private def httpResponseToMarthaResponse(drsPathForDebugging: String)(httpResponse: HttpResponse): IO[MarthaResponse] = {
     val marthaResponseEntityOption = Option(httpResponse.getEntity).map(EntityUtils.toString)
     val responseStatusLine = httpResponse.getStatusLine
 
-    val exceptionMsg = s"Unexpected response resolving DRS path through Martha url ${drsConfig.marthaUri}. Error: ${responseStatusLine.getStatusCode} ${responseStatusLine.getReasonPhrase}."
+    val exceptionMsg = errorMessageFromResponse(drsPathForDebugging, marthaResponseEntityOption, responseStatusLine, drsConfig.marthaUri)
     val responseEntityOption = (responseStatusLine.getStatusCode == HttpStatus.SC_OK).valueOrZero(marthaResponseEntityOption)
     val responseContentIO = toIO(responseEntityOption, exceptionMsg)
 
@@ -45,7 +41,7 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClie
       if (drsConfig.marthaUri.endsWith("martha_v3")) IO.fromEither(decode[MarthaResponse](responseContent))
       else IO.fromEither(decode[MarthaV2Response](responseContent).map(convertMarthaResponseV2ToV3))
     }.handleErrorWith {
-      e => IO.raiseError(new RuntimeException(s"Failed to parse response from Martha into a case class. Error: ${ExceptionUtils.getMessage(e)}"))
+      e => IO.raiseError(new RuntimeException(s"Unexpected response during DRS resolution: ${ExceptionUtils.getMessage(e)}"))
     }
   }
 
@@ -66,7 +62,7 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClie
     * Please note, this method returns an IO that would make a synchronous HTTP request to Martha when run.
     */
   def resolveDrsThroughMartha(drsPath: String): IO[MarthaResponse] = {
-    rawMarthaResponse(drsPath).use(httpResponseToMarthaResponse)
+    rawMarthaResponse(drsPath).use(httpResponseToMarthaResponse(drsPathForDebugging = drsPath))
   }
 }
 
@@ -92,6 +88,10 @@ final case class MarthaResponse(size: Option[Long],
                                 googleServiceAccount: Option[SADataObject],
                                 hashes: Option[Map[String, String]])
 
+// Adapted from https://github.com/broadinstitute/martha/blob/f31933a3a11e20d30698ec4b4dc1e0abbb31a8bc/common/helpers.js#L210-L218
+final case class MarthaFailureResponse(response: MarthaFailureResponsePayload)
+final case class MarthaFailureResponsePayload(text: String)
+
 object MarthaResponseSupport {
 
   implicit lazy val urlDecoder: Decoder[Url] = deriveDecoder
@@ -101,6 +101,9 @@ object MarthaResponseSupport {
   implicit lazy val saDataObjectDecoder: Decoder[SADataObject] = deriveDecoder
   implicit lazy val marthaV2ResponseDecoder: Decoder[MarthaV2Response] = deriveDecoder
   implicit lazy val marthaResponseDecoder: Decoder[MarthaResponse] = deriveDecoder
+
+  implicit lazy val marthaFailureResponseDecoder: Decoder[MarthaFailureResponse] = deriveDecoder
+  implicit lazy val marthaFailureResponsePayloadDecoder: Decoder[MarthaFailureResponsePayload] = deriveDecoder
 
   private val GcsScheme = "gs://"
 
@@ -120,7 +123,7 @@ object MarthaResponseSupport {
   def convertMarthaResponseV2ToV3(response: MarthaV2Response): MarthaResponse = {
     val dataObject = response.dos.data_object
     val size = dataObject.size
-    val timeUpdated = dataObject.updated.map(OffsetDateTime.parse(_).toString)
+    val timeUpdated = dataObject.updated
     val hashesMap = dataObject.checksums.map(convertChecksumsToHashesMap)
     val gcsUrl = dataObject.urls.find(_.url.startsWith(GcsScheme)).map(_.url)
     val (bucketName, fileName) = getGcsBucketAndName(gcsUrl)
@@ -134,5 +137,25 @@ object MarthaResponseSupport {
       googleServiceAccount = response.googleServiceAccount,
       hashes = hashesMap
     )
+  }
+
+  def errorMessageFromResponse(drsPathForDebugging: String, marthaResponseEntityOption: Option[String], responseStatusLine: StatusLine, marthaUri: String): String = {
+    val baseMessage = s"Could not access object \'$drsPathForDebugging\'. Status: ${responseStatusLine.getStatusCode}, reason: \'${responseStatusLine.getReasonPhrase}\', Martha location: \'$marthaUri\', message: "
+
+    marthaResponseEntityOption match {
+      case Some(entity) =>
+        val maybeErrorResponse: Either[Error, MarthaFailureResponse] = decode[MarthaFailureResponse](entity)
+        maybeErrorResponse match {
+          case Left(_) =>
+            // Not parsable as a `MarthaFailureResponse`
+            baseMessage + s"\'$entity\'"
+          case Right(decoded) =>
+            // Is a `MarthaFailureResponse`
+            baseMessage + s"\'${decoded.response.text}\'"
+        }
+      case None =>
+        // No entity in HTTP response
+        baseMessage + "(empty response)"
+    }
   }
 }

@@ -141,9 +141,12 @@ As the configuration will require more knowledge about your execution environmen
 On local backends, you have to configure Cromwell to use a different 
 `submit-docker` script that would start Singularity instead of docker. 
 Singularity requires docker images to be prefixed with the prefix `docker://`.
+
+Using containers isolates the filesystem that the script is allowed to interact with, for that reason we'll bind in the current working directory as `${docker_cwd}`, and we'll use the container-specific script path `${docker_script}`. 
+
 An example submit script for Singularity is:
 ```bash
-singularity exec --containall --bind ${cwd}:${docker_cwd} docker://${docker} ${job_shell} ${script}
+singularity exec --containall --bind ${cwd}:${docker_cwd} docker://${docker} ${job_shell} ${docker_script}
 ```
 
 As the `Singularity exec` command does not emit a job-id, we must include the `run-in-background` tag within the the provider section in addition to the docker-submit script. As Cromwell watches for the existence of the `rc` file, the `run-in-background` option has the caveat that we require the Singularity container to successfully complete, otherwise the workflow might hang indefinitely.
@@ -175,7 +178,7 @@ backend {
                   String? docker
                 """
                 submit-docker = """
-                  singularity exec --containall --bind ${cwd}:${docker_cwd} docker://${docker} ${job_shell} ${script}
+                  singularity exec --containall --bind ${cwd}:${docker_cwd} docker://${docker} ${job_shell} ${docker_script}
                 """
             }
         }
@@ -231,7 +234,7 @@ submit-docker = """
     # Submit the script to SLURM
     sbatch \
       [...]
-      --wrap "singularity exec --containall --bind ${cwd}:${docker_cwd} $IMAGE ${job_shell} ${script}"
+      --wrap "singularity exec --containall --bind ${cwd}:${docker_cwd} $IMAGE ${job_shell} ${docker_script}"
   """
 ```
 
@@ -291,7 +294,7 @@ backend {
               -t ${runtime_minutes} \
               ${"-c " + cpus} \
               --mem-per-cpu=${requested_memory_mb_per_core} \
-              --wrap "singularity exec --containall --bind ${cwd}:${docker_cwd} $IMAGE ${job_shell} ${script}"
+              --wrap "singularity exec --containall --bind ${cwd}:${docker_cwd} $IMAGE ${job_shell} ${docker_script}"
         """
 
         kill = "scancel ${job_id}"
@@ -321,7 +324,7 @@ submit-docker = """
     # Note the use of --userns here
     sbatch \
       [...]
-      --wrap "singularity exec --userns --bind ${cwd}:${docker_cwd} $IMAGE ${job_shell} ${script}"
+      --wrap "singularity exec --userns --bind ${cwd}:${docker_cwd} $IMAGE ${job_shell} ${docker_script}"
 """
 ```
 
@@ -359,7 +362,7 @@ To configure `udocker` to work in a local environment, you must tag the provider
 ```
 run-in-background = true
 submit-docker = """
-    udocker run -v ${cwd}:${docker_cwd} ${docker} ${job_shell} ${script}
+    udocker run -v ${cwd}:${docker_cwd} ${docker} ${job_shell} ${docker_script}
 """
 ```
 
@@ -378,7 +381,7 @@ submit-docker = """
       -t ${runtime_minutes} \
       ${"-c " + cpus} \
       --mem-per-cpu=${requested_memory_mb_per_core} \
-      --wrap "udocker run -v ${cwd}:${docker_cwd} ${docker} ${job_shell} ${script}"
+      --wrap "udocker run -v ${cwd}:${docker_cwd} ${docker} ${job_shell} ${docker_script}"
 """
 ```
 

@@ -6,7 +6,6 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling._
-import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import cats.Monad
 import cats.effect.IO
@@ -33,7 +32,7 @@ class SamClient(scheme: String,
                 checkSubmitWhitelist: Boolean,
                 log: LoggingAdapter,
                 serviceRegistryActorRef: ActorRef)
-               (implicit system: ActorSystem, ece: ExecutionContextExecutor, materializer: ActorMaterializer) extends StatusCheckedSubsystem with CromIamInstrumentation {
+               (implicit system: ActorSystem, ece: ExecutionContextExecutor) extends StatusCheckedSubsystem with CromIamInstrumentation {
 
   private implicit val cs = IO.contextShift(ece)
 

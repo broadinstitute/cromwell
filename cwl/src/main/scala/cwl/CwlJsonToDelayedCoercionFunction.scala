@@ -1,9 +1,9 @@
 package cwl
 
-import cats.instances.list._
 import cats.syntax.option._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cwl.CwlCodecs._

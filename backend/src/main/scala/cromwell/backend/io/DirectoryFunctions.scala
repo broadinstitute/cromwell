@@ -1,8 +1,6 @@
 package cromwell.backend.io
 
-import cats.instances.list._
-import cats.syntax.traverse._
-import cats.syntax.validated._
+import cats.implicits._
 import common.util.StringUtil._
 import common.validation.ErrorOr._
 import common.validation.Validation._

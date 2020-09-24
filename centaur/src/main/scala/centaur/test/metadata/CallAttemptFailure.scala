@@ -2,12 +2,8 @@ package centaur.test.metadata
 
 import java.time.OffsetDateTime
 
-import cats.effect._
-import cats.instances.either._
-import cats.instances.option._
-import cats.instances.vector._
-import cats.syntax.apply._
-import cats.syntax.traverse._
+import cats.effect.IO
+import cats.implicits._
 import io.circe._
 import io.circe.parser._
 

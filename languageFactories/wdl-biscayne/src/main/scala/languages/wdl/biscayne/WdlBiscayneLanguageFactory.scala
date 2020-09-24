@@ -3,9 +3,9 @@ package languages.wdl.biscayne
 import java.util.concurrent.Callable
 
 import cats.syntax.either._
+import cats.instances.either._
 import cats.data.EitherT.fromEither
 import cats.effect.IO
-import cats.instances.either._
 import com.typesafe.config.Config
 import common.Checked
 import common.transforms.CheckedAtoB

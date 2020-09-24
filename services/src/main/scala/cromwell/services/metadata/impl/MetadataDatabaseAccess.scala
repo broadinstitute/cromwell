@@ -4,11 +4,11 @@ import java.time.OffsetDateTime
 
 import cats.Semigroup
 import cats.data.NonEmptyList
-import cats.instances.future._
-import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.semigroup._
 import cats.syntax.traverse._
+import cats.instances.list._
+import cats.instances.future._
 import common.validation.Validation._
 import cromwell.core._
 import cromwell.database.sql.SqlConverters._
@@ -136,21 +136,21 @@ trait MetadataDatabaseAccess {
     val uuid = query.workflowId.id.toString
 
     query match {
-      case MetadataQuery(_, None, None, None, None, _) =>
-        metadataDatabaseInterface.countMetadataEntries(uuid, timeout)
-      case MetadataQuery(_, None, Some(key), None, None, _) =>
-        metadataDatabaseInterface.countMetadataEntries(uuid, key, timeout)
-      case MetadataQuery(_, Some(jobKey), None, None, None, _) =>
-        metadataDatabaseInterface.countMetadataEntries(uuid, jobKey.callFqn, jobKey.index, jobKey.attempt, timeout)
-      case MetadataQuery(_, Some(jobKey), Some(key), None, None, _) =>
-        metadataDatabaseInterface.countMetadataEntries(uuid, key, jobKey.callFqn, jobKey.index, jobKey.attempt, timeout)
-      case MetadataQuery(_, None, None, includeKeys, excludeKeys, _) =>
+      case q @ MetadataQuery(_, None, None, None, None, _) =>
+        metadataDatabaseInterface.countMetadataEntries(uuid, q.expandSubWorkflows, timeout)
+      case q @ MetadataQuery(_, None, Some(key), None, None, _) =>
+        metadataDatabaseInterface.countMetadataEntries(uuid, key, q.expandSubWorkflows, timeout)
+      case q @ MetadataQuery(_, Some(jobKey), None, None, None, _) =>
+        metadataDatabaseInterface.countMetadataEntries(uuid, jobKey.callFqn, jobKey.index, jobKey.attempt, q.expandSubWorkflows, timeout)
+      case q @ MetadataQuery(_, Some(jobKey), Some(key), None, None, _) =>
+        metadataDatabaseInterface.countMetadataEntries(uuid, key, jobKey.callFqn, jobKey.index, jobKey.attempt, q.expandSubWorkflows, timeout)
+      case q @ MetadataQuery(_, None, None, includeKeys, excludeKeys, _) =>
         val excludeKeyRequirements = listKeyRequirements(excludeKeys)
         val queryType = if (excludeKeyRequirements.contains("calls%")) WorkflowQuery else CallOrWorkflowQuery
 
-        metadataDatabaseInterface.countMetadataEntryWithKeyConstraints(uuid, listKeyRequirements(includeKeys), excludeKeyRequirements, queryType, timeout)
-      case MetadataQuery(_, Some(MetadataQueryJobKey(callFqn, index, attempt)), None, includeKeys, excludeKeys, _) =>
-        metadataDatabaseInterface.countMetadataEntryWithKeyConstraints(uuid, listKeyRequirements(includeKeys), listKeyRequirements(excludeKeys), CallQuery(callFqn, index, attempt), timeout)
+        metadataDatabaseInterface.countMetadataEntryWithKeyConstraints(uuid, listKeyRequirements(includeKeys), excludeKeyRequirements, queryType, q.expandSubWorkflows, timeout)
+      case q @ MetadataQuery(_, Some(MetadataQueryJobKey(callFqn, index, attempt)), None, includeKeys, excludeKeys, _) =>
+        metadataDatabaseInterface.countMetadataEntryWithKeyConstraints(uuid, listKeyRequirements(includeKeys), listKeyRequirements(excludeKeys), CallQuery(callFqn, index, attempt), q.expandSubWorkflows, timeout)
       case _ => Future.failed(new IllegalArgumentException(s"Invalid MetadataQuery: $query"))
     }
   }

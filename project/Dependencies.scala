@@ -123,7 +123,7 @@ object Dependencies {
     * Consider updating to the official newer Slick version once they fix issue #2076
     * Related Slick PR: https://github.com/slick/slick/pull/2101
   */
-  private val slickV = "3.3.2-2076hotfix"
+  private val slickV = "3.3.3"
   private val snakeyamlV = "1.27"
   private val specs2MockV = "4.10.2"
   private val sprayJsonV = "1.3.5"

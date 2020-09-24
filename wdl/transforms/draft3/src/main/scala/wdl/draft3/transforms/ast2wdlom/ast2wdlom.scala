@@ -1,7 +1,7 @@
 package wdl.draft3.transforms
 
-import better.files.File
 import cats.instances.either._
+import better.files.File
 import common.transforms.CheckedAtoB
 import common.validation.Checked._
 import wdl.draft3.parser.WdlParser.{Ast, AstNode}

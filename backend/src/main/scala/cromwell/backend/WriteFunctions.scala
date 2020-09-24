@@ -3,8 +3,7 @@ package cromwell.backend
 import java.util.UUID
 
 import better.files.File.OpenOptions
-import cats.instances.future._
-import cats.syntax.functor._
+import cats.implicits._
 import common.util.StringUtil._
 import cromwell.core.io.AsyncIoFunctions
 import cromwell.core.path.{Path, PathFactory}

@@ -2,10 +2,10 @@ package wdl.transforms.base.wdlom2wom
 
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
-import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
 import common.validation.ErrorOr.{ErrorOr, _}
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
 import wdl.model.draft3.elements.ExpressionElement.{ArrayLiteral, IdentifierLookup, KvPair, SelectFirst}
@@ -25,7 +25,6 @@ import wdl.transforms.base.wdlom2wom.expression.renaming.IdentifierLookupRenamer
 import wdl.transforms.base.wdlom2wom.expression.renaming.expressionEvaluator
 import wdl.model.draft3.graph.expression.WomTypeMaker.ops._
 import wdl.transforms.base.linking.typemakers._
-
 
 object TaskDefinitionElementToWomTaskDefinition extends Util {
 

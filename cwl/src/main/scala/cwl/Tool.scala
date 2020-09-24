@@ -2,6 +2,7 @@ package cwl
 
 import java.nio.file.Paths
 
+import cats.instances.list._
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
@@ -71,7 +72,6 @@ trait Tool {
 
 
   private def validateRequirementsAndHints(validator: RequirementsValidator): ErrorOr[List[Requirement]] = {
-    import cats.instances.list._
     import cats.syntax.traverse._
 
     val allRequirements = requirements.toList.flatten ++ parentWorkflowStep.toList.flatMap(_.allRequirements.list)

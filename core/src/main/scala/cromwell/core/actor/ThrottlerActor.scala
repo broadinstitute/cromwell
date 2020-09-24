@@ -3,8 +3,8 @@ package cromwell.core.actor
 import cats.data.NonEmptyVector
 
 import cats.syntax.traverse._
-import cats.instances.vector._
 import cats.instances.future._
+import cats.instances.vector._
 import scala.concurrent.Future
 import scala.concurrent.duration._
 

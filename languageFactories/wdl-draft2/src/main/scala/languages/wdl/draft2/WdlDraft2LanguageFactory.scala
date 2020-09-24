@@ -4,10 +4,10 @@ import java.util.concurrent.Callable
 
 import cats.data.EitherT.fromEither
 import cats.effect.IO
-import cats.instances.either._
-import cats.instances.list._
 import cats.syntax.functor._
 import cats.syntax.traverse._
+import cats.instances.list._
+import cats.instances.either._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import common.Checked

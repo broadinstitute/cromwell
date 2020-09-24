@@ -1,9 +1,7 @@
 package cromwell.backend.validation
 
 import cats.data.Validated.{Invalid, Valid}
-import cats.instances.list._
-import cats.syntax.traverse._
-import cats.syntax.validated._
+import cats.implicits._
 import com.typesafe.config.Config
 import cromwell.backend.validation.RuntimeAttributesValidation._
 import common.validation.ErrorOr._

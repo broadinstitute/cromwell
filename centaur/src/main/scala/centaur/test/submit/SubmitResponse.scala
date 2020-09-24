@@ -1,7 +1,7 @@
 package centaur.test.submit
 
 import cats.data.Validated._
-import cats.implicits._
+import cats.syntax.all._
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
 import configs.Result

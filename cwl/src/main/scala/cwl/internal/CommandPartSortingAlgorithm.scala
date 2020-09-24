@@ -3,9 +3,9 @@ package cwl.internal
 import cats.data.Kleisli._
 import cats.data.ReaderT
 import cats.data.Validated._
-import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
 import cwl.CommandLineTool._
 import cwl.command.ParentName
 import cwl.{ArgumentCommandLineBinding, ArgumentToCommandPart, CommandLineTool, CommandPartExpression, FullyQualifiedName, InputParameter, MyriadInputTypeToSortedCommandParts, MyriadInputTypeToWomType}

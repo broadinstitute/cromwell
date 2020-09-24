@@ -1,9 +1,9 @@
 package cromwell.backend.google.pipelines.common
 
 import cats.data.Validated._
-import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
 import com.typesafe.config.Config
 import common.validation.ErrorOr._
 import cromwell.backend.google.pipelines.common.GpuResource.GpuType

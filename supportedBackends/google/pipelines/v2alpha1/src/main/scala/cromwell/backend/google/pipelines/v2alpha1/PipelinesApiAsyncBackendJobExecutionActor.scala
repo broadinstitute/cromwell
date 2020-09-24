@@ -1,9 +1,7 @@
 package cromwell.backend.google.pipelines.v2alpha1
 
 import cats.data.NonEmptyList
-import cats.instances.list._
-import cats.instances.map._
-import cats.syntax.foldable._
+import cats.implicits._
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import common.util.StringUtil._
 import cromwell.backend.BackendJobDescriptor

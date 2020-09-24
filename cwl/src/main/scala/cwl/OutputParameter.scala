@@ -1,8 +1,8 @@
 package cwl
 
-import cats.instances.option._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.option._
 import common.validation.ErrorOr._
 import shapeless.{:+:, CNil, Poly1}
 import wom.values.{WomString, WomValue}

@@ -4,7 +4,7 @@ import cats.data.Validated._
 import cats.effect.IO
 import common.validation.ErrorOr.ErrorOr
 import wom.expression.IoFunctionSet.IoElement
-import wom.types.WomType
+import wom.types._
 import wom.values._
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -27,6 +27,20 @@ trait WomExpression {
   def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue]
   def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType]
   def evaluateFiles(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]]
+
+  /** Returns `true` if all file types within the specified `WomType` are optional. If not all the file types are
+    * optional, return `false` since the current file evaluation structure doesn't allow for mapping individual
+    * output files to their corresponding primitives within a non-primitive `WomType`. */
+  protected def areAllFileTypesInWomTypeOptional(womType: WomType): Boolean = womType match {
+    case WomOptionalType(_: WomPrimitiveFileType) => true
+    case _: WomPrimitiveFileType => false
+    case _: WomPrimitiveType => true // WomPairTypes and WomCompositeTypes may have non-File components here which is fine.
+    case WomArrayType(inner) => areAllFileTypesInWomTypeOptional(inner)
+    case WomMapType(_, inner) => areAllFileTypesInWomTypeOptional(inner)
+    case WomPairType(leftType, rightType) => areAllFileTypesInWomTypeOptional(leftType) && areAllFileTypesInWomTypeOptional(rightType)
+    case WomCompositeType(typeMap, _) => typeMap.values.forall(areAllFileTypesInWomTypeOptional)
+    case _ => false
+  }
 }
 
 /**

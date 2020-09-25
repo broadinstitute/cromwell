@@ -31,7 +31,7 @@ class DrsCloudNioRegularFileAttributes(drsPath: String,
         throwable =>
           IO.raiseError(
             new RuntimeException(
-              s"Error while parsing 'updated' value from Martha to FileTime for DRS path $drsPath. " +
+              s"Error while parsing 'timeUpdated' value from Martha to FileTime for DRS path $drsPath. " +
                 s"Reason: ${ExceptionUtils.getMessage(throwable)}.",
               throwable,
           )
@@ -52,7 +52,8 @@ class DrsCloudNioRegularFileAttributes(drsPath: String,
   override def lastModifiedTime(): FileTime = {
     val lastModifiedIO = for {
       marthaResponse <- marthaResponseIO
-      lastModifiedInString <- IO.fromEither(marthaResponse.timeUpdated.toRight(createMissingKeyException(drsPath, "updated")))
+      lastModifiedInString <-
+        IO.fromEither(marthaResponse.timeUpdated.toRight(createMissingKeyException(drsPath, "timeUpdated")))
       lastModified <- convertToFileTime(lastModifiedInString)
     } yield lastModified
 

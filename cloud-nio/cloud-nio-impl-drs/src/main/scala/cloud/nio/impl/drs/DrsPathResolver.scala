@@ -70,14 +70,15 @@ final case class DrsConfig(marthaUri: String, marthaRequestJsonTemplate: String)
 
 final case class Url(url: String)
 final case class ChecksumObject(checksum: String, `type`: String)
-final case class DrsDataObject(size: Option[Long],
+final case class DosDataObject(name: Option[String],
+                               size: Option[Long],
                                checksums: Option[Array[ChecksumObject]],
                                updated: Option[String],
                                urls: Array[Url])
-final case class DrsObject(data_object: DrsDataObject)
+final case class DosObject(data_object: DosDataObject)
 final case class SADataObject(data: Json)
 
-final case class MarthaV2Response(dos: DrsObject, googleServiceAccount: Option[SADataObject])
+final case class MarthaV2Response(dos: DosObject, googleServiceAccount: Option[SADataObject])
 
 /**
   * A response from `martha_v3` or converted from `martha_v2`.
@@ -107,9 +108,9 @@ final case class MarthaFailureResponsePayload(text: String)
 object MarthaResponseSupport {
 
   implicit lazy val urlDecoder: Decoder[Url] = deriveDecoder
-  implicit lazy val checksumDecoder: Decoder[ChecksumObject] = deriveDecoder
-  implicit lazy val dataObjectDecoder: Decoder[DrsDataObject] = deriveDecoder
-  implicit lazy val drsObjectDecoder: Decoder[DrsObject] = deriveDecoder
+  implicit lazy val checksumObjectDecoder: Decoder[ChecksumObject] = deriveDecoder
+  implicit lazy val dosDataObjectDecoder: Decoder[DosDataObject] = deriveDecoder
+  implicit lazy val dosObjectDecoder: Decoder[DosObject] = deriveDecoder
   implicit lazy val saDataObjectDecoder: Decoder[SADataObject] = deriveDecoder
   private lazy val marthaV3ResponseDecoder: Decoder[MarthaResponse] = deriveDecoder
   private lazy val marthaV2ResponseDecoder: Decoder[MarthaResponse] =
@@ -137,20 +138,21 @@ object MarthaResponseSupport {
 
   def convertMarthaResponseV2ToV3(response: MarthaV2Response): MarthaResponse = {
     val dataObject = response.dos.data_object
+    val fileName = dataObject.name
     val size = dataObject.size
     val timeUpdated = dataObject.updated
     val hashesMap = dataObject.checksums.map(convertChecksumsToHashesMap)
     val gcsUrl = dataObject.urls.find(_.url.startsWith(GcsScheme)).map(_.url)
-    val (bucketName, fileName) = getGcsBucketAndName(gcsUrl)
+    val (bucketName, objectName) = getGcsBucketAndName(gcsUrl)
 
     MarthaResponse(
       size = size,
       timeUpdated = timeUpdated,
       bucket = bucketName,
-      name = fileName,
+      name = objectName,
       gsUri = gcsUrl,
       googleServiceAccount = response.googleServiceAccount,
-      fileName = None,
+      fileName = fileName,
       hashes = hashesMap
     )
   }

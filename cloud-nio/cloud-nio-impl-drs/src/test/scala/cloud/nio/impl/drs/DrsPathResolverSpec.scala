@@ -26,8 +26,9 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with Matchers {
       .asInstanceOf[Lens[MarthaV2Response, Option[String]]]
 
   private val fullMarthaV2Response = MarthaV2Response(
-    dos = DrsObject(
-      data_object = DrsDataObject(
+    dos = DosObject(
+      data_object = DosDataObject(
+        name = Option("actual_file_name"),
         size = Option(34905345),
         checksums = Option(Array(ChecksumObject(checksum = md5HashValue, `type` = "md5"), ChecksumObject(checksum = crcHashValue, `type` = "crc32c"))),
         updated = Option("2020-04-27T15:56:09.696Z"),
@@ -48,7 +49,7 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with Matchers {
     name = Option("file-name"),
     gsUri = Option("gs://my-gs-bucket/file-name"),
     googleServiceAccount = Option(mockGSA),
-    fileName = None,
+    fileName = Option("actual_file_name"),
     hashes = Option(Map("md5" -> md5HashValue, "crc32c" -> crcHashValue))
   )
 

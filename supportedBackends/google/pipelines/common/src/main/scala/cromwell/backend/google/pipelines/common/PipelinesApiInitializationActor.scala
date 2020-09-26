@@ -1,14 +1,18 @@
 package cromwell.backend.google.pipelines.common
 
 import akka.actor.ActorRef
+import cats.effect.IO
+import com.google.api.client.http.{HttpRequest, HttpResponse}
 import com.google.api.services.cloudkms.v1.model.EncryptRequest
 import com.google.api.services.cloudkms.v1.{CloudKMS, CloudKMSScopes}
+import com.google.api.services.cloudresourcemanager.CloudResourceManager
 import com.google.api.services.genomics.GenomicsScopes
 import com.google.api.services.lifesciences.v2beta.CloudLifeSciencesScopes
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
 import com.google.auth.http.HttpCredentialsAdapter
 import com.google.auth.oauth2.OAuth2Credentials
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.VirtualPrivateCloudConfiguration
 import cromwell.backend.google.pipelines.common.PipelinesApiInitializationActor._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory
 import cromwell.backend.standard.{StandardInitializationActor, StandardInitializationActorParams, StandardValidatedRuntimeAttributesBuilder}
@@ -19,7 +23,11 @@ import cromwell.core.Dispatcher
 import cromwell.core.io.AsyncIoActorClient
 import cromwell.filesystems.gcs.GoogleUtil._
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
+import _root_.io.circe.Decoder
+import _root_.io.circe.generic.semiauto.deriveDecoder
+import _root_.io.circe.parser.decode
 import org.apache.commons.codec.binary.Base64
+import org.apache.commons.lang3.exception.ExceptionUtils
 import spray.json.{JsObject, JsString}
 import wom.graph.CommandCallNode
 
@@ -131,6 +139,61 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
     } yield encrypted
   }
 
+  lazy val vpcNetworkAndSubnetworkProjectLabels: VpcAndSubnetworkProjectLabelValues = {
+    def googleProject(descriptor: BackendWorkflowDescriptor): String = {
+      descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.GoogleProject, pipelinesParams.jesConfiguration.papiAttributes.project)
+    }
+
+    def projectMetadataRequest(vpcConfig: VirtualPrivateCloudConfiguration): IO[HttpRequest] = {
+      IO {
+        val credentials = vpcConfig.auth.credentials(workflowOptions.get(_).get, List(CloudLifeSciencesScopes.CLOUD_PLATFORM))
+
+        val httpCredentialsAdapter = new HttpCredentialsAdapter(credentials)
+        val cloudResourceManagerBuilder = new CloudResourceManager
+        .Builder(GoogleAuthMode.httpTransport, GoogleAuthMode.jsonFactory, httpCredentialsAdapter)
+          .setApplicationName(pipelinesConfiguration.googleConfig.applicationName)
+          .build()
+
+        val project = cloudResourceManagerBuilder.projects().get(googleProject(workflowDescriptor))
+
+        project.buildHttpRequest()
+      }
+    }
+
+    def projectMetadataResponseToLabels(httpResponse: HttpResponse): IO[ProjectLabels] = {
+      implicit val googleProjectMetadataLabelDecoder: Decoder[ProjectLabels] = deriveDecoder
+      IO.fromEither(decode[ProjectLabels](httpResponse.parseAsString())).handleErrorWith {
+        e => IO.raiseError(new RuntimeException(s"Failed to parse labels from project metadata response from Google Cloud Resource Manager API. " +
+          s"${ExceptionUtils.getMessage(e)}", e))
+      }
+    }
+
+    def networkLabelsFromProjectLabels(vpcConfig: VirtualPrivateCloudConfiguration, projectLabels: ProjectLabels): VpcAndSubnetworkProjectLabelValues = {
+      val networkLabelOption = projectLabels.labels.collectFirst {
+        case (labelName, labelValue) if labelName.equals(vpcConfig.name) => labelValue
+      }
+      val subnetworkLabelOption = vpcConfig.subnetwork.flatMap { s =>
+        projectLabels.labels.collectFirst {
+          case (labelName, labelValue) if labelName.equals(s) => labelValue
+        }
+      }
+
+      VpcAndSubnetworkProjectLabelValues(networkLabelOption, subnetworkLabelOption)
+    }
+
+    def fetchVpcLabelsFromProjectMetadata(vpcConfig: VirtualPrivateCloudConfiguration): IO[VpcAndSubnetworkProjectLabelValues] = {
+      for {
+        projectMetadataResponse <- projectMetadataRequest(vpcConfig).map(_.executeAsync().get())
+        projectLabels <- projectMetadataResponseToLabels(projectMetadataResponse)
+      } yield networkLabelsFromProjectLabels(vpcConfig, projectLabels)
+    }
+
+    pipelinesConfiguration.papiAttributes.virtualPrivateCloudConfiguration match {
+      case None => VpcAndSubnetworkProjectLabelValues(None, None)
+      case Some(vpcConfig) => fetchVpcLabelsFromProjectMetadata(vpcConfig).unsafeRunSync()
+    }
+  }
+
   override lazy val workflowPaths: Future[PipelinesApiWorkflowPaths] = for {
     gcsCred <- gcsCredentials
     genomicsCred <- genomicsCredentials
@@ -149,7 +212,8 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
     gcsCredentials = gcsCreds,
     genomicsRequestFactory = genomicsFactory,
     privateDockerEncryptionKeyName = privateDockerEncryptionKeyName,
-    privateDockerEncryptedToken = privateDockerEncryptedToken)
+    privateDockerEncryptedToken = privateDockerEncryptedToken,
+    vpcNetworkAndSubnetworkProjectLabels = vpcNetworkAndSubnetworkProjectLabels)
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     for {

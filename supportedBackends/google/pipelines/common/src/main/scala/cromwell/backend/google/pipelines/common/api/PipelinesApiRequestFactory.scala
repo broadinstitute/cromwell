@@ -90,6 +90,7 @@ object PipelinesApiRequestFactory {
                                       referenceDisksForLocalization: List[PipelinesApiAttachedDisk],
                                       monitoringImage: MonitoringImage,
                                       enableSshAccess: Boolean,
+                                      vpcNetworkAndSubnetworkProjectLabels: VpcAndSubnetworkProjectLabelValues,
                                      ) {
     def literalInputs = inputOutputParameters.literalInputParameters
     def inputParameters = inputOutputParameters.fileInputParameters

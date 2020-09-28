@@ -3,9 +3,9 @@ package cromwell.cloudsupport.gcp
 import java.io.IOException
 
 import cats.data.Validated._
-import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import com.typesafe.config.{Config, ConfigException}
 import common.exception.MessageAggregation

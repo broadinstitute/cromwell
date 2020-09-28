@@ -1,9 +1,8 @@
 package cromwell.database.slick
 
 import java.sql.Timestamp
-
-import cats.instances.future._
 import cats.syntax.functor._
+import cats.instances.future._
 import cromwell.database.sql.WorkflowStoreSqlDatabase
 import cromwell.database.sql.tables.WorkflowStoreEntry
 import slick.jdbc.TransactionIsolation

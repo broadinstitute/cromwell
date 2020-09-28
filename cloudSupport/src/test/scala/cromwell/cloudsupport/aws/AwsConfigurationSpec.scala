@@ -31,7 +31,7 @@
 
 package cromwell.cloudsupport.aws
 
-import cats.implicits._
+import cats.syntax.all._
 import com.typesafe.config.{ConfigException, ConfigFactory}
 import cromwell.cloudsupport.aws.AwsConfiguration.AwsConfigurationException
 import cromwell.cloudsupport.aws.auth.{AssumeRoleMode, CustomKeyMode, DefaultMode}

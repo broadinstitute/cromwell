@@ -7,8 +7,8 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
 import cats.effect.IO
-import cats.instances.list._
 import cats.syntax.traverse._
+import cats.instances.list._
 import com.typesafe.config.Config
 import cromiam.auth.Collection.validateLabels
 import cromiam.auth.{Collection, User}

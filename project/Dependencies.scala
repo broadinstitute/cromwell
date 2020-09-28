@@ -3,24 +3,24 @@ import sbt._
 object Dependencies {
   private val akkaHttpCirceIntegrationV = "1.34.0"
   private val akkaHttpV = "10.1.12"
-  val akkaV = "2.6.8" // When updating: Do we still need the merge "fix" from https://github.com/broadinstitute/cromwell/pull/5776 (not private because used in Merging.scala)
+  val akkaV = "2.6.9" // When updating: Do we still need the merge "fix" from https://github.com/broadinstitute/cromwell/pull/5776 (not private because used in Merging.scala)
   private val aliyunBcsV = "6.2.4"
-  private val aliyunCoreV = "4.5.7"
+  private val aliyunCoreV = "4.5.10"
   private val aliyunCrV = "4.1.1"
-  private val aliyunOssV = "3.10.2"
+  private val aliyunOssV = "3.11.1"
   private val ammoniteOpsV = "2.2.0"
   private val apacheCommonNetV = "3.7"
   private val apacheHttpClientV = "4.5.12"
-  private val awsSdkV = "2.14.3"
+  private val awsSdkV = "2.14.23"
   private val betterFilesV = "3.9.1"
-  private val catsEffectV = "2.1.4"
-  private val catsV = "2.1.1"
+  private val catsEffectV = "2.2.0"
+  private val catsV = "2.2.0"
   private val circeGenericExtrasV = "0.13.0"
   private val circeOpticsV = "0.13.0"
   private val circeV = "0.13.0"
   private val circeYamlV = "0.13.1"
-  private val commonsCodecV = "1.14"
-  private val commonsIoV = "2.7"
+  private val commonsCodecV = "1.15"
+  private val commonsIoV = "2.8.0"
   private val commonsLang3V = "3.11"
   private val commonsMathV = "3.6.1"
   private val commonsTextV = "1.9"
@@ -37,11 +37,11 @@ object Dependencies {
   // probably not the most important corner of the Cromwell repo, going to punt on this for now.
   private val fs2VStatsDProxy = "1.0.5" // scala-steward:off
   private val googleApiClientV = "1.30.10"
-  private val googleCloudBigQueryV = "1.116.10"
-  private val googleCloudKmsV = "v1-rev20200814-1.30.10"
+  private val googleCloudBigQueryV = "1.120.0"
+  private val googleCloudKmsV = "v1-rev20200903-1.30.10"
   private val googleCloudMonitoringV = "2.0.1"
   private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off
-  private val googleCloudStorageV = "1.111.2"
+  private val googleCloudStorageV = "1.113.1"
   private val googleGaxGrpcV = "1.58.2"
   private val googleGenomicsServicesV1ApiV = "v1alpha2-rev495-1.23.0"
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20200330-1.30.9"
@@ -51,7 +51,7 @@ object Dependencies {
   private val googleOauth2V = "0.21.1"
   private val googleOauthClientV = "1.31.0"
   private val googleCloudResourceManagerV = "0.87.0-alpha"
-  private val grpcV = "1.31.1"
+  private val grpcV = "1.32.1"
   private val guavaV = "29.0-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.5.1"
@@ -95,8 +95,8 @@ object Dependencies {
   // java.lang.NoSuchFieldException: m_mesgParts in KeyValueSpec "fail if one of the inserts fails"
   private val postgresV = "42.2.5" // scala-steward:off
   private val rdf4jV = "2.4.2"
-  private val refinedV = "0.9.15"
-  private val rhinoV = "1.7.12"
+  private val refinedV = "0.9.16"
+  private val rhinoV = "1.7.13"
   private val scalaGraphV = "1.13.1"
   private val scalaLoggingV = "3.9.2"
   private val scalaPoolV = "0.4.3"
@@ -113,7 +113,7 @@ object Dependencies {
   private val simulacrumV = "1.0.0"
   private val slf4jV = "1.7.30"
   private val slickCatsV = "0.10.2"
-  private val testContainersScalaV = "0.38.1"
+  private val testContainersScalaV = "0.38.3"
 
   /* If you're about to update our Slick version:
     * Consider checking whether the new Slick version passes tests with upserts enabled (eg KeyValueDatabaseSpec)
@@ -124,7 +124,7 @@ object Dependencies {
     * Related Slick PR: https://github.com/slick/slick/pull/2101
   */
   private val slickV = "3.3.2-2076hotfix"
-  private val snakeyamlV = "1.26"
+  private val snakeyamlV = "1.27"
   private val specs2MockV = "4.10.2"
   private val sprayJsonV = "1.3.5"
   private val sttpV = "1.5.19"

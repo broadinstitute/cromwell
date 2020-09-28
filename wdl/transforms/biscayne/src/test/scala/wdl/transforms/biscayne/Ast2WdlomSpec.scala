@@ -1,11 +1,10 @@
 package wdl.transforms.biscayne
 
 import java.util
-
-import cats.instances.either._
 import common.Checked
 import common.assertion.ErrorOrAssertions._
 import common.transforms.CheckedAtoB
+import cats.instances.either._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wdl.biscayne.parser.WdlParser

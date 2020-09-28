@@ -2,7 +2,7 @@ package cwl
 
 import java.util.concurrent.Executors
 
-import cats.implicits._
+import cats.syntax.all._
 import cwl.CommandLineTool.CommandOutputParameter
 import cwl.ExpressionEvaluator._
 import eu.timepit.refined._

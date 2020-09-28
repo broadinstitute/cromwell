@@ -1,8 +1,8 @@
 package cwl.preprocessor
 
 import cats.effect.{ContextShift, IO}
-import cats.instances.list._
 import cats.syntax.parallel._
+import cats.instances.list._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.IOChecked._
 import common.validation.Validation._
@@ -199,7 +199,6 @@ private [preprocessor] class CwlCanonicalizer(saladFunction: SaladFunction)(impl
      * @return a Map[String, Json], where the key is the cwl id of the workflow, and the value its content
      */
     def findRunInlinedWorkflows(json: Json): ErrorOr[Map[String, Json]] = {
-      import cats.instances.list._
       import cats.syntax.traverse._
 
       json.asArray match {

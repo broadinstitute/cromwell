@@ -3,9 +3,9 @@ package cwl
 import java.nio.file.Paths
 
 import cats.data.NonEmptyList
-import cats.instances.list._
 import cats.syntax.either._
 import cats.syntax.traverse._
+import cats.instances.list._
 import common.Checked
 import common.validation.ErrorOr._
 import common.validation.Validation._

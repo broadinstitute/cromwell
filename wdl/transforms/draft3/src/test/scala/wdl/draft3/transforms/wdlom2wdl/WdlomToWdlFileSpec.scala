@@ -1,7 +1,7 @@
 package wdl.draft3.transforms.wdlom2wdl
 
+import cats.instances.either._
 import better.files.File
-import cats.implicits._
 import common.Checked
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -10,7 +10,6 @@ import wdl.draft3.transforms.parsing.{FileStringParserInput, fileToAst, stringTo
 import wdl.model.draft3.elements._
 import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
 import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.fileElementWriter
-
 
 class WdlomToWdlFileSpec extends AnyFlatSpec with Matchers {
 

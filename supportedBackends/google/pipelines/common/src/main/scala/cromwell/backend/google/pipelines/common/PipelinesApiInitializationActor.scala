@@ -138,7 +138,7 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
     } yield encrypted
   }
 
-  private def getVpcNetworkAndSubnetworkProjectLabelsFuture: Future[Option[VpcAndSubnetworkProjectLabelValues]] = {
+  private def vpcNetworkAndSubnetworkProjectLabelsFuture(): Future[Option[VpcAndSubnetworkProjectLabelValues]] = {
     def googleProject(descriptor: BackendWorkflowDescriptor): String = {
       descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.GoogleProject, pipelinesParams.jesConfiguration.papiAttributes.project)
     }
@@ -203,7 +203,7 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
     jesWorkflowPaths <- workflowPaths
     gcsCreds <- gcsCredentials
     genomicsFactory <- genomics
-    vpcNetworkAndSubnetworkProjectLabels <- getVpcNetworkAndSubnetworkProjectLabelsFuture
+    vpcNetworkAndSubnetworkProjectLabels <- vpcNetworkAndSubnetworkProjectLabelsFuture()
   } yield PipelinesApiBackendInitializationData(
     workflowPaths = jesWorkflowPaths,
     runtimeAttributesBuilder = runtimeAttributesBuilder,

@@ -3,6 +3,7 @@ package cromwell.engine.workflow.lifecycle.execution.job
 import akka.actor.SupervisorStrategy.{Escalate, Stop}
 import akka.actor.{ActorInitializationException, ActorRef, LoggingFSM, OneForOneStrategy, Props}
 import cats.data.NonEmptyList
+import common.util.StringUtil.EnhancedToStringable
 import cromwell.backend.BackendCacheHitCopyingActor.{CacheCopyFailure, CopyOutputsCommand, CopyingOutputsFailedResponse, CopyAttemptError, BlacklistSkip}
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
@@ -440,7 +441,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   onTransition {
     case fromState -> toState =>
-      log.debug("Transitioning from {}({}) to {}({})", fromState, stateData, toState, nextStateData)
+      log.info("Transitioning from {}({}) to {}({})", fromState, stateData.toPrettyElidedString(1000), toState, nextStateData.toPrettyElidedString(1000))
 
       EngineJobExecutionActorState.transitionEventString(fromState, toState) foreach {
         eventList :+= ExecutionEvent(_)

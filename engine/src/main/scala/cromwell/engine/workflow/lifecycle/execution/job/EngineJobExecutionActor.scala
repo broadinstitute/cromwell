@@ -235,7 +235,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
             s"Falling back to running job."
         )
       } else {
-        workflowLogger.info("Could not copy a suitable cache hit for {}. No copy attempts were made.", jobTag)
+        workflowLogger.info("Could not copy a suitable cache hit for {}. No suitable cache entries were identified.", jobTag)
       }
 
       runJob(data)

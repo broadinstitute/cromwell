@@ -38,9 +38,6 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
 
   private lazy val httpClientBuilder = HttpClientBuilder.create()
 
-  private val GcsScheme = "gs"
-
-
   private def gcsInputStream(gcsFile: GcsFilePath,
                              serviceAccountJson: String,
                              requesterPaysProjectIdOption: Option[String]): IO[ReadableByteChannel] = {
@@ -74,7 +71,6 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
     for {
       serviceAccountJson <- serviceAccountJsonIo
       //Currently, Martha only supports resolving DRS paths to GCS paths
-      _ <- IO.fromEither(marthaResponse.gsUri.toRight(UrlNotFoundException(GcsScheme)))
       bucket <- IO.fromEither(marthaResponse.bucket.toRight(MarthaResponseMissingKeyException("bucket")))
       filePath <- IO.fromEither(marthaResponse.name.toRight(MarthaResponseMissingKeyException("name")))
       readableByteChannel <- gcsInputStream(GcsFilePath(bucket, filePath), serviceAccountJson, requesterPaysProjectIdOption)

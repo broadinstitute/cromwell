@@ -38,8 +38,7 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClie
     val responseContentIO = toIO(responseEntityOption, exceptionMsg)
 
     responseContentIO.flatMap{ responseContent =>
-      if (drsConfig.marthaUri.endsWith("martha_v3")) IO.fromEither(decode[MarthaResponse](responseContent))
-      else IO.fromEither(decode[MarthaV2Response](responseContent).map(convertMarthaResponseV2ToV3))
+      IO.fromEither(decode[MarthaResponse](responseContent))
     }.handleErrorWith {
       e => IO.raiseError(new RuntimeException(s"Unexpected response during DRS resolution: ${ExceptionUtils.getMessage(e)}"))
     }
@@ -71,21 +70,35 @@ final case class DrsConfig(marthaUri: String, marthaRequestJsonTemplate: String)
 
 final case class Url(url: String)
 final case class ChecksumObject(checksum: String, `type`: String)
-final case class DrsDataObject(size: Option[Long],
+final case class DosDataObject(name: Option[String],
+                               size: Option[Long],
                                checksums: Option[Array[ChecksumObject]],
                                updated: Option[String],
                                urls: Array[Url])
-final case class DrsObject(data_object: DrsDataObject)
+final case class DosObject(data_object: DosDataObject)
 final case class SADataObject(data: Json)
 
-final case class MarthaV2Response(dos: DrsObject, googleServiceAccount: Option[SADataObject])
+final case class MarthaV2Response(dos: DosObject, googleServiceAccount: Option[SADataObject])
 
+/**
+  * A response from `martha_v3` or converted from `martha_v2`.
+  *
+  * @param size Size of the object stored at gsUri
+  * @param timeUpdated The last update time of the object at gsUri
+  * @param bucket The bucket name port of gsUri, for example "bucket"
+  * @param name The object name part of gsUri, for example "12/345"
+  * @param gsUri Where the object bytes are stored, possibly using a generated path name such as "gs://bucket/12/345"
+  * @param googleServiceAccount The service account to access the gsUri contents
+  * @param fileName A possible different file name for the object at gsUri, ex: "gsutil cp gs://bucket/12/345 my.vcf"
+  * @param hashes Hashes for the contents stored at gsUri
+  */
 final case class MarthaResponse(size: Option[Long],
                                 timeUpdated: Option[String],
                                 bucket: Option[String],
                                 name: Option[String],
                                 gsUri: Option[String],
                                 googleServiceAccount: Option[SADataObject],
+                                fileName: Option[String],
                                 hashes: Option[Map[String, String]])
 
 // Adapted from https://github.com/broadinstitute/martha/blob/f31933a3a11e20d30698ec4b4dc1e0abbb31a8bc/common/helpers.js#L210-L218
@@ -95,12 +108,15 @@ final case class MarthaFailureResponsePayload(text: String)
 object MarthaResponseSupport {
 
   implicit lazy val urlDecoder: Decoder[Url] = deriveDecoder
-  implicit lazy val checksumDecoder: Decoder[ChecksumObject] = deriveDecoder
-  implicit lazy val dataObjectDecoder: Decoder[DrsDataObject] = deriveDecoder
-  implicit lazy val drsObjectDecoder: Decoder[DrsObject] = deriveDecoder
+  implicit lazy val checksumObjectDecoder: Decoder[ChecksumObject] = deriveDecoder
+  implicit lazy val dosDataObjectDecoder: Decoder[DosDataObject] = deriveDecoder
+  implicit lazy val dosObjectDecoder: Decoder[DosObject] = deriveDecoder
   implicit lazy val saDataObjectDecoder: Decoder[SADataObject] = deriveDecoder
-  implicit lazy val marthaV2ResponseDecoder: Decoder[MarthaV2Response] = deriveDecoder
-  implicit lazy val marthaResponseDecoder: Decoder[MarthaResponse] = deriveDecoder
+  private lazy val marthaV3ResponseDecoder: Decoder[MarthaResponse] = deriveDecoder
+  private lazy val marthaV2ResponseDecoder: Decoder[MarthaResponse] =
+    deriveDecoder[MarthaV2Response] map convertMarthaResponseV2ToV3
+  implicit lazy val marthaResponseDecoder: Decoder[MarthaResponse] =
+    marthaV2ResponseDecoder or marthaV3ResponseDecoder
 
   implicit lazy val marthaFailureResponseDecoder: Decoder[MarthaFailureResponse] = deriveDecoder
   implicit lazy val marthaFailureResponsePayloadDecoder: Decoder[MarthaFailureResponsePayload] = deriveDecoder
@@ -122,19 +138,21 @@ object MarthaResponseSupport {
 
   def convertMarthaResponseV2ToV3(response: MarthaV2Response): MarthaResponse = {
     val dataObject = response.dos.data_object
+    val fileName = dataObject.name
     val size = dataObject.size
     val timeUpdated = dataObject.updated
     val hashesMap = dataObject.checksums.map(convertChecksumsToHashesMap)
     val gcsUrl = dataObject.urls.find(_.url.startsWith(GcsScheme)).map(_.url)
-    val (bucketName, fileName) = getGcsBucketAndName(gcsUrl)
+    val (bucketName, objectName) = getGcsBucketAndName(gcsUrl)
 
     MarthaResponse(
       size = size,
       timeUpdated = timeUpdated,
       bucket = bucketName,
-      name = fileName,
+      name = objectName,
       gsUri = gcsUrl,
       googleServiceAccount = response.googleServiceAccount,
+      fileName = fileName,
       hashes = hashesMap
     )
   }

@@ -153,6 +153,7 @@ class MockGcsLocalizerDrsPathResolver(drsConfig: DrsConfig,
         name= fileName,
         gsUri = gcsUrl,
         googleServiceAccount = None,
+        fileName = None,
         hashes = Option(Map("md5" -> "abc123", "crc32c" -> "34fd67"))
       )
     )

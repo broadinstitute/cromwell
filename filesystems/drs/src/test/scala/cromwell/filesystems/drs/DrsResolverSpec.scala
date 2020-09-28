@@ -33,7 +33,7 @@ class DrsResolverSpec extends AnyFlatSpec with Matchers {
 
   private lazy val httpClientBuilder = HttpClientBuilder.create()
 
-  private def drsReadInterpreter(marthaResponse: MarthaResponse): IO[ReadableByteChannel] =
+  private val drsReadInterpreter: MarthaResponse => IO[ReadableByteChannel] = _ =>
     throw new UnsupportedOperationException("Currently DrsResolverSpec doesn't need to use drs read interpreter.")
 
   private val mockFileSystemProviderForMarthaV2 = new MockDrsCloudNioFileSystemProvider(marthaV2Config, fakeCredentials, httpClientBuilder, drsReadInterpreter)
@@ -45,10 +45,16 @@ class DrsResolverSpec extends AnyFlatSpec with Matchers {
 
   behavior of "DrsResolver"
 
-  it should "find GCS path" in {
+  it should "find DRS path from a GCS path" in {
     val drsPath = drsPathBuilderForMarthaV2.build(MockDrsPaths.drsPathResolvingGcsPath).get.asInstanceOf[DrsPath]
 
     DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync() should be (MockDrsPaths.gcsRelativePath)
+  }
+
+  it should "find DRS path from a file name" in {
+    val drsPath = drsPathBuilderForMarthaV2.build(MockDrsPaths.drsPathResolvingWithFileName).get.asInstanceOf[DrsPath]
+
+    DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync() should be (MockDrsPaths.gcsRelativePathWithFileName)
   }
 
   it should "throw GcsUrlNotFoundException when DRS path doesn't resolve to at least one GCS url" in {
@@ -64,7 +70,10 @@ class DrsResolverSpec extends AnyFlatSpec with Matchers {
 
     the[RuntimeException] thrownBy {
       DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()
-    } should have message s"Unexpected response resolving ${drsPath.pathAsString} through Martha url https://martha-url/martha_v2. Error: 404 Not Found."
+    } should have message
+      s"Error while resolving DRS path: ${drsPath.pathAsString}. " +
+        s"Error: RuntimeException: Unexpected response resolving ${drsPath.pathAsString} " +
+        s"through Martha url https://martha-url/martha_v2. Error: 404 Not Found."
   }
 
   it should "throw Runtime Exception when Martha V3 can't find the given DRS path " in {
@@ -72,6 +81,9 @@ class DrsResolverSpec extends AnyFlatSpec with Matchers {
 
     the[RuntimeException] thrownBy {
       DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()
-    } should have message s"Unexpected response resolving ${drsPath.pathAsString} through Martha url https://martha-url/martha_v3. Error: 404 Not Found."
+    } should have message
+      s"Error while resolving DRS path: ${drsPath.pathAsString}. " +
+        s"Error: RuntimeException: Unexpected response resolving ${drsPath.pathAsString} " +
+        s"through Martha url https://martha-url/martha_v3. Error: 404 Not Found."
   }
 }

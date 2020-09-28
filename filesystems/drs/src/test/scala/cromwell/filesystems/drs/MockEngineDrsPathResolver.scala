@@ -18,36 +18,47 @@ class MockEngineDrsPathResolver(drsConfig: DrsConfig,
 
   private lazy val mockMarthaUri = drsConfig.marthaUri
 
-  val marthaObjWithGcsPath: IO[MarthaResponse] = createMarthaResponse(Option(s"gs://${MockDrsPaths.gcsRelativePath}"))
+  private val hashesObj = Map(
+    "md5" -> "336ea55913bc261b72875bd259753046",
+    "sha256" -> "f76877f8e86ec3932fd2ae04239fbabb8c90199dab0019ae55fa42b31c314c44",
+    "crc32c" -> "8a366443"
+  )
 
-  val marthaObjWithNoGcsPath: IO[MarthaResponse] = createMarthaResponse(None)
-
-  private def createMarthaResponse(url: Option[String]): IO[MarthaResponse] =  {
-    val hashesObj = Map(
-      "md5" -> "336ea55913bc261b72875bd259753046",
-      "sha256" -> "f76877f8e86ec3932fd2ae04239fbabb8c90199dab0019ae55fa42b31c314c44",
-      "crc32c" -> "8a366443"
-    )
-
-    val drsResponse = MarthaResponse(
+  private val marthaObjWithGcsPath =
+    MarthaResponse(
       size = Option(156018255),
       timeUpdated = Option("2020-04-27T15:56:09.696Z"),
       bucket = Option("my-bucket"),
       name = Option("dd3c716a-852f-4d74-9073-9920e835ec8a/f3b148ac-1802-4acc-a0b9-610ea266fb61"),
-      gsUri = url,
+      gsUri = Option(s"gs://${MockDrsPaths.gcsRelativePath}"),
       googleServiceAccount = None,
+      fileName = None,
       hashes = Option(hashesObj)
     )
 
-    IO(drsResponse)
-  }
+  private val marthaObjWithFileName = marthaObjWithGcsPath.copy(fileName = Option("file.txt"))
+
+  private val marthaObjWithNoGcsPath = marthaObjWithGcsPath.copy(gsUri = None)
 
   override def resolveDrsThroughMartha(drsPath: String): IO[MarthaResponse] = {
     drsPath match {
-      case MockDrsPaths.drsPathResolvingGcsPath => marthaObjWithGcsPath
-      case MockDrsPaths.drsPathResolvingToNoGcsPath => marthaObjWithNoGcsPath
-      case MockDrsPaths.drsPathNotExistingInMartha => throw new RuntimeException(s"Unexpected response resolving ${MockDrsPaths.drsPathNotExistingInMartha} through Martha url $mockMarthaUri. Error: 404 Not Found.")
-      case _ => throw new RuntimeException(s"Unexpected response resolving $drsPath through Martha url $mockMarthaUri. Error: 500 Internal Server Error.")
+      case MockDrsPaths.drsPathResolvingGcsPath => IO(marthaObjWithGcsPath)
+      case MockDrsPaths.drsPathResolvingWithFileName => IO(marthaObjWithFileName)
+      case MockDrsPaths.drsPathResolvingToNoGcsPath => IO(marthaObjWithNoGcsPath)
+      case MockDrsPaths.drsPathNotExistingInMartha =>
+        IO.raiseError(
+          new RuntimeException(
+            s"Unexpected response resolving ${MockDrsPaths.drsPathNotExistingInMartha} " +
+              s"through Martha url $mockMarthaUri. Error: 404 Not Found."
+          )
+        )
+      case _ =>
+        IO.raiseError(
+          new RuntimeException(
+            s"Unexpected response resolving $drsPath through Martha url $mockMarthaUri. " +
+              "Error: 500 Internal Server Error."
+          )
+        )
     }
   }
 }
@@ -67,9 +78,13 @@ class MockDrsCloudNioFileSystemProvider(config: Config,
 object MockDrsPaths {
   private val drsPathPrefix = "drs://drs-host/"
 
-  val gcsRelativePath = "my-bucket/dd3c716a-852f-4d74-9073-9920e835ec8a/f3b148ac-1802-4acc-a0b9-610ea266fb61"
+  val gcsRelativePath = "drs-host/4d427aa3-5640-4f00-81ae-c33443f84acf/f3b148ac-1802-4acc-a0b9-610ea266fb61"
+
+  val gcsRelativePathWithFileName = "drs-host/d7c75399-bcd3-4762-90e9-434de005679b/file.txt"
 
   val drsPathResolvingGcsPath = s"$drsPathPrefix/4d427aa3-5640-4f00-81ae-c33443f84acf"
+
+  val drsPathResolvingWithFileName = s"$drsPathPrefix/d7c75399-bcd3-4762-90e9-434de005679b"
 
   val drsPathResolvingToNoGcsPath = s"$drsPathPrefix/226686cf-22c9-4472-9f79-7a0b0044f253"
 

@@ -67,12 +67,14 @@ class DigesterTestMethods(unittest.TestCase):
 
                     for num_attempts in [1, 2, 3]:
                         actual_len = len(list(filter(more_than_x_attempts(calls, num_attempts), calls)))
-                        self.assertEqual(actual_len, expected[f'more_than_{num_attempts}_attempts'])
+                        key = f'more_than_{num_attempts}_attempts'
+                        self.assertEqual(actual_len, expected[key], f'Mismatch at {key}')
 
                     for minutes_longer in range(3, 9):
                         actual_len = len(list(filter(more_than_x_minutes_longer(calls, minutes_longer), calls)))
-                        expectation = expected[f'cromwell_time_more_than_{minutes_longer}_minutes_longer_total']
-                        self.assertEqual(actual_len, expectation)
+                        key = f'cromwell_time_more_than_{minutes_longer}_minutes_longer_total'
+                        expectation = expected[key]
+                        self.assertEqual(actual_len, expectation, f'Mismatch at {key}')
 
                     # Currently just a smoke test to assert not-completely-insane results for both v1 and v2 digesters.
 
@@ -109,15 +111,15 @@ EXPECTATIONS = {
         },
         'PAPIv2_alpha1': {
             'total_jobs': 133,
-            'more_than_1_attempts': 12,
-            'more_than_2_attempts': 1,
+            'more_than_1_attempts': 3,
+            'more_than_2_attempts': 0,
             'more_than_3_attempts': 0,
-            'cromwell_time_more_than_3_minutes_longer_total': 21,
-            'cromwell_time_more_than_4_minutes_longer_total': 7,
-            'cromwell_time_more_than_5_minutes_longer_total': 4,
+            'cromwell_time_more_than_3_minutes_longer_total': 12,
+            'cromwell_time_more_than_4_minutes_longer_total': 5,
+            'cromwell_time_more_than_5_minutes_longer_total': 5,
             'cromwell_time_more_than_6_minutes_longer_total': 2,
             'cromwell_time_more_than_7_minutes_longer_total': 1,
-            'cromwell_time_more_than_8_minutes_longer_total': 0,
+            'cromwell_time_more_than_8_minutes_longer_total': 1,
             # insert more intelligent assertions here
         }
     }

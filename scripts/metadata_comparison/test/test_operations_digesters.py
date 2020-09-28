@@ -35,6 +35,7 @@ class OperationsDigesterTestMethods(unittest.TestCase):
         # A cache of expensive-to-create GCS comparison paths.
         gcs_comparison_path_by_subdir = {}
         papi_versions = [VERSION_PAPI_V1, VERSION_PAPI_V2]
+        self.maxDiff = None
 
         for papi_version in papi_versions:
             subdir = subdir_for_papi_version(papi_version)
@@ -58,11 +59,8 @@ class OperationsDigesterTestMethods(unittest.TestCase):
                         json_str = operations_path.read_text()
                         op_digester = OperationDigester.create(json.loads(json_str))
                         for key, value in EXPECTATIONS.get(sample_name).get(papi_version).get(operation).items():
-                            if key == 'disks':
-                                self.assertEqual(value, op_digester.disks())
-                            else:
-                                method_to_call = getattr(op_digester, key)
-                                self.assertEqual(method_to_call(), value, f'{key} was not {value}')
+                            method_to_call = getattr(op_digester, key)
+                            self.assertEqual(method_to_call(), value, f'{key} was not {value}')
 
 
 EXPECTATIONS = {
@@ -90,22 +88,27 @@ EXPECTATIONS = {
             }
         },
         'PAPIv2_alpha1': {
-            '9990846134018347343': {
-                'total_time_seconds': 164.94303,
-                'startup_time_seconds': 38.283515,
-                'docker_image_pull_time_seconds': 63.978705,
-                'localization_time_seconds': 23.193772,
-                'user_command_time_seconds': 2.978336,
-                'delocalization_time_seconds': 13.615169,
+            '12341555440642647083': {
+                'total_time_seconds': 518.744239,
+                'startup_time_seconds': 40.9002,
+                'docker_image_pull_time_seconds': 97.990618,
+                'localization_time_seconds': 17.846399,
+                'user_command_time_seconds': 329.341766,
+                'delocalization_time_seconds': 14.182412,
                 'disks': {
                     'boot-disk': {
                         'name': 'boot-disk',
-                        'sizeGb': 11,
+                        'sizeGb': 15,
+                        'type': 'HDD'
+                    },
+                    'd-4767bb194435405ce88d8727e14b7855': {
+                        'name': 'd-4767bb194435405ce88d8727e14b7855',
+                        'sizeGb': 30,
                         'type': 'HDD'
                     },
                     'local-disk': {
                         'name': 'local-disk',
-                        'sizeGb': 10,
+                        'sizeGb': 25,
                         'type': 'HDD'
                     }
                 }

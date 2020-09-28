@@ -1,7 +1,6 @@
 package cromwell.backend.google.pipelines.common
 
 import akka.actor.ActorRef
-import cats.effect.IO
 import com.google.api.client.http.{HttpRequest, HttpResponse}
 import com.google.api.services.cloudkms.v1.model.EncryptRequest
 import com.google.api.services.cloudkms.v1.{CloudKMS, CloudKMSScopes}
@@ -19,7 +18,7 @@ import cromwell.backend.standard.{StandardInitializationActor, StandardInitializ
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode.{httpTransport, jsonFactory}
 import cromwell.cloudsupport.gcp.auth.{GoogleAuthMode, UserServiceAccountMode}
-import cromwell.core.Dispatcher
+import cromwell.core.{Dispatcher, WorkflowOptions}
 import cromwell.core.io.AsyncIoActorClient
 import cromwell.filesystems.gcs.GoogleUtil._
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
@@ -48,9 +47,9 @@ case class PipelinesApiInitializationActorParams
 class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializationActorParams)
   extends StandardInitializationActor(pipelinesParams) with AsyncIoActorClient {
 
-  override lazy val ioActor = pipelinesParams.ioActor
-  protected val pipelinesConfiguration = pipelinesParams.jesConfiguration
-  protected val workflowOptions = workflowDescriptor.workflowOptions
+  override lazy val ioActor: ActorRef = pipelinesParams.ioActor
+  protected val pipelinesConfiguration: PipelinesApiConfiguration = pipelinesParams.jesConfiguration
+  protected val workflowOptions: WorkflowOptions = workflowDescriptor.workflowOptions
   private lazy val ioEc = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
 
   override lazy val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =
@@ -139,13 +138,13 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
     } yield encrypted
   }
 
-  lazy val vpcNetworkAndSubnetworkProjectLabels: VpcAndSubnetworkProjectLabelValues = {
+  private def getVpcNetworkAndSubnetworkProjectLabelsFuture: Future[Option[VpcAndSubnetworkProjectLabelValues]] = {
     def googleProject(descriptor: BackendWorkflowDescriptor): String = {
       descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.GoogleProject, pipelinesParams.jesConfiguration.papiAttributes.project)
     }
 
-    def projectMetadataRequest(vpcConfig: VirtualPrivateCloudConfiguration): IO[HttpRequest] = {
-      IO {
+    def projectMetadataRequest(vpcConfig: VirtualPrivateCloudConfiguration): Future[HttpRequest] = {
+      Future {
         val credentials = vpcConfig.auth.credentials(workflowOptions.get(_).get, List(CloudLifeSciencesScopes.CLOUD_PLATFORM))
 
         val httpCredentialsAdapter = new HttpCredentialsAdapter(credentials)
@@ -160,28 +159,27 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
       }
     }
 
-    def projectMetadataResponseToLabels(httpResponse: HttpResponse): IO[ProjectLabels] = {
+    def projectMetadataResponseToLabels(httpResponse: HttpResponse): Future[ProjectLabels] = {
       implicit val googleProjectMetadataLabelDecoder: Decoder[ProjectLabels] = deriveDecoder
-      IO.fromEither(decode[ProjectLabels](httpResponse.parseAsString())).handleErrorWith {
-        e => IO.raiseError(new RuntimeException(s"Failed to parse labels from project metadata response from Google Cloud Resource Manager API. " +
+      Future.fromTry(decode[ProjectLabels](httpResponse.parseAsString()).toTry).recoverWith {
+        case e: Throwable => Future.failed(new RuntimeException(s"Failed to parse labels from project metadata response from Google Cloud Resource Manager API. " +
           s"${ExceptionUtils.getMessage(e)}", e))
       }
     }
 
-    def networkLabelsFromProjectLabels(vpcConfig: VirtualPrivateCloudConfiguration, projectLabels: ProjectLabels): VpcAndSubnetworkProjectLabelValues = {
-      val networkLabelOption = projectLabels.labels.collectFirst {
-        case (labelName, labelValue) if labelName.equals(vpcConfig.name) => labelValue
-      }
-      val subnetworkLabelOption = vpcConfig.subnetwork.flatMap { s =>
-        projectLabels.labels.collectFirst {
-          case (labelName, labelValue) if labelName.equals(s) => labelValue
+    def networkLabelsFromProjectLabels(vpcConfig: VirtualPrivateCloudConfiguration, projectLabels: ProjectLabels): Option[VpcAndSubnetworkProjectLabelValues] = {
+      projectLabels.labels.get(vpcConfig.name) map { vpcNetworkLabelValue =>
+        val subnetworkLabelOption = vpcConfig.subnetwork.flatMap { s =>
+          projectLabels.labels.collectFirst {
+            case (labelName, labelValue) if labelName.equals(s) => labelValue
+          }
         }
-      }
 
-      VpcAndSubnetworkProjectLabelValues(networkLabelOption, subnetworkLabelOption)
+        VpcAndSubnetworkProjectLabelValues(vpcNetworkLabelValue, subnetworkLabelOption)
+      }
     }
 
-    def fetchVpcLabelsFromProjectMetadata(vpcConfig: VirtualPrivateCloudConfiguration): IO[VpcAndSubnetworkProjectLabelValues] = {
+    def fetchVpcLabelsFromProjectMetadata(vpcConfig: VirtualPrivateCloudConfiguration): Future[Option[VpcAndSubnetworkProjectLabelValues]] = {
       for {
         projectMetadataResponse <- projectMetadataRequest(vpcConfig).map(_.executeAsync().get())
         projectLabels <- projectMetadataResponseToLabels(projectMetadataResponse)
@@ -189,8 +187,8 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
     }
 
     pipelinesConfiguration.papiAttributes.virtualPrivateCloudConfiguration match {
-      case None => VpcAndSubnetworkProjectLabelValues(None, None)
-      case Some(vpcConfig) => fetchVpcLabelsFromProjectMetadata(vpcConfig).unsafeRunSync()
+      case None => Future.successful(None)
+      case Some(vpcConfig) => fetchVpcLabelsFromProjectMetadata(vpcConfig)
     }
   }
 
@@ -205,6 +203,7 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
     jesWorkflowPaths <- workflowPaths
     gcsCreds <- gcsCredentials
     genomicsFactory <- genomics
+    vpcNetworkAndSubnetworkProjectLabels <- getVpcNetworkAndSubnetworkProjectLabelsFuture
   } yield PipelinesApiBackendInitializationData(
     workflowPaths = jesWorkflowPaths,
     runtimeAttributesBuilder = runtimeAttributesBuilder,
@@ -228,7 +227,7 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
   def standardStreamNameToFileNameMetadataMapper(pipelinesApiJobPaths: PipelinesApiJobPaths, streamName: String): String =
     PipelinesApiInitializationActor.defaultStandardStreamNameToFileNameMetadataMapper(pipelinesApiJobPaths, streamName)
 
-  override lazy val ioCommandBuilder = GcsBatchCommandBuilder
+  override lazy val ioCommandBuilder: GcsBatchCommandBuilder.type = GcsBatchCommandBuilder
 }
 
 object PipelinesApiInitializationActor {

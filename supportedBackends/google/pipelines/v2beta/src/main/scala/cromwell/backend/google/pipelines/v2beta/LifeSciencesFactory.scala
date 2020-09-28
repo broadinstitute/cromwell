@@ -56,18 +56,18 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
     }
 
     override def runRequest(createPipelineParameters: CreatePipelineParameters, jobLogger: JobLogger): HttpRequest = {
-      def createNetworkWithVPC(vpcName: String, subnetworkNameOpt: Option[String]): Network = {
+      def createNetworkWithVPC(vpcAndSubnetworkProjectLabelValues: VpcAndSubnetworkProjectLabelValues): Network = {
         val network = new Network()
           .setUsePrivateAddress(createPipelineParameters.effectiveNoAddressValue)
-          .setNetwork(VirtualPrivateCloudNetworkPath.format(createPipelineParameters.projectId, vpcName))
+          .setNetwork(VirtualPrivateCloudNetworkPath.format(createPipelineParameters.projectId, vpcAndSubnetworkProjectLabelValues.vpcName))
 
-        subnetworkNameOpt.foreach(subnet => network.setSubnetwork(subnet))
+        vpcAndSubnetworkProjectLabelValues.subnetNameOpt.foreach(subnet => network.setSubnetwork(subnet))
         network
       }
 
       def createNetwork(): Network = {
         createPipelineParameters.vpcNetworkAndSubnetworkProjectLabels match {
-          case VpcAndSubnetworkProjectLabelValues(Some(vpcName), subnetworkNameOpt) => createNetworkWithVPC(vpcName, subnetworkNameOpt)
+          case Some(vpcAndSubnetworkProjectLabelValues) => createNetworkWithVPC(vpcAndSubnetworkProjectLabelValues)
           case _ => new Network().setUsePrivateAddress(createPipelineParameters.effectiveNoAddressValue)
         }
       }

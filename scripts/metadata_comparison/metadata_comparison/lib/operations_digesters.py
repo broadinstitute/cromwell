@@ -5,7 +5,7 @@ from enum import Enum
 from metadata_comparison.lib.operation_ids import JsonObject, operation_id_to_api_version, \
     PAPI_V1_API_VERSION, PAPI_V2_ALPHA1_API_VERSION, PAPI_V2_BETA_API_VERSION
 import re
-from typing import AnyStr, Iterator, Set
+from typing import AnyStr, Dict, Iterator, Union
 
 
 class DiskType(Enum):
@@ -25,13 +25,19 @@ class DiskType(Enum):
         return "HDD" if self is DiskType.HDD else "SSD"
 
 
+# The various attributes of a disk have string keys and string or int values.
+DiskAttributes = Dict[AnyStr, Union[AnyStr, int]]
+# A DiskDict is keyed by the name of the disk (unique within a VM) and DiskAttributes values.
+DiskDict = Dict[AnyStr, DiskAttributes]
+
+
 class Disk:
     def __init__(self, name: AnyStr, size_gb: int, disk_type: DiskType):
         self.name = name
         self.size_gb = size_gb
         self.disk_type = disk_type
 
-    def for_json(self) -> dict:
+    def for_json(self) -> DiskDict:
         return {
             self.name: {
                 'name': self.name,
@@ -112,7 +118,7 @@ class OperationDigester(ABC):
     def machine_type(self) -> AnyStr: pass
 
     @abstractmethod
-    def disks(self) -> dict: pass
+    def disks(self) -> DiskDict: pass
 
     def other_time_seconds(self) -> float:
         end, create = [dateutil.parser.parse(t) for t in [self.end_time(), self.create_time()]]
@@ -182,7 +188,7 @@ class PapiV1OperationDigester(OperationDigester):
         machine_type_with_zone_prefix = self.metadata().get('runtimeMetadata').get('computeEngine').get('machineType')
         return machine_type_with_zone_prefix.split('/')[-1]
 
-    def disks(self) -> dict:
+    def disks(self) -> DiskDict:
         resources = self.metadata().get('request').get('pipelineArgs').get('resources')
         # start with the boot disk and then add any others later
         boot_disk = Disk('boot-disk', resources.get('bootDiskSizeGb'), DiskType.HDD)
@@ -252,7 +258,7 @@ class PapiV2OperationDigester(OperationDigester, ABC):
         event = next(self.event_with_description_like('^Worker .* assigned in .*'))
         return event.get('details').get('machineType')
 
-    def disks(self) -> dict:
+    def disks(self) -> DiskDict:
         vm = self.metadata().get('pipeline').get('resources').get('virtualMachine')
         # start with the boot disk and then add any others later
         boot_disk = Disk('boot-disk', vm.get('bootDiskSizeGb'), DiskType.HDD)

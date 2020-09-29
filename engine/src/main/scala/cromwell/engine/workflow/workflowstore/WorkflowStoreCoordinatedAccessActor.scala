@@ -36,6 +36,8 @@ class WorkflowStoreCoordinatedAccessActor(workflowStore: WorkflowStore) extends 
       workflowStore.fetchStartableWorkflows(count, cromwellId, heartbeatTtl) |> run
     case DeleteFromStore(workflowId) =>
       workflowStore.deleteFromStore(workflowId) |> run
+    case Abort(workflowId) =>
+      workflowStore.abort(workflowId) |> run
   }
 }
 

@@ -12,7 +12,8 @@ import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
-  * Interface for workflow store operations that read or write multiple rows in a single transaction.
+  * Interface for workflow store operations that empirically come into conflict and deadlock.
+  * Heartbeat writing and workflow fetching are problematic because they read or write multiple rows in a single transaction.
   */
 sealed trait WorkflowStoreAccess {
   def writeWorkflowHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)],
@@ -21,6 +22,9 @@ sealed trait WorkflowStoreAccess {
 
   def fetchStartableWorkflows(maxWorkflows: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
                              (implicit ec: ExecutionContext): Future[List[WorkflowToStart]]
+
+  def deleteFromStore(workflowId: WorkflowId)
+                     (implicit ec: ExecutionContext): Future[Int]
 }
 
 /**
@@ -38,6 +42,10 @@ case class UncoordinatedWorkflowStoreAccess(store: WorkflowStore) extends Workfl
   override def fetchStartableWorkflows(maxWorkflows: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
                                       (implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
     store.fetchStartableWorkflows(maxWorkflows, cromwellId, heartbeatTtl)
+  }
+
+  override def deleteFromStore(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int] = {
+    store.deleteFromStore(workflowId)
   }
 }
 
@@ -58,6 +66,11 @@ case class CoordinatedWorkflowStoreAccess(actor: ActorRef) extends WorkflowStore
     implicit val timeout = Timeout(WorkflowStoreCoordinatedAccessActor.Timeout)
     val message = WorkflowStoreCoordinatedAccessActor.FetchStartableWorkflows(maxWorkflows, cromwellId, heartbeatTtl)
     actor.ask(message).mapTo[List[WorkflowToStart]]
+  }
+
+  override def deleteFromStore(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int] = {
+    implicit val timeout = Timeout(WorkflowStoreCoordinatedAccessActor.Timeout)
+    actor.ask(WorkflowStoreCoordinatedAccessActor.DeleteFromStore(workflowId)).mapTo[Int]
   }
 }
 

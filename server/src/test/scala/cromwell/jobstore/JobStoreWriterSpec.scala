@@ -26,7 +26,7 @@ class JobStoreWriterSpec extends CromwellTestKitWordSpec with Matchers with Befo
 
   before {
     database = WriteCountingJobStore.makeNew
-    jobStoreWriter = TestFSMRef(new JobStoreWriterActor(database, 5, flushFrequency, TestProbe().ref, 1000))
+    jobStoreWriter = TestFSMRef(new JobStoreWriterActor(database, 5, flushFrequency, TestProbe().ref, 1000, null))
     workflowId = WorkflowId.randomId()
   }
 

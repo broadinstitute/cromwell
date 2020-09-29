@@ -6,6 +6,7 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.LoadConfig
 import cromwell.core.actor.BatchActor._
 import cromwell.core.instrumentation.InstrumentationPrefixes
+import cromwell.engine.workflow.workflowstore.WorkflowStoreAccess
 import cromwell.jobstore.JobStore.{JobCompletion, WorkflowCompletion}
 import cromwell.jobstore.JobStoreActor._
 import cromwell.services.EnhancedBatchActor
@@ -20,7 +21,8 @@ case class JobStoreWriterActor(jsd: JobStore,
                                override val batchSize: Int,
                                override val flushRate: FiniteDuration,
                                serviceRegistryActor: ActorRef,
-                               threshold: Int
+                               threshold: Int,
+                               workflowStoreAccess: WorkflowStoreAccess
                               )
   extends EnhancedBatchActor[CommandAndReplyTo[JobStoreWriterCommand]](flushRate, batchSize) {
 
@@ -36,6 +38,9 @@ case class JobStoreWriterActor(jsd: JobStore,
       // immediately deleted anyway.
       val jobCompletions = completions.toList collect { case j: JobCompletion if !completedWorkflowIds.contains(j.key.workflowId) => j }
       val databaseAction = jsd.writeToDatabase(workflowCompletions, jobCompletions, batchSize)
+      completedWorkflowIds map { id =>
+        workflowStoreAccess.deleteFromStore(id)
+      }
 
       databaseAction onComplete {
         case Success(_) =>
@@ -63,7 +68,8 @@ object JobStoreWriterActor {
   def props(jobStoreDatabase: JobStore,
             dbBatchSize: Int,
             dbFlushRate: FiniteDuration,
-            registryActor: ActorRef): Props = {
-    Props(new JobStoreWriterActor(jobStoreDatabase, dbBatchSize, dbFlushRate, registryActor, LoadConfig.JobStoreWriteThreshold)).withDispatcher(EngineDispatcher)
+            registryActor: ActorRef,
+            workflowStoreAccess: WorkflowStoreAccess): Props = {
+    Props(new JobStoreWriterActor(jobStoreDatabase, dbBatchSize, dbFlushRate, registryActor, LoadConfig.JobStoreWriteThreshold, workflowStoreAccess)).withDispatcher(EngineDispatcher)
   }
 }

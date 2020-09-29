@@ -46,4 +46,5 @@ trait WorkflowStore {
 
   def switchOnHoldToSubmitted(id: WorkflowId)(implicit ec: ExecutionContext): Future[Unit]
 
+  def deleteFromStore(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int]
 }

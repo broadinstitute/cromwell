@@ -7,6 +7,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import cats.data.NonEmptyVector
 import cromwell.core.WorkflowId
+import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreAbortResponse.WorkflowStoreAbortResponse
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ExecutionContext, Future}
@@ -23,8 +24,12 @@ sealed trait WorkflowStoreAccess {
   def fetchStartableWorkflows(maxWorkflows: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
                              (implicit ec: ExecutionContext): Future[List[WorkflowToStart]]
 
+  def abort(workflowId: WorkflowId)
+           (implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse]
+
   def deleteFromStore(workflowId: WorkflowId)
                      (implicit ec: ExecutionContext): Future[Int]
+
 }
 
 /**
@@ -47,6 +52,10 @@ case class UncoordinatedWorkflowStoreAccess(store: WorkflowStore) extends Workfl
   override def deleteFromStore(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int] = {
     store.deleteFromStore(workflowId)
   }
+
+  override def abort(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse] = {
+    store.abort(workflowId)
+  }
 }
 
 /**
@@ -54,23 +63,26 @@ case class UncoordinatedWorkflowStoreAccess(store: WorkflowStore) extends Workfl
   * that runs its operations sequentially.
   */
 case class CoordinatedWorkflowStoreAccess(actor: ActorRef) extends WorkflowStoreAccess {
+  implicit val timeout = Timeout(WorkflowStoreCoordinatedAccessActor.Timeout)
+
   override def writeWorkflowHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)],
                                        heartbeatDateTime: OffsetDateTime)
                                       (implicit ec: ExecutionContext): Future[Int] = {
-    implicit val timeout = Timeout(WorkflowStoreCoordinatedAccessActor.Timeout)
     actor.ask(WorkflowStoreCoordinatedAccessActor.WriteHeartbeats(workflowIds, heartbeatDateTime)).mapTo[Int]
   }
 
   override def fetchStartableWorkflows(maxWorkflows: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
                                       (implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
-    implicit val timeout = Timeout(WorkflowStoreCoordinatedAccessActor.Timeout)
     val message = WorkflowStoreCoordinatedAccessActor.FetchStartableWorkflows(maxWorkflows, cromwellId, heartbeatTtl)
     actor.ask(message).mapTo[List[WorkflowToStart]]
   }
 
   override def deleteFromStore(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int] = {
-    implicit val timeout = Timeout(WorkflowStoreCoordinatedAccessActor.Timeout)
     actor.ask(WorkflowStoreCoordinatedAccessActor.DeleteFromStore(workflowId)).mapTo[Int]
+  }
+
+  override def abort(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse] = {
+    actor.ask(WorkflowStoreCoordinatedAccessActor.Abort(workflowId)).mapTo[WorkflowStoreAbortResponse]
   }
 }
 

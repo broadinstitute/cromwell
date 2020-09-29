@@ -43,8 +43,8 @@ object WorkflowStoreCoordinatedAccessActor {
   final case class WriteHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)],
                                    heartbeatDateTime: OffsetDateTime)
   final case class FetchStartableWorkflows(count: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
-
   final case class DeleteFromStore(workflowId: WorkflowId)
+  final case class Abort(workflowId: WorkflowId)
 
   val Timeout = 1 minute
 

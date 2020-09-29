@@ -50,7 +50,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     *  startup initialization hook. */
   override def initialize(implicit ec: ExecutionContext): Future[Unit] = Future.successful(())
 
-  override def aborting(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse] = {
+  override def abort(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse] = {
     sqlDatabase.deleteOrUpdateWorkflowToState(
       workflowExecutionUuid = id.toString,
       workflowStateToDelete1 = WorkflowStoreState.OnHold.toString,

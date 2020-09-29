@@ -59,7 +59,7 @@ class InMemoryWorkflowStore extends WorkflowStore {
     Future.successful(())
   }
 
-  override def aborting(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse] = {
+  override def abort(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse] = {
     workflowStore collectFirst {
       case (workflowIdAndSources, workflowStoreState) if workflowIdAndSources.id == id =>
         (workflowIdAndSources, workflowStoreState)

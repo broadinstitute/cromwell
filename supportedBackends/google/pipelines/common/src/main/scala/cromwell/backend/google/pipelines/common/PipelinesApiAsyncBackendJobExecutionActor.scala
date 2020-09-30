@@ -487,6 +487,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           referenceDisksForLocalization = referenceDisksToMount,
           monitoringImage = monitoringImage,
           enableSshAccess = enableSshAccess,
+          vpcNetworkAndSubnetworkProjectLabels = data.vpcNetworkAndSubnetworkProjectLabels
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")

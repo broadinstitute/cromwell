@@ -89,5 +89,5 @@ case class PipelinesApiWorkingDisk(diskType: DiskType, sizeGb: Int) extends Pipe
 case class PipelinesApiReferenceFilesDisk(image: String, sizeGb: Int) extends PipelinesApiAttachedDisk {
   val mountPoint: Path = DefaultPathBuilder.get(s"/mnt/${image.md5Sum}")
   val name: String = s"d-${mountPoint.pathAsString.md5Sum}"
-  val diskType: DiskType = DiskType.SSD
+  val diskType: DiskType = DiskType.HDD
 }

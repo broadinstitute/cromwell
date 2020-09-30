@@ -37,12 +37,15 @@ case class JobStoreWriterActor(jsd: JobStore,
       // Filter job completions that also have a corresponding workflow completion; these would just be
       // immediately deleted anyway.
       val jobCompletions = completions.toList collect { case j: JobCompletion if !completedWorkflowIds.contains(j.key.workflowId) => j }
-      val databaseAction = jsd.writeToDatabase(workflowCompletions, jobCompletions, batchSize)
-      completedWorkflowIds map { id =>
-        workflowStoreAccess.deleteFromStore(id)
-      }
+      val jobStoreAction = jsd.writeToDatabase(workflowCompletions, jobCompletions, batchSize)
+      val workflowStoreAction: Future[List[Int]] = Future.sequence(
+        completedWorkflowIds.map(workflowStoreAccess.deleteFromStore(_)).toList
+      )
 
-      databaseAction onComplete {
+      (for {
+        _ <- jobStoreAction
+        _ <- workflowStoreAction
+      } yield ()) onComplete {
         case Success(_) =>
           data foreach { case CommandAndReplyTo(c: JobStoreWriterCommand, r) => r ! JobStoreWriteSuccess(c) }
         case Failure(regerts) =>
@@ -50,7 +53,7 @@ case class JobStoreWriterActor(jsd: JobStore,
           data foreach { case CommandAndReplyTo(_, r) => r ! JobStoreWriteFailure(regerts) }
       }
 
-      databaseAction.map(_ => 1)
+      jobStoreAction.map(_ => 1)
     } else Future.successful(0)
   }
 

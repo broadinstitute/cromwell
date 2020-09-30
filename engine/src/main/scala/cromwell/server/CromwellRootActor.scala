@@ -97,7 +97,7 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
       "WorkflowStoreActor")
 
   lazy val jobStore: JobStore = new SqlJobStore(EngineServicesStore.engineDatabaseInterface)
-  lazy val jobStoreActor = context.actorOf(JobStoreActor.props(jobStore, serviceRegistryActor, workflowStoreAccess), "JobStoreActor") //
+  lazy val jobStoreActor = context.actorOf(JobStoreActor.props(jobStore, serviceRegistryActor, workflowStoreAccess), "JobStoreActor")
 
   lazy val subWorkflowStore: SubWorkflowStore = new SqlSubWorkflowStore(EngineServicesStore.engineDatabaseInterface)
   lazy val subWorkflowStoreActor = context.actorOf(SubWorkflowStoreActor.props(subWorkflowStore), "SubWorkflowStoreActor")

@@ -88,7 +88,7 @@ class InMemoryWorkflowStore extends WorkflowStore {
 
   override def findWorkflows(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[WorkflowId]] = Future.successful(workflowStore.keys.map(_.id))
 
-  override def deleteFromStore(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int] = ???
+  override def deleteFromStore(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int] = Future.successful(0)
 }
 
 final case class WorkflowIdAndSources(id: WorkflowId, sources: WorkflowSourceFilesCollection)

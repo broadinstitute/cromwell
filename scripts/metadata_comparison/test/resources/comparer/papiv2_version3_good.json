@@ -1,0 +1,4802 @@
+{
+  "calls": {
+    "ExomeGermlineSingleSample.AggregatedBamQC.CalculateReadGroupChecksum": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 54.256,
+      "cromwellEnd": "2020-09-11T00:28:05.617Z",
+      "cromwellStart": "2020-09-11T00:22:04.490Z",
+      "cromwellTotalTimeSeconds": 361.127,
+      "delocalizationTimeSeconds": 10.750888,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 106.997828,
+      "localizationTimeSeconds": 118.387698,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/12304102763387601740",
+      "otherTimeSeconds": 18.46293099999997,
+      "papiCreate": "2020-09-11T00:22:09.679972Z",
+      "papiEnd": "2020-09-11T00:27:16.550592242Z",
+      "papiStart": "2020-09-11T00:22:19.321141538Z",
+      "papiTotalTimeSeconds": 306.87062,
+      "shardIndex": -1,
+      "startupTimeSeconds": 40.377164,
+      "userCommandTimeSeconds": 11.894111
+    },
+    "ExomeGermlineSingleSample.AggregatedBamQC.CheckFingerprint": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 66.994,
+      "cromwellEnd": "2020-09-11T00:28:15.822Z",
+      "cromwellStart": "2020-09-11T00:22:06.529Z",
+      "cromwellTotalTimeSeconds": 369.293,
+      "delocalizationTimeSeconds": 10.480792,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 91.780143,
+      "localizationTimeSeconds": 119.890421,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/7615444610557922115",
+      "otherTimeSeconds": 18.048426999999947,
+      "papiCreate": "2020-09-11T00:22:09.642618Z",
+      "papiEnd": "2020-09-11T00:27:11.941778910Z",
+      "papiStart": "2020-09-11T00:22:19.334788760Z",
+      "papiTotalTimeSeconds": 302.29916,
+      "shardIndex": -1,
+      "startupTimeSeconds": 40.771235,
+      "userCommandTimeSeconds": 21.328142
+    },
+    "ExomeGermlineSingleSample.AggregatedBamQC.CollectAggregationMetrics": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 73.813,
+      "cromwellEnd": "2020-09-11T01:10:45.769Z",
+      "cromwellStart": "2020-09-11T00:22:04.489Z",
+      "cromwellTotalTimeSeconds": 2921.28,
+      "delocalizationTimeSeconds": 31.069937,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 30,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 77.264481,
+      "localizationTimeSeconds": 98.029742,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/4846731258723475753",
+      "otherTimeSeconds": 19.088166999999885,
+      "papiCreate": "2020-09-11T00:22:24.989587Z",
+      "papiEnd": "2020-09-11T01:09:52.456909623Z",
+      "papiStart": "2020-09-11T00:22:35.475060976Z",
+      "papiTotalTimeSeconds": 2847.467322,
+      "shardIndex": -1,
+      "startupTimeSeconds": 40.755015,
+      "userCommandTimeSeconds": 2581.25998
+    },
+    "ExomeGermlineSingleSample.AggregatedBamQC.CollectReadgroupBamQualityMetrics": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 114.67,
+      "cromwellEnd": "2020-09-11T00:46:50.659Z",
+      "cromwellStart": "2020-09-11T00:22:04.490Z",
+      "cromwellTotalTimeSeconds": 1486.169,
+      "delocalizationTimeSeconds": 14.529097,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 30,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 72.049874,
+      "localizationTimeSeconds": 84.810034,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/15113560449294336679",
+      "otherTimeSeconds": 18.959928999999875,
+      "papiCreate": "2020-09-11T00:22:24.967376Z",
+      "papiEnd": "2020-09-11T00:45:16.466761853Z",
+      "papiStart": "2020-09-11T00:22:35.475250807Z",
+      "papiTotalTimeSeconds": 1371.499385,
+      "shardIndex": -1,
+      "startupTimeSeconds": 39.359364,
+      "userCommandTimeSeconds": 1141.791087
+    },
+    "ExomeGermlineSingleSample.BamToCram.CheckPreValidation": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 33.645,
+      "cromwellEnd": "2020-09-11T01:14:02.629Z",
+      "cromwellStart": "2020-09-11T01:10:51.869Z",
+      "cromwellTotalTimeSeconds": 190.76,
+      "delocalizationTimeSeconds": 10.944875,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 12,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 10,
+          "type": "SSD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 61.746732,
+      "localizationTimeSeconds": 23.142842,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/6339081130080075559",
+      "otherTimeSeconds": 18.262091999999967,
+      "papiCreate": "2020-09-11T01:10:53.511894Z",
+      "papiEnd": "2020-09-11T01:13:30.626979926Z",
+      "papiStart": "2020-09-11T01:11:03.442685971Z",
+      "papiTotalTimeSeconds": 157.115085,
+      "shardIndex": -1,
+      "startupTimeSeconds": 40.191518,
+      "userCommandTimeSeconds": 2.827026
+    },
+    "ExomeGermlineSingleSample.BamToCram.ConvertToCram": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 148.647,
+      "cromwellEnd": "2020-09-11T01:32:41.548Z",
+      "cromwellStart": "2020-09-11T01:10:50.849Z",
+      "cromwellTotalTimeSeconds": 1310.699,
+      "delocalizationTimeSeconds": 48.501639,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 108.49431,
+      "localizationTimeSeconds": 125.488098,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/8139502270158815306",
+      "otherTimeSeconds": 20.42071299999975,
+      "papiCreate": "2020-09-11T01:11:06.650118Z",
+      "papiEnd": "2020-09-11T01:30:28.701760372Z",
+      "papiStart": "2020-09-11T01:11:17.206590487Z",
+      "papiTotalTimeSeconds": 1162.051642,
+      "shardIndex": -1,
+      "startupTimeSeconds": 42.917518,
+      "userCommandTimeSeconds": 816.229364
+    },
+    "ExomeGermlineSingleSample.BamToCram.ValidateCram": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 91.679,
+      "cromwellEnd": "2020-09-11T01:52:11.476Z",
+      "cromwellStart": "2020-09-11T01:32:43.579Z",
+      "cromwellTotalTimeSeconds": 1167.897,
+      "delocalizationTimeSeconds": 10.300735,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 72.629385,
+      "localizationTimeSeconds": 42.177349,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/8965674198533166895",
+      "otherTimeSeconds": 16.021476999999777,
+      "papiCreate": "2020-09-11T01:33:01.606946Z",
+      "papiEnd": "2020-09-11T01:50:57.824552917Z",
+      "papiStart": "2020-09-11T01:33:11.193935059Z",
+      "papiTotalTimeSeconds": 1076.217606,
+      "shardIndex": -1,
+      "startupTimeSeconds": 38.733613,
+      "userCommandTimeSeconds": 896.355047
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.CollectVariantCallingMetrics": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 100.873,
+      "cromwellEnd": "2020-09-11T01:03:13.909Z",
+      "cromwellStart": "2020-09-11T00:52:53.616Z",
+      "cromwellTotalTimeSeconds": 620.293,
+      "delocalizationTimeSeconds": 14.239881,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 31,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 107.574106,
+      "localizationTimeSeconds": 33.365013,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/1468470320896635476",
+      "otherTimeSeconds": 18.591054999999983,
+      "papiCreate": "2020-09-11T00:53:02.536417Z",
+      "papiEnd": "2020-09-11T01:01:41.955957430Z",
+      "papiStart": "2020-09-11T00:53:11.921233509Z",
+      "papiTotalTimeSeconds": 519.41954,
+      "shardIndex": -1,
+      "startupTimeSeconds": 40.48046,
+      "userCommandTimeSeconds": 305.169025
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0000": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 25.156,
+      "cromwellEnd": "2020-09-11T00:37:13.349Z",
+      "cromwellStart": "2020-09-11T00:26:22.242Z",
+      "cromwellTotalTimeSeconds": 651.107,
+      "delocalizationTimeSeconds": 15.154316,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.669323,
+      "localizationTimeSeconds": 17.823105,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/4428509263405311078",
+      "otherTimeSeconds": 19.48001700000009,
+      "papiCreate": "2020-09-11T00:26:42.117635Z",
+      "papiEnd": "2020-09-11T00:37:08.068593440Z",
+      "papiStart": "2020-09-11T00:26:52.919126007Z",
+      "papiTotalTimeSeconds": 625.950958,
+      "shardIndex": 0,
+      "startupTimeSeconds": 40.438267,
+      "userCommandTimeSeconds": 435.38593
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0001": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 122.637,
+      "cromwellEnd": "2020-09-11T00:36:13.178Z",
+      "cromwellStart": "2020-09-11T00:26:22.240Z",
+      "cromwellTotalTimeSeconds": 590.938,
+      "delocalizationTimeSeconds": 13.797659,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 100.257768,
+      "localizationTimeSeconds": 18.065816,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/13605068043328392971",
+      "otherTimeSeconds": 18.433891999999958,
+      "papiCreate": "2020-09-11T00:26:42.106805Z",
+      "papiEnd": "2020-09-11T00:34:30.408158077Z",
+      "papiStart": "2020-09-11T00:26:55.138457188Z",
+      "papiTotalTimeSeconds": 468.301353,
+      "shardIndex": 1,
+      "startupTimeSeconds": 45.471594,
+      "userCommandTimeSeconds": 272.274624
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0002": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 86.404,
+      "cromwellEnd": "2020-09-11T00:38:38.012Z",
+      "cromwellStart": "2020-09-11T00:26:22.240Z",
+      "cromwellTotalTimeSeconds": 735.772,
+      "delocalizationTimeSeconds": 14.295883,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 99.083166,
+      "localizationTimeSeconds": 17.551771,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/6117767795876653067",
+      "otherTimeSeconds": 18.88542499999994,
+      "papiCreate": "2020-09-11T00:26:41.415293Z",
+      "papiEnd": "2020-09-11T00:37:30.783035778Z",
+      "papiStart": "2020-09-11T00:26:52.919722095Z",
+      "papiTotalTimeSeconds": 649.367742,
+      "shardIndex": 2,
+      "startupTimeSeconds": 40.141746,
+      "userCommandTimeSeconds": 459.409751
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0003": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 112.288,
+      "cromwellEnd": "2020-09-11T00:36:28.477Z",
+      "cromwellStart": "2020-09-11T00:26:22.233Z",
+      "cromwellTotalTimeSeconds": 606.244,
+      "delocalizationTimeSeconds": 16.607119,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 102.503308,
+      "localizationTimeSeconds": 22.324044,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/3131649707507776877",
+      "otherTimeSeconds": 21.516080999999986,
+      "papiCreate": "2020-09-11T00:26:41.390734Z",
+      "papiEnd": "2020-09-11T00:34:55.346295586Z",
+      "papiStart": "2020-09-11T00:26:52.919095405Z",
+      "papiTotalTimeSeconds": 493.955561,
+      "shardIndex": 3,
+      "startupTimeSeconds": 41.427194,
+      "userCommandTimeSeconds": 289.577815
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0004": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 37.454,
+      "cromwellEnd": "2020-09-11T00:36:02.980Z",
+      "cromwellStart": "2020-09-11T00:26:22.238Z",
+      "cromwellTotalTimeSeconds": 580.742,
+      "delocalizationTimeSeconds": 12.946991,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 98.541792,
+      "localizationTimeSeconds": 17.115516,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/13206998823284472744",
+      "otherTimeSeconds": 19.106486000000018,
+      "papiCreate": "2020-09-11T00:26:42.275130Z",
+      "papiEnd": "2020-09-11T00:35:45.562905197Z",
+      "papiStart": "2020-09-11T00:26:55.138584570Z",
+      "papiTotalTimeSeconds": 543.287775,
+      "shardIndex": 4,
+      "startupTimeSeconds": 42.840009,
+      "userCommandTimeSeconds": 352.736981
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0005": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 89.191,
+      "cromwellEnd": "2020-09-11T00:35:12.998Z",
+      "cromwellStart": "2020-09-11T00:26:22.237Z",
+      "cromwellTotalTimeSeconds": 530.761,
+      "delocalizationTimeSeconds": 12.716004,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.821646,
+      "localizationTimeSeconds": 17.236248,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/1880226585630526993",
+      "otherTimeSeconds": 18.833726000000013,
+      "papiCreate": "2020-09-11T00:26:42.095689Z",
+      "papiEnd": "2020-09-11T00:34:03.665627775Z",
+      "papiStart": "2020-09-11T00:26:52.918098811Z",
+      "papiTotalTimeSeconds": 441.569938,
+      "shardIndex": 5,
+      "startupTimeSeconds": 39.356381,
+      "userCommandTimeSeconds": 255.605933
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0006": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 154.175,
+      "cromwellEnd": "2020-09-11T00:37:37.828Z",
+      "cromwellStart": "2020-09-11T00:26:22.234Z",
+      "cromwellTotalTimeSeconds": 675.594,
+      "delocalizationTimeSeconds": 12.73956,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 85.482891,
+      "localizationTimeSeconds": 17.30782,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/3320745550337404637",
+      "otherTimeSeconds": 18.236774000000025,
+      "papiCreate": "2020-09-11T00:26:42.106007Z",
+      "papiEnd": "2020-09-11T00:35:23.525322408Z",
+      "papiStart": "2020-09-11T00:26:55.140987056Z",
+      "papiTotalTimeSeconds": 521.419315,
+      "shardIndex": 6,
+      "startupTimeSeconds": 42.114372,
+      "userCommandTimeSeconds": 345.537898
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0007": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 165.234,
+      "cromwellEnd": "2020-09-11T00:40:44.478Z",
+      "cromwellStart": "2020-09-11T00:26:22.232Z",
+      "cromwellTotalTimeSeconds": 862.246,
+      "delocalizationTimeSeconds": 15.614084,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 99.774285,
+      "localizationTimeSeconds": 18.345818,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/4589432931146303703",
+      "otherTimeSeconds": 18.78557499999988,
+      "papiCreate": "2020-09-11T00:26:42.112761Z",
+      "papiEnd": "2020-09-11T00:38:19.124792708Z",
+      "papiStart": "2020-09-11T00:26:55.139434857Z",
+      "papiTotalTimeSeconds": 697.012031,
+      "shardIndex": 7,
+      "startupTimeSeconds": 47.583444,
+      "userCommandTimeSeconds": 496.908825
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0008": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 45.778,
+      "cromwellEnd": "2020-09-11T00:34:32.196Z",
+      "cromwellStart": "2020-09-11T00:26:22.236Z",
+      "cromwellTotalTimeSeconds": 489.96,
+      "delocalizationTimeSeconds": 12.858843,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.284649,
+      "localizationTimeSeconds": 17.632258,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/13298094066251945177",
+      "otherTimeSeconds": 18.369957999999997,
+      "papiCreate": "2020-09-11T00:26:42.164739Z",
+      "papiEnd": "2020-09-11T00:34:06.347019523Z",
+      "papiStart": "2020-09-11T00:26:55.138753525Z",
+      "papiTotalTimeSeconds": 444.18228,
+      "shardIndex": 8,
+      "startupTimeSeconds": 44.868969,
+      "userCommandTimeSeconds": 253.167603
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0009": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 126.816,
+      "cromwellEnd": "2020-09-11T00:36:47.860Z",
+      "cromwellStart": "2020-09-11T00:26:22.241Z",
+      "cromwellTotalTimeSeconds": 625.619,
+      "delocalizationTimeSeconds": 14.818337,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 99.05066,
+      "localizationTimeSeconds": 18.068187,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/6940168962859441991",
+      "otherTimeSeconds": 18.940492000000063,
+      "papiCreate": "2020-09-11T00:26:42.099430Z",
+      "papiEnd": "2020-09-11T00:35:00.902039966Z",
+      "papiStart": "2020-09-11T00:26:52.920155389Z",
+      "papiTotalTimeSeconds": 498.802609,
+      "shardIndex": 9,
+      "startupTimeSeconds": 43.874207,
+      "userCommandTimeSeconds": 304.050726
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0010": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 82.574,
+      "cromwellEnd": "2020-09-11T00:38:48.209Z",
+      "cromwellStart": "2020-09-11T00:26:22.239Z",
+      "cromwellTotalTimeSeconds": 745.97,
+      "delocalizationTimeSeconds": 13.921425,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 99.981309,
+      "localizationTimeSeconds": 17.966967,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/8327899907676704347",
+      "otherTimeSeconds": 18.99786199999994,
+      "papiCreate": "2020-09-11T00:26:42.285446Z",
+      "papiEnd": "2020-09-11T00:37:45.681083229Z",
+      "papiStart": "2020-09-11T00:26:55.167481919Z",
+      "papiTotalTimeSeconds": 663.395637,
+      "shardIndex": 10,
+      "startupTimeSeconds": 45.001149,
+      "userCommandTimeSeconds": 467.526925
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0011": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 63.954,
+      "cromwellEnd": "2020-09-11T00:37:08.250Z",
+      "cromwellStart": "2020-09-11T00:26:22.236Z",
+      "cromwellTotalTimeSeconds": 646.014,
+      "delocalizationTimeSeconds": 14.194916,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 98.535807,
+      "localizationTimeSeconds": 17.765409,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/2646810138374723363",
+      "otherTimeSeconds": 18.834429999999998,
+      "papiCreate": "2020-09-11T00:26:42.290385Z",
+      "papiEnd": "2020-09-11T00:36:24.350739275Z",
+      "papiStart": "2020-09-11T00:26:55.140741918Z",
+      "papiTotalTimeSeconds": 582.060354,
+      "shardIndex": 11,
+      "startupTimeSeconds": 43.681513,
+      "userCommandTimeSeconds": 389.048279
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0012": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 68.614,
+      "cromwellEnd": "2020-09-11T00:36:23.379Z",
+      "cromwellStart": "2020-09-11T00:26:22.235Z",
+      "cromwellTotalTimeSeconds": 601.144,
+      "delocalizationTimeSeconds": 12.303174,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 95.459794,
+      "localizationTimeSeconds": 17.384986,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/17471101584617875977",
+      "otherTimeSeconds": 17.618037999999956,
+      "papiCreate": "2020-09-11T00:26:42.285822Z",
+      "papiEnd": "2020-09-11T00:35:34.815914477Z",
+      "papiStart": "2020-09-11T00:26:55.139383014Z",
+      "papiTotalTimeSeconds": 532.530092,
+      "shardIndex": 12,
+      "startupTimeSeconds": 41.99313,
+      "userCommandTimeSeconds": 347.77097
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0013": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 140.857,
+      "cromwellEnd": "2020-09-11T00:35:52.778Z",
+      "cromwellStart": "2020-09-11T00:26:22.236Z",
+      "cromwellTotalTimeSeconds": 570.542,
+      "delocalizationTimeSeconds": 14.987707,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.906335,
+      "localizationTimeSeconds": 17.63004,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/13848641658099284047",
+      "otherTimeSeconds": 18.561667999999997,
+      "papiCreate": "2020-09-11T00:26:41.401593Z",
+      "papiEnd": "2020-09-11T00:33:51.086559353Z",
+      "papiStart": "2020-09-11T00:26:52.926278177Z",
+      "papiTotalTimeSeconds": 429.684966,
+      "shardIndex": 13,
+      "startupTimeSeconds": 43.006398,
+      "userCommandTimeSeconds": 237.592818
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0014": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 39.932,
+      "cromwellEnd": "2020-09-11T00:35:27.278Z",
+      "cromwellStart": "2020-09-11T00:26:22.243Z",
+      "cromwellTotalTimeSeconds": 545.035,
+      "delocalizationTimeSeconds": 12.788853,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.890586,
+      "localizationTimeSeconds": 17.423498,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/13667976928690676090",
+      "otherTimeSeconds": 18.357377999999983,
+      "papiCreate": "2020-09-11T00:26:42.115304Z",
+      "papiEnd": "2020-09-11T00:35:07.218703702Z",
+      "papiStart": "2020-09-11T00:26:55.138998410Z",
+      "papiTotalTimeSeconds": 505.103399,
+      "shardIndex": 14,
+      "startupTimeSeconds": 41.881312,
+      "userCommandTimeSeconds": 316.761772
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0015": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 46.03,
+      "cromwellEnd": "2020-09-11T00:36:18.277Z",
+      "cromwellStart": "2020-09-11T00:26:22.233Z",
+      "cromwellTotalTimeSeconds": 596.044,
+      "delocalizationTimeSeconds": 13.529136,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 100.683944,
+      "localizationTimeSeconds": 18.060465,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/14059561992797750723",
+      "otherTimeSeconds": 20.621419999999944,
+      "papiCreate": "2020-09-11T00:26:42.089658Z",
+      "papiEnd": "2020-09-11T00:35:52.103448186Z",
+      "papiStart": "2020-09-11T00:26:52.926536632Z",
+      "papiTotalTimeSeconds": 550.01379,
+      "shardIndex": 15,
+      "startupTimeSeconds": 39.98149,
+      "userCommandTimeSeconds": 357.137335
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0016": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 85.13,
+      "cromwellEnd": "2020-09-11T00:37:58.231Z",
+      "cromwellStart": "2020-09-11T00:26:22.240Z",
+      "cromwellTotalTimeSeconds": 695.991,
+      "delocalizationTimeSeconds": 14.553324,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.888253,
+      "localizationTimeSeconds": 17.782815,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/6341206498838225570",
+      "otherTimeSeconds": 20.466586000000007,
+      "papiCreate": "2020-09-11T00:26:42.098112Z",
+      "papiEnd": "2020-09-11T00:36:52.958614259Z",
+      "papiStart": "2020-09-11T00:26:52.919653317Z",
+      "papiTotalTimeSeconds": 610.860502,
+      "shardIndex": 16,
+      "startupTimeSeconds": 39.3459,
+      "userCommandTimeSeconds": 420.823624
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0017": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 129.241,
+      "cromwellEnd": "2020-09-11T00:37:28.650Z",
+      "cromwellStart": "2020-09-11T00:26:22.239Z",
+      "cromwellTotalTimeSeconds": 666.411,
+      "delocalizationTimeSeconds": 13.600083,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 99.622318,
+      "localizationTimeSeconds": 17.716589,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/13387624544476730744",
+      "otherTimeSeconds": 18.46282399999984,
+      "papiCreate": "2020-09-11T00:26:42.282993Z",
+      "papiEnd": "2020-09-11T00:35:39.452548124Z",
+      "papiStart": "2020-09-11T00:26:55.138928978Z",
+      "papiTotalTimeSeconds": 537.169555,
+      "shardIndex": 17,
+      "startupTimeSeconds": 41.703944,
+      "userCommandTimeSeconds": 346.063797
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0018": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 97.033,
+      "cromwellEnd": "2020-09-11T00:39:29.008Z",
+      "cromwellStart": "2020-09-11T00:26:22.238Z",
+      "cromwellTotalTimeSeconds": 786.77,
+      "delocalizationTimeSeconds": 14.51358,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.165965,
+      "localizationTimeSeconds": 17.047863,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/16763668057238639793",
+      "otherTimeSeconds": 19.01320199999998,
+      "papiCreate": "2020-09-11T00:26:42.098004Z",
+      "papiEnd": "2020-09-11T00:38:11.834836677Z",
+      "papiStart": "2020-09-11T00:26:55.139845061Z",
+      "papiTotalTimeSeconds": 689.736832,
+      "shardIndex": 18,
+      "startupTimeSeconds": 43.071323,
+      "userCommandTimeSeconds": 498.924899
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0019": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 54.722,
+      "cromwellEnd": "2020-09-11T00:36:08.079Z",
+      "cromwellStart": "2020-09-11T00:26:22.242Z",
+      "cromwellTotalTimeSeconds": 585.837,
+      "delocalizationTimeSeconds": 13.286314,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 99.704141,
+      "localizationTimeSeconds": 17.789925,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/7697036062576927072",
+      "otherTimeSeconds": 19.473591999999996,
+      "papiCreate": "2020-09-11T00:26:42.121660Z",
+      "papiEnd": "2020-09-11T00:35:33.236332405Z",
+      "papiStart": "2020-09-11T00:26:55.139184239Z",
+      "papiTotalTimeSeconds": 531.114672,
+      "shardIndex": 19,
+      "startupTimeSeconds": 43.597785,
+      "userCommandTimeSeconds": 337.262915
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0020": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 88.053,
+      "cromwellEnd": "2020-09-11T00:36:32.558Z",
+      "cromwellStart": "2020-09-11T00:26:22.235Z",
+      "cromwellTotalTimeSeconds": 610.323,
+      "delocalizationTimeSeconds": 13.532288,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 99.217065,
+      "localizationTimeSeconds": 17.833743,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/5097162329992232506",
+      "otherTimeSeconds": 18.56797000000006,
+      "papiCreate": "2020-09-11T00:26:42.105014Z",
+      "papiEnd": "2020-09-11T00:35:24.375130794Z",
+      "papiStart": "2020-09-11T00:26:55.139900050Z",
+      "papiTotalTimeSeconds": 522.270116,
+      "shardIndex": 20,
+      "startupTimeSeconds": 42.373931,
+      "userCommandTimeSeconds": 330.745119
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0021": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 49.88,
+      "cromwellEnd": "2020-09-11T00:35:12.998Z",
+      "cromwellStart": "2020-09-11T00:26:22.242Z",
+      "cromwellTotalTimeSeconds": 530.756,
+      "delocalizationTimeSeconds": 12.903512,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 99.379368,
+      "localizationTimeSeconds": 17.924071,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/2474415541021326900",
+      "otherTimeSeconds": 18.93375700000007,
+      "papiCreate": "2020-09-11T00:26:42.097980Z",
+      "papiEnd": "2020-09-11T00:34:42.973581681Z",
+      "papiStart": "2020-09-11T00:26:52.919835695Z",
+      "papiTotalTimeSeconds": 480.875601,
+      "shardIndex": 21,
+      "startupTimeSeconds": 40.261955,
+      "userCommandTimeSeconds": 291.472938
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0022": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 42.661,
+      "cromwellEnd": "2020-09-11T00:36:58.062Z",
+      "cromwellStart": "2020-09-11T00:26:22.242Z",
+      "cromwellTotalTimeSeconds": 635.82,
+      "delocalizationTimeSeconds": 17.854261,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 98.51205,
+      "localizationTimeSeconds": 18.207187,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/7868478659468513915",
+      "otherTimeSeconds": 20.317207000000053,
+      "papiCreate": "2020-09-11T00:26:41.396933Z",
+      "papiEnd": "2020-09-11T00:36:34.556409030Z",
+      "papiStart": "2020-09-11T00:26:52.918134508Z",
+      "papiTotalTimeSeconds": 593.159476,
+      "shardIndex": 22,
+      "startupTimeSeconds": 70.528112,
+      "userCommandTimeSeconds": 367.740659
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0023": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 48.664,
+      "cromwellEnd": "2020-09-11T00:35:47.678Z",
+      "cromwellStart": "2020-09-11T00:26:22.234Z",
+      "cromwellTotalTimeSeconds": 565.444,
+      "delocalizationTimeSeconds": 13.489742,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 98.216988,
+      "localizationTimeSeconds": 17.251959,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/6719749926763840665",
+      "otherTimeSeconds": 18.73137600000007,
+      "papiCreate": "2020-09-11T00:26:41.390819Z",
+      "papiEnd": "2020-09-11T00:35:18.170883765Z",
+      "papiStart": "2020-09-11T00:26:52.918088180Z",
+      "papiTotalTimeSeconds": 516.780064,
+      "shardIndex": 23,
+      "startupTimeSeconds": 41.452385,
+      "userCommandTimeSeconds": 327.637614
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0024": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 30.52,
+      "cromwellEnd": "2020-09-11T00:34:27.097Z",
+      "cromwellStart": "2020-09-11T00:26:22.241Z",
+      "cromwellTotalTimeSeconds": 484.856,
+      "delocalizationTimeSeconds": 13.625075,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 98.657423,
+      "localizationTimeSeconds": 17.908176,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/14893940730452618974",
+      "otherTimeSeconds": 18.883488000000057,
+      "papiCreate": "2020-09-11T00:26:42.285618Z",
+      "papiEnd": "2020-09-11T00:34:16.621339900Z",
+      "papiStart": "2020-09-11T00:26:55.146610585Z",
+      "papiTotalTimeSeconds": 454.335721,
+      "shardIndex": 24,
+      "startupTimeSeconds": 42.153619,
+      "userCommandTimeSeconds": 263.10794
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0025": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 139.542,
+      "cromwellEnd": "2020-09-11T00:36:02.980Z",
+      "cromwellStart": "2020-09-11T00:26:22.241Z",
+      "cromwellTotalTimeSeconds": 580.739,
+      "delocalizationTimeSeconds": 12.650572,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 93.360827,
+      "localizationTimeSeconds": 17.731204,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/16713557266848871655",
+      "otherTimeSeconds": 18.557849000000033,
+      "papiCreate": "2020-09-11T00:26:41.421270Z",
+      "papiEnd": "2020-09-11T00:34:02.618177692Z",
+      "papiStart": "2020-09-11T00:26:52.993170754Z",
+      "papiTotalTimeSeconds": 441.196907,
+      "shardIndex": 25,
+      "startupTimeSeconds": 40.32833,
+      "userCommandTimeSeconds": 258.568125
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0026": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 171.872,
+      "cromwellEnd": "2020-09-11T00:37:28.651Z",
+      "cromwellStart": "2020-09-11T00:26:22.239Z",
+      "cromwellTotalTimeSeconds": 666.412,
+      "delocalizationTimeSeconds": 14.116076,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.578296,
+      "localizationTimeSeconds": 17.070517,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/3148606097520162605",
+      "otherTimeSeconds": 18.683114999999987,
+      "papiCreate": "2020-09-11T00:26:42.289408Z",
+      "papiEnd": "2020-09-11T00:34:56.829027657Z",
+      "papiStart": "2020-09-11T00:26:55.139554415Z",
+      "papiTotalTimeSeconds": 494.539619,
+      "shardIndex": 26,
+      "startupTimeSeconds": 41.299807,
+      "userCommandTimeSeconds": 305.791808
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0027": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 94.122,
+      "cromwellEnd": "2020-09-11T00:37:33.749Z",
+      "cromwellStart": "2020-09-11T00:26:22.243Z",
+      "cromwellTotalTimeSeconds": 671.506,
+      "delocalizationTimeSeconds": 13.788535,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.699758,
+      "localizationTimeSeconds": 17.294932,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/2778462470790727035",
+      "otherTimeSeconds": 19.135556000000065,
+      "papiCreate": "2020-09-11T00:26:41.421504Z",
+      "papiEnd": "2020-09-11T00:36:18.805082904Z",
+      "papiStart": "2020-09-11T00:26:52.919322894Z",
+      "papiTotalTimeSeconds": 577.383578,
+      "shardIndex": 27,
+      "startupTimeSeconds": 40.690586,
+      "userCommandTimeSeconds": 388.774211
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0028": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 75.184,
+      "cromwellEnd": "2020-09-11T00:35:57.879Z",
+      "cromwellStart": "2020-09-11T00:26:22.234Z",
+      "cromwellTotalTimeSeconds": 575.645,
+      "delocalizationTimeSeconds": 14.505738,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.765912,
+      "localizationTimeSeconds": 17.440319,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/15320495891579698996",
+      "otherTimeSeconds": 18.85573199999999,
+      "papiCreate": "2020-09-11T00:26:42.105724Z",
+      "papiEnd": "2020-09-11T00:35:02.567048120Z",
+      "papiStart": "2020-09-11T00:26:55.139855145Z",
+      "papiTotalTimeSeconds": 500.461324,
+      "shardIndex": 28,
+      "startupTimeSeconds": 44.055662,
+      "userCommandTimeSeconds": 307.837961
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0029": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 125.202,
+      "cromwellEnd": "2020-09-11T00:38:03.326Z",
+      "cromwellStart": "2020-09-11T00:26:22.238Z",
+      "cromwellTotalTimeSeconds": 701.088,
+      "delocalizationTimeSeconds": 13.573264,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 98.272623,
+      "localizationTimeSeconds": 18.369189,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/3365997001180435385",
+      "otherTimeSeconds": 19.32126100000005,
+      "papiCreate": "2020-09-11T00:26:42.103756Z",
+      "papiEnd": "2020-09-11T00:36:17.990136428Z",
+      "papiStart": "2020-09-11T00:26:52.919116577Z",
+      "papiTotalTimeSeconds": 575.88638,
+      "shardIndex": 29,
+      "startupTimeSeconds": 42.253137,
+      "userCommandTimeSeconds": 384.096906
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0030": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 119.478,
+      "cromwellEnd": "2020-09-11T00:37:33.749Z",
+      "cromwellStart": "2020-09-11T00:26:22.234Z",
+      "cromwellTotalTimeSeconds": 671.515,
+      "delocalizationTimeSeconds": 13.704263,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 103.989514,
+      "localizationTimeSeconds": 18.951955,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/541590308095929804",
+      "otherTimeSeconds": 19.92255499999999,
+      "papiCreate": "2020-09-11T00:26:42.273118Z",
+      "papiEnd": "2020-09-11T00:35:54.310499182Z",
+      "papiStart": "2020-09-11T00:26:55.139449782Z",
+      "papiTotalTimeSeconds": 552.037381,
+      "shardIndex": 30,
+      "startupTimeSeconds": 42.072348,
+      "userCommandTimeSeconds": 353.396746
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0031": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 96.111,
+      "cromwellEnd": "2020-09-11T00:37:42.927Z",
+      "cromwellStart": "2020-09-11T00:26:22.238Z",
+      "cromwellTotalTimeSeconds": 680.689,
+      "delocalizationTimeSeconds": 13.629658,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 96.084644,
+      "localizationTimeSeconds": 17.853989,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/8003793226280155536",
+      "otherTimeSeconds": 18.649606000000063,
+      "papiCreate": "2020-09-11T00:26:42.097042Z",
+      "papiEnd": "2020-09-11T00:36:26.674566117Z",
+      "papiStart": "2020-09-11T00:26:52.918287489Z",
+      "papiTotalTimeSeconds": 584.577524,
+      "shardIndex": 31,
+      "startupTimeSeconds": 40.006739,
+      "userCommandTimeSeconds": 398.352888
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0032": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 100.074,
+      "cromwellEnd": "2020-09-11T00:37:08.249Z",
+      "cromwellStart": "2020-09-11T00:26:22.236Z",
+      "cromwellTotalTimeSeconds": 646.013,
+      "delocalizationTimeSeconds": 14.238073,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 106.197156,
+      "localizationTimeSeconds": 20.936873,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/15628508289787519313",
+      "otherTimeSeconds": 19.263239000000112,
+      "papiCreate": "2020-09-11T00:26:40.671851Z",
+      "papiEnd": "2020-09-11T00:35:46.610507371Z",
+      "papiStart": "2020-09-11T00:26:51.219381090Z",
+      "papiTotalTimeSeconds": 545.938656,
+      "shardIndex": 32,
+      "startupTimeSeconds": 41.390875,
+      "userCommandTimeSeconds": 343.91244
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0033": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 55.012,
+      "cromwellEnd": "2020-09-11T00:36:47.860Z",
+      "cromwellStart": "2020-09-11T00:26:22.240Z",
+      "cromwellTotalTimeSeconds": 625.62,
+      "delocalizationTimeSeconds": 13.471611,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 98.156358,
+      "localizationTimeSeconds": 17.333728,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/13027971810307903091",
+      "otherTimeSeconds": 19.373297999999977,
+      "papiCreate": "2020-09-11T00:26:42.096598Z",
+      "papiEnd": "2020-09-11T00:36:12.704838642Z",
+      "papiStart": "2020-09-11T00:26:53.020597173Z",
+      "papiTotalTimeSeconds": 570.60824,
+      "shardIndex": 33,
+      "startupTimeSeconds": 44.818321,
+      "userCommandTimeSeconds": 377.454924
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0034": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 143.384,
+      "cromwellEnd": "2020-09-11T00:37:48.034Z",
+      "cromwellStart": "2020-09-11T00:26:22.233Z",
+      "cromwellTotalTimeSeconds": 685.801,
+      "delocalizationTimeSeconds": 14.104188,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 99.492927,
+      "localizationTimeSeconds": 18.939302,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/18063598537426009550",
+      "otherTimeSeconds": 19.122361999999953,
+      "papiCreate": "2020-09-11T00:26:41.388440Z",
+      "papiEnd": "2020-09-11T00:35:43.805867341Z",
+      "papiStart": "2020-09-11T00:26:52.917617416Z",
+      "papiTotalTimeSeconds": 542.417427,
+      "shardIndex": 34,
+      "startupTimeSeconds": 40.464296,
+      "userCommandTimeSeconds": 350.294352
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0035": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 90.498,
+      "cromwellEnd": "2020-09-11T00:36:58.062Z",
+      "cromwellStart": "2020-09-11T00:26:22.243Z",
+      "cromwellTotalTimeSeconds": 635.819,
+      "delocalizationTimeSeconds": 14.525839,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 91.633804,
+      "localizationTimeSeconds": 17.095296,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/14856705706730832355",
+      "otherTimeSeconds": 18.716736999999966,
+      "papiCreate": "2020-09-11T00:26:42.089673Z",
+      "papiEnd": "2020-09-11T00:35:47.410911289Z",
+      "papiStart": "2020-09-11T00:26:52.926389851Z",
+      "papiTotalTimeSeconds": 545.321238,
+      "shardIndex": 35,
+      "startupTimeSeconds": 39.87446,
+      "userCommandTimeSeconds": 363.475102
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0036": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 49.729,
+      "cromwellEnd": "2020-09-11T00:35:57.879Z",
+      "cromwellStart": "2020-09-11T00:26:22.236Z",
+      "cromwellTotalTimeSeconds": 575.643,
+      "delocalizationTimeSeconds": 12.900727,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.331452,
+      "localizationTimeSeconds": 17.586352,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/17284707845848860879",
+      "otherTimeSeconds": 18.371650999999986,
+      "papiCreate": "2020-09-11T00:26:41.420962Z",
+      "papiEnd": "2020-09-11T00:35:27.334580021Z",
+      "papiStart": "2020-09-11T00:26:52.926221385Z",
+      "papiTotalTimeSeconds": 525.913618,
+      "shardIndex": 36,
+      "startupTimeSeconds": 41.312626,
+      "userCommandTimeSeconds": 338.41081
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0037": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 86.829,
+      "cromwellEnd": "2020-09-11T00:36:47.860Z",
+      "cromwellStart": "2020-09-11T00:26:22.238Z",
+      "cromwellTotalTimeSeconds": 625.622,
+      "delocalizationTimeSeconds": 12.970447,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.526285,
+      "localizationTimeSeconds": 18.099102,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/7343683262015235664",
+      "otherTimeSeconds": 19.420421000000033,
+      "papiCreate": "2020-09-11T00:26:41.414619Z",
+      "papiEnd": "2020-09-11T00:35:40.207345778Z",
+      "papiStart": "2020-09-11T00:26:52.918722890Z",
+      "papiTotalTimeSeconds": 538.792726,
+      "shardIndex": 37,
+      "startupTimeSeconds": 40.987447,
+      "userCommandTimeSeconds": 349.789024
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0038": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 192.15,
+      "cromwellEnd": "2020-09-11T00:40:39.378Z",
+      "cromwellStart": "2020-09-11T00:26:22.242Z",
+      "cromwellTotalTimeSeconds": 857.136,
+      "delocalizationTimeSeconds": 13.310496,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.096374,
+      "localizationTimeSeconds": 17.461868,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/17008028544843345131",
+      "otherTimeSeconds": 18.279645000000073,
+      "papiCreate": "2020-09-11T00:26:41.413618Z",
+      "papiEnd": "2020-09-11T00:37:46.399163662Z",
+      "papiStart": "2020-09-11T00:26:52.974641828Z",
+      "papiTotalTimeSeconds": 664.985545,
+      "shardIndex": 38,
+      "startupTimeSeconds": 42.625777,
+      "userCommandTimeSeconds": 476.211385
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0039": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 215.764,
+      "cromwellEnd": "2020-09-11T00:38:48.208Z",
+      "cromwellStart": "2020-09-11T00:26:22.243Z",
+      "cromwellTotalTimeSeconds": 745.965,
+      "delocalizationTimeSeconds": 13.006607,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.639288,
+      "localizationTimeSeconds": 18.149785,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/11289814066595690698",
+      "otherTimeSeconds": 18.433063000000004,
+      "papiCreate": "2020-09-11T00:26:42.096997Z",
+      "papiEnd": "2020-09-11T00:35:32.297575543Z",
+      "papiStart": "2020-09-11T00:26:52.984243961Z",
+      "papiTotalTimeSeconds": 530.200578,
+      "shardIndex": 39,
+      "startupTimeSeconds": 39.886949,
+      "userCommandTimeSeconds": 343.084886
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0040": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 84.17,
+      "cromwellEnd": "2020-09-11T00:38:18.628Z",
+      "cromwellStart": "2020-09-11T00:26:22.235Z",
+      "cromwellTotalTimeSeconds": 716.393,
+      "delocalizationTimeSeconds": 16.821226,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 103.316057,
+      "localizationTimeSeconds": 20.217019,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/18155865045887309468",
+      "otherTimeSeconds": 19.50508400000001,
+      "papiCreate": "2020-09-11T00:26:42.130851Z",
+      "papiEnd": "2020-09-11T00:37:14.353691910Z",
+      "papiStart": "2020-09-11T00:26:52.926328494Z",
+      "papiTotalTimeSeconds": 632.22284,
+      "shardIndex": 40,
+      "startupTimeSeconds": 40.63557,
+      "userCommandTimeSeconds": 431.727884
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0041": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 111.321,
+      "cromwellEnd": "2020-09-11T00:37:58.230Z",
+      "cromwellStart": "2020-09-11T00:26:22.233Z",
+      "cromwellTotalTimeSeconds": 695.997,
+      "delocalizationTimeSeconds": 13.581796,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 91.65389,
+      "localizationTimeSeconds": 17.315589,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/14649784118931351916",
+      "otherTimeSeconds": 18.591699999999946,
+      "papiCreate": "2020-09-11T00:26:42.115790Z",
+      "papiEnd": "2020-09-11T00:36:26.791660220Z",
+      "papiStart": "2020-09-11T00:26:52.974721427Z",
+      "papiTotalTimeSeconds": 584.67587,
+      "shardIndex": 41,
+      "startupTimeSeconds": 40.014462,
+      "userCommandTimeSeconds": 403.518433
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0042": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 154.592,
+      "cromwellEnd": "2020-09-11T00:37:28.651Z",
+      "cromwellStart": "2020-09-11T00:26:22.237Z",
+      "cromwellTotalTimeSeconds": 666.414,
+      "delocalizationTimeSeconds": 12.625707,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 98.775706,
+      "localizationTimeSeconds": 17.740963,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/18044043736060824534",
+      "otherTimeSeconds": 18.652036000000066,
+      "papiCreate": "2020-09-11T00:26:42.275088Z",
+      "papiEnd": "2020-09-11T00:35:14.096996565Z",
+      "papiStart": "2020-09-11T00:26:55.138825136Z",
+      "papiTotalTimeSeconds": 511.821908,
+      "shardIndex": 42,
+      "startupTimeSeconds": 43.022354,
+      "userCommandTimeSeconds": 321.005142
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0043": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 26.298,
+      "cromwellEnd": "2020-09-11T00:35:27.278Z",
+      "cromwellStart": "2020-09-11T00:26:22.236Z",
+      "cromwellTotalTimeSeconds": 545.042,
+      "delocalizationTimeSeconds": 14.182412,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.990618,
+      "localizationTimeSeconds": 17.846399,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/12341555440642647083",
+      "otherTimeSeconds": 18.482844,
+      "papiCreate": "2020-09-11T00:26:42.104579Z",
+      "papiEnd": "2020-09-11T00:35:20.848818737Z",
+      "papiStart": "2020-09-11T00:26:52.917680296Z",
+      "papiTotalTimeSeconds": 518.744239,
+      "shardIndex": 43,
+      "startupTimeSeconds": 40.9002,
+      "userCommandTimeSeconds": 329.341766
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0044": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 117.81,
+      "cromwellEnd": "2020-09-11T00:37:08.250Z",
+      "cromwellStart": "2020-09-11T00:26:22.235Z",
+      "cromwellTotalTimeSeconds": 646.015,
+      "delocalizationTimeSeconds": 13.607094,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.263244,
+      "localizationTimeSeconds": 17.393927,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/2579737093756444325",
+      "otherTimeSeconds": 18.745123999999976,
+      "papiCreate": "2020-09-11T00:26:42.141499Z",
+      "papiEnd": "2020-09-11T00:35:30.346255706Z",
+      "papiStart": "2020-09-11T00:26:52.920040726Z",
+      "papiTotalTimeSeconds": 528.204756,
+      "shardIndex": 44,
+      "startupTimeSeconds": 39.724715,
+      "userCommandTimeSeconds": 341.470652
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0045": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 156.605,
+      "cromwellEnd": "2020-09-11T00:37:28.651Z",
+      "cromwellStart": "2020-09-11T00:26:22.240Z",
+      "cromwellTotalTimeSeconds": 666.411,
+      "delocalizationTimeSeconds": 13.438066,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 91.354248,
+      "localizationTimeSeconds": 17.245028,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/6222051420852627170",
+      "otherTimeSeconds": 18.087635000000034,
+      "papiCreate": "2020-09-11T00:26:41.389157Z",
+      "papiEnd": "2020-09-11T00:35:11.194832648Z",
+      "papiStart": "2020-09-11T00:26:52.920221372Z",
+      "papiTotalTimeSeconds": 509.805675,
+      "shardIndex": 45,
+      "startupTimeSeconds": 41.623061,
+      "userCommandTimeSeconds": 328.057637
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0046": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 195.721,
+      "cromwellEnd": "2020-09-11T00:37:18.455Z",
+      "cromwellStart": "2020-09-11T00:26:22.236Z",
+      "cromwellTotalTimeSeconds": 656.219,
+      "delocalizationTimeSeconds": 13.20966,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.764298,
+      "localizationTimeSeconds": 17.516652,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/11123253313383581746",
+      "otherTimeSeconds": 19.044871,
+      "papiCreate": "2020-09-11T00:26:41.473724Z",
+      "papiEnd": "2020-09-11T00:34:21.971518315Z",
+      "papiStart": "2020-09-11T00:26:52.917879900Z",
+      "papiTotalTimeSeconds": 460.497794,
+      "shardIndex": 46,
+      "startupTimeSeconds": 39.986704,
+      "userCommandTimeSeconds": 272.975609
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0047": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 47.199,
+      "cromwellEnd": "2020-09-11T00:35:42.577Z",
+      "cromwellStart": "2020-09-11T00:26:22.235Z",
+      "cromwellTotalTimeSeconds": 560.342,
+      "delocalizationTimeSeconds": 12.910172,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 98.503685,
+      "localizationTimeSeconds": 17.483253,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/17376923936397994121",
+      "otherTimeSeconds": 19.79695399999997,
+      "papiCreate": "2020-09-11T00:26:42.104509Z",
+      "papiEnd": "2020-09-11T00:35:15.247529524Z",
+      "papiStart": "2020-09-11T00:26:55.138457998Z",
+      "papiTotalTimeSeconds": 513.14302,
+      "shardIndex": 47,
+      "startupTimeSeconds": 42.897431,
+      "userCommandTimeSeconds": 321.551525
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0048": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 177.393,
+      "cromwellEnd": "2020-09-11T00:36:58.062Z",
+      "cromwellStart": "2020-09-11T00:26:22.238Z",
+      "cromwellTotalTimeSeconds": 635.824,
+      "delocalizationTimeSeconds": 13.627261,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.206015,
+      "localizationTimeSeconds": 17.803312,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/15986563867900589184",
+      "otherTimeSeconds": 18.18689500000005,
+      "papiCreate": "2020-09-11T00:26:41.420272Z",
+      "papiEnd": "2020-09-11T00:34:19.851640972Z",
+      "papiStart": "2020-09-11T00:26:52.926221440Z",
+      "papiTotalTimeSeconds": 458.431368,
+      "shardIndex": 48,
+      "startupTimeSeconds": 40.580233,
+      "userCommandTimeSeconds": 271.027652
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.HaplotypeCallerGATK4.shard_0049": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 82.146,
+      "cromwellEnd": "2020-09-11T00:36:32.558Z",
+      "cromwellStart": "2020-09-11T00:26:22.237Z",
+      "cromwellTotalTimeSeconds": 610.321,
+      "delocalizationTimeSeconds": 12.858796,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 25,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.33896,
+      "localizationTimeSeconds": 17.43416,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/12053413754353469769",
+      "otherTimeSeconds": 18.27202299999999,
+      "papiCreate": "2020-09-11T00:26:41.419984Z",
+      "papiEnd": "2020-09-11T00:35:29.595075647Z",
+      "papiStart": "2020-09-11T00:26:52.949093146Z",
+      "papiTotalTimeSeconds": 528.175091,
+      "shardIndex": 49,
+      "startupTimeSeconds": 40.484284,
+      "userCommandTimeSeconds": 341.786868
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.MergeVCFs": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 302.241,
+      "cromwellEnd": "2020-09-11T00:52:51.719Z",
+      "cromwellStart": "2020-09-11T00:40:49.394Z",
+      "cromwellTotalTimeSeconds": 722.325,
+      "delocalizationTimeSeconds": 13.742437,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 11,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.466338,
+      "localizationTimeSeconds": 166.467987,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/210511056368938385",
+      "otherTimeSeconds": 17.888883999999962,
+      "papiCreate": "2020-09-11T00:45:00.612316Z",
+      "papiEnd": "2020-09-11T00:52:00.696550098Z",
+      "papiStart": "2020-09-11T00:45:10.552165850Z",
+      "papiTotalTimeSeconds": 420.084234,
+      "shardIndex": -1,
+      "startupTimeSeconds": 38.507039,
+      "userCommandTimeSeconds": 86.011549
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.ScatterIntervalList": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 45.263,
+      "cromwellEnd": "2020-09-11T00:26:15.412Z",
+      "cromwellStart": "2020-09-11T00:22:04.489Z",
+      "cromwellTotalTimeSeconds": 250.923,
+      "delocalizationTimeSeconds": 16.941411,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 10,
+          "type": "SSD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 92.012939,
+      "localizationTimeSeconds": 24.719327,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/7218955336998915836",
+      "otherTimeSeconds": 17.64375700000005,
+      "papiCreate": "2020-09-11T00:22:06.197004Z",
+      "papiEnd": "2020-09-11T00:25:31.856851964Z",
+      "papiStart": "2020-09-11T00:22:17.232691952Z",
+      "papiTotalTimeSeconds": 205.659847,
+      "shardIndex": -1,
+      "startupTimeSeconds": 40.65948,
+      "userCommandTimeSeconds": 13.682933
+    },
+    "ExomeGermlineSingleSample.BamToGvcf.VariantCalling.ValidateVCF": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 62.84,
+      "cromwellEnd": "2020-09-11T01:06:34.845Z",
+      "cromwellStart": "2020-09-11T00:52:53.616Z",
+      "cromwellTotalTimeSeconds": 821.229,
+      "delocalizationTimeSeconds": 9.89169,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 34,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 98.210704,
+      "localizationTimeSeconds": 22.838853,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/13038730490582197770",
+      "otherTimeSeconds": 19.942272999999886,
+      "papiCreate": "2020-09-11T00:53:17.103401Z",
+      "papiEnd": "2020-09-11T01:05:55.492638764Z",
+      "papiStart": "2020-09-11T00:53:26.608158750Z",
+      "papiTotalTimeSeconds": 758.389237,
+      "shardIndex": -1,
+      "startupTimeSeconds": 43.892807,
+      "userCommandTimeSeconds": 563.61291
+    },
+    "ExomeGermlineSingleSample.CollectHsMetrics": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 354.039,
+      "cromwellEnd": "2020-09-11T01:07:20.748Z",
+      "cromwellStart": "2020-09-11T00:22:02.440Z",
+      "cromwellTotalTimeSeconds": 2718.308,
+      "delocalizationTimeSeconds": 10.146928,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 29,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 72.106095,
+      "localizationTimeSeconds": 93.530793,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/13953220294961803953",
+      "otherTimeSeconds": 18.435573999999633,
+      "papiCreate": "2020-09-11T00:22:14.527360Z",
+      "papiEnd": "2020-09-11T01:01:38.796573637Z",
+      "papiStart": "2020-09-11T00:22:19.351150604Z",
+      "papiTotalTimeSeconds": 2364.269213,
+      "shardIndex": -1,
+      "startupTimeSeconds": 35.260772,
+      "userCommandTimeSeconds": 2134.789051
+    },
+    "ExomeGermlineSingleSample.GenerateSubsettedContaminationResources": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 45.141,
+      "cromwellEnd": "2020-09-10T18:12:46.852Z",
+      "cromwellStart": "2020-09-10T18:07:48.461Z",
+      "cromwellTotalTimeSeconds": 298.391,
+      "delocalizationTimeSeconds": 12.810362,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 12,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 10,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 57.741419,
+      "localizationTimeSeconds": 19.221498,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/9120159541007793728",
+      "otherTimeSeconds": 16.949782999999968,
+      "papiCreate": "2020-09-10T18:07:52.106620Z",
+      "papiEnd": "2020-09-10T18:12:05.356276102Z",
+      "papiStart": "2020-09-10T18:08:02.840899084Z",
+      "papiTotalTimeSeconds": 253.249656,
+      "shardIndex": -1,
+      "startupTimeSeconds": 140.95195,
+      "userCommandTimeSeconds": 5.574644
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0000": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 148.063,
+      "cromwellEnd": "2020-09-11T00:03:50.048Z",
+      "cromwellStart": "2020-09-10T23:50:23.271Z",
+      "cromwellTotalTimeSeconds": 806.777,
+      "delocalizationTimeSeconds": 21.048066,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 114.055014,
+      "localizationTimeSeconds": 27.544088,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/453645735008191102",
+      "otherTimeSeconds": 18.138554000000113,
+      "papiCreate": "2020-09-10T23:50:42.302352Z",
+      "papiEnd": "2020-09-11T00:01:41.016699341Z",
+      "papiStart": "2020-09-10T23:50:50.919520978Z",
+      "papiTotalTimeSeconds": 658.714347,
+      "shardIndex": 0,
+      "startupTimeSeconds": 38.166009,
+      "userCommandTimeSeconds": 439.762616
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0001": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 207.107,
+      "cromwellEnd": "2020-09-11T00:02:25.387Z",
+      "cromwellStart": "2020-09-10T23:50:23.271Z",
+      "cromwellTotalTimeSeconds": 722.116,
+      "delocalizationTimeSeconds": 15.82471,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 114.028732,
+      "localizationTimeSeconds": 26.957159,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/1105098253951742395",
+      "otherTimeSeconds": 20.90773999999999,
+      "papiCreate": "2020-09-10T23:50:42.319495Z",
+      "papiEnd": "2020-09-10T23:59:17.328375135Z",
+      "papiStart": "2020-09-10T23:50:50.896983666Z",
+      "papiTotalTimeSeconds": 515.00888,
+      "shardIndex": 1,
+      "startupTimeSeconds": 37.526314,
+      "userCommandTimeSeconds": 299.764225
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0002": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 118.75,
+      "cromwellEnd": "2020-09-11T00:00:24.008Z",
+      "cromwellStart": "2020-09-10T23:50:23.270Z",
+      "cromwellTotalTimeSeconds": 600.738,
+      "delocalizationTimeSeconds": 17.821527,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 127.852315,
+      "localizationTimeSeconds": 27.816797,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/7562998437529279908",
+      "otherTimeSeconds": 17.929840999999954,
+      "papiCreate": "2020-09-10T23:50:42.327643Z",
+      "papiEnd": "2020-09-10T23:58:44.315761948Z",
+      "papiStart": "2020-09-10T23:50:51.018185455Z",
+      "papiTotalTimeSeconds": 481.988118,
+      "shardIndex": 2,
+      "startupTimeSeconds": 37.542114,
+      "userCommandTimeSeconds": 253.025524
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0003": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 63.746,
+      "cromwellEnd": "2020-09-10T23:58:54.247Z",
+      "cromwellStart": "2020-09-10T23:50:23.273Z",
+      "cromwellTotalTimeSeconds": 510.974,
+      "delocalizationTimeSeconds": 16.406309,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 129.810887,
+      "localizationTimeSeconds": 29.679298,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/4934612341449194586",
+      "otherTimeSeconds": 18.728253999999936,
+      "papiCreate": "2020-09-10T23:50:42.344766Z",
+      "papiEnd": "2020-09-10T23:58:09.572347869Z",
+      "papiStart": "2020-09-10T23:50:50.895923148Z",
+      "papiTotalTimeSeconds": 447.227581,
+      "shardIndex": 3,
+      "startupTimeSeconds": 38.962275,
+      "userCommandTimeSeconds": 213.640558
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0004": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 113.618,
+      "cromwellEnd": "2020-09-10T23:59:28.928Z",
+      "cromwellStart": "2020-09-10T23:50:23.271Z",
+      "cromwellTotalTimeSeconds": 545.657,
+      "delocalizationTimeSeconds": 14.327839,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 116.941073,
+      "localizationTimeSeconds": 25.971149,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/10353137697131128969",
+      "otherTimeSeconds": 19.734683000000018,
+      "papiCreate": "2020-09-10T23:50:42.298308Z",
+      "papiEnd": "2020-09-10T23:57:54.337683847Z",
+      "papiStart": "2020-09-10T23:50:50.898527255Z",
+      "papiTotalTimeSeconds": 432.039375,
+      "shardIndex": 4,
+      "startupTimeSeconds": 37.951087,
+      "userCommandTimeSeconds": 217.113544
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0005": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 111.285,
+      "cromwellEnd": "2020-09-10T23:59:23.828Z",
+      "cromwellStart": "2020-09-10T23:50:23.270Z",
+      "cromwellTotalTimeSeconds": 540.558,
+      "delocalizationTimeSeconds": 13.903828,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 114.345268,
+      "localizationTimeSeconds": 27.25431,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/16145571090658025329",
+      "otherTimeSeconds": 19.363770000000045,
+      "papiCreate": "2020-09-10T23:50:42.317269Z",
+      "papiEnd": "2020-09-10T23:57:51.589840109Z",
+      "papiStart": "2020-09-10T23:50:50.935832833Z",
+      "papiTotalTimeSeconds": 429.272571,
+      "shardIndex": 5,
+      "startupTimeSeconds": 37.291716,
+      "userCommandTimeSeconds": 217.113679
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0006": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 82.932,
+      "cromwellEnd": "2020-09-10T23:59:49.327Z",
+      "cromwellStart": "2020-09-10T23:50:23.272Z",
+      "cromwellTotalTimeSeconds": 566.055,
+      "delocalizationTimeSeconds": 18.040882,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 128.401806,
+      "localizationTimeSeconds": 28.447958,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/8566779700539665291",
+      "otherTimeSeconds": 20.336850999999967,
+      "papiCreate": "2020-09-10T23:50:42.295786Z",
+      "papiEnd": "2020-09-10T23:58:45.418897868Z",
+      "papiStart": "2020-09-10T23:50:50.907023694Z",
+      "papiTotalTimeSeconds": 483.123111,
+      "shardIndex": 6,
+      "startupTimeSeconds": 38.039744,
+      "userCommandTimeSeconds": 249.85587
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0007": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 188.872,
+      "cromwellEnd": "2020-09-11T00:01:15.008Z",
+      "cromwellStart": "2020-09-10T23:50:23.271Z",
+      "cromwellTotalTimeSeconds": 651.737,
+      "delocalizationTimeSeconds": 15.896441,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 133.461093,
+      "localizationTimeSeconds": 28.876363,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/1340550380853594596",
+      "otherTimeSeconds": 19.010591000000034,
+      "papiCreate": "2020-09-10T23:50:42.295625Z",
+      "papiEnd": "2020-09-10T23:58:25.160958509Z",
+      "papiStart": "2020-09-10T23:50:50.919394680Z",
+      "papiTotalTimeSeconds": 462.865333,
+      "shardIndex": 7,
+      "startupTimeSeconds": 38.204387,
+      "userCommandTimeSeconds": 227.416458
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0008": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 85.369,
+      "cromwellEnd": "2020-09-10T23:59:09.549Z",
+      "cromwellStart": "2020-09-10T23:50:23.272Z",
+      "cromwellTotalTimeSeconds": 526.277,
+      "delocalizationTimeSeconds": 14.882181,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 122.546384,
+      "localizationTimeSeconds": 27.267874,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/1712663259578311550",
+      "otherTimeSeconds": 17.053664999999967,
+      "papiCreate": "2020-09-10T23:50:42.345730Z",
+      "papiEnd": "2020-09-10T23:58:03.253406870Z",
+      "papiStart": "2020-09-10T23:50:50.897051613Z",
+      "papiTotalTimeSeconds": 440.907676,
+      "shardIndex": 8,
+      "startupTimeSeconds": 37.452937,
+      "userCommandTimeSeconds": 221.704635
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0009": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 20.213,
+      "cromwellEnd": "2020-09-10T23:57:38.769Z",
+      "cromwellStart": "2020-09-10T23:50:23.270Z",
+      "cromwellTotalTimeSeconds": 435.499,
+      "delocalizationTimeSeconds": 14.065934,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 121.361057,
+      "localizationTimeSeconds": 27.22543,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/4746768615750452950",
+      "otherTimeSeconds": 17.353636999999935,
+      "papiCreate": "2020-09-10T23:50:37.477885Z",
+      "papiEnd": "2020-09-10T23:57:32.763530154Z",
+      "papiStart": "2020-09-10T23:50:48.770526410Z",
+      "papiTotalTimeSeconds": 415.285645,
+      "shardIndex": 9,
+      "startupTimeSeconds": 41.173446,
+      "userCommandTimeSeconds": 194.106141
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0010": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 93.496,
+      "cromwellEnd": "2020-09-11T00:00:18.907Z",
+      "cromwellStart": "2020-09-10T23:50:23.271Z",
+      "cromwellTotalTimeSeconds": 595.636,
+      "delocalizationTimeSeconds": 15.924336,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 122.871748,
+      "localizationTimeSeconds": 26.788934,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/13002128913891212301",
+      "otherTimeSeconds": 17.66373900000002,
+      "papiCreate": "2020-09-10T23:50:42.326236Z",
+      "papiEnd": "2020-09-10T23:59:04.466568809Z",
+      "papiStart": "2020-09-10T23:50:50.915788321Z",
+      "papiTotalTimeSeconds": 502.140332,
+      "shardIndex": 10,
+      "startupTimeSeconds": 38.339766,
+      "userCommandTimeSeconds": 280.551809
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0011": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 63.906,
+      "cromwellEnd": "2020-09-11T00:00:29.108Z",
+      "cromwellStart": "2020-09-10T23:50:23.272Z",
+      "cromwellTotalTimeSeconds": 605.836,
+      "delocalizationTimeSeconds": 20.554091,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 126.608358,
+      "localizationTimeSeconds": 28.356384,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/16381127190315696477",
+      "otherTimeSeconds": 22.597180999999978,
+      "papiCreate": "2020-09-10T23:50:37.478817Z",
+      "papiEnd": "2020-09-10T23:59:39.408411189Z",
+      "papiStart": "2020-09-10T23:50:48.770796760Z",
+      "papiTotalTimeSeconds": 541.929594,
+      "shardIndex": 11,
+      "startupTimeSeconds": 41.369239,
+      "userCommandTimeSeconds": 302.444341
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0012": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 137,
+      "cromwellEnd": "2020-09-11T00:01:39.487Z",
+      "cromwellStart": "2020-09-10T23:50:23.272Z",
+      "cromwellTotalTimeSeconds": 676.215,
+      "delocalizationTimeSeconds": 15.236154,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 115.9565,
+      "localizationTimeSeconds": 25.821826,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/1240432734722082091",
+      "otherTimeSeconds": 20.481743999999935,
+      "papiCreate": "2020-09-10T23:50:42.301928Z",
+      "papiEnd": "2020-09-10T23:59:41.517169524Z",
+      "papiStart": "2020-09-10T23:50:50.895338980Z",
+      "papiTotalTimeSeconds": 539.215241,
+      "shardIndex": 12,
+      "startupTimeSeconds": 38.959992,
+      "userCommandTimeSeconds": 322.759025
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0013": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 306.081,
+      "cromwellEnd": "2020-09-11T00:09:16.451Z",
+      "cromwellStart": "2020-09-10T23:50:23.272Z",
+      "cromwellTotalTimeSeconds": 1133.179,
+      "delocalizationTimeSeconds": 36.66259,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 130.527435,
+      "localizationTimeSeconds": 29.033788,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/301325898103685764",
+      "otherTimeSeconds": 22.064761999999973,
+      "papiCreate": "2020-09-10T23:50:37.469190Z",
+      "papiEnd": "2020-09-11T00:04:24.567155310Z",
+      "papiStart": "2020-09-10T23:50:48.770607275Z",
+      "papiTotalTimeSeconds": 827.097965,
+      "shardIndex": 13,
+      "startupTimeSeconds": 41.339967,
+      "userCommandTimeSeconds": 567.469423
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0014": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 55.085,
+      "cromwellEnd": "2020-09-11T00:02:54.972Z",
+      "cromwellStart": "2020-09-10T23:50:23.272Z",
+      "cromwellTotalTimeSeconds": 751.7,
+      "delocalizationTimeSeconds": 20.567709,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 127.807885,
+      "localizationTimeSeconds": 31.402732,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/3442911386781091178",
+      "otherTimeSeconds": 17.649337999999943,
+      "papiCreate": "2020-09-10T23:50:42.298593Z",
+      "papiEnd": "2020-09-11T00:02:18.913249413Z",
+      "papiStart": "2020-09-10T23:50:50.895171541Z",
+      "papiTotalTimeSeconds": 696.614656,
+      "shardIndex": 14,
+      "startupTimeSeconds": 38.514513,
+      "userCommandTimeSeconds": 460.672479
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0015": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 34.005,
+      "cromwellEnd": "2020-09-10T23:57:59.169Z",
+      "cromwellStart": "2020-09-10T23:50:23.272Z",
+      "cromwellTotalTimeSeconds": 455.897,
+      "delocalizationTimeSeconds": 14.976752,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 127.582465,
+      "localizationTimeSeconds": 29.095993,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/108491500319074744",
+      "otherTimeSeconds": 20.033788000000015,
+      "papiCreate": "2020-09-10T23:50:42.304866Z",
+      "papiEnd": "2020-09-10T23:57:44.196578104Z",
+      "papiStart": "2020-09-10T23:50:50.925948597Z",
+      "papiTotalTimeSeconds": 421.891712,
+      "shardIndex": 15,
+      "startupTimeSeconds": 38.041207,
+      "userCommandTimeSeconds": 192.161507
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0016": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 131.466,
+      "cromwellEnd": "2020-09-11T00:00:49.509Z",
+      "cromwellStart": "2020-09-10T23:50:23.271Z",
+      "cromwellTotalTimeSeconds": 626.238,
+      "delocalizationTimeSeconds": 16.801493,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 128.247306,
+      "localizationTimeSeconds": 26.457831,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/16608265567742588949",
+      "otherTimeSeconds": 15.407904999999971,
+      "papiCreate": "2020-09-10T23:50:42.316547Z",
+      "papiEnd": "2020-09-10T23:58:57.088172679Z",
+      "papiStart": "2020-09-10T23:50:50.944953598Z",
+      "papiTotalTimeSeconds": 494.771625,
+      "shardIndex": 16,
+      "startupTimeSeconds": 38.053264,
+      "userCommandTimeSeconds": 269.803826
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0017": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 87.092,
+      "cromwellEnd": "2020-09-10T23:58:18.547Z",
+      "cromwellStart": "2020-09-10T23:50:23.271Z",
+      "cromwellTotalTimeSeconds": 475.276,
+      "delocalizationTimeSeconds": 12.112737,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 126.507712,
+      "localizationTimeSeconds": 29.857215,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/8691744955071512955",
+      "otherTimeSeconds": 20.211191000000042,
+      "papiCreate": "2020-09-10T23:50:42.317229Z",
+      "papiEnd": "2020-09-10T23:57:10.501132999Z",
+      "papiStart": "2020-09-10T23:50:50.898382649Z",
+      "papiTotalTimeSeconds": 388.183903,
+      "shardIndex": 17,
+      "startupTimeSeconds": 38.663863,
+      "userCommandTimeSeconds": 160.831185
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.ApplyBQSR.shard_0018": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 117,
+      "cromwellEnd": "2020-09-10T23:56:33.488Z",
+      "cromwellStart": "2020-09-10T23:50:23.273Z",
+      "cromwellTotalTimeSeconds": 370.215,
+      "delocalizationTimeSeconds": 11.528248,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 26,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 114.137171,
+      "localizationTimeSeconds": 25.66971,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/16834609845021457397",
+      "otherTimeSeconds": 27.917179000000004,
+      "papiCreate": "2020-09-10T23:50:42.317578Z",
+      "papiEnd": "2020-09-10T23:54:55.532543731Z",
+      "papiStart": "2020-09-10T23:50:50.900478610Z",
+      "papiTotalTimeSeconds": 253.214965,
+      "shardIndex": 18,
+      "startupTimeSeconds": 37.624459,
+      "userCommandTimeSeconds": 36.338198
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0000": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 58.289,
+      "cromwellEnd": "2020-09-10T23:44:50.718Z",
+      "cromwellStart": "2020-09-10T23:35:18.871Z",
+      "cromwellTotalTimeSeconds": 571.847,
+      "delocalizationTimeSeconds": 10.834722,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.879307,
+      "localizationTimeSeconds": 16.086407,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/13522269901224483959",
+      "otherTimeSeconds": 17.97026699999998,
+      "papiCreate": "2020-09-10T23:35:43.964731Z",
+      "papiEnd": "2020-09-10T23:44:17.522566127Z",
+      "papiStart": "2020-09-10T23:35:50.625202922Z",
+      "papiTotalTimeSeconds": 513.557835,
+      "shardIndex": 0,
+      "startupTimeSeconds": 36.835557,
+      "userCommandTimeSeconds": 333.951575
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0001": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 64.918,
+      "cromwellEnd": "2020-09-10T23:43:55.639Z",
+      "cromwellStart": "2020-09-10T23:35:18.873Z",
+      "cromwellTotalTimeSeconds": 516.766,
+      "delocalizationTimeSeconds": 11.545248,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 99.54623,
+      "localizationTimeSeconds": 16.997198,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/1796150862005200575",
+      "otherTimeSeconds": 18.92475799999994,
+      "papiCreate": "2020-09-10T23:35:39.104852Z",
+      "papiEnd": "2020-09-10T23:43:10.952956076Z",
+      "papiStart": "2020-09-10T23:35:48.762364216Z",
+      "papiTotalTimeSeconds": 451.848104,
+      "shardIndex": 1,
+      "startupTimeSeconds": 38.643766,
+      "userCommandTimeSeconds": 266.190904
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0002": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 116.672,
+      "cromwellEnd": "2020-09-10T23:43:35.237Z",
+      "cromwellStart": "2020-09-10T23:35:18.874Z",
+      "cromwellTotalTimeSeconds": 496.363,
+      "delocalizationTimeSeconds": 11.554279,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 99.953079,
+      "localizationTimeSeconds": 17.103858,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/15266801335468487165",
+      "otherTimeSeconds": 19.945735000000013,
+      "papiCreate": "2020-09-10T23:35:43.951289Z",
+      "papiEnd": "2020-09-10T23:42:03.642636514Z",
+      "papiStart": "2020-09-10T23:35:50.625292543Z",
+      "papiTotalTimeSeconds": 379.691347,
+      "shardIndex": 2,
+      "startupTimeSeconds": 37.013791,
+      "userCommandTimeSeconds": 194.120605
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0003": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 111.265,
+      "cromwellEnd": "2020-09-10T23:42:50.359Z",
+      "cromwellStart": "2020-09-10T23:35:18.874Z",
+      "cromwellTotalTimeSeconds": 451.485,
+      "delocalizationTimeSeconds": 10.752334,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 101.69696,
+      "localizationTimeSeconds": 17.013236,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/2511664923876349931",
+      "otherTimeSeconds": 19.117629999999963,
+      "papiCreate": "2020-09-10T23:35:39.102497Z",
+      "papiEnd": "2020-09-10T23:41:19.322697136Z",
+      "papiStart": "2020-09-10T23:35:48.762329606Z",
+      "papiTotalTimeSeconds": 340.2202,
+      "shardIndex": 3,
+      "startupTimeSeconds": 39.942428,
+      "userCommandTimeSeconds": 151.697612
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0004": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 74.213,
+      "cromwellEnd": "2020-09-10T23:42:14.663Z",
+      "cromwellStart": "2020-09-10T23:35:18.873Z",
+      "cromwellTotalTimeSeconds": 415.79,
+      "delocalizationTimeSeconds": 10.514445,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 95.114827,
+      "localizationTimeSeconds": 16.436582,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/8677663984685611680",
+      "otherTimeSeconds": 19.384506999999928,
+      "papiCreate": "2020-09-10T23:35:43.960120Z",
+      "papiEnd": "2020-09-10T23:41:25.537601196Z",
+      "papiStart": "2020-09-10T23:35:50.625804229Z",
+      "papiTotalTimeSeconds": 341.577481,
+      "shardIndex": 4,
+      "startupTimeSeconds": 34.971195,
+      "userCommandTimeSeconds": 165.155925
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0005": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 29.077,
+      "cromwellEnd": "2020-09-10T23:42:14.663Z",
+      "cromwellStart": "2020-09-10T23:35:18.872Z",
+      "cromwellTotalTimeSeconds": 415.791,
+      "delocalizationTimeSeconds": 11.029929,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 102.560033,
+      "localizationTimeSeconds": 17.2946,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/5426324672811693040",
+      "otherTimeSeconds": 19.404127000000017,
+      "papiCreate": "2020-09-10T23:35:39.128616Z",
+      "papiEnd": "2020-09-10T23:42:05.842365353Z",
+      "papiStart": "2020-09-10T23:35:48.762339479Z",
+      "papiTotalTimeSeconds": 386.713749,
+      "shardIndex": 5,
+      "startupTimeSeconds": 38.637012,
+      "userCommandTimeSeconds": 197.788048
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0006": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 38.757,
+      "cromwellEnd": "2020-09-10T23:42:55.457Z",
+      "cromwellStart": "2020-09-10T23:35:18.872Z",
+      "cromwellTotalTimeSeconds": 456.585,
+      "delocalizationTimeSeconds": 13.614552,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 107.263149,
+      "localizationTimeSeconds": 18.419193,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/17221126411043016164",
+      "otherTimeSeconds": 28.982957999999996,
+      "papiCreate": "2020-09-10T23:35:39.125555Z",
+      "papiEnd": "2020-09-10T23:42:36.953563762Z",
+      "papiStart": "2020-09-10T23:35:48.762304384Z",
+      "papiTotalTimeSeconds": 417.828008,
+      "shardIndex": 6,
+      "startupTimeSeconds": 39.563773,
+      "userCommandTimeSeconds": 209.984383
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0007": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 109.43,
+      "cromwellEnd": "2020-09-10T23:42:29.957Z",
+      "cromwellStart": "2020-09-10T23:35:18.874Z",
+      "cromwellTotalTimeSeconds": 431.083,
+      "delocalizationTimeSeconds": 10.938433,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 98.027098,
+      "localizationTimeSeconds": 16.397475,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/4465102567125520781",
+      "otherTimeSeconds": 18.394742000000008,
+      "papiCreate": "2020-09-10T23:35:43.968837Z",
+      "papiEnd": "2020-09-10T23:41:05.621688533Z",
+      "papiStart": "2020-09-10T23:35:50.625300073Z",
+      "papiTotalTimeSeconds": 321.652851,
+      "shardIndex": 7,
+      "startupTimeSeconds": 34.927255,
+      "userCommandTimeSeconds": 142.967848
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0008": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 126.772,
+      "cromwellEnd": "2020-09-10T23:43:25.037Z",
+      "cromwellStart": "2020-09-10T23:35:18.872Z",
+      "cromwellTotalTimeSeconds": 486.165,
+      "delocalizationTimeSeconds": 11.344565,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 101.227233,
+      "localizationTimeSeconds": 16.911867,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/17959338963658346557",
+      "otherTimeSeconds": 20.352198000000044,
+      "papiCreate": "2020-09-10T23:35:43.951478Z",
+      "papiEnd": "2020-09-10T23:41:43.344751100Z",
+      "papiStart": "2020-09-10T23:35:50.625141149Z",
+      "papiTotalTimeSeconds": 359.393273,
+      "shardIndex": 8,
+      "startupTimeSeconds": 35.487075,
+      "userCommandTimeSeconds": 174.070335
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0009": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 39.213,
+      "cromwellEnd": "2020-09-10T23:41:34.882Z",
+      "cromwellStart": "2020-09-10T23:35:18.872Z",
+      "cromwellTotalTimeSeconds": 376.01,
+      "delocalizationTimeSeconds": 10.210897,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.372625,
+      "localizationTimeSeconds": 16.000479,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/17626027138753024839",
+      "otherTimeSeconds": 18.949582000000078,
+      "papiCreate": "2020-09-10T23:35:43.403242Z",
+      "papiEnd": "2020-09-10T23:41:20.200317038Z",
+      "papiStart": "2020-09-10T23:35:50.624811948Z",
+      "papiTotalTimeSeconds": 336.797075,
+      "shardIndex": 9,
+      "startupTimeSeconds": 38.322897,
+      "userCommandTimeSeconds": 155.940595
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0010": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 35.521,
+      "cromwellEnd": "2020-09-10T23:42:24.858Z",
+      "cromwellStart": "2020-09-10T23:35:18.872Z",
+      "cromwellTotalTimeSeconds": 425.986,
+      "delocalizationTimeSeconds": 10.41018,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.647925,
+      "localizationTimeSeconds": 16.15369,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/11041013464205724067",
+      "otherTimeSeconds": 18.493876,
+      "papiCreate": "2020-09-10T23:35:43.971854Z",
+      "papiEnd": "2020-09-10T23:42:14.436839633Z",
+      "papiStart": "2020-09-10T23:35:50.625471159Z",
+      "papiTotalTimeSeconds": 390.464985,
+      "shardIndex": 10,
+      "startupTimeSeconds": 36.318974,
+      "userCommandTimeSeconds": 211.44034
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0011": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 174.883,
+      "cromwellEnd": "2020-09-10T23:45:25.398Z",
+      "cromwellStart": "2020-09-10T23:35:18.874Z",
+      "cromwellTotalTimeSeconds": 606.524,
+      "delocalizationTimeSeconds": 12.436202,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 98.358719,
+      "localizationTimeSeconds": 16.114139,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/16379484732929107000",
+      "otherTimeSeconds": 18.384833000000015,
+      "papiCreate": "2020-09-10T23:35:43.951336Z",
+      "papiEnd": "2020-09-10T23:42:55.592654980Z",
+      "papiStart": "2020-09-10T23:35:50.626141454Z",
+      "papiTotalTimeSeconds": 431.641318,
+      "shardIndex": 11,
+      "startupTimeSeconds": 37.189649,
+      "userCommandTimeSeconds": 249.157776
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0012": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 98.319,
+      "cromwellEnd": "2020-09-10T23:44:05.838Z",
+      "cromwellStart": "2020-09-10T23:35:18.874Z",
+      "cromwellTotalTimeSeconds": 526.964,
+      "delocalizationTimeSeconds": 12.382135,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 96.984727,
+      "localizationTimeSeconds": 16.166388,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/1768359772441954948",
+      "otherTimeSeconds": 18.08520599999997,
+      "papiCreate": "2020-09-10T23:35:43.960324Z",
+      "papiEnd": "2020-09-10T23:42:52.605058337Z",
+      "papiStart": "2020-09-10T23:35:50.624278464Z",
+      "papiTotalTimeSeconds": 428.644734,
+      "shardIndex": 12,
+      "startupTimeSeconds": 38.245916,
+      "userCommandTimeSeconds": 246.780362
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0013": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 65.191,
+      "cromwellEnd": "2020-09-10T23:44:20.119Z",
+      "cromwellStart": "2020-09-10T23:35:18.871Z",
+      "cromwellTotalTimeSeconds": 541.248,
+      "delocalizationTimeSeconds": 10.475412,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 91.472485,
+      "localizationTimeSeconds": 15.539037,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/5696810955274181794",
+      "otherTimeSeconds": 20.107620999999995,
+      "papiCreate": "2020-09-10T23:35:39.104087Z",
+      "papiEnd": "2020-09-10T23:43:35.161137447Z",
+      "papiStart": "2020-09-10T23:35:48.762450328Z",
+      "papiTotalTimeSeconds": 476.05705,
+      "shardIndex": 13,
+      "startupTimeSeconds": 36.345885,
+      "userCommandTimeSeconds": 302.11661
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0014": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 65.379,
+      "cromwellEnd": "2020-09-10T23:44:25.220Z",
+      "cromwellStart": "2020-09-10T23:35:18.873Z",
+      "cromwellTotalTimeSeconds": 546.347,
+      "delocalizationTimeSeconds": 11.774678,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 93.103973,
+      "localizationTimeSeconds": 16.064769,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/8714425534705112684",
+      "otherTimeSeconds": 18.880461000000025,
+      "papiCreate": "2020-09-10T23:35:43.954025Z",
+      "papiEnd": "2020-09-10T23:43:44.921984101Z",
+      "papiStart": "2020-09-10T23:35:50.626393649Z",
+      "papiTotalTimeSeconds": 480.967959,
+      "shardIndex": 14,
+      "startupTimeSeconds": 35.694075,
+      "userCommandTimeSeconds": 305.450003
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0015": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 42.932,
+      "cromwellEnd": "2020-09-10T23:41:24.677Z",
+      "cromwellStart": "2020-09-10T23:35:18.871Z",
+      "cromwellTotalTimeSeconds": 365.806,
+      "delocalizationTimeSeconds": 10.794441,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 98.239237,
+      "localizationTimeSeconds": 16.194519,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/8631758529159133766",
+      "otherTimeSeconds": 19.146659,
+      "papiCreate": "2020-09-10T23:35:43.944621Z",
+      "papiEnd": "2020-09-10T23:41:06.818535197Z",
+      "papiStart": "2020-09-10T23:35:50.625626932Z",
+      "papiTotalTimeSeconds": 322.873914,
+      "shardIndex": 15,
+      "startupTimeSeconds": 35.956142,
+      "userCommandTimeSeconds": 142.542916
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0016": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 161.067,
+      "cromwellEnd": "2020-09-10T23:44:40.519Z",
+      "cromwellStart": "2020-09-10T23:35:18.872Z",
+      "cromwellTotalTimeSeconds": 561.647,
+      "delocalizationTimeSeconds": 11.726857,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 109.144122,
+      "localizationTimeSeconds": 18.700175,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/15332550388321158690",
+      "otherTimeSeconds": 20.597262999999998,
+      "papiCreate": "2020-09-10T23:35:43.952872Z",
+      "papiEnd": "2020-09-10T23:42:24.533109410Z",
+      "papiStart": "2020-09-10T23:35:50.624679118Z",
+      "papiTotalTimeSeconds": 400.580237,
+      "shardIndex": 16,
+      "startupTimeSeconds": 39.568387,
+      "userCommandTimeSeconds": 200.843433
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.BaseRecalibrator.shard_0017": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 88.685,
+      "cromwellEnd": "2020-09-10T23:41:50.176Z",
+      "cromwellStart": "2020-09-10T23:35:18.873Z",
+      "cromwellTotalTimeSeconds": 391.303,
+      "delocalizationTimeSeconds": 11.323197,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 35,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 96.402734,
+      "localizationTimeSeconds": 15.718892,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/9910399305805470304",
+      "otherTimeSeconds": 18.41387100000003,
+      "papiCreate": "2020-09-10T23:35:43.987897Z",
+      "papiEnd": "2020-09-10T23:40:46.606200439Z",
+      "papiStart": "2020-09-10T23:35:50.625600442Z",
+      "papiTotalTimeSeconds": 302.618303,
+      "shardIndex": 17,
+      "startupTimeSeconds": 35.569981,
+      "userCommandTimeSeconds": 125.189628
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CheckContamination": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 51.123,
+      "cromwellEnd": "2020-09-10T23:44:10.939Z",
+      "cromwellStart": "2020-09-10T23:35:18.874Z",
+      "cromwellTotalTimeSeconds": 532.065,
+      "delocalizationTimeSeconds": 10.475614,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 13,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 41,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 45.568199,
+      "localizationTimeSeconds": 100.097488,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/1265563288512618616",
+      "otherTimeSeconds": 16.112850999999978,
+      "papiCreate": "2020-09-10T23:35:28.652566Z",
+      "papiEnd": "2020-09-10T23:43:29.595051870Z",
+      "papiStart": "2020-09-10T23:35:33.174043231Z",
+      "papiTotalTimeSeconds": 480.942485,
+      "shardIndex": -1,
+      "startupTimeSeconds": 34.272296,
+      "userCommandTimeSeconds": 274.416037
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectQualityYieldMetrics.shard_0000": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 60.924,
+      "cromwellEnd": "2020-09-10T18:18:42.861Z",
+      "cromwellStart": "2020-09-10T18:13:33.083Z",
+      "cromwellTotalTimeSeconds": 309.778,
+      "delocalizationTimeSeconds": 11.121418,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 21,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 91.849717,
+      "localizationTimeSeconds": 47.972866,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/16639300756750541645",
+      "otherTimeSeconds": 17.43371099999996,
+      "papiCreate": "2020-09-10T18:13:37.643645Z",
+      "papiEnd": "2020-09-10T18:17:46.497553883Z",
+      "papiStart": "2020-09-10T18:13:49.856818172Z",
+      "papiTotalTimeSeconds": 248.853908,
+      "shardIndex": 0,
+      "startupTimeSeconds": 41.138609,
+      "userCommandTimeSeconds": 39.337587
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectQualityYieldMetrics.shard_0001": {
+      "attempt": 2,
+      "cromwellAdditionalTotalTimeSeconds": 21.99,
+      "cromwellEnd": "2020-09-10T18:21:33.167Z",
+      "cromwellStart": "2020-09-10T18:17:12.812Z",
+      "cromwellTotalTimeSeconds": 260.355,
+      "delocalizationTimeSeconds": 8.846562,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 21,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 90.271204,
+      "localizationTimeSeconds": 37.512291,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/16634778882067897504",
+      "otherTimeSeconds": 22.23127200000002,
+      "papiCreate": "2020-09-10T18:17:17.743879Z",
+      "papiEnd": "2020-09-10T18:21:16.108508348Z",
+      "papiStart": "2020-09-10T18:17:28.523829228Z",
+      "papiTotalTimeSeconds": 238.364629,
+      "shardIndex": 1,
+      "startupTimeSeconds": 39.413506,
+      "userCommandTimeSeconds": 40.089794
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectQualityYieldMetrics.shard_0002": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 29.538,
+      "cromwellEnd": "2020-09-10T18:18:03.054Z",
+      "cromwellStart": "2020-09-10T18:13:33.082Z",
+      "cromwellTotalTimeSeconds": 269.972,
+      "delocalizationTimeSeconds": 9.000513,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 21,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.255723,
+      "localizationTimeSeconds": 38.127488,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/3881078036237978997",
+      "otherTimeSeconds": 15.554215999999997,
+      "papiCreate": "2020-09-10T18:13:36.926043Z",
+      "papiEnd": "2020-09-10T18:17:37.360393147Z",
+      "papiStart": "2020-09-10T18:13:47.095326923Z",
+      "papiTotalTimeSeconds": 240.43435,
+      "shardIndex": 2,
+      "startupTimeSeconds": 40.281519,
+      "userCommandTimeSeconds": 40.214891
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectQualityYieldMetrics.shard_0003": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 52.239,
+      "cromwellEnd": "2020-09-10T18:18:32.631Z",
+      "cromwellStart": "2020-09-10T18:13:33.084Z",
+      "cromwellTotalTimeSeconds": 299.547,
+      "delocalizationTimeSeconds": 9.307813,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 21,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 96.061712,
+      "localizationTimeSeconds": 38.515244,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/17617214662593579097",
+      "otherTimeSeconds": 20.01481099999998,
+      "papiCreate": "2020-09-10T18:13:36.917180Z",
+      "papiEnd": "2020-09-10T18:17:44.225369421Z",
+      "papiStart": "2020-09-10T18:13:47.095237124Z",
+      "papiTotalTimeSeconds": 247.308189,
+      "shardIndex": 3,
+      "startupTimeSeconds": 41.657084,
+      "userCommandTimeSeconds": 41.751525
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectQualityYieldMetrics.shard_0004": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 11.562,
+      "cromwellEnd": "2020-09-10T18:17:47.756Z",
+      "cromwellStart": "2020-09-10T18:13:33.081Z",
+      "cromwellTotalTimeSeconds": 254.675,
+      "delocalizationTimeSeconds": 8.916363,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 21,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 95.175998,
+      "localizationTimeSeconds": 37.902678,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/3578182676912212362",
+      "otherTimeSeconds": 18.972961999999995,
+      "papiCreate": "2020-09-10T18:13:36.934366Z",
+      "papiEnd": "2020-09-10T18:17:40.047345703Z",
+      "papiStart": "2020-09-10T18:13:47.095677820Z",
+      "papiTotalTimeSeconds": 243.112979,
+      "shardIndex": 4,
+      "startupTimeSeconds": 41.498667,
+      "userCommandTimeSeconds": 40.646311
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectQualityYieldMetrics.shard_0005": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 36.87,
+      "cromwellEnd": "2020-09-10T18:18:22.452Z",
+      "cromwellStart": "2020-09-10T18:13:33.081Z",
+      "cromwellTotalTimeSeconds": 289.371,
+      "delocalizationTimeSeconds": 9.535089,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 21,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.289007,
+      "localizationTimeSeconds": 41.581561,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/4471888261979239650",
+      "otherTimeSeconds": 19.592292000000015,
+      "papiCreate": "2020-09-10T18:13:36.934448Z",
+      "papiEnd": "2020-09-10T18:17:49.435400493Z",
+      "papiStart": "2020-09-10T18:13:47.095216964Z",
+      "papiTotalTimeSeconds": 252.500952,
+      "shardIndex": 5,
+      "startupTimeSeconds": 41.930822,
+      "userCommandTimeSeconds": 42.572181
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectQualityYieldMetrics.shard_0006": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 65.805,
+      "cromwellEnd": "2020-09-10T18:18:42.860Z",
+      "cromwellStart": "2020-09-10T18:13:33.083Z",
+      "cromwellTotalTimeSeconds": 309.777,
+      "delocalizationTimeSeconds": 9.060028,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 21,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 94.794703,
+      "localizationTimeSeconds": 39.2545,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/9388740866447663928",
+      "otherTimeSeconds": 19.000443999999987,
+      "papiCreate": "2020-09-10T18:13:36.932112Z",
+      "papiEnd": "2020-09-10T18:17:40.904152171Z",
+      "papiStart": "2020-09-10T18:13:47.095218068Z",
+      "papiTotalTimeSeconds": 243.97204,
+      "shardIndex": 6,
+      "startupTimeSeconds": 40.679349,
+      "userCommandTimeSeconds": 41.183016
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectQualityYieldMetrics.shard_0007": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 120.292,
+      "cromwellEnd": "2020-09-10T18:19:43.011Z",
+      "cromwellStart": "2020-09-10T18:13:33.085Z",
+      "cromwellTotalTimeSeconds": 369.926,
+      "delocalizationTimeSeconds": 9.515659,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 21,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 97.106107,
+      "localizationTimeSeconds": 39.290264,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/6065987800541875228",
+      "otherTimeSeconds": 20.379538999999994,
+      "papiCreate": "2020-09-10T18:13:37.674553Z",
+      "papiEnd": "2020-09-10T18:17:47.308247491Z",
+      "papiStart": "2020-09-10T18:13:49.234246495Z",
+      "papiTotalTimeSeconds": 249.633694,
+      "shardIndex": 7,
+      "startupTimeSeconds": 41.177647,
+      "userCommandTimeSeconds": 42.164478
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectUnsortedReadgroupBamQualityMetrics.shard_0000": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 122.048,
+      "cromwellEnd": "2020-09-10T18:36:36.895Z",
+      "cromwellStart": "2020-09-10T18:29:45.963Z",
+      "cromwellTotalTimeSeconds": 410.932,
+      "delocalizationTimeSeconds": 21.390117,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 22,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 69.456908,
+      "localizationTimeSeconds": 39.096044,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/4011215189046053803",
+      "otherTimeSeconds": 21.144749999999988,
+      "papiCreate": "2020-09-10T18:29:50.507837Z",
+      "papiEnd": "2020-09-10T18:34:39.391939260Z",
+      "papiStart": "2020-09-10T18:29:59.995879586Z",
+      "papiTotalTimeSeconds": 288.884102,
+      "shardIndex": 0,
+      "startupTimeSeconds": 38.823252,
+      "userCommandTimeSeconds": 98.973031
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectUnsortedReadgroupBamQualityMetrics.shard_0001": {
+      "attempt": 2,
+      "cromwellAdditionalTotalTimeSeconds": 103.098,
+      "cromwellEnd": "2020-09-10T18:43:34.061Z",
+      "cromwellStart": "2020-09-10T18:37:02.102Z",
+      "cromwellTotalTimeSeconds": 391.959,
+      "delocalizationTimeSeconds": 20.735102,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 22,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 65.998727,
+      "localizationTimeSeconds": 37.257973,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/9913508586141944804",
+      "otherTimeSeconds": 19.15595400000001,
+      "papiCreate": "2020-09-10T18:37:07.603915Z",
+      "papiEnd": "2020-09-10T18:41:56.464496895Z",
+      "papiStart": "2020-09-10T18:37:17.264821859Z",
+      "papiTotalTimeSeconds": 288.860581,
+      "shardIndex": 1,
+      "startupTimeSeconds": 38.019145,
+      "userCommandTimeSeconds": 107.69368
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectUnsortedReadgroupBamQualityMetrics.shard_0002": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 39.635,
+      "cromwellEnd": "2020-09-10T18:34:26.336Z",
+      "cromwellStart": "2020-09-10T18:28:55.751Z",
+      "cromwellTotalTimeSeconds": 330.585,
+      "delocalizationTimeSeconds": 20.711977,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 22,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 69.841911,
+      "localizationTimeSeconds": 41.144109,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/1270637559647681194",
+      "otherTimeSeconds": 18.637110000000007,
+      "papiCreate": "2020-09-10T18:29:00.397814Z",
+      "papiEnd": "2020-09-10T18:33:51.347949431Z",
+      "papiStart": "2020-09-10T18:29:10.579010086Z",
+      "papiTotalTimeSeconds": 290.950135,
+      "shardIndex": 2,
+      "startupTimeSeconds": 37.079906,
+      "userCommandTimeSeconds": 103.535122
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectUnsortedReadgroupBamQualityMetrics.shard_0003": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 77.282,
+      "cromwellEnd": "2020-09-10T18:35:52.015Z",
+      "cromwellStart": "2020-09-10T18:29:25.942Z",
+      "cromwellTotalTimeSeconds": 386.073,
+      "delocalizationTimeSeconds": 21.127783,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 22,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 78.785977,
+      "localizationTimeSeconds": 40.573653,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/12518177228295736917",
+      "otherTimeSeconds": 21.01098499999995,
+      "papiCreate": "2020-09-10T18:29:30.953505Z",
+      "papiEnd": "2020-09-10T18:34:39.744150302Z",
+      "papiStart": "2020-09-10T18:29:40.176859313Z",
+      "papiTotalTimeSeconds": 308.790645,
+      "shardIndex": 3,
+      "startupTimeSeconds": 39.493212,
+      "userCommandTimeSeconds": 107.799035
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectUnsortedReadgroupBamQualityMetrics.shard_0004": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 74.16,
+      "cromwellEnd": "2020-09-10T18:35:31.612Z",
+      "cromwellStart": "2020-09-10T18:29:35.932Z",
+      "cromwellTotalTimeSeconds": 355.68,
+      "delocalizationTimeSeconds": 23.237894,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 22,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 74.099093,
+      "localizationTimeSeconds": 38.853784,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/15155395215391192993",
+      "otherTimeSeconds": 14.927881000000014,
+      "papiCreate": "2020-09-10T18:29:40.752195Z",
+      "papiEnd": "2020-09-10T18:34:22.271921481Z",
+      "papiStart": "2020-09-10T18:29:41.882647584Z",
+      "papiTotalTimeSeconds": 281.519726,
+      "shardIndex": 4,
+      "startupTimeSeconds": 30.133521,
+      "userCommandTimeSeconds": 100.267553
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectUnsortedReadgroupBamQualityMetrics.shard_0005": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 26.867,
+      "cromwellEnd": "2020-09-10T18:36:57.294Z",
+      "cromwellStart": "2020-09-10T18:31:16.323Z",
+      "cromwellTotalTimeSeconds": 340.971,
+      "delocalizationTimeSeconds": 22.282457,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 22,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 78.505757,
+      "localizationTimeSeconds": 43.906032,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/17224063814013199880",
+      "otherTimeSeconds": 17.014118999999937,
+      "papiCreate": "2020-09-10T18:31:21.216608Z",
+      "papiEnd": "2020-09-10T18:36:35.320942995Z",
+      "papiStart": "2020-09-10T18:31:30.863853983Z",
+      "papiTotalTimeSeconds": 314.104334,
+      "shardIndex": 5,
+      "startupTimeSeconds": 39.050229,
+      "userCommandTimeSeconds": 113.34574
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectUnsortedReadgroupBamQualityMetrics.shard_0006": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 27.315,
+      "cromwellEnd": "2020-09-10T18:35:02.033Z",
+      "cromwellStart": "2020-09-10T18:29:35.932Z",
+      "cromwellTotalTimeSeconds": 326.101,
+      "delocalizationTimeSeconds": 20.550115,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 22,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 72.212324,
+      "localizationTimeSeconds": 39.881333,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/4513620577891577513",
+      "otherTimeSeconds": 26.487144999999998,
+      "papiCreate": "2020-09-10T18:29:40.701560Z",
+      "papiEnd": "2020-09-10T18:34:39.487246594Z",
+      "papiStart": "2020-09-10T18:29:41.882617400Z",
+      "papiTotalTimeSeconds": 298.785686,
+      "shardIndex": 6,
+      "startupTimeSeconds": 29.60622,
+      "userCommandTimeSeconds": 110.048549
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CollectUnsortedReadgroupBamQualityMetrics.shard_0007": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 6.556,
+      "cromwellEnd": "2020-09-10T18:34:41.632Z",
+      "cromwellStart": "2020-09-10T18:29:25.943Z",
+      "cromwellTotalTimeSeconds": 315.689,
+      "delocalizationTimeSeconds": 21.182027,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 22,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 73.51686,
+      "localizationTimeSeconds": 41.165671,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/12816403155391372906",
+      "otherTimeSeconds": 21.986783000000003,
+      "papiCreate": "2020-09-10T18:29:30.352385Z",
+      "papiEnd": "2020-09-10T18:34:39.485638941Z",
+      "papiStart": "2020-09-10T18:29:40.176783326Z",
+      "papiTotalTimeSeconds": 309.133253,
+      "shardIndex": 7,
+      "startupTimeSeconds": 39.139208,
+      "userCommandTimeSeconds": 112.142704
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CreateSequenceGroupingTSV": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 59.311,
+      "cromwellEnd": "2020-09-10T18:16:07.950Z",
+      "cromwellStart": "2020-09-10T18:12:50.400Z",
+      "cromwellTotalTimeSeconds": 197.55,
+      "delocalizationTimeSeconds": 11.522968,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 12,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 10,
+          "type": "SSD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 57.629382,
+      "localizationTimeSeconds": 18.263088,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/5720057325165114636",
+      "otherTimeSeconds": 18.681607999999983,
+      "papiCreate": "2020-09-10T18:12:52.104598Z",
+      "papiEnd": "2020-09-10T18:15:10.343773794Z",
+      "papiStart": "2020-09-10T18:12:52.983531951Z",
+      "papiTotalTimeSeconds": 138.239175,
+      "shardIndex": -1,
+      "startupTimeSeconds": 30.054886,
+      "userCommandTimeSeconds": 2.087243
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.CrossCheckFingerprints": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 123.508,
+      "cromwellEnd": "2020-09-10T23:42:50.358Z",
+      "cromwellStart": "2020-09-10T23:35:19.900Z",
+      "cromwellTotalTimeSeconds": 450.458,
+      "delocalizationTimeSeconds": 9.249604,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 28,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 85.306782,
+      "localizationTimeSeconds": 144.733848,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/8575822631665672709",
+      "otherTimeSeconds": 18.118229999999983,
+      "papiCreate": "2020-09-10T23:35:20.956905Z",
+      "papiEnd": "2020-09-10T23:40:47.907313705Z",
+      "papiStart": "2020-09-10T23:35:31.098663858Z",
+      "papiTotalTimeSeconds": 326.950408,
+      "shardIndex": -1,
+      "startupTimeSeconds": 39.813518,
+      "userCommandTimeSeconds": 29.728426
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.GatherBamFiles": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 59.667,
+      "cromwellEnd": "2020-09-11T00:21:59.394Z",
+      "cromwellStart": "2020-09-11T00:09:18.541Z",
+      "cromwellTotalTimeSeconds": 760.853,
+      "delocalizationTimeSeconds": 90.668374,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 36,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 86.61621,
+      "localizationTimeSeconds": 200.113011,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/3326217316676553123",
+      "otherTimeSeconds": 20.38235700000007,
+      "papiCreate": "2020-09-11T00:09:20.389332Z",
+      "papiEnd": "2020-09-11T00:21:01.575703383Z",
+      "papiStart": "2020-09-11T00:09:30.165443483Z",
+      "papiTotalTimeSeconds": 701.186371,
+      "shardIndex": -1,
+      "startupTimeSeconds": 39.727202,
+      "userCommandTimeSeconds": 263.679217
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.GatherBqsrReports": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 25.632,
+      "cromwellEnd": "2020-09-10T23:50:22.218Z",
+      "cromwellStart": "2020-09-10T23:45:27.461Z",
+      "cromwellTotalTimeSeconds": 294.757,
+      "delocalizationTimeSeconds": 11.839465,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 20,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 116.391283,
+      "localizationTimeSeconds": 50.12702,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/6392019651057429008",
+      "otherTimeSeconds": 17.782024000000007,
+      "papiCreate": "2020-09-10T23:45:29.139078Z",
+      "papiEnd": "2020-09-10T23:49:58.264506748Z",
+      "papiStart": "2020-09-10T23:45:39.098983383Z",
+      "papiTotalTimeSeconds": 269.125428,
+      "shardIndex": -1,
+      "startupTimeSeconds": 40.360387,
+      "userCommandTimeSeconds": 32.625249
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.GetBwaVersion": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 54.646,
+      "cromwellEnd": "2020-09-10T18:17:32.453Z",
+      "cromwellStart": "2020-09-10T18:12:49.374Z",
+      "cromwellTotalTimeSeconds": 283.079,
+      "delocalizationTimeSeconds": 9.772427,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 10,
+          "type": "SSD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 134.815772,
+      "localizationTimeSeconds": 24.643163,
+      "machineType": "g1-small",
+      "operationId": "projects/broad-gotc-dev/operations/16931645408669069820",
+      "otherTimeSeconds": 22.932270999999986,
+      "papiCreate": "2020-09-10T18:12:50.708520Z",
+      "papiEnd": "2020-09-10T18:16:39.141515759Z",
+      "papiStart": "2020-09-10T18:12:52.983458794Z",
+      "papiTotalTimeSeconds": 228.432995,
+      "shardIndex": -1,
+      "startupTimeSeconds": 33.177783,
+      "userCommandTimeSeconds": 3.091579
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.MarkDuplicates": {
+      "attempt": 2,
+      "cromwellAdditionalTotalTimeSeconds": 623.274,
+      "cromwellEnd": "2020-09-10T21:59:20.361Z",
+      "cromwellStart": "2020-09-10T20:15:46.281Z",
+      "cromwellTotalTimeSeconds": 6214.08,
+      "delocalizationTimeSeconds": 2222.908321,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 59,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 92.656387,
+      "localizationTimeSeconds": 223.40135,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/14579065794684618431",
+      "otherTimeSeconds": 24.614999000000353,
+      "papiCreate": "2020-09-10T20:15:47.355676Z",
+      "papiEnd": "2020-09-10T21:48:58.161210438Z",
+      "papiStart": "2020-09-10T20:15:57.665515777Z",
+      "papiTotalTimeSeconds": 5590.805534,
+      "shardIndex": -1,
+      "startupTimeSeconds": 42.173594,
+      "userCommandTimeSeconds": 2985.050883
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.SamToFastqAndBwaMemAndMba.shard_0000": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 90.881,
+      "cromwellEnd": "2020-09-10T18:29:40.733Z",
+      "cromwellStart": "2020-09-10T18:17:34.233Z",
+      "cromwellTotalTimeSeconds": 726.5,
+      "delocalizationTimeSeconds": 16.43608,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 32,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 43.502554,
+      "localizationTimeSeconds": 26.013223,
+      "machineType": "n1-highcpu-16",
+      "operationId": "projects/broad-gotc-dev/operations/10857426936787442386",
+      "otherTimeSeconds": 23.660240000000044,
+      "papiCreate": "2020-09-10T18:18:23.412650Z",
+      "papiEnd": "2020-09-10T18:28:59.031897777Z",
+      "papiStart": "2020-09-10T18:18:33.900803075Z",
+      "papiTotalTimeSeconds": 635.619247,
+      "shardIndex": 0,
+      "startupTimeSeconds": 38.515302,
+      "userCommandTimeSeconds": 487.491848
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.SamToFastqAndBwaMemAndMba.shard_0001": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 212.885,
+      "cromwellEnd": "2020-09-10T18:31:05.389Z",
+      "cromwellStart": "2020-09-10T18:17:34.234Z",
+      "cromwellTotalTimeSeconds": 811.155,
+      "delocalizationTimeSeconds": 17.465623,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 32,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 44.364888,
+      "localizationTimeSeconds": 22.953334,
+      "machineType": "n1-highcpu-16",
+      "operationId": "projects/broad-gotc-dev/operations/6542424815764366082",
+      "otherTimeSeconds": 23.506567000000018,
+      "papiCreate": "2020-09-10T18:18:23.405442Z",
+      "papiEnd": "2020-09-10T18:28:21.675103227Z",
+      "papiStart": "2020-09-10T18:18:33.900140350Z",
+      "papiTotalTimeSeconds": 598.269661,
+      "shardIndex": 1,
+      "startupTimeSeconds": 42.678259,
+      "userCommandTimeSeconds": 447.30099
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.SamToFastqAndBwaMemAndMba.shard_0002": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 59.236,
+      "cromwellEnd": "2020-09-10T18:28:50.749Z",
+      "cromwellStart": "2020-09-10T18:17:34.234Z",
+      "cromwellTotalTimeSeconds": 676.515,
+      "delocalizationTimeSeconds": 18.191781,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 32,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 44.359896,
+      "localizationTimeSeconds": 23.119252,
+      "machineType": "n1-highcpu-16",
+      "operationId": "projects/broad-gotc-dev/operations/10576619300546890078",
+      "otherTimeSeconds": 24.193489,
+      "papiCreate": "2020-09-10T18:18:23.414864Z",
+      "papiEnd": "2020-09-10T18:28:40.693664102Z",
+      "papiStart": "2020-09-10T18:18:33.900141400Z",
+      "papiTotalTimeSeconds": 617.2788,
+      "shardIndex": 2,
+      "startupTimeSeconds": 39.089096,
+      "userCommandTimeSeconds": 468.325286
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.SamToFastqAndBwaMemAndMba.shard_0003": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 98.974,
+      "cromwellEnd": "2020-09-10T18:29:15.229Z",
+      "cromwellStart": "2020-09-10T18:17:34.232Z",
+      "cromwellTotalTimeSeconds": 700.997,
+      "delocalizationTimeSeconds": 18.6042,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 32,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 44.859707,
+      "localizationTimeSeconds": 23.976211,
+      "machineType": "n1-highcpu-16",
+      "operationId": "projects/broad-gotc-dev/operations/2143131311289336843",
+      "otherTimeSeconds": 24.30728499999998,
+      "papiCreate": "2020-09-10T18:18:23.393189Z",
+      "papiEnd": "2020-09-10T18:28:25.416440189Z",
+      "papiStart": "2020-09-10T18:18:33.901213229Z",
+      "papiTotalTimeSeconds": 602.023251,
+      "shardIndex": 3,
+      "startupTimeSeconds": 38.635899,
+      "userCommandTimeSeconds": 451.639949
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.SamToFastqAndBwaMemAndMba.shard_0004": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 60.953,
+      "cromwellEnd": "2020-09-10T18:29:24.922Z",
+      "cromwellStart": "2020-09-10T18:17:34.232Z",
+      "cromwellTotalTimeSeconds": 710.69,
+      "delocalizationTimeSeconds": 18.985612,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 32,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 45.095573,
+      "localizationTimeSeconds": 23.056695,
+      "machineType": "n1-highcpu-16",
+      "operationId": "projects/broad-gotc-dev/operations/8556255123699132064",
+      "otherTimeSeconds": 29.445329000000015,
+      "papiCreate": "2020-09-10T18:18:23.376299Z",
+      "papiEnd": "2020-09-10T18:29:13.113302620Z",
+      "papiStart": "2020-09-10T18:18:33.903521569Z",
+      "papiTotalTimeSeconds": 649.737003,
+      "shardIndex": 4,
+      "startupTimeSeconds": 39.458856,
+      "userCommandTimeSeconds": 493.694938
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.SamToFastqAndBwaMemAndMba.shard_0005": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 190.988,
+      "cromwellEnd": "2020-09-10T18:31:05.388Z",
+      "cromwellStart": "2020-09-10T18:17:34.234Z",
+      "cromwellTotalTimeSeconds": 811.154,
+      "delocalizationTimeSeconds": 17.575132,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 32,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 44.6918,
+      "localizationTimeSeconds": 22.985396,
+      "machineType": "n1-highcpu-16",
+      "operationId": "projects/broad-gotc-dev/operations/6134373210338446734",
+      "otherTimeSeconds": 23.497135999999955,
+      "papiCreate": "2020-09-10T18:18:23.436077Z",
+      "papiEnd": "2020-09-10T18:28:43.602385352Z",
+      "papiStart": "2020-09-10T18:18:33.900238095Z",
+      "papiTotalTimeSeconds": 620.166308,
+      "shardIndex": 5,
+      "startupTimeSeconds": 38.474426,
+      "userCommandTimeSeconds": 472.942418
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.SamToFastqAndBwaMemAndMba.shard_0006": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 85.362,
+      "cromwellEnd": "2020-09-10T18:29:25.431Z",
+      "cromwellStart": "2020-09-10T18:17:34.233Z",
+      "cromwellTotalTimeSeconds": 711.198,
+      "delocalizationTimeSeconds": 18.123144,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 32,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 45.074022,
+      "localizationTimeSeconds": 23.648862,
+      "machineType": "n1-highcpu-16",
+      "operationId": "projects/broad-gotc-dev/operations/4349452215105350595",
+      "otherTimeSeconds": 23.500071000000048,
+      "papiCreate": "2020-09-10T18:18:23.394358Z",
+      "papiEnd": "2020-09-10T18:28:49.230673736Z",
+      "papiStart": "2020-09-10T18:18:33.900834170Z",
+      "papiTotalTimeSeconds": 625.836315,
+      "shardIndex": 6,
+      "startupTimeSeconds": 39.165213,
+      "userCommandTimeSeconds": 476.325003
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.SamToFastqAndBwaMemAndMba.shard_0007": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 88.565,
+      "cromwellEnd": "2020-09-10T18:29:15.228Z",
+      "cromwellStart": "2020-09-10T18:17:34.233Z",
+      "cromwellTotalTimeSeconds": 700.995,
+      "delocalizationTimeSeconds": 17.663301,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "d-4767bb194435405ce88d8727e14b7855": {
+          "name": "d-4767bb194435405ce88d8727e14b7855",
+          "sizeGb": 30,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 32,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 44.480579,
+      "localizationTimeSeconds": 23.256518,
+      "machineType": "n1-highcpu-16",
+      "operationId": "projects/broad-gotc-dev/operations/13127873276300013112",
+      "otherTimeSeconds": 23.799814999999967,
+      "papiCreate": "2020-09-10T18:18:23.394315Z",
+      "papiEnd": "2020-09-10T18:28:35.824597633Z",
+      "papiStart": "2020-09-10T18:18:33.900347849Z",
+      "papiTotalTimeSeconds": 612.430282,
+      "shardIndex": 7,
+      "startupTimeSeconds": 37.80467,
+      "userCommandTimeSeconds": 465.425399
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.SortSampleBam": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 391.84,
+      "cromwellEnd": "2020-09-10T23:35:13.125Z",
+      "cromwellStart": "2020-09-10T21:59:22.192Z",
+      "cromwellTotalTimeSeconds": 5750.933,
+      "delocalizationTimeSeconds": 986.645102,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 15,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 63,
+          "type": "HDD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 77.976663,
+      "localizationTimeSeconds": 174.601474,
+      "machineType": "n1-standard-2",
+      "operationId": "projects/broad-gotc-dev/operations/11834570953270444210",
+      "otherTimeSeconds": 26.876048000000992,
+      "papiCreate": "2020-09-10T21:59:25.561227Z",
+      "papiEnd": "2020-09-10T23:28:44.653809994Z",
+      "papiStart": "2020-09-10T21:59:35.841515162Z",
+      "papiTotalTimeSeconds": 5359.092582,
+      "shardIndex": -1,
+      "startupTimeSeconds": 39.369785,
+      "userCommandTimeSeconds": 4053.62351
+    },
+    "ExomeGermlineSingleSample.UnmappedBamToAlignedBam.SumFloats": {
+      "attempt": 1,
+      "cromwellAdditionalTotalTimeSeconds": 63.105,
+      "cromwellEnd": "2020-09-10T18:34:56.929Z",
+      "cromwellStart": "2020-09-10T18:31:18.365Z",
+      "cromwellTotalTimeSeconds": 218.564,
+      "delocalizationTimeSeconds": 8.543339,
+      "disks": {
+        "boot-disk": {
+          "name": "boot-disk",
+          "sizeGb": 12,
+          "type": "HDD"
+        },
+        "local-disk": {
+          "name": "local-disk",
+          "sizeGb": 10,
+          "type": "SSD"
+        }
+      },
+      "dockerImagePullTimeSeconds": 63.137108,
+      "localizationTimeSeconds": 20.706103,
+      "machineType": "n1-standard-1",
+      "operationId": "projects/broad-gotc-dev/operations/12765164908862050871",
+      "otherTimeSeconds": 19.330725,
+      "papiCreate": "2020-09-10T18:31:19.799971Z",
+      "papiEnd": "2020-09-10T18:33:55.258485475Z",
+      "papiStart": "2020-09-10T18:31:29.371805787Z",
+      "papiTotalTimeSeconds": 155.458514,
+      "shardIndex": -1,
+      "startupTimeSeconds": 40.096608,
+      "userCommandTimeSeconds": 3.644631
+    }
+  },
+  "version": "0.0.3",
+  "workflowId": "b7d5fe15-39fb-4b24-bd7a-da1c818fe688"
+}

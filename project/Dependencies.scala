@@ -71,7 +71,7 @@ object Dependencies {
   private val jaxbV = "2.3.2" // scala-steward:off
   private val kindProjectorV = "0.9.9"
   private val kittensV = "2.1.0"
-  private val liquibaseSlf4jV = "3.0.0"
+  private val liquibaseSlf4jV = "4.0.0"
   // Scala Steward wanted to upgrade liquibase-core to 3.10.2 but that version does not find some uniqueness
   // constraints and models datatypes in ways that are incompatible with our test expectations.
   // liquibase-core 4.0.0 did not have either of those problems but produced tons of strange warnings at runtime

@@ -41,21 +41,21 @@ class ComparerTestMethods(unittest.TestCase):
 
     def test_compare_valid_jsons(self) -> None:
         cases = [
-            ("papiv1_version2_good.json", "papiv2_version2_good.json"),
+            ("papiv1_version3_good.json", "papiv2_version3_good.json"),
         ]
 
         for case in cases:
             with self.subTest(case=case):
                 json_1, json_2 = [json_from_path(p) for p in [case[0], case[1]]]
                 actual = self.__compare_for_exome_germline_single_sample(json_1, json_2)
-                expected = self.__read_resource("good_comparison.csv")
+                expected = self.__read_resource("version3_comparison_good.csv")
                 self.assertEqual(actual, expected)
 
     def test_compare_to_self(self) -> None:
         """ Sanity check comparing a digest to itself, which should produce 0.00% increases for everything. """
         cases = [
-            ("papiv1_version2_good.json", "papiv1_version2_good.json"),
-            ("papiv2_version2_good.json", "papiv2_version2_good.json"),
+            ("papiv1_version3_good.json", "papiv1_version3_good.json"),
+            ("papiv2_version3_good.json", "papiv2_version3_good.json"),
         ]
 
         for case in cases:
@@ -68,7 +68,7 @@ class ComparerTestMethods(unittest.TestCase):
                 # Skip the four header rows + blank line.
                 for i in range(5, len(actual)):
                     for j in percent_column_indexes:
-                        self.assertEqual(actual[i][j], "0.00%")
+                        self.assertEqual(actual[i][j], "0.00%", f'with row index = {i} and column index = {j}')
 
     first_digest = json.loads("""
         {

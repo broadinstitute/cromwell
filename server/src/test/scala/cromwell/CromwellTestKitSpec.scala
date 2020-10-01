@@ -19,7 +19,7 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadAct
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteActor.SaveCallCacheHashes
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheWriteSuccess
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.WorkflowSubmittedToStore
-import cromwell.engine.workflow.workflowstore.{InMemorySubWorkflowStore, InMemoryWorkflowStore, WorkflowStoreActor}
+import cromwell.engine.workflow.workflowstore.{CoordinatedWorkflowStoreAccess, InMemorySubWorkflowStore, InMemoryWorkflowStore, WorkflowStoreActor}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteSuccess, JobStoreWriterCommand}
 import cromwell.server.{CromwellRootActor, CromwellSystem}
 import cromwell.services.{FailedMetadataJsonResponse, MetadataJsonResponse, ServiceRegistryActor, SuccessfulMetadataJsonResponse}
@@ -266,6 +266,7 @@ abstract class CromwellTestKitSpec(val twms: TestWorkflowManagerSystem = default
   implicit val defaultPatience = PatienceConfig(timeout = Span(200, Seconds), interval = Span(1000, Millis))
   implicit val ec = system.dispatcher
   val dummyServiceRegistryActor = system.actorOf(Props.empty)
+  val dummyWorkflowStoreAccess = CoordinatedWorkflowStoreAccess(system.actorOf(Props.empty))
   val dummyLogCopyRouter = system.actorOf(Props.empty)
 
   // Allow to use shouldEqual between 2 WdlTypes while acknowledging for edge cases

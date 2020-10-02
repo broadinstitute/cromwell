@@ -1,9 +1,6 @@
 package cromwell.filesystems.drs
 
-import java.nio.channels.ReadableByteChannel
-
-import cats.effect.IO
-import cloud.nio.impl.drs.MarthaResponse
+import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
 import com.google.cloud.NoCredentials
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.http.impl.client.HttpClientBuilder
@@ -18,14 +15,12 @@ class DrsResolverSpec extends AnyFlatSpec with Matchers {
   private val marthaV2Config: Config = ConfigFactory.parseMap(
     Map(
       "martha.url" -> "https://martha-url/martha_v2",
-      "martha.request.json-template" -> """{"url": "${drsPath}"}"""
     ).asJava
   )
 
   private val marthaV3Config: Config = ConfigFactory.parseMap(
     Map(
       "martha.url" -> "https://martha-url/martha_v3",
-      "martha.request.json-template" -> """{"url": "${drsPath}"}"""
     ).asJava
   )
 
@@ -33,7 +28,7 @@ class DrsResolverSpec extends AnyFlatSpec with Matchers {
 
   private lazy val httpClientBuilder = HttpClientBuilder.create()
 
-  private val drsReadInterpreter: MarthaResponse => IO[ReadableByteChannel] = _ =>
+  private val drsReadInterpreter: DrsReadInterpreter = (_, _) =>
     throw new UnsupportedOperationException("Currently DrsResolverSpec doesn't need to use drs read interpreter.")
 
   private val mockFileSystemProviderForMarthaV2 = new MockDrsCloudNioFileSystemProvider(marthaV2Config, fakeCredentials, httpClientBuilder, drsReadInterpreter)
@@ -48,7 +43,13 @@ class DrsResolverSpec extends AnyFlatSpec with Matchers {
   it should "find DRS path from a GCS path" in {
     val drsPath = drsPathBuilderForMarthaV2.build(MockDrsPaths.drsPathResolvingGcsPath).get.asInstanceOf[DrsPath]
 
-    DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync() should be (MockDrsPaths.gcsRelativePath)
+    DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync() should be (MockDrsPaths.drsRelativePath)
+  }
+
+  it should "find DRS path from a path replacing characters" in {
+    val drsPath = drsPathBuilderForMarthaV2.build(MockDrsPaths.drsPathWithNonPathChars).get.asInstanceOf[DrsPath]
+
+    DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync() should be (MockDrsPaths.drsReplacedChar)
   }
 
   it should "find DRS path from a file name" in {

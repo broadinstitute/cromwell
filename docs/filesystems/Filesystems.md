@@ -20,7 +20,6 @@ filesystems {
         config {
           martha {
             url = "https://martha-url-here"
-            request.json-template = """{"url": "${drsPath}"}"""
           }
         }
       }

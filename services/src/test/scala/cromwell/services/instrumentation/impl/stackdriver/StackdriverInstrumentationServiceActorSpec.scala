@@ -15,28 +15,29 @@ import scala.concurrent.duration._
 class StackdriverInstrumentationServiceActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually {
   behavior of "StackdriverInstrumentationServiceActor"
 
-  val MaxWaitTime = 2.minutes
+  private val MaxWaitTime = 2.minutes
   implicit val pc: PatienceConfig = PatienceConfig(MaxWaitTime)
 
-  val globalConfig = ConfigFactory.parseString(
+  private val globalConfig = ConfigFactory.parseString(
     s"""
        |google {
        |  application-name = "cromwell"
        |  auths = [
        |    {
        |      name = "application-default"
-       |      scheme = "application_default"
+       |      scheme = "mock"
        |    }
        |  ]
        |}
       """.stripMargin
   )
 
-  val registryProbe = TestProbe().ref
+  private val registryProbe = TestProbe().ref
   val resourceLabels = Map("project_id" -> "my-project")
 
-  val testBucket = CromwellBucket(List("test_prefix"), NonEmptyList.of("test", "metric", "bucket"))
-  val testGaugeBucket = CromwellBucket(List("test_prefix"), NonEmptyList.of("test", "gauge", "metric", "bucket"))
+  private val testBucket = CromwellBucket(List("test_prefix"), NonEmptyList.of("test", "metric", "bucket"))
+  private val testGaugeBucket =
+    CromwellBucket(List("test_prefix"), NonEmptyList.of("test", "gauge", "metric", "bucket"))
 
 
   it should "correctly receive the metrics with resource labels" in {

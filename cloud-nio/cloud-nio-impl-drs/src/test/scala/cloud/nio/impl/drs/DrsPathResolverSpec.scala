@@ -3,7 +3,7 @@ package cloud.nio.impl.drs
 import java.nio.file.attribute.FileTime
 import java.time.OffsetDateTime
 
-import cats.effect.IO
+import cloud.nio.impl.drs.DrsCloudNioRegularFileAttributes._
 import cloud.nio.impl.drs.MarthaResponseSupport.convertMarthaResponseV2ToV3
 import io.circe.{Json, JsonObject}
 import org.apache.http.ProtocolVersion
@@ -31,6 +31,7 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with Matchers {
         name = Option("actual_file_name"),
         size = Option(34905345),
         checksums = Option(Array(ChecksumObject(checksum = md5HashValue, `type` = "md5"), ChecksumObject(checksum = crcHashValue, `type` = "crc32c"))),
+        created = Option("2020-04-27T15:56:09.696Z"),
         updated = Option("2020-04-27T15:56:09.696Z"),
         urls = Array(Url("s3://my-s3-bucket/file-name"), Url("gs://my-gs-bucket/file-name"))
       )
@@ -44,9 +45,8 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with Matchers {
 
   private val fullMarthaResponse = MarthaResponse(
     size = Option(34905345),
+    timeCreated = Option(OffsetDateTime.parse("2020-04-27T15:56:09.696Z").toString),
     timeUpdated = Option(OffsetDateTime.parse("2020-04-27T15:56:09.696Z").toString),
-    bucket = Option("my-gs-bucket"),
-    name = Option("file-name"),
     gsUri = Option("gs://my-gs-bucket/file-name"),
     googleServiceAccount = Option(mockGSA),
     fileName = Option("actual_file_name"),
@@ -66,35 +66,35 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with Matchers {
       .copy(timeUpdated = fullMarthaResponse.timeUpdated.map(_.stripSuffix("Z") + "BADTZ"))
 
   private val alfredHashValue = "xrd"
-  private val completeHashesMap = Map(
+  private val completeHashesMap = Option(Map(
     "betty" -> "abc123",
     "charles" -> "456",
     "alfred" -> alfredHashValue,
     "sha256" -> shaHashValue,
     "crc32c" -> crcHashValue,
     "md5" -> md5HashValue,
-  )
+  ))
 
-  private val missingCRCHashesMap = Map(
+  private val missingCRCHashesMap = Option(Map(
     "alfred" -> alfredHashValue,
     "sha256" -> shaHashValue,
     "betty" -> "abc123",
     "md5" -> md5HashValue,
     "charles" -> "456",
-  )
+  ))
 
-  private val onlySHAHashesMap = Map(
+  private val onlySHAHashesMap = Option(Map(
     "betty" -> "abc123",
     "charles" -> "456",
     "alfred" -> alfredHashValue,
     "sha256" -> shaHashValue,
-  )
+  ))
 
-  private val noPreferredHashesMap = Map(
+  private val noPreferredHashesMap = Option(Map(
     "alfred" -> alfredHashValue,
     "betty" -> "abc123",
     "charles" -> "456",
-  )
+  ))
 
   behavior of "fileHash()"
 
@@ -192,26 +192,41 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with Matchers {
   }
 
   it should "resolve an ISO-8601 date with timezone" in {
-    val attributes = new DrsCloudNioRegularFileAttributes("drs://my_awesome_drs", IO.pure(fullMarthaResponse))
-    attributes.lastModifiedTime() should
-      be(FileTime.from(OffsetDateTime.parse("2020-04-27T15:56:09.696Z").toInstant))
+    val lastModifiedTimeIO = convertToFileTime(
+      "drs://my_awesome_drs",
+      MarthaField.TimeUpdated,
+      fullMarthaResponse.timeUpdated,
+    )
+    lastModifiedTimeIO.unsafeRunSync() should
+      be(Option(FileTime.from(OffsetDateTime.parse("2020-04-27T15:56:09.696Z").toInstant)))
   }
 
   it should "resolve an ISO-8601 date without timezone" in {
-    val attributes = new DrsCloudNioRegularFileAttributes("drs://my_awesome_drs", IO.pure(fullMarthaResponseNoTz))
-    attributes.lastModifiedTime() should
-      be(FileTime.from(OffsetDateTime.parse("2020-04-27T15:56:09.696Z").toInstant))
+    val lastModifiedTimeIO = convertToFileTime(
+      "drs://my_awesome_drs",
+      MarthaField.TimeUpdated,
+      fullMarthaResponseNoTz.timeUpdated,
+    )
+    lastModifiedTimeIO.unsafeRunSync() should
+      be(Option(FileTime.from(OffsetDateTime.parse("2020-04-27T15:56:09.696Z").toInstant)))
   }
 
   it should "not resolve an date that does not contain a timeUpdated" in {
-    val attributes = new DrsCloudNioRegularFileAttributes("drs://my_awesome_drs", IO.pure(fullMarthaResponseNoTime))
-    the[RuntimeException] thrownBy attributes.lastModifiedTime() should have message
-      "Failed to resolve DRS path drs://my_awesome_drs. The response from Martha doesn't contain the key 'timeUpdated'."
+    val lastModifiedTimeIO = convertToFileTime(
+      "drs://my_awesome_drs",
+      MarthaField.TimeUpdated,
+      fullMarthaResponseNoTime.timeUpdated,
+    )
+    lastModifiedTimeIO.unsafeRunSync() should be(None)
   }
 
   it should "not resolve an date that is not ISO-8601" in {
-    val attributes = new DrsCloudNioRegularFileAttributes("drs://my_awesome_drs", IO.pure(fullMarthaResponseBadTz))
-    the[RuntimeException] thrownBy attributes.lastModifiedTime() should have message
+    val lastModifiedTimeIO = convertToFileTime(
+      "drs://my_awesome_drs",
+      MarthaField.TimeUpdated,
+      fullMarthaResponseBadTz.timeUpdated,
+    )
+    the[RuntimeException] thrownBy lastModifiedTimeIO.unsafeRunSync() should have message
       "Error while parsing 'timeUpdated' value from Martha to FileTime for DRS path drs://my_awesome_drs. " +
         "Reason: DateTimeParseException: Text '2020-04-27T15:56:09.696BADTZ' could not be parsed at index 23."
   }

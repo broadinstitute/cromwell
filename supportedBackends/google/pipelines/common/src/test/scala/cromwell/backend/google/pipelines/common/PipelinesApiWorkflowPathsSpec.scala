@@ -3,7 +3,6 @@ package cromwell.backend.google.pipelines.common
 import com.google.cloud.NoCredentials
 import common.collections.EnhancedCollections._
 import cromwell.backend.{BackendSpec, BackendWorkflowDescriptor}
-import cromwell.cloudsupport.gcp.auth.GoogleAuthModeSpec
 import cromwell.core.TestKitSuite
 import cromwell.util.SampleWdl
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -30,7 +29,6 @@ class PipelinesApiWorkflowPathsSpec extends TestKitSuite with AnyFlatSpecLike wi
   }
 
   it should "map the correct paths" in {
-    GoogleAuthModeSpec.assumeHasApplicationDefaultCredentials()
     workflowPaths.executionRoot.pathAsString should be("gs://my-cromwell-workflows-bucket/")
     workflowPaths.workflowRoot.pathAsString should
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/")

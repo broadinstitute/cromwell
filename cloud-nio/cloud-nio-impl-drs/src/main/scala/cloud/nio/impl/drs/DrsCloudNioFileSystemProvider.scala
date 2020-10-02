@@ -1,39 +1,40 @@
 package cloud.nio.impl.drs
 
 import java.net.URI
-import java.nio.channels.ReadableByteChannel
 
-import cats.effect.IO
+import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
 import cloud.nio.spi.{CloudNioFileProvider, CloudNioFileSystemProvider}
 import com.google.auth.oauth2.OAuth2Credentials
 import com.typesafe.config.Config
 import org.apache.http.impl.client.HttpClientBuilder
 import net.ceedubs.ficus.Ficus._
+
 import scala.concurrent.duration.FiniteDuration
 
 
 class DrsCloudNioFileSystemProvider(rootConfig: Config,
                                     authCredentials: OAuth2Credentials,
                                     httpClientBuilder: HttpClientBuilder,
-                                    drsReadInterpreter: MarthaResponse => IO[ReadableByteChannel],
+                                    drsReadInterpreter: DrsReadInterpreter,
                                     marthaUrlOverrideForTest: Option[String] = None) extends CloudNioFileSystemProvider {
 
   /*
    * `marthaUrlOverrideForTest` is a workflow option to override the default `martha.url` specified in the global config.
    * This is only used for testing purposes.
    */
-  lazy val marthaUri = marthaUrlOverrideForTest.getOrElse(rootConfig.getString("martha.url"))
-  lazy val marthaRequestJsonTemplate = rootConfig.getString("martha.request.json-template")
+  lazy val marthaUrl: String = marthaUrlOverrideForTest.getOrElse(rootConfig.getString("martha.url"))
 
-  lazy val drsConfig = DrsConfig(marthaUri, marthaRequestJsonTemplate)
+  lazy val drsConfig: DrsConfig = DrsConfig(marthaUrl)
 
-  lazy val accessTokenAcceptableTTL = rootConfig.as[FiniteDuration]("access-token-acceptable-ttl")
+  lazy val accessTokenAcceptableTTL: FiniteDuration = rootConfig.as[FiniteDuration]("access-token-acceptable-ttl")
 
-  lazy val drsPathResolver = EngineDrsPathResolver(drsConfig, httpClientBuilder, accessTokenAcceptableTTL, authCredentials)
+  lazy val drsPathResolver: EngineDrsPathResolver =
+    EngineDrsPathResolver(drsConfig, httpClientBuilder, accessTokenAcceptableTTL, authCredentials)
 
   override def config: Config = rootConfig
 
-  override def fileProvider: CloudNioFileProvider = new DrsCloudNioFileProvider(getScheme, drsPathResolver, httpClientBuilder, drsReadInterpreter)
+  override def fileProvider: CloudNioFileProvider =
+    new DrsCloudNioFileProvider(getScheme, drsPathResolver, drsReadInterpreter)
 
   override def isFatal(exception: Exception): Boolean = false
 

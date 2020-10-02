@@ -1,18 +1,17 @@
 package drs.localizer
 
+import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
 
+import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO, IOApp}
-import cloud.nio.impl.drs.DrsConfig
+import cloud.nio.impl.drs.{DrsConfig, MarthaField}
+import com.typesafe.scalalogging.StrictLogging
 import org.apache.http.impl.client.HttpClientBuilder
-import org.slf4j.LoggerFactory
 
 import scala.sys.process._
 
-object DrsLocalizerMain extends IOApp {
-
-  val logger = LoggerFactory.getLogger("DrsLocalizerLogger")
-
+object DrsLocalizerMain extends IOApp with StrictLogging {
 
   /* This assumes the args are as follows:
       0: DRS input
@@ -26,30 +25,26 @@ object DrsLocalizerMain extends IOApp {
     argsLength match {
       case 2 => new DrsLocalizerMain(args.head, args(1), None).resolveAndDownload()
       case 3 => new DrsLocalizerMain(args.head, args(1), Option(args(2))).resolveAndDownload()
-      case _ => {
+      case _ =>
         val argsList = if (args.nonEmpty) args.mkString(",") else "None"
         logger.error(s"Received $argsLength arguments. DRS input and download location path is required. Requester Pays billing project ID is optional. " +
           s"Arguments received: $argsList")
         IO(ExitCode.Error)
-      }
     }
   }
 }
 
-
-class DrsLocalizerMain(drsUrl: String, downloadLoc: String, requesterPaysId: Option[String]) {
+class DrsLocalizerMain(drsUrl: String, downloadLoc: String, requesterPaysId: Option[String]) extends StrictLogging {
 
   private final val RequesterPaysErrorMsg = "Bucket is requester pays bucket but no user project provided."
   private final val ExtractGcsUrlErrorMsg = "No resolved url starting with 'gs://' found from Martha response!"
-
-  final val requestTemplate = """{"url": "${drsPath}"}"""
 
   val httpClientBuilder: HttpClientBuilder = HttpClientBuilder.create()
 
   def getGcsDrsPathResolver: IO[GcsLocalizerDrsPathResolver] = {
     IO.pure {
       val marthaUrl = sys.env("MARTHA_URL")
-      val drsConfig = DrsConfig(marthaUrl, requestTemplate)
+      val drsConfig = DrsConfig(marthaUrl)
       new GcsLocalizerDrsPathResolver(drsConfig, httpClientBuilder)
     }
   }
@@ -124,26 +119,29 @@ class DrsLocalizerMain(drsUrl: String, downloadLoc: String, requesterPaysId: Opt
                           downloadLoc: String,
                           requesterPaysProjectIdOption: Option[String]) : IO[ExitCode] = {
 
-    DrsLocalizerMain.logger.info(s"Requester Pays project ID is $requesterPaysProjectIdOption")
-    DrsLocalizerMain.logger.info(s"Attempting to download $gcsUrl to $downloadLoc")
+    logger.info(s"Requester Pays project ID is $requesterPaysProjectIdOption")
+    logger.info(s"Attempting to download $gcsUrl to $downloadLoc")
 
     val returnCode = serviceAccountJsonOption match {
       case Some(sa) =>
         // if Martha returned a SA, use that SA for gsutil instead of default credentials
         val tempCredentialDir: Path = Files.createTempDirectory("gcloudTemp_").toAbsolutePath
         val saJsonPath: Path = tempCredentialDir.resolve("sa.json")
-        Files.write(saJsonPath, sa.getBytes("UTF-8")) // set to UTF-8
+        Files.write(saJsonPath, sa.getBytes(StandardCharsets.UTF_8)) // set to UTF-8
       val extraEnv = Map("CLOUDSDK_CONFIG" -> tempCredentialDir.toString)
 
-        val copyCommand = Seq("bash", "-c", downloadScript(gcsUrl, downloadLoc, Option(saJsonPath), requesterPaysProjectIdOption))
+        val copyCommand =
+          Seq("bash", "-c", downloadScript(gcsUrl, downloadLoc, Option(saJsonPath), requesterPaysProjectIdOption))
         // run the multiple bash script to download file and log stream sent to stdout and stderr using ProcessLogger
-        Process(copyCommand, None, extraEnv.toSeq: _*) ! ProcessLogger(DrsLocalizerMain.logger.info, DrsLocalizerMain.logger.error)
+        Process(copyCommand, None, extraEnv.toSeq: _*) ! ProcessLogger(logger.underlying.info, logger.underlying.error)
       case None =>
         /*
           No SA returned from Martha. gsutil will use the application default credentials.
           Run the multiple bash script to download file and log stream sent to stdout and stderr using ProcessLogger
          */
-        Process(Seq("bash", "-c", downloadScript(gcsUrl, downloadLoc, None, requesterPaysProjectIdOption))) ! ProcessLogger(DrsLocalizerMain.logger.info, DrsLocalizerMain.logger.error)
+        Process(
+          Seq("bash", "-c", downloadScript(gcsUrl, downloadLoc, None, requesterPaysProjectIdOption))
+        ) ! ProcessLogger(logger.underlying.info, logger.underlying.error)
     }
 
     IO(ExitCode(returnCode))
@@ -151,9 +149,10 @@ class DrsLocalizerMain(drsUrl: String, downloadLoc: String, requesterPaysId: Opt
 
 
   def resolveAndDownload(): IO[ExitCode] = {
+    val fields = NonEmptyList.of(MarthaField.GsUri, MarthaField.GoogleServiceAccount)
     for {
       localizerGcsDrsPathResolver <- getGcsDrsPathResolver
-      marthaResponse <- localizerGcsDrsPathResolver.resolveDrsThroughMartha(drsUrl)
+      marthaResponse <- localizerGcsDrsPathResolver.resolveDrsThroughMartha(drsUrl, fields)
       // Currently Martha only supports resolving DRS paths to GCS paths
       gcsUrl <- IO.fromEither(marthaResponse.gsUri.toRight(new RuntimeException(ExtractGcsUrlErrorMsg)))
       exitState <- downloadFileFromGcs(gcsUrl, marthaResponse.googleServiceAccount.map(_.data.toString), downloadLoc, requesterPaysId)

@@ -1,19 +1,19 @@
 package cromwell.filesystems.drs
 
-import java.io.ByteArrayInputStream
 import java.nio.channels.ReadableByteChannel
 
 import akka.actor.ActorSystem
 import cats.data.Validated.{Invalid, Valid}
 import cats.effect.IO
-import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, GcsFilePath, MarthaResponse}
+import cloud.nio.impl.drs.MarthaResponseSupport.getGcsBucketAndName
+import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, SADataObject}
 import com.google.api.services.oauth2.Oauth2Scopes
-import com.google.auth.oauth2.GoogleCredentials
+import com.google.auth.oauth2.OAuth2Credentials
 import com.google.cloud.storage.Storage.BlobGetOption
 import com.google.cloud.storage.{Blob, StorageException, StorageOptions}
 import com.typesafe.config.Config
 import cromwell.cloudsupport.gcp.GoogleConfiguration
-import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
+import cromwell.cloudsupport.gcp.auth.{GoogleAuthMode, UserServiceAccountMode}
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{PathBuilder, PathBuilderFactory}
 import org.apache.http.impl.client.HttpClientBuilder
@@ -38,42 +38,52 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
 
   private lazy val httpClientBuilder = HttpClientBuilder.create()
 
-  private def gcsInputStream(gcsFile: GcsFilePath,
-                             serviceAccountJson: String,
-                             requesterPaysProjectIdOption: Option[String]): IO[ReadableByteChannel] = {
-    val credentials = GoogleCredentials.fromStream(new ByteArrayInputStream(serviceAccountJson.getBytes()))
-    val storage = StorageOptions.newBuilder().setCredentials(credentials).build().getService
-
-    IO.delay {
-      val blob = storage.get(gcsFile.bucket, gcsFile.file)
-      blob.reader()
-    } handleErrorWith { throwable =>
-      (requesterPaysProjectIdOption, throwable) match {
-        case (Some(requesterPaysProjectId), storageException: StorageException)
-          if storageException.getMessage == "Bucket is requester pays bucket but no user project provided." =>
-          IO.delay {
-            val blob = storage.get(gcsFile.bucket, gcsFile.file, BlobGetOption.userProject(requesterPaysProjectId))
-            blob.reader(Blob.BlobSourceOption.userProject(requesterPaysProjectId))
+  private def gcsInputStream(gcsFile: String,
+                             credentials: OAuth2Credentials,
+                             requesterPaysProjectIdOption: Option[String],
+                            ): IO[ReadableByteChannel] = {
+    for {
+      storage <- IO(StorageOptions.newBuilder().setCredentials(credentials).build().getService)
+      gcsBucketAndName <- IO(getGcsBucketAndName(gcsFile))
+      (bucketName, objectName) = gcsBucketAndName
+      readChannel <- IO(storage.get(bucketName, objectName).reader()) handleErrorWith {
+        throwable =>
+          (requesterPaysProjectIdOption, throwable) match {
+            case (Some(requesterPaysProjectId), storageException: StorageException)
+              if storageException.getMessage == "Bucket is requester pays bucket but no user project provided." =>
+              IO(
+                storage
+                  .get(bucketName, objectName, BlobGetOption.userProject(requesterPaysProjectId))
+                  .reader(Blob.BlobSourceOption.userProject(requesterPaysProjectId))
+              )
+            case _ => IO.raiseError(throwable)
           }
-        case _ => IO.raiseError(throwable)
       }
-    }
+    } yield readChannel
   }
 
 
   private def drsReadInterpreter(options: WorkflowOptions, requesterPaysProjectIdOption: Option[String])
-                                (marthaResponse: MarthaResponse): IO[ReadableByteChannel] = {
-    val serviceAccountJsonIo = marthaResponse.googleServiceAccount match {
-      case Some(googleSA) => IO.pure(googleSA.data.toString)
-      case None => IO.fromEither(options.get(GoogleAuthMode.UserServiceAccountKey).toEither)
+                                (gsUri: Option[String], googleServiceAccount: Option[SADataObject])
+  : IO[ReadableByteChannel] = {
+    val readScopes = Nil // Pass in empty list of scopes and have the GCS API fill them in later.
+    val credentialsIo = googleServiceAccount match {
+      case Some(googleSA) =>
+        IO(
+          UserServiceAccountMode("martha_service_account").credentials(
+            Map(GoogleAuthMode.UserServiceAccountKey -> googleSA.data.noSpaces),
+            readScopes,
+          )
+        )
+      case None =>
+        IO(googleAuthMode.credentials(options.get(_).get, readScopes))
     }
 
     for {
-      serviceAccountJson <- serviceAccountJsonIo
+      credentials <- credentialsIo
       //Currently, Martha only supports resolving DRS paths to GCS paths
-      bucket <- IO.fromEither(marthaResponse.bucket.toRight(MarthaResponseMissingKeyException("bucket")))
-      filePath <- IO.fromEither(marthaResponse.name.toRight(MarthaResponseMissingKeyException("name")))
-      readableByteChannel <- gcsInputStream(GcsFilePath(bucket, filePath), serviceAccountJson, requesterPaysProjectIdOption)
+      gsUri <- IO.fromEither(gsUri.toRight(MarthaResponseMissingKeyException("gsUri")))
+      readableByteChannel <- gcsInputStream(gsUri, credentials, requesterPaysProjectIdOption)
     } yield readableByteChannel
   }
 

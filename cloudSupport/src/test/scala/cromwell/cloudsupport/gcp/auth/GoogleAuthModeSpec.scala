@@ -5,7 +5,6 @@ import java.security.KeyPairGenerator
 import java.util.Base64
 
 import com.google.api.client.http.{HttpHeaders, HttpResponseException}
-import com.google.auth.oauth2.GoogleCredentials
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode.OptionLookup
 import org.scalatest.Assertions._
 import org.scalatest.flatspec.AnyFlatSpec
@@ -55,7 +54,7 @@ object GoogleAuthModeSpec {
   }
 
   private lazy val tryApplicationDefaultCredentials: Try[Unit] = Try {
-    GoogleCredentials.getApplicationDefault
+    new ApplicationDefaultMode("application-default").credentials()
     ()
   }
 

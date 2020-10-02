@@ -9,13 +9,13 @@ class MockAuthModeSpec extends AnyFlatSpec with Matchers {
   behavior of "MockAuthMode"
 
   it should "generate a credential" in {
-    val mockAuthMode = MockAuthMode
+    val mockAuthMode = MockAuthMode("no_auth")
     val credentials = mockAuthMode.credentials()
     credentials.getAuthenticationType should be("OAuth2")
   }
 
   it should "requiresAuthFile" in {
-    val mockAuthMode = MockAuthMode
+    val mockAuthMode = MockAuthMode("no_auth")
     mockAuthMode.requiresAuthFile should be(false)
     succeed
   }

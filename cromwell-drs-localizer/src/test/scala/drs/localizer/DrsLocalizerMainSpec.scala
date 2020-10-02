@@ -2,8 +2,9 @@ package drs.localizer
 
 import java.nio.file.{Files, Path}
 
+import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO}
-import cloud.nio.impl.drs.{DrsConfig, MarthaResponse}
+import cloud.nio.impl.drs.{DrsConfig, MarthaField, MarthaResponse}
 import org.apache.http.impl.client.HttpClientBuilder
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -125,7 +126,7 @@ class MockDrsLocalizerMain(drsUrl: String,
                            requesterPaysId: Option[String]) extends DrsLocalizerMain(drsUrl, downloadLoc, requesterPaysId) {
 
   override def getGcsDrsPathResolver: IO[GcsLocalizerDrsPathResolver] = {
-    val mockDrsConfig = DrsConfig("https://abc/martha_v3", requestTemplate)
+    val mockDrsConfig = DrsConfig("https://abc/martha_v3")
     IO.pure(new MockGcsLocalizerDrsPathResolver(mockDrsConfig, httpClientBuilder))
   }
 
@@ -139,18 +140,17 @@ class MockDrsLocalizerMain(drsUrl: String,
 class MockGcsLocalizerDrsPathResolver(drsConfig: DrsConfig,
                                       httpClientBuilder: HttpClientBuilder) extends GcsLocalizerDrsPathResolver(drsConfig, httpClientBuilder) {
 
-  override def resolveDrsThroughMartha(drsPath: String): IO[MarthaResponse] = {
-    val (gcsUrl, bucketName, fileName) = drsPath match {
-      case MockDrsPaths.fakeDrsUrl => (Option("gs://abc/foo-123/abc123"), Option("abc"), Option("foo-123/abc123"))
-      case _ => (None, None, None)
+  override def resolveDrsThroughMartha(drsPath: String, fields: NonEmptyList[MarthaField.Value]): IO[MarthaResponse] = {
+    val gcsUrl = drsPath match {
+      case MockDrsPaths.fakeDrsUrl => Option("gs://abc/foo-123/abc123")
+      case _ => None
     }
 
     IO.pure(
       MarthaResponse(
         size = Option(1234),
+        timeCreated = None,
         timeUpdated = None,
-        bucket = bucketName,
-        name= fileName,
         gsUri = gcsUrl,
         googleServiceAccount = None,
         fileName = None,

@@ -52,7 +52,7 @@ class CromwellServerActor(cromwellSystem: CromwellSystem, gracefulShutdown: Bool
   val nonApiRoutes: Route = concat(engineRoutes, swaggerUiResourceRoute, wesRoutes)
   val allRoutes: Route = concat(apiRoutes, nonApiRoutes)
 
-  val serverBinding = Http().bindAndHandle(allRoutes, interface, port)
+  val serverBinding = Http().newServerAt(interface, port).bindFlow(allRoutes)
 
   CromwellShutdown.registerUnbindTask(actorSystem, serverBinding)
 

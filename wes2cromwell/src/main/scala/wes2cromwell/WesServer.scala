@@ -30,7 +30,7 @@ object WesServer extends App with WesRunRoutes {
 
   val routes: Route = runRoutes
 
-  Http().bindAndHandle(routes, interface, port)
+  Http().newServerAt(interface, port).bindFlow(routes)
 
   println(s"Server online. Listening at port:$port")
 

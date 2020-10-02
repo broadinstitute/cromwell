@@ -2,7 +2,7 @@ import sbt._
 
 object Dependencies {
   private val akkaHttpCirceIntegrationV = "1.34.0"
-  private val akkaHttpV = "10.1.12"
+  private val akkaHttpV = "10.2.1"
   val akkaV = "2.6.9" // When updating: Do we still need the merge "fix" from https://github.com/broadinstitute/cromwell/pull/5776 (not private because used in Merging.scala)
   private val aliyunBcsV = "6.2.4"
   private val aliyunCoreV = "4.5.10"

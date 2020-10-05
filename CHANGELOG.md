@@ -1,5 +1,22 @@
 # Cromwell Change Log
 
+## 54 Release Notes
+
+### Per-backend hog factors
+Cromwell now allows overriding system-level log factors on back-end level. First, Cromwell will try to use hog-factor 
+defined in the backend config, and if it is not defined, it will default to using system-wide hog factor.
+```conf
+backend {
+  providers {
+    PAPIv2 {
+      config {
+        hog-factor: 2
+      }
+    }
+  }
+}
+```
+
 ## 53 Release Notes
 
 ### Martha v3 Support

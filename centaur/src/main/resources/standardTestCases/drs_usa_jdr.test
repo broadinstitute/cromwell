@@ -16,9 +16,10 @@ metadata {
   status: Succeeded
 
   "outputs.drs_usa_jdr.path1" =
-    "/cromwell_root/jade.datarepo-dev.broadinstitute.org/v1_0c86170e-312d-4b39-a0a4-2a2bfaa24c7a_c0e40912-8b14-43f6-9a2f-b278144d0060/hapmap_3.3.hg38.vcf.gz"
-  "outputs.drs_usa_jdr.hash1" = "d05ac6b9a247a21ce0030c7494194da9"
-  "outputs.drs_usa_jdr.size1" = 62043448
+    "/cromwell_root/jade.datarepo-dev.broadinstitute.org/v1_f90f5d7f-c507-4e56-abfc-b965a66023fb_585f3f19-985f-43b0-ab6a-79fa4c8310fc/hello_jade.json"
+  "outputs.drs_usa_jdr.hash1" = "faf12e94c25bef7df62e4a5eb62573f5"
+  "outputs.drs_usa_jdr.size1" = 18.0
   "outputs.drs_usa_jdr.cloud1" =
-    "gs://broad-jade-dev-data-bucket/ca8edd48-e954-4c20-b911-b017fedffb67/c0e40912-8b14-43f6-9a2f-b278144d0060"
+    "gs://broad-jade-dev-data-bucket/ca8edd48-e954-4c20-b911-b017fedffb67/585f3f19-985f-43b0-ab6a-79fa4c8310fc"
+  "outputs.drs_usa_jdr.map1.hello" = "jade"
 }

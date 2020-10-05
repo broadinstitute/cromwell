@@ -8,6 +8,7 @@ import cats.effect.IO
 import cloud.nio.impl.drs.MarthaResponseSupport.getGcsBucketAndName
 import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, SADataObject}
 import com.google.api.services.oauth2.Oauth2Scopes
+import com.google.api.services.storage.StorageScopes
 import com.google.auth.oauth2.OAuth2Credentials
 import com.google.cloud.storage.Storage.BlobGetOption
 import com.google.cloud.storage.{Blob, StorageException, StorageOptions}
@@ -66,7 +67,7 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
   private def drsReadInterpreter(options: WorkflowOptions, requesterPaysProjectIdOption: Option[String])
                                 (gsUri: Option[String], googleServiceAccount: Option[SADataObject])
   : IO[ReadableByteChannel] = {
-    val readScopes = Nil // Pass in empty list of scopes and have the GCS API fill them in later.
+    val readScopes = List(StorageScopes.DEVSTORAGE_READ_ONLY)
     val credentialsIo = googleServiceAccount match {
       case Some(googleSA) =>
         IO(

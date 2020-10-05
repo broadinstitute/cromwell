@@ -114,6 +114,14 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with Matchers {
     DrsCloudNioRegularFileAttributes.getPreferredHash(noPreferredHashesMap) shouldBe Option(alfredHashValue)
   }
 
+  it should "return None when no hashes object is returned" in {
+    DrsCloudNioRegularFileAttributes.getPreferredHash(None) shouldBe Option(None)
+  }
+
+  it should "return None when an empty hash object is returned" in {
+    DrsCloudNioRegularFileAttributes.getPreferredHash(Option(Map.empty)) shouldBe Option(None)
+  }
+
   behavior of "convertMarthaResponseV2ToV3()"
 
   it should "convert a full martha_v2 response to a the standard Martha response" in {

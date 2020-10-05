@@ -1,9 +1,7 @@
 package cromwell.filesystems.drs
 
-import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
-import com.google.cloud.NoCredentials
+import cloud.nio.impl.drs.{MockDrsCloudNioFileSystemProvider, MockDrsPaths}
 import com.typesafe.config.{Config, ConfigFactory}
-import org.apache.http.impl.client.HttpClientBuilder
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -24,17 +22,10 @@ class DrsResolverSpec extends AnyFlatSpec with Matchers {
     ).asJava
   )
 
-  private lazy val fakeCredentials = NoCredentials.getInstance
-
-  private lazy val httpClientBuilder = HttpClientBuilder.create()
-
-  private val drsReadInterpreter: DrsReadInterpreter = (_, _) =>
-    throw new UnsupportedOperationException("Currently DrsResolverSpec doesn't need to use drs read interpreter.")
-
-  private val mockFileSystemProviderForMarthaV2 = new MockDrsCloudNioFileSystemProvider(marthaV2Config, fakeCredentials, httpClientBuilder, drsReadInterpreter)
+  private val mockFileSystemProviderForMarthaV2 = new MockDrsCloudNioFileSystemProvider(marthaV2Config)
   private val drsPathBuilderForMarthaV2 = DrsPathBuilder(mockFileSystemProviderForMarthaV2, None)
 
-  private val mockFileSystemProviderForMarthaV3 = new MockDrsCloudNioFileSystemProvider(marthaV3Config, fakeCredentials, httpClientBuilder, drsReadInterpreter)
+  private val mockFileSystemProviderForMarthaV3 = new MockDrsCloudNioFileSystemProvider(marthaV3Config)
   private val drsPathBuilderForMarthaV3 = DrsPathBuilder(mockFileSystemProviderForMarthaV3, None)
 
 

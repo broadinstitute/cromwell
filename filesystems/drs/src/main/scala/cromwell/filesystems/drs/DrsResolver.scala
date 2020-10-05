@@ -14,31 +14,6 @@ object DrsResolver {
 
   private val GcsProtocolLength: Int = 5 // length of 'gs://'
 
-  def getCloudPath(drsPath: DrsPath): IO[String] = {
-    val drsFileSystemProviderOption = drsPath.drsPath.getFileSystem.provider.cast[DrsCloudNioFileSystemProvider]
-
-    val noFileSystemForDrsError = s"Unable to cast file system provider to DrsCloudNioFileSystemProvider for DRS path $drsPath."
-
-    val pathIo = for {
-      drsFileSystemProvider <- toIO(drsFileSystemProviderOption, noFileSystemForDrsError)
-      marthaResponse <-
-        drsFileSystemProvider
-          .drsPathResolver
-          .resolveDrsThroughMartha(drsPath.pathAsString, NonEmptyList.one(MarthaField.GsUri))
-      gsUri <- IO.fromEither(marthaResponse.gsUri.toRight(new RuntimeException("gsUri not found")))
-    } yield gsUri
-
-    pathIo
-      .handleErrorWith(
-        exception =>
-          IO.raiseError(
-            new RuntimeException(
-              s"Error while resolving gsUri for DRS path: $drsPath. Error: ${ExceptionUtils.getMessage(exception)}"
-            )
-          )
-      )
-  }
-
   private def resolveError[A](drsPath: DrsPath)(throwable: Throwable): IO[A] = {
     IO.raiseError(
       new RuntimeException(

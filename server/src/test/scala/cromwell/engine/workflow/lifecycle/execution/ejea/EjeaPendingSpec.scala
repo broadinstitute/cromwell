@@ -42,7 +42,6 @@ class EjeaPendingSpec extends EngineJobExecutionActorSpec with CanValidateJobSto
         ejea ! Execute
 
         val tokenRequest = helper.jobTokenDispenserProbe.expectMsgClass(max = awaitTimeout, classOf[JobExecutionTokenRequest])
-        // 1 is the default hog-factor value defined in reference.conf
         tokenRequest.jobExecutionTokenType.hogFactor should be(expectedHogFactorValue)
       }
     }

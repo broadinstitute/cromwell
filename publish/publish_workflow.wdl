@@ -53,24 +53,24 @@ task doMajorRelease {
         echo 'Smoke test Cromwell and Womtool artifacts'
         cat > hello.wdl <<FIN
         task hello {
-        String name
+          String name
 
-        command {
-        echo 'hello ${name}!'
-        }
-        output {
-        File response = stdout()
-        }
+          command {
+            echo 'hello \${name}!'
+          }
+          output {
+            File response = stdout()
+          }
         }
 
         workflow test {
-        call hello
+          call hello
         }
         FIN
 
         cat > hello.inputs <<FIN
         {
-        "test.hello.name": "world"
+          "test.hello.name": "world"
         }
         FIN
 
@@ -150,7 +150,7 @@ task doMinorRelease {
           String name
 
           command {
-            echo 'hello ${name}!'
+            echo 'hello \${name}!'
           }
           output {
             File response = stdout()

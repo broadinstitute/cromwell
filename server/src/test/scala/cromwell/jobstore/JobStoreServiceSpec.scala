@@ -19,7 +19,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object JobStoreServiceSpec {
-  val MaxWait = 5 seconds
+  val MaxWait = 30 seconds
   val EmptyExpression = PlaceholderWomExpression(Set.empty, WomStringType)
 }
 

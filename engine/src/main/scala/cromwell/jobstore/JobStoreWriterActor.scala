@@ -26,7 +26,7 @@ case class JobStoreWriterActor(jsd: JobStore,
                               )
   extends EnhancedBatchActor[CommandAndReplyTo[JobStoreWriterCommand]](flushRate, batchSize) {
 
-  override protected def process(nonEmptyData: NonEmptyVector[CommandAndReplyTo[JobStoreWriterCommand]]) = instrumentedProcess {
+  override protected def process(nonEmptyData: NonEmptyVector[CommandAndReplyTo[JobStoreWriterCommand]]): Future[Int] = instrumentedProcess {
     val data = nonEmptyData.toVector
     log.debug("Flushing {} job store commands to the DB", data.length)
     val completions = data.collect({ case CommandAndReplyTo(c: JobStoreWriterCommand, _) => c.completion })
@@ -42,18 +42,20 @@ case class JobStoreWriterActor(jsd: JobStore,
         completedWorkflowIds.map(workflowStoreAccess.deleteFromStore(_)).toList
       )
 
-      (for {
+      val combinedAction = (for {
         _ <- jobStoreAction
         _ <- workflowStoreAction
-      } yield ()) onComplete {
-        case Success(_) =>
+      } yield ())
+
+      combinedAction onComplete {
+        case Success(()) =>
           data foreach { case CommandAndReplyTo(c: JobStoreWriterCommand, r) => r ! JobStoreWriteSuccess(c) }
         case Failure(regerts) =>
           log.error(regerts, "Failed to write job store entries to database")
           data foreach { case CommandAndReplyTo(_, r) => r ! JobStoreWriteFailure(regerts) }
       }
 
-      jobStoreAction.map(_ => 1)
+      combinedAction.map(_ => 1)
     } else Future.successful(0)
   }
 

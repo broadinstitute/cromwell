@@ -16,13 +16,9 @@ class DrsCloudNioFileSystemProvider(rootConfig: Config,
                                     authCredentials: OAuth2Credentials,
                                     httpClientBuilder: HttpClientBuilder,
                                     drsReadInterpreter: DrsReadInterpreter,
-                                    marthaUrlOverrideForTest: Option[String] = None) extends CloudNioFileSystemProvider {
+                                   ) extends CloudNioFileSystemProvider {
 
-  /*
-   * `marthaUrlOverrideForTest` is a workflow option to override the default `martha.url` specified in the global config.
-   * This is only used for testing purposes.
-   */
-  lazy val marthaUrl: String = marthaUrlOverrideForTest.getOrElse(rootConfig.getString("martha.url"))
+  lazy val marthaUrl: String = rootConfig.getString("martha.url")
 
   lazy val drsConfig: DrsConfig = DrsConfig(marthaUrl)
 

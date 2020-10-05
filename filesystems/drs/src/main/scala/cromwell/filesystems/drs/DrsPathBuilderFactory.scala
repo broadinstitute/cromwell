@@ -101,17 +101,12 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
     // ONLY use the project id from the User Service Account for requester pays
     val requesterPaysProjectIdOption = options.get("google_project").toOption
 
-    // `override_martha_url_for_test` is a workflow option to override the default `martha.url` specified in the global config.
-    // This is only used for testing purposes.
-    val marthaUrlOverrideForTest: Option[String] = options.get("override_martha_url_for_test").toOption
-
     Future(DrsPathBuilder(
       new DrsCloudNioFileSystemProvider(
         singletonConfig.config,
         authCredentials,
         httpClientBuilder,
         drsReadInterpreter(options, requesterPaysProjectIdOption),
-        marthaUrlOverrideForTest
       ),
       requesterPaysProjectIdOption,
     ))

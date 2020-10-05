@@ -4,44 +4,16 @@ import java.nio.file.attribute.FileTime
 import java.time.OffsetDateTime
 
 import cloud.nio.impl.drs.DrsCloudNioRegularFileAttributes._
-import cloud.nio.impl.drs.MarthaResponseSupport.convertMarthaResponseV2ToV3
 import io.circe.{Json, JsonObject}
 import org.apache.http.ProtocolVersion
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import shapeless.{Lens, lens}
 
 class DrsPathResolverSpec extends AnyFlatSpecLike with Matchers {
   private val mockGSA = SADataObject(data = Json.fromJsonObject(JsonObject("key"-> Json.fromString("value"))))
   private val crcHashValue = "8a366443"
   private val md5HashValue = "336ea55913bc261b72875bd259753046"
   private val shaHashValue = "f76877f8e86ec3932fd2ae04239fbabb8c90199dab0019ae55fa42b31c314c44"
-
-  private val marthaV2UpdatedLens =
-    lens[MarthaV2Response]
-      .dos
-      .data_object
-      .updated
-      // https://stackoverflow.com/questions/23874998/shapeless-lenses-in-idea#23899094
-      .asInstanceOf[Lens[MarthaV2Response, Option[String]]]
-
-  private val fullMarthaV2Response = MarthaV2Response(
-    dos = DosObject(
-      data_object = DosDataObject(
-        name = Option("actual_file_name"),
-        size = Option(34905345),
-        checksums = Option(Array(ChecksumObject(checksum = md5HashValue, `type` = "md5"), ChecksumObject(checksum = crcHashValue, `type` = "crc32c"))),
-        created = Option("2020-04-27T15:56:09.696Z"),
-        updated = Option("2020-04-27T15:56:09.696Z"),
-        urls = Array(Url("s3://my-s3-bucket/file-name"), Url("gs://my-gs-bucket/file-name"))
-      )
-    ),
-    googleServiceAccount = Option(mockGSA)
-  )
-
-  private val fullMarthaV2ResponseNoTz =
-    marthaV2UpdatedLens
-      .set(fullMarthaV2Response)(fullMarthaV2Response.dos.data_object.updated.map(_.stripSuffix("Z")))
 
   private val fullMarthaResponse = MarthaResponse(
     size = Option(34905345),
@@ -115,22 +87,14 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with Matchers {
   }
 
   it should "return None when no hashes object is returned" in {
-    DrsCloudNioRegularFileAttributes.getPreferredHash(None) shouldBe Option(None)
+    DrsCloudNioRegularFileAttributes.getPreferredHash(None) shouldBe None
   }
 
   it should "return None when an empty hash object is returned" in {
-    DrsCloudNioRegularFileAttributes.getPreferredHash(Option(Map.empty)) shouldBe Option(None)
+    DrsCloudNioRegularFileAttributes.getPreferredHash(Option(Map.empty)) shouldBe None
   }
 
   behavior of "convertMarthaResponseV2ToV3()"
-
-  it should "convert a full martha_v2 response to a the standard Martha response" in {
-    convertMarthaResponseV2ToV3(fullMarthaV2Response) shouldBe fullMarthaResponse
-  }
-
-  it should "convert a full martha_v2 response to a the standard Martha response even if there is no timezone in `updated` field" in {
-    convertMarthaResponseV2ToV3(fullMarthaV2ResponseNoTz) shouldBe fullMarthaResponseNoTz
-  }
 
   private val failureResponseJson = """
     {

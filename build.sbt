@@ -120,6 +120,7 @@ lazy val drsFileSystem = (project in file("filesystems/drs"))
   .dependsOn(core)
   .dependsOn(core % "test->test")
   .dependsOn(`cloud-nio-impl-drs`)
+  .dependsOn(`cloud-nio-impl-drs` % "test->test")
   .dependsOn(cloudSupport)
 
 lazy val databaseSql = (project in file("database/sql"))

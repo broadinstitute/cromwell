@@ -5,7 +5,7 @@ import java.nio.channels.ReadableByteChannel
 import akka.actor.ActorSystem
 import cats.data.Validated.{Invalid, Valid}
 import cats.effect.IO
-import cloud.nio.impl.drs.MarthaResponseSupport.getGcsBucketAndName
+import cloud.nio.impl.drs.MarthaResponseSupport._
 import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, SADataObject}
 import com.google.api.services.oauth2.Oauth2Scopes
 import com.google.api.services.storage.StorageScopes
@@ -91,7 +91,7 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
 
   override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[PathBuilder] = {
     val marthaScopes = List(
-      // Profile and Email scopes are requirements for interacting with Martha v2
+      // Profile and Email scopes are requirements for interacting with Martha
       Oauth2Scopes.USERINFO_EMAIL,
       Oauth2Scopes.USERINFO_PROFILE
     )

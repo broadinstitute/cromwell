@@ -30,7 +30,7 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with Matchers with Moc
         |""".stripMargin
     )
 
-    val fileSystemProvider = new MockDrsCloudNioFileSystemProvider(config)
+    val fileSystemProvider = new MockDrsCloudNioFileSystemProvider(config = config)
     fileSystemProvider.drsConfig should be(DrsConfig("https://from.config"))
     fileSystemProvider.accessTokenAcceptableTTL should be(1.minute)
     fileSystemProvider.fileProvider should be(a[DrsCloudNioFileProvider])

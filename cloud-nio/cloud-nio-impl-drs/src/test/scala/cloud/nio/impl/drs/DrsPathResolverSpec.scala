@@ -94,8 +94,6 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with Matchers {
     DrsCloudNioRegularFileAttributes.getPreferredHash(Option(Map.empty)) shouldBe None
   }
 
-  behavior of "convertMarthaResponseV2ToV3()"
-
   private val failureResponseJson = """
     {
       "status": 500,

@@ -124,8 +124,7 @@ trait StandardAsyncExecutionActor
   lazy val backendEngineFunctions: StandardExpressionFunctions =
     standardInitializationData.expressionFunctions(jobPaths, standardParams.ioActor, ec)
 
-  lazy val scriptEpilogue: String =
-    configurationDescriptor.backendConfig.as[Option[String]]("script-epilogue").getOrElse("sync")
+  lazy val scriptEpilogue: String = configurationDescriptor.backendConfig.getOrElse("script-epilogue", "sync")
 
   lazy val temporaryDirectory: String = configurationDescriptor.backendConfig.getOrElse(
     path = "temporary-directory",
@@ -190,9 +189,13 @@ trait StandardAsyncExecutionActor
   // keeping track of the paths cleanly without so many value mappers
   def mapCommandLineJobInputWomFile(womFile: WomFile): WomFile = mapCommandLineWomFile(womFile)
 
-  // Allows backends to signal to the StandardAsyncExecutionActor that there's a set of input files which
-  // they don't intend to localize for this task.
-  // If supporting paths that have two locations, such as DOS/DRS resolving to GCS, the set must contain BOTH
+  /**
+    * Allows backends to signal to the StandardAsyncExecutionActor that there's a set of input files which
+    * they don't intend to localize for this task.
+    *
+    * If the backend supports paths that have two locations, such as DOS/DRS resolving to GCS, then the returned
+    * Set[WomFile] must include *both* locations of the file, both the DOS/DRS path *and* the GCS path.
+    */
   def inputsToNotLocalize: Set[WomFile] = Set.empty
 
   /** @see [[Command.instantiate]] */

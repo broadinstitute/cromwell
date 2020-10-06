@@ -66,7 +66,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with Matchers {
         |  exit 0
         |fi""".stripMargin
 
-    mockDrsLocalizer.downloadScript(MockDrsPaths.fakeDrsUrl, fakeDownloadLocation, None, None) shouldBe expectedDownloadScript
+    mockDrsLocalizer.downloadScript(MockDrsPaths.fakeDrsUrl, None) shouldBe expectedDownloadScript
   }
 
   it should "inject Requester Pays flag & gcloud auth using SA returned from Martha" in {
@@ -111,7 +111,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with Matchers {
         |  exit 0
         |fi""".stripMargin
 
-    mockDrsLocalizer.downloadScript(MockDrsPaths.fakeDrsUrl, fakeDownloadLocation, Option(fakeSAJsonPath), Option(fakeRequesterPaysId)) shouldBe expectedDownloadScript
+    mockDrsLocalizer.downloadScript(MockDrsPaths.fakeDrsUrl, Option(fakeSAJsonPath)) shouldBe expectedDownloadScript
   }
 }
 
@@ -123,17 +123,19 @@ object MockDrsPaths {
 
 class MockDrsLocalizerMain(drsUrl: String,
                            downloadLoc: String,
-                           requesterPaysId: Option[String]) extends DrsLocalizerMain(drsUrl, downloadLoc, requesterPaysId) {
+                           requesterPaysProjectIdOption: Option[String],
+                          )
+  extends DrsLocalizerMain(drsUrl, downloadLoc, requesterPaysProjectIdOption) {
 
   override def getGcsDrsPathResolver: IO[GcsLocalizerDrsPathResolver] = {
-    val mockDrsConfig = DrsConfig("https://abc/martha_v3")
-    IO.pure(new MockGcsLocalizerDrsPathResolver(mockDrsConfig, httpClientBuilder))
+    IO {
+      val mockDrsConfig = DrsConfig("https://abc/martha_v3")
+      new MockGcsLocalizerDrsPathResolver(mockDrsConfig, httpClientBuilder)
+    }
   }
 
-  override def downloadFileFromGcs(gcsUrl: String,
-                                   serviceAccountJsonOption: Option[String],
-                                   downloadLoc: String,
-                                   requesterPaysProjectIdOption: Option[String]): IO[ExitCode] = IO(ExitCode.Success)
+  override def downloadFileFromGcs(gcsUrl: String, serviceAccountJsonOption: Option[String]): IO[ExitCode] =
+    IO(ExitCode.Success)
 }
 
 

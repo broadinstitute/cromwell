@@ -82,7 +82,7 @@ final case class MarthaRequest(url: String, fields: NonEmptyList[MarthaField.Val
 final case class SADataObject(data: Json)
 
 /**
-  * A response from `martha_v3` or converted from `martha_v2`.
+  * A response from `martha_v3`.
   *
   * @param size Size of the object stored at gsUri
   * @param timeCreated The creation time of the object at gsUri

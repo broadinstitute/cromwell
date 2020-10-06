@@ -2,7 +2,6 @@ package cloud.nio.impl.drs
 
 import cats.data.NonEmptyList
 import cats.effect.IO
-import com.google.auth.oauth2.OAuth2Credentials
 import com.google.cloud.NoCredentials
 import org.apache.http.impl.client.HttpClientBuilder
 import org.specs2.mock.Mockito
@@ -11,11 +10,10 @@ import org.specs2.mock.Mockito._
 import scala.concurrent.duration.Duration
 
 class MockEngineDrsPathResolver(drsConfig: DrsConfig = DrsConfig(MockDrsPaths.marthaUrl),
-                                credentials: OAuth2Credentials = NoCredentials.getInstance,
                                 httpClientBuilder: HttpClientBuilder = Mockito.mock[HttpClientBuilder].smart,
                                 accessTokenAcceptableTTL: Duration = Duration.Inf,
                                )
-  extends EngineDrsPathResolver(drsConfig, httpClientBuilder, accessTokenAcceptableTTL, credentials) {
+  extends EngineDrsPathResolver(drsConfig, httpClientBuilder, accessTokenAcceptableTTL, NoCredentials.getInstance) {
 
   private lazy val mockMarthaUri = drsConfig.marthaUrl
 

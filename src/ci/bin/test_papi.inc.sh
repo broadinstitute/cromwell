@@ -82,7 +82,9 @@ cromwell::private::papi::gcr_image_delete() {
 }
 
 cromwell::private::papi::setup_papi_gcr() {
+    # Build a DOS/DRS localizer image from source, or for faster local debugging use an already provided image
     if [[ -n "${CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS:+set}" ]]; then
+        # If CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS is already set then use that image
         echo "Using CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS='${CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS}'"
     elif command -v docker; then
         # Upload images built from this commit

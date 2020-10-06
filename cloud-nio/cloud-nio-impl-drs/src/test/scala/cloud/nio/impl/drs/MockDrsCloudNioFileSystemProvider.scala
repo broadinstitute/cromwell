@@ -22,7 +22,12 @@ class MockDrsCloudNioFileSystemProvider(config: Config = mockConfig,
   extends DrsCloudNioFileSystemProvider(config, NoCredentials.getInstance, httpClientBuilder, drsReadInterpreter) {
 
   override lazy val drsPathResolver: EngineDrsPathResolver = {
-    mockResolver getOrElse new MockEngineDrsPathResolver(drsConfig, httpClientBuilder, Duration.Inf)
+    mockResolver getOrElse
+      new MockEngineDrsPathResolver(
+        drsConfig = drsConfig,
+        httpClientBuilder = httpClientBuilder,
+        accessTokenAcceptableTTL = Duration.Inf,
+      )
   }
 }
 

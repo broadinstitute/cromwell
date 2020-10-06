@@ -16,7 +16,7 @@ class DrsResolverSpec extends AnyFlatSpec with Matchers {
     ).asJava
   )
 
-  private val mockFileSystemProvider = new MockDrsCloudNioFileSystemProvider(marthaConfig)
+  private val mockFileSystemProvider = new MockDrsCloudNioFileSystemProvider(config = marthaConfig)
   private val drsPathBuilder = DrsPathBuilder(mockFileSystemProvider, None)
 
 

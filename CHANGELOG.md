@@ -1,5 +1,12 @@
 # Cromwell Change Log
 
+## 54 Release Notes
+
+### Improved DRS Localizer logging
+
+Error logging while localizing a DRS URI should now be more clear especially when there is a Requester
+Pays bucket involved.
+
 ## 53 Release Notes
 
 ### Martha v3 Support

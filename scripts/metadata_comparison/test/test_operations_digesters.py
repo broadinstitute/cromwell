@@ -6,11 +6,12 @@ import json
 import logging
 from metadata_comparison.lib.comparison_paths import ComparisonPath
 from metadata_comparison.lib.logging import quieten_chatty_imports, set_log_verbosity
-from metadata_comparison.lib.operations_digesters import OperationDigester
+from metadata_comparison.lib.operations_digesters import Disk, DiskType, OperationDigester
 import os
 import unittest
 from test.lib.test_digester_helper import download_metadata_from_gcs_if_needed,\
     gcs_parent, subdir_for_papi_version, VERSION_PAPI_V1, VERSION_PAPI_V2
+from typing import Set
 
 
 class OperationsDigesterTestMethods(unittest.TestCase):
@@ -34,6 +35,7 @@ class OperationsDigesterTestMethods(unittest.TestCase):
         # A cache of expensive-to-create GCS comparison paths.
         gcs_comparison_path_by_subdir = {}
         papi_versions = [VERSION_PAPI_V1, VERSION_PAPI_V2]
+        self.maxDiff = None
 
         for papi_version in papi_versions:
             subdir = subdir_for_papi_version(papi_version)
@@ -70,17 +72,46 @@ EXPECTATIONS = {
                 'docker_image_pull_time_seconds': 88.822075,
                 'localization_time_seconds': 47.902792,
                 'user_command_time_seconds': 286.993021,
-                'delocalization_time_seconds': 8.452244
+                'delocalization_time_seconds': 8.452244,
+                'disks': {
+                    'boot-disk': {
+                        'name': 'boot-disk',
+                        'sizeGb': 10,
+                        'type': 'HDD'
+                    },
+                    'local-disk': {
+                        'name': 'local-disk',
+                        'sizeGb': 25,
+                        'type': 'HDD'
+                    }
+                }
             }
         },
         'PAPIv2_alpha1': {
-            '9990846134018347343': {
-                'total_time_seconds': 164.94303,
-                'startup_time_seconds': 38.283515,
-                'docker_image_pull_time_seconds': 63.978705,
-                'localization_time_seconds': 23.193772,
-                'user_command_time_seconds': 2.978336,
-                'delocalization_time_seconds': 13.615169
+            '12341555440642647083': {
+                'total_time_seconds': 518.744239,
+                'startup_time_seconds': 40.9002,
+                'docker_image_pull_time_seconds': 97.990618,
+                'localization_time_seconds': 17.846399,
+                'user_command_time_seconds': 329.341766,
+                'delocalization_time_seconds': 14.182412,
+                'disks': {
+                    'boot-disk': {
+                        'name': 'boot-disk',
+                        'sizeGb': 15,
+                        'type': 'HDD'
+                    },
+                    'd-4767bb194435405ce88d8727e14b7855': {
+                        'name': 'd-4767bb194435405ce88d8727e14b7855',
+                        'sizeGb': 30,
+                        'type': 'HDD'
+                    },
+                    'local-disk': {
+                        'name': 'local-disk',
+                        'sizeGb': 25,
+                        'type': 'HDD'
+                    }
+                }
             }
         }
     }

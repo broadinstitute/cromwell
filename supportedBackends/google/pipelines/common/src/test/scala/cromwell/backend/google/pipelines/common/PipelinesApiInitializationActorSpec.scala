@@ -164,17 +164,28 @@ object PipelinesApiInitializationActorSpec {
       |    }
       |  }
       |
+      |[VPCCONFIG]
+      |
       |[DOCKERHUBCONFIG]
       |""".stripMargin
 
-  val backendConfig: Config = ConfigFactory.parseString(backendConfigTemplate.replace("[DOCKERHUBCONFIG]", ""))
+  val backendConfig: Config = ConfigFactory.parseString(backendConfigTemplate.replace("[VPCCONFIG]", "").replace("[DOCKERHUBCONFIG]", ""))
 
-  val dockerBackendConfig: Config = ConfigFactory.parseString(backendConfigTemplate.replace("[DOCKERHUBCONFIG]",
+  val dockerBackendConfig: Config = ConfigFactory.parseString(backendConfigTemplate.replace("[VPCCONFIG]", "").replace("[DOCKERHUBCONFIG]",
     """
       |dockerhub {
       |  account = "my@docker.account"
       |  # no secrets here guys this is just `echo -n username:password | base64`
       |  token = "dXNlcm5hbWU6cGFzc3dvcmQ="
+      |}
+      | """.stripMargin))
+
+  val vpcBackendConfig: Config = ConfigFactory.parseString(backendConfigTemplate.replace("[DOCKERHUBCONFIG]", "").replace("[VPCCONFIG]",
+    """
+      |virtual-private-cloud {
+      |  network-label-key = "cromwell-ci-network"
+      |  subnetwork-label-key = "cromwell-ci-subnetwork"
+      |  auth = "service_account"
       |}
       | """.stripMargin))
 

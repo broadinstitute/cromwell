@@ -1,11 +1,59 @@
 
 from abc import ABC, abstractmethod
 import dateutil.parser
+from enum import Enum
 from metadata_comparison.lib.operation_ids import JsonObject, operation_id_to_api_version, \
     PAPI_V1_API_VERSION, PAPI_V2_ALPHA1_API_VERSION, PAPI_V2_BETA_API_VERSION
 import re
+from typing import AnyStr, Dict, Iterator, Union
 
-from typing import AnyStr, Iterator
+
+class DiskType(Enum):
+    HDD = 1
+    SSD = 2
+
+    @staticmethod
+    def from_string(string: AnyStr):
+        if string == 'HDD':
+            return DiskType.HDD
+        elif string == 'SSD':
+            return DiskType.SSD
+        else:
+            raise ValueError("")
+
+    def __str__(self):
+        return "HDD" if self is DiskType.HDD else "SSD"
+
+
+# The various attributes of a disk have string keys and string or int values.
+DiskAttributes = Dict[AnyStr, Union[AnyStr, int]]
+# A DiskDict is keyed by the name of the disk (unique within a VM) and DiskAttributes values.
+DiskDict = Dict[AnyStr, DiskAttributes]
+
+
+class Disk:
+    def __init__(self, name: AnyStr, size_gb: int, disk_type: DiskType):
+        self.name = name
+        self.size_gb = size_gb
+        self.disk_type = disk_type
+
+    def for_json(self) -> DiskDict:
+        return {
+            self.name: {
+                'name': self.name,
+                'sizeGb': self.size_gb,
+                'type': str(self.disk_type)
+            }
+        }
+
+    def __eq__(self, other) -> bool:
+        return self.name == other.name and self.size_gb == other.size_gb # and self.disk_type == other.disk_type
+
+    def __hash__(self):
+        return hash(self.name) + hash(self.size_gb) # + hash(self.disk_type)
+
+    def __str__(self):
+        return f'Disk(name={self.name}, size_gb={self.size_gb}, disk_type={str(self.disk_type)}'
 
 
 class OperationDigester(ABC):
@@ -68,6 +116,9 @@ class OperationDigester(ABC):
 
     @abstractmethod
     def machine_type(self) -> AnyStr: pass
+
+    @abstractmethod
+    def disks(self) -> DiskDict: pass
 
     def other_time_seconds(self) -> float:
         end, create = [dateutil.parser.parse(t) for t in [self.end_time(), self.create_time()]]
@@ -137,6 +188,28 @@ class PapiV1OperationDigester(OperationDigester):
         machine_type_with_zone_prefix = self.metadata().get('runtimeMetadata').get('computeEngine').get('machineType')
         return machine_type_with_zone_prefix.split('/')[-1]
 
+    def disks(self) -> DiskDict:
+        resources = self.metadata().get('request').get('pipelineArgs').get('resources')
+        # start with the boot disk and then add any others later
+        boot_disk = Disk('boot-disk', resources.get('bootDiskSizeGb'), DiskType.HDD)
+        disks_ = boot_disk.for_json()
+
+        def disk_type_from_string_v2(string: AnyStr) -> DiskType:
+            if string == 'PERSISTENT_HDD':
+                return DiskType.HDD
+            elif string == 'PERSISTENT_SSD':
+                return DiskType.SSD
+            else:
+                raise ValueError(f"Unknown disk type: {string}")
+
+        non_boot_disks = [
+            Disk(d.get('name'), d.get('sizeGb'), disk_type_from_string_v2(d.get('type'))) for d in resources.get('disks')]
+
+        for non_boot_disk in non_boot_disks:
+            disks_.update(non_boot_disk.for_json())
+
+        return disks_
+
 
 class PapiV2OperationDigester(OperationDigester, ABC):
     def __init__(self, operation_json: JsonObject):
@@ -163,11 +236,11 @@ class PapiV2OperationDigester(OperationDigester, ABC):
         return (events[-1] - events[0]).total_seconds()
 
     def user_command_time_seconds(self) -> float:
-        started_running_description = "^Started running .* /cromwell_root/script\"$"
+        started_running_description = "^Started running .*/cromwell_root/script\"$"
         started_running_events = [dateutil.parser.parse(d.get('timestamp')) for d in
                                   self.event_with_description_like(started_running_description)]
 
-        stopped_running_description = "^Stopped running \"/bin/bash /cromwell_root/script\""
+        stopped_running_description = "^Stopped running \"/cromwell_root/script\".*"
         stopped_running_events = [dateutil.parser.parse(d.get('timestamp')) for d in
                                   self.event_with_description_like(stopped_running_description)]
 
@@ -184,6 +257,27 @@ class PapiV2OperationDigester(OperationDigester, ABC):
     def machine_type(self) -> AnyStr:
         event = next(self.event_with_description_like('^Worker .* assigned in .*'))
         return event.get('details').get('machineType')
+
+    def disks(self) -> DiskDict:
+        vm = self.metadata().get('pipeline').get('resources').get('virtualMachine')
+        # start with the boot disk and then add any others later
+        boot_disk = Disk('boot-disk', vm.get('bootDiskSizeGb'), DiskType.HDD)
+        disks_ = boot_disk.for_json()
+
+        def disk_type_from_string(string: AnyStr) -> DiskType:
+            if string == 'pd-standard':
+                return DiskType.HDD
+            elif string == 'pd-ssd':
+                return DiskType.SSD
+            else:
+                raise ValueError(f"Unknown disk type '{string}'")
+
+        non_boot_disks = [
+            Disk(d.get('name'), d.get('sizeGb'), disk_type_from_string(d.get('type'))) for d in vm.get('disks')]
+
+        for non_boot_disk in non_boot_disks:
+            disks_.update(non_boot_disk.for_json())
+        return disks_
 
 
 class PapiV2AlphaOperationDigester(PapiV2OperationDigester):

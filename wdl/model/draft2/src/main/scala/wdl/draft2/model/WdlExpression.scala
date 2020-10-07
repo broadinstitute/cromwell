@@ -246,7 +246,9 @@ final case class WdlWomExpression(wdlExpression: WdlExpression, from: Scope) ext
 
       override protected val fileSizeLimitationConfig: FileSizeLimitationConfig = FileSizeLimitationConfig.fileSizeLimitationConfig
     }
-    wdlExpression.evaluateFiles(inputTypes.apply, wdlFunctions, coerceTo).toErrorOr.map(_.toSet[WomFile] map FileEvaluation.requiredFile)
+    wdlExpression.evaluateFiles(inputTypes.apply, wdlFunctions, coerceTo).toErrorOr.map(_.toSet[WomFile] map { file =>
+      FileEvaluation(file, optional = areAllFileTypesInWomTypeOptional(coerceTo), secondary = false)
+    })
   }
 }
 

@@ -11,6 +11,12 @@ config](https://cromwell.readthedocs.io/en/stable/filesystems/Filesystems/#overv
 information on Martha's `martha_v3` request and response schema can be found
 [here](https://github.com/broadinstitute/martha#martha-v3).
 
+### DOS/DRS `localization_optional` Support
+
+When running on a backend that supports `localization_optional: true` any DOS or DRS `File` values in the generated
+command line will be substituted with the `gsUri` returned from Martha's `martha_v3` endpoint. More information on
+`localization_optional` can be found [here](https://cromwell.readthedocs.io/en/stable/optimizations/FileLocalization/).
+
 ## 53 Release Notes
 
 ### Martha v3 Support

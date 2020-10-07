@@ -16,6 +16,7 @@ backend {
   }
 }
 ```
+For more information about hog factors please see [this page](https://cromwell.readthedocs.io/en/develop/cromwell_features/HogFactors/).
 
 ## 53 Release Notes
 

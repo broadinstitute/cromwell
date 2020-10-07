@@ -65,7 +65,7 @@ abstract class BatchActor[C](val flushRate: FiniteDuration,
   override def preStart(): Unit = {
     if (logOnStartUp) log.info("{} configured to flush with batch size {} and process rate {}.", name, batchSize, flushRate)
     if (flushRate != Duration.Zero) {
-      timers.startTimerWithFixedDelay(ScheduledFlushKey, ScheduledProcessAction, flushRate)
+      timers.startPeriodicTimer(ScheduledFlushKey, ScheduledProcessAction, flushRate)
     }
     super.preStart()
   }

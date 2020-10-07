@@ -72,11 +72,11 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
   val jobTokenDispenserProbe = TestProbe()
   val ejhaProbe = TestProbe()
 
-  def buildFactory() = new BackendLifecycleActorFactory {
+  def buildFactory(backendConfigurationDescriptor: BackendConfigurationDescriptor): BackendLifecycleActorFactory = new BackendLifecycleActorFactory {
 
     override val name = "PerTestHelper"
 
-    override val configurationDescriptor = TestConfig.emptyBackendConfigDescriptor
+    override val configurationDescriptor: BackendConfigurationDescriptor = backendConfigurationDescriptor
 
     override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                                         initializationData: Option[BackendInitializationData],
@@ -124,10 +124,11 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
 
   def buildEJEA(restarting: Boolean = true,
                 callCachingMode: CallCachingMode = CallCachingOff,
-                callCachingMaxFailedCopyAttempts: Int = 1000000)
+                callCachingMaxFailedCopyAttempts: Int = 1000000,
+                backendConfigurationDescriptor: BackendConfigurationDescriptor = TestConfig.emptyBackendConfigDescriptor)
                (implicit startingState: EngineJobExecutionActorState): TestFSMRef[EngineJobExecutionActorState, EJEAData, MockEjea] = {
 
-    val factory: BackendLifecycleActorFactory = buildFactory()
+    val factory: BackendLifecycleActorFactory = buildFactory(backendConfigurationDescriptor)
     val descriptor = EngineWorkflowDescriptor(WomMocks.mockWorkflowDefinition(workflowName), backendWorkflowDescriptor, null, null, null, callCachingMode)
 
     val callCachingParameters = CallCachingParameters(

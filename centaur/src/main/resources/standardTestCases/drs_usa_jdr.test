@@ -1,4 +1,4 @@
-ignore: false
+ignore: true # See WA-382
 name: drs_usa_jdr
 testFormat: WorkflowSuccess
 backends: ["papi-v2-usa"]

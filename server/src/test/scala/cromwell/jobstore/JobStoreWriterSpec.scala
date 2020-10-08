@@ -16,7 +16,7 @@ import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 
 class JobStoreWriterSpec extends CromwellTestKitWordSpec with Matchers with BeforeAndAfter {
-  
+
   var database: WriteCountingJobStore = _
   var jobStoreWriter: TestFSMRef[BatchActorState, WeightedQueue[CommandAndReplyTo[JobStoreWriterCommand], Int], JobStoreWriterActor] = _
   var workflowId: WorkflowId = _

@@ -113,7 +113,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
             ComputeScopes.COMPUTE,
             StorageScopes.DEVSTORAGE_FULL_CONTROL,
             GoogleCloudScopes.KmsScope,
-            // Profile and Email scopes are requirements for interacting with Martha v2
+            // Profile and Email scopes are requirements for interacting with Martha
             Oauth2Scopes.USERINFO_EMAIL,
             Oauth2Scopes.USERINFO_PROFILE,
             // Monitoring scope as POC

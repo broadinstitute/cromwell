@@ -41,6 +41,7 @@ object StackdriverConfig {
     validate[String](authSchemeFunc) match {
       case Valid(schemeString) => googleConfiguration.auth(schemeString) match {
         case Valid(auth @ (_:ApplicationDefaultMode | _:ServiceAccountMode)) => auth.valid
+        case Valid(auth @ (_: MockAuthMode)) => auth.valid // Allow mocking for tests
         case Valid(_) => s"`auth` scheme: $schemeString is not allowed for Stackdriver instrumentation. Only `application_default` and `service_account` modes are valid.".invalidNel
         case Invalid(error) => s"`auth` scheme is invalid. Errors: $error".invalidNel
       }

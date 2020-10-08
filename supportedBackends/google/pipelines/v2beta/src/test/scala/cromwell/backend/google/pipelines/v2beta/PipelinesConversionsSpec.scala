@@ -1,9 +1,7 @@
 package cromwell.backend.google.pipelines.v2beta
 
-import java.nio.channels.ReadableByteChannel
-
-import cats.effect.IO
-import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, MarthaResponse}
+import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
+import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
 import com.google.cloud.NoCredentials
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
@@ -27,7 +25,6 @@ class PipelinesConversionsSpec extends AnyFlatSpec with Matchers {
   private val marthaConfig: Config = ConfigFactory.parseString(
     """martha {
       |   url = "http://matha-url"
-      |   request.json-template = "{"key": "${holder}"}"
       |}
       |""".stripMargin
   )
@@ -36,7 +33,7 @@ class PipelinesConversionsSpec extends AnyFlatSpec with Matchers {
 
   private lazy val httpClientBuilder = HttpClientBuilder.create()
 
-  private def drsReadInterpreter(marthaResponse: MarthaResponse): IO[ReadableByteChannel] =
+  private val drsReadInterpreter: DrsReadInterpreter = (_, _) =>
     throw new UnsupportedOperationException("Currently PipelinesConversionsSpec doesn't need to use drs read interpreter.")
 
   it should "create a DRS input parameter" in {

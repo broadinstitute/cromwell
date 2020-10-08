@@ -10,7 +10,6 @@ import cromwell.backend.async.RuntimeAttributeValidationFailures
 import cromwell.backend.google.pipelines.common.PipelinesApiInitializationActorSpec._
 import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig.{PapiGlobalConfig, genomicsFactory, googleConfiguration, papiAttributes}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWorkflowDescriptor}
-import cromwell.cloudsupport.gcp.auth.GoogleAuthModeSpec
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.Tags.{IntegrationTest, PostWomTest}
 import cromwell.core.TestKitSuite
@@ -64,7 +63,6 @@ class PipelinesApiInitializationActorSpec extends TestKitSuite("PipelinesApiInit
   behavior of "PipelinesApiInitializationActor"
 
   it should "log a warning message when there are unsupported runtime attributes" taggedAs IntegrationTest in {
-    GoogleAuthModeSpec.assumeHasApplicationDefaultCredentials()
 
     within(Timeout) {
       val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld,
@@ -189,7 +187,7 @@ object PipelinesApiInitializationActorSpec {
       |}
       | """.stripMargin))
 
-  val defaultBackendConfig = new BackendConfigurationDescriptor(backendConfig, globalConfig) {
+  private val defaultBackendConfig = new BackendConfigurationDescriptor(backendConfig, globalConfig) {
     override private[backend] lazy val cromwellFileSystems = new CromwellFileSystems(PapiGlobalConfig)
   }
 }

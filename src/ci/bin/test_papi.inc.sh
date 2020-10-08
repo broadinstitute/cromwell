@@ -82,13 +82,17 @@ cromwell::private::papi::gcr_image_delete() {
 }
 
 cromwell::private::papi::setup_papi_gcr() {
-    if command -v docker; then
+    # Build a DOS/DRS localizer image from source, or for faster local debugging use an already provided image
+    if [[ -n "${CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS:+set}" ]]; then
+        # If CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS is already set then use that image
+        echo "Using CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS='${CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS}'"
+    elif command -v docker; then
         # Upload images built from this commit
         gcloud auth configure-docker --quiet
         CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS="gcr.io/${CROMWELL_BUILD_PAPI_PROJECT_ID}/cromwell-drs-localizer:${CROMWELL_BUILD_DOCKER_TAG}"
         cromwell::private::papi::gcr_image_push cromwell-drs-localizer "${CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS}"
         export CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
-    elif [[ -z "${CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS:+set}" ]]; then
+    else
         echo "Error: BA-6546 The environment variable CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS must be set/export pointing to a valid docker image" >&2
         exit 1
     fi

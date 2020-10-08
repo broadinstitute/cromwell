@@ -19,7 +19,6 @@ class DrsPathBuilderFactorySpec extends AnyFlatSpec with Matchers{
          |      config {
          |        martha {
          |          url = "http://matha-url"
-         |          request.json-template = "{"key": "${holder}"}"
          |        }
          |      }
          |    }

@@ -2,18 +2,20 @@ package cromwell.cloudsupport.gcp.auth
 
 import java.io.{ByteArrayInputStream, FileNotFoundException, InputStream}
 import java.net.HttpURLConnection._
+import java.nio.charset.StandardCharsets
 
 import better.files.File
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
-import com.google.api.client.http.HttpResponseException
+import com.google.api.client.http.{HttpResponseException, HttpTransport}
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.auth.Credentials
 import com.google.auth.http.HttpTransportFactory
 import com.google.auth.oauth2.{GoogleCredentials, OAuth2Credentials, ServiceAccountCredentials, UserCredentials}
 import com.google.cloud.NoCredentials
+import com.typesafe.scalalogging.LazyLogging
+import cromwell.cloudsupport.gcp.auth.ApplicationDefaultMode.applicationDefaultCredentials
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode._
 import cromwell.cloudsupport.gcp.auth.ServiceAccountMode.{CredentialFileFormat, JsonFileFormat, PemFileFormat}
-import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
@@ -21,7 +23,7 @@ import scala.util.{Failure, Success, Try}
 object GoogleAuthMode {
 
   type OptionLookup = String => String
-  val NoOptionLookup = noOptionLookup _
+  val NoOptionLookup: OptionLookup = noOptionLookup
 
   /**
     * Enables swapping out credential validation for various testing purposes ONLY.
@@ -36,24 +38,20 @@ object GoogleAuthMode {
     throw new UnsupportedOperationException(s"cannot lookup $string")
   }
 
-  lazy val jsonFactory = JacksonFactory.getDefaultInstance
-  lazy val httpTransport = GoogleNetHttpTransport.newTrustedTransport
-  lazy val HttpTransportFactory = new HttpTransportFactory {
-    override def create() = {
-      httpTransport
-    }
-  }
+  lazy val jsonFactory: JacksonFactory = JacksonFactory.getDefaultInstance
+  lazy val httpTransport: HttpTransport = GoogleNetHttpTransport.newTrustedTransport
+  lazy val HttpTransportFactory: HttpTransportFactory = () => httpTransport
 
   val RefreshTokenOptionKey = "refresh_token"
   val UserServiceAccountKey = "user_service_account_json"
   val DockerCredentialsEncryptionKeyNameKey = "docker_credentials_key_name"
   val DockerCredentialsTokenKey = "docker_credentials_token"
 
-  def checkReadable(file: File) = {
+  def checkReadable(file: File): Unit = {
     if (!file.isReadable) throw new FileNotFoundException(s"File $file does not exist or is not readable")
   }
 
-  def isFatal(ex: Throwable) = {
+  def isFatal(ex: Throwable): Boolean = {
     ex match {
       case http: HttpResponseException =>
         // Using HttpURLConnection fields as com.google.api.client.http.HttpStatusCodes doesn't have Bad Request (400)
@@ -78,10 +76,7 @@ object GoogleAuthMode {
   }
 }
 
-
-sealed trait GoogleAuthMode {
-  protected lazy val log = LoggerFactory.getLogger(getClass.getSimpleName)
-
+sealed trait GoogleAuthMode extends LazyLogging {
   def name: String
 
   /**
@@ -123,17 +118,17 @@ sealed trait GoogleAuthMode {
     */
   private[auth] var credentialsValidation: CredentialsValidation = refreshCredentials
 
-  protected def validateCredentials[A <: OAuth2Credentials](credential: A): credential.type = {
-    Try(credentialsValidation(credential)) match {
+  protected def validateCredentials[A <: GoogleCredentials](credential: A,
+                                                            scopes: Iterable[String]): GoogleCredentials = {
+    val scopedCredentials = credential.createScoped(scopes.asJavaCollection)
+    Try(credentialsValidation(scopedCredentials)) match {
       case Failure(ex) => throw new RuntimeException(s"Google credentials are invalid: ${ex.getMessage}", ex)
-      case Success(_) => credential
+      case Success(_) => scopedCredentials
     }
   }
 }
 
-case object MockAuthMode extends GoogleAuthMode {
-  override val name = "no_auth"
-
+case class MockAuthMode(override val name: String) extends GoogleAuthMode {
   override def credentials(unusedOptions: OptionLookup, unusedScopes: Iterable[String]): NoCredentials = {
     NoCredentials.getInstance
   }
@@ -160,7 +155,7 @@ final case class ServiceAccountMode(override val name: String,
   private lazy val serviceAccountCredentials: ServiceAccountCredentials = {
     fileFormat match {
       case PemFileFormat(accountId, _) =>
-        log.warn("The PEM file format will be deprecated in the upcoming Cromwell version. Please use JSON instead.")
+        logger.warn("The PEM file format will be deprecated in the upcoming Cromwell version. Please use JSON instead.")
         ServiceAccountCredentials.fromPkcs8(accountId, accountId, credentialsFile.contentAsString, null, null)
       case _: JsonFileFormat => ServiceAccountCredentials.fromStream(credentialsFile.newInputStream)
     }
@@ -168,8 +163,7 @@ final case class ServiceAccountMode(override val name: String,
 
   override def credentials(unusedOptions: OptionLookup,
                            scopes: Iterable[String]): GoogleCredentials = {
-    val scopedCredentials = serviceAccountCredentials.createScoped(scopes.asJavaCollection)
-    validateCredentials(scopedCredentials)
+    validateCredentials(serviceAccountCredentials, scopes)
   }
 }
 
@@ -179,21 +173,17 @@ final case class UserServiceAccountMode(override val name: String) extends Googl
   }
 
   private def credentialStream(options: OptionLookup): InputStream = {
-    new ByteArrayInputStream(extractServiceAccount(options).getBytes("UTF-8"))
+    new ByteArrayInputStream(extractServiceAccount(options).getBytes(StandardCharsets.UTF_8))
   }
 
   override def credentials(options: OptionLookup, scopes: Iterable[String]): GoogleCredentials = {
     val newCredentials = ServiceAccountCredentials.fromStream(credentialStream(options))
-    val scopedCredentials: GoogleCredentials = newCredentials.createScoped(scopes.asJavaCollection)
-    validateCredentials(scopedCredentials)
+    validateCredentials(newCredentials, scopes)
   }
 }
 
 
-final case class UserMode(override val name: String,
-                          user: String,
-                          secretsPath: String,
-                          datastoreDir: String) extends GoogleAuthMode {
+final case class UserMode(override val name: String, secretsPath: String) extends GoogleAuthMode {
 
   private lazy val secretsStream = {
     val secretsFile = File(secretsPath)
@@ -201,12 +191,10 @@ final case class UserMode(override val name: String,
     secretsFile.newInputStream
   }
 
-  private lazy val userCredentials: UserCredentials = {
-    validateCredentials(UserCredentials.fromStream(secretsStream))
-  }
+  private lazy val userCredentials: UserCredentials = UserCredentials.fromStream(secretsStream)
 
-  override def credentials(unusedOptions: OptionLookup, unusedScopes: Iterable[String]): OAuth2Credentials = {
-    userCredentials
+  override def credentials(unusedOptions: OptionLookup, scopes: Iterable[String]): GoogleCredentials = {
+    validateCredentials(userCredentials, scopes)
   }
 }
 
@@ -216,8 +204,8 @@ object ApplicationDefaultMode {
 
 final case class ApplicationDefaultMode(name: String) extends GoogleAuthMode {
   override def credentials(unusedOptions: OptionLookup,
-                           unusedScopes: Iterable[String]): GoogleCredentials = {
-    ApplicationDefaultMode.applicationDefaultCredentials
+                           scopes: Iterable[String]): GoogleCredentials = {
+    validateCredentials(applicationDefaultCredentials, scopes)
   }
 }
 
@@ -233,7 +221,7 @@ final case class RefreshTokenMode(name: String,
     extract(options, RefreshTokenOptionKey)
   }
 
-  override def credentials(options: OptionLookup, unusedScopes: Iterable[String]): UserCredentials = {
+  override def credentials(options: OptionLookup, scopes: Iterable[String]): GoogleCredentials = {
     val refreshToken = extractRefreshToken(options)
     val newCredentials: UserCredentials = UserCredentials
       .newBuilder()
@@ -242,7 +230,7 @@ final case class RefreshTokenMode(name: String,
       .setRefreshToken(refreshToken)
       .setHttpTransportFactory(GoogleAuthMode.HttpTransportFactory)
       .build()
-    validateCredentials(newCredentials)
+    validateCredentials(newCredentials, scopes)
   }
 }
 

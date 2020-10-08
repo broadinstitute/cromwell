@@ -2,6 +2,10 @@
 
 ## 54 Release Notes
 
+### Improved DRS Localizer logging
+
+Error logging while localizing a DRS URI should now be more clear especially when there is a Requester Pays bucket involved.
+
 ### Per-backend hog factors
 Cromwell now allows overriding system-level log factors on back-end level. First, Cromwell will try to use hog-factor 
 defined in the backend config, and if it is not defined, it will default to using system-wide hog factor.

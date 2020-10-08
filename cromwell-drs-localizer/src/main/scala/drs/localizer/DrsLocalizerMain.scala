@@ -83,7 +83,7 @@ class DrsLocalizerMain(drsUrl: String,
              |  # Check if error is requester pays. If yes, retry gsutil copy using project flag
              |  if grep -q '$RequesterPaysErrorMsg' gsutil_output.txt; then
              |    echo "Received 'Bucket is requester pays' error. Attempting again using Requester Pays billing project"
-             |    ${gcsCopyCommand(s"-u $userProject")} >> gsutil_output.txt 2>&1
+             |    ${gcsCopyCommand(s"-u $userProject")} > gsutil_output.txt 2>&1
              |    RC_GSUTIL=$$?
              |  fi
              |fi""".stripMargin

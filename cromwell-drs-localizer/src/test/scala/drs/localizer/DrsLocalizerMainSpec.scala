@@ -98,7 +98,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with Matchers {
         |  # Check if error is requester pays. If yes, retry gsutil copy using project flag
         |  if grep -q 'Bucket is requester pays bucket but no user project provided.' gsutil_output.txt; then
         |    echo "Received 'Bucket is requester pays' error. Attempting again using Requester Pays billing project"
-        |    gsutil -u fake-billing-project cp ${MockDrsPaths.fakeDrsUrl} $fakeDownloadLocation >> gsutil_output.txt 2>&1
+        |    gsutil -u fake-billing-project cp ${MockDrsPaths.fakeDrsUrl} $fakeDownloadLocation > gsutil_output.txt 2>&1
         |    RC_GSUTIL=$$?
         |  fi
         |fi

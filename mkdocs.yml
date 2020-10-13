@@ -43,6 +43,7 @@ nav:
   - "Task inputs: localization_optional": optimizations/FileLocalization.md
   - "Volatile Tasks: volatile": optimizations/VolatileTasks.md
 - Configuration: Configuring.md
+- Scaling / Horizontal Cromwell: Scaling.md
 - Ecosystem: Ecosystem.md
 - WOMtool: WOMtool.md
 - Imports: Imports.md

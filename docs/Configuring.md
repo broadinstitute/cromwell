@@ -649,10 +649,7 @@ of how this is used for the default configuration of the `Local` backend.
 
 **Cromwell ID**
 
-Each Cromwell instance is given a `cromwell_id` that is either randomly generated or configured.
-
-By default, the Cromwell ID is `cromid-<7_digit_random_hex>`.
-
+Each Cromwell instance is assigned a `cromwell_id`. By default, the Cromwell ID is `cromid-<7_digit_random_hex>`.
 A custom identifier may replace the "cromid" portion of the string. For example:
 
 ```hocon
@@ -687,7 +684,7 @@ system.workflow-heartbeats {
 }
 ```
 
-The default TTL is 10 minutes. The shortest the TTL option is 10 seconds.
+The default TTL is 10 minutes. The shortest allowable value for the TTL option is 10 seconds.
 
 **Heartbeat Interval**
 

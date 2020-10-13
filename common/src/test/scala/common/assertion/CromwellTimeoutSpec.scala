@@ -6,6 +6,6 @@ import org.scalatest.time.Span
 import org.scalatest.time.SpanSugar._
 
 trait CromwellTimeoutSpec extends TimeLimitedTests { _: TestSuite =>
-  override val timeLimit: Span = 5.seconds
+  override val timeLimit: Span = 5.minutes
   override val defaultTestSignaler: Signaler = ThreadSignaler
 }

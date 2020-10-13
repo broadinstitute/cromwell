@@ -25,7 +25,7 @@ object Dependencies {
   private val commonsMathV = "3.6.1"
   private val commonsTextV = "1.9"
   private val configsV = "0.4.4"
-  private val delightRhinoSandboxV = "0.0.11"
+  private val delightRhinoSandboxV = "0.0.12"
   private val ficusV = "1.5.0"
   // The "com.vladsch.flexmark" % "flexmark-profile-pegdown" % flexmarkV dependency is an implicit, version-specific
   // runtime dependency of ScalaTest. At the time of this writing this is the newest version known to work.

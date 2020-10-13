@@ -3,7 +3,7 @@ package cromwell.core.actor
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.stream.QueueOfferResult.Dropped
 import akka.stream.scaladsl.Source
-import akka.stream.OverflowStrategy
+import akka.stream.{ActorMaterializer, OverflowStrategy}
 import akka.testkit.{ImplicitSender, TestActorRef}
 import cromwell.core.TestKitSuite
 import cromwell.core.actor.StreamIntegration._
@@ -16,6 +16,8 @@ import scala.concurrent.ExecutionContext
 
 class StreamActorHelperSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with ImplicitSender {
   behavior of "StreamActorHelper"
+  
+  implicit val materializer = ActorMaterializer()
 
   it should "catch EnqueueResponse message" in {
     val actor = TestActorRef(Props(new TestStreamActor(1)))
@@ -54,7 +56,7 @@ private object TestStreamActor {
   case class TestStreamActorContext(request: TestStreamActorCommand, replyTo: ActorRef, override val clientContext: Option[Any]) extends StreamContext
 }
 
-private class TestStreamActor(queueSize: Int) extends Actor with ActorLogging with StreamActorHelper[TestStreamActorContext] {
+private class TestStreamActor(queueSize: Int)(implicit override val materializer: ActorMaterializer) extends Actor with ActorLogging with StreamActorHelper[TestStreamActorContext] {
   
   override protected def actorReceive: Receive = {
     case command: TestStreamActorCommand =>

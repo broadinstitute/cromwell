@@ -3,15 +3,13 @@ package cloud.nio.impl.ftp.operations
 import java.nio.file.{FileAlreadyExistsException, NoSuchFileException}
 
 import cloud.nio.impl.ftp.FtpUtil.FtpIoException
+import common.assertion.CromwellTimeoutSpec
 import org.apache.commons.net.ftp.{FTPClient, FTPReply}
-import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.Span
 import org.specs2.mock.Mockito
-import org.scalatest.time.SpanSugar._
 
-class FtpOperationSpec extends AnyFlatSpec with TimeLimitedTests with Matchers with Mockito {
+class FtpOperationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Mockito {
   it should "generate somewhat accurate exceptions" in {
     val client = mock[FTPClient]
     val operation = FtpListFiles("ftp.example.com", "location", "do something")
@@ -33,6 +31,4 @@ class FtpOperationSpec extends AnyFlatSpec with TimeLimitedTests with Matchers w
     withCause shouldBe an[FtpIoException]
     withCause.getCause shouldBe cause
   }
-
-  override def timeLimit: Span = 5.minutes
 }

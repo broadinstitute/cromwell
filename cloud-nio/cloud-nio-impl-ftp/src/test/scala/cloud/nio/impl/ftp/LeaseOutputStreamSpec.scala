@@ -2,17 +2,15 @@ package cloud.nio.impl.ftp
 
 import java.io.OutputStream
 
+import common.assertion.CromwellTimeoutSpec
 import org.apache.commons.net.ftp.FTPClient
-import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.Span
 import org.specs2.mock.Mockito
-
 import scala.concurrent.duration._
 
 
-class LeaseOutputStreamSpec extends AnyFlatSpec with TimeLimitedTests with Matchers with Mockito {
+class LeaseOutputStreamSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Mockito {
 
   behavior of "LeaseInputStreamSpec"
 
@@ -42,6 +40,4 @@ class LeaseOutputStreamSpec extends AnyFlatSpec with TimeLimitedTests with Match
     def isClosed = closed
     override def write(b: Int) = {}
   }
-
-  override def timeLimit: Span = 5.minutes
 }

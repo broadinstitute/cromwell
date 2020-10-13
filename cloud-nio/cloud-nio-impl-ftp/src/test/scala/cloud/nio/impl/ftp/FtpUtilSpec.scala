@@ -4,17 +4,15 @@ import java.io.IOException
 
 import cats.effect.IO
 import cloud.nio.impl.ftp.FtpUtil._
+import common.assertion.CromwellTimeoutSpec
 import org.apache.commons.net.ftp.FTPClient
-import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.Span
 import org.specs2.mock.Mockito
 
 import scala.concurrent.duration._
 
-
-class FtpUtilSpec extends AnyFlatSpec with TimeLimitedTests with Matchers with Mockito {
+class FtpUtilSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Mockito {
 
   behavior of "autoRelease"
 
@@ -53,6 +51,4 @@ class FtpUtilSpec extends AnyFlatSpec with TimeLimitedTests with Matchers with M
     an[IllegalStateException] shouldBe thrownBy(lease.get())
     clientPool.live() shouldBe 1
   }
-
-  override val timeLimit: Span = 5.minutes
 }

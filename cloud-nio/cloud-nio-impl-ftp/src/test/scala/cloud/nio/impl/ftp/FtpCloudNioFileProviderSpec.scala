@@ -3,14 +3,12 @@ package cloud.nio.impl.ftp
 import java.nio.channels.Channels
 
 import cloud.nio.util.TryWithResource._
+import common.assertion.CromwellTimeoutSpec
 import org.mockftpserver.fake.filesystem.{DirectoryEntry, FileEntry}
-import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.Span
-import org.scalatest.time.SpanSugar._
 
-class FtpCloudNioFileProviderSpec extends AnyFlatSpec with TimeLimitedTests with Matchers with MockFtpFileSystem {
+class FtpCloudNioFileProviderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with MockFtpFileSystem {
 
   behavior of "FtpCloudNioFileProviderSpec"
 
@@ -152,6 +150,4 @@ class FtpCloudNioFileProviderSpec extends AnyFlatSpec with TimeLimitedTests with
     fileProvider.createDirectory("localhost", directory)
     fakeUnixFileSystem.exists(directory) shouldBe true
   }
-
-  override def timeLimit: Span = 5.minutes
 }

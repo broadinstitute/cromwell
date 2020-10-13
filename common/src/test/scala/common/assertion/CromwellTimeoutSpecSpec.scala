@@ -27,7 +27,7 @@ class CromwellTimeoutSpecSpec extends AnyFlatSpec with Matchers with CromwellTim
     }
   }
 
-  it should "foo" in {
+  it should "timeout before reaching an alternative failure state" in {
     Thread.sleep(10000)
     fail("Should have timed out already with a different Exception")
   }

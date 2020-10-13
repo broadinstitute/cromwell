@@ -1,6 +1,7 @@
 package womtool
 
 import better.files._
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -8,7 +9,7 @@ import womtool.SampleWdl.{EmptyTask, EmptyWorkflow, ThreeStep}
 import womtool.WomtoolMainSpec._
 
 
-class WomtoolMainSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll {
+class WomtoolMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with BeforeAndAfterAll {
 
   import WomtoolMain._
 

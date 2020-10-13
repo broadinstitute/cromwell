@@ -9,11 +9,13 @@ import cloud.nio.spi.{CloudNioRegularFileAttributes, CloudNioRetry}
 import com.typesafe.config.ConfigFactory
 import org.apache.commons.net.ftp.FTPReply
 import org.scalamock.scalatest.{MixedMockFactory, MockFactory}
+import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.time.Span
+import org.scalatest.time.SpanSugar._
 
-
-class FtpCloudNioFileSystemProviderSpec extends AnyFlatSpec with Matchers with MockFactory with MixedMockFactory with MockFtpFileSystem {
+class FtpCloudNioFileSystemProviderSpec extends AnyFlatSpec with TimeLimitedTests with Matchers with MockFactory with MixedMockFactory with MockFtpFileSystem {
 
   behavior of "FtpCloudNioFileSystemProviderSpec"
 
@@ -82,4 +84,6 @@ class FtpCloudNioFileSystemProviderSpec extends AnyFlatSpec with Matchers with M
     // Now we should throw an exception because the directory exists
     a[FileAlreadyExistsException] shouldBe thrownBy(mockProvider.createDirectory(newDirectory))
   }
+
+  override def timeLimit: Span = 5.minutes
 }

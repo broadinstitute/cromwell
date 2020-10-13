@@ -31,6 +31,7 @@
 
 package cromwell.backend.impl.aws
 
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.impl.aws.io.{AwsBatchEmptyMountedDisk, AwsBatchWorkingDisk}
 import cromwell.core.path.DefaultPathBuilder
 import org.scalatest.TryValues
@@ -40,7 +41,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 
 
-class AwsBatchAttachedDiskSpec extends AnyFlatSpec with Matchers with TryValues {
+class AwsBatchAttachedDiskSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TryValues {
   val validTable = Table(
     ("unparsed", "parsed"),
     // AwsBatchEmptyMountedDisk has a toString override that uses the MD5sum of

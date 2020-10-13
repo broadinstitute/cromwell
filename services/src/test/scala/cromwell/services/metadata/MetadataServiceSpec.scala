@@ -2,6 +2,7 @@ package cromwell.services.metadata
 
 import java.util.UUID
 
+import common.assertion.CromwellTimeoutSpec
 import common.exception.AggregatedException
 import cromwell.core._
 import cromwell.services.metadata
@@ -12,7 +13,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import wom.types._
 import wom.values._
 
-class MetadataServiceSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
+class MetadataServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "MetadataServiceSpec"
 

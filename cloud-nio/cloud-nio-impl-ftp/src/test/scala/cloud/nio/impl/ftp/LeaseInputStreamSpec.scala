@@ -3,14 +3,16 @@ package cloud.nio.impl.ftp
 import java.io.InputStream
 
 import org.apache.commons.net.ftp.FTPClient
+import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.time.Span
 import org.specs2.mock.Mockito
 
 import scala.concurrent.duration._
 
 
-class LeaseInputStreamSpec extends AnyFlatSpec with Matchers with Mockito {
+class LeaseInputStreamSpec extends AnyFlatSpec with TimeLimitedTests with Matchers with Mockito {
 
   behavior of "LeaseInputStreamSpec"
 
@@ -38,4 +40,6 @@ class LeaseInputStreamSpec extends AnyFlatSpec with Matchers with Mockito {
     // When accessing a released lease, get throws an IllegalStateException
     an[IllegalStateException] shouldBe thrownBy(lease.get())
   }
+
+  override def timeLimit: Span = 5.minutes
 }

@@ -1,6 +1,7 @@
 package womtool
 
 import better.files.File
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import womtool.WomtoolJsonCommandSpec._
@@ -13,7 +14,7 @@ object WomtoolJsonCommandSpec {
 }
 
 // Test for womtool command line commands which output JSON
-abstract class WomtoolJsonCommandSpec extends AnyFlatSpec with Matchers {
+abstract class WomtoolJsonCommandSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   val womtoolCommand: String
   val testDefinitions: Seq[TestDefinition]

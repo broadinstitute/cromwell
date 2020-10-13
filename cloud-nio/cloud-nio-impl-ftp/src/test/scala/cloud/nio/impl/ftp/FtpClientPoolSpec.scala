@@ -1,14 +1,16 @@
 package cloud.nio.impl.ftp
 
 import org.apache.commons.net.ftp.FTPClient
+import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.time.Span
 import org.specs2.mock.Mockito
 
 import scala.concurrent.duration._
 
 
-class FtpClientPoolSpec extends AnyFlatSpec with Matchers with Mockito {
+class FtpClientPoolSpec extends AnyFlatSpec with TimeLimitedTests with Matchers with Mockito {
 
   behavior of "FtpClientPoolSpec"
 
@@ -32,4 +34,5 @@ class FtpClientPoolSpec extends AnyFlatSpec with Matchers with Mockito {
     disconnected shouldBe true
   }
 
+  override def timeLimit: Span = 5.minutes
 }

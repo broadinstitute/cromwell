@@ -1,11 +1,12 @@
 package wdl
 
 import better.files.File
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model._
 
-class WdlWorkflowImportsSpec extends AnyFlatSpec with Matchers {
+class WdlWorkflowImportsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   def addAndGetFile(name: String, source: String): String = {
     val tempFile = File.newTemporaryFile(s"$name", ".wdl", Option(wdlDirectory)) write source

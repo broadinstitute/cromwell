@@ -4,11 +4,13 @@ import cloud.nio.impl.ftp.FtpFileSystems.FtpCacheKey
 import com.typesafe.config.ConfigFactory
 import org.scalamock.function.MockFunction1
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.time.Span
+import org.scalatest.time.SpanSugar._
 
-
-class FtpFileSystemsSpec extends AnyFlatSpec with Matchers with MockFactory {
+class FtpFileSystemsSpec extends AnyFlatSpec with TimeLimitedTests with Matchers with MockFactory {
 
   behavior of "FtpFileSystemsSpec"
 
@@ -38,4 +40,5 @@ class FtpFileSystemsSpec extends AnyFlatSpec with Matchers with MockFactory {
     override private[ftp] def createFileSystem(key: FtpCacheKey) = mockCreateFunction(key)
   }
 
+  override def timeLimit: Span = 5.minutes
 }

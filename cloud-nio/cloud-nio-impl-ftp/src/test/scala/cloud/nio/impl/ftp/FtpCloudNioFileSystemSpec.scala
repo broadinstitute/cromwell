@@ -3,15 +3,16 @@ package cloud.nio.impl.ftp
 import com.typesafe.config.ConfigFactory
 import io.github.andrebeat.pool.Pool.ClosedPoolException
 import org.apache.commons.net.ftp.FTPClient
-import org.scalatest.concurrent.Eventually
+import org.scalatest.concurrent.{Eventually, TimeLimitedTests}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.time.Span
 
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 
 
-class FtpCloudNioFileSystemSpec extends AnyFlatSpec with Matchers with Eventually {
+class FtpCloudNioFileSystemSpec extends AnyFlatSpec with TimeLimitedTests with Matchers with Eventually {
 
   behavior of "FtpCloudNioFileSystemSpec"
 
@@ -73,4 +74,6 @@ class FtpCloudNioFileSystemSpec extends AnyFlatSpec with Matchers with Eventuall
 
     fileSystem.close()
   }
+
+  override def timeLimit: Span = 5.minutes
 }

@@ -1,11 +1,12 @@
 package cromwell.core
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class LoadConfigSpec extends AnyFlatSpec with Matchers {
+class LoadConfigSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "LoadConfig"
   
   it should "parse load config" in {

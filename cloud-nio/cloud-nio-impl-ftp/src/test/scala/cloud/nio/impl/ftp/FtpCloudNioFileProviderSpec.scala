@@ -4,11 +4,13 @@ import java.nio.channels.Channels
 
 import cloud.nio.util.TryWithResource._
 import org.mockftpserver.fake.filesystem.{DirectoryEntry, FileEntry}
+import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.time.Span
+import org.scalatest.time.SpanSugar._
 
-
-class FtpCloudNioFileProviderSpec extends AnyFlatSpec with Matchers with MockFtpFileSystem {
+class FtpCloudNioFileProviderSpec extends AnyFlatSpec with TimeLimitedTests with Matchers with MockFtpFileSystem {
 
   behavior of "FtpCloudNioFileProviderSpec"
 
@@ -151,4 +153,5 @@ class FtpCloudNioFileProviderSpec extends AnyFlatSpec with Matchers with MockFtp
     fakeUnixFileSystem.exists(directory) shouldBe true
   }
 
+  override def timeLimit: Span = 5.minutes
 }

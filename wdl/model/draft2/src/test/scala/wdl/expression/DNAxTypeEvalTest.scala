@@ -1,5 +1,6 @@
 package wdl.expression
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model._
@@ -8,7 +9,7 @@ import wom.types._
 
 import scala.util.{Success, Try}
 
-class DNAxTypeEvalTest extends AnyFlatSpec with Matchers {
+class DNAxTypeEvalTest extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   val wdlCode =
     """|task Add {

@@ -1,5 +1,6 @@
 package cromwell.util
 
+import common.assertion.CromwellTimeoutSpec
 import cromwell.core.{Aes256Cbc, SecretKey}
 import javax.crypto.Cipher
 import org.scalatest.Assertions
@@ -16,7 +17,7 @@ object EncryptionSpec {
        |""".stripMargin)
 }
 
-class EncryptionSpec extends AnyFlatSpec with Matchers {
+class EncryptionSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   "Aes256Cbc" should "encrypt and decrypt" in {
     EncryptionSpec.assumeAes256Cbc()
     val charSet = "utf-8"

@@ -3,12 +3,14 @@ package cloud.nio.impl.ftp
 import java.io.IOException
 
 import org.apache.commons.net.ftp.FTPClient
+import org.scalatest.concurrent.TimeLimitedTests
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.time.Span
 import org.specs2.mock.Mockito
+import org.scalatest.time.SpanSugar._
 
-
-class FtpCredentialsSpec extends AnyFlatSpec with Matchers with Mockito {
+class FtpCredentialsSpec extends AnyFlatSpec with Matchers with Mockito with TimeLimitedTests {
 
   behavior of "FtpCredentialsSpec"
 
@@ -50,4 +52,5 @@ class FtpCredentialsSpec extends AnyFlatSpec with Matchers with Mockito {
     loginException.getCause shouldBe noooo
   }
 
+  override def timeLimit: Span = 5.minutes
 }

@@ -9,6 +9,7 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
+import akka.stream.ActorMaterializer
 import akka.util.ByteString
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
@@ -54,6 +55,7 @@ object TesAsyncBackendJobExecutionActor {
 class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
   extends BackendJobLifecycleActor with StandardAsyncExecutionActor with TesJobCachingActorHelper {
   implicit val actorSystem = context.system
+  implicit val materializer = ActorMaterializer()
 
   override type StandardAsyncRunInfo = Any
 

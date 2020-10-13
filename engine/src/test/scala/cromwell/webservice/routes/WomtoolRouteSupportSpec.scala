@@ -4,6 +4,7 @@ import akka.actor.{ActorSystem, Props}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import akka.http.scaladsl.unmarshalling.Unmarshaller._
+import akka.stream.ActorMaterializer
 import akka.testkit._
 import cromwell.services.womtool.models.WorkflowDescription
 import cromwell.services.womtool.models.WorkflowDescription.workflowDescriptionDecoder
@@ -136,9 +137,10 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
 
 object WomtoolRouteSupportSpec {
   class MockWomtoolRouteSupport()(implicit val system: ActorSystem, routeTestTimeout: RouteTestTimeout) extends WomtoolRouteSupport {
-    override def actorSystem = system
+    override def actorRefFactory = system
     override val ec = system.dispatcher
     override val timeout = routeTestTimeout.duration
-    override val serviceRegistryActor = actorSystem.actorOf(Props(new MockServiceRegistryActor()))
+    override val serviceRegistryActor = actorRefFactory.actorOf(Props(new MockServiceRegistryActor()))
+    override implicit val materializer = ActorMaterializer()
   }
 }

@@ -7,6 +7,7 @@ import akka.event.LoggingAdapter
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
+import akka.stream.ActorMaterializer
 import cats.effect.IO
 import com.softwaremill.sttp._
 import cromiam.auth.{Collection, User}
@@ -25,7 +26,8 @@ import scala.concurrent.{ExecutionContextExecutor, Future}
   * FIXME: Look for ways to synch this up with the mothership
   */
 class CromwellClient(scheme: String, interface: String, port: Int, log: LoggingAdapter, serviceRegistryActorRef: ActorRef)(implicit system: ActorSystem,
-                                                                                        ece: ExecutionContextExecutor)
+                                                                                        ece: ExecutionContextExecutor,
+                                                                                        materializer: ActorMaterializer)
   extends SprayJsonSupport with DefaultJsonProtocol with StatusCheckedSubsystem with CromIamInstrumentation{
 
   val cromwellUrl = new URL(s"$scheme://$interface:$port")

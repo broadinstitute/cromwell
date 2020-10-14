@@ -43,9 +43,9 @@ class DrsCloudNioFileSystemProvider(rootConfig: Config,
     require(uriAsString.startsWith(s"$getScheme://"), s"Scheme does not match $getScheme")
 
     /*
-     * In some cases, the URI will use a colon in a non-standard way, and therefore, we can't rely on
-     * the URI class to parse it.  Instead, we recognize it via a regular expression, and parse out the
-     * host name accordingly.
+     * DRS compact identifier URIs contain a string where conventional URIs have an integer
+     * port (the `:8000` in `https://localhost:8000`). We can't rely on the URI class to parse it, 
+     * so we recognize it via a regular expression and parse out the host name accordingly.
      *
      * In other cases, the hostname does not conform to URI's standards and uri.getHost returns null.
      * In that situation, authority is used instead of host, and if there is no authority, return an

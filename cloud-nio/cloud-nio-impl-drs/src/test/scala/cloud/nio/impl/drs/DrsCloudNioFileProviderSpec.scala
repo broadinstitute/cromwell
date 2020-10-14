@@ -37,8 +37,8 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with Matchers with Moc
     fileSystemProvider.isFatal(new RuntimeException) should be(false)
     fileSystemProvider.isTransient(new RuntimeException) should be(false)
     fileSystemProvider.getScheme should be("drs")
-    fileSystemProvider.getHost("drs://dg.example.com/abc") should be("dg.example.com")
     fileSystemProvider.getHost("drs://dg.123/abc") should be("dg.123")
+    fileSystemProvider.getHost("drs://dg.example.com/abc") should be("dg.example.com")
   }
 
   it should "be able to get the hostname from variously formatted DRS URIs" in {

@@ -1,12 +1,13 @@
 package common.util
 
+import common.assertion.CromwellTimeoutSpec
 import common.util.StringUtil.EnhancedToStringable
 import common.util.StringUtilSpec._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 
-class StringUtilSpec extends AnyFlatSpec with Matchers {
+class StringUtilSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   it should "correctly truncate a case class with a really long list" in {
     val fooOfBars = Foo("long long list", 0.until(100).toList.map(i => new Bar(i)))

@@ -1,5 +1,6 @@
 package cwl
 
+import common.assertion.CromwellTimeoutSpec
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import cwl.ExpressionInterpolator.SubstitutionException
@@ -13,7 +14,7 @@ import wom.expression.DefaultSizeIoFunctionSet
 import wom.values._
 
 
-class ExpressionInterpolatorSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
+class ExpressionInterpolatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "ExpressionInterpolator"
 

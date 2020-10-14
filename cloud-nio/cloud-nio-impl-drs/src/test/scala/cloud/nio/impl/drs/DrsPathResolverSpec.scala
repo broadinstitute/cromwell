@@ -1,92 +1,73 @@
 package cloud.nio.impl.drs
 
-import java.time.{LocalDateTime, OffsetDateTime}
+import java.nio.file.attribute.FileTime
+import java.time.OffsetDateTime
 
-import cloud.nio.impl.drs.MarthaResponseSupport.convertMarthaResponseV2ToV3
+import cloud.nio.impl.drs.DrsCloudNioRegularFileAttributes._
+import common.assertion.CromwellTimeoutSpec
 import io.circe.{Json, JsonObject}
 import org.apache.http.ProtocolVersion
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-class DrsPathResolverSpec extends AnyFlatSpecLike with Matchers {
+class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matchers {
   private val mockGSA = SADataObject(data = Json.fromJsonObject(JsonObject("key"-> Json.fromString("value"))))
   private val crcHashValue = "8a366443"
   private val md5HashValue = "336ea55913bc261b72875bd259753046"
   private val shaHashValue = "f76877f8e86ec3932fd2ae04239fbabb8c90199dab0019ae55fa42b31c314c44"
-  private val fullMarthaV2Response = MarthaV2Response(
-    dos = DrsObject(
-      data_object = DrsDataObject(
-        size = Option(34905345),
-        checksums = Option(Array(ChecksumObject(checksum = md5HashValue, `type` = "md5"), ChecksumObject(checksum = crcHashValue, `type` = "crc32c"))),
-        updated = Option("2020-04-27T15:56:09.696Z"),
-        urls = Array(Url("s3://my-s3-bucket/file-name"), Url("gs://my-gs-bucket/file-name"))
-      )
-    ),
-    googleServiceAccount = Option(mockGSA)
-  )
 
-  private val fullMarthaV2ResponseNoTz = MarthaV2Response(
-    dos = DrsObject(
-      data_object = DrsDataObject(
-        size = Option(34905345),
-        checksums = Option(Array(ChecksumObject(checksum = md5HashValue, `type` = "md5"), ChecksumObject(checksum = crcHashValue, `type` = "crc32c"))),
-        updated = Option("2020-01-15T17:46:25.694148"),
-        urls = Array(Url("s3://my-s3-bucket/file-name"), Url("gs://my-gs-bucket/file-name"))
-      )
-    ),
-    googleServiceAccount = Option(mockGSA)
-  )
-
-  private val fullMarthaResponse =  MarthaResponse(
+  private val fullMarthaResponse = MarthaResponse(
     size = Option(34905345),
+    timeCreated = Option(OffsetDateTime.parse("2020-04-27T15:56:09.696Z").toString),
     timeUpdated = Option(OffsetDateTime.parse("2020-04-27T15:56:09.696Z").toString),
-    bucket = Option("my-gs-bucket"),
-    name = Option("file-name"),
     gsUri = Option("gs://my-gs-bucket/file-name"),
     googleServiceAccount = Option(mockGSA),
+    fileName = Option("actual_file_name"),
     hashes = Option(Map("md5" -> md5HashValue, "crc32c" -> crcHashValue))
   )
 
-  private val fullMarthaResponseNoTz =  MarthaResponse(
-    size = Option(34905345),
-    timeUpdated = Option(LocalDateTime.parse("2020-01-15T17:46:25.694148").toString),
-    bucket = Option("my-gs-bucket"),
-    name = Option("file-name"),
-    gsUri = Option("gs://my-gs-bucket/file-name"),
-    googleServiceAccount = Option(mockGSA),
-    hashes = Option(Map("md5" -> md5HashValue, "crc32c" -> crcHashValue))
-  )
+  private val fullMarthaResponseNoTz =
+    fullMarthaResponse
+      .copy(timeUpdated = fullMarthaResponse.timeUpdated.map(_.stripSuffix("Z")))
+
+  private val fullMarthaResponseNoTime =
+    fullMarthaResponse
+      .copy(timeUpdated = None)
+
+  private val fullMarthaResponseBadTz =
+    fullMarthaResponse
+      .copy(timeUpdated = fullMarthaResponse.timeUpdated.map(_.stripSuffix("Z") + "BADTZ"))
 
   private val alfredHashValue = "xrd"
-  private val completeHashesMap = Map(
+  private val completeHashesMap = Option(Map(
     "betty" -> "abc123",
     "charles" -> "456",
     "alfred" -> alfredHashValue,
     "sha256" -> shaHashValue,
     "crc32c" -> crcHashValue,
     "md5" -> md5HashValue,
-  )
+  ))
 
-  private val missingCRCHashesMap = Map(
+  private val missingCRCHashesMap = Option(Map(
     "alfred" -> alfredHashValue,
     "sha256" -> shaHashValue,
     "betty" -> "abc123",
     "md5" -> md5HashValue,
     "charles" -> "456",
-  )
+  ))
 
-  private val onlySHAHashesMap = Map(
+  private val onlySHAHashesMap = Option(Map(
     "betty" -> "abc123",
     "charles" -> "456",
     "alfred" -> alfredHashValue,
     "sha256" -> shaHashValue,
-  )
+  ))
 
-  private val noPreferredHashesMap = Map(
+  private val noPreferredHashesMap = Option(Map(
     "alfred" -> alfredHashValue,
     "betty" -> "abc123",
     "charles" -> "456",
-  )
+  ))
 
   behavior of "fileHash()"
 
@@ -106,14 +87,12 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with Matchers {
     DrsCloudNioRegularFileAttributes.getPreferredHash(noPreferredHashesMap) shouldBe Option(alfredHashValue)
   }
 
-  behavior of "convertMarthaResponseV2ToV3()"
-
-  it should "convert a full martha_v2 response to a the standard Martha response" in {
-    convertMarthaResponseV2ToV3(fullMarthaV2Response) shouldBe fullMarthaResponse
+  it should "return None when no hashes object is returned" in {
+    DrsCloudNioRegularFileAttributes.getPreferredHash(None) shouldBe None
   }
 
-  it should "convert a full martha_v2 response to a the standard Martha response even if there is no timezone in `updated` field" in {
-    convertMarthaResponseV2ToV3(fullMarthaV2ResponseNoTz) shouldBe fullMarthaResponseNoTz
+  it should "return None when an empty hash object is returned" in {
+    DrsCloudNioRegularFileAttributes.getPreferredHash(Option(Map.empty)) shouldBe None
   }
 
   private val failureResponseJson = """
@@ -183,4 +162,43 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with Matchers {
     }
   }
 
+  it should "resolve an ISO-8601 date with timezone" in {
+    val lastModifiedTimeIO = convertToFileTime(
+      "drs://my_awesome_drs",
+      MarthaField.TimeUpdated,
+      fullMarthaResponse.timeUpdated,
+    )
+    lastModifiedTimeIO.unsafeRunSync() should
+      be(Option(FileTime.from(OffsetDateTime.parse("2020-04-27T15:56:09.696Z").toInstant)))
+  }
+
+  it should "resolve an ISO-8601 date without timezone" in {
+    val lastModifiedTimeIO = convertToFileTime(
+      "drs://my_awesome_drs",
+      MarthaField.TimeUpdated,
+      fullMarthaResponseNoTz.timeUpdated,
+    )
+    lastModifiedTimeIO.unsafeRunSync() should
+      be(Option(FileTime.from(OffsetDateTime.parse("2020-04-27T15:56:09.696Z").toInstant)))
+  }
+
+  it should "not resolve an date that does not contain a timeUpdated" in {
+    val lastModifiedTimeIO = convertToFileTime(
+      "drs://my_awesome_drs",
+      MarthaField.TimeUpdated,
+      fullMarthaResponseNoTime.timeUpdated,
+    )
+    lastModifiedTimeIO.unsafeRunSync() should be(None)
+  }
+
+  it should "not resolve an date that is not ISO-8601" in {
+    val lastModifiedTimeIO = convertToFileTime(
+      "drs://my_awesome_drs",
+      MarthaField.TimeUpdated,
+      fullMarthaResponseBadTz.timeUpdated,
+    )
+    the[RuntimeException] thrownBy lastModifiedTimeIO.unsafeRunSync() should have message
+      "Error while parsing 'timeUpdated' value from Martha to FileTime for DRS path drs://my_awesome_drs. " +
+        "Reason: DateTimeParseException: Text '2020-04-27T15:56:09.696BADTZ' could not be parsed at index 23."
+  }
 }

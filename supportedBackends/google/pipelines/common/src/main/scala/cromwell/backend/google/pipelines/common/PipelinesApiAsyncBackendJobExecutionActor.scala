@@ -200,10 +200,12 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   }
 
   override lazy val inputsToNotLocalize: Set[WomFile] = {
-    jobDescriptor.findInputFilesByParameterMeta {
+    val unmapped = jobDescriptor.findInputFilesByParameterMeta {
       case MetaValueElementObject(values) => values.get("localization_optional").contains(MetaValueElementBoolean(true))
       case _ => false
     }
+    val cloudMapped = unmapped.map(cloudResolveWomFile)
+    unmapped ++ cloudMapped
   }
 
   protected def callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = {
@@ -417,7 +419,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   private def createPipelineParameters(inputOutputParameters: InputOutputParameters,
                                        customLabels: Seq[GoogleLabel],
-                                       referenceFilesMapping: PipelinesApiReferenceFilesMapping): CreatePipelineParameters = {
+                                       ): CreatePipelineParameters = {
     standardParams.backendInitializationDataOption match {
       case Some(data: PipelinesApiBackendInitializationData) =>
         val dockerKeyAndToken: Option[CreatePipelineDockerKeyAndToken] = for {
@@ -487,6 +489,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           referenceDisksForLocalization = referenceDisksToMount,
           monitoringImage = monitoringImage,
           enableSshAccess = enableSshAccess,
+          vpcNetworkAndSubnetworkProjectLabels = data.vpcNetworkAndSubnetworkProjectLabels
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")
@@ -588,7 +591,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       _ <- uploadScriptFile
       customLabels <- Future.fromTry(GoogleLabels.fromWorkflowOptions(workflowDescriptor.workflowOptions))
       jesParameters <- generateInputOutputParameters
-      createParameters = createPipelineParameters(jesParameters, customLabels, jesAttributes.referenceFilesMapping)
+      createParameters = createPipelineParameters(jesParameters, customLabels)
       gcsTransferConfiguration = initializationData.papiConfiguration.papiAttributes.gcsTransferConfiguration
       gcsTransferLibraryCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsTransferLibraryName
       transferLibraryContainerPath = createParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
@@ -812,6 +815,15 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           jobReturnCode,
           None
         )
+    }
+  }
+
+  override def cloudResolveWomFile(womFile: WomFile): WomFile = {
+    womFile.mapFile { value =>
+      getPath(value) match {
+        case Success(drsPath: DrsPath) => DrsResolver.getGsUri(drsPath).unsafeRunSync()
+        case _ => value
+      }
     }
   }
 

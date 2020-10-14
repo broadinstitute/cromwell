@@ -1,6 +1,7 @@
 package cromwell.docker.registryv2
 
 import cats.effect.{IO, Resource}
+import common.assertion.CromwellTimeoutSpec
 import cromwell.docker.DockerInfoActor.{DockerInfoContext, DockerInfoFailedResponse}
 import cromwell.docker.{DockerImageIdentifier, DockerInfoActor, DockerInfoRequest, DockerRegistryConfig}
 import org.http4s.client.Client
@@ -9,7 +10,7 @@ import org.http4s.{Header, Headers, MediaType, Request, Response}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class DockerRegistryV2AbstractSpec extends AnyFlatSpec with Matchers {
+class DockerRegistryV2AbstractSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "DockerRegistryV2Abstract"
   
   it should "handle gracefully if a response cannot be parsed" in {

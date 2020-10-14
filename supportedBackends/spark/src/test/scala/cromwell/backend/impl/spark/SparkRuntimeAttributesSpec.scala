@@ -1,5 +1,6 @@
 package cromwell.backend.impl.spark
 
+import common.assertion.CromwellTimeoutSpec
 import common.collections.EnhancedCollections._
 import common.validation.ErrorOr._
 import cromwell.backend.BackendWorkflowDescriptor
@@ -18,7 +19,7 @@ import wom.graph.GraphNodePort.OutputPort
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wom.values.WomValue
 
-class SparkRuntimeAttributesSpec extends AnyWordSpecLike with Matchers {
+class SparkRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec with Matchers {
 
   val HelloWorld =
     """

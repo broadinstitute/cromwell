@@ -6,6 +6,7 @@ import _root_.io.grpc.Status
 import _root_.wdl.draft2.model._
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration, TestProbe}
+import com.google.api.client.http.HttpRequest
 import com.google.cloud.NoCredentials
 import common.collections.EnhancedCollections._
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse}
@@ -58,7 +59,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
   import MockGcsPathBuilder._
   var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor))
 
-  def gcsPath(str: String) = mockPathBuilder.build(str).getOrElse(fail(s"Invalid gcs path: $str"))
+  private def gcsPath(str: String) = mockPathBuilder.build(str).getOrElse(fail(s"Invalid gcs path: $str"))
 
   import PipelinesApiTestConfig._
 
@@ -87,15 +88,16 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
 
   val Inputs: Map[FullyQualifiedName, WomValue] = Map("wf_sup.sup.addressee" -> WomString("dog"))
 
-  val NoOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
+  private val NoOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
 
-  lazy val TestableCallContext = CallContext(mockPathBuilder.build("gs://root").get, DummyStandardPaths, isDocker = false)
+  private lazy val TestableCallContext = CallContext(mockPathBuilder.build("gs://root").get, DummyStandardPaths, isDocker = false)
 
-  lazy val TestableStandardExpressionFunctionsParams = new StandardExpressionFunctionsParams {
+  private lazy val TestableStandardExpressionFunctionsParams: StandardExpressionFunctionsParams
+  = new StandardExpressionFunctionsParams {
     override lazy val pathBuilders: List[PathBuilder] = List(mockPathBuilder)
     override lazy val callContext: CallContext = TestableCallContext
     override val ioActorProxy: ActorRef = simpleIoActor
-    override val executionContext = system.dispatcher
+    override val executionContext: ExecutionContext = system.dispatcher
   }
 
   lazy val TestableJesExpressionFunctions: PipelinesApiExpressionFunctions = {
@@ -107,12 +109,14 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val workflowPaths = PipelinesApiWorkflowPaths(
       jobDescriptor.workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), configuration, pathBuilders, PipelinesApiInitializationActor.defaultStandardStreamNameToFileNameMetadataMapper)
     val runtimeAttributesBuilder = PipelinesApiRuntimeAttributes.runtimeAttributesBuilder(configuration)
-    val requestFactory = new PipelinesApiRequestFactory {
-      override def cancelRequest(job: StandardAsyncJob) = null
-      override def getRequest(job: StandardAsyncJob) = null
-      override def runRequest(createPipelineParameters: PipelinesApiRequestFactory.CreatePipelineParameters, jobLogger: JobLogger) = null
+    val requestFactory: PipelinesApiRequestFactory = new PipelinesApiRequestFactory {
+      override def cancelRequest(job: StandardAsyncJob): HttpRequest = null
+      override def getRequest(job: StandardAsyncJob): HttpRequest = null
+      override def runRequest(createPipelineParameters: PipelinesApiRequestFactory.CreatePipelineParameters,
+                              jobLogger: JobLogger,
+                             ): HttpRequest = null
     }
-    PipelinesApiBackendInitializationData(workflowPaths, runtimeAttributesBuilder, configuration, null, requestFactory, None, None)
+    PipelinesApiBackendInitializationData(workflowPaths, runtimeAttributesBuilder, configuration, null, requestFactory, None, None, None)
   }
 
   class TestablePipelinesApiJobExecutionActor(params: StandardAsyncExecutionActorParams, functions: PipelinesApiExpressionFunctions)
@@ -141,7 +145,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
       )
     }
 
-    override lazy val jobLogger = new JobLogger(
+    override lazy val jobLogger: JobLogger = new JobLogger(
       loggerName = "TestLogger",
       workflowIdForLogging = workflowId.toPossiblyNotRoot,
       rootWorkflowIdForLogging = workflowId.toRoot,
@@ -209,7 +213,6 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
   }
 
   private def executionActor(jobDescriptor: BackendJobDescriptor,
-                             configurationDescriptor: BackendConfigurationDescriptor,
                              promise: Promise[BackendJobExecutionResponse],
                              jesSingletonActor: ActorRef,
                              shouldBePreemptible: Boolean): ActorRef = {
@@ -239,7 +242,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     // TODO: Use this to check the new KV entries are there!
     //val kvProbe = TestProbe()
 
-    val backend = executionActor(jobDescriptor, PapiBackendConfigurationDescriptor, promise, statusPoller.ref, expectPreemptible)
+    val backend = executionActor(jobDescriptor, promise, statusPoller.ref, expectPreemptible)
     backend ! Execute
     statusPoller.expectMsgPF(max = Timeout, hint = "awaiting status poll") {
       case _: PAPIStatusPollRequest => backend ! runStatus
@@ -261,7 +264,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
 
   behavior of "JesAsyncBackendJobExecutionActor"
 
-  val timeout = 25 seconds
+  private val timeout = 25 seconds
 
   { // Set of "handle call failures appropriately with respect to preemption and failure" tests
     val expectations = Table(
@@ -503,7 +506,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
 
 
         def gcsPathToLocal(womValue: WomValue): WomValue = {
-          WomFileMapper.mapWomFiles(testActorRef.underlyingActor.mapCommandLineWomFile, Set.empty)(womValue).get
+          WomFileMapper.mapWomFiles(testActorRef.underlyingActor.mapCommandLineWomFile)(womValue).get
         }
 
         val mappedInputs = jobDescriptor.localInputs safeMapValues gcsPathToLocal
@@ -790,7 +793,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
       props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     def wdlValueToGcsPath(jesOutputs: Set[PipelinesApiFileOutput])(womValue: WomValue): WomValue = {
-      WomFileMapper.mapWomFiles(testActorRef.underlyingActor.womFileToGcsPath(jesOutputs.toSet), Set.empty)(womValue).get
+      WomFileMapper.mapWomFiles(testActorRef.underlyingActor.womFileToGcsPath(jesOutputs.toSet))(womValue).get
     }
 
     val result = outputValues map wdlValueToGcsPath(jesOutputs)

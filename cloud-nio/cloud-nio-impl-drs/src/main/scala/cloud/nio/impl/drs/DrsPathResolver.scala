@@ -1,5 +1,6 @@
 package cloud.nio.impl.drs
 
+import cats.data.NonEmptyList
 import cats.effect.{IO, Resource}
 import cats.implicits._
 import cloud.nio.impl.drs.MarthaResponseSupport._
@@ -7,6 +8,7 @@ import common.exception.toIO
 import io.circe._
 import io.circe.generic.semiauto._
 import io.circe.parser.decode
+import io.circe.syntax._
 import mouse.boolean._
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.http.client.methods.HttpPost
@@ -17,13 +19,11 @@ import org.apache.http.{HttpResponse, HttpStatus, StatusLine}
 
 abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBuilder) {
 
-  private val DrsPathToken = "${drsPath}"
-
   def getAccessToken: String
 
-  private def makeHttpRequestToMartha(drsPath: String): HttpPost = {
-    val postRequest = new HttpPost(drsConfig.marthaUri)
-    val requestJson = drsConfig.marthaRequestJsonTemplate.replace(DrsPathToken, drsPath)
+  private def makeHttpRequestToMartha(drsPath: String, fields: NonEmptyList[MarthaField.Value]): HttpPost = {
+    val postRequest = new HttpPost(drsConfig.marthaUrl)
+    val requestJson = MarthaRequest(drsPath, fields).asJson.noSpaces
     postRequest.setEntity(new StringEntity(requestJson, ContentType.APPLICATION_JSON))
     postRequest.setHeader("Authorization", s"Bearer $getAccessToken")
     postRequest
@@ -33,13 +33,12 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClie
     val marthaResponseEntityOption = Option(httpResponse.getEntity).map(EntityUtils.toString)
     val responseStatusLine = httpResponse.getStatusLine
 
-    val exceptionMsg = errorMessageFromResponse(drsPathForDebugging, marthaResponseEntityOption, responseStatusLine, drsConfig.marthaUri)
+    val exceptionMsg = errorMessageFromResponse(drsPathForDebugging, marthaResponseEntityOption, responseStatusLine, drsConfig.marthaUrl)
     val responseEntityOption = (responseStatusLine.getStatusCode == HttpStatus.SC_OK).valueOrZero(marthaResponseEntityOption)
     val responseContentIO = toIO(responseEntityOption, exceptionMsg)
 
     responseContentIO.flatMap{ responseContent =>
-      if (drsConfig.marthaUri.endsWith("martha_v3")) IO.fromEither(decode[MarthaResponse](responseContent))
-      else IO.fromEither(decode[MarthaV2Response](responseContent).map(convertMarthaResponseV2ToV3))
+      IO.fromEither(decode[MarthaResponse](responseContent))
     }.handleErrorWith {
       e => IO.raiseError(new RuntimeException(s"Unexpected response during DRS resolution: ${ExceptionUtils.getMessage(e)}"))
     }
@@ -52,8 +51,8 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClie
     } yield httpResponse
   }
 
-  def rawMarthaResponse(drsPath: String): Resource[IO, HttpResponse] = {
-    val httpPost = makeHttpRequestToMartha(drsPath)
+  def rawMarthaResponse(drsPath: String, fields: NonEmptyList[MarthaField.Value]): Resource[IO, HttpResponse] = {
+    val httpPost = makeHttpRequestToMartha(drsPath, fields)
     executeMarthaRequest(httpPost)
   }
 
@@ -61,31 +60,44 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClie
     * Resolves the DRS path through Martha url provided in the config.
     * Please note, this method returns an IO that would make a synchronous HTTP request to Martha when run.
     */
-  def resolveDrsThroughMartha(drsPath: String): IO[MarthaResponse] = {
-    rawMarthaResponse(drsPath).use(httpResponseToMarthaResponse(drsPathForDebugging = drsPath))
+  def resolveDrsThroughMartha(drsPath: String, fields: NonEmptyList[MarthaField.Value]): IO[MarthaResponse] = {
+    rawMarthaResponse(drsPath, fields).use(httpResponseToMarthaResponse(drsPathForDebugging = drsPath))
   }
 }
 
+final case class DrsConfig(marthaUrl: String)
 
-final case class DrsConfig(marthaUri: String, marthaRequestJsonTemplate: String)
+object MarthaField extends Enumeration {
+  val GsUri: MarthaField.Value = Value("gsUri")
+  val Size: MarthaField.Value = Value("size")
+  val TimeCreated: MarthaField.Value = Value("timeCreated")
+  val TimeUpdated: MarthaField.Value = Value("timeUpdated")
+  val GoogleServiceAccount: MarthaField.Value = Value("googleServiceAccount")
+  val Hashes: MarthaField.Value = Value("hashes")
+  val FileName: MarthaField.Value = Value("fileName")
+}
 
-final case class Url(url: String)
-final case class ChecksumObject(checksum: String, `type`: String)
-final case class DrsDataObject(size: Option[Long],
-                               checksums: Option[Array[ChecksumObject]],
-                               updated: Option[String],
-                               urls: Array[Url])
-final case class DrsObject(data_object: DrsDataObject)
+final case class MarthaRequest(url: String, fields: NonEmptyList[MarthaField.Value])
+
 final case class SADataObject(data: Json)
 
-final case class MarthaV2Response(dos: DrsObject, googleServiceAccount: Option[SADataObject])
-
+/**
+  * A response from `martha_v3`.
+  *
+  * @param size Size of the object stored at gsUri
+  * @param timeCreated The creation time of the object at gsUri
+  * @param timeUpdated The last update time of the object at gsUri
+  * @param gsUri Where the object bytes are stored, possibly using a generated path name such as "gs://bucket/12/345"
+  * @param googleServiceAccount The service account to access the gsUri contents
+  * @param fileName A possible different file name for the object at gsUri, ex: "gsutil cp gs://bucket/12/345 my.vcf"
+  * @param hashes Hashes for the contents stored at gsUri
+  */
 final case class MarthaResponse(size: Option[Long],
+                                timeCreated: Option[String],
                                 timeUpdated: Option[String],
-                                bucket: Option[String],
-                                name: Option[String],
                                 gsUri: Option[String],
                                 googleServiceAccount: Option[SADataObject],
+                                fileName: Option[String],
                                 hashes: Option[Map[String, String]])
 
 // Adapted from https://github.com/broadinstitute/martha/blob/f31933a3a11e20d30698ec4b4dc1e0abbb31a8bc/common/helpers.js#L210-L218
@@ -94,12 +106,10 @@ final case class MarthaFailureResponsePayload(text: String)
 
 object MarthaResponseSupport {
 
-  implicit lazy val urlDecoder: Decoder[Url] = deriveDecoder
-  implicit lazy val checksumDecoder: Decoder[ChecksumObject] = deriveDecoder
-  implicit lazy val dataObjectDecoder: Decoder[DrsDataObject] = deriveDecoder
-  implicit lazy val drsObjectDecoder: Decoder[DrsObject] = deriveDecoder
+  implicit lazy val marthaFieldEncoder: Encoder[MarthaField.Value] = Encoder.encodeEnumeration(MarthaField)
+  implicit lazy val marthaRequestEncoder: Encoder[MarthaRequest] = deriveEncoder
+
   implicit lazy val saDataObjectDecoder: Decoder[SADataObject] = deriveDecoder
-  implicit lazy val marthaV2ResponseDecoder: Decoder[MarthaV2Response] = deriveDecoder
   implicit lazy val marthaResponseDecoder: Decoder[MarthaResponse] = deriveDecoder
 
   implicit lazy val marthaFailureResponseDecoder: Decoder[MarthaFailureResponse] = deriveDecoder
@@ -107,36 +117,9 @@ object MarthaResponseSupport {
 
   private val GcsScheme = "gs://"
 
-  private def convertChecksumsToHashesMap(checksums: Array[ChecksumObject]): Map[String, String] = {
-    checksums.flatMap (checksumObj => Map(checksumObj.`type` -> checksumObj.checksum)).toMap
-  }
-
-  private def getGcsBucketAndName(gcsUrlOption: Option[String]): (Option[String], Option[String]) = {
-    gcsUrlOption match {
-      case Some(gcsUrl) =>
-       val array = gcsUrl.substring(GcsScheme.length).split("/", 2)
-        (Option(array(0)), Option(array(1)))
-      case None => (None, None)
-    }
-  }
-
-  def convertMarthaResponseV2ToV3(response: MarthaV2Response): MarthaResponse = {
-    val dataObject = response.dos.data_object
-    val size = dataObject.size
-    val timeUpdated = dataObject.updated
-    val hashesMap = dataObject.checksums.map(convertChecksumsToHashesMap)
-    val gcsUrl = dataObject.urls.find(_.url.startsWith(GcsScheme)).map(_.url)
-    val (bucketName, fileName) = getGcsBucketAndName(gcsUrl)
-
-    MarthaResponse(
-      size = size,
-      timeUpdated = timeUpdated,
-      bucket = bucketName,
-      name = fileName,
-      gsUri = gcsUrl,
-      googleServiceAccount = response.googleServiceAccount,
-      hashes = hashesMap
-    )
+  def getGcsBucketAndName(gcsUrl: String): (String, String) = {
+     val array = gcsUrl.substring(GcsScheme.length).split("/", 2)
+      (array(0), array(1))
   }
 
   def errorMessageFromResponse(drsPathForDebugging: String, marthaResponseEntityOption: Option[String], responseStatusLine: StatusLine, marthaUri: String): String = {

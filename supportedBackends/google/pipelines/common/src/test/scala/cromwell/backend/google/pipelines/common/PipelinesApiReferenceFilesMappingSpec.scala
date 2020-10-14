@@ -2,13 +2,14 @@ package cromwell.backend.google.pipelines.common
 
 import cats.effect.IO
 import com.google.cloud.storage.Storage
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.google.pipelines.common.io.PipelinesApiReferenceFilesDisk
-import cromwell.cloudsupport.gcp.auth.ApplicationDefaultMode
+import cromwell.cloudsupport.gcp.auth.MockAuthMode
 import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.flatspec.AnyFlatSpecLike
 
-class PipelinesApiReferenceFilesMappingSpec extends AnyFlatSpecLike with Matchers {
+class PipelinesApiReferenceFilesMappingSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matchers {
 
   private val refFile1Disk1 = "bucketname/dir1/dir2/filename1"
   private val refFile2Disk1 = "bucketname/dir1/dir2/dir3/filename2"
@@ -72,7 +73,7 @@ class PipelinesApiReferenceFilesMappingSpec extends AnyFlatSpecLike with Matcher
     }
 
   private val refFileMappingsMock = refFileMappingOperationsMockObject.generateReferenceFilesMapping(
-    ApplicationDefaultMode("default"),
+    MockAuthMode("default"),
     Some (
       List (
         ValidFullGcsPath("bucketname", "manifest1"),

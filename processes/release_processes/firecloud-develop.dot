@@ -29,11 +29,13 @@ digraph {
     color="lightgrey"
 
     fcdev_pr [shape=oval label="Make (or update) the firecloud-develop PR for the new Cromwell version"];
+    helmfile_pr [shape=oval label="Make (or update) the terra-helmfile PR for the new Cromwell version"];
     confirm_cromwell_v [shape=oval label="[Jenkins] Check for the correct Cromwell version hash in fiab-start logs\n(otherwise re-run 'dsl-seed' and use 'jenkins retest')"];
     confirm_cromwell_v [shape=oval label="[Jenkins] Check for the correct Cromwell version hash in fiab-start logs\n(otherwise re-run 'dsl-seed' and use 'jenkins retest')"];
     fcdev_success [shape=oval label="Wait for swatomation to succeed"];
 
     fcdev_merge [shape=oval label="Merge firecloud-develop PR"];
+    helmfile_merge [shape=oval label="Merge terra-helmfile PR"];
 
     dspjenkins_PR [shape=oval label="Make dsp-jenkins PR setting new Cromwell version"];
     dspjenkins_merge [shape=oval label="Merge dsp-jenkins PR"];
@@ -54,7 +56,8 @@ digraph {
 
   release_cromwell -> dspjenkins_PR
 
-  fcdev_pr -> confirm_cromwell_v
+  fcdev_pr -> helmfile_pr
+  helmfile_pr -> confirm_cromwell_v
 
   dspjenkins_PR -> jenkins_set
 
@@ -67,5 +70,6 @@ digraph {
   qa_perf -> dspjenkins_merge
   qa_perf -> fcdev_merge
 
-  fcdev_merge -> coordinate_release_timing
+  fcdev_merge -> helmfile_merge
+  helmfile_merge -> coordinate_release_timing
 }

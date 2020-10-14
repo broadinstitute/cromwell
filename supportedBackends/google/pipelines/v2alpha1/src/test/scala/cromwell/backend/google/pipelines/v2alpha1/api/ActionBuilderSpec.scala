@@ -3,6 +3,7 @@ package cromwell.backend.google.pipelines.v2alpha1.api
 import java.util
 
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount}
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.google.pipelines.common.action.ActionLabels._
 import cromwell.backend.google.pipelines.v2alpha1.GenomicsFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -11,7 +12,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 
 import scala.collection.JavaConverters._
 
-class ActionBuilderSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
+class ActionBuilderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "ActionBuilder"
 

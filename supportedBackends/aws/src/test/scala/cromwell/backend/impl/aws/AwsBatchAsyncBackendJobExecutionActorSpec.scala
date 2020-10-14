@@ -77,7 +77,7 @@ import wom.types._
 import wom.values._
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future, Promise}
+import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 import scala.util.Success
 
@@ -117,18 +117,19 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
       |}
     """.stripMargin
 
-  val Inputs: Map[FullyQualifiedName, WomValue] = Map("wf_sup.sup.addressee" -> WomString("dog"))
+  private val Inputs: Map[FullyQualifiedName, WomValue] = Map("wf_sup.sup.addressee" -> WomString("dog"))
 
-  val NoOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
+  private val NoOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
 
-  lazy val TestableCallContext =
+  private lazy val TestableCallContext =
     CallContext(mockPathBuilder.build("s3://root").get, DummyStandardPaths, isDocker = false)
 
-  lazy val TestableStandardExpressionFunctionsParams = new StandardExpressionFunctionsParams {
+  lazy val TestableStandardExpressionFunctionsParams: StandardExpressionFunctionsParams =
+    new StandardExpressionFunctionsParams {
     override lazy val pathBuilders: List[PathBuilder] = List(mockPathBuilder)
     override lazy val callContext: CallContext = TestableCallContext
     override val ioActorProxy: ActorRef = simpleIoActor
-    override val executionContext = system.dispatcher
+    override val executionContext: ExecutionContext = system.dispatcher
   }
 
   lazy val TestableAwsBatchExpressionFunctions: AwsBatchExpressionFunctions = {
@@ -171,7 +172,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
       )
     }
 
-    override lazy val jobLogger = new JobLogger(
+    override lazy val jobLogger: JobLogger = new JobLogger(
       "TestLogger",
       workflowIdForLogging,
       rootWorkflowIdForLogging,
@@ -270,7 +271,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
   //   Await.result(promise.future, Timeout)
   // }
 
-  def buildTestActorRef(attempt: Int): TestActorRef[TestableAwsBatchJobExecutionActor] = {
+  def buildTestActorRef(): TestActorRef[TestableAwsBatchJobExecutionActor] = {
     // For this test we say that all previous attempts were preempted:
     val jobDescriptor = buildJobDescriptor()
     val props = Props(new TestableAwsBatchJobExecutionActor(jobDescriptor, Promise(),
@@ -283,7 +284,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
 
   behavior of "AwsBatchAsyncBackendJobExecutionActor"
 
-  val timeout = 25 seconds
+  private val timeout = 25 seconds
 
 //   { // Set of "handle call failures appropriately with respect to preemption and failure" tests
 //     val expectations = Table(
@@ -395,7 +396,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
   // }
 
   it should "handle Failure Status for various errors" taggedAs AwsTest in {
-    val actorRef = buildTestActorRef(1)
+    val actorRef = buildTestActorRef()
     val backend = actorRef.underlyingActor
     val runId = StandardAsyncJob(UUID.randomUUID().toString)
     val handle = new AwsBatchPendingExecutionHandle(null, runId, None, None)
@@ -462,7 +463,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
 
 
         def pathToLocal(womValue: WomValue): WomValue = {
-          WomFileMapper.mapWomFiles(testActorRef.underlyingActor.mapCommandLineWomFile, exceptions = Set.empty)(womValue).get
+          WomFileMapper.mapWomFiles(testActorRef.underlyingActor.mapCommandLineWomFile)(womValue).get
         }
 
         val mappedInputs = jobDescriptor.localInputs safeMapValues pathToLocal
@@ -748,7 +749,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
       props, s"TestableAwsBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     def wdlValueToS3Path(outputs: Set[AwsBatchFileOutput])(womValue: WomValue): WomValue = {
-      WomFileMapper.mapWomFiles(testActorRef.underlyingActor.womFileToPath(outputs), exceptions = Set.empty)(womValue).get
+      WomFileMapper.mapWomFiles(testActorRef.underlyingActor.womFileToPath(outputs))(womValue).get
     }
 
     val result = outputValues map wdlValueToS3Path(outputs)

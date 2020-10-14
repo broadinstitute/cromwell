@@ -2,6 +2,7 @@ package cromwell.api
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.{ContentType, HttpEntity}
+import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Sink
 import better.files.File
 import cromwell.api.model.{Label, WorkflowBatchSubmission, WorkflowId, WorkflowSingleSubmission}
@@ -15,6 +16,7 @@ class CromwellClientSpec extends AsyncFlatSpec with BeforeAndAfterAll with Match
   behavior of "CromwellClient"
 
   implicit val system: ActorSystem = ActorSystem("CromwellClientSpec")
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   private val tempFile: File = File.newTemporaryFile("cromwell_client_spec.", ".tmp").write("hello")
 

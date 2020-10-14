@@ -1,11 +1,10 @@
 package cromwell.backend.google.pipelines.v2beta
 
-import java.nio.channels.ReadableByteChannel
-
-import cats.effect.IO
-import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, MarthaResponse}
+import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
+import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
 import com.google.cloud.NoCredentials
 import com.typesafe.config.{Config, ConfigFactory}
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.pipelines.common.PipelinesApiFileInput
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiWorkingDisk}
@@ -18,7 +17,7 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
 
-class PipelinesConversionsSpec extends AnyFlatSpec with Matchers {
+class PipelinesConversionsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "PipelinesConversions"
   implicit val gcsTransferConfiguration: GcsTransferConfiguration =
@@ -27,7 +26,6 @@ class PipelinesConversionsSpec extends AnyFlatSpec with Matchers {
   private val marthaConfig: Config = ConfigFactory.parseString(
     """martha {
       |   url = "http://matha-url"
-      |   request.json-template = "{"key": "${holder}"}"
       |}
       |""".stripMargin
   )
@@ -36,7 +34,7 @@ class PipelinesConversionsSpec extends AnyFlatSpec with Matchers {
 
   private lazy val httpClientBuilder = HttpClientBuilder.create()
 
-  private def drsReadInterpreter(marthaResponse: MarthaResponse): IO[ReadableByteChannel] =
+  private val drsReadInterpreter: DrsReadInterpreter = (_, _) =>
     throw new UnsupportedOperationException("Currently PipelinesConversionsSpec doesn't need to use drs read interpreter.")
 
   it should "create a DRS input parameter" in {

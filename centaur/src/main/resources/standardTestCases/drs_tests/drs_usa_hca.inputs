@@ -1,8 +1,13 @@
 {
     # For all below 5 HCA uuids, Martha does not return a service account
-    "drs_usa_hca.localize_drs_with_usa.file1": "drs://drs.data.humancellatlas.org/4cf48dbf-cf09-452e-bb5b-fd016af0c747?version=2019-09-14T024754.281908Z",
-    "drs_usa_hca.localize_drs_with_usa.file2": "drs://drs.data.humancellatlas.org/fe6729a0-9d24-4034-a0e8-720830044af2?version=2019-09-14T075241.272244Z",
-    "drs_usa_hca.localize_drs_with_usa.file3": "drs://drs.data.humancellatlas.org/82544678-fb65-4da4-aaf8-3a2506b64993?version=2019-09-14T080840.009338Z",
-    "drs_usa_hca.localize_drs_with_usa.file4": "drs://drs.data.humancellatlas.org/d205fbd5-0b2d-4ec9-a898-ee08712e9c18?version=2019-09-14T024945.734484Z",
-    "drs_usa_hca.localize_drs_with_usa.file5": "drs://drs.data.humancellatlas.org/39ae3998-72a4-41ba-b00f-526bfecb8ca2?version=2019-09-13T091626.837580Z",
+    "drs_usa_hca.file1":
+        "drs://drs.data.humancellatlas.org/4cf48dbf-cf09-452e-bb5b-fd016af0c747?version=2019-09-14T024754.281908Z",
+    "drs_usa_hca.file2":
+        "drs://drs.data.humancellatlas.org/fe6729a0-9d24-4034-a0e8-720830044af2?version=2019-09-14T075241.272244Z",
+    "drs_usa_hca.file3":
+        "drs://drs.data.humancellatlas.org/82544678-fb65-4da4-aaf8-3a2506b64993?version=2019-09-14T080840.009338Z",
+    "drs_usa_hca.file4":
+        "drs://drs.data.humancellatlas.org/d205fbd5-0b2d-4ec9-a898-ee08712e9c18?version=2019-09-14T024945.734484Z",
+    "drs_usa_hca.file5":
+        "drs://drs.data.humancellatlas.org/39ae3998-72a4-41ba-b00f-526bfecb8ca2?version=2019-09-13T091626.837580Z",
 }

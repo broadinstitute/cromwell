@@ -2,8 +2,8 @@ import sbt._
 
 object Dependencies {
   private val akkaHttpCirceIntegrationV = "1.34.0"
-  private val akkaHttpV = "10.1.12"
-  val akkaV = "2.6.9" // When updating: Do we still need the merge "fix" from https://github.com/broadinstitute/cromwell/pull/5776 (not private because used in Merging.scala)
+  private val akkaHttpV = "10.1.12" // scala-steward:off (BA-6619)
+  private val akkaV = "2.5.31" // scala-steward:off (BA-6637)
   private val aliyunBcsV = "6.2.4"
   private val aliyunCoreV = "4.5.10"
   private val aliyunCrV = "4.1.1"
@@ -84,7 +84,7 @@ object Dependencies {
   private val metrics3ScalaV = "4.0.0" // https://github.com/erikvanoosten/metrics-scala/tree/f733e26#download-4x
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "2.7.1"
-  private val mockserverNettyV = "5.5.4"
+  private val mockserverNettyV = "5.5.4" // scala-steward:off (BA-6582)
   private val mouseV = "0.25"
   private val mysqlV = "8.0.21"
   private val nettyV = "4.1.46.Final"
@@ -123,13 +123,13 @@ object Dependencies {
     * Consider updating to the official newer Slick version once they fix issue #2076
     * Related Slick PR: https://github.com/slick/slick/pull/2101
   */
-  private val slickV = "3.3.2-2076hotfix"
+  private val slickV = "3.3.2-2076hotfix" // scala-steward:off (BA-6620)
   private val snakeyamlV = "1.27"
   private val specs2MockV = "4.10.2"
   private val sprayJsonV = "1.3.5"
-  private val sttpV = "1.5.19"
+  private val sttpV = "1.5.19" // scala-steward:off (BA-6564)
   private val swaggerParserV = "1.0.51"
-  private val swaggerUiV = "3.23.11" // scala-steward:off
+  private val swaggerUiV = "3.23.11" // scala-steward:off (BA-6621)
   private val tikaV = "1.24.1"
   private val typesafeConfigV = "1.4.0"
   private val workbenchGoogleV = "0.15-2fc79a3"

@@ -3,6 +3,7 @@ package cromwell.services.metadata.impl
 import java.time.OffsetDateTime
 
 import com.dimafeng.testcontainers.Container
+import common.assertion.CromwellTimeoutSpec
 import common.util.TimeUtil._
 import cromwell.core.Tags.DbmsTest
 import cromwell.core._
@@ -38,7 +39,7 @@ object MetadataDatabaseAccessSpec {
   val Subworkflow2Name = "test_subworkflow_2"
 }
 
-class MetadataDatabaseAccessSpec extends AnyFlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Eventually with Mockito {
+class MetadataDatabaseAccessSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Eventually with Mockito {
   import MetadataDatabaseAccessSpec._
 
   implicit val ec = ExecutionContext.global

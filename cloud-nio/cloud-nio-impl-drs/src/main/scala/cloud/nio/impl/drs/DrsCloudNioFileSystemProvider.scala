@@ -44,7 +44,7 @@ class DrsCloudNioFileSystemProvider(rootConfig: Config,
 
     /*
      * DRS compact identifier URIs contain a string where conventional URIs have an integer
-     * port (the `:8000` in `https://localhost:8000`). We can't rely on the URI class to parse it, 
+     * port (the `:8000` in `https://localhost:8000`). We can't rely on the URI class to parse it,
      * so we recognize it via a regular expression and parse out the host name accordingly.
      *
      * In other cases, the hostname does not conform to URI's standards and uri.getHost returns null.
@@ -52,7 +52,7 @@ class DrsCloudNioFileSystemProvider(rootConfig: Config,
      * empty string.
      *
      */
-    val compactUriIdentifier: Regex = new Regex("(dg.[a-zA-Z0-9]+):(\\1/)?[a-z0-9\\-]+$")
+    val compactUriIdentifier: Regex = new Regex("(dg.[a-zA-Z0-9]+)?:(\\1/)?[a-z0-9\\-]*$")
 
     val hostFromUri = uriAsString match {
       case uri if compactUriIdentifier.findFirstMatchIn(uri).nonEmpty =>

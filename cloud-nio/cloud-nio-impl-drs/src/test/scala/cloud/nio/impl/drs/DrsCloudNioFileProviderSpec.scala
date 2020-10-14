@@ -41,6 +41,8 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with Matchers with Moc
     fileSystemProvider.getHost("drs://dg.example.com/abc") should be("dg.example.com")
     fileSystemProvider.getHost("drs://dg.4503:dg.4503/abc") should be("dg.4503")
     fileSystemProvider.getHost("drs://dg.4503:abc") should be("dg.4503")
+    fileSystemProvider.getHost("drs://dg.4503:") should be("dg.4503")
+    fileSystemProvider.getHost("drs://:abc") should be("")
   }
 
   it should "list existing drs objects" in {

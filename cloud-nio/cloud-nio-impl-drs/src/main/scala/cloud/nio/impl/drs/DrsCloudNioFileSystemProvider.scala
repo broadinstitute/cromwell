@@ -52,7 +52,7 @@ class DrsCloudNioFileSystemProvider(rootConfig: Config,
      * empty string.
      *
      */
-    val compactUriIdentifier = new Regex("(dg.\\d+):(\\1/)?[a-z0-9\\-]+$")
+    val compactUriIdentifier = new Regex("(dg.[a-zA-Z0-9]+):(\\1/)?[a-z0-9\\-]+$")
 
     val hostFromUri = uriAsString match {
       case uri if (compactUriIdentifier.findFirstMatchIn(uri).nonEmpty) =>

@@ -7,13 +7,13 @@ import java.nio.file.FileAlreadyExistsException
 import cloud.nio.impl.ftp.FtpUtil.FtpIoException
 import cloud.nio.spi.{CloudNioRegularFileAttributes, CloudNioRetry}
 import com.typesafe.config.ConfigFactory
+import common.assertion.CromwellTimeoutSpec
 import org.apache.commons.net.ftp.FTPReply
 import org.scalamock.scalatest.{MixedMockFactory, MockFactory}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-
-class FtpCloudNioFileSystemProviderSpec extends AnyFlatSpec with Matchers with MockFactory with MixedMockFactory with MockFtpFileSystem {
+class FtpCloudNioFileSystemProviderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with MockFactory with MixedMockFactory with MockFtpFileSystem {
 
   behavior of "FtpCloudNioFileSystemProviderSpec"
 

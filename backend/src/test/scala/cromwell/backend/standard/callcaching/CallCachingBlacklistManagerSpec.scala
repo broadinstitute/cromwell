@@ -2,13 +2,14 @@ package cromwell.backend.standard.callcaching
 
 import akka.event.NoLogging
 import com.typesafe.config.ConfigFactory
+import common.assertion.CromwellTimeoutSpec
 import cromwell.core._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import spray.json._
 
 
-class CallCachingBlacklistManagerSpec extends AnyFlatSpec with Matchers {
+class CallCachingBlacklistManagerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "CallCachingBlacklistManager"
 
   //noinspection RedundantDefaultArgument

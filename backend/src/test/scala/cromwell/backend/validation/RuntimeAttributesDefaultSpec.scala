@@ -1,5 +1,6 @@
 package cromwell.backend.validation
 
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.validation.RuntimeAttributesDefault._
 import cromwell.core.WorkflowOptions
 import org.scalatest.flatspec.AnyFlatSpec
@@ -8,7 +9,7 @@ import spray.json._
 import wom.types._
 import wom.values._
 
-class RuntimeAttributesDefaultSpec extends AnyFlatSpec with Matchers {
+class RuntimeAttributesDefaultSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "RuntimeAttributesDefaultSpec"
 

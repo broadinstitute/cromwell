@@ -1,6 +1,7 @@
 package wom.graph
 
 import cats.data.Validated.{Invalid, Valid}
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wom.callable.CommandTaskDefinitionSpec
@@ -9,7 +10,7 @@ import wom.graph.CallNode.{CallNodeAndNewNodes, CallNodeBuilder, InputDefinition
 import wom.graph.expression.{AnonymousExpressionNode, TaskCallInputExpressionNode}
 import wom.types.WomIntegerType
 
-class ExpressionAsCallInputSpec extends AnyFlatSpec with Matchers {
+class ExpressionAsCallInputSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "ExpressionBasedGraphOutputNode"
 

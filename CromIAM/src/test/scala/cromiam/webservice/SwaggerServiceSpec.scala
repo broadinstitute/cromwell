@@ -2,6 +2,7 @@ package cromiam.webservice
 
 import akka.http.scaladsl.model.{ContentTypes, StatusCodes}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
+import common.assertion.CromwellTimeoutSpec
 import cromiam.server.config.SwaggerOauthConfig
 import io.swagger.models.properties.RefProperty
 import io.swagger.parser.SwaggerParser
@@ -16,7 +17,7 @@ import org.yaml.snakeyaml.{Yaml => SnakeYaml}
 import scala.collection.JavaConverters._
 
 
-class SwaggerServiceSpec extends AnyFlatSpec with SwaggerService with ScalatestRouteTest with Matchers
+class SwaggerServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with SwaggerService with ScalatestRouteTest with Matchers
   with TableDrivenPropertyChecks {
   def actorRefFactory = system
   override def oauthConfig: SwaggerOauthConfig = SwaggerOauthConfig("clientId", "realm", "appName")

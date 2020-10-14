@@ -1,6 +1,7 @@
 package wdl
 
 import better.files._
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import spray.json._
@@ -10,7 +11,7 @@ import wom.ResolvedImportRecord
 
 import scala.collection.immutable.ListMap
 
-class WdlWiringSpec extends AnyFlatSpec with Matchers {
+class WdlWiringSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   val testCases = File("src/test/cases")
   testCases.createDirectories()
 

@@ -1,6 +1,7 @@
 package languages.wdl.draft2
 
 import com.typesafe.config.ConfigFactory
+import common.assertion.CromwellTimeoutSpec
 import common.assertion.ErrorOrAssertions._
 import common.validation.Validation._
 import languages.wdl.draft2.ArrayCoercionsSpec._
@@ -14,7 +15,7 @@ import wom.types.{WomArrayType, WomSingleFileType, WomStringType}
 import wom.values.{WomArray, WomSingleFile, WomString}
 
 
-class ArrayCoercionsSpec extends AnyFlatSpec with Matchers {
+class ArrayCoercionsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   var factory: WdlDraft2LanguageFactory = new WdlDraft2LanguageFactory(ConfigFactory.parseString(ConfigString))
   val arrayLiteralNamespace: WdlNamespaceWithWorkflow = WdlNamespaceWithWorkflow.load(ArrayDeclarationWorkflow, List.empty).get

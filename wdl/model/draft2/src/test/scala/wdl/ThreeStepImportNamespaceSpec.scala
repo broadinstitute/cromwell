@@ -1,5 +1,6 @@
 package wdl
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wdl.draft2.Draft2ResolvedImportBundle
@@ -9,7 +10,7 @@ import wom.ResolvedImportRecord
 
 import scala.util.Failure
 
-class ThreeStepImportNamespaceSpec extends AnyFlatSpec with Matchers {
+class ThreeStepImportNamespaceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   val psTaskWdl = """
     |task ps {
     |  command {

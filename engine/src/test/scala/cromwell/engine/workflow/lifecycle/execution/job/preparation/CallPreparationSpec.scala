@@ -1,5 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution.job.preparation
 
+import common.assertion.CromwellTimeoutSpec
 import common.assertion.ErrorOrAssertions._
 import cromwell.core.CallKey
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
@@ -14,7 +15,7 @@ import wom.graph.CommandCallNode
 import wom.types.WomSingleFileType
 import wom.values.WomString
 
-class CallPreparationSpec extends AnyFlatSpec with Matchers with Mockito {
+class CallPreparationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Mockito {
   it should "disallow empty Strings being input as Files" in {
     val callKey = mock[CallKey]
 

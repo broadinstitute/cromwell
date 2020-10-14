@@ -2,13 +2,14 @@ package cromwell.filesystems.drs
 
 import cloud.nio.impl.drs.{MockDrsCloudNioFileSystemProvider, MockDrsPaths}
 import com.typesafe.config.{Config, ConfigFactory}
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
 
 
-class DrsResolverSpec extends AnyFlatSpec with Matchers {
+class DrsResolverSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   private val marthaConfig: Config = ConfigFactory.parseMap(
     Map(

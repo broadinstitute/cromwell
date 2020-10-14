@@ -1,5 +1,6 @@
 package cwl
 
+import common.assertion.CromwellTimeoutSpec
 import cwl.CommandLineTool.{BaseCommand, CommandInputParameter}
 import cwl.Workflow.{WorkflowInputParameter, WorkflowOutputParameter}
 import cwl.WorkflowStep.WorkflowStepOutputInnerType
@@ -16,7 +17,7 @@ import shapeless.Coproduct
    * (DB)Ability to write JSON removed due to conflicting circe-yaml cats dependency.
    * See issue https://github.com/broadinstitute/wdl4s/issues/216 for more information.
    */
-class ExportCwlSamplesSpec extends AnyFlatSpec with Matchers {
+class ExportCwlSamplesSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   def assertCorrectJson(cwl: Cwl, expectedYaml: String) = throw new UnsupportedOperationException // shouldBe expectedYaml
 

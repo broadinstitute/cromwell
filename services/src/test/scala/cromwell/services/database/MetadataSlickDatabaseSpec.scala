@@ -3,6 +3,7 @@ package cromwell.services.database
 import java.time.OffsetDateTime
 
 import com.dimafeng.testcontainers.Container
+import common.assertion.CromwellTimeoutSpec
 import cromwell.core.Tags.DbmsTest
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys}
 import cromwell.database.migration.metadata.table.symbol.MetadataStatement._
@@ -20,7 +21,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 import scala.language.postfixOps
 
-class MetadataSlickDatabaseSpec extends AnyFlatSpec with Matchers with ScalaFutures {
+class MetadataSlickDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures {
 
   DatabaseSystem.All foreach { databaseSystem =>
 

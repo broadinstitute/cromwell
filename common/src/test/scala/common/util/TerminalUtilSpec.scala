@@ -1,11 +1,12 @@
 package common.util
 
+import common.assertion.CromwellTimeoutSpec
 import common.util.TerminalUtil._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 
-class TerminalUtilSpec extends AnyFlatSpec with Matchers {
+class TerminalUtilSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "TerminalUtil"
 

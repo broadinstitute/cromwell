@@ -1,5 +1,6 @@
 package cromwell.backend.impl.tes
 
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.backend.{BackendConfigurationDescriptor, RuntimeAttributeDefinition, TestConfig}
 import cromwell.core.WorkflowOptions
@@ -13,7 +14,7 @@ import wom.format.MemorySize
 import wom.types._
 import wom.values._
 
-class TesRuntimeAttributesSpec extends AnyWordSpecLike with Matchers {
+class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec with Matchers {
 
   val expectedDefaults = new TesRuntimeAttributes(
     ContinueOnReturnCodeSet(Set(0)),

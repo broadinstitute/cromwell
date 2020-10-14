@@ -6,11 +6,11 @@ import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
 import cloud.nio.spi.{CloudNioFileProvider, CloudNioFileSystemProvider}
 import com.google.auth.oauth2.OAuth2Credentials
 import com.typesafe.config.Config
-import scala.util.matching.Regex
-import org.apache.http.impl.client.HttpClientBuilder
 import net.ceedubs.ficus.Ficus._
+import org.apache.http.impl.client.HttpClientBuilder
 
 import scala.concurrent.duration.FiniteDuration
+import scala.util.matching.Regex
 
 
 class DrsCloudNioFileSystemProvider(rootConfig: Config,
@@ -52,10 +52,10 @@ class DrsCloudNioFileSystemProvider(rootConfig: Config,
      * empty string.
      *
      */
-    val compactUriIdentifier = new Regex("(dg.[a-zA-Z0-9]+):(\\1/)?[a-z0-9\\-]+$")
+    val compactUriIdentifier: Regex = new Regex("(dg.[a-zA-Z0-9]+):(\\1/)?[a-z0-9\\-]+$")
 
     val hostFromUri = uriAsString match {
-      case uri if (compactUriIdentifier.findFirstMatchIn(uri).nonEmpty) =>
+      case uri if compactUriIdentifier.findFirstMatchIn(uri).nonEmpty =>
         compactUriIdentifier.findFirstMatchIn(uri).head.toString().split(':').head
       case other =>
         val uri = new URI(other)

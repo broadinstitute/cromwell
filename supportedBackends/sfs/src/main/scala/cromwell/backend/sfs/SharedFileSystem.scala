@@ -308,7 +308,7 @@ trait SharedFileSystem extends PathFactory {
       pathBuilders.collectFirst({ case h: HttpPathBuilder if HttpPathBuilder.accepts(input) => h }) match {
         case Some(httpPathBuilder) =>
           implicit val materializer = ActorMaterializer()
-          implicit val ec: ExecutionContext = actorContext.dispatcher
+          implicit val ec = actorContext.dispatcher
 
           Await.result(httpPathBuilder.content(input).map { _.toString }, Duration.Inf)
         case _ => input

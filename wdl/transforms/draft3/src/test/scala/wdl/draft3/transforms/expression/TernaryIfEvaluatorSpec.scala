@@ -1,5 +1,6 @@
 package wdl.draft3.transforms.expression
 
+import common.assertion.CromwellTimeoutSpec
 import common.assertion.ErrorOrAssertions._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -21,7 +22,7 @@ import wom.values.{WomBoolean, WomFloat, WomInteger, WomValue}
   * underlying methods on WomValue.
   * ** Not intended as a thorough test of the underlying methods themselves. **
   */
-class TernaryIfEvaluatorSpec extends AnyFlatSpec with Matchers {
+class TernaryIfEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   val fiveLiteral = PrimitiveLiteralExpressionElement(WomInteger(5))
   val sixLiteral = PrimitiveLiteralExpressionElement(WomInteger(6))

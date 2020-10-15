@@ -1,5 +1,6 @@
 package cwl
 
+import common.assertion.CromwellTimeoutSpec
 import common.validation.Validation._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -7,7 +8,7 @@ import wom.expression.DefaultSizeIoFunctionSet
 import wom.values.{WomBoolean, WomString, WomValue}
 
 
-class ExpressionEvaluatorSpec extends AnyFlatSpec with Matchers {
+class ExpressionEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "ExpressionEvaluator"
 

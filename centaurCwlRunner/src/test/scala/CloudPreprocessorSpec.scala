@@ -1,10 +1,11 @@
 import centaur.cwl.CloudPreprocessor
 import com.typesafe.config.ConfigFactory
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wom.util.YamlUtils
 
-class CloudPreprocessorSpec extends AnyFlatSpec with Matchers {
+class CloudPreprocessorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "PAPIPreProcessor"
 
   val pAPIPreprocessor = new CloudPreprocessor(ConfigFactory.load(), "papi.default-input-gcs-prefix")

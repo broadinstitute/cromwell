@@ -4,11 +4,12 @@ import akka.http.scaladsl.model.{ContentTypes, HttpEntity, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
+import common.assertion.CromwellTimeoutSpec
 import cromiam.auth.Collection._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class CollectionSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {
+class CollectionSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalatestRouteTest {
   val labelStringWithoutCollection = "{\"project\":\"foo\", \"group\":\"bar\"}"
   val labelStringWithCollection = "{\"project\":\"foo\", \"caas-collection-name\":\"test\", \"group\":\"bar\"}"
 

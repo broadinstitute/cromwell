@@ -1,5 +1,6 @@
 package cwl
 
+import common.assertion.CromwellTimeoutSpec
 import cwl.internal.EcmaScriptUtil.{ESArray, ESObject, ESPrimitive}
 import cwl.internal.{EcmaScriptEncoder, EcmaScriptUtil}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -8,7 +9,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import wom.values.WomMaybePopulatedFile
 
 
-class CwlEcmaScriptEncoderSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
+class CwlEcmaScriptEncoderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "EcmaScriptEncoder"
 

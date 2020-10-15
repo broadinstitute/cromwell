@@ -9,6 +9,7 @@ import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
 import cloud.nio.spi.CloudNioFileList
 import com.google.api.client.testing.http.apache.MockHttpClient
 import com.typesafe.config.ConfigFactory
+import common.assertion.CromwellTimeoutSpec
 import org.apache.commons.compress.utils.SeekableInMemoryByteChannel
 import org.apache.http.client.methods.{CloseableHttpResponse, HttpPost}
 import org.apache.http.impl.client.HttpClientBuilder
@@ -20,7 +21,7 @@ import org.specs2.mock.Mockito
 
 import scala.concurrent.duration._
 
-class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with Matchers with Mockito {
+class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matchers with Mockito {
   behavior of "DrsCloudNioFileProvider"
 
   it should "parse a config and create a working file system provider" in {

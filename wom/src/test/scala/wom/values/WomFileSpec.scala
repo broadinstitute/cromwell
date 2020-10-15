@@ -1,5 +1,6 @@
 package wom.values
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -9,7 +10,7 @@ import wom.types._
 import scala.util.{Success, Try}
 
 
-class WomFileSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
+class WomFileSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "WomFile"
 

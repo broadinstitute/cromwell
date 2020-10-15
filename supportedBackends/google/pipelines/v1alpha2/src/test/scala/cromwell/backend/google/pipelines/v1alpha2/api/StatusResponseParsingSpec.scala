@@ -5,6 +5,7 @@ import java.util
 
 import com.google.api.client.util.ArrayMap
 import com.google.api.services.genomics.model.Operation
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.google.pipelines.common.api.RunStatus.Success
 import cromwell.backend.google.pipelines.v1alpha2.api.request.GetRequestHandler
 import cromwell.core.ExecutionEvent
@@ -14,7 +15,7 @@ import org.specs2.mock.{Mockito => MockitoTrait}
 
 import scala.collection.JavaConverters._
 
-class StatusResponseParsingSpec extends AnyFlatSpec with Matchers with MockitoTrait {
+class StatusResponseParsingSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with MockitoTrait {
   behavior of "Pipelines Api status parsing"
 
   it should "parse events from Operation metadata" in {

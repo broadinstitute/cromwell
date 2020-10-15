@@ -1,6 +1,7 @@
 package cloud.nio.impl.ftp
 
 import com.typesafe.config.ConfigFactory
+import common.assertion.CromwellTimeoutSpec
 import io.github.andrebeat.pool.Pool.ClosedPoolException
 import org.apache.commons.net.ftp.FTPClient
 import org.scalatest.concurrent.Eventually
@@ -11,7 +12,7 @@ import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 
 
-class FtpCloudNioFileSystemSpec extends AnyFlatSpec with Matchers with Eventually {
+class FtpCloudNioFileSystemSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Eventually {
 
   behavior of "FtpCloudNioFileSystemSpec"
 

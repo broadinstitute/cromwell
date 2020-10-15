@@ -2,12 +2,13 @@ package cromwell.filesystems.ftp
 
 import cloud.nio.impl.ftp.FtpFileSystemsConfiguration.Active
 import com.typesafe.config.ConfigFactory
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class CromwellFtpFileSystemsSpec extends AnyFlatSpec with Matchers {
+class CromwellFtpFileSystemsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "CromwellFtpFileSystemsSpec"
 

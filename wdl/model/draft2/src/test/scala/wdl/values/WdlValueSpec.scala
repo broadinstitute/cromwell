@@ -1,5 +1,6 @@
 package wdl.values
 
+import common.assertion.CromwellTimeoutSpec
 import common.collections.EnhancedCollections._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -11,7 +12,7 @@ import wdl.draft2.model.{WdlExpression, WdlNamespaceWithWorkflow}
 import wom.types.{WomArrayType, WomMapType, WomStringType}
 import wom.values._
 
-class WdlValueSpec extends AnyFlatSpec with Matchers {
+class WdlValueSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   import TableDrivenPropertyChecks._
 

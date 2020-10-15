@@ -2,13 +2,14 @@ package wom.callable
 
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wom.callable.CommandTaskDefinitionSpec._
 import wom.graph.{CallNode, GraphInputNode, LocalName, PortBasedGraphOutputNode}
 import wom.types.{WomIntegerType, WomStringType}
 
-class CommandTaskDefinitionSpec extends AnyFlatSpec with Matchers {
+class CommandTaskDefinitionSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   // Checks that the graph generated from a task definition adds sufficient inputs and outputs, and is correctly linked.
   behavior of "TaskDefinition.graph"

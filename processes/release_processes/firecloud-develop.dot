@@ -8,6 +8,7 @@ digraph {
     node [style=filled,color=white];
     color="lightgrey"
 
+    check_jenkins_tests [shape=oval label="CHECK JENKINS: Check that Jenkins tests in 2 locations have succeeded for current commit in \"develop\"\n(see \"Core Process: How to Publish and Release Cromwell\" paragraph of this document for details)"];
     release_cromwell [shape=oval label="PUBLISH: Run the publish script to create a new Cromwell version"];
   }
 
@@ -48,6 +49,7 @@ digraph {
   coordinate_release_timing [shape=oval label="If downtime will be required, co-ordinate with the release engineer\nand user support/comms about timings and banners"];
 
   # Edges
+  check_jenkins_tests -> release_cromwell
 
   hotfix_changes -> publish_hotfix
   publish_hotfix -> dspjenkins_PR

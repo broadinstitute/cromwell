@@ -1,5 +1,6 @@
 package common.util
 
+import common.assertion.CromwellTimeoutSpec
 import common.util.IntrospectableLazy._
 import org.scalatest.concurrent.Futures
 import org.scalatest.flatspec.AnyFlatSpec
@@ -9,7 +10,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
-class IntrospectableLazySpec extends AnyFlatSpec with Matchers with Futures {
+class IntrospectableLazySpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Futures {
 
   behavior of "IntrospectableLazy"
 

@@ -560,7 +560,6 @@ object Dependencies {
 
   val bcsBackendDependencies = commonDependencies ++ refinedTypeDependenciesList ++ aliyunBatchComputeDependencies
   val tesBackendDependencies = akkaHttpDependencies
-  val sparkBackendDependencies = akkaHttpDependencies
   val sfsBackendDependencies = List (
     "org.lz4" % "lz4-java" % lz4JavaV
   )
@@ -620,7 +619,6 @@ object Dependencies {
       perfDependencies ++
       serverDependencies ++
       sfsBackendDependencies ++
-      sparkBackendDependencies ++
       spiDependencies ++
       spiUtilDependencies ++
       statsDProxyDependencies ++

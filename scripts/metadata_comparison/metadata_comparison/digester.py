@@ -1,3 +1,19 @@
+#!/usr/bin/env python3
+#
+# digester.py
+#
+# Purpose: Digest performance metadata JSON files produced by the Extractor.
+#
+# Usage: python3 -m metadata_comparison.digester PATH [PATHs...]
+#
+# Python Prereqs (at least, the ones which I needed to manually install... YMMV):
+#
+#   * pip3 install --upgrade google-api-python-client
+#   * pip3 install --upgrade google-cloud-storage
+#   * pip3 install --upgrade python-dateutil
+#
+# Remember to login to create application default credentials before use:
+#   % gcloud auth application-default login
 import argparse
 import json
 from metadata_comparison.lib import logging, operation_ids
@@ -10,7 +26,7 @@ from metadata_comparison.lib.operations_digesters import OperationDigester
 import dateutil.parser
 from typing import AnyStr, Dict
 
-Version = "0.0.2"
+Version = "0.0.3"
 
 
 def main(args: argparse.Namespace) -> None:
@@ -84,6 +100,7 @@ def digest(workflow_path: ComparisonPath, operations_path: ComparisonPath) -> Js
                 CromwellStart: cromwell_start,
                 CromwellTotalTimeSeconds: cromwell_total_time_seconds,
                 DelocalizationTimeSeconds: operation.delocalization_time_seconds(),
+                Disks: operation.disks(),
                 DockerImagePullTimeSeconds: operation.docker_image_pull_time_seconds(),
                 LocalizationTimeSeconds: operation.localization_time_seconds(),
                 MachineType: operation.machine_type(),

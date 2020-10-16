@@ -3,6 +3,7 @@ package cromwell.backend.sfs
 import java.io.{FileNotFoundException, IOException}
 
 import akka.actor.ActorContext
+import akka.stream.ActorMaterializer
 import cats.instances.try_._
 import cats.syntax.functor._
 import com.typesafe.config.Config
@@ -40,7 +41,7 @@ object SharedFileSystem extends StrictLogging {
 
   case class PairOfFiles(src: Path, dst: Path)
   type DuplicationStrategy = (Path, Path, Boolean) => Try[Unit]
-  
+
   private def createParentDirectory(executionPath: Path, docker: Boolean) = {
     if (docker) executionPath.parent.createPermissionedDirectories()
     else executionPath.parent.createDirectories()
@@ -306,6 +307,7 @@ trait SharedFileSystem extends PathFactory {
     val staged: WomFile = value.mapFile { input =>
       pathBuilders.collectFirst({ case h: HttpPathBuilder if HttpPathBuilder.accepts(input) => h }) match {
         case Some(httpPathBuilder) =>
+          implicit val materializer = ActorMaterializer()
           implicit val ec = actorContext.dispatcher
 
           Await.result(httpPathBuilder.content(input).map { _.toString }, Duration.Inf)

@@ -4,6 +4,7 @@ import akka.event.LoggingAdapter
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
+import akka.stream.ActorMaterializer
 import cats.data.NonEmptyList
 import cromiam.auth.Collection.CollectionLabelName
 import cromiam.auth.{Collection, User}
@@ -22,6 +23,7 @@ trait QuerySupport extends RequestSupport {
   val log: LoggingAdapter
 
   implicit def executor: ExecutionContextExecutor
+  implicit val materializer: ActorMaterializer
 
   def queryGetRoute: Route = path("api" / "workflows" / Segment / "query") { _ =>
     get {

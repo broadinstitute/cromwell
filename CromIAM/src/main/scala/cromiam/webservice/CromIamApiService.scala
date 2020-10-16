@@ -6,6 +6,7 @@ import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
+import akka.stream.ActorMaterializer
 import cats.effect.IO
 import cats.instances.list._
 import cats.syntax.traverse._
@@ -40,6 +41,7 @@ trait CromIamApiService extends RequestSupport
 
   implicit val system: ActorSystem
   implicit def executor: ExecutionContextExecutor
+  implicit val materializer: ActorMaterializer
 
   protected def rootConfig: Config
   protected def configuration: CromIamServerConfig

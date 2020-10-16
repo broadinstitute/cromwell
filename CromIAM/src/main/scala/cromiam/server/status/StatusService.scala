@@ -20,7 +20,7 @@ class StatusService(checkStatus: () => Map[Subsystem, Future[SubsystemStatus]],
 
   private val healthMonitor = system.actorOf(HealthMonitor.props(Set(Cromwell, Sam))(checkStatus), "HealthMonitorActor")
 
-  system.scheduler.scheduleWithFixedDelay(initialDelay, pollInterval, healthMonitor, HealthMonitor.CheckAll)
+  system.scheduler.schedule(initialDelay, pollInterval, healthMonitor, HealthMonitor.CheckAll)
 
   def status(): Future[StatusCheckResponse] = healthMonitor.ask(GetCurrentStatus).asInstanceOf[Future[StatusCheckResponse]]
 }

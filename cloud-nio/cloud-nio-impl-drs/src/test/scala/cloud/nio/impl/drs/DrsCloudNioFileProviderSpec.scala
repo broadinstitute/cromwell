@@ -42,6 +42,30 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
     fileSystemProvider.getHost("drs://dg.example.com/abc") should be("dg.example.com")
   }
 
+  it should "be able to get the hostname from variously formatted DRS URIs" in {
+    val config = ConfigFactory.parseString(
+      """martha.url = "https://from.config"
+        |access-token-acceptable-ttl = 1 minute
+        |""".stripMargin
+    )
+
+    val fileSystemProvider = new MockDrsCloudNioFileSystemProvider(config = config)
+    fileSystemProvider.drsConfig should be(DrsConfig("https://from.config"))
+    fileSystemProvider.accessTokenAcceptableTTL should be(1.minute)
+    fileSystemProvider.fileProvider should be(a[DrsCloudNioFileProvider])
+    fileSystemProvider.isFatal(new RuntimeException) should be(false)
+    fileSystemProvider.isTransient(new RuntimeException) should be(false)
+    fileSystemProvider.getScheme should be("drs")
+    fileSystemProvider.getHost("drs://dg.4503:dg.4503/abc") should be("dg.4503")
+    fileSystemProvider.getHost("drs://dg.4503:abc") should be("dg.4503")
+    fileSystemProvider.getHost("drs://dg.4503:") should be("dg.4503")
+    fileSystemProvider.getHost("drs://dg.4DFC:abc") should be("dg.4DFC")
+    fileSystemProvider.getHost("drs://dg.712c:abc") should be("dg.712c")
+    fileSystemProvider.getHost("drs://dg.ANV0:abc") should be("dg.ANV0")
+    fileSystemProvider.getHost("drs://dg.F82A1A:abc") should be("dg.F82A1A")
+    fileSystemProvider.getHost("drs://:abc") should be("")
+  }
+
   it should "list existing drs objects" in {
     val httpResponse = mock[CloseableHttpResponse].smart
     httpResponse.getStatusLine returns new BasicStatusLine(HttpVersion.HTTP_1_1, 200, "OK")

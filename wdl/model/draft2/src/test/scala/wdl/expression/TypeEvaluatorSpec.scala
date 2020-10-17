@@ -1,5 +1,6 @@
 package wdl.expression
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import wdl.SampleWdl
 import wdl.draft2.model.expression.WdlStandardLibraryFunctionsType
@@ -12,7 +13,7 @@ import scala.util.{Failure, Success, Try}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class TypeEvaluatorSpec extends AnyFlatSpec with Matchers {
+class TypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   val expr: String => WdlExpression = WdlExpression.fromString
   val namespace = WdlNamespaceWithWorkflow.load(SampleWdl.ThreeStep.workflowSource(), Seq.empty).get
 

@@ -9,6 +9,7 @@ import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
 import cloud.nio.spi.CloudNioFileList
 import com.google.api.client.testing.http.apache.MockHttpClient
 import com.typesafe.config.ConfigFactory
+import common.assertion.CromwellTimeoutSpec
 import org.apache.commons.compress.utils.SeekableInMemoryByteChannel
 import org.apache.http.client.methods.{CloseableHttpResponse, HttpPost}
 import org.apache.http.impl.client.HttpClientBuilder
@@ -20,7 +21,7 @@ import org.specs2.mock.Mockito
 
 import scala.concurrent.duration._
 
-class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with Matchers with Mockito {
+class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matchers with Mockito {
   behavior of "DrsCloudNioFileProvider"
 
   it should "parse a config and create a working file system provider" in {
@@ -39,6 +40,30 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with Matchers with Moc
     fileSystemProvider.getScheme should be("drs")
     fileSystemProvider.getHost("drs://dg.123/abc") should be("dg.123")
     fileSystemProvider.getHost("drs://dg.example.com/abc") should be("dg.example.com")
+  }
+
+  it should "be able to get the hostname from variously formatted DRS URIs" in {
+    val config = ConfigFactory.parseString(
+      """martha.url = "https://from.config"
+        |access-token-acceptable-ttl = 1 minute
+        |""".stripMargin
+    )
+
+    val fileSystemProvider = new MockDrsCloudNioFileSystemProvider(config = config)
+    fileSystemProvider.drsConfig should be(DrsConfig("https://from.config"))
+    fileSystemProvider.accessTokenAcceptableTTL should be(1.minute)
+    fileSystemProvider.fileProvider should be(a[DrsCloudNioFileProvider])
+    fileSystemProvider.isFatal(new RuntimeException) should be(false)
+    fileSystemProvider.isTransient(new RuntimeException) should be(false)
+    fileSystemProvider.getScheme should be("drs")
+    fileSystemProvider.getHost("drs://dg.4503:dg.4503/abc") should be("dg.4503")
+    fileSystemProvider.getHost("drs://dg.4503:abc") should be("dg.4503")
+    fileSystemProvider.getHost("drs://dg.4503:") should be("dg.4503")
+    fileSystemProvider.getHost("drs://dg.4DFC:abc") should be("dg.4DFC")
+    fileSystemProvider.getHost("drs://dg.712c:abc") should be("dg.712c")
+    fileSystemProvider.getHost("drs://dg.ANV0:abc") should be("dg.ANV0")
+    fileSystemProvider.getHost("drs://dg.F82A1A:abc") should be("dg.F82A1A")
+    fileSystemProvider.getHost("drs://:abc") should be("")
   }
 
   it should "list existing drs objects" in {

@@ -7,6 +7,7 @@ import cats.syntax.all._
 import com.google.api.client.http.GenericUrl
 import com.google.api.client.testing.http.MockHttpTransport
 import com.typesafe.config.{ConfigException, ConfigFactory}
+import common.assertion.CromwellTimeoutSpec
 import cromwell.cloudsupport.gcp.GoogleConfiguration.GoogleConfigurationException
 import cromwell.cloudsupport.gcp.auth.ServiceAccountMode.{JsonFileFormat, PemFileFormat}
 import cromwell.cloudsupport.gcp.auth._
@@ -14,7 +15,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 
-class GoogleConfigurationSpec extends AnyFlatSpec with Matchers {
+class GoogleConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "GoogleConfiguration"
 

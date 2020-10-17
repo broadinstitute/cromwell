@@ -1,5 +1,6 @@
 package wdl.draft3.transforms.expression.consumed
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wdl.draft3.transforms.linking.expression.consumed.expressionElementUnlinkedValueConsumer
@@ -10,7 +11,7 @@ import wdl.model.draft3.graph.UnlinkedIdentifierHook
 import wom.values.WomInteger
 
 
-class ValueConsumerSpec extends AnyFlatSpec with Matchers {
+class ValueConsumerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   "the glob value consumer" should "find consumed lookup 'x'" in {
     val expr: ExpressionElement = Glob(IdentifierLookup("x"))
     expr.expressionConsumedValueHooks shouldBe Set(UnlinkedIdentifierHook("x"))

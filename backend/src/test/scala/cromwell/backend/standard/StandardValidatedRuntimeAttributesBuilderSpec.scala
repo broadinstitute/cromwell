@@ -1,5 +1,6 @@
 package cromwell.backend.standard
 
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.validation._
 import cromwell.backend.{RuntimeAttributeDefinition, TestConfig}
 import cromwell.core.WorkflowOptions
@@ -11,7 +12,7 @@ import spray.json.{JsArray, JsBoolean, JsNumber, JsObject, JsValue}
 import wom.RuntimeAttributesKeys._
 import wom.values._
 
-class StandardValidatedRuntimeAttributesBuilderSpec extends AnyWordSpecLike with Matchers with Mockito {
+class StandardValidatedRuntimeAttributesBuilderSpec extends AnyWordSpecLike with CromwellTimeoutSpec with Matchers with Mockito {
 
   val HelloWorld: String =
     s"""

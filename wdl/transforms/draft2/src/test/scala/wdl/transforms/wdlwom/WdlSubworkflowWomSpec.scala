@@ -1,6 +1,7 @@
 package wdl.transforms.wdlwom
 
 import cats.data.Validated.{Invalid, Valid}
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wdl.draft2.Draft2ResolvedImportBundle
@@ -12,7 +13,7 @@ import wom.graph.expression.ExpressionNode
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wom.types.{WomArrayType, WomIntegerType, WomMaybeEmptyArrayType, WomStringType}
 
-class WdlSubworkflowWomSpec extends AnyFlatSpec with Matchers {
+class WdlSubworkflowWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "WdlNamespaces with subworkflows"
 

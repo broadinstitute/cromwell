@@ -3,6 +3,7 @@ package cromwell.services.keyvalue.impl
 import java.sql.{BatchUpdateException, SQLIntegrityConstraintViolationException}
 
 import com.dimafeng.testcontainers.Container
+import common.assertion.CromwellTimeoutSpec
 import cromwell.core.Tags.DbmsTest
 import cromwell.core.WorkflowId
 import cromwell.database.sql.tables.JobKeyValueEntry
@@ -17,7 +18,7 @@ import org.scalatest.time.{Millis, Seconds, Span}
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class KeyValueDatabaseSpec extends AnyFlatSpec with Matchers with ScalaFutures with RecoverMethods {
+class KeyValueDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures with RecoverMethods {
 
   implicit val ec: ExecutionContext = ExecutionContext.global
   implicit val defaultPatience: PatienceConfig = PatienceConfig(scaled(Span(5, Seconds)), scaled(Span(100, Millis)))

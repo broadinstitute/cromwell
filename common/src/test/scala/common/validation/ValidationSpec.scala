@@ -3,6 +3,7 @@ package common.validation
 import cats.data.Validated.{Invalid, Valid}
 import cats.data.{NonEmptyList, ValidatedNel}
 import cats.syntax.validated._
+import common.assertion.CromwellTimeoutSpec
 import common.exception.AggregatedMessageException
 import common.validation.Validation._
 import org.scalatest.flatspec.AnyFlatSpec
@@ -13,7 +14,7 @@ import org.specs2.mock.Mockito
 import scala.util.{Failure, Success}
 
 
-class ValidationSpec extends AnyFlatSpec with Matchers with Mockito {
+class ValidationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Mockito {
 
   behavior of "Validation"
 

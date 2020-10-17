@@ -1,5 +1,6 @@
 package languages.wdl.draft2
 
+import common.assertion.CromwellTimeoutSpec
 import languages.wdl.draft2.MapWorkflowSpec._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -11,7 +12,7 @@ import wom.values.{WomMap, WomSingleFile, WomString, WomValue}
 import scala.util.{Success, Try}
 
 
-class MapWorkflowSpec extends AnyFlatSpec with Matchers {
+class MapWorkflowSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   val namespace = WdlNamespaceWithWorkflow.load(WorkflowSource, Seq.empty[Draft2ImportResolver]).get
   val expectedMap = WomMap(WomMapType(WomSingleFileType, WomStringType), Map(
     WomSingleFile("f1") -> WomString("alice"),

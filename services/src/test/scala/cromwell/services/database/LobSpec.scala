@@ -3,6 +3,7 @@ package cromwell.services.database
 import java.time.OffsetDateTime
 
 import com.dimafeng.testcontainers.Container
+import common.assertion.CromwellTimeoutSpec
 import cromwell.core.Tags._
 import cromwell.core.WorkflowId
 import cromwell.database.sql.SqlConverters._
@@ -16,7 +17,7 @@ import org.scalatest.matchers.should.Matchers
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-class LobSpec extends AnyFlatSpec with Matchers with ScalaFutures {
+class LobSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures {
 
   implicit val executionContext = ExecutionContext.global
 

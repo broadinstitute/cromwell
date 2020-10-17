@@ -1,5 +1,6 @@
 package wom.values
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.TryValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -12,7 +13,7 @@ object WomObjectSpec {
   }
 }
 
-class WomObjectSpec extends AnyFlatSpec with Matchers with TryValues {
+class WomObjectSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TryValues {
   import WomObjectSpec._
   val correctTSV = "one\ttwo\tthree\tfour\none\tfour\tnine\tsixteen\n"
   val emptyTSV = ""

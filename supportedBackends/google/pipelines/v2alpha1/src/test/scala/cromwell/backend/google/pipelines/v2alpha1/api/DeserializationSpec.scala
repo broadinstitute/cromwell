@@ -4,13 +4,14 @@ import java.util
 
 import com.google.api.services.genomics.model.WorkerAssignedEvent
 import com.google.api.services.genomics.v2alpha1.model.{ContainerStartedEvent, Operation}
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.google.pipelines.v2alpha1.api.Deserialization._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
 
-class DeserializationSpec extends AnyFlatSpec with Matchers {
+class DeserializationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "Deserialization"
 
   it should "deserialize events from operation metadata" in {

@@ -1,6 +1,7 @@
 package wdl.transforms.wdlwom
 
 import cats.data.Validated.{Invalid, Valid}
+import common.assertion.CromwellTimeoutSpec
 import common.collections.EnhancedCollections._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -11,7 +12,7 @@ import wom.graph._
 import wom.graph.expression.ExpressionNode
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
 
-class WdlNamespaceWomSpec extends AnyFlatSpec with Matchers {
+class WdlNamespaceWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   "A WdlNamespace for 3step" should "provide conversion to WOM" in {
     val threeStep =

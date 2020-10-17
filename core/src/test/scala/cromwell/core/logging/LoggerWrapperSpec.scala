@@ -2,6 +2,7 @@ package cromwell.core.logging
 
 import akka.event.Logging.LogLevel
 import akka.event.{Logging, LoggingAdapter}
+import common.assertion.CromwellTimeoutSpec
 import cromwell.core.logging.LoggerWrapperSpec._
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.scalatest.flatspec.AnyFlatSpec
@@ -11,7 +12,7 @@ import org.slf4j.Logger
 import org.slf4j.event.Level
 import org.specs2.mock.Mockito
 
-class LoggerWrapperSpec extends AnyFlatSpec with Matchers with Mockito with TableDrivenPropertyChecks {
+class LoggerWrapperSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Mockito with TableDrivenPropertyChecks {
 
   behavior of "LoggerWrapper"
 

@@ -3,6 +3,7 @@ package womtool
 import java.nio.file.{Files, Path}
 
 import better.files.File
+import common.assertion.CromwellTimeoutSpec
 import cromwell.core.path.DefaultPathBuilder
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -12,7 +13,7 @@ import scala.collection.JavaConverters._
 import scala.collection.immutable
 
 
-class WomtoolValidateSpec extends AnyFlatSpec with Matchers {
+class WomtoolValidateSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   private val presentWorkingDirectoryName = DefaultPathBuilder.get(".").toAbsolutePath.name
   val validationTestCases = File("womtool/src/test/resources/validate")

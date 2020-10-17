@@ -1,11 +1,12 @@
 package common.numeric
 
+import common.assertion.CromwellTimeoutSpec
 import common.numeric.IntegerUtil.IntEnhanced
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 
-class IntegerUtilSpec extends AnyFlatSpec with Matchers {
+class IntegerUtilSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   it should "return ordinal String for any Int" in {
     val numbers = List(0, 1, 2, 3, 4,
         10, 11, 12, 13, 14,

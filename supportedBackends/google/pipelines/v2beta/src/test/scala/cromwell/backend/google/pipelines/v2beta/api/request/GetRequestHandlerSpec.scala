@@ -7,6 +7,7 @@ import akka.actor.ActorRef
 import com.google.api.client.http.GenericUrl
 import com.google.api.client.testing.http.MockHttpTransport
 import com.google.api.services.lifesciences.v2beta.model.Operation
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.PAPIStatusPollRequest
 import cromwell.backend.google.pipelines.common.api.RunStatus._
 import cromwell.backend.standard.StandardAsyncJob
@@ -17,7 +18,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-class GetRequestHandlerSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
+class GetRequestHandlerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "GetRequestHandler"
 

@@ -1,5 +1,6 @@
 package cwl
 
+import common.assertion.CromwellTimeoutSpec
 import common.validation.Validation._
 import cwl.CwlDecoder.decodeCwlFile
 import cwl.TestSetup.rootPath
@@ -14,7 +15,7 @@ import wom.graph.OptionalGraphInputNodeWithDefault
 import wom.values.WomValue
 
 
-class FileSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
+class FileSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "File"
 

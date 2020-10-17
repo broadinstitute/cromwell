@@ -1,12 +1,13 @@
 package wdl
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model.AstTools.AstNodeName
 import wdl.draft2.model.{AstTools, WdlNamespaceWithWorkflow, WdlWorkflow}
 import wdl.draft2.parser.WdlParser.Ast
 
-class ScopeSpec extends AnyFlatSpec with Matchers {
+class ScopeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   val namespace = WdlNamespaceWithWorkflow.load(SampleWdl.NestedScatterWdl.workflowSource(), Seq.empty).get
 
   it should "throw an exception if trying to re-assign children on a scope" in {

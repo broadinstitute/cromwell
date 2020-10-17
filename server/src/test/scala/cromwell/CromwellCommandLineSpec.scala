@@ -1,5 +1,6 @@
 package cromwell
 
+import common.assertion.CromwellTimeoutSpec
 import cromwell.CromwellApp.{Run, Server, Submit}
 import cromwell.CromwellCommandLineSpec.WdlAndInputs
 import cromwell.core.path.{DefaultPathBuilder, Path}
@@ -11,7 +12,7 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.util.Try
 
-class CromwellCommandLineSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
+class CromwellCommandLineSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with BeforeAndAfter {
 
   var parser: scopt.OptionParser[CommandLineArguments] = _
 

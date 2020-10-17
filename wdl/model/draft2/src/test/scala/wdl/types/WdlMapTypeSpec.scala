@@ -1,6 +1,7 @@
 package wdl.types
 
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model.types.WdlFlavoredWomType._
@@ -8,7 +9,7 @@ import wdl.draft2.parser.WdlParser.SyntaxError
 import wom.types.{WomIntegerType, WomMapType, WomStringType}
 import wom.values.{WomInteger, WomMap, WomString}
 
-class WdlMapTypeSpec extends AnyFlatSpec with Matchers  {
+class WdlMapTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers  {
   val stringIntMap = WomMap(WomMapType(WomStringType, WomIntegerType), Map(
     WomString("a") -> WomInteger(1),
     WomString("b") -> WomInteger(2),

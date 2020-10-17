@@ -1,5 +1,6 @@
 package cwl
 
+import common.assertion.CromwellTimeoutSpec
 import common.validation.Validation._
 import cwl.ExpressionEvaluator._
 import eu.timepit.refined._
@@ -13,7 +14,7 @@ import wom.graph.LocalName
 import wom.values.WomString
 
 
-class CwlExpressionCommandPartSpec extends AnyFlatSpec with Matchers {
+class CwlExpressionCommandPartSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "CwlExpressionCommandPart"
 

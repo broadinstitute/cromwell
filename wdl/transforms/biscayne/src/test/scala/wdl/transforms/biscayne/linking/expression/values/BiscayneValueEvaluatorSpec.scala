@@ -1,5 +1,6 @@
 package wdl.transforms.biscayne.linking.expression.values
 
+import common.assertion.CromwellTimeoutSpec
 import common.assertion.ErrorOrAssertions._
 import common.assertion.ManyTimes.intWithTimes
 import org.scalatest.flatspec.AnyFlatSpec
@@ -13,7 +14,7 @@ import wom.expression.NoIoFunctionSet
 import wom.types.{WomIntegerType, WomMapType, WomOptionalType, WomStringType}
 import wom.values.{WomArray, WomInteger, WomMap, WomOptionalValue, WomPair, WomString}
 
-class BiscayneValueEvaluatorSpec extends AnyFlatSpec with Matchers {
+class BiscayneValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "biscayne value evaluator"
 

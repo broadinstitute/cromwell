@@ -1,6 +1,7 @@
 package common.util
 
 import cats.effect.IO
+import common.assertion.CromwellTimeoutSpec
 import common.util.IORetry.StatefulIoError
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -9,7 +10,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 
-class IoRetrySpec extends AnyFlatSpec with Matchers {
+class IoRetrySpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   implicit val timer = IO.timer(ExecutionContext.global)
   implicit val ioError = new StatefulIoError[Int] {
     override def toThrowable(state: Int, throwable: Throwable) = new Exception(s"Attempted $state times", throwable)

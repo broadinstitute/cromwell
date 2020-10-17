@@ -1,6 +1,7 @@
 package cromwell.services.database
 
 import better.files._
+import common.assertion.CromwellTimeoutSpec
 import cromwell.core.Tags._
 import org.scalactic.StringNormalizations
 import org.scalatest.concurrent.ScalaFutures
@@ -13,7 +14,7 @@ import org.scalatest.matchers.should.Matchers
   * http://www.hsqldb.org/doc/guide/sessions-chapt.html#snc_tx_mvcc
   * https://en.wikipedia.org/wiki/Multiversion_concurrency_control
   */
-class HsqldbTransactionIsolationSpec extends AnyFlatSpec with Matchers with ScalaFutures with StringNormalizations {
+class HsqldbTransactionIsolationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures with StringNormalizations {
 
   CromwellDatabaseType.All foreach { databaseType =>
     behavior of s"HSQLDB transaction isolation for ${databaseType.name}"

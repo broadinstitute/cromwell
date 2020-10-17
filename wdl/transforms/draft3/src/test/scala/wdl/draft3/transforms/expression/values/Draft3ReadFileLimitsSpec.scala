@@ -1,5 +1,6 @@
 package wdl.draft3.transforms.expression.values
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wdl.draft3.transforms.expression.values.Draft3ReadFileLimitsSpec._
@@ -13,7 +14,7 @@ import wom.values.WomSingleFile
 import scala.concurrent.Future
 
 
-class Draft3ReadFileLimitsSpec extends AnyFlatSpec with Matchers {
+class Draft3ReadFileLimitsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "ReadLikeFunctions Size Limit Draft 3"
   

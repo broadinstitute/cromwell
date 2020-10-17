@@ -1,10 +1,11 @@
 package cromwell.backend.impl.sfs.config
 
 import com.typesafe.config.ConfigFactory
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class ConfigInitializationActorSpec extends AnyFlatSpec with Matchers {
+class ConfigInitializationActorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   it should "read the list of call cache attributes from config" in {
     val tripleQuote = "\"\"\""

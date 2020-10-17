@@ -1,5 +1,6 @@
 package wdl.types
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model.WdlExpression
@@ -10,7 +11,7 @@ import wom.values.{WomArray, WomValue}
 import scala.util.{Failure, Success}
 
 
-class WomArrayTypeSpec extends AnyFlatSpec with Matchers  {
+class WomArrayTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers  {
 
   behavior of "WomArrayType"
 

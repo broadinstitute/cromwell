@@ -1,5 +1,6 @@
 package wdl
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import wdl.draft2.Draft2ResolvedImportBundle
@@ -13,7 +14,7 @@ import wom.values._
 
 import scala.util.{Failure, Success, Try}
 
-class WdlCallSpec extends AnyWordSpec with Matchers {
+class WdlCallSpec extends AnyWordSpec with CromwellTimeoutSpec with Matchers {
 
   "evaluate its declarations" in {
     val namespace = WdlNamespaceWithWorkflow.load(SampleWdl.TaskDeclarationsWdl.workflowSource(), Seq.empty).get

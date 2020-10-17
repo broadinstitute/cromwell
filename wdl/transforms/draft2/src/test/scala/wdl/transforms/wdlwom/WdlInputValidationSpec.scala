@@ -3,6 +3,7 @@ package wdl.transforms.wdlwom
 import cats.data.NonEmptyList
 import cats.syntax.either._
 import common.Checked
+import common.assertion.CromwellTimeoutSpec
 import common.validation.Checked._
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
@@ -21,7 +22,7 @@ import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wom.types._
 import wom.values._
 
-class WdlInputValidationSpec extends AnyFlatSpec with Matchers with BeforeAndAfterAll with TableDrivenPropertyChecks {
+class WdlInputValidationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with BeforeAndAfterAll with TableDrivenPropertyChecks {
 
   behavior of "WDL Wom executable"
 

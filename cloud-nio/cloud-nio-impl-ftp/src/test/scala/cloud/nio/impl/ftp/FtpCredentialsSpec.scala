@@ -2,13 +2,13 @@ package cloud.nio.impl.ftp
 
 import java.io.IOException
 
+import common.assertion.CromwellTimeoutSpec
 import org.apache.commons.net.ftp.FTPClient
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 
-
-class FtpCredentialsSpec extends AnyFlatSpec with Matchers with Mockito {
+class FtpCredentialsSpec extends AnyFlatSpec with Matchers with Mockito with CromwellTimeoutSpec {
 
   behavior of "FtpCredentialsSpec"
 
@@ -49,5 +49,4 @@ class FtpCredentialsSpec extends AnyFlatSpec with Matchers with Mockito {
     val loginException = the[IOException] thrownBy FtpAuthenticatedCredentials("user", "password", None).login(client)
     loginException.getCause shouldBe noooo
   }
-
 }

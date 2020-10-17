@@ -1,6 +1,7 @@
 package cwl
 
 import better.files.{File => BFile}
+import common.assertion.CromwellTimeoutSpec
 import cwl.CwlDecoder.decodeCwlFile
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
@@ -14,7 +15,7 @@ import wom.types.{WomArrayType, WomStringType}
 import wom.values._
 
 
-class CwlInputValidationSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks with BeforeAndAfterAll {
+class CwlInputValidationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks with BeforeAndAfterAll {
   behavior of "CWL Wom executable"
 
   var cwlFile: BFile = _

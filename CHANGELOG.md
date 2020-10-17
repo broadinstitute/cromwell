@@ -4,7 +4,7 @@
 
 ### Spark backend support removal
 
-Spark backend was not widely used and it was decided to remove it from the codebase in order to narrow the scope or Cromwell code. 
+Spark backend was not widely used and it was decided to remove it from the codebase in order to narrow the scope of Cromwell code. 
 
 ### Improved DRS Localizer logging
 

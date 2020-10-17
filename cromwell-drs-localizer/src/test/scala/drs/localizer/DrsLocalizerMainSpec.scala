@@ -5,12 +5,13 @@ import java.nio.file.{Files, Path}
 import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO}
 import cloud.nio.impl.drs.{DrsConfig, MarthaField, MarthaResponse}
+import common.assertion.CromwellTimeoutSpec
 import org.apache.http.impl.client.HttpClientBuilder
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 
-class DrsLocalizerMainSpec extends AnyFlatSpec with Matchers {
+class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   val fakeDownloadLocation = "/root/foo/foo-123.bam"
   val fakeRequesterPaysId = "fake-billing-project"

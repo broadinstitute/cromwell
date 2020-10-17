@@ -1,12 +1,13 @@
 package cwl
 
 import cats.data.NonEmptyList
+import common.assertion.CromwellTimeoutSpec
 import cwl.CwlDecoder._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 
-class CwlDecoderSpec extends AnyFlatSpec with Matchers {
+class CwlDecoderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "cwl decoder"
 

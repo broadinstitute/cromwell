@@ -1,5 +1,6 @@
 package cromwell.backend.google.pipelines.v2beta
 
+import common.assertion.CromwellTimeoutSpec
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineMV
 import org.scalatest.flatspec.AnyFlatSpec
@@ -10,7 +11,7 @@ import org.slf4j.helpers.NOPLogger
 import wdl4s.parser.MemoryUnit
 import wom.format.MemorySize
 
-class MachineConstraintsSpec extends AnyFlatSpec with Matchers {
+class MachineConstraintsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "MachineConstraints"
 
   it should "generate valid machine types" in {

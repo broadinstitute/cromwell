@@ -2,6 +2,7 @@ package cromwell.backend.sfs
 
 import akka.actor.ActorContext
 import com.typesafe.config.{Config, ConfigFactory}
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.BackendSpec
 import cromwell.core.CromwellFatalExceptionMarker
 import cromwell.core.path.{DefaultPathBuilder, Path}
@@ -13,7 +14,7 @@ import wom.values.WomSingleFile
 
 import scala.io.Source
 
-class SharedFileSystemSpec extends AnyFlatSpec with Matchers with Mockito with TableDrivenPropertyChecks with BackendSpec {
+class SharedFileSystemSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Mockito with TableDrivenPropertyChecks with BackendSpec {
 
   behavior of "SharedFileSystem"
 

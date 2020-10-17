@@ -1,6 +1,7 @@
 package wdl.transforms.biscayne.ast2wdlom
 
 import better.files.File
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
@@ -12,7 +13,7 @@ import wom.types._
 import wom.values.WomInteger
 
 
-class WdlFileToWdlomSpec extends AnyFlatSpec with Matchers {
+class WdlFileToWdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "WDL File to WDLOM"
 

@@ -1,5 +1,6 @@
 package wdl
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model.WdlNamespaceWithWorkflow
@@ -10,7 +11,7 @@ import wom.values._
 import scala.util.{Failure, Success}
 
 
-class DeclarationSpec extends AnyFlatSpec with Matchers {
+class DeclarationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   lazy val wdlSource = (new SampleWdl.DeclarationsWdl).workflowSource()
   lazy val namespace = WdlNamespaceWithWorkflow.load(wdlSource, Seq.empty).get
 

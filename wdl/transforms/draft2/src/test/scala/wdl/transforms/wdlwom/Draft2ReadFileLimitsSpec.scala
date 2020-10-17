@@ -1,5 +1,6 @@
 package wdl.transforms.wdlwom
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model.{WdlExpression, WdlWomExpression}
@@ -8,7 +9,7 @@ import wom.expression.EmptyIoFunctionSet
 
 import scala.concurrent.Future
 
-class Draft2ReadFileLimitsSpec extends AnyFlatSpec with Matchers {
+class Draft2ReadFileLimitsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "ReadLikeFunctions Size Limit Draft 2"
   
   it should "pass correct size limits to the ioFunctions for read_lines" in {

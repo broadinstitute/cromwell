@@ -2,12 +2,13 @@ package womtool.graph
 
 import java.util.concurrent.atomic.AtomicInteger
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wom.graph.Graph
 
 
-trait WomDotGraphTest extends AnyFlatSpec with Matchers {
+trait WomDotGraphTest extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   def cases: List[WomDotGraphTestCase]
 

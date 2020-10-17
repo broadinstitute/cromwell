@@ -15,7 +15,7 @@ object MockDrsPaths {
 
   val drsPathResolvingGcsPath = s"$drsPathPrefix/4d427aa3-5640-4f00-81ae-c33443f84acf"
 
-  val drsPathWithNonPathChars = s"$drsPathPrefix/4d427aa3:5640:4f00:81ae:c33443f84acf"
+  val drsPathWithNonPathChars = s"$drsPathPrefix/4d427aa3_5640_4f00_81ae_c33443f84acf"
 
   val drsPathResolvingWithFileName = s"$drsPathPrefix/d7c75399-bcd3-4762-90e9-434de005679b"
 

@@ -3,12 +3,13 @@ package common.validation
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
+import common.assertion.CromwellTimeoutSpec
 import common.validation.ErrorOr._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 
-class ErrorOrSpec extends AnyFlatSpec with Matchers {
+class ErrorOrSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "ErrorOr"
 

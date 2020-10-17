@@ -1,9 +1,10 @@
 package cromwell.engine
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class EngineFunctionsSpec extends AnyFlatSpec with Matchers {
+class EngineFunctionsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 // TODO WOM: move to wdl4s ?
 //  trait WdlStandardLibraryImpl extends  ReadLikeFunctions with WriteFunctions with PureStandardLibraryFunctionsLike {
 //    private def fail(name: String) = Failure(new UnsupportedOperationException(s"$name() not implemented yet"))

@@ -4,6 +4,7 @@ import java.net.URL
 
 import cats.data.Validated.{Invalid, Valid}
 import com.typesafe.config.{Config, ConfigFactory}
+import common.assertion.CromwellTimeoutSpec
 import common.exception.MessageAggregation
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.BatchRequestTimeoutConfiguration
 import cromwell.cloudsupport.gcp.GoogleConfiguration
@@ -13,7 +14,7 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with Matchers {
+class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   import PipelinesApiTestConfig._
 

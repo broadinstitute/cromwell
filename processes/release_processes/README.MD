@@ -7,11 +7,16 @@ See our "updating the process" [process](../README.MD)!
 
 ## Core Process: How to Publish and Release Cromwell
 
-If you're the lucky "Release Rotation Engineer" this time, you should do the following three things:
+If you're the lucky "Release Rotation Engineer" this time, you should do the following four things:
 
-First: Run the publish script to create a new version of Cromwell.
-Second: Run through the "How to Release Cromwell into Firecloud" process.
-Third: Run through the "How to Deploy Cromwell in CAAS prod" process.
+1. Check that all most recent executions of Cromwell's Jenkins tests have succeeded, and that all those executions were 
+against the most recent commit in "develop" branch. There are 2 groups of Jenkins tests which have to be checked (you 
+will need to be on the VPN to open the following links):
+    1. [Tests for various backends supported by Cromwell](https://gotc-jenkins.dsp-techops.broadinstitute.org/view/cromwell-cron/job/cromwell-cron-parent/)
+    1. [Tests for Cromwell in Terra environment](https://fc-jenkins.dsp-techops.broadinstitute.org/view/Batch/)  
+1. [Run the publish script to create a new version of Cromwell](#how-to-publish-a-new-cromwell-version)  
+1. [Run through the "How to Release Cromwell into Firecloud" process](#how-to-release-cromwell-into-firecloud)  
+1. [Run through the "How to Deploy Cromwell in CAAS prod" process](#how-to-deploy-cromwell-in-caas-prod)  
 
 ### How to publish a new Cromwell version
 

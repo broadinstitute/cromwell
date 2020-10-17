@@ -1,5 +1,6 @@
 package wdl.types
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks._
@@ -10,7 +11,7 @@ import wom.values.{WomInteger, WomMap, WomPair, WomString, _}
 
 import scala.util.{Failure, Success}
 
-class WdlPairTypeSpec extends AnyFlatSpec with Matchers {
+class WdlPairTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "WdlPairType"
 

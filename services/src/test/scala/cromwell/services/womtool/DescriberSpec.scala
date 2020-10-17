@@ -3,6 +3,7 @@ package cromwell.services.womtool
 import java.nio.file.Files
 
 import better.files.File
+import common.assertion.CromwellTimeoutSpec
 import cromwell.core.{WorkflowOptions, WorkflowSourceFilesCollection, WorkflowSourceFilesWithoutImports}
 import cromwell.languages.config.{CromwellLanguages, LanguageConfiguration}
 import cromwell.services.womtool.DescriberSpec._
@@ -14,7 +15,7 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.util.Try
 
-class DescriberSpec extends AnyFlatSpec with Matchers {
+class DescriberSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   val validationTestCases = File("services/src/test/resources/describe")
   val languageVersions = Option(validationTestCases.list).toList.flatten

@@ -1,12 +1,13 @@
 package wom.types
 
 import cats.data.NonEmptyList
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wom.values.{WomBoolean, WomCoproductValue, WomString}
 
 
-class WomCoproductSpec extends AnyFlatSpec with Matchers {
+class WomCoproductSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "Wom Coproduct Type"
 

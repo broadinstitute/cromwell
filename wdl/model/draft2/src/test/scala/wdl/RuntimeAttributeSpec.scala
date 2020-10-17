@@ -1,5 +1,6 @@
 package wdl
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -78,7 +79,7 @@ object RuntimeAttributeSpec {
     """.stripMargin
 }
 
-  class RuntimeAttributeSpec extends AnyFlatSpec with Matchers with EitherValues {
+  class RuntimeAttributeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with EitherValues {
     val NamespaceWithRuntime = WdlNamespaceWithWorkflow.load(WorkflowWithRuntime, Seq.empty).get
     val NamespaceWithoutRuntime = WdlNamespaceWithWorkflow.load(WorkflowWithoutRuntime, Seq.empty).get
 

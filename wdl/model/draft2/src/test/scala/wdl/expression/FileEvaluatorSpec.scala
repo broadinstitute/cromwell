@@ -1,5 +1,6 @@
 package wdl.expression
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks._
@@ -8,7 +9,7 @@ import wdl.draft2.model.expression.PureStandardLibraryFunctions
 import wom.types._
 import wom.values._
 
-class FileEvaluatorSpec extends AnyFlatSpec with Matchers {
+class FileEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   val expressions = Table(
     ("expression", "files", "womType"),
     ("1 + 1", Seq.empty[WomFile], WomIntegerType),

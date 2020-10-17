@@ -2,13 +2,14 @@ package cromwell.core.retry
 
 import com.google.api.client.util.ExponentialBackOff.Builder
 import com.typesafe.config.ConfigFactory
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
-class BackoffSpec extends AnyFlatSpec with Matchers {
+class BackoffSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   it should "honor initial gap" in {
     val exponentialBackoff = new InitialGapBackoff(

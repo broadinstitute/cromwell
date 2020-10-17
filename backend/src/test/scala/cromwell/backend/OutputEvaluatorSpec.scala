@@ -4,6 +4,7 @@ import java.util.concurrent.Executors
 
 import cats.data.{NonEmptyList, Validated}
 import cats.syntax.validated._
+import common.assertion.CromwellTimeoutSpec
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.OutputEvaluator.{InvalidJobOutputs, JobOutputsEvaluationException, ValidJobOutputs}
 import cromwell.core.CallOutputs
@@ -20,7 +21,7 @@ import wom.values.{WomInteger, WomValue}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor}
 
-class OutputEvaluatorSpec extends AnyFlatSpec with Matchers with Mockito {
+class OutputEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Mockito {
   behavior of "OutputEvaluator"
 
   val FutureTimeout = 20.seconds

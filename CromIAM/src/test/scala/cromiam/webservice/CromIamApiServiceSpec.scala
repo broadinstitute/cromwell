@@ -7,11 +7,12 @@ import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpHeader}
 import akka.http.scaladsl.server.MissingHeaderRejection
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import com.typesafe.config.Config
+import common.assertion.CromwellTimeoutSpec
 import cromiam.server.status.StatusService
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class CromIamApiServiceSpec extends AnyFlatSpec with Matchers with CromIamApiService with ScalatestRouteTest {
+class CromIamApiServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with CromIamApiService with ScalatestRouteTest {
   override def testConfigSource = "akka.loglevel = DEBUG"
 
   val log = NoLogging

@@ -1,5 +1,6 @@
 package wdl.transforms.biscayne.linking.expression.types
 
+import common.assertion.CromwellTimeoutSpec
 import common.assertion.ErrorOrAssertions._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -9,7 +10,7 @@ import wdl.transforms.biscayne.Ast2WdlomSpec.{fromString, parser}
 import wdl.transforms.biscayne.ast2wdlom._
 import wom.types._
 
-class BiscayneTypeEvaluatorSpec extends AnyFlatSpec with Matchers {
+class BiscayneTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   it should "return nothing from static integer addition" in {
     val str = "3 + 3"
     val expr = fromString[ExpressionElement](str, parser.parse_e)

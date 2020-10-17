@@ -6,10 +6,11 @@ import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
 import cloud.nio.spi.{CloudNioFileProvider, CloudNioFileSystemProvider}
 import com.google.auth.oauth2.OAuth2Credentials
 import com.typesafe.config.Config
-import org.apache.http.impl.client.HttpClientBuilder
 import net.ceedubs.ficus.Ficus._
+import org.apache.http.impl.client.HttpClientBuilder
 
 import scala.concurrent.duration.FiniteDuration
+import scala.util.matching.Regex
 
 
 class DrsCloudNioFileSystemProvider(rootConfig: Config,
@@ -42,16 +43,25 @@ class DrsCloudNioFileSystemProvider(rootConfig: Config,
     require(uriAsString.startsWith(s"$getScheme://"), s"Scheme does not match $getScheme")
 
     /*
-     * In some cases for a URI, the host name is null. For example, for DRS urls like 'drs://dg.123/123-123-123',
-     * even though 'dg.123' is a valid host, somehow since it does not conform to URI's standards, uri.getHost returns null. In such
-     * cases, authority is used instead of host. If there is no authority, use an empty string.
+     * DRS compact identifier URIs contain a string where conventional URIs have an integer
+     * port (the `:8000` in `https://localhost:8000`). We can't rely on the URI class to parse it,
+     * so we recognize it via a regular expression and parse out the host name accordingly.
+     *
+     * In other cases, the hostname does not conform to URI's standards and uri.getHost returns null.
+     * In that situation, authority is used instead of host, and if there is no authority, return an
+     * empty string.
+     *
      */
-    val uri = new URI(uriAsString)
-    val hostOrAuthorityOrEmpty =
-      Option(uri.getHost).getOrElse(
-        Option(uri.getAuthority).getOrElse("")
-      )
+    val compactUriIdentifier: Regex = new Regex("(dg.[a-zA-Z0-9]+)?:(\\1/)?[a-z0-9\\-]*$")
 
-    hostOrAuthorityOrEmpty
+    val hostFromUri = uriAsString match {
+      case uri if compactUriIdentifier.findFirstMatchIn(uri).nonEmpty =>
+        compactUriIdentifier.findFirstMatchIn(uri).head.toString().split(':').head
+      case other =>
+        val uri = new URI(other)
+        Option(uri.getHost).getOrElse(Option(uri.getAuthority).getOrElse(""))
+    }
+
+    hostFromUri
   }
 }

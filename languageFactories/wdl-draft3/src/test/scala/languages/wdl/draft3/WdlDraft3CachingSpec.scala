@@ -1,6 +1,7 @@
 package languages.wdl.draft3
 
 import com.typesafe.config.{Config, ConfigFactory}
+import common.assertion.CromwellTimeoutSpec
 import common.validation.ErrorOr.ErrorOr
 import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesWithoutImports}
 import cromwell.languages.LanguageFactory
@@ -14,7 +15,7 @@ import wom.executable.WomBundle
 import wom.expression.NoIoFunctionSet
 
 
-class WdlDraft3CachingSpec extends AnyFlatSpec with Matchers {
+class WdlDraft3CachingSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   val languageConfig = ConfigFactory.parseString(
     """{

@@ -86,7 +86,7 @@ object Dependencies {
   private val mockFtpServerV = "2.7.1"
   private val mockserverNettyV = "5.5.4" // scala-steward:off (BA-6582)
   private val mouseV = "0.25"
-  private val mysqlV = "8.0.21"
+  private val mysqlV = "8.0.22"
   private val nettyV = "4.1.46.Final"
   private val owlApiV = "5.1.16"
   private val paradiseV = "2.1.1"

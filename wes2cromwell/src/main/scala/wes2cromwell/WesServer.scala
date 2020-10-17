@@ -8,6 +8,7 @@ import akka.actor.ActorSystem
 import akka.event.Logging
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
+import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import net.ceedubs.ficus.Ficus._
 
@@ -18,6 +19,7 @@ object WesServer extends App with WesRunRoutes {
   val interface = config.as[String]("wes2cromwell.interface")
 
   override implicit val system: ActorSystem = ActorSystem("wes2cromwell")
+  override implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   override val log = Logging(system, getClass)
 

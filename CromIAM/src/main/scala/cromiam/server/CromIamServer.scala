@@ -4,6 +4,7 @@ import akka.Done
 import akka.actor.ActorSystem
 import akka.event.Logging
 import akka.http.scaladsl.server.{HttpApp, Route}
+import akka.stream.ActorMaterializer
 import cats.data.Validated.{Invalid, Valid}
 import com.typesafe.config.{Config, ConfigFactory}
 import common.util.VersionUtil
@@ -39,6 +40,7 @@ object CromIamServer extends HttpApp with CromIamApiService with SwaggerService 
 
   override implicit val system: ActorSystem = ActorSystem()
   override implicit lazy val executor: ExecutionContextExecutor = system.dispatcher
+  override implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   override val log = Logging(system, getClass)
 

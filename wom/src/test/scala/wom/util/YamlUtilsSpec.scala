@@ -2,6 +2,7 @@ package wom.util
 
 import com.typesafe.config.ConfigException.BadValue
 import com.typesafe.config.ConfigFactory
+import common.assertion.CromwellTimeoutSpec
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.NonNegative
 import eu.timepit.refined.refineMV
@@ -13,7 +14,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 
 
-class YamlUtilsSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks with EitherValues {
+class YamlUtilsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks with EitherValues {
 
   behavior of "YamlUtils"
 

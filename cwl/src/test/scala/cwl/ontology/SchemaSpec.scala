@@ -1,12 +1,13 @@
 package cwl.ontology
 
 import com.typesafe.config.ConfigFactory
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.semanticweb.owlapi.apibinding.OWLManager
 
-class SchemaSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
+class SchemaSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "Schema"
 

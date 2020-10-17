@@ -2,11 +2,12 @@ package cromwell.cloudsupport.gcp.gcs
 
 import com.google.api.gax.retrying.RetrySettings
 import com.google.cloud.NoCredentials
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 
-class GcsStorageSpec extends AnyFlatSpec with Matchers {
+class GcsStorageSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "GcsStorage"
 

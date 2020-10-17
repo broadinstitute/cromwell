@@ -1,6 +1,7 @@
 package wom.graph
 
 import cats.data.Validated.{Invalid, Valid}
+import common.assertion.CromwellTimeoutSpec
 import common.validation.ErrorOr.ShortCircuitingFlatMap
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -15,7 +16,7 @@ import wom.graph.expression.{AnonymousExpressionNode, PlainAnonymousExpressionNo
 import wom.types.{WomArrayType, WomIntegerType, WomStringType}
 
 
-class ScatterNodeSpec extends AnyFlatSpec with Matchers {
+class ScatterNodeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "ScatterNode"
 
   val fooInputDef = RequiredInputDefinition("i", WomIntegerType)

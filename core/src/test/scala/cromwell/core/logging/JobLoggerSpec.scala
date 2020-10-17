@@ -2,11 +2,12 @@ package cromwell.core.logging
 
 import java.util.UUID
 
+import common.assertion.CromwellTimeoutSpec
 import cromwell.core.{PossiblyNotRootWorkflowId, RootWorkflowId}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class JobLoggerSpec extends AnyFlatSpec with Matchers {
+class JobLoggerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   private val workflowId = PossiblyNotRootWorkflowId(UUID.fromString("fc6cfad9-65e9-4eb7-853f-7e08c1c8cf8e"))
   private val rootWorkflowId = RootWorkflowId(UUID.fromString("04570ac7-39df-481c-8a37-eef6887f4a15"))
 

@@ -1,6 +1,7 @@
 package cromwell.services.database
 
 import cats.data.NonEmptyList
+import common.assertion.CromwellTimeoutSpec
 import cromwell.database.migration.liquibase.LiquibaseUtils
 import liquibase.database.ObjectQuotingStrategy
 import org.scalatest.flatspec.AnyFlatSpec
@@ -10,7 +11,7 @@ import org.scalatest.enablers.Emptiness._
 import scala.collection.JavaConverters._
 import scala.concurrent.ExecutionContext
 
-class LiquibaseChangeSetSpec extends AnyFlatSpec with Matchers {
+class LiquibaseChangeSetSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   implicit val executionContext = ExecutionContext.global
 

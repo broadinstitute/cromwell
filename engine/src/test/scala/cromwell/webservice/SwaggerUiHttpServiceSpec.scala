@@ -5,17 +5,18 @@ import akka.http.scaladsl.model.{StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import com.typesafe.config.ConfigFactory
+import common.assertion.CromwellTimeoutSpec
 import cromwell.webservice.SwaggerUiHttpServiceSpec._
 import cromwell.webservice.routes.CromwellApiService
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-trait SwaggerUiHttpServiceSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest with SwaggerUiHttpService {
+trait SwaggerUiHttpServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalatestRouteTest with SwaggerUiHttpService {
   override def swaggerUiVersion = CromwellApiService.swaggerUiVersion
 }
 
-trait SwaggerResourceHttpServiceSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest with
+trait SwaggerResourceHttpServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalatestRouteTest with
 TableDrivenPropertyChecks with SwaggerResourceHttpService {
   val testPathsForOptions = Table("endpoint", "/", "/swagger", "/swagger/index.html", "/api", "/api/example",
     "/api/example?with=param", "/api/example/path")

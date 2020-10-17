@@ -4,6 +4,7 @@ import java.nio.file.{FileAlreadyExistsException, NoSuchFileException}
 import java.util.UUID
 
 import akka.actor.ActorRef
+import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import cats.effect.IO
 import com.google.cloud.storage.StorageException
@@ -22,11 +23,13 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
   behavior of "NioFlowSpec"
 
   val flow = new NioFlow(1, system.scheduler)(system.dispatcher).flow
-
+  
+  implicit val materializer = ActorMaterializer()
   val replyTo = mock[ActorRef]
   val readSink = Sink.head[(IoAck[_], IoCommandContext[_])]
 
   override def afterAll() = {
+    materializer.shutdown()
     super.afterAll()
   }
 

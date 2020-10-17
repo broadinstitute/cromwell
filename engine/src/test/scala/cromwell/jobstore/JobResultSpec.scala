@@ -1,5 +1,6 @@
 package cromwell.jobstore
 
+import common.assertion.CromwellTimeoutSpec
 import cromwell.jobstore.JobResultJsonFormatter._
 import cromwell.util.WomMocks
 import org.scalatest.flatspec.AnyFlatSpec
@@ -8,7 +9,7 @@ import spray.json._
 import wom.types.{WomIntegerType, WomMapType, WomStringType}
 import wom.values.{WomInteger, WomMap, WomString}
 
-class JobResultSpec extends AnyFlatSpec with Matchers {
+class JobResultSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "JobResult Json Serialization"
 

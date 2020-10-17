@@ -1,6 +1,7 @@
 package wdl.draft3.transforms.expression
 
 import cats.data.NonEmptyList
+import common.assertion.CromwellTimeoutSpec
 import common.assertion.ErrorOrAssertions._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -13,7 +14,7 @@ import wom.types._
 import wom.values.WomInteger
 
 
-class MemberAccessTypeEvaluatorSpec extends AnyFlatSpec with Matchers {
+class MemberAccessTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "member access type evaluator"
 

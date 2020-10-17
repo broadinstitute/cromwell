@@ -1,6 +1,7 @@
 package wom.graph
 
 import cats.data.Validated.{Invalid, Valid}
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import shapeless.Coproduct
@@ -12,7 +13,7 @@ import wom.graph.GraphNodePort.OutputPort
 import wom.types.{WomIntegerType, WomSingleFileType, WomStringType}
 
 
-class GraphSpec extends AnyFlatSpec with Matchers {
+class GraphSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "Graph"
 
   def makeThreeStep: Graph = {

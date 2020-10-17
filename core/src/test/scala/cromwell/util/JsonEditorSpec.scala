@@ -2,6 +2,7 @@ package cromwell.util
 
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
+import common.assertion.CromwellTimeoutSpec
 import common.validation.ErrorOr.ErrorOr
 import cromwell.util.JsonEditor._
 import io.circe.parser._
@@ -11,7 +12,7 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.io.Source
 
-class JsonEditorSpec extends AnyFlatSpec with Matchers {
+class JsonEditorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   import JsonEditorSpec._
 
   "JsonEditor" should "remove excludes in workflows" in {

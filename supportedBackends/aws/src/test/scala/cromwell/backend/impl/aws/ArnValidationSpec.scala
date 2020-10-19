@@ -2,11 +2,12 @@ package cromwell.backend.impl.aws
 
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import wom.values.WomString
 
-class ArnValidationSpec extends AnyWordSpecLike with Matchers {
+class ArnValidationSpec extends AnyWordSpecLike with CromwellTimeoutSpec with Matchers {
   private val arnKey = "arn"
   private val arnValidator = ArnValidation(arnKey)
 

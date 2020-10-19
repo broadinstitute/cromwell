@@ -1,5 +1,6 @@
 package wdl.expression
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks._
@@ -13,7 +14,7 @@ import wom.values._
 
 import scala.util.{Failure, Success, Try}
 
-class ValueEvaluatorSpec extends AnyFlatSpec with Matchers {
+class ValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   val expr: String => WdlExpression = WdlExpression.fromString
 
   def noLookup(String: String): WomValue = fail("No identifiers should be looked up in this test")

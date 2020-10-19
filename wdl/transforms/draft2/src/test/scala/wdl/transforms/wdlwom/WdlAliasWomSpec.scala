@@ -1,6 +1,7 @@
 package wdl.transforms.wdlwom
 
 import cats.data.Validated.{Invalid, Valid}
+import common.assertion.CromwellTimeoutSpec
 import common.collections.EnhancedCollections._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -9,7 +10,7 @@ import wdl.transforms.draft2.wdlom2wom._
 import wom.graph._
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
 
-class WdlAliasWomSpec extends AnyFlatSpec with Matchers {
+class WdlAliasWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "WdlNamespaces with aliased calls"
 

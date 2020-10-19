@@ -1,5 +1,6 @@
 package wdl.draft3.transforms.linking.expression.files
 
+import common.assertion.CromwellTimeoutSpec
 import common.assertion.ErrorOrAssertions._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -12,7 +13,7 @@ import wom.types.{WomCompositeType, WomSingleFileType}
 import wom.values.WomSingleFile
 
 
-class FileEvaluatorSpec extends AnyFlatSpec with Matchers {
+class FileEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "FileEvaluator[ExpressionElement]"
 

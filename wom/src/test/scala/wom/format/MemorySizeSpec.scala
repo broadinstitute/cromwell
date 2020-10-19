@@ -1,11 +1,12 @@
 package wom.format
 
+import common.assertion.CromwellTimeoutSpec
 import wdl4s.parser.MemoryUnit
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 
-class MemorySizeSpec extends AnyFlatSpec with Matchers {
+class MemorySizeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "MemorySize"
   
   it should "provide the rounded up multiple of a number" in {

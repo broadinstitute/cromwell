@@ -1,6 +1,7 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import com.dimafeng.testcontainers.Container
+import common.assertion.CromwellTimeoutSpec
 import cromwell.core.Tags.DbmsTest
 import cromwell.core.WorkflowId
 import cromwell.database.sql.SqlConverters._
@@ -18,7 +19,7 @@ import org.specs2.mock.Mockito
 import scala.concurrent.ExecutionContext
 
 class CallCachingSlickDatabaseSpec
-  extends AnyFlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito with TableDrivenPropertyChecks {
+  extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito with TableDrivenPropertyChecks {
 
   implicit val ec = ExecutionContext.global
   implicit val defaultPatience = PatienceConfig(scaled(Span(5, Seconds)), scaled(Span(100, Millis)))

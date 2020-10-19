@@ -43,6 +43,7 @@ nav:
   - "Task inputs: localization_optional": optimizations/FileLocalization.md
   - "Volatile Tasks: volatile": optimizations/VolatileTasks.md
 - Configuration: Configuring.md
+- Scaling / Horizontal Cromwell: Scaling.md
 - Ecosystem: Ecosystem.md
 - WOMtool: WOMtool.md
 - Imports: Imports.md
@@ -57,7 +58,6 @@ nav:
     - Alibaba Cloud: backends/BCS.md
     - AWS Batch (beta): backends/AWS.md
     - GA4GH TES: backends/TES.md
-    - Spark: backends/Spark.md
     - HPC: backends/HPC.md
     - Sun GridEngine: backends/SGE.md
     - LSF: backends/LSF.md

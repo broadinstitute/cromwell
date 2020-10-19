@@ -2,6 +2,7 @@ package cwl.internal
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 
+import common.assertion.CromwellTimeoutSpec
 import cwl.internal.EnhancedRhinoSandboxSpec.CachedClassLoader
 import org.apache.commons.io.IOUtils
 import org.mozilla.javascript.ContextFactory
@@ -11,7 +12,7 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class EnhancedRhinoSandboxSpec extends AnyFlatSpec with Matchers with ScaledTimeSpans {
+class EnhancedRhinoSandboxSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScaledTimeSpans {
 
   behavior of "EnhancedRhinoSandbox"
 

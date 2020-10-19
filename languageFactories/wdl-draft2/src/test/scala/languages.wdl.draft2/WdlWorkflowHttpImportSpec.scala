@@ -1,5 +1,6 @@
 package languages.wdl.draft2
 
+import common.assertion.CromwellTimeoutSpec
 import org.mockserver.integration.ClientAndServer
 import org.mockserver.integration.ClientAndServer.startClientAndServer
 import org.mockserver.model.HttpRequest.request
@@ -11,7 +12,7 @@ import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model._
 
 
-class WdlWorkflowHttpImportSpec extends AnyFlatSpec with BeforeAndAfterAll with Matchers  {
+class WdlWorkflowHttpImportSpec extends AnyFlatSpec with CromwellTimeoutSpec with BeforeAndAfterAll with Matchers  {
   val tinyImport =
     s"""
        |task hello {

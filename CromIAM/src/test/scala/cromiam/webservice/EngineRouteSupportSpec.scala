@@ -4,12 +4,13 @@ import akka.http.scaladsl.model.ContentTypes
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.headers.Authorization
 import akka.http.scaladsl.testkit.ScalatestRouteTest
+import common.assertion.CromwellTimeoutSpec
 import cromiam.server.status.{MockStatusService, StatusService}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 
-class EngineRouteSupportSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest with EngineRouteSupport  {
+class EngineRouteSupportSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalatestRouteTest with EngineRouteSupport  {
   override val cromwellClient = new MockCromwellClient()
   val samClient = new MockSamClient()
   override val statusService: StatusService = new MockStatusService(() => Map.empty)

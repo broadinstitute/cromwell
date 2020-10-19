@@ -1,5 +1,6 @@
 package wdl.types
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks._
@@ -8,7 +9,7 @@ import wdl.draft2.model.types.WdlFlavoredWomType
 import wdl.draft2.parser.WdlParser.SyntaxError
 import wom.types._
 
-class WdlTypeSpec extends AnyFlatSpec with Matchers {
+class WdlTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   val womValueRawStrings = Table(
     ("DisplayString", "WomType"),

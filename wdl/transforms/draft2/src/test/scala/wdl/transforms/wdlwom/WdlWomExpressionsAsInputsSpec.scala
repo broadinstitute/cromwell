@@ -1,6 +1,7 @@
 package wdl.transforms.wdlwom
 
 import cats.data.Validated.{Invalid, Valid}
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
@@ -35,7 +36,7 @@ object WdlWomExpressionsAsInputsSpec {
 }
 
 
-class WdlWomExpressionsAsInputsSpec extends AnyFlatSpec with Matchers {
+class WdlWomExpressionsAsInputsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "WdlWomExpressionsAsInputs"
 
   it should "wire up input expressions for a WDL workflow" in {

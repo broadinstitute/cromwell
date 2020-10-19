@@ -30,7 +30,6 @@ repository.
  - [LSF](LSF.conf): the Platform Load Sharing Facility backend ([documentation](https://cromwell.readthedocs.io/en/stable/backends/LSF/))
  - [SGE](SGE.conf): a backend for Sungrid Engine ([documentation](https://cromwell.readthedocs.io/en/stable/backends/SGE))
  - [slurm](slurm.conf): SLURM workload manager ([documentation](https://cromwell.readthedocs.io/en/stable/backends/SLURM/))
- - [Spark](Spark.conf): a backend for a Spark cluster ([documentation](https://cromwell.readthedocs.io/en/stable/backends/Spark/))
 
 ### Custom
 

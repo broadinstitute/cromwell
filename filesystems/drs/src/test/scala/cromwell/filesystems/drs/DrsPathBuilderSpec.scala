@@ -6,7 +6,6 @@ import com.google.cloud.NoCredentials
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.TestKitSuite
 import cromwell.core.path._
-import org.apache.http.impl.client.HttpClientBuilder
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.Tables.Table
@@ -318,10 +317,8 @@ class DrsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
 
   private lazy val fakeCredentials = NoCredentials.getInstance
 
-  private lazy val httpClientBuilder = HttpClientBuilder.create()
-
   private lazy val drsPathBuilder = DrsPathBuilder(
-    new DrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials, httpClientBuilder, drsReadInterpreter),
+    new DrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials, drsReadInterpreter),
     None,
   )
 }

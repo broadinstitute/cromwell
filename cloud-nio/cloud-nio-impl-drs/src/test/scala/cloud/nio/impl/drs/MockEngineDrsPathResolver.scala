@@ -9,11 +9,14 @@ import org.specs2.mock.Mockito._
 
 import scala.concurrent.duration.Duration
 
-class MockEngineDrsPathResolver(drsConfig: DrsConfig = DrsConfig(MockDrsPaths.marthaUrl),
-                                httpClientBuilder: HttpClientBuilder = Mockito.mock[HttpClientBuilder].smart,
+class MockEngineDrsPathResolver(drsConfig: DrsConfig = MockDrsPaths.mockDrsConfig,
+                                httpClientBuilderOverride: Option[HttpClientBuilder] = None,
                                 accessTokenAcceptableTTL: Duration = Duration.Inf,
                                )
-  extends EngineDrsPathResolver(drsConfig, httpClientBuilder, accessTokenAcceptableTTL, NoCredentials.getInstance) {
+  extends EngineDrsPathResolver(drsConfig, accessTokenAcceptableTTL, NoCredentials.getInstance) {
+
+  override protected lazy val httpClientBuilder: HttpClientBuilder =
+    httpClientBuilderOverride getOrElse Mockito.mock[HttpClientBuilder].smart
 
   private lazy val mockMarthaUri = drsConfig.marthaUrl
 

@@ -20,6 +20,15 @@ filesystems {
         config {
           martha {
             url = "https://martha-url-here"
+            # The number of times to retry failures connecting or HTTP 429 or HTTP 5XX responses, default 3.
+            num-retries = 3
+            # How long to wait between retrying HTTP 429 or HTTP 5XX responses, default 30 seconds.
+            wait-initial = 30 seconds
+            # The maximum amount of time to wait between retrying HTTP 429 or HTTP 5XX responses, default 5 minutes.
+            wait-maximum = 5 minutes
+            # The amount to multiply the amount of time to wait between retrying HTTP or 429 or HTTP 5XX responses.
+            # Default 2.0, and will never multiply the wait time more than wait-maximum.
+            wait-mulitiplier = 2.0
           }
         }
       }

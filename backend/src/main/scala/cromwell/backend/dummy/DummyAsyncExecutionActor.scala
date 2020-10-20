@@ -47,11 +47,14 @@ class DummyAsyncExecutionActor(override val standardParams: StandardAsyncExecuti
 
   override def executeOrRecoverBackOff: SimpleExponentialBackoff = SimpleExponentialBackoff(initialInterval = 1.second, maxInterval = 300.seconds, multiplier = 1.1)
 
+  val singletonActor = standardParams.backendSingletonActorOption.getOrElse(
+    throw new RuntimeException("Dummy Backend actor cannot exist without its singleton actor"))
 
   var finishTime: Option[OffsetDateTime] = None
 
   override def executeAsync(): Future[ExecutionHandle] = {
-    finishTime = Option(OffsetDateTime.now().plusMinutes(10))
+    finishTime = Option(OffsetDateTime.now().plusMinutes(3))
+    singletonActor ! DummySingletonActor.PlusOne
     Future.successful(
       PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunState](
         jobDescriptor = jobDescriptor,
@@ -74,6 +77,9 @@ class DummyAsyncExecutionActor(override val standardParams: StandardAsyncExecuti
   override def handlePollSuccess(oldHandle: StandardAsyncPendingExecutionHandle, state: String): Future[ExecutionHandle] = {
 
     if (state == "done") {
+
+      singletonActor ! DummySingletonActor.MinusOne
+
       val outputsValidation: ErrorOr[Map[OutputPort, WomValue]] = jobDescriptor.taskCall.outputPorts.toList.traverse {
         case expressionBasedOutputPort: ExpressionBasedOutputPort =>
           expressionBasedOutputPort.expression.evaluateValue(Map.empty, NoIoFunctionSet).map(expressionBasedOutputPort -> _)

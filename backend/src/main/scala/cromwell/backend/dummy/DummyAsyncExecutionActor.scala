@@ -3,6 +3,7 @@ package cromwell.backend.dummy
 import java.time.OffsetDateTime
 import java.util.UUID
 
+import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import cats.implicits._
 import common.exception.AggregatedMessageException
@@ -12,6 +13,7 @@ import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandl
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.CallOutputs
 import cromwell.core.retry.SimpleExponentialBackoff
+import cromwell.services.instrumentation.CromwellInstrumentation
 import wom.expression.NoIoFunctionSet
 import wom.graph.GraphNodePort.{ExpressionBasedOutputPort, OutputPort}
 import wom.values.WomValue
@@ -21,7 +23,8 @@ import scala.concurrent.duration._
 
 class DummyAsyncExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
   extends BackendJobLifecycleActor
-  with StandardAsyncExecutionActor  {
+    with StandardAsyncExecutionActor
+    with CromwellInstrumentation {
 
   /** The type of the run info when a job is started. */
   override type StandardAsyncRunInfo = String
@@ -54,6 +57,7 @@ class DummyAsyncExecutionActor(override val standardParams: StandardAsyncExecuti
 
   override def executeAsync(): Future[ExecutionHandle] = {
     finishTime = Option(OffsetDateTime.now().plusMinutes(3))
+    increment(NonEmptyList("jobs", List("dummy", "executing", "starting")))
     singletonActor ! DummySingletonActor.PlusOne
     Future.successful(
       PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunState](
@@ -78,6 +82,7 @@ class DummyAsyncExecutionActor(override val standardParams: StandardAsyncExecuti
 
     if (state == "done") {
 
+      increment(NonEmptyList("jobs", List("dummy", "executing", "done")))
       singletonActor ! DummySingletonActor.MinusOne
 
       val outputsValidation: ErrorOr[Map[OutputPort, WomValue]] = jobDescriptor.taskCall.outputPorts.toList.traverse {
@@ -117,4 +122,8 @@ class DummyAsyncExecutionActor(override val standardParams: StandardAsyncExecuti
       Future.failed(new Exception(s"Unexpected Dummy state in handlePollSuccess: $state"))
     }
   }
+}
+
+object DummyAsyncExecutionActor {
+
 }

@@ -2,6 +2,7 @@ package cwl.preprocessor
 
 import better.files.File
 import cats.data.NonEmptyList
+import common.assertion.CromwellTimeoutSpec
 import common.validation.IOChecked._
 import io.circe.Printer
 import org.scalamock.function.MockFunction1
@@ -9,7 +10,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class CwlPreProcessorSpec extends AnyFlatSpec with Matchers with MockFactory {
+class CwlPreProcessorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with MockFactory {
   behavior of "CwlPreProcessor"
 
   val resourcesRoot = File(getClass.getResource(".").getPath)

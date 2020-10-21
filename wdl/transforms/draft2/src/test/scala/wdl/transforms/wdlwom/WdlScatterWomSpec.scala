@@ -1,6 +1,7 @@
 package wdl.transforms.wdlwom
 
 import cats.data.Validated.{Invalid, Valid}
+import common.assertion.CromwellTimeoutSpec
 import common.collections.EnhancedCollections._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -12,7 +13,7 @@ import wom.graph.{GraphInputNode, ScatterNode, _}
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wom.types.{WomArrayType, WomIntegerType, WomStringType}
 
-class WdlScatterWomSpec extends AnyFlatSpec with Matchers {
+class WdlScatterWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "WdlNamespaces with scatters"
 

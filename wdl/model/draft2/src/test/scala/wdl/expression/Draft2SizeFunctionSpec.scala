@@ -1,5 +1,6 @@
 package wdl.expression
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.Assertion
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -13,7 +14,7 @@ import wom.values._
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
-class Draft2SizeFunctionSpec extends AnyFlatSpec with Matchers {
+class Draft2SizeFunctionSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "ReadLikeFunctions.size"
 

@@ -3,6 +3,7 @@ package cromwell.services.database
 import better.files._
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.Logger
+import common.assertion.CromwellTimeoutSpec
 import cromwell.core.WorkflowId
 import cromwell.database.sql.joins.JobStoreJoin
 import cromwell.database.sql.tables.JobStoreEntry
@@ -21,7 +22,7 @@ import scala.util.{Failure, Success, Try}
   *
   * See cromwell.database.slick.SlickDatabase#actionThreadPool for more information.
   */
-class SlickDeadlocksSpec extends AnyFlatSpec with Matchers with ScalaFutures {
+class SlickDeadlocksSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures {
 
   implicit val executionContext = ExecutionContext.global
 

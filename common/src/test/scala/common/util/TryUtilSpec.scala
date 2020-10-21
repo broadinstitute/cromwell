@@ -1,5 +1,6 @@
 package common.util
 
+import common.assertion.CromwellTimeoutSpec
 import common.exception.AggregatedException
 import common.util.TryUtil._
 import org.scalatest.flatspec.AnyFlatSpec
@@ -10,7 +11,7 @@ import scala.util.{Failure, Success, Try}
 import org.scalatest.enablers.Emptiness._
 
 
-class TryUtilSpec extends AnyFlatSpec with Matchers {
+class TryUtilSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "TryUtil"
 

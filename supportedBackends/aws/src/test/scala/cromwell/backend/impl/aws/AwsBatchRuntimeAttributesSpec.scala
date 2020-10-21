@@ -32,6 +32,7 @@
 package cromwell.backend.impl.aws
 
 import cats.data.NonEmptyList
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.RuntimeAttributeDefinition
 import cromwell.backend.impl.aws.io.{AwsBatchVolume, AwsBatchWorkingDisk}
 import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
@@ -48,7 +49,7 @@ import wom.format.MemorySize
 import wom.types._
 import wom.values._
 
-class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with Matchers with Mockito {
+class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec with Matchers with Mockito {
 
   def workflowOptionsWithDefaultRA(defaults: Map[String, JsValue]): WorkflowOptions = {
     WorkflowOptions(JsObject(Map(

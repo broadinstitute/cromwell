@@ -26,6 +26,3 @@ class SelectiveTsvInstrumentationServiceActor(serviceConfig: Config, globalConfi
     case ShutdownCommand => context stop self
   }
 }
-
-
-

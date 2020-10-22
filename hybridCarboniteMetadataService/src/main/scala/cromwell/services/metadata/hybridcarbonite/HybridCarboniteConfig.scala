@@ -89,7 +89,7 @@ object HybridCarboniteConfig {
 
         val initialDelay = Try { metadataDeletion.getOrElse[Duration]("initial-delay", Duration.Inf) } toErrorOr
         val interval = Try { metadataDeletion.getOrElse[Duration]("interval", Duration.Inf) } toErrorOr
-        val batchSize = Try { metadataDeletion.getOrElse("batchSize", default = 200L) } toErrorOr
+        val batchSize = Try { metadataDeletion.getOrElse("batch-size", default = 200L) } toErrorOr
         val delayAfterWorkflowCompletion = Try { metadataDeletion.getOrElse("delay-after-workflow-completion", 24 hours) } toErrorOr
 
         val errorOrMetadataDeletionConfig: ErrorOr[MetadataDeletionConfig] = (initialDelay, interval, batchSize, delayAfterWorkflowCompletion) mapN { case (id, i, b, d) =>

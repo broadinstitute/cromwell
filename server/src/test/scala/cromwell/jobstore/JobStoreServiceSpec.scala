@@ -29,7 +29,7 @@ object JobStoreServiceSpec {
 class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with Mockito with CoordinatedWorkflowStoreActorBuilder with SqlWorkflowStoreBuilder with CromwellTimeoutSpec {
 
   "JobStoreService" should {
-    "work" in {
+    "register Job and Workflow completions and read back (query) the result" in {
       runWithDatabase(databaseConfig) { workflowStore: SqlWorkflowStore =>
         lazy val jobStore: JobStore = new SqlJobStore(EngineServicesStore.engineDatabaseInterface)
         val jobStoreService = system.actorOf(JobStoreActor.props(jobStore, dummyServiceRegistryActor, access(workflowStore)))

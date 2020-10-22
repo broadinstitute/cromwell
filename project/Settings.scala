@@ -102,7 +102,14 @@ object Settings {
     organization := "org.broadinstitute",
     scalaVersion := ScalaVersion,
     resolvers ++= commonResolvers,
-    parallelExecution := false,
+    // Don't run tasks in parallel, especially helps in low CPU environments like Travis
+    parallelExecution in Global := false,
+    concurrentRestrictions in Global ++= List(
+      // Don't run any other tasks while running tests, especially helps in low CPU environments like Travis
+      Tags.exclusive(Tags.Test),
+      // Only run tests on one sub-project at a time, especially helps in low CPU environments like Travis
+      Tags.limit(Tags.Test, 1)
+    ),
     dependencyOverrides ++= cromwellDependencyOverrides,
     scalacOptions ++= baseSettings ++ warningSettings ++ consoleHostileSettings,
     // http://stackoverflow.com/questions/31488335/scaladoc-2-11-6-fails-on-throws-tag-with-unable-to-find-any-member-to-link#31497874

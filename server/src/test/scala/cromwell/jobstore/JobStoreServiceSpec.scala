@@ -1,5 +1,6 @@
 package cromwell.jobstore
 
+import common.assertion.CromwellTimeoutSpec
 import cromwell.CromwellTestKitWordSpec
 import cromwell.engine.workflow.{CoordinatedWorkflowStoreActorBuilder, SqlWorkflowStoreBuilder}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore
@@ -25,7 +26,7 @@ object JobStoreServiceSpec {
   val EmptyExpression = PlaceholderWomExpression(Set.empty, WomStringType)
 }
 
-class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with Mockito with CoordinatedWorkflowStoreActorBuilder with SqlWorkflowStoreBuilder {
+class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with Mockito with CoordinatedWorkflowStoreActorBuilder with SqlWorkflowStoreBuilder with CromwellTimeoutSpec {
 
   "JobStoreService" should {
     "work" in {

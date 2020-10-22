@@ -1,6 +1,7 @@
 package cromwell.subworkflowstore
 
 import akka.testkit.TestProbe
+import common.assertion.CromwellTimeoutSpec
 import cromwell.core.ExecutionIndex._
 import cromwell.core.{JobKey, WorkflowId, WorkflowOptions, WorkflowSourceFilesWithoutImports}
 import cromwell.database.sql.tables.SubWorkflowStoreEntry
@@ -28,7 +29,7 @@ object SubWorkflowStoreSpec {
   val EmptyExpression = WdlExpression.fromString(""" "" """)
 }
 
-class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with CoordinatedWorkflowStoreActorBuilder with Matchers with Mockito {
+class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with CoordinatedWorkflowStoreActorBuilder with CromwellTimeoutSpec with Matchers with Mockito {
   "SubWorkflowStore" should {
     "work" in {
       lazy val subWorkflowStore = new SqlSubWorkflowStore(EngineServicesStore.engineDatabaseInterface)

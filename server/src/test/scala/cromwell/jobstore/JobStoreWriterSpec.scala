@@ -1,6 +1,7 @@
 package cromwell.jobstore
 
 import akka.testkit.{TestFSMRef, TestProbe}
+import common.assertion.CromwellTimeoutSpec
 import common.collections.WeightedQueue
 import cromwell.CromwellTestKitWordSpec
 import cromwell.core.actor.BatchActor.{BatchActorState, CommandAndReplyTo, Processing}
@@ -16,7 +17,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 
-class JobStoreWriterSpec extends CromwellTestKitWordSpec with SqlWorkflowStoreBuilder with CoordinatedWorkflowStoreActorBuilder with Matchers with BeforeAndAfter {
+class JobStoreWriterSpec extends CromwellTestKitWordSpec with SqlWorkflowStoreBuilder with CoordinatedWorkflowStoreActorBuilder with Matchers with BeforeAndAfter with CromwellTimeoutSpec {
 
   var database: WriteCountingJobStore = _
   var workflowId: WorkflowId = _

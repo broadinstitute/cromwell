@@ -5,6 +5,7 @@ import java.util.UUID
 
 import akka.testkit._
 import cats.data.{NonEmptyList, NonEmptyVector}
+import common.assertion.CromwellTimeoutSpec
 import cromwell.core._
 import cromwell.core.abort.{AbortResponse, WorkflowAbortFailureResponse, WorkflowAbortRequestedResponse, WorkflowAbortedResponse}
 import cromwell.engine.workflow.{CoordinatedWorkflowStoreActorBuilder, SqlWorkflowStoreBuilder}
@@ -31,7 +32,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWorkflowStoreActorBuilder with SqlWorkflowStoreBuilder with Matchers with BeforeAndAfter with Mockito with Eventually {
+class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWorkflowStoreActorBuilder with SqlWorkflowStoreBuilder with Matchers with BeforeAndAfter with Mockito with Eventually with CromwellTimeoutSpec {
   val helloWorldSourceFiles = HelloWorld.asWorkflowSources().asInstanceOf[WorkflowSourceFilesWithoutImports]
   val helloWorldSourceFilesOnHold = HelloWorld.asWorkflowSources(workflowOnHold = true)
   val helloCwlWorldSourceFiles = HelloWorld.asWorkflowSources(workflowType = Option("CWL"), workflowTypeVersion = Option("v1.0"))

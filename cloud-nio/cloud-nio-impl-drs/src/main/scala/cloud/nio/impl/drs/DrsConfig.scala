@@ -10,6 +10,7 @@ final case class DrsConfig(marthaUrl: String,
                            waitInitial: FiniteDuration,
                            waitMaximum: FiniteDuration,
                            waitMultiplier: Double,
+                           waitRandomizationFactor: Double,
                           )
 
 object DrsConfig {
@@ -18,12 +19,14 @@ object DrsConfig {
   private val DefaultWaitInitial = 30.seconds
   private val DefaultWaitMaximum = 5.minutes
   private val DefaultWaitMultiplier = 2.0d
+  private val DefaultWaitRandomizationFactor = 0.1
 
   private val EnvMarthaUrl = "MARTHA_URL"
   private val EnvMarthaNumRetries = "MARTHA_NUM_RETRIES"
   private val EnvMarthaWaitInitialSeconds = "MARTHA_WAIT_INITIAL_SECONDS"
   private val EnvMarthaWaitMaximumSeconds = "MARTHA_WAIT_MAXIMUM_SECONDS"
   private val EnvMarthaWaitMultiplier = "MARTHA_WAIT_MULTIPLIER"
+  private val EnvMarthaWaitRandomizationFactor = "MARTHA_WAIT_RANDOMIZATION_FACTOR"
 
   def fromConfig(marthaConfig: Config): DrsConfig = {
     DrsConfig(
@@ -32,6 +35,8 @@ object DrsConfig {
       waitInitial = marthaConfig.getOrElse("wait-initial", DefaultWaitInitial),
       waitMaximum = marthaConfig.getOrElse("wait-maximum", DefaultWaitMaximum),
       waitMultiplier = marthaConfig.getOrElse("wait-multiplier", DefaultWaitMultiplier),
+      waitRandomizationFactor =
+        marthaConfig.getOrElse("wait-randomization-factor", DefaultWaitRandomizationFactor),
     )
   }
 
@@ -42,6 +47,8 @@ object DrsConfig {
       waitInitial = env.get(EnvMarthaWaitInitialSeconds).map(_.toLong.seconds).getOrElse(DefaultWaitInitial),
       waitMaximum = env.get(EnvMarthaWaitMaximumSeconds).map(_.toLong.seconds).getOrElse(DefaultWaitMaximum),
       waitMultiplier = env.get(EnvMarthaWaitMultiplier).map(_.toDouble).getOrElse(DefaultWaitMultiplier),
+      waitRandomizationFactor =
+        env.get(EnvMarthaWaitRandomizationFactor).map(_.toDouble).getOrElse(DefaultWaitRandomizationFactor),
     )
   }
 
@@ -52,6 +59,7 @@ object DrsConfig {
       EnvMarthaWaitInitialSeconds -> s"${drsConfig.waitInitial.toSeconds}",
       EnvMarthaWaitMaximumSeconds -> s"${drsConfig.waitMaximum.toSeconds}",
       EnvMarthaWaitMultiplier -> s"${drsConfig.waitMultiplier}",
+      EnvMarthaWaitRandomizationFactor -> s"${drsConfig.waitRandomizationFactor}",
     )
   }
 }

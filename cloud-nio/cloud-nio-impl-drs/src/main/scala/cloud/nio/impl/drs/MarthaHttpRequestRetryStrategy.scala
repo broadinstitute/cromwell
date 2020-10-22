@@ -2,20 +2,23 @@ package cloud.nio.impl.drs
 
 import java.io.IOException
 
+import cloud.nio.spi.{CloudNioBackoff, CloudNioSimpleExponentialBackoff}
 import org.apache.http.HttpResponse
 import org.apache.http.client.{HttpRequestRetryHandler, ServiceUnavailableRetryStrategy}
 import org.apache.http.protocol.HttpContext
-
-import scala.concurrent.duration._
 
 class MarthaHttpRequestRetryStrategy(drsConfig: DrsConfig)
   extends ServiceUnavailableRetryStrategy with HttpRequestRetryHandler {
 
   // We can execute a total of one time, plus the number of retries
   private val executionMax: Int = drsConfig.numRetries + 1
-  private val waitMultiplier: Double = drsConfig.waitMultiplier
-  private val waitMax: FiniteDuration = drsConfig.waitMaximum
-  private var waitNext: Duration = drsConfig.waitInitial min waitMax
+  private var backoff: CloudNioBackoff =
+    CloudNioSimpleExponentialBackoff(
+      initialInterval = drsConfig.waitInitial,
+      maxInterval = drsConfig.waitMaximum,
+      multiplier = drsConfig.waitMultiplier,
+      randomizationFactor = drsConfig.waitRandomizationFactor,
+    )
   private var transientFailures: Int = 0
 
   /** Returns true if an IOException should be immediately retried. */
@@ -34,9 +37,9 @@ class MarthaHttpRequestRetryStrategy(drsConfig: DrsConfig)
 
   /** Returns the number of milliseconds to wait before retrying an HttpResponse. */
   override def getRetryInterval: Long = {
-    val waitCurrent = waitNext
-    waitNext = (waitNext * waitMultiplier) min waitMax
-    waitCurrent.toMillis
+    val backoffCurrent = backoff
+    backoff = backoff.next
+    backoffCurrent.backoffMillis
   }
 
   private def retryRequestTransient(executionCount: Int): Boolean = {

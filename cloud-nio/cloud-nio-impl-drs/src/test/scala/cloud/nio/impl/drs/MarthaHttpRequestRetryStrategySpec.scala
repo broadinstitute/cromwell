@@ -91,6 +91,7 @@ class MarthaHttpRequestRetryStrategySpec extends AnyFlatSpec with Matchers with 
         waitInitial = 10.seconds,
         waitMultiplier = 2.0d,
         waitMaximum = 1.minute,
+        waitRandomizationFactor = 0d,
       )
     val retryStrategy = new MarthaHttpRequestRetryStrategy(drsConfig)
 

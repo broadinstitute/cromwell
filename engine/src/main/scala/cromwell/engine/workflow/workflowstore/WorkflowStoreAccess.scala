@@ -67,27 +67,27 @@ case class UncoordinatedWorkflowStoreAccess(store: WorkflowStore) extends Workfl
   * An implementation of `WorkflowStoreAccess` that coordinates access to the workflow store behind an actor
   * that runs its operations sequentially. Enabled by default in `CromwellRootActor`.
   */
-case class CoordinatedWorkflowStoreAccess(actor: ActorRef) extends WorkflowStoreAccess {
+case class CoordinatedWorkflowStoreAccess(coordinatedWorkflowStoreAccessActor: ActorRef) extends WorkflowStoreAccess {
   implicit val timeout = Timeout(WorkflowStoreCoordinatedAccessActor.Timeout)
 
   override def writeWorkflowHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)],
                                        heartbeatDateTime: OffsetDateTime)
                                       (implicit ec: ExecutionContext): Future[Int] = {
-    actor.ask(WorkflowStoreCoordinatedAccessActor.WriteHeartbeats(workflowIds, heartbeatDateTime)).mapTo[Int]
+    coordinatedWorkflowStoreAccessActor.ask(WorkflowStoreCoordinatedAccessActor.WriteHeartbeats(workflowIds, heartbeatDateTime)).mapTo[Int]
   }
 
   override def fetchStartableWorkflows(maxWorkflows: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
                                       (implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
     val message = WorkflowStoreCoordinatedAccessActor.FetchStartableWorkflows(maxWorkflows, cromwellId, heartbeatTtl)
-    actor.ask(message).mapTo[List[WorkflowToStart]]
+    coordinatedWorkflowStoreAccessActor.ask(message).mapTo[List[WorkflowToStart]]
   }
 
   override def deleteFromStore(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int] = {
-    actor.ask(WorkflowStoreCoordinatedAccessActor.DeleteFromStore(workflowId)).mapTo[Int]
+    coordinatedWorkflowStoreAccessActor.ask(WorkflowStoreCoordinatedAccessActor.DeleteFromStore(workflowId)).mapTo[Int]
   }
 
   override def abort(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse] = {
-    actor.ask(WorkflowStoreCoordinatedAccessActor.Abort(workflowId)).mapTo[WorkflowStoreAbortResponse]
+    coordinatedWorkflowStoreAccessActor.ask(WorkflowStoreCoordinatedAccessActor.Abort(workflowId)).mapTo[WorkflowStoreAbortResponse]
   }
 }
 

@@ -17,7 +17,6 @@ import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.{GoogleAuthMode, UserServiceAccountMode}
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{PathBuilder, PathBuilderFactory}
-import org.apache.http.impl.client.HttpClientBuilder
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -36,8 +35,6 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
     case Valid(auth) => auth
     case Invalid(error) => throw new RuntimeException(s"Error while instantiating DRS path builder factory. Errors: ${error.toString}")
   }
-
-  private lazy val httpClientBuilder = HttpClientBuilder.create()
 
   private def gcsInputStream(gcsFile: String,
                              credentials: OAuth2Credentials,
@@ -105,7 +102,6 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
       new DrsCloudNioFileSystemProvider(
         singletonConfig.config,
         authCredentials,
-        httpClientBuilder,
         drsReadInterpreter(options, requesterPaysProjectIdOption),
       ),
       requesterPaysProjectIdOption,

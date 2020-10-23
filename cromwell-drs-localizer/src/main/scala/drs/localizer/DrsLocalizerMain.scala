@@ -7,7 +7,6 @@ import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO, IOApp}
 import cloud.nio.impl.drs.{DrsConfig, MarthaField}
 import com.typesafe.scalalogging.StrictLogging
-import org.apache.http.impl.client.HttpClientBuilder
 
 import scala.sys.process._
 
@@ -41,13 +40,10 @@ class DrsLocalizerMain(drsUrl: String,
   private final val RequesterPaysErrorMsg = "Bucket is requester pays bucket but no user project provided."
   private final val ExtractGcsUrlErrorMsg = "No resolved url starting with 'gs://' found from Martha response!"
 
-  val httpClientBuilder: HttpClientBuilder = HttpClientBuilder.create()
-
   def getGcsDrsPathResolver: IO[GcsLocalizerDrsPathResolver] = {
     IO {
-      val marthaUrl = sys.env("MARTHA_URL")
-      val drsConfig = DrsConfig(marthaUrl)
-      new GcsLocalizerDrsPathResolver(drsConfig, httpClientBuilder)
+      val drsConfig = DrsConfig.fromEnv(sys.env)
+      new GcsLocalizerDrsPathResolver(drsConfig)
     }
   }
 

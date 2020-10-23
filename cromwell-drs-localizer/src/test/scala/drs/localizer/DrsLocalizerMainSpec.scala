@@ -6,7 +6,6 @@ import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO}
 import cloud.nio.impl.drs.{DrsConfig, MarthaField, MarthaResponse}
 import common.assertion.CromwellTimeoutSpec
-import org.apache.http.impl.client.HttpClientBuilder
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -130,8 +129,7 @@ class MockDrsLocalizerMain(drsUrl: String,
 
   override def getGcsDrsPathResolver: IO[GcsLocalizerDrsPathResolver] = {
     IO {
-      val mockDrsConfig = DrsConfig("https://abc/martha_v3")
-      new MockGcsLocalizerDrsPathResolver(mockDrsConfig, httpClientBuilder)
+      new MockGcsLocalizerDrsPathResolver(cloud.nio.impl.drs.MockDrsPaths.mockDrsConfig)
     }
   }
 
@@ -140,8 +138,8 @@ class MockDrsLocalizerMain(drsUrl: String,
 }
 
 
-class MockGcsLocalizerDrsPathResolver(drsConfig: DrsConfig,
-                                      httpClientBuilder: HttpClientBuilder) extends GcsLocalizerDrsPathResolver(drsConfig, httpClientBuilder) {
+class MockGcsLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
+  GcsLocalizerDrsPathResolver(drsConfig) {
 
   override def resolveDrsThroughMartha(drsPath: String, fields: NonEmptyList[MarthaField.Value]): IO[MarthaResponse] = {
     val gcsUrl = drsPath match {

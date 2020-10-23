@@ -410,6 +410,7 @@ lazy val `cromwell-drs-localizer` = project
   .withExecutableSettings("cromwell-drs-localizer", drsLocalizerDependencies, drsLocalizerSettings)
   .dependsOn(`cloud-nio-impl-drs`)
   .dependsOn(common % "test->test")
+  .dependsOn(`cloud-nio-impl-drs` % "test->test")
 
 lazy val server = project
   .withExecutableSettings("cromwell", serverDependencies)

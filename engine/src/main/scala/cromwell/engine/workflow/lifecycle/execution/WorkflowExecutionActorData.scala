@@ -32,7 +32,12 @@ final case class WorkflowExecutionDiff(executionStoreChanges: Map[JobKey, Execut
 }
 
 object WorkflowExecutionActorData {
-  def apply(workflowDescriptor: EngineWorkflowDescriptor, ec: ExecutionContext, asyncIo: AsyncIo, totalJobsByRootWf: AtomicInteger, executionStore: ExecutionStore): WorkflowExecutionActorData = {
+  def apply(workflowDescriptor: EngineWorkflowDescriptor,
+            ec: ExecutionContext,
+            asyncIo: AsyncIo,
+            totalJobsByRootWf: AtomicInteger,
+            executionStore: ExecutionStore,
+            mergeExecutionDiffCallback: () => Unit): WorkflowExecutionActorData = {
     WorkflowExecutionActorData(
       workflowDescriptor,
       executionStore,
@@ -40,7 +45,8 @@ object WorkflowExecutionActorData {
       asyncIo,
       ec,
       totalJobsByRootWf = totalJobsByRootWf,
-      rootAndSubworkflowIds = Set(workflowDescriptor.id)
+      rootAndSubworkflowIds = Set(workflowDescriptor.id),
+      mergeExecutionDiffCallback = mergeExecutionDiffCallback
     )
   }
 
@@ -57,7 +63,8 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
                                       downstreamExecutionMap: JobExecutionMap = Map.empty,
                                       totalJobsByRootWf: AtomicInteger,
                                       cumulativeOutputs: Set[WomValue] = Set.empty,
-                                      rootAndSubworkflowIds: Set[WorkflowId]) {
+                                      rootAndSubworkflowIds: Set[WorkflowId],
+                                      mergeExecutionDiffCallback: () => Unit) {
 
   val expressionLanguageFunctions = new EngineIoFunctions(workflowDescriptor.pathBuilders, asyncIo, ec)
 
@@ -113,6 +120,7 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
   }
 
   def mergeExecutionDiff(diff: WorkflowExecutionDiff): WorkflowExecutionActorData = {
+    mergeExecutionDiffCallback()
     this.copy(
       executionStore = executionStore.updateKeys(diff.executionStoreChanges),
       valueStore = valueStore.add(diff.valueStoreAdditions),

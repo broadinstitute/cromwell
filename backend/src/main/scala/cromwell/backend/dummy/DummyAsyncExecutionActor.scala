@@ -57,6 +57,7 @@ class DummyAsyncExecutionActor(override val standardParams: StandardAsyncExecuti
 
   override def executeAsync(): Future[ExecutionHandle] = {
     finishTime = Option(OffsetDateTime.now().plusMinutes(3))
+//    finishTime = Option(OffsetDateTime.now().plusSeconds(20))
     increment(NonEmptyList("jobs", List("dummy", "executing", "starting")))
     singletonActor ! DummySingletonActor.PlusOne
     Future.successful(

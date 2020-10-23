@@ -131,7 +131,7 @@ object Dependencies {
   private val swaggerParserV = "1.0.52"
   private val swaggerUiV = "3.23.11" // scala-steward:off (BA-6621)
   private val tikaV = "1.24.1"
-  private val typesafeConfigV = "1.4.0"
+  private val typesafeConfigV = "1.4.1"
   private val workbenchGoogleV = "0.15-2fc79a3"
   private val workbenchModelV = "0.14-27810079-SNAP"
   private val workbenchUtilV = "0.6-27810079-SNAP"

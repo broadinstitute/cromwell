@@ -32,7 +32,7 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
     )
 
     val fileSystemProvider = new MockDrsCloudNioFileSystemProvider(config = config)
-    fileSystemProvider.drsConfig should be(DrsConfig("https://from.config"))
+    fileSystemProvider.drsConfig.marthaUrl should be("https://from.config")
     fileSystemProvider.accessTokenAcceptableTTL should be(1.minute)
     fileSystemProvider.fileProvider should be(a[DrsCloudNioFileProvider])
     fileSystemProvider.isFatal(new RuntimeException) should be(false)
@@ -50,7 +50,7 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
     )
 
     val fileSystemProvider = new MockDrsCloudNioFileSystemProvider(config = config)
-    fileSystemProvider.drsConfig should be(DrsConfig("https://from.config"))
+    fileSystemProvider.drsConfig.marthaUrl should be("https://from.config")
     fileSystemProvider.accessTokenAcceptableTTL should be(1.minute)
     fileSystemProvider.fileProvider should be(a[DrsCloudNioFileProvider])
     fileSystemProvider.isFatal(new RuntimeException) should be(false)
@@ -77,7 +77,7 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
     val httpClientBuilder = mock[HttpClientBuilder].smart
     httpClientBuilder.build() returns httpClient
 
-    val fileSystemProvider = new MockDrsCloudNioFileSystemProvider(httpClientBuilder = httpClientBuilder)
+    val fileSystemProvider = new MockDrsCloudNioFileSystemProvider(httpClientBuilder = Option(httpClientBuilder))
     val fileProvider = fileSystemProvider.fileProvider.asInstanceOf[DrsCloudNioFileProvider]
     fileProvider.existsPaths("dg.123", "abc") should be(true)
     fileProvider.listObjects("dg.123", "abc", None) should be(CloudNioFileList(List("abc"), None))

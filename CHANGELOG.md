@@ -41,6 +41,11 @@ When running on a backend that supports `localization_optional: true` any DOS or
 command line will be substituted with the `gsUri` returned from Martha's `martha_v3` endpoint. More information on
 `localization_optional` can be found [here](https://cromwell.readthedocs.io/en/stable/optimizations/FileLocalization/).
 
+### DOS/DRS metadata retrieval retried by default
+
+Attempts to retrieve DOS/DRS metadata from Martha will be retried by default. More information can be found
+[here](https://cromwell.readthedocs.io/en/stable/optimizations/FileLocalization/).
+
 ## 53 Release Notes
 
 ### Martha v3 Support

@@ -11,7 +11,6 @@ import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiWorkin
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.filesystems.drs.DrsPathBuilder
 import eu.timepit.refined.refineMV
-import org.apache.http.impl.client.HttpClientBuilder
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -32,15 +31,13 @@ class PipelinesConversionsSpec extends AnyFlatSpec with CromwellTimeoutSpec with
 
   private lazy val fakeCredentials = NoCredentials.getInstance
 
-  private lazy val httpClientBuilder = HttpClientBuilder.create()
-
   private val drsReadInterpreter: DrsReadInterpreter = (_, _) =>
     throw new UnsupportedOperationException("Currently PipelinesConversionsSpec doesn't need to use drs read interpreter.")
 
   it should "create a DRS input parameter" in {
 
     val drsPathBuilder = DrsPathBuilder(
-      new DrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials, httpClientBuilder, drsReadInterpreter),
+      new DrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials, drsReadInterpreter),
       None,
     )
     val drsPath = drsPathBuilder.build("drs://drs.example.org/aaaabbbb-cccc-dddd-eeee-abcd0000dcba").get

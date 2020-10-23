@@ -123,7 +123,7 @@ object Settings {
   /*
       Docker instructions to install Google Cloud SDK image in docker image. It also installs `crcmod` which
       is needed while downloading large files using `gsutil`
-      References: 
+      References:
         - https://stackoverflow.com/questions/28372328/how-to-install-the-google-cloud-sdk-in-a-docker-image
         - https://cromwell.readthedocs.io/en/develop/backends/Google/#issues-with-composite-files
         - https://cloud.google.com/storage/docs/gsutil/addlhelp/CRC32CandInstallingcrcmod

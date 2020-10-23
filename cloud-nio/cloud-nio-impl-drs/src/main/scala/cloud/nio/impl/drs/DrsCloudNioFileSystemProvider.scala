@@ -7,7 +7,6 @@ import cloud.nio.spi.{CloudNioFileProvider, CloudNioFileSystemProvider}
 import com.google.auth.oauth2.OAuth2Credentials
 import com.typesafe.config.Config
 import net.ceedubs.ficus.Ficus._
-import org.apache.http.impl.client.HttpClientBuilder
 
 import scala.concurrent.duration.FiniteDuration
 import scala.util.matching.Regex
@@ -15,18 +14,15 @@ import scala.util.matching.Regex
 
 class DrsCloudNioFileSystemProvider(rootConfig: Config,
                                     authCredentials: OAuth2Credentials,
-                                    httpClientBuilder: HttpClientBuilder,
                                     drsReadInterpreter: DrsReadInterpreter,
                                    ) extends CloudNioFileSystemProvider {
 
-  lazy val marthaUrl: String = rootConfig.getString("martha.url")
-
-  lazy val drsConfig: DrsConfig = DrsConfig(marthaUrl)
+  lazy val drsConfig: DrsConfig = DrsConfig.fromConfig(rootConfig.getConfig("martha"))
 
   lazy val accessTokenAcceptableTTL: FiniteDuration = rootConfig.as[FiniteDuration]("access-token-acceptable-ttl")
 
   lazy val drsPathResolver: EngineDrsPathResolver =
-    EngineDrsPathResolver(drsConfig, httpClientBuilder, accessTokenAcceptableTTL, authCredentials)
+    EngineDrsPathResolver(drsConfig, accessTokenAcceptableTTL, authCredentials)
 
   override def config: Config = rootConfig
 

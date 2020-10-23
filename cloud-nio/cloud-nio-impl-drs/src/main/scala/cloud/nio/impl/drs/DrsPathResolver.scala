@@ -17,7 +17,15 @@ import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.util.EntityUtils
 import org.apache.http.{HttpResponse, HttpStatus, StatusLine}
 
-abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClientBuilder) {
+abstract class DrsPathResolver(drsConfig: DrsConfig) {
+
+  private lazy val retryHandler = new MarthaHttpRequestRetryStrategy(drsConfig)
+
+  protected lazy val httpClientBuilder: HttpClientBuilder =
+    HttpClientBuilder
+      .create()
+      .setRetryHandler(retryHandler)
+      .setServiceUnavailableRetryStrategy(retryHandler)
 
   def getAccessToken: String
 
@@ -64,8 +72,6 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, httpClientBuilder: HttpClie
     rawMarthaResponse(drsPath, fields).use(httpResponseToMarthaResponse(drsPathForDebugging = drsPath))
   }
 }
-
-final case class DrsConfig(marthaUrl: String)
 
 object MarthaField extends Enumeration {
   val GsUri: MarthaField.Value = Value("gsUri")

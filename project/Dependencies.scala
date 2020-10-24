@@ -70,7 +70,7 @@ object Dependencies {
   // such as googleCloudNioV have already been pinned for Scala Steward so this might not be a trivial undertaking.
   private val jaxbV = "2.3.2" // scala-steward:off
   private val kindProjectorV = "0.9.9"
-  private val kittensV = "2.1.0"
+  private val kittensV = "2.2.0"
   private val liquibaseSlf4jV = "4.0.0"
   // Scala Steward wanted to upgrade liquibase-core to 3.10.2 but that version does not find some uniqueness
   // constraints and models datatypes in ways that are incompatible with our test expectations.

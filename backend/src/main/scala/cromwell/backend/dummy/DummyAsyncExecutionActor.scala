@@ -50,6 +50,8 @@ class DummyAsyncExecutionActor(override val standardParams: StandardAsyncExecuti
 
   override def executeOrRecoverBackOff: SimpleExponentialBackoff = SimpleExponentialBackoff(initialInterval = 1.second, maxInterval = 300.seconds, multiplier = 1.1)
 
+  override val logJobIds: Boolean = false
+
   val singletonActor = standardParams.backendSingletonActorOption.getOrElse(
     throw new RuntimeException("Dummy Backend actor cannot exist without its singleton actor"))
 

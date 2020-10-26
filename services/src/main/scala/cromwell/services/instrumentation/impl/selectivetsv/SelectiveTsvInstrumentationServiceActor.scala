@@ -50,8 +50,8 @@ class SelectiveTsvInstrumentationServiceActor(serviceConfig: Config, globalConfi
 
   private def checkTsvPrintout(): Boolean = {
     if (stateHistory.stateHistory.size >= 2) {
-      if (stateHistory.stateHistory.last._2.get("jobs.dummy.executing").contains(0)) {
-        if (stateHistory.stateHistory.init.last._2.get("jobs.dummy.executing").exists(_ != 0)) {
+      if (stateHistory.stateHistory.last._2.get("jobs.ejea.executing").contains(0)) {
+        if (stateHistory.stateHistory.init.last._2.get("jobs.ejea.executing").exists(_ != 0)) {
           outputCountHistory()
           true
         } else false

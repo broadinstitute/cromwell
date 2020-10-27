@@ -37,7 +37,8 @@ object WorkflowExecutionActorData {
             asyncIo: AsyncIo,
             totalJobsByRootWf: AtomicInteger,
             executionStore: ExecutionStore,
-            mergeExecutionDiffCallback: () => Unit): WorkflowExecutionActorData = {
+            mergeExecutionDiffCallback: () => Unit,
+            executionStoreMetricsCallback: Map[ExecutionStatus, Int] => Unit): WorkflowExecutionActorData = {
     WorkflowExecutionActorData(
       workflowDescriptor,
       executionStore,
@@ -46,7 +47,8 @@ object WorkflowExecutionActorData {
       ec,
       totalJobsByRootWf = totalJobsByRootWf,
       rootAndSubworkflowIds = Set(workflowDescriptor.id),
-      mergeExecutionDiffCallback = mergeExecutionDiffCallback
+      mergeExecutionDiffCallback = mergeExecutionDiffCallback,
+      executionStoreMetricsCallback = executionStoreMetricsCallback
     )
   }
 
@@ -64,7 +66,10 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
                                       totalJobsByRootWf: AtomicInteger,
                                       cumulativeOutputs: Set[WomValue] = Set.empty,
                                       rootAndSubworkflowIds: Set[WorkflowId],
-                                      mergeExecutionDiffCallback: () => Unit) {
+                                      mergeExecutionDiffCallback: () => Unit,
+                                      executionStoreMetricsCallback: Map[ExecutionStatus, Int] => Unit) {
+
+  executionStoreMetricsCallback(executionStore.store.mapValues(_.length))
 
   val expressionLanguageFunctions = new EngineIoFunctions(workflowDescriptor.pathBuilders, asyncIo, ec)
 

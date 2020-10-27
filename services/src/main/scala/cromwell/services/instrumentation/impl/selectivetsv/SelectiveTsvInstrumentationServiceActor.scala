@@ -7,7 +7,7 @@ import java.util.UUID
 import akka.actor.{Actor, ActorRef, Props}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
-import cromwell.services.instrumentation.{CromwellBucket, CromwellIncrement}
+import cromwell.services.instrumentation.{CromwellBucket, CromwellGauge, CromwellIncrement}
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.instrumentation.impl.selectivetsv.SelectiveTsvInstrumentationServiceActor.{SnapshotState, StateHistory}
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
@@ -37,6 +37,12 @@ class SelectiveTsvInstrumentationServiceActor(serviceConfig: Config, globalConfi
         stateHistory = stateHistory.decrement(pathString)
       }
 
+    case InstrumentationServiceMessage(CromwellGauge(CromwellBucket(_, path), value)) =>
+      val pathString = path.init.mkString(".")
+      if (path.last == "set") {
+        stateHistory = stateHistory.set(pathString, value)
+      }
+
     case SnapshotState =>
       stateHistory = stateHistory.snapshotState()
       if (checkTsvPrintout()) {
@@ -46,6 +52,8 @@ class SelectiveTsvInstrumentationServiceActor(serviceConfig: Config, globalConfi
 //      logger.info(stateHistory.currentStateTsv())
 
     case ShutdownCommand => context stop self
+
+//    case other: InstrumentationServiceMessage => println(s"Ignoring $other")
   }
 
   private def checkTsvPrintout(): Boolean = {
@@ -103,6 +111,20 @@ object SelectiveTsvInstrumentationServiceActor {
         currentState = currentState + (field -> (currentState(field) - 1))
       )
     }
+
+    def set(field: String, value: Long): StateHistory = {
+      if (fields.contains(field)) {
+        this.copy(
+          currentState = currentState + (field -> value.intValue)
+        )
+      } else {
+        this.copy(
+          fields = fields :+ field,
+          currentState = currentState + (field -> value.intValue)
+        )
+      }
+    }
+
     def snapshotState(): StateHistory = {
       if (this == StateHistory.empty) this
       else this.copy(
@@ -110,18 +132,13 @@ object SelectiveTsvInstrumentationServiceActor {
       )
     }
 
-    def currentStateTsv(): String = {
-      val sb = new StringBuilder()
-      sb.append(fields.mkString("\t"))
-        .append(System.lineSeparator())
-        .append(fields.map(f => currentState(f)).mkString("\t"))
-        .mkString
-    }
-
     def stateHistoryTsv(): Vector[String] = {
-      val header = (List("timestamp") ++ fields).mkString("\t")
+
+      val interestingFields = fields.filter(field => stateHistory.exists(history => history._2.get(field).exists(_ != 0)))
+
+      val header = (List("timestamp") ++ interestingFields).mkString("\t")
       val rows = stateHistory.map { case (timestamp, fieldMap) =>
-        (Vector(timestamp.toString) ++ fields.map(f => fieldMap.getOrElse(f, 0))).mkString("\t")
+        (Vector(timestamp.toString) ++ interestingFields.map(f => fieldMap.getOrElse(f, 0))).mkString("\t")
       }
       Vector(header) ++ rows
     }

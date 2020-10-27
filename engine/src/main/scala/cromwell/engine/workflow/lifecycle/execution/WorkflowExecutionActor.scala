@@ -19,7 +19,7 @@ import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend._
 import cromwell.backend.standard.callcaching.BlacklistCache
 import cromwell.core.Dispatcher._
-import cromwell.core.ExecutionStatus._
+import cromwell.core.ExecutionStatus.{ExecutionStatus, _}
 import cromwell.core._
 import cromwell.core.io.AsyncIo
 import cromwell.core.logging.WorkflowLogging
@@ -88,7 +88,18 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   val executionStore: ErrorOr[ActiveExecutionStore] = ExecutionStore(workflowDescriptor.callable, params.totalJobsByRootWf, TotalMaxJobsPerRootWf)
 
   def mergeExecutionDiffCallback(): Unit = {
-    increment(NonEmptyList("workflows", List("executionactor", "mergeexecutiondiff", "starting")))
+    ()
+  }
+
+  def executionStoreMetricsCallback(storeCounts: Map[ExecutionStatus, Int]): Unit = {
+//    increment(NonEmptyList("workflows", List("executionactor", "mergeexecutiondiff2", "starting")))
+    ExecutionStatus.values foreach { status =>
+      val path = NonEmptyList("workflows", List("executionactor", "executionstore", status.toString, "set"))
+//      val path2 = NonEmptyList("workflows", List("executionactor", "executionstore2", status.toString, "starting"))
+      sendGauge(path, storeCounts.getOrElse(status, 0).toLong)
+//      increment(path2)
+//      increment(NonEmptyList("workflows", List("executionactor", "mergeexecutiondiff3", "starting")))
+    }
   }
 
   // If executionStore returns a Failure about root workflow creating jobs more than total jobs per root workflow limit,
@@ -97,7 +108,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     case Valid(validExecutionStore) =>
       startWith(
         WorkflowExecutionPendingState,
-        WorkflowExecutionActorData(workflowDescriptor, ioEc, new AsyncIo(params.ioActor, GcsBatchCommandBuilder), params.totalJobsByRootWf, validExecutionStore, mergeExecutionDiffCallback)
+        WorkflowExecutionActorData(workflowDescriptor, ioEc, new AsyncIo(params.ioActor, GcsBatchCommandBuilder), params.totalJobsByRootWf, validExecutionStore, mergeExecutionDiffCallback, executionStoreMetricsCallback)
       )
     case Invalid(e) =>
       val errorMsg = s"Failed to initialize WorkflowExecutionActor. Error: $e"
@@ -108,7 +119,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       // it throws NullPointerException as FSM.goto can't find the currentState
       startWith(
         WorkflowExecutionFailedState,
-        WorkflowExecutionActorData(workflowDescriptor, ioEc, new AsyncIo(params.ioActor, GcsBatchCommandBuilder), params.totalJobsByRootWf, ExecutionStore.empty, mergeExecutionDiffCallback)
+        WorkflowExecutionActorData(workflowDescriptor, ioEc, new AsyncIo(params.ioActor, GcsBatchCommandBuilder), params.totalJobsByRootWf, ExecutionStore.empty, mergeExecutionDiffCallback, executionStoreMetricsCallback)
       )
 
       workflowLogger.debug("Actor failed to initialize. Stopping self.")

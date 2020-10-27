@@ -139,7 +139,10 @@ object EngineFunctionEvaluators {
   implicit val writeJsonFunctionEvaluator: TypeEvaluator[WriteJson] = new TypeEvaluator[WriteJson] {
     override def evaluateType(a: WriteJson, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])
                              (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
-      validateParamType(a.param, linkedValues, WomObjectType).map(_ => WomSingleFileType)
+      a.param.evaluateType(linkedValues).flatMap {
+        case v @ (WomArrayType(_) | WomObjectType) => v.validNel
+        case v => s"Invalid parameter '${a.param}'. Expected 'Array[_]' or 'Object' but got '${v.stableName}'".invalidNel
+      }
     }
   }
 

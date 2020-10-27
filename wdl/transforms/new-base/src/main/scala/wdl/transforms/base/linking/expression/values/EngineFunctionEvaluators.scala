@@ -327,13 +327,31 @@ object EngineFunctionEvaluators {
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomSingleFile]] = {
       val functionName = "write_json"
-      processValidatedSingleValue[WomObject, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { objectToWrite =>
+
+      def convertToSingleFile[A <: WomValue](objectToWrite: A): ErrorOr[EvaluatedValue[WomSingleFile]] = {
         val serialized = ValueEvaluation.valueToJson(objectToWrite)
         val tryResult = for {
           written <- writeContent(functionName, ioFunctionSet, serialized.compactPrint)
         } yield written
 
         tryResult.map(v => EvaluatedValue(v, Seq(CommandSetupSideEffectFile(v)))).toErrorOr.contextualizeErrors(s"""$functionName(...)""")
+      }
+
+      def evaluateParam(womValue: WomValue): ErrorOr[EvaluatedValue[WomSingleFile]] = {
+        womValue match {
+          case v if v.coercionDefined[WomArray] => v.coerceToType[WomArray] flatMap { convertToSingleFile[WomArray] }
+          case v if v.coercionDefined[WomObject] => v.coerceToType[WomObject] flatMap { convertToSingleFile[WomObject] }
+          case _ => s"The '$functionName' method expects 'Array[_]' or 'Object' argument but instead got ${womValue.womType.stableName}.".invalidNel
+        }
+      }
+
+      val evaluatedSingleFile: ErrorOr[(EvaluatedValue[WomSingleFile], Seq[CommandSetupSideEffectFile])] = for {
+        evaluatedValue <- a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
+        evaluatedSingleFile <- evaluateParam(evaluatedValue.value)
+      } yield (evaluatedSingleFile, evaluatedValue.sideEffectFiles)
+
+      evaluatedSingleFile map {
+        case (result, previousSideEffectFiles) => result.copy(sideEffectFiles = result.sideEffectFiles ++ previousSideEffectFiles)
       }
     }
   }
@@ -627,8 +645,10 @@ object EngineFunctionEvaluators {
                                                                        (f: A => ErrorOr[EvaluatedValue[B]])
                                                                        (implicit coercer: WomTypeCoercer[A]): ErrorOr[EvaluatedValue[B]] = {
     arg flatMap {
-      case EvaluatedValue(a: WomValue, previousSideEffectFiles) if a.coercionDefined[A] => a.coerceToType[A] flatMap { f.apply } map { result => result.copy(sideEffectFiles = result.sideEffectFiles ++ previousSideEffectFiles) }
-      case other => s"Expected ${coercer.toDisplayString} argument but got ${other.value.womType.stableName}".invalidNel
+      case EvaluatedValue(a: WomValue, previousSideEffectFiles) if a.coercionDefined[A] =>
+        a.coerceToType[A] flatMap { f.apply } map { result => result.copy(sideEffectFiles = result.sideEffectFiles ++ previousSideEffectFiles) }
+      case other =>
+        s"Expected ${coercer.toDisplayString} argument but got ${other.value.womType.stableName}".invalidNel
     }
   }
 

@@ -645,10 +645,8 @@ object EngineFunctionEvaluators {
                                                                        (f: A => ErrorOr[EvaluatedValue[B]])
                                                                        (implicit coercer: WomTypeCoercer[A]): ErrorOr[EvaluatedValue[B]] = {
     arg flatMap {
-      case EvaluatedValue(a: WomValue, previousSideEffectFiles) if a.coercionDefined[A] =>
-        a.coerceToType[A] flatMap { f.apply } map { result => result.copy(sideEffectFiles = result.sideEffectFiles ++ previousSideEffectFiles) }
-      case other =>
-        s"Expected ${coercer.toDisplayString} argument but got ${other.value.womType.stableName}".invalidNel
+      case EvaluatedValue(a: WomValue, previousSideEffectFiles) if a.coercionDefined[A] => a.coerceToType[A] flatMap { f.apply } map { result => result.copy(sideEffectFiles = result.sideEffectFiles ++ previousSideEffectFiles) }
+      case other => s"Expected ${coercer.toDisplayString} argument but got ${other.value.womType.stableName}".invalidNel
     }
   }
 

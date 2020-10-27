@@ -9,7 +9,8 @@ import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.jobstore.JobStoreActor.{JobComplete, JobNotComplete, JobStoreReadFailure, QueryJobCompletion}
 import cromwell.services.EnhancedThrottlerActor
 
-import scala.util.{Failure, Success}
+import scala.concurrent.Promise
+import scala.util.{Failure, Random, Success}
 
 object JobStoreReaderActor {
   def props(database: JobStore, registryActor: ActorRef) = Props(new JobStoreReaderActor(database, registryActor, LoadConfig.JobStoreReadThreshold)).withDispatcher(EngineDispatcher)
@@ -20,15 +21,24 @@ class JobStoreReaderActor(database: JobStore, override val serviceRegistryActor:
     with ActorLogging {
 
   override def processHead(head: CommandAndReplyTo[QueryJobCompletion]) = instrumentedProcess {
+    log.info("{}: Processing Job store check", head.command.jobKey.tag)
+
     val action = database.readJobResult(head.command.jobKey, head.command.taskOutputs)
+
     action onComplete {
-      case Success(Some(result)) => head.replyTo ! JobComplete(result)
-      case Success(None) => head.replyTo ! JobNotComplete
+      case Success(Some(result)) =>
+        head.replyTo ! JobComplete(result)
+      case Success(None) =>
+        head.replyTo ! JobNotComplete
       case Failure(t) =>
         log.error(t, "JobStoreReadFailure")
         head.replyTo ! JobStoreReadFailure(t)
     }
-    action.map(_ => 1)
+
+    for {
+      actionResult <- action
+      _ = log.info(s"{}: Job store check success (found something = ${actionResult.nonEmpty})", head.command.jobKey.tag)
+    } yield 1
   }
 
   // EnhancedBatchActorOverrides

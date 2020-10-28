@@ -13,9 +13,9 @@ workflow write_json {
     call write_array_objects {input: array=create_single_object.out}
 
     output{
-        String array_out = write_array.out
-        String object_out = write_object.out
-        String array_object_out = write_array_objects.out
+        String array_out = read_string(write_array.out)
+        String object_out = read_string(write_object.out)
+        String array_object_out = read_string(write_array_objects.out)
     }
 }
 

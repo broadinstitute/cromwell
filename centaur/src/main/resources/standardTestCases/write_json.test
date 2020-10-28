@@ -8,7 +8,7 @@ files {
 metadata {
   workflowName: write_json
   status: Succeeded
-  "outputs.write_json.array_out" = "[0, 1, 2]"
-  "outputs.write_json.object_out" = "{"name":"mr_bean","num":0}"
-  "outputs.write_json.array_object_out" = "[{"name":"mr_bean","num":0},{"name":"mr_bean","num":1},{"name":"mr_bean","num":2}]"
+  "outputs.write_json.array_out" = "[0,1,2]"
+  "outputs.write_json.object_out" = "{\"name\":\"mr_bean\",\"num\":0}"
+  "outputs.write_json.array_object_out" = "[{\"name\":\"mr_bean\",\"num\":0},{\"name\":\"mr_bean\",\"num\":1},{\"name\":\"mr_bean\",\"num\":2}]"
 }

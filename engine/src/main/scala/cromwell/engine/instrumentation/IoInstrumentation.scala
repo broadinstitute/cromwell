@@ -1,5 +1,7 @@
 package cromwell.engine.instrumentation
 
+import java.time.OffsetDateTime
+
 import akka.actor.Actor
 import cats.data.NonEmptyList
 import cromwell.core.instrumentation.InstrumentationKeys._
@@ -9,6 +11,7 @@ import cromwell.engine.io.IoActor.IoResult
 import cromwell.filesystems.gcs.{GcsPath, GoogleUtil}
 import cromwell.services.instrumentation.CromwellInstrumentation._
 import cromwell.services.instrumentation.CromwellInstrumentationActor
+import scala.concurrent.duration._
 
 /**
   * Implicit methods to help convert Io objects to metric values
@@ -27,10 +30,14 @@ private object IoInstrumentationImplicits {
     /**
       * Returns the instrumentation path of this IoResult
       */
-    def toPath: InstrumentationPath = ioResult match {
+    def toCounterPath: InstrumentationPath = ioResult match {
       case (_: IoSuccess[_], ioCommandContext) => ioCommandContext.request.successPath
       case (f: IoFailAck[_], ioCommandContext) => ioCommandContext.request.failedPath(f.failure)
     }
+    /**
+      * Returns the instrumentation path of this IoResult
+      */
+    def toDurationPath: InstrumentationPath = toCounterPath.concatNel(NonEmptyList.of("duration"))
   }
 
   /**
@@ -91,7 +98,10 @@ trait IoInstrumentation extends CromwellInstrumentationActor { this: Actor =>
   /**
     * Increment an IoResult to the proper bucket depending on the request type and the result (success or failure).
     */
-  final def incrementIoResult(ioResult: IoResult): Unit = incrementIo(ioResult.toPath)
+  final def instrumentIoResult(ioResult: IoResult): Unit = {
+    incrementIo(ioResult.toCounterPath)
+    sendTiming(ioResult.toDurationPath, (OffsetDateTime.now.toEpochSecond - ioResult._2.creationTime.toEpochSecond).seconds)
+  }
 
   final def incrementBackpressure(): Unit = incrementIo(backpressure)
 

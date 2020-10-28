@@ -341,7 +341,7 @@ object EngineFunctionEvaluators {
         womValue match {
           case v if v.coercionDefined[WomArray] => v.coerceToType[WomArray] flatMap { convertToSingleFile[WomArray] }
           case v if v.coercionDefined[WomObject] => v.coerceToType[WomObject] flatMap { convertToSingleFile[WomObject] }
-          case _ => s"The '$functionName' method expects 'Array[_]' or 'Object' argument but instead got ${womValue.womType.stableName}.".invalidNel
+          case _ => s"The '$functionName' method expects 'Array[_]' or 'Object' argument but instead got '${womValue.womType.stableName}'.".invalidNel
         }
       }
 

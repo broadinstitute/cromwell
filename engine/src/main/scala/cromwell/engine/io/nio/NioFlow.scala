@@ -7,6 +7,7 @@ import akka.actor.Scheduler
 import akka.stream.scaladsl.Flow
 import cats.effect.IO
 import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
+import com.typesafe.scalalogging.StrictLogging
 import common.util.IORetry
 import cromwell.core.io._
 import cromwell.core.path.Path
@@ -29,7 +30,7 @@ object NioFlow {
 class NioFlow(parallelism: Int,
               scheduler: Scheduler,
               onRetryCallback: IoCommandContext[_] => Throwable => Unit = NioFlow.NoopOnRetry,
-              nbAttempts: Int = MaxAttemptsNumber)(implicit ec: ExecutionContext) {
+              nbAttempts: Int = MaxAttemptsNumber)(implicit ec: ExecutionContext) extends StrictLogging {
   
   implicit private val timer = IO.timer(ec)
   
@@ -109,7 +110,12 @@ class NioFlow(parallelism: Int,
 
   private def hash(hash: IoHashCommand): IO[String] = {
     hash.file match {
-      case gcsPath: GcsPath => IO { gcsPath.cloudStorage.get(gcsPath.blob).getCrc32c }
+      case gcsPath: GcsPath => IO {
+        logger.info(s"Going to execute hash command for GCS file ${gcsPath.pathAsString}")
+        val res = gcsPath.cloudStorage.get(gcsPath.blob).getCrc32c
+        logger.info(s"Successfully executed hash command for GCS file ${gcsPath.pathAsString}")
+        res
+      }
       case drsPath: DrsPath => getFileHashForDrsPath(drsPath)
       case s3Path: S3Path => IO { s3Path.eTag }
       case ossPath: OssPath => IO { ossPath.eTag}

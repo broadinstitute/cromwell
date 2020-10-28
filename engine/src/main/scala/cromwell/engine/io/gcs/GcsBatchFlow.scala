@@ -1,6 +1,7 @@
 package cromwell.engine.io.gcs
 
 import java.io.IOException
+import java.util.Objects
 
 import akka.actor.Scheduler
 import akka.stream._
@@ -9,6 +10,7 @@ import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.services.storage.Storage
+import com.typesafe.scalalogging.StrictLogging
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.engine.io.IoActor._
@@ -39,7 +41,7 @@ object GcsBatchFlow {
   }
 }
 
-class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandContext[_] => Throwable => Unit, applicationName: String)(implicit ec: ExecutionContext) {
+class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandContext[_] => Throwable => Unit, applicationName: String)(implicit ec: ExecutionContext) extends StrictLogging {
 
   // Does not carry any authentication, assumes all underlying requests are properly authenticated
   private val httpRequestInitializer = new HttpRequestInitializer {
@@ -127,12 +129,20 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     contexts foreach { _.queue(batchRequest) }
 
     // Try to execute the batch request.
-    // If it fails with an IO Exception, fail all the underlying promises with a retyrable BatchFailedException
+    // If it fails with an IO Exception, fail all the underlying promises with a retryable BatchFailedException
     // Otherwise fail with the original exception
+    val batchCommandNamesList = contexts.map(_.request.toString)
+    val batchCommandsHash = Objects.hash(Thread.currentThread().hashCode().toString, batchCommandNamesList.hashCode().toString)
+    logger.info(s"Going to execute GCS Batch request $batchCommandsHash for the following commands: ${batchCommandNamesList.mkString("\n")}")
     Try(batchRequest.execute()) match {
-      case Failure(failure: IOException) => failAllPromisesWith(BatchFailedException(failure))
-      case Failure(failure) => failAllPromisesWith(failure)
+      case Failure(failure: IOException) =>
+        logger.info(s"Failed to execute GCS Batch request $batchCommandsHash")
+        failAllPromisesWith(BatchFailedException(failure))
+      case Failure(failure) =>
+        logger.info(s"Failed to execute GCS Batch request $batchCommandsHash")
+        failAllPromisesWith(failure)
       case _ =>
+        logger.info(s"Successfully executed GCS Batch request $batchCommandsHash")
     }
 
     // Map all promise responses to a GcsBatchResponse to be either sent back as a response or retried in the next batch

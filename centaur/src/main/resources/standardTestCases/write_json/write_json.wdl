@@ -21,13 +21,13 @@ workflow write_json {
 
 task create_single_object {
 	input {
-		Int i
+        Int i
 	}
 	command {
         echo "Creating single object"
 	}
 	output {
-		Object out = object {index: i, name: "mr_bean"}
+        Object out = object {index: i, name: "mr_bean"}
 	}
     runtime {
         docker: "ubuntu:latest"

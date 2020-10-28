@@ -10,7 +10,7 @@ workflow write_json {
 
     call write_array {input: array=indicies}
     call write_object {input: obj=create_single_object.out[0]}
-    call write_array_objects {input: array=create_single_object.out}
+    call write_array_objects {input: arrayOfObj=create_single_object.out}
 
     output{
         String array_out = read_string(write_array.out)
@@ -27,7 +27,7 @@ task create_single_object {
         echo "Creating single object"
 	}
 	output {
-		Object out = object {name: "mr_bean", num: i}
+		Object out = object {index: i, name: "mr_bean"}
 	}
     runtime {
         docker: "ubuntu:latest"
@@ -66,10 +66,10 @@ task write_object {
 
 task write_array_objects {
     input {
-        Array[Object] array
+        Array[Object] arrayOfObj
     }
     command {
-        cat ~{write_json(array)}
+        cat ~{write_json(arrayOfObj)}
     }
     output {
         String out = stdout()

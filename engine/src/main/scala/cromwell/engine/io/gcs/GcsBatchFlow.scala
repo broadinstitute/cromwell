@@ -132,7 +132,7 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     // If it fails with an IO Exception, fail all the underlying promises with a retryable BatchFailedException
     // Otherwise fail with the original exception
     val batchCommandNamesList = contexts.map(_.request.toString)
-    val batchCommandsHash = Objects.hash(Thread.currentThread().hashCode(), batchCommandNamesList.hashCode())
+    val batchCommandsHash = Objects.hash(Thread.currentThread().hashCode().toString, batchCommandNamesList.hashCode().toString)
     logger.info(s"Going to execute GCS Batch request $batchCommandsHash for the following commands: ${batchCommandNamesList.mkString("\n")}")
     Try(batchRequest.execute()) match {
       case Failure(failure: IOException) =>

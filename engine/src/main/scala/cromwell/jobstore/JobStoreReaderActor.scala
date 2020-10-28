@@ -20,7 +20,10 @@ class JobStoreReaderActor(database: JobStore, override val serviceRegistryActor:
     with ActorLogging {
 
   override def processHead(head: CommandAndReplyTo[QueryJobCompletion]) = instrumentedProcess {
+    log.info("{}: Processing Job store check", head.command.jobKey.tag)
+
     val action = database.readJobResult(head.command.jobKey, head.command.taskOutputs)
+
     action onComplete {
       case Success(Some(result)) => head.replyTo ! JobComplete(result)
       case Success(None) => head.replyTo ! JobNotComplete
@@ -28,7 +31,11 @@ class JobStoreReaderActor(database: JobStore, override val serviceRegistryActor:
         log.error(t, "JobStoreReadFailure")
         head.replyTo ! JobStoreReadFailure(t)
     }
-    action.map(_ => 1)
+
+    for {
+      actionResult <- action
+      _ = log.info(s"{}: Job store check success (found something = ${actionResult.nonEmpty})", head.command.jobKey.tag)
+    } yield 1
   }
 
   // EnhancedBatchActorOverrides
@@ -39,3 +46,5 @@ class JobStoreReaderActor(database: JobStore, override val serviceRegistryActor:
     case query: QueryJobCompletion => CommandAndReplyTo(query, sender())
   }
 }
+
+

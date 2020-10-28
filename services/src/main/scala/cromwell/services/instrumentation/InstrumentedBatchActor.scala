@@ -30,7 +30,7 @@ trait InstrumentedBatchActor[C] { this: BatchActor[C] with CromwellInstrumentati
     instrumentationPath.concatNel(NonEmptyList.one(name))
 
   private val processedPath = makePath("processed")
-  private val durationPath = makePath("duration")
+  private val durationPath = makePath("time_per_batch")
   private val failurePath = makePath("failure")
   private val queueSizePath = makePath("queue")
 
@@ -59,7 +59,7 @@ trait InstrumentedBatchActor[C] { this: BatchActor[C] with CromwellInstrumentati
     action onComplete {
       case Success(numProcessed) =>
         count(processedPath, numProcessed.toLong, instrumentationPrefix)
-        if (numProcessed > 0) sendTiming(durationPath, ((OffsetDateTime.now().toEpochSecond - startTime.toEpochSecond) / numProcessed).seconds, instrumentationPrefix)
+        sendTiming(durationPath, (OffsetDateTime.now().toEpochSecond - startTime.toEpochSecond).seconds, instrumentationPrefix)
       case Failure(_) => count(failurePath, 1L, instrumentationPrefix)
     }
     action

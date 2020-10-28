@@ -73,14 +73,21 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
   /**
     * Queue the request for batching
     */
-  def queue(batchRequest: BatchRequest) = request.operation.queue(batchRequest, callback)
+  def queue(batchRequest: BatchRequest) = {
+    request.customDebug(s"GcsBatchCommandContext.queue '$batchRequest'")
+    request.operation.queue(batchRequest, callback)
+  }
 
   /**
     * On success callback. Transform the request response to a stream-ready response that can complete the promise
     */
-  private def onSuccessCallback(response: U, httpHeaders: HttpHeaders) = handleSuccessOrNextRequest(request.onSuccess(response, httpHeaders))
+  private def onSuccessCallback(response: U, httpHeaders: HttpHeaders) = {
+    request.customDebug(s"GcsBatchCommandContext.onSuccessCallback '$response'")
+    handleSuccessOrNextRequest(request.onSuccess(response, httpHeaders))
+  }
 
   private def handleSuccessOrNextRequest(successResult: Either[T, GcsBatchIoCommand[T, U]]) = {
+    request.customDebug(s"GcsBatchCommandContext.handleSuccessOrNextRequest '$successResult'")
     val promiseResponse: BatchResponse = successResult match {
       // Left means the command is complete, so just create the corresponding IoSuccess with the value
       case Left(responseValue) => Left(success(responseValue))
@@ -96,6 +103,7 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
     * On failure callback. Fail the promise with a StorageException
     */
   private def onFailureCallback(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders) = {
+    request.customDebug(s"GcsBatchCommandContext.onFailureCallback '$googleJsonError'")
     if (isProjectNotProvidedError(googleJsonError)) {
       // Returning an Either.Right here means that the operation is not complete and that we need to do another request
       handleSuccessOrNextRequest(Right(request.withUserProject))

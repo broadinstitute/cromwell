@@ -1,11 +1,15 @@
 package wdl.transforms.base.linking.expression.values
 
+import java.time.OffsetDateTime
+import java.util.UUID
+
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import cats.instances.list._
 import common.validation.ErrorOr._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
+import org.slf4j.LoggerFactory
 import wom.format.MemorySize
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
@@ -30,6 +34,8 @@ import scala.concurrent.Await
 import scala.util.Try
 
 object EngineFunctionEvaluators {
+  private val logger = LoggerFactory.getLogger(EngineFunctionEvaluators.getClass)
+
   private val fileSizeLimitationConfig = FileSizeLimitationConfig.fileSizeLimitationConfig
 
   implicit val stdoutFunctionEvaluator: ValueEvaluator[StdoutElement.type] = new ValueEvaluator[StdoutElement.type] {
@@ -518,8 +524,20 @@ object EngineFunctionEvaluators {
 
       // Inner function: Get the file size, allowing for unpacking of optionals and arrays
       def optionalSafeFileSize(value: WomValue): ErrorOr[Long] = value match {
-        case f if f.isInstanceOf[WomSingleFile] || WomSingleFileType.isCoerceableFrom(f.womType) =>
-          f.coerceToType[WomSingleFile] flatMap { file => Try(Await.result(ioFunctionSet.size(file.valueString), Duration.Inf)).toErrorOr }
+        case f if f.isInstanceOf[WomSingleFile] || WomSingleFileType.isCoerceableFrom(f.womType) => {
+          val uuid = UUID.randomUUID().toString
+          val creation = OffsetDateTime.now
+          logger.info(f"($uuid) (0.000 seconds) optionalSafeFileSize '${f.valueString}' start ($getClass) (thread '${Thread.currentThread().getName}')")
+          val result = f.coerceToType[WomSingleFile] flatMap { file => Try(Await.result(ioFunctionSet.size(file.valueString), Duration.Inf)).toErrorOr }
+          val now = OffsetDateTime.now
+          val millis = java.time.Duration.between(creation, now).toMillis
+          val seconds = millis / 1000D
+          logger.info(f"($uuid) ($seconds%,.3f seconds) optionalSafeFileSize '${f.valueString}' done '$result' ($getClass) (thread '${Thread.currentThread().getName}')")
+          if (seconds > 5 * 60) {
+            logger.warn(f"($uuid) ($seconds%,.3f seconds) FYI! `optionalSafeFileSize '${f.valueString}' done '$result'` IO IS OVER 5 MINUTES ($getClass) (thread '${Thread.currentThread().getName}')")
+          }
+          result
+        }
         case WomOptionalValue(f, Some(o)) if isOptionalOfFileType(f) => optionalSafeFileSize(o)
         case WomOptionalValue(f, None) if isOptionalOfFileType(f) => 0l.validNel
         case WomArray(WomArrayType(womType), values) if isOptionalOfFileType(womType) => values.toList.traverse(optionalSafeFileSize).map(_.sum)

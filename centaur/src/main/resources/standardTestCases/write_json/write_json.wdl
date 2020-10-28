@@ -24,7 +24,7 @@ task create_single_object {
 		Int i
 	}
 	command {
-	    echo "Creating single object"
+        echo "Creating single object"
 	}
 	output {
 		Object out = object {name: "mr_bean", num: i}

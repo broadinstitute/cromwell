@@ -66,7 +66,7 @@ case class GcsBatchCopyCommand(
                                 rewriteToken: Option[String] = None,
                                 setUserProject: Boolean = false
                               ) extends IoCopyCommand(source, destination, overwrite) with GcsBatchIoCommand[Unit, RewriteResponse] {
-  customDebug(s"GcsBatchCopyCommand.init source '$source' destination '$destination' setUserProject '$setUserProject'")
+  customDebug(s"GcsBatchCopyCommand.init source '$source' destination '$destination' overwrite '$overwrite' setUserProject '$setUserProject'")
 
   val sourceBlob = source.blob
   val destinationBlob = destination.blob
@@ -101,6 +101,7 @@ case class GcsBatchDeleteCommand(
                                   override val swallowIOExceptions: Boolean,
                                   setUserProject: Boolean = false
                                 ) extends IoDeleteCommand(file, swallowIOExceptions) with SingleFileGcsBatchIoCommand[Unit, Void] {
+  customDebug(s"GcsBatchDeleteCommand.init file '$file' swallowIOExceptions '$swallowIOExceptions' setUserProject '$setUserProject'")
   private val blob = file.blob
   def operation = {
     file.apiStorage.objects().delete(blob.getBucket, blob.getName).setUserProject(userProject)
@@ -124,19 +125,19 @@ sealed trait GcsBatchGetCommand[T] extends SingleFileGcsBatchIoCommand[T, Storag
 }
 
 case class GcsBatchSizeCommand(override val file: GcsPath, setUserProject: Boolean = false) extends IoSizeCommand(file) with GcsBatchGetCommand[Long] {
-  customDebug(s"GcsBatchSizeCommand.init '$file'")
+  customDebug(s"GcsBatchSizeCommand.init file '$file' setUserProject '$setUserProject'")
   override def mapGoogleResponse(response: StorageObject): Long = response.getSize.longValue()
   override def withUserProject = this.copy(setUserProject = true)
 }
 
 case class GcsBatchCrc32Command(override val file: GcsPath, setUserProject: Boolean = false) extends IoHashCommand(file) with GcsBatchGetCommand[String] {
-  customDebug(s"GcsBatchCrc32Command.init '$file'")
+  customDebug(s"GcsBatchCrc32Command.init file '$file' setUserProject '$setUserProject'")
   override def mapGoogleResponse(response: StorageObject): String = response.getCrc32c
   override def withUserProject = this.copy(setUserProject = true)
 }
 
 case class GcsBatchTouchCommand(override val file: GcsPath, setUserProject: Boolean = false) extends IoTouchCommand(file) with GcsBatchGetCommand[Unit] {
-  customDebug(s"GcsBatchSizeCommand.touch '$file'")
+  customDebug(s"GcsBatchTouchCommand.init file '$file' setUserProject '$setUserProject'")
   override def mapGoogleResponse(response: StorageObject): Unit = ()
   override def withUserProject = this.copy(setUserProject = true)
 }
@@ -147,7 +148,7 @@ case class GcsBatchTouchCommand(override val file: GcsPath, setUserProject: Bool
  * set max results to 1 to avoid unnecessary payload.
  */
 case class GcsBatchIsDirectoryCommand(override val file: GcsPath, setUserProject: Boolean = false) extends IoIsDirectoryCommand(file) with SingleFileGcsBatchIoCommand[Boolean, Objects] {
-  customDebug(s"GcsBatchSizeCommand.touch '$file'")
+  customDebug(s"GcsBatchIsDirectoryCommand.init file '$file' setUserProject '$setUserProject'")
   private val blob = file.blob
   override def operation: StorageRequest[Objects] = {
     file.apiStorage.objects().list(blob.getBucket).setPrefix(blob.getName.ensureSlashed).setMaxResults(1L).setUserProject(userProject)
@@ -160,7 +161,7 @@ case class GcsBatchIsDirectoryCommand(override val file: GcsPath, setUserProject
 }
 
 case class GcsBatchExistsCommand(override val file: GcsPath, setUserProject: Boolean = false) extends IoExistsCommand(file) with GcsBatchGetCommand[Boolean] {
-  customDebug(s"GcsBatchSizeCommand.touch '$file'")
+  customDebug(s"GcsBatchExistsCommand.init file '$file' setUserProject '$setUserProject'")
   override def mapGoogleResponse(response: StorageObject): Boolean = true
 
   override def onFailure(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders) = {

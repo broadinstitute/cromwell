@@ -9,8 +9,7 @@ import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.jobstore.JobStoreActor.{JobComplete, JobNotComplete, JobStoreReadFailure, QueryJobCompletion}
 import cromwell.services.EnhancedThrottlerActor
 
-import scala.concurrent.Promise
-import scala.util.{Failure, Random, Success}
+import scala.util.{Failure, Success}
 
 object JobStoreReaderActor {
   def props(database: JobStore, registryActor: ActorRef) = Props(new JobStoreReaderActor(database, registryActor, LoadConfig.JobStoreReadThreshold)).withDispatcher(EngineDispatcher)
@@ -47,3 +46,5 @@ class JobStoreReaderActor(database: JobStore, override val serviceRegistryActor:
     case query: QueryJobCompletion => CommandAndReplyTo(query, sender())
   }
 }
+
+

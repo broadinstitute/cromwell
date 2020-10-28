@@ -40,7 +40,7 @@ trait IoCommand[+T] {
     val seconds = millis / 1000D
     IoCommand.logger.info(f"($uuid) ($seconds%,.3f seconds) $message ($getClass) (thread '${Thread.currentThread().getName}')")
     if (seconds > 5 * 60) {
-      IoCommand.logger.warn(f"($uuid) ($seconds%,.3f seconds) FYI! '$message' IO IS OVER 5 MINUTES ($getClass) (thread '${Thread.currentThread().getName}')")
+      IoCommand.logger.warn(f"($uuid) ($seconds%,.3f seconds) FYI! `$message` IO IS OVER 5 MINUTES ($getClass) (thread '${Thread.currentThread().getName}')")
     }
   }
 

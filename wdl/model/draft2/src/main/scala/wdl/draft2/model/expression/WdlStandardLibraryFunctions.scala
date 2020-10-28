@@ -26,7 +26,7 @@ import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success, Try}
 
 trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
-  def readFile(path: String, sizeLimit: Int): String
+  def readFile(path: String, sizeLimit: Int): String 
 
   def writeFile(path: String, content: String): Try[WomFile]
 
@@ -334,14 +334,14 @@ object WdlStandardLibraryFunctions {
           case f if f.isInstanceOf[WomSingleFile] || WomSingleFileType.isCoerceableFrom(f.womType) => {
             val uuid = UUID.randomUUID().toString
             val creation = OffsetDateTime.now
-            logger.info(f"($uuid) (0.000 seconds) optionalSafeFileSize ${f.valueString} start ($getClass) (thread '${Thread.currentThread().getName}')")
+            logger.info(f"($uuid) (0.000 seconds) optionalSafeFileSize '${f.valueString}' start ($getClass) (thread '${Thread.currentThread().getName}')")
             val result = Try(Await.result(ioFunctionSet.size(f.valueString), Duration.Inf))
             val now = OffsetDateTime.now
             val millis = java.time.Duration.between(creation, now).toMillis
             val seconds = millis / 1000D
-            logger.info(f"($uuid) ($seconds%,.3f seconds) optionalSafeFileSize ${f.valueString} done $result ($getClass) (thread '${Thread.currentThread().getName}')")
+            logger.info(f"($uuid) ($seconds%,.3f seconds) optionalSafeFileSize '${f.valueString}' done '$result' ($getClass) (thread '${Thread.currentThread().getName}')")
             if (seconds > 5 * 60) {
-              logger.warn(f"($uuid) ($seconds%,.3f seconds) FYI! 'optionalSafeFileSize ${f.valueString} done $result' IO IS OVER 5 MINUTES ($getClass) (thread '${Thread.currentThread().getName}')")
+              logger.warn(f"($uuid) ($seconds%,.3f seconds) FYI! `optionalSafeFileSize '${f.valueString}' done '$result'` IO IS OVER 5 MINUTES ($getClass) (thread '${Thread.currentThread().getName}')")
             }
             result
           }

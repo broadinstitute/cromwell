@@ -1,9 +1,13 @@
 package wdl.draft2.model.expression
 
+import java.time.OffsetDateTime
+import java.util.UUID
+
 import cats.instances.try_._
 import cats.syntax.apply._
 import common.exception.AggregatedException
 import common.util.TryUtil
+import org.slf4j.LoggerFactory
 import spray.json._
 import wdl.draft2.model.expression.WdlStandardLibraryFunctions.{crossProduct => stdLibCrossProduct, _}
 import wdl.shared.FileSizeLimitationConfig
@@ -22,7 +26,7 @@ import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success, Try}
 
 trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
-  def readFile(path: String, sizeLimit: Int): String 
+  def readFile(path: String, sizeLimit: Int): String
 
   def writeFile(path: String, content: String): Try[WomFile]
 
@@ -301,6 +305,8 @@ trait WdlStandardLibraryFunctions extends WdlFunctions[WomValue] {
 }
 
 object WdlStandardLibraryFunctions {
+  private val logger = LoggerFactory.getLogger(WdlStandardLibraryFunctions.getClass)
+
   def fromIoFunctionSet(ioFunctionSet: IoFunctionSet, _fileSizeLimitationConfig: FileSizeLimitationConfig) = new WdlStandardLibraryFunctions {
     override def readFile(path: String, sizeLimit: Int): String = Await.result(ioFunctionSet.readFile(path, Option(sizeLimit), failOnOverflow = true), Duration.Inf)
 
@@ -325,7 +331,20 @@ object WdlStandardLibraryFunctions {
 
         // Inner function: Get the file size, allowing for unpacking of optionals
         def optionalSafeFileSize(value: WomValue): Try[Long] = value match {
-          case f if f.isInstanceOf[WomSingleFile] || WomSingleFileType.isCoerceableFrom(f.womType) => Try(Await.result(ioFunctionSet.size(f.valueString), Duration.Inf))
+          case f if f.isInstanceOf[WomSingleFile] || WomSingleFileType.isCoerceableFrom(f.womType) => {
+            val uuid = UUID.randomUUID().toString
+            val creation = OffsetDateTime.now
+            logger.info(f"($uuid) (0.000 seconds) optionalSafeFileSize $value start ($getClass) (thread '${Thread.currentThread().getName}')")
+            val result = Try(Await.result(ioFunctionSet.size(f.valueString), Duration.Inf))
+            val now = OffsetDateTime.now
+            val millis = java.time.Duration.between(creation, now).toMillis
+            val seconds = millis / 1000D
+            logger.info(f"($uuid) ($seconds%,.3f seconds) optionalSafeFileSize $value done $result ($getClass) (thread '${Thread.currentThread().getName}')")
+            if (seconds > 5 * 60) {
+              logger.warn(f"($uuid) ($seconds%,.3f seconds) FYI! 'optionalSafeFileSize $value done $result' IO IS OVER 5 MINUTES ($getClass) (thread '${Thread.currentThread().getName}')")
+            }
+            result
+          }
           case WomOptionalValue(_, Some(o)) => optionalSafeFileSize(o)
           case WomOptionalValue(f, None) if isOptionalOfFileType(f) => Success(0l)
           case _ => Failure(new Exception(s"The 'size' method expects a 'File' or 'File?' argument but instead got ${value.womType.stableName}."))

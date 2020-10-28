@@ -1,10 +1,14 @@
 package cromwell.core.io
 
+import java.time.OffsetDateTime
+import java.util.UUID
+
 import better.files.File.OpenOptions
 import com.google.api.client.util.ExponentialBackOff
 import cromwell.core.io.IoContentAsStringCommand.IoReadOptions
 import cromwell.core.path.Path
 import cromwell.core.retry.SimpleExponentialBackoff
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.{FiniteDuration, _}
 import scala.language.postfixOps
@@ -21,21 +25,46 @@ object IoCommand {
   def defaultBackoff = SimpleExponentialBackoff(defaultGoogleBackoff)
   
   type RetryCommand[T] = (FiniteDuration, IoCommand[T])
+
+  private val logger = LoggerFactory.getLogger(IoCommand.getClass)
 }
 
 trait IoCommand[+T] {
+
+  private val uuid = UUID.randomUUID().toString
+  private val creation = OffsetDateTime.now
+
+  def customDebug(message: String): Unit = {
+    val now = OffsetDateTime.now
+    val millis = java.time.Duration.between(creation, now).toMillis
+    val seconds = millis / 1000D
+    IoCommand.logger.info(f"($uuid) ($seconds%,.3f seconds) $message ($getClass) (thread '${Thread.currentThread().getName}')")
+    if (seconds > 5 * 60) {
+      IoCommand.logger.warn(f"($uuid) ($seconds%,.3f seconds) FYI! '$message' IO IS OVER 5 MINUTES ($getClass) (thread '${Thread.currentThread().getName}')")
+    }
+  }
+
   /**
     * Completes the command successfully
     * @return a message to be sent back to the sender, if needed
     */
-  def success[S >: T](value: S): IoSuccess[S] = IoSuccess(this, value)
-  
+  def success[S >: T](value: S): IoSuccess[S] = {
+    customDebug(s"IOCommand.success '$value'")
+    IoSuccess(this, value)
+  }
+
   /**
     * Fail the command with an exception
     */
-  def fail[S >: T](failure: Throwable): IoFailure[S] = IoFailure(this, failure)
+  def fail[S >: T](failure: Throwable): IoFailure[S] = {
+    customDebug(s"IOCommand.fail '$failure'")
+    IoFailure(this, failure)
+  }
 
-  def failReadForbidden[S >: T](failure: Throwable, forbiddenPath: String): IoReadForbiddenFailure[S] = IoReadForbiddenFailure(this, failure, forbiddenPath)
+  def failReadForbidden[S >: T](failure: Throwable, forbiddenPath: String): IoReadForbiddenFailure[S] = {
+    customDebug(s"IOCommand.failReadForbidden '$failure' path '$forbiddenPath'")
+    IoReadForbiddenFailure(this, failure, forbiddenPath)
+  }
 
   /**
     * A short name describing the command
@@ -61,7 +90,7 @@ object IoContentAsStringCommand {
   /**
     * Options to customize reading of a file.
     * @param maxBytes If specified, only reads up to maxBytes Bytes from the file
-    * @param failOnOverflow If this is true, maxBytes is specified, and the file is larger than maxBytes, fail the command. 
+    * @param failOnOverflow If this is true, maxBytes is specified, and the file is larger than maxBytes, fail the command.
     */
   case class IoReadOptions(maxBytes: Option[Int], failOnOverflow: Boolean)
 }

@@ -527,14 +527,14 @@ object EngineFunctionEvaluators {
         case f if f.isInstanceOf[WomSingleFile] || WomSingleFileType.isCoerceableFrom(f.womType) => {
           val uuid = UUID.randomUUID().toString
           val creation = OffsetDateTime.now
-          logger.info(f"($uuid) (0.000 seconds) optionalSafeFileSize $value start ($getClass) (thread '${Thread.currentThread().getName}')")
+          logger.info(f"($uuid) (0.000 seconds) optionalSafeFileSize ${f.valueString} start ($getClass) (thread '${Thread.currentThread().getName}')")
           val result = f.coerceToType[WomSingleFile] flatMap { file => Try(Await.result(ioFunctionSet.size(file.valueString), Duration.Inf)).toErrorOr }
           val now = OffsetDateTime.now
           val millis = java.time.Duration.between(creation, now).toMillis
           val seconds = millis / 1000D
-          logger.info(f"($uuid) ($seconds%,.3f seconds) optionalSafeFileSize $value done ($getClass) (thread '${Thread.currentThread().getName}')")
+          logger.info(f"($uuid) ($seconds%,.3f seconds) optionalSafeFileSize ${f.valueString} done $result ($getClass) (thread '${Thread.currentThread().getName}')")
           if (seconds > 5 * 60) {
-            logger.warn(f"($uuid) ($seconds%,.3f seconds) FYI! 'optionalSafeFileSize $value done' IO IS OVER 5 MINUTES ($getClass) (thread '${Thread.currentThread().getName}')")
+            logger.warn(f"($uuid) ($seconds%,.3f seconds) FYI! 'optionalSafeFileSize ${f.valueString} done $result' IO IS OVER 5 MINUTES ($getClass) (thread '${Thread.currentThread().getName}')")
           }
           result
         }

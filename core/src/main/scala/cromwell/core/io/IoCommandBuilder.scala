@@ -45,7 +45,7 @@ class IoCommandBuilder(partialBuilders: List[PartialIoCommandBuilder] = List.emp
   // Find the first partialBuilder for which the partial function is defined, or use the default
   private def buildOrDefault[A, B](builder: PartialIoCommandBuilder => PartialFunction[A, B],
                                    params: A,
-                                   default: B) = {
+                                   default: => B) = {
     partialBuilders.toStream.map(builder(_).lift(params)).collectFirst({
       case Some(command) => command
     }).getOrElse(default)

@@ -26,10 +26,8 @@ class JobStoreReaderActor(database: JobStore, override val serviceRegistryActor:
     val action = database.readJobResult(head.command.jobKey, head.command.taskOutputs)
 
     action onComplete {
-      case Success(Some(result)) =>
-        head.replyTo ! JobComplete(result)
-      case Success(None) =>
-        head.replyTo ! JobNotComplete
+      case Success(Some(result)) => head.replyTo ! JobComplete(result)
+      case Success(None) => head.replyTo ! JobNotComplete
       case Failure(t) =>
         log.error(t, "JobStoreReadFailure")
         head.replyTo ! JobStoreReadFailure(t)

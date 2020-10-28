@@ -136,10 +136,10 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     logger.info(s"Going to execute GCS Batch request $batchCommandsHash for the following commands: ${batchCommandNamesList.mkString("\n")}")
     Try(batchRequest.execute()) match {
       case Failure(failure: IOException) =>
-        logger.info(s"Failed to execute GCS Batch request $batchCommandsHash: ${failure.toString}")
+        logger.info(s"Failed to execute GCS Batch request $batchCommandsHash: $failure")
         failAllPromisesWith(BatchFailedException(failure))
       case Failure(failure) =>
-        logger.info(s"Failed to execute GCS Batch request $batchCommandsHash: ${failure.toString}")
+        logger.info(s"Failed to execute GCS Batch request $batchCommandsHash: $failure")
         failAllPromisesWith(failure)
       case _ =>
         logger.info(s"Successfully executed GCS Batch request $batchCommandsHash")

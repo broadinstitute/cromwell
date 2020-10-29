@@ -13,7 +13,9 @@ import org.lerch.s3fs.attribute.S3PosixFileAttributes;
 import org.lerch.s3fs.util.AttributesUtils;
 import org.lerch.s3fs.util.Cache;
 import org.lerch.s3fs.util.S3Utils;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
@@ -34,6 +36,7 @@ import java.util.stream.IntStream;
 
 import static com.google.common.collect.Sets.difference;
 import static java.lang.String.format;
+import static java.lang.Thread.*;
 import static org.lerch.s3fs.AmazonS3Factory.*;
 
 /**
@@ -72,8 +75,6 @@ public class S3FileSystemProvider extends FileSystemProvider {
     private static final List<String> PROPS_TO_OVERLOAD = Arrays.asList(ACCESS_KEY, SECRET_KEY, REQUEST_METRIC_COLLECTOR_CLASS, CONNECTION_TIMEOUT, MAX_CONNECTIONS, MAX_ERROR_RETRY, PROTOCOL, PROXY_DOMAIN,
             PROXY_HOST, PROXY_PASSWORD, PROXY_PORT, PROXY_USERNAME, PROXY_WORKSTATION, SOCKET_SEND_BUFFER_SIZE_HINT, SOCKET_RECEIVE_BUFFER_SIZE_HINT, SOCKET_TIMEOUT,
             USER_AGENT, AMAZON_S3_FACTORY_CLASS, SIGNER_OVERRIDE, PATH_STYLE_ACCESS);
-
-    private static final ExecutorService MULTIPART_OPERATION_EXECUTOR_SERVICE = Executors.newWorkStealingPool(100);
 
     private final S3Utils s3Utils = new S3Utils();
     private Cache cache = new Cache();
@@ -455,7 +456,8 @@ public class S3FileSystemProvider extends FileSystemProvider {
      * @param options copy options
      */
     private void multiPartCopy(S3Path source, long objectSize, S3Path target, CopyOption... options) {
-        log.fine(() -> "Multipart copy initiated: source = " + source + ", objectSize = " + objectSize + ", target = " + target + ", options = " + Arrays.deepToString(options));
+        log.info(() -> "Attempting multipart copy as part of call cache hit: source = " + source + ", objectSize = " + objectSize + ", target = " + target + ", options = " + Arrays.deepToString(options));
+
         S3Client s3Client = target.getFileSystem().getClient();
 
         final CreateMultipartUploadRequest createMultipartUploadRequest = CreateMultipartUploadRequest.builder()
@@ -472,6 +474,14 @@ public class S3FileSystemProvider extends FileSystemProvider {
 
         List<CompletableFuture<UploadPartCopyResponse>> uploadFutures = new ArrayList<>();
 
+        /* if you set this number to a larger value then ensure the HttpClient has sufficient
+           maxConnections (see org.lerch.s3fsAmazonS3Factory.getHttpClient)  */
+        int THREADS = 500;
+
+        log.info(() -> "Allocating work stealing pool with "+THREADS+" threads");
+        final ExecutorService MULTIPART_OPERATION_EXECUTOR_SERVICE = Executors.newWorkStealingPool(THREADS);
+
+
         // Generate the copy part requests
         while (bytePosition < objectSize) {
             // The last part might be smaller than partSize, so check to make sure
@@ -483,23 +493,56 @@ public class S3FileSystemProvider extends FileSystemProvider {
             log.fine(() -> "Requesting copy of bytes from: " + finalBytePosition + " to: " + lastByte);
 
             int finalPartNum = partNum;
-            CompletableFuture<UploadPartCopyResponse> uploadPartCopyResponseFuture = CompletableFuture.supplyAsync(() -> {
-                final UploadPartCopyRequest uploadPartCopyRequest = UploadPartCopyRequest.builder()
-                        .uploadId(uploadId)
-                        .copySource(source.getFileStore().name() + "/" + source.getKey())
-                        .copySourceRange("bytes=" + finalBytePosition + "-" + lastByte)
-                        .bucket(target.getFileStore().name())
-                        .key(target.getKey())
-                        .partNumber(finalPartNum)
-                        .build();
-                return s3Client.uploadPartCopy(uploadPartCopyRequest);
-            }, MULTIPART_OPERATION_EXECUTOR_SERVICE);
+            try {
+                CompletableFuture<UploadPartCopyResponse> uploadPartCopyResponseFuture = CompletableFuture.supplyAsync(() -> {
+                    final UploadPartCopyRequest uploadPartCopyRequest = UploadPartCopyRequest.builder()
+                            .uploadId(uploadId)
+                            .copySource(source.getFileStore().name() + "/" + source.getKey())
+                            .copySourceRange("bytes=" + finalBytePosition + "-" + lastByte)
+                            .bucket(target.getFileStore().name())
+                            .key(target.getKey())
+                            .partNumber(finalPartNum)
+                            .build();
+                    UploadPartCopyResponse uploadPartCopyResponse =  s3Client.uploadPartCopy(uploadPartCopyRequest);
+                    if(! uploadPartCopyResponse.sdkHttpResponse().isSuccessful()) {
+                        log.warning(() -> uploadPartCopyResponse.copyPartResult().toString());
+                    }
+                    return uploadPartCopyResponse;
+                }, MULTIPART_OPERATION_EXECUTOR_SERVICE);
 
-            uploadFutures.add(uploadPartCopyResponseFuture);
+                uploadFutures.add(uploadPartCopyResponseFuture);
 
-            bytePosition += partSize;
-            partNum++;
+                bytePosition += partSize;
+                partNum++;
+
+            } catch (RejectedExecutionException e) {
+                // catching this so we can log diagnostic information to the ERROR stream. Will rethrow it
+                log.severe("A RejectedExecutionException has occurred while attempting to create an async UploadPartCopyRequest");
+                log.severe(() -> "Was requesting copy of part number "+finalPartNum+" with bytes from "+finalBytePosition+" to "+lastByte);
+                if (MULTIPART_OPERATION_EXECUTOR_SERVICE.isShutdown()) log.severe("ExecutorService has shutdown. A Multipart copy will not be possible");
+                if (MULTIPART_OPERATION_EXECUTOR_SERVICE.isTerminated()) log.severe("ExecutorService has terminated. A Multipart copy will not be possible");
+                Runtime runtime = Runtime.getRuntime();
+                log.severe("Free Memory = "+runtime.freeMemory());
+                log.severe("Allocated Memory = "+runtime.totalMemory());
+                log.severe("Max Memory = "+runtime.maxMemory());
+
+                // clean up so we don't get zombie threads
+                log.info(() -> "Shutting down work stealing pool");
+                MULTIPART_OPERATION_EXECUTOR_SERVICE.shutdown();
+
+                log.throwing(S3FileSystemProvider.class.getName(), "multiPartCopy", e);
+                throw e;
+            } catch (SdkClientException e){
+                log.severe(e.getMessage());
+                e.printStackTrace();
+                // clean up so we don't get zombie threads
+                log.info(() -> "Shutting down work stealing pool");
+                MULTIPART_OPERATION_EXECUTOR_SERVICE.shutdown();
+                throw e;
+            }
+
         }
+
 
         // Collect the futures into a list of completed parts
         List<CompletedPart> completedParts = IntStream.range(0, uploadFutures.size())
@@ -511,6 +554,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
                         .build())
                 .collect(Collectors.toList());
 
+        log.info(() -> "Shutting down work stealing pool");
         MULTIPART_OPERATION_EXECUTOR_SERVICE.shutdown();
 
         // build a request to complete the upload
@@ -523,8 +567,23 @@ public class S3FileSystemProvider extends FileSystemProvider {
                         .build())
                 .build();
 
-        // make a request to complete the multipart upload
-        s3Client.completeMultipartUpload(completeMultipartUploadRequest);
+        try {
+            // make a request to complete the multipart upload
+            final CompleteMultipartUploadResponse completeMultipartUploadResponse = s3Client.completeMultipartUpload(completeMultipartUploadRequest);
+
+            log.info(() -> "Multipart copy complete with status code: "+completeMultipartUploadResponse.sdkHttpResponse().statusCode());
+        } catch (AwsServiceException | SdkClientException e) {
+            log.warning(() -> "An "+e.getClass().getName()+" with message "+e.getMessage()+
+                    " occurred while completing the multipart upload. Will try again.");
+            try {
+                sleep(1234);
+            } catch (InterruptedException interruptedException) {
+                interruptedException.printStackTrace();
+            }
+
+            final CompleteMultipartUploadResponse completeMultipartUploadResponse = s3Client.completeMultipartUpload(completeMultipartUploadRequest);
+            log.info(() -> "Multipart copy complete with status code: "+completeMultipartUploadResponse.sdkHttpResponse().statusCode());
+        }
     }
 
     /**
@@ -723,7 +782,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
         Properties props = new Properties();
         // http://www.javaworld.com/javaworld/javaqa/2003-06/01-qa-0606-load.html
         // http://www.javaworld.com/javaqa/2003-08/01-qa-0808-property.html
-        try (InputStream in = Thread.currentThread().getContextClassLoader().getResourceAsStream("amazon.properties")) {
+        try (InputStream in = currentThread().getContextClassLoader().getResourceAsStream("amazon.properties")) {
             if (in != null)
                 props.load(in);
         } catch (IOException e) {

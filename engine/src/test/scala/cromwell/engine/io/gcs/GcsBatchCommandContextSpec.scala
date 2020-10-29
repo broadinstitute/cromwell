@@ -3,7 +3,6 @@ package cromwell.engine.io.gcs
 import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.HttpHeaders
 import com.google.api.services.storage.StorageRequest
-import common.assertion.CromwellTimeoutSpec
 import cromwell.engine.io.gcs.GcsBatchCommandContextSpec.ExceptionSpewingGcsBatchIoCommand
 import cromwell.filesystems.gcs.batch.GcsBatchIoCommand
 import org.scalatest.BeforeAndAfter
@@ -13,7 +12,7 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.util.{Failure, Success}
 
-class GcsBatchCommandContextSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Eventually with BeforeAndAfter  {
+class GcsBatchCommandContextSpec extends AnyFlatSpec with Matchers with Eventually with BeforeAndAfter  {
   behavior of "GcsBatchCommandContext"
 
   var commandContext: GcsBatchCommandContext[Unit, Unit] = _

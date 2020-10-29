@@ -9,6 +9,7 @@ import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.HttpHeaders
 import com.google.api.client.util.ExponentialBackOff
 import com.google.cloud.storage.StorageException
+import com.typesafe.scalalogging.StrictLogging
 import common.util.Backoff
 import cromwell.core.io.SingleFileIoCommand
 import cromwell.core.retry.SimpleExponentialBackoff
@@ -42,7 +43,9 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
                                               backoff: Backoff = GcsBatchCommandContext.defaultBackoff,
                                               currentAttempt: Int = 1,
                                               promise: Promise[BatchResponse] = Promise[BatchResponse]
-                                             ) extends IoCommandContext[T] {
+                                             )
+  extends IoCommandContext[T]
+  with StrictLogging {
 
   /**
     * None if no retry should be attempted, Some(timeToWaitBeforeNextAttempt) otherwise
@@ -53,8 +56,10 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
     * Json batch call back for a batched request
     */
   lazy val callback: JsonBatchCallback[U] = new JsonBatchCallback[U]() {
+    // These callbacks are only called once, therefore it's imperative that they set the promise value before exiting.
+    // This tryCallbackOrFail ensures that if the callback function itself errors, we get _some_ result back on the future.
     def onSuccess(response: U, httpHeaders: HttpHeaders): Unit = tryCallbackOrFail("onSuccessCallback", onSuccessCallback(response, httpHeaders))
-    def onFailure(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders) = tryCallbackOrFail(callbackName = "onFailureCallback", onFailureCallback(googleJsonError, httpHeaders))
+    def onFailure(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders): Unit = tryCallbackOrFail(callbackName = "onFailureCallback", onFailureCallback(googleJsonError, httpHeaders))
   }
 
   def tryCallbackOrFail(callbackName: String, callback: () => Unit): Unit = {
@@ -62,7 +67,9 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
       callback.apply()
     }.recover {
       case t =>
-        promise.tryFailure(new Exception(s"Error processing IO response in $callbackName", t))
+        // Ideally we would catch and handle the cases which might lead us here before they actually get this far:
+        logger.error(s"Programmer Error: Error processing IO response in $callbackName", t)
+        promise.tryFailure(new Exception(s"Error processing IO response in $callbackName: ${t.getMessage}"))
         ()
     }
     ()
@@ -92,7 +99,7 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
     */
   private def onSuccessCallback(response: U, httpHeaders: HttpHeaders)(): Unit = handleSuccessOrNextRequest(request.onSuccess(response, httpHeaders))
 
-  private def handleSuccessOrNextRequest(successResult: Either[T, GcsBatchIoCommand[T, U]]) = {
+  private def handleSuccessOrNextRequest(successResult: Either[T, GcsBatchIoCommand[T, U]]): Unit = {
     val promiseResponse: BatchResponse = successResult match {
       // Left means the command is complete, so just create the corresponding IoSuccess with the value
       case Left(responseValue) => Left(success(responseValue))

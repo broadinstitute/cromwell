@@ -16,6 +16,7 @@ trait AbortRequestHandler extends LazyLogging { this: RequestHandler =>
   protected def handleGoogleError(abortQuery: PAPIAbortRequest, pollingManager: ActorRef, e: GoogleJsonError, responseHeaders: HttpHeaders): Try[Unit] = {
     // No need to fail the request if the job already terminated, we're all good
     // As seen in `cromwell.backend.google.pipelines.common.api.clients.PipelinesApiAbortClient` the difference between "finished" and "cancelled" only affects logging
+    // Enhance to be more specific if/when Google implements https://partnerissuetracker.corp.google.com/issues/171993833
     if (Option(e.getCode).contains(400)) {
       logger.info(s"Tried to abort job ${abortQuery.jobId.jobId} in workflow ${abortQuery.workflowId} but PAPI reports it is no longer running. Marking as finished. Message: ${e.getMessage}")
       abortQuery.requester ! PAPIOperationHasAlreadyFinished(abortQuery.jobId.jobId)

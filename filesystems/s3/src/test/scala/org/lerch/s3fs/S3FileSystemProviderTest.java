@@ -6,6 +6,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
+import software.amazon.awssdk.http.SdkHttpResponse;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 
@@ -88,9 +89,15 @@ public class S3FileSystemProviderTest {
                         .build());
 
         when(s3Client.uploadPartCopy(any(UploadPartCopyRequest.class))).thenReturn(
-                UploadPartCopyResponse.builder()
+                (UploadPartCopyResponse) UploadPartCopyResponse.builder()
                         .copyPartResult(builder -> builder.eTag("fake-etag").lastModified(Instant.now()))
+                        .sdkHttpResponse(SdkHttpResponse.builder().statusCode(200).build())
                         .build());
+
+        when(s3Client.completeMultipartUpload(any(CompleteMultipartUploadRequest.class))).thenReturn(
+                (CompleteMultipartUploadResponse) CompleteMultipartUploadResponse.builder()
+                    .sdkHttpResponse(SdkHttpResponse.builder().statusCode(200).build())
+                    .build());
     }
 
     @Test

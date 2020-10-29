@@ -62,7 +62,7 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
       callback.apply()
     }.recover {
       case t =>
-        if (!promise.isCompleted) promise.tryFailure(new Exception(s"Error processing IO response in $callbackName", t))
+        promise.tryFailure(new Exception(s"Error processing IO response in $callbackName", t))
         ()
     }
     ()

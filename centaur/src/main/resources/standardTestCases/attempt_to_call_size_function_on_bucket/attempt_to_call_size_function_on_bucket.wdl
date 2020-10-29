@@ -3,7 +3,7 @@ version 1.0
 task t {
     input { File in_file }
 
-    # Note: This usage of size(in_file_ before passing to the command is what separates this test from the
+    # Note: This usage of size(in_file) before passing to the command is what separates this test from the
     # attempt_to_localize_bucket_as_file test.
     Float in_file_size = size(in_file)
     command <<< echo '~{in_file}' '~{in_file_size}' >>>

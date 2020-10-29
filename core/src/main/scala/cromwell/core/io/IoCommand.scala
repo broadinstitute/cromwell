@@ -1,15 +1,22 @@
 package cromwell.core.io
 
+import java.time.OffsetDateTime
+import java.util.UUID
+
 import better.files.File.OpenOptions
 import com.google.api.client.util.ExponentialBackOff
+import common.util.StringUtil.EnhancedToStringable
 import cromwell.core.io.IoContentAsStringCommand.IoReadOptions
 import cromwell.core.path.Path
 import cromwell.core.retry.SimpleExponentialBackoff
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.{FiniteDuration, _}
 import scala.language.postfixOps
 
 object IoCommand {
+  private val logger = LoggerFactory.getLogger(IoCommand.getClass)
+
   def defaultGoogleBackoff = new ExponentialBackOff.Builder()
     .setInitialIntervalMillis((1 second).toMillis.toInt)
     .setMaxIntervalMillis((5 minutes).toMillis.toInt)
@@ -24,18 +31,41 @@ object IoCommand {
 }
 
 trait IoCommand[+T] {
+  private val uuid = UUID.randomUUID().toString
+  private val creation = OffsetDateTime.now
+
+  def commandDescription: String
+
+  def logIOMsgOverLimit(message: String): Unit = {
+    val millis = java.time.Duration.between(creation, OffsetDateTime.now).toMillis
+    val seconds = millis / 1000D
+    if (seconds > 5 * 60) {
+      IoCommand.logger.info(f"(IO-$uuid) '$message' is over 5 minutes. It has been running for " +
+        f"($seconds%,.3f seconds). IO command description: '$commandDescription'")
+    }
+  }
+
   /**
     * Completes the command successfully
     * @return a message to be sent back to the sender, if needed
     */
-  def success[S >: T](value: S): IoSuccess[S] = IoSuccess(this, value)
+  def success[S >: T](value: S): IoSuccess[S] = {
+    logIOMsgOverLimit(s"IOCommand.success '$value'")
+    IoSuccess(this, value)
+  }
   
   /**
     * Fail the command with an exception
     */
-  def fail[S >: T](failure: Throwable): IoFailure[S] = IoFailure(this, failure)
+  def fail[S >: T](failure: Throwable): IoFailure[S] = {
+    logIOMsgOverLimit(s"IOCommand.fail '${failure.toPrettyElidedString(limit = 1000)}'")
+    IoFailure(this, failure)
+  }
 
-  def failReadForbidden[S >: T](failure: Throwable, forbiddenPath: String): IoReadForbiddenFailure[S] = IoReadForbiddenFailure(this, failure, forbiddenPath)
+  def failReadForbidden[S >: T](failure: Throwable, forbiddenPath: String): IoReadForbiddenFailure[S] = {
+    logIOMsgOverLimit(s"IOCommand.failReadForbidden '${failure.toPrettyElidedString(limit = 1000)}' path '$forbiddenPath'")
+    IoReadForbiddenFailure(this, failure, forbiddenPath)
+  }
 
   /**
     * A short name describing the command

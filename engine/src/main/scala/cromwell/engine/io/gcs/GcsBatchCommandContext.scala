@@ -21,6 +21,7 @@ import cromwell.filesystems.gcs.RequesterPaysErrors._
 import scala.concurrent.Promise
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.util.Try
 
 object GcsBatchCommandContext {
   def defaultBackoff = SimpleExponentialBackoff(
@@ -52,7 +53,12 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
     * Json batch call back for a batched request
     */
   lazy val callback: JsonBatchCallback[U] = new JsonBatchCallback[U]() {
-    def onSuccess(response: U, httpHeaders: HttpHeaders) = onSuccessCallback(response, httpHeaders)
+    def onSuccess(response: U, httpHeaders: HttpHeaders) =
+      Try {
+        onSuccessCallback(response, httpHeaders)
+      } recover {
+        case t => if (!promise.isCompleted) promise.tryFailure(new Exception("Error processing IO success response", t))
+      }
     def onFailure(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders) = onFailureCallback(googleJsonError, httpHeaders)
   }
 

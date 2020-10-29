@@ -57,7 +57,7 @@ class GcsBatchFlowSpec extends TestKitSuite with AnyFlatSpecLike with CromwellTi
     val recoverCommandPrivateMethod = PrivateMethod[PartialFunction[Throwable, Future[GcsBatchResponse[_]]]]('recoverCommand)
     val partialFuncAcceptingThrowable = gcsBatchFlow invokePrivate recoverCommandPrivateMethod(gcsBatchCommandContext)
 
-    val futureRes = partialFuncAcceptingThrowable(new NullPointerException(null))
+    val futureRes = partialFuncAcceptingThrowable(new NullPointerException(null)) // no unhandled exceptions should thrown here
     futureRes.isCompleted shouldBe true
   }
 }

@@ -53,13 +53,19 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
     * Json batch call back for a batched request
     */
   lazy val callback: JsonBatchCallback[U] = new JsonBatchCallback[U]() {
-    def onSuccess(response: U, httpHeaders: HttpHeaders) =
-      Try {
-        onSuccessCallback(response, httpHeaders)
-      } recover {
-        case t => if (!promise.isCompleted) promise.tryFailure(new Exception("Error processing IO success response", t))
-      }
-    def onFailure(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders) = onFailureCallback(googleJsonError, httpHeaders)
+    def onSuccess(response: U, httpHeaders: HttpHeaders): Unit = tryCallbackOrFail("onSuccessCallback", onSuccessCallback(response, httpHeaders))
+    def onFailure(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders) = tryCallbackOrFail(callbackName = "onFailureCallback", onFailureCallback(googleJsonError, httpHeaders))
+  }
+
+  def tryCallbackOrFail(callbackName: String, callback: () => Unit): Unit = {
+    Try {
+      callback.apply()
+    }.recover {
+      case t =>
+        if (!promise.isCompleted) promise.tryFailure(new Exception(s"Error processing IO response in $callbackName", t))
+        ()
+    }
+    ()
   }
 
   /**
@@ -70,7 +76,7 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
   }
 
   /**
-    * Only increment backoff. To be used for failure thas should be retried infinitely
+    * Only increment backoff. To be used for failures that should be retried infinitely
     */
   lazy val nextTransient: GcsBatchCommandContext[T, U] = {
     this.copy(backoff = backoff.next, promise = Promise[BatchResponse])
@@ -84,7 +90,7 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
   /**
     * On success callback. Transform the request response to a stream-ready response that can complete the promise
     */
-  private def onSuccessCallback(response: U, httpHeaders: HttpHeaders) = handleSuccessOrNextRequest(request.onSuccess(response, httpHeaders))
+  private def onSuccessCallback(response: U, httpHeaders: HttpHeaders)(): Unit = handleSuccessOrNextRequest(request.onSuccess(response, httpHeaders))
 
   private def handleSuccessOrNextRequest(successResult: Either[T, GcsBatchIoCommand[T, U]]) = {
     val promiseResponse: BatchResponse = successResult match {
@@ -101,7 +107,7 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
   /**
     * On failure callback. Fail the promise with a StorageException
     */
-  private def onFailureCallback(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders) = {
+  private def onFailureCallback(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders)(): Unit = {
     if (isProjectNotProvidedError(googleJsonError)) {
       // Returning an Either.Right here means that the operation is not complete and that we need to do another request
       handleSuccessOrNextRequest(Right(request.withUserProject))

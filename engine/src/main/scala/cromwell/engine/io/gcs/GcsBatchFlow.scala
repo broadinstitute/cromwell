@@ -1,7 +1,6 @@
 package cromwell.engine.io.gcs
 
 import java.io.IOException
-import java.util.Objects
 
 import akka.actor.Scheduler
 import akka.stream._

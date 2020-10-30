@@ -18,6 +18,7 @@ import cromwell.engine.io.gcs.GcsBatchCommandContext.BatchResponse
 import cromwell.engine.io.{IoActor, IoCommandContext}
 import cromwell.filesystems.gcs.batch.GcsBatchIoCommand
 import cromwell.filesystems.gcs.RequesterPaysErrors._
+import common.util.StringUtil.EnhancedToStringable
 
 import scala.concurrent.Promise
 import scala.concurrent.duration._
@@ -92,12 +93,18 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
   /**
     * Queue the request for batching
     */
-  def queue(batchRequest: BatchRequest) = request.operation.queue(batchRequest, callback)
+  def queue(batchRequest: BatchRequest) = {
+    request.logIOMsgOverLimit(s"GcsBatchCommandContext.queue '$batchRequest'")
+    request.operation.queue(batchRequest, callback)
+  }
 
   /**
     * On success callback. Transform the request response to a stream-ready response that can complete the promise
     */
-  private def onSuccessCallback(response: U, httpHeaders: HttpHeaders)(): Unit = handleSuccessOrNextRequest(request.onSuccess(response, httpHeaders))
+  private def onSuccessCallback(response: U, httpHeaders: HttpHeaders)(): Unit = {
+    request.logIOMsgOverLimit(s"GcsBatchCommandContext.onSuccessCallback '${response.toPrettyElidedString(limit = 1000)}'")
+    handleSuccessOrNextRequest(request.onSuccess(response, httpHeaders))
+  }
 
   private def handleSuccessOrNextRequest(successResult: Either[T, GcsBatchIoCommand[T, U]]): Unit = {
     val promiseResponse: BatchResponse = successResult match {
@@ -115,6 +122,7 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
     * On failure callback. Fail the promise with a StorageException
     */
   private def onFailureCallback(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders)(): Unit = {
+    request.logIOMsgOverLimit(s"GcsBatchCommandContext.onFailureCallback '${googleJsonError.toPrettyElidedString(limit = 1000)}'")
     if (isProjectNotProvidedError(googleJsonError)) {
       // Returning an Either.Right here means that the operation is not complete and that we need to do another request
       handleSuccessOrNextRequest(Right(request.withUserProject))

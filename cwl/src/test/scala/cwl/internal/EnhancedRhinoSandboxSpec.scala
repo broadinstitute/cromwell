@@ -65,7 +65,7 @@ object EnhancedRhinoSandboxSpec extends ScaledTimeSpans {
                              threadReadyLatch: CountDownLatch,
                              threadGoLatch: CountDownLatch): Unit = {
     val cls = ecmaScriptUtilClassLoader.loadClass(classOf[LatchedRunner].getName)
-    val obj = cls.newInstance
+    val obj = cls.getDeclaredConstructor().newInstance()
     cls
       .getMethod("run", classOf[CountDownLatch], classOf[CountDownLatch])
       .invoke(obj, threadReadyLatch, threadGoLatch)

@@ -107,7 +107,6 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
   }
 
   private def handleSuccessOrNextRequest(successResult: Either[T, GcsBatchIoCommand[T, U]]): Unit = {
-    request.logIOMsgOverLimit(s"GcsBatchCommandContext.handleSuccessOrNextRequest '$successResult'")
     val promiseResponse: BatchResponse = successResult match {
       // Left means the command is complete, so just create the corresponding IoSuccess with the value
       case Left(responseValue) => Left(success(responseValue))

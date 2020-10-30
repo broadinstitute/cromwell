@@ -69,7 +69,7 @@ case class GcsBatchCopyCommand(
   val sourceBlob = source.blob
   val destinationBlob = destination.blob
 
-  override def commandDescription: String = s"GcsBatchCopyCommand.init source '$source' destination '$destination' " +
+  override def commandDescription: String = s"GcsBatchCopyCommand source '$source' destination '$destination' " +
     s"overwrite '$overwrite' setUserProject '$setUserProject'"
 
   override def operation: StorageRequest[RewriteResponse] = {
@@ -113,7 +113,7 @@ case class GcsBatchDeleteCommand(
   }
   override def withUserProject = this.copy(setUserProject = true)
 
-  override def commandDescription: String = s"GcsBatchDeleteCommand.init file '$file' swallowIOExceptions " +
+  override def commandDescription: String = s"GcsBatchDeleteCommand file '$file' swallowIOExceptions " +
     s"'$swallowIOExceptions' setUserProject '$setUserProject'"
 }
 
@@ -131,19 +131,19 @@ sealed trait GcsBatchGetCommand[T] extends SingleFileGcsBatchIoCommand[T, Storag
 case class GcsBatchSizeCommand(override val file: GcsPath, setUserProject: Boolean = false) extends IoSizeCommand(file) with GcsBatchGetCommand[Long] {
   override def mapGoogleResponse(response: StorageObject): Long = response.getSize.longValue()
   override def withUserProject = this.copy(setUserProject = true)
-  override def commandDescription: String = s"GcsBatchSizeCommand.init file '$file' setUserProject '$setUserProject'"
+  override def commandDescription: String = s"GcsBatchSizeCommand file '$file' setUserProject '$setUserProject'"
 }
 
 case class GcsBatchCrc32Command(override val file: GcsPath, setUserProject: Boolean = false) extends IoHashCommand(file) with GcsBatchGetCommand[String] {
   override def mapGoogleResponse(response: StorageObject): String = response.getCrc32c
   override def withUserProject = this.copy(setUserProject = true)
-  override def commandDescription: String = s"GcsBatchCrc32Command.init file '$file' setUserProject '$setUserProject'"
+  override def commandDescription: String = s"GcsBatchCrc32Command file '$file' setUserProject '$setUserProject'"
 }
 
 case class GcsBatchTouchCommand(override val file: GcsPath, setUserProject: Boolean = false) extends IoTouchCommand(file) with GcsBatchGetCommand[Unit] {
   override def mapGoogleResponse(response: StorageObject): Unit = ()
   override def withUserProject = this.copy(setUserProject = true)
-  override def commandDescription: String = s"GcsBatchTouchCommand.init file '$file' setUserProject '$setUserProject'"
+  override def commandDescription: String = s"GcsBatchTouchCommand file '$file' setUserProject '$setUserProject'"
 }
 
 /*
@@ -161,7 +161,7 @@ case class GcsBatchIsDirectoryCommand(override val file: GcsPath, setUserProject
     Option(response.getItems).map(_.asScala).exists(_.nonEmpty)
   }
   override def withUserProject = this.copy(setUserProject = true)
-  override def commandDescription: String = s"GcsBatchIsDirectoryCommand.init file '$file' setUserProject '$setUserProject'"
+  override def commandDescription: String = s"GcsBatchIsDirectoryCommand file '$file' setUserProject '$setUserProject'"
 }
 
 case class GcsBatchExistsCommand(override val file: GcsPath, setUserProject: Boolean = false) extends IoExistsCommand(file) with GcsBatchGetCommand[Boolean] {
@@ -171,5 +171,5 @@ case class GcsBatchExistsCommand(override val file: GcsPath, setUserProject: Boo
     if (googleJsonError.getCode == 404) Option(Left(false)) else None
   }
   override def withUserProject = this.copy(setUserProject = true)
-  override def commandDescription: String = s"GcsBatchExistsCommand.init file '$file' setUserProject '$setUserProject'"
+  override def commandDescription: String = s"GcsBatchExistsCommand file '$file' setUserProject '$setUserProject'"
 }

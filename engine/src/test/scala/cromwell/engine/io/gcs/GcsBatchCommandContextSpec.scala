@@ -69,5 +69,7 @@ object GcsBatchCommandContextSpec {
     override def onFailure(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders): Option[Either[Unit, GcsBatchIoCommand[Unit, Unit]]] = {
       throw new Exception("exception in failure handler...")
     }
+
+    override def commandDescription: String = s"ExceptionSpewingGcsBatchIoCommand (mock class for tests)"
   }
 }

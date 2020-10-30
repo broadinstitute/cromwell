@@ -33,8 +33,8 @@ object GcsBatchFlow {
   private val ReadForbiddenPattern = ".*does not have storage\\.objects\\.(?:get|list|copy) access to ([^/]+).*".r.pattern
 
   /* Returns `Some(bucket)` if the specified argument represents a forbidden attempt to read from `bucket`. */
-  private[gcs] def getReadForbiddenBucket(failure: Throwable): Option[String] = {
-    val matcher = ReadForbiddenPattern.matcher(failure.getMessage)
+  private[gcs] def getReadForbiddenBucket(errorMsg: String): Option[String] = {
+    val matcher = ReadForbiddenPattern.matcher(errorMsg)
     matcher.matches().option(matcher.group(1))
   }
 }
@@ -165,8 +165,12 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
       }
     // Otherwise just fail the command, either with a specific "read forbidden" failure or just generic failure.
     case failure =>
-      getReadForbiddenBucket(failure) match {
-        case Some(bucket) => failReadForbidden(context, failure, bucket)
+      Option(failure.getMessage) match {
+        case Some(errorMsg) =>
+          getReadForbiddenBucket(errorMsg) match {
+            case Some(bucket) => failReadForbidden(context, failure, bucket)
+            case None => fail(context, failure)
+          }
         case None => fail(context, failure)
       }
   }

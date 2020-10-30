@@ -131,19 +131,19 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     contexts foreach { _.queue(batchRequest) }
 
     val batchCommandNamesList = contexts.map(_.request.toString)
-    val batchCommandsHash = Objects.hash(Thread.currentThread().hashCode().toString, batchCommandNamesList.hashCode().toString)
-    logger.info(s"Executing GCS Batch requests with hash code '$batchCommandsHash' for the following commands: ${batchCommandNamesList.mkString("\n")}")
     // Try to execute the batch request.
     // If it fails with an IO Exception, fail all the underlying promises with a retryable BatchFailedException
     // Otherwise fail with the original exception
     Try(batchRequest.execute()) match {
       case Failure(failure: IOException) =>
-        logger.info(s"Failed to execute GCS Batch request having hash code '$batchCommandsHash''", failure.toPrettyElidedString(limit = 1000))
+        logger.info(s"Failed to execute GCS Batch request. Failed request belonged to batch " +
+          s"${batchCommandNamesList.mkString("\n")}.", failure.toPrettyElidedString(limit = 1000))
         failAllPromisesWith(BatchFailedException(failure))
       case Failure(failure) =>
-        logger.info(s"Failed to execute GCS Batch request having hash code '$batchCommandsHash''", failure.toPrettyElidedString(limit = 1000))
+        logger.info(s"Failed to execute GCS Batch request. Failed request belonged to batch " +
+          s"${batchCommandNamesList.mkString("\n")}.", failure.toPrettyElidedString(limit = 1000))
         failAllPromisesWith(failure)
-      case _ => logger.info(s"Successfully executed GCS Batch request having hash code $batchCommandsHash")
+      case _ =>
     }
 
     // Map all promise responses to a GcsBatchResponse to be either sent back as a response or retried in the next batch

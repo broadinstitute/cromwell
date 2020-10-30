@@ -10,6 +10,8 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import net.ceedubs.ficus.Ficus._
 
+import scala.util.{Failure, Success, Try}
+
 object AsyncIo {
   private val ioTimeouts = ConfigFactory.load().as[Config]("system.io.timeout")
   val defaultTimeout = ioTimeouts.as[FiniteDuration]("default")
@@ -20,10 +22,15 @@ object AsyncIo {
   * Provides Futurized methods for I/O actions processed through the IoActor
   */
 class AsyncIo(ioEndpoint: ActorRef, ioCommandBuilder: IoCommandBuilder) {
-  private def asyncCommand[A](command: IoCommand[A], timeout: FiniteDuration = AsyncIo.defaultTimeout) = {
-    val commandWithPromise = IoCommandWithPromise(command, timeout)
-    ioEndpoint ! commandWithPromise
-    commandWithPromise.promise.future
+  private def asyncCommand[A](createCommand: => IoCommand[A],
+                              timeout: FiniteDuration = AsyncIo.defaultTimeout): Future[A] = {
+    Try(createCommand) match {
+      case Failure(throwable) => Future.failed(throwable)
+      case Success(command) =>
+        val commandWithPromise = IoCommandWithPromise(command, timeout)
+        ioEndpoint ! commandWithPromise
+        commandWithPromise.promise.future
+    }
   }
   
   /**

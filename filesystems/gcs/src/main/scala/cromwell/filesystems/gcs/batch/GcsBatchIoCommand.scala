@@ -114,7 +114,34 @@ case class GcsBatchDeleteCommand(
   */
 sealed trait GcsBatchGetCommand[T] extends SingleFileGcsBatchIoCommand[T, StorageObject] {
   def file: GcsPath
-  private val blob = file.blob
+  private val blob = {
+    val result = file.blob
+    if (Option(result.getName).exists(_.trim.nonEmpty)) {
+      result
+    } else {
+      throw new IllegalArgumentException(
+        /*
+        Instead of returning a 'Not Found' error, calling the Google Cloud Storage API without an object lists
+        all objects in the bucket: https://cloud.google.com/storage/docs/listing-objects"
+
+        List all objects:
+        curl -X GET -H "Authorization: Bearer $(gcloud auth print-access-token $USER@broadinstitute.org)" \
+          "https://storage.googleapis.com/storage/v1/b/hsd_salmon_index/o"
+
+        List all objects, still:
+        curl -X GET -H "Authorization: Bearer $(gcloud auth print-access-token $USER@broadinstitute.org)" \
+          "https://storage.googleapis.com/storage/v1/b/hsd_salmon_index/o"
+
+        List a pseudo-directory named '/', and thus returns Not Found:
+        curl -X GET -H "Authorization: Bearer $(gcloud auth print-access-token $USER@broadinstitute.org)" \
+          "https://storage.googleapis.com/storage/v1/b/hsd_salmon_index/o//"
+
+        See PROD-444 and linked tickets for more background.
+         */
+         s"GcsPath '$file' is bucket only and does not specify an object."
+      )
+    }
+  }
   override def operation: StorageRequest[StorageObject] = {
     file.apiStorage.objects().get(blob.getBucket, blob.getName).setUserProject(userProject)
   }

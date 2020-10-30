@@ -4,8 +4,6 @@ import cats.syntax.validated._
 import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.HttpHeaders
 import com.google.api.services.storage.StorageRequest
-import cromwell.engine.io.gcs.GcsBatchCommandContextSpec.ExceptionSpewingGcsBatchIoCommand
-import common.assertion.CromwellTimeoutSpec
 import common.validation.ErrorOr.ErrorOr
 import cromwell.engine.io.gcs.GcsBatchCommandContextSpec.{ErrorReturningGcsBatchIoCommand, ExceptionSpewingGcsBatchIoCommand}
 import cromwell.filesystems.gcs.batch.GcsBatchIoCommand
@@ -107,5 +105,7 @@ object GcsBatchCommandContextSpec {
     override def name: String = ???
 
     override def onSuccess(response: Unit, httpHeaders: HttpHeaders): ErrorOr[Either[Unit, GcsBatchIoCommand[Unit, Unit]]] = super.onSuccess(response, httpHeaders)
+
+    override def commandDescription: String = s"ErrorReturningGcsBatchIoCommand (mock class for tests)"
   }
 }

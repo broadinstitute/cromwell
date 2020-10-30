@@ -40,7 +40,7 @@ trait IoCommand[+T] {
     val millis = java.time.Duration.between(creation, OffsetDateTime.now).toMillis
     val seconds = millis / 1000D
     if (seconds > 5 * 60) {
-      IoCommand.logger.info(f"(IO-$uuid) '$message' is over 5 minutes. It has been running for " +
+      IoCommand.logger.info(f"(IO-$uuid) '$message' is over 5 minutes. It was running for " +
         f"($seconds%,.3f seconds). IO command description: '$commandDescription'")
     }
   }

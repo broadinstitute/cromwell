@@ -134,7 +134,7 @@ sealed trait GcsBatchGetCommand[T] extends SingleFileGcsBatchIoCommand[T, Storag
 case class GcsBatchSizeCommand(override val file: GcsPath, setUserProject: Boolean = false) extends IoSizeCommand(file) with GcsBatchGetCommand[Long] {
   override def mapGoogleResponse(response: StorageObject): ErrorOr[Long] = {
     Option(response.getSize) match {
-      case None => s"${file.pathAsString} in project ${file.projectId} returned null size".invalidNel
+      case None => s"'${file.pathAsString}' in project '${file.projectId}' returned null size".invalidNel
       case Some(size) => size.longValue().validNel
     }
   }
@@ -145,7 +145,7 @@ case class GcsBatchSizeCommand(override val file: GcsPath, setUserProject: Boole
 case class GcsBatchCrc32Command(override val file: GcsPath, setUserProject: Boolean = false) extends IoHashCommand(file) with GcsBatchGetCommand[String] {
   override def mapGoogleResponse(response: StorageObject): ErrorOr[String] = {
     Option(response.getCrc32c) match {
-      case None => s"${file.pathAsString} in project ${file.projectId} returned null CRC32C checksum".invalidNel
+      case None => s"'${file.pathAsString}' in project '${file.projectId}' returned null CRC32C checksum".invalidNel
       case Some(crc32c) => crc32c.validNel
     }
   }

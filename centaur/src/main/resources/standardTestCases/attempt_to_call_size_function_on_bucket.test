@@ -1,0 +1,11 @@
+name: attempt_to_call_size_function_on_bucket
+testFormat: workflowfailure
+backends: [Papiv2]
+
+files {
+  workflow: attempt_to_call_size_function_on_bucket/attempt_to_call_size_function_on_bucket.wdl
+}
+
+metadata {
+  "failures.0.causedBy.0.causedBy.0.message": "Failed to evaluate input 'in_file_size' (reason 1 of 1): [Attempted 1 time(s)] - Exception: Error processing IO response in onSuccessCallback: null"
+}

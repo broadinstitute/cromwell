@@ -19,7 +19,7 @@ import scala.collection.JavaConverters._
   * @tparam T Return type of the IoCommand
   * @tparam U Return type of the Google response
   */
-sealed trait GcsBatchIoCommand[T, U] extends IoCommand[T] {
+trait GcsBatchIoCommand[T, U] extends IoCommand[T] {
   /**
     * StorageRequest operation to be executed by this command
     */

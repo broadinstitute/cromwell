@@ -41,6 +41,12 @@ trait IoCommand[+T] {
     val millis: Long = java.time.Duration.between(creation, OffsetDateTime.now).toMillis
     if (millis > IoCommand.IOCommandWarnLimit.toMillis) {
       val seconds = millis / 1000D
+
+      /*
+        For now we decided to log this as INFO. In future if needed, we can update this to WARN
+        and change Sentry settings to not look for IoCommand logger's WARN messages so as
+        not to overwhelm it.
+       */
       IoCommand.logger.info(f"(IO-$uuid) '$message' is over 5 minutes. It was running for " +
         f"$seconds%,.3f seconds. IO command description: '$commandDescription'")
     }

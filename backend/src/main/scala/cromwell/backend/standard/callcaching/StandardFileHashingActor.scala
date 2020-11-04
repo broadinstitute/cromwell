@@ -47,7 +47,7 @@ case class DefaultStandardFileHashingActorParams
 case class FileHashContext(hashKey: HashKey, file: String)
 
 class DefaultStandardFileHashingActor(standardParams: StandardFileHashingActorParams) extends StandardFileHashingActor(standardParams) {
-  override val ioCommandBuilder = DefaultIoCommandBuilder
+  override val ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
 }
 
 object StandardFileHashingActor {
@@ -67,7 +67,7 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
     with IoClientHelper
     with StandardCachingActorHelper
     with Timers {
-  override lazy val ioActor = standardParams.ioActor
+  override lazy val ioActor: ActorRef = standardParams.ioActor
   override lazy val jobDescriptor: BackendJobDescriptor = standardParams.jobDescriptor
   override lazy val backendInitializationDataOption: Option[BackendInitializationData] = standardParams.backendInitializationDataOption
   override lazy val serviceRegistryActor: ActorRef = standardParams.serviceRegistryActor
@@ -91,7 +91,10 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
       context.parent ! FileHashResponse(HashResult(fileHashRequest.hashKey, HashValue(result)))
 
     case (fileHashRequest: FileHashContext, IoSuccess(_, other)) =>
-      context.parent ! HashingFailedMessage(fileHashRequest.file, new Exception(s"Hash function supposedly succeeded but responded with '${other}' instead of a string hash"))
+      context.parent ! HashingFailedMessage(
+        fileHashRequest.file,
+        new Exception(s"Hash function supposedly succeeded but responded with '$other' instead of a string hash"),
+      )
 
     // Hash Failure
     case (fileHashRequest: FileHashContext, IoFailAck(_, failure: Throwable)) =>
@@ -101,12 +104,12 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
       log.warning(s"Async File hashing actor received unexpected message: $other")
   }
 
-  def asyncHashing(fileRequest: SingleFileHashRequest, replyTo: ActorRef) = {
+  def asyncHashing(fileRequest: SingleFileHashRequest, replyTo: ActorRef): Unit = {
     val fileAsString = fileRequest.file.value
-    val ioHashCommandTry = Try {
-      val gcsPath = getPath(fileAsString).get
-      ioCommandBuilder.hashCommand(gcsPath)
-    }
+    val ioHashCommandTry = for {
+      gcsPath <- getPath(fileAsString)
+      command <- ioCommandBuilder.hashCommand(gcsPath)
+    } yield command
     lazy val fileHashContext = FileHashContext(fileRequest.hashKey, fileRequest.file.value)
 
     ioHashCommandTry match {

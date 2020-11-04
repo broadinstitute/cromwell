@@ -34,32 +34,34 @@ import cromwell.core.io.{IoCommandBuilder, PartialIoCommandBuilder}
 import cromwell.core.path.Path
 import cromwell.filesystems.s3.S3Path
 
+import scala.util.Try
+
 /**
   * Generates commands for IO operations on S3
   */
 private case object PartialS3BatchCommandBuilder extends PartialIoCommandBuilder {
-  override def sizeCommand: PartialFunction[Path, S3BatchSizeCommand] = {
-    case path: S3Path => S3BatchSizeCommand(path)
+  override def sizeCommand: PartialFunction[Path, Try[S3BatchSizeCommand]] = {
+    case path: S3Path => Try(S3BatchSizeCommand(path))
   }
 
-  override def deleteCommand: PartialFunction[(Path, Boolean), S3BatchDeleteCommand] = {
-    case (path: S3Path, swallowIoExceptions) => S3BatchDeleteCommand(path, swallowIoExceptions)
+  override def deleteCommand: PartialFunction[(Path, Boolean), Try[S3BatchDeleteCommand]] = {
+    case (path: S3Path, swallowIoExceptions) => Try(S3BatchDeleteCommand(path, swallowIoExceptions))
   }
 
-  override def copyCommand: PartialFunction[(Path, Path, Boolean), S3BatchCopyCommand] = {
-    case (src: S3Path, dest: S3Path, overwrite) => S3BatchCopyCommand(src, dest, overwrite)
+  override def copyCommand: PartialFunction[(Path, Path), Try[S3BatchCopyCommand]] = {
+    case (src: S3Path, dest: S3Path) => Try(S3BatchCopyCommand(src, dest))
   }
 
-  override def hashCommand: PartialFunction[Path, S3BatchEtagCommand] = {
-    case path: S3Path => S3BatchEtagCommand(path)
+  override def hashCommand: PartialFunction[Path, Try[S3BatchEtagCommand]] = {
+    case path: S3Path => Try(S3BatchEtagCommand(path))
   }
 
-  override def touchCommand: PartialFunction[Path, S3BatchTouchCommand] = {
-    case path: S3Path => S3BatchTouchCommand(path)
+  override def touchCommand: PartialFunction[Path, Try[S3BatchTouchCommand]] = {
+    case path: S3Path => Try(S3BatchTouchCommand(path))
   }
 
-  override def existsCommand: PartialFunction[Path, S3BatchExistsCommand] = {
-    case path: S3Path => S3BatchExistsCommand(path)
+  override def existsCommand: PartialFunction[Path, Try[S3BatchExistsCommand]] = {
+    case path: S3Path => Try(S3BatchExistsCommand(path))
   }
 }
 

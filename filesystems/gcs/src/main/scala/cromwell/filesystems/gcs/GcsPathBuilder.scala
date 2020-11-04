@@ -34,7 +34,7 @@ object GcsPathBuilder {
     * exact bucket syntax, which is done by GCS.
     * See https://cloud.google.com/storage/docs/naming for full spec
   */
-  val GcsBucketPattern =
+  private val GcsBucketPattern =
     """
       (?x)                                      # Turn on comments and whitespace insensitivity
       ^gs://
@@ -57,7 +57,7 @@ object GcsPathBuilder {
     override def errorMessage = s"Cloud Storage URIs must have 'gs' scheme: $pathString"
   }
   final case class InvalidFullGcsPath(pathString: String) extends InvalidGcsPath {
-    override def errorMessage = {
+    override def errorMessage: String = {
       s"""
          |The path '$pathString' does not seem to be a valid GCS path.
          |Please check that it starts with gs:// and that the bucket and object follow GCS naming guidelines at
@@ -173,7 +173,43 @@ case class GcsPath private[gcs](nioPath: NioPath,
                                 apiStorage: com.google.api.services.storage.Storage,
                                 cloudStorage: com.google.cloud.storage.Storage,
                                 projectId: String) extends Path {
-  lazy val blob = BlobId.of(cloudStoragePath.bucket, cloudStoragePath.toRealPath().toString)
+  lazy val objectBlobId: Try[BlobId] = Try {
+    val bucketName = cloudStoragePath.bucket
+    val objectName = cloudStoragePath.toRealPath().toString
+    if (!Option(objectName).exists(_.trim.nonEmpty)) {
+      throw new IllegalArgumentException(
+        /*
+        Instead of returning a 'Not Found' error, calling the Google Cloud Storage API without an object lists
+        all objects in the bucket: https://cloud.google.com/storage/docs/listing-objects"
+
+        List all objects:
+        curl -X GET -H "Authorization: Bearer $(gcloud auth print-access-token $USER@broadinstitute.org)" \
+          "https://storage.googleapis.com/storage/v1/b/hsd_salmon_index/o"
+
+        List all objects, still:
+        curl -X GET -H "Authorization: Bearer $(gcloud auth print-access-token $USER@broadinstitute.org)" \
+          "https://storage.googleapis.com/storage/v1/b/hsd_salmon_index/o/"
+
+        List a pseudo-directory named '/', and thus returns Not Found:
+        curl -X GET -H "Authorization: Bearer $(gcloud auth print-access-token $USER@broadinstitute.org)" \
+          "https://storage.googleapis.com/storage/v1/b/hsd_salmon_index/o//"
+
+        See PROD-444 and linked tickets for more background.
+         */
+        s"GcsPath '$this' is bucket only and does not specify an object blob."
+      )
+    }
+    BlobId.of(bucketName, objectName)
+  }
+
+  lazy val bucketOrObjectBlobId: Try[BlobId] = {
+    Try {
+      val bucketName = cloudStoragePath.bucket
+      val objectName = cloudStoragePath.toRealPath().toString
+      BlobId.of(bucketName, objectName)
+    }
+  }
+
   override protected def newPath(nioPath: NioPath): GcsPath = GcsPath(nioPath, apiStorage, cloudStorage, projectId)
 
   override def pathAsString: String = {
@@ -182,9 +218,11 @@ case class GcsPath private[gcs](nioPath: NioPath,
     s"${CloudStorageFileSystem.URI_SCHEME}://$host/$path"
   }
 
-  override def writeContent(content: String)(openOptions: OpenOptions, codec: Codec, compressPayload: Boolean)(implicit ec: ExecutionContext) = {
+  override def writeContent(content: String)
+                           (openOptions: OpenOptions, codec: Codec, compressPayload: Boolean)
+                           (implicit ec: ExecutionContext): GcsPath.this.type = {
     def request(withProject: Boolean) = {
-      val builder = BlobInfo.newBuilder(blob).setContentType(ContentTypes.`text/plain(UTF-8)`.value)
+      val builder = BlobInfo.newBuilder(objectBlobId.get).setContentType(ContentTypes.`text/plain(UTF-8)`.value)
       if (compressPayload) {
         builder.setContentEncoding("gzip")
       }
@@ -209,7 +247,7 @@ case class GcsPath private[gcs](nioPath: NioPath,
       // Use apiStorage here instead of cloudStorage, because apiStorage throws now if the bucket has requester pays,
       // whereas cloudStorage creates the input stream anyway and only throws one `read` is called (which only happens in NioFlow)
       apiStorage.objects()
-        .get(blob.getBucket, blob.getName)
+        .get(objectBlobId.get.getBucket, objectBlobId.get.getName)
         .setUserProject(withProject.option(projectId).orNull)
         .executeMediaAsInputStream()
     }

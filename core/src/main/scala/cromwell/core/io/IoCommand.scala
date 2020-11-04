@@ -5,20 +5,21 @@ import java.util.UUID
 
 import better.files.File.OpenOptions
 import com.google.api.client.util.ExponentialBackOff
+import common.util.Backoff
 import common.util.StringUtil.EnhancedToStringable
 import cromwell.core.io.IoContentAsStringCommand.IoReadOptions
 import cromwell.core.path.Path
 import cromwell.core.retry.SimpleExponentialBackoff
 import org.slf4j.LoggerFactory
 
-import scala.concurrent.duration.{FiniteDuration, _}
+import scala.concurrent.duration._
 import scala.language.postfixOps
 
 object IoCommand {
   private val logger = LoggerFactory.getLogger(IoCommand.getClass)
   val IOCommandWarnLimit: FiniteDuration = 5 minutes
 
-  def defaultGoogleBackoff = new ExponentialBackOff.Builder()
+  def defaultGoogleBackoff: ExponentialBackOff = new ExponentialBackOff.Builder()
     .setInitialIntervalMillis((1 second).toMillis.toInt)
     .setMaxIntervalMillis((5 minutes).toMillis.toInt)
     .setMultiplier(3L)
@@ -26,7 +27,7 @@ object IoCommand {
     .setMaxElapsedTimeMillis((10 minutes).toMillis.toInt)
     .build()
   
-  def defaultBackoff = SimpleExponentialBackoff(defaultGoogleBackoff)
+  def defaultBackoff: Backoff = SimpleExponentialBackoff(defaultGoogleBackoff)
   
   type RetryCommand[T] = (FiniteDuration, IoCommand[T])
 }
@@ -93,8 +94,8 @@ trait SingleFileIoCommand[T] extends IoCommand[T] {
   * Copy source -> destination
   * Will create the destination directory if it doesn't exist.
   */
-abstract class IoCopyCommand(val source: Path, val destination: Path, val overwrite: Boolean) extends IoCommand[Unit] {
-  override def toString = s"copy ${source.pathAsString} to ${destination.pathAsString} with overwrite = $overwrite"
+abstract class IoCopyCommand(val source: Path, val destination: Path) extends IoCommand[Unit] {
+  override def toString = s"copy ${source.pathAsString} to ${destination.pathAsString}"
   override lazy val name = "copy"
 }
   

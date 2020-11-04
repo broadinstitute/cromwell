@@ -1,14 +1,13 @@
 package cromwell.services.womtool
 
-import java.nio.file.Files
-
-import better.files.File
 import common.assertion.CromwellTimeoutSpec
+import cromwell.core.path._
 import cromwell.core.{WorkflowOptions, WorkflowSourceFilesCollection, WorkflowSourceFilesWithoutImports}
 import cromwell.languages.config.{CromwellLanguages, LanguageConfiguration}
 import cromwell.services.womtool.DescriberSpec._
 import cromwell.services.womtool.WomtoolServiceMessages.DescribeSuccess
 import io.circe.Json
+import io.circe.parser._
 import org.scalatest.Assertion
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -17,8 +16,8 @@ import scala.util.Try
 
 class DescriberSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
-  val validationTestCases = File("services/src/test/resources/describe")
-  val languageVersions = Option(validationTestCases.list).toList.flatten
+  private val validationTestCases = DefaultPathBuilder.get("services/src/test/resources/describe")
+  private val languageVersions = Option(validationTestCases.list).toList.flatten
 
   CromwellLanguages.initLanguages(LanguageConfiguration.AllLanguageEntries)
 
@@ -29,14 +28,15 @@ class DescriberSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   }
 
   // The filterNot(_.contains(".DS")) stuff prevents Mac 'Desktop Services' hidden directories from accidentally being picked up:
-  languageVersions.filterNot(f => f.name.contains(".DS")) foreach { versionDirectory =>
-    versionDirectory.path.toFile.listFiles().filterNot(f => f.getName.contains(".DS")) foreach { caseDirectory: java.io.File =>
-      it should s" describe ${caseDirectory.getName} (${versionDirectory.name})" in {
+  languageVersions.filterNot(_.name.contains(".DS")) foreach { versionDirectory =>
+    versionDirectory.list.toList.filterNot(_.name.contains(".DS")) foreach { caseDirectory =>
+      it should s" describe ${caseDirectory.name} (${versionDirectory.name})" in {
 
         val testCase = DescriberSpec.interpretTestCase(caseDirectory)
 
-        val workflowType = Try(scala.io.Source.fromFile(caseDirectory.toPath.resolve("workflowType").toFile).mkString.stripLineEnd).toOption
-        val workflowTypeVersion = Try(scala.io.Source.fromFile(caseDirectory.toPath.resolve("workflowTypeVersion").toFile).mkString.stripLineEnd).toOption
+        val workflowType = Try(caseDirectory.resolve("workflowType").contentAsString.stripLineEnd).toOption
+        val workflowTypeVersion =
+          Try(caseDirectory.resolve("workflowTypeVersion").contentAsString.stripLineEnd).toOption
 
         val interimWsfc = WorkflowSourceFilesWithoutImports(
           workflowSource = None,
@@ -55,7 +55,7 @@ class DescriberSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
           case UrlAndDescription(url, _) => interimWsfc.copy(workflowUrl = Option(url))
         }
 
-        check(wsfc, io.circe.parser.parse(testCase.expectedDescription).getOrElse(???))
+        check(wsfc, parse(testCase.expectedDescription).right.get)
       }
     }
   }
@@ -81,16 +81,14 @@ object DescriberSpec {
   final case class FileAndDescription(file: String, override val expectedDescription: String) extends DescriberSpecTestCase
   final case class UrlAndDescription(url: String, override val expectedDescription: String) extends DescriberSpecTestCase
 
-  def interpretTestCase(caseDirectory: java.io.File): DescriberSpecTestCase = {
-    val description = scala.io.Source.fromFile(caseDirectory.toPath.resolve("description.json").toFile).mkString
-    if (Files.exists(caseDirectory.toPath.resolve("workflow.wdl"))) {
-      val workflow = scala.io.Source.fromFile(caseDirectory.toPath.resolve("workflow.wdl").toFile).mkString
+  def interpretTestCase(caseDirectory: Path): DescriberSpecTestCase = {
+    val description = caseDirectory.resolve("description.json").contentAsString
+    if (caseDirectory.resolve("workflow.wdl").exists) {
+      val workflow = caseDirectory.resolve("workflow.wdl").contentAsString
       FileAndDescription(workflow, description)
-    } else if (Files.exists(caseDirectory.toPath.resolve("workflow_url.txt"))) {
-      val workflowUrl = scala.io.Source.fromFile(caseDirectory.toPath.resolve("workflow_url.txt").toFile).mkString.trim
+    } else if (caseDirectory.resolve("workflow_url.txt").exists) {
+      val workflowUrl = caseDirectory.resolve("workflow_url.txt").contentAsString.trim
       UrlAndDescription(workflowUrl, description)
     } else throw new RuntimeException("Bad test case setup: Expected one of workflow.wdl or workflow_url.txt")
-
-
   }
 }

@@ -10,23 +10,25 @@ import cromwell.core.CallOutputs
 import cromwell.core.io.{IoCommand, IoTouchCommand}
 import cromwell.core.path.Path
 import cromwell.core.simpleton.{WomValueBuilder, WomValueSimpleton}
-import cromwell.filesystems.oss.batch.{OssBatchCommandBuilder}
+import cromwell.filesystems.oss.batch.OssBatchCommandBuilder
 import wom.values.WomFile
 
 import scala.language.postfixOps
 import scala.util.Try
 
 class BcsBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams) extends StandardCacheHitCopyingActor(standardParams) {
-  override protected val commandBuilder = OssBatchCommandBuilder
+  override protected val commandBuilder: OssBatchCommandBuilder.type = OssBatchCommandBuilder
   private val cachingStrategy = BackendInitializationData
     .as[BcsBackendInitializationData](standardParams.backendInitializationDataOption)
     .bcsConfiguration.duplicationStrategy
   
-  override def processSimpletons(womValueSimpletons: Seq[WomValueSimpleton], sourceCallRootPath: Path) = cachingStrategy match {
+  override def processSimpletons(womValueSimpletons: Seq[WomValueSimpleton],
+                                 sourceCallRootPath: Path,
+                                ): Try[(CallOutputs, Set[IoCommand[_]])] = cachingStrategy match {
     case CopyCachedOutputs => super.processSimpletons(womValueSimpletons, sourceCallRootPath)
     case UseOriginalCachedOutputs =>
       val touchCommands: Seq[Try[IoTouchCommand]] = womValueSimpletons collect {
-        case WomValueSimpleton(_, wdlFile: WomFile) => getPath(wdlFile.value) map OssBatchCommandBuilder.touchCommand
+        case WomValueSimpleton(_, wdlFile: WomFile) => getPath(wdlFile.value) flatMap OssBatchCommandBuilder.touchCommand
       }
       
       TryUtil.sequence(touchCommands) map {
@@ -34,7 +36,8 @@ class BcsBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActo
       }
   }
   
-  override def processDetritus(sourceJobDetritusFiles: Map[String, String]) = cachingStrategy match {
+  override def processDetritus(sourceJobDetritusFiles: Map[String, String]
+                              ): Try[(Map[String, Path], Set[IoCommand[_]])] = cachingStrategy match {
     case CopyCachedOutputs => super.processDetritus(sourceJobDetritusFiles)
     case UseOriginalCachedOutputs =>
       // apply getPath on each detritus string file
@@ -43,8 +46,12 @@ class BcsBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActo
       } toMap
 
       // Don't forget to re-add the CallRootPathKey that has been filtered out by detritusFileKeys
-      TryUtil.sequenceMap(detritusAsPaths, "Failed to make paths out of job detritus") map { newDetritus =>
-        (newDetritus + (JobPaths.CallRootPathKey -> destinationCallRootPath)) -> newDetritus.values.map(OssBatchCommandBuilder.touchCommand).toSet
+      TryUtil.sequenceMap(detritusAsPaths, "Failed to make paths out of job detritus") flatMap { newDetritus =>
+        Try {
+          // PROD-444: Keep It Short and Simple: Throw on the first error and let the outer Try catch-and-re-wrap
+          (newDetritus + (JobPaths.CallRootPathKey -> destinationCallRootPath)) ->
+            newDetritus.values.map(OssBatchCommandBuilder.touchCommand(_).get).toSet
+        }
       }
   }
 
@@ -52,7 +59,7 @@ class BcsBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActo
                                               originalSimpletons: Seq[WomValueSimpleton],
                                               newOutputs: CallOutputs,
                                               originalDetritus:  Map[String, String],
-                                              newDetritus: Map[String, Path]): List[Set[IoCommand[_]]] = {
+                                              newDetritus: Map[String, Path]): Try[List[Set[IoCommand[_]]]] = Try {
     cachingStrategy match {
       case UseOriginalCachedOutputs =>
         val content =
@@ -62,7 +69,14 @@ class BcsBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActo
              |The original outputs can be found at this location: ${sourceCallRootPath.pathAsString}
       """.stripMargin
 
-        List(Set(OssBatchCommandBuilder.writeCommand(jobPaths.forCallCacheCopyAttempts.callExecutionRoot / "call_caching_placeholder.txt", content, Seq(CloudStorageOptions.withMimeType("text/plain")))))
+        // PROD-444: Keep It Short and Simple: Throw on the first error and let the outer Try catch-and-re-wrap
+        List(Set(
+          OssBatchCommandBuilder.writeCommand(
+            path = jobPaths.forCallCacheCopyAttempts.callExecutionRoot / "call_caching_placeholder.txt",
+            content = content,
+            options = Seq(CloudStorageOptions.withMimeType("text/plain")),
+          ).get
+        ))
       case CopyCachedOutputs => List.empty
     }
   }

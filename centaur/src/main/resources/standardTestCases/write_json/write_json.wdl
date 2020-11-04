@@ -2,13 +2,13 @@ version 1.0
 
 workflow write_json {
     input {
-        Array[Int] indicies = [0, 1, 2]
+        Array[Int] indices = [0, 1, 2]
     }
-    scatter (i in indicies) {
+    scatter (i in indices) {
         call create_single_object { input: i=i }
     }
 
-    call write_array {input: array=indicies}
+    call write_array {input: array=indices}
     call write_object {input: obj=create_single_object.out[0]}
     call write_array_objects {input: arrayOfObj=create_single_object.out}
 

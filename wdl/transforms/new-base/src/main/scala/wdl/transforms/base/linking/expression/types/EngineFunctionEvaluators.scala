@@ -140,7 +140,7 @@ object EngineFunctionEvaluators {
     override def evaluateType(a: WriteJson, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])
                              (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
       a.param.evaluateType(linkedValues).flatMap {
-        case v if WomArrayType(WomAnyType).isCoerceableFrom(v) | WomObjectType.isCoerceableFrom(v) => v.validNel
+        case v if WomArrayType(WomAnyType).isCoerceableFrom(v) || WomObjectType.isCoerceableFrom(v) => v.validNel
         case v => s"Invalid parameter '${a.param}'. Expected 'Array[_]' or 'Object' but got '${v.stableName}'".invalidNel
       }
     }

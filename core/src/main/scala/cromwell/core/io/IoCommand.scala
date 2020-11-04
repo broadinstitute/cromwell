@@ -16,6 +16,7 @@ import scala.language.postfixOps
 
 object IoCommand {
   private val logger = LoggerFactory.getLogger(IoCommand.getClass)
+  val IOCommandWarnLimit: FiniteDuration = 5 minutes
 
   def defaultGoogleBackoff = new ExponentialBackOff.Builder()
     .setInitialIntervalMillis((1 second).toMillis.toInt)
@@ -36,12 +37,12 @@ trait IoCommand[+T] {
 
   def commandDescription: String
 
-  def logIOMsgOverLimit(message: String): Unit = {
-    val millis = java.time.Duration.between(creation, OffsetDateTime.now).toMillis
-    val seconds = millis / 1000D
-    if (seconds > 5 * 60) {
+  def logIOMsgOverLimit(message: => String): Unit = {
+    val millis: Long = java.time.Duration.between(creation, OffsetDateTime.now).toMillis
+    if (millis > IoCommand.IOCommandWarnLimit.toMillis) {
+      val seconds = millis / 1000D
       IoCommand.logger.info(f"(IO-$uuid) '$message' is over 5 minutes. It was running for " +
-        f"($seconds%,.3f seconds). IO command description: '$commandDescription'")
+        f"$seconds%,.3f seconds. IO command description: '$commandDescription'")
     }
   }
 

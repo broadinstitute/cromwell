@@ -43,9 +43,14 @@ trait IoCommand[+T] {
       val seconds = millis / 1000D
 
       /*
-        For now we decided to log this as INFO. In future if needed, we can update this to WARN
-        and change Sentry settings to not look for IoCommand logger's WARN messages so as
-        not to overwhelm it.
+        For now we decided to log this as INFO. In future if needed, we can update this to WARN.
+        Note: Below links would be useful to look at in case we want to increase the visibility of this message
+              (send an INFO message to Sentry) or even silence it all together (not even send it to Stackdriver):
+              - Cromwell server `logback.xml` with various environment-variable based conditionals
+                (https://github.com/broadinstitute/cromwell/blob/53/server/src/main/resources/logback.xml)
+              - Environment variables being set to affect the server `logback.xml`
+                (https://github.com/broadinstitute/firecloud-develop/blob/c77e0f371be0aac545e204f1a134cc6f8ef3c301/run-context/live/configs/cromwell/app.env.ctmpl#L42-L51)
+              - Logback manual (http://logback.qos.ch/manual/index.html)
        */
       IoCommand.logger.info(f"(IO-$uuid) '$message' is over 5 minutes. It was running for " +
         f"$seconds%,.3f seconds. IO command description: '$commandDescription'")

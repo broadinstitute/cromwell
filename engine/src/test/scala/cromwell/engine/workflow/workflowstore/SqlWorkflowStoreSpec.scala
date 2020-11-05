@@ -56,7 +56,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A01", 1.second)
         _ = startableWorkflows.map(_.id).intersect(submissionResponses.map(_.id).toList) should be(empty)
         abortWorkflowId = submissionResponses.head.id
-        workflowStoreAbortResponse <- workflowStore.aborting(abortWorkflowId)
+        workflowStoreAbortResponse <- workflowStore.abort(abortWorkflowId)
         _ = workflowStoreAbortResponse should be(WorkflowStoreAbortResponse.AbortedOnHoldOrSubmitted)
       } yield ()).futureValue
     }
@@ -68,7 +68,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         _ = startableWorkflows.map(_.id).intersect(submissionResponses.map(_.id).toList) should be(empty)
         abortWorkflowId = submissionResponses.head.id
         _ <- workflowStore.switchOnHoldToSubmitted(abortWorkflowId)
-        workflowStoreAbortResponse <- workflowStore.aborting(abortWorkflowId)
+        workflowStoreAbortResponse <- workflowStore.abort(abortWorkflowId)
         _ = workflowStoreAbortResponse should be(WorkflowStoreAbortResponse.AbortedOnHoldOrSubmitted)
       } yield ()).futureValue
     }
@@ -81,7 +81,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         abortWorkflowId = submissionResponses.head.id
         _ <- workflowStore.switchOnHoldToSubmitted(abortWorkflowId)
         _ <- workflowStore.writeWorkflowHeartbeats(Set((abortWorkflowId, OffsetDateTime.now)), OffsetDateTime.now)
-        workflowStoreAbortResponse <- workflowStore.aborting(abortWorkflowId)
+        workflowStoreAbortResponse <- workflowStore.abort(abortWorkflowId)
         _ = workflowStoreAbortResponse should be(WorkflowStoreAbortResponse.AbortedOnHoldOrSubmitted)
       } yield ()).futureValue
     }
@@ -99,7 +99,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
           WorkflowStoreState.Submitted.toString,
           WorkflowStoreState.Running.toString
         )
-        workflowStoreAbortResponse <- workflowStore.aborting(abortWorkflowId)
+        workflowStoreAbortResponse <- workflowStore.abort(abortWorkflowId)
         _ = workflowStoreAbortResponse should be(WorkflowStoreAbortResponse.AbortRequested)
       } yield ()).futureValue
     }
@@ -118,7 +118,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
           WorkflowStoreState.Running.toString
         )
         _ <- workflowStore.writeWorkflowHeartbeats(Set((abortWorkflowId, OffsetDateTime.now)), OffsetDateTime.now)
-        workflowStoreAbortResponse <- workflowStore.aborting(abortWorkflowId)
+        workflowStoreAbortResponse <- workflowStore.abort(abortWorkflowId)
         _ = workflowStoreAbortResponse should be(WorkflowStoreAbortResponse.AbortRequested)
       } yield ()).futureValue
     }
@@ -127,7 +127,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
       val notFoundWorkflowId = WorkflowId.fromString("744e0645-1a1f-4ffe-a25d-a0be1f937fd7")
 
       (for {
-        workflowStoreAbortResponse <- workflowStore.aborting(notFoundWorkflowId)
+        workflowStoreAbortResponse <- workflowStore.abort(notFoundWorkflowId)
         _ = workflowStoreAbortResponse should be(WorkflowStoreAbortResponse.NotFound)
       } yield ()).futureValue
     }

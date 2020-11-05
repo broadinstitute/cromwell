@@ -153,6 +153,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
         .setLabels(createPipelineParameters.googleLabels.map(label => label.key -> label.value).toMap.asJava)
         .setNetwork(network)
         .setAccelerators(accelerators)
+        .setDockerCacheImages(List("projects/broad-dsde-cromwell-dev/global/images/gsterin-docker-cache-2").asJava)
 
       createPipelineParameters.runtimeAttributes.gpuResource foreach { resource =>
         virtualMachine.setNvidiaDriverVersion(resource.nvidiaDriverVersion)

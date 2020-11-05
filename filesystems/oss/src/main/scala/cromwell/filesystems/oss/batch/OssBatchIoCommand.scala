@@ -51,9 +51,8 @@ case class OssBatchCopyCommand(
     // TODO: Copy other attributes (encryption, metadata, etc.)
     source.ossClient.copyObject(getObjectRequest)
   }
-
-
   override def mapOssResponse(response: CopyObjectResult): Unit = ()
+  override def commandDescription: String = s"OssBatchCopyCommand source '$source' destination '$destination' overwrite '$overwrite'"
 }
 
 case class OssBatchDeleteCommand(
@@ -62,6 +61,7 @@ case class OssBatchDeleteCommand(
                                ) extends IoDeleteCommand(file, swallowIOExceptions) with OssBatchIoCommand[Unit, Void] {
   def operation = file.ossClient.deleteObject(file.bucket, file.key)
   override protected def mapOssResponse(response: Void): Unit = ()
+  override def commandDescription: String = s"OssBatchDeleteCommand file '$file' swallowIOExceptions '$swallowIOExceptions'"
 }
 
 /**
@@ -75,20 +75,23 @@ sealed trait OssBatchHeadCommand[T] extends OssBatchIoCommand[T, ObjectMetadata]
 
 case class OssBatchSizeCommand(override val file: OssPath) extends IoSizeCommand(file) with OssBatchHeadCommand[Long] {
   override def mapOssResponse(response: ObjectMetadata): Long = response.getContentLength
+  override def commandDescription: String = s"OssBatchSizeCommand file '$file'"
 }
 
 case class OssBatchEtagCommand(override val file: OssPath) extends IoHashCommand(file) with OssBatchHeadCommand[String] {
   override def mapOssResponse(response: ObjectMetadata): String = response.getETag
+  override def commandDescription: String = s"OssBatchEtagCommand file '$file'"
 }
 
 case class OssBatchTouchCommand(override val file: OssPath) extends IoTouchCommand(file) with OssBatchHeadCommand[Unit] {
   override def mapOssResponse(response: ObjectMetadata): Unit = ()
+  override def commandDescription: String = s"OssBatchTouchCommand file '$file'"
 }
 
 case class OssBatchExistsCommand(override val file: OssPath) extends IoExistsCommand(file) with OssBatchIoCommand[Boolean, Boolean] {
   override def operation: Boolean = {
     file.ossClient.doesObjectExist(file.bucket, file.key)
   }
-
   override def mapOssResponse(response: Boolean): Boolean = response
+  override def commandDescription: String = s"OssBatchExistsCommand file '$file'"
 }

@@ -77,6 +77,7 @@ case class S3BatchCopyCommand(
                            override val overwrite: Boolean,
                          ) extends IoCopyCommand(source, destination, overwrite) with S3BatchIoCommand[Unit, CopyObjectResponse] {
   override def mapResponse(response: CopyObjectResponse): Unit = ()
+  override def commandDescription: String = s"S3BatchCopyCommand source '$source' destination '$destination' overwrite '$overwrite'"
 }
 
 case class S3BatchDeleteCommand(
@@ -84,6 +85,7 @@ case class S3BatchDeleteCommand(
                                   override val swallowIOExceptions: Boolean
                                 ) extends IoDeleteCommand(file, swallowIOExceptions) with S3BatchIoCommand[Unit, Void] {
   override protected def mapResponse(response: Void): Unit = ()
+  override def commandDescription: String = s"S3BatchDeleteCommand file '$file' swallowIOExceptions '$swallowIOExceptions'"
 }
 
 /**
@@ -99,6 +101,7 @@ sealed trait S3BatchHeadCommand[T] extends S3BatchIoCommand[T, HeadObjectRespons
   */
 case class S3BatchSizeCommand(override val file: S3Path) extends IoSizeCommand(file) with S3BatchHeadCommand[Long] {
   override def mapResponse(response: HeadObjectResponse): Long = response.contentLength
+  override def commandDescription: String = s"S3BatchSizeCommand file '$file'"
 }
 
 /**
@@ -107,6 +110,7 @@ case class S3BatchSizeCommand(override val file: S3Path) extends IoSizeCommand(f
   */
 case class S3BatchEtagCommand(override val file: S3Path) extends IoHashCommand(file) with S3BatchHeadCommand[String] {
   override def mapResponse(response: HeadObjectResponse): String = response.eTag
+  override def commandDescription: String = s"S3BatchEtagCommand file '$file'"
 }
 
 /**
@@ -116,6 +120,7 @@ case class S3BatchEtagCommand(override val file: S3Path) extends IoHashCommand(f
   */
 case class S3BatchTouchCommand(override val file: S3Path) extends IoTouchCommand(file) with S3BatchHeadCommand[Unit] {
   override def mapResponse(response: HeadObjectResponse): Unit = ()
+  override def commandDescription: String = s"S3BatchTouchCommand file '$file'"
 }
 
 /**
@@ -124,7 +129,6 @@ case class S3BatchTouchCommand(override val file: S3Path) extends IoTouchCommand
   */
 case class S3BatchExistsCommand(override val file: S3Path) extends IoExistsCommand(file) with S3BatchHeadCommand[Boolean] {
   override def mapResponse(response: HeadObjectResponse): Boolean = true
-
   override def onFailure(error: SdkException): Option[Left[Boolean, Nothing]] = {
     // If the object can't be found, don't fail the request but just return false as we were testing for existence
     error match {
@@ -132,4 +136,5 @@ case class S3BatchExistsCommand(override val file: S3Path) extends IoExistsComma
       case _ => None
     }
   }
+  override def commandDescription: String = s"S3BatchExistsCommand file '$file'"
 }

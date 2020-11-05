@@ -328,7 +328,7 @@ object EngineFunctionEvaluators {
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomSingleFile]] = {
       val functionName = "write_json"
 
-      def convertToSingleFile[A <: WomValue](objectToWrite: A): ErrorOr[EvaluatedValue[WomSingleFile]] = {
+      def convertToSingleFile(objectToWrite: WomValue): ErrorOr[EvaluatedValue[WomSingleFile]] = {
         val serialized = ValueEvaluation.valueToJson(objectToWrite)
         val tryResult = for {
           written <- writeContent(functionName, ioFunctionSet, serialized.compactPrint)
@@ -339,9 +339,13 @@ object EngineFunctionEvaluators {
 
       def evaluateParam(womValue: WomValue): ErrorOr[EvaluatedValue[WomSingleFile]] = {
         womValue match {
-          case v if v.coercionDefined[WomArray] => v.coerceToType[WomArray] flatMap { convertToSingleFile[WomArray] }
-          case v if v.coercionDefined[WomObject] => v.coerceToType[WomObject] flatMap { convertToSingleFile[WomObject] }
-          case _ => s"The '$functionName' method expects 'Array[_]' or 'Object' argument but instead got '${womValue.womType.stableName}'.".invalidNel
+          case v: WomBoolean => convertToSingleFile(v)
+          case v: WomString => v.coerceToType[WomString].flatMap(convertToSingleFile)
+          case v: WomInteger => v.coerceToType[WomInteger].flatMap(convertToSingleFile)
+          case v if v.coercionDefined[WomObject] => v.coerceToType[WomObject].flatMap(convertToSingleFile)
+          case v if v.coercionDefined[WomArray] => v.coerceToType[WomArray].flatMap(convertToSingleFile)
+          case _ => (s"The '$functionName' method expects one of 'Boolean', 'String', 'Integer', 'Object' or 'Array[_]' " +
+            s"argument but instead got '${womValue.womType.stableName}'.").invalidNel
         }
       }
 

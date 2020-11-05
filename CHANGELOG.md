@@ -2,6 +2,11 @@
 
 ## 54 Release Notes
 
+### Bug Fixes
+
+* Fixed a bug where `write_json()` failed for `Array[_]` inputs. It should now work for `Boolean`, `String`, `Integer`, `Object` and `Array[_]` 
+(including array of objects) type inputs. More information on WDL Type to JSON Type conversion can be found [here](https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#mixed-read_jsonstringfile).
+
 ### Spark backend support removal
 
 Spark backend was not widely used and it was decided to remove it from the codebase in order to narrow the scope of Cromwell code. 

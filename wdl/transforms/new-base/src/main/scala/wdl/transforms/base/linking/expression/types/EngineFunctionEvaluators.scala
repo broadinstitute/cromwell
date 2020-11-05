@@ -140,8 +140,13 @@ object EngineFunctionEvaluators {
     override def evaluateType(a: WriteJson, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])
                              (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
       a.param.evaluateType(linkedValues).flatMap {
-        case v if WomArrayType(WomAnyType).isCoerceableFrom(v) || WomObjectType.isCoerceableFrom(v) => v.validNel
-        case v => s"Invalid parameter '${a.param}'. Expected 'Array[_]' or 'Object' but got '${v.stableName}'".invalidNel
+        case v if WomBooleanType.isCoerceableFrom(v) ||
+          WomIntegerType.isCoerceableFrom(v) ||
+          WomStringType.isCoerceableFrom(v) ||
+          WomObjectType.isCoerceableFrom(v) ||
+          WomArrayType(WomAnyType).isCoerceableFrom(v) => WomSingleFileType.validNel
+        case v => (s"Invalid parameter '${a.param}'. Valid input types are 'Boolean', 'String', 'Integer', 'Object' or " +
+          s"'Array[_]' but got '${v.stableName}'").invalidNel
       }
     }
   }

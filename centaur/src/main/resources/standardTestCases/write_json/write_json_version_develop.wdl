@@ -1,6 +1,6 @@
-version 1.0
+version development
 
-workflow write_json {
+workflow write_json_version_develop {
     input {
         Array[Int] indices = [0, 1, 2]
     }

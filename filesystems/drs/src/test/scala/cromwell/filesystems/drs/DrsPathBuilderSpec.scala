@@ -327,7 +327,7 @@ class DrsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       isAbsolute = false,
     ),
 
-    // https://docs.google.com/document/d/1Wf4enSGOEXD5_AE-uzLoYqjIp5MnePbZ6kYTVFp1WoM/edit
+    // Sample via: https://docs.google.com/document/d/1Wf4enSGOEXD5_AE-uzLoYqjIp5MnePbZ6kYTVFp1WoM/edit
     GoodPath(
       description = "a path with a query string",
       path = "drs://drs.data.humancellatlas.org/8aca942c-17f7-4e34-b8fd-3c12e50f9291?version=2019-07-04T151444.185805Z",
@@ -346,7 +346,7 @@ class DrsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       isAbsolute = false,
     ),
 
-    // https://docs.google.com/document/d/1Wf4enSGOEXD5_AE-uzLoYqjIp5MnePbZ6kYTVFp1WoM/edit
+    // Sample via: https://docs.google.com/document/d/1Wf4enSGOEXD5_AE-uzLoYqjIp5MnePbZ6kYTVFp1WoM/edit
     GoodPath(
       description = "a compact identifier-based path",
       path = s"drs://dg.ANV0:dg.ANV0/0db6577e-57bd-48a1-93c6-327c292bcb6b",

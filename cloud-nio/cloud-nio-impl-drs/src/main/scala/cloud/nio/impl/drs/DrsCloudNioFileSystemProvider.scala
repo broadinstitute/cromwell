@@ -34,8 +34,8 @@ class DrsCloudNioFileSystemProvider(rootConfig: Config,
   override def getScheme: String = "drs"
 
   /**
-    * Treat DOS/DRS URIs as opaque strings since they no longer conform W3C/IETF URIs, and instead just put the entire
-    * DOS/DRS URI (CIB or otherwise) into the `host`.
+    * Treat DOS/DRS URIs as opaque strings since they no longer conform to W3C/IETF URIs, and instead just put the
+    * entire DOS/DRS URI (CIB or otherwise) into the `host`.
     *
     * For more info see these various docs among others:
     * - Compact Identifier-based (CIB) DRS URIs

@@ -6,7 +6,7 @@ class DrsCloudNioFileSystemProviderSpec extends org.scalatest.flatspec.AnyFlatSp
 
   behavior of "DrsCloudNioFileSystemProvider"
 
-  it should "not list paths" in {
+  it should "checking is a directory exists should return false" in {
     val fileSystemProvider = new MockDrsCloudNioFileSystemProvider()
     val path = fileSystemProvider.getCloudNioPath("drs://foo/bar/")
     fileSystemProvider.checkDirectoryExists(path) should be(false)

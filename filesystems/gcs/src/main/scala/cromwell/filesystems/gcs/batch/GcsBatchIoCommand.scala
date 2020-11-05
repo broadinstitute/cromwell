@@ -1,10 +1,12 @@
 package cromwell.filesystems.gcs.batch
 
+import cats.implicits.catsSyntaxValidatedId
 import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.HttpHeaders
-import com.google.api.services.storage.StorageRequest
+import com.google.api.services.storage.{Storage, StorageRequest}
 import com.google.api.services.storage.model.{Objects, RewriteResponse, StorageObject}
 import common.util.StringUtil._
+import common.validation.ErrorOr.ErrorOr
 import cromwell.core.io._
 import cromwell.filesystems.gcs._
 import mouse.all._
@@ -28,18 +30,19 @@ trait GcsBatchIoCommand[T, U] extends IoCommand[T] {
   /**
     * Maps the google response of type U to the Cromwell Io response of type T
     */
-  protected def mapGoogleResponse(response: U): T
+  protected def mapGoogleResponse(response: U): ErrorOr[T]
 
   /**
     * Method called in the success callback of a batched request to decide what to do next.
-    * Returns an Either[T, GcsBatchIoCommand[T, U]]
+    * Returns an ErrorOr[Either[T, GcsBatchIoCommand[T, U]]]
+    * Within the Either:
     *   Left(value) means the command is complete, and the result can be sent back to the sender.
     *   Right(newCommand) means the command is not complete and needs another request to be executed.
     * Most commands will reply with Left(value).
     */
-  def onSuccess(response: U, httpHeaders: HttpHeaders): Either[T, GcsBatchIoCommand[T, U]] = {
+  def onSuccess(response: U, httpHeaders: HttpHeaders): ErrorOr[Either[T, GcsBatchIoCommand[T, U]]] = {
     logIOMsgOverLimit(s"GcsBatchIoCommand.onSuccess '${response.toPrettyElidedString(limit = 1000)}'")
-    Left(mapGoogleResponse(response))
+    mapGoogleResponse(response) map Left.apply
   }
 
   /**
@@ -90,11 +93,11 @@ case class GcsBatchCopyCommand(
   override def onSuccess(response: RewriteResponse, httpHeaders: HttpHeaders) = {
     if (response.getDone) super.onSuccess(response, httpHeaders)
     else {
-      Right(withRewriteToken(response.getRewriteToken))
+      Right(withRewriteToken(response.getRewriteToken)).validNel
     }
   }
 
-  override def mapGoogleResponse(response: RewriteResponse): Unit = ()
+  override def mapGoogleResponse(response: RewriteResponse): ErrorOr[Unit] = ().validNel
   override def withUserProject = this.copy(setUserProject = true)
 }
 
@@ -104,10 +107,10 @@ case class GcsBatchDeleteCommand(
                                   setUserProject: Boolean = false
                                 ) extends IoDeleteCommand(file, swallowIOExceptions) with SingleFileGcsBatchIoCommand[Unit, Void] {
   private val blob = file.blob
-  def operation = {
+  def operation: Storage#Objects#Delete = {
     file.apiStorage.objects().delete(blob.getBucket, blob.getName).setUserProject(userProject)
   }
-  override protected def mapGoogleResponse(response: Void): Unit = ()
+  override protected def mapGoogleResponse(response: Void): ErrorOr[Unit] = ().validNel
   override def onFailure(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders) = {
     if (swallowIOExceptions) Option(Left(())) else None
   }
@@ -129,19 +132,29 @@ sealed trait GcsBatchGetCommand[T] extends SingleFileGcsBatchIoCommand[T, Storag
 }
 
 case class GcsBatchSizeCommand(override val file: GcsPath, setUserProject: Boolean = false) extends IoSizeCommand(file) with GcsBatchGetCommand[Long] {
-  override def mapGoogleResponse(response: StorageObject): Long = response.getSize.longValue()
+  override def mapGoogleResponse(response: StorageObject): ErrorOr[Long] = {
+    Option(response.getSize) match {
+      case None => s"'${file.pathAsString}' in project '${file.projectId}' returned null size".invalidNel
+      case Some(size) => size.longValue().validNel
+    }
+  }
   override def withUserProject = this.copy(setUserProject = true)
   override def commandDescription: String = s"GcsBatchSizeCommand file '$file' setUserProject '$setUserProject'"
 }
 
 case class GcsBatchCrc32Command(override val file: GcsPath, setUserProject: Boolean = false) extends IoHashCommand(file) with GcsBatchGetCommand[String] {
-  override def mapGoogleResponse(response: StorageObject): String = response.getCrc32c
+  override def mapGoogleResponse(response: StorageObject): ErrorOr[String] = {
+    Option(response.getCrc32c) match {
+      case None => s"'${file.pathAsString}' in project '${file.projectId}' returned null CRC32C checksum".invalidNel
+      case Some(crc32c) => crc32c.validNel
+    }
+  }
   override def withUserProject = this.copy(setUserProject = true)
   override def commandDescription: String = s"GcsBatchCrc32Command file '$file' setUserProject '$setUserProject'"
 }
 
 case class GcsBatchTouchCommand(override val file: GcsPath, setUserProject: Boolean = false) extends IoTouchCommand(file) with GcsBatchGetCommand[Unit] {
-  override def mapGoogleResponse(response: StorageObject): Unit = ()
+  override def mapGoogleResponse(response: StorageObject): ErrorOr[Unit] = ().validNel
   override def withUserProject = this.copy(setUserProject = true)
   override def commandDescription: String = s"GcsBatchTouchCommand file '$file' setUserProject '$setUserProject'"
 }
@@ -156,16 +169,17 @@ case class GcsBatchIsDirectoryCommand(override val file: GcsPath, setUserProject
   override def operation: StorageRequest[Objects] = {
     file.apiStorage.objects().list(blob.getBucket).setPrefix(blob.getName.ensureSlashed).setMaxResults(1L).setUserProject(userProject)
   }
-  override def mapGoogleResponse(response: Objects): Boolean = {
+  override def mapGoogleResponse(response: Objects): ErrorOr[Boolean] = {
     // Wrap in an Option because getItems can (always ?) return null if there are no objects
-    Option(response.getItems).map(_.asScala).exists(_.nonEmpty)
+    Option(response.getItems).map(_.asScala).exists(_.nonEmpty).validNel
   }
   override def withUserProject = this.copy(setUserProject = true)
   override def commandDescription: String = s"GcsBatchIsDirectoryCommand file '$file' setUserProject '$setUserProject'"
 }
 
 case class GcsBatchExistsCommand(override val file: GcsPath, setUserProject: Boolean = false) extends IoExistsCommand(file) with GcsBatchGetCommand[Boolean] {
-  override def mapGoogleResponse(response: StorageObject): Boolean = true
+  override def mapGoogleResponse(response: StorageObject): ErrorOr[Boolean] = true.validNel
+
   override def onFailure(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders) = {
     // If the object can't be found, don't fail the request but just return false as we were testing for existence
     if (googleJsonError.getCode == 404) Option(Left(false)) else None

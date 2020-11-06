@@ -17,7 +17,7 @@ import scala.util.matching.Regex
   * Tests that when we pass a timeout into databases that it actually times out.
   *
   * Runs a DBMS specific `SLEEP(10)` and tells the database driver to timeout the query after 5 seconds.
-  * Runs a no-op test on databases that don't have some sort of `SLEEP()` SQL function.
+  * Does not test database systems that don't support some sort of `SLEEP()` SQL function.
   */
 class QueryTimeoutSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures {
 

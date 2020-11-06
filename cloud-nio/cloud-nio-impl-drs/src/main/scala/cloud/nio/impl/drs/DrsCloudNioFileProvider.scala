@@ -12,11 +12,8 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.http.HttpStatus
 
 
-class DrsCloudNioFileProvider(scheme: String,
-                              drsPathResolver: EngineDrsPathResolver,
+class DrsCloudNioFileProvider(drsPathResolver: EngineDrsPathResolver,
                               drsReadInterpreter: DrsReadInterpreter) extends CloudNioFileProvider {
-
-  private def getDrsPath(cloudHost: String, cloudPath: String): String = s"$scheme://$cloudHost/$cloudPath"
 
   private def checkIfPathExistsThroughMartha(drsPath: String): IO[Boolean] = {
     /*
@@ -33,32 +30,23 @@ class DrsCloudNioFileProvider(scheme: String,
     }
   }
 
-
-  override def existsPath(cloudHost: String, cloudPath: String): Boolean =
-    checkIfPathExistsThroughMartha(getDrsPath(cloudHost, cloudPath)).unsafeRunSync()
-
+  override def existsPath(drsPath: String, unused: String): Boolean =
+    checkIfPathExistsThroughMartha(drsPath).unsafeRunSync()
 
   override def existsPaths(cloudHost: String, cloudPathPrefix: String): Boolean =
     existsPath(cloudHost, cloudPathPrefix)
 
-
-  override def listObjects(cloudHost: String, cloudPathPrefix: String, markerOption: Option[String]): CloudNioFileList = {
-    val exists = existsPath(cloudHost, cloudPathPrefix)
-    val list = if (exists) List(cloudPathPrefix) else Nil
-    CloudNioFileList(list, None)
+  override def listObjects(drsPath: String, unused: String, markerOption: Option[String]): CloudNioFileList = {
+    throw new UnsupportedOperationException("DRS currently doesn't support list.")
   }
-
 
   override def copy(sourceCloudHost: String, sourceCloudPath: String, targetCloudHost: String, targetCloudPath: String): Unit =
     throw new UnsupportedOperationException("DRS currently doesn't support copy.")
 
-
   override def deleteIfExists(cloudHost: String, cloudPath: String): Boolean =
     throw new UnsupportedOperationException("DRS currently doesn't support delete.")
 
-
-  override def read(cloudHost: String, cloudPath: String, offset: Long): ReadableByteChannel = {
-    val drsPath = getDrsPath(cloudHost,cloudPath)
+  override def read(drsPath: String, unused: String, offset: Long): ReadableByteChannel = {
     val fields = NonEmptyList.of(MarthaField.GsUri, MarthaField.GoogleServiceAccount)
 
     val byteChannelIO = for {
@@ -71,13 +59,10 @@ class DrsCloudNioFileProvider(scheme: String,
     }.unsafeRunSync()
   }
 
-
   override def write(cloudHost: String, cloudPath: String): WritableByteChannel =
     throw new UnsupportedOperationException("DRS currently doesn't support write.")
 
-
-  override def fileAttributes(cloudHost: String, cloudPath: String): Option[CloudNioRegularFileAttributes] = {
-    val drsPath = getDrsPath(cloudHost,cloudPath)
+  override def fileAttributes(drsPath: String, unused: String): Option[CloudNioRegularFileAttributes] = {
     val fields = NonEmptyList.of(MarthaField.Size, MarthaField.TimeCreated, MarthaField.TimeUpdated, MarthaField.Hashes)
 
     val fileAttributesIO = for {

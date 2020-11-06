@@ -30,6 +30,22 @@ object CopyWorkflowLogsActor {
             ioActor: ActorRef,
             workflowLogConfigurationOption: Option[WorkflowLogConfiguration] =
             WorkflowLogger.workflowLogConfiguration,
+            /*
+            The theory is that the `GcsBatchCommandBuilder` copies the temporary workflow logs from the local disk to
+            GCS. Then later, the separate `DefaultIOCommandBuilder` deletes files from the local disk.
+
+            But...
+
+            I believe the `GcsBatchCommandBuilder` _always_ fails to create a copy command as it only copies from GCS to
+            GCS. Since a GCS to GCS copy command isn't created the `IoCommandBuilder.copyCommand` returns its
+            `DefaultIoCopyCommand`.
+
+            Then `cromwell.engine.io.nio.NioFlow.copy` does the copy.
+
+            So in theory one could just use the `DefaultIoCommandBuilder` for both command builders. However
+            attempting-to-use the `GcsBatchCommandBuilder` to create copy commands is the way this was previously
+            implemented, It Works (TM), and I'm not changing it for now.
+             */
             copyCommandBuilder: IoCommandBuilder = GcsBatchCommandBuilder,
             deleteCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder,
            ): Props = {

@@ -142,11 +142,13 @@ object EngineFunctionEvaluators {
       a.param.evaluateType(linkedValues).flatMap {
         case v if WomBooleanType.isCoerceableFrom(v) ||
           WomIntegerType.isCoerceableFrom(v) ||
+          WomFloatType.isCoerceableFrom(v) ||
           WomStringType.isCoerceableFrom(v) ||
           WomObjectType.isCoerceableFrom(v) ||
+          WomPairType(WomAnyType, WomAnyType).isCoerceableFrom(v) ||
           WomArrayType(WomAnyType).isCoerceableFrom(v) => WomSingleFileType.validNel
-        case v => (s"Invalid parameter '${a.param}'. Valid input types are 'Boolean', 'String', 'Integer', 'Object' or " +
-          s"'Array[_]' but got '${v.stableName}'").invalidNel
+        case v => (s"Invalid parameter '${a.param}'. Valid input types are 'Boolean', 'String', 'Integer', 'Float', 'Object'," +
+          s" 'Pair[_, _]', 'Map[_, _] or 'Array[_]' but got '${v.friendlyName}'").invalidNel
       }
     }
   }

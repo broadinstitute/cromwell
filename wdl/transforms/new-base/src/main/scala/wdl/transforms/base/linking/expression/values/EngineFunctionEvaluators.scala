@@ -339,13 +339,11 @@ object EngineFunctionEvaluators {
 
       def evaluateParam(womValue: WomValue): ErrorOr[EvaluatedValue[WomSingleFile]] = {
         womValue match {
-          case v: WomBoolean => convertToSingleFile(v)
-          case v: WomString => v.coerceToType[WomString].flatMap(convertToSingleFile)
-          case v: WomInteger => v.coerceToType[WomInteger].flatMap(convertToSingleFile)
+          case WomBoolean(_) | WomString(_) | WomInteger(_) | WomFloat(_) | WomPair(_, _) => convertToSingleFile(womValue)
           case v if v.coercionDefined[WomObject] => v.coerceToType[WomObject].flatMap(convertToSingleFile)
           case v if v.coercionDefined[WomArray] => v.coerceToType[WomArray].flatMap(convertToSingleFile)
-          case _ => (s"The '$functionName' method expects one of 'Boolean', 'String', 'Integer', 'Object' or 'Array[_]' " +
-            s"argument but instead got '${womValue.womType.stableName}'.").invalidNel
+          case _ => (s"The '$functionName' method expects one of 'Boolean', 'String', 'Integer', 'Float', 'Object', 'Pair[_, _]', " +
+            s"'Map[_, _] or 'Array[_]' argument but instead got '${womValue.womType.friendlyName}'.").invalidNel
         }
       }
 

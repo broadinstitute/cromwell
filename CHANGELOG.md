@@ -4,8 +4,9 @@
 
 ### Bug Fixes
 
-* Fixed a bug where `write_json()` failed for `Array[_]` inputs. It should now work for `Boolean`, `String`, `Integer`, `Object` and `Array[_]` 
-(including array of objects) type inputs. More information on WDL Type to JSON Type conversion can be found [here](https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#mixed-read_jsonstringfile).
+* Fixed a bug where `write_json()` failed for `Array[_]` inputs. It should now work for `Boolean`, `String`, `Integer`, `Float`,
+ `Pair[_, _]`, `Object`, `Map[_, _]` and `Array[_]` (including array of objects) type inputs. More information on WDL Type to JSON Type 
+ conversion can be found [here](https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#mixed-read_jsonstringfile).
 
 ### Spark backend support removal
 

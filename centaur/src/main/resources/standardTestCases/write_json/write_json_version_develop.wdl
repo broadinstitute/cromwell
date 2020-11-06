@@ -1,5 +1,10 @@
 version development
 
+struct Random {
+    Int index
+    String name
+}
+
 workflow write_json_version_develop {
     input {
         Array[Int] indices = [0, 1, 2]
@@ -31,7 +36,7 @@ task create_single_object {
         echo "Creating single object"
 	}
 	output {
-        Object out = object {index: i, name: "mr_bean"}
+        Random out = object {index: i, name: "mr_bean"}
 	}
     runtime {
         docker: "ubuntu:latest"

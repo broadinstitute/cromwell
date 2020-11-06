@@ -194,7 +194,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
                               returnCode = returnCode,
                             ))
                         // Something went wrong in generating duplication commands.
-                        // We consider this loggable error because we don't expect this to happen:
+                        // We consider this a loggable error because we don't expect this to happen:
                         case Failure(failure) => failAndStop(CopyAttemptError(failure))
                       }
                     case _ => succeedAndStop(returnCode, destinationCallOutputs, destinationDetritus)

@@ -88,7 +88,7 @@ object Dependencies {
   private val mouseV = "0.25"
   private val mysqlV = "8.0.22"
   private val nettyV = "4.1.46.Final"
-  private val owlApiV = "5.1.16"
+  private val owlApiV = "5.1.17"
   private val paradiseV = "2.1.1"
   private val pegdownV = "1.6.0"
   // For org.postgresql:postgresql 42.2.6 - 42.2.14:

@@ -113,7 +113,7 @@ object Dependencies {
   private val simulacrumV = "1.0.1"
   private val slf4jV = "1.7.30"
   private val slickCatsV = "0.10.2"
-  private val testContainersScalaV = "0.38.4"
+  private val testContainersScalaV = "0.38.6"
 
   /* If you're about to update our Slick version:
     * Consider checking whether the new Slick version passes tests with upserts enabled (eg KeyValueDatabaseSpec)

@@ -14,5 +14,6 @@
     "Mutect2.ref_dict": "s3://cromwell-integration-tests/somatic-b37/Homo_sapiens_assembly19.dict",
     "Mutect2.artifact_modes": ["G/T", "C/T"],
     "Mutect2.onco_ds_tar_gz": "s3://cromwell-integration-tests/somatic-b37/oncotator_v1_ds_April052016.tar.gz",
-    "Mutect2.scatter_count": 50
+    "Mutect2.scatter_count": 50,
+    "Mutect2.emergency_extra_disk": 10
 }

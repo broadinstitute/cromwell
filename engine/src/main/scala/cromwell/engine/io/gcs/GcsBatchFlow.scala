@@ -9,6 +9,8 @@ import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.services.storage.Storage
+import com.typesafe.scalalogging.StrictLogging
+import common.util.StringUtil.EnhancedToStringable
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.engine.io.IoActor._
@@ -33,13 +35,14 @@ object GcsBatchFlow {
   private val ReadForbiddenPattern = ".*does not have storage\\.objects\\.(?:get|list|copy) access to ([^/]+).*".r.pattern
 
   /* Returns `Some(bucket)` if the specified argument represents a forbidden attempt to read from `bucket`. */
-  private[gcs] def getReadForbiddenBucket(failure: Throwable): Option[String] = {
-    val matcher = ReadForbiddenPattern.matcher(failure.getMessage)
+  private[gcs] def getReadForbiddenBucket(errorMsg: String): Option[String] = {
+    val matcher = ReadForbiddenPattern.matcher(errorMsg)
     matcher.matches().option(matcher.group(1))
   }
 }
 
-class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandContext[_] => Throwable => Unit, applicationName: String)(implicit ec: ExecutionContext) {
+class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandContext[_] => Throwable => Unit, applicationName: String)
+                  (implicit ec: ExecutionContext) extends StrictLogging {
 
   // Does not carry any authentication, assumes all underlying requests are properly authenticated
   private val httpRequestInitializer = new HttpRequestInitializer {
@@ -126,12 +129,19 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     // Add all requests to the batch
     contexts foreach { _.queue(batchRequest) }
 
+    val batchCommandNamesList = contexts.map(_.request.toString)
     // Try to execute the batch request.
-    // If it fails with an IO Exception, fail all the underlying promises with a retyrable BatchFailedException
+    // If it fails with an IO Exception, fail all the underlying promises with a retryable BatchFailedException
     // Otherwise fail with the original exception
     Try(batchRequest.execute()) match {
-      case Failure(failure: IOException) => failAllPromisesWith(BatchFailedException(failure))
-      case Failure(failure) => failAllPromisesWith(failure)
+      case Failure(failure: IOException) =>
+        logger.info(s"Failed to execute GCS Batch request. Failed request belonged to batch " +
+          s"${batchCommandNamesList.mkString("\n")}.", failure.toPrettyElidedString(limit = 1000))
+        failAllPromisesWith(BatchFailedException(failure))
+      case Failure(failure) =>
+        logger.info(s"Failed to execute GCS Batch request. Failed request belonged to batch " +
+          s"${batchCommandNamesList.mkString("\n")}.", failure.toPrettyElidedString(limit = 1000))
+        failAllPromisesWith(failure)
       case _ =>
     }
 
@@ -165,8 +175,12 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
       }
     // Otherwise just fail the command, either with a specific "read forbidden" failure or just generic failure.
     case failure =>
-      getReadForbiddenBucket(failure) match {
-        case Some(bucket) => failReadForbidden(context, failure, bucket)
+      Option(failure.getMessage) match {
+        case Some(errorMsg) =>
+          getReadForbiddenBucket(errorMsg) match {
+            case Some(bucket) => failReadForbidden(context, failure, bucket)
+            case None => fail(context, failure)
+          }
         case None => fail(context, failure)
       }
   }

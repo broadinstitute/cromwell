@@ -2,10 +2,11 @@ package wdl.transforms.biscayne
 
 import java.util
 
-import cats.instances.either._
 import common.Checked
 import common.assertion.ErrorOrAssertions._
 import common.transforms.CheckedAtoB
+import cats.instances.either._
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wdl.biscayne.parser.WdlParser
@@ -39,7 +40,7 @@ object Ast2WdlomSpec {
   }
 }
 
-class Ast2WdlomSpec extends AnyFlatSpec with Matchers {
+class Ast2WdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
 
 

@@ -1,5 +1,6 @@
 package cwl
 
+import common.assertion.CromwellTimeoutSpec
 import common.validation.Validation._
 import cwl.internal.{EcmaScriptEncoder, EcmaScriptUtil}
 import org.scalatest.flatspec.AnyFlatSpec
@@ -8,7 +9,7 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import wom.values.{WomFloat, WomMaybePopulatedFile, WomString, WomValue}
 
 
-class CwlEcmaScriptDecoderSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
+class CwlEcmaScriptDecoderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks {
   behavior of "CwlJsDecoder"
 
   val decodeTests= Table[String, String, Map[String, Map[String, WomValue]], WomValue](

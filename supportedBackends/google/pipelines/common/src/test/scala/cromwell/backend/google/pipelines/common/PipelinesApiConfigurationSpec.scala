@@ -1,6 +1,7 @@
 package cromwell.backend.google.pipelines.common
 
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.BackendConfigurationDescriptor
 import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig._
 import cromwell.cloudsupport.gcp.GoogleConfiguration
@@ -10,7 +11,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-class PipelinesApiConfigurationSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks with BeforeAndAfterAll {
+class PipelinesApiConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks with BeforeAndAfterAll {
 
   behavior of "PipelinesApiConfigurationSpec"
 

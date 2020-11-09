@@ -1,4 +1,5 @@
 {
     # For the below JDR uuid, Martha does not return a service account
-    "drs_usa_jdr.localize_jdr_drs_with_usa.file1": "drs://jade.datarepo-dev.broadinstitute.org/v1_0c86170e-312d-4b39-a0a4-2a2bfaa24c7a_c0e40912-8b14-43f6-9a2f-b278144d0060"
+    "drs_usa_jdr.file1":
+        "drs://jade.datarepo-dev.broadinstitute.org/v1_f90f5d7f-c507-4e56-abfc-b965a66023fb_585f3f19-985f-43b0-ab6a-79fa4c8310fc"
 }

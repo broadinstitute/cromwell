@@ -19,7 +19,7 @@ import scala.collection.JavaConverters._
   * @tparam T Return type of the IoCommand
   * @tparam U Return type of the Google response
   */
-sealed trait GcsBatchIoCommand[T, U] extends IoCommand[T] {
+trait GcsBatchIoCommand[T, U] extends IoCommand[T] {
   /**
     * StorageRequest operation to be executed by this command
     */
@@ -38,6 +38,7 @@ sealed trait GcsBatchIoCommand[T, U] extends IoCommand[T] {
     * Most commands will reply with Left(value).
     */
   def onSuccess(response: U, httpHeaders: HttpHeaders): Either[T, GcsBatchIoCommand[T, U]] = {
+    logIOMsgOverLimit(s"GcsBatchIoCommand.onSuccess '${response.toPrettyElidedString(limit = 1000)}'")
     Left(mapGoogleResponse(response))
   }
 
@@ -67,6 +68,10 @@ case class GcsBatchCopyCommand(
                               ) extends IoCopyCommand(source, destination, overwrite) with GcsBatchIoCommand[Unit, RewriteResponse] {
   val sourceBlob = source.blob
   val destinationBlob = destination.blob
+
+  override def commandDescription: String = s"GcsBatchCopyCommand source '$source' destination '$destination' " +
+    s"overwrite '$overwrite' setUserProject '$setUserProject'"
+
   override def operation: StorageRequest[RewriteResponse] = {
     val rewriteOperation = source.apiStorage.objects()
       .rewrite(sourceBlob.getBucket, sourceBlob.getName, destinationBlob.getBucket, destinationBlob.getName, null)
@@ -107,6 +112,9 @@ case class GcsBatchDeleteCommand(
     if (swallowIOExceptions) Option(Left(())) else None
   }
   override def withUserProject = this.copy(setUserProject = true)
+
+  override def commandDescription: String = s"GcsBatchDeleteCommand file '$file' swallowIOExceptions " +
+    s"'$swallowIOExceptions' setUserProject '$setUserProject'"
 }
 
 /**
@@ -123,16 +131,19 @@ sealed trait GcsBatchGetCommand[T] extends SingleFileGcsBatchIoCommand[T, Storag
 case class GcsBatchSizeCommand(override val file: GcsPath, setUserProject: Boolean = false) extends IoSizeCommand(file) with GcsBatchGetCommand[Long] {
   override def mapGoogleResponse(response: StorageObject): Long = response.getSize.longValue()
   override def withUserProject = this.copy(setUserProject = true)
+  override def commandDescription: String = s"GcsBatchSizeCommand file '$file' setUserProject '$setUserProject'"
 }
 
 case class GcsBatchCrc32Command(override val file: GcsPath, setUserProject: Boolean = false) extends IoHashCommand(file) with GcsBatchGetCommand[String] {
   override def mapGoogleResponse(response: StorageObject): String = response.getCrc32c
   override def withUserProject = this.copy(setUserProject = true)
+  override def commandDescription: String = s"GcsBatchCrc32Command file '$file' setUserProject '$setUserProject'"
 }
 
 case class GcsBatchTouchCommand(override val file: GcsPath, setUserProject: Boolean = false) extends IoTouchCommand(file) with GcsBatchGetCommand[Unit] {
   override def mapGoogleResponse(response: StorageObject): Unit = ()
   override def withUserProject = this.copy(setUserProject = true)
+  override def commandDescription: String = s"GcsBatchTouchCommand file '$file' setUserProject '$setUserProject'"
 }
 
 /*
@@ -150,14 +161,15 @@ case class GcsBatchIsDirectoryCommand(override val file: GcsPath, setUserProject
     Option(response.getItems).map(_.asScala).exists(_.nonEmpty)
   }
   override def withUserProject = this.copy(setUserProject = true)
+  override def commandDescription: String = s"GcsBatchIsDirectoryCommand file '$file' setUserProject '$setUserProject'"
 }
 
 case class GcsBatchExistsCommand(override val file: GcsPath, setUserProject: Boolean = false) extends IoExistsCommand(file) with GcsBatchGetCommand[Boolean] {
   override def mapGoogleResponse(response: StorageObject): Boolean = true
-
   override def onFailure(googleJsonError: GoogleJsonError, httpHeaders: HttpHeaders) = {
     // If the object can't be found, don't fail the request but just return false as we were testing for existence
     if (googleJsonError.getCode == 404) Option(Left(false)) else None
   }
   override def withUserProject = this.copy(setUserProject = true)
+  override def commandDescription: String = s"GcsBatchExistsCommand file '$file' setUserProject '$setUserProject'"
 }

@@ -2,9 +2,9 @@ package cromwell.api
 
 import java.time.OffsetDateTime
 
-import akka.actor.ActorSystem
 import akka.http.scaladsl.model.HttpResponse
 import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.stream.ActorMaterializer
 import cats.arrow.FunctionK
 import cats.data.EitherT
 import cats.effect.{ContextShift, IO, Timer}
@@ -61,7 +61,7 @@ package object model {
       EitherT(responseIoT.value.timeout(duration))
     }
 
-    def asIo(implicit executionContext: ExecutionContext, actorSystem: ActorSystem): IO[SuccessType] = {
+    def asIo(implicit materializer: ActorMaterializer, executionContext: ExecutionContext): IO[SuccessType] = {
       responseIoT.value flatMap {
         case Left(response) =>
           implicit def cs = IO.contextShift(executionContext)

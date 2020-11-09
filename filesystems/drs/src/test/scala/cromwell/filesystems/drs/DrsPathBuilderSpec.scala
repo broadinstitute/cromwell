@@ -1,14 +1,11 @@
 package cromwell.filesystems.drs
 
-import java.nio.channels.ReadableByteChannel
-
-import cats.effect.IO
-import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, MarthaResponse}
+import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
+import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
 import com.google.cloud.NoCredentials
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.TestKitSuite
 import cromwell.core.path._
-import org.apache.http.impl.client.HttpClientBuilder
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.Tables.Table
@@ -46,13 +43,14 @@ class DrsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       normalize = false,
       pathAsString = s"drs://$bucket/hello/world/with spaces",
       pathWithoutScheme = s"$bucket/hello/world/with spaces",
-      parent = s"drs://$bucket/hello/world/",
-      getParent = s"drs://$bucket/hello/world/",
-      root = s"drs://$bucket/",
-      name = "with spaces",
-      getFileName = s"drs://$bucket/with spaces",
-      getNameCount = 3,
-      isAbsolute = true),
+      parent = null,
+      getParent = null,
+      root = s"drs://$bucket/hello/world/with spaces",
+      name = "",
+      getFileName = null,
+      getNameCount = 1,
+      isAbsolute = false,
+    ),
 
     GoodPath(
       description = "a path with non-ascii",
@@ -60,13 +58,14 @@ class DrsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       normalize = false,
       pathAsString = s"drs://$bucket/hello/world/with non ascii £€",
       pathWithoutScheme = s"$bucket/hello/world/with non ascii £€",
-      parent = s"drs://$bucket/hello/world/",
-      getParent = s"drs://$bucket/hello/world/",
-      root = s"drs://$bucket/",
-      name = "with non ascii £€",
-      getFileName = s"drs://$bucket/with non ascii £€",
-      getNameCount = 3,
-      isAbsolute = true),
+      parent = null,
+      getParent = null,
+      root = s"drs://$bucket/hello/world/with non ascii £€",
+      name = "",
+      getFileName = null,
+      getNameCount = 1,
+      isAbsolute = false,
+    ),
 
     GoodPath(
       description = "a gs uri path with encoded characters",
@@ -74,13 +73,14 @@ class DrsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       normalize = false,
       pathAsString = s"drs://$bucket/hello/world/encoded%20spaces",
       pathWithoutScheme = s"$bucket/hello/world/encoded%20spaces",
-      parent = s"drs://$bucket/hello/world/",
-      getParent = s"drs://$bucket/hello/world/",
-      root = s"drs://$bucket/",
-      name = "encoded%20spaces",
-      getFileName = s"drs://$bucket/encoded%20spaces",
-      getNameCount = 3,
-      isAbsolute = true),
+      parent = null,
+      getParent = null,
+      root = s"drs://$bucket/hello/world/encoded%20spaces",
+      name = "",
+      getFileName = null,
+      getNameCount = 1,
+      isAbsolute = false,
+    ),
 
     GoodPath(
       description = "a file at the top of the bucket",
@@ -88,27 +88,29 @@ class DrsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       normalize = false,
       pathAsString = s"drs://$bucket/hello",
       pathWithoutScheme = s"$bucket/hello",
-      parent = s"drs://$bucket/",
-      getParent = s"drs://$bucket/",
-      root = s"drs://$bucket/",
-      name = "hello",
-      getFileName = s"drs://$bucket/hello",
+      parent = null,
+      getParent = null,
+      root = s"drs://$bucket/hello",
+      name = "",
+      getFileName = null,
       getNameCount = 1,
-      isAbsolute = true),
+      isAbsolute = false,
+    ),
 
     GoodPath(
       description = "a path ending in /",
       path = s"drs://$bucket/hello/world/",
       normalize = false,
-      pathAsString = s"drs://$bucket/hello/world",
-      pathWithoutScheme = s"$bucket/hello/world",
-      parent = s"drs://$bucket/hello/",
-      getParent = s"drs://$bucket/hello/",
-      root = s"drs://$bucket/",
-      name = "world",
-      getFileName = s"drs://$bucket/world",
-      getNameCount = 2,
-      isAbsolute = true),
+      pathAsString = s"drs://$bucket/hello/world/",
+      pathWithoutScheme = s"$bucket/hello/world/",
+      parent = null,
+      getParent = null,
+      root = s"drs://$bucket/hello/world/",
+      name = "",
+      getFileName = null,
+      getNameCount = 1,
+      isAbsolute = false,
+    ),
 
     // Special paths
 
@@ -119,12 +121,13 @@ class DrsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       pathAsString = s"drs://$bucket/.",
       pathWithoutScheme = s"$bucket/.",
       parent = null,
-      getParent = s"drs://$bucket/",
-      root = s"drs://$bucket/",
+      getParent = null,
+      root = s"drs://$bucket/.",
       name = "",
-      getFileName = s"drs://$bucket/.",
+      getFileName = null,
       getNameCount = 1,
-      isAbsolute = true),
+      isAbsolute = false,
+    ),
 
     GoodPath(
       description = "a bucket with a path ..",
@@ -133,12 +136,13 @@ class DrsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       pathAsString = s"drs://$bucket/..",
       pathWithoutScheme = s"$bucket/..",
       parent = null,
-      getParent = s"drs://$bucket/",
-      root = null,
+      getParent = null,
+      root = s"drs://$bucket/..",
       name = "",
-      getFileName = s"drs://$bucket/..",
+      getFileName = null,
       getNameCount = 1,
-      isAbsolute = true),
+      isAbsolute = false,
+    ),
 
     GoodPath(
       description = "a bucket including . in the path",
@@ -146,13 +150,14 @@ class DrsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       normalize = false,
       pathAsString = s"drs://$bucket/hello/./world",
       pathWithoutScheme = s"$bucket/hello/./world",
-      parent = s"drs://$bucket/hello/",
-      getParent = s"drs://$bucket/hello/./",
-      root = s"drs://$bucket/",
-      name = "world",
-      getFileName = s"drs://$bucket/world",
-      getNameCount = 3,
-      isAbsolute = true),
+      parent = null,
+      getParent = null,
+      root = s"drs://$bucket/hello/./world",
+      name = "",
+      getFileName = null,
+      getNameCount = 1,
+      isAbsolute = false,
+    ),
 
     GoodPath(
       description = "a bucket including .. in the path",
@@ -160,13 +165,14 @@ class DrsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       normalize = false,
       pathAsString = s"drs://$bucket/hello/../world",
       pathWithoutScheme = s"$bucket/hello/../world",
-      parent = s"drs://$bucket/",
-      getParent = s"drs://$bucket/hello/../",
-      root = s"drs://$bucket/",
-      name = "world",
-      getFileName = s"drs://$bucket/world",
-      getNameCount = 3,
-      isAbsolute = true),
+      parent = null,
+      getParent = null,
+      root = s"drs://$bucket/hello/../world",
+      name = "",
+      getFileName = null,
+      getNameCount = 1,
+      isAbsolute = false,
+    ),
 
     // Normalized
 
@@ -174,57 +180,61 @@ class DrsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       description = "a bucket with a normalized path .",
       path = s"drs://$bucket/.",
       normalize = true,
-      pathAsString = s"drs://$bucket/",
-      pathWithoutScheme = s"$bucket/",
+      pathAsString = s"drs://$bucket/.",
+      pathWithoutScheme = s"$bucket/.",
       parent = null,
       getParent = null,
-      root = s"drs://$bucket/",
+      root = s"drs://$bucket/.",
       name = "",
       getFileName = null,
-      getNameCount = 0,
-      isAbsolute = true),
+      getNameCount = 1,
+      isAbsolute = false,
+    ),
 
     GoodPath(
       description = "a bucket with a normalized path ..",
       path = s"drs://$bucket/..",
       normalize = true,
-      pathAsString = s"drs://$bucket/",
-      pathWithoutScheme = s"$bucket/",
+      pathAsString = s"drs://$bucket/..",
+      pathWithoutScheme = s"$bucket/..",
       parent = null,
       getParent = null,
-      root = s"drs://$bucket/",
+      root = s"drs://$bucket/..",
       name = "",
       getFileName = null,
       getNameCount = 1,
-      isAbsolute = false),
+      isAbsolute = false,
+    ),
 
     GoodPath(
       description = "a bucket including . in the normalized path",
       path = s"drs://$bucket/hello/./world",
       normalize = true,
-      pathAsString = s"drs://$bucket/hello/world",
-      pathWithoutScheme = s"$bucket/hello/world",
-      parent = s"drs://$bucket/hello/",
-      getParent = s"drs://$bucket/hello/",
-      root = s"drs://$bucket/",
-      name = "world",
-      getFileName = s"drs://$bucket/world",
-      getNameCount = 2,
-      isAbsolute = true),
+      pathAsString = s"drs://$bucket/hello/./world",
+      pathWithoutScheme = s"$bucket/hello/./world",
+      parent = null,
+      getParent = null,
+      root = s"drs://$bucket/hello/./world",
+      name = "",
+      getFileName = null,
+      getNameCount = 1,
+      isAbsolute = false,
+    ),
 
     GoodPath(
       description = "a bucket including .. in the normalized path",
       path = s"drs://$bucket/hello/../world",
       normalize = true,
-      pathAsString = s"drs://$bucket/world",
-      pathWithoutScheme = s"$bucket/world",
-      parent = s"drs://$bucket/",
-      getParent = s"drs://$bucket/",
-      root = s"drs://$bucket/",
-      name = "world",
-      getFileName = s"drs://$bucket/world",
+      pathAsString = s"drs://$bucket/hello/../world",
+      pathWithoutScheme = s"$bucket/hello/../world",
+      parent = null,
+      getParent = null,
+      root = s"drs://$bucket/hello/../world",
+      name = "",
+      getFileName = null,
       getNameCount = 1,
-      isAbsolute = true),
+      isAbsolute = false,
+    ),
 
     GoodPath(
       description = "a bucket with an underscore",
@@ -232,13 +242,14 @@ class DrsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       normalize = true,
       pathAsString = s"drs://hello_underscore/world",
       pathWithoutScheme = s"hello_underscore/world",
-      parent = s"drs://hello_underscore/",
-      getParent = s"drs://hello_underscore/",
-      root = s"drs://hello_underscore/",
-      name = "world",
-      getFileName = s"drs://hello_underscore/world",
+      parent = null,
+      getParent = null,
+      root = s"drs://hello_underscore/world",
+      name = "",
+      getFileName = null,
       getNameCount = 1,
-      isAbsolute = true),
+      isAbsolute = false,
+    ),
 
     GoodPath(
       description = "a bucket named .",
@@ -246,13 +257,14 @@ class DrsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       normalize = true,
       pathAsString = s"drs://./hello/world",
       pathWithoutScheme = s"./hello/world",
-      parent = s"drs://./hello/",
-      getParent = s"drs://./hello/",
-      root = s"drs://./",
-      name = "world",
-      getFileName = s"drs://./world",
-      getNameCount = 2,
-      isAbsolute = true),
+      parent = null,
+      getParent = null,
+      root = s"drs://./hello/world",
+      name = "",
+      getFileName = null,
+      getNameCount = 1,
+      isAbsolute = false,
+    ),
 
     GoodPath(
       description = "a non ascii bucket name",
@@ -260,13 +272,14 @@ class DrsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       normalize = true,
       pathAsString = s"drs://nonasciibucket£€/hello/world",
       pathWithoutScheme = s"nonasciibucket£€/hello/world",
-      parent = s"drs://nonasciibucket£€/hello/",
-      getParent = s"drs://nonasciibucket£€/hello/",
-      root = s"drs://nonasciibucket£€/",
-      name = "world",
-      getFileName = s"drs://nonasciibucket£€/world",
-      getNameCount = 2,
-      isAbsolute = true),
+      parent = null,
+      getParent = null,
+      root = s"drs://nonasciibucket£€/hello/world",
+      name = "",
+      getFileName = null,
+      getNameCount = 1,
+      isAbsolute = false,
+    ),
 
     GoodPath(
       description = "an non-absolute path without a host",
@@ -280,51 +293,99 @@ class DrsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
       name = "",
       getFileName = null,
       getNameCount = 1,
-      isAbsolute = false),
+      isAbsolute = false,
+    ),
 
     GoodPath(
       description = "an absolute path without a host",
       path = s"drs://blah",
       normalize = false,
-      pathAsString = s"drs://blah/",
-      pathWithoutScheme = s"blah/",
+      pathAsString = s"drs://blah",
+      pathWithoutScheme = s"blah",
       parent = null,
       getParent = null,
-      root = s"drs://blah/",
+      root = s"drs://blah",
       name = "",
       getFileName = null,
       getNameCount = 1,
-      isAbsolute = false)
+      isAbsolute = false,
+    ),
+
+    // No spec says this is illegal... so pass it to Martha's various GCFs JIC
+    GoodPath(
+      description = "a bucketless path",
+      path = s"drs://",
+      normalize = false,
+      pathAsString = s"drs://",
+      pathWithoutScheme = "",
+      parent = null,
+      getParent = null,
+      root = s"drs://",
+      name = "",
+      getFileName = null,
+      getNameCount = 1,
+      isAbsolute = false,
+    ),
+
+    // Sample via: https://docs.google.com/document/d/1Wf4enSGOEXD5_AE-uzLoYqjIp5MnePbZ6kYTVFp1WoM/edit
+    GoodPath(
+      description = "a path with a query string",
+      path = "drs://drs.data.humancellatlas.org/8aca942c-17f7-4e34-b8fd-3c12e50f9291?version=2019-07-04T151444.185805Z",
+      normalize = false,
+      pathAsString =
+        "drs://drs.data.humancellatlas.org/8aca942c-17f7-4e34-b8fd-3c12e50f9291?version=2019-07-04T151444.185805Z",
+      pathWithoutScheme =
+        "drs.data.humancellatlas.org/8aca942c-17f7-4e34-b8fd-3c12e50f9291?version=2019-07-04T151444.185805Z",
+      parent = null,
+      getParent = null,
+      root =
+        "drs://drs.data.humancellatlas.org/8aca942c-17f7-4e34-b8fd-3c12e50f9291?version=2019-07-04T151444.185805Z",
+      name = "",
+      getFileName = null,
+      getNameCount = 1,
+      isAbsolute = false,
+    ),
+
+    // Sample via: https://docs.google.com/document/d/1Wf4enSGOEXD5_AE-uzLoYqjIp5MnePbZ6kYTVFp1WoM/edit
+    GoodPath(
+      description = "a compact identifier-based path",
+      path = s"drs://dg.ANV0:dg.ANV0/0db6577e-57bd-48a1-93c6-327c292bcb6b",
+      normalize = false,
+      pathAsString = s"drs://dg.ANV0:dg.ANV0/0db6577e-57bd-48a1-93c6-327c292bcb6b",
+      pathWithoutScheme = "dg.ANV0:dg.ANV0/0db6577e-57bd-48a1-93c6-327c292bcb6b",
+      parent = null,
+      getParent = null,
+      root = s"drs://dg.ANV0:dg.ANV0/0db6577e-57bd-48a1-93c6-327c292bcb6b",
+      name = "",
+      getFileName = null,
+      getNameCount = 1,
+      isAbsolute = false,
+    ),
   )
 
   private def badPaths = Seq(
     BadPath("an empty path", "", " does not have a drs scheme."),
     BadPath("a GCS path", s"gs://$bucket/hello/world", "gs://mymadeupbucket/hello/world does not have a drs scheme."),
-    BadPath("an bucketless path", "drs://", "Expected authority at index 6: drs://"),
     BadPath("a https path", "https://hello/world", "https://hello/world does not have a drs scheme."),
     BadPath("a file uri path", "file:///hello/world", "file:///hello/world does not have a drs scheme."),
     BadPath("a relative file path", "hello/world", "hello/world does not have a drs scheme."),
     BadPath("an absolute file path", "/hello/world", "/hello/world does not have a drs scheme."),
   )
 
-  private def drsReadInterpreter(marthaResponse: MarthaResponse): IO[ReadableByteChannel] =
+  private val drsReadInterpreter: DrsReadInterpreter = (_, _) =>
     throw new UnsupportedOperationException("Currently DrsPathBuilderSpec doesn't need to use drs read interpreter.")
-
 
   private val marthaConfig: Config = ConfigFactory.parseString(
     """martha {
       |   url = "http://martha-url"
-      |   request.json-template = "{"key": "${holder}"}"
       |}
       |""".stripMargin
   )
 
   private lazy val fakeCredentials = NoCredentials.getInstance
 
-  private lazy val httpClientBuilder = HttpClientBuilder.create()
-
   private lazy val drsPathBuilder = DrsPathBuilder(
-    new DrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials, httpClientBuilder, drsReadInterpreter),
+    new DrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials, drsReadInterpreter),
     None,
   )
 }

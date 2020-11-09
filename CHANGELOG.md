@@ -1,5 +1,57 @@
 # Cromwell Change Log
 
+## 54 Release Notes
+
+### Bug Fixes
+
+* Fixed a bug where `write_json()` failed for `Array[_]` inputs. It should now work for `Boolean`, `String`, `Integer`, `Float`,
+ `Pair[_, _]`, `Object`, `Map[_, _]` and `Array[_]` (including array of objects) type inputs. More information on WDL Type to JSON Type 
+ conversion can be found [here](https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#mixed-read_jsonstringfile).
+
+### Spark backend support removal
+
+Spark backend was not widely used and it was decided to remove it from the codebase in order to narrow the scope of Cromwell code. 
+
+### Improved DRS Localizer logging
+
+Error logging while localizing a DRS URI should now be more clear especially when there is a Requester Pays bucket involved.
+
+### Per-backend hog factors
+Cromwell now allows overriding system-level log factors on back-end level. First, Cromwell will try to use hog-factor 
+defined in the backend config, and if it is not defined, it will default to using system-wide hog factor.
+```conf
+backend {
+  providers {
+    PAPIv2 {
+      config {
+        hog-factor: 2
+      }
+    }
+  }
+}
+```
+For more information about hog factors please see [this page](https://cromwell.readthedocs.io/en/develop/cromwell_features/HogFactors/).
+
+### `martha_v2` Support Removed
+
+Cromwell now only supports resolving DOS or DRS URIs through [Martha](https://github.com/broadinstitute/martha)'s most
+recent metadata endpoint `martha_v3`, dropping support for Martha's previous metadata endpoint `martha_v2`. To switch to
+the new version of Martha's metadata endpoint, update the `martha.url` found in the [filesystems
+config](https://cromwell.readthedocs.io/en/stable/filesystems/Filesystems/#overview) to point to `/martha_v3`. More
+information on Martha's `martha_v3` request and response schema can be found
+[here](https://github.com/broadinstitute/martha#martha-v3).
+
+### DOS/DRS `localization_optional` Support
+
+When running on a backend that supports `localization_optional: true` any DOS or DRS `File` values in the generated
+command line will be substituted with the `gsUri` returned from Martha's `martha_v3` endpoint. More information on
+`localization_optional` can be found [here](https://cromwell.readthedocs.io/en/stable/optimizations/FileLocalization/).
+
+### DOS/DRS metadata retrieval retried by default
+
+Attempts to retrieve DOS/DRS metadata from Martha will be retried by default. More information can be found
+[here](https://cromwell.readthedocs.io/en/stable/optimizations/FileLocalization/).
+
 ## 53 Release Notes
 
 ### Martha v3 Support

@@ -1,7 +1,8 @@
 package wdl.draft3.transforms.wdlom2wom
 
-import better.files.File
 import cats.instances.either._
+import better.files.File
+import common.assertion.CromwellTimeoutSpec
 import common.collections.EnhancedCollections._
 import common.transforms.CheckedAtoB
 import org.scalatest.flatspec.AnyFlatSpec
@@ -21,7 +22,7 @@ import wom.graph.expression.{ExposedExpressionNode, TaskCallInputExpressionNode}
 import wom.graph.{ScatterNode, WorkflowCallNode}
 import wom.types._
 
-class WdlFileToWomSpec extends AnyFlatSpec with Matchers {
+class WdlFileToWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "WDL File to WOM"
 
   val testCases = File("wdl/transforms/draft3/src/test/cases")

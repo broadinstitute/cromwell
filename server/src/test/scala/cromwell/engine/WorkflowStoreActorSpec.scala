@@ -5,12 +5,10 @@ import java.util.UUID
 
 import akka.testkit._
 import cats.data.{NonEmptyList, NonEmptyVector}
-import com.typesafe.config.Config
+import common.assertion.CromwellTimeoutSpec
 import cromwell.core._
 import cromwell.core.abort.{AbortResponse, WorkflowAbortFailureResponse, WorkflowAbortRequestedResponse, WorkflowAbortedResponse}
-import cromwell.database.slick.EngineSlickDatabase
-import cromwell.engine.WorkflowStoreActorSpec._
-import cromwell.engine.workflow.CoordinatedWorkflowStoreBuilder
+import cromwell.engine.workflow.{CoordinatedWorkflowStoreActorBuilder, SqlWorkflowStoreBuilder}
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreState
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
@@ -18,8 +16,6 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreCoordinatedAccessActo
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{NewWorkflowsToStart, NoNewWorkflowsToStart}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.engine.workflow.workflowstore._
-import cromwell.services.EngineServicesStore
-import cromwell.services.ServicesStore.EnhancedSqlDatabase
 import cromwell.services.metadata.MetadataQuery
 import cromwell.services.metadata.MetadataService.{GetMetadataAction, MetadataLookupResponse}
 import cromwell.services.metadata.impl.ReadDatabaseMetadataWorkerActor
@@ -35,16 +31,13 @@ import org.specs2.mock.Mockito
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.Try
 
-class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWorkflowStoreBuilder with Matchers with BeforeAndAfter with Mockito with Eventually {
+class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWorkflowStoreActorBuilder with SqlWorkflowStoreBuilder with Matchers with BeforeAndAfter with Mockito with Eventually with CromwellTimeoutSpec {
   val helloWorldSourceFiles = HelloWorld.asWorkflowSources().asInstanceOf[WorkflowSourceFilesWithoutImports]
   val helloWorldSourceFilesOnHold = HelloWorld.asWorkflowSources(workflowOnHold = true)
   val helloCwlWorldSourceFiles = HelloWorld.asWorkflowSources(workflowType = Option("CWL"), workflowTypeVersion = Option("v1.0"))
   val cromwellId = "f00ba4"
   val heartbeatTtl = 1 hour
-  val rootConfig = CromwellTestKitSpec.DefaultConfig
-  val databaseConfig = rootConfig.getConfig("database")
 
   /**
     * Fold down a list of WorkflowToStart's, checking that their IDs are all unique
@@ -343,7 +336,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
         )
         storeActor ! SubmitWorkflow(helloWorldSourceFiles)
         val workflowId = expectMsgType[WorkflowSubmittedToStore](10.seconds).workflowId
-        coordinatedAccess.actor !
+        coordinatedAccess.coordinatedWorkflowStoreAccessActor !
           WriteHeartbeats(NonEmptyVector.of((workflowId, OffsetDateTime.now())), OffsetDateTime.now())
         expectMsg(10.seconds, 1)
         storeActor ! AbortWorkflowCommand(workflowId)
@@ -411,7 +404,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
 
         Await.result(futureUpdate, 10.seconds.dilated) should be(1)
 
-        coordinatedAccess.actor !
+        coordinatedAccess.coordinatedWorkflowStoreAccessActor !
           WriteHeartbeats(NonEmptyVector.of((workflowId, OffsetDateTime.now())), OffsetDateTime.now())
 
         expectMsg(10.seconds, 1)
@@ -445,17 +438,5 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
         s"Couldn't abort 7ff8dff3-bc80-4500-af3b-57dbe7a6ecbb because no workflow with that ID is in progress")
     }
 
-  }
-}
-
-object WorkflowStoreActorSpec {
-  def runWithDatabase[T](databaseConfig: Config)(block: SqlWorkflowStore => T): T = {
-    val database = new EngineSlickDatabase(databaseConfig).initialized(EngineServicesStore.EngineLiquibaseSettings)
-    try {
-      block(SqlWorkflowStore(database))
-    } finally {
-      Try(database.close())
-      ()
-    }
   }
 }

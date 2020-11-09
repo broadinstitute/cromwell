@@ -3,6 +3,7 @@ package cromwell.backend.google.pipelines.v2alpha1
 import java.nio.file.Paths
 
 import cats.data.NonEmptyList
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.google.pipelines.common.PipelinesApiFileInput
 import cromwell.core.path.DefaultPathBuilder
 import org.mockito.Mockito._
@@ -10,7 +11,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.mockito.MockitoSugar
 
-class PipelinesApiAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers with MockitoSugar {
+class PipelinesApiAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with MockitoSugar {
   behavior of "PipelinesParameterConversions"
 
   it should "group files by bucket" in {

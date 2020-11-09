@@ -3,8 +3,9 @@ package cromwell.backend.sfs
 import java.io.{FileNotFoundException, IOException}
 
 import akka.actor.ActorContext
-import cats.instances.try_._
+import akka.stream.ActorMaterializer
 import cats.syntax.functor._
+import cats.instances.try_._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import common.collections.EnhancedCollections._
@@ -19,7 +20,7 @@ import wom.values._
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.concurrent.Await
+import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration.Duration
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
@@ -40,7 +41,7 @@ object SharedFileSystem extends StrictLogging {
 
   case class PairOfFiles(src: Path, dst: Path)
   type DuplicationStrategy = (Path, Path, Boolean) => Try[Unit]
-  
+
   private def createParentDirectory(executionPath: Path, docker: Boolean) = {
     if (docker) executionPath.parent.createPermissionedDirectories()
     else executionPath.parent.createDirectories()
@@ -49,7 +50,7 @@ object SharedFileSystem extends StrictLogging {
   /**
     * Return a `Success` result if the file has already been localized, otherwise `Failure`.
     */
-  private def localizePathAlreadyLocalized(originalPath: Path, executionPath: Path, docker: Boolean): Try[Unit] = {
+  private def localizePathAlreadyLocalized(originalPath: Path, executionPath: Path): Boolean => Try[Unit] = { _ =>
     if (executionPath.exists) Success(()) else Failure(new RuntimeException(s"$originalPath doesn't exist"))
   }
 
@@ -228,8 +229,9 @@ trait SharedFileSystem extends PathFactory {
       case unsupported => throw new UnsupportedOperationException(s"Strategy $unsupported is not recognized")
     }
 
+    val alreadyLocalized: DuplicationStrategy = localizePathAlreadyLocalized(_, _)(_)
     // Prepend the default duplication strategy, and return the sequence
-    localizePathAlreadyLocalized _ +: mappedDuplicationStrategies
+    alreadyLocalized +: mappedDuplicationStrategies
   }
 
   def hostAbsoluteFilePath(jobPaths: JobPaths, pathString: String): Path = {
@@ -242,7 +244,7 @@ trait SharedFileSystem extends PathFactory {
   }
 
   def outputMapper(job: JobPaths)(womValue: WomValue): Try[WomValue] = {
-    WomFileMapper.mapWomFiles(mapJobWomFile(job), Set.empty)(womValue)
+    WomFileMapper.mapWomFiles(mapJobWomFile(job))(womValue)
   }
 
   def mapJobWomFile(jobPaths: JobPaths)(womFile: WomFile): WomFile = {
@@ -266,7 +268,7 @@ trait SharedFileSystem extends PathFactory {
    */
   def localizeInputs(inputsRoot: Path, docker: Boolean)(inputs: WomEvaluatedCallInputs): Try[WomEvaluatedCallInputs] = {
     TryUtil.sequenceMap(
-      inputs safeMapValues WomFileMapper.mapWomFiles(localizeWomFile(inputsRoot, docker), Set.empty),
+      inputs safeMapValues WomFileMapper.mapWomFiles(localizeWomFile(inputsRoot, docker)),
       "Failures during localization"
     ) recoverWith {
       case e => Failure(new IOException(e.getMessage) with CromwellFatalExceptionMarker)
@@ -306,7 +308,8 @@ trait SharedFileSystem extends PathFactory {
     val staged: WomFile = value.mapFile { input =>
       pathBuilders.collectFirst({ case h: HttpPathBuilder if HttpPathBuilder.accepts(input) => h }) match {
         case Some(httpPathBuilder) =>
-          implicit val ec = actorContext.dispatcher
+          implicit val materializer = ActorMaterializer()
+          implicit val ec: ExecutionContext = actorContext.dispatcher
 
           Await.result(httpPathBuilder.content(input).map { _.toString }, Duration.Inf)
         case _ => input
@@ -314,7 +317,7 @@ trait SharedFileSystem extends PathFactory {
     }
 
     // Optional function to adjust the path to "docker path" if the call runs in docker
-    localizeWomFile(toCallPath _, strategies.toStream, docker)(staged)
+    localizeWomFile(toCallPath, strategies.toStream, docker)(staged)
   }
 
   /**

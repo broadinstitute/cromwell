@@ -2,7 +2,8 @@ package cwl
 
 import java.util.concurrent.Executors
 
-import cats.implicits._
+import cats.syntax.all._
+import common.assertion.CromwellTimeoutSpec
 import cwl.CommandLineTool.CommandOutputParameter
 import cwl.ExpressionEvaluator._
 import eu.timepit.refined._
@@ -16,7 +17,7 @@ import wom.values._
 import scala.concurrent.{ExecutionContext, Future}
 
 
-class CommandOutputExpressionSpec extends AnyFlatSpec with Matchers {
+class CommandOutputExpressionSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "CommandOutputExpression"
 

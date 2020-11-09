@@ -6,6 +6,7 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.LoadConfig
 import cromwell.core.actor.BatchActor._
 import cromwell.core.instrumentation.InstrumentationPrefixes
+import cromwell.engine.workflow.workflowstore.WorkflowStoreAccess
 import cromwell.jobstore.JobStore.{JobCompletion, WorkflowCompletion}
 import cromwell.jobstore.JobStoreActor._
 import cromwell.services.EnhancedBatchActor
@@ -20,11 +21,12 @@ case class JobStoreWriterActor(jsd: JobStore,
                                override val batchSize: Int,
                                override val flushRate: FiniteDuration,
                                serviceRegistryActor: ActorRef,
-                               threshold: Int
+                               threshold: Int,
+                               workflowStoreAccess: WorkflowStoreAccess
                               )
   extends EnhancedBatchActor[CommandAndReplyTo[JobStoreWriterCommand]](flushRate, batchSize) {
 
-  override protected def process(nonEmptyData: NonEmptyVector[CommandAndReplyTo[JobStoreWriterCommand]]) = instrumentedProcess {
+  override protected def process(nonEmptyData: NonEmptyVector[CommandAndReplyTo[JobStoreWriterCommand]]): Future[Int] = instrumentedProcess {
     val data = nonEmptyData.toVector
     log.debug("Flushing {} job store commands to the DB", data.length)
     val completions = data.collect({ case CommandAndReplyTo(c: JobStoreWriterCommand, _) => c.completion })
@@ -35,9 +37,17 @@ case class JobStoreWriterActor(jsd: JobStore,
       // Filter job completions that also have a corresponding workflow completion; these would just be
       // immediately deleted anyway.
       val jobCompletions = completions.toList collect { case j: JobCompletion if !completedWorkflowIds.contains(j.key.workflowId) => j }
-      val databaseAction = jsd.writeToDatabase(workflowCompletions, jobCompletions, batchSize)
+      val jobStoreAction: Future[Unit] = jsd.writeToDatabase(workflowCompletions, jobCompletions, batchSize)
+      val workflowStoreAction: Future[List[Int]] = Future.sequence {
+        completedWorkflowIds.map(workflowStoreAccess.deleteFromStore(_)).toList
+      }
 
-      databaseAction onComplete {
+      val combinedAction: Future[Unit] = for {
+        _ <- jobStoreAction
+        _ <- workflowStoreAction
+      } yield ()
+
+      combinedAction onComplete {
         case Success(_) =>
           data foreach { case CommandAndReplyTo(c: JobStoreWriterCommand, r) => r ! JobStoreWriteSuccess(c) }
         case Failure(regerts) =>
@@ -45,7 +55,7 @@ case class JobStoreWriterActor(jsd: JobStore,
           data foreach { case CommandAndReplyTo(_, r) => r ! JobStoreWriteFailure(regerts) }
       }
 
-      databaseAction.map(_ => 1)
+      combinedAction.map(_ => 1)
     } else Future.successful(0)
   }
 
@@ -63,7 +73,8 @@ object JobStoreWriterActor {
   def props(jobStoreDatabase: JobStore,
             dbBatchSize: Int,
             dbFlushRate: FiniteDuration,
-            registryActor: ActorRef): Props = {
-    Props(new JobStoreWriterActor(jobStoreDatabase, dbBatchSize, dbFlushRate, registryActor, LoadConfig.JobStoreWriteThreshold)).withDispatcher(EngineDispatcher)
+            registryActor: ActorRef,
+            workflowStoreAccess: WorkflowStoreAccess): Props = {
+    Props(new JobStoreWriterActor(jobStoreDatabase, dbBatchSize, dbFlushRate, registryActor, LoadConfig.JobStoreWriteThreshold, workflowStoreAccess)).withDispatcher(EngineDispatcher)
   }
 }

@@ -327,13 +327,33 @@ object EngineFunctionEvaluators {
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomSingleFile]] = {
       val functionName = "write_json"
-      processValidatedSingleValue[WomObject, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { objectToWrite =>
+
+      def convertToSingleFile(objectToWrite: WomValue): ErrorOr[EvaluatedValue[WomSingleFile]] = {
         val serialized = ValueEvaluation.valueToJson(objectToWrite)
         val tryResult = for {
           written <- writeContent(functionName, ioFunctionSet, serialized.compactPrint)
         } yield written
 
         tryResult.map(v => EvaluatedValue(v, Seq(CommandSetupSideEffectFile(v)))).toErrorOr.contextualizeErrors(s"""$functionName(...)""")
+      }
+
+      def evaluateParam(womValue: WomValue): ErrorOr[EvaluatedValue[WomSingleFile]] = {
+        womValue match {
+          case WomBoolean(_) | WomString(_) | WomInteger(_) | WomFloat(_) | WomPair(_, _) => convertToSingleFile(womValue)
+          case v if v.coercionDefined[WomObject] => v.coerceToType[WomObject].flatMap(convertToSingleFile)
+          case v if v.coercionDefined[WomArray] => v.coerceToType[WomArray].flatMap(convertToSingleFile)
+          case _ => (s"The '$functionName' method expects one of 'Boolean', 'String', 'Integer', 'Float', 'Object', 'Pair[_, _]', " +
+            s"'Map[_, _] or 'Array[_]' argument but instead got '${womValue.womType.friendlyName}'.").invalidNel
+        }
+      }
+
+      val evaluatedSingleFile: ErrorOr[(EvaluatedValue[WomSingleFile], Seq[CommandSetupSideEffectFile])] = for {
+        evaluatedValue <- a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
+        evaluatedSingleFile <- evaluateParam(evaluatedValue.value)
+      } yield (evaluatedSingleFile, evaluatedValue.sideEffectFiles)
+
+      evaluatedSingleFile map {
+        case (result, previousSideEffectFiles) => result.copy(sideEffectFiles = result.sideEffectFiles ++ previousSideEffectFiles)
       }
     }
   }

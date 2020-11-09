@@ -4,6 +4,7 @@ import java.time.OffsetDateTime
 
 import cats.data.NonEmptyList
 import com.dimafeng.testcontainers.Container
+import common.assertion.CromwellTimeoutSpec
 import cromwell.core.Tags.DbmsTest
 import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.{WorkflowStoreAbortResponse, WorkflowStoreState}
@@ -19,7 +20,7 @@ import org.specs2.mock.Mockito
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-class SqlWorkflowStoreSpec extends AnyFlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
+class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
   implicit val ec = ExecutionContext.global
   implicit val defaultPatience = PatienceConfig(scaled(Span(10, Seconds)), scaled(Span(100, Millis)))
   val sourceFilesCollection = NonEmptyList.of(WorkflowSourceFilesCollection(Option("sample"), None, None, None, None, "input", WorkflowOptions.empty, "string", None, workflowOnHold = true, Seq.empty))
@@ -55,7 +56,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with Matchers with ScalaFutures w
         startableWorkflows <- workflowStore.fetchStartableWorkflows(10, "A01", 1.second)
         _ = startableWorkflows.map(_.id).intersect(submissionResponses.map(_.id).toList) should be(empty)
         abortWorkflowId = submissionResponses.head.id
-        workflowStoreAbortResponse <- workflowStore.aborting(abortWorkflowId)
+        workflowStoreAbortResponse <- workflowStore.abort(abortWorkflowId)
         _ = workflowStoreAbortResponse should be(WorkflowStoreAbortResponse.AbortedOnHoldOrSubmitted)
       } yield ()).futureValue
     }
@@ -67,7 +68,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with Matchers with ScalaFutures w
         _ = startableWorkflows.map(_.id).intersect(submissionResponses.map(_.id).toList) should be(empty)
         abortWorkflowId = submissionResponses.head.id
         _ <- workflowStore.switchOnHoldToSubmitted(abortWorkflowId)
-        workflowStoreAbortResponse <- workflowStore.aborting(abortWorkflowId)
+        workflowStoreAbortResponse <- workflowStore.abort(abortWorkflowId)
         _ = workflowStoreAbortResponse should be(WorkflowStoreAbortResponse.AbortedOnHoldOrSubmitted)
       } yield ()).futureValue
     }
@@ -80,7 +81,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with Matchers with ScalaFutures w
         abortWorkflowId = submissionResponses.head.id
         _ <- workflowStore.switchOnHoldToSubmitted(abortWorkflowId)
         _ <- workflowStore.writeWorkflowHeartbeats(Set((abortWorkflowId, OffsetDateTime.now)), OffsetDateTime.now)
-        workflowStoreAbortResponse <- workflowStore.aborting(abortWorkflowId)
+        workflowStoreAbortResponse <- workflowStore.abort(abortWorkflowId)
         _ = workflowStoreAbortResponse should be(WorkflowStoreAbortResponse.AbortedOnHoldOrSubmitted)
       } yield ()).futureValue
     }
@@ -98,7 +99,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with Matchers with ScalaFutures w
           WorkflowStoreState.Submitted.toString,
           WorkflowStoreState.Running.toString
         )
-        workflowStoreAbortResponse <- workflowStore.aborting(abortWorkflowId)
+        workflowStoreAbortResponse <- workflowStore.abort(abortWorkflowId)
         _ = workflowStoreAbortResponse should be(WorkflowStoreAbortResponse.AbortRequested)
       } yield ()).futureValue
     }
@@ -117,7 +118,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with Matchers with ScalaFutures w
           WorkflowStoreState.Running.toString
         )
         _ <- workflowStore.writeWorkflowHeartbeats(Set((abortWorkflowId, OffsetDateTime.now)), OffsetDateTime.now)
-        workflowStoreAbortResponse <- workflowStore.aborting(abortWorkflowId)
+        workflowStoreAbortResponse <- workflowStore.abort(abortWorkflowId)
         _ = workflowStoreAbortResponse should be(WorkflowStoreAbortResponse.AbortRequested)
       } yield ()).futureValue
     }
@@ -126,7 +127,7 @@ class SqlWorkflowStoreSpec extends AnyFlatSpec with Matchers with ScalaFutures w
       val notFoundWorkflowId = WorkflowId.fromString("744e0645-1a1f-4ffe-a25d-a0be1f937fd7")
 
       (for {
-        workflowStoreAbortResponse <- workflowStore.aborting(notFoundWorkflowId)
+        workflowStoreAbortResponse <- workflowStore.abort(notFoundWorkflowId)
         _ = workflowStoreAbortResponse should be(WorkflowStoreAbortResponse.NotFound)
       } yield ()).futureValue
     }

@@ -1,6 +1,6 @@
 package cromwell.backend.google.pipelines.v2beta
 
-import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
+import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, DrsConfig}
 import com.google.api.services.lifesciences.v2beta.model.{Action, Mount}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.google.pipelines.common.action.ActionLabels._
@@ -29,15 +29,17 @@ trait PipelinesParameterConversions {
       val labels = ActionBuilder.parameterLabels(fileInput)
       fileInput.cloudPath match {
         case drsPath: DrsPath =>
-          import cromwell.backend.google.pipelines.v2beta.api.ActionCommands.ShellPath
+
           import collection.JavaConverters._
 
           val drsFileSystemProvider = drsPath.drsPath.getFileSystem.provider.asInstanceOf[DrsCloudNioFileSystemProvider]
 
           val drsDockerImage = config.getString("drs.localization.docker-image")
-          val drsMarthaUrl = drsFileSystemProvider.marthaUri
-          val drsCommand = List(fileInput.cloudPath.escape, fileInput.containerPath.escape) ++ drsPath.requesterPaysProjectIdOption.toList
-          val marthaEnv = Map("MARTHA_URL" -> drsMarthaUrl)
+          // Note: Don't ShellPath.escape the paths as we are directly invoking the localizer and NOT launching a shell.
+          val drsCommand =
+            List(fileInput.cloudPath.pathAsString, fileInput.containerPath.pathAsString) ++
+              drsPath.requesterPaysProjectIdOption.toList
+          val marthaEnv = DrsConfig.toEnv(drsFileSystemProvider.drsConfig)
           val localizationAction = ActionBuilder
             .withImage(drsDockerImage)
             .withCommand(drsCommand: _*)

@@ -12,5 +12,6 @@ case class PipelinesApiBackendInitializationData
   gcsCredentials: Credentials,
   genomicsRequestFactory: PipelinesApiRequestFactory,
   privateDockerEncryptionKeyName: Option[String],
-  privateDockerEncryptedToken: Option[String]
+  privateDockerEncryptedToken: Option[String],
+  vpcNetworkAndSubnetworkProjectLabels: Option[VpcAndSubnetworkProjectLabelValues]
 ) extends StandardInitializationData(workflowPaths, runtimeAttributesBuilder, classOf[PipelinesApiExpressionFunctions])

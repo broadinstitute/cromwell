@@ -1,5 +1,6 @@
 package wdl.transforms.biscayne.linking.expression.consumed
 
+import common.assertion.CromwellTimeoutSpec
 import common.assertion.ErrorOrAssertions._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -9,7 +10,7 @@ import wdl.model.draft3.graph.{UnlinkedCallOutputOrIdentifierAndMemberAccessHook
 import wdl.transforms.biscayne.Ast2WdlomSpec._
 import wdl.transforms.biscayne.ast2wdlom._
 
-class BiscayneExpressionValueConsumersSpec extends AnyFlatSpec with Matchers {
+class BiscayneExpressionValueConsumersSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "WDL Biscayne's expressionValueConsumer"
 
   it should "return nothing from static integer addition" in {

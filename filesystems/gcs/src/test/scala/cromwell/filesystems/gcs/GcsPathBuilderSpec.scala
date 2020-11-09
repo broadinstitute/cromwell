@@ -1,6 +1,5 @@
 package cromwell.filesystems.gcs
 
-import cromwell.cloudsupport.gcp.auth.GoogleAuthModeSpec
 import cromwell.core.path._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -12,8 +11,6 @@ class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
   behavior of "GcsPathBuilder"
 
   it should "use google project credentials when provided in the workflow options" in {
-    GoogleAuthModeSpec.assumeHasApplicationDefaultCredentials()
-
     val wfOptionsWithProject = WorkflowOptions.fromMap(Map("google_project" -> "my_project")).get
 
     val gcsPathBuilderWithProjectInfo = MockGcsPathBuilder.withOptions(wfOptionsWithProject)
@@ -288,7 +285,6 @@ class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
   )
 
   private lazy val pathBuilder = {
-    GoogleAuthModeSpec.assumeHasApplicationDefaultCredentials()
     MockGcsPathBuilder.instance
   }
 }

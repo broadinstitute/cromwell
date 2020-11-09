@@ -1,10 +1,12 @@
 package cromwell.jobstore
 
 import akka.testkit.{TestFSMRef, TestProbe}
+import common.assertion.CromwellTimeoutSpec
 import common.collections.WeightedQueue
 import cromwell.CromwellTestKitWordSpec
 import cromwell.core.actor.BatchActor.{BatchActorState, CommandAndReplyTo, Processing}
 import cromwell.core.{CallOutputs, WorkflowId}
+import cromwell.engine.workflow.{CoordinatedWorkflowStoreActorBuilder, SqlWorkflowStoreBuilder}
 import cromwell.jobstore.JobStore.{JobCompletion, WorkflowCompletion}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteSuccess, JobStoreWriterCommand, RegisterJobCompleted, RegisterWorkflowCompleted}
 import org.scalatest.BeforeAndAfter
@@ -15,10 +17,9 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 
-class JobStoreWriterSpec extends CromwellTestKitWordSpec with Matchers with BeforeAndAfter {
-  
+class JobStoreWriterSpec extends CromwellTestKitWordSpec with SqlWorkflowStoreBuilder with CoordinatedWorkflowStoreActorBuilder with Matchers with BeforeAndAfter with CromwellTimeoutSpec {
+
   var database: WriteCountingJobStore = _
-  var jobStoreWriter: TestFSMRef[BatchActorState, WeightedQueue[CommandAndReplyTo[JobStoreWriterCommand], Int], JobStoreWriterActor] = _
   var workflowId: WorkflowId = _
   val successResult: JobResult = JobResultSuccess(Some(0), CallOutputs.empty)
   val flushFrequency = 0.5 second
@@ -26,11 +27,10 @@ class JobStoreWriterSpec extends CromwellTestKitWordSpec with Matchers with Befo
 
   before {
     database = WriteCountingJobStore.makeNew
-    jobStoreWriter = TestFSMRef(new JobStoreWriterActor(database, 5, flushFrequency, TestProbe().ref, 1000))
     workflowId = WorkflowId.randomId()
   }
 
-  private def sendRegisterCompletion(attempt: Int): Unit = {
+  private def sendRegisterCompletion(jobStoreWriter: TestFSMRef[BatchActorState, WeightedQueue[CommandAndReplyTo[JobStoreWriterCommand], Int], JobStoreWriterActor])(attempt: Int): Unit = {
     jobStoreWriter ! RegisterJobCompleted(jobKey(attempt), successResult)
   }
 
@@ -63,53 +63,59 @@ class JobStoreWriterSpec extends CromwellTestKitWordSpec with Matchers with Befo
 
   "JobStoreWriter" should {
     "be able to collapse writes together if they arrive while a database access is ongoing" in {
+      runWithDatabase(databaseConfig) { workflowStore =>
+        val jobStoreWriter = TestFSMRef(new JobStoreWriterActor(database, 5, flushFrequency, TestProbe().ref, 1000, access(workflowStore)))
 
-      // Send a job completion. The database will hang.
-      sendRegisterCompletion(1)
-      val writer = jobStoreWriter.underlyingActor
-      eventually {
-        writer.stateName shouldBe Processing
+        // Send a job completion. The database will hang.
+        sendRegisterCompletion(jobStoreWriter)(1)
+        val writer = jobStoreWriter.underlyingActor
+        eventually {
+          writer.stateName shouldBe Processing
+        }
+
+        // Send some more completions.  These should pile up in the state data.
+        List(2, 3) foreach sendRegisterCompletion(jobStoreWriter)
+
+        writer.stateData.weight should equal(2)
+        database.continue()
+
+        assertReceived(expectedJobStoreWriteAcks = 3)
+
+        assertDb(
+          totalWritesCalled = 2,
+          jobCompletionsRecorded = 3,
+          workflowCompletionsRecorded = 0
+        )
       }
-
-      // Send some more completions.  These should pile up in the state data.
-      List(2, 3) foreach sendRegisterCompletion
-
-      writer.stateData.weight should equal(2)
-      database.continue()
-
-      assertReceived(expectedJobStoreWriteAcks = 3)
-
-      assertDb(
-        totalWritesCalled = 2,
-        jobCompletionsRecorded = 3,
-        workflowCompletionsRecorded = 0
-      )
     }
 
     "be able to skip job-completion writes if the workflow completes, but still respond appropriately" in {
+      runWithDatabase(databaseConfig) { workflowStore =>
+        val jobStoreWriter = TestFSMRef(new JobStoreWriterActor(database, 5, flushFrequency, TestProbe().ref, 1000, access(workflowStore)))
 
-      // Send a job completion. The database will hang.
-      sendRegisterCompletion(1)
-      val writer = jobStoreWriter.underlyingActor
-      eventually {
-        writer.stateName shouldBe Processing
+        // Send a job completion. The database will hang.
+        sendRegisterCompletion(jobStoreWriter)(1)
+        val writer = jobStoreWriter.underlyingActor
+        eventually {
+          writer.stateName shouldBe Processing
+        }
+
+        // Send some more completions.  These should pile up in the state data.
+        List(2, 3) foreach sendRegisterCompletion(jobStoreWriter)
+        jobStoreWriter ! RegisterWorkflowCompleted(workflowId)
+
+        writer.stateData.weight should equal(3)
+        // The testing DB intentionally blocks after the first write until `continue` is called.
+        database.continue()
+
+        assertReceived(expectedJobStoreWriteAcks = 3)
+
+        assertDb(
+          totalWritesCalled = 2,
+          jobCompletionsRecorded = 1,
+          workflowCompletionsRecorded = 1
+        )
       }
-
-      // Send some more completions.  These should pile up in the state data.
-      List(2, 3) foreach sendRegisterCompletion
-      jobStoreWriter ! RegisterWorkflowCompleted(workflowId)
-
-      writer.stateData.weight should equal(3)
-      // The testing DB intentionally blocks after the first write until `continue` is called.
-      database.continue()
-
-      assertReceived(expectedJobStoreWriteAcks = 3)
-
-      assertDb(
-        totalWritesCalled = 2,
-        jobCompletionsRecorded = 1,
-        workflowCompletionsRecorded = 1
-      )
     }
   }
 }

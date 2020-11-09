@@ -1,5 +1,6 @@
 package wom.types
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wom.values.{WomInteger, WomMap, WomObject, WomString}
@@ -7,7 +8,7 @@ import wom.values.{WomInteger, WomMap, WomObject, WomString}
 import scala.util.{Failure, Success}
 
 
-class WomObjectTypeSpec extends AnyFlatSpec with Matchers {
+class WomObjectTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   val abcObject = WomObject(Map(
     "a" -> WomString("one"),
     "b" -> WomString("two"),

@@ -32,13 +32,14 @@
 package cromwell.backend.impl.aws
 
 import com.typesafe.config.ConfigFactory
+import common.assertion.CromwellTimeoutSpec
 import common.exception.MessageAggregation
 import cromwell.cloudsupport.aws.AwsConfiguration
 import cromwell.core.Tags._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class AwsBatchAttributesSpec extends AnyFlatSpec with Matchers {
+class AwsBatchAttributesSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   import AwsBatchTestConfig._
 

@@ -2,6 +2,7 @@ package cromwell.engine.io
 
 import java.io.IOException
 import java.net.{SocketException, SocketTimeoutException}
+import java.time.OffsetDateTime
 
 import akka.NotUsed
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Timers}
@@ -38,7 +39,7 @@ final class IoActor(queueSize: Int,
                     gcsParallelism: Int,
                     throttle: Option[Throttle],
                     override val serviceRegistryActor: ActorRef,
-                    applicationName: String)
+                    applicationName: String)(implicit val materializer: ActorMaterializer)
   extends Actor with ActorLogging with StreamActorHelper[IoCommandContext[_]] with IoInstrumentation with Timers {
   implicit val ec = context.dispatcher
 
@@ -100,7 +101,7 @@ final class IoActor(queueSize: Int,
       .via(flow)
   } getOrElse flow
   
-  private val instrumentationSink = Sink.foreach[IoResult](incrementIoResult)
+  private val instrumentationSink = Sink.foreach[IoResult](instrumentIoResult)
   
   override protected lazy val streamSource = source
     .via(throttledFlow)
@@ -144,6 +145,7 @@ final class IoActor(queueSize: Int,
 }
 
 trait IoCommandContext[T] extends StreamContext {
+  val creationTime: OffsetDateTime = OffsetDateTime.now()
   def request: IoCommand[T]
   def replyTo: ActorRef
   def fail(failure: Throwable): IoResult = (request.fail(failure), this)
@@ -233,7 +235,7 @@ object IoActor {
 
   def isFatal(failure: Throwable) = !isRetryable(failure)
   
-  def props(queueSize: Int, nioParallelism: Int, gcsParallelism: Int, throttle: Option[Throttle], serviceRegistryActor: ActorRef, applicationName: String) = {
+  def props(queueSize: Int, nioParallelism: Int, gcsParallelism: Int, throttle: Option[Throttle], serviceRegistryActor: ActorRef, applicationName: String)(implicit materializer: ActorMaterializer) = {
     Props(new IoActor(queueSize, nioParallelism, gcsParallelism, throttle, serviceRegistryActor, applicationName)).withDispatcher(IoDispatcher)
   }
 }

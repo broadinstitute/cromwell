@@ -1,7 +1,7 @@
 package cwl
-
-import cats.instances.list._
 import cats.syntax.traverse._
+import cats.instances.list._
+import common.assertion.CromwellTimeoutSpec
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineMV
 import org.scalatest.ParallelTestExecution
@@ -14,7 +14,7 @@ import wom.expression.NoIoFunctionSet
 import wom.types._
 import wom.values.{WomArray, WomBoolean, WomEvaluatedCallInputs, WomInteger, WomObject, WomSingleFile, WomString, WomValue}
 
-class CommandLineToolSpec extends AnyFlatSpec with Matchers with ParallelTestExecution {
+class CommandLineToolSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ParallelTestExecution {
 
   behavior of "CommandLineTool"
 

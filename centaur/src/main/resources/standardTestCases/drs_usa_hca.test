@@ -7,7 +7,7 @@ files {
   workflow: drs_tests/drs_usa_hca.wdl
   options-dir: "Error: BA-6546 The environment variable CROMWELL_BUILD_RESOURCES_DIRECTORY must be set/export pointing to a valid path such as '${YOUR_CROMWELL_DIR}/target/ci/resources'"
   options-dir: ${?CROMWELL_BUILD_RESOURCES_DIRECTORY}
-  options: ${files.options-dir}/papi_v2_usa_martha_v2.options.json
+  options: ${files.options-dir}/papi_v2_usa_compute_default.options.json
   inputs: drs_tests/drs_usa_hca.inputs
 }
 
@@ -15,6 +15,16 @@ metadata {
   workflowName: drs_usa_hca
   status: Succeeded
 
+  "outputs.drs_usa_hca.path1" =
+    "/cromwell_root/drs.data.humancellatlas.org/4cf48dbf-cf09-452e-bb5b-fd016af0c747_version_2019-09-14T024754.281908Z/eb32bfc6-e7be-4093-8959-b8bf27f2404f.zarr!.zattrs"
+  "outputs.drs_usa_hca.path2" =
+    "/cromwell_root/drs.data.humancellatlas.org/fe6729a0-9d24-4034-a0e8-720830044af2_version_2019-09-14T075241.272244Z/empty_drops_result.csv"
+  "outputs.drs_usa_hca.path3" =
+    "/cromwell_root/drs.data.humancellatlas.org/82544678-fb65-4da4-aaf8-3a2506b64993_version_2019-09-14T080840.009338Z/empty_drops_result.csv"
+  "outputs.drs_usa_hca.path4" =
+    "/cromwell_root/drs.data.humancellatlas.org/d205fbd5-0b2d-4ec9-a898-ee08712e9c18_version_2019-09-14T024945.734484Z/empty_drops_result.csv"
+  "outputs.drs_usa_hca.path5" =
+    "/cromwell_root/drs.data.humancellatlas.org/39ae3998-72a4-41ba-b00f-526bfecb8ca2_version_2019-09-13T091626.837580Z/Retina_Wong_scRNA_Sample1_I1.fastq.gz"
   "outputs.drs_usa_hca.hash1" = "d18ef9b8fd14ac922588baeec4853c0d"
   "outputs.drs_usa_hca.hash2" = "a75d7e4302ce4685470eb2da97945ce1"
   "outputs.drs_usa_hca.hash3" = "4a44a0f9ca3a801332070e3a5e3e8e7d"
@@ -25,4 +35,14 @@ metadata {
   "outputs.drs_usa_hca.size3" = 15419927
   "outputs.drs_usa_hca.size4" = 1.849607E+7
   "outputs.drs_usa_hca.size5" = 2138914697
+  "outputs.drs_usa_hca.cloud1" =
+    "gs://org-hca-dss-checkout-prod/blobs/160fde1559f7154b03a6f645b4c7ff0eb2af37241e2cab3961e7780ead93860a.b0fcf2baaadb4aa6545804998867eff29330762a.d18ef9b8fd14ac922588baeec4853c0d.0ba92b16"
+  "outputs.drs_usa_hca.cloud2" =
+    "gs://org-hca-dss-checkout-prod/blobs/2972c63e8230550e198d43df4e2fc3065e2a7b0b8cd683686d9da192ca3b6a00.921ffb13f1642ecdb7e2705d23cb1fdd55730fc6.a75d7e4302ce4685470eb2da97945ce1.3fb63ee7"
+  "outputs.drs_usa_hca.cloud3" =
+    "gs://org-hca-dss-checkout-prod/blobs/cf84e70f7775555a4a3dce44c988be56eee91df57ac5e2cffd0afea7670ad444.e24a504147ec249d9cf092f4d625fdc20ea7d9e5.4a44a0f9ca3a801332070e3a5e3e8e7d.a4608468"
+  "outputs.drs_usa_hca.cloud4" =
+    "gs://org-hca-dss-checkout-prod/blobs/562d452106477d94f0da48826d0b73c2c1bb0123554a6a0f832728baa62f4fd1.4b0bc495ccca61ede14708c60ee3827973004f0e.d4716b00e39809505e45d7a4605a6fb8.6b4e23c0"
+  "outputs.drs_usa_hca.cloud5" =
+    "gs://org-hca-dss-checkout-prod/blobs/979ff8bf675f4a3d56bb83e80e64641656bbfd1b7bfc805023445cf53fdd5450.05b544255eccdacdfe433569a0b28826cb3e18c1.ad7a88538e8a9c00b6d904c7eb00318c-32.f549d920"
 }

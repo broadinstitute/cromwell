@@ -1,5 +1,6 @@
 package wdl
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks._
@@ -13,7 +14,7 @@ import wom.core.WorkflowSource
 
 import scala.util.{Failure, Success}
 
-class SyntaxErrorSpec extends AnyFlatSpec with Matchers {
+class SyntaxErrorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   private val psTaskWdl = """
       |task ps {
       |  command {

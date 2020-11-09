@@ -35,7 +35,7 @@ import java.security.MessageDigest
 import cats.data.ReaderT._
 import cats.data.{Kleisli, ReaderT}
 import cats.effect.{Async, Timer}
-import cats.implicits._
+import cats.syntax.all._
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.impl.aws.io.AwsBatchWorkingDisk
 import cromwell.backend.io.JobPaths
@@ -58,7 +58,7 @@ import wdl4s.parser.MemoryUnit
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.language.higherKinds
-import scala.util.Try
+import scala.util.{Random, Try}
 
 /**
   *  The actual job for submission in AWS batch. `AwsBatchJob` is the primary interface to AWS Batch. It creates the
@@ -84,6 +84,12 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                              configRegion: Option[Region],
                              optAwsAuthMode: Option[AwsAuthMode] = None
                             ) {
+
+  // values for container environment
+  val AWS_MAX_ATTEMPTS: String = "AWS_MAX_ATTEMPTS"
+  val AWS_MAX_ATTEMPTS_DEFAULT_VALUE: String = "14"
+  val AWS_RETRY_MODE: String = "AWS_RETRY_MODE"
+  val AWS_RETRY_MODE_DEFAULT_VALUE: String = "adaptive"
 
   val Log: Logger = LoggerFactory.getLogger(AwsBatchJob.getClass)
 
@@ -120,8 +126,9 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     val replaced = commandScript.replaceAllLiterally(AwsBatchWorkingDisk.MountPoint.pathAsString, workDir)
     val insertionPoint = replaced.indexOf("\n", replaced.indexOf("#!")) +1 //just after the new line after the shebang!
 
-    //generate a series of s3 copy statements to copy any s3 files into the container
-    val inputCopyCommand = inputs.map {
+    /* generate a series of s3 copy statements to copy any s3 files into the container. We randomize the order
+       so that large scatters don't all attempt to copy the same thing at the same time. */
+    val inputCopyCommand = Random.shuffle(inputs.map {
       case input: AwsBatchFileInput if input.s3key.startsWith("s3://") && input.s3key.endsWith(".tmp") =>
         //we are localizing a tmp file which may contain workdirectory paths that need to be reconfigured
         s"""
@@ -142,7 +149,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
         s"test -e $filePath || echo 'input file: $filePath does not exist' && exit 1"
 
       case _ => ""
-    }.mkString("\n")
+    }.toList).mkString("\n")
 
     // this goes at the start of the script after the #!
     val preamble =
@@ -207,6 +214,13 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
          |""".stripMargin
   }
 
+  private def generateEnvironmentKVPairs(scriptBucketName: String, scriptKeyPrefix: String, scriptKey: String): List[KeyValuePair] = {
+    List(buildKVPair(AWS_MAX_ATTEMPTS, AWS_MAX_ATTEMPTS_DEFAULT_VALUE),
+      buildKVPair(AWS_RETRY_MODE, AWS_RETRY_MODE_DEFAULT_VALUE),
+      buildKVPair("BATCH_FILE_TYPE", "script"),
+      buildKVPair("BATCH_FILE_S3_URL",
+        s"s3://$scriptBucketName/$scriptKeyPrefix$scriptKey"))
+  }
 
   def submitJob[F[_]]()( implicit timer: Timer[F], async: Async[F]): Aws[F, SubmitJobResponse] = {
 
@@ -235,9 +249,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
             .containerOverrides(
               ContainerOverrides.builder
                 .environment(
-                  buildKVPair("BATCH_FILE_TYPE", "script"),
-                  buildKVPair("BATCH_FILE_S3_URL",
-                    s"s3://${runtimeAttributes.scriptS3BucketName}/$scriptKeyPrefix$scriptKey")
+                  generateEnvironmentKVPairs(runtimeAttributes.scriptS3BucketName, scriptKeyPrefix, scriptKey): _*
                 )
                 .memory(runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt)
                 .vcpus(runtimeAttributes.cpu.##).build

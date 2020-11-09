@@ -1,5 +1,6 @@
 package cromwell.backend
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 import org.scalatest.TryValues
@@ -8,7 +9,7 @@ import org.scalatest.matchers.should.Matchers
 import wdl4s.parser.MemoryUnit
 import wom.format.MemorySize
 
-class MemorySizeSpec extends AnyFlatSpec with Matchers with TryValues {
+class MemorySizeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TryValues {
   "MemorySize" should "stringify properly for integer values" in {
     val memTable = Table(
       ("memorySize", "memorySizeString"),

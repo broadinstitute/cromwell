@@ -1,6 +1,7 @@
 package wdl.draft3.transforms.expression.values
 
 import cats.data.Validated.{Invalid, Valid}
+import common.assertion.CromwellTimeoutSpec
 import common.validation.ErrorOr.ErrorOr
 import org.scalatest.Assertion
 import org.scalatest.flatspec.AnyFlatSpec
@@ -18,7 +19,7 @@ import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 
 
-class Draft3SizeFunctionSpec extends AnyFlatSpec with Matchers {
+class Draft3SizeFunctionSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "ReadLikeFunctions.size"
 

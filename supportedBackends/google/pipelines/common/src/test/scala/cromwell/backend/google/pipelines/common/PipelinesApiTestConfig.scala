@@ -2,7 +2,7 @@ package cromwell.backend.google.pipelines.common
 
 import akka.actor.ActorSystem
 import com.google.api.client.http.HttpRequestInitializer
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.BackendConfigurationDescriptor
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiFactoryInterface, PipelinesApiRequestFactory}
 import cromwell.backend.standard.StandardAsyncJob
@@ -10,6 +10,7 @@ import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core.WorkflowOptions
 import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.logging.JobLogger
+import cromwell.core.path.PathBuilder
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -70,7 +71,7 @@ object PipelinesApiTestConfig {
        |  auths = [
        |    {
        |      name = "application-default"
-       |      scheme = "application_default"
+       |      scheme = "mock"
        |    }
        |  ]
        |}
@@ -95,23 +96,33 @@ object PipelinesApiTestConfig {
        |
        |""".stripMargin
 
-  val PapiBackendConfig = ConfigFactory.parseString(PapiBackendConfigString)
-  val PapiGlobalConfig = ConfigFactory.parseString(PapiGlobalConfigString)
-  val PapiBackendNoDefaultConfig = ConfigFactory.parseString(NoDefaultsConfigString)
-  val PapiBackendConfigurationDescriptor = new BackendConfigurationDescriptor(PapiBackendConfig, PapiGlobalConfig) {
-    override private[backend] lazy val cromwellFileSystems = new CromwellFileSystems(PapiGlobalConfig)
+  val PapiBackendConfig: Config = ConfigFactory.parseString(PapiBackendConfigString)
+  val PapiGlobalConfig: Config = ConfigFactory.parseString(PapiGlobalConfigString)
+  val PapiBackendNoDefaultConfig: Config = ConfigFactory.parseString(NoDefaultsConfigString)
+  val PapiBackendConfigurationDescriptor: BackendConfigurationDescriptor = {
+    new BackendConfigurationDescriptor(PapiBackendConfig, PapiGlobalConfig) {
+      override private[backend] lazy val cromwellFileSystems = new CromwellFileSystems(PapiGlobalConfig)
+    }
   }
-  val NoDefaultsConfigurationDescriptor = BackendConfigurationDescriptor(PapiBackendNoDefaultConfig, PapiGlobalConfig)
-  val genomicsFactory = new PipelinesApiFactoryInterface {
-    override def build(httpRequestInitializer: HttpRequestInitializer) = new PipelinesApiRequestFactory {
-      override def cancelRequest(job: StandardAsyncJob) = throw new UnsupportedOperationException
-      override def getRequest(job: StandardAsyncJob) = throw new UnsupportedOperationException
-      override def runRequest(createPipelineParameters: PipelinesApiRequestFactory.CreatePipelineParameters, jobLogger: JobLogger) = throw new UnsupportedOperationException
+  val NoDefaultsConfigurationDescriptor: BackendConfigurationDescriptor =
+    BackendConfigurationDescriptor(PapiBackendNoDefaultConfig, PapiGlobalConfig)
+  val genomicsFactory: PipelinesApiFactoryInterface = new PipelinesApiFactoryInterface {
+    override def build(httpRequestInitializer: HttpRequestInitializer): PipelinesApiRequestFactory = {
+      new PipelinesApiRequestFactory {
+        override def cancelRequest(job: StandardAsyncJob) = throw new UnsupportedOperationException
+        override def getRequest(job: StandardAsyncJob) = throw new UnsupportedOperationException
+        override def runRequest(createPipelineParameters:
+                                PipelinesApiRequestFactory.CreatePipelineParameters,
+                                jobLogger: JobLogger,
+                               ) = throw new UnsupportedOperationException
+      }
     }
     override def usesEncryptedDocker: Boolean = false
   }
-  def pathBuilders()(implicit as: ActorSystem) = Await.result(PapiBackendConfigurationDescriptor.pathBuilders(WorkflowOptions.empty), 5.seconds)
-  val googleConfiguration = GoogleConfiguration(PapiGlobalConfig)
-  val papiAttributes = PipelinesApiConfigurationAttributes(googleConfiguration, PapiBackendConfig, "papi")
+  def pathBuilders()(implicit as: ActorSystem): List[PathBuilder] =
+    Await.result(PapiBackendConfigurationDescriptor.pathBuilders(WorkflowOptions.empty), 5.seconds)
+  val googleConfiguration: GoogleConfiguration = GoogleConfiguration(PapiGlobalConfig)
+  val papiAttributes: PipelinesApiConfigurationAttributes =
+    PipelinesApiConfigurationAttributes(googleConfiguration, PapiBackendConfig, "papi")
   val papiConfiguration = new PipelinesApiConfiguration(PapiBackendConfigurationDescriptor, genomicsFactory, googleConfiguration, papiAttributes)
 }

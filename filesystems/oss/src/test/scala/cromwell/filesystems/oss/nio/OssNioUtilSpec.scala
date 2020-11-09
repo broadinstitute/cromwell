@@ -3,6 +3,7 @@ package cromwell.filesystems.oss.nio
 import java.io.ByteArrayInputStream
 
 import com.aliyun.oss.OSSClient
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest._
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -28,7 +29,7 @@ object OssNioUtilSpec {
   )
 }
 
-trait OssNioUtilSpec extends AnyFlatSpecLike with MockitoSugar with Matchers {
+trait OssNioUtilSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with MockitoSugar with Matchers {
 
   override def withFixture(test: NoArgTest): Outcome = {
     if (test.tags.contains(NeedAK.name)) {

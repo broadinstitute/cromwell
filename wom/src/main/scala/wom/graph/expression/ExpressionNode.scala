@@ -1,8 +1,7 @@
 package wom.graph.expression
-
-import cats.instances.list._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
 import common.Checked
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.Validation._

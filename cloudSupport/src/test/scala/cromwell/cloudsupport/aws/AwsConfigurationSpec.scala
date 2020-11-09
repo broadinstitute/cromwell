@@ -31,15 +31,16 @@
 
 package cromwell.cloudsupport.aws
 
-import cats.implicits._
+import cats.syntax.all._
 import com.typesafe.config.{ConfigException, ConfigFactory}
+import common.assertion.CromwellTimeoutSpec
 import cromwell.cloudsupport.aws.AwsConfiguration.AwsConfigurationException
 import cromwell.cloudsupport.aws.auth.{AssumeRoleMode, CustomKeyMode, DefaultMode}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 
-class AwsConfigurationSpec extends AnyFlatSpec with Matchers {
+class AwsConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "AwsConfiguration"
 

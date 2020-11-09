@@ -1,5 +1,6 @@
 package wom.types
 
+import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import spray.json.{JsArray, JsNumber}
@@ -9,7 +10,7 @@ import scala.collection.JavaConverters._
 import scala.util.{Failure, Success}
 
 
-class WomArrayTypeSpec extends AnyFlatSpec with Matchers  {
+class WomArrayTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers  {
   val intArray = WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(1), WomInteger(2), WomInteger(3)))
   "WomArray" should "stringify its value" in {
     intArray.toWomString shouldEqual "[1, 2, 3]"

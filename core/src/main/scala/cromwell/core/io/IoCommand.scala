@@ -1,15 +1,23 @@
 package cromwell.core.io
 
+import java.time.OffsetDateTime
+import java.util.UUID
+
 import better.files.File.OpenOptions
 import com.google.api.client.util.ExponentialBackOff
+import common.util.StringUtil.EnhancedToStringable
 import cromwell.core.io.IoContentAsStringCommand.IoReadOptions
 import cromwell.core.path.Path
 import cromwell.core.retry.SimpleExponentialBackoff
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.{FiniteDuration, _}
 import scala.language.postfixOps
 
 object IoCommand {
+  private val logger = LoggerFactory.getLogger(IoCommand.getClass)
+  val IOCommandWarnLimit: FiniteDuration = 5 minutes
+
   def defaultGoogleBackoff = new ExponentialBackOff.Builder()
     .setInitialIntervalMillis((1 second).toMillis.toInt)
     .setMaxIntervalMillis((5 minutes).toMillis.toInt)
@@ -24,18 +32,52 @@ object IoCommand {
 }
 
 trait IoCommand[+T] {
+  private val uuid = UUID.randomUUID().toString
+  private val creation = OffsetDateTime.now
+
+  def commandDescription: String
+
+  def logIOMsgOverLimit(message: => String): Unit = {
+    val millis: Long = java.time.Duration.between(creation, OffsetDateTime.now).toMillis
+    if (millis > IoCommand.IOCommandWarnLimit.toMillis) {
+      val seconds = millis / 1000D
+
+      /*
+        For now we decided to log this as INFO. In future if needed, we can update this to WARN.
+        Note: Below links would be useful to look at in case we want to increase the visibility of this message
+              (send an INFO message to Sentry) or even silence it all together (not even send it to Stackdriver):
+              - Cromwell server `logback.xml` with various environment-variable based conditionals
+                (https://github.com/broadinstitute/cromwell/blob/53/server/src/main/resources/logback.xml)
+              - Environment variables being set to affect the server `logback.xml`
+                (https://github.com/broadinstitute/firecloud-develop/blob/c77e0f371be0aac545e204f1a134cc6f8ef3c301/run-context/live/configs/cromwell/app.env.ctmpl#L42-L51)
+              - Logback manual (http://logback.qos.ch/manual/index.html)
+       */
+      IoCommand.logger.info(f"(IO-$uuid) '$message' is over 5 minutes. It was running for " +
+        f"$seconds%,.3f seconds. IO command description: '$commandDescription'")
+    }
+  }
+
   /**
     * Completes the command successfully
     * @return a message to be sent back to the sender, if needed
     */
-  def success[S >: T](value: S): IoSuccess[S] = IoSuccess(this, value)
+  def success[S >: T](value: S): IoSuccess[S] = {
+    logIOMsgOverLimit(s"IOCommand.success '$value'")
+    IoSuccess(this, value)
+  }
   
   /**
     * Fail the command with an exception
     */
-  def fail[S >: T](failure: Throwable): IoFailure[S] = IoFailure(this, failure)
+  def fail[S >: T](failure: Throwable): IoFailure[S] = {
+    logIOMsgOverLimit(s"IOCommand.fail '${failure.toPrettyElidedString(limit = 1000)}'")
+    IoFailure(this, failure)
+  }
 
-  def failReadForbidden[S >: T](failure: Throwable, forbiddenPath: String): IoReadForbiddenFailure[S] = IoReadForbiddenFailure(this, failure, forbiddenPath)
+  def failReadForbidden[S >: T](failure: Throwable, forbiddenPath: String): IoReadForbiddenFailure[S] = {
+    logIOMsgOverLimit(s"IOCommand.failReadForbidden '${failure.toPrettyElidedString(limit = 1000)}' path '$forbiddenPath'")
+    IoReadForbiddenFailure(this, failure, forbiddenPath)
+  }
 
   /**
     * A short name describing the command

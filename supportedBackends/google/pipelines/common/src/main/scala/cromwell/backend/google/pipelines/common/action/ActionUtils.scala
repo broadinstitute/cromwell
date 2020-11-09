@@ -10,7 +10,7 @@ object ActionUtils {
   val sshEntryPoint = "ssh-server"
 
   /** Port mappings for the ssh container. */
-  val sshPortMappings = Map("22" -> new Integer(22))
+  val sshPortMappings = Map("22" -> Int.box(22))
 
   /*
    * At the moment, cloud-sdk (924MB for 276.0.0-slim) and stedolan/jq (182MB) decompressed ~= 1.1 GB

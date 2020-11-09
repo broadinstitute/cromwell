@@ -1,8 +1,6 @@
 package cromwell.services.metadata.impl.builder
 
-import cats.instances.list._
-import cats.instances.map._
-import cats.syntax.foldable._
+import cats.implicits._
 import cats.{Monoid, Semigroup}
 import common.collections.EnhancedCollections._
 import cromwell.core._

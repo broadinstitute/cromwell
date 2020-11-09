@@ -1,11 +1,12 @@
 package cromwell.filesystems.drs
 
 import com.typesafe.config.ConfigFactory
+import common.assertion.CromwellTimeoutSpec
 import cromwell.core.filesystem.CromwellFileSystems
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class DrsPathBuilderFactorySpec extends AnyFlatSpec with Matchers{
+class DrsPathBuilderFactorySpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers{
 
   behavior of "DrsPathBuilderFactory"
 
@@ -19,7 +20,6 @@ class DrsPathBuilderFactorySpec extends AnyFlatSpec with Matchers{
          |      config {
          |        martha {
          |          url = "http://matha-url"
-         |          request.json-template = "{"key": "${holder}"}"
          |        }
          |      }
          |    }

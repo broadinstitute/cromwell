@@ -1,5 +1,6 @@
 package cromwell.core.simpleton
 
+import common.assertion.CromwellTimeoutSpec
 import cromwell.core.simpleton.WomValueBuilderSpec._
 import cromwell.core.simpleton.WomValueSimpleton._
 import cromwell.util.WomMocks
@@ -18,7 +19,7 @@ object WomValueBuilderSpec {
   val IgnoredExpression = PlaceholderWomExpression(Set.empty, WomStringType)
 }
 
-class WomValueBuilderSpec extends AnyFlatSpec with Matchers with Mockito {
+class WomValueBuilderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Mockito {
 
   case class SimpletonConversion(name: String, womValue: WomValue, simpletons: Seq[WomValueSimpleton])
   val simpletonConversions = List(

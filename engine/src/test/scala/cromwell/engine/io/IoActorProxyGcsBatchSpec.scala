@@ -2,6 +2,7 @@ package cromwell.engine.io
 
 import java.util.UUID
 
+import akka.stream.ActorMaterializer
 import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
 import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags.IntegrationTest
@@ -22,10 +23,12 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with AnyFlatSpecLike with Ma
 
   implicit val actorSystem = system
   implicit val ec: ExecutionContext = system.dispatcher
+  implicit val materializer = ActorMaterializer()
 
   val instanceConfig = ConfigFactory.parseString("auth = \"application-default\"")
 
   override def afterAll() = {
+    materializer.shutdown()
     src.delete(swallowIOExceptions = true)
     srcRequesterPays.delete(swallowIOExceptions = true)
     dst.delete(swallowIOExceptions = true)

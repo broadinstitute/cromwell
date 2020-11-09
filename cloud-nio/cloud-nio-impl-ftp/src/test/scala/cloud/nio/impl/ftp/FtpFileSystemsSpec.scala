@@ -2,13 +2,13 @@ package cloud.nio.impl.ftp
 
 import cloud.nio.impl.ftp.FtpFileSystems.FtpCacheKey
 import com.typesafe.config.ConfigFactory
+import common.assertion.CromwellTimeoutSpec
 import org.scalamock.function.MockFunction1
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-
-class FtpFileSystemsSpec extends AnyFlatSpec with Matchers with MockFactory {
+class FtpFileSystemsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with MockFactory {
 
   behavior of "FtpFileSystemsSpec"
 
@@ -37,5 +37,4 @@ class FtpFileSystemsSpec extends AnyFlatSpec with Matchers with MockFactory {
   class MockFtpFileSystems(conf: FtpFileSystemsConfiguration, mockCreateFunction: MockFunction1[FtpCacheKey, FtpCloudNioFileSystem]) extends FtpFileSystems(conf) {
     override private[ftp] def createFileSystem(key: FtpCacheKey) = mockCreateFunction(key)
   }
-
 }

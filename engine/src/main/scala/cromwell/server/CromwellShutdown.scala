@@ -7,9 +7,10 @@ import akka.actor._
 import akka.http.scaladsl.Http
 import akka.pattern.{AskTimeoutException, GracefulStopSupport}
 import akka.routing.Broadcast
+import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import cats.instances.future._
 import cats.syntax.functor._
+import cats.instances.future._
 import cromwell.core.WorkflowId
 import cromwell.core.WorkflowProcessingEvents.DescriptionEventValue.Released
 import cromwell.engine.workflow.WorkflowManagerActor.{AbortAllWorkflowsCommand, PreventNewWorkflowsFromStarting}
@@ -89,7 +90,8 @@ object CromwellShutdown extends GracefulStopSupport {
                              callCacheWriteActor: ActorRef,
                              ioActor: ActorRef,
                              dockerHashActor: ActorRef,
-                             serviceRegistryActor: ActorRef
+                             serviceRegistryActor: ActorRef,
+                             materializer: ActorMaterializer
                            ): Unit = {
 
     val coordinatedShutdown = this.instance(actorSystem)
@@ -226,6 +228,7 @@ object CromwellShutdown extends GracefulStopSupport {
       Future.successful(Done)
     }
     coordinatedShutdown.addTask(CoordinatedShutdown.PhaseBeforeActorSystemTerminate, "shutdownMaterializer") { () =>
+      materializer.shutdown()
       logger.info("Stream materializer shut down")
       Future.successful(Done)
     }

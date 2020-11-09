@@ -380,9 +380,10 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
 }
 
 object MetadataRouteSupportSpec {
-  class MockMetadataRouteSupport()(implicit val actorSystem: ActorSystem, routeTestTimeout: RouteTestTimeout) extends MetadataRouteSupport {
-    override val ec = actorSystem.dispatcher
+  class MockMetadataRouteSupport()(implicit val system: ActorSystem, routeTestTimeout: RouteTestTimeout) extends MetadataRouteSupport {
+    override def actorRefFactory = system
+    override val ec = system.dispatcher
     override val timeout = routeTestTimeout.duration
-    override val serviceRegistryActor = actorSystem.actorOf(Props(new MockServiceRegistryActor()))
+    override val serviceRegistryActor = actorRefFactory.actorOf(Props(new MockServiceRegistryActor()))
   }
 }

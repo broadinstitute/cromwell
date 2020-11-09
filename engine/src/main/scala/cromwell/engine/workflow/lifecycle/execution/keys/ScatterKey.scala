@@ -3,6 +3,7 @@ package cromwell.engine.workflow.lifecycle.execution.keys
 import akka.actor.ActorRef
 import cats.syntax.either._
 import cats.syntax.validated._
+import cats.instances.list._
 import common.Checked
 import common.collections.EnhancedCollections._
 import common.validation.ErrorOr.ErrorOr
@@ -59,7 +60,6 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
   }
 
   def processRunnable(data: WorkflowExecutionActorData, workflowExecutionActor: ActorRef, maxScatterWidth: Int): ErrorOr[WorkflowExecutionDiff] = {
-    import cats.instances.list._
     import cats.syntax.traverse._
 
     def getScatterArray(scatterVariableNode: ScatterVariableNode): ErrorOr[ScatterVariableAndValue] = {

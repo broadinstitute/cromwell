@@ -4,6 +4,7 @@ import akka.event.{LoggingAdapter, NoLogging}
 import akka.http.scaladsl.model.headers.{Authorization, OAuth2BearerToken, RawHeader}
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpHeader, StatusCodes}
 import akka.http.scaladsl.testkit.ScalatestRouteTest
+import common.assertion.CromwellTimeoutSpec
 import cromiam.auth.{Collection, User}
 import cromiam.webservice.QuerySupport.LabelContainsOrException
 import org.broadinstitute.dsde.workbench.model.WorkbenchUserId
@@ -11,7 +12,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 
-class QuerySupportSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest with QuerySupport {
+class QuerySupportSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalatestRouteTest with QuerySupport {
   override val cromwellClient = new MockCromwellClient()
   override val samClient = new MockSamClient()
   override val log: LoggingAdapter = NoLogging

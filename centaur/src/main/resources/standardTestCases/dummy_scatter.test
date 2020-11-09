@@ -1,0 +1,14 @@
+name: dummy_scatter
+testFormat: workflowsuccess
+backends: [Dummy]
+tags: [Dummy]
+
+files {
+  workflow: dummy_scatter/dummy_scatter.wdl
+}
+
+metadata {
+  workflowName: dummy_scatter
+  status: Succeeded
+  "outputs.dummy_scatter.results_count": 35000
+}

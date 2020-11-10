@@ -34,7 +34,7 @@ task doMajorRelease {
             --tokenFile '~{githubTokenFile}' \
             --user '~{githubUser}' \
             --email '~{githubEmail}' \
-            ~{if (useEmailForName) then "" else "--user '~{githubName}'"} \
+            ~{if (useEmailForName) then "" else "--name '~{githubName}'"} \
 
         echo 'Clone repo and checkout develop'
         git clone https://github.com/~{organization}/cromwell.git --branch develop cromwell
@@ -132,7 +132,7 @@ task doMinorRelease {
             --tokenFile '~{githubTokenFile}' \
             --user '~{githubUser}' \
             --email '~{githubEmail}' \
-            ~{if (useEmailForName) then "" else "--user '~{githubName}'"} \
+            ~{if (useEmailForName) then "" else "--name '~{githubName}'"} \
 
         echo 'Clone repo and checkout hotfix branch'
         git clone https://github.com/~{organization}/cromwell.git --branch ~{hotfixBranchName} cromwell
@@ -471,7 +471,7 @@ task releaseHomebrew {
             --tokenFile '~{githubTokenFile}' \
             --user '~{githubUser}' \
             --email '~{githubEmail}' \
-            ~{if (useEmailForName) then "" else "--user '~{githubName}'"} \
+            ~{if (useEmailForName) then "" else "--name '~{githubName}'"} \
 
         echo 'Clone the homebrew fork'
         git clone https://github.com/~{organization}/homebrew-core.git --depth=100

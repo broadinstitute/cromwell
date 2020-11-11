@@ -126,7 +126,7 @@ object Dependencies {
   private val slickV = "3.3.2-2076hotfix" // scala-steward:off (BA-6620)
   private val snakeyamlV = "1.27"
   private val specs2MockV = "4.10.5"
-  private val sprayJsonV = "1.3.5"
+  private val sprayJsonV = "1.3.6"
   private val sttpV = "1.5.19" // scala-steward:off (BA-6564)
   private val swaggerParserV = "1.0.52"
   private val swaggerUiV = "3.23.11" // scala-steward:off (BA-6621)

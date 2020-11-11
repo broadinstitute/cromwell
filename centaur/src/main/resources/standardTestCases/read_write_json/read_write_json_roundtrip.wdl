@@ -7,6 +7,7 @@ workflow read_write_json_roundtrip {
         Pair[Int, String] pair_input = (1, "abc")
         Array[Map[String, String]] map_array = [{"artist": "maroon 5", "song": "memories"}]
     }
+
     scatter (i in indices) {
         Object object_array = object {index: i, name: "mr_bean"}
         Object object_with_array = object {index: i, samples: ["s1", "s2"]}

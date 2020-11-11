@@ -4,7 +4,7 @@
 
 ### Bug Fixes
 
-* Fixed a bug where `read_json()` failed for `Array[_]` inputs. It should now work for all valid JSON data  inputs. 
+* Fixed a bug where `read_json()` failed for `Array[_]` inputs. It should now work for all valid JSON data inputs. 
 More information on JSON Type to WDL Type conversion can be found [here](https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#mixed-read_jsonstringfile).
 
 ## 54 Release Notes

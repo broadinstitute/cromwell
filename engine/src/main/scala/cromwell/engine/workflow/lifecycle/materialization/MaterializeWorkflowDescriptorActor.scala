@@ -372,8 +372,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     }
   }
 
-  // Perform a fail-fast validation that the `mount-reference-disks` workflow option is boolean if present.
-  private def validateMountReferenceDisks(workflowOptions: WorkflowOptions) : ErrorOr[Unit] = {
+  // Perform a fail-fast validation that the `use_reference_disks` workflow option is boolean if present.
+  private def validateUseReferenceDisks(workflowOptions: WorkflowOptions) : ErrorOr[Unit] = {
     val optionName = WorkflowOptions.UseReferenceDisks.name
     workflowOptions.getBoolean(optionName) match {
       case Success(_) =>
@@ -406,9 +406,9 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     val callCachingModeValidation = validateCallCachingMode(workflowOptions, callCachingEnabled,
       invalidateBadCacheResults)
 
-    val mountReferenceDisksValidation: ErrorOr[Unit] = validateMountReferenceDisks(workflowOptions)
+    val useReferenceDisksValidation: ErrorOr[Unit] = validateUseReferenceDisks(workflowOptions)
 
-    (failureModeValidation, backendAssignmentsValidation, callCachingModeValidation, mountReferenceDisksValidation) mapN {
+    (failureModeValidation, backendAssignmentsValidation, callCachingModeValidation, useReferenceDisksValidation) mapN {
       case (failureMode, backendAssignments, callCachingMode, _) =>
         val callable = womNamespace.executable.entryPoint
         val backendDescriptor = BackendWorkflowDescriptor(id, callable, womNamespace.womValueInputs, workflowOptions, labels, hogGroup, List.empty, outputRuntimeExtractor)

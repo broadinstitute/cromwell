@@ -1,7 +1,7 @@
 version 1.0
 
 workflow dummy_scatter {
-  scatter (x in range(10)) {
+  scatter (x in range(35000)) {
     call dummy_scattered_task
   }
   output {

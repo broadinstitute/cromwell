@@ -1,4 +1,4 @@
 {
   "read_from_cache": false,
-  "mount_reference_disks": false
+  "use_reference_disks": false
 }

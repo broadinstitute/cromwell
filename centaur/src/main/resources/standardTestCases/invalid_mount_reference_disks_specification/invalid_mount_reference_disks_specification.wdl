@@ -4,6 +4,6 @@ task hello {
   }
 }
 
-workflow invalid_mount_reference_disks_specification {
+workflow invalid_use_reference_disks_specification {
   call hello
 }

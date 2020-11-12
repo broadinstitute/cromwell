@@ -174,8 +174,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   import mouse.all._
 
   private def generateGcsLocalizationScript(inputs: List[PipelinesApiInput], referenceFilesMapping: PipelinesApiReferenceFilesMapping)(implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
-    val optionName = WorkflowOptions.MountReferenceDisks.name
-    val mountReferenceDisks = workflowDescriptor.workflowOptions.getBoolean(optionName) match {
+    val optionName = WorkflowOptions.UseReferenceDisks.name
+    val useReferenceDisks = workflowDescriptor.workflowOptions.getBoolean(optionName) match {
       case Success(value) => value
       case Failure(OptionNotFoundException(_)) => false
       case Failure(f) =>
@@ -207,7 +207,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
       (referenceInputsToMountedPaths, referenceFilesLocalizationScript)
     }
 
-    val (maybeReferenceInputsToMountedPaths, maybeReferenceFilesLocalizationScript) = if (mountReferenceDisks) {
+    val (maybeReferenceInputsToMountedPaths, maybeReferenceFilesLocalizationScript) = if (useReferenceDisks) {
       generateReferenceInputsAndLocalizationScript
     } else {
       (Map.empty[PipelinesApiInput, String], "\n# No reference disks mounted since not requested in workflow options.\n")

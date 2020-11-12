@@ -374,7 +374,7 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
   // Perform a fail-fast validation that the `mount-reference-disks` workflow option is boolean if present.
   private def validateMountReferenceDisks(workflowOptions: WorkflowOptions) : ErrorOr[Unit] = {
-    val optionName = WorkflowOptions.MountReferenceDisks.name
+    val optionName = WorkflowOptions.UseReferenceDisks.name
     workflowOptions.getBoolean(optionName) match {
       case Success(_) =>
         // If present must be boolean

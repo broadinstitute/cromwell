@@ -17,6 +17,6 @@ metadata {
   "outputs.read_write_json_roundtrip.boolean_out" = false
   "outputs.read_write_json_roundtrip.array_object_out" = "[{\"index\":0,\"name\":\"mr_bean\"},{\"index\":1,\"name\":\"mr_bean\"},{\"index\":2,\"name\":\"mr_bean\"}]"
   "outputs.read_write_json_roundtrip.object_out" = "{\"index\":0,\"name\":\"mr_bean\"}"
-  "outputs.read_write_json_roundtrip.string_out" = "\"Mr. Bean\""
+  "outputs.read_write_json_roundtrip.string_out" = "Mr. Bean"
   "outputs.read_write_json_roundtrip.object_out_as_map" = "[{\"artist\":\"maroon 5\",\"song\":\"memories\"}]"
 }

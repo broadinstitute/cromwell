@@ -3,7 +3,7 @@ package cromwell.backend.dummy
 import akka.actor.{ActorRef, Props}
 import cromwell.backend.BackendConfigurationDescriptor
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardFileHashingActor}
-import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardLifecycleActorFactory}
+import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardInitializationActor, StandardLifecycleActorFactory}
 
 class DummyLifecycleActorFactory(override val name: String, override val configurationDescriptor: BackendConfigurationDescriptor) extends StandardLifecycleActorFactory {
 
@@ -28,5 +28,7 @@ class DummyLifecycleActorFactory(override val name: String, override val configu
   override lazy val fileHashingActorClassOption: Option[Class[_ <: StandardFileHashingActor]] = None
 
   override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] = Option(Props(new DummySingletonActor()))
+
+  override lazy val initializationActorClass: Class[_ <: StandardInitializationActor] = classOf[DummyInitializationActor]
 
 }

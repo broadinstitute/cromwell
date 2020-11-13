@@ -146,17 +146,38 @@ object EngineFunctionEvaluators {
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
-                              (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomObject]] = {
-      processValidatedSingleValue[WomSingleFile, WomObject](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
-        val tryResult: Try[WomObject] = for {
+                              (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomValue]] = {
+
+      def convertJsonToWom(jsValue: JsValue): Try[WomValue] = {
+        jsValue match {
+          case _: JsNumber => WomIntegerType.coerceRawValue(jsValue).recoverWith { case _ => WomFloatType.coerceRawValue(jsValue) }
+          case _: JsString => WomStringType.coerceRawValue(jsValue)
+          case _: JsBoolean => WomBooleanType.coerceRawValue(jsValue)
+          case _: JsArray => WomArrayType(WomAnyType).coerceRawValue(jsValue)
+          case _ => WomObjectType.coerceRawValue(jsValue)
+        }
+      }
+
+      def readJson(fileToRead: WomSingleFile): ErrorOr[EvaluatedValue[WomValue]] = {
+        val tryResult: Try[WomValue] = for {
           read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readJsonLimit)
           jsValue <- Try(read.parseJson)
-          coerced <- WomObjectType.coerceRawValue(jsValue)
-          womObject <- Try(coerced.asInstanceOf[WomObject])
-        } yield womObject
+          womValue <- convertJsonToWom(jsValue)
+        } yield womValue
 
         tryResult.map(EvaluatedValue(_, Seq.empty)).toErrorOr.contextualizeErrors(s"""read_json("${fileToRead.value}")""")
       }
+
+      def convertToSingleFile(womValue: WomValue): ErrorOr[WomSingleFile] = {
+        if (womValue.coercionDefined[WomSingleFile]) womValue.coerceToType[WomSingleFile]
+        else s"Expected File argument but got ${womValue.womType.stableName}".invalidNel
+      }
+
+      for {
+        evaluatedValue <- a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
+        fileToRead <- convertToSingleFile(evaluatedValue.value)
+        womValue <- readJson(fileToRead)
+      } yield womValue
     }
   }
 

@@ -184,8 +184,11 @@ object Operations extends StrictLogging {
     }
   }
 
-  def timingVerificationNotSupported(): Test[Unit] = new Test[Unit] {
-    override def run: IO[Unit] = IO.raiseError(new Exception("Maximum workflow time verification is not supported in this test mode"))
+  def timingVerificationNotSupported(timingRequirement: Option[FiniteDuration]): Test[Unit] = new Test[Unit] {
+    override def run: IO[Unit] = if (timingRequirement.isDefined) {
+      IO.raiseError(new Exception("Maximum workflow time verification is not supported in this test mode"))
+    } else IO.pure(())
+
   }
 
   def checkDescription(workflow: Workflow, validityExpectation: Option[Boolean], retries: Int = 3): Test[Unit] = {

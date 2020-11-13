@@ -560,6 +560,8 @@ Manifest JSONs have a format like:
     "crc32c" : 1902048083
   },
 ...
+  ]
+}
 ```
 
 Reference disk usage is an opt-in feature, so workflow submissions must specify this workflow option:
@@ -572,10 +574,11 @@ Reference disk usage is an opt-in feature, so workflow submissions must specify 
 }
 ```
 
-Using the first file as an example, assume the PAPI v2 backend was configured to use this manifest file and the appropriate
-`use_reference_disks` workflow option was set to `true` in the workflow submission. If a call in that workflow 
-specified the input `gs://my-references/enormous_reference.bam`, Cromwell would
-arrange for a reference disk based on this image to be mounted and arrange for the call's input to refer to the 
+Using the first file in the manifest above as an example, assume a PAPI v2 backend is configured to use this manifest and the appropriate
+`use_reference_disks` workflow option is set to `true` in the workflow submission. If a call in that workflow 
+specifies the input `gs://my-references/enormous_reference.bam` and because that input matches the path of a file on the
+reference image without the leading `gs://`, Cromwell would
+arrange for a reference disk based on this image to be mounted and for the call's input to refer to the 
 copy of the file on the reference disk, bypassing localization of the input.     
 
 The Cromwell git repository includes a Java-based tool to facilitate the creation of manifest files called

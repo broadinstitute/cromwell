@@ -3,6 +3,8 @@ package cromwell.engine.io.gcs
 import java.io.FileNotFoundException
 
 import akka.actor.ActorRef
+import cats.data.Validated.{Invalid, Valid}
+import cats.implicits.catsSyntaxValidatedId
 import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback
 import com.google.api.client.googleapis.json.GoogleJsonError
@@ -10,15 +12,17 @@ import com.google.api.client.http.HttpHeaders
 import com.google.api.client.util.ExponentialBackOff
 import com.google.cloud.storage.StorageException
 import com.typesafe.scalalogging.StrictLogging
+import common.exception.AggregatedMessageException
 import common.util.Backoff
+import common.util.StringUtil.EnhancedToStringable
+import common.validation.ErrorOr.ErrorOr
 import cromwell.core.io.SingleFileIoCommand
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.engine.io.IoActor.IoResult
 import cromwell.engine.io.gcs.GcsBatchCommandContext.BatchResponse
 import cromwell.engine.io.{IoActor, IoCommandContext}
-import cromwell.filesystems.gcs.batch.GcsBatchIoCommand
 import cromwell.filesystems.gcs.RequesterPaysErrors._
-import common.util.StringUtil.EnhancedToStringable
+import cromwell.filesystems.gcs.batch.GcsBatchIoCommand
 
 import scala.concurrent.Promise
 import scala.concurrent.duration._
@@ -106,15 +110,20 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
     handleSuccessOrNextRequest(request.onSuccess(response, httpHeaders))
   }
 
-  private def handleSuccessOrNextRequest(successResult: Either[T, GcsBatchIoCommand[T, U]]): Unit = {
-    val promiseResponse: BatchResponse = successResult match {
-      // Left means the command is complete, so just create the corresponding IoSuccess with the value
-      case Left(responseValue) => Left(success(responseValue))
-      // Right means there is a subsequent request to be executed, clone this context with the new request and a new promise
-      case Right(nextCommand) => Right(this.copy(request = nextCommand, promise = Promise[BatchResponse]))
-    }
+  private def handleSuccessOrNextRequest(errorOrSuccessResult: ErrorOr[Either[T, GcsBatchIoCommand[T, U]]]): Unit = {
+    errorOrSuccessResult match {
+      case Valid(successResult) =>
+        val promiseResponse: BatchResponse = successResult match {
+          // Left means the command is complete, so just create the corresponding IoSuccess with the value
+          case Left(responseValue) => Left(success(responseValue))
+          // Right means there is a subsequent request to be executed, clone this context with the new request and a new promise
+          case Right(nextCommand) => Right(this.copy(request = nextCommand, promise = Promise[BatchResponse]))
+        }
 
-    promise.trySuccess(promiseResponse)
+        promise.trySuccess(promiseResponse)
+      case Invalid(e) =>
+        promise.tryFailure(AggregatedMessageException("Unexpected result in successful Google API call", e.toList))
+    }
     ()
   }
 
@@ -125,10 +134,10 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
     request.logIOMsgOverLimit(s"GcsBatchCommandContext.onFailureCallback '${googleJsonError.toPrettyElidedString(limit = 1000)}'")
     if (isProjectNotProvidedError(googleJsonError)) {
       // Returning an Either.Right here means that the operation is not complete and that we need to do another request
-      handleSuccessOrNextRequest(Right(request.withUserProject))
+      handleSuccessOrNextRequest(Right(request.withUserProject).validNel)
     } else {
       (request.onFailure(googleJsonError, httpHeaders), request) match {
-        case (Some(successValue), _) => handleSuccessOrNextRequest(successValue)
+        case (Some(successValue), _) => handleSuccessOrNextRequest(successValue.validNel)
         case (None, singleFile: SingleFileIoCommand[_]) if googleJsonError.getCode == 404 =>
           // Make the message clearer if it's a file not found error
           googleJsonError.setMessage(s"Object ${singleFile.file.pathAsString} does not exist")

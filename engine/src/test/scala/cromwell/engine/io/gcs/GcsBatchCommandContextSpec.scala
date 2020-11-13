@@ -106,5 +106,7 @@ object GcsBatchCommandContextSpec {
     override def name: String = ???
 
     override def onSuccess(response: Unit, httpHeaders: HttpHeaders): ErrorOr[Either[Unit, GcsBatchIoCommand[Unit, Unit]]] = super.onSuccess(response, httpHeaders)
+
+    override def commandDescription: String = s"ErrorReturningGcsBatchIoCommand (mock class for tests)"
   }
 }

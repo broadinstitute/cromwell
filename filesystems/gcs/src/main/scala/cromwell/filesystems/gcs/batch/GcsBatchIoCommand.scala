@@ -3,7 +3,7 @@ package cromwell.filesystems.gcs.batch
 import cats.implicits.catsSyntaxValidatedId
 import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.HttpHeaders
-import com.google.api.services.storage.{Storage, StorageRequest}
+import com.google.api.services.storage.StorageRequest
 import com.google.api.services.storage.model.{Objects, RewriteResponse, StorageObject}
 import common.util.StringUtil._
 import common.validation.ErrorOr.ErrorOr
@@ -107,7 +107,7 @@ case class GcsBatchDeleteCommand(
                                   setUserProject: Boolean = false
                                 ) extends IoDeleteCommand(file, swallowIOExceptions) with SingleFileGcsBatchIoCommand[Unit, Void] {
   private val blob = file.blob
-  def operation: Storage#Objects#Delete = {
+  override def operation: StorageRequest[Void] = {
     file.apiStorage.objects().delete(blob.getBucket, blob.getName).setUserProject(userProject)
   }
   override protected def mapGoogleResponse(response: Void): ErrorOr[Unit] = ().validNel

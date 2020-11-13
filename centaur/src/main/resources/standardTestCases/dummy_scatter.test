@@ -1,5 +1,5 @@
 name: dummy_scatter
-testFormat: workflowsuccess
+testFormat: workflowsuccessandtimedoutputs
 backends: [Dummy]
 tags: [Dummy]
 
@@ -8,7 +8,7 @@ files {
 }
 
 metadata {
-  workflowName: dummy_scatter
-  status: Succeeded
   "outputs.dummy_scatter.results_count": 35000
 }
+
+maximumTime = 12 minutes

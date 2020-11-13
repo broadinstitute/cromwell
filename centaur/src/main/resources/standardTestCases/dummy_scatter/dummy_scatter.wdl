@@ -17,7 +17,7 @@ task dummy_scattered_task {
     String string_out = "hello"
   }
   runtime {
-    # This is technically unnecessary given the test setup, but I want to be _very_ sure this isn't accidentally sent
+    # This is technically unnecessary given the test setup, but I want to double check this isn't accidentally sent
     # to a _real_, money-spending backend:
     backend: "Dummy"
   }

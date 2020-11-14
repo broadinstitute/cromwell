@@ -18,8 +18,10 @@ cromwell::build::assemble_jars
 
 cromwell::build::run_centaur \
     -p 100 \
-    -i attempt_to_call_size_function_on_bucket \
-    -i bucket_name_with_no_trailing_slash \
-    -i bucket_name_with_trailing_slash \
+    -e localdockertest \
+    -e relative_output_paths \
+    -e relative_output_paths_colliding \
+    -e standard_output_paths_colliding_prevented \
+    -e papi_v2beta_gcsa \
 
 cromwell::build::generate_code_coverage

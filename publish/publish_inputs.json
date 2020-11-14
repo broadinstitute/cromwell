@@ -1,6 +1,7 @@
 {
   "publish_workflow.githubToken": "<<REQUIRED: GithubAPIToken (value, not path)>>",
   "publish_workflow.organization": "<<REQUIRED: broadinstitute for a real release, your github username if testing>>",
-  "publish_workflow.majorRelease": <<OPTIONAL,: true for a major release, false for a minor release, default true>>,
-  "publish_workflow.publishHomebrew": <<OPTIONAL,: true to publish release to homebrew, false to skip, default true>>
+  "publish_workflow.publishDocker": <<OPTIONAL: the docker image to use for publishing, default broadinstitute/cromwell-publish:latest>>,
+  "publish_workflow.majorRelease": <<OPTIONAL: true for a major release, false for a minor release, default true>>,
+  "publish_workflow.publishHomebrew": <<OPTIONAL: true to publish release to homebrew, false to skip, default true>>
 }

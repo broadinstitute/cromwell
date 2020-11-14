@@ -3,6 +3,7 @@ package cromwell.engine.io
 import java.io.IOException
 import java.net.{SocketException, SocketTimeoutException}
 
+import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
 import better.files.File.OpenOptions
@@ -23,11 +24,11 @@ import scala.language.postfixOps
 class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with ImplicitSender {
   behavior of "IoActor"
   
-  implicit val actorSystem = system
+  implicit val actorSystem: ActorSystem = system
   implicit val ec: ExecutionContext = system.dispatcher
-  implicit val materializer = ActorMaterializer()
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
   
-  override def afterAll() = {
+  override def afterAll(): Unit = {
     materializer.shutdown()
     super.afterAll()
   }
@@ -38,7 +39,7 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
     val src = DefaultPathBuilder.createTempFile()
     val dst: Path = src.parent.resolve(src.name + "-dst")
     
-    val copyCommand = DefaultIoCopyCommand(src, dst, overwrite = true)
+    val copyCommand = DefaultIoCopyCommand(src, dst)
     
     testActor ! copyCommand
     expectMsgPF(5 seconds) {

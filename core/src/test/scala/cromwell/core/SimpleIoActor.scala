@@ -10,15 +10,15 @@ import scala.concurrent.Promise
 import scala.util.{Failure, Success, Try}
 
 object SimpleIoActor {
-  def props = Props(new SimpleIoActor)
+  def props: Props = Props(new SimpleIoActor)
 }
 
 class SimpleIoActor extends Actor {
   
-  override def receive = {
+  override def receive: Receive = {
     case command: IoCopyCommand =>
       
-      Try(command.source.copyTo(command.destination, command.overwrite)) match {
+      Try(command.source.copyTo(command.destination)) match {
         case Success(_) => sender() ! IoSuccess(command, ())
         case Failure(failure) => sender() ! IoFailure(command, failure)
       }
@@ -66,7 +66,7 @@ class SimpleIoActor extends Actor {
     // With context
     case (requestContext: Any, command: IoCopyCommand) =>
       
-      Try(command.source.copyTo(command.destination, command.overwrite)) match {
+      Try(command.source.copyTo(command.destination, overwrite = true)) match {
         case Success(_) => sender() ! (requestContext -> IoSuccess(command, ()))
         case Failure(failure) => sender() ! (requestContext -> IoFailure(command, failure))
       }

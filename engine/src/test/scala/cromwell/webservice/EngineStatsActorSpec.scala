@@ -11,10 +11,10 @@ import org.scalatest.matchers.should.Matchers
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class EngineStatsActorSpec extends TestKitSuite("EngineStatsActor") with AnyFlatSpecLike with Matchers {
+class EngineStatsActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
   behavior of "EngineStatsActor"
 
-  val replyTo = TestProbe()
+  val replyTo = TestProbe("replyTo")
   val defaultTimeout = 500 millis
 
   it should "return double zeros with no WorkflowActors" in {

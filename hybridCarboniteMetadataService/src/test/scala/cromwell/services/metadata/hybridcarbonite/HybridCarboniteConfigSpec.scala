@@ -9,7 +9,7 @@ import org.scalatest.matchers.should.Matchers
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec") with AnyFlatSpecLike with Matchers {
+class HybridCarboniteConfigSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
 
   behavior of "HybridCarboniteConfig"
 

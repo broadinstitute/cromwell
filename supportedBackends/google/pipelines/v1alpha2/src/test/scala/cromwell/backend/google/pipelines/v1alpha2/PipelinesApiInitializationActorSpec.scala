@@ -24,7 +24,7 @@ import wom.graph.CommandCallNode
 
 import scala.concurrent.duration._
 
-class PipelinesApiInitializationActorSpec extends TestKitSuite("PipelinesApiInitializationActorSpecV1") with AnyFlatSpecLike with Matchers
+class PipelinesApiInitializationActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
   with ImplicitSender with Mockito {
   val Timeout: FiniteDuration = 10.second.dilated
 
@@ -274,7 +274,7 @@ class PipelinesApiInitializationActorSpec extends TestKitSuite("PipelinesApiInit
 }
 
 object PipelinesApiInitializationActorSpec {
-  def normalize(str: String) = {
+  def normalize(str: String): String = {
     str.parseJson.prettyPrint
   }
 

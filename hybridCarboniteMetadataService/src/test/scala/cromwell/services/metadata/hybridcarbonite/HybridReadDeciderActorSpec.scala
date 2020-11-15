@@ -13,7 +13,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import spray.json._
 
-class HybridReadDeciderActorSpec extends TestKitSuite("HybridReadDeciderActorSpec") with AnyFlatSpecLike with Matchers {
+class HybridReadDeciderActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
 
   behavior of "HybridReadDeciderActor"
 
@@ -23,7 +23,7 @@ class HybridReadDeciderActorSpec extends TestKitSuite("HybridReadDeciderActorSpe
   it should "pass messages correctly for archived workflow queries" in { routingTest(Archived, shouldChooseCarboniter = true) }
   it should "pass messages correctly for failed-archived workflow queries" in { routingTest(ArchiveFailed, shouldChooseCarboniter = false) }
 
-  def routingTest(archiveStatusToReturn: MetadataArchiveStatus, shouldChooseCarboniter: Boolean) = {
+  private def routingTest(archiveStatusToReturn: MetadataArchiveStatus, shouldChooseCarboniter: Boolean) = {
     val sampleWorkflowId = WorkflowId.randomId()
 
     val client = TestProbe("client")
@@ -102,7 +102,7 @@ class HybridReadDeciderActorSpec extends TestKitSuite("HybridReadDeciderActorSpe
    * If the straightToClassic param is true, expect the query to be immediately directed to the classic metadata service.
    * If the straightToClassic param is false, expect the query to be immediately directed to the carbonited metadata service.
    */
-  def assertStraightToClassicOrCarbonite(queryMsg: BuildMetadataJsonAction, straightToClassic: Boolean) = {
+  private def assertStraightToClassicOrCarbonite(queryMsg: BuildMetadataJsonAction, straightToClassic: Boolean) = {
     val client = TestProbe("client")
     val classicMetadataActor = TestProbe("classic")
     val carboniteMetadataActor = TestProbe("carboniter")

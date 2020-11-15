@@ -2,7 +2,6 @@ package cromwell.engine.io
 
 import java.util.UUID
 
-import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
 import com.typesafe.config.ConfigFactory
@@ -22,11 +21,10 @@ import scala.language.postfixOps
 class IoActorProxyGcsBatchSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with ImplicitSender with Eventually {
   behavior of "IoActor [GCS Batch]"
 
-  implicit val actorSystem: ActorSystem = system
   implicit val ec: ExecutionContext = system.dispatcher
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-  private val instanceConfig = ConfigFactory.parseString("auth = \"application-default\"")
+  private val instanceConfig = ConfigFactory.parseString("auth = \"integration-test\"")
 
   override def afterAll(): Unit = {
     materializer.shutdown()
@@ -41,7 +39,7 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with AnyFlatSpecLike with Ma
 
   private lazy val gcsPathBuilder = GcsPathBuilderFactory(ConfigFactory.load(), instanceConfig)
   private lazy val pathBuilder: GcsPathBuilder =
-    Await.result(gcsPathBuilder.withOptions(WorkflowOptions.empty), 1 second)
+    Await.result(gcsPathBuilder.withOptions(WorkflowOptions.empty), 30.seconds)
 
   private lazy val randomUUID = UUID.randomUUID().toString
 
@@ -69,8 +67,11 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with AnyFlatSpecLike with Ma
     super.beforeAll()
   }
 
-  private def testWith(src: GcsPath, dst: GcsPath, directory: GcsPath) = {
-    val testActor = TestActorRef(new IoActor(10, 10, 10, None, TestProbe().ref, "cromwell test"))
+  private def testWith(src: GcsPath, dst: GcsPath, directory: GcsPath, actorSuffix: String) = {
+    val testActor = TestActorRef(
+      factory = new IoActor(10, 10, 10, None, TestProbe(s"serviceRegistryActor-$actorSuffix").ref, "cromwell test"),
+      name = s"testActor-$actorSuffix",
+    )
 
     val copyCommand = GcsBatchCopyCommand.forPaths(src, dst).get
     val sizeCommand = GcsBatchSizeCommand.forPath(src).get
@@ -123,15 +124,18 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with AnyFlatSpecLike with Ma
   }
 
   it should "batch queries" taggedAs IntegrationTest in {
-    testWith(src, dst, directory)
+    testWith(src, dst, directory, "batch")
   }
 
   it should "batch queries on requester pays buckets" taggedAs IntegrationTest in {
-    testWith(srcRequesterPays, dstRequesterPays, directoryRequesterPays)
+    testWith(srcRequesterPays, dstRequesterPays, directoryRequesterPays, "batch-rp")
   }
 
   it should "copy files across GCS storage classes" taggedAs IntegrationTest in {
-    val testActor = TestActorRef(new IoActor(10, 10, 10, None, TestProbe().ref, "cromwell test"))
+    val testActor = TestActorRef(
+      factory = new IoActor(10, 10, 10, None, TestProbe("serviceRegistryActor").ref, "cromwell test"),
+      name = "testActor",
+    )
 
     val copyCommand = GcsBatchCopyCommand.forPaths(srcRegional, dstMultiRegional).get
 

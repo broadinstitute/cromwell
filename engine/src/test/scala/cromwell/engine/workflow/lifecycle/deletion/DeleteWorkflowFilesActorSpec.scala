@@ -31,15 +31,15 @@ import scala.concurrent.duration._
 import scala.util.control.NoStackTrace
 import scala.util.{Failure, Try}
 
-class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActorSpec")
+class DeleteWorkflowFilesActorSpec extends TestKitSuite
   with AnyFlatSpecLike
   with Matchers
   with BeforeAndAfter {
 
   val mockPathBuilder: GcsPathBuilder = MockGcsPathBuilder.instance
   val mockPathBuilders = List(mockPathBuilder)
-  private val serviceRegistryActor = TestProbe()
-  private val ioActor = TestProbe()
+  private val serviceRegistryActor = TestProbe("serviceRegistryActor")
+  private val ioActor = TestProbe("ioActor")
 
   val emptyWorkflowIdSet = Set.empty[WorkflowId]
 
@@ -52,9 +52,9 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
   var gcsFilePath: GcsPath = _
 
   before {
-    testProbe = TestProbe()
     rootWorkflowId = RootWorkflowId(WorkflowId.randomId().id)
     subworkflowId = WorkflowId.randomId()
+    testProbe = TestProbe(s"test-probe-$rootWorkflowId")
 
     allOutputs = CallOutputs(Map(
       GraphNodeOutputPort(WomIdentifier(LocalName("main_output"),FullyQualifiedName("main_workflow.main_output")), WomSingleFileType, null)

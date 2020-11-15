@@ -33,7 +33,7 @@ import wom.values._
 
 import scala.concurrent.duration._
 
-class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSystemJobExecutionActorSpec")
+class SharedFileSystemJobExecutionActorSpec extends TestKitSuite
   with AnyFlatSpecLike with BackendSpec with TableDrivenPropertyChecks with OptionValues {
 
   behavior of "SharedFileSystemJobExecutionActor"
@@ -41,8 +41,8 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
   lazy val runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
     StandardValidatedRuntimeAttributesBuilder.default(Some(TestConfig.optionalRuntimeConfig)).definitions.toSet
 
-  val call = CommandCallNode(WomIdentifier("SfsJEASpec_call"), null, null, null, Set.empty, null, None)
-  val mockBackendJobDescriptorKey = BackendJobDescriptorKey(call, None, 1)
+  private val call = CommandCallNode(WomIdentifier("SfsJEASpec_call"), null, null, null, Set.empty, null, None)
+  private val mockBackendJobDescriptorKey = BackendJobDescriptorKey(call, None, 1)
 
   def executeSpec(docker: Boolean): Any = {
     val expectedOutputs: CallOutputs = WomMocks.mockOutputExpectations(Map("hello.salutation" -> WomString("Hello you !")))
@@ -212,7 +212,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val scopedKey = ScopedKey(workflowDescriptor.id, kvJobKey, SharedFileSystemAsyncJobExecutionActor.JobIdKey)
     val kvPair = KvPair(scopedKey, pid)
 
-    val previousKvPutter = TestProbe()
+    val previousKvPutter = TestProbe("previousKvPutter")
     val kvPutReq = KvPut(kvPair)
     backendRef.underlyingActor.serviceRegistryActor.tell(msg = kvPutReq, sender = previousKvPutter.ref)
     previousKvPutter.expectMsg(KvPutSuccess(kvPutReq))

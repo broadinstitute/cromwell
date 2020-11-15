@@ -1,6 +1,6 @@
 package cromwell.services.metadata.hybridcarbonite
 
-import akka.actor.ActorRef
+import akka.actor.{ActorRef, FSM}
 import akka.testkit.{TestFSMRef, TestProbe}
 import com.typesafe.config.ConfigFactory
 import common.assertion.ManyTimes._
@@ -21,11 +21,11 @@ import spray.json._
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
-class CarbonitingMetadataFreezerActorSpec extends TestKitSuite("CarbonitedMetadataThawingActorSpec") with AnyFlatSpecLike with Matchers {
+class CarbonitingMetadataFreezerActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
 
   implicit val ec: ExecutionContext = system.dispatcher
 
-  val carboniterConfig = HybridCarboniteConfig.parseConfig(ConfigFactory.parseString(
+  val carboniterConfig: HybridCarboniteConfig = HybridCarboniteConfig.parseConfig(ConfigFactory.parseString(
     """
       |bucket = "carbonite-test-bucket"
       |filesystems {
@@ -39,9 +39,9 @@ class CarbonitingMetadataFreezerActorSpec extends TestKitSuite("CarbonitedMetada
       |}
       |""".stripMargin)).unsafe("Make config file")
 
-  val serviceRegistryActor = TestProbe()
-  val ioActor = TestProbe()
-  val carboniteWorkerActor = TestProbe()
+  val serviceRegistryActor: TestProbe = TestProbe("serviceRegistryActor")
+  val ioActor: TestProbe = TestProbe("ioActor")
+  val carboniteWorkerActor: TestProbe = TestProbe("carboniteWorkerActor")
 
   it should "follow the expected golden-path lifecycle" in {
     val actor = TestFSMRef(new TestableCarbonitingMetadataFreezerActor(carboniterConfig, carboniteWorkerActor.ref, serviceRegistryActor.ref, ioActor.ref))
@@ -231,7 +231,7 @@ object CarbonitingMetadataFreezerActorSpec {
     extends CarbonitingMetadataFreezerActor(config.freezingConfig.asInstanceOf[ActiveMetadataFreezingConfig], config, carboniteWorkerActor, serviceRegistry, ioActor) {
 
     var updateArchiveStatusCall: (WorkflowId, MetadataArchiveStatus) = (null, null)
-    var updateArchiveStatusPromise = Promise[Int]()
+    var updateArchiveStatusPromise: Promise[Int] = Promise[Int]()
 
     override def updateMetadataArchiveStatus(workflowId: WorkflowId, newStatus: MetadataArchiveStatus): Future[Int] = {
       updateArchiveStatusCall = (workflowId, newStatus)
@@ -240,7 +240,7 @@ object CarbonitingMetadataFreezerActorSpec {
 
     override def scheduleDatabaseUpdateAndAwaitResult(workflowId: WorkflowId,
                                                       newStatus: MetadataArchiveStatus,
-                                                      delay: Option[FiniteDuration]) = {
+                                                      delay: Option[FiniteDuration]): FSM.State[CarbonitingMetadataFreezingState, CarbonitingMetadataFreezingData] = {
       updateArchiveStatusPromise = Promise[Int]()
       super.scheduleDatabaseUpdateAndAwaitResult(workflowId, newStatus, None)
     }

@@ -26,15 +26,15 @@ import scala.concurrent.{Future, Promise}
 import scala.util.Try
 
 abstract class PipelinesApiRequestWorkerSpec[O >: Null]
-  extends TestKitSuite("PipelinesApiRequestWorker") with AnyFlatSpecLike with Matchers with Eventually with BeforeAndAfter with Mockito {
+  extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually with BeforeAndAfter with Mockito {
 
   implicit var batchHandler: TestPipelinesApiBatchHandler[O]
   
   behavior of "PipelinesApiRequestWorker"
 
-  implicit val TestExecutionTimeout = 10.seconds.dilated
-  implicit val DefaultPatienceConfig = PatienceConfig(TestExecutionTimeout)
-  val AwaitAlmostNothing = 30.milliseconds.dilated
+  implicit val TestExecutionTimeout: FiniteDuration = 10.seconds.dilated
+  implicit val DefaultPatienceConfig: PatienceConfig = PatienceConfig(TestExecutionTimeout)
+  val AwaitAlmostNothing: FiniteDuration = 30.milliseconds.dilated
 
   var managerProbe: TestProbe = _
   var workerActor: TestActorRef[TestPipelinesApiRequestWorker] = _
@@ -53,11 +53,11 @@ abstract class PipelinesApiRequestWorkerSpec[O >: Null]
   it should "respond correctly with various run statuses" in {
     managerProbe.expectMsgClass(max = TestExecutionTimeout, c = classOf[PipelinesApiRequestManager.PipelinesWorkerRequestWork])
 
-    val requester1 = TestProbe()
+    val requester1 = TestProbe("requester1")
     val query1 = PAPIStatusPollRequest(null, requester1.ref, null, null)
-    val requester2 = TestProbe()
+    val requester2 = TestProbe("requester2")
     val query2 = PAPIStatusPollRequest(null, requester2.ref, null, null)
-    val requester3 = TestProbe()
+    val requester3 = TestProbe("requester3")
     val query3 = PAPIStatusPollRequest(null, requester3.ref, null, null)
 
     // For two requests the callback succeeds (first with RunStatus.Success, then RunStatus.Failed). The third callback fails (simulating a network timeout, for example):
@@ -66,7 +66,15 @@ abstract class PipelinesApiRequestWorkerSpec[O >: Null]
     batchHandler.callbackResponses :+= CallbackFailure
 
     val successStatus = RunStatus.Success(Seq.empty[ExecutionEvent], None, None, None)
-    val failureStatus = RunStatus.UnsuccessfulRunStatus(Status.UNIMPLEMENTED, Option.empty[String], Seq.empty[ExecutionEvent], None, None, None, false)
+    val failureStatus = RunStatus.UnsuccessfulRunStatus(
+      errorCode = Status.UNIMPLEMENTED,
+      errorMessage = Option.empty[String],
+      eventList = Seq.empty[ExecutionEvent],
+      machineType = None,
+      zone = None,
+      instanceName = None,
+      wasPreemptible = false,
+    )
     batchHandler.operationStatusResponses :+= successStatus
     batchHandler.operationStatusResponses :+= failureStatus
 
@@ -94,12 +102,14 @@ abstract class PipelinesApiRequestWorkerSpec[O >: Null]
   }
 }
 
+//noinspection ScalaUnusedSymbol
 class TestPipelinesApiRequestWorker(manager: ActorRef, qps: Int Refined Positive, registryProbe: ActorRef)(implicit batchHandler: TestPipelinesApiBatchHandler[_])
   extends PipelinesApiRequestWorker(manager, 10.milliseconds, registryProbe) with Mockito {
-  override def createBatch() = null
-  override def runBatch(batch: BatchRequest) = batchHandler.runBatch()
+  override def createBatch(): BatchRequest = null
+  override def runBatch(batch: BatchRequest): Unit = batchHandler.runBatch()
 }
 
+//noinspection ScalaUnusedSymbol
 abstract class TestPipelinesApiBatchHandler[O >: Null] extends PipelinesApiRequestHandler {
   var operationStatusResponses: Queue[RunStatus] = Queue.empty
   var resultHandlers: Queue[JsonBatchCallback[O]] = Queue.empty

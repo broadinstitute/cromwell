@@ -97,9 +97,9 @@ nav:
                 - Job retry decision logic: developers/bitesize/jobRetryLogic/jobRetryLogic.md
                 - Evaluating WDL expressions in WOM: developers/bitesize/workflowExecution/wdlExpressionEvaluation.md
                 - Execution and Value Stores:
-                      - Execution Store: developers/bitesize/executionStore.md
-                      - Value Store: developers/bitesize/valueStore.md
-                      - Worked Examples: developers/bitesize/executionAndValueStoreExamples.md
+                      - Execution Store: developers/bitesize/workflowExecution/executionStore.md
+                      - Value Store: developers/bitesize/workflowExecution/valueStore.md
+                      - Worked Examples: developers/bitesize/workflowExecution/executionAndValueStoreExamples.md
             - IoActor: developers/bitesize/IoActor/IoActor.md
         - Horizontal Cromwell ("Horicromtal"): developers/bitesize/horicromtal.md
         - General Topics:

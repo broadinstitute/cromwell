@@ -27,7 +27,7 @@ nav:
 - Cromwell Basics:
     - Modes: Modes.md
     - Workflow Language Support: LanguageSupport.md
-    - Cromwell Releases: Getting.md
+    - Cromwell Releases: Releases.md
     - Support: GettingHelp.md
 - Command Line: CommandLine.md
 - Feature Documentation:

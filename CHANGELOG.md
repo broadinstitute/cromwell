@@ -4,19 +4,7 @@
 
 ### Apple Silicon support statement
 
-#### Cromwell JAR works out of the box
-
-The Cromwell JAR works on any standard Java installation. You can install an x86 Java runtime on an Apple Silicon Mac and the Rosetta 2 translation layer runs Cromwell at near-native speed.
-
-Once natively-compiled Java runtimes become available, performance will increase with no change in functionality. 
-
-#### Docker Desktop support is in progress
-
-The Cromwell Docker image will not run on M1 Macs until Docker Desktop ships the appropriate update. For more details, please see [their official announcement](https://www.docker.com/blog/apple-silicon-m1-chips-and-docker/).
-
-By extension, the absence of Docker means that Cromwell's local Docker backend is not yet supported.
-
-Even when Docker Desktop goes native on Apple Silicon, any tool images running on the local backend will need to cross-compile for the x86 and Arm architectures. This is because the Rosetta 2 translation layer [does not support virtualization](https://developer.apple.com/documentation/apple_silicon/about_the_rosetta_translation_environment). Please contact the tool maintainers for more information. 
+Users with access to the new Mac hardware should review [important information provided here](https://cromwell.readthedocs.io/en/stable/Installing).
 
 ## 54 Release Notes
 

@@ -29,7 +29,7 @@ class MarthaHttpRequestRetryStrategy(drsConfig: DrsConfig)
   /** Returns true if HttpResponse should be retried after getRetryInterval. */
   override def retryRequest(response: HttpResponse, executionCount: Int, context: HttpContext): Boolean = {
     response.getStatusLine.getStatusCode match {
-      case 429 => retryRequestTransient(executionCount)
+      case code if code == 408 || code == 429 => retryRequestTransient(executionCount)
       case code if 500 <= code && code <= 599 => retryRequest(executionCount)
       case _ => false
     }

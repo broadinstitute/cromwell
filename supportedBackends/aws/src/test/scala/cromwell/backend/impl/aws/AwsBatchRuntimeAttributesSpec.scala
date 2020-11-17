@@ -352,7 +352,7 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
     val defaultedAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(
       staticRuntimeAttributeDefinitions, workflowOptions)(runtimeAttributes)
     val validatedRuntimeAttributes = runtimeAttributesBuilder.build(defaultedAttributes, NOPLogger.NOP_LOGGER)
-    AwsBatchRuntimeAttributes(validatedRuntimeAttributes, configuration.runtimeConfig)
+    AwsBatchRuntimeAttributes(validatedRuntimeAttributes, configuration.runtimeConfig,configuration.fileSystem)
   }
 
   private val emptyWorkflowOptions = WorkflowOptions.fromMap(Map.empty).get

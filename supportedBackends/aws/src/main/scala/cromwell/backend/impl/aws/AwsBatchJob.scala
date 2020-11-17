@@ -213,31 +213,44 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
          |}
          |""".stripMargin
   }
+  private def batch_file_s3_url(scriptBucketName: String, scriptKeyPrefix: String, scriptKey: String): String  = runtimeAttributes.fileSystem match {
+       case AWSBatchStorageSystems.s3  => s"s3://${runtimeAttributes.scriptS3BucketName}/$scriptKeyPrefix$scriptKey"
+       case _ => ""
+  }
 
   private def generateEnvironmentKVPairs(scriptBucketName: String, scriptKeyPrefix: String, scriptKey: String): List[KeyValuePair] = {
     List(buildKVPair(AWS_MAX_ATTEMPTS, AWS_MAX_ATTEMPTS_DEFAULT_VALUE),
       buildKVPair(AWS_RETRY_MODE, AWS_RETRY_MODE_DEFAULT_VALUE),
       buildKVPair("BATCH_FILE_TYPE", "script"),
-      buildKVPair("BATCH_FILE_S3_URL",
-        s"s3://$scriptBucketName/$scriptKeyPrefix$scriptKey"))
+      buildKVPair("BATCH_FILE_S3_URL",batch_file_s3_url(scriptBucketName,scriptKeyPrefix,scriptKey)))
   }
 
   def submitJob[F[_]]()( implicit timer: Timer[F], async: Async[F]): Aws[F, SubmitJobResponse] = {
 
     val taskId = jobDescriptor.key.call.fullyQualifiedName + "-" + jobDescriptor.key.index + "-" + jobDescriptor.key.attempt
 
-    //find or create the script in s3 to execute
-    val scriptKey = findOrCreateS3Script(reconfiguredScript, runtimeAttributes.scriptS3BucketName)
+    //find or create the script in s3 to execute for s3 fileSystem
+    val scriptKey =  runtimeAttributes.fileSystem match {
+       case AWSBatchStorageSystems.s3  =>  findOrCreateS3Script(reconfiguredScript, runtimeAttributes.scriptS3BucketName)
+       case _ => "" 
+    }
 
-    val regex = "s3://([^/]*)/(.*)".r
-    val regex(bucketName, key) = jobPaths.callExecutionRoot.toString
+    if(runtimeAttributes.fileSystem == AWSBatchStorageSystems.s3) {
+       val regex = "s3://([^/]*)/(.*)".r
+       val regex(bucketName, key) = jobPaths.callExecutionRoot.toString
+       writeReconfiguredScriptForAudit(reconfiguredScript, bucketName, key+"/reconfigured-script.sh")
+    }
 
-    writeReconfiguredScriptForAudit(reconfiguredScript, bucketName, key+"/reconfigured-script.sh")
+
+    val batch_script = runtimeAttributes.fileSystem match {
+       case AWSBatchStorageSystems.s3  => s"s3://${runtimeAttributes.scriptS3BucketName}/$scriptKeyPrefix$scriptKey"
+       case _  => commandScript
+    }
 
     //calls the client to submit the job
     def callClient(definitionArn: String, awsBatchAttributes: AwsBatchAttributes): Aws[F, SubmitJobResponse] = {
 
-      Log.info(s"Submitting taskId: $taskId, job definition : $definitionArn, script: s3://${runtimeAttributes.scriptS3BucketName}/$scriptKeyPrefix$scriptKey")
+      Log.info(s"Submitting taskId: $taskId, job definition : $definitionArn, script: $batch_script")
 
       val submit: F[SubmitJobResponse] =
         async.delay(batchClient.submitJob(
@@ -249,6 +262,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
             .containerOverrides(
               ContainerOverrides.builder
                 .environment(
+
                   generateEnvironmentKVPairs(runtimeAttributes.scriptS3BucketName, scriptKeyPrefix, scriptKey): _*
                 )
                 .memory(runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt)

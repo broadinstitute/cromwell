@@ -33,11 +33,13 @@ class MarthaHttpRequestRetryStrategySpec extends AnyFlatSpec with Matchers with 
     retryStrategy.retryRequest(http500Response, 5, httpContext) should be(false)
   }
 
-  it should "retry 500 errors even after a number of 429 errors" in {
+  it should "retry 500 errors even after a number of 408/429 errors" in {
     val drsConfig = MockDrsPaths.mockDrsConfig.copy(numRetries = 3)
     val retryStrategy = new MarthaHttpRequestRetryStrategy(drsConfig)
     val http500Response = mock[CloseableHttpResponse].smart
     http500Response.getStatusLine returns new BasicStatusLine(HttpVersion.HTTP_1_1, 500, "Testing 500")
+    val http408Response = mock[CloseableHttpResponse].smart
+    http408Response.getStatusLine returns new BasicStatusLine(HttpVersion.HTTP_1_1, 408, "Testing 408")
     val http429Response = mock[CloseableHttpResponse].smart
     http429Response.getStatusLine returns new BasicStatusLine(HttpVersion.HTTP_1_1, 429, "Testing 429")
     val httpContext = mock[HttpContext].smart
@@ -46,14 +48,14 @@ class MarthaHttpRequestRetryStrategySpec extends AnyFlatSpec with Matchers with 
     retryStrategy.retryRequest(http500Response, 1, httpContext) should be(true)
     // one retry
     retryStrategy.retryRequest(http500Response, 2, httpContext) should be(true)
-    // a couple 429s
-    retryStrategy.retryRequest(http429Response, 3, httpContext) should be(true)
+    // a 408 and a 429
+    retryStrategy.retryRequest(http408Response, 3, httpContext) should be(true)
     retryStrategy.retryRequest(http429Response, 4, httpContext) should be(true)
     // two more 500s should still retry
     retryStrategy.retryRequest(http500Response, 5, httpContext) should be(true)
     retryStrategy.retryRequest(http500Response, 6, httpContext) should be(true)
-    // can still retry 429
-    retryStrategy.retryRequest(http429Response, 7, httpContext) should be(true)
+    // can still retry a 408 and a 429
+    retryStrategy.retryRequest(http408Response, 7, httpContext) should be(true)
     retryStrategy.retryRequest(http429Response, 8, httpContext) should be(true)
     // but no more retries for 500
     retryStrategy.retryRequest(http500Response, 9, httpContext) should be(false)

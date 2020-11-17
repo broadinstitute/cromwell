@@ -10,7 +10,7 @@ the WOM graph holds a static representation of the workflow which doesn't change
 as the workflow is run, the Value Store records the values assigned to every 
 task output and value definition evaluated so far during workflow execution.
 
-**Note:** The Execution Store does **not** hold the execution status of the various 
+**Note:** The Value Store does **not** hold the execution status of the various 
 nodes in the WOM graph. Nor does it determine when downstream nodes are ready
 to run. That is the domain of the [Execution Store](executionStore.md). 
 

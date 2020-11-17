@@ -167,7 +167,7 @@ As the results for each shard come in, the value store is also updated to includ
 At step 11 (shard 1 has finished but shard 0 has not):
 ```json
 {
-  "x": "[0, 1, 2]",
+  "x": "[0, 1]",
   "scattered_task.string_out:1": "hello"
 }
 ```
@@ -175,7 +175,7 @@ At step 11 (shard 1 has finished but shard 0 has not):
 At step 12:
 ```json
 {
-  "x": "[0, 1, 2]",
+  "x": "[0, 1]",
   "scattered_task.string_out:0": "hello",
   "scattered_task.string_out:1": "hello"
 }
@@ -199,7 +199,7 @@ the `scattered_task.string_out` output:
 
 ```json
 {
-  "x": "[0, 1, 2]",
+  "x": "[0, 1]",
   "scattered_task.string_out:0": "hello",
   "scattered_task.string_out:1": "hello",
   "scattered_task.string_out": ["hello", "hello"]
@@ -220,7 +220,7 @@ workflow completes:
 
 ```json
 {
-  "x": "[0, 1, 2]",
+  "x": "[0, 1]",
   "scattered_task.string_out:0": "hello",
   "scattered_task.string_out:1": "hello",
   "scattered_task.string_out": ["hello", "hello"],

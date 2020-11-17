@@ -1,0 +1,34 @@
+name: read_write_json_roundtrip
+testFormat: workflowsuccess
+
+files {
+  workflow: read_write_json/read_write_json_roundtrip.wdl
+}
+
+metadata {
+  workflowName: read_write_json_roundtrip
+  status: Succeeded
+  "outputs.read_write_json_roundtrip.int_out" = 1234
+  "outputs.read_write_json_roundtrip.float_out" = 123.456
+  "outputs.read_write_json_roundtrip.boolean_out" = false
+  "outputs.read_write_json_roundtrip.string_out" = "Mr. Bean"
+  "outputs.read_write_json_roundtrip.pair_out.left" = 1
+  "outputs.read_write_json_roundtrip.pair_out.right" = "abc"
+  "outputs.read_write_json_roundtrip.array_object_with_array_out.0.index" = 0
+  "outputs.read_write_json_roundtrip.array_object_with_array_out.0.samples.0" = "s1"
+  "outputs.read_write_json_roundtrip.array_object_with_array_out.0.samples.1" = "s2"
+  "outputs.read_write_json_roundtrip.array_object_with_array_out.1.index" = 1
+  "outputs.read_write_json_roundtrip.array_out.0" = 0
+  "outputs.read_write_json_roundtrip.array_out.1" = 1
+  "outputs.read_write_json_roundtrip.array_out.2" = 2
+  "outputs.read_write_json_roundtrip.map_out.genre" = "comedy"
+  "outputs.read_write_json_roundtrip.map_out.movie" = "mr. bean"
+  "outputs.read_write_json_roundtrip.array_object_out.0.index" = 0
+  "outputs.read_write_json_roundtrip.array_object_out.0.name" = "mr_bean"
+  "outputs.read_write_json_roundtrip.array_object_out.2.index" = 2
+  "outputs.read_write_json_roundtrip.array_object_out.2.name" = "mr_bean"
+  "outputs.read_write_json_roundtrip.object_out.index" = 0
+  "outputs.read_write_json_roundtrip.object_out.name" = "mr_bean"
+  "outputs.read_write_json_roundtrip.object_out_as_map.0.artist" = "maroon 5"
+  "outputs.read_write_json_roundtrip.object_out_as_map.0.song" = "memories"
+}

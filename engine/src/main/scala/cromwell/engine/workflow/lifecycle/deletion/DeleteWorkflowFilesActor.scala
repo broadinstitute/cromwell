@@ -4,6 +4,7 @@ import java.io.FileNotFoundException
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
 import common.util.StringUtil._
+import common.util.TryUtil
 import cromwell.core.io._
 import cromwell.core.path.{Path, PathBuilder, PathFactory}
 import cromwell.core.{RootWorkflowId, WorkflowId, WorkflowMetadataKeys}
@@ -31,11 +32,13 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
                                workflowAllOutputs: Set[WomValue],
                                pathBuilders: List[PathBuilder],
                                serviceRegistryActor: ActorRef,
-                               ioActorRef: ActorRef) extends LoggingFSM[DeleteWorkflowFilesActorState, DeleteWorkflowFilesActorStateData] with IoClientHelper {
+                               ioActorRef: ActorRef,
+                               gcsCommandBuilder: IoCommandBuilder,
+                              )
+  extends LoggingFSM[DeleteWorkflowFilesActorState, DeleteWorkflowFilesActorStateData] with IoClientHelper {
 
   implicit val ec: ExecutionContext = context.dispatcher
 
-  val gcsCommandBuilder = GcsBatchCommandBuilder
   val asyncIO = new AsyncIo(ioActorRef, gcsCommandBuilder)
   val callCache = new CallCache(EngineServicesStore.engineDatabaseInterface)
 
@@ -68,10 +71,16 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
       serviceRegistryActor ! PutMetadataAction(deletionInProgressEvent)
 
       // send delete IoCommand for each file to ioActor
-      val deleteCommands: Set[IoDeleteCommand] = intermediateFiles.map(gcsCommandBuilder.deleteCommand(_, swallowIoExceptions = false))
-      deleteCommands foreach sendIoCommand
-
-      goto(WaitingForIoResponses) using WaitingForIoResponsesData(deleteCommands)
+      val deleteCommandsTry =
+        TryUtil.sequence(intermediateFiles.toSeq.map(gcsCommandBuilder.deleteCommand(_, swallowIoExceptions = false)))
+      deleteCommandsTry match {
+        case Success(deleteCommands) =>
+          deleteCommands foreach sendIoCommand
+          goto(WaitingForIoResponses) using WaitingForIoResponsesData(deleteCommands.toSet)
+        case Failure(failure) =>
+          self ! InvalidateCallCache
+          goto(InvalidatingCallCache) using InvalidateCallCacheData(List(failure), Nil)
+      }
   }
 
   when(WaitingForIoResponses) {
@@ -329,7 +338,18 @@ object DeleteWorkflowFilesActor {
             workflowAllOutputs: Set[WomValue],
             pathBuilders: List[PathBuilder],
             serviceRegistryActor: ActorRef,
-            ioActor: ActorRef): Props = {
-    Props(new DeleteWorkflowFilesActor(rootWorkflowId, rootAndSubworkflowIds, workflowFinalOutputs, workflowAllOutputs, pathBuilders, serviceRegistryActor, ioActor))
+            ioActor: ActorRef,
+            gcsCommandBuilder: IoCommandBuilder = GcsBatchCommandBuilder,
+           ): Props = {
+    Props(new DeleteWorkflowFilesActor(
+      rootWorkflowId = rootWorkflowId,
+      rootAndSubworkflowIds = rootAndSubworkflowIds,
+      workflowFinalOutputs = workflowFinalOutputs,
+      workflowAllOutputs = workflowAllOutputs,
+      pathBuilders = pathBuilders,
+      serviceRegistryActor = serviceRegistryActor,
+      ioActorRef = ioActor,
+      gcsCommandBuilder = gcsCommandBuilder,
+    ))
   }
 }

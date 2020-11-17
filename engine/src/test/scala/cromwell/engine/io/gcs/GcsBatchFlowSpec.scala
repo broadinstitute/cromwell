@@ -52,8 +52,13 @@ class GcsBatchFlowSpec extends TestKitSuite with AnyFlatSpecLike with CromwellTi
     implicit val ec: ExecutionContextExecutor = system.dispatcher
     val gcsBatchFlow = new GcsBatchFlow(1, system.scheduler, null, "testAppName")
 
-    val mockGcsPath = GcsPath(CloudStorageFileSystem.forBucket("bucket").getPath("test"), any[com.google.api.services.storage.Storage], any[com.google.cloud.storage.Storage], anyString)
-    val gcsBatchCommandContext = GcsBatchCommandContext(GcsBatchCrc32Command(mockGcsPath), TestProbe().ref)
+    val mockGcsPath = GcsPath(
+      nioPath = CloudStorageFileSystem.forBucket("bucket").getPath("test"),
+      apiStorage = anyObject[com.google.api.services.storage.Storage],
+      cloudStorage = anyObject[com.google.cloud.storage.Storage],
+      projectId = anyString,
+    )
+    val gcsBatchCommandContext = GcsBatchCommandContext(GcsBatchCrc32Command.forPath(mockGcsPath).get, TestProbe().ref)
     val recoverCommandPrivateMethod = PrivateMethod[PartialFunction[Throwable, Future[GcsBatchResponse[_]]]]('recoverCommand)
     val partialFuncAcceptingThrowable = gcsBatchFlow invokePrivate recoverCommandPrivateMethod(gcsBatchCommandContext)
 

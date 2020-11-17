@@ -2,9 +2,7 @@ package cromwell.filesystems.oss.batch
 
 import com.aliyun.oss.OSSException
 import com.aliyun.oss.model._
-
 import com.google.api.client.http.HttpHeaders
-
 import cromwell.core.io._
 import cromwell.filesystems.oss._
 
@@ -26,7 +24,7 @@ sealed trait OssBatchIoCommand[T, U] extends IoCommand[T] {
 
   /**
     * Method called in the success callback of a batched request to decide what to do next.
-    * Returns an Either[T, OssBatchIoCommand[T, U]]
+    * Returns an `Either[T, OssBatchIoCommand[T, U]]`
     *   Left(value) means the command is complete, and the result can be sent back to the sender.
     *   Right(newCommand) means the command is not complete and needs another request to be executed.
     * Most commands will reply with Left(value).
@@ -44,22 +42,22 @@ sealed trait OssBatchIoCommand[T, U] extends IoCommand[T] {
 case class OssBatchCopyCommand(
                                 override val source: OssPath,
                                 override val destination: OssPath,
-                                override val overwrite: Boolean
-                              ) extends IoCopyCommand(source, destination, overwrite) with OssBatchIoCommand[Unit, CopyObjectResult] {
+                              )
+  extends IoCopyCommand(source, destination) with OssBatchIoCommand[Unit, CopyObjectResult] {
   override def operation: GenericResult = {
     val getObjectRequest = new CopyObjectRequest(source.bucket, source.key, destination.bucket, destination.key)
     // TODO: Copy other attributes (encryption, metadata, etc.)
     source.ossClient.copyObject(getObjectRequest)
   }
   override def mapOssResponse(response: CopyObjectResult): Unit = ()
-  override def commandDescription: String = s"OssBatchCopyCommand source '$source' destination '$destination' overwrite '$overwrite'"
+  override def commandDescription: String = s"OssBatchCopyCommand source '$source' destination '$destination'"
 }
 
 case class OssBatchDeleteCommand(
                                  override val file: OssPath,
                                  override val swallowIOExceptions: Boolean
                                ) extends IoDeleteCommand(file, swallowIOExceptions) with OssBatchIoCommand[Unit, Void] {
-  def operation = file.ossClient.deleteObject(file.bucket, file.key)
+  def operation: Unit = file.ossClient.deleteObject(file.bucket, file.key)
   override protected def mapOssResponse(response: Void): Unit = ()
   override def commandDescription: String = s"OssBatchDeleteCommand file '$file' swallowIOExceptions '$swallowIOExceptions'"
 }

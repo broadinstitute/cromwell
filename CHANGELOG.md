@@ -1,5 +1,11 @@
 # Cromwell Change Log
 
+## 54.1 Release Notes
+
+### Bug Fixes
+
+* Now retries HTTP 408 responses as well as HTTP 429 responses during DOS/DRS resolution requests.
+
 ## 54 Release Notes
 
 ### Bug Fixes

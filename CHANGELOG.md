@@ -16,7 +16,7 @@ The Cromwell Docker image will not run on M1 Macs until Docker Desktop ships the
 
 By extension, the absence of Docker means that Cromwell's local Docker backend is not yet supported.
 
-Even when Docker Desktop goes native on Apple Silicon, any tool images running on the local backend will need to cross-compile for the x86 and Arm architectures. This is because the Rosetta 2 translation layer [does not support virtualization](https://developer.apple.com/documentation/apple_silicon/about_the_rosetta_translation_environment). Please contact the tool maintainers for support information. 
+Even when Docker Desktop goes native on Apple Silicon, any tool images running on the local backend will need to cross-compile for the x86 and Arm architectures. This is because the Rosetta 2 translation layer [does not support virtualization](https://developer.apple.com/documentation/apple_silicon/about_the_rosetta_translation_environment). Please contact the tool maintainers for more information. 
 
 ## 54 Release Notes
 

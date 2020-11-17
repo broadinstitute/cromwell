@@ -4,7 +4,7 @@
 
 ### Apple Silicon support statement
 
-Users with access to the new Mac hardware should review [important information provided here](https://cromwell.readthedocs.io/en/stable/Installing).
+Users with access to the new Mac hardware should review [important information provided here](https://cromwell.readthedocs.io/en/stable/Releases).
 
 ## 54 Release Notes
 

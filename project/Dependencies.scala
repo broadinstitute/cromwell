@@ -39,7 +39,7 @@ object Dependencies {
   private val googleApiClientV = "1.30.11"
   private val googleCloudBigQueryV = "1.122.2"
   private val googleCloudKmsV = "v1-rev20201102-1.30.11"
-  private val googleCloudMonitoringV = "2.0.4"
+  private val googleCloudMonitoringV = "2.0.8"
   private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off
   private val googleCloudStorageV = "1.113.4"
   private val googleGaxGrpcV = "1.60.0"

@@ -22,7 +22,7 @@ This is the main artifact in Cromwell releases that contains all executable Crom
 
 For users running a Cromwell server [a docker image](https://hub.docker.com/r/broadinstitute/cromwell) has been made available.
 
-### Apple Silicon support statement (updated 11/20)
+### Apple Silicon support statement (updated 2020-11-17)
 
 #### Cromwell JAR works out of the box
 

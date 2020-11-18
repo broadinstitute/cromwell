@@ -13,6 +13,11 @@ More information on JSON Type to WDL Type conversion can be found [here](https:/
 
 * Now retries HTTP 408 responses as well as HTTP 429 responses during DOS/DRS resolution requests.
 
+### Reference disk support on PAPI v2
+
+Cromwell now offers support for the use of reference disks on the PAPI v2 backend as an alternative to localizing
+reference inputs. More details [here](https://cromwell.readthedocs.io/en/develop/backends/Google#reference-disk-support).
+
 ## 54 Release Notes
 
 ### Bug Fixes

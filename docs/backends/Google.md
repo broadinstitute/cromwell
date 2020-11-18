@@ -520,4 +520,67 @@ may be removed in a future Cromwell release.
 2. Call caching does not work for calls with empty optional outputs. Cromwell currently does not recognize
 that it is okay for optional output files to be missing, will incorrectly claim that any cache hits with missing 
 optional output files are unusable, and will proceed to search for more cache hits which if found will also be unusable,
-before eventually giving up and running the job. This behavior may be corrected in a future Cromwell release. 
+before eventually giving up and running the job. This behavior may be corrected in a future Cromwell release.
+
+### Reference Disk Support
+
+Cromwell 55 and later support mounting reference disks from prebuilt GCP disk images as an alternative to localizing large
+input reference files on PAPI v2. Within the `config` stanza of a PAPI v2 backend the `reference-disk-localization-manifest-files`
+key specifies an array of manifest JSONs in GCS:  
+
+
+```hocon
+backend {
+  ...
+  providers {
+    ...
+    PapiV2 {
+      actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
+      config {
+        ...
+        reference-disk-localization-manifest-files = ["gs://path/to/a/reference/disk/manifest.json"]
+        ...
+      }
+    }
+  }
+}
+```
+
+Manifest JSONs have a format like:
+
+```json
+{
+  "imageIdentifier" : "projects/my_project/global/images/my-references-disk-image",
+  "diskSizeGb" : 30,
+  "files" : [ {
+    "path" : "my-references/enormous_reference.bam",
+    "crc32c" : 407769621
+  }, {
+    "path" : "my-references/enormous_reference.bam.bai",
+    "crc32c" : 1902048083
+  },
+...
+  ]
+}
+```
+
+Reference disk usage is an opt-in feature, so workflow submissions must specify this workflow option:
+
+```json
+{
+  ...
+  "use_reference_disks": true,
+  ...
+}
+```
+
+Using the first file in the manifest above as an example, assume a PAPI v2 backend is configured to use this manifest and the appropriate
+`use_reference_disks` workflow option is set to `true` in the workflow submission. If a call in that workflow 
+specifies the input `gs://my-references/enormous_reference.bam` and because that input matches the path of a file on the
+reference image without the leading `gs://`, Cromwell would
+arrange for a reference disk based on this image to be mounted and for the call's input to refer to the 
+copy of the file on the reference disk, bypassing localization of the input.     
+
+The Cromwell git repository includes a Java-based tool to facilitate the creation of manifest files called
+[CromwellRefdiskManifestCreatorApp](https://github.com/broadinstitute/cromwell/tree/develop/CromwellRefdiskManifestCreator).
+Please see the help command of that tool for more details.

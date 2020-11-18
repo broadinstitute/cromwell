@@ -49,13 +49,8 @@ object DrsResolver {
     for {
       // Only return gsUri that do not use Bond
       gsUri <- if (bondProviderOption.isEmpty) gsUriOption else None
-      if {
-        // Do not return the gsUri if it does not end in /fileName
-        fileNameOption match {
-          case Some(fileName) if !gsUri.endsWith(s"/$fileName") => false
-          case _ => true
-        }
-      }
+      // Only return the gsUri if there is no fileName or if gsUri ends in /fileName
+      if fileNameOption.forall(fileName => gsUri.endsWith(s"/$fileName"))
     } yield gsUri
   }
 
@@ -74,15 +69,15 @@ object DrsResolver {
   def getSimpleGsUri(drsPath: DrsPath): IO[Option[String]] = {
     for {
       drsPathResolver <- getDrsPathResolver(drsPath)
-      result <- getSimpleGsUri(drsPath.pathAsString, drsPathResolver)
-    } yield result
+      gsUri <- getSimpleGsUri(drsPath.pathAsString, drsPathResolver)
+    } yield gsUri
   }
 
   def getContainerRelativePath(drsPath: DrsPath): IO[String] = {
     val pathIO = for {
       drsPathResolver <- getDrsPathResolver(drsPath)
-      fileNameAndGsUri <- getGsUriFileNameBondProvider(drsPath.pathAsString, drsPathResolver)
-      (gsUriOption, fileNameOption, _) = fileNameAndGsUri
+      tuple <- getGsUriFileNameBondProvider(drsPath.pathAsString, drsPathResolver)
+      (gsUriOption, fileNameOption, _) = tuple
       /*
       In the DOS/DRS spec file names are safe for file systems but not necessarily the DRS URIs.
       Reuse the regex defined for ContentsObject.name, plus add "/" for directory separators.

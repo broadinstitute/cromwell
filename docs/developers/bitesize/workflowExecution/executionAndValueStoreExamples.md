@@ -73,8 +73,8 @@ Cromwell can use this information to trigger the "workflow complete" logic.
 
 ## Handling scatters
 
-When we run scattered tasks, the Execution Store cannot tell ahead of time how many
-`JobKey`s it will need to represent all of the shards in the scatter. We get around
+When Cromwell runs scattered tasks, the Execution Store cannot tell ahead of time how many
+`JobKey`s it will need to represent all of the shards in the scatter. It can get around
 this problem by putting a placeholder `JobKey` for the scatter node in the Execution Store. When
 the scatter key is evaluated, it expands the Execution Store to include new `JobKey`s representing
 every shard in the scatter.
@@ -82,7 +82,7 @@ every shard in the scatter.
 As with the single task example, the Value Store starts empty, and is updated with the results of each
 shard only as and when they are generated.
 
-Let's see that in action. Consider this workflow:
+To see that in action, Consider this workflow:
 
 ```wdl
 version 1.0

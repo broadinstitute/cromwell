@@ -1,6 +1,5 @@
 package cromwell.filesystems.drs
 
-import cats.data.NonEmptyList
 import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.core.path.PathFactory.PathBuilders
@@ -59,8 +58,6 @@ case class DrsPathBuilder(fileSystemProvider: DrsCloudNioFileSystemProvider,
     }
 
     val gcsPathOption = for {
-      // If passed an empty list of path builders, returns a None and does not run the conversion
-      nonEmptyPathBuilders <- NonEmptyList.fromList(pathBuilders)
       // Right now, only pre-resolving GCS. In the future, could pull others like FTP, HTTP, S3, OSS, SRA, etc.
       gsUriOption <- logAttempt(
         "resolve the uri through Martha",
@@ -69,7 +66,7 @@ case class DrsPathBuilder(fileSystemProvider: DrsCloudNioFileSystemProvider,
       gcsUrlWithNoCreds <- gsUriOption
       gcsPath <- logAttempt(
         s"create a GcsPath for '$gcsUrlWithNoCreds'",
-        PathFactory.buildPath(gcsUrlWithNoCreds, nonEmptyPathBuilders.toList),
+        PathFactory.buildPath(gcsUrlWithNoCreds, pathBuilders),
       )
       // Extra: Make sure the GcsPath _actually_ has permission to access the path
       _ <- logAttempt(s"access '$gcsPath' with GCS credentials", gcsPath.size)

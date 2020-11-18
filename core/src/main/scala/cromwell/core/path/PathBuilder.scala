@@ -9,7 +9,7 @@ trait PathBuilder {
     * Builds a path from a string.
     *
     * @param pathAsString The path to build
-    * @param pathBuilders Nil, or others potential builders, for example internally map GCS to a pre-signed HTTPS url
+    * @param pathBuilders Nil, or other potential builders, for example internally map GCS to a pre-signed HTTPS url
     * @return A Success(path) or a Failure(throwable)
     */
   def build(pathAsString: String, pathBuilders: List[PathBuilder]): Try[Path] = build(pathAsString)
@@ -21,7 +21,7 @@ trait PathBuilder {
 }
 
 /**
-  * Extensions of PathBuilder that attempts to pre-resolve paths to a different Path type, for example pre-resolving a
+  * Extension of PathBuilder that attempts to pre-resolve paths to a different Path type, for example pre-resolving a
   * DrsPath to a GcsPath.
   */
 trait PreResolvePathBuilder extends PathBuilder {

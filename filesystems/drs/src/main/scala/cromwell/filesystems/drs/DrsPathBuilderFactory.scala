@@ -99,8 +99,8 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
     val requesterPaysProjectIdOption = options.get("google_project").toOption
 
     /*
-    `preResolveForTest` is a workflow option to override the default `martha.preresolve` specified in the global
-    config. This is only used for testing purposes.
+    `override_preresolve_for_test` is a workflow option to override the default `martha.preresolve` specified in the
+    global config. This is only used for testing purposes.
      */
     val preResolve: Boolean =
       options

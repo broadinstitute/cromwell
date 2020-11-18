@@ -42,24 +42,30 @@ object DrsResolver {
   }
 
   /** Returns the `gsUri` if it ends in the `fileName` and the `bondProvider` is empty. */
+  private def getSimpleGsUri(gsUriOption: Option[String],
+                             fileNameOption: Option[String],
+                             bondProviderOption: Option[String],
+                            ): Option[String] = {
+    for {
+      // Only return gsUri that do not use Bond
+      gsUri <- if (bondProviderOption.isEmpty) gsUriOption else None
+      if {
+        // Do not return the gsUri if it does not end in /fileName
+        fileNameOption match {
+          case Some(fileName) if !gsUri.endsWith(s"/$fileName") => false
+          case _ => true
+        }
+      }
+    } yield gsUri
+  }
+
+  /** Returns the `gsUri` if it ends in the `fileName` and the `bondProvider` is empty. */
   def getSimpleGsUri(pathAsString: String,
                      drsPathResolver: DrsPathResolver): IO[Option[String]] = {
     val gsUriIO = for {
       tuple <- getGsUriFileNameBondProvider(pathAsString, drsPathResolver)
       (gsUriOption, fileNameOption, bondProviderOption) = tuple
-    } yield {
-      for {
-        // Only return gsUri that do not use Bond
-        gsUri <- if (bondProviderOption.isEmpty) gsUriOption else None
-        if {
-          // Do not return the gsUri if it does not end in /fileName
-          fileNameOption match {
-            case Some(fileName) if !gsUri.endsWith(s"/$fileName") => false
-            case _ => true
-          }
-        }
-      } yield gsUri
-    }
+    } yield getSimpleGsUri(gsUriOption, fileNameOption, bondProviderOption)
 
     gsUriIO.handleErrorWith(resolveError(pathAsString))
   }

@@ -20,7 +20,7 @@ class WorkflowManagerActorSpec extends CromwellTestKitWordSpec with WorkflowDesc
 
     // this test lol
     "run workflows in the correct directory" in {
-      val outputs = runWdl(sampleWdl = SampleWdl.CurrentDirectory, actorNameSuffix = "whereami")
+      val outputs = runWdl(sampleWdl = SampleWdl.CurrentDirectory, testActorName = "TestCromwellRootActor-whereami")
 
       val outputName = "wf_whereami.whereami.pwd"
       val salutation = outputs(outputName)
@@ -84,7 +84,7 @@ class WorkflowManagerActorSpec extends CromwellTestKitWordSpec with WorkflowDesc
         withValue("system.max-concurrent-workflows", ConfigValueFactory.fromAnyRef(2)).
         withValue("system.new-workflow-poll-rate", ConfigValueFactory.fromAnyRef(1))
 
-      val rootActor = buildCromwellRootActor(config, "pickup")
+      val rootActor = buildCromwellRootActor(config = config, actorName = "TestCromwellRootActor-pickup")
       val serviceRegistryActor = rootActor.underlyingActor.serviceRegistryActor
 
       val firstSources = SubWorkflows(naptime = 60 seconds).asWorkflowSources()

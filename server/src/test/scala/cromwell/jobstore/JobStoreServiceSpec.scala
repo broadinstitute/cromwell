@@ -37,7 +37,7 @@ class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with Moc
               JobStoreActor.props(
                 database = jobStore,
                 registryActor = dummyServiceRegistryActor,
-                workflowStoreAccess = access("register")(workflowStore)
+                workflowStoreAccess = access("coordinatedAccessActor-register")(workflowStore)
               ),
             name = "jobStoreService-register",
           )

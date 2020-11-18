@@ -19,7 +19,7 @@ class WorkflowFailSlowSpec extends CromwellTestKitWordSpec {
         sampleWdl = SampleWdl.WorkflowFailSlow,
         workflowOptions = FailFastOptions,
         terminalState = WorkflowFailed,
-        actorNameSuffix = "not-complete",
+        testActorName = "TestCromwellRootActor-not-complete",
       )
       outputs.size should be(0)
     }
@@ -30,7 +30,7 @@ class WorkflowFailSlowSpec extends CromwellTestKitWordSpec {
       val outputs = runWdl(
         sampleWdl = SampleWdl.WorkflowFailSlow,
         terminalState = WorkflowFailed,
-        actorNameSuffix = "workflowFailureMode",
+        testActorName = "TestCromwellRootActor-workflowFailureMode",
       )
       outputs.size should be(0)
     }

@@ -315,8 +315,8 @@ abstract class CromwellTestKitSpec extends TestKitSuite
     }
   }
 
-  protected def buildCromwellRootActor(config: Config, actorNameSuffix: String): TestActorRef[TestCromwellRootActor] = {
-    TestActorRef(new TestCromwellRootActor(config), name = s"TestCromwellRootActor-$actorNameSuffix")
+  protected def buildCromwellRootActor(config: Config, actorName: String): TestActorRef[TestCromwellRootActor] = {
+    TestActorRef(new TestCromwellRootActor(config), actorName)
   }
 
   def runWdl(sampleWdl: SampleWdl,
@@ -326,10 +326,10 @@ abstract class CromwellTestKitSpec extends TestKitSuite
              terminalState: WorkflowState = WorkflowSucceeded,
              config: Config = NooPServiceActorConfig,
              patienceConfig: PatienceConfig = defaultPatience,
-             actorNameSuffix: String,
+             testActorName: String,
             )(implicit ec: ExecutionContext): Map[FullyQualifiedName, WomValue] = {
 
-    val rootActor = buildCromwellRootActor(config, actorNameSuffix)
+    val rootActor = buildCromwellRootActor(config, testActorName)
     val sources = sampleWdl.asWorkflowSources(
       runtime = runtime,
       workflowOptions = workflowOptions,
@@ -354,10 +354,10 @@ abstract class CromwellTestKitSpec extends TestKitSuite
                              allowOtherOutputs: Boolean = true,
                              config: Config = NooPServiceActorConfig,
                              patienceConfig: PatienceConfig = defaultPatience,
-                             actorNameSuffix: String,
+                             testActorName: String,
                             )
                             (implicit ec: ExecutionContext): WorkflowId = {
-    val rootActor = buildCromwellRootActor(config, actorNameSuffix)
+    val rootActor = buildCromwellRootActor(config, testActorName)
     val sources = sampleWdl.asWorkflowSources(runtime, workflowOptions)
 
     val workflowId = rootActor.underlyingActor.submitWorkflow(sources)

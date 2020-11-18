@@ -67,10 +67,14 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with AnyFlatSpecLike with Ma
     super.beforeAll()
   }
 
-  private def testWith(src: GcsPath, dst: GcsPath, directory: GcsPath, actorSuffix: String) = {
+  private def testWith(src: GcsPath,
+                       dst: GcsPath,
+                       directory: GcsPath,
+                       testActorName: String,
+                       serviceRegistryActorName: String) = {
     val testActor = TestActorRef(
-      factory = new IoActor(10, 10, 10, None, TestProbe(s"serviceRegistryActor-$actorSuffix").ref, "cromwell test"),
-      name = s"testActor-$actorSuffix",
+      factory = new IoActor(10, 10, 10, None, TestProbe(serviceRegistryActorName).ref, "cromwell test"),
+      name = testActorName,
     )
 
     val copyCommand = GcsBatchCopyCommand.forPaths(src, dst).get
@@ -124,11 +128,23 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with AnyFlatSpecLike with Ma
   }
 
   it should "batch queries" taggedAs IntegrationTest in {
-    testWith(src, dst, directory, "batch")
+    testWith(
+      src = src,
+      dst = dst,
+      directory = directory,
+      testActorName = "testActor-batch",
+      serviceRegistryActorName = "serviceRegistryActor-batch",
+    )
   }
 
   it should "batch queries on requester pays buckets" taggedAs IntegrationTest in {
-    testWith(srcRequesterPays, dstRequesterPays, directoryRequesterPays, "batch-rp")
+    testWith(
+      src = srcRequesterPays,
+      dst = dstRequesterPays,
+      directory = directoryRequesterPays,
+      testActorName = "testActor-batch-rp",
+      serviceRegistryActorName = "serviceRegistryActor-batch-rp",
+    )
   }
 
   it should "copy files across GCS storage classes" taggedAs IntegrationTest in {

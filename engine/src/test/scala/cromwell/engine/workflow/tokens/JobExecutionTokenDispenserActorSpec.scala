@@ -29,16 +29,25 @@ class JobExecutionTokenDispenserActorSpec extends TestKitSuite
   val hogGroupA: HogGroup = HogGroup("hogGroupA")
   val hogGroupB: HogGroup = HogGroup("hogGroupB")
 
+  private def getActorRefUnderTest(serviceRegistryActorName: String,
+                                   jobExecutionTokenDispenserActorName: String,
+                                  ): TestActorRef[JobExecutionTokenDispenserActor] = {
+    TestActorRef(
+      factory =
+        new JobExecutionTokenDispenserActor(
+          serviceRegistryActor = TestProbe(serviceRegistryActorName).ref,
+          distributionRate = Rate(10, 100.millis),
+          logInterval = None,
+        ),
+      name = jobExecutionTokenDispenserActorName,
+    )
+  }
+
   it should "dispense an infinite token correctly" in {
     val actorRefUnderTest =
-      TestActorRef(
-        factory =
-          new JobExecutionTokenDispenserActor(
-            serviceRegistryActor = TestProbe("serviceRegistryActor-dispense-infinite").ref,
-            distributionRate = Rate(10, 100.millis),
-            logInterval = None,
-          ),
-        name = "dispense-infinite",
+      getActorRefUnderTest(
+        serviceRegistryActorName = "serviceRegistryActor-dispense-infinite",
+        jobExecutionTokenDispenserActorName = "dispense-infinite",
       )
     actorRefUnderTest ! JobExecutionTokenRequest(hogGroupA, TestInfiniteTokenType)
     expectMsg(max = MaxWaitTime, JobExecutionTokenDispensed)
@@ -48,14 +57,9 @@ class JobExecutionTokenDispenserActorSpec extends TestKitSuite
 
   it should "accept return of an infinite token correctly" in {
     val actorRefUnderTest =
-      TestActorRef(
-        factory =
-          new JobExecutionTokenDispenserActor(
-            serviceRegistryActor = TestProbe("serviceRegistryActor-accept-return").ref,
-            distributionRate = Rate(10, 100.millis),
-            logInterval = None,
-          ),
-        name = "accept-return",
+      getActorRefUnderTest(
+        serviceRegistryActorName = "serviceRegistryActor-accept-return",
+        jobExecutionTokenDispenserActorName = "accept-return",
       )
     actorRefUnderTest ! JobExecutionTokenRequest(hogGroupA, TestInfiniteTokenType)
     expectMsg(max = MaxWaitTime, JobExecutionTokenDispensed)
@@ -67,14 +71,9 @@ class JobExecutionTokenDispenserActorSpec extends TestKitSuite
 
   it should "dispense indefinitely for an infinite token type" in {
     val actorRefUnderTest =
-      TestActorRef(
-        factory =
-          new JobExecutionTokenDispenserActor(
-            serviceRegistryActor = TestProbe("serviceRegistryActor-dispense-indefinitely").ref,
-            distributionRate = Rate(10, 100.millis),
-            logInterval = None,
-          ),
-        name = "dispense-indefinitely",
+      getActorRefUnderTest(
+        serviceRegistryActorName = "serviceRegistryActor-dispense-indefinitely",
+        jobExecutionTokenDispenserActorName = "dispense-indefinitely",
       )
     val senders = (1 to 20).map(index => TestProbe(s"sender-dispense-indefinitely-$index"))
     senders.foreach(sender => actorRefUnderTest.tell(msg = JobExecutionTokenRequest(hogGroupA, TestInfiniteTokenType), sender = sender.ref))
@@ -108,14 +107,9 @@ class JobExecutionTokenDispenserActorSpec extends TestKitSuite
 
   it should "dispense a limited token correctly" in {
     val actorRefUnderTest =
-      TestActorRef(
-        factory =
-          new JobExecutionTokenDispenserActor(
-            serviceRegistryActor = TestProbe("serviceRegistryActor-dispense-limited").ref,
-            distributionRate = Rate(10, 100.millis),
-            logInterval = None,
-          ),
-        name = "dispense-limited",
+      getActorRefUnderTest(
+        serviceRegistryActorName = "serviceRegistryActor-dispense-limited",
+        jobExecutionTokenDispenserActorName = "dispense-limited",
       )
     actorRefUnderTest ! JobExecutionTokenRequest(hogGroupA, LimitedTo5Tokens)
     expectMsg(max = MaxWaitTime, JobExecutionTokenDispensed)
@@ -125,14 +119,9 @@ class JobExecutionTokenDispenserActorSpec extends TestKitSuite
 
   it should "accept return of a limited token type correctly" in {
     val actorRefUnderTest =
-      TestActorRef(
-        factory =
-          new JobExecutionTokenDispenserActor(
-            serviceRegistryActor = TestProbe("serviceRegistryActor-accept-return-limited").ref,
-            distributionRate = Rate(10, 100.millis),
-            logInterval = None,
-          ),
-        name = "accept-return-limited",
+      getActorRefUnderTest(
+        serviceRegistryActorName = "serviceRegistryActor-accept-return-limited",
+        jobExecutionTokenDispenserActorName = "accept-return-limited",
       )
     actorRefUnderTest ! JobExecutionTokenRequest(hogGroupA, LimitedTo5Tokens)
     expectMsg(max = MaxWaitTime, JobExecutionTokenDispensed)
@@ -147,14 +136,9 @@ class JobExecutionTokenDispenserActorSpec extends TestKitSuite
 
   it should "limit the dispensing of a limited token type" in {
     val actorRefUnderTest =
-      TestActorRef(
-        factory =
-          new JobExecutionTokenDispenserActor(
-            serviceRegistryActor = TestProbe("serviceRegistryActor-limit-dispensing-limited").ref,
-            distributionRate = Rate(10, 100.millis),
-            logInterval = None,
-          ),
-        name = "limit-dispensing-limited",
+      getActorRefUnderTest(
+        serviceRegistryActorName = "serviceRegistryActor-limit-dispensing-limited",
+        jobExecutionTokenDispenserActorName = "limit-dispensing-limited",
       )
     val senders = (1 to 15).map(index => TestProbe(s"sender-limit-dispensing-limited-$index"))
     // Ask for 20 tokens
@@ -220,14 +204,9 @@ class JobExecutionTokenDispenserActorSpec extends TestKitSuite
 
   it should "resend the same token to an actor which already has one" in {
     val actorRefUnderTest =
-      TestActorRef(
-        factory =
-          new JobExecutionTokenDispenserActor(
-            serviceRegistryActor = TestProbe("serviceRegistryActor-resend-same").ref,
-            distributionRate = Rate(10, 100.millis),
-            logInterval = None,
-          ),
-        name = "resend-same",
+      getActorRefUnderTest(
+        serviceRegistryActorName = "serviceRegistryActor-resend-same",
+        jobExecutionTokenDispenserActorName = "resend-same",
       )
     5 indexedTimes { _ =>
       actorRefUnderTest ! JobExecutionTokenRequest(hogGroupA, LimitedTo5Tokens)
@@ -246,14 +225,9 @@ class JobExecutionTokenDispenserActorSpec extends TestKitSuite
   //Incidentally, also covers: it should "not be fooled if the wrong actor returns a token"
   it should "not be fooled by a doubly-returned token" in {
     val actorRefUnderTest =
-      TestActorRef(
-        factory =
-          new JobExecutionTokenDispenserActor(
-            serviceRegistryActor = TestProbe("serviceRegistryActor-not-fooled").ref,
-            distributionRate = Rate(10, 100.millis),
-            logInterval = None,
-          ),
-        name = "not-fooled",
+      getActorRefUnderTest(
+        serviceRegistryActorName = "serviceRegistryActor-not-fooled",
+        jobExecutionTokenDispenserActorName = "not-fooled",
       )
     val senders = (1 to 7).map(index => TestProbe(s"sender-not-fooled-$index"))
     // Ask for 7 tokens
@@ -314,14 +288,9 @@ class JobExecutionTokenDispenserActorSpec extends TestKitSuite
 
   it should "skip over dead actors when assigning tokens to the actor queue" in {
     val actorRefUnderTest =
-      TestActorRef(
-        factory =
-          new JobExecutionTokenDispenserActor(
-            serviceRegistryActor = TestProbe("serviceRegistryActor-skip-dead").ref,
-            distributionRate = Rate(10, 100.millis),
-            logInterval = None,
-          ),
-        name = "skip-dead",
+      getActorRefUnderTest(
+        serviceRegistryActorName = "serviceRegistryActor-skip-dead",
+        jobExecutionTokenDispenserActorName = "skip-dead",
       )
     val grabberSupervisor = TestActorRef(new StoppingSupervisor(), "skip-dead-supervisor")
     // The first 5 get a token and the 6th and 7h one are queued
@@ -356,14 +325,9 @@ class JobExecutionTokenDispenserActorSpec extends TestKitSuite
 
   it should "skip over dead actors repeatedly when assigning tokens to the actor queue" in {
     val actorRefUnderTest =
-      TestActorRef(
-        factory =
-          new JobExecutionTokenDispenserActor(
-            serviceRegistryActor = TestProbe("serviceRegistryActor-skip-dead-repeatedly").ref,
-            distributionRate = Rate(10, 100.millis),
-            logInterval = None,
-          ),
-        name = "skip-dead-repeatedly",
+      getActorRefUnderTest(
+        serviceRegistryActorName = "serviceRegistryActor-skip-dead-repeatedly",
+        jobExecutionTokenDispenserActorName = "skip-dead-repeatedly",
       )
     val grabberSupervisor = TestActorRef(new StoppingSupervisor(), "skip-dead-repeatedly-supervisor")
     // The first 5 get a token and the 6th and 7h one are queued
@@ -412,14 +376,9 @@ class JobExecutionTokenDispenserActorSpec extends TestKitSuite
 
   it should "be resilient if the last request for a hog group is removed from the queue before a token is dispensed" in {
     val actorRefUnderTest =
-      TestActorRef(
-        factory =
-          new JobExecutionTokenDispenserActor(
-            serviceRegistryActor = TestProbe("serviceRegistryActor-resilient-last-request").ref,
-            distributionRate = Rate(10, 100.millis),
-            logInterval = None,
-          ),
-        name = "resilient-last-request",
+      getActorRefUnderTest(
+        serviceRegistryActorName = "serviceRegistryActor-resilient-last-request",
+        jobExecutionTokenDispenserActorName = "resilient-last-request",
       )
     val tokenType = JobExecutionTokenType(s"mini", maxPoolSize = Option(6), hogFactor = 2)
 

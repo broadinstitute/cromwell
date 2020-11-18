@@ -73,7 +73,7 @@ class JobStoreWriterSpec extends CromwellTestKitWordSpec with SqlWorkflowStoreBu
               flushRate = flushFrequency,
               serviceRegistryActor = TestProbe("serviceRegistryActor-collapse").ref,
               threshold = 1000,
-              workflowStoreAccess = access("collapse")(workflowStore),
+              workflowStoreAccess = access("coordinatedAccessActor-collapse")(workflowStore),
             ),
             name = "jobStoreWriter-collapse",
           )
@@ -111,7 +111,7 @@ class JobStoreWriterSpec extends CromwellTestKitWordSpec with SqlWorkflowStoreBu
               flushRate = flushFrequency,
               serviceRegistryActor = TestProbe("serviceRegistryActor-skip").ref,
               threshold = 1000,
-              workflowStoreAccess = access("skip")(workflowStore),
+              workflowStoreAccess = access("coordinatedAccessActor-skip")(workflowStore),
             ),
             "jobStoreWriter-skip",
           )

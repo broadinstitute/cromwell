@@ -12,7 +12,7 @@ class MultipleFilesWithSameNameWorkflowSpec extends CromwellTestKitWordSpec {
           "two.x.out" -> WomString("first file.txt"),
           "two.y.out" -> WomString("second file.txt")
         ),
-        actorNameSuffix = "clobber",
+        testActorName = "TestCromwellRootActor-clobber",
       )
     }
   }

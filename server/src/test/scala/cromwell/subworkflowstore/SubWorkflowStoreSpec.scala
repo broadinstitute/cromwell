@@ -41,7 +41,7 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with CoordinatedWorkf
       val workflowStoreService = system.actorOf(
         WorkflowStoreActor.props(
           workflowStore,
-          workflowStore |> access("Work"),
+          workflowStore |> access("coordinatedAccessActor-Work"),
           TestProbe("ServiceRegistryProbe-Work").ref,
           MockCromwellTerminator,
           abortAllJobsOnTerminate = false,

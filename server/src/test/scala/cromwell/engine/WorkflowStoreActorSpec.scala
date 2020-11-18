@@ -63,7 +63,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
       val storeActor = system.actorOf(
         WorkflowStoreActor.props(
           store,
-          store |> access("ReturnIdForSubmitted"),
+          store |> access("coordinatedAccessActor-ReturnIdForSubmitted"),
           CromwellTestKitSpec.ServiceRegistryActorInstance,
           MockCromwellTerminator,
           abortAllJobsOnTerminate = false,
@@ -80,7 +80,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
       val storeActor = system.actorOf(
         WorkflowStoreActor.props(
           store,
-          store |> access("CheckOnHold"),
+          store |> access("coordinatedAccessActor-CheckOnHold"),
           CromwellTestKitSpec.ServiceRegistryActorInstance,
           MockCromwellTerminator,
           abortAllJobsOnTerminate = false,
@@ -99,7 +99,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
       val storeActor = system.actorOf(
         WorkflowStoreActor.props(
           store,
-          store |> access("ReturnIdsForBatch"),
+          store |> access("coordinatedAccessActor-ReturnIdsForBatch"),
           CromwellTestKitSpec.ServiceRegistryActorInstance,
           MockCromwellTerminator,
           abortAllJobsOnTerminate = false,
@@ -118,7 +118,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
       val storeActor = system.actorOf(
         WorkflowStoreActor.props(
           store,
-          store |> access("FetchExactlyN"),
+          store |> access("coordinatedAccessActor-FetchExactlyN"),
           CromwellTestKitSpec.ServiceRegistryActorInstance,
           MockCromwellTerminator,
           abortAllJobsOnTerminate = false,
@@ -171,7 +171,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
       val storeActor = system.actorOf(
         WorkflowStoreActor.props(
           store,
-          store |> access("FetchEncryptedWorkflowOptions"),
+          store |> access("coordinatedAccessActor-FetchEncryptedWorkflowOptions"),
           CromwellTestKitSpec.ServiceRegistryActorInstance,
           MockCromwellTerminator,
           abortAllJobsOnTerminate = false,
@@ -229,7 +229,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
       val storeActor = system.actorOf(
         WorkflowStoreActor.props(
           store,
-          store |> access("ReturnOnlyRemaining"),
+          store |> access("coordinatedAccessActor-ReturnOnlyRemaining"),
           CromwellTestKitSpec.ServiceRegistryActorInstance,
           MockCromwellTerminator,
           abortAllJobsOnTerminate = false,
@@ -259,7 +259,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
       val storeActor = system.actorOf(
         WorkflowStoreActor.props(
           store,
-          store |> access("RemainResponsiveForUnknown"),
+          store |> access("coordinatedAccessActor-RemainResponsiveForUnknown"),
           CromwellTestKitSpec.ServiceRegistryActorInstance,
           MockCromwellTerminator,
           abortAllJobsOnTerminate = false,
@@ -280,7 +280,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
       val storeActor = system.actorOf(
         WorkflowStoreActor.props(
           store,
-          store |> access("AbortOnHold"),
+          store |> access("coordinatedAccessActor-AbortOnHold"),
           CromwellTestKitSpec.ServiceRegistryActorInstance,
           MockCromwellTerminator,
           abortAllJobsOnTerminate = false,
@@ -301,7 +301,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
         val storeActor = system.actorOf(
           WorkflowStoreActor.props(
             store,
-            store |> access("AbortSubmittedEmptyHeartbeat"),
+            store |> access("coordinatedAccessActor-AbortSubmittedEmptyHeartbeat"),
             CromwellTestKitSpec.ServiceRegistryActorInstance,
             MockCromwellTerminator,
             abortAllJobsOnTerminate = false,
@@ -320,7 +320,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
 
     "abort a submitted workflow with a non-empty heartbeat" in {
       runWithDatabase(databaseConfig) { store =>
-        val coordinatedAccess = store |> access("AbortSubmittedNonEmptyHeartbeat")
+        val coordinatedAccess = store |> access("coordinatedAccessActor-AbortSubmittedNonEmptyHeartbeat")
 
         val storeActor = system.actorOf(
           WorkflowStoreActor.props(
@@ -350,7 +350,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
         val storeActor = system.actorOf(
           WorkflowStoreActor.props(
             store,
-            store |> access("AbortRunningEmptyHeartbeat"),
+            store |> access("coordinatedAccessActor-AbortRunningEmptyHeartbeat"),
             CromwellTestKitSpec.ServiceRegistryActorInstance,
             MockCromwellTerminator,
             abortAllJobsOnTerminate = false,
@@ -379,7 +379,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
 
     "abort a running workflow with a non-empty heartbeat" in {
       runWithDatabase(databaseConfig) { store =>
-        val coordinatedAccess = store |> access("AbortRunningNonEmptyHeartbeat")
+        val coordinatedAccess = store |> access("coordinatedAccessActor-AbortRunningNonEmptyHeartbeat")
         val storeActor = system.actorOf(
           WorkflowStoreActor.props(
             store,
@@ -419,7 +419,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
       val storeActor = system.actorOf(
         WorkflowStoreActor.props(
           store,
-          store |> access("AbortNotFound"),
+          store |> access("coordinatedAccessActor-AbortNotFound"),
           CromwellTestKitSpec.ServiceRegistryActorInstance,
           MockCromwellTerminator,
           abortAllJobsOnTerminate = false,

@@ -6,7 +6,6 @@ import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.ListObjectsRequest
 
 import scala.collection.JavaConverters._
-import scala.language.implicitConversions
 
 trait ObjectCounter[A] {
   def parsePath(regex: String): String => Path = { fullPath =>

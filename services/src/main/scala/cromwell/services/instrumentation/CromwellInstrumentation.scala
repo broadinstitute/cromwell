@@ -9,7 +9,6 @@ import cromwell.services.instrumentation.InstrumentationService.InstrumentationS
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
-import scala.language.implicitConversions
 
 object CromwellInstrumentation {
   

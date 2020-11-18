@@ -53,11 +53,11 @@ import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 import scala.util.Success
 
-class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackendJobExecutionActorSpec")
+class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite
   with AnyFlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter with DefaultJsonProtocol {
   val mockPathBuilder: GcsPathBuilder = MockGcsPathBuilder.instance
   import MockGcsPathBuilder._
-  var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor))
+  var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor), "kvService")
 
   private def gcsPath(str: String) = mockPathBuilder.build(str).getOrElse(fail(s"Invalid gcs path: $str"))
 
@@ -234,13 +234,13 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
   private def runAndFail(previousPreemptions: Int, previousUnexpectedRetries: Int, preemptible: Int, errorCode: Status, innerErrorMessage: String, expectPreemptible: Boolean): BackendJobExecutionResponse = {
 
     val runStatus = UnsuccessfulRunStatus(errorCode, Option(innerErrorMessage), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), expectPreemptible)
-    val statusPoller = TestProbe()
+    val statusPoller = TestProbe("statusPoller")
 
     val promise = Promise[BackendJobExecutionResponse]()
     val jobDescriptor =  buildPreemptibleJobDescriptor(preemptible, previousPreemptions, previousUnexpectedRetries)
 
     // TODO: Use this to check the new KV entries are there!
-    //val kvProbe = TestProbe()
+    //val kvProbe = TestProbe("kvProbe")
 
     val backend = executionActor(jobDescriptor, promise, statusPoller.ref, expectPreemptible)
     backend ! Execute
@@ -417,7 +417,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
 
 
-    val probe = TestProbe()
+    val probe = TestProbe("probe")
     val job = jesBackend.workflowDescriptor.callable.taskCallNodes.head
     val key = BackendJobDescriptorKey(job, None, attempt = 2)
 

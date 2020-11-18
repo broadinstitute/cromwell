@@ -1,19 +1,19 @@
 package cromwell.services
 
-import akka.actor.ActorSystem
 import akka.testkit._
 import akka.util.Timeout
-import com.typesafe.config.ConfigFactory
-import org.scalatest.BeforeAndAfterAll
+import com.typesafe.config.{Config, ConfigFactory}
+import cromwell.core.TestKitSuite
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Minute, Span}
 import org.scalatest.wordspec.AnyWordSpecLike
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 object ServicesSpec {
-  val configString =
+  val configString: String =
     """
       |akka {
       |  loggers = ["akka.testkit.TestEventListener"]
@@ -67,17 +67,14 @@ object ServicesSpec {
       |}
       |""".stripMargin
 
-  val config = ConfigFactory.parseString(ServicesSpec.configString)
+  val config: Config = ConfigFactory.parseString(ServicesSpec.configString)
 }
 
-abstract class ServicesSpec(serviceName: String) extends TestKit(ActorSystem(s"${serviceName}ServiceActorSpec", ServicesSpec.config))
-  with Matchers with AnyWordSpecLike with BeforeAndAfterAll with ScalaFutures {
+abstract class ServicesSpec extends TestKitSuite
+  with Matchers with AnyWordSpecLike with ScalaFutures {
 
-  implicit val timeout = Timeout(20.seconds.dilated)
-  implicit val ec = system.dispatcher
-  implicit val defaultPatience = PatienceConfig(timeout = Span(1, Minute), interval = Span(100, Millis))
-
-  override protected def afterAll() = {
-    TestKit.shutdownActorSystem(system)
-  }
+  override protected lazy val actorSystemConfig: Config = ServicesSpec.config
+  implicit val timeout: Timeout = Timeout(20.seconds.dilated)
+  implicit val ec: ExecutionContext = system.dispatcher
+  implicit val defaultPatience: PatienceConfig = PatienceConfig(timeout = Span(1, Minute), interval = Span(100, Millis))
 }

@@ -12,7 +12,6 @@ class FilePassingWorkflowSpec extends CromwellTestKitWordSpec {
     "pass files properly" in {
       runWdlAndAssertOutputs(
         sampleWdl = SampleWdl.FilePassingWorkflow,
-        EventFilter.info(pattern = "Workflow complete", occurrences = 1),
         expectedOutputs = Map(
           "file_passing.a.out" -> WomSingleFile("out"),
           "file_passing.a.out_interpolation" -> WomSingleFile("out"),
@@ -21,7 +20,8 @@ class FilePassingWorkflowSpec extends CromwellTestKitWordSpec {
           "file_passing.b.out_interpolation" -> WomSingleFile("out"),
           "file_passing.b.contents" -> WomString("foo bar baz")
         ),
-        patienceConfig = PatienceConfig(2.minutes.dilated)
+        patienceConfig = PatienceConfig(2.minutes.dilated),
+        testActorName = "TestCromwellRootActor-files",
       )
     }
   }

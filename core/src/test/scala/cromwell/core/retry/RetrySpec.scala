@@ -7,14 +7,14 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Seconds, Span}
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
-class RetrySpec extends TestKitSuite("retry-spec") with AnyFlatSpecLike with Matchers with ScalaFutures {
+class RetrySpec extends TestKitSuite with AnyFlatSpecLike with Matchers with ScalaFutures {
   class TransientException extends Exception
   class MockWork(n: Int, transients: Int = 0) {
-    implicit val ec = system.dispatcher
+    implicit val ec: ExecutionContext = system.dispatcher
 
-    var counter = n
+    var counter: Int = n
 
     def doIt(): Future[Int] = {
       if (counter == 0)
@@ -27,7 +27,7 @@ class RetrySpec extends TestKitSuite("retry-spec") with AnyFlatSpecLike with Mat
     }
   }
 
-  implicit val defaultPatience = PatienceConfig(timeout = Span(30, Seconds), interval = Span(100, Millis))
+  implicit val defaultPatience: PatienceConfig = PatienceConfig(timeout = Span(30, Seconds), interval = Span(100, Millis))
 
   private def runRetry(retries: Int,
                        work: MockWork,

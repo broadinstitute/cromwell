@@ -6,7 +6,7 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class DockerEmptyFlowSpec extends DockerRegistrySpec("DockerEmptyFlowSpec") with AnyFlatSpecLike with Matchers {
+class DockerEmptyFlowSpec extends DockerRegistrySpec with AnyFlatSpecLike with Matchers {
   behavior of "An empty docker flow"
 
   override protected def registryFlows: Seq[DockerRegistry] = Seq()

@@ -19,11 +19,10 @@ import wom.types.WomStringType
 import wom.values.WomString
 
 import scala.concurrent.duration._
-import scala.language.postfixOps
 
 object JobStoreServiceSpec {
-  val MaxWait = 30 seconds
-  val EmptyExpression = PlaceholderWomExpression(Set.empty, WomStringType)
+  private val MaxWait = 30.seconds
+  private val EmptyExpression = PlaceholderWomExpression(Set.empty, WomStringType)
 }
 
 class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with Mockito with CoordinatedWorkflowStoreActorBuilder with SqlWorkflowStoreBuilder with CromwellTimeoutSpec {
@@ -32,7 +31,16 @@ class JobStoreServiceSpec extends CromwellTestKitWordSpec with Matchers with Moc
     "register Job and Workflow completions and read back (query) the result" in {
       runWithDatabase(databaseConfig) { workflowStore: SqlWorkflowStore =>
         lazy val jobStore: JobStore = new SqlJobStore(EngineServicesStore.engineDatabaseInterface)
-        val jobStoreService = system.actorOf(JobStoreActor.props(jobStore, dummyServiceRegistryActor, access(workflowStore)))
+        val jobStoreService =
+          system.actorOf(
+            props =
+              JobStoreActor.props(
+                database = jobStore,
+                registryActor = dummyServiceRegistryActor,
+                workflowStoreAccess = access("coordinatedAccessActor-register")(workflowStore)
+              ),
+            name = "jobStoreService-register",
+          )
 
         val workflowId = WorkflowId.randomId()
         val mockTask = WomMocks.mockTaskDefinition("bar")

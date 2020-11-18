@@ -2,35 +2,36 @@ package cromwell.core
 
 import java.util.UUID
 
-import akka.actor.ActorSystem
-import akka.testkit.{TestActors, TestKit}
+import akka.actor.{ActorRef, ActorSystem}
+import akka.testkit.{TestActors, TestKitBase}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.scalatest.{BeforeAndAfterAll, Suite}
 
 /**
   * A mix of Akka TestKit with ScalaTest mixed in to clean up the actor system.
-  *
-  * @param actorSystemName The name of the actor system.
-  * @param actorSystemConfig The config for the actor system.
   */
-abstract class TestKitSuite(actorSystemName: String = TestKitSuite.randomName,
-                            actorSystemConfig: Config = TestKitSuite.config)
-  extends TestKit(ActorSystem(actorSystemName, actorSystemConfig)) with Suite with BeforeAndAfterAll {
+abstract class TestKitSuite extends TestKitBase with Suite with BeforeAndAfterAll {
 
-  override protected def afterAll() = {
+  protected lazy val actorSystemName: String = this.getClass.getSimpleName
+
+  protected lazy val actorSystemConfig: Config = TestKitSuite.config
+
+  implicit lazy val system: ActorSystem = ActorSystem(actorSystemName, actorSystemConfig)
+
+  override protected def afterAll(): Unit = {
     shutdown()
   }
 
   // 'BlackHoleActor' swallows messages without logging them (thus reduces log file overhead):
-  val emptyActor = system.actorOf(TestActors.blackholeProps, "TestKitSuiteEmptyActor")
+  val emptyActor: ActorRef = system.actorOf(TestActors.blackholeProps, "TestKitSuiteEmptyActor")
 
-  val mockIoActor = system.actorOf(MockIoActor.props(), "TestKitSuiteMockIoActor")
-  val simpleIoActor = system.actorOf(SimpleIoActor.props, "TestKitSuiteSimpleIoActor")
-  val failIoActor = system.actorOf(FailIoActor.props(), "TestKitSuiteFailIoActor")
+  val mockIoActor: ActorRef = system.actorOf(MockIoActor.props(), "TestKitSuiteMockIoActor")
+  val simpleIoActor: ActorRef = system.actorOf(SimpleIoActor.props, "TestKitSuiteSimpleIoActor")
+  val failIoActor: ActorRef = system.actorOf(FailIoActor.props(), "TestKitSuiteFailIoActor")
 }
 
 object TestKitSuite {
-  val configString =
+  val configString: String =
     """
       |akka {
       |  loggers = ["akka.testkit.TestEventListener"]
@@ -96,7 +97,7 @@ object TestKitSuite {
       |}
       |""".stripMargin
 
-  val config = ConfigFactory.parseString(configString)
+  val config: Config = ConfigFactory.parseString(configString)
 
   def randomName = s"TestSystem-${UUID.randomUUID}"
 }

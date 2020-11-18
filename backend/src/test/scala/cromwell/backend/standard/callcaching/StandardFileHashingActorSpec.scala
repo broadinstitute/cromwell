@@ -18,13 +18,13 @@ import scala.concurrent.duration._
 import scala.util.control.NoStackTrace
 import scala.util.{Failure, Try}
 
-class StandardFileHashingActorSpec extends TestKitSuite("StandardFileHashingActorSpec") with ImplicitSender
+class StandardFileHashingActorSpec extends TestKitSuite with ImplicitSender
   with AnyFlatSpecLike with Matchers with Mockito {
 
   behavior of "StandardFileHashingActor"
 
   it should "return a failure to the parent when getPath returns an exception" in {
-    val parentProbe = TestProbe()
+    val parentProbe = TestProbe("parentProbe")
     val params = StandardFileHashingActorSpec.defaultParams()
     val props = Props(new StandardFileHashingActor(params) {
       override def getPath(str: String): Try[Path] =
@@ -44,7 +44,7 @@ class StandardFileHashingActorSpec extends TestKitSuite("StandardFileHashingActo
   }
 
   it should "return a failure to the parent when hashCommand throws an exception" in {
-    val parentProbe = TestProbe()
+    val parentProbe = TestProbe("parentProbe")
     val params = StandardFileHashingActorSpec.defaultParams()
     val props = Props(new StandardFileHashingActor(params) {
       override val ioCommandBuilder: IoCommandBuilder = IoCommandBuilder(
@@ -68,8 +68,8 @@ class StandardFileHashingActorSpec extends TestKitSuite("StandardFileHashingActo
   }
 
   it should "send a timeout to the ioActor the command doesn't hash" in {
-    val parentProbe = TestProbe()
-    val ioActorProbe = TestProbe()
+    val parentProbe = TestProbe("parentProbe")
+    val ioActorProbe = TestProbe("ioActorProbe")
     val params = StandardFileHashingActorSpec.ioActorParams(ioActorProbe.ref)
     val props = Props(new StandardFileHashingActor(params) {
       override lazy val defaultIoTimeout: FiniteDuration = 1.second.dilated

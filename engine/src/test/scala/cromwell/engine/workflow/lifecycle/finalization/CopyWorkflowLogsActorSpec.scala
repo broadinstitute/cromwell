@@ -15,7 +15,7 @@ import scala.util.control.NoStackTrace
 import scala.util.{Failure, Try}
 
 class CopyWorkflowLogsActorSpec
-  extends TestKitSuite("CopyWorkflowLogsActorSpec") with AnyFlatSpecLike with Matchers {
+  extends TestKitSuite with AnyFlatSpecLike with Matchers {
 
   behavior of "CopyWorkflowLogsActor"
 

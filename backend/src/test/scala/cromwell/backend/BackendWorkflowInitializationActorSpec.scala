@@ -4,7 +4,7 @@ import _root_.wdl.draft2.model.WdlExpression
 import _root_.wdl.draft2.model.types._
 import akka.actor.ActorRef
 import akka.testkit.TestActorRef
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet, ContinueOnReturnCodeValidation}
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -20,7 +20,7 @@ import scala.concurrent.Future
 import scala.util.Try
 
 
-class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkflowInitializationActorSpec")
+class BackendWorkflowInitializationActorSpec extends TestKitSuite
   with AnyFlatSpecLike with Matchers with TableDrivenPropertyChecks {
 
   behavior of "BackendWorkflowInitializationActorSpec"
@@ -33,11 +33,11 @@ class BackendWorkflowInitializationActorSpec extends TestKitSuite("BackendWorkfl
     TestPredicateBackendWorkflowInitializationActor =
     testPredicateBackendWorkflowInitializationActorRef.underlyingActor
 
-  val testContinueOnReturnCode: (Option[WomValue]) => Boolean = {
+  val testContinueOnReturnCode: Option[WomValue] => Boolean = {
     testPredicateBackendWorkflowInitializationActor.continueOnReturnCodePredicate(valueRequired = false)
   }
 
-  val optionalConfig = Option(TestConfig.optionalRuntimeConfig)
+  val optionalConfig: Option[Config] = Option(TestConfig.optionalRuntimeConfig)
 
   it should "continueOnReturnCodePredicate" in {
     testContinueOnReturnCode(None) should be(true)
@@ -191,7 +191,7 @@ class TestPredicateBackendWorkflowInitializationActor extends BackendWorkflowIni
 
   override def calls: Set[CommandCallNode] = throw new UnsupportedOperationException("calls")
 
-  override protected def runtimeAttributeValidators: Map[String, (Option[WomExpression]) => Boolean] =
+  override protected def runtimeAttributeValidators: Map[String, Option[WomExpression] => Boolean] =
     throw new UnsupportedOperationException("runtimeAttributeValidators")
 
   override protected def coerceDefaultRuntimeAttributes(options: WorkflowOptions): Try[Map[String, WomValue]] =

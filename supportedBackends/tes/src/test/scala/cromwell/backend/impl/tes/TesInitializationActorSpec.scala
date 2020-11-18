@@ -19,11 +19,11 @@ import wom.graph.CommandCallNode
 
 import scala.concurrent.duration._
 
-class TesInitializationActorSpec extends TestKitSuite("TesInitializationActorSpec")
+class TesInitializationActorSpec extends TestKitSuite
   with AnyWordSpecLike with Matchers with ImplicitSender {
-  val Timeout = 10.second.dilated
+  val Timeout: FiniteDuration = 10.second.dilated
 
-  val HelloWorld =
+  val HelloWorld: String =
     s"""
        |task hello {
        |  String addressee = "you"
@@ -76,7 +76,7 @@ class TesInitializationActorSpec extends TestKitSuite("TesInitializationActorSpe
   }
 
   val backendConfig: Config = ConfigFactory.parseString(backendConfigTemplate)
-  val conf = new BackendConfigurationDescriptor(backendConfig, globalConfig) {
+  val conf: BackendConfigurationDescriptor = new BackendConfigurationDescriptor(backendConfig, globalConfig) {
     override private[backend] lazy val cromwellFileSystems = new CromwellFileSystems(globalConfig)
   } 
 

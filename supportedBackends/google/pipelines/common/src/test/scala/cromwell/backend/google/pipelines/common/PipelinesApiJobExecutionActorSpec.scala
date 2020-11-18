@@ -16,7 +16,7 @@ import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success}
 
-class PipelinesApiJobExecutionActorSpec extends TestKitSuite("PipelinesApiJobExecutionActorSpec") with AnyFlatSpecLike with Matchers with Mockito {
+class PipelinesApiJobExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Mockito {
 
   behavior of "PipelinesApiJobExecutionActor"
 
@@ -28,14 +28,14 @@ class PipelinesApiJobExecutionActorSpec extends TestKitSuite("PipelinesApiJobExe
     val jobDescriptor = BackendJobDescriptor(null, null, null, Map.empty, null, null, null)
     val jesWorkflowInfo = mock[PipelinesApiConfiguration]
     val initializationData = mock[PipelinesApiBackendInitializationData]
-    val serviceRegistryActor = system.actorOf(Props.empty)
-    val ioActor = system.actorOf(Props.empty)
-    val jesBackendSingletonActor = Option(system.actorOf(Props.empty))
+    val serviceRegistryActor = system.actorOf(Props.empty, "serviceRegistryActor-initialization")
+    val ioActor = system.actorOf(Props.empty, "ioActor-initialization")
+    val jesBackendSingletonActor = Option(system.actorOf(Props.empty, "jesBackendSingletonActor-initialization"))
 
     initializationData.papiConfiguration returns jesWorkflowInfo
 
-    val parent = TestProbe()
-    val deathwatch = TestProbe()
+    val parent = TestProbe("parent")
+    val deathwatch = TestProbe("deathwatch")
     val params = DefaultStandardSyncExecutionActorParams(PipelinesApiAsyncBackendJobExecutionActor.JesOperationIdKey, serviceRegistryActor, ioActor,
       jobDescriptor, null, Option(initializationData), jesBackendSingletonActor,
       classOf[PipelinesApiAsyncBackendJobExecutionActor], MinimumRuntimeSettings())
@@ -60,14 +60,14 @@ class PipelinesApiJobExecutionActorSpec extends TestKitSuite("PipelinesApiJobExe
     val jobDescriptor = BackendJobDescriptor(null, null, null, Map.empty, null, null, null)
     val jesWorkflowInfo = mock[PipelinesApiConfiguration]
     val initializationData = mock[PipelinesApiBackendInitializationData]
-    val serviceRegistryActor = system.actorOf(Props.empty)
-    val ioActor = system.actorOf(Props.empty)
-    val jesBackendSingletonActor = Option(system.actorOf(Props.empty))
+    val serviceRegistryActor = system.actorOf(Props.empty, "serviceRegistryActor-random")
+    val ioActor = system.actorOf(Props.empty, "ioActor-random")
+    val jesBackendSingletonActor = Option(system.actorOf(Props.empty, "jesBackendSingletonActor-random"))
 
     initializationData.papiConfiguration returns jesWorkflowInfo
 
-    val parent = TestProbe()
-    val deathwatch = TestProbe()
+    val parent = TestProbe("parent")
+    val deathwatch = TestProbe("deathwatch")
     val jabjeaConstructionPromise = Promise[ActorRef]()
     val params = DefaultStandardSyncExecutionActorParams(PipelinesApiAsyncBackendJobExecutionActor.JesOperationIdKey, serviceRegistryActor, ioActor,
       jobDescriptor, null, Option(initializationData), jesBackendSingletonActor,

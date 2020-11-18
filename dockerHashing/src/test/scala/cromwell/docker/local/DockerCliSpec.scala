@@ -8,7 +8,7 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class DockerCliSpec extends DockerRegistrySpec("DockerCliFlowSpec") with AnyFlatSpecLike with Matchers {
+class DockerCliSpec extends DockerRegistrySpec with AnyFlatSpecLike with Matchers {
   behavior of "DockerCliFlow"
 
   override protected def registryFlows: Seq[DockerRegistry] = Seq(new DockerCliFlow)

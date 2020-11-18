@@ -22,8 +22,7 @@ class JobStoreWriterSpec extends CromwellTestKitWordSpec with SqlWorkflowStoreBu
   var database: WriteCountingJobStore = _
   var workflowId: WorkflowId = _
   val successResult: JobResult = JobResultSuccess(Some(0), CallOutputs.empty)
-  val flushFrequency = 0.5 second
-  val sleepMillis = flushFrequency.toMillis * 5
+  private val flushFrequency = 0.5.seconds
 
   before {
     database = WriteCountingJobStore.makeNew
@@ -44,6 +43,7 @@ class JobStoreWriterSpec extends CromwellTestKitWordSpec with SqlWorkflowStoreBu
     ()
   }
 
+  //noinspection SameParameterValue
   private def assertDb(totalWritesCalled: Int, jobCompletionsRecorded: Int, workflowCompletionsRecorded: Int): Unit = {
     database.totalWritesCalled shouldBe totalWritesCalled
     database.jobCompletionsRecorded shouldBe jobCompletionsRecorded
@@ -51,6 +51,7 @@ class JobStoreWriterSpec extends CromwellTestKitWordSpec with SqlWorkflowStoreBu
     ()
   }
 
+  //noinspection SameParameterValue
   private def assertReceived(expectedJobStoreWriteAcks: Int): Unit = {
     val received = receiveN(expectedJobStoreWriteAcks, 10 seconds)
     received foreach {
@@ -64,7 +65,18 @@ class JobStoreWriterSpec extends CromwellTestKitWordSpec with SqlWorkflowStoreBu
   "JobStoreWriter" should {
     "be able to collapse writes together if they arrive while a database access is ongoing" in {
       runWithDatabase(databaseConfig) { workflowStore =>
-        val jobStoreWriter = TestFSMRef(new JobStoreWriterActor(database, 5, flushFrequency, TestProbe().ref, 1000, access(workflowStore)))
+        val jobStoreWriter =
+          TestFSMRef(
+            factory = new JobStoreWriterActor(
+              jsd = database,
+              batchSize = 5,
+              flushRate = flushFrequency,
+              serviceRegistryActor = TestProbe("serviceRegistryActor-collapse").ref,
+              threshold = 1000,
+              workflowStoreAccess = access("coordinatedAccessActor-collapse")(workflowStore),
+            ),
+            name = "jobStoreWriter-collapse",
+          )
 
         // Send a job completion. The database will hang.
         sendRegisterCompletion(jobStoreWriter)(1)
@@ -91,7 +103,18 @@ class JobStoreWriterSpec extends CromwellTestKitWordSpec with SqlWorkflowStoreBu
 
     "be able to skip job-completion writes if the workflow completes, but still respond appropriately" in {
       runWithDatabase(databaseConfig) { workflowStore =>
-        val jobStoreWriter = TestFSMRef(new JobStoreWriterActor(database, 5, flushFrequency, TestProbe().ref, 1000, access(workflowStore)))
+        val jobStoreWriter =
+          TestFSMRef(
+            new JobStoreWriterActor(
+              jsd = database,
+              batchSize = 5,
+              flushRate = flushFrequency,
+              serviceRegistryActor = TestProbe("serviceRegistryActor-skip").ref,
+              threshold = 1000,
+              workflowStoreAccess = access("coordinatedAccessActor-skip")(workflowStore),
+            ),
+            "jobStoreWriter-skip",
+          )
 
         // Send a job completion. The database will hang.
         sendRegisterCompletion(jobStoreWriter)(1)
@@ -124,9 +147,12 @@ class WriteCountingJobStore(var totalWritesCalled: Int, var jobCompletionsRecord
 
   // A Promise so that the calling tests can hang the writer on the db write.  Once the promise is completed the writer is
   // released and all further messages will be written immediately.
-  val writePromise = Promise[Unit]()
+  private val writePromise = Promise[Unit]()
 
-  def continue() = writePromise.trySuccess(())
+  def continue(): Unit = {
+    writePromise.trySuccess(())
+    ()
+  }
 
   override def writeToDatabase(workflowCompletions: Seq[WorkflowCompletion], jobCompletions: Seq[JobCompletion], batchSize: Int)
                               (implicit ec: ExecutionContext): Future[Unit] = {

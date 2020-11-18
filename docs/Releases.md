@@ -1,4 +1,4 @@
-**Cromwell Releases**
+# Cromwell Releases
 
 Cromwell releases are available at the [GitHub Releases](https://github.com/broadinstitute/cromwell/releases/latest) page. 
 You are strongly encouraged to use the latest release of Cromwell whenever possible.
@@ -20,4 +20,20 @@ This is the main artifact in Cromwell releases that contains all executable Crom
 
 [Java 8](http://www.oracle.com/technetwork/java/javase/overview/java8-2100321.html) is required to run Cromwell.
 
-For users running a cromwell server [a docker image](https://hub.docker.com/r/broadinstitute/cromwell) has been made available.
+For users running a Cromwell server [a docker image](https://hub.docker.com/r/broadinstitute/cromwell) has been made available.
+
+### Apple Silicon support statement (updated 2020-11-17)
+
+#### Cromwell JAR works out of the box
+
+The Cromwell JAR works on any standard Java installation. A user can install an x86 Java runtime on an Apple Silicon Mac and the Rosetta 2 translation layer runs Cromwell at near-native speed.
+
+Once natively-compiled Java runtimes become available, performance will increase with no change in functionality. 
+
+#### Docker Desktop support is in progress
+
+The Cromwell Docker image will not run on M1 Macs until Docker Desktop ships the appropriate update. For more details, please see [their official announcement](https://www.docker.com/blog/apple-silicon-m1-chips-and-docker/).
+
+By extension, the absence of Docker means that Cromwell's local Docker backend is not yet supported.
+
+Even when Docker Desktop goes native on Apple Silicon, any tool images running on the local backend will need to cross-compile for the x86 and Arm architectures. This is because the Rosetta 2 translation layer [does not support virtualization](https://developer.apple.com/documentation/apple_silicon/about_the_rosetta_translation_environment). Please contact the tool maintainers for more information. 

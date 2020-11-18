@@ -2,6 +2,10 @@
 
 ## 55 Release Notes
 
+### Apple Silicon support statement
+
+Users with access to the new Mac hardware should review [important information provided here](https://cromwell.readthedocs.io/en/stable/Releases).
+
 ### Bug Fixes
 
 * Fixed a bug that prevented `read_json()` from working with arrays and primitives. The function now works as expected for all valid JSON data inputs. 

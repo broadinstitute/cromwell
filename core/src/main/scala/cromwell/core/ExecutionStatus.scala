@@ -11,16 +11,16 @@ object ExecutionStatus extends Enumeration {
   implicit val ExecutionStatusOrdering = Ordering.by { status: ExecutionStatus =>
     status match {
       case NotStarted => 0
-      case QueuedInCromwell => 2
-      case Starting => 3
-      case Running => 4
-      case Aborting => 5
-      case Unstartable => 6
-      case Aborted => 7
-      case Bypassed => 8
-      case RetryableFailure => 9
-      case Failed => 10
-      case Done => 11
+      case QueuedInCromwell => 1
+      case Starting => 2
+      case Running => 3
+      case Aborting => 4
+      case Unstartable => 5
+      case Aborted => 6
+      case Bypassed => 7
+      case RetryableFailure => 8
+      case Failed => 9
+      case Done => 10
     }
   }
   

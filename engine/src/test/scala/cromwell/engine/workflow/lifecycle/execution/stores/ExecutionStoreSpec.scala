@@ -33,21 +33,21 @@ class ExecutionStoreSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
     }
 
     store.store.getOrElse(QueuedInCromwell, List.empty).size should be(10000)
-    var currentlyRunning = store.store.getOrElse(Running, List.empty).size
-    currentlyRunning should be(0)
+    var previouslyRunning = store.store.getOrElse(Running, List.empty).size
+    previouslyRunning should be(0)
 
     while(store.store.getOrElse(Running, List.empty).size < 10000) {
       val toStartRunning = store.store(QueuedInCromwell).take(Random.nextInt(1000))
       store = store.updateKeys(toStartRunning.map(j => j -> Running).toMap)
-      val newlyRunning = store.store.getOrElse(Running, List.empty).size
+      val nowRunning = store.store.getOrElse(Running, List.empty).size
 
-      if (currentlyRunning + toStartRunning.size < 10000)
-        newlyRunning should be(currentlyRunning + toStartRunning.size)
+      if (previouslyRunning + toStartRunning.size < 10000)
+        nowRunning should be(previouslyRunning + toStartRunning.size)
       else
-        newlyRunning should be(10000)
+        nowRunning should be(10000)
 
-      currentlyRunning = newlyRunning
-      store.store.getOrElse(QueuedInCromwell, List.empty).size should be(10000 - currentlyRunning)
+      previouslyRunning = nowRunning
+      store.store.getOrElse(QueuedInCromwell, List.empty).size should be(10000 - previouslyRunning)
     }
 
     store.store.getOrElse(QueuedInCromwell, List.empty).size should be(0)

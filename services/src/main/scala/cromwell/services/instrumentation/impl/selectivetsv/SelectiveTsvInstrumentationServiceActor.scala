@@ -16,7 +16,13 @@ import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
 
 /**
-  * Actor that ignores every InstrumentationServiceMessage - This is the default implementation of this service
+  * Instrumentation actor that is meant to help get easy access to metrics without setting up an entire
+  * grafana/stackdriver stack. It:
+  *  * Pays attention to a set of messages that I (Chris) once thought were interesting.
+  *  * Waits for the running jobs metric to return to 0 and then prints any recorded metrics out to a TSV file with a
+  *  random name.
+  *
+  *  This is a test/demonstration version of the actor. I strongly discourage deploying with it in any production usage!
   */
 class SelectiveTsvInstrumentationServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
   extends Actor
@@ -49,21 +55,16 @@ class SelectiveTsvInstrumentationServiceActor(serviceConfig: Config, globalConfi
         stateHistory = StateHistory.empty
         logger.info("Resetting state history")
       }
-    //      logger.info(stateHistory.currentStateTsv())
 
     case ShutdownCommand => context stop self
-
-    //    case other: InstrumentationServiceMessage => println(s"Ignoring $other")
   }
 
   private def checkTsvPrintout(): Boolean = {
-    if (stateHistory.stateHistory.size >= 2) {
-      if (stateHistory.stateHistory.last._2.get("jobs.ejea.executing").contains(0)) {
-        if (stateHistory.stateHistory.init.last._2.get("jobs.ejea.executing").exists(_ != 0)) {
-          outputCountHistory()
-          true
-        } else false
-      } else false
+    if (stateHistory.stateHistory.size >= 2 &&
+      stateHistory.stateHistory.last._2.get("jobs.ejea.executing").contains(0) &&
+      stateHistory.stateHistory.init.last._2.get("jobs.ejea.executing").exists(_ != 0)) {
+      outputCountHistory()
+      true
     } else false
   }
 

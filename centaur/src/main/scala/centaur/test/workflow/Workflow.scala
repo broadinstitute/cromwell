@@ -93,7 +93,7 @@ object Workflow {
 
         val validateDescription: Boolean = conf.get[Boolean]("skipDescribeEndpointValidation").valueOrElse(false)
 
-        val maximumTime: Option[FiniteDuration] = conf.get[FiniteDuration]("maximumTime").map(Some.apply).valueOrElse(None)
+        val maximumTime: Option[FiniteDuration] = conf.get[Option[FiniteDuration]]("maximumTime").value
 
         (files, directoryContentCheckValidation, metadata, retryTestFailuresErrorOr) mapN {
           (f, d, m, retryTestFailures) => Workflow(n, f, m, absentMetadata, d, backendsRequirement, retryTestFailures, allowOtherOutputs, validateDescription, maximumTime)

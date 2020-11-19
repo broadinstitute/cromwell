@@ -11,7 +11,7 @@ trait CallCachingSqlDatabase {
   def hasMatchingCallCachingEntriesForBaseAggregation(baseAggregationHash: String, callCachePathPrefixes: Option[List[String]])
                                                      (implicit ec: ExecutionContext): Future[Boolean]
 
-  def findCacheHitForAggregation(baseAggregationHash: String, inputFilesAggregationHash: Option[String], callCachePathPrefixes: Option[List[String]], hitNumber: Int)
+  def findCacheHitForAggregation(baseAggregationHash: String, inputFilesAggregationHash: Option[String], callCachePathPrefixes: Option[List[String]], excludedIds: Set[Int])
                                 (implicit ec: ExecutionContext): Future[Option[Int]]
 
   def queryResultsForCacheId(callCachingEntryId: Int)

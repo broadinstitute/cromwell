@@ -18,6 +18,10 @@ More information on JSON Type to WDL Type conversion can be found [here](https:/
 Cromwell now offers support for the use of reference disks on the PAPI v2 backend as an alternative to localizing
 reference inputs. More details [here](https://cromwell.readthedocs.io/en/develop/backends/Google#reference-disk-support).
 
+### Docker image cache support on PAPI v2
+
+Cromwell now offers support for the use of Docker image caches on the PAPI v2 backend. More details [here](https://cromwell.readthedocs.io/en/develop/backends/Google#docker-image-cache-support).
+
 ## 54 Release Notes
 
 ### Bug Fixes

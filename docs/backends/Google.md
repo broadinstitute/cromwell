@@ -546,7 +546,7 @@ backend {
 }
 ```
 
-Manifest JSONs have a format like:
+Reference manifest JSONs have a format like:
 
 ```json
 {
@@ -584,3 +584,39 @@ copy of the file on the reference disk, bypassing localization of the input.
 The Cromwell git repository includes a Java-based tool to facilitate the creation of manifest files called
 [CromwellRefdiskManifestCreatorApp](https://github.com/broadinstitute/cromwell/tree/develop/CromwellRefdiskManifestCreator).
 Please see the help command of that tool for more details.
+
+### Docker Image Cache Support
+
+To optimize job execution tme, Cromwell 55 and later support the use of Docker image caches on the PAPI v2 backend.
+Configuration looks like:
+
+```hocon
+backend {
+  ...
+  providers {
+    ...
+    PapiV2 {
+      actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
+      config {
+        ...
+        docker-image-cache-manifest-files = ["gs://path/to/a/docker/image/cache/manifest.json"]
+        ...
+      }
+    }
+  }
+}
+```
+
+Reference manifest JSONs have a format like:
+
+```json
+{
+  "imageIdentifier" : "projects/my_project/global/images/warp-docker-cache-images-2020-11-20",
+  "diskSizeGb" : 30,
+  "images" : [
+    "us.gcr.io/broad-gotc-prod/picard-cloud:2.23.0",
+    "us.gcr.io/broad-gatk/gatk:4.1.4.1",
+...
+  ]
+}
+```

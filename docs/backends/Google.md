@@ -607,11 +607,11 @@ backend {
 }
 ```
 
-Reference manifest JSONs have a format like:
+Docker image cache manifest JSONs have a format like:
 
 ```json
 {
-  "imageIdentifier" : "projects/my_project/global/images/warp-docker-cache-images-2020-11-20",
+  "imageIdentifier" : "projects/my_project/global/images/warp-docker-image-cache-2020-11-20",
   "diskSizeGb" : 30,
   "images" : [
     "us.gcr.io/broad-gotc-prod/picard-cloud:2.23.0",
@@ -620,3 +620,31 @@ Reference manifest JSONs have a format like:
   ]
 }
 ```
+
+Docker image cache usage is an opt-in feature, so workflow submissions must specify this workflow option:
+
+```json
+{
+  ...
+  "use_docker_image_cache": true,
+  ...
+}
+```
+
+Individual tasks within a workflow can turn off Docker image caching through the use of a runtime attribute:
+
+```wdl
+task my_task {
+  ...
+  runtime {
+    ...
+    useDockerImageCache: false
+  }
+}
+```
+
+If Cromwell is running a workflow on PAPI v2 with Docker image caching enabled and a task specifies a
+Docker image which corresponds to a configured Docker image cache JSON, Cromwell will arrange for the
+job's VM to mount a disk built from the corresponding disk image. In the event that multiple
+manifests describe disk images containing the specified, Cromwell will choose the image with the
+smallest `diskSizeGb` value.

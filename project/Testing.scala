@@ -102,7 +102,7 @@ object Testing {
     // Don't execute benchmarks in parallel
     parallelExecution in CromwellBenchmarkTest := false,
     parallelExecution in Test := true,
-    testForkedParallel in Test := false,
+    fork in Test := false, // No benefit to forking JVM: https://stackoverflow.com/a/47172931/818054
     // Make sure no secrets are commited to git
     minnieKenny := {
       val log = streams.value.log

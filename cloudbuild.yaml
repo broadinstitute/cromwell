@@ -1,11 +1,13 @@
 steps:
   - id: build-cromwell
     name: hseeberger/scala-sbt:8u265_1.4.3_2.13.4
-    entrypoint: sbt
-    args:
-      - -mem
-      - "20480"
-      - test
+    entrypoint: src/ci/bin/test.sh
+    env:
+    - 'BUILD_TYPE=sbt'
+#    args:
+#    - -mem
+#    - "20480"
+#    - test
     timeout: 3600s
 options:
   machineType: 'N1_HIGHCPU_32'

@@ -85,7 +85,7 @@ class QueryTimeoutSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
 
               Something changed in 10.3.26/10.4.16/10.5.7 that on a timeout started returning sqlState 70100 instead of
               a `1`. That triggers this line of code in the driver:
-              - https://github.com/mariadb-corporation/mariadb-connector-j/blob/2.7.0/src/main/java/org/mariadb/jdbc/internal/util/exceptions/ExceptionFactory.java#L46-L48
+              - https://github.com/mariadb-corporation/mariadb-connector-j/blob/2.7.1/src/main/java/org/mariadb/jdbc/internal/util/exceptions/ExceptionFactory.java#L46-L48
 
               Skimming the change logs I can't quickly figure out what changed down in 10.3.26:
               - https://mariadb.com/kb/en/mariadb-10326-changelog/

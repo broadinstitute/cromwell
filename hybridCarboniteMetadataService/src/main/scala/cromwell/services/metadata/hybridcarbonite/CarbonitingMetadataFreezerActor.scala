@@ -59,7 +59,7 @@ class CarbonitingMetadataFreezerActor(freezingConfig: ActiveMetadataFreezingConf
         }
         goto(Freezing) using FreezingData(workflowId)
       } else {
-        log.warning(s"Carbonited metadata length is $jsonStringBytesSize bytes, which is greater than configured bucket-read-limit-bytes value. Marking as $TooLargeToArchive")
+        log.warning(s"Carbonited metadata length is $jsonStringBytesSize bytes, which is greater than configured bucket-read-limit-bytes=${carboniterConfig.bucketReadLimit} value. Marking as $TooLargeToArchive")
         scheduleDatabaseUpdateAndAwaitResult(workflowId, TooLargeToArchive)
       }
 

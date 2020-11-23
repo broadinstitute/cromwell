@@ -3,7 +3,7 @@ steps:
     name: us.gcr.io/broad-dsde-cromwell-dev/cromwell-cloudbuild-base
     entrypoint: bash
     args:
-      - src/ci/bin/testSbt.sh
+      - src/ci/bin/test.sh
     env:
     - 'BUILD_TYPE=sbt'
     - 'CLOUD_BUILD=true'

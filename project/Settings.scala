@@ -103,7 +103,7 @@ object Settings {
     scalaVersion := ScalaVersion,
     resolvers ++= commonResolvers,
     // Don't run tasks in parallel, especially helps in low CPU environments like Travis
-    parallelExecution in Global := false,
+    parallelExecution in Global := true,
     concurrentRestrictions in Global ++= List(
       // Don't run any other tasks while running tests, especially helps in low CPU environments like Travis
       Tags.exclusive(Tags.Test),

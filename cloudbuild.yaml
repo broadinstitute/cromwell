@@ -4,11 +4,8 @@ steps:
     entrypoint: src/ci/bin/test.sh
     env:
     - 'BUILD_TYPE=sbt'
-#    args:
-#    - -mem
-#    - "20480"
-#    - test
     timeout: 3600s
 options:
   machineType: 'N1_HIGHCPU_32'
+  diskSizeGb: '500'
 timeout: 3600s

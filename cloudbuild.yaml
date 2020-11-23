@@ -6,6 +6,7 @@ steps:
       - src/ci/bin/testSbt.sh
     env:
     - 'BUILD_TYPE=sbt'
+    - 'CROMWELL_BUILD_IS_CI=true'
     timeout: 3600s
 options:
   machineType: 'N1_HIGHCPU_32'

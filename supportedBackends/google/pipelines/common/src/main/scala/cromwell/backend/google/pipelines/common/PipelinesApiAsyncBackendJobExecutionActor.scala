@@ -152,7 +152,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override def requestsAbortAndDiesImmediately: Boolean = false
 
+  /*_*/ // Silence an errant IntelliJ warning
   override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse abortActorClientReceive orElse kvClientReceive orElse super.receive
+  /*_*/ // https://stackoverflow.com/questions/36679973/controlling-false-intellij-code-editor-error-in-scala-plugin
 
   private def gcsAuthParameter: Option[PipelinesApiLiteralInput] = {
     if (jesAttributes.auths.gcs.requiresAuthFile || dockerConfiguration.isDefined)
@@ -200,12 +202,13 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   }
 
   override lazy val inputsToNotLocalize: Set[WomFile] = {
-    val unmapped = jobDescriptor.findInputFilesByParameterMeta {
+    val localizeOptional = jobDescriptor.findInputFilesByParameterMeta {
       case MetaValueElementObject(values) => values.get("localization_optional").contains(MetaValueElementBoolean(true))
       case _ => false
     }
-    val cloudMapped = unmapped.map(cloudResolveWomFile)
-    unmapped ++ cloudMapped
+    val localizeSkipped = localizeOptional.filter(canSkipLocalize)
+    val localizeMapped = localizeSkipped.map(cloudResolveWomFile)
+    localizeSkipped ++ localizeMapped
   }
 
   protected def callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] = {
@@ -818,10 +821,27 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     }
   }
 
+  private def canSkipLocalize(womFile: WomFile): Boolean = {
+    var canSkipLocalize = true
+    womFile.mapFile { value =>
+      getPath(value) match {
+        case Success(drsPath: DrsPath) =>
+          val gsUriOption = DrsResolver.getSimpleGsUri(drsPath).unsafeRunSync()
+          if (gsUriOption.isEmpty) {
+            canSkipLocalize = false
+          }
+        case _ => /* ignore */
+      }
+      value
+    }
+    canSkipLocalize
+  }
+
   override def cloudResolveWomFile(womFile: WomFile): WomFile = {
     womFile.mapFile { value =>
       getPath(value) match {
-        case Success(drsPath: DrsPath) => DrsResolver.getGsUri(drsPath).unsafeRunSync()
+        case Success(drsPath: DrsPath) => DrsResolver.getSimpleGsUri(drsPath).unsafeRunSync().getOrElse(value)
+        case Success(path) => path.pathAsString
         case _ => value
       }
     }

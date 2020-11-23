@@ -32,8 +32,6 @@ class MockEngineDrsPathResolver(drsConfig: DrsConfig = MockDrsPaths.mockDrsConfi
       timeCreated = Option("2020-04-27T15:56:09.696Z"),
       timeUpdated = Option("2020-04-27T15:56:09.696Z"),
       gsUri = Option(s"gs://${MockDrsPaths.drsRelativePath}"),
-      googleServiceAccount = None,
-      fileName = None,
       hashes = Option(hashesObj)
     )
 

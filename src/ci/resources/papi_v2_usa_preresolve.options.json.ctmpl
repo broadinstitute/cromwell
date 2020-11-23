@@ -5,6 +5,8 @@
     "google_project": "broad-dsde-cromwell-dev",
     "jes_gcs_root": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci",
 {{/* We're re-using the WDL with the same inputs in multiple tests, make sure we don't accidentally cache hit */}}
-    "read_from_cache": false
+    "read_from_cache": false,
+{{/* Test pre-resolving DrsPath to GcsPath */}}
+    "override_preresolve_for_test": true
 }
 {{end}}

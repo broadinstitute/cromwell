@@ -1,0 +1,7 @@
+steps:
+  - id: build-cromwell
+  - name: hseeberger/scala-sbt
+  - entrypoint: sh
+    args:
+      - sbt
+      - test

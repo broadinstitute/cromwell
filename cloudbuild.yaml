@@ -53,6 +53,10 @@ steps:
     waitFor: ['build-cromwell']
 
 options:
+<<<<<<< HEAD
   machineType: 'N1_HIGHCPU_32'
+=======
+#  machineType: 'N1_HIGHCPU_8'
+>>>>>>> 0c9316df3... trying something smaller
   diskSizeGb: '500'
 timeout: 3600s

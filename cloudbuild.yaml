@@ -3,7 +3,9 @@ steps:
     name: hseeberger/scala-sbt:8u265_1.4.3_2.13.4
     entrypoint: sbt
     args:
+      - -mem
+      - 20480
       - test
     timeout: 3600s
 options:
-  machineType: 'N1_HIGHCPU_8'
+  machineType: 'N1_HIGHCPU_32'

@@ -1,6 +1,6 @@
 steps:
   - id: build-cromwell
-    name: hseeberger/scala-sbt:8u265_1.4.3_2.13.4
+    name: us.gcr.io/broad-dsde-cromwell-dev/cromwell-cloudbuild-base
     entrypoint: bash
     args:
       - src/ci/bin/testSbt.sh

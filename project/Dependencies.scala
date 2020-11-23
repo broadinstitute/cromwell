@@ -57,7 +57,7 @@ object Dependencies {
   private val hsqldbV = "2.5.1"
   private val http4sVersion = "0.21.7" // scala-steward:off (CROM-6678)
   private val jacksonV = "2.11.3"
-  private val jacksonJqV = "1.0.0-preview.20191208"
+  private val jacksonJqV = "1.0.0-preview.20201123"
   private val janinoV = "3.1.2"
   private val javaxActivationV = "1.2.0"
   // jaxb-impl 2.3.3 depends on com.sun.activation:jakarta.activation and jakarta.xml.bind:jakarta.xml.bind-api,

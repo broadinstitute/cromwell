@@ -1,6 +1,6 @@
 steps:
   
- - id: 'restore cache'
+  - id: 'restore cache'
     name: 'gcr.io/$PROJECT_ID/restore_cache'
     args:
       - '--bucket=gs://cromwell-cloudbuild-sbt-cache'

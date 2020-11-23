@@ -646,5 +646,5 @@ task my_task {
 If Cromwell is running a workflow on PAPI v2 with Docker image caching enabled and a task specifies a
 Docker image which corresponds to a configured Docker image cache JSON, Cromwell will arrange for the
 job's VM to mount a disk built from the corresponding disk image. In the event that multiple
-manifests describe disk images containing the specified, Cromwell will choose the image with the
+manifests describe disk images containing the specified Docker image, Cromwell will choose the disk image with the
 smallest `diskSizeGb` value.

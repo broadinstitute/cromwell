@@ -4,9 +4,10 @@ import java.util.UUID
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.core.Dispatcher.ApiDispatcher
+import cromwell.core.WorkflowId
 import cromwell.services.MetadataJsonResponse
 import cromwell.services.metadata.MetadataService
-import cromwell.services.metadata.MetadataService.{MetadataQueryResponse, BuildMetadataJsonAction, MetadataServiceAction, MetadataServiceResponse, RootAndSubworkflowLabelsLookupResponse, BuildWorkflowMetadataJsonAction}
+import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, BuildWorkflowMetadataJsonAction, MetadataQueryResponse, MetadataServiceAction, MetadataServiceResponse, RootAndSubworkflowLabelsLookupResponse}
 import cromwell.services.metadata.impl.ReadMetadataRegulatorActor.PropsMaker
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
 
@@ -14,34 +15,41 @@ import scala.collection.mutable
 
 class ReadMetadataRegulatorActor(metadataBuilderActorProps: PropsMaker, readMetadataWorkerProps: PropsMaker) extends Actor with ActorLogging {
   // This actor tracks all requests coming in from the API service and spins up new builders as needed to service them.
-  // If the processing of an identical request is already in flight the requester will be added to a set of requesters
+  // If the processing of an identical request is already in flight the requester will be added to a list of requesters
   // to notify when the response from the first request becomes available.
+  // Note that if someone sends the same action twice, this actor must reply twice too.
 
   // Map from requests (MetadataServiceActions) to requesters.
-  val apiRequests = new mutable.HashMap[MetadataServiceAction, Set[ActorRef]]()
+  val apiRequests = new mutable.HashMap[MetadataServiceAction, List[ActorRef]]()
   // Map from ActorRefs of MetadataBuilderActors to requests. When a response comes back from a MetadataBuilderActor its
   // ActorRef is used as the lookup key in this Map. The result of that lookup yields the request which in turn is used
   // as the lookup key for requesters in the above Map.
   val builderRequests = new mutable.HashMap[ActorRef, MetadataServiceAction]()
+
+  def createMetadataBuilderActor(workflowId: WorkflowId): ActorRef =
+    context.actorOf(metadataBuilderActorProps().withDispatcher(ApiDispatcher), MetadataBuilderActor.uniqueActorName(workflowId.toString))
+
+  def createReadMetadataWorker(): ActorRef =
+    context.actorOf(readMetadataWorkerProps.apply().withDispatcher(ApiDispatcher), s"MetadataQueryWorker-${UUID.randomUUID()}")
 
   override def receive: Receive = {
     // This indirection via 'MetadataReadAction' lets the compiler make sure we cover all cases in the sealed trait:
     case action: BuildMetadataJsonAction =>
       action match {
         case singleWorkflowAction: BuildWorkflowMetadataJsonAction =>
-          val currentRequesters = apiRequests.getOrElse(singleWorkflowAction, Set.empty)
-          apiRequests.put(singleWorkflowAction, currentRequesters + sender())
+          val currentRequesters = apiRequests.getOrElse(singleWorkflowAction, Nil)
+          apiRequests.put(singleWorkflowAction, sender() +: currentRequesters)
           if (currentRequesters.isEmpty) {
 
-            val builderActor = context.actorOf(metadataBuilderActorProps().withDispatcher(ApiDispatcher), MetadataBuilderActor.uniqueActorName(singleWorkflowAction.workflowId.toString))
+            val builderActor = createMetadataBuilderActor(singleWorkflowAction.workflowId)
             builderRequests.put(builderActor, singleWorkflowAction)
             builderActor ! singleWorkflowAction
           }
         case crossWorkflowAction: MetadataService.QueryForWorkflowsMatchingParameters =>
-          val currentRequesters = apiRequests.getOrElse(crossWorkflowAction, Set.empty)
-          apiRequests.put(crossWorkflowAction, currentRequesters + sender())
+          val currentRequesters = apiRequests.getOrElse(crossWorkflowAction, Nil)
+          apiRequests.put(crossWorkflowAction, sender() +: currentRequesters)
           if (currentRequesters.isEmpty) {
-            val readMetadataActor = context.actorOf(readMetadataWorkerProps.apply().withDispatcher(ApiDispatcher), s"MetadataQueryWorker-${UUID.randomUUID()}")
+            val readMetadataActor = createReadMetadataWorker()
             builderRequests.put(readMetadataActor, crossWorkflowAction)
             readMetadataActor ! crossWorkflowAction
           }

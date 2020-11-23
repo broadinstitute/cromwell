@@ -62,12 +62,15 @@ cromwell::private::set_variable_if_only_some_files_changed() {
 cromwell::private::create_build_variables() {
     CROMWELL_BUILD_PROVIDER_TRAVIS="travis"
     CROMWELL_BUILD_PROVIDER_JENKINS="jenkins"
+    CROMWELL_BUILD_PROVIDER_CLOUD_BUILD="cloud-build"
     CROMWELL_BUILD_PROVIDER_UNKNOWN="unknown"
 
     if [[ "${TRAVIS-false}" == "true" ]]; then
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_TRAVIS}"
     elif [[ "${JENKINS-false}" == "true" ]]; then
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_JENKINS}"
+    elif [[ "${CLOUD_BUILD-false}" == "true" ]]; then
+        CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_CLOUD_BUILD}"
     else
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_UNKNOWN}"
     fi
@@ -214,6 +217,19 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_HEARTBEAT_PATTERN="…\n"
             CROMWELL_BUILD_GENERATE_COVERAGE=false
             CROMWELL_BUILD_RUN_TESTS=true
+            ;;
+        "${CROMWELL_BUILD_PROVIDER_CLOUD_BUILD}")
+            # https://cloud.google.com/cloud-build/docs/configuring-builds/substitute-variable-values
+            CROMWELL_BUILD_IS_CI=true
+            CROMWELL_BUILD_TYPE="${BUILD_TYPE}"
+            CROMWELL_BUILD_GENERATE_COVERAGE="${CROMWELL_BUILD_GENERATE_COVERAGE:-true}"
+            CROMWELL_BUILD_NUMBER=${BUILD_ID-""}
+            CROMWELL_BUILD_RUN_TESTS=true
+            CROMWELL_BUILD_IS_SECURE=true
+            CROMWELL_BUILD_BRANCH=${BRANCH_NAME-""}
+            CROMWELL_BUILD_EVENT="unknown"
+            CROMWELL_BUILD_TAG=${TAG_NAME=""}
+            CROMWELL_BUILD_URL=""
             ;;
         *)
             CROMWELL_BUILD_IS_CI=false

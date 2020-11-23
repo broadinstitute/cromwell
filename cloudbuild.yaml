@@ -41,7 +41,7 @@ steps:
       - |
         pwd
         ls -lah
-    waitFor: ['compile']
+    waitFor: ['build-cromwell']
 
   - id: 'save cache'
     name: 'gcr.io/$PROJECT_ID/save_cache'

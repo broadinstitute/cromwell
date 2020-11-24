@@ -39,7 +39,7 @@ steps:
     args:
       - '-c'
       - |
-        ls -lah $HOME/.ivy2/cache
+        ls -lah /workspace/.ivy2
     waitFor: ['build-cromwell']
 
   - id: 'save cache'

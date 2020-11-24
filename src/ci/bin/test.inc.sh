@@ -230,6 +230,7 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_EVENT="unknown"
             CROMWELL_BUILD_TAG=${TAG_NAME=""}
             CROMWELL_BUILD_URL=""
+            SBT_OPTS="-Dsbt.ivy.home=/workspace/.ivy2/ -Divy.home=/workspace/.ivy2/"
             ;;
         *)
             CROMWELL_BUILD_IS_CI=false

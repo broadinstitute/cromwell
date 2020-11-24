@@ -212,6 +212,7 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_TAG=""
             CROMWELL_BUILD_NUMBER="${BUILD_NUMBER}"
             CROMWELL_BUILD_URL="${BUILD_URL}"
+            CROMWELL_BUILD_SBT_IVY_LOCATION=""
             CROMWELL_BUILD_GIT_USER_EMAIL="jenkins@jenkins.io"
             CROMWELL_BUILD_GIT_USER_NAME="Jenkins CI"
             CROMWELL_BUILD_HEARTBEAT_PATTERN="…\n"
@@ -230,6 +231,7 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_EVENT="unknown"
             CROMWELL_BUILD_TAG=${TAG_NAME=""}
             CROMWELL_BUILD_URL=""
+            CROMWELL_BUILD_SBT_IVY_LOCATION="-ivy /workspace/.ivy2/"
             ;;
         *)
             CROMWELL_BUILD_IS_CI=false
@@ -245,6 +247,7 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
             CROMWELL_BUILD_GENERATE_COVERAGE="${CROMWELL_BUILD_GENERATE_COVERAGE:-true}"
             CROMWELL_BUILD_RUN_TESTS=true
+            CROMWELL_BUILD_SBT_IVY_LOCATION=""
 
             local bash_script
             for bash_script in "${BASH_SOURCE[@]}"; do
@@ -974,7 +977,7 @@ cromwell::private::vault_login() {
 
 cromwell::private::render_secure_resources() {
     # Copy the CI resources, then render the secure resources using Vault
-    sbt --warn renderCiResources \
+    sbt ${CROMWELL_BUILD_SBT_IVY_LOCATION} --warn renderCiResources \
     || if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
         echo
         echo "Continuing without rendering secure resources."
@@ -993,7 +996,7 @@ cromwell::private::render_secure_resources() {
 
 cromwell::private::copy_all_resources() {
     # Only copy the CI resources. Secure resources are not rendered.
-    sbt --warn copyCiResources
+    sbt ${CROMWELL_BUILD_SBT_IVY_LOCATION} --warn copyCiResources
 }
 
 cromwell::private::setup_secure_resources() {
@@ -1044,6 +1047,7 @@ cromwell::private::assemble_jars() {
     # shellcheck disable=SC2086
     CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=error \
         sbt \
+        ${CROMWELL_BUILD_SBT_IVY_LOCATION} \
         --warn \
         ${CROMWELL_BUILD_SBT_COVERAGE_COMMAND} \
         ${CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND} \
@@ -1086,8 +1090,8 @@ cromwell::private::setup_prior_version_resources() {
 }
 
 cromwell::private::generate_code_coverage() {
-    sbt --warn coverageReport -warn
-    sbt --warn coverageAggregate -warn
+    sbt ${CROMWELL_BUILD_SBT_IVY_LOCATION} --warn coverageReport -warn
+    sbt ${CROMWELL_BUILD_SBT_IVY_LOCATION} --warn coverageAggregate -warn
     bash <(curl -s https://codecov.io/bash) > /dev/null || true
 }
 
@@ -1394,7 +1398,7 @@ cromwell::build::build_cromwell_docker() {
 cromwell:build::run_sbt_test() {
     # CROMWELL_BUILD_SBT_COVERAGE_COMMAND allows enabling or disabling `sbt coverage`.
     # shellcheck disable=SC2086
-    sbt \
+    sbt ${CROMWELL_BUILD_SBT_IVY_LOCATION} \
         -mem 20480 \
         -warn \
         -Dakka.test.timefactor=${CROMWELL_BUILD_UNIT_SPAN_SCALE_FACTOR} \

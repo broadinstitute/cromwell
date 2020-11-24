@@ -1,7 +1,7 @@
 steps:
   - id: build-cromwell
     # Container is https://hub.docker.com/r/hseeberger/scala-sbt plus Docker, vault, git-secrets
-    name: us.gcr.io/broad-dsde-cromwell-dev/cromwell-cloudbuild-base@sha256:cc4d53816a3f88d04a33350553779b2a46bbd29d973858da0f530e443b92e13f
+    name: us.gcr.io/broad-dsde-cromwell-dev/cromwell-cloudbuild-base@sha256:973e10cec360d1b36a305ef61e6bc3dcaae8a7b76f81c131e982838409cd5cf1
     entrypoint: bash
     args:
       - src/ci/bin/test.sh

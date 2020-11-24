@@ -13,7 +13,7 @@ steps:
     args:
       - '-c'
       - |
-        ls -lah /workspace/.ivy2/cache | wc -l
+        ls -lah /workspace/.ivy2/cache
     waitFor: ['restore cache']
 
 #  - id: 'compile'
@@ -39,8 +39,7 @@ steps:
     args:
       - '-c'
       - |
-        pwd
-        ls -lah
+        ls -lah /workspace/.ivy2/cache
     waitFor: ['build-cromwell']
 
   - id: 'save cache'

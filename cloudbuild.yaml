@@ -7,14 +7,14 @@ steps:
       - '--key=build-cache-$( checksum build.sbt project/Dependencies.scala )'
     waitFor: ['-']
 
-  - id: 'check cache'
-    name: 'ubuntu'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        ls -lah $HOME/.ivy2/cache
-    waitFor: ['restore cache']
+#  - id: 'check cache'
+#    name: 'ubuntu'
+#    entrypoint: 'bash'
+##    args:
+#      - '-c'
+#      - |
+#        ls -lah $HOME/.ivy2/cache
+#    waitFor: ['restore cache']
 
 #  - id: 'compile'
 #    name: 'gcr.io/$PROJECT_ID/scala-sbt'

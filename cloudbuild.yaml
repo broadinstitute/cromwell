@@ -13,11 +13,10 @@ steps:
     name: us.gcr.io/broad-dsde-cromwell-dev/cromwell-cloudbuild-base@sha256:cc4d53816a3f88d04a33350553779b2a46bbd29d973858da0f530e443b92e13f
     entrypoint: bash
     args:
-      - src/ci/bin/testJustAssemble.sh
+      - src/ci/bin/test.sh
     env:
     - 'BUILD_TYPE=sbt'
     - 'CLOUD_BUILD=true'
-    - 'crmdbg=y'
     timeout: 3600s
     waitFor: ['restore cache']
 
@@ -33,4 +32,4 @@ steps:
 options:
   machineType: 'N1_HIGHCPU_32'
   diskSizeGb: '500'
-timeout: 7200s
+timeout: 3600s

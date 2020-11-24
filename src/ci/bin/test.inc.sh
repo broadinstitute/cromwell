@@ -154,6 +154,7 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_GIT_USER_NAME="Travis CI"
             CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
             CROMWELL_BUILD_GENERATE_COVERAGE=true
+            CROMWELL_BUILD_SBT_IVY_LOCATION=""
 
             local travis_commit_message
             local travis_force_tests

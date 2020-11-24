@@ -8,6 +8,7 @@ steps:
     env:
     - 'BUILD_TYPE=sbt'
     - 'CLOUD_BUILD=true'
+    - 'crmdbg=y'
     timeout: 3600s
 options:
   machineType: 'N1_HIGHCPU_32'

@@ -189,7 +189,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
      Responses from services
      */
     case Event(WorkflowFailedResponse(workflowId, inState, reasons), _) =>
-      log.info(s"$tag Workflow $workflowId failed (during $inState): ${expandFailureReasons(reasons)}")
+      log.info(s"Workflow $workflowId failed during state $inState: ${expandFailureReasons(reasons)}")
       stay()
     /*
      Watched transitions
@@ -332,7 +332,8 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     implicit val ec: ExecutionContext = context.dispatcher
 
     reasons map {
-      case reason: ThrowableAggregation => expandFailureReasons(reason.throwables.toSeq)
+      case reason: ThrowableAggregation =>
+        expandFailureReasons(reason.throwables.toSeq)
       case reason: KnownJobFailureException =>
         val stderrMessage = reason.stderrPath map { path => 
           val content = Try(path.annotatedContentAsStringWithLimit(300)).recover({
@@ -341,7 +342,9 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
           s"\nCheck the content of stderr for potential additional information: ${path.pathAsString}.\n $content" 
         } getOrElse ""
         reason.getMessage + stderrMessage
-      case reason => ExceptionUtils.getStackTrace(reason)
+      case reason =>
+        // Potentially something wrong in Cromwell itself; show stack trace
+        ExceptionUtils.getStackTrace(reason)
     } mkString "\n"
   }
 }

@@ -1,12 +1,30 @@
 package cromwell.backend.async
 
+import _root_.io.grpc.Status
 import common.exception.ThrowableAggregation
 import common.validation.Validation.GreaterEqualRefined
 import cromwell.core.path.Path
+import wom.core.FullyQualifiedName
 import wom.expression.{NoIoFunctionSet, WomExpression}
 
 abstract class KnownJobFailureException extends Exception {
   def stderrPath: Option[Path]
+}
+
+final case class GenericJobFailure(errorCode: Status,
+                                   message: String,
+                                   jobTag: String,
+                                   returnCodeOption: Option[Int],
+                                   stderrPath: Option[Path]) extends KnownJobFailureException {
+  val returnCodeMessage: String = returnCodeOption match {
+    case Some(returnCode) if returnCode == 0 => "Job exited without an error, exit code 0."
+    case Some(returnCode) => s"Job exit code $returnCode. Check $stderrPath for more information."
+    case None => ""
+  }
+
+  override def getMessage: FullyQualifiedName =
+    s"Task $jobTag failed. $returnCodeMessage PAPI error code ${errorCode.getCode.value}. $message"
+
 }
 
 final case class WrongReturnCode(jobTag: String, returnCode: Int, stderrPath: Option[Path]) extends KnownJobFailureException {

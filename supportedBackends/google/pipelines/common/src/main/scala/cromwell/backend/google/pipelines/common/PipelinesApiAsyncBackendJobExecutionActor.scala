@@ -13,7 +13,7 @@ import common.util.StringUtil._
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.backend._
-import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle}
+import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, GenericJobFailure, PendingExecutionHandle}
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.pipelines.common.PipelinesApiJobPaths.GcsTransferLibraryName
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory._
@@ -76,20 +76,6 @@ object PipelinesApiAsyncBackendJobExecutionActor {
   val FailedV2Style = "The assigned worker has failed to complete the operation"
 
   val plainTextContentType: Option[ContentType.WithCharset] = Option(ContentTypes.`text/plain(UTF-8)`)
-
-  def StandardException(errorCode: Status,
-                        message: String,
-                        jobTag: String,
-                        returnCodeOption: Option[Int],
-                        stderrPath: Path): Exception = {
-    val returnCodeMessage = returnCodeOption match {
-      case Some(returnCode) if returnCode == 0 => "Job exited without an error, exit code 0."
-      case Some(returnCode) => s"Job exit code $returnCode. Check $stderrPath for more information."
-      case None => "The job was stopped before the command finished."
-    }
-
-    new Exception(s"Task $jobTag failed. $returnCodeMessage PAPI error code ${errorCode.getCode.value}. $message")
-  }
 }
 
 class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
@@ -720,14 +706,14 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
             "Please check your private Docker configuration and/or the pull access for this image. "
           val message = unable + details + prettyError
           FailedNonRetryableExecutionHandle(
-            StandardException(runStatus.errorCode, message, jobTag, returnCode, standardPaths.error),
+            GenericJobFailure(runStatus.errorCode, message, jobTag, returnCode, Option(standardPaths.error)),
             returnCode,
             None
           )
         case _ =>
           val finalPrettyPrintedError = generateBetterErrorMsg(runStatus, prettyError)
           FailedNonRetryableExecutionHandle(
-            StandardException(runStatus.errorCode, finalPrettyPrintedError, jobTag, returnCode, standardPaths.error),
+            GenericJobFailure(runStatus.errorCode, finalPrettyPrintedError, jobTag, returnCode, Option(standardPaths.error)),
             returnCode,
             None
           )
@@ -762,21 +748,21 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           val preemptionAndUnexpectedRetryCountsKvPairs = nextAttemptPreemptedAndUnexpectedRetryCountsToKvPairs(p, thisUnexpectedRetry)
           // Increment unexpected retry count and preemption count stays the same
           FailedRetryableExecutionHandle(
-            StandardException(errorCode, msg, jobTag, jobReturnCode, standardPaths.error),
+            GenericJobFailure(errorCode, msg, jobTag, jobReturnCode, Option(standardPaths.error)),
             jobReturnCode,
             kvPairsToSave = Option(preemptionAndUnexpectedRetryCountsKvPairs)
           )
         }
         else {
           FailedNonRetryableExecutionHandle(
-            StandardException(errorCode, errorMessage, jobTag, jobReturnCode, standardPaths.error),
+            GenericJobFailure(errorCode, errorMessage, jobTag, jobReturnCode, Option(standardPaths.error)),
             jobReturnCode,
             None
           )
         }
       case Invalid(_) =>
         FailedNonRetryableExecutionHandle(
-          StandardException(errorCode, errorMessage, jobTag, jobReturnCode, standardPaths.error),
+          GenericJobFailure(errorCode, errorMessage, jobTag, jobReturnCode, Option(standardPaths.error)),
           jobReturnCode,
           None
         )
@@ -801,7 +787,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
             s"$baseMsg The call will be restarted with another preemptible VM (max preemptible attempts number is " +
               s"$maxPreemption). Error code $errorCode.$prettyPrintedError"
           FailedRetryableExecutionHandle(
-            StandardException(errorCode, msg, jobTag, jobReturnCode, standardPaths.error),
+            GenericJobFailure(errorCode, msg, jobTag, jobReturnCode, Option(standardPaths.error)),
             jobReturnCode,
             kvPairsToSave = Option(preemptionAndUnexpectedRetryCountsKvPairs)
           )
@@ -809,12 +795,12 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         else {
           val msg = s"$baseMsg The maximum number of preemptible attempts ($maxPreemption) has been reached. The " +
             s"call will be restarted with a non-preemptible VM. Error code $errorCode.$prettyPrintedError)"
-          FailedRetryableExecutionHandle(StandardException(
-            errorCode, msg, jobTag, jobReturnCode, standardPaths.error), jobReturnCode, kvPairsToSave = Option(preemptionAndUnexpectedRetryCountsKvPairs))
+          FailedRetryableExecutionHandle(GenericJobFailure(
+            errorCode, msg, jobTag, jobReturnCode, Option(standardPaths.error)), jobReturnCode, kvPairsToSave = Option(preemptionAndUnexpectedRetryCountsKvPairs))
         }
       case Invalid(_) =>
         FailedNonRetryableExecutionHandle(
-          StandardException(errorCode, prettyPrintedError, jobTag, jobReturnCode, standardPaths.error),
+          GenericJobFailure(errorCode, prettyPrintedError, jobTag, jobReturnCode, Option(standardPaths.error)),
           jobReturnCode,
           None
         )

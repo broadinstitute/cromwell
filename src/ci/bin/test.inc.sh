@@ -1317,6 +1317,33 @@ cromwell::build::setup_common_environment() {
     esac
 }
 
+cromwell::build::setup_common_environment_no_docker() {
+    cromwell::private::check_debug
+    cromwell::private::create_build_variables
+    cromwell::private::echo_build_variables
+    cromwell::private::verify_secure_build
+    cromwell::private::make_build_directories
+    cromwell::private::install_git_secrets
+    cromwell::private::install_minnie_kenny
+    cromwell::private::install_wait_for_it
+    cromwell::private::setup_secure_resources
+
+    case "${CROMWELL_BUILD_PROVIDER}" in
+        "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
+            cromwell::private::stop_travis_defaults
+            cromwell::private::delete_boto_config
+            cromwell::private::delete_sbt_boot
+            cromwell::private::upgrade_pip
+            ;;
+        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
+            cromwell::private::delete_boto_config
+            cromwell::private::delete_sbt_boot
+            ;;
+        *)
+            ;;
+    esac
+}
+
 cromwell::build::setup_centaur_environment() {
     cromwell::private::create_centaur_variables
     cromwell::private::start_build_heartbeat

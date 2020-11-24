@@ -1,15 +1,7 @@
 steps:
-  # The `cromwell-cloudbuild-base` image runs as a non-root user so that `CromwellCommandLineSpec` can pass
-  # https://github.com/GoogleCloudPlatform/cloud-builders/issues/641#issuecomment-604599102
-  - name: 'ubuntu'
-    entrypoint: 'bash'
-    args:
-      [
-        '-c',
-        'chmod -R 777 /workspace',
-      ]
   - id: build-cromwell
-    name: us.gcr.io/broad-dsde-cromwell-dev/cromwell-cloudbuild-base@sha256:9d4dfb4347c66c402b91707aa501495b52dd9c72644d39b62395191b4ad56b97
+    # Container is https://hub.docker.com/r/hseeberger/scala-sbt plus Docker, vault, git-secrets
+    name: us.gcr.io/broad-dsde-cromwell-dev/cromwell-cloudbuild-base@sha256:cc4d53816a3f88d04a33350553779b2a46bbd29d973858da0f530e443b92e13f
     entrypoint: bash
     args:
       - src/ci/bin/test.sh

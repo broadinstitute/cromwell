@@ -7,6 +7,16 @@ steps:
       - '--key=build-cache-$( checksum build.sbt project/Dependencies.scala )'
     waitFor: ['-']
 
+ # The `cromwell-cloudbuild-base` image runs as a non-root user so that `CromwellCommandLineSpec` can pass
+  # https://github.com/GoogleCloudPlatform/cloud-builders/issues/641#issuecomment-604599102
+  - name: 'ubuntu'
+    entrypoint: 'bash'
+    args:
+      [
+        '-c',
+        'chmod -R 777 /workspace',
+      ]
+      
 #  - id: 'check cache'
 #    name: 'ubuntu'
 #    entrypoint: 'bash'

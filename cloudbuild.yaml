@@ -15,8 +15,10 @@ steps:
     args:
       - src/ci/bin/testCentaurTes.sh
     env:
-    - 'BUILD_TYPE=sbt'
+    - 'BUILD_TYPE=centaurTes'
+    - 'BUILD_MYSQL=5.7'
     - 'CLOUD_BUILD=true'
+    - 'crmdbg=y'
     timeout: 3600s
     waitFor: ['restore cache']
 

@@ -8,17 +8,27 @@ steps:
       - '--key=build-cache-$( checksum build.sbt project/Dependencies.scala )'
     waitFor: ['-']
 
+  - id: 'grant workspace permissions'
+    name: 'ubuntu'
+    entrypoint: 'bash'
+    args:
+      [
+        '-c',
+        'chmod -R 777 /workspace',
+      ]
+    waitFor: ['restore cache']
+
   - id: build-cromwell
     # Container is https://hub.docker.com/r/hseeberger/scala-sbt plus Docker, vault, git-secrets
     name: us.gcr.io/broad-dsde-cromwell-dev/cromwell-cloudbuild-base@sha256:220aedc403a1d10fa8748fe18b7c62aaa2fec108430063cf8e03fc58edeed3ae
     entrypoint: bash
-    args:
+      - chmod -R 777 /workspace
       - src/ci/bin/test.sh
     env:
     - 'BUILD_TYPE=sbt'
     - 'CLOUD_BUILD=true'
     timeout: 3600s
-    waitFor: ['restore cache']
+    waitFor: ['grant workspace permissions']
 
   - id: 'save cache'
     name: 'gcr.io/$PROJECT_ID/save_cache'

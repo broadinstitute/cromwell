@@ -6,7 +6,7 @@ steps:
     args:
       [
         '-c',
-        'chmod -R 777 /builder',
+        'chmod -R 777 /workspace',
       ]
   - id: build-cromwell
     name: us.gcr.io/broad-dsde-cromwell-dev/cromwell-cloudbuild-base

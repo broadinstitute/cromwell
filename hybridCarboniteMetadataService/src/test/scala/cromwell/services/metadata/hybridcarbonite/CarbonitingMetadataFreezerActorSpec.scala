@@ -25,7 +25,7 @@ class CarbonitingMetadataFreezerActorSpec extends TestKitSuite with AnyFlatSpecL
 
   implicit val ec: ExecutionContext = system.dispatcher
 
-  val carboniterConfig: HybridCarboniteConfig = HybridCarboniteConfig.parseConfig(ConfigFactory.parseString(
+  private val carboniterConfigString =
     """
       |bucket = "carbonite-test-bucket"
       |filesystems {
@@ -37,14 +37,28 @@ class CarbonitingMetadataFreezerActorSpec extends TestKitSuite with AnyFlatSpecL
       |metadata-freezing {
       |  initial-interval: 5 seconds
       |}
-      |""".stripMargin)).unsafe("Make config file")
+      |[BUCKETREADLIMIT]
+      |""".stripMargin
+
+  val carboniterConfigDefaultLimit: HybridCarboniteConfig =
+    HybridCarboniteConfig
+      .parseConfig(
+        ConfigFactory.parseString(carboniterConfigString.replace("[BUCKETREADLIMIT]", ""))
+      ).unsafe("Make config file")
+
+  // any metadata will be too big with this config
+  val carboniterConfigZeroBytesLimit: HybridCarboniteConfig =
+    HybridCarboniteConfig
+      .parseConfig(
+        ConfigFactory.parseString(carboniterConfigString.replace("[BUCKETREADLIMIT]", "bucket-read-limit-bytes = 0"))
+      ).unsafe("Make config file")
 
   val serviceRegistryActor: TestProbe = TestProbe("serviceRegistryActor")
   val ioActor: TestProbe = TestProbe("ioActor")
   val carboniteWorkerActor: TestProbe = TestProbe("carboniteWorkerActor")
 
   it should "follow the expected golden-path lifecycle" in {
-    val actor = TestFSMRef(new TestableCarbonitingMetadataFreezerActor(carboniterConfig, carboniteWorkerActor.ref, serviceRegistryActor.ref, ioActor.ref))
+    val actor = TestFSMRef(new TestableCarbonitingMetadataFreezerActor(carboniterConfigDefaultLimit, carboniteWorkerActor.ref, serviceRegistryActor.ref, ioActor.ref))
     val workflowIdToFreeze = WorkflowId.randomId()
 
     actor ! FreezeMetadata(workflowIdToFreeze)
@@ -91,8 +105,42 @@ class CarbonitingMetadataFreezerActorSpec extends TestKitSuite with AnyFlatSpecL
     }
   }
 
+  it should "mark workflow as TooLargeToArchive in case if resulting json size exceeds the configured bucket-read-limit-bytes value" in {
+    val actor = TestFSMRef(new TestableCarbonitingMetadataFreezerActor(carboniterConfigZeroBytesLimit, carboniteWorkerActor.ref, serviceRegistryActor.ref, ioActor.ref))
+    val workflowIdToFreeze = WorkflowId.randomId()
+
+    actor ! FreezeMetadata(workflowIdToFreeze)
+
+    serviceRegistryActor.expectMsgPF(10.seconds) {
+      case gma: GetMetadataAction => gma.workflowId should be(workflowIdToFreeze)
+    }
+    eventually {
+      actor.stateName should be(Fetching)
+    }
+
+    val jsonValue =
+      s"""{
+         |  "id": "$workflowIdToFreeze",
+         |  "status": "Successful"
+         |}""".stripMargin.parseJson
+
+    serviceRegistryActor.send(actor, SuccessfulMetadataJsonResponse(null, jsonValue.asJsObject))
+
+    eventually {
+      actor.underlyingActor.updateArchiveStatusCall should be((workflowIdToFreeze, MetadataArchiveStatus.TooLargeToArchive))
+      actor.stateName should be(UpdatingDatabase)
+    }
+
+    // Finally, when the database responds appropriately, the actor should shut itself down:
+    watch(actor)
+    actor.underlyingActor.updateArchiveStatusPromise.success(1)
+    eventually {
+      actor.stateName should be(Pending)
+    }
+  }
+
   it should "correctly handle failure received from IOActor" in {
-    val actor = TestFSMRef(new TestableCarbonitingMetadataFreezerActor(carboniterConfig, carboniteWorkerActor.ref, serviceRegistryActor.ref, ioActor.ref))
+    val actor = TestFSMRef(new TestableCarbonitingMetadataFreezerActor(carboniterConfigDefaultLimit, carboniteWorkerActor.ref, serviceRegistryActor.ref, ioActor.ref))
     val workflowIdToFreeze = WorkflowId.randomId()
 
     actor ! FreezeMetadata(workflowIdToFreeze)
@@ -140,7 +188,7 @@ class CarbonitingMetadataFreezerActorSpec extends TestKitSuite with AnyFlatSpecL
   }
 
   it should "correctly handle failure received on attempt to fetch metadata json for Carboniting" in {
-    val actor = TestFSMRef(new TestableCarbonitingMetadataFreezerActor(carboniterConfig, carboniteWorkerActor.ref, serviceRegistryActor.ref, ioActor.ref))
+    val actor = TestFSMRef(new TestableCarbonitingMetadataFreezerActor(carboniterConfigDefaultLimit, carboniteWorkerActor.ref, serviceRegistryActor.ref, ioActor.ref))
     val workflowIdToFreeze = WorkflowId.randomId()
 
     actor ! FreezeMetadata(workflowIdToFreeze)
@@ -169,7 +217,7 @@ class CarbonitingMetadataFreezerActorSpec extends TestKitSuite with AnyFlatSpecL
   }
 
   it should "when status update in DB fails retry it until success" in {
-    val actor = TestFSMRef(new TestableCarbonitingMetadataFreezerActor(carboniterConfig, carboniteWorkerActor.ref, serviceRegistryActor.ref, ioActor.ref))
+    val actor = TestFSMRef(new TestableCarbonitingMetadataFreezerActor(carboniterConfigDefaultLimit, carboniteWorkerActor.ref, serviceRegistryActor.ref, ioActor.ref))
     val workflowIdToFreeze = WorkflowId.randomId()
 
     actor ! FreezeMetadata(workflowIdToFreeze)

@@ -4,6 +4,8 @@ import cromwell.core.WorkflowId
 import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, MetadataServiceResponse}
 import spray.json.JsObject
 
+import scala.util.control.NoStackTrace
+
 package object metadata {
   type QueryParameters = Seq[QueryParameter]
 }
@@ -12,10 +14,7 @@ sealed trait MetadataJsonResponse extends MetadataServiceResponse { def original
 final case class SuccessfulMetadataJsonResponse(originalRequest: BuildMetadataJsonAction, responseJson: JsObject) extends MetadataJsonResponse
 final case class FailedMetadataJsonResponse(originalRequest: BuildMetadataJsonAction, reason: Throwable) extends MetadataJsonResponse
 
-class MetadataTooLargeException(message: String) extends RuntimeException(message) {
-  // we don't want to show stacktrace for these errors, so suppress stacktrace's population
-  override def fillInStackTrace(): Throwable = this
-}
+class MetadataTooLargeException(message: String) extends RuntimeException(message) with NoStackTrace
 
 final class MetadataTooLargeNumberOfRowsException(workflowId: WorkflowId, metadataSizeRows: Int, metadataLimitRows: Int)
   extends MetadataTooLargeException(

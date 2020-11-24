@@ -1043,7 +1043,7 @@ cromwell::private::assemble_jars() {
     # This can be useful to reduce time and memory that might otherwise be spent assembling unused subprojects.
     # shellcheck disable=SC2086
     CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=error \
-        sbt -ivy /workspace/.ivy2 \
+        sbt \
         --warn \
         ${CROMWELL_BUILD_SBT_COVERAGE_COMMAND} \
         ${CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND} \

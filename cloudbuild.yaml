@@ -30,6 +30,7 @@ steps:
     - 'BUILD_TYPE=sbt'
     - 'CLOUD_BUILD=true'
     - 'crmdbg=y'
+    - 'SBT_OPTS="-Dsbt.ivy.home=/workspace/.ivy2/ -Divy.home=/workspace/.ivy2/"'
     timeout: 3600s
     waitFor: ['restore cache']
 

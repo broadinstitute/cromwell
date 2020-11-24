@@ -1,16 +1,35 @@
 steps:
+
+  # NOTE: we are only computing the cache-key based on TWO files (build.sbt and Dependencies.scala)  
+  - id: 'restore cache'
+    name: 'gcr.io/$PROJECT_ID/restore_cache'
+    args:
+      - '--bucket=gs://cromwell-cloudbuild-sbt-cache'
+      - '--key=build-cache-$( checksum build.sbt project/Dependencies.scala )'
+    waitFor: ['-']
+
   - id: build-cromwell
     # Container is https://hub.docker.com/r/hseeberger/scala-sbt plus Docker, vault, git-secrets
-    name: us.gcr.io/broad-dsde-cromwell-dev/cromwell-cloudbuild-base@sha256:cc4d53816a3f88d04a33350553779b2a46bbd29d973858da0f530e443b92e13f
+    name: us.gcr.io/broad-dsde-cromwell-dev/cromwell-cloudbuild-base@sha256:973e10cec360d1b36a305ef61e6bc3dcaae8a7b76f81c131e982838409cd5cf1
     entrypoint: bash
     args:
       - src/ci/bin/test.sh
     env:
     - 'BUILD_TYPE=sbt'
     - 'CLOUD_BUILD=true'
-    - 'crmdbg=y'
     timeout: 3600s
+    waitFor: ['restore cache']
+
+  - id: 'save cache'
+    name: 'gcr.io/$PROJECT_ID/save_cache'
+    args:
+      - '--bucket=gs://cromwell-cloudbuild-sbt-cache'
+      - '--key=build-cache-$( checksum build.sbt project/Dependencies.scala )'
+      - '--path=/workspace/.ivy2/cache'
+      - '--no-clobber'
+    waitFor: ['build-cromwell']
+
 options:
   machineType: 'N1_HIGHCPU_8'
-  diskSizeGb: '100'
+  diskSizeGb: '200'
 timeout: 3600s

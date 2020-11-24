@@ -1,4 +1,13 @@
 steps:
+  # The `cromwell-cloudbuild-base` image runs as a non-root user so that `CromwellCommandLineSpec` can pass
+  # https://github.com/GoogleCloudPlatform/cloud-builders/issues/641#issuecomment-604599102
+  - name: 'ubuntu'
+    entrypoint: 'bash'
+    args:
+      [
+        '-c',
+        'chmod -R 777 /builder',
+      ]
   - id: build-cromwell
     name: us.gcr.io/broad-dsde-cromwell-dev/cromwell-cloudbuild-base
     entrypoint: bash
@@ -10,6 +19,6 @@ steps:
     - 'crmdbg=y'
     timeout: 3600s
 options:
-  machineType: 'N1_HIGHCPU_8'
+  machineType: 'N1_HIGHCPU_32'
   diskSizeGb: '100'
 timeout: 3600s

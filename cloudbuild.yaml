@@ -13,7 +13,7 @@ steps:
     name: us.gcr.io/broad-dsde-cromwell-dev/cromwell-cloudbuild-base@sha256:973e10cec360d1b36a305ef61e6bc3dcaae8a7b76f81c131e982838409cd5cf1
     entrypoint: bash
     args:
-      - src/ci/bin/test.sh
+      - src/ci/bin/testCentaurTes.sh
     env:
     - 'BUILD_TYPE=sbt'
     - 'CLOUD_BUILD=true'

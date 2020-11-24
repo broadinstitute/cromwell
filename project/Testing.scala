@@ -101,8 +101,6 @@ object Testing {
     testFrameworks in CromwellBenchmarkTest += new TestFramework("org.scalameter.ScalaMeterFramework"),
     // Don't execute benchmarks in parallel
     parallelExecution in CromwellBenchmarkTest := false,
-    parallelExecution in Test := true,
-    fork in Test := false, // No benefit to forking JVM: https://stackoverflow.com/a/47172931/818054
     // Make sure no secrets are commited to git
     minnieKenny := {
       val log = streams.value.log

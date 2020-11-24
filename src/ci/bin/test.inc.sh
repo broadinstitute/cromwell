@@ -1399,6 +1399,7 @@ cromwell:build::run_sbt_test() {
     # CROMWELL_BUILD_SBT_COVERAGE_COMMAND allows enabling or disabling `sbt coverage`.
     # shellcheck disable=SC2086
     sbt ${CROMWELL_BUILD_SBT_IVY_LOCATION} \
+        -mem 6144 \
         -warn \
         -Dakka.test.timefactor=${CROMWELL_BUILD_UNIT_SPAN_SCALE_FACTOR} \
         -Dbackend.providers.Local.config.filesystems.local.localization.0=copy \

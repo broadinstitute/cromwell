@@ -799,7 +799,7 @@ cromwell::private::start_docker() {
     docker_name="$(echo "${docker_image}" | tr "/" "_" | tr ":" "-")_$$"
     docker_cid_file="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${docker_name}.cid"
 
-    docker run --name="${docker_name}" --cidfile="${docker_cid_file}" --detach "$@" "${docker_image}"
+    docker run --network cloudbuild --name="${docker_name}" --cidfile="${docker_cid_file}" --detach "$@" "${docker_image}"
     docker logs --follow "${docker_name}" 2>&1 | sed "s/^/$(tput setaf 5)${docker_name}$(tput sgr0) /" &
 
     cromwell::private::add_exit_function docker rm --force --volumes "$(cat "${docker_cid_file}")"
@@ -961,6 +961,26 @@ cromwell::private::vault_login() {
                 # Login to vault to access secrets
                 local vault_token
                 vault_token="${VAULT_TOKEN}"
+                # Don't fail here if vault login fails
+                # shellcheck disable=SC2015
+                docker run --rm \
+                    -v "${CROMWELL_BUILD_HOME_DIRECTORY}:/root:rw" \
+                    broadinstitute/dsde-toolbox:dev \
+                    vault auth "${vault_token}" < /dev/null > /dev/null && echo vault auth success \
+                || true
+                ;;
+        case "${CROMWELL_BUILD_PROVIDER}" in
+            "${CROMWELL_BUILD_PROVIDER_CLOUD_BUILD}")
+                # Use AppRole to get token (see https://www.vaultproject.io/docs/auth/approle#via-the-cli)
+                # role_id and secret_id at `vault read secret/devops/ci/approle/approle-cromwell-google-cloud-build`
+                local vault_role_id
+                vault_role_id=$(cat .vault_role_id)
+                local vault_secret_id
+                vault_secret_id=$(cat .vault_secret_id)
+
+                local vault_token
+                vault_token=$(vault write -field=token auth/approle/login role_id=${vault_role_id} secret_id=${vault_secret_id})
+
                 # Don't fail here if vault login fails
                 # shellcheck disable=SC2015
                 docker run --rm \

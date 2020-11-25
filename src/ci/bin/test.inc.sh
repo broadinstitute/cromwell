@@ -969,7 +969,6 @@ cromwell::private::vault_login() {
                     vault auth "${vault_token}" < /dev/null > /dev/null && echo vault auth success \
                 || true
                 ;;
-        case "${CROMWELL_BUILD_PROVIDER}" in
             "${CROMWELL_BUILD_PROVIDER_CLOUD_BUILD}")
                 # Use AppRole to get token (see https://www.vaultproject.io/docs/auth/approle#via-the-cli)
                 # role_id and secret_id at `vault read secret/devops/ci/approle/approle-cromwell-google-cloud-build`

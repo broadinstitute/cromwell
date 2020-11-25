@@ -14,16 +14,17 @@ import cromwell.services.metadata._
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
 import cromwell.util.AkkaTestUtil.EnhancedTestProbe
 import cromwell.webservice.MetadataBuilderActorSpec._
+import org.scalatest.flatspec.AsyncFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{Assertion, AsyncFlatSpecLike, Matchers, Succeeded}
+import org.scalatest.{Assertion, Succeeded}
 import org.specs2.mock.Mockito
 import spray.json._
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
 
-
-class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSpecLike with Matchers with Mockito
+class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with Mockito
   with TableDrivenPropertyChecks with ImplicitSender {
 
   behavior of "MetadataBuilderActor"
@@ -36,11 +37,14 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
                              queryReply: MetadataQuery,
                              events: Seq[MetadataEvent],
                              expectedRes: String): Future[Assertion] = {
-    val mockReadMetadataWorkerActor = TestProbe()
+    val mockReadMetadataWorkerActor = TestProbe("mockReadMetadataWorkerActor")
     def readMetadataWorkerMaker = () => mockReadMetadataWorkerActor.props
 
 
-    val mba = system.actorOf(MetadataBuilderActor.props(readMetadataWorkerMaker, 1000000))
+    val mba = system.actorOf(
+      props = MetadataBuilderActor.props(readMetadataWorkerMaker, 1000000),
+      name = "mba",
+    )
     val response = mba.ask(action).mapTo[MetadataJsonResponse]
     mockReadMetadataWorkerActor.expectMsg(defaultTimeout, action)
     mockReadMetadataWorkerActor.reply(MetadataLookupResponse(queryReply, events))
@@ -49,11 +53,15 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
   }
 
   def assertMetadataFailureResponse(action: MetadataServiceAction,
-                                    mdQuery: MetadataQuery,
                                     metadataServiceResponse: MetadataServiceResponse,
-                                    expectedException: Exception): Future[Assertion] = {
-    val mockReadMetadataWorkerActor = TestProbe()
-    val mba = system.actorOf(MetadataBuilderActor.props(() => mockReadMetadataWorkerActor.props, defaultSafetyRowNumberThreshold))
+                                    expectedException: Exception,
+                                    workflowId: WorkflowId,
+                                   ): Future[Assertion] = {
+    val mockReadMetadataWorkerActor = TestProbe("mockReadMetadataWorkerActor")
+    val mba = system.actorOf(
+      props = MetadataBuilderActor.props(() => mockReadMetadataWorkerActor.props, defaultSafetyRowNumberThreshold),
+      name = s"mba-$workflowId",
+    )
     val response = mba.ask(action).mapTo[MetadataServiceResponse]
 
     mockReadMetadataWorkerActor.expectMsg(defaultTimeout, action)
@@ -131,19 +139,23 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
     MetadataEvent(MetadataKey(workflow, None, key), Option(value), offsetDateTime)
   }
 
-  def makeCallEvent(workflow: WorkflowId)(key: String, value: MetadataValue, offsetDateTime: OffsetDateTime) = {
+  def makeCallEvent(workflow: WorkflowId)
+                   (key: String, value: MetadataValue, offsetDateTime: OffsetDateTime): MetadataEvent = {
     val jobKey = MetadataJobKey("fqn", None, 1)
     MetadataEvent(MetadataKey(workflow, Option(jobKey), key), Option(value), offsetDateTime)
   }
 
-  def makeEmptyValue(workflow: WorkflowId)(key: String, value: MetadataValue, offsetDateTime: OffsetDateTime) = {
+  //noinspection ScalaUnusedSymbol
+  def makeEmptyValue(workflow: WorkflowId)
+                    (key: String, value: MetadataValue, offsetDateTime: OffsetDateTime): MetadataEvent = {
     MetadataEvent(MetadataKey(workflow, None, key), None, offsetDateTime)
   }
 
   def assertMetadataKeyStructure(eventList: List[EventBuilder],
                                  expectedJson: String,
                                  workflow: WorkflowId = WorkflowId.randomId(),
-                                 eventMaker: WorkflowId => (String, MetadataValue, OffsetDateTime) => MetadataEvent = makeEvent) = {
+                                 eventMaker: WorkflowId => (String, MetadataValue, OffsetDateTime) => MetadataEvent =
+                                 makeEvent): Future[Assertion] = {
 
     val events = eventList map { e => (e._1, MetadataValue(e._2), e._3) } map Function.tupled(eventMaker(workflow))
     val expectedRes = s"""{ "calls": {}, $expectedJson, "id":"$workflow", "metadataSource": "Unarchived" }"""
@@ -515,9 +527,9 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
     val subQuery = MetadataQuery(subWorkflowId, None, None, None, None, expandSubWorkflows = true)
     val subQueryAction = GetMetadataAction(subQuery, checkTotalMetadataRowNumberBeforeQuerying = false)
     
-    val parentProbe = TestProbe()
+    val parentProbe = TestProbe("parentProbe")
 
-    val mockReadMetadataWorkerActor = TestProbe()
+    val mockReadMetadataWorkerActor = TestProbe("mockReadMetadataWorkerActor")
     def readMetadataWorkerMaker = () => mockReadMetadataWorkerActor.props
 
     val metadataBuilder = TestActorRef(MetadataBuilderActor.props(readMetadataWorkerMaker, 1000000), parentProbe.ref, s"MetadataActor-${UUID.randomUUID()}")
@@ -564,9 +576,9 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
     val queryNoExpand = MetadataQuery(mainWorkflowId, None, None, None, None, expandSubWorkflows = false)
     val queryNoExpandAction = GetMetadataAction(queryNoExpand)
     
-    val parentProbe = TestProbe()
+    val parentProbe = TestProbe("parentProbe")
 
-    val mockReadMetadataWorkerActor = TestProbe()
+    val mockReadMetadataWorkerActor = TestProbe("mockReadMetadataWorkerActor")
     def readMetadataWorkerMaker= () => mockReadMetadataWorkerActor.props
 
     val metadataBuilder = TestActorRef(MetadataBuilderActor.props(readMetadataWorkerMaker, 1000000), parentProbe.ref, s"MetadataActor-${UUID.randomUUID()}")
@@ -677,7 +689,7 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
     val expecteds = calls map filterEventsByCall(expectations)
 
     val matchesExpectations = (actuals zip expecteds) map {
-      case (as, es) => (as.toList.map { _.toString } sorted) == (es.toList.map { _.toString } sorted)
+      case (as, es) => as.toList.map(_.toString).sorted == es.toList.map(_.toString).sorted
     }
     matchesExpectations.reduceLeft(_ && _) shouldBe true
   }
@@ -692,9 +704,9 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
     val expectedException = new MetadataTooLargeNumberOfRowsException(workflowId, metadataRowNumber, defaultSafetyRowNumberThreshold)
     assertMetadataFailureResponse(
       action,
-      mdQuery,
       MetadataLookupFailedTooLargeResponse(mdQuery, metadataRowNumber),
-      expectedException
+      expectedException,
+      workflowId,
     )
   }
 
@@ -707,30 +719,30 @@ class MetadataBuilderActorSpec extends TestKitSuite("Metadata") with AsyncFlatSp
     val expectedException = new MetadataTooLargeTimeoutException(workflowId)
     assertMetadataFailureResponse(
       action,
-      mdQuery,
       MetadataLookupFailedTimeoutResponse(mdQuery),
-      expectedException
+      expectedException,
+      workflowId,
     )
   }
 }
 
 object MetadataBuilderActorSpec {
 
-  val y2k = OffsetDateTime.of(2000, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC)
+  val y2k: OffsetDateTime = OffsetDateTime.of(2000, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC)
 
   case class Interval(start: OffsetDateTime, end: OffsetDateTime) {
     def after: Interval = Interval(start = this.end.plusHours(1), end = this.end.plusHours(2))
   }
 
-  val Interval1 = Interval(y2k, y2k.plusHours(1))
-  val Interval2 = Interval1.after
-  val Interval3 = Interval2.after
-  val Interval4 = Interval3.after
-  val Interval5 = Interval4.after
-  val Interval6 = Interval5.after
-  val Interval7 = Interval6.after
-  val Interval8 = Interval7.after
-  val Interval9 = Interval8.after
+  val Interval1: Interval = Interval(y2k, y2k.plusHours(1))
+  val Interval2: Interval = Interval1.after
+  val Interval3: Interval = Interval2.after
+  val Interval4: Interval = Interval3.after
+  val Interval5: Interval = Interval4.after
+  val Interval6: Interval = Interval5.after
+  val Interval7: Interval = Interval6.after
+  val Interval8: Interval = Interval7.after
+  val Interval9: Interval = Interval8.after
 
   sealed trait Attr {
     val name: String

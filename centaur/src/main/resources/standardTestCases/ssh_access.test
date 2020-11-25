@@ -1,0 +1,14 @@
+name: ssh_access
+testFormat: workflowsuccess
+backends: [Papiv2]
+
+files {
+  workflow: ssh_access/ssh_access.wdl
+  options: ssh_access/ssh_access.options.json
+}
+
+metadata {
+  workflowName: ssh_access
+  status: Succeeded
+  "outputs.ssh_access.out": "tt1276104"
+}

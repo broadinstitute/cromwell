@@ -127,7 +127,7 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
           case t => sndr ! FindWorkflowsWithAbortRequestedFailure(t)
         }
       case AbortWorkflowCommand(id) =>
-        store.aborting(id) map { workflowStoreAbortResponse =>
+        workflowStoreAccess.abort(id) map { workflowStoreAbortResponse =>
           log.info(s"Abort requested for workflow $id.")
           workflowStoreAbortResponse
         } map {

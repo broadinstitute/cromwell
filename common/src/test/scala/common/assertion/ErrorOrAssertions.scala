@@ -3,7 +3,9 @@ package common.assertion
 import cats.data.Validated.{Invalid, Valid}
 import common.Checked
 import common.validation.ErrorOr.ErrorOr
-import org.scalatest.{Assertion, Matchers}
+import org.scalatest.Assertion
+import org.scalatest.matchers.should.Matchers
+
 
 object ErrorOrAssertions {
   implicit class ErrorOrWithAssertions[A](errorOr: ErrorOr[A]) extends Matchers {

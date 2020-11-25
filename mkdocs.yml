@@ -27,7 +27,7 @@ nav:
 - Cromwell Basics:
     - Modes: Modes.md
     - Workflow Language Support: LanguageSupport.md
-    - Cromwell Releases: Getting.md
+    - Cromwell Releases: Releases.md
     - Support: GettingHelp.md
 - Command Line: CommandLine.md
 - Feature Documentation:
@@ -43,6 +43,7 @@ nav:
   - "Task inputs: localization_optional": optimizations/FileLocalization.md
   - "Volatile Tasks: volatile": optimizations/VolatileTasks.md
 - Configuration: Configuring.md
+- Scaling / Horizontal Cromwell: Scaling.md
 - Ecosystem: Ecosystem.md
 - WOMtool: WOMtool.md
 - Imports: Imports.md
@@ -57,7 +58,6 @@ nav:
     - Alibaba Cloud: backends/BCS.md
     - AWS Batch (beta): backends/AWS.md
     - GA4GH TES: backends/TES.md
-    - Spark: backends/Spark.md
     - HPC: backends/HPC.md
     - Sun GridEngine: backends/SGE.md
     - LSF: backends/LSF.md
@@ -96,6 +96,10 @@ nav:
                 - Job Key / Value Store: developers/bitesize/workflowExecution/jobKeyValueStore.md
                 - Job retry decision logic: developers/bitesize/jobRetryLogic/jobRetryLogic.md
                 - Evaluating WDL expressions in WOM: developers/bitesize/workflowExecution/wdlExpressionEvaluation.md
+                - Execution and Value Stores:
+                      - Execution Store: developers/bitesize/workflowExecution/executionStore.md
+                      - Value Store: developers/bitesize/workflowExecution/valueStore.md
+                      - Worked Examples: developers/bitesize/workflowExecution/executionAndValueStoreExamples.md
             - IoActor: developers/bitesize/IoActor/IoActor.md
         - Horizontal Cromwell ("Horicromtal"): developers/bitesize/horicromtal.md
         - General Topics:

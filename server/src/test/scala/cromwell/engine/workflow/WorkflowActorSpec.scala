@@ -9,7 +9,7 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell._
 import cromwell.backend.{AllBackendInitializationData, JobExecutionMap}
 import cromwell.core._
-import cromwell.core.path.{DefaultPathBuilder, PathBuilder, PathBuilderFactory}
+import cromwell.core.path.{DefaultPathBuilder, Path, PathBuilder, PathBuilderFactory}
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
@@ -29,38 +29,43 @@ import scala.concurrent.{ExecutionContext, Future}
 
 class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorBuilderForSpecs with BeforeAndAfter with Eventually {
 
-  // https://doc.akka.io/docs/akka/current/testing.html#expecting-log-messages
-  override implicit val actorSystem = ActorSystem(
-    "testsystem",
+  override protected lazy val actorSystemConfig: Config =
     ConfigFactory.parseString("""akka.loggers = ["akka.testkit.TestEventListener"]""")
-  )
+  // https://doc.akka.io/docs/akka/current/testing.html#expecting-log-messages
 
-  val mockServiceRegistryActor = TestActorRef(new Actor {
-    override def receive = {
-      case _ => // No action
-    }
-  })
+  override implicit lazy val actorSystem: ActorSystem = system
 
-  val mockDir = DefaultPathBuilder.get("/where/to/copy/wf/logs")
+  val mockServiceRegistryActor: TestActorRef[Actor] =
+    TestActorRef(
+      new Actor {
+        override def receive: Receive = {
+          case _ => // No action
+        }
+      },
+      "mockServiceRegistryActor",
+    )
+
+  val mockDir: Path = DefaultPathBuilder.get("/where/to/copy/wf/logs")
   val mockWorkflowOptions = s"""{ "final_workflow_log_dir" : "$mockDir" }"""
 
   var currentWorkflowId: WorkflowId = _
-  val currentLifecycleActor = TestProbe()
-  val workflowSources = ThreeStep.asWorkflowSources(workflowOptions = mockWorkflowOptions)
-  val descriptor = createMaterializedEngineWorkflowDescriptor(WorkflowId.randomId(), workflowSources = workflowSources)
-  val supervisorProbe = TestProbe()
-  val deathwatch = TestProbe()
-  val finalizationProbe = TestProbe()
+  val currentLifecycleActor: TestProbe = TestProbe("currentLifecycleActor")
+  val workflowSources: WorkflowSourceFilesCollection = ThreeStep.asWorkflowSources(workflowOptions = mockWorkflowOptions)
+  lazy val descriptor: EngineWorkflowDescriptor =
+    createMaterializedEngineWorkflowDescriptor(WorkflowId.randomId(), workflowSources = workflowSources)
+  val supervisorProbe: TestProbe = TestProbe("supervisorProbe")
+  val deathwatch: TestProbe = TestProbe("deathwatch")
+  val finalizationProbe: TestProbe = TestProbe("finalizationProbe")
   var copyWorkflowLogsProbe: TestProbe = _
-  val AwaitAlmostNothing = 100.milliseconds
+  val AwaitAlmostNothing: FiniteDuration = 100.milliseconds
   val initialJobCtByRootWf = new AtomicInteger()
-  val сallCachingEnabled = true
+  val callCachingEnabled = true
   val invalidateBadCacheResults = true
 
   before {
     currentWorkflowId = WorkflowId.randomId()
 
-    copyWorkflowLogsProbe = TestProbe()
+    copyWorkflowLogsProbe = TestProbe(s"copyWorkflowLogsProbe-$currentWorkflowId")
   }
 
   private val workflowHeartbeatConfig = WorkflowHeartbeatConfig(ConfigFactory.load())
@@ -72,30 +77,33 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
         workflowId = currentWorkflowId,
         startState = Submitted,
         workflowSources = workflowSources,
-        сallCachingEnabled = сallCachingEnabled,
+        callCachingEnabled = callCachingEnabled,
         invalidateBadCacheResults = invalidateBadCacheResults,
         conf = ConfigFactory.load,
-        ioActor = system.actorOf(SimpleIoActor.props),
+        ioActor = system.actorOf(SimpleIoActor.props, s"ioActor-$currentWorkflowId"),
         serviceRegistryActor = mockServiceRegistryActor,
         workflowLogCopyRouter = copyWorkflowLogsProbe.ref,
-        jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props),
-        subWorkflowStoreActor = system.actorOf(AlwaysHappySubWorkflowStoreActor.props),
-        callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props),
-        callCacheWriteActor = system.actorOf(EmptyCallCacheWriteActor.props),
-        dockerHashActor = system.actorOf(EmptyDockerHashActor.props),
-        jobTokenDispenserActor = TestProbe().ref,
-        workflowStoreActor = system.actorOf(Props.empty),
+        jobStoreActor = system.actorOf(AlwaysHappyJobStoreActor.props, s"jobStoreActor-$currentWorkflowId"),
+        subWorkflowStoreActor =
+          system.actorOf(AlwaysHappySubWorkflowStoreActor.props, s"subWorkflowStoreActor-$currentWorkflowId"),
+        callCacheReadActor = system.actorOf(EmptyCallCacheReadActor.props, s"callCacheReadActor-$currentWorkflowId"),
+        callCacheWriteActor = system.actorOf(EmptyCallCacheWriteActor.props, s"callCacheWriteActor-$currentWorkflowId"),
+        dockerHashActor = system.actorOf(EmptyDockerHashActor.props, s"dockerHashActor-$currentWorkflowId"),
+        jobTokenDispenserActor = TestProbe(s"jobTokenDispenserActor-$currentWorkflowId").ref,
+        workflowStoreActor = system.actorOf(Props.empty, s"workflowStoreActor-$currentWorkflowId"),
         workflowHeartbeatConfig = workflowHeartbeatConfig,
         totalJobsByRootWf = initialJobCtByRootWf,
         extraPathBuilderFactory = extraPathBuilderFactory
       ),
-      supervisor = supervisorProbe.ref)
+      supervisor = supervisorProbe.ref,
+      name = s"workflowActor-$currentWorkflowId",
+    )
     actor.setState(stateName = state, stateData = WorkflowActorData(Option(currentLifecycleActor.ref), Option(descriptor),
       AllBackendInitializationData.empty, StateCheckpoint(InitializingWorkflowState), Submitted))
     actor
   }
 
-  implicit val TimeoutDuration = CromwellTestKitSpec.TimeoutDuration
+  implicit val TimeoutDuration: FiniteDuration = CromwellTestKitSpec.TimeoutDuration
 
   "WorkflowActor" should {
 
@@ -243,7 +251,7 @@ class WorkflowActorWithTestAddons(val finalizationProbe: TestProbe,
                                   startState: StartableState,
                                   workflowSources: WorkflowSourceFilesCollection,
                                   conf: Config,
-                                  сallCachingEnabled: Boolean,
+                                  callCachingEnabled: Boolean,
                                   invalidateBadCacheResults: Boolean,
                                   ioActor: ActorRef,
                                   serviceRegistryActor: ActorRef,
@@ -264,7 +272,7 @@ class WorkflowActorWithTestAddons(val finalizationProbe: TestProbe,
     sources = workflowSources,
     hogGroup = HogGroup("foo")),
   conf = conf,
-  callCachingEnabled = сallCachingEnabled,
+  callCachingEnabled = callCachingEnabled,
   invalidateBadCacheResults = invalidateBadCacheResults,
   ioActor = ioActor,
   serviceRegistryActor = serviceRegistryActor,
@@ -288,5 +296,8 @@ class WorkflowActorWithTestAddons(val finalizationProbe: TestProbe,
     case None => EngineFilesystems.configuredPathBuilderFactories
   }
 
-  override def makeFinalizationActor(workflowDescriptor: EngineWorkflowDescriptor, jobExecutionMap: JobExecutionMap, worfklowOutputs: CallOutputs) = finalizationProbe.ref
+  override def makeFinalizationActor(workflowDescriptor: EngineWorkflowDescriptor,
+                                     jobExecutionMap: JobExecutionMap,
+                                     workflowOutputs: CallOutputs,
+                                    ): ActorRef = finalizationProbe.ref
 }

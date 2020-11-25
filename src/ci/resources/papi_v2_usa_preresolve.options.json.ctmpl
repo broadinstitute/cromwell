@@ -1,0 +1,12 @@
+{{with $cromwellServiceAccount := vault (printf "secret/dsde/cromwell/common/cromwell-service-account.json")}}
+{
+    "google_compute_service_account": "{{$cromwellServiceAccount.Data.client_email}}",
+    "user_service_account_json": "{{$cromwellServiceAccount.Data | toJSON | replaceAll "\\" "\\\\" | replaceAll "\"" "\\\"" }}",
+    "google_project": "broad-dsde-cromwell-dev",
+    "jes_gcs_root": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci",
+{{/* We're re-using the WDL with the same inputs in multiple tests, make sure we don't accidentally cache hit */}}
+    "read_from_cache": false,
+{{/* Test pre-resolving DrsPath to GcsPath */}}
+    "override_preresolve_for_test": true
+}
+{{end}}

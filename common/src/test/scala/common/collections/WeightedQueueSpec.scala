@@ -1,8 +1,11 @@
 package common.collections
 
-import org.scalatest.{Matchers, FlatSpec}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class WeightedQueueSpec extends FlatSpec with Matchers {
+
+class WeightedQueueSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "WeightedQueue"
 

@@ -2,8 +2,8 @@ package wdl.transforms.base.ast2wdlom
 
 import cats.syntax.validated._
 import cats.syntax.either._
-import cats.instances.either._
 import cats.syntax.apply._
+import cats.instances.either._
 import common.Checked
 import common.transforms.CheckedAtoB
 import common.validation.ErrorOr.ErrorOr
@@ -11,6 +11,7 @@ import common.validation.ErrorOr._
 import wdl.model.draft3.elements.{CallBodyElement, CallElement}
 import wdl.model.draft3.elements.ExpressionElement.KvPair
 import wom.SourceFileLocation
+
 object AstToCallElement {
 
   def astToCallElement(implicit astNodeToKvPair: CheckedAtoB[GenericAstNode, KvPair]): CheckedAtoB[GenericAst, CallElement] = CheckedAtoB.fromErrorOr { ast =>

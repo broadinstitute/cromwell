@@ -6,14 +6,15 @@ import cromwell.core.TestKitSuite
 import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.services.instrumentation.AsynchronousThrottlingGaugeMetricActor.{CalculateMetricValue, MetricCalculationInProgress, MetricValue, WaitingForMetricCalculationRequestOrMetricValue}
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
-import org.scalatest.{FlatSpecLike, Matchers}
 import org.scalatest.concurrent.Eventually
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.Promise
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class AsynchronousThrottlingGaugeMetricActorSpec extends TestKitSuite with FlatSpecLike with ImplicitSender with Matchers with Eventually {
+class AsynchronousThrottlingGaugeMetricActorSpec extends TestKitSuite with AnyFlatSpecLike with ImplicitSender with Matchers with Eventually {
 
   private val defaultTimeout = 5 seconds
 

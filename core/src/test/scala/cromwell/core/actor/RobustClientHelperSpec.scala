@@ -6,12 +6,13 @@ import common.util.Backoff
 import cromwell.core.TestKitSuite
 import cromwell.core.actor.StreamIntegration.BackPressure
 import cromwell.core.retry.SimpleExponentialBackoff
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class RobustClientHelperSpec extends TestKitSuite with FlatSpecLike with Matchers with ImplicitSender {
+class RobustClientHelperSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with ImplicitSender {
   behavior of "RobustClientHelper"
   
   it should "handle Backpressure responses" in {

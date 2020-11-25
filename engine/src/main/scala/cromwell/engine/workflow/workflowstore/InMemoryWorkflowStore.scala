@@ -59,7 +59,7 @@ class InMemoryWorkflowStore extends WorkflowStore {
     Future.successful(())
   }
 
-  override def aborting(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse] = {
+  override def abort(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse] = {
     workflowStore collectFirst {
       case (workflowIdAndSources, workflowStoreState) if workflowIdAndSources.id == id =>
         (workflowIdAndSources, workflowStoreState)
@@ -87,6 +87,8 @@ class InMemoryWorkflowStore extends WorkflowStore {
   override def findWorkflowsWithAbortRequested(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[WorkflowId]] = Future.successful(List.empty)
 
   override def findWorkflows(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[WorkflowId]] = Future.successful(workflowStore.keys.map(_.id))
+
+  override def deleteFromStore(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int] = Future.successful(0)
 }
 
 final case class WorkflowIdAndSources(id: WorkflowId, sources: WorkflowSourceFilesCollection)

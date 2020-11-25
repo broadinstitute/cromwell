@@ -4,7 +4,7 @@ backends: [papi-v2-gcsa]
 
 files {
   workflow: papi_v2_gcsa/papi_v2_gcsa.wdl
-  options-dir: ../../../../../target/ci/resources/
+  options-dir: "Error: BA-6546 The environment variable CROMWELL_BUILD_RESOURCES_DIRECTORY must be set/export pointing to a valid path such as '${YOUR_CROMWELL_DIR}/target/ci/resources'"
   options-dir: ${?CROMWELL_BUILD_RESOURCES_DIRECTORY}
   options: ${files.options-dir}/papi_v2_gcsa.options.json
 }

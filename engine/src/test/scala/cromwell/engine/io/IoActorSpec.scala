@@ -13,31 +13,34 @@ import cromwell.core.io.IoContentAsStringCommand.IoReadOptions
 import cromwell.core.io._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.engine.io.gcs.GcsBatchFlow.BatchFailedException
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with ImplicitSender {
+class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with ImplicitSender {
   behavior of "IoActor"
   
-  implicit val actorSystem = system
   implicit val ec: ExecutionContext = system.dispatcher
-  implicit val materializer = ActorMaterializer()
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
   
-  override def afterAll() = {
+  override def afterAll(): Unit = {
     materializer.shutdown()
     super.afterAll()
   }
   
   it should "copy a file" in {
-    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref, "cromwell test"))
+    val testActor = TestActorRef(
+      factory = new IoActor(1, 10, 10, None, TestProbe("serviceRegistryActorCopy").ref, "cromwell test"),
+      name = "testActorCopy",
+    )
     
     val src = DefaultPathBuilder.createTempFile()
     val dst: Path = src.parent.resolve(src.name + "-dst")
     
-    val copyCommand = DefaultIoCopyCommand(src, dst, overwrite = true)
+    val copyCommand = DefaultIoCopyCommand(src, dst)
     
     testActor ! copyCommand
     expectMsgPF(5 seconds) {
@@ -51,7 +54,10 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   }
 
   it should "write to a file" in {
-    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref, "cromwell test"))
+    val testActor = TestActorRef(
+      factory = new IoActor(1, 10, 10, None, TestProbe("serviceRegistryActorWrite").ref, "cromwell test"),
+      name = "testActorWrite",
+    )
 
     val src = DefaultPathBuilder.createTempFile()
 
@@ -68,7 +74,10 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   }
 
   it should "delete a file" in {
-    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref, "cromwell test"))
+    val testActor = TestActorRef(
+      factory = new IoActor(1, 10, 10, None, TestProbe("serviceRegistryActorDelete").ref, "cromwell test"),
+      name = "testActorDelete",
+    )
 
     val src = DefaultPathBuilder.createTempFile()
 
@@ -84,7 +93,10 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   }
 
   it should "read a file" in {
-    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref, "cromwell test"))
+    val testActor = TestActorRef(
+      factory = new IoActor(1, 10, 10, None, TestProbe("serviceRegistryActorRead").ref, "cromwell test"),
+      name = "testActorRead",
+    )
 
     val src = DefaultPathBuilder.createTempFile()
     src.write("hello")
@@ -103,7 +115,10 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   }
 
   it should "read only the first bytes of file" in {
-    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref, "cromwell test"))
+    val testActor = TestActorRef(
+      factory = new IoActor(1, 10, 10, None, TestProbe("serviceRegistryActorFirstBytes").ref, "cromwell test"),
+      name = "testActorFirstBytes",
+    )
 
     val src = DefaultPathBuilder.createTempFile()
     src.write("hello")
@@ -122,7 +137,10 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   }
 
   it should "read the file if it's under the byte limit" in {
-    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref, "cromwell test"))
+    val testActor = TestActorRef(
+      factory = new IoActor(1, 10, 10, None, TestProbe("serviceRegistryActorByteLimit").ref, "cromwell test"),
+      name = "testActorByteLimit",
+    )
 
     val src = DefaultPathBuilder.createTempFile()
     src.write("hello")
@@ -141,7 +159,10 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   }
 
   it should "fail if the file is larger than the read limit" in {
-    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref, "cromwell test"))
+    val testActor = TestActorRef(
+      factory = new IoActor(1, 10, 10, None, TestProbe("serviceRegistryActorReadLimit").ref, "cromwell test"),
+      name = "testActorReadLimit",
+    )
 
     val src = DefaultPathBuilder.createTempFile()
     src.write("hello")
@@ -158,7 +179,10 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   }
 
   it should "return a file size" in {
-    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref, "cromwell test"))
+    val testActor = TestActorRef(
+      factory = new IoActor(1, 10, 10, None, TestProbe("serviceRegistryActorSize").ref, "cromwell test"),
+      name = "testActorSize",
+    )
 
     val src = DefaultPathBuilder.createTempFile()
     src.write("hello")
@@ -177,7 +201,10 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   }
 
   it should "return a file md5 hash (local)" in {
-    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref, "cromwell test"))
+    val testActor = TestActorRef(
+      factory = new IoActor(1, 10, 10, None, TestProbe("serviceRegistryActorHash").ref, "cromwell test"),
+      name = "testActorHash",
+    )
 
     val src = DefaultPathBuilder.createTempFile()
     src.write("hello")
@@ -196,7 +223,10 @@ class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Impl
   }
 
   it should "touch a file (local)" in {
-    val testActor = TestActorRef(new IoActor(1, 10, 10, None, TestProbe().ref, "cromwell test"))
+    val testActor = TestActorRef(
+      factory = new IoActor(1, 10, 10, None, TestProbe("serviceRegistryActorTouch").ref, "cromwell test"),
+      name = "testActorTouch",
+    )
 
     val src = DefaultPathBuilder.createTempFile()
     src.write("hello")

@@ -23,7 +23,7 @@ Run the workflow and print out the outputs in JSON format.
   -v, --type-version <value>
                            Workflow type version.
   -l, --labels <value>     Workflow labels file.
-  -p, --imports <value>    A directory or zipfile to search for workflow imports.
+  -p, --imports <value>    A zip file to search for workflow imports.
   -m, --metadata-output <value>
                            An optional JSON file path to output metadata.
 ```

@@ -7,16 +7,18 @@ import akka.actor.ActorRef
 import com.google.api.client.http.GenericUrl
 import com.google.api.client.testing.http.MockHttpTransport
 import com.google.api.services.genomics.v2alpha1.model.Operation
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.PAPIStatusPollRequest
 import cromwell.backend.google.pipelines.common.api.RunStatus._
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.core.{ExecutionEvent, WorkflowId}
 import io.grpc.Status
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
 
-class GetRequestHandlerSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+class GetRequestHandlerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "GetRequestHandler"
 

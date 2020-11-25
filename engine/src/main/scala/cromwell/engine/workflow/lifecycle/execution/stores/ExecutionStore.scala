@@ -119,6 +119,17 @@ object ExecutionStore {
   * Execution store in its nominal state
   */
 final case class ActiveExecutionStore private[stores](private val statusStore: Map[JobKey, ExecutionStatus], override val needsUpdate: Boolean) extends ExecutionStore(statusStore, needsUpdate) {
+
+  override def toString: String = {
+    import io.circe.syntax._
+    import io.circe.Printer
+
+    statusStore.map {
+      case (k, v) if k.isShard => s"${k.node.fullyQualifiedName}:${k.index.get}" -> v.toString
+      case (k, v) => k.node.fullyQualifiedName -> v.toString
+    }.asJson.printWith(Printer.spaces2.copy(dropNullValues = true, colonLeft = ""))
+  }
+
   override def updateKeys(values: Map[JobKey, ExecutionStatus], needsUpdate: Boolean): ActiveExecutionStore = {
     this.copy(statusStore = statusStore ++ values, needsUpdate = needsUpdate)
   }

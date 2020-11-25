@@ -4,6 +4,7 @@ import java.time.OffsetDateTime
 
 import cats.data.NonEmptyList
 import cats.syntax.apply._
+import cats.instances.list._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.core.{HogGroup, WorkflowId, WorkflowOptions, WorkflowSourceFilesCollection}
@@ -49,7 +50,7 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     *  startup initialization hook. */
   override def initialize(implicit ec: ExecutionContext): Future[Unit] = Future.successful(())
 
-  override def aborting(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse] = {
+  override def abort(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse] = {
     sqlDatabase.deleteOrUpdateWorkflowToState(
       workflowExecutionUuid = id.toString,
       workflowStateToDelete1 = WorkflowStoreState.OnHold.toString,
@@ -90,7 +91,6 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     * flag to true
     */
   override def fetchStartableWorkflows(n: Int, cromwellId: String, heartbeatTtl: FiniteDuration)(implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
-    import cats.instances.list._
     import cats.syntax.traverse._
     import common.validation.Validation._
     sqlDatabase.fetchWorkflowsInState(
@@ -143,6 +143,9 @@ case class SqlWorkflowStore(sqlDatabase: WorkflowStoreSqlDatabase) extends Workf
     } yield ()
   }
 
+  override def deleteFromStore(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int] = {
+    sqlDatabase.removeWorkflowStoreEntry(workflowId.toString)
+  }
 
   private def fromWorkflowStoreEntry(workflowStoreEntry: WorkflowStoreEntry): ErrorOr[WorkflowToStart] = {
 

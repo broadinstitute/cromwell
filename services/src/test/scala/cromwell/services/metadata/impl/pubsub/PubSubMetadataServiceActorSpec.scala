@@ -16,15 +16,18 @@ import org.broadinstitute.dsde.workbench.model.WorkbenchEmail
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class PubSubMetadataServiceActorSpec extends ServicesSpec("PubSubMetadata") {
+class PubSubMetadataServiceActorSpec extends ServicesSpec {
   import PubSubMetadataServiceActorSpec._
 
-  val registryProbe = TestProbe().ref
+  val registryProbe: ActorRef = TestProbe("registryProbe").ref
   
   "A PubSubMetadataActor with an empty serviceConfig" should {
     "fail to build" in {
       EventFilter[ActorInitializationException](occurrences = 1) intercept {
-        system.actorOf(Props(new PubSubMetadataServiceActor(emptyConfig, emptyConfig, registryProbe)))
+        system.actorOf(
+          props = Props(new PubSubMetadataServiceActor(emptyConfig, emptyConfig, registryProbe)),
+          name = "psma-empty-service-config"
+        )
       }
     }
   }
@@ -32,25 +35,45 @@ class PubSubMetadataServiceActorSpec extends ServicesSpec("PubSubMetadata") {
   "A PubSubMetadataActor with a subscription" should {
     "should ensure topic exists" in {
       EventFilter.info("Ensuring topic bar exists", occurrences = 1) intercept {
-        system.actorOf(Props(new SuccessfulMockPubSubMetadataServiceActor(configWithSubscription, emptyConfig, registryProbe)))
+        system.actorOf(
+          props = Props(
+            new SuccessfulMockPubSubMetadataServiceActor(configWithSubscription, emptyConfig, registryProbe)
+          ),
+          name = "psma-with-subscription-exists"
+        )
       }
     }
 
     "should create the requested subscription" in {
       EventFilter.info("Creating subscription baz", occurrences = 1) intercept {
-        system.actorOf(Props(new SuccessfulMockPubSubMetadataServiceActor(configWithSubscription, emptyConfig, registryProbe)))
+        system.actorOf(
+          props = Props(
+            new SuccessfulMockPubSubMetadataServiceActor(configWithSubscription, emptyConfig, registryProbe)
+          ),
+          name = "psma-with-subscription-create"
+        )
       }
     }
 
     "should log to debug on a publish request" in {
       EventFilter.debug(start = "Publishing to", occurrences = 1) intercept {
-        val psma = system.actorOf(Props(new SuccessfulMockPubSubMetadataServiceActor(configWithSubscription, emptyConfig, registryProbe)))
+        val psma = system.actorOf(
+          props = Props(
+            new SuccessfulMockPubSubMetadataServiceActor(configWithSubscription, emptyConfig, registryProbe)
+          ),
+          name = "psma-with-subscription-log"
+        )
         psma ! PutMetadataAction(List(Event))
       }
     }
 
     "should ack on a publish-ack request" in {
-      val psma = system.actorOf(Props(new SuccessfulMockPubSubMetadataServiceActor(configWithSubscription, emptyConfig, registryProbe)))
+      val psma = system.actorOf(
+        props = Props(
+          new SuccessfulMockPubSubMetadataServiceActor(configWithSubscription, emptyConfig, registryProbe)
+        ),
+        name = "psma-with-subscription-ack"
+      )
       psma ! PutMetadataActionAndRespond(List(Event), testActor)
       expectMsgClass(classOf[MetadataWriteSuccess])
     }
@@ -59,25 +82,45 @@ class PubSubMetadataServiceActorSpec extends ServicesSpec("PubSubMetadata") {
   "A PubSubMetadataActor without a subscription" should {
     "should ensure topic exists" in {
       EventFilter.info("Ensuring topic bar exists", occurrences = 1) intercept {
-        system.actorOf(Props(new SuccessfulMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig, registryProbe)))
+        system.actorOf(
+          props = Props(
+            new SuccessfulMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig, registryProbe)
+          ),
+          name = "psma-without-subscription-exists"
+        )
       }
     }
 
     "should not be creating a subscription" in {
       EventFilter.info("Not creating a subscription", occurrences = 1) intercept {
-        system.actorOf(Props(new SuccessfulMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig, registryProbe)))
+        system.actorOf(
+          props = Props(
+            new SuccessfulMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig, registryProbe)
+          ),
+          name = "psma-without-subscription-create"
+        )
       }
     }
 
     "should log to debug on a publish request" in {
       EventFilter.debug(start = "Publishing to", occurrences = 1) intercept {
-        val psma = system.actorOf(Props(new SuccessfulMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig, registryProbe)))
+        val psma = system.actorOf(
+          props = Props(
+            new SuccessfulMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig, registryProbe)
+          ),
+          name = "psma-without-subscription-log"
+        )
         psma ! PutMetadataAction(List(Event))
       }
     }
 
     "should ack on a publish-ack request" in {
-      val psma = system.actorOf(Props(new SuccessfulMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig, registryProbe)))
+      val psma = system.actorOf(
+        props = Props(
+          new SuccessfulMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig, registryProbe)
+        ),
+        name = "psma-without-subscription-ack"
+      )
       psma ! PutMetadataActionAndRespond(List(Event), testActor)
       expectMsgClass(classOf[MetadataWriteSuccess])
     }
@@ -86,7 +129,12 @@ class PubSubMetadataServiceActorSpec extends ServicesSpec("PubSubMetadata") {
   "A PubSubMetadataActor who fails at all things" should {
     "fail to create a topic" in {
       EventFilter[RuntimeException](start = "Unable to create topic", occurrences = 1) intercept {
-        system.actorOf(Props(new FailingToCreateTopicMockPubSubMetadataServiceActor(configWithSubscription, emptyConfig, registryProbe)))
+        system.actorOf(
+          props = Props(
+            new FailingToCreateTopicMockPubSubMetadataServiceActor(configWithSubscription, emptyConfig, registryProbe)
+          ),
+          name = "psma-fails-all"
+        )
       }
     }
   }
@@ -94,19 +142,34 @@ class PubSubMetadataServiceActorSpec extends ServicesSpec("PubSubMetadata") {
   "A PubSubMetadataActor who fails to publish" should {
     "should ensure topic exists" in {
       EventFilter.info("Ensuring topic bar exists", occurrences = 1) intercept {
-        system.actorOf(Props(new FailToPublishMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig, registryProbe)))
+        system.actorOf(
+          props = Props(
+            new FailToPublishMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig, registryProbe)
+          ),
+          name = "psma-fails-publish-exists"
+        )
       }
     }
 
     "should log to error on a publish request" in {
       EventFilter[RuntimeException](start = "Failed to post metadata: ", occurrences = 1) intercept {
-        val psma = system.actorOf(Props(new FailToPublishMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig, registryProbe)))
+        val psma = system.actorOf(
+          props = Props(
+            new FailToPublishMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig, registryProbe)
+          ),
+          name = "psma-fails-publish-log"
+        )
         psma ! PutMetadataAction(List(Event))
       }
     }
 
     "should ack on a publish-ack request" in {
-      val psma = system.actorOf(Props(new FailToPublishMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig, registryProbe)))
+      val psma = system.actorOf(
+        props = Props(
+          new FailToPublishMockPubSubMetadataServiceActor(configWithoutSubscription, emptyConfig, registryProbe)
+        ),
+        name = "psma-fails-publish-ack"
+      )
       psma ! PutMetadataActionAndRespond(List(Event), testActor)
       expectMsgClass(classOf[MetadataWriteFailure])
     }
@@ -136,7 +199,7 @@ object PubSubMetadataServiceActorSpec {
   }
 
   trait MockGooglePubSubDao extends GooglePubSubDAO {
-    override implicit val executionContext = ExecutionContext.global
+    override implicit val executionContext: ExecutionContext = ExecutionContext.global
 
     override def createTopic(topicName: String): Future[Boolean]
     override def createSubscription(topicName: String, subscriptionName: String): Future[Boolean]
@@ -167,9 +230,9 @@ object PubSubMetadataServiceActorSpec {
   }
 
   // This doesn't include a project so should be a failure
-  val emptyConfig = ConfigFactory.empty()
+  val emptyConfig: Config = ConfigFactory.empty()
 
-  val configWithSubscription = ConfigFactory.parseString(
+  val configWithSubscription: Config = ConfigFactory.parseString(
     """
       |project = "foo"
       |topic = "bar"
@@ -177,12 +240,13 @@ object PubSubMetadataServiceActorSpec {
     """.stripMargin
   )
 
-  val configWithoutSubscription = ConfigFactory.parseString(
+  val configWithoutSubscription: Config = ConfigFactory.parseString(
     """
       |project = "foo"
       |topic = "bar"
     """.stripMargin
   )
 
-  val Event = MetadataEvent(MetadataKey(WorkflowId.randomId(), None, "key"), Option(MetadataValue("value")), OffsetDateTime.now)
+  val Event: MetadataEvent =
+    MetadataEvent(MetadataKey(WorkflowId.randomId(), None, "key"), Option(MetadataValue("value")), OffsetDateTime.now)
 }

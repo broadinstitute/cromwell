@@ -1,0 +1,12 @@
+name: invalid_use_reference_disks_specification
+testFormat: workflowfailure
+backends: [ Papiv2 ]
+
+files {
+  workflow: invalid_use_reference_disks_specification/invalid_use_reference_disks_specification.wdl
+  options: invalid_use_reference_disks_specification/invalid_use_reference_disks_specification.options.json
+}
+
+metadata {
+  "failures.0.causedBy.0.message": "'use_reference_disks' is specified in workflow options but value is not of expected Boolean type: Unsupported JsValue as JsBoolean: \"I like turtles\""
+}

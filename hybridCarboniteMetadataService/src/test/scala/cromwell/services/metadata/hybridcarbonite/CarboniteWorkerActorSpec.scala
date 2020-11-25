@@ -3,23 +3,24 @@ package cromwell.services.metadata.hybridcarbonite
 import akka.actor.ActorRef
 import akka.testkit.{EventFilter, TestActorRef, TestProbe}
 import com.typesafe.config.ConfigFactory
-import common.validation.Validation._
 import common.assertion.ManyTimes._
+import common.validation.Validation._
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.services.metadata.MetadataArchiveStatus.{Archived, Unarchived}
 import cromwell.services.metadata.MetadataService.{QueryForWorkflowsMatchingParameters, QueryMetadata, WorkflowQueryFailure, WorkflowQueryResponse, WorkflowQueryResult, WorkflowQuerySuccess}
 import cromwell.services.metadata.hybridcarbonite.CarboniteWorkerActor.CarboniteWorkflowComplete
 import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActor.FreezeMetadata
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") with FlatSpecLike with Matchers {
+class CarboniteWorkerActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
 
-  val serviceRegistryActor = TestProbe()
-  val ioActor = TestProbe()
-  val carboniteFreezerActor = TestProbe()
+  val serviceRegistryActor: TestProbe = TestProbe("serviceRegistryActor")
+  val ioActor: TestProbe = TestProbe("ioActor")
+  val carboniteFreezerActor: TestProbe = TestProbe("carboniteFreezerActor")
 
   val fasterBackOff: SimpleExponentialBackoff = SimpleExponentialBackoff(
     initialInterval = 10.millis,
@@ -28,7 +29,7 @@ class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") 
     randomizationFactor = 0.0
   )
 
-  val carboniterConfig = HybridCarboniteConfig.parseConfig(ConfigFactory.parseString(
+  val carboniterConfig: HybridCarboniteConfig = HybridCarboniteConfig.parseConfig(ConfigFactory.parseString(
     """{
       |   bucket = "carbonite-test-bucket"
       |   filesystems {
@@ -45,7 +46,7 @@ class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") 
 
   val freezingConfig: ActiveMetadataFreezingConfig = carboniterConfig.freezingConfig.asInstanceOf[ActiveMetadataFreezingConfig]
 
-  val carboniteWorkerActor = TestActorRef(new MockCarboniteWorkerActor(
+  val carboniteWorkerActor: TestActorRef[MockCarboniteWorkerActor] = TestActorRef(new MockCarboniteWorkerActor(
     carboniterConfig,
     serviceRegistryActor.ref,
     ioActor.ref,
@@ -54,10 +55,11 @@ class CarboniteWorkerActorSpec extends TestKitSuite("CarboniteWorkerActorSpec") 
   ))
 
   val workflowToCarbonite = "04c93860-ea0a-11e9-81b4-2a2ae2dbcce4"
-  val queryMeta = QueryMetadata(Option(1), Option(1), Option(1))
-  val queryResult = WorkflowQueryResult(workflowToCarbonite, None, None, None, None, None, None, None, None, Unarchived)
-  val queryResponse = WorkflowQueryResponse(Seq(queryResult), 1)
-  val querySuccessResponse = WorkflowQuerySuccess(queryResponse, Option(queryMeta))
+  val queryMeta: QueryMetadata = QueryMetadata(Option(1), Option(1), Option(1))
+  val queryResult: WorkflowQueryResult =
+    WorkflowQueryResult(workflowToCarbonite, None, None, None, None, None, None, None, None, Unarchived)
+  val queryResponse: WorkflowQueryResponse = WorkflowQueryResponse(Seq(queryResult), 1)
+  val querySuccessResponse: WorkflowQuerySuccess = WorkflowQuerySuccess(queryResponse, Option(queryMeta))
 
 
   it should "carbonite workflow at intervals" in {

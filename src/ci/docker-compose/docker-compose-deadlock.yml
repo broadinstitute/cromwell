@@ -32,7 +32,7 @@ services:
       timeout: 30s
       retries: 15
   cromwell-master:
-    image: "broadinstitute/cromwell:${CROMWELL_TAG}"
+    image: "broadinstitute/cromwell:${CROMWELL_BUILD_DOCKER_TAG}"
     working_dir: ${CROMWELL_BUILD_ROOT_DIRECTORY}
     volumes:
       - ${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}
@@ -41,6 +41,7 @@ services:
         condition: service_healthy
     command: ["server"]
     environment:
+      # See notes and warnings on JAVA_OPTS in Publishing.scala
       - >-
         JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_RESOURCES_DIRECTORY}/local_application_deadlock.conf
     healthcheck:
@@ -49,7 +50,7 @@ services:
       timeout: 30s
       retries: 60
   cromwell-norefresh:
-    image: "broadinstitute/cromwell:${CROMWELL_TAG}"
+    image: "broadinstitute/cromwell:${CROMWELL_BUILD_DOCKER_TAG}"
     working_dir: ${CROMWELL_BUILD_ROOT_DIRECTORY}
     volumes:
       - ${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}
@@ -60,6 +61,7 @@ services:
         condition: service_healthy
     command: ["server"]
     environment:
+      # See notes and warnings on JAVA_OPTS in Publishing.scala
       - >-
         JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_RESOURCES_DIRECTORY}/local_application_deadlock.conf
         -Dservices.MetadataService.config.metadata-summary-refresh-interval=Inf

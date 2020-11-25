@@ -34,6 +34,10 @@ class WorkflowStoreCoordinatedAccessActor(workflowStore: WorkflowStore) extends 
       workflowStore.writeWorkflowHeartbeats(ids.toVector.toSet, heartbeatDateTime) |> run
     case FetchStartableWorkflows(count, cromwellId, heartbeatTtl) =>
       workflowStore.fetchStartableWorkflows(count, cromwellId, heartbeatTtl) |> run
+    case DeleteFromStore(workflowId) =>
+      workflowStore.deleteFromStore(workflowId) |> run
+    case Abort(workflowId) =>
+      workflowStore.abort(workflowId) |> run
   }
 }
 
@@ -41,6 +45,8 @@ object WorkflowStoreCoordinatedAccessActor {
   final case class WriteHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)],
                                    heartbeatDateTime: OffsetDateTime)
   final case class FetchStartableWorkflows(count: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
+  final case class DeleteFromStore(workflowId: WorkflowId)
+  final case class Abort(workflowId: WorkflowId)
 
   val Timeout = 1 minute
 

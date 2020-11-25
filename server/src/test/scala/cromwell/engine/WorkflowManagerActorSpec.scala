@@ -1,25 +1,26 @@
 
 package cromwell.engine
 
+import akka.actor.ActorSystem
 import com.typesafe.config.ConfigValueFactory
 import cromwell.core._
 import cromwell.engine.workflow.WorkflowDescriptorBuilderForSpecs
 import cromwell.util.{SampleWdl, WorkflowImport}
 import cromwell.{CromwellTestKitSpec, CromwellTestKitWordSpec}
+import org.scalatest.enablers.Retrying
 import wom.core.{ExecutableInputMap, WorkflowSource}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-
 class WorkflowManagerActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorBuilderForSpecs {
-  override implicit val actorSystem = system
+  override implicit val actorSystem: ActorSystem = system
 
   "A WorkflowManagerActor" should {
 
     // this test lol
     "run workflows in the correct directory" in {
-      val outputs = runWdl(sampleWdl = SampleWdl.CurrentDirectory)
+      val outputs = runWdl(sampleWdl = SampleWdl.CurrentDirectory, testActorName = "TestCromwellRootActor-whereami")
 
       val outputName = "wf_whereami.whereami.pwd"
       val salutation = outputs(outputName)
@@ -33,7 +34,7 @@ class WorkflowManagerActorSpec extends CromwellTestKitWordSpec with WorkflowDesc
 
         override val rawInputs: ExecutableInputMap = Map("parent.naptime" -> naptime.toSeconds.toInt)
 
-        val root =
+        val root: WorkflowSource =
           """
             |version 1.0
             |
@@ -49,7 +50,7 @@ class WorkflowManagerActorSpec extends CromwellTestKitWordSpec with WorkflowDesc
             |}
           """.stripMargin.trim
 
-        val sub =
+        val sub: WorkflowSource =
           """
             |version 1.0
             |
@@ -83,13 +84,13 @@ class WorkflowManagerActorSpec extends CromwellTestKitWordSpec with WorkflowDesc
         withValue("system.max-concurrent-workflows", ConfigValueFactory.fromAnyRef(2)).
         withValue("system.new-workflow-poll-rate", ConfigValueFactory.fromAnyRef(1))
 
-      val rootActor = buildCromwellRootActor(config)
+      val rootActor = buildCromwellRootActor(config = config, actorName = "TestCromwellRootActor-pickup")
       val serviceRegistryActor = rootActor.underlyingActor.serviceRegistryActor
 
       val firstSources = SubWorkflows(naptime = 60 seconds).asWorkflowSources()
 
       def waitForState(workflowId: WorkflowId, state: WorkflowState): Unit = {
-        eventually { verifyWorkflowState(serviceRegistryActor, workflowId, state) } (config = defaultPatience, pos = implicitly[org.scalactic.source.Position])
+        eventually { verifyWorkflowState(serviceRegistryActor, workflowId, state) } (config = defaultPatience, pos = implicitly[org.scalactic.source.Position], retrying = implicitly[Retrying[Unit]])
       }
 
       val firstWorkflowId = rootActor.underlyingActor.submitWorkflow(firstSources)

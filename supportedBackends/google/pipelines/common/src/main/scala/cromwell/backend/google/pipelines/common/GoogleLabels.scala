@@ -4,8 +4,8 @@ import cats.data.Validated.{Invalid, Valid}
 import common.validation.ErrorOr.ErrorOr
 import cats.syntax.validated._
 import cats.syntax.traverse._
-import cats.instances.list._
 import cats.syntax.apply._
+import cats.instances.list._
 import common.exception.AggregatedMessageException
 import cromwell.core.{CromwellFatalExceptionMarker, WorkflowOptions}
 import spray.json.{JsObject, JsString}

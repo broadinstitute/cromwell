@@ -1,0 +1,7 @@
+{{with $cromwellRefreshToken := vault (printf "secret/dsde/cromwell/common/cromwell-refresh-token")}}
+{
+    "backend": "Papi-Refresh",
+    "refresh_token": "{{$cromwellRefreshToken.Data.token}}",
+    "auth_bucket": "gs://centaur-auth"
+}
+{{end}}

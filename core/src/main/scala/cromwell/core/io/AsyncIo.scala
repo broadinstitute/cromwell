@@ -10,20 +10,28 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import net.ceedubs.ficus.Ficus._
 
+import scala.util.{Failure, Success, Try}
+
 object AsyncIo {
   private val ioTimeouts = ConfigFactory.load().as[Config]("system.io.timeout")
-  val defaultTimeout = ioTimeouts.as[FiniteDuration]("default")
-  val copyTimeout = ioTimeouts.as[FiniteDuration]("copy")
+  val defaultTimeout: FiniteDuration = ioTimeouts.as[FiniteDuration]("default")
+  val copyTimeout: FiniteDuration = ioTimeouts.as[FiniteDuration]("copy")
 }
 
 /**
   * Provides Futurized methods for I/O actions processed through the IoActor
   */
 class AsyncIo(ioEndpoint: ActorRef, ioCommandBuilder: IoCommandBuilder) {
-  private def asyncCommand[A](command: IoCommand[A], timeout: FiniteDuration = AsyncIo.defaultTimeout) = {
-    val commandWithPromise = IoCommandWithPromise(command, timeout)
-    ioEndpoint ! commandWithPromise
-    commandWithPromise.promise.future
+  private def asyncCommand[A](commandTry: Try[IoCommand[A]],
+                              timeout: FiniteDuration = AsyncIo.defaultTimeout): Future[A] = {
+    commandTry match {
+      case Failure(throwable) =>
+        Future.failed(throwable)
+      case Success(command) =>
+        val commandWithPromise = IoCommandWithPromise(command, timeout)
+        ioEndpoint ! commandWithPromise
+        commandWithPromise.promise.future
+    }
   }
   
   /**
@@ -62,8 +70,8 @@ class AsyncIo(ioEndpoint: ActorRef, ioCommandBuilder: IoCommandBuilder) {
     asyncCommand(ioCommandBuilder.isDirectoryCommand(path))
   }
 
-  def copyAsync(src: Path, dest: Path, overwrite: Boolean = true): Future[Unit] = {
+  def copyAsync(src: Path, dest: Path): Future[Unit] = {
     // Allow for a much larger timeout for copies, as large files can take a while (even on gcs, if they are in different locations...)
-    asyncCommand(ioCommandBuilder.copyCommand(src, dest, overwrite), AsyncIo.copyTimeout)
+    asyncCommand(ioCommandBuilder.copyCommand(src, dest), AsyncIo.copyTimeout)
   }
 }

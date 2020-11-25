@@ -1,0 +1,13 @@
+name: custom_entrypoint
+testFormat: workflowsuccess
+backends: [Papi, Papiv2]
+
+files {
+  workflow: custom_entrypoint/custom_entrypoint.wdl
+}
+
+metadata {
+  workflowName: custom_entrypoint_wf
+  status: Succeeded
+  "outputs.custom_entrypoint_wf.hello": "hello world"
+}

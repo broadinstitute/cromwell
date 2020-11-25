@@ -29,11 +29,15 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 package cromwell.cloudsupport.aws.s3
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.Tag
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
-import org.scalatest.{FlatSpec, Matchers, Tag}
 import software.amazon.awssdk.regions.Region
 
-class S3StorageSpec extends FlatSpec with Matchers {
+
+class S3StorageSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "S3Storage"
 

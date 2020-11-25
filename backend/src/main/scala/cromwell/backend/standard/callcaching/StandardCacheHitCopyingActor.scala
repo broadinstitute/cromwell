@@ -3,10 +3,7 @@ package cromwell.backend.standard.callcaching
 import java.util.concurrent.TimeoutException
 
 import akka.actor.{ActorRef, FSM}
-import cats.instances.list._
-import cats.instances.set._
-import cats.instances.tuple._
-import cats.syntax.foldable._
+import cats.implicits._
 import cromwell.backend.BackendCacheHitCopyingActor._
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
@@ -25,7 +22,6 @@ import cromwell.services.instrumentation.CromwellInstrumentationActor
 import wom.values.WomSingleFile
 
 import scala.util.{Failure, Success, Try}
-
 
 /**
   * Trait of parameters passed to a StandardCacheHitCopyingActor.
@@ -132,11 +128,11 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   override lazy val configurationDescriptor: BackendConfigurationDescriptor = standardParams.configurationDescriptor
   protected val commandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
 
-  lazy val cacheCopyJobPaths = jobPaths.forCallCacheCopyAttempts
+  lazy val cacheCopyJobPaths: JobPaths = jobPaths.forCallCacheCopyAttempts
   lazy val destinationCallRootPath: Path = cacheCopyJobPaths.callRoot
   def destinationJobDetritusPaths: Map[String, Path] = cacheCopyJobPaths.detritusPaths
 
-  lazy val ioActor = standardParams.ioActor
+  lazy val ioActor: ActorRef = standardParams.ioActor
 
   startWith(Idle, None)
 
@@ -178,10 +174,29 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
                       detritusAndOutputsIoCommands foreach sendIoCommand
 
                       // Add potential additional commands to the list
-                      val additionalCommands = additionalIoCommands(sourceCallRootPath, simpletons, destinationCallOutputs, jobDetritus, destinationDetritus)
-                      val allCommands = List(detritusAndOutputsIoCommands) ++ additionalCommands
-
-                      goto(WaitingForIoResponses) using Option(StandardCacheHitCopyingActorData(allCommands, destinationCallOutputs, destinationDetritus, cacheHit, returnCode))
+                      val additionalCommandsTry =
+                        additionalIoCommands(
+                          sourceCallRootPath = sourceCallRootPath,
+                          originalSimpletons = simpletons,
+                          newOutputs = destinationCallOutputs,
+                          originalDetritus = jobDetritus,
+                          newDetritus = destinationDetritus,
+                        )
+                      additionalCommandsTry match {
+                        case Success(additionalCommands) =>
+                          val allCommands = List(detritusAndOutputsIoCommands) ++ additionalCommands
+                          goto(WaitingForIoResponses) using
+                            Option(StandardCacheHitCopyingActorData(
+                              commandsToWaitFor = allCommands,
+                              newJobOutputs = destinationCallOutputs,
+                              newDetritus = destinationDetritus,
+                              cacheHit = cacheHit,
+                              returnCode = returnCode,
+                            ))
+                        // Something went wrong in generating duplication commands.
+                        // We consider this a loggable error because we don't expect this to happen:
+                        case Failure(failure) => failAndStop(CopyAttemptError(failure))
+                      }
                     case _ => succeedAndStop(returnCode, destinationCallOutputs, destinationDetritus)
                   }
 
@@ -274,7 +289,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     andThen
   }
 
-  def succeedAndStop(returnCode: Option[Int], copiedJobOutputs: CallOutputs, detritusMap: DetritusMap) = {
+  def succeedAndStop(returnCode: Option[Int], copiedJobOutputs: CallOutputs, detritusMap: DetritusMap): State = {
     import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
     serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), startMetadataKeyValues)
     context.parent ! JobSucceededResponse(jobDescriptor.key, returnCode, copiedJobOutputs, Option(detritusMap), Seq.empty, None, resultGenerationMode = CallCached)
@@ -304,7 +319,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     }
   }
 
-  def abort() = {
+  def abort(): State = {
     log.warning("{}: Abort not supported during cache hit copying", jobTag)
     context.parent ! JobAbortedResponse(jobDescriptor.key)
     context stop self
@@ -333,7 +348,8 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
         val destinationSimpleton = WomValueSimpleton(key, WomSingleFile(destinationPath.pathAsString))
 
-        List(destinationSimpleton) -> Set(commandBuilder.copyCommand(sourcePath, destinationPath, overwrite = true))
+        // PROD-444: Keep It Short and Simple: Throw on the first error and let the outer Try catch-and-re-wrap
+        List(destinationSimpleton) -> Set(commandBuilder.copyCommand(sourcePath, destinationPath).get)
       case nonFileSimpleton => (List(nonFileSimpleton), Set.empty[IoCommand[_]])
     })
 
@@ -343,7 +359,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   /**
     * Returns the file (and ONLY the file detritus) intersection between the cache hit and this call.
     */
-  protected final def detritusFileKeys(sourceJobDetritusFiles: Map[String, String]) = {
+  protected final def detritusFileKeys(sourceJobDetritusFiles: Map[String, String]): Set[String] = {
     val sourceKeys = sourceJobDetritusFiles.keySet
     val destinationKeys = destinationJobDetritusPaths.keySet
     sourceKeys.intersect(destinationKeys).filterNot(_ == JobPaths.CallRootPathKey)
@@ -364,7 +380,8 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
         val newDetrituses = detrituses + (detritus -> destinationPath)
 
-        (newDetrituses, commands + commandBuilder.copyCommand(sourcePath, destinationPath, overwrite = true))
+      // PROD-444: Keep It Short and Simple: Throw on the first error and let the outer Try catch-and-re-wrap
+      (newDetrituses, commands + commandBuilder.copyCommand(sourcePath, destinationPath).get)
     })
 
     (destinationDetritus + (JobPaths.CallRootPathKey -> destinationCallRootPath), ioCommands)
@@ -378,7 +395,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
                                      originalSimpletons: Seq[WomValueSimpleton],
                                      newOutputs: CallOutputs,
                                      originalDetritus:  Map[String, String],
-                                     newDetritus: Map[String, Path]): List[Set[IoCommand[_]]] = List.empty
+                                     newDetritus: Map[String, Path]): Try[List[Set[IoCommand[_]]]] = Success(Nil)
 
   override protected def onTimeout(message: Any, to: ActorRef): Unit = {
     val exceptionMessage = message match {

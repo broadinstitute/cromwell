@@ -3,12 +3,12 @@ package cwl
 import cats.Monoid
 import cats.data.NonEmptyList
 import cats.data.Validated._
-import cats.instances.list._
 import cats.syntax.either._
 import cats.syntax.foldable._
 import cats.syntax.monoid._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
 import common.Checked
 import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr

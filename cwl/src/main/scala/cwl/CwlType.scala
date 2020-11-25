@@ -1,10 +1,10 @@
 package cwl
 
-import cats.instances.list._
-import cats.instances.option._
 import cats.syntax.traverse._
 import cats.syntax.functor._
 import cats.syntax.validated._
+import cats.instances.list._
+import cats.instances.option._
 import common.validation.ErrorOr._
 import common.validation.IOChecked
 import common.validation.IOChecked._

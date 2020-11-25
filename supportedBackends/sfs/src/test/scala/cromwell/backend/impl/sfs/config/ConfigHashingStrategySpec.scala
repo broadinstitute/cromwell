@@ -4,18 +4,22 @@ import java.util.UUID
 
 import akka.event.LoggingAdapter
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.standard.StandardInitializationData
 import cromwell.backend.standard.callcaching.StandardFileHashingActor.SingleFileHashRequest
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import org.apache.commons.codec.digest.DigestUtils
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 import wom.values.WomSingleFile
+
 import scala.util.Success
 
-class ConfigHashingStrategySpec extends FlatSpec with Matchers with TableDrivenPropertyChecks with Mockito with BeforeAndAfterAll {
+class ConfigHashingStrategySpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks with Mockito with BeforeAndAfterAll {
 
   behavior of "ConfigHashingStrategy"
 

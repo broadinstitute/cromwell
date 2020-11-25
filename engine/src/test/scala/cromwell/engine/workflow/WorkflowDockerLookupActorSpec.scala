@@ -2,7 +2,7 @@ package cromwell.engine.workflow
 
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestProbe}
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import common.util.Backoff
 import cromwell.core.actor.StreamIntegration.BackPressure
 import cromwell.core.retry.SimpleExponentialBackoff
@@ -16,7 +16,9 @@ import cromwell.engine.workflow.WorkflowDockerLookupActorSpec._
 import cromwell.engine.workflow.workflowstore.{StartableState, Submitted}
 import cromwell.services.EngineServicesStore
 import cromwell.services.ServicesStore._
-import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
+import org.scalatest.BeforeAndAfter
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 
 import scala.concurrent.duration._
@@ -26,8 +28,8 @@ import scala.util.control.NoStackTrace
 
 
 class WorkflowDockerLookupActorSpec
-  extends TestKitSuite("WorkflowDockerLookupActorSpecSystem")
-    with FlatSpecLike
+  extends TestKitSuite
+    with AnyFlatSpecLike
     with Matchers
     with ImplicitSender
     with BeforeAndAfter
@@ -40,7 +42,7 @@ class WorkflowDockerLookupActorSpec
 
   before {
     workflowId = WorkflowId.randomId()
-    dockerHashingActor = TestProbe()
+    dockerHashingActor = TestProbe(s"test-probe-$workflowId")
     numReads = 0
     numWrites = 0
   }
@@ -293,19 +295,23 @@ object WorkflowDockerLookupActorSpec {
   val Latest = "ubuntu:latest"
   val Older = "ubuntu:older"
 
-  val LatestImageId = DockerImageIdentifier.fromString(Latest).get.asInstanceOf[DockerImageIdentifierWithoutHash]
-  val OlderImageId = DockerImageIdentifier.fromString(Older).get.asInstanceOf[DockerImageIdentifierWithoutHash]
+  val LatestImageId: DockerImageIdentifierWithoutHash =
+    DockerImageIdentifier.fromString(Latest).get.asInstanceOf[DockerImageIdentifierWithoutHash]
+  val OlderImageId: DockerImageIdentifierWithoutHash =
+    DockerImageIdentifier.fromString(Older).get.asInstanceOf[DockerImageIdentifierWithoutHash]
 
-  val LatestRequest = DockerInfoRequest(LatestImageId)
-  val OlderRequest = DockerInfoRequest(OlderImageId)
+  val LatestRequest: DockerInfoRequest = DockerInfoRequest(LatestImageId)
+  val OlderRequest: DockerInfoRequest = DockerInfoRequest(OlderImageId)
 
   def LatestStoreEntry(workflowId: WorkflowId): DockerHashStoreEntry = DockerHashStoreEntry(workflowId.toString, Latest, "md5:AAAAAAAA", None)
   def OlderStoreEntry(workflowId: WorkflowId): DockerHashStoreEntry = DockerHashStoreEntry(workflowId.toString, Older, "md5:BBBBBBBB", None)
 
-  val LatestSuccessResponse = DockerInfoSuccessResponse(DockerInformation(DockerHashResult("md5", "AAAAAAAA"), None), LatestRequest)
-  val OlderSuccessResponse = DockerInfoSuccessResponse(DockerInformation(DockerHashResult("md5", "BBBBBBBB"), None), OlderRequest)
+  val LatestSuccessResponse: DockerInfoSuccessResponse =
+    DockerInfoSuccessResponse(DockerInformation(DockerHashResult("md5", "AAAAAAAA"), None), LatestRequest)
+  val OlderSuccessResponse: DockerInfoSuccessResponse =
+    DockerInfoSuccessResponse(DockerInformation(DockerHashResult("md5", "BBBBBBBB"), None), OlderRequest)
 
-  val DatabaseConfig = ConfigFactory.load.getConfig("database")
+  val DatabaseConfig: Config = ConfigFactory.load.getConfig("database")
 
   def abjectFailure[A, B]: A => Future[B] = _ => Future.failed(new RuntimeException("Should not be called!"))
 
@@ -315,6 +321,6 @@ object WorkflowDockerLookupActorSpec {
       dockerHashingActor,
       startState.restarted,
       EngineServicesStore.engineDatabaseInterface) {
-    override protected def initialBackoff = backoff
+    override protected def initialBackoff(): Backoff = backoff
   }
 }

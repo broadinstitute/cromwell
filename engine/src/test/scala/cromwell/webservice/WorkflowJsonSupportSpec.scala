@@ -1,10 +1,12 @@
 package cromwell.webservice
 
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.CromwellTimeoutSpec
+import cromwell.webservice.WorkflowJsonSupport._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json._
-import WorkflowJsonSupport._
 
-class WorkflowJsonSupportSpec extends FlatSpec with Matchers {
+class WorkflowJsonSupportSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   val sampleSuccessResponse1 = SuccessResponse("good", "msg", Option(JsArray(Vector(JsString("data1"), JsString("data2")))))
   val sampleSuccessResponse2 = SuccessResponse("good", "msg", None)

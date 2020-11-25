@@ -1,0 +1,35 @@
+name: drs_usa_jdr_preresolve
+testFormat: WorkflowSuccess
+backends: ["papi-v2-usa"]
+skipDescribeEndpointValidation: true
+
+files {
+  workflow: drs_tests/drs_usa_jdr.wdl
+  options-dir: "Error: BA-6546 The environment variable CROMWELL_BUILD_RESOURCES_DIRECTORY must be set/export pointing to a valid path such as '${YOUR_CROMWELL_DIR}/target/ci/resources'"
+  options-dir: ${?CROMWELL_BUILD_RESOURCES_DIRECTORY}
+  options: ${files.options-dir}/papi_v2_usa_preresolve.options.json
+  inputs: drs_tests/drs_usa_jdr.inputs
+}
+
+metadata {
+  workflowName: drs_usa_jdr
+  status: Succeeded
+
+  "outputs.drs_usa_jdr.path1" =
+    "/cromwell_root/jade.datarepo-dev.broadinstitute.org/v1_f90f5d7f-c507-4e56-abfc-b965a66023fb_585f3f19-985f-43b0-ab6a-79fa4c8310fc/hello_jade.json"
+  "outputs.drs_usa_jdr.path2" =
+    "/cromwell_root/broad-jade-dev-data-bucket/e1941fb9-6537-4e1a-b70d-34352a3a7817/ad783b60-aeba-4055-8f7b-194880f37259/hello_jade_2.json"
+  "outputs.drs_usa_jdr.hash1" = "faf12e94c25bef7df62e4a5eb62573f5"
+  "outputs.drs_usa_jdr.hash2" = "19e1b021628130fda04c79ee9a056b67"
+  "outputs.drs_usa_jdr.size1" = 18.0
+  "outputs.drs_usa_jdr.size2" = 38.0
+  # This JDR file has a gsUri that doesn't end in /fileName so it must be downloaded with the DRS localizer
+  "outputs.drs_usa_jdr.cloud1" =
+    "/cromwell_root/jade.datarepo-dev.broadinstitute.org/v1_f90f5d7f-c507-4e56-abfc-b965a66023fb_585f3f19-985f-43b0-ab6a-79fa4c8310fc/hello_jade.json"
+  # This JDR file has a gsUri that can skip localization
+  "outputs.drs_usa_jdr.cloud2" =
+    "gs://broad-jade-dev-data-bucket/e1941fb9-6537-4e1a-b70d-34352a3a7817/ad783b60-aeba-4055-8f7b-194880f37259/hello_jade_2.json"
+  "outputs.drs_usa_jdr.map1.hello" = "jade"
+  "outputs.drs_usa_jdr.map2.hello" = "jade"
+  "outputs.drs_usa_jdr.map2.attempt" = "2"
+}

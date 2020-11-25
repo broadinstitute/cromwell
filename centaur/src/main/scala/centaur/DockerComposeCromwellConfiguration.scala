@@ -18,29 +18,34 @@ case class DockerComposeCromwellConfiguration(dockerTag: String, dockerComposeFi
   override def createProcess: CromwellProcess = {
     case class DockerComposeCromwellProcess(override val cromwellConfiguration: DockerComposeCromwellConfiguration) extends CromwellProcess {
 
-      private def composeCommand(command: String): Array[String] = {
-        Array(
-          "/bin/bash",
-          "-c",
-          s"MANAGED_CROMWELL_PORT=$ManagedCromwellPort " +
-            s"CROMWELL_TAG=$dockerTag " +
-            s"CROMWELL_CONFIG=$conf " +
-            s"docker-compose -f $dockerComposeFile $command")
+      private def composeCommand(command: String*): Array[String] = {
+        Array("docker-compose", "-f", dockerComposeFile) ++ command
       }
 
       private val startCommand = composeCommand("up")
-      private val stopCommand = composeCommand("down -v")
-      private val rmCommand = composeCommand("rm -fsv")
+      private val logsCommand = composeCommand("logs")
+      private val stopCommand = composeCommand("down", "-v")
+      private val rmCommand = composeCommand("rm", "-fsv")
+      private val envVariables = Map[String, String](
+        "CROMWELL_BUILD_CENTAUR_MANAGED_PORT" -> ManagedCromwellPort.toString,
+        "CROMWELL_BUILD_CENTAUR_MANAGED_TAG" -> dockerTag,
+        "CROMWELL_BUILD_CENTAUR_MANAGED_CONFIG" -> conf,
+      )
 
       private var process: Option[Process] = None
 
       override def start(): Unit = {
-        process = Option(runProcess(startCommand))
+        process = Option(runProcess(startCommand, envVariables))
       }
 
       override def stop(): Unit = {
-        waitProcess(runProcess(stopCommand))
-        waitProcess(runProcess(rmCommand))
+        if (!isAlive) {
+          // When `docker-compose up` starts successfully it attaches to the containers and prints the logs. But when
+          // `docker-compose up` fails to start and exits prematurely then we need to manually retrieve the logs.
+          waitProcess(runProcess(logsCommand, envVariables))
+        }
+        waitProcess(runProcess(stopCommand, envVariables))
+        waitProcess(runProcess(rmCommand, envVariables))
         process foreach {
           waitProcess(_, destroy = true)
         }

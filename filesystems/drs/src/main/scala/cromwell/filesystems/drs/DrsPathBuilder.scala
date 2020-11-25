@@ -1,48 +1,78 @@
 package cromwell.filesystems.drs
 
-import java.net.URI
-
 import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
-import com.google.common.net.UrlEscapers
-import cromwell.core.path.{Path, PathBuilder}
+import com.typesafe.scalalogging.StrictLogging
+import cromwell.core.path.PathFactory.PathBuilders
+import cromwell.core.path.{Path, PathFactory, PreResolvePathBuilder}
 
-import scala.util.{Failure, Try}
-
+import scala.util.{Failure, Success, Try}
 
 case class DrsPathBuilder(fileSystemProvider: DrsCloudNioFileSystemProvider,
-                          requesterPaysProjectIdOption: Option[String]) extends PathBuilder {
+                          requesterPaysProjectIdOption: Option[String],
+                          preResolve: Boolean = false,
+                         ) extends PreResolvePathBuilder with StrictLogging {
 
   private val drsScheme: String = fileSystemProvider.getScheme
 
   override def name: String = "DRS"
 
-  /**
-    * Unlike other cloud providers where directories are identified with a trailing slash at the end like `gs://bucket/dir/`,
-    * DRS has a concept of bundles for directories (not supported yet). This sanitizes the path by removing the trailing '/'(s)
-    * so that the CloudNioFileSystemProvider & CloudNioPath does not treat a DRS path ending with '/' as a directory, otherwise
-    * its size is returned as 0
-    */
-  private def removeTrailingSlashes(path: String): String = {
-    if (path.length > (drsScheme.length + 3)) { //3: length of '://'
-      val pathArray = path.split(s"://")
-      val transformedPath = pathArray(1).replaceAll("[/]+$", "")
-      s"$drsScheme://$transformedPath"
-    }
-    else path
-  }
-
-  override def build(pathAsString: String): Try[Path] = {
+  override def build(pathAsString: String, pathBuilders: PathBuilders): Try[Path] = {
     if (pathAsString.startsWith(s"$drsScheme://")) {
-      val pathWithoutTrailingSlashes = removeTrailingSlashes(pathAsString)
-      Try(URI.create(UrlEscapers.urlFragmentEscaper().escape(pathWithoutTrailingSlashes))) flatMap { uri =>
-        if (!Option(uri.getScheme).exists(_.equalsIgnoreCase(fileSystemProvider.getScheme))) {
-          Failure(new IllegalArgumentException(s"$pathAsString does not have a $drsScheme scheme."))
-        } else {
-          Try(DrsPath(fileSystemProvider.getPath(uri), requesterPaysProjectIdOption))
-        }
-      }
+      Try(createDrsOrOtherPath(pathAsString, pathBuilders))
     } else {
       Failure(new IllegalArgumentException(s"$pathAsString does not have a $drsScheme scheme."))
     }
+  }
+
+  private def createDrsOrOtherPath(pathAsString: String, pathBuilders: PathBuilders): Path = {
+    def drsPath = DrsPath(fileSystemProvider.getCloudNioPath(pathAsString), requesterPaysProjectIdOption)
+    if (preResolve) {
+      maybeCreateOtherPath(pathAsString, pathBuilders) getOrElse drsPath
+    } else {
+      drsPath
+    }
+  }
+
+  private def maybeCreateOtherPath(pathAsString: String, pathBuilders: PathBuilders): Option[Path] = {
+
+    def logAttempt[A](description: String, attempt: => A): Option[A] = {
+      logTry(description, Try(attempt))
+    }
+
+    def logTry[A](description: String, tried: Try[A]): Option[A] = {
+      tried match {
+        case Success(result) => Option(result)
+        case Failure(exception) =>
+          logFailure(description, exception)
+      }
+    }
+
+    def logFailure(description: String, reason: Any): None.type = {
+      logger.debug(s"Unable to $description, will use a DrsPath to access '$pathAsString': $reason")
+      None
+    }
+
+    def logSuccess(path: Path): Option[Unit] = {
+      logger.debug(s"Converted '$pathAsString' to '$path'")
+      Option(())
+    }
+
+    val gcsPathOption = for {
+      // Right now, only pre-resolving GCS. In the future, could pull others like FTP, HTTP, S3, OSS, SRA, etc.
+      gsUriOption <- logAttempt(
+        "resolve the uri through Martha",
+        DrsResolver.getSimpleGsUri(pathAsString, fileSystemProvider.drsPathResolver).unsafeRunSync()
+      )
+      gcsUrlWithNoCreds <- gsUriOption
+      gcsPath <- logAttempt(
+        s"create a GcsPath for '$gcsUrlWithNoCreds'",
+        PathFactory.buildPath(gcsUrlWithNoCreds, pathBuilders),
+      )
+      // Extra: Make sure the GcsPath _actually_ has permission to access the path
+      _ <- logAttempt(s"access '$gcsPath' with GCS credentials", gcsPath.size)
+      _ <- logSuccess(gcsPath)
+    } yield gcsPath
+
+    gcsPathOption
   }
 }

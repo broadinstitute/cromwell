@@ -39,21 +39,22 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.BackendWorkflowInitializationActor.{InitializationFailed, Initialize}
 import cromwell.backend.async.RuntimeAttributeValidationFailures
 import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWorkflowDescriptor}
+import org.scalatest.flatspec.AnyFlatSpecLike
 // import cromwell.cloudsupport.aws.auth.AwsAuthModeSpec
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.Tags.PostWomTest
-import cromwell.core.{TestKitSuite}
+import cromwell.core.TestKitSuite
 // import cromwell.core.logging.LoggingTest._
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 import spray.json._
 import wom.graph.CommandCallNode
 
 import scala.concurrent.duration._
 
-class AwsBatchInitializationActorSpec extends TestKitSuite("AwsBatchInitializationActorSpec") with FlatSpecLike with Matchers
+class AwsBatchInitializationActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
   with ImplicitSender with Mockito {
-  val Timeout: FiniteDuration = 10.second.dilated
+  val Timeout: FiniteDuration = 30.second.dilated
 
   import BackendSpec._
 
@@ -167,7 +168,7 @@ class AwsBatchInitializationActorSpec extends TestKitSuite("AwsBatchInitializati
       |}
       | """.stripMargin))
 
-  val defaultBackendConfig = BackendConfigurationDescriptor(backendConfig, globalConfig)
+  val defaultBackendConfig: BackendConfigurationDescriptor = BackendConfigurationDescriptor(backendConfig, globalConfig)
 
   val refreshTokenConfig: Config = ConfigFactory.parseString(refreshTokenConfigTemplate)
 
@@ -229,7 +230,7 @@ class AwsBatchInitializationActorSpec extends TestKitSuite("AwsBatchInitializati
 }
 
 object AwsBatchInitializationActorSpec {
-  def normalize(str: String) = {
+  def normalize(str: String): String = {
     str.parseJson.prettyPrint
   }
 }

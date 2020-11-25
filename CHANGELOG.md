@@ -1,5 +1,98 @@
 # Cromwell Change Log
 
+## 55 Release Notes
+
+### Apple Silicon support statement
+
+Users with access to the new Mac hardware should review [important information provided here](https://cromwell.readthedocs.io/en/stable/Releases).
+
+### Bug Fixes
+
+* Fixed a bug that prevented `read_json()` from working with arrays and primitives. The function now works as expected for all valid JSON data inputs. 
+More information on JSON Type to WDL Type conversion can be found [here](https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#mixed-read_jsonstringfile).
+
+* Now retries HTTP 408 responses as well as HTTP 429 responses during DOS/DRS resolution requests.
+
+### Reference disk support on PAPI v2
+
+Cromwell now offers support for the use of reference disks on the PAPI v2 backend as an alternative to localizing
+reference inputs. More details [here](https://cromwell.readthedocs.io/en/develop/backends/Google#reference-disk-support).
+
+## 54 Release Notes
+
+### Bug Fixes
+
+* Fixed a bug that prevented `write_json()` from working with arrays and primitives. The function now works as expected for `Boolean`, `String`, `Integer`, `Float`,
+ `Pair[_, _]`, `Object`, `Map[_, _]` and `Array[_]` (including array of objects) type inputs. More information on WDL Type to JSON Type 
+ conversion can be found [here](https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#mixed-read_jsonstringfile).
+
+### Spark backend support removal
+
+Spark backend was not widely used and it was decided to remove it from the codebase in order to narrow the scope of Cromwell code. 
+
+### Improved DRS Localizer logging
+
+Error logging while localizing a DRS URI should now be more clear especially when there is a Requester Pays bucket involved.
+
+### Per-backend hog factors
+Cromwell now allows overriding system-level log factors on back-end level. First, Cromwell will try to use hog-factor 
+defined in the backend config, and if it is not defined, it will default to using system-wide hog factor.
+```conf
+backend {
+  providers {
+    PAPIv2 {
+      config {
+        hog-factor: 2
+      }
+    }
+  }
+}
+```
+For more information about hog factors please see [this page](https://cromwell.readthedocs.io/en/develop/cromwell_features/HogFactors/).
+
+### `martha_v2` Support Removed
+
+Cromwell now only supports resolving DOS or DRS URIs through [Martha](https://github.com/broadinstitute/martha)'s most
+recent metadata endpoint `martha_v3`, dropping support for Martha's previous metadata endpoint `martha_v2`. To switch to
+the new version of Martha's metadata endpoint, update the `martha.url` found in the [filesystems
+config](https://cromwell.readthedocs.io/en/stable/filesystems/Filesystems/#overview) to point to `/martha_v3`. More
+information on Martha's `martha_v3` request and response schema can be found
+[here](https://github.com/broadinstitute/martha#martha-v3).
+
+### DOS/DRS `localization_optional` Support
+
+When running on a backend that supports `localization_optional: true` any DOS or DRS `File` values in the generated
+command line will be substituted with the `gsUri` returned from Martha's `martha_v3` endpoint. More information on
+`localization_optional` can be found [here](https://cromwell.readthedocs.io/en/stable/optimizations/FileLocalization/).
+
+### DOS/DRS metadata retrieval retried by default
+
+Attempts to retrieve DOS/DRS metadata from Martha will be retried by default. More information can be found
+[here](https://cromwell.readthedocs.io/en/stable/optimizations/FileLocalization/).
+
+## 53 Release Notes
+
+### Martha v3 Support
+
+Cromwell now supports resolving DRS URIs through Martha v3 (in addition to Martha v2). To switch to the new version of Martha, update the `martha.url` found in the [filesystems config](https://cromwell.readthedocs.io/en/stable/filesystems/Filesystems/#overview) to
+point to `/martha_v3`. More information on Martha v3 request and response schema can be found [here](https://github.com/broadinstitute/martha#martha-v3).
+
+### Support for custom entrypoints on Docker images
+
+Cromwell can now support docker images which have custom entrypoints in the PAPIv2 alpha and beta backends.
+
+### Alpha support for WDL optional outputs on PAPI v2
+
+* Alpha support for WDL optional output files on the PAPI v2 backend has been added, please see the
+[documentation](https://cromwell.readthedocs.io/en/stable/wf_options/Google#alpha-support-for-wdl-optional-outputs-on-papi-v2)
+for known limitations.
+
+### Monitoring Image Script
+
+* Cromwell now supports an optional `monitoring_image_script` workflow option in addition to the existing
+`monitoring_script` and `monitoring_image` options. For more information see the [Google Pipelines API Workflow Options
+documentation](https://cromwell.readthedocs.io/en/stable/wf_options/Google#google-pipelines-api-workflow-options).
+
 ## 52 Release Notes
 
 ### Documentation

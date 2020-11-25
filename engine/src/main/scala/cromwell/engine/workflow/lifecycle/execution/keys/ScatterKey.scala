@@ -3,6 +3,7 @@ package cromwell.engine.workflow.lifecycle.execution.keys
 import akka.actor.ActorRef
 import cats.syntax.either._
 import cats.syntax.validated._
+import cats.instances.list._
 import common.Checked
 import common.collections.EnhancedCollections._
 import common.validation.ErrorOr.ErrorOr
@@ -59,7 +60,6 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
   }
 
   def processRunnable(data: WorkflowExecutionActorData, workflowExecutionActor: ActorRef, maxScatterWidth: Int): ErrorOr[WorkflowExecutionDiff] = {
-    import cats.instances.list._
     import cats.syntax.traverse._
 
     def getScatterArray(scatterVariableNode: ScatterVariableNode): ErrorOr[ScatterVariableAndValue] = {
@@ -99,7 +99,7 @@ private [execution] case class ScatterKey(node: ScatterNode) extends JobKey {
     // If scatter width is more than max allowed limit, it fails the ScatterNode key
     def buildExecutionDiff(scatterSize: Int, arrays: List[ScatterVariableAndValue]): WorkflowExecutionDiff = {
       if(scatterSize > maxScatterWidth) {
-        workflowExecutionActor ! JobFailedNonRetryableResponse(this, new Exception(s"Workflow has scatter width $scatterSize, which is more than the max scatter width $maxScatterWidth allowed per scatter!"), None)
+        workflowExecutionActor ! JobFailedNonRetryableResponse(this, new Exception(s"Workflow scatter width of $scatterSize exceeds configured limit of $maxScatterWidth."), None)
 
         WorkflowExecutionDiff(Map(this -> ExecutionStatus.Failed))
       }

@@ -1,50 +1,44 @@
 package cromwell.filesystems.drs
 
-import java.nio.channels.ReadableByteChannel
-
-import cats.effect.IO
-import cloud.nio.impl.drs.MarthaResponse
-import com.google.cloud.NoCredentials
+import cloud.nio.impl.drs.{MockDrsCloudNioFileSystemProvider, MockDrsPaths}
 import com.typesafe.config.{Config, ConfigFactory}
-import org.apache.http.impl.client.HttpClientBuilder
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
+import scala.collection.JavaConverters._
 
 
-class DrsResolverSpec extends FlatSpec with Matchers {
+class DrsResolverSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
-  private val marthaConfig: Config = ConfigFactory.parseString(
-    """martha {
-      |   url = "http://martha-url"
-      |   request.json-template = "{"key": "${holder}"}"
-      |}
-      |""".stripMargin
+  private val marthaConfig: Config = ConfigFactory.parseMap(
+    Map(
+      "martha.url" -> "https://martha-url/martha_v3",
+    ).asJava
   )
 
-  private lazy val fakeCredentials = NoCredentials.getInstance
-
-  private lazy val httpClientBuilder = HttpClientBuilder.create()
-
-  private def drsReadInterpreter(marthaResponse: MarthaResponse): IO[ReadableByteChannel] =
-    throw new UnsupportedOperationException("Currently DrsResolverSpec doesn't need to use drs read interpreter.")
-
-  private val mockFileSystemProvider = new MockDrsCloudNioFileSystemProvider(marthaConfig, fakeCredentials, httpClientBuilder, drsReadInterpreter)
+  private val mockFileSystemProvider = new MockDrsCloudNioFileSystemProvider(config = marthaConfig)
   private val drsPathBuilder = DrsPathBuilder(mockFileSystemProvider, None)
-
-  val gcsRelativePath = "mybucket/foo.txt"
 
 
   behavior of "DrsResolver"
 
-  it should "find GCS path when its the only one in url array" in {
-    val drsPath = drsPathBuilder.build(MockDrsPaths.drsPathResolvingToOneGcsPath).get.asInstanceOf[DrsPath]
+  it should "find DRS path from a GCS path" in {
+    val drsPath = drsPathBuilder.build(MockDrsPaths.drsPathResolvingGcsPath).get.asInstanceOf[DrsPath]
 
-    DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync() should be (gcsRelativePath)
+    DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync() should be (MockDrsPaths.drsRelativePath)
   }
 
-  it should "find GCS path when DRS path resolves to multiple urls" in {
-    val drsPath = drsPathBuilder.build(MockDrsPaths.drsPathResolvingToMultiplePaths).get.asInstanceOf[DrsPath]
+  it should "find DRS path from a path replacing characters" in {
+    val drsPath = drsPathBuilder.build(MockDrsPaths.drsPathWithNonPathChars).get.asInstanceOf[DrsPath]
 
-    DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync() should be (gcsRelativePath)
+    DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync() should be (MockDrsPaths.drsReplacedChar)
+  }
+
+  it should "find DRS path from a file name" in {
+    val drsPath = drsPathBuilder.build(MockDrsPaths.drsPathResolvingWithFileName).get.asInstanceOf[DrsPath]
+
+    DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync() should be (MockDrsPaths.gcsRelativePathWithFileName)
   }
 
   it should "throw GcsUrlNotFoundException when DRS path doesn't resolve to at least one GCS url" in {
@@ -60,6 +54,9 @@ class DrsResolverSpec extends FlatSpec with Matchers {
 
     the[RuntimeException] thrownBy {
       DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()
-    } should have message s"Unexpected response resolving ${drsPath.pathAsString} through Martha url http://martha-url. Error: 502 Bad Gateway."
+    } should have message
+      s"Error while resolving DRS path: ${drsPath.pathAsString}. " +
+        s"Error: RuntimeException: Unexpected response resolving ${drsPath.pathAsString} " +
+        s"through Martha url https://martha-url/martha_v3. Error: 404 Not Found."
   }
 }

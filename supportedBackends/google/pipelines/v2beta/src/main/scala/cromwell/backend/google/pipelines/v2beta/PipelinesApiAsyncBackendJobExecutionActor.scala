@@ -1,9 +1,7 @@
 package cromwell.backend.google.pipelines.v2beta
 
 import cats.data.NonEmptyList
-import cats.instances.list._
-import cats.instances.map._
-import cats.syntax.foldable._
+import cats.implicits._
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import common.util.StringUtil._
 import cromwell.backend.BackendJobDescriptor
@@ -13,6 +11,7 @@ import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.C
 import cromwell.backend.google.pipelines.common.io.PipelinesApiWorkingDisk
 import cromwell.backend.google.pipelines.v2beta.PipelinesApiAsyncBackendJobExecutionActor._
 import cromwell.backend.standard.StandardAsyncExecutionActorParams
+import cromwell.core.{OptionNotFoundException, WorkflowOptions}
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder}
@@ -24,6 +23,7 @@ import wom.values.{GlobFunctions, WomFile, WomGlobFile, WomMaybeListedDirectory,
 import scala.concurrent.Future
 import scala.io.Source
 import scala.language.postfixOps
+import scala.util.{Failure, Success}
 import scala.util.control.NoStackTrace
 
 class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExecutionActorParams) extends cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor(standardParams) {
@@ -173,9 +173,64 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
 
   import mouse.all._
 
-  private def generateGcsLocalizationScript(inputs: List[PipelinesApiInput])(implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
-    val bundleFunction = (gcsLocalizationTransferBundle(gcsTransferConfiguration) _).tupled
-    generateGcsTransferScript(inputs, bundleFunction) |> bracketTransfersWithMessages("Localization")
+  private def generateGcsLocalizationScript(inputs: List[PipelinesApiInput], referenceFilesMapping: PipelinesApiReferenceFilesMapping)(implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
+    val optionName = WorkflowOptions.UseReferenceDisks.name
+    val useReferenceDisks = workflowDescriptor.workflowOptions.getBoolean(optionName) match {
+      case Success(value) => value
+      case Failure(OptionNotFoundException(_)) => false
+      case Failure(f) =>
+        // Should not happen, this case should have been screened for and fast-failed during workflow materialization.
+        log.error(f, s"Programmer error: unexpected failure attempting to read value for workflow option '$optionName' as a Boolean")
+        false
+    }
+
+    // Generate a mapping of reference inputs to their mounted paths and a section of the localization script to
+    // "faux localize" these reference inputs with symlinks to their locations on mounted reference disks.
+    def generateReferenceInputsAndLocalizationScript: (Map[PipelinesApiInput, String], String) = {
+      val referenceInputsToMountedPaths: Map[PipelinesApiInput, String] = PipelinesApiReferenceFilesMapping.getReferenceInputsToMountedPathMappings(referenceFilesMapping, inputs)
+
+      val referenceFilesLocalizationScript = {
+        val symlinkCreationCommands = referenceInputsToMountedPaths map {
+          case (input, absolutePathOnRefDisk) =>
+            s"mkdir -p ${input.containerPath.parent.pathAsString} && ln -s $absolutePathOnRefDisk ${input.containerPath.pathAsString}"
+        }
+
+        if (symlinkCreationCommands.nonEmpty) {
+          s"""
+             |# Faux-localizing reference files (if any) by creating symbolic links to the files located on the mounted reference disk
+             |${symlinkCreationCommands.mkString("\n")}
+             |""".stripMargin
+        } else {
+          "\n# No reference disks mounted / no symbolic links created since no matching reference files found in the inputs to this call.\n"
+        }
+      }
+      (referenceInputsToMountedPaths, referenceFilesLocalizationScript)
+    }
+
+    val (maybeReferenceInputsToMountedPaths, maybeReferenceFilesLocalizationScript) = if (useReferenceDisks) {
+      generateReferenceInputsAndLocalizationScript
+    } else {
+      (Map.empty[PipelinesApiInput, String], "\n# No reference disks mounted since not requested in workflow options.\n")
+    }
+
+    val regularFilesLocalizationScript = {
+      val regularFiles = inputs diff maybeReferenceInputsToMountedPaths.keySet.toList
+      if (regularFiles.nonEmpty) {
+        val bundleFunction = (gcsLocalizationTransferBundle(gcsTransferConfiguration) _).tupled
+        generateGcsTransferScript(regularFiles, bundleFunction)
+      } else {
+        ""
+      }
+    }
+
+    val combinedLocalizationScript =
+      s"""
+         |$maybeReferenceFilesLocalizationScript
+         |
+         |$regularFilesLocalizationScript
+         |""".stripMargin
+
+    combinedLocalizationScript |> bracketTransfersWithMessages("Localization")
   }
 
   private def generateGcsDelocalizationScript(outputs: List[PipelinesApiOutput])(implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
@@ -198,8 +253,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   override def uploadGcsLocalizationScript(createPipelineParameters: CreatePipelineParameters,
                                            cloudPath: Path,
                                            transferLibraryContainerPath: Path,
-                                           gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = {
-    val content = generateGcsLocalizationScript(createPipelineParameters.inputOutputParameters.fileInputParameters)(gcsTransferConfiguration)
+                                           gcsTransferConfiguration: GcsTransferConfiguration,
+                                           referenceFilesMapping: PipelinesApiReferenceFilesMapping): Future[Unit] = {
+    val content = generateGcsLocalizationScript(createPipelineParameters.inputOutputParameters.fileInputParameters, referenceFilesMapping)(gcsTransferConfiguration)
     asyncIo.writeAsync(cloudPath, s"source '$transferLibraryContainerPath'\n\n" + content, Seq(CloudStorageOptions.withMimeType("text/plain")))
   }
 
@@ -297,7 +353,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
     case _ => List.empty
   }
 
-  override def generateSingleFileOutputs(womFile: WomSingleFile, fileEvaluation: FileEvaluation) = {
+  override def generateSingleFileOutputs(womFile: WomSingleFile, fileEvaluation: FileEvaluation): List[PipelinesApiFileOutput] = {
     val (relpath, disk) = relativePathAndAttachedDisk(womFile.value, runtimeAttributes.disks)
     // If the file is on a custom mount point, resolve it so that the full mount path will show up in the cloud path
     // For the default one (cromwell_root), the expectation is that it does not appear

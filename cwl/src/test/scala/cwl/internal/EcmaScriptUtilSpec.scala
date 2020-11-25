@@ -1,13 +1,15 @@
 package cwl.internal
 
+import common.assertion.CromwellTimeoutSpec
 import common.validation.Validation._
 import delight.rhinosandox.exceptions.ScriptDurationException
 import org.mozilla.javascript.{EcmaError, EvaluatorException}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wom.types._
 import wom.values._
 
-class EcmaScriptUtilSpec extends FlatSpec with Matchers {
+class EcmaScriptUtilSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "EcmaScriptUtil"
 

@@ -1,7 +1,6 @@
 package wom.types
-
-import cats.instances.list._
 import cats.syntax.traverse._
+import cats.instances.list._
 import common.util.TryUtil
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._

@@ -1,10 +1,11 @@
 package cromwell.api.model
 
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json._
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
 
-class LabelsJsonFormatterSpec extends FlatSpec with Matchers {
+
+class LabelsJsonFormatterSpec extends AnyFlatSpec with Matchers {
   import cromwell.api.model.LabelsJsonFormatter._
 
   behavior of "WdlValueJsonFormat"

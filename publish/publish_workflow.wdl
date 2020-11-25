@@ -34,7 +34,7 @@ task doMajorRelease {
             --tokenFile '~{githubTokenFile}' \
             --user '~{githubUser}' \
             --email '~{githubEmail}' \
-            ~{if (useEmailForName) then "" else "--user '~{githubName}'"} \
+            ~{if (useEmailForName) then "" else "--name '~{githubName}'"} \
 
         echo 'Clone repo and checkout develop'
         git clone https://github.com/~{organization}/cromwell.git --branch develop cromwell
@@ -49,6 +49,33 @@ task doMajorRelease {
 
         echo 'Assemble jars for cromwell and womtool'
         sbt -Dproject.version=~{releaseVersion} -Dproject.isSnapshot=false server/assembly womtool/assembly
+
+        echo 'Smoke test Cromwell and Womtool artifacts'
+        cat > hello.wdl <<FIN
+        task hello {
+          String name
+
+          command {
+            echo 'hello \${name}!'
+          }
+          output {
+            File response = stdout()
+          }
+        }
+
+        workflow test {
+          call hello
+        }
+        FIN
+
+        cat > hello.inputs <<FIN
+        {
+          "test.hello.name": "world"
+        }
+        FIN
+
+        java -jar server/target/scala-2.12/cromwell-~{releaseVersion}.jar run --inputs hello.inputs hello.wdl
+        java -jar womtool/target/scala-2.12/womtool-~{releaseVersion}.jar validate --inputs hello.inputs hello.wdl
 
         echo 'Create the hotfix branch'
         git checkout -b ~{releaseVersion}_hotfix
@@ -96,7 +123,7 @@ task doMinorRelease {
     String hotfixBranchName = "~{majorReleaseNumber}_hotfix"
     Boolean useEmailForName = githubName == "null"
 
-    command {
+    command <<<
         # Do not use `set -x` or it will print the GitHub token!
         set -euo pipefail
 
@@ -105,7 +132,7 @@ task doMinorRelease {
             --tokenFile '~{githubTokenFile}' \
             --user '~{githubUser}' \
             --email '~{githubEmail}' \
-            ~{if (useEmailForName) then "" else "--user '~{githubName}'"} \
+            ~{if (useEmailForName) then "" else "--name '~{githubName}'"} \
 
         echo 'Clone repo and checkout hotfix branch'
         git clone https://github.com/~{organization}/cromwell.git --branch ~{hotfixBranchName} cromwell
@@ -117,9 +144,36 @@ task doMinorRelease {
         echo 'Assemble jars for cromwell and womtool'
         sbt -Dproject.version=~{releaseVersion} -Dproject.isSnapshot=false server/assembly womtool/assembly
 
+        echo 'Smoke test Cromwell and Womtool artifacts'
+        cat > hello.wdl <<FIN
+        task hello {
+          String name
+
+          command {
+            echo 'hello \${name}!'
+          }
+          output {
+            File response = stdout()
+          }
+        }
+
+        workflow test {
+          call hello
+        }
+        FIN
+
+        cat > hello.inputs <<FIN
+        {
+          "test.hello.name": "world"
+        }
+        FIN
+
+        java -jar server/target/scala-2.12/cromwell-~{releaseVersion}.jar run --inputs hello.inputs hello.wdl
+        java -jar womtool/target/scala-2.12/womtool-~{releaseVersion}.jar validate --inputs hello.inputs hello.wdl
+
         echo 'Push the tags'
         git push origin ~{releaseVersion}
-    }
+    >>>
 
     output {
         File cromwellJar = "cromwell/server/target/scala-2.12/cromwell-~{releaseVersion}.jar"
@@ -417,7 +471,7 @@ task releaseHomebrew {
             --tokenFile '~{githubTokenFile}' \
             --user '~{githubUser}' \
             --email '~{githubEmail}' \
-            ~{if (useEmailForName) then "" else "--user '~{githubName}'"} \
+            ~{if (useEmailForName) then "" else "--name '~{githubName}'"} \
 
         echo 'Clone the homebrew fork'
         git clone https://github.com/~{organization}/homebrew-core.git --depth=100

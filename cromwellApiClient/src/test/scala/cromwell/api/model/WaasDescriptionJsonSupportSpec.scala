@@ -1,8 +1,10 @@
 package cromwell.api.model
 
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class WaasDescriptionJsonSupportSpec extends FlatSpec with Matchers {
+
+class WaasDescriptionJsonSupportSpec extends AnyFlatSpec with Matchers {
 
   it should "deserialize invalid result JSON" in {
     val resultJson =

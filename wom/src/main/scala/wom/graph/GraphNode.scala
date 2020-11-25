@@ -1,6 +1,7 @@
 package wom.graph
 
-import cats.implicits._
+import cats.syntax.all._
+import cats.instances.list._
 import common.collections.EnhancedCollections._
 import common.validation.ErrorOr.ErrorOr
 import wom.callable.Callable

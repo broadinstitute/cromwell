@@ -23,7 +23,7 @@ def subdir_for_papi_version(papi_version: AnyStr) -> AnyStr:
     if papi_version == VERSION_PAPI_V1:
         path_element = 'PAPIv1'
     elif papi_version == VERSION_PAPI_V2:
-        path_element = 'PAPIv2_alpha1/v1_style_machine_types'
+        path_element = 'PAPIv2_alpha1/30gb_reference_disk'
     else:
         raise ValueError(f'Unrecognized PAPI version {papi_version}')
     return f'exome_germline_single_sample_v1.3/{path_element}'

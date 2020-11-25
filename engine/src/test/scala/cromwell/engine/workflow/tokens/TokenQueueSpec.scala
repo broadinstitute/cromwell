@@ -4,9 +4,10 @@ import akka.testkit.TestProbe
 import cromwell.core.JobExecutionToken.JobExecutionTokenType
 import cromwell.core.TestKitSuite
 import cromwell.engine.workflow.tokens.TokenQueue.TokenQueuePlaceholder
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
-class TokenQueueSpec extends TestKitSuite with FlatSpecLike with Matchers {
+class TokenQueueSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
   behavior of "TokenQueue"
   val tokenType = JobExecutionTokenType("pool1", Option(1), 1)
 
@@ -125,8 +126,7 @@ class TokenQueueSpec extends TestKitSuite with FlatSpecLike with Matchers {
   }
 
   it should "enqueue and dequeue with multiple hog groups" in {
-    import cromwell.engine.workflow.tokens.large.TokenDispenserBenchmark.fillQueue
-    import cromwell.engine.workflow.tokens.large.TokenDispenserBenchmark.useEntireAvailability
+    import cromwell.engine.workflow.tokens.large.TokenDispenserBenchmark.{fillQueue, useEntireAvailability}
 
     val poolSize = 52
     val jobCount = 150

@@ -6,11 +6,11 @@ import cats.data.EitherT._
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import cats.effect.IO
-import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import common.exception.{AggregatedMessageException, MessageAggregation}
@@ -372,6 +372,22 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     }
   }
 
+  // Perform a fail-fast validation that the `use_reference_disks` workflow option is boolean if present.
+  private def validateUseReferenceDisks(workflowOptions: WorkflowOptions) : ErrorOr[Unit] = {
+    val optionName = WorkflowOptions.UseReferenceDisks.name
+    workflowOptions.getBoolean(optionName) match {
+      case Success(_) =>
+        // If present must be boolean
+        ().validNel
+      case Failure (OptionNotFoundException(_)) =>
+        // This is an optional... option, so "not found" is fine
+        ().validNel
+      case Failure(e) =>
+        val message = e.getMessage
+        s"'$optionName' is specified in workflow options but value is not of expected Boolean type: $message".invalidNel
+    }
+  }
+
   private def buildWorkflowDescriptor(id: WorkflowId,
                                       womNamespace: ValidatedWomNamespace,
                                       workflowOptions: WorkflowOptions,
@@ -390,8 +406,10 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     val callCachingModeValidation = validateCallCachingMode(workflowOptions, callCachingEnabled,
       invalidateBadCacheResults)
 
-    (failureModeValidation, backendAssignmentsValidation, callCachingModeValidation) mapN {
-      case (failureMode, backendAssignments, callCachingMode) =>
+    val useReferenceDisksValidation: ErrorOr[Unit] = validateUseReferenceDisks(workflowOptions)
+
+    (failureModeValidation, backendAssignmentsValidation, callCachingModeValidation, useReferenceDisksValidation) mapN {
+      case (failureMode, backendAssignments, callCachingMode, _) =>
         val callable = womNamespace.executable.entryPoint
         val backendDescriptor = BackendWorkflowDescriptor(id, callable, womNamespace.womValueInputs, workflowOptions, labels, hogGroup, List.empty, outputRuntimeExtractor)
         EngineWorkflowDescriptor(callable, backendDescriptor, backendAssignments, failureMode, pathBuilders, callCachingMode)

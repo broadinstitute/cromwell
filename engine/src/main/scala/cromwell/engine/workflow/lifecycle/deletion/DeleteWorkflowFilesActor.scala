@@ -3,6 +3,8 @@ package cromwell.engine.workflow.lifecycle.deletion
 import java.io.FileNotFoundException
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
+import common.util.StringUtil._
+import common.util.TryUtil
 import cromwell.core.io._
 import cromwell.core.path.{Path, PathBuilder, PathFactory}
 import cromwell.core.{RootWorkflowId, WorkflowId, WorkflowMetadataKeys}
@@ -30,17 +32,23 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
                                workflowAllOutputs: Set[WomValue],
                                pathBuilders: List[PathBuilder],
                                serviceRegistryActor: ActorRef,
-                               ioActorRef: ActorRef) extends LoggingFSM[DeleteWorkflowFilesActorState, DeleteWorkflowFilesActorStateData] with IoClientHelper {
+                               ioActorRef: ActorRef,
+                               gcsCommandBuilder: IoCommandBuilder,
+                              )
+  extends LoggingFSM[DeleteWorkflowFilesActorState, DeleteWorkflowFilesActorStateData] with IoClientHelper {
 
   implicit val ec: ExecutionContext = context.dispatcher
 
-  val gcsCommandBuilder = GcsBatchCommandBuilder
   val asyncIO = new AsyncIo(ioActorRef, gcsCommandBuilder)
   val callCache = new CallCache(EngineServicesStore.engineDatabaseInterface)
+
 
   startWith(Pending, NoData)
 
   when(Pending) {
+    case Event(ioReceivable, _) if ioReceive.isDefinedAt(ioReceivable) =>
+      ioReceive.apply(ioReceivable)
+      stay
     case Event(StartWorkflowFilesDeletion, NoData) =>
       val intermediateOutputs = gatherIntermediateOutputFiles(workflowAllOutputs, workflowFinalOutputs)
       if (intermediateOutputs.nonEmpty) {
@@ -54,19 +62,31 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
   }
 
   when(DeleteIntermediateFiles) {
+    case Event(ioReceivable, _) if ioReceive.isDefinedAt(ioReceivable) =>
+      ioReceive.apply(ioReceivable)
+      stay
     case Event(DeleteFiles, DeletingIntermediateFilesData(intermediateFiles)) =>
       // update deletion status in metadata
       val deletionInProgressEvent = metadataEventForDeletionStatus(InProgress)
       serviceRegistryActor ! PutMetadataAction(deletionInProgressEvent)
 
       // send delete IoCommand for each file to ioActor
-      val deleteCommands: Set[IoDeleteCommand] = intermediateFiles.map(gcsCommandBuilder.deleteCommand(_, swallowIoExceptions = false))
-      deleteCommands foreach sendIoCommand
-
-      goto(WaitingForIoResponses) using WaitingForIoResponsesData(deleteCommands)
+      val deleteCommandsTry =
+        TryUtil.sequence(intermediateFiles.toSeq.map(gcsCommandBuilder.deleteCommand(_, swallowIoExceptions = false)))
+      deleteCommandsTry match {
+        case Success(deleteCommands) =>
+          deleteCommands foreach sendIoCommand
+          goto(WaitingForIoResponses) using WaitingForIoResponsesData(deleteCommands.toSet)
+        case Failure(failure) =>
+          self ! InvalidateCallCache
+          goto(InvalidatingCallCache) using InvalidateCallCacheData(List(failure), Nil)
+      }
   }
 
   when(WaitingForIoResponses) {
+    case Event(ioReceivable, _) if ioReceive.isDefinedAt(ioReceivable) =>
+      ioReceive.apply(ioReceivable)
+      stay
     case Event(IoSuccess(command: IoDeleteCommand, _), data: WaitingForIoResponsesData) =>
       val (newData: WaitingForIoResponsesData, commandState) = data.commandComplete(command)
       commandState match {
@@ -101,6 +121,9 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
   }
 
   when(InvalidatingCallCache) {
+    case Event(ioReceivable, _) if ioReceive.isDefinedAt(ioReceivable) =>
+      ioReceive.apply(ioReceivable)
+      stay
     case Event(InvalidateCallCache, _) =>
       fetchCallCacheEntries(callCache) onComplete {
         case Failure(throwable) => self ! FailedRetrieveCallCacheIds(throwable)
@@ -125,6 +148,9 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
   }
 
   when(WaitingForInvalidateCCResponses) {
+    case Event(ioReceivable, _) if ioReceive.isDefinedAt(ioReceivable) =>
+      ioReceive.apply(ioReceivable)
+      stay
     case Event(CallCacheInvalidatedSuccess(cacheId, _), data: WaitingForInvalidateCCResponsesData) =>
       val (newData: WaitingForInvalidateCCResponsesData, invalidateState) = data.commandComplete(cacheId.id)
       invalidateState match {
@@ -141,9 +167,12 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
   }
 
   whenUnhandled {
+    case Event(ioReceivable, _) if ioReceive.isDefinedAt(ioReceivable) =>
+      ioReceive.apply(ioReceivable)
+      stay
     case Event(ShutdownCommand, _) => stopSelf()
     case other =>
-      log.error(s"Programmer Error: Unexpected message to ${getClass.getSimpleName} ${self.path.name} in state $stateName with $stateData: $other")
+      log.error(s"Programmer Error: Unexpected message to ${getClass.getSimpleName} ${self.path.name} in state $stateName with $stateData: ${other.toPrettyElidedString(1000)}")
       stay()
   }
 
@@ -309,7 +338,18 @@ object DeleteWorkflowFilesActor {
             workflowAllOutputs: Set[WomValue],
             pathBuilders: List[PathBuilder],
             serviceRegistryActor: ActorRef,
-            ioActor: ActorRef): Props = {
-    Props(new DeleteWorkflowFilesActor(rootWorkflowId, rootAndSubworkflowIds, workflowFinalOutputs, workflowAllOutputs, pathBuilders, serviceRegistryActor, ioActor))
+            ioActor: ActorRef,
+            gcsCommandBuilder: IoCommandBuilder = GcsBatchCommandBuilder,
+           ): Props = {
+    Props(new DeleteWorkflowFilesActor(
+      rootWorkflowId = rootWorkflowId,
+      rootAndSubworkflowIds = rootAndSubworkflowIds,
+      workflowFinalOutputs = workflowFinalOutputs,
+      workflowAllOutputs = workflowAllOutputs,
+      pathBuilders = pathBuilders,
+      serviceRegistryActor = serviceRegistryActor,
+      ioActorRef = ioActor,
+      gcsCommandBuilder = gcsCommandBuilder,
+    ))
   }
 }

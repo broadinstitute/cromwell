@@ -60,7 +60,7 @@ abstract class PipelinesApiBackendLifecycleActorFactory(override val name: Strin
 
   override lazy val fileHashingActorClassOption: Option[Class[_ <: StandardFileHashingActor]] = Option(classOf[PipelinesApiBackendFileHashingActor])
 
-  override def dockerHashCredentials(workflowDescriptor: BackendWorkflowDescriptor, initializationData: Option[BackendInitializationData]) = {
+  override def dockerHashCredentials(workflowDescriptor: BackendWorkflowDescriptor, initializationData: Option[BackendInitializationData]): List[Any] = {
     Try(BackendInitializationData.as[PipelinesApiBackendInitializationData](initializationData)) match {
       case Success(papiData) =>
         val tokenFromWorkflowOptions = workflowDescriptor.workflowOptions.get(GoogleAuthMode.DockerCredentialsTokenKey).toOption

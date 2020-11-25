@@ -1,0 +1,14 @@
+name: wdl_optional_outputs_unsupported
+testFormat: workflowfailure
+backends: [Papiv2]
+
+files {
+  workflow: wdl_optional_outputs/wdl_optional_outputs_unsupported.wdl
+}
+
+metadata {
+  workflowName: wdl_optional_outputs_unsupported
+  status: Failed
+  "calls.wdl_optional_outputs_unsupported.unsupported_pairs.executionStatus" = "Failed"
+  "calls.wdl_optional_outputs_unsupported.unsupported_structs.executionStatus" = "Failed"
+}

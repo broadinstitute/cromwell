@@ -1,12 +1,13 @@
 package cromwell.core
 
 import cromwell.util.EncryptionSpec
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 import spray.json._
 
 import scala.util.{Failure, Success}
 
-class WorkflowOptionsSpec extends Matchers with WordSpecLike {
+class WorkflowOptionsSpec extends Matchers with AnyWordSpecLike {
   val workflowOptionsJson =
     """{
       |  "key": "value",

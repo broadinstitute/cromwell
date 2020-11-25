@@ -1,10 +1,14 @@
 package womtool.graph
 
 import java.util.concurrent.atomic.AtomicInteger
-import org.scalatest.{FlatSpec, Matchers}
+
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wom.graph.Graph
 
-trait WomDotGraphTest extends FlatSpec with Matchers {
+
+trait WomDotGraphTest extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   def cases: List[WomDotGraphTestCase]
 

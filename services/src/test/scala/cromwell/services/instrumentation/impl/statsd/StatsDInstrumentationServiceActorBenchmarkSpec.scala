@@ -6,13 +6,16 @@ import com.typesafe.config.ConfigFactory
 import cromwell.core.TestKitSuite
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.instrumentation._
+import cromwell.services.instrumentation.impl.statsd.StatsDInstrumentationServiceActor._
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.Eventually
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
-import StatsDInstrumentationServiceActor._
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
+
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
-class StatsDInstrumentationServiceActorBenchmarkSpec extends TestKitSuite with FlatSpecLike with BeforeAndAfterAll with Matchers with Eventually {
+class StatsDInstrumentationServiceActorBenchmarkSpec extends TestKitSuite with AnyFlatSpecLike with BeforeAndAfterAll with Matchers with Eventually {
   behavior of "StatsDInstrumentationServiceActor"
 
   val config = ConfigFactory.parseString(

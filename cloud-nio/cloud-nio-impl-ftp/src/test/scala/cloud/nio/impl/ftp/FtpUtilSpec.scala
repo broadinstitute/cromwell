@@ -4,13 +4,15 @@ import java.io.IOException
 
 import cats.effect.IO
 import cloud.nio.impl.ftp.FtpUtil._
+import common.assertion.CromwellTimeoutSpec
 import org.apache.commons.net.ftp.FTPClient
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 
 import scala.concurrent.duration._
 
-class FtpUtilSpec extends FlatSpec with Matchers with Mockito {
+class FtpUtilSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Mockito {
 
   behavior of "autoRelease"
 

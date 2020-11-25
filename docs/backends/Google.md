@@ -391,6 +391,19 @@ Cromwell will get labels from the project's metadata and look for a label whose 
 Then it will use the value of the label, which is `vpc-network` here, as the name of private network and run the jobs on this network.
 If the network key is not present in the project's metadata Cromwell will fall back to running jobs on the default network.
 
+
+### Custom Google Cloud SDK container
+Cromwell can't use Google's container registry if VPC Perimeter is used in project.
+Own repository can be used by adding `cloud-sdk-image-url` reference to used container:
+
+```
+google {
+  ...
+  cloud-sdk-image-url = "eu.gcr.io/your-project-id/cloudsdktool/cloud-sdk:275.0.0-slim"
+  cloud-sdk-image-size-gb = 1
+}
+```
+
 ### Parallel Composite Uploads
 
 Cromwell can be configured to use GCS parallel composite uploads which can greatly improve delocalization performance. This feature
@@ -473,3 +486,101 @@ from `cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFacto
 `https://lifesciences.googleapis.com/`.
 3. Also you should add a new mandatory parameter `genomics.location` to your backend configuration. Currently Google Cloud 
 Life Sciences API is available only in `us-central1` and `europe-west2` locations.
+
+### Alpha support for WDL optional outputs on PAPI v2
+
+Cromwell 53 adds alpha-quality support for WDL optional outputs on PAPI v2 backends. Constructs such as: 
+
+```
+  struct MyStruct {
+    String name
+    File? file
+  }
+  .
+  .
+  .
+  output {
+    File? file_does_not_exist = "does_not_exist"
+    Pair[String, File?] pair_file_does_not_exist = ("this", "does_not_exist")
+    Map[String, File?] map_file_does_not_exist = { "does_not_exist": "does_not_exist" }
+    Array[File?] array_file_does_not_exist = ["does_not_exist"]
+    MyStruct struct_file_does_not_exist = object { name: "this", file: "does_not_exist" } 
+  }
+```
+
+will not produce errors if the file `does_not_exist` does not exist. This support for optional files is considered alpha
+quality for two reasons:
+
+1. As seen in the example above, support for optional files extends to complex WDL types but there is a restriction that
+all `File` components of non-primitive types must be optional. e.g. Cromwell would not allow the assignment of a 
+missing file to the right side of a pair of type `Pair[File, File?]` since the left member of the pair is a non-optional
+file. This restriction exists solely due to technical limitations in how type evaluation works in Cromwell today and
+may be removed in a future Cromwell release.
+
+2. Call caching does not work for calls with empty optional outputs. Cromwell currently does not recognize
+that it is okay for optional output files to be missing, will incorrectly claim that any cache hits with missing 
+optional output files are unusable, and will proceed to search for more cache hits which if found will also be unusable,
+before eventually giving up and running the job. This behavior may be corrected in a future Cromwell release.
+
+### Reference Disk Support
+
+Cromwell 55 and later support mounting reference disks from prebuilt GCP disk images as an alternative to localizing large
+input reference files on PAPI v2. Within the `config` stanza of a PAPI v2 backend the `reference-disk-localization-manifest-files`
+key specifies an array of manifest JSONs in GCS:  
+
+
+```hocon
+backend {
+  ...
+  providers {
+    ...
+    PapiV2 {
+      actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
+      config {
+        ...
+        reference-disk-localization-manifest-files = ["gs://path/to/a/reference/disk/manifest.json"]
+        ...
+      }
+    }
+  }
+}
+```
+
+Manifest JSONs have a format like:
+
+```json
+{
+  "imageIdentifier" : "projects/my_project/global/images/my-references-disk-image",
+  "diskSizeGb" : 30,
+  "files" : [ {
+    "path" : "my-references/enormous_reference.bam",
+    "crc32c" : 407769621
+  }, {
+    "path" : "my-references/enormous_reference.bam.bai",
+    "crc32c" : 1902048083
+  },
+...
+  ]
+}
+```
+
+Reference disk usage is an opt-in feature, so workflow submissions must specify this workflow option:
+
+```json
+{
+  ...
+  "use_reference_disks": true,
+  ...
+}
+```
+
+Using the first file in the manifest above as an example, assume a PAPI v2 backend is configured to use this manifest and the appropriate
+`use_reference_disks` workflow option is set to `true` in the workflow submission. If a call in that workflow 
+specifies the input `gs://my-references/enormous_reference.bam` and because that input matches the path of a file on the
+reference image without the leading `gs://`, Cromwell would
+arrange for a reference disk based on this image to be mounted and for the call's input to refer to the 
+copy of the file on the reference disk, bypassing localization of the input.     
+
+The Cromwell git repository includes a Java-based tool to facilitate the creation of manifest files called
+[CromwellRefdiskManifestCreatorApp](https://github.com/broadinstitute/cromwell/tree/develop/CromwellRefdiskManifestCreator).
+Please see the help command of that tool for more details.

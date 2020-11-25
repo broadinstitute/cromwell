@@ -11,13 +11,15 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescript
 import cromwell.core.TestKitSuite
 import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.logging.LoggingTest._
-import org.scalatest.{Matchers, WordSpecLike}
+import cromwell.core.path.PathBuilderFactory
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 import wom.graph.CommandCallNode
 
 import scala.concurrent.duration._
 
-class SharedFileSystemInitializationActorSpec extends TestKitSuite("SharedFileSystemInitializationActorSpec")
-  with WordSpecLike with Matchers with ImplicitSender {
+class SharedFileSystemInitializationActorSpec extends TestKitSuite
+  with AnyWordSpecLike with Matchers with ImplicitSender {
   val Timeout: FiniteDuration = 10.second.dilated
 
   val HelloWorld: String =
@@ -52,7 +54,10 @@ class SharedFileSystemInitializationActorSpec extends TestKitSuite("SharedFileSy
         val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = """runtime { unsupported: 1 }""")
         val mockFileSystems = new CromwellFileSystems(ConfigFactory.empty())
         val conf = new BackendConfigurationDescriptor(TestConfig.sampleBackendRuntimeConfig, ConfigFactory.empty()) {
-          override lazy val configuredPathBuilderFactories = mockFileSystems.factoriesFromConfig(TestConfig.sampleBackendRuntimeConfig).unsafe("Failed to instantiate backend filesystem")
+          override lazy val configuredPathBuilderFactories: Map[String, PathBuilderFactory] =
+            mockFileSystems
+              .factoriesFromConfig(TestConfig.sampleBackendRuntimeConfig)
+              .unsafe("Failed to instantiate backend filesystem")
         }
         val backend: ActorRef = getActorRef(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, conf)
         val pattern = "Key/s [unsupported] is/are not supported by backend. " +

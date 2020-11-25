@@ -982,13 +982,14 @@ cromwell::private::vault_login() {
                 docker run --rm \
                     -v "${CROMWELL_BUILD_HOME_DIRECTORY}:/root:rw" \
                     broadinstitute/dsde-toolbox:dev \
-                    vault write -field=token auth/approle/login role_id=${vault_role_id} secret_id=${vault_secret_id} < /dev/null > ~/.vault-token 
+                    vault write -field=token auth/approle/login role_id=${vault_role_id} secret_id=${vault_secret_id} < /dev/null > /workspace/.vault-token 
 
                 local vault_token
-                vault_token=$(cat ~/.vault-token)
+                vault_token=$(cat /workspace/.vault-token)
 
+                pwd
                 echo "is there a vault token? ${vault_token}"
-                ls -lah /root/.vault-token
+                ls -lah /workspace/.vault-token
 
                 # Don't fail here if vault login fails
                 # shellcheck disable=SC2015

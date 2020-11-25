@@ -970,6 +970,8 @@ cromwell::private::vault_login() {
                 || true
                 ;;
             "${CROMWELL_BUILD_PROVIDER_CLOUD_BUILD}")
+                echo "Logging into vault for Cloud Build via AppRole"
+                
                 # Use AppRole to get token (see https://www.vaultproject.io/docs/auth/approle#via-the-cli)
                 # role_id and secret_id at `vault read secret/devops/ci/approle/approle-cromwell-google-cloud-build`
                 local vault_role_id
@@ -1025,6 +1027,12 @@ cromwell::private::setup_secure_resources() {
                 cromwell::private::vault_login
                 cromwell::private::render_secure_resources
                 cromwell::private::docker_login
+                ;;
+            "${CROMWELL_BUILD_PROVIDER_CLOUD_BUILD}")
+                cromwell::private::vault_login
+                cromwell::private::render_secure_resources
+                # note sure when we need this...
+                # cromwell::private::docker_login 
                 ;;
             "${CROMWELL_BUILD_PROVIDER_JENKINS}")
                 cromwell::private::copy_all_resources

@@ -438,10 +438,10 @@ cromwell::private::create_database_variables() {
             CROMWELL_BUILD_MARIADB_LATEST_HOSTNAME="localhost"
             CROMWELL_BUILD_MARIADB_LATEST_PORT="33306"
             CROMWELL_BUILD_MARIADB_LATEST_TAG="${BUILD_MARIADB_LATEST-}"
-            CROMWELL_BUILD_MYSQL_HOSTNAME="localhost"
+            CROMWELL_BUILD_MYSQL_HOSTNAME="mysql-db"
             CROMWELL_BUILD_MYSQL_PORT="3306"
             CROMWELL_BUILD_MYSQL_DOCKER_TAG="${BUILD_MYSQL-}"
-            CROMWELL_BUILD_MYSQL_LATEST_HOSTNAME="localhost"
+            CROMWELL_BUILD_MYSQL_LATEST_HOSTNAME="mysql-db-latest"
             CROMWELL_BUILD_MYSQL_LATEST_PORT="13306"
             CROMWELL_BUILD_MYSQL_LATEST_TAG="${BUILD_MYSQL_LATEST-}"
             CROMWELL_BUILD_POSTGRESQL_HOSTNAME="localhost"
@@ -822,6 +822,9 @@ cromwell::private::start_docker() {
     echo "trying to start docker ${docker_name} from ${docker_image}"
     docker run --network cloudbuild --name="${docker_name}" --cidfile="${docker_cid_file}" --detach "$@" "${docker_image}"
     docker logs --follow "${docker_name}" 2>&1 | sed "s/^/$(tput setaf 5)${docker_name}$(tput sgr0) /" &
+
+    echo "Here are the running containers..."
+    docker ps
 
     cromwell::private::add_exit_function docker rm --force --volumes "$(cat "${docker_cid_file}")"
     cromwell::private::add_exit_function rm "${docker_cid_file}"

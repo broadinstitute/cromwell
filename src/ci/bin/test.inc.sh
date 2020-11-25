@@ -987,6 +987,9 @@ cromwell::private::vault_login() {
                 local vault_token
                 vault_token=$(cat ~/.vault-token)
 
+                echo "is there a vault token?"
+                ls -lah /root/.vault-token
+
                 # Don't fail here if vault login fails
                 # shellcheck disable=SC2015
                 docker run --rm \

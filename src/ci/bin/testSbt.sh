@@ -8,7 +8,7 @@ source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 # shellcheck source=/dev/null
 source "${BASH_SOURCE%/*}/test_unit.inc.sh" || source test_unit.inc.sh
 
-cromwell::build::setup_common_environment_no_docker
+cromwell::build::setup_common_environment
 
 cromwell::build::unit::setup_scale_factor
 

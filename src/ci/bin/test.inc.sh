@@ -1290,7 +1290,9 @@ cromwell::build::setup_common_environment() {
     cromwell::private::check_debug
     cromwell::private::create_build_variables
     cromwell::private::echo_build_variables
-    cromwell::private::create_database_variables
+    if [[ "${BUILD_TYPE}" != "sbt" ]]; then
+        cromwell::private::create_database_variables
+    fi
     cromwell::private::verify_secure_build
     cromwell::private::make_build_directories
     cromwell::private::install_git_secrets
@@ -1304,42 +1306,19 @@ cromwell::build::setup_common_environment() {
             cromwell::private::delete_boto_config
             cromwell::private::delete_sbt_boot
             cromwell::private::upgrade_pip
-            cromwell::private::pull_common_docker_images
-            cromwell::private::start_docker_databases
+            if [[ "${BUILD_TYPE}" != "sbt" ]]; then
+              cromwell::private::pull_common_docker_images
+              cromwell::private::start_docker_databases
+            fi
             ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")
             cromwell::private::delete_boto_config
             cromwell::private::delete_sbt_boot
             ;;
         *)
-            cromwell::private::pull_common_docker_images
-            ;;
-    esac
-}
-
-cromwell::build::setup_common_environment_no_docker() {
-    cromwell::private::check_debug
-    cromwell::private::create_build_variables
-    cromwell::private::echo_build_variables
-    cromwell::private::verify_secure_build
-    cromwell::private::make_build_directories
-    cromwell::private::install_git_secrets
-    cromwell::private::install_minnie_kenny
-    cromwell::private::install_wait_for_it
-    cromwell::private::setup_secure_resources
-
-    case "${CROMWELL_BUILD_PROVIDER}" in
-        "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
-            cromwell::private::stop_travis_defaults
-            cromwell::private::delete_boto_config
-            cromwell::private::delete_sbt_boot
-            cromwell::private::upgrade_pip
-            ;;
-        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
-            cromwell::private::delete_boto_config
-            cromwell::private::delete_sbt_boot
-            ;;
-        *)
+            if [[ "${BUILD_TYPE}" != "sbt" ]]; then
+              cromwell::private::pull_common_docker_images
+            fi
             ;;
     esac
 }

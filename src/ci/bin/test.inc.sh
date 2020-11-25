@@ -971,7 +971,7 @@ cromwell::private::vault_login() {
                 ;;
             "${CROMWELL_BUILD_PROVIDER_CLOUD_BUILD}")
                 echo "Logging into vault for Cloud Build via AppRole"
-                
+
                 # Use AppRole to get token (see https://www.vaultproject.io/docs/auth/approle#via-the-cli)
                 # role_id and secret_id at `vault read secret/devops/ci/approle/approle-cromwell-google-cloud-build`
                 local vault_role_id
@@ -979,8 +979,13 @@ cromwell::private::vault_login() {
                 local vault_secret_id
                 vault_secret_id=$(cat .vault_secret_id)
 
+                docker run --rm \
+                    -v "${CROMWELL_BUILD_HOME_DIRECTORY}:/root:rw" \
+                    broadinstitute/dsde-toolbox:dev \
+                    vault write -field=token auth/approle/login role_id=${vault_role_id} secret_id=${vault_secret_id} < /dev/null > ~/.vault-token 
+
                 local vault_token
-                vault_token=$(vault write -field=token auth/approle/login role_id=${vault_role_id} secret_id=${vault_secret_id})
+                vault_token=$(cat ~/.vault-token)
 
                 # Don't fail here if vault login fails
                 # shellcheck disable=SC2015

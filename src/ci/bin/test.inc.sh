@@ -431,6 +431,26 @@ cromwell::private::create_database_variables() {
             CROMWELL_BUILD_POSTGRESQL_LATEST_PORT="15432"
             CROMWELL_BUILD_POSTGRESQL_LATEST_TAG="${BUILD_POSTGRESQL_LATEST-}"
             ;;
+        "${CROMWELL_BUILD_PROVIDER_CLOUD_BUILD}")
+            CROMWELL_BUILD_MARIADB_HOSTNAME="localhost"
+            CROMWELL_BUILD_MARIADB_PORT="23306"
+            CROMWELL_BUILD_MARIADB_DOCKER_TAG="${BUILD_MARIADB-}"
+            CROMWELL_BUILD_MARIADB_LATEST_HOSTNAME="localhost"
+            CROMWELL_BUILD_MARIADB_LATEST_PORT="33306"
+            CROMWELL_BUILD_MARIADB_LATEST_TAG="${BUILD_MARIADB_LATEST-}"
+            CROMWELL_BUILD_MYSQL_HOSTNAME="localhost"
+            CROMWELL_BUILD_MYSQL_PORT="3306"
+            CROMWELL_BUILD_MYSQL_DOCKER_TAG="${BUILD_MYSQL-}"
+            CROMWELL_BUILD_MYSQL_LATEST_HOSTNAME="localhost"
+            CROMWELL_BUILD_MYSQL_LATEST_PORT="13306"
+            CROMWELL_BUILD_MYSQL_LATEST_TAG="${BUILD_MYSQL_LATEST-}"
+            CROMWELL_BUILD_POSTGRESQL_HOSTNAME="localhost"
+            CROMWELL_BUILD_POSTGRESQL_PORT="5432"
+            CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG="${BUILD_POSTGRESQL-}"
+            CROMWELL_BUILD_POSTGRESQL_LATEST_HOSTNAME="localhost"
+            CROMWELL_BUILD_POSTGRESQL_LATEST_PORT="15432"
+            CROMWELL_BUILD_POSTGRESQL_LATEST_TAG="${BUILD_POSTGRESQL_LATEST-}"
+            ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")
             # NOTE: Jenkins uses src/ci/docker-compose/docker-compose.yml.
             # We don't define a docker tag because the docker-compose has already spun up the database containers by the
@@ -799,6 +819,7 @@ cromwell::private::start_docker() {
     docker_name="$(echo "${docker_image}" | tr "/" "_" | tr ":" "-")_$$"
     docker_cid_file="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${docker_name}.cid"
 
+    echo "trying to start docker ${docker_name} from ${docker_image}"
     docker run --network cloudbuild --name="${docker_name}" --cidfile="${docker_cid_file}" --detach "$@" "${docker_image}"
     docker logs --follow "${docker_name}" 2>&1 | sed "s/^/$(tput setaf 5)${docker_name}$(tput sgr0) /" &
 
@@ -987,9 +1008,9 @@ cromwell::private::vault_login() {
                 local vault_token
                 vault_token=$(cat /workspace/.vault-token)
 
-                pwd
-                echo "is there a vault token? ${vault_token}"
-                ls -lah /workspace/.vault-token
+                #pwd
+                #echo "is there a vault token?"
+                #ls -lah /workspace/.vault-token
 
                 # Don't fail here if vault login fails
                 # shellcheck disable=SC2015

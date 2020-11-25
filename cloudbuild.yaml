@@ -18,9 +18,9 @@ steps:
     name: us.gcr.io/broad-dsde-cromwell-dev/cromwell-cloudbuild-base:asroot
     entrypoint: bash
     args:
-      - src/ci/bin/testCentaurTes.sh
+      - src/ci/bin/testCentaurLocal.sh
     env:
-    - 'BUILD_TYPE=centaurTes'
+    - 'BUILD_TYPE=centaurLocal'
     - 'BUILD_MYSQL=5.7'
     - 'CLOUD_BUILD=true'
     - 'crmdbg=y'

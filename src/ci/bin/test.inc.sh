@@ -1328,6 +1328,7 @@ cromwell::build::setup_centaur_environment() {
     cromwell::private::start_build_heartbeat
     cromwell::private::start_cromwell_log_tail
     cromwell::private::start_centaur_log_tail
+    #
     if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
         cromwell::private::add_exit_function cromwell::private::cat_centaur_log
     fi

@@ -23,4 +23,6 @@ RUN apt-get -yq update \
 
 RUN wget https://github.com/awslabs/git-secrets/archive/1.3.0.zip && \
     unzip 1.3.0.zip && cd git-secrets-1.3.0 && make install && cd .. && rm -rf git-secrets-1.3.0
-    
+
+RUN adduser otheruser
+USER otheruser

@@ -162,8 +162,7 @@ class CromwellCommandLineSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
     validation.failed.get.getMessage should include("Workflow options does not exist")
   }
 
-  // !! FIXME !! Cloud Build running in Docker seems to always have access to everything, removing perms does not work
-  ignore should "fail if inputs path is not readable" in {
+  it should "fail if inputs path is not readable" in {
     val threeStep = WdlAndInputs(ThreeStep)
     val parsedArgs = parser.parse(Array("run", threeStep.wdl, "--inputs", threeStep.inputs), CommandLineArguments()).get
     threeStep.inputsFile setPermissions Set.empty
@@ -172,8 +171,7 @@ class CromwellCommandLineSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
     ccl.failed.get.getMessage should include("Workflow inputs is not readable")
   }
 
-  // !! FIXME !! Cloud Build running in Docker seems to always have access to everything, removing perms does not work
-  ignore should "fail if metadata output path is not writeable" in {
+  it should "fail if metadata output path is not writeable" in {
     val threeStep = WdlAndInputs(ThreeStep)
     val parsedArgs = parser.parse(Array("run", threeStep.wdl, "--inputs", threeStep.inputs, "--metadata-output", threeStep.metadata), CommandLineArguments()).get
     threeStep.metadataFile write "foo"

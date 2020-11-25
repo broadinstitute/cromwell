@@ -1364,6 +1364,10 @@ cromwell::build::setup_common_environment() {
             cromwell::private::pull_common_docker_images
             cromwell::private::start_docker_databases
             ;;
+        "${CROMWELL_BUILD_PROVIDER_CLOUD_BUILD}")
+            cromwell::private::pull_common_docker_images
+            cromwell::private::start_docker_databases
+            ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")
             cromwell::private::delete_boto_config
             cromwell::private::delete_sbt_boot

@@ -1,10 +1,12 @@
 package cromwell.services.database
 
+import better.files._
 import com.dimafeng.testcontainers.Container
 import common.assertion.CromwellTimeoutSpec
+import common.collections.EnhancedCollections._
 import cromwell.core.Tags._
 import cromwell.database.slick.SlickDatabase
-import cromwell.services.database.LiquibaseComparisonSpec.{ColumnType, _}
+import cromwell.services.database.LiquibaseComparisonSpec._
 import cromwell.services.database.LiquibaseOrdering._
 import liquibase.snapshot.DatabaseSnapshot
 import liquibase.statement.DatabaseFunction
@@ -25,17 +27,42 @@ import scala.reflect._
   */
 class LiquibaseComparisonSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures {
 
-  implicit val executionContext = ExecutionContext.global
+  implicit val executionContext: ExecutionContext = ExecutionContext.global
 
-  implicit val defaultPatience = PatienceConfig(timeout = scaled(5.seconds), interval = scaled(100.millis))
+  implicit val defaultPatience: PatienceConfig =
+    PatienceConfig(timeout = scaled(5.seconds), interval = scaled(100.millis))
 
   CromwellDatabaseType.All foreach { databaseType =>
+
+    /*
+    Should only be required until https://github.com/liquibase/liquibase/issues/1477 is fixed!
+     */
+    lazy val hsqldbUniqueConstraints = {
+      var uniqueConstraints: Seq[UniqueConstraint] = Nil
+      for {
+        database <- DatabaseTestKit.inMemoryDatabase(databaseType, SlickSchemaManager).autoClosed
+      } {
+        val dbio = hsqldbUniqueConstraintsDbio(database)
+        val future = database.database.run(dbio)
+        uniqueConstraints = future.futureValue
+      }
+      uniqueConstraints
+    }
+
     lazy val expectedSnapshot = DatabaseTestKit.inMemorySnapshot(databaseType, SlickSchemaManager)
-    lazy val expectedColumns = get[Column](expectedSnapshot)
-    lazy val expectedPrimaryKeys = get[PrimaryKey](expectedSnapshot)
-    lazy val expectedForeignKeys = get[ForeignKey](expectedSnapshot)
-    lazy val expectedUniqueConstraints = get[UniqueConstraint](expectedSnapshot)
+    lazy val expectedColumns = get[Column](expectedSnapshot).sorted
+    lazy val expectedPrimaryKeys = get[PrimaryKey](expectedSnapshot).sorted
+    lazy val expectedForeignKeys = get[ForeignKey](expectedSnapshot).sorted
+    //lazy val expectedUniqueConstraints = get[UniqueConstraint](expectedSnapshot).sorted
+    lazy val expectedUniqueConstraints = hsqldbUniqueConstraints
     lazy val expectedIndexes = get[Index](expectedSnapshot) filterNot DatabaseTestKit.isGenerated
+
+    // Remove this whole block when https://github.com/liquibase/liquibase/issues/1477 is fixed!
+    // Also search the code for "https://github.com/liquibase/liquibase/issues/1477" and you'll find more to clean up.
+    "LiquibaseComparisonSpec waiting for liquibase/liquibase/1477" should
+      s"retrieve only up to four unique constraints for ${databaseType.name}" in {
+      get[UniqueConstraint](expectedSnapshot).length should be <= 4
+    }
 
     DatabaseSystem.All foreach { databaseSystem =>
 
@@ -47,12 +74,38 @@ class LiquibaseComparisonSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
 
       lazy val connectionMetadata = DatabaseTestKit.connectionMetadata(liquibasedDatabase)
 
-      lazy val actualSnapshot = DatabaseTestKit.liquibaseSnapshot(liquibasedDatabase)
+      // lazy val actualSnapshot = DatabaseTestKit.liquibaseSnapshot(liquibasedDatabase)
+      lazy val actualSnapshot = DatabaseTestKit.liquibaseSnapshot(liquibasedDatabase, hsqldbUniqueConstraints)
       lazy val actualColumns = get[Column](actualSnapshot)
       lazy val actualPrimaryKeys = get[PrimaryKey](actualSnapshot)
       lazy val actualForeignKeys = get[ForeignKey](actualSnapshot)
       lazy val actualUniqueConstraints = get[UniqueConstraint](actualSnapshot)
       lazy val actualIndexes = get[Index](actualSnapshot)
+
+      /* SQLite's doesn't return unique constraints via JDBC metadata, so we will do it here */
+      lazy val databaseUniqueConstraints = {
+        val dbio = uniqueConstraintDbio(databaseSystem, liquibasedDatabase)
+        val future = liquibasedDatabase.database.run(dbio)
+        future.futureValue
+      }
+
+      /*
+      SQLite can't return FK names when quoting objects for PostgreSQL. The regex used to generate JDBC metadata does
+      not match because of quotes:
+      https://github.com/xerial/sqlite-jdbc/blob/3.32.3.2/src/main/java/org/sqlite/jdbc3/JDBC3DatabaseMetaData.java#L2070
+
+      When that regex fails, SQLite gives up and says the FK name is "".
+
+      Liquibase then builds a Map of FKs... with the key to the map being the name. Thus only one FK ends up in the map
+      since all SQLite FKs have the same empty-string name.
+
+      Instead call a custom FK generator.
+       */
+      lazy val databaseForeignKeys = {
+        val dbio = foreignKeyDbio(databaseSystem, liquibasedDatabase)
+        val future = liquibasedDatabase.database.run(dbio)
+        future.futureValue
+      }
 
       lazy val columnMapping = getColumnMapping(databaseSystem)
 
@@ -80,7 +133,8 @@ class LiquibaseComparisonSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
               // Auto increment columns may have different types, such as SERIAL/BIGSERIAL
               // https://www.postgresql.org/docs/11/datatype-numeric.html#DATATYPE-SERIAL
               val actualColumnDefault = ColumnDefault(actualColumnType, actualColumn.getDefaultValue)
-              val autoIncrementDefault = getAutoIncrementDefault(databaseSystem, columnMapping, expectedColumn)
+              val autoIncrementDefault =
+                getAutoIncrementDefault(expectedColumn, columnMapping, databaseSystem, connectionMetadata)
               actualColumnDefault should be(autoIncrementDefault)
             } else {
 
@@ -157,11 +211,19 @@ class LiquibaseComparisonSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
         val description = s"foreign key ${expectedForeignKey.getName}"
 
         it should s"match the Slick schema for $description" taggedAs DbmsTest in {
-          val actualForeignKeyOption = actualForeignKeys find {
-            _.getName == expectedForeignKey.getName
-          }
+
+          val actualForeignKeyOption =
+            (databaseForeignKeys match {
+              case Seq() => actualForeignKeys
+              case nonEmpty => nonEmpty
+            }).find({
+              _.getName == expectedForeignKey.getName
+            })
+
           val actualForeignKey = actualForeignKeyOption getOrElse fail(s"Did not find $description")
 
+          actualForeignKey.getPrimaryKeyTable.getName should be(expectedForeignKey.getPrimaryKeyTable.getName)
+          actualForeignKey.getForeignKeyTable.getName should be(expectedForeignKey.getForeignKeyTable.getName)
           actualForeignKey.getPrimaryKeyColumns.asScala.map(ColumnDescription.from) should
             contain theSameElementsAs expectedForeignKey.getPrimaryKeyColumns.asScala.map(ColumnDescription.from)
           actualForeignKey.getForeignKeyColumns.asScala.map(ColumnDescription.from) should
@@ -188,12 +250,17 @@ class LiquibaseComparisonSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
         val description = s"unique constraint ${expectedUniqueConstraint.getName}"
 
         it should s"match the Slick schema for $description" taggedAs DbmsTest in {
-          val actualUniqueConstraintOption = actualUniqueConstraints find {
-            _.getName == expectedUniqueConstraint.getName
-          }
+          val actualUniqueConstraintOption =
+            (databaseUniqueConstraints match {
+              case Seq() => actualUniqueConstraints
+              case nonEmpty => nonEmpty
+            }).find({
+              _.getName == expectedUniqueConstraint.getName
+            })
           val actualUniqueConstraint = actualUniqueConstraintOption getOrElse
             fail(s"Did not find $description")
 
+          actualUniqueConstraint.getRelation.getName should be(expectedUniqueConstraint.getRelation.getName)
           actualUniqueConstraint.getColumns.asScala.map(ColumnDescription.from) should
             contain theSameElementsAs expectedUniqueConstraint.getColumns.asScala.map(ColumnDescription.from)
         }
@@ -228,11 +295,7 @@ class LiquibaseComparisonSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
 object LiquibaseComparisonSpec {
   private def get[T <: DatabaseObject : ClassTag : Ordering](databaseSnapshot: DatabaseSnapshot): Seq[T] = {
     val databaseObjectClass = classTag[T].runtimeClass.asInstanceOf[Class[T]]
-    try {
-      databaseSnapshot.get(databaseObjectClass).asScala.toSeq.sorted
-    } catch {
-      case _: NullPointerException => Array.empty[T]
-    }
+    databaseSnapshot.get(databaseObjectClass).asScala.toSeq
   }
 
   private val DefaultNullBoolean = Boolean.box(false)
@@ -280,8 +343,8 @@ object LiquibaseComparisonSpec {
 
   case class ColumnMapping
   (
-    typeMapping: Map[ColumnType, ColumnType] = Map.empty,
-    defaultMapping: Map[ColumnDefault, ColumnDefault] = Map.empty,
+    typeMapping: PartialFunction[ColumnType, ColumnType] = PartialFunction.empty,
+    defaultMapping: Map[ColumnDefault, AnyRef] = Map.empty,
   )
 
   /** Generate the expected PostgreSQL sequence name for a column. */
@@ -319,29 +382,44 @@ object LiquibaseComparisonSpec {
   private val HsqldbTypeInteger = ColumnType("INTEGER", Option(32))
   private val HsqldbTypeTimestamp = ColumnType("TIMESTAMP")
 
+  // Defaults as they are represented in HSQLDB that will have different representations in other DBMS.
+  private val HsqldbDefaultBooleanTrue = ColumnDefault(HsqldbTypeBoolean, Boolean.box(true))
+
   // Nothing to map as the original is also HSQLDB
   private val HsqldbColumnMapping = ColumnMapping()
 
   // Note: BIT vs. TINYINT may be yet another tabs vs. spaces
   // https://stackoverflow.com/questions/11167793/boolean-or-tinyint-confusion/17298805
   private val MysqldbColumnMapping =
-  ColumnMapping(
-    typeMapping = Map(
-      HsqldbTypeBigInt -> ColumnType("BIGINT", Option(19)),
-      HsqldbTypeBlob -> ColumnType("LONGBLOB", Option(2147483647)),
-      HsqldbTypeBoolean -> ColumnType("TINYINT", Option(3)),
-      HsqldbTypeClob -> ColumnType("LONGTEXT", Option(2147483647)),
-      HsqldbTypeInteger -> ColumnType("INT", Option(10)),
-      HsqldbTypeTimestamp -> ColumnType("DATETIME"),
-    ),
-    defaultMapping = Map(
-      ColumnDefault(HsqldbTypeBoolean, Boolean.box(true)) ->
-        ColumnDefault(ColumnType("TINYINT", Option(3)), Int.box(1)),
-    ),
-  )
+    ColumnMapping(
+      typeMapping = Map(
+        HsqldbTypeBigInt -> ColumnType("BIGINT", Option(19)),
+        HsqldbTypeBlob -> ColumnType("LONGBLOB", Option(2147483647)),
+        HsqldbTypeBoolean -> ColumnType("TINYINT", Option(3)),
+        HsqldbTypeClob -> ColumnType("LONGTEXT", Option(2147483647)),
+        HsqldbTypeInteger -> ColumnType("INT", Option(10)),
+        HsqldbTypeTimestamp -> ColumnType("DATETIME"),
+      ),
+      defaultMapping = Map(
+        HsqldbDefaultBooleanTrue -> Int.box(1)
+      ),
+    )
 
-  // MariaDB should behave exactly the same as MySQL
-  private val MariadbColumnMapping = MysqldbColumnMapping
+  // MariaDB should behave similar to MySQL except with only large objects having sizes
+  private val MariadbColumnMapping =
+    ColumnMapping(
+      typeMapping = Map(
+        HsqldbTypeBigInt -> ColumnType("BIGINT"),
+        HsqldbTypeBlob -> ColumnType("LONGBLOB", Option(2147483647)),
+        HsqldbTypeBoolean -> ColumnType("TINYINT"),
+        HsqldbTypeClob -> ColumnType("LONGTEXT", Option(2147483647)),
+        HsqldbTypeInteger -> ColumnType("INT"),
+        HsqldbTypeTimestamp -> ColumnType("DATETIME"),
+      ),
+      defaultMapping = Map(
+        HsqldbDefaultBooleanTrue -> Int.box(1),
+      ),
+    )
 
   private val PostgresqlColumnMapping =
     ColumnMapping(
@@ -354,28 +432,32 @@ object LiquibaseComparisonSpec {
       ),
     )
 
-  private val SQLiteTypeText = ColumnType("TEXT", Option(2000000000))
-  private val SQLiteTypeInteger = ColumnType("INTEGER", Option(2000000000))
+  // "2000000000" is hardcoded here:
+  // https://github.com/xerial/sqlite-jdbc/blob/3.32.3.2/src/main/java/org/sqlite/jdbc3/JDBC3DatabaseMetaData.java#L1189
+  private val SQLiteColumnSize = Option(2000000000)
+  private val SQLiteTypeBlob = ColumnType("BLOB", SQLiteColumnSize)
+  private val SQLiteTypeBoolean = ColumnType("BOOLEAN", SQLiteColumnSize)
+  private val SQLiteTypeInteger = ColumnType("INTEGER", SQLiteColumnSize)
+  private val SQLiteTypeText = ColumnType("TEXT", SQLiteColumnSize)
+  private val SQLiteTypeVarcharConverter: PartialFunction[ColumnType, ColumnType] = {
+    // Validate we provided the correct length, even if SQLite knows about the length request but ignores it.
+    // https://www.sqlite.org/datatype3.html#affinity_name_examples
+    case ColumnType("VARCHAR", Some(size)) => ColumnType(s"VARCHAR($size)", SQLiteColumnSize)
+  }
   private val SQLiteColumnMapping =
     ColumnMapping(
-      typeMapping = Map(
-        HsqldbTypeBigInt -> SQLiteTypeInteger,
-        HsqldbTypeBlob -> ColumnType("BLOB", Option(2000000000)),
-        HsqldbTypeBoolean -> ColumnType("BOOLEAN", Option(2000000000)),
-        HsqldbTypeClob -> SQLiteTypeText,
-        HsqldbTypeInteger -> SQLiteTypeInteger,
-        HsqldbTypeTimestamp -> SQLiteTypeText,
-        ColumnType("VARCHAR", Option(10))-> SQLiteTypeText,
-        ColumnType("VARCHAR", Option(20))-> SQLiteTypeText,
-        ColumnType("VARCHAR", Option(30))-> SQLiteTypeText,
-        ColumnType("VARCHAR", Option(50))-> SQLiteTypeText,
-        ColumnType("VARCHAR", Option(100))-> SQLiteTypeText,
-        ColumnType("VARCHAR", Option(255)) -> SQLiteTypeText,
-        ColumnType("VARCHAR", Option(2000)) -> SQLiteTypeText,
-      ),
+      typeMapping =
+        SQLiteTypeVarcharConverter orElse
+          Map(
+            HsqldbTypeBigInt -> SQLiteTypeInteger,
+            HsqldbTypeBlob -> SQLiteTypeBlob,
+            HsqldbTypeBoolean -> SQLiteTypeBoolean,
+            HsqldbTypeClob -> SQLiteTypeText,
+            HsqldbTypeInteger -> SQLiteTypeInteger,
+            HsqldbTypeTimestamp -> SQLiteTypeText,
+          ),
       defaultMapping = Map(
-        ColumnDefault(HsqldbTypeBoolean, Boolean.box(true)) ->
-          ColumnDefault(ColumnType("BOOLEAN", Option(2000000000)), Int.box(1)),
+        HsqldbDefaultBooleanTrue -> new DatabaseFunction("1"),
       ),
     )
 
@@ -397,24 +479,26 @@ object LiquibaseComparisonSpec {
     */
   private def getColumnType(column: Column, columnMapping: ColumnMapping): ColumnType = {
     val columnType = ColumnType.from(column)
-    columnMapping.typeMapping.getOrElse(columnType, columnType)
+    columnMapping.typeMapping.applyOrElse[ColumnType, ColumnType](columnType, _ => columnType)
   }
 
   /**
     * Returns the default for the column, either from ColumnMapping or the column itself.
     */
   private def getColumnDefault(column: Column, columnMapping: ColumnMapping): AnyRef = {
-    columnMapping.defaultMapping get ColumnDefault.from(column) map (_.defaultValue) getOrElse column.getDefaultValue
+    columnMapping.defaultMapping.getOrElse(ColumnDefault.from(column), column.getDefaultValue)
   }
 
   /**
     * Return the default for the auto increment column.
     */
-  private def getAutoIncrementDefault(databaseSystem: DatabaseSystem,
+  private def getAutoIncrementDefault(column: Column,
                                       columnMapping: ColumnMapping,
-                                      column: Column): ColumnDefault = {
+                                      databaseSystem: DatabaseSystem,
+                                      connectionMetadata: ConnectionMetadata,
+                                     ): ColumnDefault = {
     databaseSystem.platform match {
-      case PostgresqlDatabasePlatform =>
+      case PostgresqlDatabasePlatform if connectionMetadata.databaseMajorVersion <= 9 =>
         val columnType = column.getType.getTypeName match {
           case "BIGINT" => ColumnType("BIGSERIAL", None)
           case "INTEGER" => ColumnType("SERIAL", None)
@@ -451,6 +535,44 @@ object LiquibaseComparisonSpec {
     }
   }
 
+  /**
+    * Directly retrieve the list of UniqueConstraints from HSQLDB.
+    *
+    * This entire functions should be deleted after https://github.com/liquibase/liquibase/issues/1477 is fixed!
+    */
+  private def hsqldbUniqueConstraintsDbio(database: SlickDatabase)
+                                         (implicit executionContext: ExecutionContext)
+  : database.dataAccess.driver.api.DBIO[Seq[UniqueConstraint]] = {
+    case class UniqueConstraintRow(constraint: String, table: String, column: String)
+    val toUniqueConstraintRow = GetResult(r => UniqueConstraintRow(r.<<, r.<<, r.<<))
+    val schema = new Schema("PUBLIC", "PUBLIC")
+
+    def toUniqueConstraints(rows: Seq[UniqueConstraintRow]): Seq[UniqueConstraint] = {
+      rows.groupBy(row => (row.constraint, row.table)).safeMapValues(_.map(_.column)).map {
+        case ((constraint, table), columns) =>
+          new UniqueConstraint()
+            .setName(constraint)
+            .setRelation(new Table().setName(table).setSchema(schema))
+            .setColumns(columns.map(column => new Column().setName(column)).asJava)
+      }.toSeq
+    }
+
+    import database.dataAccess.driver.api._
+    //noinspection SqlDialectInspection
+    sql"""select const.CONSTRAINT_NAME,
+                 col.TABLE_NAME,
+                 col.COLUMN_NAME
+          from INFORMATION_SCHEMA.TABLE_CONSTRAINTS const
+                   join INFORMATION_SCHEMA.KEY_COLUMN_USAGE col
+                        on const.CONSTRAINT_SCHEMA = col.CONSTRAINT_SCHEMA
+                            and const.TABLE_NAME = col.TABLE_NAME
+                            and const.CONSTRAINT_NAME = col.CONSTRAINT_NAME
+          where const.CONSTRAINT_SCHEMA = 'PUBLIC'
+            and const.CONSTRAINT_TYPE = 'UNIQUE'
+          order by col.ORDINAL_POSITION
+       """.as[UniqueConstraintRow](toUniqueConstraintRow).map(toUniqueConstraints)
+  }
+
   private def columnTypeDbio(column: Column,
                              databaseSystem: DatabaseSystem,
                              database: SlickDatabase): database.dataAccess.driver.api.DBIO[String] = {
@@ -471,8 +593,8 @@ object LiquibaseComparisonSpec {
   /**
     * Returns an optional extra check to ensure that sequences have the same types as their auto increment columns.
     *
-    * This is because PostgreSQL requires two statements to modify SERIAL columns to BIGSERIAL, one to widen the column,
-    * and another to widen the sequence.
+    * This is because PostgreSQL <= 9 requires two statements to modify SERIAL columns to BIGSERIAL, one to widen the
+    * column, and another to widen the sequence.
     *
     * https://stackoverflow.com/questions/52195303/postgresql-primary-key-id-datatype-from-serial-to-bigserial#answer-52195920
     * https://www.postgresql.org/docs/11/datatype-numeric.html#DATATYPE-SERIAL
@@ -485,8 +607,6 @@ object LiquibaseComparisonSpec {
       case PostgresqlDatabasePlatform if column.isAutoIncrement && connectionMetadata.databaseMajorVersion <= 9 =>
         // "this is currently always bigint" --> https://www.postgresql.org/docs/9.6/infoschema-sequences.html
         Option("bigint")
-      case PostgresqlDatabasePlatform if column.isAutoIncrement =>
-        Option(column.getType.getTypeName.toLowerCase)
       case _ => None
     }
   }
@@ -511,6 +631,139 @@ object LiquibaseComparisonSpec {
     new UnsupportedOperationException(
       s"${databaseSystem.name} ${column.getRelation.getName}.${column.getName}: ${column.getType.getTypeName}"
     )
+  }
+
+  private val SQLiteUniqueConstraintRegex =
+    """"(UC_[A-Z_]+)" UNIQUE \(([^)]+)\)[,)]""".r
+
+  private val SQLiteForeignKeyRegex =
+    """"(FK_[A-Z_]+)" FOREIGN KEY \("([A-Z_]+)"\) REFERENCES "([A-Z_]+)"\("([A-Z_]+)"\)(| ON DELETE CASCADE)[,)]""".r
+
+  /**
+    * Converts the SQL to create a SQLite table into a constraint.
+    *
+    * @param parseConstraint A method that's called repeatedly for each "CONSTRAINT" found in the SQL.
+    * @param createTableSql The SQL to create a table.
+    * @tparam T Type to convert the SQL to.
+    * @return A sequence of converted types that were found.
+    */
+  private def convertSqliteTableSql[T](parseConstraint: (String, String) => Option[T])
+                                      (createTableSql: String): Seq[T] = {
+    val splits = createTableSql.split(" CONSTRAINT ")
+    val tableName = splits.head.split(" ")(2).replaceAll("\"", "")
+    splits.tail.flatMap(parseConstraint(tableName, _))
+  }
+
+  /**
+    * Parses a "CONSTRAINT" section of the SQL used to create a SQLite table and optionally returns a UniqueConstraint.
+    *
+    * While unique indexes may be retrieved using SQLite pragmas, this is the only known way to retrieve unique
+    * constraints from SQLite.
+    *
+    * https://stackoverflow.com/questions/9636053/is-there-a-way-to-get-the-constraints-of-a-table-in-sqlite#answer-12142499
+    *
+    * @param tableName The name of the table.
+    * @param constraintSql a "CONSTRAINT" section of the SQL used to create a SQLite table.
+    * @return An optional UniqueConstraint if found in the string.
+    */
+  private def toSqliteUC(tableName: String, constraintSql: String): Option[UniqueConstraint] = {
+    constraintSql match {
+      case SQLiteUniqueConstraintRegex(constraintName, columnString) =>
+        // Remove the quotes and spaces, leaving just the names and commas, then split on the commas
+        val columnNames = columnString.replaceAll("""[ "]""", "").split(",")
+        val columns = columnNames.map(new Column(_))
+        Option(
+          new UniqueConstraint()
+          .setName(constraintName)
+          .setRelation(new Table().setName(tableName))
+          .setColumns(columns.toList.asJava)
+        )
+      case _ => None
+    }
+  }
+
+  /**
+    * Parses a "CONSTRAINT" section of the SQL used to create a SQLite table and optionally returns a ForeignKey.
+    *
+    * The SQLite JDBC driver does not expect names to be quoted thus its internal regex fails to detect the quoted
+    * names in the SQL used to create a SQLite table, and ends up always returning the empty string.
+    *
+    * https://github.com/xerial/sqlite-jdbc/blob/3.32.3.2/src/main/java/org/sqlite/jdbc3/JDBC3DatabaseMetaData.java#L2066-L2071
+    * https://github.com/xerial/sqlite-jdbc/blob/3.32.3.2/src/main/java/org/sqlite/jdbc3/JDBC3DatabaseMetaData.java#L2144-L2146
+    * https://github.com/xerial/sqlite-jdbc/blob/3.32.3.2/src/main/java/org/sqlite/jdbc3/JDBC3DatabaseMetaData.java#L1502-L1506
+    *
+    * @param foreignTableName The name of the table with the foreign key column.
+    * @param constraintSql a "CONSTRAINT" section of the SQL used to create a SQLite table.
+    * @return An optional ForeignKey if found in the string.
+    */
+  private def toSqliteFK(foreignTableName: String, constraintSql: String): Option[ForeignKey] = {
+    constraintSql match {
+      case SQLiteForeignKeyRegex(
+      foreignKeyName,
+      foreignColumnName,
+      primaryTableName,
+      primaryColumnName,
+      cascadeDelete) =>
+        val deleteRule =
+          if (cascadeDelete.isEmpty) {
+            ForeignKeyConstraintType.importedKeyRestrict
+          } else {
+            ForeignKeyConstraintType.importedKeyCascade
+          }
+        Option(
+          new ForeignKey()
+            .setName(foreignKeyName)
+            .setForeignKeyTable(new Table().setName(foreignTableName))
+            .setPrimaryKeyTable(new Table().setName(primaryTableName))
+            .setForeignKeyColumns(List(new Column().setName(foreignColumnName)).asJava)
+            .setPrimaryKeyColumns(List(new Column().setName(primaryColumnName)).asJava)
+            .setDeleteRule(deleteRule)
+            .setUpdateRule(ForeignKeyConstraintType.importedKeyRestrict)
+            .setDeferrable(false)
+            .setInitiallyDeferred(false)
+        )
+      case _ => None
+    }
+  }
+
+  /** Retrieve the "sql" SQLite uses to create tables, then convert it to some type T. */
+  private def sqliteTableSqlDbio[T](database: SlickDatabase,
+                                    toConstraint: (String, String) => Option[T])
+                                   (implicit executionContext: ExecutionContext)
+  : database.dataAccess.driver.api.DBIO[Seq[T]] = {
+    import database.dataAccess.driver.api._
+    val getType = GetResult(_.rs.getString("sql"))
+
+    //noinspection SqlDialectInspection
+    sql"""SELECT sql
+          FROM sqlite_master
+          WHERE type = 'table'
+          AND name NOT LIKE 'sqlite_%'
+       """.as[String](getType).map(_.flatMap(convertSqliteTableSql(toConstraint)))
+  }
+
+  /** Optionally retrieve the unique constraints directly from the database. */
+  private def uniqueConstraintDbio(databaseSystem: DatabaseSystem,
+                                   database: SlickDatabase)
+                                  (implicit executionContext: ExecutionContext)
+  : database.dataAccess.driver.api.DBIO[Seq[UniqueConstraint]] = {
+    import database.dataAccess.driver.api._
+    databaseSystem.platform match {
+      case SQLiteDatabasePlatform => sqliteTableSqlDbio(database, toSqliteUC)
+      case _ => DBIO.successful(Nil)
+    }
+  }
+
+  /** Optionally retrieve the foreign keys directly from the database. */
+  private def foreignKeyDbio(databaseSystem: DatabaseSystem,
+                                   database: SlickDatabase)
+                                  (implicit executionContext: ExecutionContext)
+  : database.dataAccess.driver.api.DBIO[Seq[ForeignKey]] = {
+    import database.dataAccess.driver.api._
+    databaseSystem.platform match {
+      case SQLiteDatabasePlatform => sqliteTableSqlDbio(database, toSqliteFK)
+      case _ => DBIO.successful(Nil)
+    }
   }
 
   /**

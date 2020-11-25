@@ -72,12 +72,7 @@ object Dependencies {
   private val kindProjectorV = "0.9.9"
   private val kittensV = "2.1.0"
   private val liquibaseSlf4jV = "4.0.0"
-  // Scala Steward wanted to upgrade liquibase-core to 3.10.2 but that version does not find some uniqueness
-  // constraints and models datatypes in ways that are incompatible with our test expectations.
-  // liquibase-core 4.0.0 did not have either of those problems but produced tons of strange warnings at runtime
-  // similar in form to this: https://github.com/liquibase/liquibase/issues/1294
-  // Pinning Liquibase version for the time being.
-  private val liquibaseV = "3.10.1" // scala-steward:off
+  private val liquibaseV = "4.2.0"
   private val logbackV = "1.2.3"
   private val lz4JavaV = "1.7.1"
   private val mariadbV = "2.7.0"
@@ -113,7 +108,7 @@ object Dependencies {
   private val simulacrumV = "1.0.0"
   private val slf4jV = "1.7.30"
   private val slickCatsV = "0.10.2"
-  private val sqliteV = "3.32.3"
+  private val sqliteV = "3.32.3.2"
   private val testContainersScalaV = "0.38.4"
 
   /* If you're about to update our Slick version:
@@ -243,10 +238,9 @@ object Dependencies {
   )
 
   private val liquibaseDependencies = List(
-    "org.liquibase" % "liquibase-core" % liquibaseV exclude("javax.xml.bind", "jaxb-api"),
-      // The exclusion below will be needed if / when liquibase-core is upgraded to 3.10+
+    "org.liquibase" % "liquibase-core" % liquibaseV
       // Avert collision with jakarta.xml.bind-api
-      // exclude("javax.xml.bind", "jaxb-api"),
+      exclude("javax.xml.bind", "jaxb-api"),
     // This is to stop liquibase from being so noisy by default
     // See: http://stackoverflow.com/questions/20880783/how-to-get-liquibase-to-log-using-slf4j
     "com.mattbertolini" % "liquibase-slf4j" % liquibaseSlf4jV
@@ -383,10 +377,10 @@ object Dependencies {
 
   private val dbmsDependencies = List(
     "org.hsqldb" % "hsqldb" % hsqldbV,
+    "org.xerial" % "sqlite-jdbc" % sqliteV,
     "org.mariadb.jdbc" % "mariadb-java-client" % mariadbV,
     "mysql" % "mysql-connector-java" % mysqlV,
-    "org.postgresql" % "postgresql" % postgresV,
-    "org.xerial" % "sqlite-jdbc" % sqliteV,
+    "org.postgresql" % "postgresql" % postgresV
   )
 
   private val refinedTypeDependenciesList = List(

@@ -393,6 +393,7 @@ cromwell::private::create_database_variables() {
 
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
+            CROMWELL_BUILD_HSQLDB="${BUILD_HSQLDB-}"
             CROMWELL_BUILD_MARIADB_HOSTNAME="localhost"
             CROMWELL_BUILD_MARIADB_PORT="23306"
             CROMWELL_BUILD_MARIADB_DOCKER_TAG="${BUILD_MARIADB-}"
@@ -411,11 +412,13 @@ cromwell::private::create_database_variables() {
             CROMWELL_BUILD_POSTGRESQL_LATEST_HOSTNAME="localhost"
             CROMWELL_BUILD_POSTGRESQL_LATEST_PORT="15432"
             CROMWELL_BUILD_POSTGRESQL_LATEST_TAG="${BUILD_POSTGRESQL_LATEST-}"
+            CROMWELL_BUILD_SQLITE="${BUILD_SQLITE-}"
             ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")
             # NOTE: Jenkins uses src/ci/docker-compose/docker-compose.yml.
             # We don't define a docker tag because the docker-compose has already spun up the database containers by the
             # time this script is run. Other variables here must match the database service names and settings the yaml.
+            CROMWELL_BUILD_HSQLDB="false"
             CROMWELL_BUILD_MARIADB_HOSTNAME="mariadb-db"
             CROMWELL_BUILD_MARIADB_PORT="3306"
             CROMWELL_BUILD_MARIADB_DOCKER_TAG=""
@@ -434,12 +437,14 @@ cromwell::private::create_database_variables() {
             CROMWELL_BUILD_POSTGRESQL_LATEST_HOSTNAME="postgresql-db-latest"
             CROMWELL_BUILD_POSTGRESQL_LATEST_PORT="3306"
             CROMWELL_BUILD_POSTGRESQL_LATEST_TAG=""
+            CROMWELL_BUILD_SQLITE="false"
             ;;
         *)
             if [[ -z "${CROMWELL_BUILD_DOCKER_LOCALHOST-}" ]]; then
                 CROMWELL_BUILD_DOCKER_LOCALHOST="localhost"
             fi
 
+            CROMWELL_BUILD_HSQLDB="${CROMWELL_BUILD_HSQLDB-}"
             CROMWELL_BUILD_MARIADB_HOSTNAME="${CROMWELL_BUILD_MARIADB_HOSTNAME-${CROMWELL_BUILD_DOCKER_LOCALHOST}}"
             CROMWELL_BUILD_MARIADB_PORT="${CROMWELL_BUILD_MARIADB_PORT-13306}"
             CROMWELL_BUILD_MARIADB_DOCKER_TAG=""
@@ -458,12 +463,14 @@ cromwell::private::create_database_variables() {
             CROMWELL_BUILD_POSTGRESQL_LATEST_HOSTNAME="${CROMWELL_BUILD_POSTGRESQL_LATEST_HOSTNAME-${CROMWELL_BUILD_DOCKER_LOCALHOST}}"
             CROMWELL_BUILD_POSTGRESQL_LATEST_PORT="${CROMWELL_BUILD_POSTGRESQL_LATEST_PORT-13306}"
             CROMWELL_BUILD_POSTGRESQL_LATEST_TAG=""
+            CROMWELL_BUILD_SQLITE="${CROMWELL_BUILD_SQLITE-}"
             ;;
     esac
 
     export CROMWELL_BUILD_DATABASE_USERNAME
     export CROMWELL_BUILD_DATABASE_PASSWORD
     export CROMWELL_BUILD_DATABASE_SCHEMA
+    export CROMWELL_BUILD_HSQLDB
     export CROMWELL_BUILD_MARIADB_DOCKER_TAG
     export CROMWELL_BUILD_MARIADB_HOSTNAME
     export CROMWELL_BUILD_MARIADB_LATEST_HOSTNAME
@@ -482,6 +489,7 @@ cromwell::private::create_database_variables() {
     export CROMWELL_BUILD_POSTGRESQL_LATEST_PORT
     export CROMWELL_BUILD_POSTGRESQL_LATEST_TAG
     export CROMWELL_BUILD_POSTGRESQL_PORT
+    export CROMWELL_BUILD_SQLITE
 }
 
 cromwell::private::create_centaur_variables() {
@@ -551,9 +559,24 @@ cromwell::private::create_centaur_variables() {
 
     CROMWELL_BUILD_CENTAUR_LOG="${CROMWELL_BUILD_LOG_DIRECTORY}/centaur.log"
 
+    local hsqldb_jdbc_args
+    local sqlite_jdbc_args
     local mariadb_jdbc_url
     local mysql_jdbc_url
     local postgresql_jdbc_url
+
+    hsqldb_jdbc_args="shutdown=false"
+    hsqldb_jdbc_args="${hsqldb_jdbc_args};hsqldb.tx=mvcc"
+    hsqldb_jdbc_args="${hsqldb_jdbc_args};hsqldb.large_data=true"
+    hsqldb_jdbc_args="${hsqldb_jdbc_args};hsqldb.result_max_memory_rows=10000"
+    hsqldb_jdbc_args="${hsqldb_jdbc_args};hsqldb.applog=1"
+    hsqldb_jdbc_args="${hsqldb_jdbc_args};hsqldb.default_table_type=cached"
+    hsqldb_jdbc_args="${hsqldb_jdbc_args};hsqldb.large_data=true"
+    hsqldb_jdbc_args="${hsqldb_jdbc_args};hsqldb.lob_compressed=true"
+    hsqldb_jdbc_args="${hsqldb_jdbc_args};hsqldb.script_format=3"
+
+    sqlite_jdbc_args="foreign_keys=true"
+    sqlite_jdbc_args="${sqlite_jdbc_args}&date_class=text"
 
     mariadb_jdbc_url="jdbc:mariadb://${CROMWELL_BUILD_MARIADB_HOSTNAME}:${CROMWELL_BUILD_MARIADB_PORT}/${CROMWELL_BUILD_DATABASE_SCHEMA}?rewriteBatchedStatements=true"
     mysql_jdbc_url="jdbc:mysql://${CROMWELL_BUILD_MYSQL_HOSTNAME}:${CROMWELL_BUILD_MYSQL_PORT}/${CROMWELL_BUILD_DATABASE_SCHEMA}?allowPublicKeyRetrieval=true&useSSL=false&rewriteBatchedStatements=true&serverTimezone=UTC&useInformationSchema=true"
@@ -563,20 +586,40 @@ cromwell::private::create_centaur_variables() {
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
 
-            if [[ -n "${CROMWELL_BUILD_MYSQL_DOCKER_TAG:+set}" ]]; then
+            if [[ "${CROMWELL_BUILD_HSQLDB:-false}" == "true" ]]; then
+                CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="slick.jdbc.HsqldbProfile$"
+                CROMWELL_BUILD_CENTAUR_JDBC_DRIVER="org.hsqldb.jdbcDriver"
+                CROMWELL_BUILD_CENTAUR_JDBC_URL="jdbc:hsqldb:file:${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-hsqldb;${hsqldb_jdbc_args}"
+                CROMWELL_BUILD_CENTAUR_JDBC_METADATA_URL="jdbc:hsqldb:file:${CROMWELL_BUILD_RESOURCES_DIRECTORY}/metadata-hsqldb;${hsqldb_jdbc_args}"
+                CROMWELL_BUILD_CENTAUR_JDBC_NUM_THREADS=1
+
+            elif [[ "${CROMWELL_BUILD_SQLITE:-false}" == "true" ]]; then
+                CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="slick.jdbc.SQLiteProfile$"
+                CROMWELL_BUILD_CENTAUR_JDBC_DRIVER="org.sqlite.JDBC"
+                CROMWELL_BUILD_CENTAUR_JDBC_URL="jdbc:sqlite:file:${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell.sqlite?${sqlite_jdbc_args}"
+                CROMWELL_BUILD_CENTAUR_JDBC_METADATA_URL="jdbc:sqlite:file:${CROMWELL_BUILD_RESOURCES_DIRECTORY}/metadata.sqlite?${sqlite_jdbc_args}"
+                CROMWELL_BUILD_CENTAUR_JDBC_NUM_THREADS=1
+
+            elif [[ -n "${CROMWELL_BUILD_MYSQL_DOCKER_TAG:+set}" ]]; then
                 CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="slick.jdbc.MySQLProfile$"
                 CROMWELL_BUILD_CENTAUR_JDBC_DRIVER="com.mysql.cj.jdbc.Driver"
                 CROMWELL_BUILD_CENTAUR_JDBC_URL="${mysql_jdbc_url}"
+                CROMWELL_BUILD_CENTAUR_JDBC_METADATA_URL="${mysql_jdbc_url}"
+                CROMWELL_BUILD_CENTAUR_JDBC_NUM_THREADS=20
 
             elif [[ -n "${CROMWELL_BUILD_MARIADB_DOCKER_TAG:+set}" ]]; then
                 CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="slick.jdbc.MySQLProfile$"
                 CROMWELL_BUILD_CENTAUR_JDBC_DRIVER="org.mariadb.jdbc.Driver"
                 CROMWELL_BUILD_CENTAUR_JDBC_URL="${mariadb_jdbc_url}"
+                CROMWELL_BUILD_CENTAUR_JDBC_METADATA_URL="${mariadb_jdbc_url}"
+                CROMWELL_BUILD_CENTAUR_JDBC_NUM_THREADS=20
 
             elif [[ -n "${CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG:+set}" ]]; then
                 CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="slick.jdbc.PostgresProfile$"
                 CROMWELL_BUILD_CENTAUR_JDBC_DRIVER="org.postgresql.Driver"
                 CROMWELL_BUILD_CENTAUR_JDBC_URL="${postgresql_jdbc_url}"
+                CROMWELL_BUILD_CENTAUR_JDBC_METADATA_URL="${postgresql_jdbc_url}"
+                CROMWELL_BUILD_CENTAUR_JDBC_NUM_THREADS=20
 
             else
                 echo "Error: Unable to determine which RDBMS to use for Centaur." >&2
@@ -590,12 +633,16 @@ cromwell::private::create_centaur_variables() {
             CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="slick.jdbc.MySQLProfile$"
             CROMWELL_BUILD_CENTAUR_JDBC_DRIVER="com.mysql.cj.jdbc.Driver"
             CROMWELL_BUILD_CENTAUR_JDBC_URL="${mysql_jdbc_url}"
+            CROMWELL_BUILD_CENTAUR_JDBC_METADATA_URL="${mysql_jdbc_url}"
+            CROMWELL_BUILD_CENTAUR_JDBC_NUM_THREADS=20
             CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS="${CENTAUR_TEST_ADDITIONAL_PARAMETERS-}"
             ;;
         *)
             CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="${CROMWELL_BUILD_CENTAUR_SLICK_PROFILE-slick.jdbc.MySQLProfile\$}"
             CROMWELL_BUILD_CENTAUR_JDBC_DRIVER="${CROMWELL_BUILD_CENTAUR_JDBC_DRIVER-com.mysql.cj.jdbc.Driver}"
             CROMWELL_BUILD_CENTAUR_JDBC_URL="${CROMWELL_BUILD_CENTAUR_JDBC_URL-${mysql_jdbc_url}}"
+            CROMWELL_BUILD_CENTAUR_JDBC_METADATA_URL="${CROMWELL_BUILD_CENTAUR_JDBC_METADATA_URL-${mysql_jdbc_url}}"
+            CROMWELL_BUILD_CENTAUR_JDBC_NUM_THREADS="${CROMWELL_BUILD_CENTAUR_JDBC_NUM_THREADS-20}"
             CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS=
             ;;
     esac
@@ -609,20 +656,6 @@ cromwell::private::create_centaur_variables() {
             ;;
     esac
 
-    # When upgrading to the MariaDB driver, start with MySQL then switch to MariaDB.
-    if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ]] && \
-        [[ -n "${CROMWELL_BUILD_MARIADB_DOCKER_TAG:+set}" ]]; then
-
-        CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE="slick.jdbc.MySQLProfile$"
-        CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER="com.mysql.cj.jdbc.Driver"
-        CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL="jdbc:mysql://${CROMWELL_BUILD_MARIADB_HOSTNAME}:${CROMWELL_BUILD_MARIADB_PORT}/${CROMWELL_BUILD_DATABASE_SCHEMA}?allowPublicKeyRetrieval=true&useSSL=false&rewriteBatchedStatements=true&serverTimezone=UTC&useInformationSchema=true"
-    else
-
-        CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE="${CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE-${CROMWELL_BUILD_CENTAUR_SLICK_PROFILE}}"
-        CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER="${CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER-${CROMWELL_BUILD_CENTAUR_JDBC_DRIVER}}"
-        CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL="${CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL-${CROMWELL_BUILD_CENTAUR_JDBC_URL}}"
-    fi
-
     CROMWELL_BUILD_CENTAUR_256_BITS_KEY="$(dd bs=1 count=32 if=/dev/urandom 2> /dev/null | base64 | tr -d '\n')"
 
     export CROMWELL_BUILD_CENTAUR_256_BITS_KEY
@@ -630,6 +663,8 @@ cromwell::private::create_centaur_variables() {
     export CROMWELL_BUILD_DOCKER_TAG
     export CROMWELL_BUILD_CENTAUR_JDBC_DRIVER
     export CROMWELL_BUILD_CENTAUR_JDBC_URL
+    export CROMWELL_BUILD_CENTAUR_JDBC_METADATA_URL
+    export CROMWELL_BUILD_CENTAUR_JDBC_NUM_THREADS
     export CROMWELL_BUILD_CENTAUR_LOG
     export CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS
     export CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY
@@ -640,9 +675,6 @@ cromwell::private::create_centaur_variables() {
     export CROMWELL_BUILD_CENTAUR_TYPE_STANDARD
     export CROMWELL_BUILD_CENTAUR_TYPE_INTEGRATION
     export CROMWELL_BUILD_CENTAUR_TYPE_ENGINE_UPGRADE
-    export CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE
-    export CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER
-    export CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL
 }
 
 cromwell::private::create_conformance_variables() {

@@ -15,6 +15,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Millis, Seconds, Span}
+import org.sqlite.SQLiteException
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -126,22 +127,24 @@ object KeyValueDatabaseSpec {
     databaseSystem.platform match {
       case HsqldbDatabasePlatform =>
         "integrity constraint violation: NOT NULL check constraint; SYS_CT_10591 table: JOB_KEY_VALUE_ENTRY column: STORE_VALUE"
+      case SQLiteDatabasePlatform =>
+        """\[SQLITE_CONSTRAINT\]  Abort due to constraint violation """ +
+          """\(NOT NULL constraint failed: JOB_KEY_VALUE_ENTRY.STORE_VALUE\)"""
       case MariadbDatabasePlatform => """\(conn=\d+\) Column 'STORE_VALUE' cannot be null"""
       case MysqlDatabasePlatform => "Column 'STORE_VALUE' cannot be null"
       case PostgresqlDatabasePlatform =>
         """ERROR: null value in column "STORE_VALUE" """ +
           """(of relation "JOB_KEY_VALUE_ENTRY" )?violates not-null constraint"""
-      case SQLiteDatabasePlatform => """alksdaljkjncoqwe""" // TODO: Get correct error
     }
   }
 
   private def getFailureClass(databaseSystem: DatabaseSystem): Class[_ <: Exception] = {
     databaseSystem.platform match {
       case HsqldbDatabasePlatform => classOf[SQLIntegrityConstraintViolationException]
+      case SQLiteDatabasePlatform => classOf[SQLiteException]
       case MariadbDatabasePlatform => classOf[BatchUpdateException]
       case MysqlDatabasePlatform => classOf[BatchUpdateException]
       case PostgresqlDatabasePlatform => classOf[PSQLException]
-      case SQLiteDatabasePlatform => classOf[SQLIntegrityConstraintViolationException]
     }
   }
 }

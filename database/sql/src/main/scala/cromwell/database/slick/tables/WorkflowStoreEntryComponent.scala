@@ -53,7 +53,8 @@ trait WorkflowStoreEntryComponent {
 
   protected val workflowStoreEntries = TableQuery[WorkflowStoreEntries]
 
-  val workflowStoreEntryIdsAutoInc = workflowStoreEntries returning workflowStoreEntries.map(_.workflowStoreEntryId)
+  val workflowStoreEntryIdsAutoInc: driver.ReturningInsertActionComposer[WorkflowStoreEntry, Int] =
+    workflowStoreEntries returning workflowStoreEntries.map(_.workflowStoreEntryId)
 
   /**
     * Useful for finding the workflow store for a given workflow execution UUID
@@ -95,7 +96,7 @@ trait WorkflowStoreEntryComponent {
         if (row.heartbeatTimestamp.isEmpty || row.heartbeatTimestamp < heartbeatTimestampTimedOut) &&
           (row.workflowState =!= excludeWorkflowState)
       } yield row
-      query.forUpdate.sortBy(_.submissionTime.asc).take(limit)
+      maybeSelectForUpdate(query).sortBy(_.submissionTime.asc).take(limit)
     }
   )
 

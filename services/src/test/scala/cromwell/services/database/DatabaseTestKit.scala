@@ -11,7 +11,7 @@ import cromwell.database.slick.SlickDatabase
 import cromwell.services.ServicesStore.EnhancedSqlDatabase
 import cromwell.services.{EngineServicesStore, MetadataServicesStore}
 import liquibase.snapshot.DatabaseSnapshot
-import liquibase.structure.core.Index
+import liquibase.structure.core.{Index, UniqueConstraint}
 import slick.jdbc.JdbcProfile
 import slick.jdbc.meta.{MIndexInfo, MPrimaryKey}
 
@@ -22,15 +22,16 @@ object DatabaseTestKit extends StrictLogging {
 
   private lazy val hsqldbDatabaseConfig = ConfigFactory.load().getConfig("database")
   private lazy val sqliteDatabaseConfig = {
-    val tmpDb = java.io.File.createTempFile("cromwell", ".sqlite")
     ConfigFactory.parseString(
       s"""|profile = "slick.jdbc.SQLiteProfile$$"
           |db {
           |  driver = "org.sqlite.JDBC"
-          |  url = "jdbc:sqlite:${tmpDb.getAbsolutePath}?foreign_keys=true"
+          |  url = "jdbc:sqlite:file:$${uniqueSchema}?mode=memory&cache=shared&foreign_keys=true&date_class=text"
+          |  numThreads = 1
           |}
           |""".stripMargin)
   }
+
   /**
     * Lends a connection to a block of code.
     *
@@ -169,7 +170,6 @@ object DatabaseTestKit extends StrictLogging {
           case MariadbDatabasePlatform => ("slick.jdbc.MySQLProfile$", "org.mariadb.jdbc.Driver")
           case MysqlDatabasePlatform => ("slick.jdbc.MySQLProfile$", "com.mysql.cj.jdbc.Driver")
           case PostgresqlDatabasePlatform => ("slick.jdbc.PostgresProfile$", "org.postgresql.Driver")
-
         }
         ConfigFactory.parseString(
           s"""|profile = "$slickProfile"
@@ -201,6 +201,19 @@ object DatabaseTestKit extends StrictLogging {
     */
   def liquibaseSnapshot(database: SlickDatabase): DatabaseSnapshot = {
     withConnection(database.dataAccess.driver, database.database)(LiquibaseUtils.getSnapshot)
+  }
+
+  /**
+    * Returns a Liquibase snapshot of an open Slick database.
+    *
+    * This overload is only needed until https://github.com/liquibase/liquibase/issues/1477 is fixed!
+    */
+  def liquibaseSnapshot(database: SlickDatabase,
+                        uniqueConstraints: Seq[UniqueConstraint]): DatabaseSnapshot = {
+    withConnection(database.dataAccess.driver, database.database)(LiquibaseUtils.getSnapshot) merge
+      withConnection(database.dataAccess.driver, database.database)(
+        LiquibaseUtils.getUniqueConstraintSnapshot(uniqueConstraints)
+      )
   }
 
   /**

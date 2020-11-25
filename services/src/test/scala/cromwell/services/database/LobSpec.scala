@@ -19,9 +19,10 @@ import scala.concurrent.duration._
 
 class LobSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures {
 
-  implicit val executionContext = ExecutionContext.global
+  implicit val executionContext: ExecutionContext = ExecutionContext.global
 
-  implicit val defaultPatience = PatienceConfig(timeout = scaled(5.seconds), interval = scaled(100.millis))
+  implicit val defaultPatience: PatienceConfig =
+    PatienceConfig(timeout = scaled(5.seconds), interval = scaled(100.millis))
 
   DatabaseSystem.All foreach { databaseSystem =>
 
@@ -35,7 +36,7 @@ class LobSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Sc
       containerOpt.foreach { _.start }
     }
 
-    it should "fail to store and retrieve empty blobs" taggedAs DbmsTest in {
+    it should "store empty blobs" taggedAs DbmsTest in {
       // See notes in BytesToBlobOption
       import eu.timepit.refined.auto._
       val clob = "".toClob(default = "{}")

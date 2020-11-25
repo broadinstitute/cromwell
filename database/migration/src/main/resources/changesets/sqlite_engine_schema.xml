@@ -15,17 +15,17 @@
                              referencedColumnNames="CALL_CACHING_ENTRY_ID"
                              referencedTableName="CALL_CACHING_ENTRY"/>
             </column>
-            <column name="BASE_AGGREGATION" type="TEXT">
+            <column name="BASE_AGGREGATION" type="VARCHAR(255)">
                 <constraints nullable="false"/>
             </column>
-            <column name="INPUT_FILES_AGGREGATION" type="TEXT"/>
+            <column name="INPUT_FILES_AGGREGATION" type="VARCHAR(255)"/>
         </createTable>
 
         <createTable tableName="CALL_CACHING_DETRITUS_ENTRY">
             <column autoIncrement="true" name="CALL_CACHING_DETRITUS_ENTRY_ID" type="INTEGER">
                 <constraints primaryKey="true" primaryKeyName="PK_CALL_CACHING_DETRITUS_ENTRY"/>
             </column>
-            <column name="DETRITUS_KEY" type="TEXT">
+            <column name="DETRITUS_KEY" type="VARCHAR(255)">
                 <constraints nullable="false"
                              uniqueConstraintName="UC_CALL_CACHING_DETRITUS_ENTRY_CCEI_DK" unique="true"/>
             </column>
@@ -44,10 +44,10 @@
             <column autoIncrement="true" name="CALL_CACHING_ENTRY_ID" type="INTEGER">
                 <constraints primaryKey="true" primaryKeyName="PK_CALL_CACHING_ENTRY"/>
             </column>
-            <column name="WORKFLOW_EXECUTION_UUID" type="TEXT">
+            <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(255)">
                 <constraints nullable="false" uniqueConstraintName="UC_CALL_CACHING_ENTRY_WEU_CFQN_JI" unique="true"/>
             </column>
-            <column name="CALL_FULLY_QUALIFIED_NAME" type="TEXT">
+            <column name="CALL_FULLY_QUALIFIED_NAME" type="VARCHAR(255)">
                 <constraints nullable="false" uniqueConstraintName="UC_CALL_CACHING_ENTRY_WEU_CFQN_JI" unique="true"/>
             </column>
             <column name="JOB_INDEX" type="INTEGER">
@@ -64,10 +64,10 @@
             <column autoIncrement="true" name="CALL_CACHING_HASH_ENTRY_ID" type="INTEGER">
                 <constraints primaryKey="true" primaryKeyName="PK_CALL_CACHING_HASH_ENTRY"/>
             </column>
-            <column name="HASH_KEY" type="TEXT">
+            <column name="HASH_KEY" type="VARCHAR(255)">
                 <constraints nullable="false" uniqueConstraintName="UC_CALL_CACHING_HASH_ENTRY_CCEI_HK" unique="true"/>
             </column>
-            <column name="HASH_VALUE" type="TEXT">
+            <column name="HASH_VALUE" type="VARCHAR(255)">
                 <constraints nullable="false"/>
             </column>
             <column name="CALL_CACHING_ENTRY_ID" type="INTEGER">
@@ -84,11 +84,11 @@
             <column autoIncrement="true" name="CALL_CACHING_SIMPLETON_ENTRY_ID" type="INTEGER">
                 <constraints primaryKey="true" primaryKeyName="PK_CALL_CACHING_SIMPLETON_ENTRY"/>
             </column>
-            <column name="SIMPLETON_KEY" type="TEXT">
+            <column name="SIMPLETON_KEY" type="VARCHAR(255)">
                 <constraints nullable="false" uniqueConstraintName="UC_CALL_CACHING_SIMPLETON_ENTRY_CCEI_SK" unique="true"/>
             </column>
-            <column name="SIMPLETON_VALUE" type="TEXT"/>
-            <column name="WDL_TYPE" type="TEXT">
+            <column name="SIMPLETON_VALUE" type="CLOB"/>
+            <column name="WDL_TYPE" type="VARCHAR(255)">
                 <constraints nullable="false"/>
             </column>
             <column name="CALL_CACHING_ENTRY_ID" type="INTEGER">
@@ -104,13 +104,13 @@
             <column autoIncrement="true" name="DOCKER_HASH_STORE_ENTRY_ID" type="INTEGER">
                 <constraints primaryKey="true" primaryKeyName="PK_DOCKER_HASH_STORE_ENTRY"/>
             </column>
-            <column name="WORKFLOW_EXECUTION_UUID" type="TEXT">
+            <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(255)">
                 <constraints nullable="false" uniqueConstraintName="UC_DOCKER_HASH_STORE_ENTRY_WEU_DT" unique="true"/>
             </column>
-            <column name="DOCKER_TAG" type="TEXT">
+            <column name="DOCKER_TAG" type="VARCHAR(255)">
                 <constraints nullable="false" uniqueConstraintName="UC_DOCKER_HASH_STORE_ENTRY_WEU_DT" unique="true"/>
             </column>
-            <column name="DOCKER_HASH" type="TEXT">
+            <column name="DOCKER_HASH" type="VARCHAR(255)">
                 <constraints nullable="false"/>
             </column>
             <column defaultValueComputed="NULL" name="DOCKER_SIZE" type="INTEGER"/>
@@ -120,10 +120,10 @@
             <column autoIncrement="true" name="JOB_KEY_VALUE_ENTRY_ID" type="INTEGER">
                 <constraints primaryKey="true" primaryKeyName="PK_JOB_KEY_VALUE_ENTRY"/>
             </column>
-            <column name="WORKFLOW_EXECUTION_UUID" type="TEXT">
+            <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(255)">
                 <constraints nullable="false" uniqueConstraintName="UC_JOB_KEY_VALUE_ENTRY_WEU_CFQN_JI_JA_SK" unique="true"/>
             </column>
-            <column name="CALL_FULLY_QUALIFIED_NAME" type="TEXT">
+            <column name="CALL_FULLY_QUALIFIED_NAME" type="VARCHAR(255)">
                 <constraints nullable="false" uniqueConstraintName="UC_JOB_KEY_VALUE_ENTRY_WEU_CFQN_JI_JA_SK" unique="true"/>
             </column>
             <column name="JOB_INDEX" type="INTEGER">
@@ -132,10 +132,10 @@
             <column name="JOB_ATTEMPT" type="INTEGER">
                 <constraints nullable="false" uniqueConstraintName="UC_JOB_KEY_VALUE_ENTRY_WEU_CFQN_JI_JA_SK" unique="true"/>
             </column>
-            <column name="STORE_KEY" type="TEXT">
+            <column name="STORE_KEY" type="VARCHAR(255)">
                 <constraints nullable="false" uniqueConstraintName="UC_JOB_KEY_VALUE_ENTRY_WEU_CFQN_JI_JA_SK" unique="true"/>
             </column>
-            <column name="STORE_VALUE" type="TEXT">
+            <column name="STORE_VALUE" type="VARCHAR(255)">
                 <constraints nullable="false"/>
             </column>
         </createTable>
@@ -144,10 +144,10 @@
             <column autoIncrement="true" name="JOB_STORE_ENTRY_ID" type="INTEGER">
                 <constraints primaryKey="true" primaryKeyName="PK_JOB_STORE_ENTRY"/>
             </column>
-            <column name="WORKFLOW_EXECUTION_UUID" type="TEXT">
+            <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(255)">
                 <constraints nullable="false" uniqueConstraintName="UC_JOB_STORE_ENTRY_WEU_CFQN_JI_JA" unique="true"/>
             </column>
-            <column name="CALL_FULLY_QUALIFIED_NAME" type="TEXT">
+            <column name="CALL_FULLY_QUALIFIED_NAME" type="VARCHAR(255)">
                 <constraints nullable="false" uniqueConstraintName="UC_JOB_STORE_ENTRY_WEU_CFQN_JI_JA" unique="true"/>
             </column>
             <column name="JOB_INDEX" type="INTEGER">
@@ -168,11 +168,11 @@
             <column autoIncrement="true" name="JOB_STORE_SIMPLETON_ENTRY_ID" type="INTEGER">
                 <constraints primaryKey="true" primaryKeyName="PK_JOB_STORE_SIMPLETON_ENTRY"/>
             </column>
-            <column name="SIMPLETON_KEY" type="TEXT">
+            <column name="SIMPLETON_KEY" type="VARCHAR(255)">
                 <constraints nullable="false" uniqueConstraintName="UC_JOB_STORE_SIMPLETON_ENTRY_JSEI_SK" unique="true"/>
             </column>
             <column name="SIMPLETON_VALUE" type="CLOB"/>
-            <column name="WDL_TYPE" type="TEXT">
+            <column name="WDL_TYPE" type="VARCHAR(255)">
                 <constraints nullable="false"/>
             </column>
             <column name="JOB_STORE_ENTRY_ID" type="INTEGER">
@@ -197,10 +197,10 @@
                              referencedTableName="WORKFLOW_STORE_ENTRY"
                              deleteCascade="true"/>
             </column>
-            <column name="PARENT_WORKFLOW_EXECUTION_UUID" type="TEXT">
+            <column name="PARENT_WORKFLOW_EXECUTION_UUID" type="VARCHAR(255)">
                 <constraints nullable="false" uniqueConstraintName="UC_SUB_WORKFLOW_STORE_ENTRY_PWEU_CFQN_CI_CA" unique="true"/>
             </column>
-            <column name="CALL_FULLY_QUALIFIED_NAME" type="TEXT">
+            <column name="CALL_FULLY_QUALIFIED_NAME" type="VARCHAR(255)">
                 <constraints nullable="false" uniqueConstraintName="UC_SUB_WORKFLOW_STORE_ENTRY_PWEU_CFQN_CI_CA" unique="true"/>
             </column>
             <column name="CALL_INDEX" type="INTEGER">
@@ -209,7 +209,7 @@
             <column name="CALL_ATTEMPT" type="INTEGER">
                 <constraints nullable="false" uniqueConstraintName="UC_SUB_WORKFLOW_STORE_ENTRY_PWEU_CFQN_CI_CA" unique="true"/>
             </column>
-            <column name="SUB_WORKFLOW_EXECUTION_UUID" type="TEXT">
+            <column name="SUB_WORKFLOW_EXECUTION_UUID" type="VARCHAR(255)">
                 <constraints nullable="false"/>
             </column>
         </createTable>
@@ -218,13 +218,13 @@
             <column autoIncrement="true" name="WORKFLOW_STORE_ENTRY_ID" type="INTEGER">
                 <constraints primaryKey="true" primaryKeyName="PK_WORKFLOW_STORE_ENTRY"/>
             </column>
-            <column name="WORKFLOW_EXECUTION_UUID" type="TEXT">
+            <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(255)">
                 <constraints nullable="false" uniqueConstraintName="UC_WORKFLOW_STORE_ENTRY_WEU" unique="true"/>
             </column>
             <column name="WORKFLOW_DEFINITION" type="CLOB"/>
             <column name="WORKFLOW_INPUTS" type="CLOB"/>
             <column name="WORKFLOW_OPTIONS" type="CLOB"/>
-            <column name="WORKFLOW_STATE" type="TEXT">
+            <column name="WORKFLOW_STATE" type="VARCHAR(20)">
                 <constraints nullable="false"/>
             </column>
             <column name="SUBMISSION_TIME" type="DATETIME">
@@ -234,13 +234,13 @@
             <column name="CUSTOM_LABELS" type="CLOB">
                 <constraints nullable="false"/>
             </column>
-            <column name="WORKFLOW_TYPE" type="TEXT"/>
-            <column name="WORKFLOW_TYPE_VERSION" type="TEXT"/>
-            <column name="WORKFLOW_ROOT" type="TEXT"/>
-            <column name="CROMWELL_ID" type="TEXT"/>
+            <column name="WORKFLOW_TYPE" type="VARCHAR(30)"/>
+            <column name="WORKFLOW_TYPE_VERSION" type="VARCHAR(255)"/>
+            <column name="WORKFLOW_ROOT" type="VARCHAR(100)"/>
+            <column name="CROMWELL_ID" type="VARCHAR(100)"/>
             <column name="HEARTBEAT_TIMESTAMP" type="DATETIME"/>
-            <column name="WORKFLOW_URL" type="TEXT"/>
-            <column name="HOG_GROUP" type="TEXT"/>
+            <column name="WORKFLOW_URL" type="VARCHAR(2000)"/>
+            <column name="HOG_GROUP" type="VARCHAR(100)"/>
         </createTable>
 
         <createIndex indexName="IX_CALL_CACHING_AGGREGATION_ENTRY_BA_IFA" tableName="CALL_CACHING_AGGREGATION_ENTRY">

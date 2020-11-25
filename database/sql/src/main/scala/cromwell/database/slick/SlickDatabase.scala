@@ -9,7 +9,7 @@ import cromwell.database.slick.tables.DataAccessComponent
 import cromwell.database.sql.SqlDatabase
 import net.ceedubs.ficus.Ficus._
 import org.postgresql.util.{PSQLException, ServerErrorMessage}
-import org.slf4j.LoggerFactory
+import org.slf4j.{Logger, LoggerFactory}
 import slick.basic.DatabaseConfig
 import slick.jdbc.{JdbcCapabilities, JdbcProfile, PostgresProfile, SQLiteProfile, TransactionIsolation}
 
@@ -20,9 +20,9 @@ object SlickDatabase {
   /**
     * Returns either the "url" or "properties.url"
     */
-  def urlKey(config: Config) = if (config.hasPath("db.url")) "db.url" else "db.properties.url"
+  def urlKey(config: Config): String = if (config.hasPath("db.url")) "db.url" else "db.properties.url"
 
-  lazy val log = LoggerFactory.getLogger("cromwell.database.slick")
+  lazy val log: Logger = LoggerFactory.getLogger("cromwell.database.slick")
 
   def createSchema(slickDatabase: SlickDatabase): Unit = {
     // NOTE: Slick 3.0.0 schema creation, Clobs, and MySQL don't mix:  https://github.com/slick/slick/issues/637
@@ -57,7 +57,7 @@ object SlickDatabase {
   */
 abstract class SlickDatabase(override val originalDatabaseConfig: Config) extends SqlDatabase {
 
-  override val urlKey = SlickDatabase.urlKey(originalDatabaseConfig)
+  override val urlKey: String = SlickDatabase.urlKey(originalDatabaseConfig)
   protected val slickConfig = DatabaseConfig.forConfig[JdbcProfile]("", databaseConfig)
 
   /*
@@ -73,7 +73,7 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
   // NOTE: if you want to refactor database is inner-class type: this.dataAccess.driver.backend.DatabaseFactory
   val database = slickConfig.db
 
-  override lazy val connectionDescription = databaseConfig.getString(urlKey)
+  override lazy val connectionDescription: String = databaseConfig.getString(urlKey)
 
   SlickDatabase.log.info(s"Running with database $urlKey = $connectionDescription")
 
@@ -134,9 +134,10 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
     actionThreadPool, database.executor.executionContext.reportFailure
   )
 
-  protected[this] lazy val insertBatchSize = databaseConfig.getOrElse("insert-batch-size", 2000)
+  protected[this] lazy val insertBatchSize: Int = databaseConfig.getOrElse("insert-batch-size", 2000)
 
-  protected[this] lazy val useSlickUpserts = dataAccess.driver.capabilities.contains(JdbcCapabilities.insertOrUpdate)
+  protected[this] lazy val useSlickUpserts: Boolean =
+    dataAccess.driver.capabilities.contains(JdbcCapabilities.insertOrUpdate)
 
   protected[this] def assertUpdateCount(description: String, updates: Int, expected: Int): DBIO[Unit] = {
     if (updates == expected) {
@@ -163,30 +164,21 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
   private val debugExitConfigPath = "danger.debug.only.exit-on-rollback-exception-with-status-code"
   private val debugExitStatusCodeOption = ConfigFactory.load.getAs[Int](debugExitConfigPath)
 
-  private val sqliteTransactionIsolationMap: Map[TransactionIsolation, TransactionIsolation] = {
-    // SQLite supports only TRANSACTION_SERIALIZABLE and TRANSACTION_READ_UNCOMMITTED
-    Map(
-      TransactionIsolation.RepeatableRead -> TransactionIsolation.Serializable,
-      TransactionIsolation.ReadUncommitted -> TransactionIsolation.ReadUncommitted,
-      TransactionIsolation.ReadCommitted -> TransactionIsolation.Serializable,
-      TransactionIsolation.Serializable -> TransactionIsolation.Serializable
-    )
-  }
-
-  private val isSQLite: Boolean = {
+  protected[this] def mapTransactionIsolation(transactionIsolation: TransactionIsolation): TransactionIsolation = {
     dataAccess.driver match {
-      case _: SQLiteProfile => true
-      case _ => false
+      // SQLite supports only TRANSACTION_SERIALIZABLE and TRANSACTION_READ_UNCOMMITTED
+      // https://github.com/xerial/sqlite-jdbc/blob/3.32.3.2/src/main/java/org/sqlite/SQLiteConnection.java#L164
+      case SQLiteProfile
+        if transactionIsolation != TransactionIsolation.ReadUncommitted => TransactionIsolation.Serializable
+      case _ => transactionIsolation
     }
   }
 
   protected[this] def runTransaction[R](action: DBIO[R],
                                         isolationLevel: TransactionIsolation = TransactionIsolation.RepeatableRead,
                                         timeout: Duration = Duration.Inf): Future[R] = {
-    val isoLevel: TransactionIsolation = if (isSQLite) {
-      sqliteTransactionIsolationMap.getOrElse(isolationLevel, isolationLevel)
-    } else isolationLevel
-    runActionInternal(action.transactionally.withTransactionIsolation(isoLevel), timeout = timeout)
+    val mappedIsolationLevel = mapTransactionIsolation(isolationLevel)
+    runActionInternal(action.transactionally.withTransactionIsolation(mappedIsolationLevel), timeout = timeout)
   }
 
   /* Note that this is only appropriate for actions that do not involve Blob

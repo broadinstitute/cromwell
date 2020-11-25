@@ -176,7 +176,7 @@ system {
 
 ### Database
 
-**Using a MySQL Database**
+#### Using Cromwell with MySQL
 
 Cromwell tracks the execution of workflows and stores outputs of task invocations in a SQL database. Cromwell supports either an external MySQL database, or a temporary in-memory database.
 
@@ -240,7 +240,7 @@ For example `docker-compose logs -f cromwell`.
 
 For more information about docker compose: [Docker compose doc](https://docs.docker.com/compose/).
 
-**Insert Batch Size**
+#### Insert Batch Size
 
 Cromwell queues up and then inserts batches of records into the database for increased performance. You can adjust the
 number of database rows batch inserted by Cromwell as follows:
@@ -251,7 +251,7 @@ database {
 }
 ```
 
-**Separate Metadata Database**
+#### Separate Metadata Database
 
 This feature should be considered _experimental_ and likely to change in the future.
 
@@ -275,16 +275,188 @@ database {
 
 If no override is found for `metadata`, Cromwell falls back to using the settings under the root `database` configuration.
 
-####Hybrid Metadata Storage (Classic + Carbonite)
+#### Database Time Zones
+
+Cromwell's default configuration assumes that its MySQL database is set to UTC.
+
+The following MySQL configurations typically default to UTC and work with Cromwell out of the box:
+- Google CloudSQL
+- An official MySQL image running in Docker
+
+These configurations may use the system, or local, time zone instead:
+- MySQL installed natively on a workstation or server
+
+If Cromwell fails to start with a message like
+```
+The server time zone value 'XXX' is unrecognized or represents more than one time zone.
+```
+you can resolve the problem by adding the option `&serverTimezone=UTC` to your database connection URL:
+```hocon
+url = "jdbc:mysql://host/cromwell?rewriteBatchedStatements=true&serverTimezone=UTC"
+```
+
+Using this option does not alter your database's underlying timezone; rather, it causes Cromwell to "speak UTC" when communicating with the DB, and the DB server performs the conversion for you. 
+
+#### Using Cromwell with PostgreSQL
+
+To use Postgresql as the database, you will need to install and enable the
+Large Object extension.  If the extension is present, setting up the database
+requires just these commands:
+
+```
+$ createdb cromwell
+$ psql -d cromwell -c "create extension lo;"
+```
+
+Postgresql configuration in Cromwell is very similar to MySQL.  An example:
+
+```hocon
+database {
+  profile = "slick.jdbc.PostgresProfile$"
+  db {
+    driver = "org.postgresql.Driver"
+    url = "jdbc:postgresql://localhost:5432/cromwell"
+    user = "user"
+    password = "pass"
+    port = 5432
+    connectionTimeout = 5000
+  }
+}
+```
+
+#### Using Cromwell with file-based databases (No server required)
+
+HSQLDB and SQLite support running with a persistence file. Separate files should be use for the two Cromwell databases:
+the `engine` and the `metadata` databases.
+
+To set this up with HSQLDB the following configuration can be used:
+```hocon
+database {
+  profile = "slick.jdbc.HsqldbProfile$"
+  db {
+    driver = "org.hsqldb.jdbcDriver"
+    url = """
+    jdbc:hsqldb:file:cromwell-executions/cromwell-db/cromwell-db;
+    shutdown=false;
+    hsqldb.default_table_type=cached;hsqldb.tx=mvcc;
+    hsqldb.result_max_memory_rows=10000;
+    hsqldb.large_data=true;
+    hsqldb.applog=1;
+    hsqldb.lob_compressed=true;
+    hsqldb.script_format=3
+    """
+    connectionTimeout = 120000
+    numThreads = 1
+   }
+}
+
+database.metadata {
+  profile = "slick.jdbc.HsqldbProfile$"
+  db {
+    driver = "org.hsqldb.jdbcDriver"
+    url = """
+    jdbc:hsqldb:file:cromwell-executions/cromwell-db/metadata-db;
+    shutdown=false;
+    hsqldb.default_table_type=cached;hsqldb.tx=mvcc;
+    hsqldb.result_max_memory_rows=10000;
+    hsqldb.large_data=true;
+    hsqldb.applog=1;
+    hsqldb.lob_compressed=true;
+    hsqldb.script_format=3
+    """
+    connectionTimeout = 120000
+    numThreads = 1
+   }
+}
+```
+
+To set this up with SQLite the following configuration can be used:
+```hocon
+database {
+  profile = "slick.jdbc.SQLiteProfile$"
+  db {
+    driver = "org.sqlite.JDBC"
+    url = "jdbc:sqlite:file:cromwell-executions/cromwell-db/cromwell-db?foreign_keys=true&date_class=text"
+    connectionTimeout = 120000
+    numThreads = 1
+   }
+}
+
+database.metadata {
+  profile = "slick.jdbc.SQLiteProfile$"
+  db {
+    driver = "org.sqlite.JDBC"
+    url = "jdbc:sqlite:file:cromwell-executions/cromwell-db/metadata-db?foreign_keys=true&date_class=text"
+    connectionTimeout = 120000
+    numThreads = 1
+   }
+}
+```
+Explanation of the options:
+
+HSQLDB:
+* `jdbc:hsqldb:file:cromwell-executions/cromwell-db/cromwell-db;` This will make sure
+   all persistence files will end up in a folder `cromwell-db` inside `cromwell-executions`.
+* `shutdown=false` This makes sure the database will not be shutdown unless Cromwell explicitly does so.
+* `hsqldb.default_table_type=cached`
+   By default hsqldb uses in memory tables, this will ensure data is written to disk and
+   decrease memory usage.
+* `hsqldb.result_max_memory_rows=10000` Limits the amount of rows in memory for temp tables.
+* `hsqldb.tx=mvcc` This is a cromwell default for running with hsqldb.
+* `hsqldb.large_data=true` Cromwell creates huge DBs that need to be opened.
+* `hsqldb.applog=1` Log errors relating to the database.
+* `hsqldb.lob_compressed=true` Compress lobs. This saves some space. Do note that lobs are
+  compressed individually. The total database will still contain a lot of redundancy because a
+  lot of lobs will be similar.
+* `hsqldb.script_format=3` Compress script. (uses gzip internally).
+   The script can still be opened normally after decompressing with gzip.
+* See also http://hsqldb.org/doc/guide/dbproperties-chapt.html
+
+SQLite:
+* `jdbc:sqlite:file:cromwell-executions/cromwell-db/cromwell-db?` This will make sure
+   all persistence files will end up in a folder `cromwell-db` inside `cromwell-executions`.
+* `foreign_keys=true` Enable SQLite Foreign Key support.
+* `date_class=text` Ensure dates are stored the same way they are retrieved, as text.
+* See also https://www.sqlite.org/pragma.html
+
+Slick:
+* `connectionTimeout=120000` opening the large database files again when running cromwell will
+  take some time. The default timeout of 3000 ms (3s) is not enough. So it is set to 120000ms (120s).
+* `numThreads = 1`. This will limit the CPU usage of Cromwell, which can be useful in HPC environments.
+* See also https://scala-slick.org/doc/3.3.3/database.html
+
+Comparison to MySQL (or PostgreSQL) server:
+Advantages:
+
+* No need to set up a server
+* No worries about database users, passwords and permissions. This will be handled by filesystem permissions.
+
+Disadvantages:
+
+* Cromwell requires more memory
+* The database files will consume a lot of disk space (multiple gigabytes are not uncommon)
+* Cromwell's interaction with the database is slower.
+
+Comparison to the default in-memory database:
+Advantages:
+
+* Much less memory needed.
+* Call-caching enabled
+
+Disadvantages:
+
+* Slower.
+
+#### Hybrid Metadata Storage (Classic + Carbonite)
 
 While a workflow is running its metadata is always stored in Cromwell's relational metadata database as described above,
 but Cromwell now supports "Carbonite" metadata archival for terminal workflows in Google Cloud Storage (GCS).
 
-Hybrid metadata storage is configured first by choosing `cromwell.services.metadata.hybridcarbonite.HybridMetadataServiceActor` 
-as the `class` for `MetadataService`. The "classic" (i.e. relational database) aspect of Hybrid Metadata Storage requires no 
+Hybrid metadata storage is configured first by choosing `cromwell.services.metadata.hybridcarbonite.HybridMetadataServiceActor`
+as the `class` for `MetadataService`. The "classic" (i.e. relational database) aspect of Hybrid Metadata Storage requires no
 additional configuration, but the "Carbonite" aspect has its own `carbonite-metadata-service` stanza. A sample configuration
 with default values is shown below.
- 
+
 A `bucket` and `filesystems.gcs.auth` must be specified to be able to read and/or write Carbonited metadata.
 The `metadata-freezing` stanza controls parameters for the "freezing" of metadata (converting "classic" metadata stored in Cromwell's
 relational database to JSON stored in GCS), while
@@ -298,13 +470,13 @@ services {
     config {
       # This section can also contain the same set of options as would be present in the 'config' section of the
       # classic (cromwell.services.metadata.impl.MetadataServiceActor) config
-    
+
       # The carbonite section contains carbonite-specific options
       carbonite-metadata-service {
-    
+
         # Which bucket to use for storing or retrieving metadata JSON
         bucket = "carbonite-test-bucket"
-    
+
         # A filesytem able to access the specified bucket:
         filesystems {
           gcs {
@@ -312,7 +484,7 @@ services {
             auth = "application-default"
           }
         }
-    
+
         # Metadata freezing configuration. All of these entries are optional and default to the values shown below.
         # In particular, the default value of `Inf` for `initial-interval` turns off metadata freezing, so an explict
         # non-`Inf` value would need to be chosen for that parameter to turn metadata freezing on.
@@ -356,124 +528,7 @@ services {
     }
   }
 }
-```  
-
-**Database Time Zones**
-
-Cromwell's default configuration assumes that its MySQL database is set to UTC.
-
-The following MySQL configurations typically default to UTC and work with Cromwell out of the box:
-- Google CloudSQL
-- An official MySQL image running in Docker
-
-These configurations may use the system, or local, time zone instead:
-- MySQL installed natively on a workstation or server
-
-If Cromwell fails to start with a message like
 ```
-The server time zone value 'XXX' is unrecognized or represents more than one time zone.
-```
-you can resolve the problem by adding the option `&serverTimezone=UTC` to your database connection URL:
-```hocon
-url = "jdbc:mysql://host/cromwell?rewriteBatchedStatements=true&serverTimezone=UTC"
-```
-
-Using this option does not alter your database's underlying timezone; rather, it causes Cromwell to "speak UTC" when communicating with the DB, and the DB server performs the conversion for you. 
-
-**Using Cromwell with Postgresql**
-
-To use Postgresql as the database, you will need to install and enable the
-Large Object extension.  If the extension is present, setting up the database
-requires just these commands:
-
-```
-$ createdb cromwell
-$ psql -d cromwell -c "create extension lo;"
-```
-
-Postgresql configuration in Cromwell is very similar to MySQL.  An example:
-
-```hocon
-database {
-  profile = "slick.jdbc.PostgresProfile$"
-  db {
-    driver = "org.postgresql.Driver"
-    url = "jdbc:postgresql://localhost:5432/cromwell"
-    user = "user"
-    password = "pass"
-    port = 5432
-    connectionTimeout = 5000
-  }
-}
-```
-
-**Using Cromwell with file-based database (No server required)**
-
-SQLite is currently not supported. However, HSQLDB does support running with a persistence file.
-To set this up the following configuration can be used:
-```hocon
-database {
-  profile = "slick.jdbc.HsqldbProfile$"
-  db {
-    driver = "org.hsqldb.jdbcDriver"
-    url = """
-    jdbc:hsqldb:file:cromwell-executions/cromwell-db/cromwell-db;
-    shutdown=false;
-    hsqldb.default_table_type=cached;hsqldb.tx=mvcc;
-    hsqldb.result_max_memory_rows=10000;
-    hsqldb.large_data=true;
-    hsqldb.applog=1;
-    hsqldb.lob_compressed=true;
-    hsqldb.script_format=3
-    """
-    connectionTimeout = 120000
-    numThreads = 1
-   }
-}
-```
-
-Explanation of the options (see also http://hsqldb.org/doc/2.0/guide/dbproperties-chapt.html):
-
-* `jdbc:hsqldb:file:cromwell-executions/cromwell-db/cromwell-db;` This will make sure
-   all persistence files will end up in a folder `cromwell-db` inside `cromwell-executions`.
-* `shutdown=false`. This makes sure the database will not be shutdown unless Cromwell explicitly does so.
-* `hsqlldb.default_table_type=cached`. 
-   By default hsqldb uses in memory tables, this will ensure data is written to disk and 
-   decrease memory usage.
-* `hsqldb.result_max_memory_rows=10000` . Limits the amount of rows in memory for temp tables. 
-* `hsqldb.tx=mvcc` this is a  cromwell default for running with hsqldb.
-* `hsqldb.large_data=true`. Cromwell creates huge DBs that need to be opened.
-* `hsqldb.applog=1`. Log errors relating to the database.
-* `hsqldb.lob_compressed=true`. Compress lobs. This saves some space. Do note that lobs are 
-  compressed individually. The total database will still contain a lot of redundancy because a
-  lot of lobs will be similar.
-* `hsqldb.script_format=3`. Compress script. (uses gzip internally). 
-   The script can still be opened normally after decompressing with gzip.
-* `connectionTimeout = 120000` opening the large database files again when running cromwell will 
-  take some time. The default timeout of 3000 ms (3s) is not enough. So it is set to 120000ms (120s).
-* `numThreads = 1`. This will limit the CPU usage of Cromwell, which can be useful in HPC environments.
-
-Comparison to MySQL (or PostgreSQL) server:
-Advantages:
-
-* No need to set up a server
-* No worries about database users, passwords and permissions. This will be handled by filesystem permissions.
-
-Disadvantages:
-
-* Cromwell requires more memory
-* The database files will consume a lot of disk space (multiple gigabytes are not uncommon)
-* Cromwell's interaction with the database is slower.
-
-Comparison to the default in-memory database:
-Advantages:
-
-* Much less memory needed.
-* Call-caching enabled
-
-Disadvantages:
-
-* Slower.
 
 ### Abort
 

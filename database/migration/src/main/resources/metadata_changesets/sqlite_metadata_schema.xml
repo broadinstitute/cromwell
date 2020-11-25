@@ -9,13 +9,13 @@
             <column autoIncrement="true" name="CUSTOM_LABEL_ENTRY_ID" type="INTEGER">
                 <constraints primaryKey="true" primaryKeyName="PK_CUSTOM_LABEL_ENTRY"/>
             </column>
-            <column name="CUSTOM_LABEL_KEY" type="TEXT">
+            <column name="CUSTOM_LABEL_KEY" type="VARCHAR(255)">
                 <constraints nullable="false" uniqueConstraintName="UC_CUSTOM_LABEL_ENTRY_CLK_WEU" unique="true"/>
             </column>
-            <column name="CUSTOM_LABEL_VALUE" type="TEXT">
+            <column name="CUSTOM_LABEL_VALUE" type="VARCHAR(255)">
                 <constraints nullable="false"/>
             </column>
-            <column name="WORKFLOW_EXECUTION_UUID" type="TEXT">
+            <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(100)">
                 <constraints nullable="false"
                              foreignKeyName="FK_CUSTOM_LABEL_ENTRY_WORKFLOW_EXECUTION_UUID"
                              deleteCascade="true"
@@ -30,27 +30,27 @@
             <column autoIncrement="true" name="METADATA_JOURNAL_ID" type="INTEGER">
                 <constraints primaryKey="true" primaryKeyName="PK_METADATA_JOURNAL"/>
             </column>
-            <column name="WORKFLOW_EXECUTION_UUID" type="TEXT">
+            <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(255)">
                 <constraints nullable="false"/>
             </column>
-            <column name="METADATA_KEY" type="TEXT">
+            <column name="METADATA_KEY" type="VARCHAR(255)">
                 <constraints nullable="false"/>
             </column>
-            <column name="CALL_FQN" type="TEXT"/>
+            <column name="CALL_FQN" type="VARCHAR(255)"/>
             <column name="JOB_SCATTER_INDEX" type="INTEGER"/>
             <column name="JOB_RETRY_ATTEMPT" type="INTEGER"/>
             <column name="METADATA_VALUE" type="CLOB"/>
             <column name="METADATA_TIMESTAMP" type="DATETIME">
                 <constraints nullable="false"/>
             </column>
-            <column name="METADATA_VALUE_TYPE" type="TEXT"/>
+            <column name="METADATA_VALUE_TYPE" type="VARCHAR(10)"/>
         </createTable>
 
         <createTable tableName="SUMMARY_STATUS_ENTRY">
             <column autoIncrement="true" name="SUMMARY_STATUS_ENTRY_ID" type="INTEGER">
                 <constraints primaryKey="true" primaryKeyName="PK_SUMMARY_STATUS_ENTRY"/>
             </column>
-            <column name="SUMMARY_NAME" type="TEXT">
+            <column name="SUMMARY_NAME" type="VARCHAR(255)">
                 <constraints nullable="false" uniqueConstraintName="UC_SUMMARY_STATUS_ENTRY_SN" unique="true"/>
             </column>
             <column name="SUMMARY_POSITION" type="INTEGER">
@@ -62,17 +62,17 @@
             <column autoIncrement="true" name="WORKFLOW_METADATA_SUMMARY_ENTRY_ID" type="INTEGER">
                 <constraints primaryKey="true" primaryKeyName="PK_WORKFLOW_METADATA_SUMMARY_ENTRY"/>
             </column>
-            <column name="WORKFLOW_EXECUTION_UUID" type="TEXT">
+            <column name="WORKFLOW_EXECUTION_UUID" type="VARCHAR(100)">
                 <constraints nullable="false" uniqueConstraintName="UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU" unique="true"/>
             </column>
-            <column name="WORKFLOW_NAME" type="TEXT"/>
-            <column name="WORKFLOW_STATUS" type="TEXT"/>
+            <column name="WORKFLOW_NAME" type="VARCHAR(100)"/>
+            <column name="WORKFLOW_STATUS" type="VARCHAR(50)"/>
             <column name="START_TIMESTAMP" type="DATETIME"/>
             <column name="END_TIMESTAMP" type="DATETIME"/>
             <column name="SUBMISSION_TIMESTAMP" type="DATETIME"/>
-            <column name="PARENT_WORKFLOW_EXECUTION_UUID" type="TEXT"/>
-            <column name="ROOT_WORKFLOW_EXECUTION_UUID" type="TEXT"/>
-            <column name="METADATA_ARCHIVE_STATUS" type="TEXT">
+            <column name="PARENT_WORKFLOW_EXECUTION_UUID" type="VARCHAR(100)"/>
+            <column name="ROOT_WORKFLOW_EXECUTION_UUID" type="VARCHAR(100)"/>
+            <column name="METADATA_ARCHIVE_STATUS" type="VARCHAR(30)">
                 <constraints nullable="true" />
             </column>
         </createTable>

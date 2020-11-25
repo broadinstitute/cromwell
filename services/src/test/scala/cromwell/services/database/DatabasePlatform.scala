@@ -13,6 +13,10 @@ case object HsqldbDatabasePlatform extends DatabasePlatform {
   override val name: String = "HSQLDB"
 }
 
+case object SQLiteDatabasePlatform extends DatabasePlatform {
+  override val name: String = "SQLite"
+}
+
 case object MariadbDatabasePlatform extends DatabasePlatform {
   override val name: String = "MariaDB"
 }
@@ -23,8 +27,4 @@ case object MysqlDatabasePlatform extends DatabasePlatform {
 
 case object PostgresqlDatabasePlatform extends DatabasePlatform {
   override val name: String = "PostgreSQL"
-}
-
-case object SQLiteDatabasePlatform extends DatabasePlatform {
-  override val name: String = "SQLite"
 }

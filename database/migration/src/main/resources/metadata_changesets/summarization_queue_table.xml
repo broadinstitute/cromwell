@@ -16,7 +16,7 @@
         </modifySql>
     </changeSet>
 
-    <changeSet id="summary_queue_initialization" author="gsterin" dbms="hsqldb,mariadb,mysql,sqlite">
+    <changeSet id="summary_queue_initialization" author="gsterin" dbms="hsqldb,mariadb,mysql">
         <preConditions onFail="MARK_RAN">
             <!-- if METADATA_ENTRY table not exists yet, then skip this changeset -->
             <tableExists tableName="METADATA_ENTRY"/>

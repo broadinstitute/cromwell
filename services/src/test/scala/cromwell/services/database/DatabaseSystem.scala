@@ -14,13 +14,13 @@ sealed trait DatabaseSystem {
 object DatabaseSystem {
   val All: Seq[DatabaseSystem] = List(
     HsqldbDatabaseSystem,
+    SQLiteDatabaseSystem,
     MariadbEarliestDatabaseSystem,
     MariadbLatestDatabaseSystem,
     MysqlEarliestDatabaseSystem,
     MysqlLatestDatabaseSystem,
     PostgresqlEarliestDatabaseSystem,
     PostgresqlLatestDatabaseSystem,
-    SQLiteDatabaseSystem,
   )
 }
 

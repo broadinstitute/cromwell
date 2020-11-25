@@ -9,7 +9,7 @@ object ContinuousIntegration {
   lazy val ciSettings: Seq[Setting[_]] = List(
     srcCiResources := sourceDirectory.value / "ci" / "resources",
     targetCiResources := target.value / "ci" / "resources",
-    vaultToken := "/workspace" / ".vault-token",
+    vaultToken := "/workspace/.vault-token",
     copyCiResources := {
       IO.copyDirectory(srcCiResources.value, targetCiResources.value)
     },

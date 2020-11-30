@@ -164,21 +164,16 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
   private val debugExitConfigPath = "danger.debug.only.exit-on-rollback-exception-with-status-code"
   private val debugExitStatusCodeOption = ConfigFactory.load.getAs[Int](debugExitConfigPath)
 
-  protected[this] def mapTransactionIsolation(transactionIsolation: TransactionIsolation): TransactionIsolation = {
-    dataAccess.driver match {
-      // SQLite supports only TRANSACTION_SERIALIZABLE and TRANSACTION_READ_UNCOMMITTED
-      // https://github.com/xerial/sqlite-jdbc/blob/3.32.3.2/src/main/java/org/sqlite/SQLiteConnection.java#L164
-      case SQLiteProfile
-        if transactionIsolation != TransactionIsolation.ReadUncommitted => TransactionIsolation.Serializable
-      case _ => transactionIsolation
-    }
-  }
-
   protected[this] def runTransaction[R](action: DBIO[R],
                                         isolationLevel: TransactionIsolation = TransactionIsolation.RepeatableRead,
                                         timeout: Duration = Duration.Inf): Future[R] = {
-    val mappedIsolationLevel = mapTransactionIsolation(isolationLevel)
-    runActionInternal(action.transactionally.withTransactionIsolation(mappedIsolationLevel), timeout = timeout)
+    dataAccess.driver match {
+      case SQLiteProfile => {
+        // SQLite only supports Serializable transactions. Read_uncommited is only allowed with a pragma setting.
+        runActionInternal(action.transactionally.withTransactionIsolation(TransactionIsolation.Serializable))
+      }
+      case _ => runActionInternal(action.transactionally.withTransactionIsolation(isolationLevel), timeout = timeout)
+    }
   }
 
   /* Note that this is only appropriate for actions that do not involve Blob

@@ -1,5 +1,7 @@
 package centaur.test.formulas
 
+import java.time.OffsetDateTime
+
 import cats.syntax.flatMap._
 import cats.syntax.functor._
 import centaur.api.CentaurCromwellClient
@@ -39,8 +41,19 @@ object TestFormulas extends StrictLogging {
   private def runSuccessfulWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = runWorkflowUntilTerminalStatus(workflow, Succeeded)
   private def runFailingWorkflow(workflow: Workflow): Test[SubmittedWorkflow] = runWorkflowUntilTerminalStatus(workflow, Failed)
 
+  def runSuccessfulWorkflowAndVerifyTimeAndOutputs(workflowDefinition: Workflow): Test[SubmitResponse] = for {
+    _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
+    timeAllowance <- checkTimingRequirement(workflowDefinition.maximumAllowedTime)
+    beforeTimestamp = OffsetDateTime.now().toInstant.getEpochSecond
+    submittedWorkflow <- runSuccessfulWorkflow(workflowDefinition)
+    afterTimestamp = OffsetDateTime.now().toInstant.getEpochSecond
+    _ <- fetchAndValidateOutputs(submittedWorkflow, workflowDefinition, "ROOT NOT SUPPORTED IN TIMING/OUTPUT ONLY TESTS", validateArchived = Option(false))
+    _ <- checkFastEnough(beforeTimestamp, afterTimestamp, timeAllowance)
+  } yield SubmitResponse(submittedWorkflow)
+
   def runSuccessfulWorkflowAndVerifyMetadata(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = for {
     _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
+    _ <- timingVerificationNotSupported(workflowDefinition.maximumAllowedTime)
     submittedWorkflow <- runSuccessfulWorkflow(workflowDefinition)
     labelsLikelyBeforeArchival = CentaurCromwellClient.labels(submittedWorkflow)
     unarchivedNonSubworkflowMetadata <- fetchAndValidateNonSubworkflowMetadata(submittedWorkflow, workflowDefinition, validateArchived = Option(false))
@@ -84,6 +97,7 @@ object TestFormulas extends StrictLogging {
 
   def runFailingWorkflowAndVerifyMetadata(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = for {
     _ <- checkDescription(workflowDefinition, validityExpectation = None)
+    _ <- timingVerificationNotSupported(workflowDefinition.maximumAllowedTime)
     submittedWorkflow <- runFailingWorkflow(workflowDefinition)
     labelsLikelyBeforeArchival = CentaurCromwellClient.labels(submittedWorkflow)
     unarchivedNonSubworkflowMetadata <- fetchAndValidateNonSubworkflowMetadata(submittedWorkflow, workflowDefinition, validateArchived = Option(false))
@@ -112,6 +126,7 @@ object TestFormulas extends StrictLogging {
   def runWorkflowTwiceExpectingCaching(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = {
     for {
       _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
+      _ <- timingVerificationNotSupported(workflowDefinition.maximumAllowedTime)
       firstWF <- runSuccessfulWorkflow(workflowDefinition)
       secondWf <- runSuccessfulWorkflow(workflowDefinition.secondRun)
       _ <- printHashDifferential(firstWF, secondWf)
@@ -126,6 +141,7 @@ object TestFormulas extends StrictLogging {
   def runWorkflowThriceExpectingCaching(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = {
     for {
       _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
+      _ <- timingVerificationNotSupported(workflowDefinition.maximumAllowedTime)
       firstWf <- runSuccessfulWorkflow(workflowDefinition)
       secondWf <- runSuccessfulWorkflow(workflowDefinition.secondRun)
       metadataTwo <- fetchAndValidateNonSubworkflowMetadata(secondWf, workflowDefinition, Option(firstWf.id.id))
@@ -142,6 +158,7 @@ object TestFormulas extends StrictLogging {
   def runWorkflowTwiceExpectingNoCaching(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = {
     for {
       _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
+      _ <- timingVerificationNotSupported(workflowDefinition.maximumAllowedTime)
       _ <- runSuccessfulWorkflow(workflowDefinition) // Build caches
       testWf <- runSuccessfulWorkflow(workflowDefinition.secondRun)
       metadata <- fetchAndValidateNonSubworkflowMetadata(testWf, workflowDefinition)
@@ -155,6 +172,7 @@ object TestFormulas extends StrictLogging {
   def runFailingWorkflowTwiceExpectingNoCaching(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = {
     for {
       _ <- checkDescription(workflowDefinition, validityExpectation = None)
+      _ <- timingVerificationNotSupported(workflowDefinition.maximumAllowedTime)
       _ <- runFailingWorkflow(workflowDefinition) // Build caches
       testWf <- runFailingWorkflow(workflowDefinition)
       metadata <- fetchAndValidateNonSubworkflowMetadata(testWf, workflowDefinition)
@@ -174,6 +192,7 @@ object TestFormulas extends StrictLogging {
       case ManagedCromwellServer(_, postRestart, withRestart) if withRestart =>
         for {
           _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
+          _ <- timingVerificationNotSupported(workflowDefinition.maximumAllowedTime)
           submittedWorkflow <- submitWorkflow(workflowDefinition)
           jobId <- pollUntilCallIsRunning(workflowDefinition, submittedWorkflow, callMarker.callKey)
           _ = CromwellManager.stopCromwell(s"Scheduled restart from ${workflowDefinition.testName}")
@@ -199,6 +218,7 @@ object TestFormulas extends StrictLogging {
 
   def instantAbort(workflowDefinition: Workflow)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = for {
     _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
+    _ <- timingVerificationNotSupported(workflowDefinition.maximumAllowedTime)
     submittedWorkflow <- submitWorkflow(workflowDefinition)
     _ <- abortWorkflow(submittedWorkflow)
     _ <- expectSomeProgress(submittedWorkflow, workflowDefinition, Set(Running, Aborting, Aborted), workflowProgressTimeout)
@@ -219,6 +239,7 @@ object TestFormulas extends StrictLogging {
 
     for {
       _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
+      _ <- timingVerificationNotSupported(workflowDefinition.maximumAllowedTime)
       submittedWorkflow <- submitWorkflow(workflowDefinition)
       jobId <- pollUntilCallIsRunning(workflowDefinition, submittedWorkflow, callMarker.callKey)
       // The Cromwell call status could be running but the backend job might not have started yet, give it some time
@@ -248,6 +269,7 @@ object TestFormulas extends StrictLogging {
   def submitInvalidWorkflow(workflow: Workflow, expectedSubmitResponse: SubmitHttpResponse): Test[SubmitResponse] = {
     for {
       _ <- checkDescription(workflow, validityExpectation = None)
+      _ <- timingVerificationNotSupported(workflow.maximumAllowedTime)
       actualSubmitResponse <- Operations.submitInvalidWorkflow(workflow)
       _ <- validateSubmitFailure(workflow, expectedSubmitResponse, actualSubmitResponse)
     } yield actualSubmitResponse
@@ -258,6 +280,7 @@ object TestFormulas extends StrictLogging {
       case ManagedCromwellServer(_, postRestart, withRestart) if withRestart =>
         for {
           _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
+          _ <- timingVerificationNotSupported(workflowDefinition.maximumAllowedTime)
           first <- submitWorkflow(workflowDefinition)
           _ <- pollUntilCallIsRunning(workflowDefinition, first, callMarker.callKey)
           _ = CromwellManager.stopCromwell(s"Scheduled restart from ${workflowDefinition.testName}")

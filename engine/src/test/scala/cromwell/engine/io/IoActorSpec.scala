@@ -279,4 +279,15 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
     nonRetryables foreach { new ConcreteRetry().isRetryable(_) shouldBe false }
     nonRetryables foreach { new ConcreteRetry().isFatal(_) shouldBe true }
   }
+
+  it should "not crash when certain exception members are `null`" in {
+
+    // Javadoc for `com.google.cloud.storage.StorageException` says `message`, `cause` may be `null`
+    val nullCause = new StorageException(3, "blah", "no reason", null)
+    val nullMessage = new StorageException(4, null)
+
+    new ConcreteRetry().isRetryable(nullCause) shouldBe false
+    new ConcreteRetry().isRetryable(nullMessage) shouldBe false
+
+  }
 }

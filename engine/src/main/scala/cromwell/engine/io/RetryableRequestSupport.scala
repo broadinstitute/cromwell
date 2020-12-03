@@ -19,7 +19,8 @@ trait RetryableRequestSupport {
     case gcs: StorageException => gcs.isRetryable ||
       isRetryable(gcs.getCause) ||
       AdditionalRetryableHttpCodes.contains(gcs.getCode) ||
-      AdditionalRetryableErrorMessages.exists(gcs.getMessage.toLowerCase.contains)
+      Option(gcs.getMessage).exists(msg =>
+        AdditionalRetryableErrorMessages.contains(msg.toLowerCase))
     case _: SSLException => true
     case _: BatchFailedException => true
     case _: SocketException => true

@@ -15,8 +15,9 @@ import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.engine.io.IoActor._
 import cromwell.engine.io.IoAttempts.EnhancedCromwellIoException
+import cromwell.engine.io.RetryableRequestSupport.{isRetryable, isTransient}
 import cromwell.engine.io.gcs.GcsBatchFlow.{BatchFailedException, _}
-import cromwell.engine.io.{IoAttempts, IoCommandContext, RetryableRequestSupport}
+import cromwell.engine.io.{IoAttempts, IoCommandContext}
 import mouse.boolean._
 
 import scala.concurrent.duration._
@@ -42,7 +43,7 @@ object GcsBatchFlow {
 }
 
 class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandContext[_] => Throwable => Unit, applicationName: String)
-                  (implicit ec: ExecutionContext) extends StrictLogging with RetryableRequestSupport {
+                  (implicit ec: ExecutionContext) extends StrictLogging {
 
   // Does not carry any authentication, assumes all underlying requests are properly authenticated
   private val httpRequestInitializer = new HttpRequestInitializer {

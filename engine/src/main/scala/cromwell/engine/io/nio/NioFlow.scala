@@ -10,7 +10,8 @@ import common.util.IORetry
 import cromwell.core.io._
 import cromwell.core.path.Path
 import cromwell.engine.io.IoActor._
-import cromwell.engine.io.{IoAttempts, IoCommandContext, RetryableRequestSupport}
+import cromwell.engine.io.RetryableRequestSupport.{isFatal, isTransient}
+import cromwell.engine.io.{IoAttempts, IoCommandContext}
 import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.oss.OssPath
@@ -27,7 +28,7 @@ object NioFlow {
   */
 class NioFlow(parallelism: Int,
               onRetryCallback: IoCommandContext[_] => Throwable => Unit = NioFlow.NoopOnRetry,
-              nbAttempts: Int = MaxAttemptsNumber)(implicit ec: ExecutionContext) extends RetryableRequestSupport {
+              nbAttempts: Int = MaxAttemptsNumber)(implicit ec: ExecutionContext) {
   
   implicit private val timer: Timer[IO] = IO.timer(ec)
   

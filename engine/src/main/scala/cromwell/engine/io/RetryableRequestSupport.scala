@@ -7,7 +7,7 @@ import com.google.cloud.storage.StorageException
 import cromwell.engine.io.gcs.GcsBatchFlow.BatchFailedException
 import javax.net.ssl.SSLException
 
-trait RetryableRequestSupport {
+object RetryableRequestSupport {
 
   def isFatal(failure: Throwable): Boolean = !isRetryable(failure)
 

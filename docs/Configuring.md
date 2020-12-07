@@ -324,11 +324,112 @@ database {
 }
 ```
 
-#### Using Cromwell with file-based databases (No server required)
+#### Using Cromwell with SQLite (No server required)
+SQLite support running with a file-based database. Separate files should be 
+used for the two Cromwell databases: the `engine` and the `metadata` databases.
 
-HSQLDB and SQLite support running with a persistence file. Separate files should be use for the two Cromwell databases:
-the `engine` and the `metadata` databases.
+To set this up with SQLite the following configuration can be used:
+```hocon
+database {
+  profile = "slick.jdbc.SQLiteProfile$"
+  db {
+    driver = "org.sqlite.JDBC"
+    url = "jdbc:sqlite:file:cromwell.sqlite?foreign_keys=true&date_class=text&journal_mode=truncate"
+    connectionTimeout = 30000
+    numThreads = 1
+  }
+}
 
+database.metadata {
+  profile = "slick.jdbc.SQLiteProfile$"
+  db {
+    driver = "org.sqlite.JDBC"
+    url = "jdbc:sqlite:file:cromwell-metadata.sqlite?foreign_keys=true&date_class=text&journal_mode=truncate"
+    connectionTimeout = 30000
+    numThreads = 1
+  }
+}
+```
+Explanation of the options:
+
+SQLite:
+* `jdbc:sqlite:cromwell.sqlite` This will ensure the file `cromwell.sqlite` is
+  created for the database. The database can not be placed in a directory that
+  does not exist.
+* `foreign_keys=true` Enable SQLite Foreign Key support.
+* `date_class=text` Ensure dates are stored the same way they are retrieved, as text.
+* `journal_mode=truncate`. By default sqlite creates a journal file for each
+  change and deletes it again after the change. By setting the journal mode to
+  `truncate` SQLite will truncate the journal file instead and only delete it
+  after the connection to the database is closed. This limits IO substantially
+  and is useful if the database is on a Network FileSystem (NFS) or another 
+  filesystem with a low number of IO operations per second. 
+* See also https://www.sqlite.org/pragma.html
+
+Slick:
+* `connectionTimeout=30000` opening large database files again when running 
+  cromwell will  take some time. The default timeout of 3000 ms may not be 
+  enough. This value  controls the time that cromwell waits for a connection to 
+  be established.
+* `numThreads = 1`. On a file-based database only one thread can change the 
+  file simultaneously. Using more threads is unnecessary.
+* See also https://scala-slick.org/doc/3.3.3/database.html
+
+##### Sqlite vs other solutions 
+
+SQLite has the following disadvantages compared to all other solutions:
+
+* It is slower, because it performs IO to disk on every transaction. When 
+  rerunning a call-cached workflow with lots of jobs it may seem like cromwell
+  hangs. This is because cromwell is writing a lot of metadata to the metadata
+  database. One solution is to be patient. Another solution is to dump the 
+  metadata to a HSQLDB file which is faster but comes with other disadvantages
+  (see the HSQLDB chapter for details on how to set up a HSQLDB connection).
+* It needs a separate database for the engine data and the metadata. This is
+  because only one connection per file is allowed simultaneously in SQLite and 
+  cromwell uses a separate connection for the engine data and metadata 
+  database.
+* SQLite does not allow updating existing database schemas easily. Therefore
+  newer versions of Cromwell may not be usable with databases that have been 
+  created by older versions.
+  
+It has the following advantages compared to MySQL, Postgres or other 
+server-based database systems:
+
+* No need to set up a server
+* No worries about database users, passwords and permissions. 
+  This will be handled by filesystem permissions.
+  
+It has the following advantages, compared to the default in-memory database:
+
+* Much less memory needed.
+* Call-caching can be enabled
+
+Because of these advantages, it is ideal for project-based workflow running
+with Cromwell. For production use a server-based database is a better solution.
+
+#### Using Cromwell with HSQLDB and an overflow file (No server required)
+
+HSQLDB is the default Cromwell in-memory database. To alleviate the enormous
+memory overhead for large workflows, part of the data can be stored in 
+persistence files. These files can be read back later. HSQLDB can thus be used
+as a file-based database. Its use has a lot of disadvantages, but has one small 
+advantage compared to SQLite:
+
+* It uses more memory than any other database solution except the in-memory
+  database. MySQL, Postgres and SQLite all run fine with Cromwell's maximum
+  memory set to 1G. For HSQLDB with overflow file 3G is required in order not to 
+  run into problems.
+* It uses a vast amount of storage. It uses 100x more storage than SQLite.
+  For example 9 Gigabytes where SQLite needs 90 megabytes. This is for just one
+  workflow run.
+* Because the database files are extremely large it takes a lot of time to read 
+  them in, especially when the same workflow is run multiple times using call
+  caching. This can cause timeouts. Eventually the database becomes so big that
+  it becomes unreadable.
+* It is faster than SQLite because it only performs IO when the memory 
+  overflows, instead of for every database operation.
+  
 To set this up with HSQLDB the following configuration can be used:
 ```hocon
 database {
@@ -345,48 +446,6 @@ database {
     hsqldb.lob_compressed=true;
     hsqldb.script_format=3
     """
-    connectionTimeout = 120000
-    numThreads = 1
-   }
-}
-
-database.metadata {
-  profile = "slick.jdbc.HsqldbProfile$"
-  db {
-    driver = "org.hsqldb.jdbcDriver"
-    url = """
-    jdbc:hsqldb:file:cromwell-executions/cromwell-db/metadata-db;
-    shutdown=false;
-    hsqldb.default_table_type=cached;hsqldb.tx=mvcc;
-    hsqldb.result_max_memory_rows=10000;
-    hsqldb.large_data=true;
-    hsqldb.applog=1;
-    hsqldb.lob_compressed=true;
-    hsqldb.script_format=3
-    """
-    connectionTimeout = 120000
-    numThreads = 1
-   }
-}
-```
-
-To set this up with SQLite the following configuration can be used:
-```hocon
-database {
-  profile = "slick.jdbc.SQLiteProfile$"
-  db {
-    driver = "org.sqlite.JDBC"
-    url = "jdbc:sqlite:file:cromwell-executions/cromwell-db/cromwell-db?foreign_keys=true&date_class=text"
-    connectionTimeout = 120000
-    numThreads = 1
-   }
-}
-
-database.metadata {
-  profile = "slick.jdbc.SQLiteProfile$"
-  db {
-    driver = "org.sqlite.JDBC"
-    url = "jdbc:sqlite:file:cromwell-executions/cromwell-db/metadata-db?foreign_keys=true&date_class=text"
     connectionTimeout = 120000
     numThreads = 1
    }
@@ -412,40 +471,14 @@ HSQLDB:
    The script can still be opened normally after decompressing with gzip.
 * See also http://hsqldb.org/doc/guide/dbproperties-chapt.html
 
-SQLite:
-* `jdbc:sqlite:file:cromwell-executions/cromwell-db/cromwell-db?` This will make sure
-   all persistence files will end up in a folder `cromwell-db` inside `cromwell-executions`.
-* `foreign_keys=true` Enable SQLite Foreign Key support.
-* `date_class=text` Ensure dates are stored the same way they are retrieved, as text.
-* See also https://www.sqlite.org/pragma.html
-
 Slick:
-* `connectionTimeout=120000` opening the large database files again when running cromwell will
-  take some time. The default timeout of 3000 ms (3s) is not enough. So it is set to 120000ms (120s).
-* `numThreads = 1`. This will limit the CPU usage of Cromwell, which can be useful in HPC environments.
+* `connectionTimeout=120000` This value  controls the time that cromwell waits 
+  for a connection to be established in milliseconds. The default value of
+  3000 (3 seconds) is not enough. For larger workflows 5 minutes (`300000`) 
+  might be more appropiate.
+* `numThreads = 1`. On a in-memory database, less threads generally means less
+  memory in use.
 * See also https://scala-slick.org/doc/3.3.3/database.html
-
-Comparison to MySQL (or PostgreSQL) server:
-Advantages:
-
-* No need to set up a server
-* No worries about database users, passwords and permissions. This will be handled by filesystem permissions.
-
-Disadvantages:
-
-* Cromwell requires more memory
-* The database files will consume a lot of disk space (multiple gigabytes are not uncommon)
-* Cromwell's interaction with the database is slower.
-
-Comparison to the default in-memory database:
-Advantages:
-
-* Much less memory needed.
-* Call-caching enabled
-
-Disadvantages:
-
-* Slower.
 
 #### Hybrid Metadata Storage (Classic + Carbonite)
 

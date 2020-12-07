@@ -338,15 +338,15 @@ database {
     connectionTimeout = 30000
     numThreads = 1
   }
-}
 
-database.metadata {
-  profile = "slick.jdbc.SQLiteProfile$"
-  db {
-    driver = "org.sqlite.JDBC"
-    url = "jdbc:sqlite:file:cromwell-metadata.sqlite?foreign_keys=true&date_class=text&journal_mode=truncate"
-    connectionTimeout = 30000
-    numThreads = 1
+  metadata {
+    profile = "slick.jdbc.SQLiteProfile$"
+    db {
+      driver = "org.sqlite.JDBC"
+      url = "jdbc:sqlite:file:cromwell-metadata.sqlite?foreign_keys=true&date_class=text&journal_mode=truncate"
+      connectionTimeout = 30000
+      numThreads = 1
+    }
   }
 }
 ```

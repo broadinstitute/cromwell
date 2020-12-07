@@ -22,12 +22,23 @@ object DatabaseTestKit extends StrictLogging {
 
   private lazy val hsqldbDatabaseConfig = ConfigFactory.load().getConfig("database")
   private lazy val sqliteDatabaseConfig = {
+    val tempdbFile = java.io.File.createTempFile("cromwell", ".sqlite")
+    val tempmetadataFile = java.io.File.createTempFile("cromwell-metadata", ".sqlite")
+    tempdbFile.deleteOnExit()
+    tempmetadataFile.deleteOnExit()
     ConfigFactory.parseString(
       s"""|profile = "slick.jdbc.SQLiteProfile$$"
           |db {
           |  driver = "org.sqlite.JDBC"
-          |  url = "jdbc:sqlite:file:$${uniqueSchema}?mode=memory&cache=shared&foreign_keys=true&date_class=text"
+          |  url = "jdbc:sqlite:file:${tempdbFile.getAbsolutePath}?foreign_keys=true&date_class=text&journal_mode=truncate"
           |  numThreads = 1
+          |}
+          |metadata {
+          | db {
+          |  driver = "org.sqlite.JDBC"
+          |  url = "jdbc:sqlite:file:${tempmetadataFile.getAbsolutePath}?foreign_keys=true&date_class=text&journal_mode=truncate"
+          |  numThreads = 1
+          |  }
           |}
           |""".stripMargin)
   }

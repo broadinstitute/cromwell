@@ -32,7 +32,11 @@ final case class WorkflowExecutionDiff(executionStoreChanges: Map[JobKey, Execut
 }
 
 object WorkflowExecutionActorData {
-  def apply(workflowDescriptor: EngineWorkflowDescriptor, ec: ExecutionContext, asyncIo: AsyncIo, totalJobsByRootWf: AtomicInteger, executionStore: ExecutionStore): WorkflowExecutionActorData = {
+  def apply(workflowDescriptor: EngineWorkflowDescriptor,
+            ec: ExecutionContext,
+            asyncIo: AsyncIo,
+            totalJobsByRootWf: AtomicInteger,
+            executionStore: ExecutionStore): WorkflowExecutionActorData = {
     WorkflowExecutionActorData(
       workflowDescriptor,
       executionStore,

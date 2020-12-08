@@ -3,7 +3,6 @@ package wom.transforms
 import common.validation.ErrorOr.ErrorOr
 import wom.graph.{Graph, GraphNode, GraphNodePort}
 import simulacrum._
-import scala.language.implicitConversions
 
 @typeclass
 trait WomGraphMaker[A] {

@@ -3,9 +3,9 @@
 
 ## Welcome to Cromwell
 
-Cromwell is a Workflow Management System for bioinformatics. Cromwell is open source under the [BSD 3-Clause license](LICENSE.txt).
+Cromwell is an open-source Workflow Management System for bioinformatics. Licensing is [BSD 3-Clause](LICENSE.txt).
 
-The Cromwell documentation has a dedicated site, [click here to check it out](https://cromwell.readthedocs.io/en/stable).
+The [Cromwell documentation has a dedicated site](https://cromwell.readthedocs.io/en/stable).
 
 First time to Cromwell? Get started with [Tutorials](https://cromwell.readthedocs.io/en/stable/tutorials/FiveMinuteIntro/).
 

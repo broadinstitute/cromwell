@@ -21,6 +21,8 @@ AEN external issue filing tested 2020-12-08 with `oednichols@gmail.com`
 
 Need to file an issue? Head over to [our JIRA](https://broadworkbench.atlassian.net/jira/software/c/projects/CROM/issues). You must create a free profile to view or create.
 
+![Cromwell JIRA](docs/img/cromwell_jira.png)
+
 Issues in Github remain available for discussion among community members but are not actively monitored by the development team.
 
 ![Jamie, the Cromwell pig](docs/jamie_the_cromwell_pig.png)

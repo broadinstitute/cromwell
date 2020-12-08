@@ -13,6 +13,16 @@ Thinking about contributing to Cromwell? Get started by reading our [Contributor
 
 Cromwell has a growing ecosystem of community-backed projects to make your experience even better! Check out our [Ecosystem](https://cromwell.readthedocs.io/en/stable/Ecosystem/) page to learn more.
 
+### Cromwell capabilities and roadmap
+
+A majority of Cromwell users today run their workflows in [Terra](https://app.terra.bio/), a fully-managed cloud-native bioinformatics computing platform. See [here](https://support.terra.bio/hc/en-us/articles/360036379771-Get-started-running-workflows) for a quick-start guide.
+
+Users with specialized needs who wish to install and maintain their own Cromwell instances can [download](https://github.com/broadinstitute/cromwell/releases) a JAR or Docker image. The development team accepts reproducible bug reports from self-managed instances, but cannot feasibly provide direct support.
+
+[Cromwell's backends](https://cromwell.readthedocs.io/en/stable/backends/Backends/) receive development resources proportional to customer demand. The team is actively developing for Google Cloud and AWS. Maintenance of other backends is primarily community-based.
+
+Cromwell [supports](https://cromwell.readthedocs.io/en/stable/LanguageSupport/) the WDL and CWL workflow languages. The Cromwell team is actively developing WDL, while maintenance for CWL is primarily community-based.  
+
 ### Issue tracking in JIRA
 
 <!--

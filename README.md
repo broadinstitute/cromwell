@@ -3,7 +3,7 @@
 
 ## Welcome to Cromwell
 
-Cromwell is a Workflow Management System geared towards scientific workflows. Cromwell is open sourced under the [BSD 3-Clause license](LICENSE.txt).
+Cromwell is a Workflow Management System for bioinformatics. Cromwell is open source under the [BSD 3-Clause license](LICENSE.txt).
 
 The Cromwell documentation has a dedicated site, [click here to check it out](https://cromwell.readthedocs.io/en/stable).
 
@@ -16,7 +16,7 @@ Cromwell has a growing ecosystem of community-backed projects to make your exper
 ### Issue tracking in JIRA
 
 <!--
-AEN external issue filing tested 2020-12-08 with `oednichols@gmail.com`
+AEN external issue filing tested 2020-12-08 with `oednichols@gmail.com` / `https://broadworkbench.atlassian.net/browse/CROM-6681`
 -->
 
 Need to file an issue? Head over to [our JIRA](https://broadworkbench.atlassian.net/jira/software/c/projects/CROM/issues). You must create a free profile to view or create.

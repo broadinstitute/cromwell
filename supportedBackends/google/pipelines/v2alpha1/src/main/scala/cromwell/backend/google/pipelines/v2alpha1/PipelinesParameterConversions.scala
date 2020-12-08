@@ -15,7 +15,6 @@ import cromwell.filesystems.http.HttpPath
 import cromwell.filesystems.sra.SraPath
 import simulacrum.typeclass
 
-import scala.language.implicitConversions
 @typeclass trait ToParameter[A <: PipelinesParameter] {
   def toActions(p: A, mounts: List[Mount])(implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Action]
 }

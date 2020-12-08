@@ -10,8 +10,6 @@ import wom.expression.IoFunctionSet
 import wom.types.WomType
 import wom.values.{WomFile, WomValue}
 
-import scala.language.implicitConversions
-
 @typeclass
 trait FileEvaluator[A <: ExpressionElement] {
   final def evaluateFilesNeededToEvaluate(a: A,

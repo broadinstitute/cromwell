@@ -5,7 +5,6 @@ import wom.graph.ConditionalNode.ConditionalNodeWithNewNodes
 import wom.graph.GraphNodePort
 import wom.graph.GraphNodePort.OutputPort
 import simulacrum._
-import scala.language.implicitConversions
 
 @typeclass
 trait WomConditionalNodeMaker[A] {

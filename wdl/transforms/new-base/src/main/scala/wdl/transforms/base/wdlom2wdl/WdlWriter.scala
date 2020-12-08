@@ -1,7 +1,6 @@
 package wdl.transforms.base.wdlom2wdl
 
 import simulacrum.typeclass
-import scala.language.implicitConversions
 
 @typeclass
 trait WdlWriter[A] {

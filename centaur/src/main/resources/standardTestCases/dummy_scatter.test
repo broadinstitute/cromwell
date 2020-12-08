@@ -1,0 +1,14 @@
+name: dummy_scatter
+testFormat: workflowsuccessandtimedoutputs
+backends: [Dummy]
+tags: [Dummy]
+
+files {
+  workflow: dummy_scatter/dummy_scatter.wdl
+}
+
+metadata {
+  "outputs.dummy_scatter.results_count": 35000
+}
+
+maximumTime = 12 minutes

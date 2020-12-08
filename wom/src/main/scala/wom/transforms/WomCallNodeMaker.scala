@@ -4,7 +4,6 @@ import common.validation.ErrorOr.ErrorOr
 import wom.graph.CallNode.CallNodeAndNewNodes
 import wom.graph.GraphNodePort
 import simulacrum._
-import scala.language.implicitConversions
 
 @typeclass
 trait WomCallNodeMaker[A] {

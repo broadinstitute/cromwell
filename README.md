@@ -17,7 +17,7 @@ Cromwell has a growing ecosystem of community-backed projects to make your exper
 
 [Join the Cromwell Slack workspace](https://join.slack.com/t/cromwellhq/shared_invite/zt-dxmmrtye-JHxwKE53rfKE_ZWdOHIB4g) to discuss the workflow engine.
 
-[Join the OpenWDL Slack workspace](https://join.slack.com/t/openwdl/shared_invite/zt-ctmj4mhf-cFBNxIiZYs6SY9HgM9UAVw) to discuss the evolution of WDL itself.
+[Join the OpenWDL Slack workspace](https://join.slack.com/t/openwdl/shared_invite/zt-ctmj4mhf-cFBNxIiZYs6SY9HgM9UAVw) to discuss the evolution of WDL language itself.
 
 ### Capabilities and roadmap
 

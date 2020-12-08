@@ -2,7 +2,6 @@ package centaur.test.workflow
 
 import java.nio.file.Path
 
-import common.validation.Validation._
 import better.files._
 import cats.data.Validated._
 import cats.syntax.apply._
@@ -10,10 +9,12 @@ import cats.syntax.validated._
 import centaur.test.metadata.WorkflowFlatMetadata
 import com.typesafe.config.{Config, ConfigFactory}
 import common.validation.ErrorOr.ErrorOr
+import common.validation.Validation._
 import configs.Result
 import configs.syntax._
 import cromwell.api.model.{WorkflowDescribeRequest, WorkflowSingleSubmission}
 
+import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success, Try}
 
 final case class Workflow private(testName: String,
@@ -24,7 +25,8 @@ final case class Workflow private(testName: String,
                                   backends: BackendsRequirement,
                                   retryTestFailures: Boolean,
                                   allowOtherOutputs: Boolean,
-                                  skipDescribeEndpointValidation: Boolean) {
+                                  skipDescribeEndpointValidation: Boolean,
+                                  maximumAllowedTime: Option[FiniteDuration]) {
   def toWorkflowSubmission: WorkflowSingleSubmission = WorkflowSingleSubmission(
     workflowSource = data.workflowContent,
     workflowUrl = data.workflowUrl,
@@ -91,8 +93,10 @@ object Workflow {
 
         val validateDescription: Boolean = conf.get[Boolean]("skipDescribeEndpointValidation").valueOrElse(false)
 
+        val maximumTime: Option[FiniteDuration] = conf.get[Option[FiniteDuration]]("maximumTime").value
+
         (files, directoryContentCheckValidation, metadata, retryTestFailuresErrorOr) mapN {
-          (f, d, m, retryTestFailures) => Workflow(n, f, m, absentMetadata, d, backendsRequirement, retryTestFailures, allowOtherOutputs, validateDescription)
+          (f, d, m, retryTestFailures) => Workflow(n, f, m, absentMetadata, d, backendsRequirement, retryTestFailures, allowOtherOutputs, validateDescription, maximumTime)
         }
 
       case Result.Failure(_) => invalidNel(s"No test 'name' for: $configFile")

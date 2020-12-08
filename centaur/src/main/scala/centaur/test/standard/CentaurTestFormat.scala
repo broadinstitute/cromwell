@@ -12,6 +12,7 @@ sealed abstract class CentaurTestFormat(val name: String) {
   
   def testSpecString: String = this match {
     case WorkflowSuccessTest => "successfully run"
+    case WorkflowSuccessAndTimedOutputsTest => "successfully run"
     case WorkflowFailureTest => "fail during execution"
     case RunTwiceExpectingCallCachingTest => "call cache the second run of"
     case RunThriceExpectingCallCachingTest => "call cache the third run of"
@@ -43,6 +44,7 @@ object CentaurTestFormat {
   sealed trait WithCallMarker { this: CentaurTestFormat => val build: CallMarker => CentaurTestFormat }
   
   case object WorkflowSuccessTest extends CentaurTestFormat("WorkflowSuccess")
+  case object WorkflowSuccessAndTimedOutputsTest extends CentaurTestFormat("WorkflowSuccessAndTimedOutputs")
   case object WorkflowFailureTest extends CentaurTestFormat("WorkflowFailure")
   case object RunTwiceExpectingCallCachingTest extends CentaurTestFormat("RunTwiceExpectingCallCaching")
   case object RunThriceExpectingCallCachingTest extends CentaurTestFormat(name = "RunThriceExpectingCallCaching")
@@ -104,6 +106,7 @@ object CentaurTestFormat {
     
     List(
       WorkflowSuccessTest,
+      WorkflowSuccessAndTimedOutputsTest,
       WorkflowFailureTest,
       RunTwiceExpectingCallCachingTest,
       RunThriceExpectingCallCachingTest,

@@ -23,6 +23,7 @@ case class CentaurTestCase(workflow: Workflow,
 
   def testFunction: Test[SubmitResponse] = this.testFormat match {
     case WorkflowSuccessTest => TestFormulas.runSuccessfulWorkflowAndVerifyMetadata(workflow)
+    case WorkflowSuccessAndTimedOutputsTest => TestFormulas.runSuccessfulWorkflowAndVerifyTimeAndOutputs(workflow)
     case WorkflowFailureTest => TestFormulas.runFailingWorkflowAndVerifyMetadata(workflow)
     case RunTwiceExpectingCallCachingTest => TestFormulas.runWorkflowTwiceExpectingCaching(workflow)
     case RunThriceExpectingCallCachingTest => TestFormulas.runWorkflowThriceExpectingCaching(workflow)

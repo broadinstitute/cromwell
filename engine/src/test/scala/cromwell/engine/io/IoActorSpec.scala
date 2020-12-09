@@ -260,8 +260,8 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
       new IOException("Some other text. Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 504 Gateway Timeout"),
     )
 
-    retryables foreach { IoActor.isRetryable(_) shouldBe true }
-    retryables foreach { IoActor.isFatal(_) shouldBe false }
+    retryables foreach { RetryableRequestSupport.isRetryable(_) shouldBe true }
+    retryables foreach { RetryableRequestSupport.isFatal(_) shouldBe false }
   }
 
   it should "have correct non-retryable exceptions" in {
@@ -274,7 +274,18 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
       new IOException("Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-500/rc: 404 File Not Found")
     )
 
-    nonRetryables foreach {IoActor.isRetryable(_) shouldBe false}
-    nonRetryables foreach {IoActor.isFatal(_) shouldBe true}
+    nonRetryables foreach { RetryableRequestSupport.isRetryable(_) shouldBe false }
+    nonRetryables foreach { RetryableRequestSupport.isFatal(_) shouldBe true }
+  }
+
+  it should "not crash when certain exception members are `null`" in {
+
+    // Javadoc for `com.google.cloud.storage.StorageException` says `message`, `cause` may be `null`
+    val nullCause = new StorageException(3, "blah", "no reason", null)
+    val nullMessage = new StorageException(4, null)
+
+    RetryableRequestSupport.isRetryable(nullCause) shouldBe false
+    RetryableRequestSupport.isRetryable(nullMessage) shouldBe false
+
   }
 }

@@ -27,7 +27,7 @@ export AWS_CONFIG_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_config
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 cromwell::build::run_centaur \
      -i hello \
-     -i mutect2
+     -i mutect2.aws
 
 #    -p 100 \
 #    -e smartseq2singlesample \

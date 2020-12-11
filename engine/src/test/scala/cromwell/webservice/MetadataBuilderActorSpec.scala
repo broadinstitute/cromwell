@@ -46,6 +46,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
     val mockReadMetadataWorkerActor = TestProbe("mockReadMetadataWorkerActor")
     def readMetadataWorkerMaker = () => mockReadMetadataWorkerActor.props
 
+
     val mba = system.actorOf(
       props = MetadataBuilderActor.props(readMetadataWorkerMaker, 1000000),
       name = s"mba-${mbaCounter.getAndIncrement()}",
@@ -819,10 +820,6 @@ object MetadataBuilderActorSpec {
 
   case object Description extends Attr {
     override val name = "description"
-  }
-
-  case object ExecutionStatusAttr extends Attr {
-    override val name = "executionStatus"
   }
 
   sealed trait Call {

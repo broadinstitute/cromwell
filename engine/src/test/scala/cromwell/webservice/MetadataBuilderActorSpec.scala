@@ -727,7 +727,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       setupStatusesPlusConclusion("Baz", "Failed") ++
       setupStatusesPlusConclusion("Qux", "RetryableFailure") ++
       setupStatusesPlusConclusion("Quux", "Bypassed") ++
-      setupStatusesPlusConclusion("Quuux", "Unstartable").reverse
+      setupStatusesPlusConclusion("Quuux", "Unstartable")
 
     val expectedRes =
       s"""{

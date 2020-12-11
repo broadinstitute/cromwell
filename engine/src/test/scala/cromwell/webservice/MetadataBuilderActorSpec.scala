@@ -715,6 +715,11 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       statusEvent(callName, "Running")
     ) ++ conclusionStatuses.map(statusEvent(callName, _))
 
+    /** WARNING!
+      * Think twice before removing any of these entries! Even if a status is no longer used, the database can
+      * (and probably will!) still contain entries specifying that status.
+      */
+
     val events =
       setupStatusesPlusConclusion("Foo", "Done") ++
       setupStatusesPlusConclusion("Bar", "Aborting", "Aborted") ++

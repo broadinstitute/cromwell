@@ -170,6 +170,27 @@ object Operations extends StrictLogging {
     } yield ()
   }
 
+  def checkTimingRequirement(timeRequirement: Option[FiniteDuration]): Test[FiniteDuration] = new Test[FiniteDuration] {
+    override def run: IO[FiniteDuration] = timeRequirement match {
+      case Some(duration) => IO.pure(duration)
+      case None => IO.raiseError(new Exception("Duration value for 'maximumTime' required but not supplied in test config"))
+    }
+  }
+
+  def checkFastEnough(before: Long, after: Long, allowance: FiniteDuration): Test[Unit] = new Test[Unit] {
+    override def run: IO[Unit] = {
+      if (after - before < allowance.toSeconds) IO.pure(())
+      else IO.raiseError(new Exception(s"Test took too long. Allowance was $allowance. Actual time: ${after - before}"))
+    }
+  }
+
+  def timingVerificationNotSupported(timingRequirement: Option[FiniteDuration]): Test[Unit] = new Test[Unit] {
+    override def run: IO[Unit] = if (timingRequirement.isDefined) {
+      IO.raiseError(new Exception("Maximum workflow time verification is not supported in this test mode"))
+    } else IO.pure(())
+
+  }
+
   def checkDescription(workflow: Workflow, validityExpectation: Option[Boolean], retries: Int = 3): Test[Unit] = {
     new Test[Unit] {
 
@@ -593,7 +614,8 @@ object Operations extends StrictLogging {
         val message = s"In actual outputs but not in expected and other outputs not allowed: ${inActualButNotInExpected.mkString(", ")}"
         IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
       } else if (inExpectedButNotInActual.nonEmpty) {
-        val message = s"In expected outputs but not in actual: ${inExpectedButNotInActual.mkString(", ")}"
+        val message = s"In actual outputs but not in expected: ${inExpectedButNotInActual.mkString(", ")}" + System.lineSeparator +
+          s"In expected outputs but not in actual: ${inExpectedButNotInActual.mkString(", ")}"
         IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
       } else {
         IO.unit

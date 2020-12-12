@@ -1186,10 +1186,10 @@ definitions:
         format: boolean
         description: Include subworkflows in results. By default, it is taken as true.
       page:
-        type: int
+        type: integer
         description: When pageSize is set, which page of results to return. If not set, the first page of 'pageSize' results will be returned.
       pageSize:
-        type: int
+        type: integer
         description: The number of results to return at a time
   WorkflowQueryResponse:
     description: Response to a workflow query

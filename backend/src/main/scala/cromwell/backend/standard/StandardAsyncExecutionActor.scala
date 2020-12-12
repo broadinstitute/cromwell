@@ -131,6 +131,8 @@ trait StandardAsyncExecutionActor
     default = s"""$$(mkdir -p "${runtimeEnvironment.tempPath}" && echo "${runtimeEnvironment.tempPath}")"""
   )
 
+  val logJobIds: Boolean = true
+
   /** Used to convert cloud paths into local paths. */
   protected def preProcessWomFile(womFile: WomFile): WomFile = womFile
 
@@ -1105,7 +1107,7 @@ trait StandardAsyncExecutionActor
         configurationDescriptor.slowJobWarningAfter foreach { duration => self ! WarnAboutSlownessAfter(handle.pendingJob.jobId, duration) }
 
         tellKvJobId(handle.pendingJob) map { _ =>
-          jobLogger.info(s"job id: ${handle.pendingJob.jobId}")
+          if (logJobIds) jobLogger.info(s"job id: ${handle.pendingJob.jobId}")
           tellMetadata(Map(CallMetadataKeys.JobId -> handle.pendingJob.jobId))
           /*
           NOTE: Because of the async nature of the Scala Futures, there is a point in time where we have submitted this or

@@ -33,6 +33,9 @@ env:
       BUILD_TYPE=centaurBcs
       BUILD_MYSQL=5.7
     - >-
+      BUILD_TYPE=centaurDummy
+      BUILD_MYSQL=5.7
+    - >-
       BUILD_TYPE=centaurEngineUpgradeLocal
       BUILD_MYSQL=5.7
     - >-

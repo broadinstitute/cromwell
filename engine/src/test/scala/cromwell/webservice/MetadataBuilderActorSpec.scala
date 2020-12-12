@@ -2,6 +2,7 @@ package cromwell.webservice
 
 import java.time.{OffsetDateTime, ZoneOffset}
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 
 import akka.pattern.ask
 import akka.testkit._
@@ -33,6 +34,10 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
   val defaultTimeout: FiniteDuration = 1.second.dilated
   implicit val timeout: Timeout = defaultTimeout
 
+  // Unique salt for the MBA names. Atomicity is probably overkill but AtomicInteger is also a nice
+  // way of getting a "getAndIncrement" method on an Int-in-a-Box.
+  val mbaCounter = new AtomicInteger(0)
+
   def assertMetadataResponse(action: MetadataServiceAction,
                              queryReply: MetadataQuery,
                              events: Seq[MetadataEvent],
@@ -43,7 +48,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
 
     val mba = system.actorOf(
       props = MetadataBuilderActor.props(readMetadataWorkerMaker, 1000000),
-      name = "mba",
+      name = s"mba-${mbaCounter.getAndIncrement()}",
     )
     val response = mba.ask(action).mapTo[MetadataJsonResponse]
     mockReadMetadataWorkerActor.expectMsg(defaultTimeout, action)

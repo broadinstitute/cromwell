@@ -29,10 +29,9 @@ class SchemaManagerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
 
   import SchemaManagerSpec._
 
-  implicit val executionContext: ExecutionContext = ExecutionContext.global
+  implicit val executionContext = ExecutionContext.global
 
-  implicit val defaultPatience: PatienceConfig =
-    PatienceConfig(timeout = scaled(5.seconds), interval = scaled(100.millis))
+  implicit val defaultPatience = PatienceConfig(timeout = scaled(5.seconds), interval = scaled(100.millis))
 
   private def getSchemaMetadata(slickDatabase: SlickDatabase): SchemaMetadata = {
     import slickDatabase.dataAccess.driver.api._
@@ -85,7 +84,6 @@ class SchemaManagerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
               .filterChangeLogs
               .filterLiquibaseObjects
               .filterChangedObjects(diffFilters)
-              .filterUniqueConstraintsUntilLiquibaseBugFixed
 
             val totalChanged =
               filteredDiffResult.getChangedObjects.size +

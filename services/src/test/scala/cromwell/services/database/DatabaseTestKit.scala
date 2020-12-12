@@ -11,7 +11,7 @@ import cromwell.database.slick.SlickDatabase
 import cromwell.services.ServicesStore.EnhancedSqlDatabase
 import cromwell.services.{EngineServicesStore, MetadataServicesStore}
 import liquibase.snapshot.DatabaseSnapshot
-import liquibase.structure.core.{Index, UniqueConstraint}
+import liquibase.structure.core.Index
 import slick.jdbc.JdbcProfile
 import slick.jdbc.meta.{MIndexInfo, MPrimaryKey}
 
@@ -212,19 +212,6 @@ object DatabaseTestKit extends StrictLogging {
     */
   def liquibaseSnapshot(database: SlickDatabase): DatabaseSnapshot = {
     withConnection(database.dataAccess.driver, database.database)(LiquibaseUtils.getSnapshot)
-  }
-
-  /**
-    * Returns a Liquibase snapshot of an open Slick database.
-    *
-    * This overload is only needed until https://github.com/liquibase/liquibase/issues/1477 is fixed!
-    */
-  def liquibaseSnapshot(database: SlickDatabase,
-                        uniqueConstraints: Seq[UniqueConstraint]): DatabaseSnapshot = {
-    withConnection(database.dataAccess.driver, database.database)(LiquibaseUtils.getSnapshot) merge
-      withConnection(database.dataAccess.driver, database.database)(
-        LiquibaseUtils.getUniqueConstraintSnapshot(uniqueConstraints)
-      )
   }
 
   /**

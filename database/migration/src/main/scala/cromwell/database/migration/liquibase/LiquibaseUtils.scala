@@ -10,8 +10,6 @@ import liquibase.diff.{DiffGeneratorFactory, DiffResult}
 import liquibase.parser.ChangeLogParserFactory
 import liquibase.resource.ClassLoaderResourceAccessor
 import liquibase.snapshot.{DatabaseSnapshot, SnapshotControl, SnapshotGeneratorFactory}
-import liquibase.structure.DatabaseObject
-import liquibase.structure.core._
 import liquibase.{Contexts, LabelExpression, Liquibase}
 import org.hsqldb.persist.HsqlDatabaseProperties
 
@@ -186,50 +184,6 @@ object LiquibaseUtils {
             database,
             new SnapshotControl(database)
           )
-        } finally {
-          database.setObjectQuotingStrategy(objectQuotingStrategy)
-        }
-      }
-    }
-  }
-
-  /**
-    * Returns a snapshot for a sequence of example UniqueConstraints.
-    *
-    * This is only needed until https://github.com/liquibase/liquibase/issues/1477 is fixed!
-    *
-    * @param jdbcConnection A jdbc connection to the database.
-    * @return The database change sets.
-    */
-  def getUniqueConstraintSnapshot(uniqueConstraints: Seq[UniqueConstraint])
-                                 (jdbcConnection: Connection): DatabaseSnapshot = {
-    mutex.synchronized {
-      withConnection(jdbcConnection) { referenceLiquibase =>
-        val database = toDatabase(referenceLiquibase)
-        val objectQuotingStrategy = database.getObjectQuotingStrategy
-        try {
-          // Quote all objects for PostgreSQL
-          database.setObjectQuotingStrategy(ObjectQuotingStrategy.QUOTE_ALL_OBJECTS)
-          val schema = new Schema(database.getDefaultCatalogName, database.getDefaultSchemaName)
-          val snapshots: Seq[DatabaseSnapshot] = uniqueConstraints map { uniqueConstraint =>
-            val example = new UniqueConstraint()
-              .setName(uniqueConstraint.getName)
-              .setRelation(new Table().setName(uniqueConstraint.getRelation.getName).setSchema(schema))
-              .setColumns(
-                uniqueConstraint
-                  .getColumns
-                  .asScala
-                  .map(_.getName)
-                  .map(new Column().setName(_))
-                  .asJava
-              )
-            SnapshotGeneratorFactory.getInstance.createSnapshot(
-              Array[DatabaseObject](example),
-              database,
-              new SnapshotControl(database),
-            )
-          }
-          snapshots.reduce(_.merge(_))
         } finally {
           database.setObjectQuotingStrategy(objectQuotingStrategy)
         }

@@ -5,12 +5,10 @@ import liquibase.diff.{DiffResult, Difference, ObjectDifferences}
 import liquibase.structure.DatabaseObject
 import liquibase.structure.core._
 
-import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 
 /**
-  * Filters liquibase results. A filter that returns true generally means that this is NOT a difference that should
-  * be included in the final DiffResult.
+  * Filters liquibase results.
   */
 object DiffResultFilter {
   /**
@@ -29,7 +27,7 @@ object DiffResultFilter {
   val StandardTypeFilters: Seq[DiffFilter] = Seq(isReordered, isVarchar255, isTypeSimilar("TINYINT", "BOOLEAN"))
 
   /**
-    * Filters diff results using an object filter and changed object filters.
+    * Filters diff results using an object filter and changed object filters. Filters that return false are removed.
     *
     * @param diffResult The original diff result.
     * @param changedFilters Filters for changed objects.
@@ -151,7 +149,6 @@ object DiffResultFilter {
     * @param databaseObject The database object.
     * @return True if the object is a change log object.
     */
-  @tailrec
   def isChangeLog(database: Database, databaseObject: DatabaseObject): Boolean = {
     databaseObject match {
       case table: Table => table.getName.contains("DATABASECHANGELOG")
@@ -210,42 +207,23 @@ object DiffResultFilter {
       *
       * @return The diff result without changelogs.
       */
-    def filterChangeLogs: DiffResult = filter(diffResult, Seq.empty, isChangeLog)
+    def filterChangeLogs = filter(diffResult, Seq.empty, isChangeLog)
 
     /**
       * Filters liquibase objects from a diff result.
       *
       * @return The diff result without liquibase objects.
       */
-    def filterLiquibaseObjects: DiffResult = filter(diffResult, Seq.empty, isLiquibaseObject)
+    def filterLiquibaseObjects = filter(diffResult, Seq.empty, isLiquibaseObject)
 
     /**
-      * Filters changed objects.
+      * Filters changed objects. Filters that return false are removed.
       *
       * @param filters The filters to apply.
       * @return The updated diff result.
       */
-    def filterChangedObjects(filters: Seq[DiffFilter]): DiffResult = filter(diffResult, filters, (_, _) => false)
+    def filterChangedObjects(filters: Seq[DiffFilter]) = filter(diffResult, filters, (_, _) => false)
 
-    /**
-      * Removes extra/missing liquibase UniqueConstraints from the diff.
-      *
-      * In the meantime, relying extra logic in LiquibaseComparisonSpec to catch missing Constraints in the liquibase
-      * XML migrations.
-      *
-      * The reverse, missing unique constraints in Slick components is not currently tested. But that should be easy
-      * enough to fix if it's later discovered someone forgot to add one to the scala code.
-      *
-      * Should be removed after https://github.com/liquibase/liquibase/issues/1477 is fixed!
-      */
-    def filterUniqueConstraintsUntilLiquibaseBugFixed: DiffResult =
-      filter(
-        diffResult,
-        Seq.empty,
-        {
-          case (_, _: UniqueConstraint) => true
-          case (_, _) => false
-        }
-      )
+    def filterTableObjects(tables: Seq[String]) = filter(diffResult, Seq.empty, isTableObject(tables))
   }
 }

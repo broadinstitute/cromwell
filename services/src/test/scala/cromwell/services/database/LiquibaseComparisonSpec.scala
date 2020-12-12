@@ -1,9 +1,7 @@
 package cromwell.services.database
 
-import better.files._
 import com.dimafeng.testcontainers.Container
 import common.assertion.CromwellTimeoutSpec
-import common.collections.EnhancedCollections._
 import cromwell.core.Tags._
 import cromwell.database.slick.SlickDatabase
 import cromwell.services.database.LiquibaseComparisonSpec._
@@ -34,35 +32,12 @@ class LiquibaseComparisonSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
 
   CromwellDatabaseType.All foreach { databaseType =>
 
-    /*
-    Should only be required until https://github.com/liquibase/liquibase/issues/1477 is fixed!
-     */
-    lazy val hsqldbUniqueConstraints = {
-      var uniqueConstraints: Seq[UniqueConstraint] = Nil
-      for {
-        database <- DatabaseTestKit.inMemoryDatabase(databaseType, SlickSchemaManager).autoClosed
-      } {
-        val dbio = hsqldbUniqueConstraintsDbio(database)
-        val future = database.database.run(dbio)
-        uniqueConstraints = future.futureValue
-      }
-      uniqueConstraints
-    }
-
     lazy val expectedSnapshot = DatabaseTestKit.inMemorySnapshot(databaseType, SlickSchemaManager)
     lazy val expectedColumns = get[Column](expectedSnapshot).sorted
     lazy val expectedPrimaryKeys = get[PrimaryKey](expectedSnapshot).sorted
     lazy val expectedForeignKeys = get[ForeignKey](expectedSnapshot).sorted
-    //lazy val expectedUniqueConstraints = get[UniqueConstraint](expectedSnapshot).sorted
-    lazy val expectedUniqueConstraints = hsqldbUniqueConstraints
+    lazy val expectedUniqueConstraints = get[UniqueConstraint](expectedSnapshot).sorted
     lazy val expectedIndexes = get[Index](expectedSnapshot) filterNot DatabaseTestKit.isGenerated
-
-    // Remove this whole block when https://github.com/liquibase/liquibase/issues/1477 is fixed!
-    // Also search the code for "https://github.com/liquibase/liquibase/issues/1477" and you'll find more to clean up.
-    "LiquibaseComparisonSpec waiting for liquibase/liquibase/1477" should
-      s"retrieve only up to four unique constraints for ${databaseType.name}" in {
-      get[UniqueConstraint](expectedSnapshot).length should be <= 4
-    }
 
     DatabaseSystem.All foreach { databaseSystem =>
 
@@ -74,8 +49,7 @@ class LiquibaseComparisonSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
 
       lazy val connectionMetadata = DatabaseTestKit.connectionMetadata(liquibasedDatabase)
 
-      // lazy val actualSnapshot = DatabaseTestKit.liquibaseSnapshot(liquibasedDatabase)
-      lazy val actualSnapshot = DatabaseTestKit.liquibaseSnapshot(liquibasedDatabase, hsqldbUniqueConstraints)
+      lazy val actualSnapshot = DatabaseTestKit.liquibaseSnapshot(liquibasedDatabase)
       lazy val actualColumns = get[Column](actualSnapshot)
       lazy val actualPrimaryKeys = get[PrimaryKey](actualSnapshot)
       lazy val actualForeignKeys = get[ForeignKey](actualSnapshot)
@@ -533,44 +507,6 @@ object LiquibaseComparisonSpec {
         Option("datetime(6)")
       case _ => None
     }
-  }
-
-  /**
-    * Directly retrieve the list of UniqueConstraints from HSQLDB.
-    *
-    * This entire functions should be deleted after https://github.com/liquibase/liquibase/issues/1477 is fixed!
-    */
-  private def hsqldbUniqueConstraintsDbio(database: SlickDatabase)
-                                         (implicit executionContext: ExecutionContext)
-  : database.dataAccess.driver.api.DBIO[Seq[UniqueConstraint]] = {
-    case class UniqueConstraintRow(constraint: String, table: String, column: String)
-    val toUniqueConstraintRow = GetResult(r => UniqueConstraintRow(r.<<, r.<<, r.<<))
-    val schema = new Schema("PUBLIC", "PUBLIC")
-
-    def toUniqueConstraints(rows: Seq[UniqueConstraintRow]): Seq[UniqueConstraint] = {
-      rows.groupBy(row => (row.constraint, row.table)).safeMapValues(_.map(_.column)).map {
-        case ((constraint, table), columns) =>
-          new UniqueConstraint()
-            .setName(constraint)
-            .setRelation(new Table().setName(table).setSchema(schema))
-            .setColumns(columns.map(column => new Column().setName(column)).asJava)
-      }.toSeq
-    }
-
-    import database.dataAccess.driver.api._
-    //noinspection SqlDialectInspection
-    sql"""select const.CONSTRAINT_NAME,
-                 col.TABLE_NAME,
-                 col.COLUMN_NAME
-          from INFORMATION_SCHEMA.TABLE_CONSTRAINTS const
-                   join INFORMATION_SCHEMA.KEY_COLUMN_USAGE col
-                        on const.CONSTRAINT_SCHEMA = col.CONSTRAINT_SCHEMA
-                            and const.TABLE_NAME = col.TABLE_NAME
-                            and const.CONSTRAINT_NAME = col.CONSTRAINT_NAME
-          where const.CONSTRAINT_SCHEMA = 'PUBLIC'
-            and const.CONSTRAINT_TYPE = 'UNIQUE'
-          order by col.ORDINAL_POSITION
-       """.as[UniqueConstraintRow](toUniqueConstraintRow).map(toUniqueConstraints)
   }
 
   private def columnTypeDbio(column: Column,

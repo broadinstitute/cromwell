@@ -848,9 +848,9 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
     val queryAction = GetMetadataAction(mdQuery)
 
     // The result should always be the same regardless of what order the list arrives in (forward, reverse, random):
-    assertMetadataResponse(queryAction, mdQuery, events, expectedRes)
-    assertMetadataResponse(queryAction, mdQuery, events.reverse, expectedRes)
-    assertMetadataResponse(queryAction, mdQuery, Random.shuffle(events), expectedRes)
+    assertMetadataResponse(queryAction, mdQuery, events, expectedRes, "mba-statuses-forward")
+    assertMetadataResponse(queryAction, mdQuery, events.reverse, expectedRes, "mba-statuses-reverse")
+    assertMetadataResponse(queryAction, mdQuery, Random.shuffle(events), expectedRes, "mba-statuses-random")
   }
 
   it should "politely refuse building metadata JSON if metadata number of rows is too large" in {

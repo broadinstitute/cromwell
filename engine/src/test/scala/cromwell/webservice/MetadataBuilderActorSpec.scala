@@ -22,6 +22,7 @@ import spray.json._
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.util.Random
 
 class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with Mockito
   with TableDrivenPropertyChecks with ImplicitSender {
@@ -798,6 +799,58 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       case (as, es) => as.toList.map(_.toString).sorted == es.toList.map(_.toString).sorted
     }
     matchesExpectations.reduceLeft(_ && _) shouldBe true
+  }
+
+  it should "correctly order statuses (even unused ones)" in {
+    val workflowId = WorkflowId.randomId()
+
+    def statusEvent(callName: String, status: String) = {
+      MetadataEvent(MetadataKey(workflowId, Option(MetadataJobKey(callName, None, 1)), "executionStatus"), MetadataValue(status))
+    }
+
+    // Combines standard "setup" statuses plus the conclusion status(es).
+    def setupStatusesPlusConclusion(callName: String, conclusionStatuses: String*): Vector[MetadataEvent] = Vector(
+      statusEvent(callName, "NotStarted"),
+      statusEvent(callName, "WaitingForQueueSpace"),
+      statusEvent(callName, "QueuedInCromwell"),
+      statusEvent(callName, "Starting"),
+      statusEvent(callName, "Running")
+    ) ++ conclusionStatuses.map(statusEvent(callName, _))
+
+    /** WARNING!
+      * Think twice before removing any of these entries! Even if a status is no longer used, the database can
+      * (and probably will!) still contain entries specifying that status.
+      */
+
+    val events =
+      setupStatusesPlusConclusion("Foo", "Done") ++
+      setupStatusesPlusConclusion("Bar", "Aborting", "Aborted") ++
+      setupStatusesPlusConclusion("Baz", "Failed") ++
+      setupStatusesPlusConclusion("Qux", "RetryableFailure") ++
+      setupStatusesPlusConclusion("Quux", "Bypassed") ++
+      setupStatusesPlusConclusion("Quuux", "Unstartable")
+
+    val expectedRes =
+      s"""{
+         |  "calls": {
+         |    "Foo": [{ "attempt": 1, "executionStatus": "Done", "shardIndex": -1 }],
+         |    "Bar": [{ "attempt": 1, "executionStatus": "Aborted", "shardIndex": -1 }],
+         |    "Baz": [{ "attempt": 1, "executionStatus": "Failed", "shardIndex": -1 }],
+         |    "Qux": [{ "attempt": 1, "executionStatus": "RetryableFailure", "shardIndex": -1 }],
+         |    "Quux": [{ "attempt": 1, "executionStatus": "Bypassed", "shardIndex": -1 }],
+         |    "Quuux": [{ "attempt": 1, "executionStatus": "Unstartable", "shardIndex": -1 }]
+         |  },
+         |  "id": "$workflowId",
+         |  "metadataSource": "Unarchived"
+         |}""".stripMargin
+
+    val mdQuery = MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)
+    val queryAction = GetMetadataAction(mdQuery)
+
+    // The result should always be the same regardless of what order the list arrives in (forward, reverse, random):
+    assertMetadataResponse(queryAction, mdQuery, events, expectedRes)
+    assertMetadataResponse(queryAction, mdQuery, events.reverse, expectedRes)
+    assertMetadataResponse(queryAction, mdQuery, Random.shuffle(events), expectedRes)
   }
 
   it should "politely refuse building metadata JSON if metadata number of rows is too large" in {

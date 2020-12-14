@@ -3,20 +3,26 @@
 
 ## Welcome to Cromwell
 
-Cromwell is a Workflow Management System geared towards scientific workflows. Cromwell is open sourced under the [BSD 3-Clause license](LICENSE.txt).
+Cromwell is an open-source Workflow Management System for bioinformatics. Licensing is [BSD 3-Clause](LICENSE.txt).
 
-The Cromwell documentation has a new home, [click here to check it out](https://cromwell.readthedocs.io/en/stable)!
+The [Cromwell documentation has a dedicated site](https://cromwell.readthedocs.io/en/stable).
 
-First time to Cromwell? Get started with [Tutorials](https://cromwell.readthedocs.io/en/stable/tutorials/FiveMinuteIntro/)!
+First time to Cromwell? Get started with [Tutorials](https://cromwell.readthedocs.io/en/stable/tutorials/FiveMinuteIntro/).
 
 Thinking about contributing to Cromwell? Get started by reading our [Contributor Guide](CONTRIBUTING.md).
 
 Cromwell has a growing ecosystem of community-backed projects to make your experience even better! Check out our [Ecosystem](https://cromwell.readthedocs.io/en/stable/Ecosystem/) page to learn more.
 
-### Issue tracking is now on JIRA
+### Issue tracking in JIRA
 
-Need to file an issue? Head over to [our JIRA](https://broadworkbench.atlassian.net/projects/BA/issues). You can sign in with any Google account. 
+<!--
+AEN external issue filing tested 2020-12-08 with `oednichols@gmail.com` / `https://broadworkbench.atlassian.net/browse/CROM-6681`
+-->
 
-As of May 2019, we are in the process of migrating all issues from Github to JIRA. At a later date to be announced, submitting new Github issues will be disabled.
+Need to file an issue? Head over to [our JIRA](https://broadworkbench.atlassian.net/jira/software/c/projects/CROM/issues). You must create a free profile to view or create.
+
+![Cromwell JIRA](docs/img/cromwell_jira.png)
+
+Issues in Github remain available for discussion among community members but are not actively monitored by the development team.
 
 ![Jamie, the Cromwell pig](docs/jamie_the_cromwell_pig.png)

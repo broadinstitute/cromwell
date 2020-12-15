@@ -2,25 +2,26 @@ package cromwell.core
 
 object ExecutionStatus extends Enumeration {
   type ExecutionStatus = Value
-  val NotStarted, QueuedInCromwell, Starting, Running, Aborting, Failed, RetryableFailure, Done, Bypassed, Aborted, Unstartable = Value
+  val NotStarted, WaitingForQueueSpace, QueuedInCromwell, Starting, Running, Aborting, Failed, RetryableFailure, Done, Bypassed, Aborted, Unstartable = Value
   val TerminalStatuses = Set(Failed, Done, Aborted, Bypassed, Unstartable)
   val TerminalOrRetryableStatuses = TerminalStatuses + RetryableFailure
   val NonTerminalStatuses = values.diff(TerminalOrRetryableStatuses)
-  val ActiveStatuses = Set(QueuedInCromwell, Starting, Running, Aborting)
+  val ActiveStatuses = Set(WaitingForQueueSpace, QueuedInCromwell, Starting, Running, Aborting)
 
   implicit val ExecutionStatusOrdering = Ordering.by { status: ExecutionStatus =>
     status match {
       case NotStarted => 0
-      case QueuedInCromwell => 1
-      case Starting => 2
-      case Running => 3
-      case Aborting => 4
-      case Unstartable => 5
-      case Aborted => 6
-      case Bypassed => 7
-      case RetryableFailure => 8
-      case Failed => 9
-      case Done => 10
+      case WaitingForQueueSpace => 1
+      case QueuedInCromwell => 2
+      case Starting => 3
+      case Running => 4
+      case Aborting => 5
+      case Unstartable => 6
+      case Aborted => 7
+      case Bypassed => 8
+      case RetryableFailure => 9
+      case Failed => 10
+      case Done => 11
     }
   }
   

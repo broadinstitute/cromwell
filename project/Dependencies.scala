@@ -14,7 +14,7 @@ object Dependencies {
   private val awsSdkV = "2.15.41"
   private val betterFilesV = "3.9.1"
   private val catsEffectV = "2.3.0"
-  private val catsV = "2.2.0" // scala-steward:off (CROM-6683)
+  private val catsV = "2.3.0"
   private val circeGenericExtrasV = "0.13.0"
   private val circeOpticsV = "0.13.0"
   private val circeV = "0.13.0"

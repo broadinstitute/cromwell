@@ -49,7 +49,9 @@ case class PipelinesApiConfigurationAttributes(project: String,
                                                memoryRetryConfiguration: Option[MemoryRetryConfiguration],
                                                allowNoAddress: Boolean,
                                                referenceFileToDiskImageMappingOpt: Option[Map[String, PipelinesApiReferenceFilesDisk]],
-                                               dockerImageToCacheDiskImageMappingOpt: Option[Map[String, String]])
+                                               dockerImageToCacheDiskImageMappingOpt: Option[Map[String, String]],
+                                               checkpointingInterval: FiniteDuration
+                                              )
 
 object PipelinesApiConfigurationAttributes
   extends PipelinesApiDockerCacheMappingOperations
@@ -221,6 +223,8 @@ object PipelinesApiConfigurationAttributes
 
     val dockerImageCacheManifestFile: ErrorOr[Option[ValidFullGcsPath]] = validateGcsPathToDockerImageCacheManifestFile(backendConfig)
 
+    val checkpointingInterval: FiniteDuration = backendConfig.getOrElse("checkpointing-interval", 10.minutes)
+
     def authGoogleConfigForPapiConfigurationAttributes(project: String,
                                                        bucket: String,
                                                        endpointUrl: URL,
@@ -268,7 +272,8 @@ object PipelinesApiConfigurationAttributes
             memoryRetryConfiguration = memoryRetryConfig,
             allowNoAddress,
             referenceFileToDiskImageMappingOpt = generatedReferenceFilesMappingOpt,
-            dockerImageToCacheDiskImageMappingOpt = dockerImageToCacheDiskImageMappingOpt
+            dockerImageToCacheDiskImageMappingOpt = dockerImageToCacheDiskImageMappingOpt,
+            checkpointingInterval = checkpointingInterval
           )
     }
 

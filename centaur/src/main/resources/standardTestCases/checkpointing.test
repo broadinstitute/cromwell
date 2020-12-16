@@ -1,0 +1,14 @@
+name: checkpointing
+testFormat: workflowsuccess
+backends: [Papiv2]
+tags: [localdockertest]
+
+files {
+  workflow: checkpointing/checkpointing.wdl
+}
+
+metadata {
+  workflowName: checkpointing
+  status: Succeeded
+  "outputs.checkpointing.preempted": "GOTPREEMPTED"
+}

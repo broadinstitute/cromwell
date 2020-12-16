@@ -35,7 +35,7 @@ trait MonitoringAction {
           val monitoringImageCommand = createPipelineParameters.monitoringImage.monitoringImageCommand
           val monitoringImageEnvironment = createPipelineParameters.monitoringImage.monitoringImageEnvironment
 
-          val monitoringAction = ActionBuilder.monitoringAction(
+          val monitoringAction = ActionBuilder.backgroundAction(
             monitoringImage,
             monitoringImageCommand,
             monitoringImageEnvironment(mounts.map(_.getPath)),
@@ -55,7 +55,7 @@ trait MonitoringAction {
   def monitoringShutdownActions(createPipelineParameters: CreatePipelineParameters): List[Action] = {
     createPipelineParameters.monitoringImage.monitoringImageOption match {
       case Some(_) =>
-        val terminationAction = ActionBuilder.monitoringTerminationAction()
+        val terminationAction = ActionBuilder.terminateBackgroundActionsAction()
 
         val describeTerminationAction = ActionBuilder.describeDocker("terminate monitoring action", terminationAction)
 

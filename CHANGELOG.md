@@ -13,14 +13,21 @@ More information on JSON Type to WDL Type conversion can be found [here](https:/
 
 * Now retries HTTP 408 responses as well as HTTP 429 responses during DOS/DRS resolution requests.
 
-### Reference disk support on PAPI v2
+### New Features
+
+#### Reference disk support on PAPI v2
 
 Cromwell now offers support for the use of reference disks on the PAPI v2 backend as an alternative to localizing
 reference inputs. More details [here](https://cromwell.readthedocs.io/en/develop/backends/Google#reference-disk-support).
 
-### Docker image cache support on PAPI v2 lifesciences beta
+#### Docker image cache support on PAPI v2 lifesciences beta
 
 Cromwell now offers support for the use of Docker image caches on the PAPI v2 lifesciences beta backend. More details [here](https://cromwell.readthedocs.io/en/develop/backends/Google#docker-image-cache-support).
+
+#### Preemptible Recovery via Checkpointing
+
+* Cromwell can now help tasks recover from preemption by allowing them to specify a 'checkpoint' file which will be restored
+to the worker VM on the next attempt if the task is interrupted. More details [here](https://cromwell.readthedocs.io/en/develop/optimizations/CheckpointFiles)
 
 ## 54 Release Notes
 

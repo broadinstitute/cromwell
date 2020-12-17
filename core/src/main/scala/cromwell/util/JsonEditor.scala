@@ -2,10 +2,10 @@ package cromwell.util
 
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
-import cats.syntax.traverse._
-import cats.syntax.validated._
 import cats.instances.list._
 import cats.instances.vector._
+import cats.syntax.traverse._
+import cats.syntax.validated._
 import common.collections.EnhancedCollections._
 import common.util.StringUtil._
 import common.validation.ErrorOr._
@@ -40,6 +40,51 @@ object JsonEditor {
       case (Some(includeKeys), None) => includeJson(json, includeKeys)
       case _ => json.validNel
     }
+
+  /**
+    * If the `calls` element is present in the top level workflow, edit it to include only attempts with the specified
+    * call FQN and shard index.
+    *
+    * @param workflowJson Full input workflow JSON.
+    * @param callFqn Fully qualified name of the call to be included.
+    * @param index Scatter index of the call to be returned, `None` if the call is not scattered.
+    * @return Workflow JSON edited to include only call objects matching the specified `callFqn` and `index`
+    *         within `calls`.
+    */
+  def filterCalls(workflowJson: Json, callFqn: String, index: Option[Int]): ErrorOr[Json] = {
+
+    def workflowAsObject: ErrorOr[JsonObject] =
+      workflowJson.asObject.map(_.validNel).getOrElse(s"Workflow JSON unexpectedly not an object: $workflowJson".invalidNel)
+
+    // Return the value for "calls" as a JsonObject, returning an empty JsonObject if missing.
+    def callsAsObject(obj: JsonObject): ErrorOr[JsonObject] = obj(Keys.calls) match {
+      case None => JsonObject.empty.validNel
+      case Some(cs) =>
+        cs.asObject map { _.validNel } getOrElse s"calls JSON unexpectedly not an object: $cs".invalidNel
+    }
+
+    // Return only those calls which match the call FQN and the shard index.
+    def filteredCalls(callsObject: JsonObject): Vector[Json] = {
+      val effectiveIndex = index.getOrElse(-1)
+
+      for {
+        callForFqn <- callsObject(callFqn).toVector
+        attemptsForFqn <- callForFqn.asArray.toVector
+        attempt <- attemptsForFqn
+        attemptAsObject <- attempt.asObject
+        shardIndexJson <- attemptAsObject(Keys.shardIndex)
+        shardIndex <- shardIndexJson.asNumber
+        shardIndexInt <- shardIndex.toInt
+        if shardIndexInt == effectiveIndex
+      } yield attempt
+    }
+
+    for {
+      workflowObject <- workflowAsObject
+      callsObject <- callsAsObject(workflowObject)
+      filteredCallsJson = Json.fromValues(filteredCalls(callsObject))
+    } yield Json.fromJsonObject(JsonObject.singleton(callFqn, filteredCallsJson))
+  }
 
   /** A `Filter` represents a list of one or more components corresponding to a single `includeKey` or `excludeKey` parameter.
     * If an `includeKey` or `excludeKey` parameter specifies a nested term such as `foo:bar`, the `Filter`'s `components`

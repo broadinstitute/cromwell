@@ -662,5 +662,5 @@ task my_task {
 }
 ```
 
-These settings could be useful for cost reasons: mounting Docker image caches adds nonzero cost 
+These settings could be useful for cost reasons: mounting Docker image caches adds nonzero cost
 which might not be offset by eliminating Docker image pull times for long-running jobs.

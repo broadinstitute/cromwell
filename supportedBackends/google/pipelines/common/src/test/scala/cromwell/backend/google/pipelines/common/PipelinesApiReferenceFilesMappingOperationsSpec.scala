@@ -9,7 +9,7 @@ import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.flatspec.AnyFlatSpecLike
 
-class PipelinesApiReferenceFilesMappingSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matchers {
+class PipelinesApiReferenceFilesMappingOperationsSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matchers {
 
   private val refFile1Disk1 = "bucketname/dir1/dir2/filename1"
   private val refFile2Disk1 = "bucketname/dir1/dir2/dir3/filename2"

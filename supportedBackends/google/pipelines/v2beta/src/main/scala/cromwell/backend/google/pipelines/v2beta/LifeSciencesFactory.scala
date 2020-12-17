@@ -129,6 +129,26 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
       val accelerators = createPipelineParameters.runtimeAttributes
         .gpuResource.map(toAccelerator).toList.asJava
 
+      val virtualMachine = new VirtualMachine()
+        .setDisks(disks.asJava)
+        .setPreemptible(createPipelineParameters.preemptible)
+        .setServiceAccount(serviceAccount)
+        .setMachineType(createPipelineParameters.runtimeAttributes |> toMachineType(jobLogger))
+        .setLabels(createPipelineParameters.googleLabels.map(label => label.key -> label.value).toMap.asJava)
+        .setNetwork(network)
+        .setAccelerators(accelerators)
+
+
+      val dockerImageCacheDiskOpt = createPipelineParameters.useDockerImageCache.option {
+        createPipelineParameters
+          .dockerImageToCacheDiskImageMappingOpt
+          .flatMap(_.get(createPipelineParameters.runtimeAttributes.dockerImage))
+      }.flatten
+
+      dockerImageCacheDiskOpt foreach { dockerImageCacheDisk =>
+        virtualMachine.setDockerCacheImages(List(dockerImageCacheDisk).asJava)
+      }
+
       /*
        * Adjust using docker images used by Cromwell as well as the tool's docker image size if available
        */
@@ -139,28 +159,18 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
         val userCommandImageSizeInGB = MemorySize(userCommandImageSizeInBytes.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB).amount
         val userCommandImageSizeRoundedUpInGB = userCommandImageSizeInGB.ceil.toInt
 
-        val totalSize = fromRuntimeAttributes + userCommandImageSizeRoundedUpInGB + ActionUtils.cromwellImagesSizeRoundedUpInGB
-        jobLogger.info(s"Adjusting boot disk size to $totalSize GB: $fromRuntimeAttributes GB (runtime attributes) + $userCommandImageSizeRoundedUpInGB GB (user command image) + ${ActionUtils.cromwellImagesSizeRoundedUpInGB} GB (Cromwell support images)")
+        val totalSize = fromRuntimeAttributes +
+          dockerImageCacheDiskOpt
+            .map(_ => 0) // if we are using docker image cache then we don't need this additional volume for the boot disk
+            .getOrElse(userCommandImageSizeRoundedUpInGB + ActionUtils.cromwellImagesSizeRoundedUpInGB)
+
+        if (totalSize != fromRuntimeAttributes) {
+          jobLogger.info(s"Adjusting boot disk size to $totalSize GB: $fromRuntimeAttributes GB (runtime attributes) + $userCommandImageSizeRoundedUpInGB GB (user command image) + ${ActionUtils.cromwellImagesSizeRoundedUpInGB} GB (Cromwell support images)")
+        }
 
         totalSize
       }
-
-      val virtualMachine = new VirtualMachine()
-        .setDisks(disks.asJava)
-        .setPreemptible(createPipelineParameters.preemptible)
-        .setServiceAccount(serviceAccount)
-        .setMachineType(createPipelineParameters.runtimeAttributes |> toMachineType(jobLogger))
-        .setBootDiskSizeGb(adjustedBootDiskSize)
-        .setLabels(createPipelineParameters.googleLabels.map(label => label.key -> label.value).toMap.asJava)
-        .setNetwork(network)
-        .setAccelerators(accelerators)
-
-      if (createPipelineParameters.useDockerImageCache) {
-        createPipelineParameters
-          .dockerImageToCacheDiskImageMappingOpt
-          .flatMap(_.get(createPipelineParameters.runtimeAttributes.dockerImage))
-          .foreach(cacheDiskImage => virtualMachine.setDockerCacheImages(List(cacheDiskImage).asJava))
-      }
+      virtualMachine.setBootDiskSizeGb(adjustedBootDiskSize)
 
       createPipelineParameters.runtimeAttributes.gpuResource foreach { resource =>
         virtualMachine.setNvidiaDriverVersion(resource.nvidiaDriverVersion)

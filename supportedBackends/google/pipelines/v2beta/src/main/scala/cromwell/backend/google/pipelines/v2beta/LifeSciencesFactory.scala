@@ -154,7 +154,6 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
         .setLabels(createPipelineParameters.googleLabels.map(label => label.key -> label.value).toMap.asJava)
         .setNetwork(network)
         .setAccelerators(accelerators)
-        // .setDockerCacheImages(???)
 
       if (createPipelineParameters.useDockerImageCache) {
         createPipelineParameters

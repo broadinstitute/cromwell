@@ -648,3 +648,19 @@ Docker image which corresponds to a configured Docker image cache JSON, Cromwell
 job's VM to mount a disk built from the corresponding disk image. In the event that multiple
 manifests describe disk images containing the specified Docker image, Cromwell will choose the disk image with the
 smallest `diskSizeGb` value.
+
+Conversely, Docker image caching can be turned off at the workflow level (either turned off explicitly or left at the
+default setting of `false`) but turned on at the individual task level:
+
+```wdl
+task my_task {
+  ...
+  runtime {
+    ...
+    useDockerImageCache: true
+  }
+}
+```
+
+These settings could be useful for cost reasons: mounting Docker image caches adds nonzero cost 
+which might not be offset by eliminating Docker image pull times for long-running jobs.

@@ -99,6 +99,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     with PipelinesApiStatusRequestClient
     with PipelinesApiRunCreationClient
     with PipelinesApiAbortClient
+    with PipelinesApiReferenceFilesMappingOperations
     with PapiInstrumentation {
 
   override lazy val ioCommandBuilder: IoCommandBuilder = GcsBatchCommandBuilder
@@ -413,6 +414,10 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.GoogleLegacyMachineSelection).getOrElse(false)
   }
 
+  protected def useDockerImageCache(descriptor: BackendWorkflowDescriptor): Boolean = {
+    descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.UseDockerImageCache).getOrElse(false)
+  }
+
   override def isTerminal(runStatus: RunStatus): Boolean = {
     runStatus match {
       case _: TerminalRunStatus => true
@@ -451,7 +456,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         } getOrElse runtimeAttributes.disks
 
         val inputFilePaths = inputOutputParameters.jobInputParameters.map(_.cloudPath.pathAsString).toSet
-        val referenceDisksToMount = PipelinesApiReferenceFilesMapping.getReferenceDisksToMount(jesAttributes.referenceFilesMapping, inputFilePaths)
+        val referenceDisksToMount =
+          jesAttributes.referenceFileToDiskImageMappingOpt.map(getReferenceDisksToMount(_, inputFilePaths))
 
         val workflowOptions = workflowDescriptor.workflowOptions
 
@@ -489,10 +495,13 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           retryWithMoreMemoryKeys = jesAttributes.memoryRetryConfiguration.map(_.errorKeys),
           fuseEnabled = fuseEnabled(jobDescriptor.workflowDescriptor),
           allowNoAddress = pipelinesConfiguration.papiAttributes.allowNoAddress,
-          referenceDisksForLocalization = referenceDisksToMount,
+          referenceDisksForLocalizationOpt = referenceDisksToMount,
           monitoringImage = monitoringImage,
           enableSshAccess = enableSshAccess,
-          vpcNetworkAndSubnetworkProjectLabels = data.vpcNetworkAndSubnetworkProjectLabels
+          vpcNetworkAndSubnetworkProjectLabels = data.vpcNetworkAndSubnetworkProjectLabels,
+          // docker image cache usage can be forcefully disabled by task's runtime attribute
+          useDockerImageCache = useDockerImageCache(jobDescriptor.workflowDescriptor) && runtimeAttributes.useDockerImageCache,
+          dockerImageToCacheDiskImageMappingOpt = jesAttributes.dockerImageToCacheDiskImageMappingOpt
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")
@@ -526,7 +535,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
                                             cloudPath: Path,
                                             transferLibraryContainerPath: Path,
                                             gcsTransferConfiguration: GcsTransferConfiguration,
-                                            referenceFilesMapping: PipelinesApiReferenceFilesMapping): Future[Unit] = Future.successful(())
+                                            referenceFileToDiskImageMapping: Option[Map[String, PipelinesApiReferenceFilesDisk]]): Future[Unit] = Future.successful(())
 
   protected def uploadGcsDelocalizationScript(createPipelineParameters: CreatePipelineParameters,
                                               cloudPath: Path,
@@ -600,7 +609,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       transferLibraryContainerPath = createParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
       _ <- uploadGcsTransferLibrary(createParameters, gcsTransferLibraryCloudPath, gcsTransferConfiguration)
       gcsLocalizationScriptCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsLocalizationScriptName
-      _ <- uploadGcsLocalizationScript(createParameters, gcsLocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration, jesAttributes.referenceFilesMapping)
+      _ <- uploadGcsLocalizationScript(createParameters, gcsLocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration, jesAttributes.referenceFileToDiskImageMappingOpt)
       gcsDelocalizationScriptCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsDelocalizationScriptName
       _ <- uploadGcsDelocalizationScript(createParameters, gcsDelocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration)
       _ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined

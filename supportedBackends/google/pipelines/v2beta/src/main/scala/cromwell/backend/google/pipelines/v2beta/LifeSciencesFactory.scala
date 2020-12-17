@@ -72,7 +72,8 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
         }
       }
 
-      val allDisksToBeMounted = createPipelineParameters.adjustedSizeDisks ++ createPipelineParameters.referenceDisksForLocalization
+      val allDisksToBeMounted = createPipelineParameters.adjustedSizeDisks ++
+        createPipelineParameters.referenceDisksForLocalizationOpt.getOrElse(List.empty)
 
       // Disks defined in the runtime attributes and reference-files-localization disks
       val disks = allDisksToBeMounted |> toDisks
@@ -153,6 +154,13 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
         .setLabels(createPipelineParameters.googleLabels.map(label => label.key -> label.value).toMap.asJava)
         .setNetwork(network)
         .setAccelerators(accelerators)
+
+      if (createPipelineParameters.useDockerImageCache) {
+        createPipelineParameters
+          .dockerImageToCacheDiskImageMappingOpt
+          .flatMap(_.get(createPipelineParameters.runtimeAttributes.dockerImage))
+          .foreach(cacheDiskImage => virtualMachine.setDockerCacheImages(List(cacheDiskImage).asJava))
+      }
 
       createPipelineParameters.runtimeAttributes.gpuResource foreach { resource =>
         virtualMachine.setNvidiaDriverVersion(resource.nvidiaDriverVersion)

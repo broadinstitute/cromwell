@@ -35,7 +35,7 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
     pipelinesApiAttributes.computeServiceAccount should be("default")
     pipelinesApiAttributes.restrictMetadataAccess should be(false)
     pipelinesApiAttributes.memoryRetryConfiguration should be(None)
-    pipelinesApiAttributes.referenceFilesMapping.validReferenceFilesMap.isEmpty should be(true)
+    pipelinesApiAttributes.referenceFileToDiskImageMappingOpt.isEmpty should be(true)
   }
 
   it should "parse correct preemptible config" in {
@@ -413,7 +413,7 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
     val manifestConfigStr = s"""reference-disk-localization-manifest-files = ["$manifest1Path", "$manifest2Path"]""".stripMargin
     val backendConfig = ConfigFactory.parseString(configString(manifestConfigStr))
 
-    val validatedGcsPathsToManifestFilesErrorOr = PipelinesApiConfigurationAttributes.validateGcsPathToManifestFile(backendConfig)
+    val validatedGcsPathsToManifestFilesErrorOr = PipelinesApiConfigurationAttributes.validateGcsPathsToReferenceDiskManifestFiles(backendConfig)
     validatedGcsPathsToManifestFilesErrorOr match {
       case Valid(validatedGcsPathsToManifestFilesOpt) =>
         validatedGcsPathsToManifestFilesOpt match {
@@ -430,7 +430,7 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
   it should "parse correct missing reference-disk-localization-manifest-files config" in {
     val backendConfig = ConfigFactory.parseString(configString())
 
-    val validatedGcsPathsToManifestFilesErrorOr = PipelinesApiConfigurationAttributes.validateGcsPathToManifestFile(backendConfig)
+    val validatedGcsPathsToManifestFilesErrorOr = PipelinesApiConfigurationAttributes.validateGcsPathsToReferenceDiskManifestFiles(backendConfig)
     validatedGcsPathsToManifestFilesErrorOr match {
       case Valid(validatedGcsPathsToManifestFilesOpt) =>
         validatedGcsPathsToManifestFilesOpt shouldBe None
@@ -443,7 +443,7 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
     val manifestConfigStr = "reference-disk-localization-manifest-files = []"
     val backendConfig = ConfigFactory.parseString(configString(manifestConfigStr))
 
-    val validatedGcsPathsToManifestFilesErrorOr = PipelinesApiConfigurationAttributes.validateGcsPathToManifestFile(backendConfig)
+    val validatedGcsPathsToManifestFilesErrorOr = PipelinesApiConfigurationAttributes.validateGcsPathsToReferenceDiskManifestFiles(backendConfig)
     validatedGcsPathsToManifestFilesErrorOr match {
       case Valid(validatedGcsPathsToManifestFilesOpt) =>
         validatedGcsPathsToManifestFilesOpt match {

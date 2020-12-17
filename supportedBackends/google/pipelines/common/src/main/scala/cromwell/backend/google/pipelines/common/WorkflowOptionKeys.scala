@@ -9,4 +9,5 @@ object WorkflowOptionKeys {
   val GoogleComputeServiceAccount = "google_compute_service_account"
   val EnableFuse = "enable_fuse"
   val GoogleLegacyMachineSelection = "google_legacy_machine_selection"
+  val UseDockerImageCache = "use_docker_image_cache"
 }

@@ -410,7 +410,7 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
   it should "parse correct existing reference-disk-localization-manifest-files config" in {
     val referenceDiskManifest1Path = "gs://bucket/manifest1.json"
     val referenceDiskManifest2Path = "gs://bucket/manifest2.json"
-    val referenceDiskManifestConfigStr = s"""reference-disk-localization-manifest-files = ["$referenceDiskManifest1Path", "$referenceDiskManifest2Path"]""".stripMargin
+    val referenceDiskManifestConfigStr = s"""reference-disk-localization-manifest-files = ["$referenceDiskManifest1Path", "$referenceDiskManifest2Path"]"""
     val backendConfig = ConfigFactory.parseString(configString(referenceDiskManifestConfigStr))
 
     val validatedGcsPathsToReferenceDiskManifestFilesErrorOr = PipelinesApiConfigurationAttributes.validateGcsPathsToReferenceDiskManifestFiles(backendConfig)
@@ -463,7 +463,7 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
 
   it should "parse correct existing docker-image-cache-manifest-file config" in {
     val dockerImageCacheManifest1Path = "gs://bucket/manifest1.json"
-    val dockerImageCacheManifestConfigStr = s"""docker-image-cache-manifest-file = "$dockerImageCacheManifest1Path"""".stripMargin
+    val dockerImageCacheManifestConfigStr = s"""docker-image-cache-manifest-file = "$dockerImageCacheManifest1Path""""
     val backendConfig = ConfigFactory.parseString(configString(dockerImageCacheManifestConfigStr))
 
     val validatedGcsPathToDockerImageCacheManifestFileErrorOr = PipelinesApiConfigurationAttributes.validateGcsPathToDockerImageCacheManifestFile(backendConfig)

@@ -53,7 +53,7 @@ object JsonEditor {
     */
   def filterCalls(workflowJson: Json, callFqn: String, index: Option[Int]): ErrorOr[Json] = {
 
-    def workflowAsObject: ErrorOr[JsonObject] =
+    lazy val workflowAsObject: ErrorOr[JsonObject] =
       workflowJson.asObject.map(_.validNel).getOrElse(s"Workflow JSON unexpectedly not an object: $workflowJson".invalidNel)
 
     // Return the value for "calls" as a JsonObject, returning an empty JsonObject if missing.
@@ -64,7 +64,7 @@ object JsonEditor {
     }
 
     // Return only those calls which match the call FQN and the shard index.
-    def filteredCalls(callsObject: JsonObject): Vector[Json] = {
+    def filterCalls(callsObject: JsonObject): Vector[Json] = {
       val effectiveIndex = index.getOrElse(-1)
 
       for {
@@ -79,11 +79,23 @@ object JsonEditor {
       } yield attempt
     }
 
-    for {
+    lazy val filteredCalls = for {
       workflowObject <- workflowAsObject
       callsObject <- callsAsObject(workflowObject)
-      filteredCallsJson = Json.fromValues(filteredCalls(callsObject))
+      filteredCallsJson = Json.fromValues(filterCalls(callsObject))
     } yield Json.fromJsonObject(JsonObject.singleton(callFqn, filteredCallsJson))
+
+    // Update the workflow with a filtered value for the `calls` key if the `calls` key is present, otherwise return
+    // the workflow unmodified.
+    def updateCalls(workflow: JsonObject): ErrorOr[JsonObject] = {
+      if (workflow.contains(Keys.calls)) filteredCalls map { workflow.add(Keys.calls, _) }
+      else workflow.validNel
+    }
+
+    for {
+      workflow <- workflowAsObject
+      updatedWorkflow <- updateCalls(workflow)
+    } yield Json.fromJsonObject(updatedWorkflow)
   }
 
   /** A `Filter` represents a list of one or more components corresponding to a single `includeKey` or `excludeKey` parameter.

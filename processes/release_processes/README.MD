@@ -39,11 +39,14 @@ This is optional, but I find it useful. Make or copy the following files into so
 {
   "publish_workflow.githubToken": "<<GITHUB TOKEN VALUE>>",
   "publish_workflow.majorRelease": true,
-  "publish_workflow.publishHomebrew": true,
+  "publish_workflow.publishHomebrew": false,
   "publish_workflow.publishDocker": "broadinstitute/cromwell-publish:latest",
   "publish_workflow.organization": "broadinstitute"
 }
 ```
+
+**Note:** `publish_workflow.publishHomebrew` should be `false` until we are ready to complete
+[BT-36](https://broadworkbench.atlassian.net/browse/BT-36).
 
 #### Make sure docker will have enough memory
 
@@ -100,6 +103,9 @@ Deploying to CAAS is detailed in the [Quick CAAS Deployment Guide](https://docs.
 The swagger client library is not part of our core publish/release process but can be performed from time to time, as required.
 
 ### How to Generate and Publish Swagger Client Library
+
+**Note:** This part of publishing may or may not work for you until
+[BT-38](https://broadworkbench.atlassian.net/browse/BT-38) is finished and this section is updated.
 
 The first step is to generate the client library.  From the root of the repo run
 

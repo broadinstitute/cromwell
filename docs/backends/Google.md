@@ -599,7 +599,7 @@ backend {
       actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
       config {
         ...
-        docker-image-cache-manifest-files = ["gs://path/to/a/docker/image/cache/manifest.json"]
+        docker-image-cache-manifest-file = "gs://path/to/a/docker/image/cache/manifest.json"
         ...
       }
     }
@@ -611,13 +611,9 @@ Docker image cache manifest JSONs have a format like:
 
 ```json
 {
-  "imageIdentifier" : "projects/my_project/global/images/warp-docker-image-cache-2020-11-20",
-  "diskSizeGb" : 30,
-  "images" : [
-    "us.gcr.io/broad-gotc-prod/picard-cloud:2.23.0",
-    "us.gcr.io/broad-gatk/gatk:4.1.4.1",
-...
-  ]
+  "biocontainers/samtools:1.3.1": "projects/broad-dsde-cromwell-dev/global/images/v1-docker-biocontainers-samtools-1-3-1",
+  "gcr.io/gcp-runtimes/ubuntu_16_0_4:latest": "projects/broad-dsde-cromwell-dev/global/images/v1-docker-gcr-io-gcp-runtimes-ubuntu-16-0-4-latest",
+  ...
 }
 ```
 

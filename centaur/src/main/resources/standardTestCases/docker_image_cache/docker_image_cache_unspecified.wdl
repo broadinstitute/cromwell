@@ -14,6 +14,9 @@ task check_if_docker_image_cache_disk_mounted {
     docker: "gcr.io/gcp-runtimes/ubuntu_16_0_4:latest"
     backend: "Papiv2-Docker-Image-Cache"
   }
+  meta {
+    volatile: true
+  }
   output {
     Boolean mounted_docker_image_cache_disk = read_boolean(stdout())
   }

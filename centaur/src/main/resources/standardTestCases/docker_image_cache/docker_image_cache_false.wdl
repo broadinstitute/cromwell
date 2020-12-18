@@ -15,6 +15,9 @@ task check_if_docker_image_cache_disk_mounted {
     backend: "Papiv2-Docker-Image-Cache"
     useDockerImageCache: false
   }
+  meta {
+    volatile: true
+  }
   output {
     Boolean mounted_docker_image_cache_disk = read_boolean(stdout())
   }

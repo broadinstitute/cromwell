@@ -195,17 +195,17 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
         referenceFileToDiskImageMappingOpt.map(getReferenceInputsToMountedPathMappings(_, inputs))
 
       val referenceFilesLocalizationScript = {
-        val symlinkCreationCommands = referenceInputsToMountedPathsOpt map { referenceInputsToMountedPaths =>
+        val symlinkCreationCommandsOpt = referenceInputsToMountedPathsOpt map { referenceInputsToMountedPaths =>
           referenceInputsToMountedPaths map {
             case (input, absolutePathOnRefDisk) =>
               s"mkdir -p ${input.containerPath.parent.pathAsString} && ln -s $absolutePathOnRefDisk ${input.containerPath.pathAsString}"
           }
         }
 
-        if (symlinkCreationCommands.exists(_.nonEmpty)) {
+        if (symlinkCreationCommandsOpt.exists(_.nonEmpty)) {
           s"""
              |# Faux-localizing reference files (if any) by creating symbolic links to the files located on the mounted reference disk
-             |${symlinkCreationCommands.mkString("\n")}
+             |${symlinkCreationCommandsOpt.get.mkString("\n")}
              |""".stripMargin
         } else {
           "\n# No reference disks mounted / no symbolic links created since no matching reference files found in the inputs to this call.\n"

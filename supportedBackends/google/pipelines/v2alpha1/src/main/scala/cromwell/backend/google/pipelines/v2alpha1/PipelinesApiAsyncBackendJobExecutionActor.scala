@@ -205,7 +205,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
         if (symlinkCreationCommandsOpt.exists(_.nonEmpty)) {
           s"""
              |# Faux-localizing reference files (if any) by creating symbolic links to the files located on the mounted reference disk
-             |${symlinkCreationCommandsOpt.mkString("\n")}
+             |${symlinkCreationCommandsOpt.get.mkString("\n")}
              |""".stripMargin
         } else {
           "\n# No reference disks mounted / no symbolic links created since no matching reference files found in the inputs to this call.\n"

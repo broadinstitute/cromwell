@@ -20,7 +20,7 @@ task check_if_docker_image_cache_disk_mounted {
   }
 }
 
-workflow docker_image_cache_unspecified_test {
+workflow docker_image_cache_true_test {
   call check_if_docker_image_cache_disk_mounted
   output {
     Boolean is_docker_image_cache_disk_mounted = check_if_docker_image_cache_disk_mounted.mounted_docker_image_cache_disk

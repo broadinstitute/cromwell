@@ -8,7 +8,7 @@ files {
 }
 
 metadata {
-  workflowName: docker_image_cache_unspecified_test
+  workflowName: docker_image_cache_false_test
   status: Succeeded
-  "outputs.docker_image_cache_unspecified_test.is_docker_image_cache_disk_mounted": false
+  "outputs.docker_image_cache_false_test.is_docker_image_cache_disk_mounted": false
 }

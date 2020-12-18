@@ -50,7 +50,7 @@ final case class PipelinesApiRuntimeAttributes(cpu: Int Refined Positive,
                                                continueOnReturnCode: ContinueOnReturnCode,
                                                noAddress: Boolean,
                                                googleLegacyMachineSelection: Boolean,
-                                               useDockerImageCache: Boolean)
+                                               useDockerImageCache: Option[Boolean])
 
 object PipelinesApiRuntimeAttributes {
 
@@ -76,8 +76,7 @@ object PipelinesApiRuntimeAttributes {
   private val cpuPlatformValidationInstance = new StringRuntimeAttributesValidation(CpuPlatformKey).optional
 
   val UseDockerImageCacheKey = "useDockerImageCache"
-  private val useDockerImageCacheValidationInstance = new BooleanRuntimeAttributesValidation(UseDockerImageCacheKey)
-  private val UseDockerImageCacheDefaultValue = WomBoolean(true)
+  private val useDockerImageCacheValidationInstance = new BooleanRuntimeAttributesValidation(UseDockerImageCacheKey).optional
 
   private val MemoryDefaultValue = "2048 MB"
 
@@ -129,12 +128,9 @@ object PipelinesApiRuntimeAttributes {
   private def noAddressValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] = noAddressValidationInstance
     .withDefault(noAddressValidationInstance.configDefaultWomValue(runtimeConfig) getOrElse NoAddressDefaultValue)
 
-  private def useDockerImageCacheValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] =
-    useDockerImageCacheValidationInstance withDefault {
-      useDockerImageCacheValidationInstance
-        .configDefaultWomValue(runtimeConfig)
-        .getOrElse(UseDockerImageCacheDefaultValue)
-    }
+  private def useDockerImageCacheValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Boolean] =
+    useDockerImageCacheValidationInstance
+
 
   private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
 
@@ -199,7 +195,7 @@ object PipelinesApiRuntimeAttributes {
     val failOnStderr: Boolean = RuntimeAttributesValidation.extract(failOnStderrValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val continueOnReturnCode: ContinueOnReturnCode = RuntimeAttributesValidation.extract(continueOnReturnCodeValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val noAddress: Boolean = RuntimeAttributesValidation.extract(noAddressValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-    val useDockerImageCache: Boolean = RuntimeAttributesValidation.extract(useDockerImageCacheValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val useDockerImageCache: Option[Boolean] = RuntimeAttributesValidation.extractOption(useDockerImageCacheValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
 
     val outDirMin: Option[MemorySize] = RuntimeAttributesValidation.extractOption(outDirMinValidation.key, validatedRuntimeAttributes)
     val tmpDirMin: Option[MemorySize] = RuntimeAttributesValidation.extractOption(tmpDirMinValidation.key, validatedRuntimeAttributes)

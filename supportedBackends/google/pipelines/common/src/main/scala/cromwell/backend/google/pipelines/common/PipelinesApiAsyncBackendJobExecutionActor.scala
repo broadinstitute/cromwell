@@ -499,8 +499,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           monitoringImage = monitoringImage,
           enableSshAccess = enableSshAccess,
           vpcNetworkAndSubnetworkProjectLabels = data.vpcNetworkAndSubnetworkProjectLabels,
-          // docker image cache usage can be forcefully disabled by task's runtime attribute
-          useDockerImageCache = useDockerImageCache(jobDescriptor.workflowDescriptor) && runtimeAttributes.useDockerImageCache,
+          useDockerImageCache = runtimeAttributes.useDockerImageCache.getOrElse(useDockerImageCache(jobDescriptor.workflowDescriptor)),
           dockerImageToCacheDiskImageMappingOpt = jesAttributes.dockerImageToCacheDiskImageMappingOpt
         )
       case Some(other) =>

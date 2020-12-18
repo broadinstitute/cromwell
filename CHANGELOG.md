@@ -20,7 +20,7 @@ reference inputs. More details [here](https://cromwell.readthedocs.io/en/develop
 
 ### Docker image cache support on PAPI v2
 
-Cromwell now offers support for the use of Docker image caches on the PAPI v2 backend. More details [here](https://cromwell.readthedocs.io/en/develop/backends/Google#docker-image-cache-support).
+Cromwell now offers support for the use of Docker image caches on the PAPI v2 lifesciences beta backend. More details [here](https://cromwell.readthedocs.io/en/develop/backends/Google#docker-image-cache-support).
 
 ## 54 Release Notes
 

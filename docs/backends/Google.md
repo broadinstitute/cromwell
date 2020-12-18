@@ -587,7 +587,7 @@ Please see the help command of that tool for more details.
 
 ### Docker Image Cache Support
 
-To optimize job execution tme, Cromwell 55 and later support the use of Docker image caches on the PAPI v2 backend.
+To optimize job execution time, Cromwell 55 and later support the use of Docker image caches on the PAPI v2 lifesciences beta backend. Docker image caches are not available on the PAPI v2 genomics alpha backend.
 Configuration looks like:
 
 ```hocon

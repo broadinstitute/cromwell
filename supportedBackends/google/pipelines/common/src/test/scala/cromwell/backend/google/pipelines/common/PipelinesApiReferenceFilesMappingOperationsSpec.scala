@@ -9,7 +9,7 @@ import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.flatspec.AnyFlatSpecLike
 
-class PipelinesApiReferenceFilesMappingSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matchers {
+class PipelinesApiReferenceFilesMappingOperationsSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matchers {
 
   private val refFile1Disk1 = "bucketname/dir1/dir2/filename1"
   private val refFile2Disk1 = "bucketname/dir1/dir2/dir3/filename2"
@@ -21,26 +21,26 @@ class PipelinesApiReferenceFilesMappingSpec extends AnyFlatSpecLike with Cromwel
 
   it should "correctly figure out which disks have to be mounted based on provided input file paths" in {
     val nonReferenceInputFilePaths = Set("gs://not/a/reference/file")
-    val forNonReferenceFile = refFileMappingOperationsMockObject.getReferenceDisksToMount(refFileMappingsMock, nonReferenceInputFilePaths)
+    val forNonReferenceFile = papiReferenceFilesMappingOperationsMockObject.getReferenceDisksToMount(refFileMappingsMock, nonReferenceInputFilePaths)
     forNonReferenceFile.isEmpty shouldBe true
 
     val referenceInputFilePathsFrom2Disks = Set(s"gs://$refFile1Disk1", s"gs://$refFile3Disk2")
-    val forReferencesFrom2Disks = refFileMappingOperationsMockObject.getReferenceDisksToMount(refFileMappingsMock, referenceInputFilePathsFrom2Disks)
+    val forReferencesFrom2Disks = papiReferenceFilesMappingOperationsMockObject.getReferenceDisksToMount(refFileMappingsMock, referenceInputFilePathsFrom2Disks)
     forReferencesFrom2Disks should contain theSameElementsAs List(disk1, disk2)
 
     val referenceInputFilePathsFromSingleDisk = Set(s"gs://$refFile1Disk1", s"gs://$refFile2Disk1")
-    val forReferencesFromSingleDisk = refFileMappingOperationsMockObject.getReferenceDisksToMount(refFileMappingsMock, referenceInputFilePathsFromSingleDisk)
+    val forReferencesFromSingleDisk = papiReferenceFilesMappingOperationsMockObject.getReferenceDisksToMount(refFileMappingsMock, referenceInputFilePathsFromSingleDisk)
     forReferencesFromSingleDisk.size shouldBe 1
     forReferencesFromSingleDisk.head shouldBe disk1
   }
 
   it should "not consider valid a reference file with mismatching checksum" in {
     val mismatchingChecksumReferenceFile = Set(refFile4Disk2MismatchingChecksum)
-    val forMismatchingChecksumReferenceFile = refFileMappingOperationsMockObject.getReferenceDisksToMount(refFileMappingsMock, mismatchingChecksumReferenceFile)
+    val forMismatchingChecksumReferenceFile = papiReferenceFilesMappingOperationsMockObject.getReferenceDisksToMount(refFileMappingsMock, mismatchingChecksumReferenceFile)
     forMismatchingChecksumReferenceFile.isEmpty shouldBe true
   }
 
-  private val refFileMappingOperationsMockObject: PipelinesApiReferenceFilesMappingOperations =
+  private val papiReferenceFilesMappingOperationsMockObject: PipelinesApiReferenceFilesMappingOperations =
     new PipelinesApiReferenceFilesMappingOperations {
       override def readReferenceDiskManifestFileFromGCS(gcsClient: Storage, gcsPath: ValidFullGcsPath): IO[ManifestFile] =
         IO.pure {
@@ -72,13 +72,11 @@ class PipelinesApiReferenceFilesMappingSpec extends AnyFlatSpecLike with Cromwel
         IO.pure(filesWithValidPaths.keySet.map(file => (file, file.path != refFile4Disk2MismatchingChecksum)).toMap)
     }
 
-  private val refFileMappingsMock = refFileMappingOperationsMockObject.generateReferenceFilesMapping(
+  private val refFileMappingsMock = papiReferenceFilesMappingOperationsMockObject.generateReferenceFilesMapping(
     MockAuthMode("default"),
-    Some (
-      List (
-        ValidFullGcsPath("bucketname", "manifest1"),
-        ValidFullGcsPath("bucketname2", "manifest2"),
-      )
+    List(
+      ValidFullGcsPath("bucketname", "manifest1"),
+      ValidFullGcsPath("bucketname2", "manifest2"),
     )
   )
 }

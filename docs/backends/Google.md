@@ -546,7 +546,7 @@ backend {
 }
 ```
 
-Manifest JSONs have a format like:
+Reference manifest JSONs have a format like:
 
 ```json
 {
@@ -584,3 +584,79 @@ copy of the file on the reference disk, bypassing localization of the input.
 The Cromwell git repository includes a Java-based tool to facilitate the creation of manifest files called
 [CromwellRefdiskManifestCreatorApp](https://github.com/broadinstitute/cromwell/tree/develop/CromwellRefdiskManifestCreator).
 Please see the help command of that tool for more details.
+
+### Docker Image Cache Support
+
+To optimize job execution time, Cromwell 55 and later support the use of Docker image caches on the PAPI v2 lifesciences beta backend. Docker image caches are not available on the PAPI v2 genomics alpha backend.
+Configuration looks like:
+
+```hocon
+backend {
+  ...
+  providers {
+    ...
+    PapiV2 {
+      actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
+      config {
+        ...
+        docker-image-cache-manifest-file = "gs://path/to/a/docker/image/cache/manifest.json"
+        ...
+      }
+    }
+  }
+}
+```
+
+Docker image cache manifest JSONs have a format like:
+
+```json
+{
+  "biocontainers/samtools:1.3.1": "projects/broad-dsde-cromwell-dev/global/images/v1-docker-biocontainers-samtools-1-3-1",
+  "gcr.io/gcp-runtimes/ubuntu_16_0_4:latest": "projects/broad-dsde-cromwell-dev/global/images/v1-docker-gcr-io-gcp-runtimes-ubuntu-16-0-4-latest",
+  ...
+}
+```
+
+Docker image cache usage is an opt-in feature, so workflow submissions must specify this workflow option:
+
+```json
+{
+  ...
+  "use_docker_image_cache": true,
+  ...
+}
+```
+
+Individual tasks within a workflow can turn off Docker image caching through the use of a runtime attribute:
+
+```wdl
+task my_task {
+  ...
+  runtime {
+    ...
+    useDockerImageCache: false
+  }
+}
+```
+
+If Cromwell is running a workflow on PAPI v2 beta with Docker image caching enabled and a task specifies a
+Docker image which corresponds to a configured Docker image cache JSON, Cromwell will arrange for the
+job's VM to mount a disk built from the corresponding disk image. In the event that multiple
+manifests describe disk images containing the specified Docker image, Cromwell will choose the disk image with the
+smallest `diskSizeGb` value.
+
+Conversely, Docker image caching can be turned off at the workflow level (either turned off explicitly or left at the
+default setting of `false`) but turned on at the individual task level:
+
+```wdl
+task my_task {
+  ...
+  runtime {
+    ...
+    useDockerImageCache: true
+  }
+}
+```
+
+These settings could be useful for cost reasons: mounting Docker image caches adds nonzero cost
+which might not be offset by eliminating Docker image pull times for long-running jobs.

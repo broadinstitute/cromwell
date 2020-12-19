@@ -1,0 +1,14 @@
+name: docker_image_cache_unspecified_false
+testFormat: workflowsuccess
+backends: [Papiv2-Docker-Image-Cache]
+
+files {
+  workflow: docker_image_cache/docker_image_cache_unspecified.wdl
+  options: docker_image_cache/docker_image_cache_false.options.json
+}
+
+metadata {
+  workflowName: docker_image_cache_unspecified_test
+  status: Succeeded
+  "outputs.docker_image_cache_unspecified_test.is_docker_image_cache_disk_mounted": false
+}

@@ -27,7 +27,7 @@ object CromwellApp extends App {
   }
 
   private def showUsageAndExitWithError(): Unit = {
-    parser.showUsage()
+    System.err.println(parser.usage)
     System.exit(1)
   }
 }

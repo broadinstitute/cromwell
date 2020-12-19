@@ -1,0 +1,4 @@
+{
+  "project1/dockerImage1": "projects/some-google-project/global/images/dockerCacheDiskForDockerImage1",
+  "project2/dockerImage2": "projects/another-google-project/global/images/dockerCacheDiskForDockerImage2"
+}

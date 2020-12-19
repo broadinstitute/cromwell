@@ -72,7 +72,8 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         }
       }
 
-      val allDisksToBeMounted = createPipelineParameters.adjustedSizeDisks ++ createPipelineParameters.referenceDisksForLocalization
+      val allDisksToBeMounted = createPipelineParameters.adjustedSizeDisks ++
+        createPipelineParameters.referenceDisksForLocalizationOpt.getOrElse(List.empty)
 
       // Disks defined in the runtime attributes and reference-files-localization disks
       val disks = allDisksToBeMounted |> toDisks

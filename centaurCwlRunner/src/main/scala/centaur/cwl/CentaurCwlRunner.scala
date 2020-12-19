@@ -64,7 +64,7 @@ object CentaurCwlRunner extends StrictLogging {
   private lazy val versionString = s"$centaurCwlRunnerVersion ${centaurCwlRunnerRunMode.description}"
 
   private def showUsage(): ExitCode.Value = {
-    parser.showUsage()
+    System.err.println(parser.usage)
     ExitCode.Failure
   }
 

@@ -87,10 +87,12 @@ object PipelinesApiRequestFactory {
                                       retryWithMoreMemoryKeys: Option[List[String]],
                                       fuseEnabled: Boolean,
                                       allowNoAddress: Boolean,
-                                      referenceDisksForLocalization: List[PipelinesApiAttachedDisk],
+                                      referenceDisksForLocalizationOpt: Option[List[PipelinesApiAttachedDisk]],
                                       monitoringImage: MonitoringImage,
                                       enableSshAccess: Boolean,
                                       vpcNetworkAndSubnetworkProjectLabels: Option[VpcAndSubnetworkProjectLabelValues],
+                                      useDockerImageCache: Boolean,
+                                      dockerImageToCacheDiskImageMappingOpt: Option[Map[String, String]]
                                      ) {
     def literalInputs = inputOutputParameters.literalInputParameters
     def inputParameters = inputOutputParameters.fileInputParameters

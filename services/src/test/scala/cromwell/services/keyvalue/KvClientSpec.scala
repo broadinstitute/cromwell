@@ -5,13 +5,14 @@ import java.io.IOException
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem}
 import akka.testkit.{TestActorRef, TestKit, TestProbe}
 import cromwell.services.keyvalue.KeyValueServiceActor._
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class KvClientSpec extends TestKit(ActorSystem("KvClientSpec")) with FlatSpecLike with Matchers {
+class KvClientSpec extends TestKit(ActorSystem("KvClientSpec")) with AnyFlatSpecLike with Matchers {
 
   implicit val ec = system.dispatcher
 

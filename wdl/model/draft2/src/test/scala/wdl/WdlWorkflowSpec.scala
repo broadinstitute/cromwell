@@ -1,9 +1,11 @@
 package wdl
 
+import common.assertion.CromwellTimeoutSpec
 import common.util.TryUtil
 import org.scalactic.Equality
 import org.scalatest.enablers.Aggregating._
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 import wdl.draft2.Draft2ResolvedImportBundle
 import wdl.draft2.model._
 import wdl.draft2.model.expression.{NoFunctions, WdlFunctions}
@@ -15,7 +17,7 @@ import wom.values._
 
 import scala.util.{Failure, Success, Try}
 
-class WdlWorkflowSpec extends WordSpec with Matchers {
+class WdlWorkflowSpec extends AnyWordSpec with CromwellTimeoutSpec with Matchers {
 
   "Workflow" should {
     val subWorkflow =

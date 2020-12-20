@@ -43,10 +43,21 @@ trait MetadataSqlDatabase extends SqlDatabase {
                            timeout: Duration)
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
+  def countMetadataEntries(workflowExecutionUuid: String,
+                           expandSubWorkflows: Boolean,
+                           timeout: Duration)
+                          (implicit ec: ExecutionContext): Future[Int]
+
   def queryMetadataEntries(workflowExecutionUuid: String,
                            metadataKey: String,
                            timeout: Duration)
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
+
+  def countMetadataEntries(workflowExecutionUuid: String,
+                           metadataKey: String,
+                           expandSubWorkflows: Boolean,
+                           timeout: Duration)
+                          (implicit ec: ExecutionContext): Future[Int]
 
   def queryMetadataEntries(workflowExecutionUuid: String,
                            callFullyQualifiedName: String,
@@ -54,6 +65,14 @@ trait MetadataSqlDatabase extends SqlDatabase {
                            jobAttempt: Option[Int],
                            timeout: Duration)
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
+
+  def countMetadataEntries(workflowExecutionUuid: String,
+                           callFullyQualifiedName: String,
+                           jobIndex: Option[Int],
+                           jobAttempt: Option[Int],
+                           expandSubWorkflows: Boolean,
+                           timeout: Duration)
+                          (implicit ec: ExecutionContext): Future[Int]
 
   def queryMetadataEntries(workflowUuid: String,
                            metadataKey: String,
@@ -63,12 +82,29 @@ trait MetadataSqlDatabase extends SqlDatabase {
                            timeout: Duration)
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
+  def countMetadataEntries(workflowUuid: String,
+                           metadataKey: String,
+                           callFullyQualifiedName: String,
+                           jobIndex: Option[Int],
+                           jobAttempt: Option[Int],
+                           expandSubWorkflows: Boolean,
+                           timeout: Duration)
+                          (implicit ec: ExecutionContext): Future[Int]
+
   def queryMetadataEntryWithKeyConstraints(workflowExecutionUuid: String,
                                            metadataKeysToFilterFor: List[String],
                                            metadataKeysToFilterAgainst: List[String],
                                            metadataJobQueryValue: MetadataJobQueryValue,
                                            timeout: Duration)
                                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
+
+  def countMetadataEntryWithKeyConstraints(workflowExecutionUuid: String,
+                                           metadataKeysToFilterFor: List[String],
+                                           metadataKeysToFilterAgainst: List[String],
+                                           metadataJobQueryValue: MetadataJobQueryValue,
+                                           expandSubWorkflows: Boolean,
+                                           timeout: Duration)
+                                          (implicit ec: ExecutionContext): Future[Int]
 
   /**
     * Retrieves next summarizable block of metadata satisfying the specified criteria.
@@ -150,6 +186,4 @@ trait MetadataSqlDatabase extends SqlDatabase {
   def countRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp)(implicit ec: ExecutionContext): Future[Int]
 
   def getSummaryQueueSize()(implicit ec: ExecutionContext): Future[Int]
-
-  def getMetadataTotalRowNumberByRootWorkflowId(rootWorkflowId: String, timeout: Duration)(implicit ec: ExecutionContext): Future[Int]
 }

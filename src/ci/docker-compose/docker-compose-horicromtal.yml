@@ -8,15 +8,16 @@ services:
   # - Running the carboniter
   # - Running the archived-metadata-deleter
   db-mstr:
-    image: "broadinstitute/cromwell:${CROMWELL_TAG}"
+    image: "broadinstitute/cromwell:${CROMWELL_BUILD_CENTAUR_MANAGED_TAG}"
     network_mode: host
     working_dir: ${CROMWELL_BUILD_ROOT_DIRECTORY}
     volumes:
       - ${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}
     command: ["server"]
     environment:
+      # See notes and warnings on JAVA_OPTS in Publishing.scala
       - >-
-        JAVA_OPTS=-Dconfig.file=${CROMWELL_CONFIG}
+        JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_CENTAUR_MANAGED_CONFIG}
         -Dwebservice.port=8080
         -Dsystem.cromwell_id=master
         -Dsystem.max-workflow-launch-count=0
@@ -30,9 +31,14 @@ services:
       - CROMWELL_BUILD_CENTAUR_JDBC_URL
       - CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE
       - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER
-      - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_USERNAME
-      - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_PASSWORD
       - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL
+      - CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT
+      - CROMWELL_BUILD_CENTAUR_256_BITS_KEY
+      - CROMWELL_BUILD_BCS_CLUSTER_ID
+      - CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
+      - CROMWELL_BUILD_PAPI_AUTH_MODE
+      - CROMWELL_BUILD_PAPI_JSON_FILE
+      - CROMWELL_BUILD_PAPI_ENDPOINT_URL
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080"]
       interval: 2s
@@ -42,15 +48,16 @@ services:
   # Makes no changes to the config file we bring in, so always summarizes, and sometimes does carboniting and metadata
   # deletion things, but only if the underlying config file says that we do.
   sum-back:
-    image: "broadinstitute/cromwell:${CROMWELL_TAG}"
+    image: "broadinstitute/cromwell:${CROMWELL_BUILD_CENTAUR_MANAGED_TAG}"
     network_mode: host
     working_dir: ${CROMWELL_BUILD_ROOT_DIRECTORY}
     volumes:
       - ${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}
     command: ["server"]
     environment:
+      # See notes and warnings on JAVA_OPTS in Publishing.scala
       - >-
-        JAVA_OPTS=-Dconfig.file=${CROMWELL_CONFIG}
+        JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_CENTAUR_MANAGED_CONFIG}
         -Dwebservice.port=8000
         -Dsystem.cromwell_id=summarizer
       - CROMWELL_BUILD_RESOURCES_DIRECTORY
@@ -59,9 +66,14 @@ services:
       - CROMWELL_BUILD_CENTAUR_JDBC_URL
       - CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE
       - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER
-      - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_USERNAME
-      - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_PASSWORD
       - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL
+      - CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT
+      - CROMWELL_BUILD_CENTAUR_256_BITS_KEY
+      - CROMWELL_BUILD_BCS_CLUSTER_ID
+      - CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
+      - CROMWELL_BUILD_PAPI_AUTH_MODE
+      - CROMWELL_BUILD_PAPI_JSON_FILE
+      - CROMWELL_BUILD_PAPI_ENDPOINT_URL
     depends_on:
       db-mstr:
         condition: service_healthy
@@ -77,7 +89,7 @@ services:
   # - Running the carboniter
   # - Running the archived-metadata-deleter
   front-back:
-    image: "broadinstitute/cromwell:${CROMWELL_TAG}"
+    image: "broadinstitute/cromwell:${CROMWELL_BUILD_CENTAUR_MANAGED_TAG}"
     network_mode: host
     working_dir: ${CROMWELL_BUILD_ROOT_DIRECTORY}
     volumes:
@@ -87,9 +99,10 @@ services:
         condition: service_healthy
     command: ["server"]
     environment:
+      # See notes and warnings on JAVA_OPTS in Publishing.scala
       - >-
-        JAVA_OPTS=-Dconfig.file=${CROMWELL_CONFIG}
-        -Dwebservice.port=${MANAGED_CROMWELL_PORT-8008}
+        JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_CENTAUR_MANAGED_CONFIG}
+        -Dwebservice.port=${CROMWELL_BUILD_CENTAUR_MANAGED_PORT}
         -Dsystem.cromwell_id=frontend
         -Dservices.MetadataService.config.metadata-summary-refresh-interval=Inf
         -Dservices.MetadataService.config.carbonite-metadata-service.metadata-freezing.initial-interval=Inf
@@ -100,12 +113,16 @@ services:
       - CROMWELL_BUILD_CENTAUR_JDBC_URL
       - CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE
       - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER
-      - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_USERNAME
-      - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_PASSWORD
       - CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL
-      - MANAGED_CROMWELL_PORT
+      - CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT
+      - CROMWELL_BUILD_CENTAUR_256_BITS_KEY
+      - CROMWELL_BUILD_BCS_CLUSTER_ID
+      - CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
+      - CROMWELL_BUILD_PAPI_AUTH_MODE
+      - CROMWELL_BUILD_PAPI_JSON_FILE
+      - CROMWELL_BUILD_PAPI_ENDPOINT_URL
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:${MANAGED_CROMWELL_PORT-8008}"]
+      test: ["CMD", "curl", "--fail", "http://localhost:${CROMWELL_BUILD_CENTAUR_MANAGED_PORT}"]
       interval: 2s
       timeout: 120s
       retries: 60

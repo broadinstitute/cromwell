@@ -1,6 +1,7 @@
 package cromwell.services.database
 
 import com.dimafeng.testcontainers.Container
+import common.assertion.CromwellTimeoutSpec
 import cromwell.core.Tags._
 import cromwell.database.slick.SlickDatabase
 import cromwell.services.database.LiquibaseComparisonSpec._
@@ -10,7 +11,8 @@ import liquibase.statement.DatabaseFunction
 import liquibase.structure.DatabaseObject
 import liquibase.structure.core._
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import slick.jdbc.GetResult
 
 import scala.collection.JavaConverters._
@@ -21,7 +23,7 @@ import scala.reflect._
 /**
   * Compares all of the various liquibase schemas against an in-memory HSQLDB-Slick schema.
   */
-class LiquibaseComparisonSpec extends FlatSpec with Matchers with ScalaFutures {
+class LiquibaseComparisonSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures {
 
   implicit val executionContext = ExecutionContext.global
 

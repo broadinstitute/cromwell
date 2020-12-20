@@ -2,17 +2,19 @@ package cromwell.backend.sfs
 
 import akka.actor.ActorContext
 import com.typesafe.config.{Config, ConfigFactory}
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.BackendSpec
 import cromwell.core.CromwellFatalExceptionMarker
 import cromwell.core.path.{DefaultPathBuilder, Path}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 import wom.values.WomSingleFile
 
 import scala.io.Source
 
-class SharedFileSystemSpec extends FlatSpec with Matchers with Mockito with TableDrivenPropertyChecks with BackendSpec {
+class SharedFileSystemSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Mockito with TableDrivenPropertyChecks with BackendSpec {
 
   behavior of "SharedFileSystem"
 

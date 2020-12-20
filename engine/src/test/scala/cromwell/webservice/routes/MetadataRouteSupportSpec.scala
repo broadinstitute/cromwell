@@ -9,7 +9,8 @@ import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import cromwell.core.WorkflowMetadataKeys
 import cromwell.webservice.routes.CromwellApiServiceSpec.MockServiceRegistryActor
 import cromwell.webservice.routes.MetadataRouteSupportSpec.MockMetadataRouteSupport
-import org.scalatest.{AsyncFlatSpec, Matchers}
+import org.scalatest.flatspec.AsyncFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 

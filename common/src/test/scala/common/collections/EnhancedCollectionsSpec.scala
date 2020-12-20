@@ -1,11 +1,13 @@
 package common.collections
 
-import org.scalatest.{FlatSpec, Matchers}
 import common.collections.EnhancedCollections._
+import org.scalatest.flatspec.AsyncFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.enablers.Emptiness._
 
 import scala.collection.immutable.Queue
 
-class EnhancedCollectionsSpec extends FlatSpec with Matchers {
+class EnhancedCollectionsSpec extends AsyncFlatSpec with Matchers {
   behavior of "EnhancedCollections"
 
   it should "filter a List by type and return a List" in {

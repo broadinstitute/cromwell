@@ -2,41 +2,21 @@ package cloud.nio.impl.drs
 
 import java.nio.channels.{ReadableByteChannel, WritableByteChannel}
 
+import cats.data.NonEmptyList
 import cats.effect.IO
+import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
+import cloud.nio.impl.drs.DrsCloudNioRegularFileAttributes._
 import cloud.nio.spi.{CloudNioFileList, CloudNioFileProvider, CloudNioRegularFileAttributes}
-import com.google.auth.oauth2.{AccessToken, OAuth2Credentials}
 import common.exception._
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.http.HttpStatus
-import org.apache.http.impl.client.HttpClientBuilder
-
-import scala.concurrent.duration._
 
 
 class DrsCloudNioFileProvider(scheme: String,
-                              accessTokenAcceptableTTL: Duration,
-                              drsPathResolver: DrsPathResolver,
-                              authCredentials: OAuth2Credentials,
-                              httpClientBuilder: HttpClientBuilder,
-                              drsReadInterpreter: MarthaResponse => IO[ReadableByteChannel]) extends CloudNioFileProvider {
+                              drsPathResolver: EngineDrsPathResolver,
+                              drsReadInterpreter: DrsReadInterpreter) extends CloudNioFileProvider {
 
   private def getDrsPath(cloudHost: String, cloudPath: String): String = s"$scheme://$cloudHost/$cloudPath"
-
-
-  //Based on method from GcrRegistry
-  private def getAccessToken(credential: OAuth2Credentials): String = {
-    def accessTokenTTLIsAcceptable(accessToken: AccessToken): Boolean = {
-      (accessToken.getExpirationTime.getTime - System.currentTimeMillis()).millis.gteq(accessTokenAcceptableTTL)
-    }
-
-    Option(credential.getAccessToken) match {
-      case Some(accessToken) if accessTokenTTLIsAcceptable(accessToken) => accessToken.getTokenValue
-      case _ =>
-        credential.refresh()
-        credential.getAccessToken.getTokenValue
-    }
-  }
-
 
   private def checkIfPathExistsThroughMartha(drsPath: String): IO[Boolean] = {
     /*
@@ -46,7 +26,7 @@ class DrsCloudNioFileProvider(scheme: String,
      */
     if (drsPath.endsWith("/")) IO(false)
     else {
-      drsPathResolver.rawMarthaResponse(drsPath).use { marthaResponse =>
+      drsPathResolver.rawMarthaResponse(drsPath, NonEmptyList.one(MarthaField.GsUri)).use { marthaResponse =>
         val errorMsg = s"Status line was null for martha response $marthaResponse."
         toIO(Option(marthaResponse.getStatusLine), errorMsg)
       }.map(_.getStatusCode == HttpStatus.SC_OK)
@@ -79,11 +59,11 @@ class DrsCloudNioFileProvider(scheme: String,
 
   override def read(cloudHost: String, cloudPath: String, offset: Long): ReadableByteChannel = {
     val drsPath = getDrsPath(cloudHost,cloudPath)
-    val freshAccessToken = getAccessToken(authCredentials)
+    val fields = NonEmptyList.of(MarthaField.GsUri, MarthaField.GoogleServiceAccount)
 
     val byteChannelIO = for {
-      marthaResponse <- drsPathResolver.resolveDrsThroughMartha(drsPath, Option(freshAccessToken))
-      byteChannel <- drsReadInterpreter(marthaResponse)
+      marthaResponse <- drsPathResolver.resolveDrsThroughMartha(drsPath, fields)
+      byteChannel <- drsReadInterpreter(marthaResponse.gsUri, marthaResponse.googleServiceAccount)
     } yield byteChannel
 
     byteChannelIO.handleErrorWith {
@@ -96,11 +76,22 @@ class DrsCloudNioFileProvider(scheme: String,
     throw new UnsupportedOperationException("DRS currently doesn't support write.")
 
 
-  override def fileAttributes(cloudHost: String, cloudPath: String): Option[CloudNioRegularFileAttributes] =
-    Option(new DrsCloudNioRegularFileAttributes(getDrsPath(cloudHost,cloudPath), drsPathResolver))
+  override def fileAttributes(cloudHost: String, cloudPath: String): Option[CloudNioRegularFileAttributes] = {
+    val drsPath = getDrsPath(cloudHost,cloudPath)
+    val fields = NonEmptyList.of(MarthaField.Size, MarthaField.TimeCreated, MarthaField.TimeUpdated, MarthaField.Hashes)
+
+    val fileAttributesIO = for {
+      marthaResponse <- drsPathResolver.resolveDrsThroughMartha(drsPath, fields)
+      sizeOption = marthaResponse.size
+      hashoption = getPreferredHash(marthaResponse.hashes)
+      timeCreatedOption <- convertToFileTime(drsPath, MarthaField.TimeCreated, marthaResponse.timeCreated)
+      timeUpdatedOption <- convertToFileTime(drsPath, MarthaField.TimeUpdated, marthaResponse.timeUpdated)
+    } yield new DrsCloudNioRegularFileAttributes(drsPath, sizeOption, hashoption, timeCreatedOption, timeUpdatedOption)
+
+    Option(fileAttributesIO.unsafeRunSync())
+  }
 }
 
-
-
-case class GcsFilePath(bucket: String, file: String)
-
+object DrsCloudNioFileProvider {
+  type DrsReadInterpreter = (Option[String], Option[SADataObject]) => IO[ReadableByteChannel]
+}

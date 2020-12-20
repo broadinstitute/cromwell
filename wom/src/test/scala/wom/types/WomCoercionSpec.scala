@@ -1,14 +1,17 @@
 package wom.types
 
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor2}
-import org.scalatest.{FlatSpecLike, Matchers}
 import wom.values.WomValue
 
 import scala.util.{Failure, Success}
 
+
 abstract class WomCoercionSpec(val goodCoercionTable: TableFor2[_ <: Any, WomValue],
                                val badCoercionTable: TableFor2[_ <: Any, WomType],
-                               val behaviorOf: String) extends FlatSpecLike with Matchers {
+                               val behaviorOf: String) extends AnyFlatSpecLike with CromwellTimeoutSpec with Matchers {
 
   import TableDrivenPropertyChecks._
   import WomCoercionSpec.StringableAny

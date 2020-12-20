@@ -1,13 +1,15 @@
 package cromwell.backend.io
 
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptorKey, BackendSpec, TestConfig}
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.io.JobPathsSpecHelper._
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptorKey, BackendSpec, TestConfig}
 import cromwell.core.path.DefaultPathBuilder
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wom.graph.CommandCallNode
 
-class JobPathsSpec extends FlatSpec with Matchers with BackendSpec {
+class JobPathsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with BackendSpec {
 
   val configString =
     """

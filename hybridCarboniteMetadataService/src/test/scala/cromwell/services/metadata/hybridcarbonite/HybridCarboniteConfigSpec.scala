@@ -3,12 +3,13 @@ package cromwell.services.metadata.hybridcarbonite
 import akka.actor.ActorSystem
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.TestKitSuite
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec") with FlatSpecLike with Matchers {
+class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec") with AnyFlatSpecLike with Matchers {
 
   behavior of "HybridCarboniteConfig"
 
@@ -97,7 +98,7 @@ class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec"
     val carboniteConfig = HybridCarboniteConfig.parseConfig(config)
 
     carboniteConfig match {
-      case Left(e) => e.head shouldBe "Failed to parse Carboniter 'bucket' field from config (reason 1 of 1): No configuration setting found for key 'bucket'"
+      case Left(e) => e.head shouldBe "Failed to parse Carboniter 'bucket' field from config (reason 1 of 1): String: 1: No configuration setting found for key 'bucket'"
       case Right(_) => fail(s"Expected to fail but the config was parsed correctly!")
     }
   }
@@ -138,7 +139,7 @@ class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec"
     val carboniteConfig = HybridCarboniteConfig.parseConfig(config)
 
     carboniteConfig match {
-      case Left(e) => e.head shouldBe "Failed to parse Carboniter 'filesystems.gcs' field from config (reason 1 of 1): No configuration setting found for key 'filesystems'"
+      case Left(e) => e.head shouldBe "Failed to parse Carboniter 'filesystems.gcs' field from config (reason 1 of 1): String: 1: No configuration setting found for key 'filesystems'"
       case Right(_) => fail(s"Expected to fail but the config was parsed correctly!")
     }
   }
@@ -158,7 +159,7 @@ class HybridCarboniteConfigSpec extends TestKitSuite("HybridCarboniteConfigSpec"
     val carboniteConfig = HybridCarboniteConfig.parseConfig(config)
 
     carboniteConfig match {
-      case Left(e) => e.head shouldBe "No configuration setting found for key 'auth'"
+      case Left(e) => e.head shouldBe "String: 3: No configuration setting found for key 'auth'"
       case Right(_) => fail(s"Expected to fail but the config was parsed correctly!")
     }
   }

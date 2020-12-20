@@ -1,0 +1,9 @@
+{
+  "JointGenotyping.GatherMetrics_detail_metrics_file": "File?",
+  "JointGenotyping.CollectMetricsOnFullVcf_summary_metrics_file": "File?",
+  "JointGenotyping.FinalGatherVcf_output_vcf_index": "File?",
+  "JointGenotyping.GatherMetrics_summary_metrics_file": "File?",
+  "JointGenotyping.FinalGatherVcf_output_vcf": "File?",
+  "JointGenotyping.CollectMetricsOnFullVcf_detail_metrics_file": "File?",
+  "JointGenotyping.DynamicallyCombineIntervals_output_intervals": "File"
+}

@@ -13,13 +13,14 @@ import cromwell.core.io.IoContentAsStringCommand.IoReadOptions
 import cromwell.core.io._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.engine.io.gcs.GcsBatchFlow.BatchFailedException
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class IoActorSpec extends TestKitSuite with FlatSpecLike with Matchers with ImplicitSender {
+class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with ImplicitSender {
   behavior of "IoActor"
   
   implicit val actorSystem = system

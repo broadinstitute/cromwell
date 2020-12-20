@@ -7,7 +7,7 @@ import cromwell.jobstore.JobStoreActor._
 import cromwell.jobstore.JobStoreServiceSpec._
 import cromwell.services.EngineServicesStore
 import cromwell.util.WomMocks
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 import wom.callable.Callable.OutputDefinition
 import wom.expression.PlaceholderWomExpression

@@ -1,18 +1,17 @@
 package cromwell.filesystems.drs
 
-import java.nio.channels.ReadableByteChannel
-
-import cats.effect.IO
-import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, MarthaResponse}
+import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
+import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
 import com.google.cloud.NoCredentials
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.TestKitSuite
 import cromwell.core.path._
 import org.apache.http.impl.client.HttpClientBuilder
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.Tables.Table
-import org.scalatest.{FlatSpecLike, Matchers}
 
-class DrsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers with PathBuilderSpecUtils {
+class DrsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with PathBuilderSpecUtils {
 
   behavior of "DrsPathBuilder"
 
@@ -306,14 +305,13 @@ class DrsPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers wi
     BadPath("an absolute file path", "/hello/world", "/hello/world does not have a drs scheme."),
   )
 
-  private def drsReadInterpreter(marthaResponse: MarthaResponse): IO[ReadableByteChannel] =
+  private val drsReadInterpreter: DrsReadInterpreter = (_, _) =>
     throw new UnsupportedOperationException("Currently DrsPathBuilderSpec doesn't need to use drs read interpreter.")
 
 
   private val marthaConfig: Config = ConfigFactory.parseString(
     """martha {
       |   url = "http://martha-url"
-      |   request.json-template = "{"key": "${holder}"}"
       |}
       |""".stripMargin
   )

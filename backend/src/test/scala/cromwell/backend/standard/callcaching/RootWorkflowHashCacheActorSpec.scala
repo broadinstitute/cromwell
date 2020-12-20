@@ -2,20 +2,19 @@ package cromwell.backend.standard.callcaching
 
 import akka.actor.Props
 import akka.testkit._
-import cromwell.backend.standard.callcaching.RootWorkflowFileHashCacheActor.IoHashCommandWithContext
-import cromwell.backend.standard.callcaching.RootWorkflowFileHashCacheActor._
+import cromwell.backend.standard.callcaching.RootWorkflowFileHashCacheActor.{IoHashCommandWithContext, _}
 import cromwell.core.actor.RobustClientHelper.RequestTimeout
-import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.core.callcaching.HashKey
 import cromwell.core.io.DefaultIoCommand.DefaultIoHashCommand
 import cromwell.core.io.IoSuccess
 import cromwell.core.path.DefaultPathBuilder
-import org.scalatest.FlatSpecLike
+import cromwell.core.{TestKitSuite, WorkflowId}
+import org.scalatest.flatspec.AnyFlatSpecLike
 
 import scala.concurrent.duration._
 
 class RootWorkflowHashCacheActorSpec extends TestKitSuite("RootWorkflowHashCacheActorSpec") with ImplicitSender
-  with FlatSpecLike {
+  with AnyFlatSpecLike {
 
   private val fakeWorkflowId = WorkflowId.randomId()
   private val fakeFileName = "fakeFileName"

@@ -7,7 +7,9 @@ backends: [Papi-Refresh]
 files {
   workflow: refresh_token/refresh_token.wdl
   inputs: refresh_token/refresh_token.inputs
-  options: refresh_token/refresh_token.options
+  options-dir: "Error: BA-6546 The environment variable CROMWELL_BUILD_RESOURCES_DIRECTORY must be set/export pointing to a valid path such as '${YOUR_CROMWELL_DIR}/target/ci/resources'"
+  options-dir: ${?CROMWELL_BUILD_RESOURCES_DIRECTORY}
+  options: ${files.options-dir}/papi_refresh_token.options.json
 }
 
 metadata {

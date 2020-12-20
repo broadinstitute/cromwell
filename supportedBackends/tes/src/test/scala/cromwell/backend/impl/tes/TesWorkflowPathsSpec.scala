@@ -1,13 +1,15 @@
 package cromwell.backend.impl.tes
 
 import better.files._
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.{BackendJobBreadCrumb, BackendSpec, BackendWorkflowDescriptor}
 import cromwell.core.{JobKey, WorkflowId}
 import cromwell.util.WomMocks
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wom.graph.WomIdentifier
 
-class TesWorkflowPathsSpec extends FlatSpec with Matchers with BackendSpec {
+class TesWorkflowPathsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with BackendSpec {
 
   "WorkflowPaths" should "provide correct paths for a workflow" in {
     val wd = buildWdlWorkflowDescriptor(TestWorkflows.HelloWorld)

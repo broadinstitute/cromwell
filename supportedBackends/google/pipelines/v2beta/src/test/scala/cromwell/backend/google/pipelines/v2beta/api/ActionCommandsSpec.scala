@@ -2,14 +2,16 @@ package cromwell.backend.google.pipelines.v2beta.api
 
 import java.nio.file.Path
 
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
+import cromwell.backend.google.pipelines.v2beta.api.ActionCommands._
 import cromwell.filesystems.gcs.GcsPath
-import org.scalatest.{FlatSpec, Matchers}
-import org.specs2.mock.Mockito
 import eu.timepit.refined.refineMV
-import ActionCommands._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.specs2.mock.Mockito
 
-class ActionCommandsSpec extends FlatSpec with Matchers with Mockito {
+class ActionCommandsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Mockito {
   behavior of "ActionCommands"
   
   it should "inject project flag when request fails because of requester pays" in {

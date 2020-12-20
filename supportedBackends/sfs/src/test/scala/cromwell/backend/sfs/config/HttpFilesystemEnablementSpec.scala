@@ -1,14 +1,16 @@
 package cromwell.backend.sfs.config
 
 import com.typesafe.config.{Config, ConfigFactory}
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.BackendConfigurationDescriptor
 import cromwell.backend.sfs.config.HttpFilesystemEnablementSpec._
 import cromwell.core.filesystem.CromwellFileSystems
 import net.ceedubs.ficus.Ficus._
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
-
-class HttpFilesystemEnablementSpec extends WordSpecLike with Matchers with BeforeAndAfterAll {
+class HttpFilesystemEnablementSpec extends AnyWordSpecLike with CromwellTimeoutSpec with Matchers with BeforeAndAfterAll {
   "The http filesystem on the default Local backend" should {
     "be enabled unless explicitly disabled" in {
       configuredFilesystems(LocalConfig) shouldEqual Set("http")

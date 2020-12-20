@@ -31,22 +31,23 @@
 
 package cromwell.backend.impl.aws
 
-import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
 import common.collections.EnhancedCollections._
 import cromwell.backend.BackendSpec
 import cromwell.backend.io.JobPathsSpecHelper._
+import org.scalatest.flatspec.AnyFlatSpecLike
+import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
 // import cromwell.cloudsupport.gcp.auth.AwsBatchAuthModeSpec
 import cromwell.core.Tags.AwsTest
 import cromwell.core.TestKitSuite
 import cromwell.util.SampleWdl
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsString}
 
-class AwsBatchCallPathsSpec extends TestKitSuite with FlatSpecLike with Matchers with Mockito {
+class AwsBatchCallPathsSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Mockito {
 
-  import BackendSpec._
   import AwsBatchTestConfig._
+  import BackendSpec._
 
   behavior of "AwsBatchCallPaths"
 

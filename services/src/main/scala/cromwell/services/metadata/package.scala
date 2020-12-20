@@ -18,12 +18,11 @@ class MetadataTooLargeException(message: String) extends RuntimeException(messag
 }
 
 final class MetadataTooLargeNumberOfRowsException(workflowId: WorkflowId, metadataSizeRows: Int, metadataLimitRows: Int)
-  extends MetadataTooLargeException(s"Metadata for workflow $workflowId exists in " +
-    s"database, but cannot be served. This is done in order to avoid Cromwell failure: metadata is too large - " +
-    s"$metadataSizeRows rows, and may cause Cromwell instance to die on attempt to read it in memory. Configured " +
-    s"metadata safety limit is $metadataLimitRows.")
+  extends MetadataTooLargeException(
+    s"Metadata for workflow $workflowId exists in database but cannot be served because row count of $metadataSizeRows exceeds configured limit of $metadataLimitRows."
+  )
 
 final class MetadataTooLargeTimeoutException(workflowId: WorkflowId)
-  extends MetadataTooLargeException(s"Metadata for workflow $workflowId exists in " +
-    s"database, but cannot be served. This is done in order to avoid Cromwell failure: metadata is probably too " +
-    s"large - timeout occurred on attempt to fetch it from the database.")
+  extends MetadataTooLargeException(
+    s"Metadata for workflow $workflowId exists in database but retrieval timed out, possibly due to large row count."
+  )

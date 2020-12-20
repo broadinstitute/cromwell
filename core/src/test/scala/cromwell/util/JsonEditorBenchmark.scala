@@ -10,6 +10,8 @@ import io.circe.Json
 import io.circe.parser.parse
 import org.scalameter.api._
 import org.scalameter.picklers.Implicits._
+import org.scalameter.reporting.RegressionReporter.Historian.Window
+import org.scalameter.reporting.RegressionReporter.Tester.Accepter
 
 // Run with:
 //   sbt "core/benchmark:testOnly cromwell.util.JsonEditorBenchmark"
@@ -36,7 +38,7 @@ object JsonEditorBenchmark extends Bench[Double] {
   /* Benchmark configuration */
   lazy val measurer = new Measurer.Default
   lazy val executor = LocalExecutor(new Executor.Warmer.Default, Aggregator.average, measurer)
-  lazy val reporter = new LoggingReporter[Double]
+  lazy override val reporter = new RegressionReporter[Double](Accepter(), Window(0))
   lazy val persistor = Persistor.None
 
   // Increase or decrease exec.benchRuns to repeat the same test numerous times.

@@ -6,14 +6,15 @@ import cromwell.core._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter.CallCacheDiffQueryCall
 import cromwell.services.metadata.MetadataService.GetMetadataAction
-import cromwell.services.metadata.{MetadataService, _}
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
-import cromwell.services.{SuccessfulMetadataJsonResponse, FailedMetadataJsonResponse}
+import cromwell.services.metadata.{MetadataService, _}
+import cromwell.services.{FailedMetadataJsonResponse, SuccessfulMetadataJsonResponse}
 import org.scalatest.concurrent.Eventually
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import spray.json.JsObject
 
-class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matchers with ImplicitSender with Eventually {
+class CallCacheDiffActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with ImplicitSender with Eventually {
 
   behavior of "CallCacheDiffActor"
 
@@ -178,8 +179,8 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
   }
 
   it should "build a correct response" in {
-    import spray.json._
     import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActorJsonFormatting.successfulResponseJsonFormatter
+    import spray.json._
 
     val mockServiceRegistryActor = TestProbe()
     val actor = TestFSMRef(new CallCacheDiffActor(mockServiceRegistryActor.ref))
@@ -205,8 +206,8 @@ class CallCacheDiffActorSpec extends TestKitSuite with FlatSpecLike with Matcher
   }
 
   it should "build a correct response from multiple attempts" in {
-    import spray.json._
     import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActorJsonFormatting.successfulResponseJsonFormatter
+    import spray.json._
 
     val mockServiceRegistryActor = TestProbe()
     val actor = TestFSMRef(new CallCacheDiffActor(mockServiceRegistryActor.ref))

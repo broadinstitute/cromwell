@@ -7,11 +7,11 @@ import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.services.genomics.v2alpha1.model._
 import common.validation.Validation._
+import cromwell.backend.google.pipelines.common.action.ActionLabels._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager._
 import cromwell.backend.google.pipelines.common.api.RunStatus
 import cromwell.backend.google.pipelines.common.api.RunStatus.{Initializing, Running, Success, UnsuccessfulRunStatus}
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
-import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder.Labels.Key
 import cromwell.backend.google.pipelines.v2alpha1.api.Deserialization._
 import cromwell.backend.google.pipelines.v2alpha1.api.request.ErrorReporter._
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode

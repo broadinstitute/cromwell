@@ -7,8 +7,9 @@ import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.testkit.TestActorRef
 import cromwell.core.TestKitSuite
 import cromwell.core.path.DefaultPathBuilder
-import org.scalatest.mockito.MockitoSugar
-import org.scalatest.{AsyncFlatSpecLike, Matchers}
+import org.scalatest.flatspec.AsyncFlatSpecLike
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.mockito.MockitoSugar
 
 class AsyncIoSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with MockitoSugar {
 

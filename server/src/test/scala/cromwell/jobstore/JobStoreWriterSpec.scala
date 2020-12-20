@@ -7,7 +7,8 @@ import cromwell.core.actor.BatchActor.{BatchActorState, CommandAndReplyTo, Proce
 import cromwell.core.{CallOutputs, WorkflowId}
 import cromwell.jobstore.JobStore.{JobCompletion, WorkflowCompletion}
 import cromwell.jobstore.JobStoreActor.{JobStoreWriteSuccess, JobStoreWriterCommand, RegisterJobCompleted, RegisterWorkflowCompleted}
-import org.scalatest.{BeforeAndAfter, Matchers}
+import org.scalatest.BeforeAndAfter
+import org.scalatest.matchers.should.Matchers
 import wom.graph.GraphNodePort.OutputPort
 
 import scala.concurrent.duration._

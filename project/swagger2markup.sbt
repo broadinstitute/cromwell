@@ -14,7 +14,7 @@ val jacksonV = "2.8.4"
 val javaslangV = "2.0.5"
 val plexusUtilsV = "3.0.22"
 val slf4jV = "1.7.21"
-val swagger2markupV = "1.3.1"
+val swagger2markupV = "1.3.3"
 
 resolvers ++= List(
   "JCenter" at "https://jcenter.bintray.com"

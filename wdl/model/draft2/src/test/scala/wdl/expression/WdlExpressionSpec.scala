@@ -1,9 +1,11 @@
 package wdl.expression
 
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model.WdlExpression
 
-class WdlExpressionSpec extends FlatSpec with Matchers {
+class WdlExpressionSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   val expr: String => WdlExpression = WdlExpression.fromString
 
   /* String-ification */

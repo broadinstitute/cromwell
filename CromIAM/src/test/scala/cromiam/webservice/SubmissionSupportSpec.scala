@@ -6,11 +6,14 @@ import akka.http.scaladsl.model.headers.{Authorization, OAuth2BearerToken, RawHe
 import akka.http.scaladsl.server.AuthorizationFailedRejection
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import akka.testkit._
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class SubmissionSupportSpec extends FlatSpec with Matchers with ScalatestRouteTest with SubmissionSupport {
+
+class SubmissionSupportSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalatestRouteTest with SubmissionSupport {
   override val cromwellClient = new MockCromwellClient()
   override val samClient = new MockSamClient()
   override val log: LoggingAdapter = NoLogging

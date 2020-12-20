@@ -1,9 +1,9 @@
 package wdl.transforms.draft2.wdlom2wom
 
-import cats.instances.list._
 import cats.syntax.foldable._
 import cats.data.NonEmptyList
 import cats.syntax.validated._
+import cats.instances.list._
 import common.validation.ErrorOr.ErrorOr
 import shapeless.Coproduct
 import wdl.draft2.model.{AstTools, WdlCall, WdlTaskCall, WdlWomExpression}

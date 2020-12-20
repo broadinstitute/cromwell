@@ -31,18 +31,18 @@
 
 package cromwell.backend.impl.aws
 
-import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
-
+import common.collections.EnhancedCollections._
+import cromwell.backend.BackendJobDescriptorKey
+import cromwell.backend.BackendSpec._
 import cromwell.core.TestKitSuite
 import cromwell.util.SampleWdl
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
-import cromwell.backend.BackendSpec._
-import cromwell.backend.BackendJobDescriptorKey
+import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
 import spray.json.{JsObject, JsString}
-import common.collections.EnhancedCollections._
 
-class AwsBatchJobSpec extends TestKitSuite with FlatSpecLike with Matchers with Mockito {
+class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Mockito {
   import AwsBatchTestConfig._
 
   behavior of "AwsBatchJob"

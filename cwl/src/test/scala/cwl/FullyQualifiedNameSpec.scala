@@ -1,9 +1,12 @@
 package cwl
 
+import common.assertion.CromwellTimeoutSpec
 import cwl.command.ParentName
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class FullyQualifiedNameSpec extends FlatSpec with Matchers {
+
+class FullyQualifiedNameSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   implicit val parentName = ParentName.empty
   

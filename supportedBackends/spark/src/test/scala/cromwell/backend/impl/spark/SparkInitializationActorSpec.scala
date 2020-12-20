@@ -5,13 +5,15 @@ import cromwell.backend.BackendSpec._
 import cromwell.backend.BackendWorkflowInitializationActor.Initialize
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor, TestConfig}
 import cromwell.core.TestKitSuite
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 import wom.graph.CommandCallNode
 
 import scala.concurrent.duration._
 
 class SparkInitializationActorSpec  extends  TestKitSuite("SparkInitializationActorSpec")
-  with WordSpecLike with Matchers with BeforeAndAfterAll with ImplicitSender {
+  with AnyWordSpecLike with Matchers with BeforeAndAfterAll with ImplicitSender {
 
   val Timeout = 10.second.dilated
 

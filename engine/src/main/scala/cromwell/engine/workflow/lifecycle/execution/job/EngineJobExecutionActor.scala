@@ -741,11 +741,11 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     val copyErrorsPerHitPath: NonEmptyList[String] =
       NonEmptyList.of(
         "job",
-        "callcaching", "read", "error", "invalidhits", data.jobDescriptor.workflowDescriptor.hogGroup.value, "copyerrors")
+        "callcaching", "read", "error", "invalidhits", "copyerrors")
     val copyBlacklistsPerHitPath: NonEmptyList[String] =
       NonEmptyList.of(
         "job",
-        "callcaching", "read", "error", "invalidhits", data.jobDescriptor.workflowDescriptor.hogGroup.value, "blacklisted")
+        "callcaching", "read", "error", "invalidhits", "blacklisted")
 
     sendGauge(copyErrorsPerHitPath, data.failedCopyAttempts.longValue)
     sendGauge(copyBlacklistsPerHitPath, data.cacheHitFailureCount - data.failedCopyAttempts.longValue)
@@ -755,7 +755,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     val cacheCopyAttemptAbandonedPath: NonEmptyList[String] =
       NonEmptyList.of(
         "job",
-        "callcaching", "read", "error", "invalidhits",  data.jobDescriptor.workflowDescriptor.hogGroup.value, "abandonments")
+        "callcaching", "read", "error", "invalidhits", "abandonments")
     increment(cacheCopyAttemptAbandonedPath)
 
     // Also publish the attempt failure metrics

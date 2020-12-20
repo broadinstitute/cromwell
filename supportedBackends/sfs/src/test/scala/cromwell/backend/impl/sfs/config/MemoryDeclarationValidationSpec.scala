@@ -1,15 +1,17 @@
 package cromwell.backend.impl.sfs.config
 
 import com.typesafe.config.ConfigFactory
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.impl.sfs.config.ConfigConstants.{MemoryRuntimeAttribute, _}
 import cromwell.backend.validation.ValidatedRuntimeAttributes
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
 import wdl4s.parser.MemoryUnit
 import wom.format.MemorySize
 import wom.values.{WomFloat, WomLong}
 
-class MemoryDeclarationValidationSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+class MemoryDeclarationValidationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks {
   behavior of "MemoryDeclarationValidation"
 
   val validDeclaredAmounts = Table(

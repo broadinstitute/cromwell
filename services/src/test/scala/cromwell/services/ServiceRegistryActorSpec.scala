@@ -12,7 +12,9 @@ import cromwell.core.TestKitSuite
 import cromwell.services.BarServiceActor.{ArbitraryBarMessage, ListenToBarMessage, SetProbe}
 import cromwell.services.ServiceRegistryActor.{ListenToMessage, ServiceRegistryFailure, ServiceRegistryMessage}
 import cromwell.services.ServiceRegistryActorSpec._
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -70,7 +72,7 @@ object ServiceRegistryActorSpec {
   val AwaitTimeout = 5 seconds
 }
 
-class ServiceRegistryActorSpec extends TestKitSuite("service-registry-actor-spec") with FlatSpecLike with Matchers with BeforeAndAfterAll {
+class ServiceRegistryActorSpec extends TestKitSuite("service-registry-actor-spec") with AnyFlatSpecLike with Matchers with BeforeAndAfterAll {
 
   private def buildConfig(serviceClass: Class[_]): String = {
     val serviceEntriesKey = "[SERVICE_ENTRIES]"
@@ -116,7 +118,7 @@ class ServiceRegistryActorSpec extends TestKitSuite("service-registry-actor-spec
     probe.expectMsgPF(AwaitTimeout) {
       case e: ActorInitializationException =>
         e.getCause shouldBe a [ConfigException.Missing]
-        e.getCause.getMessage shouldBe "No configuration setting found for key 'services'"
+        e.getCause.getMessage shouldBe "String: 1: No configuration setting found for key 'services'"
     }
   }
 

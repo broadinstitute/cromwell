@@ -11,13 +11,14 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescript
 import cromwell.core.TestKitSuite
 import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.logging.LoggingTest._
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 import wom.graph.CommandCallNode
 
 import scala.concurrent.duration._
 
 class SharedFileSystemInitializationActorSpec extends TestKitSuite("SharedFileSystemInitializationActorSpec")
-  with WordSpecLike with Matchers with ImplicitSender {
+  with AnyWordSpecLike with Matchers with ImplicitSender {
   val Timeout: FiniteDuration = 10.second.dilated
 
   val HelloWorld: String =

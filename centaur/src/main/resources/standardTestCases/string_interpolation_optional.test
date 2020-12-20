@@ -1,0 +1,12 @@
+name: string_interpolation_optional
+testFormat: workflowsuccess
+tags: [interpolation, commandblock]
+
+files {
+  workflow: string_interpolation_optional/string_interpolation_optional.wdl
+}
+
+metadata {
+  status: Succeeded
+  "outputs.echo_wf.string_interpolation_task.out": ""
+}

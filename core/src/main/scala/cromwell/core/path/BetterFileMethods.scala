@@ -381,7 +381,7 @@ trait BetterFileMethods {
 
   final def isReadable: Boolean = betterFile.isReadable
 
-  final def isWriteable: Boolean = betterFile.isWriteable
+  final def isWriteable: Boolean = betterFile.isWritable
 
   final def isExecutable: Boolean = betterFile.isExecutable
 

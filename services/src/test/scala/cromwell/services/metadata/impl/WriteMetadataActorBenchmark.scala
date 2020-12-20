@@ -9,10 +9,12 @@ import cromwell.services.database.{DatabaseTestKit, MetadataDatabaseType, MysqlE
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import org.scalatest.concurrent.Eventually
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
-class WriteMetadataActorBenchmark extends TestKitSuite with FlatSpecLike with Eventually with Matchers {
+
+class WriteMetadataActorBenchmark extends TestKitSuite with AnyFlatSpecLike with Eventually with Matchers {
   override implicit val patienceConfig = PatienceConfig(scaled(30.seconds), 1.second)
 
   behavior of "WriteMetadataActor"

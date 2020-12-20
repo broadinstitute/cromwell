@@ -1,11 +1,13 @@
 package cromwell.util
 
-import org.scalatest.{FlatSpec, Matchers}
-import TryWithResource._
+import common.assertion.CromwellTimeoutSpec
+import cromwell.util.TryWithResource._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.util.{Failure, Success}
 
-class TryWithResourceSpec extends FlatSpec with Matchers {
+class TryWithResourceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "tryWithResource"
 
   it should "catch instantiation errors" in {

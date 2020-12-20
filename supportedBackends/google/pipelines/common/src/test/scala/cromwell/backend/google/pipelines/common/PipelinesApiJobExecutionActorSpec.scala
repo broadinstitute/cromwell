@@ -7,7 +7,8 @@ import cromwell.backend.google.pipelines.common.ControllableFailingPabjea.Jabjea
 import cromwell.backend.standard.{DefaultStandardSyncExecutionActorParams, StandardSyncExecutionActor, StandardSyncExecutionActorParams}
 import cromwell.backend.{BackendJobDescriptor, MinimumRuntimeSettings}
 import cromwell.core.TestKitSuite
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 
 import scala.concurrent.duration._
@@ -15,7 +16,7 @@ import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success}
 
-class PipelinesApiJobExecutionActorSpec extends TestKitSuite("PipelinesApiJobExecutionActorSpec") with FlatSpecLike with Matchers with Mockito {
+class PipelinesApiJobExecutionActorSpec extends TestKitSuite("PipelinesApiJobExecutionActorSpec") with AnyFlatSpecLike with Matchers with Mockito {
 
   behavior of "PipelinesApiJobExecutionActor"
 

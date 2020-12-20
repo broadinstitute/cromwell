@@ -3,6 +3,7 @@ package womtool
 import java.nio.file.Paths
 
 import better.files.File
+import com.typesafe.scalalogging.StrictLogging
 import common.validation.Validation._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.languages.util.ImportResolver.HttpResolver
@@ -17,12 +18,14 @@ import womtool.cmdline._
 import womtool.graph.WomGraph
 import womtool.input.WomGraphMaker
 import womtool.inputs.Inputs
+import womtool.outputs.Outputs
 import womtool.validate.Validate
 import womtool.wom2wdlom.WomToWdlom.womBundleToFileElement
 
 import scala.util.{Failure, Success, Try}
 
-object WomtoolMain extends App {
+object WomtoolMain extends App with StrictLogging {
+
   sealed trait Termination {
     def stdout: Option[String]
     def stderr: Option[String]
@@ -52,6 +55,7 @@ object WomtoolMain extends App {
     case p: ParseCommandLine => parse(p.workflowSource.pathAsString)
     case h: HighlightCommandLine => highlight(h.workflowSource.pathAsString, h.highlightMode)
     case i: InputsCommandLine => Inputs.inputsJson(i.workflowSource, i.showOptionals)
+    case o: OutputsCommandLine => Outputs.outputsJson(o.workflowSource)
     case g: WomtoolGraphCommandLine => graph(g.workflowSource)
     case g: WomtoolWomGraphCommandLine => womGraph(g.workflowSource)
     case u: WomtoolWdlUpgradeCommandLine => upgrade(u.workflowSource.pathAsString)

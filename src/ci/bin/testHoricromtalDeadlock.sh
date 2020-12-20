@@ -16,7 +16,6 @@ cromwell::build::build_cromwell_docker
 
 # Turn off exit-on-error temporarily, as we expect an error
 set +o errexit
-CROMWELL_TAG="${CROMWELL_BUILD_CROMWELL_DOCKER_TAG}" \
 docker-compose \
     --file "${CROMWELL_BUILD_DOCKER_DIRECTORY}/docker-compose-deadlock.yml" \
     up \
@@ -44,12 +43,10 @@ then
 fi
 
 # Tear everything down, but dump out the logs first
-CROMWELL_TAG="${CROMWELL_BUILD_CROMWELL_DOCKER_TAG}" \
 docker-compose \
     --file "${CROMWELL_BUILD_DOCKER_DIRECTORY}/docker-compose-deadlock.yml" \
     logs --no-color > "${CROMWELL_BUILD_LOG_DIRECTORY}/deadlock.logs"
 
-CROMWELL_TAG="${CROMWELL_BUILD_CROMWELL_DOCKER_TAG}" \
 docker-compose \
     --file "${CROMWELL_BUILD_DOCKER_DIRECTORY}/docker-compose-deadlock.yml" \
     down \

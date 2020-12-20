@@ -2,13 +2,13 @@ package wom.values
 
 import cats.Applicative
 import cats.syntax.functor._
+import cats.instances.list._
 import common.util.TryUtil
 import wom.TsvSerializable
 import wom.types._
 import wom.util.FileUtil
 import wom.values.WomArray.WomArrayLike
 import cats.syntax.traverse._
-import cats.instances.list._
 import common.validation.IOChecked.IOChecked
 import wom.expression.IoFunctionSet
 

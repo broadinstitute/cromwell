@@ -1,9 +1,12 @@
 package wom.values
 
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wom.types.{WomIntegerType, WomOptionalType}
 
-class WomOptionalValueSpec extends FlatSpec with Matchers {
+
+class WomOptionalValueSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "WomOptionalValue flattening"
 

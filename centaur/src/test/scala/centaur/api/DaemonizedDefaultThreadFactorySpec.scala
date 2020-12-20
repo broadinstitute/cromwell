@@ -1,8 +1,10 @@
 package centaur.api
 
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class DaemonizedDefaultThreadFactorySpec extends FlatSpec with Matchers {
+class DaemonizedDefaultThreadFactorySpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "DaemonizedDefaultThreadFactory"
 

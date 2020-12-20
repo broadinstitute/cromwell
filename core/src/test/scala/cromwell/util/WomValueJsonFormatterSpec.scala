@@ -1,12 +1,14 @@
 package cromwell.util
 
+import common.assertion.CromwellTimeoutSpec
 import cromwell.util.JsonFormatting.WomValueJsonFormatter.WomValueJsonFormat
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json.{JsObject, enrichString}
 import wom.types._
 import wom.values._
 
-class WomValueJsonFormatterSpec extends FlatSpec with Matchers {
+class WomValueJsonFormatterSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "WdlValueJsonFormat"
 

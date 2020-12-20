@@ -10,7 +10,9 @@ import cromwell.engine.workflow.WorkflowDockerLookupActor.WorkflowDockerLookupFa
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation.{BackendJobPreparationSucceeded, CallPreparationFailed, Start}
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvKeyLookupFailed, KvPair}
-import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
+import org.scalatest.BeforeAndAfter
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 import wom.callable.Callable.InputDefinition
 import wom.core.LocallyQualifiedName
@@ -20,7 +22,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.control.NoStackTrace
 
-class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") with FlatSpecLike with Matchers with ImplicitSender with BeforeAndAfter with Mockito {
+class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") with AnyFlatSpecLike with Matchers with ImplicitSender with BeforeAndAfter with Mockito {
 
   behavior of "JobPreparationActor"
 

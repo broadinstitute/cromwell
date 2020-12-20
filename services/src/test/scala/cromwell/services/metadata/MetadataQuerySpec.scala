@@ -7,9 +7,10 @@ import cromwell.core.TestKitSuite
 import cromwell.services.metadata.MetadataQuerySpec.{CannedResponseReadMetadataWorker, MetadataServiceActor_CustomizeRead}
 import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, MetadataServiceResponse, QueryForWorkflowsMatchingParameters, WorkflowQueryResponse, WorkflowQuerySuccess}
 import cromwell.services.metadata.impl.{MetadataServiceActor, MetadataServiceActorSpec}
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
-class MetadataQuerySpec extends TestKitSuite("MetadataQuerySpec") with FlatSpecLike with Matchers  {
+class MetadataQuerySpec extends TestKitSuite("MetadataQuerySpec") with AnyFlatSpecLike with Matchers  {
 
   it should "correctly forward requests to read workers and responses back to requesters" in {
 

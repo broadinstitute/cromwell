@@ -1,18 +1,21 @@
 package cwl
 
+import common.assertion.CromwellTimeoutSpec
 import common.validation.Validation._
-import eu.timepit.refined.refineMV
 import cwl.CwlDecoder.decodeCwlFile
 import cwl.TestSetup.rootPath
 import eu.timepit.refined.numeric.Positive
+import eu.timepit.refined.refineMV
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
 import wom.callable.Callable.InputDefinition
 import wom.callable.{CallableTaskDefinition, RuntimeEnvironment}
 import wom.graph.OptionalGraphInputNodeWithDefault
 import wom.values.WomValue
 
-class FileSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+
+class FileSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "File"
 

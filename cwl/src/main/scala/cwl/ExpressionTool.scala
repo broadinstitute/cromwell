@@ -2,6 +2,7 @@ package cwl
 
 import cats.syntax.either._
 import cats.syntax.validated._
+import cats.instances.list._
 import common.Checked
 import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr
@@ -70,7 +71,6 @@ case class ExpressionTool(
         * because we'd have to create an output port for them now which would be useless anyway since nothing could point to it.
        */
       def mapPortsToValues(values: Map[String, WomValue]): Checked[Map[OutputPort, WomValue]] = {
-        import cats.instances.list._
         import cats.syntax.traverse._
 
         val coercedValues: List[ErrorOr[(OutputPort, WomValue)]] = for {

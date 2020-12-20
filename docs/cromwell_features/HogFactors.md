@@ -64,6 +64,19 @@ system {
 }
 ```
 
+Additionally, you can override system-level hog-factor on a backend level, by setting it in the particular backend configuration like this:
+```conf
+backend {
+  providers {
+    PAPIv2 {
+      config {
+        hog-factor: 2
+      }
+    }
+  }
+}
+```
+
 ### Setting a hog-factor
 
 The hog factor option sets the integer described in the [Hog Factor](#hog-factor) section above.

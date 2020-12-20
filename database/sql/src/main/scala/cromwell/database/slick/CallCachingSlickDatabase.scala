@@ -1,9 +1,8 @@
 package cromwell.database.slick
-
-import cats.instances.list._
-import cats.instances.tuple._
 import cats.syntax.apply._
 import cats.syntax.foldable._
+import cats.instances.list._
+import cats.instances.tuple._
 import com.rms.miu.slickcats.DBIOInstances._
 import cromwell.database.sql._
 import cromwell.database.sql.joins.CallCachingJoin

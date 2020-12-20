@@ -1,7 +1,7 @@
 package wdl.draft3.transforms.ast2wdlom
 
 import better.files.File
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.CromwellTimeoutSpec
 import wdl.model.draft3.elements._
 import wdl.draft3.transforms.ast2wdlom.WdlFileToWdlomSpec._
 import wom.types._
@@ -11,8 +11,11 @@ import wdl.model.draft3.elements.ExpressionElement._
 import wom.SourceFileLocation
 import wom.callable.MetaValueElement._
 import wom.values.{WomBoolean, WomFloat, WomInteger}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class WdlFileToWdlomSpec extends FlatSpec with Matchers {
+
+class WdlFileToWdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "WDL File to WDLOM"
 

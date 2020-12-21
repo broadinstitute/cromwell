@@ -149,8 +149,12 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
       case Success(_: DockerImageIdentifierWithoutHash) if !hasDockerDefinition => 
         lookupKvsOrBuildDescriptorAndStop(inputs, attributes, NoDocker, None)
 
-      // If there's a digest, we'll skip looking up the container because it just looks up the compressed size
-       case Success(dockerImageId: DockerImageIdentifierWithHash) =>
+      // If there's a digest and performRegistryLookupIfDigestIsProvided, look up the container
+      case Success(dockerImageId: DockerImageIdentifierWithHash) if DockerConfiguration.instance.performRegistryLookupIfDigestIsProvided =>
+        sendDockerRequest(dockerImageId)
+
+      // If there's a digest and performRegistryLookupIfDigestIsProvided is false, we'll skip looking up the container
+       case Success(dockerImageId: DockerImageIdentifierWithHash) if !DockerConfiguration.instance.performRegistryLookupIfDigestIsProvided =>
         lookupKvsOrBuildDescriptorAndStop(inputs, attributes, DockerWithHash(dockerImageId.fullName), None)
 
       case Failure(failure) => sendFailureAndStop(failure)

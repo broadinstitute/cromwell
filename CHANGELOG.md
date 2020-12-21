@@ -13,6 +13,8 @@ More information on JSON Type to WDL Type conversion can be found [here](https:/
 
 * Now retries HTTP 408 responses as well as HTTP 429 responses during DOS/DRS resolution requests.
 
+* Fixed a bug that prevented the call caching diff endpoint from working with scatters in workflows with archived metadata.
+
 ### New Features
 
 #### Reference disk support on PAPI v2

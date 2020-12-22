@@ -10,6 +10,7 @@ import io.circe.{DecodingFailure, FailedCursor, Json}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.collection.immutable
 import scala.io.Source
 
 class JsonEditorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
@@ -525,6 +526,46 @@ class JsonEditorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
     val expected = helloWorldPapiV2.mapObject(_.remove("calls"))
     actual shouldEqual expected
   }
+
+  it should "filter unscattered calls by FQN, if so asked" in {
+    val actual = filterCalls(helloGoodbyePapiV2, "wf_hello.hello", None).get
+    val expected = helloGoodbyePapiV2.mapObject { metadata =>
+      val calls = metadata.apply("calls").get
+      // We expect to see only the hello call after filtering, so remove "goodbye" from the expectations.
+      val hello = calls mapObject(_.remove("wf_hello.goodbye"))
+      metadata.add("calls", hello)
+    }
+    actual shouldEqual expected
+  }
+
+  it should "filter scattered calls by FQN and index, if so asked" in {
+    val actual = filterCalls(helloGoodbyeScatteredPapiV2, "wf_hello.hello", Option(1)).get
+    val expected = helloGoodbyeScatteredPapiV2.mapObject { metadata =>
+      val calls = metadata.apply("calls").get
+      val hello: Vector[Json] = calls.asObject.get("wf_hello.hello").get.asArray.get
+      val helloShard1: immutable.Seq[Json] = hello.filter(_.asObject.get("shardIndex").get.asNumber.get.toInt.get == 1)
+      val expectedCalls = Json.fromFields(List(("wf_hello.hello", Json.fromValues(helloShard1))))
+      metadata.add("calls", expectedCalls)
+    }
+    actual shouldEqual expected
+  }
+
+  it should "gracefully handle being asked to filter an unscattered call that has no matching FQN (or index)" in {
+  }
+
+  it should "gracefully handle being asked to filter an unscattered call that exists as a shard of a scatter" in {
+  }
+
+  it should "gracefully handle being asked to filter a scattered call that has no matching FQN (or index)" in {
+  }
+
+  it should "gracefully handle being asked to filter an unscattered call which has a matching FQN but not matching index" in {
+  }
+
+  it should "return the workflow metadata unmodified when asked to filter calls in a workflow without calls" in {
+    // Not sure how/if we could end up with a Carbonited workflow that had no calls IRL but if it happens we're ready.
+
+  }
 }
 
 object JsonEditorSpec {
@@ -545,6 +586,8 @@ object JsonEditorSpec {
   val treblyNestedSubworkflowCachedJson: Json = parseMetadata("trebly_nested_subworkflow_papiv2_cached.json")
   val helloWorldJson: Json = parseMetadata("hello_world.json")
   val helloWorldPapiV2: Json = parseMetadata("hello_papiv2.json")
+  val helloGoodbyePapiV2: Json = parseMetadata("hello_goodbye_papiv2.json")
+  val helloGoodbyeScatteredPapiV2: Json = parseMetadata("hello_goodbye_scattered_papiv2.json")
 
   implicit class EnhancedErrorOr[A](val e: ErrorOr[A]) extends AnyVal {
     def get: A = e.toEither.right.get

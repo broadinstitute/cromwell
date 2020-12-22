@@ -575,9 +575,12 @@ class JsonEditorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
     actual shouldEqual JsonObject.empty
   }
 
-  it should "return the workflow metadata unmodified when asked to filter calls in a workflow without calls" in {
-    // Not sure how/if we could end up with a Carbonited workflow that had no calls IRL but if it happens we're ready.
+  it should "return an empty object when asked to filter calls in a workflow without calls" in {
+    // Not sure how/if we could end up with a Carbonited workflow that had no calls IRL but if it happens we are ready.
+    val noCalls = helloGoodbyePapiV2.asObject.get.remove("calls")
+    val actual = filterCalls(Json.fromJsonObject(noCalls), "wf_hello.hello", None).get.asObject.get
 
+    actual shouldEqual JsonObject.empty
   }
 }
 

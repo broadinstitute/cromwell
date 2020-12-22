@@ -550,7 +550,12 @@ class JsonEditorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
     actual shouldEqual expected
   }
 
-  it should "gracefully handle being asked to filter an unscattered call that has no matching FQN (or index)" in {
+  it should "gracefully handle being asked to filter an unscattered call that has no matching FQN" in {
+    val actual = filterCalls(helloGoodbyeScatteredPapiV2, "wf_hello.nonexistent", None).get
+    val expectedObject = helloGoodbyeScatteredPapiV2.asObject.get.remove("calls").add("calls", Json.fromFields(List.empty))
+
+    // The current behavior is definitely wrong (an empty object with the query key), not sure what the correct behavior is.
+    actual shouldEqual Json.fromJsonObject(expectedObject)
   }
 
   it should "gracefully handle being asked to filter an unscattered call that exists as a shard of a scatter" in {

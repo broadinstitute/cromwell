@@ -83,7 +83,7 @@ object JsonEditor {
       workflowObject <- workflowAsObject
       callsObject <- callsAsObject(workflowObject)
       filtered = filterCalls(callsObject)
-      // The classic metadata endpoint returns an empty JSON object on a failure to match FQN
+      // The classic metadata endpoint returns an empty JSON object on a failure to match FQN.
       result = if (filtered.nonEmpty) JsonObject.singleton(callFqn, Json.fromValues(filtered)) else JsonObject.empty
     } yield Json.fromJsonObject(result)
 

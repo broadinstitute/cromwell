@@ -551,19 +551,28 @@ class JsonEditorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
   }
 
   it should "gracefully handle being asked to filter an unscattered call that has no matching FQN" in {
-    val actual = filterCalls(helloGoodbyeScatteredPapiV2, "wf_hello.nonexistent", None).get
+    val actual = filterCalls(helloGoodbyeScatteredPapiV2, "wf_hello.nonexistent", None).get.asObject.get
 
-    // It seems a bit strange but this is what the classic metadata endpoint does...
-    actual shouldEqual Json.fromJsonObject(JsonObject.empty)
+    // It seems a bit strange but this is what the classic metadata endpoint returns.
+    actual shouldEqual JsonObject.empty
   }
 
   it should "gracefully handle being asked to filter an unscattered call that exists as a shard of a scatter" in {
+    val actual = filterCalls(helloGoodbyeScatteredPapiV2, "wf_hello.hello", None).get.asObject.get
+
+    actual shouldEqual JsonObject.empty
   }
 
   it should "gracefully handle being asked to filter a scattered call that has no matching FQN (or index)" in {
+    val actual = filterCalls(helloGoodbyeScatteredPapiV2, "wf_hello.nonexistent", Option(0)).get.asObject.get
+
+    actual shouldEqual JsonObject.empty
   }
 
   it should "gracefully handle being asked to filter an unscattered call which has a matching FQN but not matching index" in {
+    val actual = filterCalls(helloGoodbyeScatteredPapiV2, "wf_hello.hello", Option(2)).get.asObject.get
+
+    actual shouldEqual JsonObject.empty
   }
 
   it should "return the workflow metadata unmodified when asked to filter calls in a workflow without calls" in {

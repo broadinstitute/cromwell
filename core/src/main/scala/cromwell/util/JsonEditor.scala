@@ -82,14 +82,18 @@ object JsonEditor {
     lazy val filteredCalls = for {
       workflowObject <- workflowAsObject
       callsObject <- callsAsObject(workflowObject)
-      filteredCallsJson = Json.fromValues(filterCalls(callsObject))
-    } yield Json.fromJsonObject(JsonObject.singleton(callFqn, filteredCallsJson))
+      filtered = filterCalls(callsObject)
+      // The classic metadata endpoint returns an empty JSON object on a failure to match FQN
+      result = if (filtered.nonEmpty) JsonObject.singleton(callFqn, Json.fromValues(filtered)) else JsonObject.empty
+    } yield Json.fromJsonObject(result)
 
     // Update the workflow with a filtered value for the `calls` key if the `calls` key is present, otherwise return
-    // the workflow unmodified.
+    // an empty JSON object.
     def updateCalls(workflow: JsonObject): ErrorOr[JsonObject] = {
-      if (workflow.contains(Keys.calls)) filteredCalls map { workflow.add(Keys.calls, _) }
-      else workflow.validNel
+      for {
+        filtered <- filteredCalls
+        filteredObject = filtered.asObject.get
+      } yield if (filteredObject.nonEmpty) workflow.add(Keys.calls, filtered) else JsonObject.empty
     }
 
     for {

@@ -6,7 +6,7 @@ import common.assertion.CromwellTimeoutSpec
 import common.validation.ErrorOr.ErrorOr
 import cromwell.util.JsonEditor._
 import io.circe.parser._
-import io.circe.{DecodingFailure, FailedCursor, Json}
+import io.circe.{DecodingFailure, FailedCursor, Json, JsonObject}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -552,10 +552,9 @@ class JsonEditorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
 
   it should "gracefully handle being asked to filter an unscattered call that has no matching FQN" in {
     val actual = filterCalls(helloGoodbyeScatteredPapiV2, "wf_hello.nonexistent", None).get
-    val expectedObject = helloGoodbyeScatteredPapiV2.asObject.get.remove("calls").add("calls", Json.fromFields(List.empty))
 
-    // The current behavior is definitely wrong (an empty object with the query key), not sure what the correct behavior is.
-    actual shouldEqual Json.fromJsonObject(expectedObject)
+    // It seems a bit strange but this is what the classic metadata endpoint does...
+    actual shouldEqual Json.fromJsonObject(JsonObject.empty)
   }
 
   it should "gracefully handle being asked to filter an unscattered call that exists as a shard of a scatter" in {

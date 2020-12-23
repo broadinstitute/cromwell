@@ -53,7 +53,7 @@ object JsonEditor {
     */
   def filterCalls(workflowJson: Json, callFqn: String, index: Option[Int]): ErrorOr[Json] = {
 
-    lazy val workflowAsObject: ErrorOr[JsonObject] =
+    def workflowAsObject: ErrorOr[JsonObject] =
       workflowJson.asObject.map(_.validNel).getOrElse(s"Workflow JSON unexpectedly not an object: $workflowJson".invalidNel)
 
     // Return the value for "calls" as a JsonObject, returning an empty JsonObject if missing.
@@ -86,12 +86,12 @@ object JsonEditor {
     }
 
     for {
-      workflow <- workflowAsObject
-      callsObject <- callsAsObject(workflow)
+      workflowObject <- workflowAsObject
+      callsObject <- callsAsObject(workflowObject)
       matchingCalls = findMatchingCalls(callsObject)
-      // Consistent with the classic metadata service which returns a completely empty JSON object if there are
+      // Consistent with the classic metadata service, this returns a completely empty JSON object if there are
       // no matching calls.
-      resultObject = if (matchingCalls.isEmpty) JsonObject.empty else writeMatchingCallsToWorkflow(workflow, matchingCalls)
+      resultObject = if (matchingCalls.isEmpty) JsonObject.empty else writeMatchingCallsToWorkflow(workflowObject, matchingCalls)
     } yield Json.fromJsonObject(resultObject)
   }
 

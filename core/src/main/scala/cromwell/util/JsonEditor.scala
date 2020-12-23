@@ -79,28 +79,20 @@ object JsonEditor {
       } yield attempt
     }
 
-    // Update the workflow with a filtered value for the `calls` key if the `calls` key is present, otherwise return
-    // an empty JSON object.
-    def updateCalls(workflow: JsonObject): ErrorOr[JsonObject] = {
-
-      // Assigns the workflow's `calls` entry to include only the `matchingCalls` values.
-      def writeMatchingCallsToWorkflow(matchingCalls: Vector[Json]): JsonObject = {
-        val callsObject = JsonObject.singleton(callFqn, Json.fromValues(matchingCalls))
-        workflow.add(Keys.calls, Json.fromJsonObject(callsObject))
-      }
-
-      for {
-        workflowObject <- workflowAsObject
-        callsObject <- callsAsObject(workflowObject)
-        matchingCalls = findMatchingCalls(callsObject)
-        // The classic metadata system returns a completely empty JSON object on a match failure.
-      } yield if (matchingCalls.isEmpty) JsonObject.empty else writeMatchingCallsToWorkflow(matchingCalls)
+    // Assigns the workflow's `calls` entry to include only the `matchingCalls` values.
+    def writeMatchingCallsToWorkflow(workflow: JsonObject, matchingCalls: Vector[Json]): JsonObject = {
+      val callsObject = JsonObject.singleton(callFqn, Json.fromValues(matchingCalls))
+      workflow.add(Keys.calls, Json.fromJsonObject(callsObject))
     }
 
     for {
       workflow <- workflowAsObject
-      updatedWorkflow <- updateCalls(workflow)
-    } yield Json.fromJsonObject(updatedWorkflow)
+      callsObject <- callsAsObject(workflow)
+      matchingCalls = findMatchingCalls(callsObject)
+      // Consistent with the classic metadata service which returns a completely empty JSON object if there are
+      // no matching calls.
+      resultObject = if (matchingCalls.isEmpty) JsonObject.empty else writeMatchingCallsToWorkflow(workflow, matchingCalls)
+    } yield Json.fromJsonObject(resultObject)
   }
 
   /** A `Filter` represents a list of one or more components corresponding to a single `includeKey` or `excludeKey` parameter.

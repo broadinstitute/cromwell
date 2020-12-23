@@ -42,14 +42,14 @@ object JsonEditor {
     }
 
   /**
-    * If the `calls` element is present in the top level workflow, edit it to include only attempts with the specified
-    * call FQN and shard index.
+    * If the workflow's `calls` element contains call attempts matching the specified FQN and index, return an edited
+    * version of the workflow containing only those matching call attempts, otherwise return an empty JSON.
     *
     * @param workflowJson Full input workflow JSON.
     * @param callFqn Fully qualified name of the call to be included.
     * @param index Scatter index of the call to be returned, `None` if the call is not scattered.
-    * @return Workflow JSON edited to include only call objects matching the specified `callFqn` and `index`
-    *         within `calls`.
+    * @return Workflow JSON edited to include only call attempts matching the specified `callFqn` and `index`
+    *         within `calls`, or an empty JSON if there are no matching call attempts.
     */
   def filterCalls(workflowJson: Json, callFqn: String, index: Option[Int]): ErrorOr[Json] = {
 
@@ -64,7 +64,7 @@ object JsonEditor {
     }
 
     // Return only those calls which match the call FQN and the shard index.
-    def filterCalls(callsObject: JsonObject): Vector[Json] = {
+    def findMatchingCalls(callsObject: JsonObject): Vector[Json] = {
       val effectiveIndex = index.getOrElse(-1)
 
       for {
@@ -79,21 +79,22 @@ object JsonEditor {
       } yield attempt
     }
 
-    lazy val filteredCalls = for {
-      workflowObject <- workflowAsObject
-      callsObject <- callsAsObject(workflowObject)
-      filtered = filterCalls(callsObject)
-      // The classic metadata endpoint returns an empty JSON object on a failure to match FQN.
-      result = if (filtered.nonEmpty) JsonObject.singleton(callFqn, Json.fromValues(filtered)) else JsonObject.empty
-    } yield Json.fromJsonObject(result)
-
     // Update the workflow with a filtered value for the `calls` key if the `calls` key is present, otherwise return
     // an empty JSON object.
     def updateCalls(workflow: JsonObject): ErrorOr[JsonObject] = {
+
+      // Assigns the workflow's `calls` entry to include only the `matchingCalls` values.
+      def writeMatchingCallsToWorkflow(matchingCalls: Vector[Json]): JsonObject = {
+        val callsObject = JsonObject.singleton(callFqn, Json.fromValues(matchingCalls))
+        workflow.add(Keys.calls, Json.fromJsonObject(callsObject))
+      }
+
       for {
-        filtered <- filteredCalls
-        filteredObject = filtered.asObject.get
-      } yield if (filteredObject.nonEmpty) workflow.add(Keys.calls, filtered) else JsonObject.empty
+        workflowObject <- workflowAsObject
+        callsObject <- callsAsObject(workflowObject)
+        matchingCalls = findMatchingCalls(callsObject)
+        // The classic metadata system returns a completely empty JSON object on a match failure.
+      } yield if (matchingCalls.isEmpty) JsonObject.empty else writeMatchingCallsToWorkflow(matchingCalls)
     }
 
     for {

@@ -2,19 +2,25 @@
 
 ## Overview
 
-Available in Cromwell version 55 and higher.
+Available in Cromwell 55 and higher.
+
+This optimization hopes to resolve the issue of your worker VM being preempted 9 hours and 55 minutes into the runtime of
+a 10 hour job and having no option but to re-run the entire computation again.
 
 ### Description
 
-Specifying a `checkpointFile` value in a task's `runtime` section designates a checkpoint file which will occasionally be
-copied out to cloud storage. This file will then be restored automatically on subsequent attempts if the job is interrupted.
+Specifying a `checkpointFile` value in a task's `runtime` section designates a checkpoint file which will periodically be
+copied to cloud storage every 10 minutes.
+This checkpoint file will then be restored automatically on subsequent attempts if the job is interrupted.
 
-*Note:* Additional charges may accrue storing the checkpoint file, and by transferring it to and from the cloud. This
-should be balanced against the performance and cost benefits of being able to restore from the checkpoint when preemptible VMs are interrupted.   
+**Note:** Although the checkpoint file is deleted if the task succeeds, additional charges may accrue storing the checkpoint file during
+the running of the task, if the task is aborted or otherwise stopped externally, and by transferring it between the VM and the cloud. These
+cost should be minor, especially balanced against the performance and cost benefits of being able to restore from the
+checkpoint when preemptible VMs are interrupted.   
 
 ### Effect on Call Caching
 
-The presence or absence of the `checkpointingFile` attribute is not considered when determining whether to call cache.  
+The presence or absence of the `checkpointFile` attribute is not considered when determining whether to call cache.  
 
 ### Example
 
@@ -38,7 +44,9 @@ task count {
   }
 
   command <<<
-    # Read from the my_checkpoint file if there's content there:
+    # Note: Cromwell will stage the checkpoint file on recovery attempts.
+    # This task checks the 'my_checkpoint' file for a counter value, or else
+    # initializes the counter at '1':
     FROM_CKPT=$(cat my_checkpoint | tail -n1 | awk '{ print $1 }')
     FROM_CKPT=${FROM_CKPT:-1}
 
@@ -53,10 +61,14 @@ task count {
   runtime {
     docker: "ubuntu:latest"
     preemptible: 3
+    # Note: This checkpointFile attribute is what signals to Cromwell to save
+    # the designated checkpoint file:
     checkpointFile: "my_checkpoint"
   }
 
   output {
+    # Note: This task also uses the checkpoint as its output. This is not
+    # required for checkpointing to work:
     Array[String] out = read_lines("my_checkpoint")
   }
 }
@@ -64,7 +76,7 @@ task count {
 
 ## Backend Support
 
-The `checkpointFile` attribute is currently understood by and implemented for:
+Cromwell supports the `checkpointFile` attribute on the following backends:
 
 * The Google PAPIv2 (alpha1) backend
 * The Google Life Sciences (beta) backend

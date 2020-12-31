@@ -1,0 +1,550 @@
+# Based on https://www.scala-sbt.org/1.x/docs/GitHub-Actions-with-sbt.html
+# As of Dec 2020 this workflow setup compared to .travis.yml uses:
+# - adoptopenjdk's openjdk instead of oracle's openjdk
+# - probably similar ubuntu
+# - probably similar python
+# - no slack notifications
+name: CI
+on:
+  push:
+  pull_request:
+env:
+  VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+jobs:
+  centaurAws:
+    env:
+      BUILD_NAME: centaurAws
+      BUILD_TYPE: centaurAws
+      BUILD_MYSQL: 5.7
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  centaurBcs:
+    env:
+      BUILD_NAME: centaurBcs
+      BUILD_TYPE: centaurBcs
+      BUILD_MYSQL: 5.7
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  centaurDummy:
+    env:
+      BUILD_NAME: centaurDummy
+      BUILD_TYPE: centaurDummy
+      BUILD_MYSQL: 5.7
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  centaurEngineUpgradeLocal:
+    env:
+      BUILD_NAME: centaurEngineUpgradeLocal
+      BUILD_TYPE: centaurEngineUpgradeLocal
+      BUILD_MYSQL: 5.7
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  centaurEngineUpgradePapiV2alpha1:
+    env:
+      BUILD_NAME: centaurEngineUpgradePapiV2alpha1
+      BUILD_TYPE: centaurEngineUpgradePapiV2alpha1
+      BUILD_MYSQL: 5.7
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  centaurHoricromtalPapiV2alpha1:
+    env:
+      BUILD_NAME: centaurHoricromtalPapiV2alpha1
+      BUILD_TYPE: centaurHoricromtalPapiV2alpha1
+      BUILD_MYSQL: 5.7
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  centaurHoricromtalPapiV2beta:
+    env:
+      BUILD_NAME: centaurHoricromtalPapiV2beta
+      BUILD_TYPE: centaurHoricromtalPapiV2beta
+      BUILD_MYSQL: 5.7
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  centaurHoricromtalEngineUpgradePapiV2alpha1:
+    env:
+      BUILD_NAME: centaurHoricromtalEngineUpgradePapiV2alpha1
+      BUILD_TYPE: centaurHoricromtalEngineUpgradePapiV2alpha1
+      BUILD_MYSQL: 5.7
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  centaurPapiUpgradePapiV1:
+    env:
+      BUILD_NAME: centaurPapiUpgradePapiV1
+      BUILD_TYPE: centaurPapiUpgradePapiV1
+      BUILD_MYSQL: 5.7
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  centaurPapiUpgradeNewWorkflowsPapiV1:
+    env:
+      BUILD_NAME: centaurPapiUpgradeNewWorkflowsPapiV1
+      BUILD_TYPE: centaurPapiUpgradeNewWorkflowsPapiV1
+      BUILD_MYSQL: 5.7
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  centaurPapiUpgradePapiV2alpha1:
+    env:
+      BUILD_NAME: centaurPapiUpgradePapiV2alpha1
+      BUILD_TYPE: centaurPapiUpgradePapiV2alpha1
+      BUILD_MYSQL: 5.7
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  centaurPapiUpgradeNewWorkflowsPapiV2alpha1:
+    env:
+      BUILD_NAME: centaurPapiUpgradeNewWorkflowsPapiV2alpha1
+      BUILD_TYPE: centaurPapiUpgradeNewWorkflowsPapiV2alpha1
+      BUILD_MYSQL: 5.7
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  centaurLocalHsqldb:
+    env:
+      BUILD_NAME: centaurLocalHsqldb
+      BUILD_TYPE: centaurLocal
+      BUILD_HSQLDB: 'true'
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  centaurLocalMariadb:
+    env:
+      BUILD_NAME: centaurLocalMariadb
+      BUILD_TYPE: centaurLocal
+      BUILD_MARIADB: 10.3
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  centaurLocalMysql:
+    env:
+      BUILD_NAME: centaurLocalMysql
+      BUILD_TYPE: centaurLocal
+      BUILD_MYSQL: 5.7
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  centaurLocalPostgresql:
+    env:
+      BUILD_NAME: centaurLocalPostgresql
+      BUILD_TYPE: centaurLocal
+      BUILD_POSTGRESQL: 11.3
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  centaurLocalSqlite:
+    env:
+      BUILD_NAME: centaurLocalSqlite
+      BUILD_TYPE: centaurLocal
+      BUILD_SQLITE: 'true'
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  centaurPapiV1:
+    env:
+      BUILD_NAME: centaurPapiV1
+      BUILD_TYPE: centaurPapiV1
+      BUILD_MYSQL: 5.7
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  centaurPapiV2alpha1:
+    env:
+      BUILD_NAME: centaurPapiV2alpha1
+      BUILD_TYPE: centaurPapiV2alpha1
+      BUILD_MYSQL: 5.7
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  centaurPapiV2beta:
+    env:
+      BUILD_NAME: centaurPapiV2beta
+      BUILD_TYPE: centaurPapiV2beta
+      BUILD_MYSQL: 5.7
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  centaurSlurm:
+    env:
+      BUILD_NAME: centaurSlurm
+      BUILD_TYPE: centaurSlurm
+      BUILD_MYSQL: 5.7
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  centaurTes:
+    env:
+      BUILD_NAME: centaurTes
+      BUILD_TYPE: centaurTes
+      BUILD_MYSQL: 5.7
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  centaurWdlUpgradeLocal:
+    env:
+      BUILD_NAME: centaurWdlUpgradeLocal
+      BUILD_TYPE: centaurWdlUpgradeLocal
+      BUILD_MYSQL: 5.7
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  checkPublish:
+    env:
+      BUILD_NAME: checkPublish
+      BUILD_TYPE: checkPublish
+      BUILD_MYSQL: 5.7
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  conformanceLocal:
+    env:
+      BUILD_NAME: conformanceLocal
+      BUILD_TYPE: conformanceLocal
+      BUILD_MYSQL: 5.7
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  conformancePapiV2beta:
+    env:
+      BUILD_NAME: conformancePapiV2beta
+      BUILD_TYPE: conformancePapiV2beta
+      BUILD_MYSQL: 5.7
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  conformanceTesk:
+    env:
+      BUILD_NAME: conformanceTesk
+      BUILD_TYPE: conformanceTesk
+      BUILD_MYSQL: 5.7
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  horicromtalDeadlock:
+    env:
+      BUILD_NAME: horicromtalDeadlock
+      BUILD_TYPE: horicromtalDeadlock
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  dockerScripts:
+    env:
+      BUILD_NAME: dockerScripts
+      BUILD_TYPE: dockerScripts
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  sbt:
+    env:
+      BUILD_NAME: sbt
+      BUILD_TYPE: sbt
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  dbms:
+    env:
+      BUILD_NAME: dbms
+      BUILD_TYPE: dbms
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  singleWorkflowRunner:
+    env:
+      BUILD_NAME: singleWorkflowRunner
+      BUILD_TYPE: singleWorkflowRunner
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  metadataComparisonPython:
+    env:
+      BUILD_NAME: metadataComparisonPython
+      BUILD_TYPE: metadataComparisonPython
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh
+  referenceDiskManifestBuilderApp:
+    env:
+      BUILD_NAME: referenceDiskManifestBuilderApp
+      BUILD_TYPE: referenceDiskManifestBuilderApp
+    timeout-minutes: 120
+    runs-on: ubuntu-16.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - uses: olafurpg/setup-scala@v10
+        with:
+          java-version: 'adopt@1.8'
+      - run: src/ci/bin/test.sh

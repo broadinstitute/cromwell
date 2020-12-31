@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# Used to login docker from the command line. If/when there is a better way to docker login please update test.inc.sh
-# and remove all traces of this include.
+# Used to login Docker Hub from the command line so that executable images may be pushed to the registry.
+# If/when there is a better way to docker login please update test.inc.sh and remove all traces of this include.
 
 set +x
 
@@ -13,4 +13,4 @@ docker_username="{{$cromwellDockerhub.Data.username}}"
 docker_password="{{$cromwellDockerhub.Data.password}}"
 {{end}}
 
-docker login --username "${docker_username}" --password "${docker_password}"
+docker login --username "${docker_username}" --password-stdin <<< "${docker_password}"

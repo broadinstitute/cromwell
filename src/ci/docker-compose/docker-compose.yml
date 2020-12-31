@@ -1,8 +1,16 @@
 version: '2'
 services:
   cromwell-test:
-    build:
-      context: cromwell-test
+    # This docker image (shared with Google Cloud Build) was built via:
+    # docker \
+    #   build \
+    #   --pull \
+    #   --tag us-docker.pkg.dev/broad-dsde-cromwell-dev/ci/cromwell-test:pr-6139 \
+    #   --file src/ci/docker-compose/cromwell-test/Dockerfile \
+    #   src/ci/docker-compose/cromwell-test/.
+    image: "us-docker.pkg.dev/broad-dsde-cromwell-dev/ci/cromwell-test:pr-6139"
+    #build:
+    #  context: cromwell-test
     command: src/ci/bin/test.sh
     environment:
       - BUILD_NUMBER

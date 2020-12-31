@@ -1,6 +1,5 @@
 package centaur
 
-import centaur.CromwellManager.ManagedCromwellPort
 import com.typesafe.config.Config
 
 object DockerComposeCromwellConfiguration {
@@ -27,7 +26,6 @@ case class DockerComposeCromwellConfiguration(dockerTag: String, dockerComposeFi
       private val stopCommand = composeCommand("down", "-v")
       private val rmCommand = composeCommand("rm", "-fsv")
       private val envVariables = Map[String, String](
-        "CROMWELL_BUILD_CENTAUR_MANAGED_PORT" -> ManagedCromwellPort.toString,
         "CROMWELL_BUILD_CENTAUR_MANAGED_TAG" -> dockerTag,
         "CROMWELL_BUILD_CENTAUR_MANAGED_CONFIG" -> conf,
       )

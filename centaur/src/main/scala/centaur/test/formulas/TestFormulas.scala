@@ -26,7 +26,8 @@ import spray.json.JsString
   * for comprehension. These assembled formulas can then be run by a client
   */
 object TestFormulas extends StrictLogging {
-  val workflowProgressTimeout = ConfigFactory.load().getOrElse("centaur.workflow-progress-timeout", 1 minute)
+  private val workflowProgressTimeout =
+    ConfigFactory.load.getOrElse("centaur.workflow-progress-timeout", 1 minute)
   logger.info(s"Running with a workflow progress timeout of $workflowProgressTimeout")
 
   private def runWorkflowUntilTerminalStatus(workflow: Workflow, status: TerminalStatus): Test[SubmittedWorkflow] = {
@@ -189,7 +190,7 @@ object TestFormulas extends StrictLogging {
                               finalStatus: TerminalStatus)(
                               implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = {
     CentaurConfig.runMode match {
-      case ManagedCromwellServer(_, postRestart, withRestart) if withRestart =>
+      case ManagedCromwellServer(_, _, _, postRestart, withRestart) if withRestart =>
         for {
           _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
           _ <- timingVerificationNotSupported(workflowDefinition.maximumAllowedTime)
@@ -230,8 +231,8 @@ object TestFormulas extends StrictLogging {
   } yield SubmitResponse(submittedWorkflow)
 
   def scheduledAbort(workflowDefinition: Workflow, callMarker: CallMarker, restart: Boolean)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = {
-    def withRestart() = CentaurConfig.runMode match {
-      case ManagedCromwellServer(_, postRestart, withRestart) if withRestart =>
+    def withRestart(): Unit = CentaurConfig.runMode match {
+      case ManagedCromwellServer(_, _, _, postRestart, withRestart) if withRestart =>
         CromwellManager.stopCromwell(s"Scheduled restart from ${workflowDefinition.testName}")
         CromwellManager.startCromwell(postRestart)
       case _ =>
@@ -277,7 +278,7 @@ object TestFormulas extends StrictLogging {
 
   def papiUpgrade(workflowDefinition: Workflow, callMarker: CallMarker)(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = {
     CentaurConfig.runMode match {
-      case ManagedCromwellServer(_, postRestart, withRestart) if withRestart =>
+      case ManagedCromwellServer(_, _, _, postRestart, withRestart) if withRestart =>
         for {
           _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
           _ <- timingVerificationNotSupported(workflowDefinition.maximumAllowedTime)

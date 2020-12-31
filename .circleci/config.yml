@@ -1,0 +1,223 @@
+# As of Dec 2020 this workflow setup compared to .travis.yml uses:
+# - unknown openjdk (probably ubuntu?) instead of oracle's openjdk
+# - probably similar ubuntu
+# - python 3.8 instead of python 3.7
+# - no slack notifications
+version: 2.1
+
+job_defaults: &job_defaults
+  # Use a machine since those images have both Java & Python
+  # Note: even the predefined `cimg` docker images have `docker` already installed!
+  # https://discuss.circleci.com/t/linux-machine-executor-images-october-q4-update/37847
+  # https://discuss.circleci.com/tag/machine-executor
+  # https://discuss.circleci.com/t/docker-image-for-executor-with-both-java-and-python/34888
+  machine:
+    image: ubuntu-1604:202010-01
+  steps:
+    - checkout
+    - run: pyenv global 3.8.6
+    - run: timeout 120m src/ci/bin/test.sh
+
+jobs:
+  centaurAws:
+    environment:
+      BUILD_TYPE: centaurAws
+      BUILD_MYSQL: 5.7
+    <<: *job_defaults
+  centaurBcs:
+    environment:
+      BUILD_TYPE: centaurBcs
+      BUILD_MYSQL: 5.7
+    <<: *job_defaults
+  centaurDummy:
+    environment:
+      BUILD_TYPE: centaurDummy
+      BUILD_MYSQL: 5.7
+    <<: *job_defaults
+  centaurEngineUpgradeLocal:
+    environment:
+      BUILD_TYPE: centaurEngineUpgradeLocal
+      BUILD_MYSQL: 5.7
+    <<: *job_defaults
+  centaurEngineUpgradePapiV2alpha1:
+    environment:
+      BUILD_TYPE: centaurEngineUpgradePapiV2alpha1
+      BUILD_MYSQL: 5.7
+    <<: *job_defaults
+  centaurHoricromtalPapiV2alpha1:
+    environment:
+      BUILD_TYPE: centaurHoricromtalPapiV2alpha1
+      BUILD_MYSQL: 5.7
+    <<: *job_defaults
+  centaurHoricromtalPapiV2beta:
+    environment:
+      BUILD_TYPE: centaurHoricromtalPapiV2beta
+      BUILD_MYSQL: 5.7
+    <<: *job_defaults
+  centaurHoricromtalEngineUpgradePapiV2alpha1:
+    environment:
+      BUILD_TYPE: centaurHoricromtalEngineUpgradePapiV2alpha1
+      BUILD_MYSQL: 5.7
+    <<: *job_defaults
+  centaurPapiUpgradePapiV1:
+    environment:
+      BUILD_TYPE: centaurPapiUpgradePapiV1
+      BUILD_MYSQL: 5.7
+    <<: *job_defaults
+  centaurPapiUpgradeNewWorkflowsPapiV1:
+    environment:
+      BUILD_TYPE: centaurPapiUpgradeNewWorkflowsPapiV1
+      BUILD_MYSQL: 5.7
+    <<: *job_defaults
+  centaurPapiUpgradePapiV2alpha1:
+    environment:
+      BUILD_TYPE: centaurPapiUpgradePapiV2alpha1
+      BUILD_MYSQL: 5.7
+    <<: *job_defaults
+  centaurPapiUpgradeNewWorkflowsPapiV2alpha1:
+    environment:
+      BUILD_TYPE: centaurPapiUpgradeNewWorkflowsPapiV2alpha1
+      BUILD_MYSQL: 5.7
+    <<: *job_defaults
+  centaurLocalHsqldb:
+    environment:
+      BUILD_TYPE: centaurLocal
+      BUILD_HSQLDB: 'true'
+    <<: *job_defaults
+  centaurLocalMariadb:
+    environment:
+      BUILD_TYPE: centaurLocal
+      BUILD_MARIADB: 10.3
+    <<: *job_defaults
+  centaurLocalMysql:
+    environment:
+      BUILD_TYPE: centaurLocal
+      BUILD_MYSQL: 5.7
+    <<: *job_defaults
+  centaurLocalPostgresql:
+    environment:
+      BUILD_TYPE: centaurLocal
+      BUILD_POSTGRESQL: 11.3
+    <<: *job_defaults
+  centaurLocalSqlite:
+    environment:
+      BUILD_TYPE: centaurLocal
+      BUILD_SQLITE: 'true'
+    <<: *job_defaults
+  centaurPapiV1:
+    environment:
+      BUILD_TYPE: centaurPapiV1
+      BUILD_MYSQL: 5.7
+    <<: *job_defaults
+  centaurPapiV2alpha1:
+    environment:
+      BUILD_TYPE: centaurPapiV2alpha1
+      BUILD_MYSQL: 5.7
+    <<: *job_defaults
+  centaurPapiV2beta:
+    environment:
+      BUILD_TYPE: centaurPapiV2beta
+      BUILD_MYSQL: 5.7
+    <<: *job_defaults
+  centaurSlurm:
+    environment:
+      BUILD_TYPE: centaurSlurm
+      BUILD_MYSQL: 5.7
+    <<: *job_defaults
+  centaurTes:
+    environment:
+      BUILD_TYPE: centaurTes
+      BUILD_MYSQL: 5.7
+    <<: *job_defaults
+  centaurWdlUpgradeLocal:
+    environment:
+      BUILD_TYPE: centaurWdlUpgradeLocal
+      BUILD_MYSQL: 5.7
+    <<: *job_defaults
+  checkPublish:
+    environment:
+      BUILD_TYPE: checkPublish
+      BUILD_MYSQL: 5.7
+    <<: *job_defaults
+  conformanceLocal:
+    environment:
+      BUILD_TYPE: conformanceLocal
+      BUILD_MYSQL: 5.7
+    <<: *job_defaults
+  conformancePapiV2beta:
+    environment:
+      BUILD_TYPE: conformancePapiV2beta
+      BUILD_MYSQL: 5.7
+    <<: *job_defaults
+  conformanceTesk:
+    environment:
+      BUILD_TYPE: conformanceTesk
+      BUILD_MYSQL: 5.7
+    <<: *job_defaults
+  horicromtalDeadlock:
+    environment:
+      BUILD_TYPE: horicromtalDeadlock
+    <<: *job_defaults
+  dockerScripts:
+    environment:
+      BUILD_TYPE: dockerScripts
+    <<: *job_defaults
+  sbt:
+    environment:
+      BUILD_TYPE: sbt
+    <<: *job_defaults
+  dbms:
+    environment:
+      BUILD_TYPE: dbms
+    <<: *job_defaults
+  singleWorkflowRunner:
+    environment:
+      BUILD_TYPE: singleWorkflowRunner
+    <<: *job_defaults
+  metadataComparisonPython:
+    environment:
+      BUILD_TYPE: metadataComparisonPython
+    <<: *job_defaults
+  referenceDiskManifestBuilderApp:
+    environment:
+      BUILD_TYPE: referenceDiskManifestBuilderApp
+    <<: *job_defaults
+
+workflows:
+  version: 2
+  ci:
+    jobs:
+      - centaurAws
+      - centaurBcs
+      - centaurDummy
+      - centaurEngineUpgradeLocal
+      - centaurEngineUpgradePapiV2alpha1
+      - centaurHoricromtalPapiV2alpha1
+      - centaurHoricromtalPapiV2beta
+      - centaurHoricromtalEngineUpgradePapiV2alpha1
+      - centaurPapiUpgradePapiV1
+      - centaurPapiUpgradeNewWorkflowsPapiV1
+      - centaurPapiUpgradePapiV2alpha1
+      - centaurPapiUpgradeNewWorkflowsPapiV2alpha1
+      - centaurLocalHsqldb
+      - centaurLocalMariadb
+      - centaurLocalMysql
+      - centaurLocalPostgresql
+      - centaurLocalSqlite
+      - centaurPapiV1
+      - centaurPapiV2alpha1
+      - centaurPapiV2beta
+      - centaurSlurm
+      - centaurTes
+      - centaurWdlUpgradeLocal
+      - checkPublish
+      - conformanceLocal
+      - conformancePapiV2beta
+      - conformanceTesk
+      - horicromtalDeadlock
+      - dockerScripts
+      - sbt
+      - dbms
+      - singleWorkflowRunner
+      - metadataComparisonPython
+      - referenceDiskManifestBuilderApp

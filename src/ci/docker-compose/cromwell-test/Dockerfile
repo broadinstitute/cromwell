@@ -1,4 +1,5 @@
-FROM openjdk:8
+# https://wiki.ubuntu.com/Releases
+FROM ubuntu:xenial
 
 WORKDIR /cromwell-test/
 COPY docker-setup.sh ./

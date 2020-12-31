@@ -45,27 +45,51 @@ cromwell::private::check_debug() {
     fi
 }
 
-cromwell::private::set_variable_if_only_some_files_changed() {
-  files_changed_regex=${1}
-  variable_to_set=${2}
+cromwell::private::check_if_files_changed() {
+    local files_changed
+    local regex_changed
+    files_changed="${1:?check_if_files_changed called without the files}"
+    regex_changed="${2:?check_if_files_changed called without the regex}"
+    shift 2
 
-    if [[ "${TRAVIS_EVENT_TYPE:-unset}" != "pull_request" ]]; then
-        export "${variable_to_set}=false"
-    elif git diff --name-only "origin/${TRAVIS_BRANCH}" 2>&1 | grep -E -q --invert-match "${files_changed_regex}"; then
-        export "${variable_to_set}=false"
+    if grep -E -q --invert-match "${regex_changed}" <<< "${files_changed}"; then
+        echo false
     else
-        export "${variable_to_set}=true"
+        echo true
     fi
+}
+
+cromwell::private::get_github_pr_json() {
+    local github_pr_repository
+    local github_pr_number
+    github_pr_repository="${1:?get_github_pr_json called without the github_pr_repository}"
+    github_pr_number="${2:?get_github_pr_json called without the github_pr_number}"
+    shift 2
+
+    curl \
+        --location \
+        --silent \
+        "https://api.github.com/repos/${github_pr_repository}/pulls/${github_pr_number}" \
+        || echo '{}'
 }
 
 # Exports environment variables used for scripts.
 cromwell::private::create_build_variables() {
     CROMWELL_BUILD_PROVIDER_TRAVIS="travis"
+    CROMWELL_BUILD_PROVIDER_GITHUB="github"
+    CROMWELL_BUILD_PROVIDER_CIRCLE="circle"
+    CROMWELL_BUILD_PROVIDER_GOOGLE="google"
     CROMWELL_BUILD_PROVIDER_JENKINS="jenkins"
     CROMWELL_BUILD_PROVIDER_UNKNOWN="unknown"
 
     if [[ "${TRAVIS-false}" == "true" ]]; then
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_TRAVIS}"
+    elif [[ "${GITHUB_ACTIONS-false}" == "true" ]]; then
+        CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_GITHUB}"
+    elif [[ "${CLOUD_BUILD-false}" == "true" ]]; then
+        CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_GOOGLE}"
+    elif [[ "${CIRCLECI-false}" == "true" ]]; then
+        CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_CIRCLE}"
     elif [[ "${JENKINS-false}" == "true" ]]; then
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_JENKINS}"
     else
@@ -129,22 +153,16 @@ cromwell::private::create_build_variables() {
         CROMWELL_BUILD_GIT_HASH_SUFFIX="gUNKNOWN"
     fi
 
-    # Value of the `TRAVIS_BRANCH` variable depends on type of Travis build: if it is pull request build, the value
-    # will be the name of the branch targeted by the pull request, and for push builds it will be the name of the
-    # branch. So, in case of push builds `git diff` will always return empty result. This is why we only use this short
-    # circuiting logic for pull request builds
-    cromwell::private::set_variable_if_only_some_files_changed "^mkdocs.yml|^docs/|^CHANGELOG.md" "CROMWELL_BUILD_ONLY_DOCS_CHANGED"
-    cromwell::private::set_variable_if_only_some_files_changed "^src/ci/bin/testMetadataComparisonPython.sh|^scripts/" "CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED"
+    local github_pr_repository
+    local github_pr_number
+
+    github_pr_repository=""
+    github_pr_number=""
 
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
             CROMWELL_BUILD_IS_CI=true
-            CROMWELL_BUILD_IS_SECURE="${TRAVIS_SECURE_ENV_VARS}"
-
             CROMWELL_BUILD_TYPE="${BUILD_TYPE}"
-            CROMWELL_BUILD_BRANCH="${TRAVIS_PULL_REQUEST_BRANCH:-${TRAVIS_BRANCH}}"
-            CROMWELL_BUILD_EVENT="${TRAVIS_EVENT_TYPE}"
-            CROMWELL_BUILD_TAG="${TRAVIS_TAG}"
             CROMWELL_BUILD_NUMBER="${TRAVIS_JOB_NUMBER}"
             CROMWELL_BUILD_URL="https://travis-ci.com/${TRAVIS_REPO_SLUG}/jobs/${TRAVIS_JOB_ID}"
             CROMWELL_BUILD_GIT_USER_EMAIL="travis@travis-ci.com"
@@ -152,51 +170,118 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
             CROMWELL_BUILD_GENERATE_COVERAGE=true
 
-            local travis_commit_message
-            local travis_force_tests
-            local travis_minimal_tests
-            if [[ -n "${TRAVIS_COMMIT_RANGE:+set}" ]]; then
-                # The commit message to analyze should be the last one in the commit range.
-                # This works for both pull_request and push builds, unlike using 'git log HEAD' which
-                # gives a merge commit message on pull requests.
-                travis_commit_message="$(git log --reverse "${TRAVIS_COMMIT_RANGE}" | tail -n1 2>/dev/null || true)"
-            fi
+            CROMWELL_BUILD_EVENT="${TRAVIS_EVENT_TYPE}"
+            CROMWELL_BUILD_IS_SECURE="${TRAVIS_SECURE_ENV_VARS}"
+            CROMWELL_BUILD_BRANCH="${TRAVIS_PULL_REQUEST_BRANCH:-${TRAVIS_BRANCH}}"
+            CROMWELL_BUILD_TAG="${TRAVIS_TAG}"
 
-            if [[ -z "${travis_commit_message:-}" ]]; then
-                travis_commit_message="$(git log --format=%B --max-count=1 HEAD 2>/dev/null || true)"
+            if [[ "${TRAVIS_PULL_REQUEST}" != "false" ]]; then
+                github_pr_repository="${TRAVIS_REPO_SLUG}"
+                github_pr_number="${TRAVIS_PULL_REQUEST}"
             fi
+            ;;
+        "${CROMWELL_BUILD_PROVIDER_GITHUB}")
+            CROMWELL_BUILD_IS_CI=true
+            CROMWELL_BUILD_TYPE="${BUILD_TYPE}"
+            CROMWELL_BUILD_NUMBER="${GITHUB_RUN_NUMBER}.${BUILD_NAME}"
+            CROMWELL_BUILD_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            CROMWELL_BUILD_GIT_USER_EMAIL="github-actions@github.com"
+            CROMWELL_BUILD_GIT_USER_NAME="GitHub Actions"
+            CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
+            CROMWELL_BUILD_GENERATE_COVERAGE=true
 
-            if [[ "${travis_commit_message}" == *"[force ci]"* ]]; then
-                travis_force_tests=true
-                travis_minimal_tests=false
-            elif [[ "${travis_commit_message}" == *"[minimal ci]"* ]]; then
-                travis_force_tests=false
-                travis_minimal_tests=true
+            CROMWELL_BUILD_EVENT="${GITHUB_EVENT_NAME}"
+
+            if [[ "${GITHUB_REPOSITORY}" == "broadinstitute/cromwell" ]]; then
+                CROMWELL_BUILD_IS_SECURE=true
             else
-                travis_force_tests=false
-                travis_minimal_tests=false
+                CROMWELL_BUILD_IS_SECURE=false
             fi
 
-            echo "Building for commit message='${travis_commit_message}' with force=${travis_force_tests} and minimal=${travis_minimal_tests}"
+            # Parse refs based to get branch information
+            # https://docs.github.com/en/free-pro-team@latest/actions/reference/events-that-trigger-workflows
+            if [[ "${GITHUB_REF}" == "refs/tags/"* ]]; then
+                CROMWELL_BUILD_BRANCH="${GITHUB_REF#refs/tags/}"
+                CROMWELL_BUILD_TAG="${CROMWELL_BUILD_BRANCH}"
+            elif [[ "${GITHUB_REF}" == "refs/pull/"* ]]; then
+                CROMWELL_BUILD_BRANCH="${GITHUB_HEAD_REF}"
+                CROMWELL_BUILD_TAG=""
 
-            # For solely documentation updates run only checkPublish. Otherwise always run sbt, even for 'push'.
-            # This allows quick sanity checks before starting PRs *and* publishing after merges into develop.
-            if [[ "${travis_force_tests}" == "true" ]]; then
-                CROMWELL_BUILD_RUN_TESTS=true
-            elif [[ "${CROMWELL_BUILD_ONLY_DOCS_CHANGED}" == "true" ]] && \
-                [[ "${BUILD_TYPE}" != "checkPublish" ]]; then
-                CROMWELL_BUILD_RUN_TESTS=false
-            elif [[ "${travis_minimal_tests}" == "true" ]] && \
-                [[ "${TRAVIS_EVENT_TYPE}" != "push" ]]; then
-                CROMWELL_BUILD_RUN_TESTS=false
-            elif [[ "${CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED}" == "true" ]] && \
-                [[ "${BUILD_TYPE}" != "metadataComparisonPython" ]]; then
-                CROMWELL_BUILD_RUN_TESTS=false
-            elif [[ "${TRAVIS_EVENT_TYPE}" == "push" ]] && \
-                [[ "${BUILD_TYPE}" != "sbt" ]]; then
-                CROMWELL_BUILD_RUN_TESTS=false
+                github_pr_repository="${GITHUB_REPOSITORY}"
+                github_pr_number="${GITHUB_REF}"
+                github_pr_number="${github_pr_number#refs/pull/}"
+                github_pr_number="${github_pr_number%/merge}"
+
+                # Download more of the git history so we can search for the list modified files later.
+                # https://github.community/t/check-pushed-file-changes-with-git-diff-tree-in-github-actions/17220/10
+                # https://github.com/actions/checkout/issues/160
+                # The '|| true' is there until this is debugged/tested with a forked PR and then may be removed
+                git fetch --no-tags --prune --depth=1000 origin +refs/heads/*:refs/remotes/origin/* || true
             else
-                CROMWELL_BUILD_RUN_TESTS=true
+                CROMWELL_BUILD_BRANCH="${GITHUB_REF#refs/heads/}"
+                CROMWELL_BUILD_TAG=""
+            fi
+            ;;
+        "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
+            CROMWELL_BUILD_IS_CI=true
+            CROMWELL_BUILD_TYPE="${BUILD_TYPE}"
+            CROMWELL_BUILD_NUMBER="${CIRCLE_BUILD_NUM}"
+            CROMWELL_BUILD_URL="${CIRCLE_BUILD_URL}"
+            CROMWELL_BUILD_GIT_USER_EMAIL="builds@circleci.com"
+            CROMWELL_BUILD_GIT_USER_NAME="CircleCI"
+            CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
+            CROMWELL_BUILD_GENERATE_COVERAGE=true
+
+            CROMWELL_BUILD_BRANCH="${CIRCLE_BRANCH:-${CIRCLE_TAG}}"
+            CROMWELL_BUILD_TAG="${CIRCLE_TAG:-}"
+
+            local circle_github_repository
+            circle_github_repository="${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}"
+
+            if [[ "${circle_github_repository}" == "broadinstitute/cromwell" ]]; then
+                CROMWELL_BUILD_IS_SECURE=true
+            else
+                CROMWELL_BUILD_IS_SECURE=false
+            fi
+
+            if [[ -n "${CIRCLE_PULL_REQUEST:+set}" ]]; then
+                CROMWELL_BUILD_EVENT="pull_request"
+
+                github_pr_repository="${circle_github_repository}"
+
+                # > CIRCLE_PR_NUMBER ... Only available on forked PRs.
+                # via: https://circleci.com/docs/2.0/env-vars/#built-in-environment-variables
+                # So use https://discuss.circleci.com/t/pipeline-git-base-revision-is-completely-unreliable/38301/11
+                github_pr_number="${CIRCLE_PULL_REQUEST##*/}"
+            else
+                CROMWELL_BUILD_EVENT="push"
+            fi
+            ;;
+        "${CROMWELL_BUILD_PROVIDER_GOOGLE}")
+            CROMWELL_BUILD_IS_CI=true
+            CROMWELL_BUILD_TYPE="${BUILD_TYPE}"
+            CROMWELL_BUILD_NUMBER="${BUILD_ID%%-*}.${BUILD_NAME}"
+            CROMWELL_BUILD_URL="https://console.cloud.google.com/cloud-build/builds/${BUILD_ID}?project=${PROJECT_ID}"
+            CROMWELL_BUILD_GIT_USER_EMAIL="cloud-build@google.com"
+            CROMWELL_BUILD_GIT_USER_NAME="Google Cloud Build"
+            CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
+            CROMWELL_BUILD_GENERATE_COVERAGE=true
+
+            CROMWELL_BUILD_BRANCH="${BRANCH_NAME:-${TAG_NAME}}"
+            CROMWELL_BUILD_TAG="${TAG_NAME:-}"
+            CROMWELL_BUILD_IS_SECURE=true
+
+            if [[ -n "${PR_NUMBER:+set}" ]]; then
+                CROMWELL_BUILD_EVENT="pull_request"
+                github_pr_repository="${OWNER_NAME}/${REPO_NAME}"
+                github_pr_number="${PR_NUMBER}"
+
+                # Download more of the git history so we can search for the list modified files later.
+                # https://cloud.google.com/cloud-build/docs/automating-builds/create-manage-triggers#including_the_repository_history_in_a_build
+                # The '|| true' is there until this is debugged/tested with a forked PR and then may be removed
+                git fetch --no-tags --prune --depth=1000 origin +refs/heads/*:refs/remotes/origin/* || true
+            else
+                CROMWELL_BUILD_EVENT="push"
             fi
             ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")
@@ -244,6 +329,106 @@ cromwell::private::create_build_variables() {
             done
             ;;
     esac
+
+    # (Comments also refactored from original conditional logic)
+
+    # For solely documentation updates run only checkPublish. Otherwise always run sbt, even for 'push'.
+    # This allows quick sanity checks before starting PRs *and* publishing after merges into develop.
+
+    # Value of the `TRAVIS_BRANCH` variable depends on type of Travis build: if it is pull request build, the value
+    # will be the name of the branch targeted by the pull request, and for push builds it will be the name of the
+    # branch. So, in case of push builds `git diff` will always return empty result. This is why we only use this short
+    # circuiting logic for pull request builds
+
+    CROMWELL_BUILD_RUN_TESTS=true
+
+    local github_pr_files_changed
+    local github_pr_only_docs
+    local github_pr_only_scripts
+    local git_commit_message
+    local git_commit_force_tests
+    local git_commit_minimal_tests
+
+    github_pr_files_changed=""
+    github_pr_only_docs=false
+    github_pr_only_scripts=false
+    git_commit_message=""
+    git_commit_force_tests=false
+    git_commit_minimal_tests=false
+
+    if [[ "${CROMWELL_BUILD_EVENT}" == "pull_request" ]] && \
+        [[ -n "${github_pr_repository:+set}" ]] && \
+        [[ -n "${github_pr_number:+set}" ]]; then
+
+        local github_pr_json
+        local git_commit_base
+        local git_commit_head
+
+        github_pr_json="$(
+            cromwell::private::get_github_pr_json \
+                "${github_pr_repository}" \
+                "${github_pr_number}"
+        )"
+        git_commit_base="$(jq --raw-output .base.sha <<< "${github_pr_json}")"
+        git_commit_head="$(jq --raw-output .head.sha <<< "${github_pr_json}")"
+        # This works for pull_request unlike using 'git log HEAD' which gives a merge commit message on pull requests.
+        git_commit_message="$(git log --format=%B --max-count=1 "${git_commit_head}" 2>/dev/null || true)"
+        github_pr_files_changed="$(git diff --name-only "${git_commit_base}...${git_commit_head}" 2>/dev/null || true)"
+    fi
+
+    if [[ -z "${git_commit_message:-}" ]]; then
+        git_commit_message="$(git log --format=%B --max-count=1 HEAD 2>/dev/null || true)"
+    fi
+
+    if [[ -n "${github_pr_files_changed:+set}" ]]; then
+        github_pr_only_docs="$(
+            cromwell::private::check_if_files_changed \
+                "${github_pr_files_changed}" \
+                "^mkdocs.yml|^docs/|^CHANGELOG.md"
+        )"
+        github_pr_only_scripts="$(
+            cromwell::private::check_if_files_changed \
+                "${github_pr_files_changed}" \
+                "^src/ci/bin/testMetadataComparisonPython.sh|^scripts/"
+        )"
+    fi
+
+    if [[ "${git_commit_message}" == *"[force ci]"* ]]; then
+        git_commit_force_tests=true
+        git_commit_minimal_tests=false
+    elif [[ "${git_commit_message}" == *"[minimal ci]"* ]]; then
+        git_commit_force_tests=false
+        git_commit_minimal_tests=true
+    fi
+
+    if [[ "${github_pr_only_docs}" == "true" ]] && [[ "${CROMWELL_BUILD_TYPE}" != "checkPublish" ]]; then
+        CROMWELL_BUILD_RUN_TESTS=false
+    fi
+
+    if [[ "${git_commit_minimal_tests}" == "true" ]] && [[ "${CROMWELL_BUILD_EVENT}" != "push" ]]; then
+        CROMWELL_BUILD_RUN_TESTS=false
+    fi
+
+    if [[ "${github_pr_only_scripts}" == "true" ]] && [[ "${CROMWELL_BUILD_TYPE}" != "metadataComparisonPython" ]]; then
+        CROMWELL_BUILD_RUN_TESTS=false
+    fi
+
+    if [[ "${CROMWELL_BUILD_EVENT}" == "push" ]] && [[ "${CROMWELL_BUILD_TYPE}" != "sbt" ]]; then
+        CROMWELL_BUILD_RUN_TESTS=false
+    fi
+
+    if [[ "${git_commit_force_tests}" == "true" ]]; then
+        CROMWELL_BUILD_RUN_TESTS=true
+    fi
+
+    echo "DEBUG: github_pr_repository='${github_pr_repository}'"
+    echo "DEBUG: github_pr_number='${github_pr_number}'"
+    echo "DEBUG: github_pr_files_changed='${github_pr_files_changed}'"
+    echo "DEBUG: github_pr_only_docs='${github_pr_only_docs}'"
+    echo "DEBUG: github_pr_only_scripts='${github_pr_only_scripts}'"
+    echo "DEBUG: git_commit_message='${git_commit_message}'"
+    echo "DEBUG: git_commit_force_tests='${git_commit_force_tests}'"
+    echo "DEBUG: git_commit_minimal_tests='${git_commit_minimal_tests}'"
 
     local backend_type
     backend_type="${CROMWELL_BUILD_TYPE}"
@@ -309,7 +494,6 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_OPTIONAL_SECURE="${CROMWELL_BUILD_OPTIONAL_SECURE-false}"
     CROMWELL_BUILD_REQUIRES_SECURE="${CROMWELL_BUILD_REQUIRES_SECURE-false}"
     CROMWELL_BUILD_REQUIRES_PRIOR_VERSION="${CROMWELL_BUILD_REQUIRES_PRIOR_VERSION-false}"
-    VAULT_TOKEN="${VAULT_TOKEN-vault token is not set as an environment variable}"
 
     local hours_to_minutes
     hours_to_minutes=60
@@ -346,6 +530,9 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_OS_LINUX
     export CROMWELL_BUILD_PRIOR_VERSION_NUMBER
     export CROMWELL_BUILD_PROVIDER
+    export CROMWELL_BUILD_PROVIDER_CIRCLE
+    export CROMWELL_BUILD_PROVIDER_GITHUB
+    export CROMWELL_BUILD_PROVIDER_GOOGLE
     export CROMWELL_BUILD_PROVIDER_JENKINS
     export CROMWELL_BUILD_PROVIDER_TRAVIS
     export CROMWELL_BUILD_PROVIDER_UNKNOWN
@@ -392,102 +579,106 @@ cromwell::private::create_database_variables() {
     CROMWELL_BUILD_DATABASE_SCHEMA="cromwell_test"
 
     case "${CROMWELL_BUILD_PROVIDER}" in
-        "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
+        "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
+        "${CROMWELL_BUILD_PROVIDER_GOOGLE}"|\
+        "${CROMWELL_BUILD_PROVIDER_GITHUB}"|\
+        "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
+            # Define a docker tag to spin up the new database containers
             CROMWELL_BUILD_HSQLDB="${BUILD_HSQLDB-}"
-            CROMWELL_BUILD_MARIADB_HOSTNAME="localhost"
-            CROMWELL_BUILD_MARIADB_PORT="23306"
             CROMWELL_BUILD_MARIADB_DOCKER_TAG="${BUILD_MARIADB-}"
-            CROMWELL_BUILD_MARIADB_LATEST_HOSTNAME="localhost"
-            CROMWELL_BUILD_MARIADB_LATEST_PORT="33306"
-            CROMWELL_BUILD_MARIADB_LATEST_TAG="${BUILD_MARIADB_LATEST-}"
-            CROMWELL_BUILD_MYSQL_HOSTNAME="localhost"
-            CROMWELL_BUILD_MYSQL_PORT="3306"
             CROMWELL_BUILD_MYSQL_DOCKER_TAG="${BUILD_MYSQL-}"
-            CROMWELL_BUILD_MYSQL_LATEST_HOSTNAME="localhost"
-            CROMWELL_BUILD_MYSQL_LATEST_PORT="13306"
-            CROMWELL_BUILD_MYSQL_LATEST_TAG="${BUILD_MYSQL_LATEST-}"
-            CROMWELL_BUILD_POSTGRESQL_HOSTNAME="localhost"
-            CROMWELL_BUILD_POSTGRESQL_PORT="5432"
             CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG="${BUILD_POSTGRESQL-}"
-            CROMWELL_BUILD_POSTGRESQL_LATEST_HOSTNAME="localhost"
-            CROMWELL_BUILD_POSTGRESQL_LATEST_PORT="15432"
-            CROMWELL_BUILD_POSTGRESQL_LATEST_TAG="${BUILD_POSTGRESQL_LATEST-}"
             CROMWELL_BUILD_SQLITE="${BUILD_SQLITE-}"
             ;;
-        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
+        "${CROMWELL_BUILD_PROVIDER_JENKINS}"|\
+        *)
             # NOTE: Jenkins uses src/ci/docker-compose/docker-compose.yml.
             # We don't define a docker tag because the docker-compose has already spun up the database containers by the
             # time this script is run. Other variables here must match the database service names and settings the yaml.
-            CROMWELL_BUILD_HSQLDB="false"
+            CROMWELL_BUILD_HSQLDB="${CROMWELL_BUILD_HSQLDB-}"
+            CROMWELL_BUILD_MARIADB_DOCKER_TAG=""
+            CROMWELL_BUILD_MYSQL_DOCKER_TAG=""
+            CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG=""
+            CROMWELL_BUILD_SQLITE="${CROMWELL_BUILD_SQLITE-}"
+            ;;
+    esac
+
+    case "${CROMWELL_BUILD_PROVIDER}" in
+        "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
+        "${CROMWELL_BUILD_PROVIDER_GITHUB}"|\
+        "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
+            # These use docker networking to connect to the container published ports from localhost
+            CROMWELL_BUILD_MARIADB_HOSTNAME="localhost"
+            CROMWELL_BUILD_MARIADB_PORT="13306"
+            CROMWELL_BUILD_MYSQL_HOSTNAME="localhost"
+            CROMWELL_BUILD_MYSQL_PORT="3306"
+            CROMWELL_BUILD_POSTGRESQL_HOSTNAME="localhost"
+            CROMWELL_BUILD_POSTGRESQL_PORT="5432"
+            ;;
+        "${CROMWELL_BUILD_PROVIDER_GOOGLE}")
+            # These use docker networking to connect to the internal ports using the generated container names
+            CROMWELL_BUILD_MARIADB_HOSTNAME="$(cromwell::private::get_docker_name "mariadb:${CROMWELL_BUILD_MARIADB_DOCKER_TAG}")"
+            CROMWELL_BUILD_MARIADB_PORT="3306"
+            CROMWELL_BUILD_MYSQL_HOSTNAME="$(cromwell::private::get_docker_name "mysql:${CROMWELL_BUILD_MYSQL_DOCKER_TAG}")"
+            CROMWELL_BUILD_MYSQL_PORT="3306"
+            CROMWELL_BUILD_POSTGRESQL_HOSTNAME="$(cromwell::private::get_docker_name "postgres:${CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG}")"
+            CROMWELL_BUILD_POSTGRESQL_PORT="5432"
+            ;;
+        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
+            # These use docker networking to connect to the internal ports using the names from docker-compose.yml
             CROMWELL_BUILD_MARIADB_HOSTNAME="mariadb-db"
             CROMWELL_BUILD_MARIADB_PORT="3306"
-            CROMWELL_BUILD_MARIADB_DOCKER_TAG=""
-            CROMWELL_BUILD_MARIADB_LATEST_HOSTNAME="mariadb-db-latest"
-            CROMWELL_BUILD_MARIADB_LATEST_PORT="3306"
-            CROMWELL_BUILD_MARIADB_LATEST_TAG=""
-            CROMWELL_BUILD_MYSQL_HOSTNAME="mysql-db"
+            CROMWELL_BUILD_MYSQL_HOSTNAME="mysqldb-db"
             CROMWELL_BUILD_MYSQL_PORT="3306"
-            CROMWELL_BUILD_MYSQL_DOCKER_TAG=""
-            CROMWELL_BUILD_MYSQL_LATEST_HOSTNAME="mysql-db-latest"
-            CROMWELL_BUILD_MYSQL_LATEST_PORT="3306"
-            CROMWELL_BUILD_MYSQL_LATEST_TAG=""
-            CROMWELL_BUILD_POSTGRESQL_HOSTNAME="postgresql-db"
+            CROMWELL_BUILD_POSTGRESQL_HOSTNAME="postgresdb-db"
             CROMWELL_BUILD_POSTGRESQL_PORT="5432"
-            CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG=""
-            CROMWELL_BUILD_POSTGRESQL_LATEST_HOSTNAME="postgresql-db-latest"
-            CROMWELL_BUILD_POSTGRESQL_LATEST_PORT="3306"
-            CROMWELL_BUILD_POSTGRESQL_LATEST_TAG=""
-            CROMWELL_BUILD_SQLITE="false"
             ;;
         *)
             if [[ -z "${CROMWELL_BUILD_DOCKER_LOCALHOST-}" ]]; then
                 CROMWELL_BUILD_DOCKER_LOCALHOST="localhost"
             fi
 
-            CROMWELL_BUILD_HSQLDB="${CROMWELL_BUILD_HSQLDB-}"
             CROMWELL_BUILD_MARIADB_HOSTNAME="${CROMWELL_BUILD_MARIADB_HOSTNAME-${CROMWELL_BUILD_DOCKER_LOCALHOST}}"
             CROMWELL_BUILD_MARIADB_PORT="${CROMWELL_BUILD_MARIADB_PORT-13306}"
-            CROMWELL_BUILD_MARIADB_DOCKER_TAG=""
-            CROMWELL_BUILD_MARIADB_LATEST_HOSTNAME="${CROMWELL_BUILD_MARIADB_LATEST_HOSTNAME-${CROMWELL_BUILD_DOCKER_LOCALHOST}}"
-            CROMWELL_BUILD_MARIADB_LATEST_PORT="${CROMWELL_BUILD_MARIADB_LATEST_PORT-13306}"
-            CROMWELL_BUILD_MARIADB_LATEST_TAG=""
             CROMWELL_BUILD_MYSQL_HOSTNAME="${CROMWELL_BUILD_MYSQL_HOSTNAME-${CROMWELL_BUILD_DOCKER_LOCALHOST}}"
             CROMWELL_BUILD_MYSQL_PORT="${CROMWELL_BUILD_MYSQL_PORT-3306}"
-            CROMWELL_BUILD_MYSQL_DOCKER_TAG=""
-            CROMWELL_BUILD_MYSQL_LATEST_HOSTNAME="${CROMWELL_BUILD_MYSQL_LATEST_HOSTNAME-${CROMWELL_BUILD_DOCKER_LOCALHOST}}"
-            CROMWELL_BUILD_MYSQL_LATEST_PORT="${CROMWELL_BUILD_MYSQL_LATEST_PORT-13306}"
-            CROMWELL_BUILD_MYSQL_LATEST_TAG=""
             CROMWELL_BUILD_POSTGRESQL_HOSTNAME="${CROMWELL_BUILD_POSTGRESQL_HOSTNAME-${CROMWELL_BUILD_DOCKER_LOCALHOST}}"
             CROMWELL_BUILD_POSTGRESQL_PORT="${CROMWELL_BUILD_POSTGRESQL_PORT-5432}"
-            CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG=""
-            CROMWELL_BUILD_POSTGRESQL_LATEST_HOSTNAME="${CROMWELL_BUILD_POSTGRESQL_LATEST_HOSTNAME-${CROMWELL_BUILD_DOCKER_LOCALHOST}}"
-            CROMWELL_BUILD_POSTGRESQL_LATEST_PORT="${CROMWELL_BUILD_POSTGRESQL_LATEST_PORT-13306}"
-            CROMWELL_BUILD_POSTGRESQL_LATEST_TAG=""
-            CROMWELL_BUILD_SQLITE="${CROMWELL_BUILD_SQLITE-}"
+            ;;
+    esac
+
+    case "${CROMWELL_BUILD_PROVIDER}" in
+        "${CROMWELL_BUILD_PROVIDER_GOOGLE}")
+            # We're inside a docker where GCB has already created a network for us
+            # https://cloud.google.com/cloud-build/docs/overview#build_configuration_and_build_steps
+            # https://cloud.google.com/cloud-build/docs/build-config#network
+            CROMWELL_BUILD_DATABASE_NETWORK="cloudbuild"
+            ;;
+        "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
+        "${CROMWELL_BUILD_PROVIDER_GITHUB}"|\
+        "${CROMWELL_BUILD_PROVIDER_CIRCLE}"|\
+        "${CROMWELL_BUILD_PROVIDER_JENKINS}"|\
+        *)
+            # Use the default network
+            # https://docs.docker.com/engine/reference/run/#network-settings
+            # Not really used in Jenkins as docker-compose spins up the network
+            CROMWELL_BUILD_DATABASE_NETWORK="bridge"
             ;;
     esac
 
     export CROMWELL_BUILD_DATABASE_USERNAME
+    export CROMWELL_BUILD_DATABASE_NETWORK
     export CROMWELL_BUILD_DATABASE_PASSWORD
     export CROMWELL_BUILD_DATABASE_SCHEMA
     export CROMWELL_BUILD_HSQLDB
     export CROMWELL_BUILD_MARIADB_DOCKER_TAG
     export CROMWELL_BUILD_MARIADB_HOSTNAME
-    export CROMWELL_BUILD_MARIADB_LATEST_HOSTNAME
-    export CROMWELL_BUILD_MARIADB_LATEST_PORT
-    export CROMWELL_BUILD_MARIADB_LATEST_TAG
     export CROMWELL_BUILD_MARIADB_PORT
     export CROMWELL_BUILD_MYSQL_DOCKER_TAG
     export CROMWELL_BUILD_MYSQL_HOSTNAME
-    export CROMWELL_BUILD_MYSQL_LATEST_HOSTNAME
-    export CROMWELL_BUILD_MYSQL_LATEST_PORT
-    export CROMWELL_BUILD_MYSQL_LATEST_TAG
     export CROMWELL_BUILD_MYSQL_PORT
     export CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG
     export CROMWELL_BUILD_POSTGRESQL_HOSTNAME
-    export CROMWELL_BUILD_POSTGRESQL_LATEST_HOSTNAME
-    export CROMWELL_BUILD_POSTGRESQL_LATEST_PORT
-    export CROMWELL_BUILD_POSTGRESQL_LATEST_TAG
     export CROMWELL_BUILD_POSTGRESQL_PORT
     export CROMWELL_BUILD_SQLITE
 }
@@ -584,7 +775,10 @@ cromwell::private::create_centaur_variables() {
 
     # Pick **one** of the databases to run Centaur against
     case "${CROMWELL_BUILD_PROVIDER}" in
-        "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
+        "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
+        "${CROMWELL_BUILD_PROVIDER_GITHUB}"|\
+        "${CROMWELL_BUILD_PROVIDER_GOOGLE}"|\
+        "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
 
             if [[ "${CROMWELL_BUILD_HSQLDB:-false}" == "true" ]]; then
                 CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="slick.jdbc.HsqldbProfile$"
@@ -656,11 +850,36 @@ cromwell::private::create_centaur_variables() {
             ;;
     esac
 
+    # Setup the networking for accessing the horicromtal docker-compose instances
+    case "${CROMWELL_BUILD_PROVIDER}" in
+        "${CROMWELL_BUILD_PROVIDER_GOOGLE}")
+            # Google Cloud Build tests run in a container so be sure to use the same network
+            # https://cloud.google.com/cloud-build/docs/overview#build_configuration_and_build_steps
+            # https://cloud.google.com/cloud-build/docs/build-config#network
+            CROMWELL_BUILD_HORICROMTAL_NETWORK="cloudbuild"
+            # Match the hostname to the container_name used in the docker-compose-horicromtal.yml so that the container
+            # may be accessed by name from *this* container's existing cloudbuild network
+            # https://docs.docker.com/compose/compose-file/compose-file-v2/#container_name
+            CROMWELL_BUILD_HORICROMTAL_CONTAINER="front-back"
+            CROMWELL_BUILD_HORICROMTAL_HOSTNAME="front-back"
+            # Keeping the same port used by CromwellManager.ManagedCromwellPort even though it doesn't have to match
+            CROMWELL_BUILD_HORICROMTAL_PORT=8008
+            ;;
+        *)
+            # The horicromtal docker-compose setup uses host networking to access the database
+            CROMWELL_BUILD_HORICROMTAL_NETWORK="host"
+            # Since the docker-compose network is using host then we can access the container via localhost
+            CROMWELL_BUILD_HORICROMTAL_CONTAINER="front-back"
+            CROMWELL_BUILD_HORICROMTAL_HOSTNAME="localhost"
+            # Keeping the same port used by CromwellManager.ManagedCromwellPort even though it doesn't have to match
+            CROMWELL_BUILD_HORICROMTAL_PORT=8008
+            ;;
+    esac
+
     CROMWELL_BUILD_CENTAUR_256_BITS_KEY="$(dd bs=1 count=32 if=/dev/urandom 2> /dev/null | base64 | tr -d '\n')"
 
     export CROMWELL_BUILD_CENTAUR_256_BITS_KEY
     export CROMWELL_BUILD_CENTAUR_CONFIG
-    export CROMWELL_BUILD_DOCKER_TAG
     export CROMWELL_BUILD_CENTAUR_JDBC_DRIVER
     export CROMWELL_BUILD_CENTAUR_JDBC_URL
     export CROMWELL_BUILD_CENTAUR_JDBC_METADATA_URL
@@ -675,6 +894,10 @@ cromwell::private::create_centaur_variables() {
     export CROMWELL_BUILD_CENTAUR_TYPE_STANDARD
     export CROMWELL_BUILD_CENTAUR_TYPE_INTEGRATION
     export CROMWELL_BUILD_CENTAUR_TYPE_ENGINE_UPGRADE
+    export CROMWELL_BUILD_HORICROMTAL_CONTAINER
+    export CROMWELL_BUILD_HORICROMTAL_HOSTNAME
+    export CROMWELL_BUILD_HORICROMTAL_NETWORK
+    export CROMWELL_BUILD_HORICROMTAL_PORT
 }
 
 cromwell::private::create_conformance_variables() {
@@ -718,7 +941,10 @@ cromwell::private::create_conformance_variables() {
 
 cromwell::private::verify_secure_build() {
     case "${CROMWELL_BUILD_PROVIDER}" in
-        "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
+        "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
+        "${CROMWELL_BUILD_PROVIDER_GITHUB}"|\
+        "${CROMWELL_BUILD_PROVIDER_GOOGLE}"|\
+        "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
             if [[ "${CROMWELL_BUILD_IS_SECURE}" != "true" ]] && \
                 [[ "${CROMWELL_BUILD_REQUIRES_SECURE}" == "true" ]]; then
                 echo "********************************************************"
@@ -766,7 +992,7 @@ cromwell::private::pip_install() {
     pip_package="${1:?pip_install called without a package}"; shift
 
     if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
-        sudo -H "${PYTHON3_HOME}/bin/pip" install "${pip_package}" "$@"
+        sudo -H "$(command -v pip)" install "${pip_package}" "$@"
     elif [[ "${CROMWELL_BUILD_IS_VIRTUAL_ENV}" == "true" ]]; then
         pip install "${pip_package}" "$@"
     else
@@ -774,7 +1000,8 @@ cromwell::private::pip_install() {
     fi
 }
 
-cromwell::private::upgrade_pip() {
+cromwell::private::setup_travis_python() {
+    export PATH="/opt/python/3.7.1/bin:${PATH}"
     cromwell::private::pip_install pip --upgrade
     cromwell::private::pip_install requests[security] --ignore-installed
 }
@@ -804,12 +1031,21 @@ cromwell::private::install_minnie_kenny() {
     fi
 }
 
+cromwell::private::get_docker_name() {
+    local docker_image
+    docker_image="${1:?get_docker_name called without a docker image}"
+    shift
+
+    echo "${docker_image}_$$" | tr "/" "_" | tr ":" "-"
+}
+
 cromwell::private::start_docker() {
     local docker_image
     local docker_name
     local docker_cid_file
-    docker_image="${1:?start_docker called without a docker image}"; shift
-    docker_name="$(echo "${docker_image}" | tr "/" "_" | tr ":" "-")_$$"
+    docker_image="${1:?start_docker called without a docker image}"
+    shift
+    docker_name="$(cromwell::private::get_docker_name "${docker_image}")"
     docker_cid_file="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${docker_name}.cid"
 
     docker run --name="${docker_name}" --cidfile="${docker_cid_file}" --detach "$@" "${docker_image}"
@@ -831,6 +1067,7 @@ cromwell::private::start_docker_mysql() {
         shift 2
         cromwell::private::start_docker \
             mysql:"${docker_tag}" \
+            --network="${CROMWELL_BUILD_DATABASE_NETWORK}" \
             --publish "${docker_port}":3306 \
             --env MYSQL_ROOT_PASSWORD=private \
             --env MYSQL_USER="${CROMWELL_BUILD_DATABASE_USERNAME}" \
@@ -853,6 +1090,7 @@ cromwell::private::start_docker_mariadb() {
         shift 2
         cromwell::private::start_docker \
             mariadb:"${docker_tag}" \
+            --network="${CROMWELL_BUILD_DATABASE_NETWORK}" \
             --publish "${docker_port}":3306 \
             --env MYSQL_ROOT_PASSWORD=private \
             --env MYSQL_USER="${CROMWELL_BUILD_DATABASE_USERNAME}" \
@@ -875,6 +1113,7 @@ cromwell::private::start_docker_postgresql() {
         shift 2
         cromwell::private::start_docker \
             postgres:"${docker_tag}" \
+            --network="${CROMWELL_BUILD_DATABASE_NETWORK}" \
             --publish "${docker_port}":5432 \
             --env POSTGRES_USER="${CROMWELL_BUILD_DATABASE_USERNAME}" \
             --env POSTGRES_PASSWORD="${CROMWELL_BUILD_DATABASE_PASSWORD}" \
@@ -896,18 +1135,6 @@ cromwell::private::start_docker_databases() {
     if [[ -n "${CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG:+set}" ]]; then
         cromwell::private::start_docker_postgresql \
             "${CROMWELL_BUILD_POSTGRESQL_DOCKER_TAG}" "${CROMWELL_BUILD_POSTGRESQL_PORT}"
-    fi
-    if [[ -n "${CROMWELL_BUILD_MYSQL_LATEST_TAG:+set}" ]]; then
-        cromwell::private::start_docker_mysql \
-            "${CROMWELL_BUILD_MYSQL_LATEST_TAG}" "${CROMWELL_BUILD_MYSQL_LATEST_PORT}"
-    fi
-    if [[ -n "${CROMWELL_BUILD_MARIADB_LATEST_TAG:+set}" ]]; then
-        cromwell::private::start_docker_mariadb \
-            "${CROMWELL_BUILD_MARIADB_LATEST_TAG}" "${CROMWELL_BUILD_MARIADB_LATEST_PORT}"
-    fi
-    if [[ -n "${CROMWELL_BUILD_POSTGRESQL_LATEST_TAG:+set}" ]]; then
-        cromwell::private::start_docker_postgresql \
-            "${CROMWELL_BUILD_POSTGRESQL_LATEST_TAG}" "${CROMWELL_BUILD_POSTGRESQL_LATEST_PORT}"
     fi
 }
 
@@ -952,9 +1179,9 @@ cromwell::private::write_cwl_test_inputs() {
 JSON
 }
 
-cromwell::private::docker_login() {
+cromwell::private::dockerhub_login() {
     if cromwell::private::is_xtrace_enabled; then
-        cromwell::private::exec_silent_function cromwell::private::docker_login
+        cromwell::private::exec_silent_function cromwell::private::dockerhub_login
     else
         local dockerhub_auth_include
         dockerhub_auth_include="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/dockerhub_auth.inc.sh"
@@ -962,29 +1189,6 @@ cromwell::private::docker_login() {
             # shellcheck source=/dev/null
             source "${dockerhub_auth_include}"
         fi
-    fi
-}
-
-cromwell::private::vault_login() {
-    if cromwell::private::is_xtrace_enabled; then
-        cromwell::private::exec_silent_function cromwell::private::vault_login
-    elif [[ "${CROMWELL_BUILD_IS_SECURE}" == "true" ]]; then
-        case "${CROMWELL_BUILD_PROVIDER}" in
-            "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
-                # Login to vault to access secrets
-                local vault_token
-                vault_token="${VAULT_TOKEN}"
-                # Don't fail here if vault login fails
-                # shellcheck disable=SC2015
-                docker run --rm \
-                    -v "${CROMWELL_BUILD_HOME_DIRECTORY}:/root:rw" \
-                    broadinstitute/dsde-toolbox:dev \
-                    vault auth "${vault_token}" < /dev/null > /dev/null && echo vault auth success \
-                || true
-                ;;
-            *)
-                ;;
-        esac
     fi
 }
 
@@ -1015,10 +1219,12 @@ cromwell::private::copy_all_resources() {
 cromwell::private::setup_secure_resources() {
     if [[ "${CROMWELL_BUILD_REQUIRES_SECURE}" == "true" ]] || [[ "${CROMWELL_BUILD_OPTIONAL_SECURE}" == "true" ]]; then
         case "${CROMWELL_BUILD_PROVIDER}" in
-            "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
-                cromwell::private::vault_login
+            "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
+            "${CROMWELL_BUILD_PROVIDER_GITHUB}"|\
+            "${CROMWELL_BUILD_PROVIDER_GOOGLE}"|\
+            "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
                 cromwell::private::render_secure_resources
-                cromwell::private::docker_login
+                cromwell::private::dockerhub_login
                 ;;
             "${CROMWELL_BUILD_PROVIDER_JENKINS}")
                 cromwell::private::copy_all_resources
@@ -1315,7 +1521,15 @@ cromwell::build::setup_common_environment() {
             cromwell::private::stop_travis_defaults
             cromwell::private::delete_boto_config
             cromwell::private::delete_sbt_boot
-            cromwell::private::upgrade_pip
+            cromwell::private::pull_common_docker_images
+            cromwell::private::start_docker_databases
+            cromwell::private::setup_travis_python
+            ;;
+        "${CROMWELL_BUILD_PROVIDER_GITHUB}"|\
+        "${CROMWELL_BUILD_PROVIDER_GOOGLE}"|\
+        "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
+            cromwell::private::delete_boto_config
+            cromwell::private::delete_sbt_boot
             cromwell::private::pull_common_docker_images
             cromwell::private::start_docker_databases
             ;;

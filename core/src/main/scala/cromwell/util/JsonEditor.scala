@@ -56,7 +56,7 @@ object JsonEditor {
     def workflowAsObject: ErrorOr[JsonObject] =
       workflowJson.asObject.map(_.validNel).getOrElse(s"Workflow JSON unexpectedly not an object: $workflowJson".invalidNel)
 
-    // Return the value for "calls" as a JsonObject, returning an empty JsonObject if missing.
+    // Return the value for the "calls" key as a JsonObject, or an empty JsonObject if "calls" is missing.
     def callsAsObject(obj: JsonObject): ErrorOr[JsonObject] = obj(Keys.calls) match {
       case None => JsonObject.empty.validNel
       case Some(cs) =>

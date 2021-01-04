@@ -530,10 +530,10 @@ class JsonEditorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
   it should "filter unscattered calls by FQN, if so asked" in {
     val actual = filterCalls(helloGoodbyePapiV2, "wf_hello.hello", None).get
     val expected = helloGoodbyePapiV2.mapObject { metadata =>
-      val calls = metadata.apply("calls").get
-      // We expect to see only the hello call after filtering, so remove "goodbye" from the expectations.
-      val hello = calls mapObject(_.remove("wf_hello.goodbye"))
-      metadata.add("calls", hello)
+      // We expect to see only the hello call after filtering.
+      val helloFqn = "wf_hello.hello"
+      val helloCall = metadata(Keys.calls).get.asObject.get(helloFqn).get
+      metadata.add(Keys.calls, Json.fromFields(List((helloFqn, helloCall))))
     }
     actual shouldEqual expected
   }
@@ -541,7 +541,7 @@ class JsonEditorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
   it should "filter scattered calls by FQN and index, if so asked" in {
     val actual = filterCalls(helloGoodbyeScatteredPapiV2, "wf_hello.hello", Option(1)).get
     val expected = helloGoodbyeScatteredPapiV2.mapObject { metadata =>
-      val calls = metadata.apply("calls").get
+      val calls = metadata("calls").get
       val hello: Vector[Json] = calls.asObject.get("wf_hello.hello").get.asArray.get
       val helloShard1: immutable.Seq[Json] = hello.filter(_.asObject.get("shardIndex").get.asNumber.get.toInt.get == 1)
       val expectedCalls = Json.fromFields(List(("wf_hello.hello", Json.fromValues(helloShard1))))

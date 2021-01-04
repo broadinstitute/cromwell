@@ -10,7 +10,6 @@ import io.circe.{DecodingFailure, FailedCursor, Json, JsonObject}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import scala.collection.immutable
 import scala.io.Source
 
 class JsonEditorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
@@ -541,11 +540,9 @@ class JsonEditorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
   it should "filter scattered calls by FQN and index, if so asked" in {
     val actual = filterCalls(helloGoodbyeScatteredPapiV2, helloFqn, Option(1)).get
     val expected = helloGoodbyeScatteredPapiV2.mapObject { metadata =>
-      val calls = metadata("calls").get
-      val hello: Vector[Json] = calls.asObject.get(helloFqn).get.asArray.get
-      val helloShard1: immutable.Seq[Json] = hello.filter(_.asObject.get("shardIndex").get.asNumber.get.toInt.get == 1)
-      val expectedCalls = Json.fromFields(List((helloFqn, Json.fromValues(helloShard1))))
-      metadata.add("calls", expectedCalls)
+      val helloCalls = metadata(Keys.calls).get.asObject.get(helloFqn).get
+      val helloShard1 = helloCalls.asArray.get.filter(_.asObject.get(Keys.shardIndex).get.asNumber.get.toInt.get == 1)
+      metadata.add(Keys.calls, Json.fromFields(List((helloFqn, Json.fromValues(helloShard1)))))
     }
     actual shouldEqual expected
   }

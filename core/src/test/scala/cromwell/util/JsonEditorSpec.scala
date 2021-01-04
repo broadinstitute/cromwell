@@ -547,8 +547,9 @@ class JsonEditorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
     actual shouldEqual expected
   }
 
+  val nonexistentFqn = "wf_hello.nonexistent"
   it should "gracefully handle being asked to filter an unscattered call that has no matching FQN" in {
-    val actual = filterCalls(helloGoodbyeScatteredPapiV2, "wf_hello.nonexistent", None).get.asObject.get
+    val actual = filterCalls(helloGoodbyeScatteredPapiV2, nonexistentFqn, None).get.asObject.get
 
     // It seems a bit strange but this is what the classic metadata endpoint returns.
     actual shouldEqual JsonObject.empty
@@ -561,7 +562,7 @@ class JsonEditorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
   }
 
   it should "gracefully handle being asked to filter a scattered call that has no matching FQN (or index)" in {
-    val actual = filterCalls(helloGoodbyeScatteredPapiV2, "wf_hello.nonexistent", Option(0)).get.asObject.get
+    val actual = filterCalls(helloGoodbyeScatteredPapiV2, nonexistentFqn, Option(0)).get.asObject.get
 
     actual shouldEqual JsonObject.empty
   }
@@ -574,7 +575,7 @@ class JsonEditorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
 
   it should "return an empty object when asked to filter calls in a workflow without calls" in {
     // Not sure how/if we could end up with a Carbonited workflow that had no calls IRL but if it happens we are ready.
-    val noCalls = helloGoodbyePapiV2.asObject.get.remove("calls")
+    val noCalls = helloGoodbyePapiV2.asObject.get.remove(Keys.calls)
     val actual = filterCalls(Json.fromJsonObject(noCalls), helloFqn, None).get.asObject.get
 
     actual shouldEqual JsonObject.empty
@@ -607,7 +608,7 @@ object JsonEditorSpec {
   }
 
   object JobManagerKeys {
-    val includeKeys = NonEmptyList.of(
+    val includeKeys: NonEmptyList[String] = NonEmptyList.of(
       "attempt",
       "backendLogs:log",
       "callCaching:hit",
@@ -632,6 +633,6 @@ object JsonEditorSpec {
       "workflowName"
     )
 
-    val excludeKeys = NonEmptyList.of("callCaching:hitFailures")
+    val excludeKeys: NonEmptyList[String] = NonEmptyList.of("callCaching:hitFailures")
   }
 }

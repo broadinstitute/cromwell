@@ -1,7 +1,6 @@
 name: checkpointing
 testFormat: workflowsuccess
 backends: [Papiv2]
-tags: [localdockertest]
 
 files {
   workflow: checkpointing/checkpointing.wdl

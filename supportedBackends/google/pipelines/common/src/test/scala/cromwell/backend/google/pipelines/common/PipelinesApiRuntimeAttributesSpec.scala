@@ -256,6 +256,7 @@ final class PipelinesApiRuntimeAttributesSpec
 trait PipelinesApiRuntimeAttributesSpecsMixin { this: TestSuite =>
 
   def workflowOptionsWithDefaultRA(defaults: Map[String, JsValue]): WorkflowOptions = {
+
     WorkflowOptions(JsObject(Map(
       "default_runtime_attributes" -> JsObject(defaults)
     )))

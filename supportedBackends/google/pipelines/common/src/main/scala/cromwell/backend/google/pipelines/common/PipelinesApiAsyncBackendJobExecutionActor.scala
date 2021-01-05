@@ -639,15 +639,15 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   private def sendNumberOfReferenceFilesUsedGauge(inputs: List[PipelinesApiInput]): Unit = {
     (useReferenceDisks, jesAttributes.referenceFileToDiskImageMappingOpt) match {
-      case (false, _) | (true, None) =>
-        // reference disks feature is either not configured in Cromwell or disabled in workflow options
-      case (_, Some(referenceFileToDiskImageMapping)) =>
+      case (true, Some(referenceFileToDiskImageMapping)) =>
         val referenceInputsNumber = getReferenceInputsToMountedPathMappings(referenceFileToDiskImageMapping, inputs).size
         sendGauge(
           NonEmptyList.of("referencefiles", "used", "number"),
           referenceInputsNumber.longValue,
           InstrumentationPrefixes.JobPrefix
         )
+      case _ =>
+        // reference disks feature is either not configured in Cromwell or disabled in workflow options
     }
   }
 

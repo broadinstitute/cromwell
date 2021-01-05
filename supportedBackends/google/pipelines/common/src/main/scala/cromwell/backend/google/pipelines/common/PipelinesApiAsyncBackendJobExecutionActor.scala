@@ -621,13 +621,13 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       transferLibraryContainerPath = createParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
       _ <- uploadGcsTransferLibrary(createParameters, gcsTransferLibraryCloudPath, gcsTransferConfiguration)
       gcsLocalizationScriptCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsLocalizationScriptName
-      _ = sendNumberOfReferenceFilesUsedGauge(createParameters.inputOutputParameters.fileInputParameters)
       _ <- uploadGcsLocalizationScript(createParameters, gcsLocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration)
       gcsDelocalizationScriptCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsDelocalizationScriptName
       _ <- uploadGcsDelocalizationScript(createParameters, gcsDelocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration)
       _ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined
       runId <- runPipeline(workflowId, createParameters, jobLogger)
       _ = sendGoogleLabelsToMetadata(customLabels)
+      _ = sendNumberOfReferenceFilesUsedGauge(createParameters.inputOutputParameters.fileInputParameters)
     } yield runId
 
     runPipelineResponse map { runId =>

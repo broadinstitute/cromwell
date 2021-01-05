@@ -8,10 +8,9 @@ import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.pipelines.common._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
-import cromwell.backend.google.pipelines.common.io.{PipelinesApiReferenceFilesDisk, PipelinesApiWorkingDisk}
+import cromwell.backend.google.pipelines.common.io.PipelinesApiWorkingDisk
 import cromwell.backend.google.pipelines.v2beta.PipelinesApiAsyncBackendJobExecutionActor._
 import cromwell.backend.standard.StandardAsyncExecutionActorParams
-import cromwell.core.{OptionNotFoundException, WorkflowOptions}
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder}
@@ -23,7 +22,6 @@ import wom.values.{GlobFunctions, WomFile, WomGlobFile, WomMaybeListedDirectory,
 import scala.concurrent.Future
 import scala.io.Source
 import scala.language.postfixOps
-import scala.util.{Failure, Success}
 import scala.util.control.NoStackTrace
 
 class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExecutionActorParams)
@@ -175,24 +173,13 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
 
   import mouse.all._
 
-  private def generateGcsLocalizationScript(inputs: List[PipelinesApiInput],
-                                            referenceFileToDiskImageMappingOpt: Option[Map[String, PipelinesApiReferenceFilesDisk]])
+  private def generateGcsLocalizationScript(inputs: List[PipelinesApiInput])
                                            (implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
-    val optionName = WorkflowOptions.UseReferenceDisks.name
-    val useReferenceDisks = workflowDescriptor.workflowOptions.getBoolean(optionName) match {
-      case Success(value) => value
-      case Failure(OptionNotFoundException(_)) => false
-      case Failure(f) =>
-        // Should not happen, this case should have been screened for and fast-failed during workflow materialization.
-        log.error(f, s"Programmer error: unexpected failure attempting to read value for workflow option '$optionName' as a Boolean")
-        false
-    }
-
     // Generate a mapping of reference inputs to their mounted paths and a section of the localization script to
     // "faux localize" these reference inputs with symlinks to their locations on mounted reference disks.
     def generateReferenceInputsAndLocalizationScript: (Option[Map[PipelinesApiInput, String]], String) = {
       val referenceInputsToMountedPathsOpt: Option[Map[PipelinesApiInput, String]] =
-        referenceFileToDiskImageMappingOpt.map(getReferenceInputsToMountedPathMappings(_, inputs))
+        jesAttributes.referenceFileToDiskImageMappingOpt.map(getReferenceInputsToMountedPathMappings(_, inputs))
 
       val referenceFilesLocalizationScript = {
         val symlinkCreationCommandsOpt = referenceInputsToMountedPathsOpt map { referenceInputsToMountedPaths =>
@@ -262,9 +249,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   override def uploadGcsLocalizationScript(createPipelineParameters: CreatePipelineParameters,
                                            cloudPath: Path,
                                            transferLibraryContainerPath: Path,
-                                           gcsTransferConfiguration: GcsTransferConfiguration,
-                                           referenceFilesMapping: Option[Map[String, PipelinesApiReferenceFilesDisk]]): Future[Unit] = {
-    val content = generateGcsLocalizationScript(createPipelineParameters.inputOutputParameters.fileInputParameters, referenceFilesMapping)(gcsTransferConfiguration)
+                                           gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = {
+    val content = generateGcsLocalizationScript(createPipelineParameters.inputOutputParameters.fileInputParameters)(gcsTransferConfiguration)
     asyncIo.writeAsync(cloudPath, s"source '$transferLibraryContainerPath'\n\n" + content, Seq(CloudStorageOptions.withMimeType("text/plain")))
   }
 

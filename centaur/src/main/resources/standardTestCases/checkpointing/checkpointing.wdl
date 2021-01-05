@@ -43,6 +43,7 @@ task count {
       fi
 
       sleep 1
+
     done
 
     # Prove that we got preempted at least once:

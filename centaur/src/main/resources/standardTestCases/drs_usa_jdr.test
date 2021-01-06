@@ -2,6 +2,7 @@ name: drs_usa_jdr
 testFormat: WorkflowSuccess
 backends: ["papi-v2-usa"]
 skipDescribeEndpointValidation: true
+tags: ['drs']
 
 files {
   workflow: drs_tests/drs_usa_jdr.wdl

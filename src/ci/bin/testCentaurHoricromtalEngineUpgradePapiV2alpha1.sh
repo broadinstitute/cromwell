@@ -21,6 +21,7 @@ cromwell::build::build_cromwell_docker
 
 cromwell::build::run_centaur \
     -s "centaur.EngineUpgradeTestCaseSpec" \
-    -e localdockertest
+    -e localdockertest \
+    -e drs \
 
 cromwell::build::generate_code_coverage

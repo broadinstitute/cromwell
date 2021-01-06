@@ -20,5 +20,6 @@ cromwell::build::assemble_jars
 cromwell::build::run_centaur \
     -s "centaur.PapiUpgradeTestCaseSpec" \
     -e localdockertest \
+    -e drs \
 
 cromwell::build::generate_code_coverage

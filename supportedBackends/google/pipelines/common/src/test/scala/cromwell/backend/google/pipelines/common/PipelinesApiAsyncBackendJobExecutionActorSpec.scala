@@ -27,6 +27,8 @@ import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder, MockGcsPathBuilder}
+import cromwell.services.instrumentation.{CromwellBucket, CromwellGauge}
+import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.keyvalue.InMemoryKvServiceActor
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvJobKey, KvPair, ScopedKey}
 import cromwell.util.JsonFormatting.WomValueJsonFormatter._
@@ -127,12 +129,13 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite
              jesConfiguration: PipelinesApiConfiguration,
              functions: PipelinesApiExpressionFunctions = TestableJesExpressionFunctions,
              jesSingletonActor: ActorRef = emptyActor,
-             ioActor: ActorRef = mockIoActor) = {
+             ioActor: ActorRef = mockIoActor,
+             serviceRegistryActor: ActorRef = kvService) = {
 
       this(
         DefaultStandardAsyncExecutionActorParams(
           jobIdKey = PipelinesApiAsyncBackendJobExecutionActor.JesOperationIdKey,
-          serviceRegistryActor = kvService,
+          serviceRegistryActor = serviceRegistryActor,
           ioActor = ioActor,
           jobDescriptor = jobDescriptor,
           configurationDescriptor = jesConfiguration.configurationDescriptor,
@@ -215,15 +218,19 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite
   private def executionActor(jobDescriptor: BackendJobDescriptor,
                              promise: Promise[BackendJobExecutionResponse],
                              jesSingletonActor: ActorRef,
-                             shouldBePreemptible: Boolean): ActorRef = {
+                             shouldBePreemptible: Boolean,
+                             serviceRegistryActor: ActorRef = kvService,
+                             numberOfReferenceInputFilesUsedOpt: Option[Int] = None): ActorRef = {
 
     val job = StandardAsyncJob(UUID.randomUUID().toString)
     val run = Run(job)
     val handle = new JesPendingExecutionHandle(jobDescriptor, run.job, Option(run), None)
 
-    class ExecuteOrRecoverActor extends TestablePipelinesApiJobExecutionActor(jobDescriptor, promise, papiConfiguration, jesSingletonActor = jesSingletonActor) {
+    class ExecuteOrRecoverActor extends TestablePipelinesApiJobExecutionActor(jobDescriptor, promise, papiConfiguration, jesSingletonActor = jesSingletonActor, serviceRegistryActor = serviceRegistryActor) {
       override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
-        if(preemptible == shouldBePreemptible) Future.successful(handle)
+        sendNumberOfReferenceFilesUsedGauge(numberOfReferenceInputFilesUsedOpt)
+
+        if (preemptible == shouldBePreemptible) Future.successful(handle)
         else Future.failed(new Exception(s"Test expected preemptible to be $shouldBePreemptible but got $preemptible"))
       }
     }
@@ -314,6 +321,42 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite
         }
       }
     }
+  }
+
+  it should "send proper value for \"number of reference files used gauge\" metric, or don't send anything if reference disks feature is disabled" in {
+    val expectedGaugeBucketPrefix = List("job")
+    val expectedGaugeBucketPath = List("referencefiles", "used", "number")
+    val expectedGaugeValue = 10
+
+    val jobDescriptor = buildPreemptibleJobDescriptor(0, 0, 0)
+    val serviceRegistryProbe = TestProbe()
+
+    val backend1 = executionActor(
+      jobDescriptor,
+      Promise[BackendJobExecutionResponse](),
+      TestProbe().ref,
+      shouldBePreemptible = false,
+      serviceRegistryActor = serviceRegistryProbe.ref,
+      numberOfReferenceInputFilesUsedOpt = Option(expectedGaugeValue)
+    )
+    backend1 ! Execute
+    serviceRegistryProbe.expectMsgPF(timeout) {
+      case InstrumentationServiceMessage(CromwellGauge(CromwellBucket(bucketPrefix, bucketPath), gaugeValue)) =>
+        bucketPrefix shouldBe expectedGaugeBucketPrefix
+        bucketPath.toList shouldBe expectedGaugeBucketPath
+        gaugeValue shouldBe expectedGaugeValue
+    }
+
+    val backend2 = executionActor(
+      jobDescriptor,
+      Promise[BackendJobExecutionResponse](),
+      TestProbe().ref,
+      shouldBePreemptible = false,
+      serviceRegistryActor = serviceRegistryProbe.ref,
+      numberOfReferenceInputFilesUsedOpt = None
+    )
+    backend2 ! Execute
+    serviceRegistryProbe.expectNoMessage(timeout)
   }
 
   it should "not restart 2 of 1 unexpected shutdowns without another preemptible VM" in {

@@ -173,14 +173,12 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
 
   import mouse.all._
 
-  private def generateGcsLocalizationScript(inputs: List[PipelinesApiInput])
+  private def generateGcsLocalizationScript(inputs: List[PipelinesApiInput],
+                                            referenceInputsToMountedPathsOpt: Option[Map[PipelinesApiInput, String]])
                                            (implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
     // Generate a mapping of reference inputs to their mounted paths and a section of the localization script to
     // "faux localize" these reference inputs with symlinks to their locations on mounted reference disks.
-    def generateReferenceInputsAndLocalizationScript: (Option[Map[PipelinesApiInput, String]], String) = {
-      val referenceInputsToMountedPathsOpt: Option[Map[PipelinesApiInput, String]] =
-        jesAttributes.referenceFileToDiskImageMappingOpt.map(getReferenceInputsToMountedPathMappings(_, inputs))
-
+    def generateReferenceInputsAndLocalizationScript: String = {
       val referenceFilesLocalizationScript = {
         val symlinkCreationCommandsOpt = referenceInputsToMountedPathsOpt map { referenceInputsToMountedPaths =>
           referenceInputsToMountedPaths map {
@@ -198,17 +196,15 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
           "\n# No reference disks mounted / no symbolic links created since no matching reference files found in the inputs to this call.\n"
         }
       }
-      (referenceInputsToMountedPathsOpt, referenceFilesLocalizationScript)
+      referenceFilesLocalizationScript
     }
 
-    val (maybeReferenceInputsToMountedPathsOpt, maybeReferenceFilesLocalizationScript) = if (useReferenceDisks) {
-      generateReferenceInputsAndLocalizationScript
-    } else {
-      (None, "\n# No reference disks mounted since not requested in workflow options.\n")
-    }
+    val maybeReferenceFilesLocalizationScript = referenceInputsToMountedPathsOpt
+      .map(_ => generateReferenceInputsAndLocalizationScript())
+      .getOrElse("\n# No reference disks mounted since not requested in workflow options.\n")
 
     val regularFilesLocalizationScript = {
-      val regularFiles = maybeReferenceInputsToMountedPathsOpt.map(maybeReferenceInputsToMountedPaths =>
+      val regularFiles = referenceInputsToMountedPathsOpt.map(maybeReferenceInputsToMountedPaths =>
         inputs diff maybeReferenceInputsToMountedPaths.keySet.toList
       ).getOrElse(inputs)
       if (regularFiles.nonEmpty) {
@@ -249,8 +245,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   override def uploadGcsLocalizationScript(createPipelineParameters: CreatePipelineParameters,
                                            cloudPath: Path,
                                            transferLibraryContainerPath: Path,
-                                           gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = {
-    val content = generateGcsLocalizationScript(createPipelineParameters.inputOutputParameters.fileInputParameters)(gcsTransferConfiguration)
+                                           gcsTransferConfiguration: GcsTransferConfiguration,
+                                           referenceInputsToMountedPathsOpt: Option[Map[PipelinesApiInput, String]]): Future[Unit] = {
+    val content = generateGcsLocalizationScript(createPipelineParameters.inputOutputParameters.fileInputParameters, referenceInputsToMountedPathsOpt)(gcsTransferConfiguration)
     asyncIo.writeAsync(cloudPath, s"source '$transferLibraryContainerPath'\n\n" + content, Seq(CloudStorageOptions.withMimeType("text/plain")))
   }
 

@@ -178,30 +178,30 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
                                            (implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
     // Generate a mapping of reference inputs to their mounted paths and a section of the localization script to
     // "faux localize" these reference inputs with symlinks to their locations on mounted reference disks.
-    def generateReferenceInputsAndLocalizationScript: String = {
-      val referenceFilesLocalizationScript = {
-        val symlinkCreationCommandsOpt = referenceInputsToMountedPathsOpt map { referenceInputsToMountedPaths =>
-          referenceInputsToMountedPaths map {
-            case (input, absolutePathOnRefDisk) =>
-              s"mkdir -p ${input.containerPath.parent.pathAsString} && ln -s $absolutePathOnRefDisk ${input.containerPath.pathAsString}"
-          }
-        }
-
-        if (symlinkCreationCommandsOpt.exists(_.nonEmpty)) {
-          s"""
-             |# Faux-localizing reference files (if any) by creating symbolic links to the files located on the mounted reference disk
-             |${symlinkCreationCommandsOpt.get.mkString("\n")}
-             |""".stripMargin
-        } else {
-          "\n# No reference disks mounted / no symbolic links created since no matching reference files found in the inputs to this call.\n"
+    val referenceFilesLocalizationScript = {
+      val symlinkCreationCommandsOpt = referenceInputsToMountedPathsOpt map { referenceInputsToMountedPaths =>
+        referenceInputsToMountedPaths map {
+          case (input, absolutePathOnRefDisk) =>
+            s"mkdir -p ${input.containerPath.parent.pathAsString} && ln -s $absolutePathOnRefDisk ${input.containerPath.pathAsString}"
         }
       }
-      referenceFilesLocalizationScript
+
+      if (symlinkCreationCommandsOpt.exists(_.nonEmpty)) {
+        s"""
+           |# Faux-localizing reference files (if any) by creating symbolic links to the files located on the mounted reference disk
+           |${symlinkCreationCommandsOpt.get.mkString("\n")}
+           |""".stripMargin
+      } else {
+        "\n# No reference disks mounted / no symbolic links created since no matching reference files found in the inputs to this call.\n"
+      }
     }
 
-    val maybeReferenceFilesLocalizationScript = referenceInputsToMountedPathsOpt
-      .map(_ => generateReferenceInputsAndLocalizationScript)
-      .getOrElse("\n# No reference disks mounted since not requested in workflow options.\n")
+    val maybeReferenceFilesLocalizationScript =
+      if (useReferenceDisks) {
+        referenceFilesLocalizationScript
+      } else {
+        "\n# No reference disks mounted since not requested in workflow options.\n"
+      }
 
     val regularFilesLocalizationScript = {
       val regularFiles = referenceInputsToMountedPathsOpt.map(maybeReferenceInputsToMountedPaths =>

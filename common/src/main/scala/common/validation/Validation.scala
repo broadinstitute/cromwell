@@ -10,9 +10,10 @@ import cats.syntax.validated._
 import common.Checked
 import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
-import eu.timepit.refined.numeric.GreaterEqual
+import eu.timepit.refined.numeric.{GreaterEqual, Interval}
 import eu.timepit.refined._
 import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric.Interval.OpenClosed
 import org.slf4j.Logger
 
 import scala.concurrent.Future
@@ -20,6 +21,8 @@ import scala.util.{Failure, Success, Try}
 
 object Validation {
 
+  type BetweenOneAndNinetyNine = OpenClosed[W.`1.0`.T, W.`99.0`.T]
+  type BetweenOneAndNinetyNineRefined = Refined[Double, BetweenOneAndNinetyNine]
   type GreaterEqualOne = GreaterEqual[W.`1.0`.T]
   type GreaterEqualRefined = Refined[Double, GreaterEqualOne]
 

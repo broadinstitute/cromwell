@@ -2,8 +2,8 @@ package cromwell.backend.google.pipelines.common
 
 import java.net.URL
 
-import cats.data.{NonEmptyList, Validated}
 import cats.data.Validated._
+import cats.data.{NonEmptyList, Validated}
 import cats.implicits._
 import com.typesafe.config.{Config, ConfigValue}
 import com.typesafe.scalalogging.StrictLogging
@@ -47,7 +47,7 @@ case class PipelinesApiConfigurationAttributes(project: String,
                                                gcsTransferConfiguration: GcsTransferConfiguration,
                                                virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
                                                batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
-                                               memoryRetryConfiguration: Option[MemoryRetryConfiguration],
+                                               memoryRetryKeys: Option[List[String]],
                                                allowNoAddress: Boolean,
                                                referenceFileToDiskImageMappingOpt: Option[Map[String, PipelinesApiReferenceFilesDisk]],
                                                dockerImageToCacheDiskImageMappingOpt: Option[Map[String, DockerImageCacheEntry]],
@@ -140,12 +140,10 @@ object PipelinesApiConfigurationAttributes
       }
     }
 
-    def validateMemoryRetryConfig(errorKeys: Option[List[String]], multiplier: Option[GreaterEqualRefined]): ErrorOr[Option[MemoryRetryConfiguration]] = {
-      (errorKeys, multiplier) match {
-        case (Some(keys), Some(mul)) => Option(MemoryRetryConfiguration(keys, mul)).validNel
-        case (Some(keys), None) => Option(MemoryRetryConfiguration(keys, DefaultMemoryRetryFactor)).validNel
-        case (None, Some(_)) => "memory-retry configuration is invalid. No error-keys provided.".invalidNel
-        case (None, None) => None.validNel
+    def validateMemoryRetryKeys(errorKeys: Option[List[String]]): ErrorOr[Option[List[String]]] = {
+      errorKeys match {
+        case Some(_) => errorKeys.validNel
+        case None => "memory-retry configuration is invalid. No error-keys provided.".invalidNel
       }
     }
 
@@ -212,16 +210,7 @@ object PipelinesApiConfigurationAttributes
       BatchRequestTimeoutConfiguration(readTimeoutMillis = read, connectTimeoutMillis = connect)
     }
 
-    val memoryRetryMultiplier: ErrorOr[Option[GreaterEqualRefined]] = validatePositiveOptionDouble(
-      backendConfig.as[Option[Double]]("memory-retry.multiplier"),
-      configPath = "memory-retry.multiplier"
-    )
-
-    val memoryRetryKeys: ErrorOr[Option[List[String]]] = validate { backendConfig.as[Option[List[String]]]("memory-retry.error-keys") }
-
-    val memoryRetryConfig: ErrorOr[Option[MemoryRetryConfiguration]] = {
-      (memoryRetryKeys, memoryRetryMultiplier) flatMapN validateMemoryRetryConfig
-    }
+    val memoryRetryKeys: ErrorOr[Option[List[String]]] = validateMemoryRetryKeys(backendConfig.as[Option[List[String]]])
 
     val referenceDiskLocalizationManifestFiles: ErrorOr[Option[List[ValidFullGcsPath]]] = validateGcsPathsToReferenceDiskManifestFiles(backendConfig, backendName)
 
@@ -243,7 +232,7 @@ object PipelinesApiConfigurationAttributes
                                                        gcsTransferConfiguration: GcsTransferConfiguration,
                                                        virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
                                                        batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
-                                                       memoryRetryConfig: Option[MemoryRetryConfiguration],
+                                                       memoryRetryKeys: Option[List[String]],
                                                        allowNoAddress: Boolean,
                                                        referenceDiskLocalizationManifestFilesOpt: Option[List[ValidFullGcsPath]],
                                                        dockerImageCacheManifestFileOpt: Option[ValidFullGcsPath]): ErrorOr[PipelinesApiConfigurationAttributes] =
@@ -273,7 +262,7 @@ object PipelinesApiConfigurationAttributes
             gcsTransferConfiguration = gcsTransferConfiguration,
             virtualPrivateCloudConfiguration = virtualPrivateCloudConfiguration,
             batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration,
-            memoryRetryConfiguration = memoryRetryConfig,
+            memoryRetryKeys = memoryRetryKeys,
             allowNoAddress,
             referenceFileToDiskImageMappingOpt = generatedReferenceFilesMappingOpt,
             dockerImageToCacheDiskImageMappingOpt = dockerImageToCacheDiskImageMappingOpt,
@@ -295,7 +284,7 @@ object PipelinesApiConfigurationAttributes
       gcsTransferConfiguration,
       virtualPrivateCloudConfiguration,
       batchRequestTimeoutConfigurationValidation,
-      memoryRetryConfig,
+      memoryRetryKeys,
       allowNoAddress,
       referenceDiskLocalizationManifestFiles,
       dockerImageCacheManifestFile
@@ -396,10 +385,10 @@ object PipelinesApiConfigurationAttributes
     }
   }
 
-  def validatePositiveOptionDouble(value: Option[Double], configPath: String): ErrorOr[Option[GreaterEqualRefined]] = {
+  def validateMemoryRetryMultiplier(value: Option[Double]): ErrorOr[Option[BetweenOneAndNinetyNineRefined]] = {
     value match {
-      case Some(n) => refineV[GreaterEqualOne](n) match {
-        case Left(_) => s"Value $n for $configPath should be greater than 1.0.".invalidNel
+      case Some(n) => refineV[BetweenOneAndNinetyNine](n) match {
+        case Left(_) => s"memory-retry-multipler $n is invalid. It should be in the range 1.0 < multipler <= 99.".invalidNel
         case Right(refined) => Option(refined).validNel
       }
       case None => None.validNel

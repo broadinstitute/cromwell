@@ -421,7 +421,7 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
       gcsTransferConfiguration = null,
       virtualPrivateCloudConfiguration = None,
       batchRequestTimeoutConfiguration = null,
-      memoryRetryConfiguration = None,
+      memoryRetryKeys = None,
       allowNoAddress = true,
       referenceFileToDiskImageMappingOpt = None,
       dockerImageToCacheDiskImageMappingOpt = None,

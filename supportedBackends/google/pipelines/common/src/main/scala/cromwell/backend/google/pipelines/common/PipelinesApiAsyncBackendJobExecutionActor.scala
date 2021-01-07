@@ -150,7 +150,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     case _ => false
   }
 
-  override lazy val memoryRetryFactor: Option[GreaterEqualRefined] = initializationData.papiConfiguration.papiAttributes.memoryRetryConfiguration.map(_.multiplier)
+  // TODO: Saloni START HERE
+  override lazy val memoryRetryFactor: Option[BetweenOneAndNinetyNineRefined] = PipelinesApiConfigurationAttributes.validateMemoryRetryMultiplier(
+    jobDescriptor.workflowDescriptor.getWorkflowOption("memory-retry-multiplier").map(_.toDouble))
 
   override def tryAbort(job: StandardAsyncJob): Unit = abortJob(job)
 
@@ -513,7 +515,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           womOutputRuntimeExtractor = jobDescriptor.workflowDescriptor.outputRuntimeExtractor,
           adjustedSizeDisks = adjustedSizeDisks,
           virtualPrivateCloudConfiguration = jesAttributes.virtualPrivateCloudConfiguration,
-          retryWithMoreMemoryKeys = jesAttributes.memoryRetryConfiguration.map(_.errorKeys),
+          retryWithMoreMemoryKeys = jesAttributes.memoryRetryKeys.map(_.errorKeys),
           fuseEnabled = fuseEnabled(jobDescriptor.workflowDescriptor),
           allowNoAddress = pipelinesConfiguration.papiAttributes.allowNoAddress,
           referenceDisksForLocalizationOpt = referenceDisksToMount,

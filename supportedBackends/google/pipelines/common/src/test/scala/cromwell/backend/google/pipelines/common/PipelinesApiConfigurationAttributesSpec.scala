@@ -34,7 +34,7 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
     pipelinesApiAttributes.maxPollingInterval should be(600)
     pipelinesApiAttributes.computeServiceAccount should be("default")
     pipelinesApiAttributes.restrictMetadataAccess should be(false)
-    pipelinesApiAttributes.memoryRetryConfiguration should be(None)
+    pipelinesApiAttributes.memoryRetryKeys should be(None)
     pipelinesApiAttributes.referenceFileToDiskImageMappingOpt.isEmpty should be(true)
   }
 
@@ -176,8 +176,8 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
     val backendConfig = ConfigFactory.parseString(configString(customConfig))
 
     val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig, "papi")
-    pipelinesApiAttributes.memoryRetryConfiguration.get.errorKeys shouldBe List("OutOfMemory", "Killed", "Exit123")
-    pipelinesApiAttributes.memoryRetryConfiguration.get.multiplier.value shouldBe 1.1
+    pipelinesApiAttributes.memoryRetryKeys.get.errorKeys shouldBe List("OutOfMemory", "Killed", "Exit123")
+    pipelinesApiAttributes.memoryRetryKeys.get.multiplier.value shouldBe 1.1
   }
 
   it should "parse memory-retry with only error-keys" in {
@@ -189,8 +189,8 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
     val backendConfig = ConfigFactory.parseString(configString(customConfig))
 
     val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig, "papi")
-    pipelinesApiAttributes.memoryRetryConfiguration.get.errorKeys shouldBe List("OutOfMemory", "Killed", "Exit123")
-    pipelinesApiAttributes.memoryRetryConfiguration.get.multiplier.value shouldBe 2.0
+    pipelinesApiAttributes.memoryRetryKeys.get.errorKeys shouldBe List("OutOfMemory", "Killed", "Exit123")
+    pipelinesApiAttributes.memoryRetryKeys.get.multiplier.value shouldBe 2.0
   }
 
   it should "parse memory-retry with empty body" in {
@@ -198,7 +198,7 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
     val backendConfig = ConfigFactory.parseString(configString(customConfig))
 
     val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig, "papi")
-    pipelinesApiAttributes.memoryRetryConfiguration shouldBe None
+    pipelinesApiAttributes.memoryRetryKeys shouldBe None
   }
 
   it should "not parse invalid config" in {

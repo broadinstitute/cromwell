@@ -21,6 +21,6 @@ cromwell::build::run_centaur \
     -p 100 \
     -e localdockertest \
     -e gpu_on_papi \
-    -e drs \
+    -e drs_usa_hca \
 
 cromwell::build::generate_code_coverage

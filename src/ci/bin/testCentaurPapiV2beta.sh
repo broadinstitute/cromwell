@@ -23,6 +23,6 @@ cromwell::build::run_centaur \
     -e relative_output_paths_colliding \
     -e standard_output_paths_colliding_prevented \
     -e papi_v2alpha1_gcsa \
-    -e drs \
+    -e drs_usa_hca \
 
 cromwell::build::generate_code_coverage

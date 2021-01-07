@@ -26,6 +26,6 @@ cromwell::build::run_centaur \
     -e gpu_cuda_image \
     -e gpu_on_papi_valid \
     -e gpu_on_papi_invalid \
-    -e drs \
+    -e drs_usa_hca \
 
 cromwell::build::generate_code_coverage

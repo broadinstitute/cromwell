@@ -200,7 +200,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
     }
 
     val maybeReferenceFilesLocalizationScript = referenceInputsToMountedPathsOpt
-      .map(_ => generateReferenceInputsAndLocalizationScript())
+      .map(_ => generateReferenceInputsAndLocalizationScript)
       .getOrElse("\n# No reference disks mounted since not requested in workflow options.\n")
 
     val regularFilesLocalizationScript = {

@@ -24,7 +24,7 @@ import cromwell.backend.google.pipelines.common.api.clients.{PipelinesApiAbortCl
 import cromwell.backend.google.pipelines.common.authentication.PipelinesApiDockerCredentials
 import cromwell.backend.google.pipelines.common.errors.FailedToDelocalizeFailure
 import cromwell.backend.google.pipelines.common.io._
-import cromwell.backend.google.pipelines.common.monitoring.MonitoringImage
+import cromwell.backend.google.pipelines.common.monitoring.{CheckpointingConfiguration, MonitoringImage}
 import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.standard.{StandardAdHocValue, StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
@@ -471,6 +471,14 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
             localMonitoringImageScriptPath = localMonitoringImageScriptPath,
           )
 
+        val checkpointingConfiguration =
+          new CheckpointingConfiguration(
+            jobDescriptor = jobDescriptor,
+            workflowPaths = workflowPaths,
+            commandDirectory = commandDirectory,
+            pipelinesConfiguration.papiAttributes.checkpointingInterval
+          )
+
         val enableSshAccess = workflowOptions.getBoolean(WorkflowOptionKeys.EnableSSHAccess).toOption.contains(true)
 
         CreatePipelineParameters(
@@ -497,6 +505,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           allowNoAddress = pipelinesConfiguration.papiAttributes.allowNoAddress,
           referenceDisksForLocalizationOpt = referenceDisksToMount,
           monitoringImage = monitoringImage,
+          checkpointingConfiguration,
           enableSshAccess = enableSshAccess,
           vpcNetworkAndSubnetworkProjectLabels = data.vpcNetworkAndSubnetworkProjectLabels,
           useDockerImageCache = runtimeAttributes.useDockerImageCache.getOrElse(useDockerImageCache(jobDescriptor.workflowDescriptor)),

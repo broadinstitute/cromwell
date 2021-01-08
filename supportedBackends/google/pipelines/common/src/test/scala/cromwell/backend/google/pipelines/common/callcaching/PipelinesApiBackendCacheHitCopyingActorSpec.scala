@@ -424,7 +424,8 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
       memoryRetryConfiguration = None,
       allowNoAddress = true,
       referenceFileToDiskImageMappingOpt = None,
-      dockerImageToCacheDiskImageMappingOpt = None
+      dockerImageToCacheDiskImageMappingOpt = None,
+      checkpointingInterval = 10.minutes
     )
 
     val papiConfiguration = mock[PipelinesApiConfiguration]

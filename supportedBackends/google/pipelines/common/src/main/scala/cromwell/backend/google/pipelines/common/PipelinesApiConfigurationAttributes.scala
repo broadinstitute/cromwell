@@ -49,7 +49,9 @@ case class PipelinesApiConfigurationAttributes(project: String,
                                                memoryRetryConfiguration: Option[MemoryRetryConfiguration],
                                                allowNoAddress: Boolean,
                                                referenceFileToDiskImageMappingOpt: Option[Map[String, PipelinesApiReferenceFilesDisk]],
-                                               dockerImageToCacheDiskImageMappingOpt: Option[Map[String, String]])
+                                               dockerImageToCacheDiskImageMappingOpt: Option[Map[String, String]],
+                                               checkpointingInterval: FiniteDuration
+                                              )
 
 object PipelinesApiConfigurationAttributes
   extends PipelinesApiDockerCacheMappingOperations
@@ -73,6 +75,7 @@ object PipelinesApiConfigurationAttributes
   lazy val DefaultMemoryRetryFactor: GreaterEqualRefined = refineMV[GreaterEqualOne](2.0)
 
   val allowNoAddressAttributeKey = "allow-noAddress-attribute"
+  val checkpointingIntervalKey = "checkpointing-interval"
 
   private val papiKeys = CommonBackendConfigurationAttributes.commonValidConfigurationAttributeKeys ++ Set(
     "project",
@@ -110,7 +113,8 @@ object PipelinesApiConfigurationAttributes
     "memory-retry.multiplier",
     allowNoAddressAttributeKey,
     "reference-disk-localization-manifest-files",
-    "docker-image-cache-manifest-file"
+    "docker-image-cache-manifest-file",
+    checkpointingIntervalKey
   )
 
   private val deprecatedJesKeys: Map[String, String] = Map(
@@ -221,6 +225,8 @@ object PipelinesApiConfigurationAttributes
 
     val dockerImageCacheManifestFile: ErrorOr[Option[ValidFullGcsPath]] = validateGcsPathToDockerImageCacheManifestFile(backendConfig)
 
+    val checkpointingInterval: FiniteDuration = backendConfig.getOrElse(checkpointingIntervalKey, 10.minutes)
+
     def authGoogleConfigForPapiConfigurationAttributes(project: String,
                                                        bucket: String,
                                                        endpointUrl: URL,
@@ -268,7 +274,8 @@ object PipelinesApiConfigurationAttributes
             memoryRetryConfiguration = memoryRetryConfig,
             allowNoAddress,
             referenceFileToDiskImageMappingOpt = generatedReferenceFilesMappingOpt,
-            dockerImageToCacheDiskImageMappingOpt = dockerImageToCacheDiskImageMappingOpt
+            dockerImageToCacheDiskImageMappingOpt = dockerImageToCacheDiskImageMappingOpt,
+            checkpointingInterval = checkpointingInterval
           )
     }
 

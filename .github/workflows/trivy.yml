@@ -34,7 +34,7 @@ jobs:
         run: |
           sbt ${{ matrix.project }}/docker | tee build.log
           image=$(grep 'Tagging image' build.log | awk '{print $NF}')
-          echo "::set-output name=image::${image}\n"
+          echo "::set-output name=image::${image}"
 
       # scan the image
       - uses: broadinstitute/dsp-appsec-trivy-action@v1

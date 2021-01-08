@@ -1,3 +1,4 @@
+ignore: true # See https://broadworkbench.atlassian.net/browse/BW-467
 name: drs_usa_hca
 testFormat: WorkflowSuccess
 backends: ["papi-v2-usa"]

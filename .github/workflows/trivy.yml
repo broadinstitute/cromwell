@@ -1,0 +1,42 @@
+name: dsp-appsec-trivy
+on: [pull_request]
+
+jobs:
+  appsec-trivy:
+    # Parse Dockerfile and build, scan image if a "blessed" base image is not used
+    name: DSP AppSec Trivy check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        project:
+        - cromiam
+        - cromwell-drs-localizer
+        - perf
+        - server
+        - statsDProxy
+        - womtool
+
+    steps:
+      - uses: actions/checkout@v2
+
+      # set up SBT cache
+      - uses: actions/cache@v2
+        with:
+          path: ~/.ivy2
+          key: ivy2-${{ hashFiles('**/build.sbt') }}
+
+      # fetch SBT
+      - uses: olafurpg/setup-scala@v10
+
+      # build the image
+      - name: Build
+        id: build
+        run: |
+          sbt ${{ matrix.project }}/docker | tee build.log
+          image=$(grep 'Tagging image' build.log | awk '{print $NF}')
+          echo "::set-output name=image::${image}\n"
+
+      # scan the image
+      - uses: broadinstitute/dsp-appsec-trivy-action@v1
+        with:
+          image: ${{ steps.build.outputs.image }}

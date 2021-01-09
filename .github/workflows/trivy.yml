@@ -31,7 +31,8 @@ jobs:
             ~/.coursier/cache
             ~/.ivy2/cache
             ~/.sbt
-          key: sbt-${{ matrix.project }}-${{ hashFiles('**/*.sbt') }}
+            **/target
+          key: sbt-${{ matrix.project }}-${{ github.ref }}
           restore-keys: |
             sbt-${{ matrix.project }}-
             sbt-
@@ -40,9 +41,15 @@ jobs:
       - name: Build
         id: build
         run: |
+          # build sources and store the log
           sbt -no-colors ${{ matrix.project }}/docker | tee build.log
+
+          # export image name
           image=$(grep 'Tagging image' build.log | awk '{print $NF}')
           echo "::set-output name=image::${image}"
+
+          # strip timestamps for caching
+          find . -exec touch -d @0 {} +
 
       # # scan the image
       # - uses: broadinstitute/dsp-appsec-trivy-action@v1

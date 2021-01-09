@@ -31,7 +31,7 @@ jobs:
             ~/.coursier/cache
             ~/.ivy2/cache
             ~/.sbt
-            **/target
+            targets.tar.gz
           key: sbt-${{ matrix.project }}-${{ github.run_id }}
           restore-keys: |
             sbt-${{ matrix.project }}-
@@ -41,6 +41,9 @@ jobs:
       - name: Build
         id: build
         run: |
+          # restore compilation cache, if it exists
+          tar -xf targets.tar.gz || true
+
           # build sources and store the log
           sbt -no-colors ${{ matrix.project }}/docker | tee build.log
 
@@ -48,8 +51,9 @@ jobs:
           image=$(grep 'Tagging image' build.log | awk '{print $NF}')
           echo "::set-output name=image::${image}"
 
-          # strip timestamps for caching
-          find . -exec touch -d @0 {} +
+          # store timestamps in nanoseconds for caching
+          # https://github.com/sbt/sbt/issues/4168#issuecomment-583703715
+          find -name target -exec tar -zcf targets.tar.gz -H posix {} +
 
       # # scan the image
       # - uses: broadinstitute/dsp-appsec-trivy-action@v1

@@ -36,7 +36,7 @@ jobs:
           image=$(grep 'Tagging image' build.log | awk '{print $NF}')
           echo "::set-output name=image::${image}"
 
-      # # scan the image
-      # - uses: broadinstitute/dsp-appsec-trivy-action@v1
-      #   with:
-      #     image: ${{ steps.build.outputs.image }}
+      # scan the image
+      - uses: broadinstitute/dsp-appsec-trivy-action@v1
+        with:
+          image: ${{ steps.build.outputs.image }}

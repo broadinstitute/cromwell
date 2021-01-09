@@ -7,6 +7,7 @@ jobs:
     name: DSP AppSec Trivy check
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         project:
         - cromiam

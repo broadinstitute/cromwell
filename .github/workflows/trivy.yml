@@ -34,6 +34,9 @@ jobs:
             project/target
             target
           key: sbt-${{ matrix.project }}-${{ hashFiles('**/*.sbt') }}
+          restore-keys: |
+            sbt-${{ matrix.project }}-
+            sbt-
 
       # build the image
       - name: Build

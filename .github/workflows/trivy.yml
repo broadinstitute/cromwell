@@ -30,7 +30,6 @@ jobs:
             ~/.cache
             ~/.coursier/cache
             ~/.ivy2/cache
-            ~/.m2
             ~/.sbt
           key: sbt-${{ matrix.project }}-${{ hashFiles('**/*.sbt') }}
 

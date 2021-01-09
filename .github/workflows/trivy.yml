@@ -55,7 +55,7 @@ jobs:
           # https://github.com/sbt/sbt/issues/4168#issuecomment-583703715
           find -name target -exec tar -zcf targets.tar.gz -H posix {} +
 
-      # scan the image
-      - uses: broadinstitute/dsp-appsec-trivy-action@v1
-        with:
-          image: ${{ steps.build.outputs.image }}
+      # # scan the image
+      # - uses: broadinstitute/dsp-appsec-trivy-action@v1
+      #   with:
+      #     image: ${{ steps.build.outputs.image }}

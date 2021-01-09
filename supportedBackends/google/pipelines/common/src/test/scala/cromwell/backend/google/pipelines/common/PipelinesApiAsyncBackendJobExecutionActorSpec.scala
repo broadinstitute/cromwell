@@ -1,11 +1,13 @@
 package cromwell.backend.google.pipelines.common
 
+import java.nio.file.Paths
 import java.util.UUID
 
 import _root_.io.grpc.Status
 import _root_.wdl.draft2.model._
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration, TestProbe}
+import cats.data.NonEmptyList
 import com.google.api.client.http.HttpRequest
 import com.google.cloud.NoCredentials
 import common.collections.EnhancedCollections._
@@ -27,7 +29,7 @@ import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder, MockGcsPathBuilder}
-import cromwell.services.instrumentation.{CromwellBucket, CromwellGauge}
+import cromwell.services.instrumentation.{CromwellBucket, CromwellIncrement}
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.keyvalue.InMemoryKvServiceActor
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvJobKey, KvPair, ScopedKey}
@@ -220,7 +222,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite
                              jesSingletonActor: ActorRef,
                              shouldBePreemptible: Boolean,
                              serviceRegistryActor: ActorRef = kvService,
-                             numberOfReferenceInputFilesUsedOpt: Option[Int] = None): ActorRef = {
+                             referenceInputFilesOpt: Option[Set[PipelinesApiInput]] = None): ActorRef = {
 
     val job = StandardAsyncJob(UUID.randomUUID().toString)
     val run = Run(job)
@@ -228,7 +230,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite
 
     class ExecuteOrRecoverActor extends TestablePipelinesApiJobExecutionActor(jobDescriptor, promise, papiConfiguration, jesSingletonActor = jesSingletonActor, serviceRegistryActor = serviceRegistryActor) {
       override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
-        sendNumberOfReferenceFilesUsedGauge(numberOfReferenceInputFilesUsedOpt)
+        sendIncrementMetricsForReferenceFiles(referenceInputFilesOpt)
 
         if (preemptible == shouldBePreemptible) Future.successful(handle)
         else Future.failed(new Exception(s"Test expected preemptible to be $shouldBePreemptible but got $preemptible"))
@@ -324,9 +326,12 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite
   }
 
   it should "send proper value for \"number of reference files used gauge\" metric, or don't send anything if reference disks feature is disabled" in {
-    val expectedGaugeBucketPrefix = List("job")
-    val expectedGaugeBucketPath = List("referencefiles", "used", "number")
-    val expectedGaugeValue = 10
+    val expectedInput1 = PipelinesApiFileInput(name = "testfile1", relativeHostPath = DefaultPathBuilder.build(Paths.get(s"test/reference/path/file1")), mount = null, cloudPath = null)
+    val expectedInput2 = PipelinesApiFileInput(name = "testfile2", relativeHostPath = DefaultPathBuilder.build(Paths.get(s"test/reference/path/file2")), mount = null, cloudPath = null)
+    val expectedReferenceInputFiles = Set[PipelinesApiInput](expectedInput1, expectedInput2)
+
+    val expectedMsg1 = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, NonEmptyList.of("referencefiles", expectedInput1.relativeHostPath.pathAsString))))
+    val expectedMsg2 = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, NonEmptyList.of("referencefiles", expectedInput2.relativeHostPath.pathAsString))))
 
     val jobDescriptor = buildPreemptibleJobDescriptor(0, 0, 0)
     val serviceRegistryProbe = TestProbe()
@@ -337,15 +342,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite
       TestProbe().ref,
       shouldBePreemptible = false,
       serviceRegistryActor = serviceRegistryProbe.ref,
-      numberOfReferenceInputFilesUsedOpt = Option(expectedGaugeValue)
+      referenceInputFilesOpt = Option(expectedReferenceInputFiles)
     )
     backend1 ! Execute
-    serviceRegistryProbe.expectMsgPF(timeout) {
-      case InstrumentationServiceMessage(CromwellGauge(CromwellBucket(bucketPrefix, bucketPath), gaugeValue)) =>
-        bucketPrefix shouldBe expectedGaugeBucketPrefix
-        bucketPath.toList shouldBe expectedGaugeBucketPath
-        gaugeValue shouldBe expectedGaugeValue
-    }
+    serviceRegistryProbe.expectMsgAllOf(expectedMsg1, expectedMsg2)
 
     val backend2 = executionActor(
       jobDescriptor,
@@ -353,7 +353,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite
       TestProbe().ref,
       shouldBePreemptible = false,
       serviceRegistryActor = serviceRegistryProbe.ref,
-      numberOfReferenceInputFilesUsedOpt = None
+      referenceInputFilesOpt = None
     )
     backend2 ! Execute
     serviceRegistryProbe.expectNoMessage(timeout)

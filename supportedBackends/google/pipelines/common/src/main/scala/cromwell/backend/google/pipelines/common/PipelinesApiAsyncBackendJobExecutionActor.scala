@@ -29,7 +29,6 @@ import cromwell.backend.google.pipelines.common.monitoring.MonitoringImage
 import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.standard.{StandardAdHocValue, StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
-import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.core.io.IoCommandBuilder
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
@@ -639,7 +638,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       _ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined
       runId <- runPipeline(workflowId, createParameters, jobLogger)
       _ = sendGoogleLabelsToMetadata(customLabels)
-      _ = sendNumberOfReferenceFilesUsedGauge(referenceInputsToMountedPathsOpt.map(_.size))
+      _ = sendIncrementMetricsForReferenceFiles(referenceInputsToMountedPathsOpt.map(_.keySet))
     } yield runId
 
     runPipelineResponse map { runId =>
@@ -649,14 +648,12 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     }
   }
 
-  protected def sendNumberOfReferenceFilesUsedGauge(numberOfReferenceInputFilesUsed: Option[Int]): Unit = {
-    numberOfReferenceInputFilesUsed match {
-      case Some(referenceInputsNumber) =>
-        sendGauge(
-          NonEmptyList.of("referencefiles", "used", "number"),
-          referenceInputsNumber.longValue,
-          InstrumentationPrefixes.JobPrefix
-        )
+  protected def sendIncrementMetricsForReferenceFiles(referenceInputFilesOpt: Option[Set[PipelinesApiInput]]): Unit = {
+    referenceInputFilesOpt match {
+      case Some(referenceInputFiles) =>
+        referenceInputFiles.foreach { referenceInputFile =>
+          increment(NonEmptyList.of("referencefiles", referenceInputFile.relativeHostPath.pathAsString))
+        }
       case _ =>
         // do nothing - reference disks feature is either not configured in Cromwell or disabled in workflow options
     }

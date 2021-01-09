@@ -32,7 +32,7 @@ jobs:
             ~/.ivy2/cache
             ~/.sbt
             **/target
-          key: sbt-${{ matrix.project }}-${{ github.ref }}
+          key: sbt-${{ matrix.project }}-${{ github.run_id }}
           restore-keys: |
             sbt-${{ matrix.project }}-
             sbt-
@@ -44,7 +44,7 @@ jobs:
           # build sources and store the log
           sbt -no-colors ${{ matrix.project }}/docker | tee build.log
 
-          # export image name
+          # export image name from the log
           image=$(grep 'Tagging image' build.log | awk '{print $NF}')
           echo "::set-output name=image::${image}"
 

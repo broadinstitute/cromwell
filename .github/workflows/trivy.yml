@@ -31,7 +31,6 @@ jobs:
             ~/.coursier/cache
             ~/.ivy2/cache
             ~/.sbt
-            **/target
           key: sbt-${{ matrix.project }}-${{ hashFiles('**/*.sbt') }}
           restore-keys: |
             sbt-${{ matrix.project }}-

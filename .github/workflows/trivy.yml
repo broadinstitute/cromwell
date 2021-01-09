@@ -23,7 +23,7 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: ~/.ivy2
-          key: ivy2-${{ hashFiles('**/build.sbt') }}
+          key: ivy2-${{ matrix.project }}-${{ hashFiles('**/build.sbt') }}
 
       # fetch SBT
       - uses: olafurpg/setup-scala@v10

@@ -32,12 +32,8 @@ jobs:
       - name: Build
         id: build
         run: |
-          sbt ${{ matrix.project }}/docker | tee build.log
+          sbt -no-colors ${{ matrix.project }}/docker | tee build.log
           image=$(grep 'Tagging image' build.log | awk '{print $NF}')
-
-          # debug
-          docker images
-
           echo "::set-output name=image::${image}"
 
       # scan the image

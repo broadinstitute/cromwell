@@ -27,10 +27,12 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: |
-            ~/.ivy2
+            ~/.cache
+            ~/.coursier/cache
+            ~/.ivy2/cache
             ~/.m2
             ~/.sbt
-          key: sbt-${{ matrix.project }}-${{ hashFiles('**/build.sbt') }}
+          key: sbt-${{ matrix.project }}-${{ hashFiles('**/*.sbt') }}
 
       # build the image
       - name: Build

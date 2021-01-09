@@ -22,8 +22,10 @@ jobs:
       # set up SBT cache
       - uses: actions/cache@v2
         with:
-          path: ~/.ivy2
-          key: ivy2-${{ matrix.project }}-${{ hashFiles('**/build.sbt') }}
+          path: |
+            ~/.ivy2
+            ~/.sbt
+          key: sbt-${{ matrix.project }}-${{ hashFiles('**/build.sbt') }}
 
       # fetch SBT
       - uses: olafurpg/setup-scala@v10
@@ -36,7 +38,7 @@ jobs:
           image=$(grep 'Tagging image' build.log | awk '{print $NF}')
           echo "::set-output name=image::${image}"
 
-      # scan the image
-      - uses: broadinstitute/dsp-appsec-trivy-action@v1
-        with:
-          image: ${{ steps.build.outputs.image }}
+      # # scan the image
+      # - uses: broadinstitute/dsp-appsec-trivy-action@v1
+      #   with:
+      #     image: ${{ steps.build.outputs.image }}

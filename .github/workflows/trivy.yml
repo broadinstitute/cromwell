@@ -20,6 +20,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      # fetch SBT package
+      - uses: olafurpg/setup-scala@v10
+
       # set up SBT cache
       - uses: actions/cache@v2
         with:
@@ -28,9 +31,6 @@ jobs:
             ~/.m2
             ~/.sbt
           key: sbt-${{ matrix.project }}-${{ hashFiles('**/build.sbt') }}
-
-      # fetch SBT package
-      - uses: olafurpg/setup-scala@v10
 
       # build the image
       - name: Build

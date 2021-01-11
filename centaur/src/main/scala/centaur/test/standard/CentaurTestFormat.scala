@@ -20,7 +20,7 @@ sealed abstract class CentaurTestFormat(val name: String) {
     case RunFailingTwiceExpectingNoCallCachingTest => "Fail the first run and NOT call cache the second run of"
     case SubmitFailureTest => "fail to submit"
     case InstantAbort => "abort a workflow immediately after submission"
-    case _: PapiUpgradeTest => "make sure a PAPI v1 to v2 upgrade preserves call caching when the `name-for-call-caching-purposes` attribute is used"
+    case _: PapiUpgradeTest => "make sure a PAPI upgrade preserves call caching when the `name-for-call-caching-purposes` attribute is used"
     case _: CromwellRestartWithRecover => "survive a Cromwell restart and recover jobs"
     case _: CromwellRestartWithoutRecover => "survive a Cromwell restart"
     case _: ScheduledAbort => "abort a workflow mid run"

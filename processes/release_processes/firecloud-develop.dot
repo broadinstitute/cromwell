@@ -29,7 +29,8 @@ digraph {
     color="lightgrey"
 
     fcdev_pr [shape=oval label="Make (or update) the firecloud-develop PR for the new Cromwell version"];
-    helmfile_pr [shape=oval label="Make (or update) the terra-helmfile PR for the new Cromwell version"];
+    # For an example PR see https://github.com/broadinstitute/terra-helmfile/pull/550#pullrequestreview-527531319
+    helmfile_pr [shape=oval label="Make (or update) the terra-helmfile PR for the new Cromwell version\n(We only need to update the versions.yaml version.\nEverything else is \"train\" style promotions)"];
     confirm_cromwell_v [shape=oval label="[Jenkins] Check for the correct Cromwell version hash in fiab-start logs\n(otherwise re-run 'dsl-seed' and use 'jenkins retest')"];
     confirm_cromwell_v [shape=oval label="[Jenkins] Check for the correct Cromwell version hash in fiab-start logs\n(otherwise re-run 'dsl-seed' and use 'jenkins retest')"];
     fcdev_success [shape=oval label="Wait for swatomation to succeed"];

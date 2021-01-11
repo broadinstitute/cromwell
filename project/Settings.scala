@@ -117,7 +117,11 @@ object Settings {
     // No console-hostile options, otherwise the console is effectively unusable.
     // https://github.com/sbt/sbt/issues/1815
     scalacOptions in(Compile, console) --= consoleHostileSettings,
-    addCompilerPlugin(paradisePlugin)
+    addCompilerPlugin(paradisePlugin),
+    excludeDependencies ++= List(
+      "org.typelevel" % "simulacrum-scalafix-annotations_2.12",
+      "org.typelevel" % "simulacrum-scalafix-annotations_2.13"
+    )
   )
 
   /*

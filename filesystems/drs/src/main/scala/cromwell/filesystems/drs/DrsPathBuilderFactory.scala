@@ -98,6 +98,20 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
     // ONLY use the project id from the User Service Account for requester pays
     val requesterPaysProjectIdOption = options.get("google_project").toOption
 
+    /*
+    `override_preresolve_for_test` is a workflow option to override the default `martha.preresolve` specified in the
+    global config. This is only used for testing purposes.
+     */
+    val preResolve: Boolean =
+      options
+        .getBoolean("override_preresolve_for_test")
+        .toOption
+        .getOrElse(
+          singletonConfig
+            .config
+            .getBoolean("martha.preresolve")
+        )
+
     Future(DrsPathBuilder(
       new DrsCloudNioFileSystemProvider(
         singletonConfig.config,
@@ -105,6 +119,7 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
         drsReadInterpreter(options, requesterPaysProjectIdOption),
       ),
       requesterPaysProjectIdOption,
+      preResolve,
     ))
   }
 }

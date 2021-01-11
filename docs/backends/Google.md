@@ -520,4 +520,143 @@ may be removed in a future Cromwell release.
 2. Call caching does not work for calls with empty optional outputs. Cromwell currently does not recognize
 that it is okay for optional output files to be missing, will incorrectly claim that any cache hits with missing 
 optional output files are unusable, and will proceed to search for more cache hits which if found will also be unusable,
-before eventually giving up and running the job. This behavior may be corrected in a future Cromwell release. 
+before eventually giving up and running the job. This behavior may be corrected in a future Cromwell release.
+
+### Reference Disk Support
+
+Cromwell 55 and later support mounting reference disks from prebuilt GCP disk images as an alternative to localizing large
+input reference files on PAPI v2. Within the `config` stanza of a PAPI v2 backend the `reference-disk-localization-manifest-files`
+key specifies an array of manifest JSONs in GCS:  
+
+
+```hocon
+backend {
+  ...
+  providers {
+    ...
+    PapiV2 {
+      actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
+      config {
+        ...
+        reference-disk-localization-manifest-files = ["gs://path/to/a/reference/disk/manifest.json"]
+        ...
+      }
+    }
+  }
+}
+```
+
+Reference manifest JSONs have a format like:
+
+```json
+{
+  "imageIdentifier" : "projects/my_project/global/images/my-references-disk-image",
+  "diskSizeGb" : 30,
+  "files" : [ {
+    "path" : "my-references/enormous_reference.bam",
+    "crc32c" : 407769621
+  }, {
+    "path" : "my-references/enormous_reference.bam.bai",
+    "crc32c" : 1902048083
+  },
+...
+  ]
+}
+```
+
+Reference disk usage is an opt-in feature, so workflow submissions must specify this workflow option:
+
+```json
+{
+  ...
+  "use_reference_disks": true,
+  ...
+}
+```
+
+Using the first file in the manifest above as an example, assume a PAPI v2 backend is configured to use this manifest and the appropriate
+`use_reference_disks` workflow option is set to `true` in the workflow submission. If a call in that workflow 
+specifies the input `gs://my-references/enormous_reference.bam` and because that input matches the path of a file on the
+reference image without the leading `gs://`, Cromwell would
+arrange for a reference disk based on this image to be mounted and for the call's input to refer to the 
+copy of the file on the reference disk, bypassing localization of the input.     
+
+The Cromwell git repository includes a Java-based tool to facilitate the creation of manifest files called
+[CromwellRefdiskManifestCreatorApp](https://github.com/broadinstitute/cromwell/tree/develop/CromwellRefdiskManifestCreator).
+Please see the help command of that tool for more details.
+
+### Docker Image Cache Support
+
+To optimize job execution time, Cromwell 55 and later support the use of Docker image caches on the PAPI v2 lifesciences beta backend. Docker image caches are not available on the PAPI v2 genomics alpha backend.
+Configuration looks like:
+
+```hocon
+backend {
+  ...
+  providers {
+    ...
+    PapiV2 {
+      actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
+      config {
+        ...
+        docker-image-cache-manifest-file = "gs://path/to/a/docker/image/cache/manifest.json"
+        ...
+      }
+    }
+  }
+}
+```
+
+Docker image cache manifest JSONs have a format like:
+
+```json
+{
+  "biocontainers/samtools:1.3.1": "projects/broad-dsde-cromwell-dev/global/images/v1-docker-biocontainers-samtools-1-3-1",
+  "gcr.io/gcp-runtimes/ubuntu_16_0_4:latest": "projects/broad-dsde-cromwell-dev/global/images/v1-docker-gcr-io-gcp-runtimes-ubuntu-16-0-4-latest",
+  ...
+}
+```
+
+Docker image cache usage is an opt-in feature, so workflow submissions must specify this workflow option:
+
+```json
+{
+  ...
+  "use_docker_image_cache": true,
+  ...
+}
+```
+
+Individual tasks within a workflow can turn off Docker image caching through the use of a runtime attribute:
+
+```wdl
+task my_task {
+  ...
+  runtime {
+    ...
+    useDockerImageCache: false
+  }
+}
+```
+
+If Cromwell is running a workflow on PAPI v2 beta with Docker image caching enabled and a task specifies a
+Docker image which corresponds to a configured Docker image cache JSON, Cromwell will arrange for the
+job's VM to mount a disk built from the corresponding disk image. In the event that multiple
+manifests describe disk images containing the specified Docker image, Cromwell will choose the disk image with the
+smallest `diskSizeGb` value.
+
+Conversely, Docker image caching can be turned off at the workflow level (either turned off explicitly or left at the
+default setting of `false`) but turned on at the individual task level:
+
+```wdl
+task my_task {
+  ...
+  runtime {
+    ...
+    useDockerImageCache: true
+  }
+}
+```
+
+These settings could be useful for cost reasons: mounting Docker image caches adds nonzero cost
+which might not be offset by eliminating Docker image pull times for long-running jobs.

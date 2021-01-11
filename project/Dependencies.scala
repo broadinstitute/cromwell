@@ -1,20 +1,20 @@
 import sbt._
 
 object Dependencies {
-  private val akkaHttpCirceIntegrationV = "1.35.0"
+  private val akkaHttpCirceIntegrationV = "1.35.2"
   private val akkaHttpV = "10.1.12" // scala-steward:off (BA-6619)
   private val akkaV = "2.5.31" // scala-steward:off (BA-6637)
   private val aliyunBcsV = "6.2.4"
-  private val aliyunCoreV = "4.5.12"
+  private val aliyunCoreV = "4.5.16"
   private val aliyunCrV = "4.1.1"
   private val aliyunOssV = "3.11.1"
-  private val ammoniteOpsV = "2.2.0"
-  private val apacheCommonNetV = "3.7.1"
+  private val ammoniteOpsV = "2.3.8"
+  private val apacheCommonNetV = "3.7.2"
   private val apacheHttpClientV = "4.5.13"
-  private val awsSdkV = "2.14.28"
+  private val awsSdkV = "2.15.41"
   private val betterFilesV = "3.9.1"
-  private val catsEffectV = "2.2.0"
-  private val catsV = "2.2.0"
+  private val catsEffectV = "2.3.0"
+  private val catsV = "2.3.0"
   private val circeGenericExtrasV = "0.13.0"
   private val circeOpticsV = "0.13.0"
   private val circeV = "0.13.0"
@@ -24,40 +24,40 @@ object Dependencies {
   private val commonsLang3V = "3.11"
   private val commonsMathV = "3.6.1"
   private val commonsTextV = "1.9"
-  private val configsV = "0.4.4"
-  private val delightRhinoSandboxV = "0.0.11"
+  private val configsV = "0.5.0"
+  private val delightRhinoSandboxV = "0.0.12"
   private val ficusV = "1.5.0"
   // The "com.vladsch.flexmark" % "flexmark-profile-pegdown" % flexmarkV dependency is an implicit, version-specific
   // runtime dependency of ScalaTest. At the time of this writing this is the newest version known to work.
   private val flexmarkV = "0.36.8" // scala-steward:off
-  private val fs2V = "2.0.1"
+  private val fs2V = "2.4.6"
   // Scala Steward opened PR #5775 titled "Update fs2-io from 2.0.1 to 2.4.3" to upgrade the following dependency.
   // However that PR was actually attempting an upgrade from 1.0.5 to 2.4.3 which is a much more significant
   // undertaking, resulting in some thoroughly broken statsd proxy code. As this component lacks tests and is
   // probably not the most important corner of the Cromwell repo, going to punt on this for now.
   private val fs2VStatsDProxy = "1.0.5" // scala-steward:off
-  private val googleApiClientV = "1.30.10"
-  private val googleCloudBigQueryV = "1.122.1"
-  private val googleCloudKmsV = "v1-rev20200903-1.30.10"
-  private val googleCloudMonitoringV = "2.0.4"
+  private val googleApiClientV = "1.30.11"
+  private val googleCloudBigQueryV = "1.122.2"
+  private val googleCloudKmsV = "v1-rev20201102-1.31.0"
+  private val googleCloudMonitoringV = "2.0.8"
   private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off
-  private val googleCloudStorageV = "1.113.1"
-  private val googleGaxGrpcV = "1.58.3"
+  private val googleCloudStorageV = "1.113.4"
+  private val googleGaxGrpcV = "1.60.1"
   private val googleGenomicsServicesV1ApiV = "v1alpha2-rev495-1.23.0"
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20200330-1.30.9"
   private val googleHttpClientApacheV = "2.1.2"
-  private val googleHttpClientV = "1.36.0"
-  private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20200806-1.30.10"
-  private val googleOauth2V = "0.21.1"
-  private val googleOauthClientV = "1.31.0"
+  private val googleHttpClientV = "1.38.0"
+  private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20201105-1.31.0"
+  private val googleOauth2V = "0.22.1"
+  private val googleOauthClientV = "1.31.2"
   private val googleCloudResourceManagerV = "0.87.0-alpha"
-  private val grpcV = "1.32.1"
-  private val guavaV = "29.0-jre"
+  private val grpcV = "1.33.1"
+  private val guavaV = "30.0-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.5.1"
-  private val http4sVersion = "0.21.7"
-  private val jacksonV = "2.11.3"
-  private val jacksonJqV = "1.0.0-preview.20191208"
+  private val http4sVersion = "0.21.7" // scala-steward:off (CROM-6678)
+  private val jacksonV = "2.12.0"
+  private val jacksonJqV = "1.0.0-preview.20201123"
   private val janinoV = "3.1.2"
   private val javaxActivationV = "1.2.0"
   // jaxb-impl 2.3.3 depends on com.sun.activation:jakarta.activation and jakarta.xml.bind:jakarta.xml.bind-api,
@@ -70,7 +70,7 @@ object Dependencies {
   // such as googleCloudNioV have already been pinned for Scala Steward so this might not be a trivial undertaking.
   private val jaxbV = "2.3.2" // scala-steward:off
   private val kindProjectorV = "0.9.9"
-  private val kittensV = "2.1.0"
+  private val kittensV = "2.2.1"
   private val liquibaseSlf4jV = "4.0.0"
   // Scala Steward wanted to upgrade liquibase-core to 3.10.2 but that version does not find some uniqueness
   // constraints and models datatypes in ways that are incompatible with our test expectations.
@@ -85,35 +85,35 @@ object Dependencies {
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "2.7.1"
   private val mockserverNettyV = "5.5.4" // scala-steward:off (BA-6582)
-  private val mouseV = "0.25"
-  private val mysqlV = "8.0.21"
+  private val mouseV = "0.26.2"
+  private val mysqlV = "8.0.22"
   private val nettyV = "4.1.46.Final"
-  private val owlApiV = "5.1.16"
+  private val owlApiV = "5.1.16" // scala-steward: off (CROM-6677)
   private val paradiseV = "2.1.1"
   private val pegdownV = "1.6.0"
   // For org.postgresql:postgresql 42.2.6 - 42.2.14:
   // java.lang.NoSuchFieldException: m_mesgParts in KeyValueSpec "fail if one of the inserts fails"
   private val postgresV = "42.2.5" // scala-steward:off
   private val rdf4jV = "2.4.2"
-  private val refinedV = "0.9.17"
+  private val refinedV = "0.9.18"
   private val rhinoV = "1.7.13"
   private val scalaGraphV = "1.13.1"
   private val scalaLoggingV = "3.9.2"
   private val scalaPoolV = "0.4.3"
-  private val scalacheckV = "1.14.3"
-  private val scalacticV = "3.2.2"
+  private val scalacheckV = "1.15.1"
+  private val scalacticV = "3.2.3"
   private val scalameterV = "0.19"
-  private val scalamockV = "5.0.0"
-  private val scalatestV = "3.2.2"
+  private val scalamockV = "5.1.0"
+  private val scalatestV = "3.2.3"
   private val scalatestPlusMockitoV = "1.0.0-M2"
   private val scalazV = "7.3.2"
-  private val scoptV = "3.7.1"
-  private val sentryLogbackV = "1.7.30" // scala-steward: off (BA-6640)
+  private val scoptV = "4.0.0"
+  private val sentryLogbackV = "1.7.30" // scala-steward:off (BA-6640)
   private val shapelessV = "2.3.3"
-  private val simulacrumV = "1.0.0"
+  private val simulacrumV = "1.0.1"
   private val slf4jV = "1.7.30"
   private val slickCatsV = "0.10.2"
-  private val testContainersScalaV = "0.38.4"
+  private val testContainersScalaV = "0.38.6"
 
   /* If you're about to update our Slick version:
     * Consider checking whether the new Slick version passes tests with upserts enabled (eg KeyValueDatabaseSpec)
@@ -125,13 +125,13 @@ object Dependencies {
   */
   private val slickV = "3.3.2-2076hotfix" // scala-steward:off (BA-6620)
   private val snakeyamlV = "1.27"
-  private val specs2MockV = "4.10.4"
-  private val sprayJsonV = "1.3.5"
+  private val specs2MockV = "4.10.5"
+  private val sprayJsonV = "1.3.6"
   private val sttpV = "1.5.19" // scala-steward:off (BA-6564)
-  private val swaggerParserV = "1.0.51"
+  private val swaggerParserV = "1.0.52"
   private val swaggerUiV = "3.23.11" // scala-steward:off (BA-6621)
-  private val tikaV = "1.24.1"
-  private val typesafeConfigV = "1.4.0"
+  private val tikaV = "1.25"
+  private val typesafeConfigV = "1.4.1"
   private val workbenchGoogleV = "0.15-2fc79a3"
   private val workbenchModelV = "0.14-27810079-SNAP"
   private val workbenchUtilV = "0.6-27810079-SNAP"

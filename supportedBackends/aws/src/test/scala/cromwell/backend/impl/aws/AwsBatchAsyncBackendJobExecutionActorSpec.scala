@@ -81,7 +81,7 @@ import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 import scala.util.Success
 
-class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAsyncBackendJobExecutionActorSpec")
+class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
   with AnyFlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter with DefaultJsonProtocol {
   lazy val mockPathBuilder: S3PathBuilder = S3PathBuilder.fromProvider(
     AnonymousCredentialsProvider.create,
@@ -90,7 +90,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
     Option(Region.US_EAST_1)
   )
 
-  var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor))
+  var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor), "kvService")
 
   import AwsBatchTestConfig._
 
@@ -254,13 +254,13 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
   // private def runAndFail(previousPreemptions: Int, previousUnexpectedRetries: Int, errorCode: Status, innerErrorMessage: String): BackendJobExecutionResponse = {
   //
   //   // val runStatus = UnsuccessfulRunStatus("test", "failed", errorCode, Option(innerErrorMessage), Seq.empty)
-  //   val statusPoller = TestProbe()
+  //   val statusPoller = TestProbe("statusPoller")
   //
   //   val promise = Promise[BackendJobExecutionResponse]()
   //   val jobDescriptor =  buildJobDescriptor()
   //
   //   // TODO: Use this to check the new KV entries are there!
-  //   //val kvProbe = TestProbe()
+  //   //val kvProbe = TestProbe("kvProbe")
   //
   //   val backend = executionActor(jobDescriptor, AwsBatchBackendConfigurationDescriptor, promise, statusPoller.ref)
   //   backend ! Execute

@@ -78,6 +78,7 @@ object MarthaField extends Enumeration {
   val Size: MarthaField.Value = Value("size")
   val TimeCreated: MarthaField.Value = Value("timeCreated")
   val TimeUpdated: MarthaField.Value = Value("timeUpdated")
+  val BondProvider: MarthaField.Value = Value("bondProvider")
   val GoogleServiceAccount: MarthaField.Value = Value("googleServiceAccount")
   val Hashes: MarthaField.Value = Value("hashes")
   val FileName: MarthaField.Value = Value("fileName")
@@ -94,17 +95,20 @@ final case class SADataObject(data: Json)
   * @param timeCreated The creation time of the object at gsUri
   * @param timeUpdated The last update time of the object at gsUri
   * @param gsUri Where the object bytes are stored, possibly using a generated path name such as "gs://bucket/12/345"
-  * @param googleServiceAccount The service account to access the gsUri contents
+  * @param bondProvider The bond provider returning the googleServiceAccount
+  * @param googleServiceAccount The service account to access the gsUri contents created via bondProvider
   * @param fileName A possible different file name for the object at gsUri, ex: "gsutil cp gs://bucket/12/345 my.vcf"
   * @param hashes Hashes for the contents stored at gsUri
   */
-final case class MarthaResponse(size: Option[Long],
-                                timeCreated: Option[String],
-                                timeUpdated: Option[String],
-                                gsUri: Option[String],
-                                googleServiceAccount: Option[SADataObject],
-                                fileName: Option[String],
-                                hashes: Option[Map[String, String]])
+final case class MarthaResponse(size: Option[Long] = None,
+                                timeCreated: Option[String] = None,
+                                timeUpdated: Option[String] = None,
+                                gsUri: Option[String] = None,
+                                bondProvider: Option[String] = None,
+                                googleServiceAccount: Option[SADataObject] = None,
+                                fileName: Option[String] = None,
+                                hashes: Option[Map[String, String]] = None,
+                               )
 
 // Adapted from https://github.com/broadinstitute/martha/blob/f31933a3a11e20d30698ec4b4dc1e0abbb31a8bc/common/helpers.js#L210-L218
 final case class MarthaFailureResponse(response: MarthaFailureResponsePayload)

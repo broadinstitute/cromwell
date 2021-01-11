@@ -77,17 +77,7 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
       override def resolveDrsThroughMartha(drsPath: String,
                                            fields: NonEmptyList[MarthaField.Value],
                                           ): IO[MarthaResponse] = {
-        IO(
-          MarthaResponse(
-            size = None,
-            timeCreated = None,
-            timeUpdated = None,
-            gsUri = Option("gs://bucket/object/path"),
-            googleServiceAccount = None,
-            fileName = None,
-            hashes = None,
-          )
-        )
+        IO(MarthaResponse(gsUri = Option("gs://bucket/object/path")))
       }
     }
 
@@ -120,9 +110,6 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
             size = Option(789L),
             timeCreated = Option(OffsetDateTime.ofInstant(instantCreated, ZoneOffset.UTC).toString),
             timeUpdated = Option(OffsetDateTime.ofInstant(instantUpdated, ZoneOffset.UTC).toString),
-            gsUri = None,
-            googleServiceAccount = None,
-            fileName = None,
             hashes = Option(Map("rot13" -> "gg0217869")),
           )
         )

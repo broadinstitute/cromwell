@@ -24,6 +24,7 @@ import wom.graph.{GraphNode, WomIdentifier}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
+//noinspection TypeAnnotation
 object SubWorkflowStoreSpec {
   val MaxWait = 5 seconds
   val EmptyExpression = WdlExpression.fromString(""" "" """)
@@ -40,7 +41,7 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with CoordinatedWorkf
       val workflowStoreService = system.actorOf(
         WorkflowStoreActor.props(
           workflowStore,
-          workflowStore |> access,
+          workflowStore |> access("coordinatedAccessActor-Work"),
           TestProbe("ServiceRegistryProbe-Work").ref,
           MockCromwellTerminator,
           abortAllJobsOnTerminate = false,

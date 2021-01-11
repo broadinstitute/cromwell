@@ -10,6 +10,6 @@ files {
   metadata {
     "calls.localizer_workflow.localizer_task.callCaching.allowResultReuse": false
     "calls.localizer_workflow.localizer_task.callCaching.effectiveCallCachingMode": "CallCachingOff"
-    "calls.localizer_workflow.localizer_task.callCaching.hashFailures.0.message": "Hash function supposedly succeeded but responded with 'null' instead of a string hash"
+    "calls.localizer_workflow.localizer_task.callCaching.hashFailures.0.message": "GcsPath 'gs://gcp-public-data-landsat/' is bucket only and does not specify an object blob."
     "calls.localizer_workflow.localizer_task.callCaching.hit": false
   }

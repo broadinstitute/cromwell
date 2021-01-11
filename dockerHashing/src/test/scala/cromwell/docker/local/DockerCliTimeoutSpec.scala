@@ -9,11 +9,11 @@ import org.scalatest.matchers.should.Matchers
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 
-class DockerCliTimeoutSpec extends DockerRegistrySpec("DockerCliTimeoutFlowSpec") with AnyFlatSpecLike with Matchers {
+class DockerCliTimeoutSpec extends DockerRegistrySpec with AnyFlatSpecLike with Matchers {
   behavior of "A DockerCliFlow that times out"
 
   override protected def registryFlows: Seq[DockerRegistry] = Seq(new DockerCliFlow {
-    override lazy val firstLookupTimeout = 0.seconds
+    override lazy val firstLookupTimeout: FiniteDuration = 0.seconds
   })
 
   it should "timeout retrieving a public docker hash" taggedAs IntegrationTest in {

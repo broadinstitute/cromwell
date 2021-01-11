@@ -47,7 +47,7 @@ import scala.concurrent.{ExecutionContext, Promise}
 import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success}
 
-class AwsBatchJobExecutionActorSpec extends TestKitSuite("AwsBatchJobExecutionActorSpec") with AnyFlatSpecLike with Matchers with Mockito {
+class AwsBatchJobExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Mockito {
 
   behavior of "AwsBatchJobExecutionActor"
 
@@ -59,14 +59,14 @@ class AwsBatchJobExecutionActorSpec extends TestKitSuite("AwsBatchJobExecutionAc
     val jobDescriptor = BackendJobDescriptor(null, null, null, Map.empty, null, null, null)
     val workflowInfo = mock[AwsBatchConfiguration]
     val initializationData = mock[AwsBatchBackendInitializationData]
-    val serviceRegistryActor = system.actorOf(Props.empty)
-    val ioActor = system.actorOf(Props.empty)
-    val backendSingletonActor = Option(system.actorOf(Props.empty))
+    val serviceRegistryActor = system.actorOf(Props.empty, "serviceRegistryActor-initialization")
+    val ioActor = system.actorOf(Props.empty, "ioActor-initialization")
+    val backendSingletonActor = Option(system.actorOf(Props.empty, "backendSingletonActor-initialization"))
 
     initializationData.configuration returns workflowInfo
 
-    val parent = TestProbe()
-    val deathwatch = TestProbe()
+    val parent = TestProbe("parent")
+    val deathwatch = TestProbe("deathwatch")
     val params = DefaultStandardSyncExecutionActorParams(AwsBatchAsyncBackendJobExecutionActor.AwsBatchOperationIdKey, serviceRegistryActor, ioActor,
       jobDescriptor, null, Option(initializationData), backendSingletonActor,
       classOf[AwsBatchAsyncBackendJobExecutionActor], MinimumRuntimeSettings())
@@ -91,14 +91,14 @@ class AwsBatchJobExecutionActorSpec extends TestKitSuite("AwsBatchJobExecutionAc
     val jobDescriptor = BackendJobDescriptor(null, null, null, Map.empty, null, null, null)
     val workflowInfo = mock[AwsBatchConfiguration]
     val initializationData = mock[AwsBatchBackendInitializationData]
-    val serviceRegistryActor = system.actorOf(Props.empty)
-    val ioActor = system.actorOf(Props.empty)
-    val backendSingletonActor = Option(system.actorOf(Props.empty))
+    val serviceRegistryActor = system.actorOf(Props.empty, "serviceRegistryActor-random")
+    val ioActor = system.actorOf(Props.empty, "ioActor-random")
+    val backendSingletonActor = Option(system.actorOf(Props.empty, "backendSingletonActor-random"))
 
     initializationData.configuration returns workflowInfo
 
-    val parent = TestProbe()
-    val deathwatch = TestProbe()
+    val parent = TestProbe("parent")
+    val deathwatch = TestProbe("deathwatch")
     val constructionPromise = Promise[ActorRef]()
     val params = DefaultStandardSyncExecutionActorParams(AwsBatchAsyncBackendJobExecutionActor.AwsBatchOperationIdKey, serviceRegistryActor, ioActor,
       jobDescriptor, null, Option(initializationData), backendSingletonActor,

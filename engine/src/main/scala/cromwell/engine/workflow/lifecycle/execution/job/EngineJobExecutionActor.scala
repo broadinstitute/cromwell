@@ -139,6 +139,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   // When Pending, the FSM always has NoData
   when(Pending) {
     case Event(Execute, NoData) =>
+      increment(NonEmptyList("jobs", List("ejea", "executing", "starting")))
       requestExecutionToken()
       goto(RequestingExecutionToken)
   }
@@ -539,6 +540,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   private def stop(response: BackendJobExecutionResponse): State = {
+    increment(NonEmptyList("jobs", List("ejea", "executing", "done")))
     returnExecutionToken()
     instrumentJobComplete(response)
     pushExecutionEventsToMetadataService(jobDescriptorKey, eventList)

@@ -64,7 +64,7 @@ object CentaurCwlRunner extends StrictLogging {
   private lazy val versionString = s"$centaurCwlRunnerVersion ${centaurCwlRunnerRunMode.description}"
 
   private def showUsage(): ExitCode.Value = {
-    parser.showUsage()
+    System.err.println(parser.usage)
     ExitCode.Failure
   }
 
@@ -175,7 +175,8 @@ object CentaurCwlRunner extends StrictLogging {
       backends,
       retryTestFailures = false,
       allowOtherOutputs = true,
-      skipDescribeEndpointValidation = true
+      skipDescribeEndpointValidation = true,
+      maximumAllowedTime = None
     )
 
     val testCase = CentaurTestCase(workflow, testFormat, testOptions, submitResponseOption)(cromwellTracker = None)

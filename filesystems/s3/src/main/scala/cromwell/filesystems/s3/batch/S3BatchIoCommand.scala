@@ -74,10 +74,9 @@ sealed trait S3BatchIoCommand[T, U] extends IoCommand[T] {
 case class S3BatchCopyCommand(
                            override val source: S3Path,
                            override val destination: S3Path,
-                           override val overwrite: Boolean,
-                         ) extends IoCopyCommand(source, destination, overwrite) with S3BatchIoCommand[Unit, CopyObjectResponse] {
+                         ) extends IoCopyCommand(source, destination) with S3BatchIoCommand[Unit, CopyObjectResponse] {
   override def mapResponse(response: CopyObjectResponse): Unit = ()
-  override def commandDescription: String = s"S3BatchCopyCommand source '$source' destination '$destination' overwrite '$overwrite'"
+  override def commandDescription: String = s"S3BatchCopyCommand source '$source' destination '$destination'"
 }
 
 case class S3BatchDeleteCommand(

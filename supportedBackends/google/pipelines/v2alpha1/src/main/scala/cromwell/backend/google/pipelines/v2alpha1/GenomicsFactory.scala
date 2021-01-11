@@ -30,6 +30,7 @@ import scala.collection.JavaConverters._
 case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, endpointUrl: URL)(implicit gcsTransferConfiguration: GcsTransferConfiguration) extends PipelinesApiFactoryInterface
   with ContainerSetup
   with MonitoringAction
+  with CheckpointingAction
   with Localization
   with UserAction
   with Delocalization
@@ -72,7 +73,8 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         }
       }
 
-      val allDisksToBeMounted = createPipelineParameters.adjustedSizeDisks ++ createPipelineParameters.referenceDisksForLocalization
+      val allDisksToBeMounted = createPipelineParameters.adjustedSizeDisks ++
+        createPipelineParameters.referenceDisksForLocalizationOpt.getOrElse(List.empty)
 
       // Disks defined in the runtime attributes and reference-files-localization disks
       val disks = allDisksToBeMounted |> toDisks
@@ -86,6 +88,8 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       val deLocalization: List[Action] = deLocalizeActions(createPipelineParameters, mounts)
       val monitoringSetup: List[Action] = monitoringSetupActions(createPipelineParameters, mounts)
       val monitoringShutdown: List[Action] = monitoringShutdownActions(createPipelineParameters)
+      val checkpointingStart: List[Action] = checkpointingSetupActions(createPipelineParameters, mounts)
+      val checkpointingShutdown: List[Action] = checkpointingShutdownActions(createPipelineParameters)
       val sshAccess: List[Action] = sshAccessActions(createPipelineParameters, mounts)
 
       // adding memory as environment variables makes it easy for a user to retrieve the new value of memory
@@ -102,6 +106,8 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
           deLocalization = deLocalization,
           monitoringSetup = monitoringSetup,
           monitoringShutdown = monitoringShutdown,
+          checkpointingStart = checkpointingStart,
+          checkpointingShutdown = checkpointingShutdown,
           sshAccess = sshAccess,
           isBackground =
             action =>

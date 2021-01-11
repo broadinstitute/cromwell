@@ -18,13 +18,13 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
-class WorkflowStoreCoordinatedAccessActorSpec extends TestKitSuite("WorkflowStoreCoordinatedWriteActorSpec")
+class WorkflowStoreCoordinatedAccessActorSpec extends TestKitSuite
   with AsyncFlatSpecLike with Matchers with TableDrivenPropertyChecks {
 
   behavior of "WorkflowStoreCoordinatedWriteActor"
 
   // So that we can timeout the asks below, change from the serial execution context to a parallel one
-  override implicit def executionContext = scala.concurrent.ExecutionContext.Implicits.global
+  override implicit def executionContext: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
 
   def sleepAndThrow: Nothing = {
     Thread.sleep(30.seconds.dilated.toMillis)

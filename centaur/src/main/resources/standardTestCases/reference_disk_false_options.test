@@ -1,0 +1,15 @@
+name: reference_disk_test_false_option
+testFormat: workflowsuccess
+backends: [Papiv2-Reference-Disk-Localization]
+
+files {
+  workflow: reference_disk/reference_disk_test.wdl
+  inputs: reference_disk/reference_disk_test.inputs
+  options: reference_disk/reference_disk_test_false.options.json
+}
+
+metadata {
+  workflowName: wf_reference_disk_test
+  status: Succeeded
+  "outputs.wf_reference_disk_test.is_input_file_a_symlink": false
+}

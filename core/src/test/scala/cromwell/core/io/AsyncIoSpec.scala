@@ -1,21 +1,24 @@
 package cromwell.core.io
 
-import java.nio.file.{FileAlreadyExistsException, NoSuchFileException}
+import java.nio.file.NoSuchFileException
 import java.util.UUID
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.testkit.TestActorRef
 import cromwell.core.TestKitSuite
-import cromwell.core.path.DefaultPathBuilder
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import org.scalatest.flatspec.AsyncFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.mockito.MockitoSugar
+
+import scala.util.{Failure, Try}
+import scala.util.control.NoStackTrace
 
 class AsyncIoSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with MockitoSugar {
 
   behavior of "AsyncIoSpec"
   
-  implicit val ioCommandBuilder = DefaultIoCommandBuilder
+  implicit val ioCommandBuilder: DefaultIoCommandBuilder.type = DefaultIoCommandBuilder
   
   it should "write asynchronously" in {
     val testActor = TestActorRef(new AsyncIoTestActor(simpleIoActor))
@@ -66,20 +69,16 @@ class AsyncIoSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     val testPath = DefaultPathBuilder.createTempFile()
     val testCopyPath = testPath.sibling(UUID.randomUUID().toString)
 
-    testActor.underlyingActor.asyncIo.copyAsync(testPath, testCopyPath) map { hash =>
+    testActor.underlyingActor.asyncIo.copyAsync(testPath, testCopyPath) map { _ =>
       assert(testCopyPath.exists)
     }
 
     testPath.write("new text")
     
-    // Honor overwrite true
-    testActor.underlyingActor.asyncIo.copyAsync(testPath, testCopyPath, overwrite = true) map { hash =>
+    testActor.underlyingActor.asyncIo.copyAsync(testPath, testCopyPath) map { _ =>
       assert(testCopyPath.exists)
       assert(testCopyPath.contentAsString == "new text")
     }
-
-    // Honor overwrite false
-    recoverToSucceededIf[FileAlreadyExistsException] { testActor.underlyingActor.asyncIo.copyAsync(testPath, testCopyPath, overwrite = false) }
   }
 
   it should "delete asynchronously" in {
@@ -97,13 +96,33 @@ class AsyncIoSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     }
 
     // Honor swallow exception false
-    recoverToSucceededIf[NoSuchFileException] { testActor.underlyingActor.asyncIo.deleteAsync(testPath, swallowIoExceptions = false) }
+    //noinspection RedundantDefaultArgument
+    recoverToSucceededIf[NoSuchFileException] {
+      testActor.underlyingActor.asyncIo.deleteAsync(testPath, swallowIoExceptions = false)
+    }
   }
 
-  private class AsyncIoTestActor(override val ioActor: ActorRef) extends Actor with ActorLogging with AsyncIoActorClient {
+  it should "handle command creation errors asynchronously" in {
+    val partialIoCommandBuilder = new PartialIoCommandBuilder {
+      override def existsCommand: PartialFunction[Path, Try[IoExistsCommand]] = {
+        case _ => Failure(new Exception("everything's fine, I am an expected exists fail") with NoStackTrace)
+      }
+    }
+    val testActor =
+      TestActorRef(new AsyncIoTestActor(simpleIoActor, new IoCommandBuilder(List(partialIoCommandBuilder))))
 
-    override lazy val ioCommandBuilder = DefaultIoCommandBuilder
-    
+    val testPath = DefaultPathBuilder.createTempFile()
+    testPath.write("hello")
+
+    testActor.underlyingActor.asyncIo.existsAsync(testPath).failed map { throwable =>
+      assert(throwable.getMessage == "everything's fine, I am an expected exists fail")
+    }
+  }
+
+  private class AsyncIoTestActor(override val ioActor: ActorRef,
+                                 override val ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
+                                ) extends Actor with ActorLogging with AsyncIoActorClient {
+
     override def receive: Receive = {
       case _ =>
     }

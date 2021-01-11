@@ -10,7 +10,7 @@ import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys}
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
-import cromwell.services.metadata.MetadataQuery
+import cromwell.services.metadata.{MetadataQuery, MetadataQueryJobKey}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.hybridcarbonite.CarbonitedMetadataThawingActor._
 import cromwell.services.metadata.impl.MetadataDatabaseAccess
@@ -146,10 +146,13 @@ object CarbonitedMetadataThawingActor {
           case MetadataQuery(_, None, Some(key), None, None, _) => JsonEditor.includeJson(json, NonEmptyList.of(key))
           case MetadataQuery(_, None, None, includeKeys, excludeKeys, _) => JsonEditor.includeExcludeJson(json, includeKeys, excludeKeys)
           // The following three don't bother with exclusions or inclusions since they are only used internally
-          // and the existing client code is robust to superfluous data.
-          case MetadataQuery(_, Some(_), None, None, None, _) => json.validNel
-          case MetadataQuery(_, Some(_), Some(_), None, None, _) => json.validNel
-          case MetadataQuery(_, Some(_), None, _, _, _) => json.validNel
+          // and the existing client code is robust to superfluous data within the requested callFqn and index.
+          case MetadataQuery(_, Some(MetadataQueryJobKey(callFqn, index, _)), None, None, None, _) =>
+            JsonEditor.filterCalls(json, callFqn, index)
+          case MetadataQuery(_, Some(MetadataQueryJobKey(callFqn, index, _)), Some(_), None, None, _) =>
+            JsonEditor.filterCalls(json, callFqn, index)
+          case MetadataQuery(_, Some(MetadataQueryJobKey(callFqn, index, _)), None, _, _, _) =>
+            JsonEditor.filterCalls(json, callFqn, index)
           case wrong => throw new RuntimeException(s"Programmer Error: Invalid MetadataQuery: $wrong")
         }
         // For carbonited metadata, "expanded" subworkflows translates to not deleting subworkflows out of the root workflow that already

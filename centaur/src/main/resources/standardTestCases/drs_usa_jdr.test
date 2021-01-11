@@ -17,9 +17,19 @@ metadata {
 
   "outputs.drs_usa_jdr.path1" =
     "/cromwell_root/jade.datarepo-dev.broadinstitute.org/v1_f90f5d7f-c507-4e56-abfc-b965a66023fb_585f3f19-985f-43b0-ab6a-79fa4c8310fc/hello_jade.json"
+  "outputs.drs_usa_jdr.path2" =
+    "/cromwell_root/jade.datarepo-dev.broadinstitute.org/v1_001afc86-da4c-4739-85be-26ca98d2693f_ad783b60-aeba-4055-8f7b-194880f37259/hello_jade_2.json"
   "outputs.drs_usa_jdr.hash1" = "faf12e94c25bef7df62e4a5eb62573f5"
+  "outputs.drs_usa_jdr.hash2" = "19e1b021628130fda04c79ee9a056b67"
   "outputs.drs_usa_jdr.size1" = 18.0
+  "outputs.drs_usa_jdr.size2" = 38.0
+  # This JDR file has a gsUri that doesn't end in /fileName so it must be downloaded with the DRS localizer
   "outputs.drs_usa_jdr.cloud1" =
-    "gs://broad-jade-dev-data-bucket/ca8edd48-e954-4c20-b911-b017fedffb67/585f3f19-985f-43b0-ab6a-79fa4c8310fc"
+    "/cromwell_root/jade.datarepo-dev.broadinstitute.org/v1_f90f5d7f-c507-4e56-abfc-b965a66023fb_585f3f19-985f-43b0-ab6a-79fa4c8310fc/hello_jade.json"
+  # This JDR file has a gsUri that can skip localization
+  "outputs.drs_usa_jdr.cloud2" =
+    "gs://broad-jade-dev-data-bucket/e1941fb9-6537-4e1a-b70d-34352a3a7817/ad783b60-aeba-4055-8f7b-194880f37259/hello_jade_2.json"
   "outputs.drs_usa_jdr.map1.hello" = "jade"
+  "outputs.drs_usa_jdr.map2.hello" = "jade"
+  "outputs.drs_usa_jdr.map2.attempt" = "2"
 }

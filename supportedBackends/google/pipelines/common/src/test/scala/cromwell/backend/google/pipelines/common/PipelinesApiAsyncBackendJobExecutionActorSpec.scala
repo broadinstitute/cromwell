@@ -1,11 +1,13 @@
 package cromwell.backend.google.pipelines.common
 
+import java.nio.file.Paths
 import java.util.UUID
 
 import _root_.io.grpc.Status
 import _root_.wdl.draft2.model._
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration, TestProbe}
+import cats.data.NonEmptyList
 import com.google.api.client.http.HttpRequest
 import com.google.cloud.NoCredentials
 import common.collections.EnhancedCollections._
@@ -27,6 +29,8 @@ import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder, MockGcsPathBuilder}
+import cromwell.services.instrumentation.{CromwellBucket, CromwellIncrement}
+import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.keyvalue.InMemoryKvServiceActor
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvJobKey, KvPair, ScopedKey}
 import cromwell.util.JsonFormatting.WomValueJsonFormatter._
@@ -53,11 +57,11 @@ import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 import scala.util.Success
 
-class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackendJobExecutionActorSpec")
+class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite
   with AnyFlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter with DefaultJsonProtocol {
   val mockPathBuilder: GcsPathBuilder = MockGcsPathBuilder.instance
   import MockGcsPathBuilder._
-  var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor))
+  var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor), "kvService")
 
   private def gcsPath(str: String) = mockPathBuilder.build(str).getOrElse(fail(s"Invalid gcs path: $str"))
 
@@ -127,12 +131,13 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
              jesConfiguration: PipelinesApiConfiguration,
              functions: PipelinesApiExpressionFunctions = TestableJesExpressionFunctions,
              jesSingletonActor: ActorRef = emptyActor,
-             ioActor: ActorRef = mockIoActor) = {
+             ioActor: ActorRef = mockIoActor,
+             serviceRegistryActor: ActorRef = kvService) = {
 
       this(
         DefaultStandardAsyncExecutionActorParams(
           jobIdKey = PipelinesApiAsyncBackendJobExecutionActor.JesOperationIdKey,
-          serviceRegistryActor = kvService,
+          serviceRegistryActor = serviceRegistryActor,
           ioActor = ioActor,
           jobDescriptor = jobDescriptor,
           configurationDescriptor = jesConfiguration.configurationDescriptor,
@@ -215,15 +220,19 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
   private def executionActor(jobDescriptor: BackendJobDescriptor,
                              promise: Promise[BackendJobExecutionResponse],
                              jesSingletonActor: ActorRef,
-                             shouldBePreemptible: Boolean): ActorRef = {
+                             shouldBePreemptible: Boolean,
+                             serviceRegistryActor: ActorRef = kvService,
+                             referenceInputFilesOpt: Option[Set[PipelinesApiInput]] = None): ActorRef = {
 
     val job = StandardAsyncJob(UUID.randomUUID().toString)
     val run = Run(job)
     val handle = new JesPendingExecutionHandle(jobDescriptor, run.job, Option(run), None)
 
-    class ExecuteOrRecoverActor extends TestablePipelinesApiJobExecutionActor(jobDescriptor, promise, papiConfiguration, jesSingletonActor = jesSingletonActor) {
+    class ExecuteOrRecoverActor extends TestablePipelinesApiJobExecutionActor(jobDescriptor, promise, papiConfiguration, jesSingletonActor = jesSingletonActor, serviceRegistryActor = serviceRegistryActor) {
       override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
-        if(preemptible == shouldBePreemptible) Future.successful(handle)
+        sendIncrementMetricsForReferenceFiles(referenceInputFilesOpt)
+
+        if (preemptible == shouldBePreemptible) Future.successful(handle)
         else Future.failed(new Exception(s"Test expected preemptible to be $shouldBePreemptible but got $preemptible"))
       }
     }
@@ -234,13 +243,13 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
   private def runAndFail(previousPreemptions: Int, previousUnexpectedRetries: Int, preemptible: Int, errorCode: Status, innerErrorMessage: String, expectPreemptible: Boolean): BackendJobExecutionResponse = {
 
     val runStatus = UnsuccessfulRunStatus(errorCode, Option(innerErrorMessage), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), expectPreemptible)
-    val statusPoller = TestProbe()
+    val statusPoller = TestProbe("statusPoller")
 
     val promise = Promise[BackendJobExecutionResponse]()
     val jobDescriptor =  buildPreemptibleJobDescriptor(preemptible, previousPreemptions, previousUnexpectedRetries)
 
     // TODO: Use this to check the new KV entries are there!
-    //val kvProbe = TestProbe()
+    //val kvProbe = TestProbe("kvProbe")
 
     val backend = executionActor(jobDescriptor, promise, statusPoller.ref, expectPreemptible)
     backend ! Execute
@@ -314,6 +323,40 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         }
       }
     }
+  }
+
+  it should "send proper value for \"number of reference files used gauge\" metric, or don't send anything if reference disks feature is disabled" in {
+    val expectedInput1 = PipelinesApiFileInput(name = "testfile1", relativeHostPath = DefaultPathBuilder.build(Paths.get(s"test/reference/path/file1")), mount = null, cloudPath = null)
+    val expectedInput2 = PipelinesApiFileInput(name = "testfile2", relativeHostPath = DefaultPathBuilder.build(Paths.get(s"test/reference/path/file2")), mount = null, cloudPath = null)
+    val expectedReferenceInputFiles = Set[PipelinesApiInput](expectedInput1, expectedInput2)
+
+    val expectedMsg1 = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, NonEmptyList.of("referencefiles", expectedInput1.relativeHostPath.pathAsString))))
+    val expectedMsg2 = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, NonEmptyList.of("referencefiles", expectedInput2.relativeHostPath.pathAsString))))
+
+    val jobDescriptor = buildPreemptibleJobDescriptor(0, 0, 0)
+    val serviceRegistryProbe = TestProbe()
+
+    val backend1 = executionActor(
+      jobDescriptor,
+      Promise[BackendJobExecutionResponse](),
+      TestProbe().ref,
+      shouldBePreemptible = false,
+      serviceRegistryActor = serviceRegistryProbe.ref,
+      referenceInputFilesOpt = Option(expectedReferenceInputFiles)
+    )
+    backend1 ! Execute
+    serviceRegistryProbe.expectMsgAllOf(expectedMsg1, expectedMsg2)
+
+    val backend2 = executionActor(
+      jobDescriptor,
+      Promise[BackendJobExecutionResponse](),
+      TestProbe().ref,
+      shouldBePreemptible = false,
+      serviceRegistryActor = serviceRegistryProbe.ref,
+      referenceInputFilesOpt = None
+    )
+    backend2 ! Execute
+    serviceRegistryProbe.expectNoMessage(timeout)
   }
 
   it should "not restart 2 of 1 unexpected shutdowns without another preemptible VM" in {
@@ -417,7 +460,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
 
 
-    val probe = TestProbe()
+    val probe = TestProbe("probe")
     val job = jesBackend.workflowDescriptor.callable.taskCallNodes.head
     val key = BackendJobDescriptorKey(job, None, attempt = 2)
 

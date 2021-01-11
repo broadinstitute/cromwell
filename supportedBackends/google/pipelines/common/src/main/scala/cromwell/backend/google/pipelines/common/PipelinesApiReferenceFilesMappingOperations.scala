@@ -18,58 +18,44 @@ import cromwell.backend.google.pipelines.common.errors.InvalidGcsPathsInManifest
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import org.slf4j.{Logger, LoggerFactory}
 
-/**
- * This file contains logic related to public Broad reference files stored in public GCS bucket.
- * During instance creation it will read and parse Broad reference disk manifest files from GCS and populate internal
- * map containing relations between reference file paths and reference disks. This may take significant time, so the
- * best way to do it is during Cromwell startup.
- *
- */
-case class PipelinesApiReferenceFilesMapping(validReferenceFilesMap: Map[String, PipelinesApiReferenceFilesDisk])
-
-object PipelinesApiReferenceFilesMapping extends PipelinesApiReferenceFilesMappingOperations
-
-// functionality extracted into the trait for testing purposes
-protected trait PipelinesApiReferenceFilesMappingOperations {
+trait PipelinesApiReferenceFilesMappingOperations {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 
   case class ReferenceFile(path: String, crc32c: Long)
   case class ManifestFile(imageIdentifier: String, diskSizeGb: Int, files: List[ReferenceFile])
 
+  /**
+   * This method will read and parse reference disk manifest files from GCS. It will also validate reference
+   * files' CRC32Cs. Depending on number of manifests and their sizes may take significant amount of time.
+   */
   def generateReferenceFilesMapping(auth: GoogleAuthMode,
-                                    referenceDiskLocalizationManifestFiles: Option[List[ValidFullGcsPath]]): PipelinesApiReferenceFilesMapping = {
-
-    val validReferenceFilesMapIO = referenceDiskLocalizationManifestFiles match {
-      case None =>
-        IO.pure(Map.empty[String, PipelinesApiReferenceFilesDisk])
-      case Some(manifestFilesPaths) =>
-        val gcsClient = StorageOptions
-          .newBuilder()
-          .setCredentials(auth.credentials(Set(StorageScopes.DEVSTORAGE_READ_ONLY)))
-          .build
-          .getService
-        val manifestFilesIo = manifestFilesPaths traverse { manifestFilePath => readReferenceDiskManifestFileFromGCS(gcsClient, manifestFilePath) }
-        manifestFilesIo flatMap { manifestFiles =>
-          manifestFiles
-            .traverse(manifestFile => getMapOfValidReferenceFilePathsToDisks(gcsClient, manifestFile))
-            .map(_.flatten.toMap)
-        }
+                                    referenceDiskLocalizationManifestFiles: List[ValidFullGcsPath]): Map[String, PipelinesApiReferenceFilesDisk] = {
+    val gcsClient = StorageOptions
+      .newBuilder()
+      .setCredentials(auth.credentials(Set(StorageScopes.DEVSTORAGE_READ_ONLY)))
+      .build
+      .getService
+    val manifestFilesIo = referenceDiskLocalizationManifestFiles traverse { manifestFilePath => readReferenceDiskManifestFileFromGCS(gcsClient, manifestFilePath) }
+    val validReferenceFilesMapIO = manifestFilesIo flatMap { manifestFiles =>
+      manifestFiles
+        .traverse(manifestFile => getMapOfValidReferenceFilePathsToDisks(gcsClient, manifestFile))
+        .map(_.flatten.toMap)
     }
-    PipelinesApiReferenceFilesMapping(validReferenceFilesMapIO.unsafeRunSync())
+    validReferenceFilesMapIO.unsafeRunSync()
   }
 
-  def getReferenceInputsToMountedPathMappings(pipelinesApiReferenceFilesMapping: PipelinesApiReferenceFilesMapping,
+  def getReferenceInputsToMountedPathMappings(referenceFileToDiskImageMapping: Map[String, PipelinesApiReferenceFilesDisk],
                                               inputFiles: List[PipelinesApiInput]): Map[PipelinesApiInput, String] = {
     val gcsPathsToInputs = inputFiles.collect { case i if i.cloudPath.isInstanceOf[GcsPath] => (i.cloudPath.asInstanceOf[GcsPath].pathAsString, i) }.toMap
-    pipelinesApiReferenceFilesMapping.validReferenceFilesMap.collect {
+    referenceFileToDiskImageMapping.collect {
       case (path, disk) if gcsPathsToInputs.keySet.contains(s"gs://$path")  =>
         (gcsPathsToInputs(s"gs://$path"), s"${disk.mountPoint.pathAsString}/$path")
     }
   }
 
-  def getReferenceDisksToMount(pipelinesApiReferenceFilesMapping: PipelinesApiReferenceFilesMapping,
+  def getReferenceDisksToMount(referenceFileToDiskImageMapping: Map[String, PipelinesApiReferenceFilesDisk],
                                inputFilePaths: Set[String]): List[PipelinesApiReferenceFilesDisk] = {
-    pipelinesApiReferenceFilesMapping.validReferenceFilesMap.filterKeys(key => inputFilePaths.contains(s"gs://$key")).values.toList.distinct
+    referenceFileToDiskImageMapping.filterKeys(key => inputFilePaths.contains(s"gs://$key")).values.toList.distinct
   }
 
   protected def readReferenceDiskManifestFileFromGCS(gcsClient: Storage, gcsPath: ValidFullGcsPath): IO[ManifestFile] = {

@@ -15,6 +15,7 @@ import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.engine.io.IoActor._
 import cromwell.engine.io.IoAttempts.EnhancedCromwellIoException
+import cromwell.engine.io.RetryableRequestSupport.{isRetryable, isTransient}
 import cromwell.engine.io.gcs.GcsBatchFlow.{BatchFailedException, _}
 import cromwell.engine.io.{IoAttempts, IoCommandContext}
 import mouse.boolean._
@@ -135,11 +136,11 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     // Otherwise fail with the original exception
     Try(batchRequest.execute()) match {
       case Failure(failure: IOException) =>
-        logger.info(s"Failed to execute GCS Batch request. Failed request belonged to batch " +
+        logger.info(s"Failed to execute GCS Batch request. Failed request belonged to batch of size ${batchCommandNamesList.size} containing commands: " +
           s"${batchCommandNamesList.mkString("\n")}.", failure.toPrettyElidedString(limit = 1000))
         failAllPromisesWith(BatchFailedException(failure))
       case Failure(failure) =>
-        logger.info(s"Failed to execute GCS Batch request. Failed request belonged to batch " +
+        logger.info(s"Failed to execute GCS Batch request. Failed request belonged to batch of size ${batchCommandNamesList.size} containing commands: " +
           s"${batchCommandNamesList.mkString("\n")}.", failure.toPrettyElidedString(limit = 1000))
         failAllPromisesWith(failure)
       case _ =>

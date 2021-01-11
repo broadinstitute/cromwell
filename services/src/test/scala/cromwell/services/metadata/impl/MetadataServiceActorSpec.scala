@@ -2,47 +2,56 @@ package cromwell.services.metadata.impl
 
 import java.time.OffsetDateTime
 
+import akka.actor.ActorRef
 import akka.pattern._
 import akka.testkit.TestProbe
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core._
-import cromwell.services.{SuccessfulMetadataJsonResponse, ServicesSpec}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.services.metadata.impl.MetadataServiceActorSpec._
-
-import scala.concurrent.Await
+import cromwell.services.{ServicesSpec, SuccessfulMetadataJsonResponse}
 import org.scalatest.concurrent.Eventually._
 import org.scalatest.concurrent.PatienceConfiguration.{Interval, Timeout}
 import spray.json._
 
+import scala.concurrent.Await
 import scala.concurrent.duration._
 
-class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
+class MetadataServiceActorSpec extends ServicesSpec {
   import MetadataServiceActorSpec.Config
 
   def actorName: String = "MetadataServiceActor"
 
-  val config = ConfigFactory.parseString(Config)
-  lazy val actor = system.actorOf(MetadataServiceActor.props(globalConfigToMetadataServiceConfig(config), config, TestProbe().ref), "MetadataServiceActor-for-MetadataServiceActorSpec")
+  val config: Config = ConfigFactory.parseString(Config)
+  lazy val actor: ActorRef =
+    system.actorOf(
+      props =
+        MetadataServiceActor.props(
+          serviceConfig = globalConfigToMetadataServiceConfig(config),
+          globalConfig = config,
+          serviceRegistryActor = TestProbe("serviceRegistryActor").ref,
+        ),
+      name = "MetadataServiceActor-for-MetadataServiceActorSpec",
+    )
 
-    val workflowId = WorkflowId.randomId()
+  val workflowId: WorkflowId = WorkflowId.randomId()
 
     /*
     Simple store / retrieve
      */
 
-    val key1 = MetadataKey(workflowId, None, "key1")
-    val key2 = MetadataKey(workflowId, None, "key2")
-    val supJob = MetadataJobKey("sup.sup", None, 1)
-    val key3 = MetadataKey(workflowId, Option(supJob), "dog")
-  val moment = OffsetDateTime.now.minusMinutes(1)
+  val key1: MetadataKey = MetadataKey(workflowId, None, "key1")
+  val key2: MetadataKey = MetadataKey(workflowId, None, "key2")
+  val supJob: MetadataJobKey = MetadataJobKey("sup.sup", None, 1)
+  val key3: MetadataKey = MetadataKey(workflowId, Option(supJob), "dog")
+  val moment: OffsetDateTime = OffsetDateTime.now.minusMinutes(1)
 
-  val event1_1 = MetadataEvent(key1, Option(MetadataValue("value1")), moment.plusSeconds(1))
-  val event1_2 = MetadataEvent(key1, Option(MetadataValue("value2")), moment.plusSeconds(2))
-  val event2_1 = MetadataEvent(key2, Option(MetadataValue("value1")), moment.plusSeconds(3))
-  val event3_1 = MetadataEvent(key3, Option(MetadataValue("value3")), moment.plusSeconds(4))
-  val event3_2 = MetadataEvent(key3, None, moment.plusSeconds(5))
+  val event1_1: MetadataEvent = MetadataEvent(key1, Option(MetadataValue("value1")), moment.plusSeconds(1))
+  val event1_2: MetadataEvent = MetadataEvent(key1, Option(MetadataValue("value2")), moment.plusSeconds(2))
+  val event2_1: MetadataEvent = MetadataEvent(key2, Option(MetadataValue("value1")), moment.plusSeconds(3))
+  val event3_1: MetadataEvent = MetadataEvent(key3, Option(MetadataValue("value3")), moment.plusSeconds(4))
+  val event3_2: MetadataEvent = MetadataEvent(key3, None, moment.plusSeconds(5))
 
   override def beforeAll: Unit = {
 
@@ -56,13 +65,13 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
     actor ! putAction3
   }
 
-  val query1 = MetadataQuery.forKey(key1)
-  val query2 = MetadataQuery.forKey(key2)
-  val query3 = MetadataQuery.forKey(key3)
-  val query4 = MetadataQuery.forWorkflow(workflowId)
-  val query5 = MetadataQuery.forJob(workflowId, supJob)
+  val query1: MetadataQuery = MetadataQuery.forKey(key1)
+  val query2: MetadataQuery = MetadataQuery.forKey(key2)
+  val query3: MetadataQuery = MetadataQuery.forKey(key3)
+  val query4: MetadataQuery = MetadataQuery.forWorkflow(workflowId)
+  val query5: MetadataQuery = MetadataQuery.forJob(workflowId, supJob)
 
-  val testCases = List[(String, MetadataQuery, String)] (
+  val testCases: List[(String, MetadataQuery, String)] = List[(String, MetadataQuery, String)] (
     ("query1", query1, s"""{
                           |  "key1": "value2",
                           |  "calls": {},
@@ -168,13 +177,13 @@ class MetadataServiceActorSpec extends ServicesSpec("Metadata") {
 }
 
 object MetadataServiceActorSpec {
-  val Config =
+  val Config: String =
     """
       |services.MetadataService.config.db-batch-size = 3
       |services.MetadataService.config.db-flush-rate = 100 millis
     """.stripMargin
 
-  val ConfigWithoutSummarizer = Config + """
+  val ConfigWithoutSummarizer: String = Config + """
       |services.MetadataService.config.metadata-summary-refresh-interval = "Inf"
     """.stripMargin
 

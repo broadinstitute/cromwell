@@ -25,7 +25,7 @@ google {
     {
       name = "service_account"
       scheme = "service_account"
-      json-file = "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-centaur-service-account.json"
+      json-file = ${google.json-dir}/cromwell-centaur-service-account.json
     }
     {
       name = "requester_pays_service_account"

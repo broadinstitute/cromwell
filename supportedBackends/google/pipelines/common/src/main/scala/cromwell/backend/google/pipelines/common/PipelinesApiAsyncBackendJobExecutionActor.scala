@@ -5,6 +5,7 @@ import java.net.SocketTimeoutException
 import _root_.io.grpc.Status
 import akka.actor.ActorRef
 import akka.http.scaladsl.model.{ContentType, ContentTypes}
+import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
@@ -53,7 +54,7 @@ import wom.values._
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.{Success, Try}
+import scala.util.{Failure, Success, Try}
 
 object PipelinesApiAsyncBackendJobExecutionActor {
   val JesOperationIdKey = "__jes_operation_id"
@@ -543,12 +544,24 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
                                             cloudPath: Path,
                                             transferLibraryContainerPath: Path,
                                             gcsTransferConfiguration: GcsTransferConfiguration,
-                                            referenceFileToDiskImageMapping: Option[Map[String, PipelinesApiReferenceFilesDisk]]): Future[Unit] = Future.successful(())
+                                            referenceInputsToMountedPathsOpt: Option[Map[PipelinesApiInput, String]]): Future[Unit] = Future.successful(())
 
   protected def uploadGcsDelocalizationScript(createPipelineParameters: CreatePipelineParameters,
                                               cloudPath: Path,
                                               transferLibraryContainerPath: Path,
                                               gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = Future.successful(())
+
+  protected val useReferenceDisks: Boolean = {
+    val optionName = WorkflowOptions.UseReferenceDisks.name
+    workflowDescriptor.workflowOptions.getBoolean(optionName) match {
+      case Success(value) => value
+      case Failure(OptionNotFoundException(_)) => false
+      case Failure(f) =>
+        // Should not happen, this case should have been screened for and fast-failed during workflow materialization.
+        log.error(f, s"Programmer error: unexpected failure attempting to read value for workflow option '$optionName' as a Boolean")
+        false
+    }
+  }
 
   private def createNewJob(): Future[ExecutionHandle] = {
     // Want to force runtimeAttributes to evaluate so we can fail quickly now if we need to:
@@ -606,6 +619,16 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       tellMetadata(backendLabelEvents)
     }
 
+    def getReferenceInputsToMountedPathsOpt(createPipelinesParameters: CreatePipelineParameters): Option[Map[PipelinesApiInput, String]] = {
+      if (useReferenceDisks) {
+        jesAttributes
+          .referenceFileToDiskImageMappingOpt
+          .map(getReferenceInputsToMountedPathMappings(_, createPipelinesParameters.inputOutputParameters.fileInputParameters))
+      } else {
+        None
+      }
+    }
+
     val runPipelineResponse = for {
       _ <- evaluateRuntimeAttributes
       _ <- uploadScriptFile
@@ -617,18 +640,31 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       transferLibraryContainerPath = createParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
       _ <- uploadGcsTransferLibrary(createParameters, gcsTransferLibraryCloudPath, gcsTransferConfiguration)
       gcsLocalizationScriptCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsLocalizationScriptName
-      _ <- uploadGcsLocalizationScript(createParameters, gcsLocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration, jesAttributes.referenceFileToDiskImageMappingOpt)
+      referenceInputsToMountedPathsOpt = getReferenceInputsToMountedPathsOpt(createParameters)
+      _ <- uploadGcsLocalizationScript(createParameters, gcsLocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration, referenceInputsToMountedPathsOpt)
       gcsDelocalizationScriptCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsDelocalizationScriptName
       _ <- uploadGcsDelocalizationScript(createParameters, gcsDelocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration)
       _ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined
       runId <- runPipeline(workflowId, createParameters, jobLogger)
       _ = sendGoogleLabelsToMetadata(customLabels)
+      _ = sendIncrementMetricsForReferenceFiles(referenceInputsToMountedPathsOpt.map(_.keySet))
     } yield runId
 
     runPipelineResponse map { runId =>
       PendingExecutionHandle(jobDescriptor, runId, Option(Run(runId)), previousState = None)
     } recover {
       case JobAbortedException => AbortedExecutionHandle
+    }
+  }
+
+  protected def sendIncrementMetricsForReferenceFiles(referenceInputFilesOpt: Option[Set[PipelinesApiInput]]): Unit = {
+    referenceInputFilesOpt match {
+      case Some(referenceInputFiles) =>
+        referenceInputFiles.foreach { referenceInputFile =>
+          increment(NonEmptyList.of("referencefiles", referenceInputFile.relativeHostPath.pathAsString))
+        }
+      case _ =>
+        // do nothing - reference disks feature is either not configured in Cromwell or disabled in workflow options
     }
   }
 

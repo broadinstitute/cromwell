@@ -6,6 +6,7 @@ import cats.data.{NonEmptyList, Validated}
 import cats.data.Validated._
 import cats.implicits._
 import com.typesafe.config.{Config, ConfigValue}
+import com.typesafe.scalalogging.StrictLogging
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import common.validation.Validation._
@@ -55,7 +56,8 @@ case class PipelinesApiConfigurationAttributes(project: String,
 
 object PipelinesApiConfigurationAttributes
   extends PipelinesApiDockerCacheMappingOperations
-    with PipelinesApiReferenceFilesMappingOperations {
+    with PipelinesApiReferenceFilesMappingOperations
+    with StrictLogging {
 
   /**
     * @param transferAttempts This is the number of attempts, not retries, hence it is positive.
@@ -221,7 +223,7 @@ object PipelinesApiConfigurationAttributes
       (memoryRetryKeys, memoryRetryMultiplier) flatMapN validateMemoryRetryConfig
     }
 
-    val referenceDiskLocalizationManifestFiles: ErrorOr[Option[List[ValidFullGcsPath]]] = validateGcsPathsToReferenceDiskManifestFiles(backendConfig)
+    val referenceDiskLocalizationManifestFiles: ErrorOr[Option[List[ValidFullGcsPath]]] = validateGcsPathsToReferenceDiskManifestFiles(backendConfig, backendName)
 
     val dockerImageCacheManifestFile: ErrorOr[Option[ValidFullGcsPath]] = validateGcsPathToDockerImageCacheManifestFile(backendConfig)
 
@@ -321,15 +323,18 @@ object PipelinesApiConfigurationAttributes
     }
   }
 
-  def validateGcsPathsToReferenceDiskManifestFiles(backendConfig: Config): ErrorOr[Option[List[ValidFullGcsPath]]] = {
+  def validateGcsPathsToReferenceDiskManifestFiles(backendConfig: Config, backendName: String): ErrorOr[Option[List[ValidFullGcsPath]]] = {
     backendConfig.getAs[List[String]]("reference-disk-localization-manifest-files") match {
       case Some(gcsPaths) =>
+        logger.info(s"Reference disks feature for $backendName backend is configured with the following manifest files: ${gcsPaths.mkString(",")}.")
         gcsPaths.map(validateSingleGcsPath)
           .sequence
           .contextualizeErrors("parse paths to file as valid GCS paths")
           .map(Option.apply)
 
-      case None => None.validNel
+      case None =>
+        logger.info(s"Reference disks feature for $backendName backend is not configured.")
+        None.validNel
     }
   }
 

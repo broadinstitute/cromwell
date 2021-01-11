@@ -413,7 +413,7 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
     val referenceDiskManifestConfigStr = s"""reference-disk-localization-manifest-files = ["$referenceDiskManifest1Path", "$referenceDiskManifest2Path"]"""
     val backendConfig = ConfigFactory.parseString(configString(referenceDiskManifestConfigStr))
 
-    val validatedGcsPathsToReferenceDiskManifestFilesErrorOr = PipelinesApiConfigurationAttributes.validateGcsPathsToReferenceDiskManifestFiles(backendConfig)
+    val validatedGcsPathsToReferenceDiskManifestFilesErrorOr = PipelinesApiConfigurationAttributes.validateGcsPathsToReferenceDiskManifestFiles(backendConfig, "unit-test-backend")
     validatedGcsPathsToReferenceDiskManifestFilesErrorOr match {
       case Valid(validatedGcsPathsToReferenceDiskManifestFilesOpt) =>
         validatedGcsPathsToReferenceDiskManifestFilesOpt match {
@@ -434,7 +434,7 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
   it should "parse correct missing reference-disk-localization-manifest-files config" in {
     val backendConfig = ConfigFactory.parseString(configString())
 
-    val validatedGcsPathsToReferenceDiskManifestFilesErrorOr = PipelinesApiConfigurationAttributes.validateGcsPathsToReferenceDiskManifestFiles(backendConfig)
+    val validatedGcsPathsToReferenceDiskManifestFilesErrorOr = PipelinesApiConfigurationAttributes.validateGcsPathsToReferenceDiskManifestFiles(backendConfig, "unit-test-backend")
     validatedGcsPathsToReferenceDiskManifestFilesErrorOr match {
       case Valid(validatedGcsPathsToReferenceDiskManifestFilesOpt) =>
         validatedGcsPathsToReferenceDiskManifestFilesOpt shouldBe None
@@ -447,7 +447,7 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
     val referenceDiskManifestConfigStr = "reference-disk-localization-manifest-files = []"
     val backendConfig = ConfigFactory.parseString(configString(referenceDiskManifestConfigStr))
 
-    val validatedGcsPathsToReferenceDiskManifestFilesErrorOr = PipelinesApiConfigurationAttributes.validateGcsPathsToReferenceDiskManifestFiles(backendConfig)
+    val validatedGcsPathsToReferenceDiskManifestFilesErrorOr = PipelinesApiConfigurationAttributes.validateGcsPathsToReferenceDiskManifestFiles(backendConfig, "unit-test-backend")
     validatedGcsPathsToReferenceDiskManifestFilesErrorOr match {
       case Valid(validatedGcsPathsToReferenceDiskManifestFilesOpt) =>
         validatedGcsPathsToReferenceDiskManifestFilesOpt match {
@@ -483,7 +483,7 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
   it should "parse correct missing docker-image-cache-manifest-file config" in {
     val backendConfig = ConfigFactory.parseString(configString())
 
-    val validatedGcsPathsToDockerImageCacheManifestFilesErrorOr = PipelinesApiConfigurationAttributes.validateGcsPathsToReferenceDiskManifestFiles(backendConfig)
+    val validatedGcsPathsToDockerImageCacheManifestFilesErrorOr = PipelinesApiConfigurationAttributes.validateGcsPathsToReferenceDiskManifestFiles(backendConfig, "unit-test-backend")
     validatedGcsPathsToDockerImageCacheManifestFilesErrorOr match {
       case Valid(validatedGcsPathsToDockerImageCacheManifestFilesOpt) =>
         validatedGcsPathsToDockerImageCacheManifestFilesOpt shouldBe None

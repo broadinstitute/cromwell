@@ -138,6 +138,23 @@ object MaterializeWorkflowDescriptorActor {
       CallCachingOff.validNel
     }
   }
+
+  // perform a fail-fast validation that the `memory_retry_multiplier` workflow option is valid if present
+  def validateMemoryRetryMultiplier(workflowOptions: WorkflowOptions): ErrorOr[Unit] = {
+    val optionName = WorkflowOptions.MemoryRetryMultiplier.name
+    workflowOptions.get(optionName) match {
+      case Success(value) => refineV[MemoryRetryMultiplier](value.toDouble) match {
+        case Left(_) =>
+          s"Workflow option '$optionName' is invalid. It should be in the range 1.0 <= n <= 99.0".invalidNel
+        case Right(_) =>
+          ().validNel
+      }
+      case Failure(OptionNotFoundException(_)) =>
+        // This is an optional... option, so "not found" is fine
+        ().validNel
+      case Failure(e) => s"'$optionName' is specified in workflow options but value is not of expected type: ${e.getMessage}".invalidNel
+    }
+  }
 }
 
 // TODO WOM: need to decide where to draw the line between language specific initialization and WOM
@@ -371,23 +388,6 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
         case (key, JsString(value)) => Label(key, value)
       }))
       case _ => Labels(Vector.empty)
-    }
-  }
-
-  // perform a fail-fast validation that the `memory_retry_multiplier` workflow option is valid if present
-  private def validateMemoryRetryMultiplier(workflowOptions: WorkflowOptions): ErrorOr[Unit] = {
-    val optionName = WorkflowOptions.MemoryRetryMultiplier.name
-    workflowOptions.get(optionName) match {
-      case Success(value) => refineV[MemoryRetryMultiplier](value.toDouble) match {
-        case Left(_) =>
-          s"Workflow option '$optionName' is invalid. It should be in the range 1.0 <= n <= 99.0".invalidNel
-        case Right(_) =>
-          ().validNel
-      }
-      case Failure(OptionNotFoundException(_)) =>
-        // This is an optional... option, so "not found" is fine
-        ().validNel
-      case Failure(e) => s"'$optionName' is specified in workflow options but value is not of expected type: ${e.getMessage}".invalidNel
     }
   }
 

@@ -192,7 +192,7 @@ case class ValueEvaluator(override val lookup: String => WomValue, override val 
         val mapOrArray = evaluate(a.getAttribute("lhs"))
         (mapOrArray, index) match {
           case (Success(a: WomArray), Success(i: WomInteger)) =>
-            Try(a.value(i.value)) match {
+            Try(a.value(i.value.toInt)) match {
               case s:Success[WomValue] => s
               case Failure(ex) => Failure(new WomExpressionException(s"Failed to find index $index on array:\n\n$mapOrArray\n\n${ex.getMessage}"))
             }

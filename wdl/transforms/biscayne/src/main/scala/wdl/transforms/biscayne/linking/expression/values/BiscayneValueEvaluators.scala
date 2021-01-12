@@ -107,7 +107,7 @@ object BiscayneValueEvaluators {
   }
 
   private def resultOfIntVsFloat(functionName: String,
-                                 intFunc: (Int, Int) => Int,
+                                 intFunc: (Long, Long) => Long,
                                  doubleFunc: (Double, Double) => Double)
                                 (value1: EvaluatedValue[_], value2: EvaluatedValue[_]): ErrorOr[EvaluatedValue[WomValue]] = {
     val newValue = (value1.value, value2.value) match {
@@ -129,7 +129,7 @@ object BiscayneValueEvaluators {
       val value1 = expressionValueEvaluator.evaluateValue(a.arg1, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
       val value2 = expressionValueEvaluator.evaluateValue(a.arg2, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
 
-      val intFunc = (i1: Int, i2: Int) => Math.min(i1, i2)
+      val intFunc = (i1: Long, i2: Long) => Math.min(i1, i2)
       val doubleFunc = (l1: Double, l2: Double) => Math.min(l1, l2)
 
       (value1, value2) flatMapN resultOfIntVsFloat("min", intFunc, doubleFunc)
@@ -144,7 +144,7 @@ object BiscayneValueEvaluators {
       val value1 = expressionValueEvaluator.evaluateValue(a.arg1, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
       val value2 = expressionValueEvaluator.evaluateValue(a.arg2, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
 
-      val intFunc = (i1: Int, i2: Int) => Math.max(i1, i2)
+      val intFunc = (i1: Long, i2: Long) => Math.max(i1, i2)
       val doubleFunc = (l1: Double, l2: Double) => Math.max(l1, l2)
 
       (value1, value2) flatMapN resultOfIntVsFloat("max", intFunc, doubleFunc)

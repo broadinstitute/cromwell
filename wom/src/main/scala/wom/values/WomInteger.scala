@@ -5,7 +5,7 @@ import wom.types.WomIntegerType
 
 import scala.util.{Failure, Success, Try}
 
-case class WomInteger(value: Int) extends WomPrimitive {
+case class WomInteger(value: Long) extends WomPrimitive {
   val womType = WomIntegerType
 
   override def add(rhs: WomValue): Try[WomValue] = rhs match {
@@ -72,4 +72,8 @@ case class WomInteger(value: Int) extends WomPrimitive {
   override def unaryPlus: Try[WomValue] = Success(WomInteger(math.abs(value)))
   override def unaryMinus: Try[WomValue] = Success(WomInteger(-value))
   override def toWomString = value.toString
+}
+
+object WomInteger {
+  def apply(value: Int): WomInteger = WomInteger(value.toLong)
 }

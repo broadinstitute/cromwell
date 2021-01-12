@@ -1,7 +1,6 @@
 package wom.types
 
 import spray.json.{JsNumber, JsString}
-import wom.types.WomIntegerLike._
 import wom.values.{WomInteger, WomLong, WomString}
 
 import scala.util.{Success, Try}
@@ -10,22 +9,21 @@ case object WomIntegerType extends WomPrimitiveType {
   val stableName: String = "Int"
 
   override protected def coercion = {
-    case i: Integer => WomInteger(i)
-    case n: JsNumber if n.value.isValidInt => WomInteger(n.value.intValue())
+    case i: Integer => WomInteger(i.toLong)
+    case i: Long => WomInteger(i)
+    case n: JsNumber if n.value.isValidLong => WomInteger(n.value.longValue())
     case i: WomInteger => i
-    case WomLong(i) if i.inIntRange => WomInteger(i.toInt)
-    case WomLong(i) => throw new RuntimeException(
-      s"Tried to convert a Long value $i into an Int but it was outside the bounds of acceptable Ints, namely ${Int.MinValue} <-> ${Int.MaxValue}")
+    case WomLong(i) => WomInteger(i)
     case s: WomString => {
-        WomInteger(s.value.toInt)
+        WomInteger(s.value.toLong)
     }
     case s: String =>
       val bigTry = Try(BigDecimal(s))
       if (bigTry.isSuccess)
-        WomInteger(bigTry.get.intValue())
+        WomInteger(bigTry.get.longValue())
       else
-        WomInteger(s.toInt)
-    case s: JsString => WomInteger(s.value.toInt)
+        WomInteger(s.toLong)
+    case s: JsString => WomInteger(s.value.toLong)
   }
 
   private def binaryOperator(rhs: WomType, symbol: String): Try[WomType] = rhs match {

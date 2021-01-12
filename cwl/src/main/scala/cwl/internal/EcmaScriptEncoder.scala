@@ -37,7 +37,7 @@ class EcmaScriptEncoder {
       case WomOptionalValue(_, None) => ESPrimitive(null)
       case WomOptionalValue(_, Some(innerValue)) => encode(innerValue)
       case WomString(string) => string |> ESPrimitive
-      case WomInteger(int) => Int.box(int) |> ESPrimitive
+      case WomInteger(int) => Long.box(int) |> ESPrimitive
       case WomLong(long) => Long.box(long) |> ESPrimitive
       case WomFloat(double) => Double.box(double) |> ESPrimitive
       case WomBoolean(boolean) => Boolean.box(boolean) |> ESPrimitive

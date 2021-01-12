@@ -190,7 +190,7 @@ object EngineFunctionEvaluators {
       processValidatedSingleValue[WomSingleFile, WomInteger](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
         val tryResult = for {
           read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readIntLimit)
-          asInt <- Try(read.trim.toInt)
+          asInt <- Try(read.trim.toLong)
         } yield WomInteger(asInt)
         tryResult.map(EvaluatedValue(_, Seq.empty)).toErrorOr.contextualizeErrors(s"""read_int("${fileToRead.value}")""")
       }
@@ -388,7 +388,7 @@ object EngineFunctionEvaluators {
       processValidatedSingleValue[WomInteger, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { integer =>
         val array = WomArray(
           womType = WomArrayType(WomIntegerType, guaranteedNonEmpty = integer.value > 0),
-          value = (0 until integer.value).map(WomInteger)
+          value = (0L until integer.value).map(WomInteger.apply)
         )
         EvaluatedValue(array, Seq.empty).validNel
       }
@@ -490,7 +490,7 @@ object EngineFunctionEvaluators {
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomInteger]] = {
       processValidatedSingleValue[WomFloat, WomInteger](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { float =>
-        EvaluatedValue(WomInteger(math.floor(float.value).toInt), Seq.empty).validNel
+        EvaluatedValue(WomInteger(math.floor(float.value).toLong), Seq.empty).validNel
       }
     }
   }
@@ -502,7 +502,7 @@ object EngineFunctionEvaluators {
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomInteger]] = {
       processValidatedSingleValue[WomFloat, WomInteger](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { float =>
-        EvaluatedValue(WomInteger(math.ceil(float.value).toInt), Seq.empty).validNel
+        EvaluatedValue(WomInteger(math.ceil(float.value).toLong), Seq.empty).validNel
       }
     }
   }
@@ -514,7 +514,7 @@ object EngineFunctionEvaluators {
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomInteger]] = {
       processValidatedSingleValue[WomFloat, WomInteger](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { float =>
-        EvaluatedValue(WomInteger(math.round(float.value).toInt), Seq.empty).validNel
+        EvaluatedValue(WomInteger(math.round(float.value).toLong), Seq.empty).validNel
       }
     }
   }

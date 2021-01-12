@@ -76,7 +76,7 @@ object LookupEvaluators {
         val value: ErrorOr[WomValue] = (lhs.value, rhs.value) match {
           case (array: WomArray, WomInteger(index)) =>
             if (array.value.length > index)
-              array.value(index).validNel
+              array.value(index.toInt).validNel
             else
               s"Bad array access ${a.toWdlV1}: Array size ${array.value.length} does not have an index value '$index'".invalidNel
           case (WomObject(values, _), WomString(index)) =>

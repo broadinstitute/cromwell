@@ -58,9 +58,6 @@ object InformationValidation {
     }
   }
 
-  private[validation] def validateInteger(attributeName: String, wdlInteger: WomInteger, defaultUnit: MemoryUnit, allowZero: Boolean): ErrorOr[MemorySize] =
-    validateInteger(attributeName, wdlInteger.value, defaultUnit, allowZero)
-
   private[validation] def validateInteger(attributeName: String, value: Int, defaultUnit: MemoryUnit, allowZero: Boolean): ErrorOr[MemorySize] = {
     if (value < 0 || (value == 0 && !allowZero))
       wrongAmountFormat.format(attributeName, value).invalidNel
@@ -86,7 +83,7 @@ class InformationValidation(attributeName: String, defaultUnit: MemoryUnit, allo
 
   override protected def validateValue: PartialFunction[WomValue, ErrorOr[MemorySize]] = {
     case WomLong(value) => InformationValidation.validateLong(key, value, defaultUnit, allowZero)
-    case WomInteger(value) => InformationValidation.validateInteger(key, value, defaultUnit, allowZero)
+    case WomInteger(value) => InformationValidation.validateInteger(key, value.toInt, defaultUnit, allowZero)
     case WomString(value) => InformationValidation.validateString(key, value, allowZero)
   }
 

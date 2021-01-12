@@ -26,8 +26,8 @@ final case class StderrNonEmpty(jobTag: String, stderrLength: Long, stderrPath: 
 }
 
 final case class RetryWithMoreMemory(jobTag: String, stderrPath: Option[Path]) extends KnownJobFailureException {
-  override def getMessage = s"stderr for job $jobTag contained one of the `memory-retry` error-keys specified in the config. " +
-    "Job might have run out of memory."
+  override def getMessage = s"stderr for job `$jobTag` contained one of the `memory-retry` error-keys specified in the Cromwell " +
+    s"config. Job might have run out of memory."
 }
 
 

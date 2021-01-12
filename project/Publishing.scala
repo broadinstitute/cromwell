@@ -47,7 +47,10 @@ object Publishing {
       val additionalDockerInstr: Seq[Instruction] = dockerCustomSettings.value
 
       new Dockerfile {
-        from("openjdk:8")
+        from("adoptopenjdk:8-jre-hotspot")
+        runRaw("""apt-get update -q && \
+                 | apt-get upgrade -qq && \
+                 | rm -rf /var/lib/apt/lists/*""".stripMargin)
         expose(8000)
         add(artifact, artifactTargetPath)
         runRaw(s"ln -s $artifactTargetPath /app/$projectName.jar")

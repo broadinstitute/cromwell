@@ -41,6 +41,7 @@ import cromwell.google.pipelines.common.PreviousRetryReasons
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.CallMetadataKeys
 import mouse.all._
+import eu.timepit.refined.refineV
 import shapeless.Coproduct
 import wdl4s.parser.MemoryUnit
 import wom.callable.Callable.OutputDefinition
@@ -150,9 +151,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     case _ => false
   }
 
-  // TODO: Saloni START HERE
-  override lazy val memoryRetryFactor: Option[BetweenOneAndNinetyNineRefined] = PipelinesApiConfigurationAttributes.validateMemoryRetryMultiplier(
-    jobDescriptor.workflowDescriptor.getWorkflowOption("memory-retry-multiplier").map(_.toDouble))
+  override lazy val memoryRetryFactor: Option[MemoryRetryMultiplierRefined] = getMemoryRetryFactor()
 
   override def tryAbort(job: StandardAsyncJob): Unit = abortJob(job)
 
@@ -166,6 +165,19 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     if (jesAttributes.auths.gcs.requiresAuthFile || dockerConfiguration.isDefined)
       Option(PipelinesApiLiteralInput(ExtraConfigParamName, pipelinesApiCallPaths.workflowPaths.gcsAuthFilePath.pathAsString))
     else None
+  }
+
+  private def getMemoryRetryFactor(): Option[MemoryRetryMultiplierRefined] = {
+    jobDescriptor.workflowDescriptor.getWorkflowOption(WorkflowOptions.MemoryRetryMultiplier) flatMap { value: String =>
+      refineV[MemoryRetryMultiplier](value.toDouble) match {
+        case Left(e) =>
+          // should not happen, this case should have been screened for and fast-failed during workflow materialization.
+          log.error(e, s"Programmer error: unexpected failure attempting to read value for workflow option " +
+            s"'${WorkflowOptions.MemoryRetryMultiplier.name}'. Expected value should be in range 1 <= n <= 99.")
+          None
+        case Right(refined) => Option(refined)
+      }
+    }
   }
 
   /**
@@ -496,6 +508,10 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
             jobLogger = jobLogger
           )
 
+        // if the `memory_retry_multiplier` is not present in the workflow options there is no need to check whether or
+        // not the stderr file contained memory retry keys
+        val retryWithMoreMemoryKeys: Option[List[String]] = memoryRetryFactor.map(_ => jesAttributes.memoryRetryKeys)
+
         CreatePipelineParameters(
           jobDescriptor = jobDescriptor,
           runtimeAttributes = runtimeAttributes,
@@ -515,7 +531,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           womOutputRuntimeExtractor = jobDescriptor.workflowDescriptor.outputRuntimeExtractor,
           adjustedSizeDisks = adjustedSizeDisks,
           virtualPrivateCloudConfiguration = jesAttributes.virtualPrivateCloudConfiguration,
-          retryWithMoreMemoryKeys = jesAttributes.memoryRetryKeys.map(_.errorKeys),
+          retryWithMoreMemoryKeys = retryWithMoreMemoryKeys,
           fuseEnabled = fuseEnabled(jobDescriptor.workflowDescriptor),
           allowNoAddress = pipelinesConfiguration.papiAttributes.allowNoAddress,
           referenceDisksForLocalizationOpt = referenceDisksToMount,

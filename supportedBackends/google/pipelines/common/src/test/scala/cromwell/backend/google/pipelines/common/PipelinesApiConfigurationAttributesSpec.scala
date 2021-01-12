@@ -171,13 +171,11 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
       """
         |memory-retry {
         |   error-keys = ["OutOfMemory", "Killed", "Exit123"]
-        |   multiplier = 1.1
         |}""".stripMargin
     val backendConfig = ConfigFactory.parseString(configString(customConfig))
 
     val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig, "papi")
-    pipelinesApiAttributes.memoryRetryKeys.get.errorKeys shouldBe List("OutOfMemory", "Killed", "Exit123")
-    pipelinesApiAttributes.memoryRetryKeys.get.multiplier.value shouldBe 1.1
+    pipelinesApiAttributes.memoryRetryKeys shouldBe List("OutOfMemory", "Killed", "Exit123")
   }
 
   it should "parse memory-retry with only error-keys" in {
@@ -189,8 +187,7 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
     val backendConfig = ConfigFactory.parseString(configString(customConfig))
 
     val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig, "papi")
-    pipelinesApiAttributes.memoryRetryKeys.get.errorKeys shouldBe List("OutOfMemory", "Killed", "Exit123")
-    pipelinesApiAttributes.memoryRetryKeys.get.multiplier.value shouldBe 2.0
+    pipelinesApiAttributes.memoryRetryKeys shouldBe List("OutOfMemory", "Killed", "Exit123")
   }
 
   it should "parse memory-retry with empty body" in {

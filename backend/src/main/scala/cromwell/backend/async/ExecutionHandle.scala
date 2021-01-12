@@ -1,6 +1,6 @@
 package cromwell.backend.async
 
-import common.validation.Validation.{GreaterEqualOne, GreaterEqualRefined}
+import common.validation.Validation.{MemoryRetryMultiplier, MemoryRetryMultiplierRefined}
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.async.AsyncBackendJobExecutionActor.JobId
 import cromwell.core.path.Path
@@ -51,7 +51,7 @@ final case class FailedNonRetryableExecutionHandle(throwable: Throwable,
 
 final case class FailedRetryableExecutionHandle(throwable: Throwable,
                                                 returnCode: Option[Int] = None,
-                                                memoryMultiplier: GreaterEqualRefined = refineMV[GreaterEqualOne](1.0),
+                                                memoryMultiplier: MemoryRetryMultiplierRefined = refineMV[MemoryRetryMultiplier](1.0),
                                                 override val kvPairsToSave: Option[Seq[KvPair]]) extends FailedExecutionHandle {
 
   override val isDone = true

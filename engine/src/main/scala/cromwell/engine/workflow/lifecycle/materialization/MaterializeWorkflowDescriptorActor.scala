@@ -6,17 +6,18 @@ import cats.data.EitherT._
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import cats.effect.IO
+import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.either._
 import cats.syntax.traverse._
 import cats.syntax.validated._
-import cats.instances.list._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import common.exception.{AggregatedMessageException, MessageAggregation}
 import common.validation.Checked._
 import common.validation.ErrorOr._
 import common.validation.IOChecked._
+import common.validation.Validation.MemoryRetryMultiplier
 import cromwell.backend.BackendWorkflowDescriptor
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.{ReadFromCache, WorkflowOption, WriteToCache}
@@ -37,6 +38,7 @@ import cromwell.languages.util.LanguageFactoryUtil
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
+import eu.timepit.refined.refineV
 import net.ceedubs.ficus.Ficus._
 import spray.json._
 import wom.core.WorkflowSource
@@ -372,6 +374,23 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     }
   }
 
+  // perform a fail-fast validation that the `memory_retry_multiplier` workflow option is valid if present
+  private def validateMemoryRetryMultiplier(workflowOptions: WorkflowOptions): ErrorOr[Unit] = {
+    val optionName = WorkflowOptions.MemoryRetryMultiplier.name
+    workflowOptions.get(optionName) match {
+      case Success(value) => refineV[MemoryRetryMultiplier](value.toDouble) match {
+        case Left(_) =>
+          s"Workflow option '$optionName' is invalid. It should be in the range 1.0 <= n <= 99.0".invalidNel
+        case Right(_) =>
+          ().validNel
+      }
+      case Failure(OptionNotFoundException(_)) =>
+        // This is an optional... option, so "not found" is fine
+        ().validNel
+      case Failure(e) => s"'$optionName' is specified in workflow options but value is not of expected type: ${e.getMessage}".invalidNel
+    }
+  }
+
   // Perform a fail-fast validation that the `use_reference_disks` workflow option is boolean if present.
   private def validateUseReferenceDisks(workflowOptions: WorkflowOptions) : ErrorOr[Unit] = {
     val optionName = WorkflowOptions.UseReferenceDisks.name
@@ -408,8 +427,10 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
 
     val useReferenceDisksValidation: ErrorOr[Unit] = validateUseReferenceDisks(workflowOptions)
 
-    (failureModeValidation, backendAssignmentsValidation, callCachingModeValidation, useReferenceDisksValidation) mapN {
-      case (failureMode, backendAssignments, callCachingMode, _) =>
+    val memoryRetryMultiplierValidation: ErrorOr[Unit] = validateMemoryRetryMultiplier(workflowOptions)
+
+    (failureModeValidation, backendAssignmentsValidation, callCachingModeValidation, useReferenceDisksValidation, memoryRetryMultiplierValidation) mapN {
+      case (failureMode, backendAssignments, callCachingMode, _, _) =>
         val callable = womNamespace.executable.entryPoint
         val backendDescriptor = BackendWorkflowDescriptor(id, callable, womNamespace.womValueInputs, workflowOptions, labels, hogGroup, List.empty, outputRuntimeExtractor)
         EngineWorkflowDescriptor(callable, backendDescriptor, backendAssignments, failureMode, pathBuilders, callCachingMode)

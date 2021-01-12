@@ -221,7 +221,7 @@ trait StandardAsyncExecutionActor
     */
   lazy val commandDirectory: Path = jobPaths.callExecutionRoot
 
-  lazy val memoryRetryFactor: Option[GreaterEqualRefined] = None
+  lazy val memoryRetryFactor: Option[MemoryRetryMultiplierRefined] = None
 
   /**
     * Returns the shell scripting for finding all files listed within a directory.
@@ -986,8 +986,8 @@ trait StandardAsyncExecutionActor
           case failed: FailedNonRetryableExecutionHandle if maxRetriesNotReachedYet =>
             val currentMemoryMultiplier = jobDescriptor.key.memoryMultiplier
             (retryWithMoreMemory, memoryRetryFactor) match {
-              case (true, Some(multiplier)) =>
-                val newMultiplier = Refined.unsafeApply[Double, GreaterEqualOne](currentMemoryMultiplier.value * multiplier.value)
+              case (true, Some(retryFactor)) =>
+                val newMultiplier = Refined.unsafeApply[Double, MemoryRetryMultiplier](currentMemoryMultiplier.value * retryFactor.value)
                 saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true, Option(newMultiplier))
               case (_, _) => saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true)
             }
@@ -999,10 +999,10 @@ trait StandardAsyncExecutionActor
   }
 
   private def saveAttrsAndRetry(failedExecHandle: FailedExecutionHandle,
-                        kvPrev: Map[String, KvPair],
-                        kvNext: Map[String, KvPair],
-                        incFailedCount: Boolean,
-                        memoryMultiplier: Option[GreaterEqualRefined] = None): Future[FailedRetryableExecutionHandle] = {
+                                kvPrev: Map[String, KvPair],
+                                kvNext: Map[String, KvPair],
+                                incFailedCount: Boolean,
+                                memoryMultiplier: Option[MemoryRetryMultiplierRefined] = None): Future[FailedRetryableExecutionHandle] = {
     failedExecHandle match {
       case failedNonRetryable: FailedNonRetryableExecutionHandle =>
         saveKvPairsForNextAttempt(kvPrev, kvNext, incFailedCount) map { _ =>
@@ -1222,7 +1222,7 @@ trait StandardAsyncExecutionActor
               }
               case Failure(e) =>
                 log.error(s"'CheckingForMemoryRetry' action exited with code '$codeAsString' which couldn't be " +
-                  s"converted to an Integer. Task will not be retried with double memory. Error: ${ExceptionUtils.getMessage(e)}")
+                  s"converted to an Integer. Task will not be retried with more memory. Error: ${ExceptionUtils.getMessage(e)}")
                 false
             }
           case None => false

@@ -1,7 +1,6 @@
 package cromwell.backend.async
 
 import common.exception.ThrowableAggregation
-import common.validation.Validation.GreaterEqualRefined
 import cromwell.core.path.Path
 import wom.expression.{NoIoFunctionSet, WomExpression}
 
@@ -29,13 +28,6 @@ final case class StderrNonEmpty(jobTag: String, stderrLength: Long, stderrPath: 
 final case class RetryWithMoreMemory(jobTag: String, stderrPath: Option[Path]) extends KnownJobFailureException {
   override def getMessage = s"stderr for job $jobTag contained one of the `memory-retry` error-keys specified in the config. " +
     "Job might have run out of memory."
-}
-
-final case class MemoryMultiplierLessThanOne(jobTag: String,
-                                             stderrPath: Option[Path],
-                                             currentMultiplier: GreaterEqualRefined,
-                                             memoryRetryFactor: GreaterEqualRefined) extends KnownJobFailureException {
-  override def getMessage = s"The result of multiplying current memory multiplier $currentMultiplier with memory retry factor $memoryRetryFactor was not positive."
 }
 
 

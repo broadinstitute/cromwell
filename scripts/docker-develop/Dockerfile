@@ -1,4 +1,4 @@
-FROM adoptopenjdk:8-jre-hotspot
+FROM adoptopenjdk:8
 
 RUN apt-get update -q && \
     apt-get upgrade -qq && \

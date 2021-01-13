@@ -4,6 +4,7 @@ backends: [Papiv2]
 
 files {
   workflow: retry_with_more_memory/retry_with_more_memory.wdl
+  options:: retry_with_more_memory/retry_with_more_memory.options
 }
 
 metadata {

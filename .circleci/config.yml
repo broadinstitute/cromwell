@@ -1,0 +1,9 @@
+version: 2.1
+
+build:
+  test:
+    machine:
+      image: ubuntu-2004:202010-01
+      resource_class: large
+    steps:
+      - run: echo "Hello world."

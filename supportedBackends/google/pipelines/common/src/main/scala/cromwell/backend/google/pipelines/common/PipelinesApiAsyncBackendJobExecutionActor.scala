@@ -151,8 +151,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     case _ => false
   }
 
-  override lazy val memoryRetryFactor: Option[MemoryRetryMultiplierRefined] = getMemoryRetryFactor()
-
   override def tryAbort(job: StandardAsyncJob): Unit = abortJob(job)
 
   override def requestsAbortAndDiesImmediately: Boolean = false
@@ -165,19 +163,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     if (jesAttributes.auths.gcs.requiresAuthFile || dockerConfiguration.isDefined)
       Option(PipelinesApiLiteralInput(ExtraConfigParamName, pipelinesApiCallPaths.workflowPaths.gcsAuthFilePath.pathAsString))
     else None
-  }
-
-  private def getMemoryRetryFactor(): Option[MemoryRetryMultiplierRefined] = {
-    jobDescriptor.workflowDescriptor.getWorkflowOption(WorkflowOptions.MemoryRetryMultiplier) flatMap { value: String =>
-      refineV[MemoryRetryMultiplier](value.toDouble) match {
-        case Left(e) =>
-          // should not happen, this case should have been screened for and fast-failed during workflow materialization.
-          log.error(e, s"Programmer error: unexpected failure attempting to read value for workflow option " +
-            s"'${WorkflowOptions.MemoryRetryMultiplier.name}'. Expected value should be in range 1 <= n <= 99.")
-          None
-        case Right(refined) => Option(refined)
-      }
-    }
   }
 
   /**
@@ -509,8 +494,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           )
 
         // if the `memory_retry_multiplier` is not present in the workflow options there is no need to check whether or
-        // not the stderr file contained memory retry keys
-        val retryWithMoreMemoryKeys: Option[List[String]] = memoryRetryFactor.map(_ => jesAttributes.memoryRetryKeys)
+        // not the `stderr` file contained memory retry error keys
+        val retryWithMoreMemoryKeys: Option[List[String]] = memoryRetryFactor.flatMap(_ => memoryRetryErrorKeys)
 
         CreatePipelineParameters(
           jobDescriptor = jobDescriptor,

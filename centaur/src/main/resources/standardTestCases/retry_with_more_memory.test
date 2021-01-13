@@ -1,6 +1,6 @@
 name: retry_with_more_memory
 testFormat: workflowfailure
-backends: [Papiv2-Retry-With-More-Memory]
+backends: [Papiv2]
 
 files {
   workflow: retry_with_more_memory/retry_with_more_memory.wdl

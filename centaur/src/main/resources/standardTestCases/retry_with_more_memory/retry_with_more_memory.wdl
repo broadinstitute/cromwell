@@ -14,7 +14,7 @@ task imitate_oom_error {
     memory: "1 GB"
     continueOnReturnCode: true
     maxRetries: 1
-    backend: "Papiv2-Retry-With-More-Memory"
+    backend: "Papiv2"
   }
 }
 

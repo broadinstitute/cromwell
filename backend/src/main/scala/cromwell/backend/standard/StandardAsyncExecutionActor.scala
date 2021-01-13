@@ -23,11 +23,12 @@ import cromwell.backend.standard.StandardAdHocValue._
 import cromwell.backend.validation._
 import cromwell.core.io.{AsyncIoActorClient, DefaultIoCommandBuilder, IoCommandBuilder}
 import cromwell.core.path.Path
-import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent, StandardPaths}
+import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent, StandardPaths, WorkflowOptions}
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
 import eu.timepit.refined.api._
+import eu.timepit.refined.refineV
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.StringUtils
@@ -221,7 +222,20 @@ trait StandardAsyncExecutionActor
     */
   lazy val commandDirectory: Path = jobPaths.callExecutionRoot
 
-  lazy val memoryRetryFactor: Option[MemoryRetryMultiplierRefined] = None
+  lazy val memoryRetryErrorKeys: Option[List[String]] = configurationDescriptor.globalConfig.as[Option[List[String]]]("system.memory-retry-error-keys")
+
+  lazy val memoryRetryFactor: Option[MemoryRetryMultiplierRefined] = {
+    jobDescriptor.workflowDescriptor.getWorkflowOption(WorkflowOptions.MemoryRetryMultiplier) flatMap { value: String =>
+      refineV[MemoryRetryMultiplier](value.toDouble) match {
+        case Left(e) =>
+          // should not happen, this case should have been screened for and fast-failed during workflow materialization.
+          log.error(e, s"Programmer error: unexpected failure attempting to read value for workflow option " +
+            s"'${WorkflowOptions.MemoryRetryMultiplier.name}'. Expected value should be in range 1 <= n <= 99.")
+          None
+        case Right(refined) => Option(refined)
+      }
+    }
+  }
 
   /**
     * Returns the shell scripting for finding all files listed within a directory.

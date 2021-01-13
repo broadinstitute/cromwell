@@ -34,7 +34,6 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
     pipelinesApiAttributes.maxPollingInterval should be(600)
     pipelinesApiAttributes.computeServiceAccount should be("default")
     pipelinesApiAttributes.restrictMetadataAccess should be(false)
-    pipelinesApiAttributes.memoryRetryKeys should be(None)
     pipelinesApiAttributes.referenceFileToDiskImageMappingOpt.isEmpty should be(true)
   }
 
@@ -164,38 +163,6 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
 
     val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig, "papi")
     pipelinesApiAttributes.virtualPrivateCloudConfiguration should be(None)
-  }
-
-  it should "parse memory-retry" in {
-    val customConfig =
-      """
-        |memory-retry {
-        |   error-keys = ["OutOfMemory", "Killed", "Exit123"]
-        |}""".stripMargin
-    val backendConfig = ConfigFactory.parseString(configString(customConfig))
-
-    val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig, "papi")
-    pipelinesApiAttributes.memoryRetryKeys shouldBe List("OutOfMemory", "Killed", "Exit123")
-  }
-
-  it should "parse memory-retry with only error-keys" in {
-    val customConfig =
-      """
-        |memory-retry {
-        |   error-keys = ["OutOfMemory", "Killed", "Exit123"]
-        |}""".stripMargin
-    val backendConfig = ConfigFactory.parseString(configString(customConfig))
-
-    val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig, "papi")
-    pipelinesApiAttributes.memoryRetryKeys shouldBe List("OutOfMemory", "Killed", "Exit123")
-  }
-
-  it should "parse memory-retry with empty body" in {
-    val customConfig = """memory-retry { }""".stripMargin
-    val backendConfig = ConfigFactory.parseString(configString(customConfig))
-
-    val pipelinesApiAttributes = PipelinesApiConfigurationAttributes(googleConfig, backendConfig, "papi")
-    pipelinesApiAttributes.memoryRetryKeys shouldBe None
   }
 
   it should "not parse invalid config" in {

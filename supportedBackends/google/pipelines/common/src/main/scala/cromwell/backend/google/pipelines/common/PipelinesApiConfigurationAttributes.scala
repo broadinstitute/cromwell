@@ -47,7 +47,6 @@ case class PipelinesApiConfigurationAttributes(project: String,
                                                gcsTransferConfiguration: GcsTransferConfiguration,
                                                virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
                                                batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
-                                               memoryRetryKeys: List[String],
                                                allowNoAddress: Boolean,
                                                referenceFileToDiskImageMappingOpt: Option[Map[String, PipelinesApiReferenceFilesDisk]],
                                                dockerImageToCacheDiskImageMappingOpt: Option[Map[String, DockerImageCacheEntry]],
@@ -137,13 +136,6 @@ object PipelinesApiConfigurationAttributes
       }
     }
 
-    def validateMemoryRetryKeys(errorKeys: Option[List[String]]): ErrorOr[List[String]] = {
-      errorKeys match {
-        case Some(keys) => keys.validNel
-        case None => "memory-retry configuration is invalid. No error-keys provided.".invalidNel
-      }
-    }
-
     val configKeys = backendConfig.entrySet().asScala.toSet map { entry: java.util.Map.Entry[String, ConfigValue] => entry.getKey }
     warnNotRecognized(configKeys, papiKeys, backendName, Logger)
 
@@ -207,9 +199,7 @@ object PipelinesApiConfigurationAttributes
       BatchRequestTimeoutConfiguration(readTimeoutMillis = read, connectTimeoutMillis = connect)
     }
 
-    val memoryRetryKeys: ErrorOr[List[String]] = validateMemoryRetryKeys(backendConfig.as[Option[List[String]]]("memory-retry.error-keys"))
-
-    val referenceDiskLocalizationManifestFiles: ErrorOr[Option[List[ValidFullGcsPath]]] = validateGcsPathsToReferenceDiskManifestFiles(backendConfig, backendName)
+    val referenceDiskLocalizationManifestFiles: ErrorOr[Option[List[ValidFullGcsPath]]] = validateGcsPathsToReferenceDiskManifestFiles(backendConfig)
 
     val dockerImageCacheManifestFile: ErrorOr[Option[ValidFullGcsPath]] = validateGcsPathToDockerImageCacheManifestFile(backendConfig)
 
@@ -229,7 +219,6 @@ object PipelinesApiConfigurationAttributes
                                                        gcsTransferConfiguration: GcsTransferConfiguration,
                                                        virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
                                                        batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
-                                                       memoryRetryKeys: List[String],
                                                        allowNoAddress: Boolean,
                                                        referenceDiskLocalizationManifestFilesOpt: Option[List[ValidFullGcsPath]],
                                                        dockerImageCacheManifestFileOpt: Option[ValidFullGcsPath]): ErrorOr[PipelinesApiConfigurationAttributes] =
@@ -259,7 +248,6 @@ object PipelinesApiConfigurationAttributes
             gcsTransferConfiguration = gcsTransferConfiguration,
             virtualPrivateCloudConfiguration = virtualPrivateCloudConfiguration,
             batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration,
-            memoryRetryKeys = memoryRetryKeys,
             allowNoAddress,
             referenceFileToDiskImageMappingOpt = generatedReferenceFilesMappingOpt,
             dockerImageToCacheDiskImageMappingOpt = dockerImageToCacheDiskImageMappingOpt,
@@ -281,7 +269,6 @@ object PipelinesApiConfigurationAttributes
       gcsTransferConfiguration,
       virtualPrivateCloudConfiguration,
       batchRequestTimeoutConfigurationValidation,
-      memoryRetryKeys,
       allowNoAddress,
       referenceDiskLocalizationManifestFiles,
       dockerImageCacheManifestFile

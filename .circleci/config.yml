@@ -1,9 +1,10 @@
 version: 2.1
 
 jobs:
-  my-test-step:
+  build:
     machine:
-      image: ubuntu-2004:202010-01
-      resource_class: large
+      image: ubuntu-2004:202010-01 # recommended linux image
+    resource_class: large
     steps:
       - run: echo "Hello world."
+

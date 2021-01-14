@@ -1,0 +1,14 @@
+name: attempt_resilience
+testFormat: workflowsuccess
+backends: [Papiv2]
+
+files {
+  workflow: attempt_resilience/attempt_resilience.wdl
+}
+
+metadata {
+  workflowName: attempt_resilience
+  status: Succeeded
+  "calls.attempt_resilience.definitely_preempted.outputs.foo_out": "foo"
+  "calls.attempt_resilience.unlikely_preempted.outputs.foo_out": "foo"
+}

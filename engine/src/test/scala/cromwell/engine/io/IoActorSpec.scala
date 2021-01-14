@@ -268,7 +268,6 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
 
   it should "have correct non-retryable exceptions" in {
     val nonRetryables = List(
-      new IOException("message: 500 Internal Server Error Backend Error"),
       new IOException("404 File Not Found"),
       new IOException("502 HTTP Status Code"),
       new Exception("502 HTTP Status Code"),

@@ -230,7 +230,7 @@ trait StandardAsyncExecutionActor
         case Left(e) =>
           // should not happen, this case should have been screened for and fast-failed during workflow materialization.
           log.error(e, s"Programmer error: unexpected failure attempting to read value for workflow option " +
-            s"'${WorkflowOptions.MemoryRetryMultiplier.name}'. Expected value should be in range 1 <= n <= 99.")
+            s"'${WorkflowOptions.MemoryRetryMultiplier.name}'. Expected value should be in range 1.0 <= n <= 99.0")
           None
         case Right(refined) => Option(refined)
       }
@@ -1283,7 +1283,7 @@ trait StandardAsyncExecutionActor
               val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption), Option(returnCodeAsInt), None))
               retryElseFail(executionHandle)
             case Success(returnCodeAsInt) if retryWithMoreMemory  =>
-              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption), Option(returnCodeAsInt), None))
+              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption, memoryRetryErrorKeys), Option(returnCodeAsInt), None))
               retryElseFail(executionHandle, retryWithMoreMemory)
             case Success(returnCodeAsInt) =>
               handleExecutionSuccess(status, oldHandle, returnCodeAsInt)
@@ -1293,7 +1293,7 @@ trait StandardAsyncExecutionActor
         } else {
           tryReturnCodeAsInt match {
             case Success(returnCodeAsInt) if retryWithMoreMemory =>
-              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption), Option(returnCodeAsInt), None))
+              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption, memoryRetryErrorKeys), Option(returnCodeAsInt), None))
               retryElseFail(executionHandle, retryWithMoreMemory)
             case _ =>
               val failureStatus = handleExecutionFailure(status, tryReturnCodeAsInt.toOption)

@@ -152,7 +152,7 @@ object MaterializeWorkflowDescriptorActor {
       case Failure(OptionNotFoundException(_)) =>
         // This is an optional... option, so "not found" is fine
         ().validNel
-      case Failure(e) => s"'$optionName' is specified in workflow options but value is not of expected type: ${e.getMessage}".invalidNel
+      case Failure(e) => s"'$optionName' is specified in workflow options but value is not of expected Double type: ${e.getMessage}".invalidNel
     }
   }
 }

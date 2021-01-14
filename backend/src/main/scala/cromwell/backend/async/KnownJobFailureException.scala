@@ -25,9 +25,17 @@ final case class StderrNonEmpty(jobTag: String, stderrLength: Long, stderrPath: 
   override def getMessage = s"stderr for job $jobTag has length $stderrLength and 'failOnStderr' runtime attribute was true."
 }
 
-final case class RetryWithMoreMemory(jobTag: String, stderrPath: Option[Path]) extends KnownJobFailureException {
-  override def getMessage = s"stderr for job `$jobTag` contained one of the `memory-retry` error-keys specified in the Cromwell " +
-    s"config. Job might have run out of memory."
+final case class RetryWithMoreMemory(jobTag: String, stderrPath: Option[Path], memoryRetryErrorKeys: Option[List[String]]) extends KnownJobFailureException {
+  val errorKeysAsString = memoryRetryErrorKeys match {
+    case None =>
+      // this should not occur at this point as one would reach this error class only if Cromwell found one of the
+      // `memory-retry-error-keys` in `stderr` of the task, which is only checked if the `memory-retry-error-keys`
+      // are instantiated in Cromwell config
+      ""
+    case Some(keys) => s": [${keys.mkString(",")}]"
+  }
+  override def getMessage = s"stderr for job `$jobTag` contained one of the `memory-retry-error-keys${errorKeysAsString}` specified in " +
+    s"the Cromwell config. Job might have run out of memory."
 }
 
 

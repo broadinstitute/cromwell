@@ -59,17 +59,17 @@ object RetryableRequestSupport {
   }
 
   def isGcs500(failure: Throwable): Boolean = {
-    val serverErrorPattern = ".*Could not read from gs.+500 Internal Server Error.*"
+    val serverErrorPattern = ".*500 Internal Server Error.*"
     Option(failure.getMessage).exists(_.matches(serverErrorPattern))
   }
 
   def isGcs503(failure: Throwable): Boolean = {
-    val serverErrorPattern = ".*Could not read from gs.+503 Service Unavailable.*"
+    val serverErrorPattern = ".*503 Service Unavailable.*"
     Option(failure.getMessage).exists(_.matches(serverErrorPattern))
   }
 
   def isGcs504(failure: Throwable): Boolean = {
-    val serverErrorPattern = ".*Could not read from gs.+504 Gateway Timeout.*"
+    val serverErrorPattern = ".*504 Gateway Timeout.*"
     Option(failure.getMessage).exists(_.matches(serverErrorPattern))
   }
 }

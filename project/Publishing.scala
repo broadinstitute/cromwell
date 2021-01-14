@@ -48,9 +48,6 @@ object Publishing {
 
       new Dockerfile {
         from("us.gcr.io/broad-dsp-gcr-public/base/jre:8-debian")
-        runRaw("""apt-get update -q && \
-                 | apt-get upgrade -qq && \
-                 | rm -rf /var/lib/apt/lists/*""".stripMargin)
         expose(8000)
         add(artifact, artifactTargetPath)
         runRaw(s"ln -s $artifactTargetPath /app/$projectName.jar")

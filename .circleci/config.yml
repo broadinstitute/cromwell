@@ -3,8 +3,11 @@ version: 2.1
 jobs:
   build:
     machine:
-      image: ubuntu-2004:202010-01 # recommended linux image
+      image: ubuntu-2004:202010-01
     resource_class: large
     steps:
       - run: echo "Hello world."
+      - run: java -version
+      - run: docker version
+      - run: docker-compose version
 

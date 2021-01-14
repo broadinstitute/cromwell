@@ -269,12 +269,6 @@ cromwell::private::create_build_variables() {
     fi
 
     case "${CROMWELL_BUILD_TYPE}" in
-        centaurPapiUpgradePapiV1*)
-            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v1_v2alpha1_upgrade_application.conf"
-            ;;
-        centaurPapiUpgradeNewWorkflowsPapiV1*)
-            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v1_v2alpha1_upgrade_application.conf"
-            ;;
         centaurPapiUpgradePapiV2alpha1*)
             CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2alpha1_v2beta_upgrade_application.conf"
             ;;

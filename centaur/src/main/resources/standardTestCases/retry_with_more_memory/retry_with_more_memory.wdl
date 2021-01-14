@@ -13,7 +13,7 @@ task imitate_oom_error {
     docker: "python:latest"
     memory: "1 GB"
     continueOnReturnCode: true
-    maxRetries: 1
+    maxRetries: 2
     backend: "Papiv2"
   }
 }

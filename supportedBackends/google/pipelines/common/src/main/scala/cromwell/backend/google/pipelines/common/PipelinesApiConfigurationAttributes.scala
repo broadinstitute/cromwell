@@ -199,7 +199,7 @@ object PipelinesApiConfigurationAttributes
       BatchRequestTimeoutConfiguration(readTimeoutMillis = read, connectTimeoutMillis = connect)
     }
 
-    val referenceDiskLocalizationManifestFiles: ErrorOr[Option[List[ValidFullGcsPath]]] = validateGcsPathsToReferenceDiskManifestFiles(backendConfig)
+    val referenceDiskLocalizationManifestFiles: ErrorOr[Option[List[ValidFullGcsPath]]] = validateGcsPathsToReferenceDiskManifestFiles(backendConfig, backendName)
 
     val dockerImageCacheManifestFile: ErrorOr[Option[ValidFullGcsPath]] = validateGcsPathToDockerImageCacheManifestFile(backendConfig)
 

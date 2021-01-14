@@ -1,4 +1,4 @@
-FROM adoptopenjdk:8-jre-hotspot
+FROM us.gcr.io/broad-dsp-gcr-public/base/jre:8-debian
 
 RUN apt-get update -q && \
     apt-get upgrade -qq && \

@@ -47,7 +47,7 @@ object Publishing {
       val additionalDockerInstr: Seq[Instruction] = dockerCustomSettings.value
 
       new Dockerfile {
-        from("FROM us.gcr.io/broad-dsp-gcr-public/base/jre:8-debian")
+        from("us.gcr.io/broad-dsp-gcr-public/base/jre:8-debian")
         runRaw("""apt-get update -q && \
                  | apt-get upgrade -qq && \
                  | rm -rf /var/lib/apt/lists/*""".stripMargin)

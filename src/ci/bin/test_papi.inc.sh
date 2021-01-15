@@ -100,19 +100,7 @@ cromwell::private::papi::setup_papi_gcr() {
 
 cromwell::private::papi::setup_papi_service_account() {
     CROMWELL_BUILD_PAPI_AUTH_MODE="service-account"
-
-    # Delete all usages of CROMWELL_BUILD_PAPI_JSON_FILE from there if you delete this block!
-    if [[ "${CROMWELL_BUILD_TYPE}" == "centaurPapiV1" ]]; then
-        # Downgrade to an older service account on Papi V1 until refresh_token_no_auth_bucket.test is
-        # migrated/fixed/added for the Papi V2 credential below
-        CROMWELL_BUILD_PAPI_JSON_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-service-account.json"
-    else
-        # This service account does not have billing permission, and therefore cannot be used for requester pays
-        CROMWELL_BUILD_PAPI_JSON_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-centaur-service-account.json"
-    fi
-
     export CROMWELL_BUILD_PAPI_AUTH_MODE
-    export CROMWELL_BUILD_PAPI_JSON_FILE
 }
 
 cromwell::private::papi::setup_papi_endpoint_url() {

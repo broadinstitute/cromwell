@@ -12,7 +12,7 @@ jobs:
       - run: java -version
       - run: docker version
       - run: docker-compose version
-      - checkout
+      - run: git clone --depth 1 "$CIRCLE_REPOSITORY_URL" --branch "$CIRCLE_BRANCH"
       - run: ls -la
       - run: src/ci/bin/test.sh
     environment:

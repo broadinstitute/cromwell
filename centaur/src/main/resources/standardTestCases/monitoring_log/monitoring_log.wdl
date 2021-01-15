@@ -1,3 +1,5 @@
+version 1.0
+
 workflow monitoring_log {
   call get_stats
 }

@@ -1,7 +1,7 @@
 version: 2.1
 
-orbs:
-  openjdk-install: cloudesire/openjdk-install@1.2.3
+#orbs:
+#  openjdk-install: cloudesire/openjdk-install@1.2.3
 
 jobs:
   build:
@@ -9,7 +9,9 @@ jobs:
       image: ubuntu-2004:202010-01
     resource_class: large
     steps:
-      - run: echo "Hello world."
       - run: java -version
       - run: docker version
       - run: docker-compose version
+      - run: src/ci/bin/test.sh
+    environment:
+      BUILD_TYPE: sbt

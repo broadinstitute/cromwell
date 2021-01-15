@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 backends: [ Papiv2 ]
 
 files {
-  workflow: hello/hello.wdl
+  workflow: wdl_draft3/hello/hello.wdl
   inputs: hello/hello.inputs
   options: hello/hello.options
 }

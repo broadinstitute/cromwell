@@ -15,6 +15,9 @@ jobs:
       - run: git clone --depth 1 "$CIRCLE_REPOSITORY_URL" --branch "$CIRCLE_BRANCH"
       - run: cd cromwell/
       - run: ls -la
-      - run: src/ci/bin/test.sh
+      - run:
+          name: 'Cromwell bash suite'
+          command: src/ci/bin/test.sh
+          no_output_timeout: 1h
     environment:
       BUILD_TYPE: sbt

@@ -58,7 +58,7 @@ object IORetry {
 
   }
 
-  def throwableToFalse(e: Throwable) = false
+  def throwableToFalse(t: Throwable) = false
 
-  def throwableToTrue(e: Throwable) = true
+  def throwableToTrue(t: Throwable) = true
 }

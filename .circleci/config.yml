@@ -12,6 +12,7 @@ jobs:
       - run: java -version
       - run: docker version
       - run: docker-compose version
+      - run: ls -la
       - run: src/ci/bin/test.sh
     environment:
       BUILD_TYPE: sbt

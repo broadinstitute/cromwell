@@ -28,8 +28,13 @@ object JsonUtils {
       */
     def flatten(prefix: String = ""): JsObject = jsValue.asJsObject.fields.foldLeft(JsObject.empty) {
       case (acc, (k, v: JsArray)) if v.isSingleCallArray => acc ++ JsObject(k -> v.elements.head).flatten(prefix)
+      case (acc, (k, v: JsArray)) if v.hasShardIndex && v.hasAttemptNumber =>
+        // The .get on the shardIndex and attemptNumber is safe as we know all elements of the array have a
+        // shardIndex and attemptNumber field
+        acc ++
+          v.elements.map(_.asJsObject).fold(JsObject.empty) { (x, y) => x ++ y.flatten(s"$k.${y.shardIndex.get}") } ++
+          v.elements.map(_.asJsObject).fold(JsObject.empty) { (x, y) => x ++ y.flatten(s"$k.${y.shardIndex.get}.${y.attemptNumber.get}") }
       case (acc, (k, v: JsArray)) if v.hasShardIndex =>
-        // The .get on the shardIndex is safe as we know all elements of the array have a shardIndex field
         acc ++ v.elements.map(_.asJsObject).fold(JsObject.empty) { (x, y) => x ++ y.flatten(s"$k.${y.shardIndex.get}") }
       case (acc, (k, v: JsArray)) =>
         v.elements.zipWithIndex.foldLeft(acc) { case (accumulator, (element, idx)) =>
@@ -57,7 +62,9 @@ object JsonUtils {
 
     // A couple of helper functions to assist with flattening Cromwell metadata responses
     def hasShardIndex = jsObject.fields.keySet contains "shardIndex"
+    def hasAttemptNumber = jsObject.fields.keySet contains "attempt"
     def shardIndex = jsObject.fields.get("shardIndex") map { _.toString() }
+    def attemptNumber = jsObject.fields.get("attempt") map { _.toString() }
     def flattenToMap: Map [String, JsValue] = jsObject.flatten().fields map { case (k, v: JsValue) => k -> v}
   }
 
@@ -73,6 +80,11 @@ object JsonUtils {
 
     def hasShardIndex: Boolean = {
       if (jsArray.nonEmptyObjectArray) jsArray.elements.map(_.asJsObject) forall { _.hasShardIndex }
+      else false
+    }
+
+    def hasAttemptNumber: Boolean = {
+      if (jsArray.nonEmptyObjectArray) jsArray.elements.map(_.asJsObject) forall { _.hasAttemptNumber }
       else false
     }
   }

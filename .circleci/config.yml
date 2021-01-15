@@ -12,6 +12,7 @@ jobs:
       - run: java -version
       - run: docker version
       - run: docker-compose version
+      - checkout
       - run: ls -la
       - run: src/ci/bin/test.sh
     environment:

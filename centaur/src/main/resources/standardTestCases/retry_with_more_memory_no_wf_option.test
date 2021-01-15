@@ -10,7 +10,6 @@ metadata {
   workflowName: retry_with_more_memory_no_wf_option
   status: Failed
   "failures.0.message": "Workflow failed"
-  "failures.0.causedBy.0.message": "stderr for job `retry_with_more_memory.imitate_oom_error:NA:3` contained one of the `memory-retry-error-keys: [OutOfMemory, Killed]` specified in the Cromwell config. Job might have run out of memory."
   "retry_with_more_memory.imitate_oom_error.-1.attempt": 2
   "retry_with_more_memory.imitate_oom_error.-1.executionStatus": "Failed"
   "retry_with_more_memory.imitate_oom_error.-1.runtimeAttributes.memory": "1 GB"

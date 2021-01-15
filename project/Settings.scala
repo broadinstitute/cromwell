@@ -134,22 +134,21 @@ object Settings {
    */
   val installGcloudSettings: List[Def.Setting[Seq[Instruction]]] = List(
     dockerCustomSettings := List(
-      // instructions to install Google Cloud SDK
-      Instructions.Run("curl https://dl.google.com/dl/cloudsdk/release/google-cloud-sdk.tar.gz > /tmp/google-cloud-sdk.tar.gz"),
-      Instructions.Run("""mkdir -p /usr/local/gcloud \
-                         | && tar -C /usr/local/gcloud -xvf /tmp/google-cloud-sdk.tar.gz \
-                         | && /usr/local/gcloud/google-cloud-sdk/install.sh"""
-        .stripMargin),
       Instructions.Env("PATH", "$PATH:/usr/local/gcloud/google-cloud-sdk/bin"),
       // instructions to install `crcmod`
       Instructions.Run("apt-get -y update"),
-      Instructions.Run("apt-get -y install python3.7"),
+      Instructions.Run("apt-get -y install python3.8"),
       Instructions.Run("apt -y install python3-pip"),
       Instructions.Run("apt-get -y install gcc python-dev python-setuptools"),
       Instructions.Run("pip3 uninstall crcmod"),
       Instructions.Run("pip3 install --no-cache-dir -U crcmod"),
-      Instructions.Run("update-alternatives --install /usr/bin/python python /usr/bin/python3.7 1"),
-      Instructions.Env("CLOUDSDK_PYTHON", "python3.7"),
+      Instructions.Run("update-alternatives --install /usr/bin/python python /usr/bin/python3 1"),
+      Instructions.Env("CLOUDSDK_PYTHON", "python3"),
+      // instructions to install Google Cloud SDK
+      Instructions.Run("curl https://dl.google.com/dl/cloudsdk/release/google-cloud-sdk.tar.gz > /tmp/google-cloud-sdk.tar.gz"),
+      Instructions.Run("""mkdir -p /usr/local/gcloud \
+                         | && tar -C /usr/local/gcloud -xvf /tmp/google-cloud-sdk.tar.gz \
+                         | && /usr/local/gcloud/google-cloud-sdk/install.sh""".stripMargin),
     )
   )
 

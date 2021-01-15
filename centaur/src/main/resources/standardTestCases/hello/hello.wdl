@@ -1,5 +1,8 @@
 task hello {
   String addressee
+  meta {
+    volatile: true
+  }
   command {
     echo "Hello ${addressee}!"
   }

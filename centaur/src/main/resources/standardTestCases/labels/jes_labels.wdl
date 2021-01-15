@@ -8,6 +8,5 @@ task MY_TASK {
   }
   runtime {
     docker: "ubuntu:latest"
-    preemptible: 3
   }
 }

@@ -3,6 +3,9 @@ workflow monitoring_log {
 }
 
 task get_stats {
+  meta {
+    volatile: true
+  }
   command {
     sleep 50
   }

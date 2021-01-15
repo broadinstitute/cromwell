@@ -15,7 +15,7 @@ import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.engine.io.IoActor._
 import cromwell.engine.io.IoAttempts.EnhancedCromwellIoException
-import cromwell.engine.io.RetryableRequestSupport.{isRetryable, isTransient}
+import cromwell.engine.io.RetryableRequestSupport.{isRetryable, isInfinitelyRetryable}
 import cromwell.engine.io.gcs.GcsBatchFlow.{BatchFailedException, _}
 import cromwell.engine.io.{IoAttempts, IoCommandContext}
 import mouse.boolean._
@@ -166,7 +166,7 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     // If the failure is retryable - recover with a GcsBatchRetry so it can be retried in the next batch
     case failure if isRetryable(failure) =>
       context.retryIn match {
-        case Some(waitTime) if isTransient(failure) =>
+        case Some(waitTime) if isInfinitelyRetryable(failure) =>
           onRetry(context)(failure)
           akka.pattern.after(waitTime, scheduler)(Future.successful(GcsBatchRetry(context.nextTransient, failure)))
         case Some(waitTime) =>

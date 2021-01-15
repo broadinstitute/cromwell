@@ -270,7 +270,6 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
     )
 
     retryables foreach { RetryableRequestSupport.isRetryable(_) shouldBe true }
-    retryables foreach { RetryableRequestSupport.isFatal(_) shouldBe false }
   }
 
   it should "have correct non-retryable exceptions" in {
@@ -283,7 +282,6 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
     )
 
     nonRetryables foreach { RetryableRequestSupport.isRetryable(_) shouldBe false }
-    nonRetryables foreach { RetryableRequestSupport.isFatal(_) shouldBe true }
   }
 
   it should "not crash when certain exception members are `null`" in {

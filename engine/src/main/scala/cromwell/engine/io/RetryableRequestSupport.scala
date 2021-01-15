@@ -9,8 +9,6 @@ import javax.net.ssl.SSLException
 
 object RetryableRequestSupport {
 
-  def isFatal(failure: Throwable): Boolean = !isRetryable(failure)
-
   /**
     * Failures that are considered retryable.
     * Retrying them should increase the "retry counter"
@@ -27,7 +25,9 @@ object RetryableRequestSupport {
     case _: SocketTimeoutException => true
     case ioE: IOException if Option(ioE.getMessage).exists(_.contains("Error getting access token for service account")) => true
     case ioE: IOException => isGcs500(ioE) || isGcs503(ioE) || isGcs504(ioE)
-    case other => isTransient(other)
+    case other =>
+      // Infinitely retryable is a subset of retryable
+      isInfinitelyRetryable(other)
   }
 
   private val AdditionalRetryableHttpCodes = List(
@@ -51,11 +51,16 @@ object RetryableRequestSupport {
   /**
     * ATTENTION: Transient failures are retried *forever*
     * Be careful when adding error codes to this method.
-    * Currently only 429 (= quota exceeded are considered truly transient)
     */
-  def isTransient(failure: Throwable): Boolean = failure match {
-    case gcs: StorageException => gcs.getCode == 429
-    case _ => false
+  def isInfinitelyRetryable(failure: Throwable): Boolean = {
+
+    // Retry forever because eventually the user will have quota capacity again
+    def isGcsRateLimitException(failure: Throwable): Boolean = failure match {
+      case gcs: StorageException => gcs.getCode == 429
+      case _ => false
+    }
+
+    isGcsRateLimitException(failure)
   }
 
   def isGcs500(failure: Throwable): Boolean = {

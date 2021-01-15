@@ -10,7 +10,7 @@ import common.util.IORetry
 import cromwell.core.io._
 import cromwell.core.path.Path
 import cromwell.engine.io.IoActor._
-import cromwell.engine.io.RetryableRequestSupport.{isFatal, isTransient}
+import cromwell.engine.io.RetryableRequestSupport.{isRetryable, isInfinitelyRetryable}
 import cromwell.engine.io.{IoAttempts, IoCommandContext}
 import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPath
@@ -44,8 +44,8 @@ class NioFlow(parallelism: Int,
       IoAttempts(1),
       maxRetries = Option(nbAttempts),
       backoff = IoCommand.defaultBackoff,
-      isTransient = isTransient,
-      isFatal = isFatal,
+      isRetryable = isRetryable,
+      isInfinitelyRetryable = isInfinitelyRetryable,
       onRetry = onRetry
     )
 

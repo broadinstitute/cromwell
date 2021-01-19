@@ -14,6 +14,11 @@ jobs:
       - run: docker-compose version
       - run: git clone --depth 1 "$CIRCLE_REPOSITORY_URL" --branch "$CIRCLE_BRANCH" . # clone to working dir not `cromwell/`
       - run: ls -la
+      - run: wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | sudo apt-key add -
+      - run: sudo add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/
+      - run: sudo apt update
+      - run: sudo apt install adoptopenjdk-8-hotspot
+      - run: java -version
       - run:
           name: 'Single workflow runner'
           command: src/ci/bin/testSingleWorkflowRunner.sh

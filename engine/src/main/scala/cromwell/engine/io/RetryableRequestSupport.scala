@@ -55,6 +55,7 @@ object RetryableRequestSupport {
   def isInfinitelyRetryable(failure: Throwable): Boolean = {
 
     // Retry forever because eventually the user will have quota capacity again
+    // https://cloud.google.com/storage/docs/json_api/v1/status-codes#429_Too_Many_Requests
     def isGcsRateLimitException(failure: Throwable): Boolean = failure match {
       case gcs: StorageException => gcs.getCode == 429
       case _ => false

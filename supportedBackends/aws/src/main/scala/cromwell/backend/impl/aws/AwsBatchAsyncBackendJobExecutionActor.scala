@@ -162,7 +162,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
    * commandScriptContents here
    */
 
-  lazy val cmdScript =  configuration.fileSystem match {
+  lazy val cmdScript = configuration.fileSystem match {
      case AWSBatchStorageSystems.s3 => commandScriptContents.toEither.right.get
      case _ => execScript
   }
@@ -359,11 +359,11 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   // used by generateAwsBatchOutputs, could potentially move this def within that function
   private def generateAwsBatchSingleFileOutputs(womFile: WomSingleFile): List[AwsBatchFileOutput] = {
-     val destination = configuration.fileSystem match {
+    val destination = configuration.fileSystem match {
       case  AWSBatchStorageSystems.s3 =>  callRootPath.resolve(womFile.value.stripPrefix("/")).pathAsString
       case _ => DefaultPathBuilder.get(womFile.valueString) match {
-                 case p if !p.isAbsolute =>  callRootPath.resolve(womFile.value.stripPrefix("/")).pathAsString
-                 case p => p.pathAsString
+        case p if !p.isAbsolute =>  callRootPath.resolve(womFile.value.stripPrefix("/")).pathAsString
+        case p => p.pathAsString
       }
 
     }

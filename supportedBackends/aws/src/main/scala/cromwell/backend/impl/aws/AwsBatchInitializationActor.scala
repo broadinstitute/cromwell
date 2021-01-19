@@ -71,13 +71,13 @@ class AwsBatchInitializationActor(params: AwsBatchInitializationActorParams)
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     configuration.fileSystem match {
-     case AWSBatchStorageSystems.s3  => super.beforeAll
-     case _ => {
-                   initializationData map { data =>
-                   publishWorkflowRoot(data.workflowPaths.workflowRoot.pathAsString)
-                   Option(data)
-                 } 
-               }
+      case AWSBatchStorageSystems.s3  => super.beforeAll
+      case _ => { 
+        initializationData map { data =>
+          publishWorkflowRoot(data.workflowPaths.workflowRoot.pathAsString)
+          Option(data)
+        } 
+      }
     }
   }
 

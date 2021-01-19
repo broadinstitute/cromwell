@@ -238,6 +238,8 @@ cromwell::private::create_build_variables() {
             else
                 CROMWELL_BUILD_IS_SECURE=false
             fi
+
+            CROMWELL_BUILD_EVENT="pull_request"
             ;;
         *)
             CROMWELL_BUILD_IS_CI=false
@@ -366,6 +368,7 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_PROVIDER
     export CROMWELL_BUILD_PROVIDER_JENKINS
     export CROMWELL_BUILD_PROVIDER_TRAVIS
+    export CROMWELL_BUILD_PROVIDER_CIRCLE
     export CROMWELL_BUILD_PROVIDER_UNKNOWN
     export CROMWELL_BUILD_REQUIRES_SECURE
     export CROMWELL_BUILD_REQUIRES_PRIOR_VERSION
@@ -410,7 +413,8 @@ cromwell::private::create_database_variables() {
     CROMWELL_BUILD_DATABASE_SCHEMA="cromwell_test"
 
     case "${CROMWELL_BUILD_PROVIDER}" in
-        "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
+        "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
+        "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
             CROMWELL_BUILD_MARIADB_HOSTNAME="localhost"
             CROMWELL_BUILD_MARIADB_PORT="23306"
             CROMWELL_BUILD_MARIADB_DOCKER_TAG="${BUILD_MARIADB-}"

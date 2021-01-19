@@ -37,7 +37,6 @@ services:
       - CROMWELL_BUILD_BCS_CLUSTER_ID
       - CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
       - CROMWELL_BUILD_PAPI_AUTH_MODE
-      - CROMWELL_BUILD_PAPI_JSON_FILE
       - CROMWELL_BUILD_PAPI_ENDPOINT_URL
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080"]
@@ -72,7 +71,6 @@ services:
       - CROMWELL_BUILD_BCS_CLUSTER_ID
       - CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
       - CROMWELL_BUILD_PAPI_AUTH_MODE
-      - CROMWELL_BUILD_PAPI_JSON_FILE
       - CROMWELL_BUILD_PAPI_ENDPOINT_URL
     depends_on:
       db-mstr:
@@ -119,7 +117,6 @@ services:
       - CROMWELL_BUILD_BCS_CLUSTER_ID
       - CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
       - CROMWELL_BUILD_PAPI_AUTH_MODE
-      - CROMWELL_BUILD_PAPI_JSON_FILE
       - CROMWELL_BUILD_PAPI_ENDPOINT_URL
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:${CROMWELL_BUILD_CENTAUR_MANAGED_PORT}"]

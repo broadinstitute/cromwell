@@ -62,12 +62,15 @@ cromwell::private::set_variable_if_only_some_files_changed() {
 cromwell::private::create_build_variables() {
     CROMWELL_BUILD_PROVIDER_TRAVIS="travis"
     CROMWELL_BUILD_PROVIDER_JENKINS="jenkins"
+    CROMWELL_BUILD_PROVIDER_CIRCLE="circle"
     CROMWELL_BUILD_PROVIDER_UNKNOWN="unknown"
 
     if [[ "${TRAVIS-false}" == "true" ]]; then
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_TRAVIS}"
     elif [[ "${JENKINS-false}" == "true" ]]; then
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_JENKINS}"
+    elif [[ "${CIRCLECI-false}" == "true" ]]; then
+        CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_CIRCLE}"
     else
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_UNKNOWN}"
     fi
@@ -214,6 +217,27 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_HEARTBEAT_PATTERN="…\n"
             CROMWELL_BUILD_GENERATE_COVERAGE=false
             CROMWELL_BUILD_RUN_TESTS=true
+            ;;
+        "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
+            CROMWELL_BUILD_IS_CI=true
+            CROMWELL_BUILD_TYPE="${BUILD_TYPE}"
+            CROMWELL_BUILD_NUMBER="${CIRCLE_BUILD_NUM}"
+            CROMWELL_BUILD_URL="${CIRCLE_BUILD_URL}"
+            CROMWELL_BUILD_GIT_USER_EMAIL="builds@circleci.com"
+            CROMWELL_BUILD_GIT_USER_NAME="CircleCI"
+            CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
+            CROMWELL_BUILD_GENERATE_COVERAGE=true
+            CROMWELL_BUILD_BRANCH="${CIRCLE_BRANCH:-${CIRCLE_TAG}}"
+            CROMWELL_BUILD_TAG="${CIRCLE_TAG:-}"
+
+            local circle_github_repository
+            circle_github_repository="${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}"
+
+            if [[ "${circle_github_repository}" == "broadinstitute/cromwell" ]]; then
+                CROMWELL_BUILD_IS_SECURE=true
+            else
+                CROMWELL_BUILD_IS_SECURE=false
+            fi
             ;;
         *)
             CROMWELL_BUILD_IS_CI=false

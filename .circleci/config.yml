@@ -7,7 +7,7 @@ jobs:
   build:
     machine:
       image: ubuntu-2004:202010-01
-    resource_class: large
+    resource_class: medium
     steps:
       - run: java -version
       - run: docker version

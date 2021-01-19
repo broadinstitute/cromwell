@@ -22,8 +22,8 @@ jobs:
       - run: sudo update-java-alternatives --set adoptopenjdk-8-hotspot-amd64
       - run: java -version
       - run:
-          name: 'Single workflow runner'
-          command: src/ci/bin/testSingleWorkflowRunner.sh
+          name: 'SBT unit tests'
+          command: src/ci/bin/testSbt.sh
           no_output_timeout: 1h
     environment:
       BUILD_TYPE: sbt

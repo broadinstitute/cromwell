@@ -1,7 +1,7 @@
 version: 2.1
 
-#orbs:
-#  openjdk-install: cloudesire/openjdk-install@1.2.3
+orbs:
+  openjdk-install: cloudesire/openjdk-install@1.2.3
 
 jobs:
   build:

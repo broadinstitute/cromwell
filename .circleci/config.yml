@@ -18,7 +18,8 @@ jobs:
       - run: sudo add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/
       - run: sudo apt update
       - run: sudo apt install adoptopenjdk-8-hotspot
-      - run: sudo  update-java-alternatives --list
+      - run: sudo update-java-alternatives --list
+      - run: sudo update-java-alternatives --set adoptopenjdk-8-hotspot-amd64
       - run: java -version
       - run:
           name: 'Single workflow runner'

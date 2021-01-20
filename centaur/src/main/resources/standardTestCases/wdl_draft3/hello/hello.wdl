@@ -1,20 +1,23 @@
 version 1.0
 
-workflow monitoring_log {
-  call get_stats
-}
-
-task get_stats {
+task hello {
+  input {
+    String addressee
+  }
   meta {
     volatile: true
   }
   command {
-    sleep 50
+    echo "Hello ${addressee}!"
   }
   output {
-    Array[String] stats = read_lines("monitoring.log")
+    String salutation = read_string(stdout())
   }
   runtime {
     docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
   }
+}
+
+workflow wf_hello {
+  call hello
 }

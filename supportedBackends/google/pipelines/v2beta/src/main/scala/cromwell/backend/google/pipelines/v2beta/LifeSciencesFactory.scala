@@ -163,7 +163,6 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
                 false
               }
             } else {
-              // should not happen
               jobLogger.error(s"Programmer error ! Odd docker image name where supposed to be name with digest: $dockerImageWithDigest")
               false
             }

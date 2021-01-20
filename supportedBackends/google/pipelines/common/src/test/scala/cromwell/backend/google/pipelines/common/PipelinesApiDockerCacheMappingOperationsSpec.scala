@@ -22,8 +22,16 @@ class PipelinesApiDockerCacheMappingOperationsSpec
   it should "successfully parse docker image cache manifest JSON file as instance of Map[String, String]" in {
     val pipelinesApiDockerCacheMappingOperationsMock = new PipelinesApiDockerCacheMappingOperations {}
     val expectedMap = Map(
-      "project1/dockerImage1" -> "projects/some-google-project/global/images/dockerCacheDiskForDockerImage1",
-      "project2/dockerImage2" -> "projects/another-google-project/global/images/dockerCacheDiskForDockerImage2"
+      "project1/dockerImage1" ->
+        DockerImageCacheEntry(
+          "sha256:c73e11b1a7854f31ff12c607738bef7b0560a880dc9d0445dde084acc0e9da09",
+          "projects/some-google-project/global/images/dockerCacheDiskForDockerImage1"
+        ),
+      "project2/dockerImage2" ->
+        DockerImageCacheEntry(
+          "sha256:7eb386481d87e41ebddceb948f25379bb339784df5247a3dfbdea2ac101b10c0",
+          "projects/another-google-project/global/images/dockerCacheDiskForDockerImage2"
+        )
     )
 
     val testJsonFileName = "docker-image-cache-manifest.json"
@@ -46,7 +54,7 @@ class PipelinesApiDockerCacheMappingOperationsSpec
       mockClient
     }
 
-    val readFileFromGcsPrivateMethod = PrivateMethod[IO[Map[String, String]]]('readDockerImageCacheManifestFileFromGCS)
+    val readFileFromGcsPrivateMethod = PrivateMethod[IO[Map[String, DockerImageCacheEntry]]]('readDockerImageCacheManifestFileFromGCS)
     val parsedJsonAsMapIO = pipelinesApiDockerCacheMappingOperationsMock invokePrivate readFileFromGcsPrivateMethod(mockGcsClient, testJsonGcsPath)
     val parsedJsonAsMap = parsedJsonAsMapIO.unsafeRunSync()
 

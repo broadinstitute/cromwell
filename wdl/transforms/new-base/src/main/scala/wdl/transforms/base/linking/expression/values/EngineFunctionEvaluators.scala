@@ -3,6 +3,7 @@ package wdl.transforms.base.linking.expression.values
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import cats.instances.list._
+import common.validation.ErrorOr
 import common.validation.ErrorOr._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
@@ -659,7 +660,7 @@ object EngineFunctionEvaluators {
         a.input.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions),
         a.pattern.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions),
         a.replace.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { (input, pattern, replace) =>
-        EvaluatedValue(WomString(pattern.valueString.r.replaceAllIn(input.valueString, replace.valueString)), Seq.empty).validNel
+        ErrorOr(EvaluatedValue(WomString(pattern.valueString.r.replaceAllIn(input.valueString, replace.valueString)), Seq.empty))
       }
     }
   }

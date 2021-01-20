@@ -4,6 +4,7 @@ import _root_.wdl.draft2.model._
 import akka.actor.{ActorRef, FSM, Props}
 import cats.data.Validated.{Invalid, Valid}
 import common.exception.MessageAggregation
+import common.validation.ErrorOr
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation.{GreaterEqualOne, GreaterEqualRefined}
 import cromwell.backend._
@@ -32,6 +33,7 @@ import wom.values._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success}
 
 /**
@@ -78,7 +80,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
           val updatedRuntimeAttributes = updateRuntimeMemory(attributes)
           fetchDockerHashesIfNecessary(inputs, updatedRuntimeAttributes)
         }
-        case Invalid(failure) => sendFailureAndStop(new MessageAggregation {
+        case Invalid(failure) => sendFailureAndStop(new MessageAggregation with NoStackTrace {
           override def exceptionContext: String = s"Call input and runtime attributes evaluation failed for ${jobKey.call.localName}"
           override def errorMessages: Traversable[String] = failure.toList
         })
@@ -122,9 +124,9 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   private [preparation] def evaluateInputsAndAttributes(valueStore: ValueStore): ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WomValue])] = {
-    import common.validation.ErrorOr.ShortCircuitingFlatMap
+    import common.validation.ErrorOr.{ShortCircuitingFlatMap, NestedErrorOr}
     for {
-      evaluatedInputs <- resolveAndEvaluateInputs(jobKey, expressionLanguageFunctions, valueStore)
+      evaluatedInputs <- ErrorOr(resolveAndEvaluateInputs(jobKey, expressionLanguageFunctions, valueStore)).flatten
       runtimeAttributes <- prepareRuntimeAttributes(evaluatedInputs)
     } yield (evaluatedInputs, runtimeAttributes)
   }

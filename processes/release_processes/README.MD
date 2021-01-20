@@ -72,7 +72,8 @@ I chose to increase it from 2GB to 8GB but 4 might have been sufficient.
 and user support/comms to let them know that the upgrade may involve downtime is also required. You may need to help draft an impact statement and co-ordinate timing
 the deploy to make sure user impact in minimized.
 
-**Note:** How to accomplish some of these steps might be non-obvious to you. If so, refer to the additional details in the [full document](https://docs.google.com/document/d/1EEzwemE8IedCplIwL506fiqXr0262Pz4G0x6Cr6V-5E). 
+**Note:** How to accomplish some of these steps might be non-obvious to you (e.g. generating the release notes).
+If so, refer to the additional details in the [full document](https://docs.google.com/document/d/1EEzwemE8IedCplIwL506fiqXr0262Pz4G0x6Cr6V-5E). 
 
 ![firecloud-develop](firecloud-develop.dot.png) 
 

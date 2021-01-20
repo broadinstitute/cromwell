@@ -49,7 +49,7 @@ digraph {
 
   coordinate_release_timing [shape=oval label="If downtime will be required, co-ordinate with the release engineer\nand user support/comms about timings and banners"];
 
-  update_release_ticket [shape=oval label="Update the release ticket to add a link to the release notes"];
+  update_release_ticket [shape=oval label="Update the release with full commit list (see doc)"];
 
   resume_core_release_process [shape=oval label="Resume the core Cromwell release process to complete remaining steps"];
 

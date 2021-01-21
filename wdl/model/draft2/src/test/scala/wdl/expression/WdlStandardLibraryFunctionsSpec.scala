@@ -37,7 +37,7 @@ class WdlStandardLibraryFunctionsSpec extends AnyFlatSpec with CromwellTimeoutSp
     }
 
     it should s"select [${select_all.mkString(", ")}] as the select_all value in [${input.mkString(", ")}]" in {
-      val expectedSelectAllOutput = Success(WomArray(WomArrayType(WomIntegerType), select_all.map(WomInteger)))
+      val expectedSelectAllOutput = Success(WomArray(WomArrayType(WomIntegerType), select_all.map(WomInteger.apply)))
       TestableFunctions.select_all(functionInput) should be(expectedSelectAllOutput)
     }
   }

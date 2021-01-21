@@ -255,15 +255,20 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
       new SocketTimeoutException(),
       new IOException("text Error getting access token for service account some other text"),
 
+      // Note newlines `\n` in Google errors:
+      //   "The dot matches a single character, without caring what that character is. The only exception are line break characters."
+      //   https://www.regular-expressions.info/dot.html
+      new IOException("Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 500 Internal Server Error\nBackend Error"),
       new IOException("Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 500 Internal Server Error Backend Error"),
-      new IOException("500 Internal Server Error"),
-      new IOException("Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 503 Service Unavailable Backend Error"),
-      new IOException("503 Service Unavailable"),
 
+      new IOException("Could not read from gs://broad-epi-cromwell/workflows/ChipSeq/ce6a5671-baf6-4734-a32b-abf3d9138e9b/call-epitope_classifier/memory_retry_rc: 503 Service Unavailable\nBackend Error"),
+      new IOException("Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 503 Service Unavailable Backend Error"),
+
+      new IOException("Could not read from gs://mccarroll-mocha/cromwell/cromwell-executions/mocha/86d47e9a-5745-4ec0-b4eb-0164f073e5f4/call-idat2gtc/shard-73/rc: 504 Gateway Timeout\nGET https://storage.googleapis.com/download/storage/v1/b/mccarroll-mocha/o/cromwell%2Fcromwell-executions%2Fmocha%2F86d47e9a-5745-4ec0-b4eb-0164f073e5f4%2Fcall-idat2gtc%2Fshard-73%2Frc?alt=media"),
+
+      // Prove that `isRetryable` successfully recurses to unwrap the lowest-level Throwable
       new IOException(new Throwable("Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 500 Internal Server Error Backend Error")),
-      new IOException(new Throwable("500 Internal Server Error")),
       new IOException(new Throwable("Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 503 Service Unavailable Backend Error")),
-      new IOException(new Throwable("503 Service Unavailable")),
 
       new IOException("Some other text. Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 503 Service Unavailable"),
       new IOException("Some other text. Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 504 Gateway Timeout"),

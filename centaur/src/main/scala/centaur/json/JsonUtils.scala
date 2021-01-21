@@ -32,12 +32,11 @@ object JsonUtils {
       */
     def flatten(prefix: String = ""): JsObject = {
 
-      def flattenShardAndAttempt(k: String, v: JsArray, f: JsObject => String): JsObject = {
-        v.elements.map(_.asJsObject).fold(JsObject.empty) { (x, y) => x ++ y.flatten(s"$k.${f(y)}") }
+      def flattenShardAndAttempt(v: JsArray, f: JsObject => String): JsObject = {
+        v.elements.map(_.asJsObject).fold(JsObject.empty) { (x, y) => x ++ y.flatten(f(y)) }
       }
 
       jsValue.asJsObject.fields.foldLeft(JsObject.empty) {
-        case (acc, (k, v: JsArray)) if v.isSingleCallArray => acc ++ JsObject(k -> v.elements.head).flatten(prefix)
         case (acc, (k, v: JsArray)) if v.hasField(shardIndex) && v.hasField(attemptNumber) =>
           /* The .get on the shardIndex and attemptNumber is safe as we know all elements of the array have a
              shardIndex and attempt field. This conversion will also add the attempt number in the flattened key structure
@@ -46,8 +45,9 @@ object JsonUtils {
              that rely on the older flattened structure. This should be cleaned up in https://broadworkbench.atlassian.net/browse/BW-483
           */
           acc ++
-            flattenShardAndAttempt(k, v, (y: JsObject) => y.getField(shardIndex).get) ++
-            flattenShardAndAttempt(k, v, (y: JsObject) => s"${y.getField(shardIndex).get}.${y.getField(attemptNumber).get}")
+            flattenShardAndAttempt(v, (_: JsObject) => prefix) ++
+            flattenShardAndAttempt(v, (y: JsObject) => s"$k.${y.getField(shardIndex).get}") ++
+            flattenShardAndAttempt(v, (y: JsObject) => s"$k.${y.getField(shardIndex).get}.${y.getField(attemptNumber).get}")
         case (acc, (k, v: JsArray)) =>
           v.elements.zipWithIndex.foldLeft(acc) { case (accumulator, (element, idx)) =>
             val maybePrefix = if (prefix.isEmpty) "" else s"$prefix."
@@ -87,7 +87,6 @@ object JsonUtils {
     def nonEmpty = jsArray.elements.nonEmpty
     def size = jsArray.elements.size
     def nonEmptyObjectArray = jsArray.isObjectArray && jsArray.nonEmpty
-    def isSingleCallArray = jsArray.hasField(shardIndex) && jsArray.size == 1
 
     def hasField(fieldName: String): Boolean = {
       if (jsArray.nonEmptyObjectArray) jsArray.elements.map(_.asJsObject) forall { _.hasField(fieldName) }

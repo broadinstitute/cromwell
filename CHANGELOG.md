@@ -1,5 +1,13 @@
 # Cromwell Change Log
 
+## 56 Release Notes
+
+### Bug Fixes
+
+* Fixed a bug that caused Cromwell to mark workflows as failed after a single `500`, `503`, or `504` error from Google Cloud Storage.
+  * Cromwell will now retry these errors as designed.
+  * The default retry count is `5` and may be customized with `system.io.number-of-attempts`. 
+
 ## 55 Release Notes
 
 ### Apple Silicon support statement

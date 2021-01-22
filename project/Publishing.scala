@@ -47,7 +47,7 @@ object Publishing {
       val additionalDockerInstr: Seq[Instruction] = dockerCustomSettings.value
 
       new Dockerfile {
-        from("openjdk:8")
+        from("us.gcr.io/broad-dsp-gcr-public/base/jre:8-debian")
         expose(8000)
         add(artifact, artifactTargetPath)
         runRaw(s"ln -s $artifactTargetPath /app/$projectName.jar")

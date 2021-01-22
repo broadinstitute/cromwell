@@ -50,7 +50,7 @@ case class PipelinesApiConfigurationAttributes(project: String,
                                                memoryRetryConfiguration: Option[MemoryRetryConfiguration],
                                                allowNoAddress: Boolean,
                                                referenceFileToDiskImageMappingOpt: Option[Map[String, PipelinesApiReferenceFilesDisk]],
-                                               dockerImageToCacheDiskImageMappingOpt: Option[Map[String, String]],
+                                               dockerImageToCacheDiskImageMappingOpt: Option[Map[String, DockerImageCacheEntry]],
                                                checkpointingInterval: FiniteDuration
                                               )
 

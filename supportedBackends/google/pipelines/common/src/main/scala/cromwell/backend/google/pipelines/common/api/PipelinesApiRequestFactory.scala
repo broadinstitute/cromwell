@@ -93,7 +93,7 @@ object PipelinesApiRequestFactory {
                                       enableSshAccess: Boolean,
                                       vpcNetworkAndSubnetworkProjectLabels: Option[VpcAndSubnetworkProjectLabelValues],
                                       useDockerImageCache: Boolean,
-                                      dockerImageToCacheDiskImageMappingOpt: Option[Map[String, String]]
+                                      dockerImageToCacheDiskImageMappingOpt: Option[Map[String, DockerImageCacheEntry]]
                                      ) {
     def literalInputs = inputOutputParameters.literalInputParameters
     def inputParameters = inputOutputParameters.fileInputParameters

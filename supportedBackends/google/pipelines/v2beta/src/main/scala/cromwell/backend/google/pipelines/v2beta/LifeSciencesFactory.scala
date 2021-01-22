@@ -145,9 +145,30 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
 
 
       val dockerImageCacheDiskOpt = createPipelineParameters.useDockerImageCache.option {
+        val dockerImageWithDigest = createPipelineParameters.dockerImage
+        val dockerImageAsSpecifiedByUser = createPipelineParameters.runtimeAttributes.dockerImage
         createPipelineParameters
           .dockerImageToCacheDiskImageMappingOpt
-          .flatMap(_.get(createPipelineParameters.runtimeAttributes.dockerImage))
+          .flatMap(_.get(dockerImageAsSpecifiedByUser))
+          .filter { cachedDockerImageDigestAndDiskName =>
+            val hashStartingPositionInActualDockerImage = dockerImageWithDigest.indexOf('@')
+            if (hashStartingPositionInActualDockerImage != -1) {
+              val actualDigestOfDesiredDockerImage = dockerImageWithDigest.substring(hashStartingPositionInActualDockerImage + 1)
+              if (cachedDockerImageDigestAndDiskName.dockerImageDigest == actualDigestOfDesiredDockerImage) {
+                true
+              } else {
+                jobLogger.info(s"Cached Docker image digest mismatch. Requested docker image $dockerImageAsSpecifiedByUser has different digest than " +
+                  s"corresponding cached image located at the ${cachedDockerImageDigestAndDiskName.diskImageName} disk image. " +
+                  s"Digest of requested image is ${actualDigestOfDesiredDockerImage}, but digest of cached image is ${cachedDockerImageDigestAndDiskName.dockerImageDigest}. " +
+                  s"Docker image cache feature will not be used for this task.")
+                false
+              }
+            } else {
+              jobLogger.error(s"Programmer error ! Odd docker image name where supposed to be name with digest: $dockerImageWithDigest")
+              false
+            }
+          }
+          .map(_.diskImageName)
       }.flatten
 
       dockerImageCacheDiskOpt foreach { dockerImageCacheDisk =>

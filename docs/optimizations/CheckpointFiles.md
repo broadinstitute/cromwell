@@ -35,7 +35,10 @@ To make the checkpointing work, the `runtime` section specifies `checkpointFile:
 version 1.0
 
 workflow count_wf {
-  call count { input: count_to = 100 }
+  # Count to 2100 at 1/second => 35 minutes to complete, but
+  # luckily the state can be checkpointed every 10 minutes in
+  # case of preemption: 
+  call count { input: count_to = 2100 }
 }
 
 task count {
@@ -54,7 +57,7 @@ task count {
     for i in $(seq $FROM_CKPT ~{count_to})
     do
       echo $i $(date) >> my_checkpoint
-      sleep 4
+      sleep 1
     done
   >>>
 

@@ -159,6 +159,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
               } else {
                 jobLogger.info(s"Cached Docker image digest mismatch. Requested docker image $dockerImageAsSpecifiedByUser has different digest than " +
                   s"corresponding cached image located at the ${cachedDockerImageDigestAndDiskName.diskImageName} disk image. " +
+                  s"Digest of requested image is ${actualDigestOfDesiredDockerImage}, but digest of cached image is ${cachedDockerImageDigestAndDiskName.dockerImageDigest}. " +
                   s"Docker image cache feature will not be used for this task.")
                 false
               }

@@ -255,9 +255,6 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
       new SocketTimeoutException(),
       new IOException("text Error getting access token for service account some other text"),
 
-      // Note newlines `\n` in Google errors:
-      //   "The dot matches a single character, without caring what that character is. The only exception are line break characters."
-      //   https://www.regular-expressions.info/dot.html
       new IOException("Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 500 Internal Server Error\nBackend Error"),
       new IOException("Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 500 Internal Server Error Backend Error"),
 

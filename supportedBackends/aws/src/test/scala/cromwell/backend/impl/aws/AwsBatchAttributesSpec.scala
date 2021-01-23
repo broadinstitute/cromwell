@@ -84,11 +84,28 @@ class AwsBatchAttributesSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
       |
       |
       |   filesystems = {
-      |     s3 {
+      |     local {
       |       // A reference to a potentially different auth for manipulating files via engine functions.
       |       auth = "application-default"
       |     }
       |   }
       |}
       | """.stripMargin
+  def configStringS3(): String =
+    s"""
+       |{
+       |   root = "s3://myBucket"
+       |   maximum-polling-interval = 600
+       |   numSubmitAttempts = 6
+       |   numCreateDefinitionAttempts = 6
+       |
+       |
+       |   filesystems = {
+       |     s3 {
+       |       // A reference to a potentially different auth for manipulating files via engine functions.
+       |       auth = "application-default"
+       |     }
+       |   }
+       |}
+       | """.stripMargin
 }

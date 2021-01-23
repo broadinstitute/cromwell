@@ -43,7 +43,7 @@ import cromwell.backend.impl.aws.AwsBatchAsyncBackendJobExecutionActor.AwsBatchP
 import cromwell.backend.impl.aws.RunStatus.UnsuccessfulRunStatus
 import cromwell.backend.impl.aws.io.AwsBatchWorkingDisk
 import cromwell.backend.io.JobPathsSpecHelper._
-import cromwell.backend.standard.{DefaultStandardAsyncExecutionActorParams, StandardAsyncExecutionActorParams, StandardAsyncJob, StandardExpressionFunctionsParams}
+import cromwell.backend.standard.{DefaultStandardAsyncExecutionActorParams, StandardAsyncExecutionActorParams, StandardAsyncJob, StandardExpressionFunctions, StandardExpressionFunctionsParams}
 import cromwell.cloudsupport.aws.s3.S3Storage
 import cromwell.core.Tags.AwsTest
 import cromwell.core._
@@ -83,12 +83,13 @@ import scala.util.Success
 
 class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAsyncBackendJobExecutionActorSpec")
   with AnyFlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter with DefaultJsonProtocol {
-  lazy val mockPathBuilder: S3PathBuilder = S3PathBuilder.fromProvider(
+  lazy val mockPathBuilderS3: S3PathBuilder = S3PathBuilder.fromProvider(
     AnonymousCredentialsProvider.create,
     S3Storage.DefaultConfiguration,
     WorkflowOptions.empty,
     Option(Region.US_EAST_1)
   )
+  lazy val mockPathBuilderLocal = DefaultPathBuilder
 
   var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor))
 
@@ -121,21 +122,31 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
 
   private val NoOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
 
-  private lazy val TestableCallContext =
-    CallContext(mockPathBuilder.build("s3://root").get, DummyStandardPaths, isDocker = false)
+  private lazy val TestableCallContextS3 =
+    CallContext(mockPathBuilderS3.build("s3://root").get, DummyStandardPaths, isDocker = false)
+  private lazy val TestableCallContextLocal =
+    CallContext(mockPathBuilderLocal.build("/root").get, DummyStandardPaths, isDocker = false)
 
-  lazy val TestableStandardExpressionFunctionsParams: StandardExpressionFunctionsParams =
+  lazy val TestableStandardExpressionFunctionsParamsS3: StandardExpressionFunctionsParams =
     new StandardExpressionFunctionsParams {
-    override lazy val pathBuilders: List[PathBuilder] = List(mockPathBuilder)
-    override lazy val callContext: CallContext = TestableCallContext
+    override lazy val pathBuilders: List[PathBuilder] = List(mockPathBuilderS3)
+    override lazy val callContext: CallContext = TestableCallContextS3
     override val ioActorProxy: ActorRef = simpleIoActor
     override val executionContext: ExecutionContext = system.dispatcher
   }
-
+  lazy val TestableStandardExpressionFunctionsParamsLocal: StandardExpressionFunctionsParams =
+    new StandardExpressionFunctionsParams {
+      override lazy val pathBuilders: List[PathBuilder] = List(mockPathBuilderLocal)
+      override lazy val callContext: CallContext = TestableCallContextLocal
+      override val ioActorProxy: ActorRef = simpleIoActor
+      override val executionContext: ExecutionContext = system.dispatcher
+    }
   lazy val TestableAwsBatchExpressionFunctions: AwsBatchExpressionFunctions = {
-    new AwsBatchExpressionFunctions(TestableStandardExpressionFunctionsParams)
+    new AwsBatchExpressionFunctions(TestableStandardExpressionFunctionsParamsS3)
   }
-
+  lazy val TestableAwsBatchExpressionFunctionsLocal: AwsBatchExpressionFunctions = {
+    new AwsBatchExpressionFunctions(TestableStandardExpressionFunctionsParamsLocal)
+  }
   private def buildInitializationData(jobDescriptor: BackendJobDescriptor, configuration: AwsBatchConfiguration) = {
     val workflowPaths = AwsBatchWorkflowPaths(
       jobDescriptor.workflowDescriptor,
@@ -146,13 +157,14 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
     AwsBatchBackendInitializationData(workflowPaths, runtimeAttributesBuilder, configuration, null)
   }
 
-  class TestableAwsBatchJobExecutionActor(params: StandardAsyncExecutionActorParams, functions: AwsBatchExpressionFunctions)
+  class TestableAwsBatchJobExecutionActor(params: StandardAsyncExecutionActorParams, functions: StandardExpressionFunctions)
     extends AwsBatchAsyncBackendJobExecutionActor(params) {
 
     def this(jobDescriptor: BackendJobDescriptor,
              promise: Promise[BackendJobExecutionResponse],
              configuration: AwsBatchConfiguration,
-             functions: AwsBatchExpressionFunctions = TestableAwsBatchExpressionFunctions,
+             //functions: AwsBatchExpressionFunctions = TestableAwsBatchExpressionFunctions,
+             functions: StandardExpressionFunctions = TestableAwsBatchExpressionFunctions,
              singletonActor: ActorRef = emptyActor,
              ioActor: ActorRef = mockIoActor) = {
 
@@ -183,7 +195,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
       override val slf4jLoggers: Set[Logger] = Set.empty
     }
 
-    override lazy val backendEngineFunctions: AwsBatchExpressionFunctions = functions
+    override lazy val backendEngineFunctions: StandardExpressionFunctions = functions
   }
 
   private val configuration = new AwsBatchConfiguration(AwsBatchBackendConfigurationDescriptor)
@@ -271,12 +283,13 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
   //   Await.result(promise.future, Timeout)
   // }
 
-  def buildTestActorRef(): TestActorRef[TestableAwsBatchJobExecutionActor] = {
+  def buildTestActorRef(functions:StandardExpressionFunctions): TestActorRef[TestableAwsBatchJobExecutionActor] = {
     // For this test we say that all previous attempts were preempted:
     val jobDescriptor = buildJobDescriptor()
     val props = Props(new TestableAwsBatchJobExecutionActor(jobDescriptor, Promise(),
       configuration,
-      TestableAwsBatchExpressionFunctions,
+      //TestableAwsBatchExpressionFunctions,
+      functions,
       emptyActor,
       failIoActor))
     TestActorRef(props, s"TestableAwsBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
@@ -396,7 +409,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
   // }
 
   it should "handle Failure Status for various errors" taggedAs AwsTest in {
-    val actorRef = buildTestActorRef()
+    val actorRef = buildTestActorRef(TestableAwsBatchExpressionFunctions)
     val backend = actorRef.underlyingActor
     val runId = StandardAsyncJob(UUID.randomUUID().toString)
     val handle = new AwsBatchPendingExecutionHandle(null, runId, None, None)
@@ -457,7 +470,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
         val runtimeAttributes = makeRuntimeAttributes(call)
         val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, None, Map.empty)
 
-        val props = Props(new TestableAwsBatchJobExecutionActor(jobDescriptor, Promise(), configuration))
+        val props = Props(new TestableAwsBatchJobExecutionActor(jobDescriptor, Promise(), configuration, TestableAwsBatchExpressionFunctions))
         val testActorRef = TestActorRef[TestableAwsBatchJobExecutionActor](
           props, s"TestableAwsBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
@@ -561,7 +574,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
   }
 
   def makeAwsBatchActorRef(sampleWdl: SampleWdl, callName: LocallyQualifiedName, inputs: Map[FullyQualifiedName, WomValue],
-                      functions: AwsBatchExpressionFunctions = TestableAwsBatchExpressionFunctions):
+                      functions: StandardExpressionFunctions = TestableAwsBatchExpressionFunctions):
   TestActorRef[TestableAwsBatchJobExecutionActor] = {
     val womWorkflow = WdlNamespaceWithWorkflow.load(sampleWdl.asWorkflowSources(DockerAndDiskRuntime).workflowSource.get,
       Seq.empty[Draft2ImportResolver]).get.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
@@ -611,12 +624,16 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
       "strs" -> WomArray(WomArrayType(WomStringType), Seq("A", "B", "C").map(WomString))
     )
 
-    class TestAwsBatchExpressionFunctions extends AwsBatchExpressionFunctions(TestableStandardExpressionFunctionsParams) {
+    class TestAwsBatchExpressionFunctions extends AwsBatchExpressionFunctions(TestableStandardExpressionFunctionsParamsS3) {
       override def writeFile(path: String, content: String): Future[WomSingleFile] = {
         Future.fromTry(Success(WomSingleFile(s"s3://some/path/file.txt")))
       }
     }
-
+    class TestAwsBatchExpressionFunctionsLocal extends AwsBatchExpressionFunctionsForFS(TestableStandardExpressionFunctionsParamsLocal) {
+      override def writeFile(path: String, content: String): Future[WomSingleFile] = {
+        Future.fromTry(Success(WomSingleFile(s"/some/path/file.txt")))
+      }
+    }
     val functions = new TestAwsBatchExpressionFunctions
     val backend = makeAwsBatchActorRef(SampleWdl.ArrayIO, "serialize", inputs, functions).underlyingActor
     val jobDescriptor = backend.jobDescriptor
@@ -626,6 +643,16 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
       "c6fd5c91-0", "s3://some/path/file.txt", DefaultPathBuilder.get("some/path/file.txt"), workingDisk))
     val outputs = backend.generateAwsBatchOutputs(jobDescriptor)
     outputs should have size 0
+
+    val functionsLocal = new TestAwsBatchExpressionFunctionsLocal
+    val backendLocal = makeAwsBatchActorRef(SampleWdl.ArrayIO, "serialize", inputs, functionsLocal).underlyingActor
+    val jobDescriptorLocal = backendLocal.jobDescriptor
+    val batchInputsLocal = backend.generateAwsBatchInputs(jobDescriptorLocal)
+    batchInputsLocal should have size 1
+    batchInputsLocal should contain(AwsBatchFileInput(
+      "c6fd5c91-0", "/some/path/file.txt", DefaultPathBuilder.get("some/path/file.txt"), workingDisk))
+    val outputsLocal = backendLocal.generateAwsBatchOutputs(jobDescriptorLocal)
+    outputsLocal should have size 0
   }
 
   it should "generate correct AwsBatchFileInputs from a WdlArray" taggedAs AwsTest ignore {

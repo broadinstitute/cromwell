@@ -40,6 +40,7 @@ import cromwell.filesystems.sra.SraPath
 import cromwell.google.pipelines.common.PreviousRetryReasons
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.CallMetadataKeys
+import mouse.all._
 import shapeless.Coproduct
 import wdl4s.parser.MemoryUnit
 import wom.callable.Callable.OutputDefinition
@@ -482,6 +483,37 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
         val enableSshAccess = workflowOptions.getBoolean(WorkflowOptionKeys.EnableSSHAccess).toOption.contains(true)
 
+        val dockerImageCacheDiskOpt =
+          runtimeAttributes
+            .useDockerImageCache
+            .getOrElse(useDockerImageCache(jobDescriptor.workflowDescriptor))
+            .option {
+              val dockerImageWithDigest = jobDockerImage
+              val dockerImageAsSpecifiedByUser = runtimeAttributes.dockerImage
+              jesAttributes
+                .dockerImageToCacheDiskImageMappingOpt
+                .flatMap(_.get(dockerImageAsSpecifiedByUser))
+                .filter { cachedDockerImageDigestAndDiskName =>
+                  val hashStartingPositionInActualDockerImage = dockerImageWithDigest.indexOf('@')
+                  if (hashStartingPositionInActualDockerImage != -1) {
+                    val actualDigestOfDesiredDockerImage = dockerImageWithDigest.substring(hashStartingPositionInActualDockerImage + 1)
+                    if (cachedDockerImageDigestAndDiskName.dockerImageDigest == actualDigestOfDesiredDockerImage) {
+                      true
+                    } else {
+                      jobLogger.info(s"Cached Docker image digest mismatch. Requested docker image $dockerImageAsSpecifiedByUser has different digest than " +
+                        s"corresponding cached image located at the ${cachedDockerImageDigestAndDiskName.diskImageName} disk image. " +
+                        s"Digest of requested image is ${actualDigestOfDesiredDockerImage}, but digest of cached image is ${cachedDockerImageDigestAndDiskName.dockerImageDigest}. " +
+                        s"Docker image cache feature will not be used for this task.")
+                      false
+                    }
+                  } else {
+                    jobLogger.error(s"Programmer error ! Odd docker image name where supposed to be name with digest: $dockerImageWithDigest")
+                    false
+                  }
+                }
+                .map(_.diskImageName)
+            }.flatten
+
         CreatePipelineParameters(
           jobDescriptor = jobDescriptor,
           runtimeAttributes = runtimeAttributes,
@@ -509,8 +541,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           checkpointingConfiguration,
           enableSshAccess = enableSshAccess,
           vpcNetworkAndSubnetworkProjectLabels = data.vpcNetworkAndSubnetworkProjectLabels,
-          useDockerImageCache = runtimeAttributes.useDockerImageCache.getOrElse(useDockerImageCache(jobDescriptor.workflowDescriptor)),
-          dockerImageToCacheDiskImageMappingOpt = jesAttributes.dockerImageToCacheDiskImageMappingOpt
+          dockerImageCacheDiskOpt = dockerImageCacheDiskOpt
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")

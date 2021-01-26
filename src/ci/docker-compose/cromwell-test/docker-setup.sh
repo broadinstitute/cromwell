@@ -16,7 +16,7 @@ apt-get install -y \
     jq \
     mysql-client \
     postgresql-client \
-    python-dev \
+    python3-dev \
     software-properties-common \
     sudo \
 
@@ -27,8 +27,8 @@ apt-get update
 apt-get install -y sbt
 
 # upgrade python dependencies
-curl https://bootstrap.pypa.io/2.7/get-pip.py -o get-pip.py
-python get-pip.py
+curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+python3 get-pip.py
 pip install --upgrade --force-reinstall pyopenssl
 
 # install gcloud

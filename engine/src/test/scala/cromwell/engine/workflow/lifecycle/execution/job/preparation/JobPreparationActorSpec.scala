@@ -180,28 +180,4 @@ class JobPreparationActorSpec
         success.jobDescriptor.runtimeAttributes("memory").valueString shouldBe "2.42 GB"
     }
   }
-
-  // when user sets the `memory_retry_multiplier` to 1 in workflow options
-  it should "retry with same memory attribute when `memoryMultiplier` in BackendJobDescriptorKey is 1" in {
-    val attributes = Map(
-      "memory" -> WomString("2 GB")
-    )
-    val inputsAndAttributes = (inputs, attributes).validNel
-
-    val actor = TestActorRef(helper.buildTestJobPreparationActor(
-      backpressureTimeout = null,
-      noResponseTimeout = null,
-      dockerHashCredentials = null,
-      inputsAndAttributes = inputsAndAttributes,
-      kvStoreKeysForPrefetch = List.empty,
-      jobKey = helper.mockJobKeyWithMemoryMultiplierAs1
-    ), self)
-    actor ! Start(ValueStore.empty)
-    expectMsgPF(5 seconds) {
-      case success: BackendJobPreparationSucceeded =>
-        success.jobDescriptor.key.attempt shouldBe 2
-        success.jobDescriptor.key.memoryMultiplier.value shouldBe 1
-        success.jobDescriptor.runtimeAttributes("memory").valueString shouldBe "2 GB"
-    }
-  }
 }

@@ -1283,7 +1283,7 @@ trait StandardAsyncExecutionActor
               val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption), Option(returnCodeAsInt), None))
               retryElseFail(executionHandle)
             case Success(returnCodeAsInt) if retryWithMoreMemory  =>
-              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption, memoryRetryErrorKeys), Option(returnCodeAsInt), None))
+              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption, memoryRetryErrorKeys, log), Option(returnCodeAsInt), None))
               retryElseFail(executionHandle, retryWithMoreMemory)
             case Success(returnCodeAsInt) =>
               handleExecutionSuccess(status, oldHandle, returnCodeAsInt)
@@ -1293,7 +1293,7 @@ trait StandardAsyncExecutionActor
         } else {
           tryReturnCodeAsInt match {
             case Success(returnCodeAsInt) if retryWithMoreMemory =>
-              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption, memoryRetryErrorKeys), Option(returnCodeAsInt), None))
+              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption, memoryRetryErrorKeys, log), Option(returnCodeAsInt), None))
               retryElseFail(executionHandle, retryWithMoreMemory)
             case _ =>
               val failureStatus = handleExecutionFailure(status, tryReturnCodeAsInt.toOption)

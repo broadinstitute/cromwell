@@ -5,8 +5,8 @@ allows the task to be retried with more memory. The retry will be counted agains
 the `runtimeAtrributes` in the task. There are 2 settings for this feature:
 * `system.memory-retry-error-keys` : the error keys that need to be set in Cromwell config
 * `memory_retry_multiplier` : [optional] the factor by which the memory should be multiplied while retrying. This needs 
-to be passed in through workflow options and should be in the range 1.0 < multipler <= 99.0. If not passed, Cromwell 
-will not retry the task with more memory.
+to be passed in through workflow options and should be in the range `1.0 <= multiplier <= 99.0` (note: if set to `1.0` the task
+will retry with same amount of memory). If not passed, Cromwell will not retry the task with more memory.
 
 For example, if the error keys set in Cromwell config are as below and the multipler passed through workflow options is 
 `"memory_retry_multiplier": 1.1` 

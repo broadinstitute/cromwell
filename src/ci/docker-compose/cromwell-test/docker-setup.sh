@@ -27,10 +27,9 @@ apt-get update
 apt-get install -y sbt
 
 # upgrade python dependencies
-#apt-get install -y python3-distutils
-#curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-#python3 get-pip.py
-#pip install --upgrade --force-reinstall pyopenssl
+curl https://bootstrap.pypa.io/2.7/get-pip.py -o get-pip.py
+python get-pip.py
+pip install --upgrade --force-reinstall pyopenssl
 
 # install gcloud
 echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" \

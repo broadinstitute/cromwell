@@ -40,6 +40,7 @@ import cromwell.filesystems.sra.SraPath
 import cromwell.google.pipelines.common.PreviousRetryReasons
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.CallMetadataKeys
+import mouse.all._
 import shapeless.Coproduct
 import wdl4s.parser.MemoryUnit
 import wom.callable.Callable.OutputDefinition
@@ -482,7 +483,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
         val enableSshAccess = workflowOptions.getBoolean(WorkflowOptionKeys.EnableSSHAccess).toOption.contains(true)
 
-        val isDockerImageCacheUsageRequested = runtimeAttributes.useDockerImageCache.getOrElse(useDockerImageCache(jobDescriptor.workflowDescriptor))
         val dockerImageWithDigest = jobDockerImage
         val dockerImageAsSpecifiedByUser = runtimeAttributes.dockerImage
         val dockerImageCacheDiskOpt =
@@ -510,6 +510,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
             }
             .map(_.diskImageName)
 
+        val isDockerImageCacheUsageRequested = runtimeAttributes.useDockerImageCache.getOrElse(useDockerImageCache(jobDescriptor.workflowDescriptor))
         (isDockerImageCacheUsageRequested, dockerImageCacheDiskOpt) match {
           case (true, None) => increment(NonEmptyList("docker", List("image", "cache", "image_not_in_cache", dockerImageAsSpecifiedByUser)))
           case (true, Some(_)) => increment(NonEmptyList("docker", List("image", "cache", "used_image_from_cache", dockerImageAsSpecifiedByUser)))
@@ -544,7 +545,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           checkpointingConfiguration,
           enableSshAccess = enableSshAccess,
           vpcNetworkAndSubnetworkProjectLabels = data.vpcNetworkAndSubnetworkProjectLabels,
-          dockerImageCacheDiskOpt = dockerImageCacheDiskOpt
+          dockerImageCacheDiskOpt = isDockerImageCacheUsageRequested.option(dockerImageCacheDiskOpt).flatten
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")

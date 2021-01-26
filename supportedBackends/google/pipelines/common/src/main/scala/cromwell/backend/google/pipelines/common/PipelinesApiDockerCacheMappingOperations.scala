@@ -6,6 +6,7 @@ import cats.effect.IO
 import com.google.api.services.storage.StorageScopes
 import com.google.cloud.storage.{BlobId, Storage, StorageOptions}
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
+import cromwell.core.logging.JobLogger
 import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 
 import scala.util.control.NoStackTrace
@@ -28,6 +29,34 @@ trait PipelinesApiDockerCacheMappingOperations {
       .getService
     val mappingsFromManifestIO = readDockerImageCacheManifestFileFromGCS(gcsClient, dockerImageCacheManifestFile)
     mappingsFromManifestIO.map(_.dockerImageCacheMap).unsafeRunSync()
+  }
+
+  def getDockerCacheDiskImageForAJob(dockerImageToCacheDiskImageMappingOpt: Option[Map[String, DockerImageCacheEntry]],
+                                     dockerImageAsSpecifiedByUser: String,
+                                     dockerImageWithDigest: String,
+                                     jobLogger: JobLogger): Option[String] = {
+    dockerImageToCacheDiskImageMappingOpt
+      .flatMap(_.get(dockerImageAsSpecifiedByUser))
+      .filter { cachedDockerImageDigestAndDiskName =>
+        val hashStartingPositionInActualDockerImage = dockerImageWithDigest.indexOf('@')
+        if (hashStartingPositionInActualDockerImage != -1) {
+          val actualDigestOfDesiredDockerImage = dockerImageWithDigest.substring(hashStartingPositionInActualDockerImage + 1)
+          if (cachedDockerImageDigestAndDiskName.dockerImageDigest == actualDigestOfDesiredDockerImage) {
+            true
+          } else {
+            jobLogger.info(s"Cached Docker image digest mismatch. Requested docker image $dockerImageAsSpecifiedByUser has different digest than " +
+              s"corresponding cached image located at the ${cachedDockerImageDigestAndDiskName.diskImageName} disk image. " +
+              s"Digest of requested image is $actualDigestOfDesiredDockerImage, but digest of cached image is ${cachedDockerImageDigestAndDiskName.dockerImageDigest}. " +
+              s"Docker image cache feature will not be used for this task.")
+
+            false
+          }
+        } else {
+          jobLogger.error(s"Programmer error ! Odd docker image name where supposed to be name with digest: $dockerImageWithDigest")
+          false
+        }
+      }
+      .map(_.diskImageName)
   }
 
   private[common] def readDockerImageCacheManifestFileFromGCS(gcsClient: Storage, gcsPath: ValidFullGcsPath): IO[DockerImageCacheManifest] = {

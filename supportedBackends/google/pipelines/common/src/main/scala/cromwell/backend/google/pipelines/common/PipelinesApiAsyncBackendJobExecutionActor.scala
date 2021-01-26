@@ -102,6 +102,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     with PipelinesApiRunCreationClient
     with PipelinesApiAbortClient
     with PipelinesApiReferenceFilesMappingOperations
+    with PipelinesApiDockerCacheMappingOperations
     with PapiInstrumentation {
 
   override lazy val ioCommandBuilder: IoCommandBuilder = GcsBatchCommandBuilder
@@ -387,6 +388,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   //noinspection ActorMutableStateInspection
   private var hasDockerCredentials: Boolean = false
 
+  private lazy val isDockerImageCacheUsageRequested = runtimeAttributes.useDockerImageCache.getOrElse(useDockerImageCache(jobDescriptor.workflowDescriptor))
+
   override def scriptPreamble: String = {
     if (monitoringOutput.isDefined) {
       s"""|touch $DockerMonitoringLogPath
@@ -483,40 +486,13 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
         val enableSshAccess = workflowOptions.getBoolean(WorkflowOptionKeys.EnableSSHAccess).toOption.contains(true)
 
-        val dockerImageWithDigest = jobDockerImage
-        val dockerImageAsSpecifiedByUser = runtimeAttributes.dockerImage
         val dockerImageCacheDiskOpt =
-          jesAttributes
-            .dockerImageToCacheDiskImageMappingOpt
-            .flatMap(_.get(dockerImageAsSpecifiedByUser))
-            .filter { cachedDockerImageDigestAndDiskName =>
-              val hashStartingPositionInActualDockerImage = dockerImageWithDigest.indexOf('@')
-              if (hashStartingPositionInActualDockerImage != -1) {
-                val actualDigestOfDesiredDockerImage = dockerImageWithDigest.substring(hashStartingPositionInActualDockerImage + 1)
-                if (cachedDockerImageDigestAndDiskName.dockerImageDigest == actualDigestOfDesiredDockerImage) {
-                  true
-                } else {
-                  jobLogger.info(s"Cached Docker image digest mismatch. Requested docker image $dockerImageAsSpecifiedByUser has different digest than " +
-                    s"corresponding cached image located at the ${cachedDockerImageDigestAndDiskName.diskImageName} disk image. " +
-                    s"Digest of requested image is ${actualDigestOfDesiredDockerImage}, but digest of cached image is ${cachedDockerImageDigestAndDiskName.dockerImageDigest}. " +
-                    s"Docker image cache feature will not be used for this task.")
-
-                  false
-                }
-              } else {
-                jobLogger.error(s"Programmer error ! Odd docker image name where supposed to be name with digest: $dockerImageWithDigest")
-                false
-              }
-            }
-            .map(_.diskImageName)
-
-        val isDockerImageCacheUsageRequested = runtimeAttributes.useDockerImageCache.getOrElse(useDockerImageCache(jobDescriptor.workflowDescriptor))
-        (isDockerImageCacheUsageRequested, dockerImageCacheDiskOpt) match {
-          case (true, None) => increment(NonEmptyList("docker", List("image", "cache", "image_not_in_cache", dockerImageAsSpecifiedByUser)))
-          case (true, Some(_)) => increment(NonEmptyList("docker", List("image", "cache", "used_image_from_cache", dockerImageAsSpecifiedByUser)))
-          case (false, Some(_)) => increment(NonEmptyList("docker", List("image", "cache", "cached_image_not_used", dockerImageAsSpecifiedByUser)))
-          case _ => // docker image cache not requested and image is not in cache anyway - do nothing
-        }
+          getDockerCacheDiskImageForAJob(
+            dockerImageToCacheDiskImageMappingOpt = jesAttributes.dockerImageToCacheDiskImageMappingOpt,
+            dockerImageAsSpecifiedByUser = runtimeAttributes.dockerImage,
+            dockerImageWithDigest = jobDockerImage,
+            jobLogger = jobLogger
+          )
 
         CreatePipelineParameters(
           jobDescriptor = jobDescriptor,
@@ -683,6 +659,11 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       runId <- runPipeline(workflowId, createParameters, jobLogger)
       _ = sendGoogleLabelsToMetadata(customLabels)
       _ = sendIncrementMetricsForReferenceFiles(referenceInputsToMountedPathsOpt.map(_.keySet))
+      _ = sendIncrementMetricsForDockerImageCache(
+        dockerImageCacheDiskOpt = createParameters.dockerImageCacheDiskOpt,
+        dockerImageAsSpecifiedByUser = runtimeAttributes.dockerImage,
+        isDockerImageCacheUsageRequested = isDockerImageCacheUsageRequested
+      )
     } yield runId
 
     runPipelineResponse map { runId =>
@@ -700,6 +681,17 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         }
       case _ =>
         // do nothing - reference disks feature is either not configured in Cromwell or disabled in workflow options
+    }
+  }
+
+  protected def sendIncrementMetricsForDockerImageCache(dockerImageCacheDiskOpt: Option[String],
+                                                        dockerImageAsSpecifiedByUser: String,
+                                                        isDockerImageCacheUsageRequested: Boolean): Unit = {
+    (isDockerImageCacheUsageRequested, dockerImageCacheDiskOpt) match {
+      case (true, None) => increment(NonEmptyList("docker", List("image", "cache", "image_not_in_cache", dockerImageAsSpecifiedByUser)))
+      case (true, Some(_)) => increment(NonEmptyList("docker", List("image", "cache", "used_image_from_cache", dockerImageAsSpecifiedByUser)))
+      case (false, Some(_)) => increment(NonEmptyList("docker", List("image", "cache", "cached_image_not_used", dockerImageAsSpecifiedByUser)))
+      case _ => // docker image cache not requested and image is not in cache anyway - do nothing
     }
   }
 

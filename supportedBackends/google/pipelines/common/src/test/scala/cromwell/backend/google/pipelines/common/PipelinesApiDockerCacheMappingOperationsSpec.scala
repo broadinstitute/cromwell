@@ -3,6 +3,7 @@ package cromwell.backend.google.pipelines.common
 import cats.effect.IO
 import com.google.cloud.storage.{Blob, BlobId, Storage}
 import common.assertion.CromwellTimeoutSpec
+import cromwell.core.logging.JobLogger
 import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -19,8 +20,9 @@ class PipelinesApiDockerCacheMappingOperationsSpec
     with Mockito
     with PrivateMethodTester {
 
+  private val pipelinesApiDockerCacheMappingOperationsMock = new PipelinesApiDockerCacheMappingOperations {}
+
   it should "successfully parse docker image cache manifest JSON file as instance of Map[String, String]" in {
-    val pipelinesApiDockerCacheMappingOperationsMock = new PipelinesApiDockerCacheMappingOperations {}
     val expectedManifest = DockerImageCacheManifest(
       manifestFormatVersion = 2,
       dockerImageCacheMap =
@@ -63,6 +65,58 @@ class PipelinesApiDockerCacheMappingOperationsSpec
     val parsedJsonAsManifest = parsedJsonAsManifestIO.unsafeRunSync()
 
     parsedJsonAsManifest.equals(expectedManifest) shouldBe true
+  }
+
+  it should "not use docker image cache if digest of requested image and cached images don't match" in {
+    val mockJobLogger = mock[JobLogger]
+    val testDockerImageName = "test_madeup_docker_image"
+    val testDockerImageDigest = "fake_docker_image_digest"
+    val testDiskImageName = "fake_disk_image_name"
+    val dockerImageToCacheDiskImageMapping = Map(testDockerImageName -> DockerImageCacheEntry(testDockerImageDigest, testDiskImageName))
+    val dockerImageCacheDiskOpt =
+      pipelinesApiDockerCacheMappingOperationsMock.getDockerCacheDiskImageForAJob(
+        dockerImageToCacheDiskImageMappingOpt = Option(dockerImageToCacheDiskImageMapping),
+        dockerImageAsSpecifiedByUser = testDockerImageName,
+        dockerImageWithDigest = s"$testDockerImageName@not_matching_digest",
+        jobLogger = mockJobLogger
+      )
+
+    dockerImageCacheDiskOpt shouldBe None
+  }
+
+  it should "use docker image cache if digest of requested image and cached image match" in {
+    val mockJobLogger = mock[JobLogger]
+    val testDockerImageName = "test_madeup_docker_image"
+    val testDockerImageDigest = "fake_docker_image_digest"
+    val expectedDiskImageName = "fake_disk_image_name"
+    val dockerImageToCacheDiskImageMapping = Map(testDockerImageName -> DockerImageCacheEntry(testDockerImageDigest, expectedDiskImageName))
+    val dockerImageCacheDiskOpt =
+      pipelinesApiDockerCacheMappingOperationsMock.getDockerCacheDiskImageForAJob(
+        dockerImageToCacheDiskImageMappingOpt = Option(dockerImageToCacheDiskImageMapping),
+        dockerImageAsSpecifiedByUser = testDockerImageName,
+        dockerImageWithDigest = s"$testDockerImageName@$testDockerImageDigest",
+        jobLogger = mockJobLogger
+      )
+
+    dockerImageCacheDiskOpt shouldBe Some(expectedDiskImageName)
+  }
+
+  it should "not use docker image cache if requested docker image is not in cache" in {
+    val mockJobLogger = mock[JobLogger]
+    val testCachedDockerImageName = "test_madeup_docker_image"
+    val testDockerImageNameSpecifiedByUser = "test_non_cached_docker_image"
+    val testDockerImageDigest = "fake_docker_image_digest"
+    val testDiskImageName = "fake_disk_image_name"
+    val dockerImageToCacheDiskImageMapping = Map(testCachedDockerImageName -> DockerImageCacheEntry(testDockerImageDigest, testDiskImageName))
+    val dockerImageCacheDiskOpt =
+      pipelinesApiDockerCacheMappingOperationsMock.getDockerCacheDiskImageForAJob(
+        dockerImageToCacheDiskImageMappingOpt = Option(dockerImageToCacheDiskImageMapping),
+        dockerImageAsSpecifiedByUser = testDockerImageNameSpecifiedByUser,
+        dockerImageWithDigest = s"$testDockerImageNameSpecifiedByUser@$testDockerImageDigest",
+        jobLogger = mockJobLogger
+      )
+
+    dockerImageCacheDiskOpt shouldBe None
   }
 
 }

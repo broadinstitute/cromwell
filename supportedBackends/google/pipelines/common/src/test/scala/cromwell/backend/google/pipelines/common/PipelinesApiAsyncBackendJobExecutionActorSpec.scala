@@ -58,7 +58,14 @@ import scala.language.postfixOps
 import scala.util.Success
 
 class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite
-  with AnyFlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter with DefaultJsonProtocol {
+  with AnyFlatSpecLike
+  with Matchers
+  with ImplicitSender
+  with Mockito
+  with BackendSpec
+  with BeforeAndAfter
+  with DefaultJsonProtocol {
+
   val mockPathBuilder: GcsPathBuilder = MockGcsPathBuilder.instance
   import MockGcsPathBuilder._
   var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor), "kvService")
@@ -217,12 +224,18 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite
     }
   }
 
+  private case class DockerImageCacheTestingParameters(dockerImageCacheDiskOpt: Option[String],
+                                                       dockerImageAsSpecifiedByUser: String,
+                                                       isDockerImageCacheUsageRequested: Boolean)
+
   private def executionActor(jobDescriptor: BackendJobDescriptor,
                              promise: Promise[BackendJobExecutionResponse],
                              jesSingletonActor: ActorRef,
                              shouldBePreemptible: Boolean,
                              serviceRegistryActor: ActorRef = kvService,
-                             referenceInputFilesOpt: Option[Set[PipelinesApiInput]] = None): ActorRef = {
+                             referenceInputFilesOpt: Option[Set[PipelinesApiInput]] = None,
+                             dockerImageCacheTestingParamsOpt: Option[DockerImageCacheTestingParameters] = None
+                            ): ActorRef = {
 
     val job = StandardAsyncJob(UUID.randomUUID().toString)
     val run = Run(job)
@@ -231,6 +244,13 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite
     class ExecuteOrRecoverActor extends TestablePipelinesApiJobExecutionActor(jobDescriptor, promise, papiConfiguration, jesSingletonActor = jesSingletonActor, serviceRegistryActor = serviceRegistryActor) {
       override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
         sendIncrementMetricsForReferenceFiles(referenceInputFilesOpt)
+        dockerImageCacheTestingParamsOpt.foreach { dockerImageCacheTestingParams =>
+          sendIncrementMetricsForDockerImageCache(
+            dockerImageCacheTestingParams.dockerImageCacheDiskOpt,
+            dockerImageCacheTestingParams.dockerImageAsSpecifiedByUser,
+            dockerImageCacheTestingParams.isDockerImageCacheUsageRequested
+          )
+        }
 
         if (preemptible == shouldBePreemptible) Future.successful(handle)
         else Future.failed(new Exception(s"Test expected preemptible to be $shouldBePreemptible but got $preemptible"))
@@ -356,6 +376,87 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite
       referenceInputFilesOpt = None
     )
     backend2 ! Execute
+    serviceRegistryProbe.expectNoMessage(timeout)
+  }
+
+  it should "sends proper metrics for docker image cache feature" in {
+    val jobDescriptor = buildPreemptibleJobDescriptor(0, 0, 0)
+    val serviceRegistryProbe = TestProbe()
+    val madeUpDockerImageName = "test_madeup_docker_image_name"
+
+    val expectedMessageWhenRequestedNotFound = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, NonEmptyList("docker", List("image", "cache", "image_not_in_cache", madeUpDockerImageName)))))
+    val backendDockerCacheRequestedButNotFound = executionActor(
+      jobDescriptor,
+      Promise[BackendJobExecutionResponse](),
+      TestProbe().ref,
+      shouldBePreemptible = false,
+      serviceRegistryActor = serviceRegistryProbe.ref,
+      dockerImageCacheTestingParamsOpt =
+        Option(
+          DockerImageCacheTestingParameters(
+            None,
+            "test_madeup_docker_image_name",
+            isDockerImageCacheUsageRequested = true
+          )
+        )
+    )
+    backendDockerCacheRequestedButNotFound ! Execute
+    serviceRegistryProbe.expectMsg(expectedMessageWhenRequestedNotFound)
+
+    val expectedMessageWhenRequestedAndFound = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, NonEmptyList("docker", List("image", "cache", "used_image_from_cache", madeUpDockerImageName)))))
+    val backendDockerCacheRequestedAndFound = executionActor(
+      jobDescriptor,
+      Promise[BackendJobExecutionResponse](),
+      TestProbe().ref,
+      shouldBePreemptible = false,
+      serviceRegistryActor = serviceRegistryProbe.ref,
+      dockerImageCacheTestingParamsOpt =
+        Option(
+          DockerImageCacheTestingParameters(
+            Some("test_madeup_disk_image_name"),
+            "test_madeup_docker_image_name",
+            isDockerImageCacheUsageRequested = true
+          )
+        )
+    )
+    backendDockerCacheRequestedAndFound ! Execute
+    serviceRegistryProbe.expectMsg(expectedMessageWhenRequestedAndFound)
+
+    val expectedMessageWhenNotRequestedButFound = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, NonEmptyList("docker", List("image", "cache", "cached_image_not_used", madeUpDockerImageName)))))
+    val backendDockerCacheNotRequestedButFound = executionActor(
+      jobDescriptor,
+      Promise[BackendJobExecutionResponse](),
+      TestProbe().ref,
+      shouldBePreemptible = false,
+      serviceRegistryActor = serviceRegistryProbe.ref,
+      dockerImageCacheTestingParamsOpt =
+        Option(
+          DockerImageCacheTestingParameters(
+            Some("test_madeup_disk_image_name"),
+            "test_madeup_docker_image_name",
+            isDockerImageCacheUsageRequested = false
+          )
+        )
+    )
+    backendDockerCacheNotRequestedButFound ! Execute
+    serviceRegistryProbe.expectMsg(expectedMessageWhenNotRequestedButFound)
+
+    val backendDockerCacheNotRequestedNotFound = executionActor(
+      jobDescriptor,
+      Promise[BackendJobExecutionResponse](),
+      TestProbe().ref,
+      shouldBePreemptible = false,
+      serviceRegistryActor = serviceRegistryProbe.ref,
+      dockerImageCacheTestingParamsOpt =
+        Option(
+          DockerImageCacheTestingParameters(
+            None,
+            "test_madeup_docker_image_name",
+            isDockerImageCacheUsageRequested = false
+          )
+        )
+    )
+    backendDockerCacheNotRequestedNotFound ! Execute
     serviceRegistryProbe.expectNoMessage(timeout)
   }
 

@@ -5,7 +5,7 @@
 ### Retry with More Memory as workflow option
 
 Retry with more memory is now customizable via a global config. The multiply factor is passed in through the workflow 
-options. More details can be found [here](https://cromwell.readthedocs.io/en/develop/wf_options/Overview/#retry-with-more-memory-multiplier).
+options. More details can be found [here](https://cromwell.readthedocs.io/en/develop/wf_options/Overview.md#retry-with-more-memory-multiplier).
 
 ### Bug Fixes
 

@@ -2,6 +2,11 @@
 
 ## 56 Release Notes
 
+### Retry with More Memory as workflow option
+
+Retry with more memory is now customizable via a global config. The multiply factor is passed in through the workflow 
+options. More details can be found [here](https://cromwell.readthedocs.io/en/develop/wf_options/Overview/#retry-with-more-memory-multiplier).
+
 ### Bug Fixes
 
 * Fixed a bug that caused Cromwell to mark workflows as failed after a single `500`, `503`, or `504` error from Google Cloud Storage.

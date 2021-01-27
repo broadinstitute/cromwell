@@ -167,7 +167,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         .setAccelerators(accelerators)
 
       if(createPipelineParameters.dockerImageCacheDiskOpt.isDefined) {
-        jobLogger.warn("Docker image cache requested for the job, but the job is being executed by Google " +
+        jobLogger.info("Docker image cache requested for the job, but the job is being executed by Google " +
           "Genomics API v2alpha1, while the feature is only supported by from Google Life Scielnces API starting from" +
           "the version v2beta")
       }

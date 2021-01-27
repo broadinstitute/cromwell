@@ -40,6 +40,7 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import eu.timepit.refined.refineV
 import net.ceedubs.ficus.Ficus._
+import org.apache.commons.lang3.exception.ExceptionUtils
 import spray.json._
 import wom.core.WorkflowSource
 import wom.expression.{NoIoFunctionSet, WomExpression}
@@ -139,15 +140,22 @@ object MaterializeWorkflowDescriptorActor {
     }
   }
 
-  // perform a fail-fast validation that the `memory_retry_multiplier` workflow option is valid if present
+  // Perform a fail-fast validation that the `memory_retry_multiplier` workflow option is valid if present
   def validateMemoryRetryMultiplier(workflowOptions: WorkflowOptions): ErrorOr[Unit] = {
     val optionName = WorkflowOptions.MemoryRetryMultiplier.name
+
+    def refineMultiplier(value: Double): ErrorOr[Unit] = {
+      refineV[MemoryRetryMultiplier](value.toDouble) match {
+        case Left(_) => s"Workflow option '$optionName' is invalid. It should be in the range 1.0 ≤ n ≤ 99.0".invalidNel
+        case Right(_) => ().validNel
+      }
+    }
+
     workflowOptions.get(optionName) match {
-      case Success(value) => refineV[MemoryRetryMultiplier](value.toDouble) match {
-        case Left(_) =>
-          s"Workflow option '$optionName' is invalid. It should be in the range 1.0 <= n <= 99.0".invalidNel
-        case Right(_) =>
-          ().validNel
+      case Success(value) => Try(value.toDouble) match {
+        case Success(v) => refineMultiplier(v)
+        case Failure(e) => (s"Workflow option '$optionName' is invalid. It should be of type Double and in the range " +
+          s"1.0 ≤ n ≤ 99.0. Error: ${ExceptionUtils.getMessage(e)}").invalidNel
       }
       case Failure(OptionNotFoundException(_)) =>
         // This is an optional... option, so "not found" is fine

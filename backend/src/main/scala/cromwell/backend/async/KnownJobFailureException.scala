@@ -38,7 +38,7 @@ final case class RetryWithMoreMemory(jobTag: String,
       logger.error(s"Programmer error: found one of the `system.memory-retry-error-keys` in the `stderr` of task but " +
         s"didn't find the error keys while generating the exception!")
       ""
-    case Some(keys) => s": [${keys.mkString(",")}]"
+    case Some(keys) => keys.mkString(": [", ",", "]")
   }
   override def getMessage = s"stderr for job `$jobTag` contained one of the `memory-retry-error-keys${errorKeysAsString}` specified in " +
     s"the Cromwell config. Job might have run out of memory."

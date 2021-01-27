@@ -226,13 +226,20 @@ trait StandardAsyncExecutionActor
 
   lazy val memoryRetryFactor: Option[MemoryRetryMultiplierRefined] = {
     jobDescriptor.workflowDescriptor.getWorkflowOption(WorkflowOptions.MemoryRetryMultiplier) flatMap { value: String =>
-      refineV[MemoryRetryMultiplier](value.toDouble) match {
-        case Left(e) =>
+      Try(value.toDouble) match {
+        case Success(v) => refineV[MemoryRetryMultiplier](v.toDouble) match {
+          case Left(e) =>
+            // should not happen, this case should have been screened for and fast-failed during workflow materialization.
+            log.error(e, s"Programmer error: unexpected failure attempting to read value for workflow option " +
+              s"'${WorkflowOptions.MemoryRetryMultiplier.name}'. Expected value should be in range 1.0 ≤ n ≤ 99.0")
+            None
+          case Right(refined) => Option(refined)
+        }
+        case Failure(e) =>
           // should not happen, this case should have been screened for and fast-failed during workflow materialization.
-          log.error(e, s"Programmer error: unexpected failure attempting to read value for workflow option " +
-            s"'${WorkflowOptions.MemoryRetryMultiplier.name}'. Expected value should be in range 1.0 <= n <= 99.0")
+          log.error(e, s"Programmer error: unexpected failure attempting to convert value for workflow option " +
+            s"'${WorkflowOptions.MemoryRetryMultiplier.name}' to Double.")
           None
-        case Right(refined) => Option(refined)
       }
     }
   }

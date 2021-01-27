@@ -62,6 +62,8 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
   val invalidMemoryRetryOptions1 = WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": 0.9 } """).get
   val invalidMemoryRetryOptions2 = WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": 99.1 } """).get
   val invalidMemoryRetryOptions3 = WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": -1.1 } """).get
+  val invalidMemoryRetryOptions4 = WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": "invalid value" } """).get
+  val invalidMemoryRetryOptions5 = WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": true } """).get
 
   before {
   }
@@ -496,7 +498,15 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       List(invalidMemoryRetryOptions1, invalidMemoryRetryOptions2, invalidMemoryRetryOptions3) map { options =>
         MaterializeWorkflowDescriptorActor.validateMemoryRetryMultiplier(options) match {
           case Invalid(errorsList) => errorsList.head should be("Workflow option 'memory_retry_multiplier' is invalid. " +
-            "It should be in the range 1.0 <= n <= 99.0")
+            "It should be in the range 1.0 ≤ n ≤ 99.0")
+          case Valid(_) => fail(s"memory_retry_multiplier validation for $options succeeded but should have failed!")
+        }
+      }
+
+      List(invalidMemoryRetryOptions4, invalidMemoryRetryOptions5) map { options =>
+        MaterializeWorkflowDescriptorActor.validateMemoryRetryMultiplier(options) match {
+          case Invalid(errorsList) => errorsList.head should startWith(s"Workflow option 'memory_retry_multiplier' is invalid. " +
+            "It should be of type Double and in the range 1.0 ≤ n ≤ 99.0. Error: NumberFormatException:")
           case Valid(_) => fail(s"memory_retry_multiplier validation for $options succeeded but should have failed!")
         }
       }
@@ -521,7 +531,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
         expectMsgPF() {
           case MaterializeWorkflowDescriptorFailureResponse(reason) =>
             reason.getMessage should startWith("Workflow input processing failed:\n")
-            reason.getMessage should include("Workflow option 'memory_retry_multiplier' is invalid. It should be in the range 1.0 <= n <= 99.0")
+            reason.getMessage should include("Workflow option 'memory_retry_multiplier' is invalid. It should be in the range 1.0 ≤ n ≤ 99.0")
           case _: MaterializeWorkflowDescriptorSuccessResponse => fail("This materialization should not have succeeded!")
           case unknown => fail(s"Unexpected materialization response: $unknown")
         }

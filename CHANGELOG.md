@@ -4,8 +4,13 @@
 
 ### Retry with More Memory as workflow option
 
-Retry with more memory is now customizable via a global config. The multiply factor is passed in through the workflow 
-options. More details can be found [here](https://cromwell.readthedocs.io/en/develop/wf_options/Overview.md#retry-with-more-memory-multiplier).
+The experimental memory retry feature gains per-workflow customization and includes breaking changes:
+* The per-backend configuration key `<backend>.config.memory-retry.error-keys` has been removed and replaced 
+with global key `system.memory-retry-error-keys`
+* The per-backend configuration key `<backend>.config.memory-retry.multiplier` has been replaced with **workflow option** 
+`memory_retry_multiplier`
+
+More details can be found [here](https://cromwell.readthedocs.io/en/develop/wf_options/Overview.md#retry-with-more-memory-multiplier).
 
 ### Bug Fixes
 

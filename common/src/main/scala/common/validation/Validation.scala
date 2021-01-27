@@ -20,6 +20,11 @@ import scala.util.{Failure, Success, Try}
 
 object Validation {
 
+  /*
+  `memory-retry-multiplier` of value 1.0 is valid as we want to let users disable the memory retry
+    feature by adjusting the value down to 1.0, which is more convenient than having to add or remove
+    the entire parameter
+   */
   type MemoryRetryMultiplier = Closed[W.`1.0`.T, W.`99.0`.T]
   type MemoryRetryMultiplierRefined = Refined[Double, MemoryRetryMultiplier]
 

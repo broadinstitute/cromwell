@@ -107,8 +107,6 @@ object PipelinesApiConfigurationAttributes
     "virtual-private-cloud.network-label-key",
     "virtual-private-cloud.subnetwork-label-key",
     "virtual-private-cloud.auth",
-    "memory-retry.error-keys",
-    "memory-retry.multiplier",
     allowNoAddressAttributeKey,
     "reference-disk-localization-manifest-files",
     "docker-image-cache-manifest-file",

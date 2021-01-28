@@ -41,7 +41,6 @@ import cromwell.google.pipelines.common.PreviousRetryReasons
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.CallMetadataKeys
 import mouse.all._
-import eu.timepit.refined.refineV
 import shapeless.Coproduct
 import wdl4s.parser.MemoryUnit
 import wom.callable.Callable.OutputDefinition

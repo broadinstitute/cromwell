@@ -40,6 +40,7 @@ import cromwell.filesystems.sra.SraPath
 import cromwell.google.pipelines.common.PreviousRetryReasons
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.CallMetadataKeys
+import mouse.all._
 import shapeless.Coproduct
 import wdl4s.parser.MemoryUnit
 import wom.callable.Callable.OutputDefinition
@@ -101,6 +102,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     with PipelinesApiRunCreationClient
     with PipelinesApiAbortClient
     with PipelinesApiReferenceFilesMappingOperations
+    with PipelinesApiDockerCacheMappingOperations
     with PapiInstrumentation {
 
   override lazy val ioCommandBuilder: IoCommandBuilder = GcsBatchCommandBuilder
@@ -386,6 +388,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   //noinspection ActorMutableStateInspection
   private var hasDockerCredentials: Boolean = false
 
+  private lazy val isDockerImageCacheUsageRequested = runtimeAttributes.useDockerImageCache.getOrElse(useDockerImageCache(jobDescriptor.workflowDescriptor))
+
   override def scriptPreamble: String = {
     if (monitoringOutput.isDefined) {
       s"""|touch $DockerMonitoringLogPath
@@ -482,6 +486,14 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
         val enableSshAccess = workflowOptions.getBoolean(WorkflowOptionKeys.EnableSSHAccess).toOption.contains(true)
 
+        val dockerImageCacheDiskOpt =
+          getDockerCacheDiskImageForAJob(
+            dockerImageToCacheDiskImageMappingOpt = jesAttributes.dockerImageToCacheDiskImageMappingOpt,
+            dockerImageAsSpecifiedByUser = runtimeAttributes.dockerImage,
+            dockerImageWithDigest = jobDockerImage,
+            jobLogger = jobLogger
+          )
+
         CreatePipelineParameters(
           jobDescriptor = jobDescriptor,
           runtimeAttributes = runtimeAttributes,
@@ -509,8 +521,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           checkpointingConfiguration,
           enableSshAccess = enableSshAccess,
           vpcNetworkAndSubnetworkProjectLabels = data.vpcNetworkAndSubnetworkProjectLabels,
-          useDockerImageCache = runtimeAttributes.useDockerImageCache.getOrElse(useDockerImageCache(jobDescriptor.workflowDescriptor)),
-          dockerImageToCacheDiskImageMappingOpt = jesAttributes.dockerImageToCacheDiskImageMappingOpt
+          dockerImageCacheDiskOpt = isDockerImageCacheUsageRequested.option(dockerImageCacheDiskOpt).flatten
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")
@@ -648,6 +659,11 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       runId <- runPipeline(workflowId, createParameters, jobLogger)
       _ = sendGoogleLabelsToMetadata(customLabels)
       _ = sendIncrementMetricsForReferenceFiles(referenceInputsToMountedPathsOpt.map(_.keySet))
+      _ = sendIncrementMetricsForDockerImageCache(
+        dockerImageCacheDiskOpt = createParameters.dockerImageCacheDiskOpt,
+        dockerImageAsSpecifiedByUser = runtimeAttributes.dockerImage,
+        isDockerImageCacheUsageRequested = isDockerImageCacheUsageRequested
+      )
     } yield runId
 
     runPipelineResponse map { runId =>
@@ -665,6 +681,17 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         }
       case _ =>
         // do nothing - reference disks feature is either not configured in Cromwell or disabled in workflow options
+    }
+  }
+
+  protected def sendIncrementMetricsForDockerImageCache(dockerImageCacheDiskOpt: Option[String],
+                                                        dockerImageAsSpecifiedByUser: String,
+                                                        isDockerImageCacheUsageRequested: Boolean): Unit = {
+    (isDockerImageCacheUsageRequested, dockerImageCacheDiskOpt) match {
+      case (true, None) => increment(NonEmptyList("docker", List("image", "cache", "image_not_in_cache", dockerImageAsSpecifiedByUser)))
+      case (true, Some(_)) => increment(NonEmptyList("docker", List("image", "cache", "used_image_from_cache", dockerImageAsSpecifiedByUser)))
+      case (false, Some(_)) => increment(NonEmptyList("docker", List("image", "cache", "cached_image_not_used", dockerImageAsSpecifiedByUser)))
+      case _ => // docker image cache not requested and image is not in cache anyway - do nothing
     }
   }
 

@@ -21,7 +21,7 @@ import scala.util.{Failure, Success, Try}
 object Validation {
 
   /*
-  `memory-retry-multiplier` of value 1.0 is valid as we want to let users disable the memory retry
+    `memory-retry-multiplier` of value 1.0 is valid as we want to let users disable the memory retry
     feature by adjusting the value down to 1.0, which is more convenient than having to add or remove
     the entire parameter
    */

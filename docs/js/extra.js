@@ -141,7 +141,7 @@ var nodemcu = nodemcu || {};
    */
   function replaceRelativeLinksWithStaticGitHubUrl() {
     var relativePath = "../../../..";
-    var gitHubPath = "https://github.com/nodemcu/nodemcu-firmware/tree/" + determineSelectedBranch();
+    var gitHubPath = "https://cromwell.readthedocs.io/en/" + determineSelectedBranch();
     var gitHubLinks = $("a[href^='" + relativePath + "']").each(function (index) {
       var url = $(this).attr('href');
       $(this).attr('href', url.replace(relativePath, gitHubPath));

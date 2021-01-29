@@ -2,6 +2,7 @@ package cromwell.engine.workflow.lifecycle
 
 import akka.actor.Props
 import akka.testkit.TestDuration
+import cats.data.Validated.{Invalid, Valid}
 import com.typesafe.config.ConfigFactory
 import cromwell.core.CromwellGraphNode._
 import cromwell.core._
@@ -12,12 +13,12 @@ import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDes
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.{CromwellTestKitSpec, CromwellTestKitWordSpec}
 import org.scalatest.BeforeAndAfter
+import org.scalatestplus.mockito.MockitoSugar
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import wom.values.{WomInteger, WomString}
 
 import scala.concurrent.duration._
-import org.scalatestplus.mockito.MockitoSugar
 
 class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec with BeforeAndAfter with MockitoSugar {
 
@@ -54,6 +55,15 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
   val NoBehaviorActor = system.actorOf(Props.empty)
   val callCachingEnabled = true
   val invalidateBadCacheResults = true
+
+  val validMemoryRetryOptions1 = WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": 1.0 } """).get
+  val validMemoryRetryOptions2 = WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": 99.0 } """).get
+  val validMemoryRetryOptions3 = WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": 12.34 } """).get
+  val invalidMemoryRetryOptions1 = WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": 0.9 } """).get
+  val invalidMemoryRetryOptions2 = WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": 99.1 } """).get
+  val invalidMemoryRetryOptions3 = WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": -1.1 } """).get
+  val invalidMemoryRetryOptions4 = WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": "invalid value" } """).get
+  val invalidMemoryRetryOptions5 = WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": true } """).get
 
   before {
   }
@@ -467,6 +477,61 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
             reason.getMessage should include("Invalid value for File input 'foo.bad_one': \"gs://this/is/a/bad/gcs/path.txt starts with a '\"'")
             reason.getMessage should include("Invalid value for File input 'foo.bad_two': \"gs://another/bad/gcs/path.txt starts with a '\"'")
             reason.getMessage should include("Invalid value for File input 'foo.bad_three': empty value")
+          case _: MaterializeWorkflowDescriptorSuccessResponse => fail("This materialization should not have succeeded!")
+          case unknown => fail(s"Unexpected materialization response: $unknown")
+        }
+      }
+
+      system.stop(materializeWfActor)
+    }
+
+    "accept valid memory_retry_multiplier" in {
+      List(validMemoryRetryOptions1, validMemoryRetryOptions2, validMemoryRetryOptions3, validOptions) map { options =>
+        MaterializeWorkflowDescriptorActor.validateMemoryRetryMultiplier(options) match {
+          case Valid(_) => // good!
+          case Invalid(_) => fail(s"memory_retry_multiplier validation for $options failed but should have passed!")
+        }
+      }
+    }
+
+    "reject invalid memory_retry_multiplier" in {
+      List(invalidMemoryRetryOptions1, invalidMemoryRetryOptions2, invalidMemoryRetryOptions3) map { options =>
+        MaterializeWorkflowDescriptorActor.validateMemoryRetryMultiplier(options) match {
+          case Invalid(errorsList) => errorsList.head should be("Workflow option 'memory_retry_multiplier' is invalid. " +
+            "It should be in the range 1.0 ≤ n ≤ 99.0")
+          case Valid(_) => fail(s"memory_retry_multiplier validation for $options succeeded but should have failed!")
+        }
+      }
+
+      List(invalidMemoryRetryOptions4, invalidMemoryRetryOptions5) map { options =>
+        MaterializeWorkflowDescriptorActor.validateMemoryRetryMultiplier(options) match {
+          case Invalid(errorsList) => errorsList.head should startWith(s"Workflow option 'memory_retry_multiplier' is invalid. " +
+            "It should be of type Double and in the range 1.0 ≤ n ≤ 99.0. Error: NumberFormatException:")
+          case Valid(_) => fail(s"memory_retry_multiplier validation for $options succeeded but should have failed!")
+        }
+      }
+    }
+
+    "fail materialization if memory_retry_multiplier is invalid" in {
+      val materializeWfActor = system.actorOf(MaterializeWorkflowDescriptorActor.props(NoBehaviorActor, workflowId, importLocalFilesystem = false, ioActorProxy = ioActor, hogGroup = fooHogGroup))
+      val sources = WorkflowSourceFilesWithoutImports(
+        workflowSource = Option(workflowSourceNoDocker),
+        workflowUrl = None,
+        workflowRoot = None,
+        workflowType = Option("WDL"),
+        workflowTypeVersion = None,
+        inputsJson = validInputsJson,
+        workflowOptions = invalidMemoryRetryOptions1,
+        labelsJson = validCustomLabelsFile,
+        warnings = Vector.empty)
+      materializeWfActor ! MaterializeWorkflowDescriptorCommand(sources, minimumConf, callCachingEnabled,
+        invalidateBadCacheResults)
+
+      within(Timeout) {
+        expectMsgPF() {
+          case MaterializeWorkflowDescriptorFailureResponse(reason) =>
+            reason.getMessage should startWith("Workflow input processing failed:\n")
+            reason.getMessage should include("Workflow option 'memory_retry_multiplier' is invalid. It should be in the range 1.0 ≤ n ≤ 99.0")
           case _: MaterializeWorkflowDescriptorSuccessResponse => fail("This materialization should not have succeeded!")
           case unknown => fail(s"Unexpected materialization response: $unknown")
         }

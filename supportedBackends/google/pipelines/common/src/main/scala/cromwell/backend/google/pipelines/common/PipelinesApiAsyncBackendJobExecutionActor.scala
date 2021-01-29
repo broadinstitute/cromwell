@@ -150,8 +150,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     case _ => false
   }
 
-  override lazy val memoryRetryFactor: Option[GreaterEqualRefined] = initializationData.papiConfiguration.papiAttributes.memoryRetryConfiguration.map(_.multiplier)
-
   override def tryAbort(job: StandardAsyncJob): Unit = abortJob(job)
 
   override def requestsAbortAndDiesImmediately: Boolean = false
@@ -494,6 +492,10 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
             jobLogger = jobLogger
           )
 
+        // if the `memory_retry_multiplier` is not present in the workflow options there is no need to check whether or
+        // not the `stderr` file contained memory retry error keys
+        val retryWithMoreMemoryKeys: Option[List[String]] = memoryRetryFactor.flatMap(_ => memoryRetryErrorKeys)
+
         CreatePipelineParameters(
           jobDescriptor = jobDescriptor,
           runtimeAttributes = runtimeAttributes,
@@ -513,7 +515,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           womOutputRuntimeExtractor = jobDescriptor.workflowDescriptor.outputRuntimeExtractor,
           adjustedSizeDisks = adjustedSizeDisks,
           virtualPrivateCloudConfiguration = jesAttributes.virtualPrivateCloudConfiguration,
-          retryWithMoreMemoryKeys = jesAttributes.memoryRetryConfiguration.map(_.errorKeys),
+          retryWithMoreMemoryKeys = retryWithMoreMemoryKeys,
           fuseEnabled = fuseEnabled(jobDescriptor.workflowDescriptor),
           allowNoAddress = pipelinesConfiguration.papiAttributes.allowNoAddress,
           referenceDisksForLocalizationOpt = referenceDisksToMount,

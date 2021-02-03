@@ -60,7 +60,7 @@ startup_funnel
 
 # Limiting Centaur to 4 threads here in order to try to prevent exceeding the OS's max open files limit: BA-6153
 cromwell::build::run_centaur \
-    -p 1 \
+    -p 2 \
     -e call_cache_capoeira_local \
     -e draft3_call_cache_capoeira_local \
     -e read_file_limits \

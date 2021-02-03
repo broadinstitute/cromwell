@@ -1,7 +1,6 @@
 package cromwell.backend.google.pipelines.common
 
 import java.net.URL
-
 import cats.data.Validated._
 import cats.data.{NonEmptyList, Validated}
 import cats.implicits._
@@ -197,7 +196,7 @@ object PipelinesApiConfigurationAttributes
       BatchRequestTimeoutConfiguration(readTimeoutMillis = read, connectTimeoutMillis = connect)
     }
 
-    val referenceDiskLocalizationManifestFiles: ErrorOr[Option[List[ValidFullGcsPath]]] = validateGcsPathsToReferenceDiskManifestFiles(backendConfig, backendName)
+    val referenceDiskLocalizationManifestFiles: ErrorOr[Option[List[ManifestFile]]] = validateReferenceDiskManifestConfigs(backendConfig, backendName)
 
     val dockerImageCacheManifestFile: ErrorOr[Option[ValidFullGcsPath]] = validateGcsPathToDockerImageCacheManifestFile(backendConfig)
 
@@ -218,7 +217,7 @@ object PipelinesApiConfigurationAttributes
                                                        virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
                                                        batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
                                                        allowNoAddress: Boolean,
-                                                       referenceDiskLocalizationManifestFilesOpt: Option[List[ValidFullGcsPath]],
+                                                       referenceDiskLocalizationManifestFilesOpt: Option[List[ManifestFile]],
                                                        dockerImageCacheManifestFileOpt: Option[ValidFullGcsPath]): ErrorOr[PipelinesApiConfigurationAttributes] =
       (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN {
         (genomicsAuth, gcsAuth) =>
@@ -294,15 +293,25 @@ object PipelinesApiConfigurationAttributes
     }
   }
 
-  def validateGcsPathsToReferenceDiskManifestFiles(backendConfig: Config, backendName: String): ErrorOr[Option[List[ValidFullGcsPath]]] = {
-    backendConfig.getAs[List[String]]("reference-disk-localization-manifest-files") match {
-      case Some(gcsPaths) =>
-        logger.info(s"Reference disks feature for $backendName backend is configured with the following manifest files: ${gcsPaths.mkString(",")}.")
-        gcsPaths.map(validateSingleGcsPath)
-          .sequence
-          .contextualizeErrors("parse paths to file as valid GCS paths")
-          .map(Option.apply)
+  /**
+    * Validate that the entries corresponding to "reference-disk-localization-manifest-files" in the specified
+    * backend are parseable as `ManifestFile`s.
+    */
+  def validateReferenceDiskManifestConfigs(backendConfig: Config, backendName: String): ErrorOr[Option[List[ManifestFile]]] = {
+    backendConfig.getAs[List[Config]]("reference-disk-localization-manifest-files") match {
+      case Some(configs) =>
+        import _root_.io.circe.generic.auto._
+        import _root_.io.circe.config.parser
 
+        configs traverse parser.decode[ManifestFile] match {
+          case Right(manifests) =>
+            logger.info(s"Reference disks feature for $backendName backend is configured with the following manifest files: ${manifests.map(_.imageIdentifier).mkString(",")}.")
+            Option(manifests).validNel
+          case Left(err) =>
+            val message = s"Reference disks misconfigured for backend $backendName, could not parse as List[ManifestFile]"
+            logger.error(message, err.getCause)
+            s"$message: ${err.getMessage}".invalidNel
+        }
       case None =>
         logger.info(s"Reference disks feature for $backendName backend is not configured.")
         None.validNel

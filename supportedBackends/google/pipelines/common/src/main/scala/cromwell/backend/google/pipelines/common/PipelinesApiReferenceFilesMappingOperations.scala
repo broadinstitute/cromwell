@@ -1,7 +1,6 @@
 package cromwell.backend.google.pipelines.common
 
 import java.util
-
 import _root_.io.circe.generic.auto._
 import _root_.io.circe.parser._
 import cats.effect.IO
@@ -25,22 +24,21 @@ trait PipelinesApiReferenceFilesMappingOperations {
   case class ManifestFile(imageIdentifier: String, diskSizeGb: Int, files: List[ReferenceFile])
 
   /**
-   * This method will read and parse reference disk manifest files from GCS. It will also validate reference
+   * This method will read and parse reference disk manifests from config. It will also validate reference
    * files' CRC32Cs. Depending on number of manifests and their sizes may take significant amount of time.
    */
   def generateReferenceFilesMapping(auth: GoogleAuthMode,
-                                    referenceDiskLocalizationManifestFiles: List[ValidFullGcsPath]): Map[String, PipelinesApiReferenceFilesDisk] = {
+                                    referenceDiskLocalizationManifests: List[ManifestFile]): Map[String, PipelinesApiReferenceFilesDisk] = {
     val gcsClient = StorageOptions
       .newBuilder()
       .setCredentials(auth.credentials(Set(StorageScopes.DEVSTORAGE_READ_ONLY)))
       .build
       .getService
-    val manifestFilesIo = referenceDiskLocalizationManifestFiles traverse { manifestFilePath => readReferenceDiskManifestFileFromGCS(gcsClient, manifestFilePath) }
-    val validReferenceFilesMapIO = manifestFilesIo flatMap { manifestFiles =>
-      manifestFiles
+
+    val validReferenceFilesMapIO = referenceDiskLocalizationManifests
         .traverse(manifestFile => getMapOfValidReferenceFilePathsToDisks(gcsClient, manifestFile))
         .map(_.flatten.toMap)
-    }
+
     validReferenceFilesMapIO.unsafeRunSync()
   }
 

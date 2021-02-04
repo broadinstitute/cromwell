@@ -12,7 +12,7 @@ case class DrsPath(drsPath: CloudNioPath, requesterPaysProjectIdOption: Option[S
     DrsPath(nioPath.asInstanceOf[CloudNioPath], requesterPaysProjectIdOption)
   }
 
-  override def pathAsString: String = drsPath.uriAsString
+  override def pathAsString: String = drsPath.cloudHost
 
-  override def pathWithoutScheme: String = s"${drsPath.cloudHost}/${drsPath.cloudPath}"
+  override def pathWithoutScheme: String = pathAsString.stripPrefix(drsPath.getFileSystem.provider.getScheme + "://")
 }

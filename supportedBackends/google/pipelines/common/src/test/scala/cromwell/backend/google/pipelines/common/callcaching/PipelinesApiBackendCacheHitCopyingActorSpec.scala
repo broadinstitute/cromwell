@@ -37,7 +37,7 @@ import scala.language.postfixOps
 import scala.util.{Success, Try}
 
 
-class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("PipelinesApiBackendCacheHitCopyingActor")
+class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
   with AnyFlatSpecLike with Matchers with ImplicitSender with Mockito with Eventually {
 
   behavior of "PipelinesApiBackendCacheHitCopyingActor"
@@ -75,9 +75,9 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("Pipeline
 
     {
       // Step 0: a successful copy attempt. There's a lot of darkness ahead so begin with a bit of light.
-      val ioActor = TestProbe()
-      val serviceRegistryActor = TestProbe()
-      val supervisor = TestProbe()
+      val ioActor = TestProbe("ioActor")
+      val serviceRegistryActor = TestProbe("serviceRegistryActor")
+      val supervisor = TestProbe("supervisor")
       val copyActor = buildCopyActor(
         workflow = workflow,
         blacklistCache = blacklistCache,
@@ -123,9 +123,9 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("Pipeline
     {
       // Step 1: an attempt to read a hit of unknown status from a bucket of unknown status, but the IoActor will report
       // a forbidden (403) failure which should cause hit and bucket blacklisting.
-      val ioActor = TestProbe()
-      val serviceRegistryActor = TestProbe()
-      val supervisor = TestProbe()
+      val ioActor = TestProbe("ioActor")
+      val serviceRegistryActor = TestProbe("serviceRegistryActor")
+      val supervisor = TestProbe("supervisor")
 
       val copyActor = buildCopyActor(
         workflow = workflow,
@@ -181,9 +181,9 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("Pipeline
 
     {
       // Step 2: an attempt to read an unknown hit from a blacklisted bucket.
-      val ioActor = TestProbe()
-      val serviceRegistryActor = TestProbe()
-      val supervisor = TestProbe()
+      val ioActor = TestProbe("ioActor")
+      val serviceRegistryActor = TestProbe("serviceRegistryActor")
+      val supervisor = TestProbe("supervisor")
 
       val copyActor = buildCopyActor(
         workflow = workflow,
@@ -223,9 +223,9 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("Pipeline
     {
       // Step 3: a generic failure to read a cache hit from a bucket not known to be bad should cause the hit to be
       // marked bad but not its containing bucket.
-      val ioActor = TestProbe()
-      val serviceRegistryActor = TestProbe()
-      val supervisor = TestProbe()
+      val ioActor = TestProbe("ioActor")
+      val serviceRegistryActor = TestProbe("serviceRegistryActor")
+      val supervisor = TestProbe("supervisor")
       val copyActor = buildCopyActor(
         workflow = workflow,
         blacklistCache = blacklistCache,
@@ -275,9 +275,9 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("Pipeline
 
     {
       // Step 4: a new workflow from the same grouping tries to copy the bad cache hit from step 3.
-      val ioActor = TestProbe()
-      val serviceRegistryActor = TestProbe()
-      val supervisor = TestProbe()
+      val ioActor = TestProbe("ioActor")
+      val serviceRegistryActor = TestProbe("serviceRegistryActor")
+      val supervisor = TestProbe("supervisor")
       val copyActor = buildCopyActor(
         workflow = workflow2,
         blacklistCache = blacklistCache,
@@ -317,9 +317,9 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("Pipeline
 
     {
       // Step 5: a new workflow from the same grouping tries to copy an unknown cache hit from the bucket blacklisted in step 1.
-      val ioActor = TestProbe()
-      val serviceRegistryActor = TestProbe()
-      val supervisor = TestProbe()
+      val ioActor = TestProbe("ioActor")
+      val serviceRegistryActor = TestProbe("serviceRegistryActor")
+      val supervisor = TestProbe("supervisor")
       val copyActor = buildCopyActor(
         workflow = workflow2,
         blacklistCache = blacklistCache,
@@ -376,7 +376,7 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("Pipeline
 
   private def buildWorkflow(grouping: Option[String]): HasWorkflowIdAndSources = {
     val workflowId = WorkflowId.randomId()
-    val workflow = new HasWorkflowIdAndSources {
+    new HasWorkflowIdAndSources {
       override val sources: WorkflowSourceFilesCollection = {
         val collection = mock[WorkflowSourceFilesCollection]
         val workflowOptions = grouping match {
@@ -390,7 +390,6 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("Pipeline
 
       override def id: WorkflowId = workflowId
     }
-    workflow
   }
 
   private def buildCopyActor(workflow: HasWorkflowIdAndSources,
@@ -422,9 +421,10 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("Pipeline
       gcsTransferConfiguration = null,
       virtualPrivateCloudConfiguration = None,
       batchRequestTimeoutConfiguration = null,
-      memoryRetryConfiguration = None,
       allowNoAddress = true,
-      PipelinesApiReferenceFilesMapping(validReferenceFilesMap = Map.empty)
+      referenceFileToDiskImageMappingOpt = None,
+      dockerImageToCacheDiskImageMappingOpt = None,
+      checkpointingInterval = 10.minutes
     )
 
     val papiConfiguration = mock[PipelinesApiConfiguration]
@@ -448,6 +448,7 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("Pipeline
       attempt = 1
     )
 
+    //noinspection ScalaUnusedSymbol
     def mapper(jobPaths: PipelinesApiJobPaths, originalPath: String): String = originalPath
 
     val workflowDescriptor = mock[BackendWorkflowDescriptor]
@@ -466,7 +467,7 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("Pipeline
 
     pipelinesApiJobPaths.forCallCacheCopyAttempts returns copyDestinationPaths
     pipelinesApiJobPaths.metadataPaths returns Map.empty
-    workflowPaths.toJobPaths(any[BackendJobDescriptor]).returns(pipelinesApiJobPaths)
+    workflowPaths.toJobPaths(anyObject[BackendJobDescriptor]).returns(pipelinesApiJobPaths)
 
     def identityPathMocker(str: Any): Try[Path] = {
       val path = mock[Path]
@@ -478,7 +479,9 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite("Pipeline
     workflowPaths.gcsAuthFilePath returns mock[Path]
 
     val runtimeAttributesBuilder = mock[StandardValidatedRuntimeAttributesBuilder]
-    runtimeAttributesBuilder.build(any[Map[String, WomValue]], any[Logger]).returns(ValidatedRuntimeAttributes(Map.empty))
+    runtimeAttributesBuilder
+      .build(anyObject[Map[String, WomValue]], anyObject[Logger])
+      .returns(ValidatedRuntimeAttributes(Map.empty))
 
     val backendInitializationData = mock[PipelinesApiBackendInitializationData]
     backendInitializationData.papiConfiguration returns papiConfiguration

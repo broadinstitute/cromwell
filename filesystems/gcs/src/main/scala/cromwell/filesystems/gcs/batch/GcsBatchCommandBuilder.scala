@@ -1,35 +1,38 @@
 package cromwell.filesystems.gcs.batch
 
 import cromwell.core.io._
+import cromwell.core.path.Path
 import cromwell.filesystems.gcs.GcsPath
 
+import scala.util.Try
+
 private case object PartialGcsBatchCommandBuilder extends PartialIoCommandBuilder {
-  override def sizeCommand = {
-    case gcsPath: GcsPath => GcsBatchSizeCommand(gcsPath)
+  override def sizeCommand: PartialFunction[Path, Try[GcsBatchSizeCommand]] = {
+    case gcsPath: GcsPath => GcsBatchSizeCommand.forPath(gcsPath)
   }
   
-  override def deleteCommand = {
-    case (gcsPath: GcsPath, swallowIoExceptions) => GcsBatchDeleteCommand(gcsPath, swallowIoExceptions)
+  override def deleteCommand: PartialFunction[(Path, Boolean), Try[GcsBatchDeleteCommand]] = {
+    case (gcsPath: GcsPath, swallowIoExceptions) => GcsBatchDeleteCommand.forPath(gcsPath, swallowIoExceptions)
   }
   
-  override def copyCommand = {
-    case (gcsSrc: GcsPath, gcsDest: GcsPath, overwrite) => GcsBatchCopyCommand(gcsSrc, gcsDest, overwrite)
+  override def copyCommand: PartialFunction[(Path, Path), Try[GcsBatchCopyCommand]] = {
+    case (gcsSrc: GcsPath, gcsDest: GcsPath) => GcsBatchCopyCommand.forPaths(gcsSrc, gcsDest)
   }
   
-  override def hashCommand = {
-    case gcsPath: GcsPath => GcsBatchCrc32Command(gcsPath)
+  override def hashCommand: PartialFunction[Path, Try[GcsBatchCrc32Command]] = {
+    case gcsPath: GcsPath => GcsBatchCrc32Command.forPath(gcsPath)
   }
 
-  override def touchCommand = {
-    case gcsPath: GcsPath => GcsBatchTouchCommand(gcsPath)
+  override def touchCommand: PartialFunction[Path, Try[GcsBatchTouchCommand]] = {
+    case gcsPath: GcsPath => GcsBatchTouchCommand.forPath(gcsPath)
   }
 
-  override def existsCommand = {
-    case gcsPath: GcsPath => GcsBatchExistsCommand(gcsPath)
+  override def existsCommand: PartialFunction[Path, Try[GcsBatchExistsCommand]] = {
+    case gcsPath: GcsPath => GcsBatchExistsCommand.forPath(gcsPath)
   }
 
-  override def isDirectoryCommand = {
-    case gcsPath: GcsPath => GcsBatchIsDirectoryCommand(gcsPath)
+  override def isDirectoryCommand: PartialFunction[Path, Try[GcsBatchIsDirectoryCommand]] = {
+    case gcsPath: GcsPath => GcsBatchIsDirectoryCommand.forPath(gcsPath)
   }
 }
 

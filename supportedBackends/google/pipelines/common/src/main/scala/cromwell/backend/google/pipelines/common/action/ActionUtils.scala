@@ -10,7 +10,7 @@ object ActionUtils {
   val sshEntryPoint = "ssh-server"
 
   /** Port mappings for the ssh container. */
-  val sshPortMappings = Map("22" -> new Integer(22))
+  val sshPortMappings = Map("22" -> Int.box(22))
 
   /*
    * At the moment, cloud-sdk (924MB for 276.0.0-slim) and stedolan/jq (182MB) decompressed ~= 1.1 GB
@@ -37,9 +37,10 @@ object ActionUtils {
   val aggregatedLog = s"$logsRoot/output"
 
   /**
-    * Define a shared PID namespace for the monitoring container and its termination controller
+    * Define a shared PID namespace for background action containers and their termination controller.
+    * The value is "monitoring" for historical (first usage) reasons.
     */
-  val monitoringPidNamespace = "monitoring"
+  val backgroundActionPidNamespace = "monitoring"
 
   /**
     * monitoringTerminationAction is needed to gracefully terminate monitoring action,
@@ -47,9 +48,9 @@ object ActionUtils {
     *
     * A fixed timeout is used to avoid hunting for monitoring PID.
     */
-  private val monitoringTerminationGraceTime = 10
+  private val backgroundActionTerminationGraceTime = 10
 
-  val monitoringTerminationCommand: String = s"kill -TERM -1 && sleep $monitoringTerminationGraceTime || true"
+  val terminateAllBackgroundActionsCommand: String = s"kill -TERM -1 && sleep $backgroundActionTerminationGraceTime || true"
 
   /** Start background actions first, leave the rest as is */
   def sortActions[Action](containerSetup: List[Action],
@@ -59,6 +60,8 @@ object ActionUtils {
                           deLocalization: List[Action],
                           monitoringSetup: List[Action],
                           monitoringShutdown: List[Action],
+                          checkpointingStart: List[Action],
+                          checkpointingShutdown: List[Action],
                           sshAccess: List[Action],
                           isBackground: Action => Boolean,
                          ): List[Action] = {
@@ -67,6 +70,6 @@ object ActionUtils {
       case (action, _) => isBackground(action)
     })
 
-    sshAccess ++ containerSetup ++ monitoringSetup ++ sortedActions ++ monitoringShutdown
+    sshAccess ++ containerSetup ++ monitoringSetup ++ checkpointingStart ++ sortedActions ++ checkpointingShutdown ++ monitoringShutdown
   }
 }

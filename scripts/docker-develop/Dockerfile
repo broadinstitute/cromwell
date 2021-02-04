@@ -1,4 +1,8 @@
-FROM openjdk:8u252
+FROM adoptopenjdk:8
+
+RUN apt-get update -q && \
+    apt-get upgrade -qq && \
+    rm -rf /var/lib/apt/lists/*
 
 # docker build -t vanessa/cromwell-dev .
 

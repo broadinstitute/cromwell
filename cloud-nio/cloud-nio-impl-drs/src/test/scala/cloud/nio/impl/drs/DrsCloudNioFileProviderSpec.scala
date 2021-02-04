@@ -6,7 +6,6 @@ import java.time.{Instant, OffsetDateTime, ZoneOffset}
 import cats.data.NonEmptyList
 import cats.effect.IO
 import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
-import cloud.nio.spi.CloudNioFileList
 import com.google.api.client.testing.http.apache.MockHttpClient
 import com.typesafe.config.ConfigFactory
 import common.assertion.CromwellTimeoutSpec
@@ -38,35 +37,26 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
     fileSystemProvider.isFatal(new RuntimeException) should be(false)
     fileSystemProvider.isTransient(new RuntimeException) should be(false)
     fileSystemProvider.getScheme should be("drs")
-    fileSystemProvider.getHost("drs://dg.123/abc") should be("dg.123")
-    fileSystemProvider.getHost("drs://dg.example.com/abc") should be("dg.example.com")
-  }
-
-  it should "be able to get the hostname from variously formatted DRS URIs" in {
-    val config = ConfigFactory.parseString(
-      """martha.url = "https://from.config"
-        |access-token-acceptable-ttl = 1 minute
-        |""".stripMargin
+    val exampleUris = List(
+      "drs://dg.123/abc",
+      "drs://dg.example.com/abc",
+      "drs://drs.data.humancellatlas.org/8aca942c-17f7-4e34-b8fd-3c12e50f9291?version=2019-07-04T151444.185805Z",
+      "drs://jade.datarepo-dev.broadinstitute.org" +
+        "/v1_93dc1e76-8f1c-4949-8f9b-07a087f3ce7b_8b07563a-542f-4b5c-9e00-e8fe6b1861de",
+      "drs://dg.4503/fc046e84-6cf9-43a3-99cc-ffa2964b88cb",
+      // Example non-W3C/IETF URIs provided by
+      // https://docs.google.com/document/d/1Wf4enSGOEXD5_AE-uzLoYqjIp5MnePbZ6kYTVFp1WoM/edit
+      "drs://dg.4DFC:0027045b-9ed6-45af-a68e-f55037b5184c",
+      "drs://dg.4503:dg.4503/fc046e84-6cf9-43a3-99cc-ffa2964b88cb",
+      "drs://dg.ANV0:dg.ANV0/0db6577e-57bd-48a1-93c6-327c292bcb6b",
+      "drs://dg.F82A1A:ed6be7ab-068e-46c8-824a-f39cfbb885cc",
     )
-
-    val fileSystemProvider = new MockDrsCloudNioFileSystemProvider(config = config)
-    fileSystemProvider.drsConfig.marthaUrl should be("https://from.config")
-    fileSystemProvider.accessTokenAcceptableTTL should be(1.minute)
-    fileSystemProvider.fileProvider should be(a[DrsCloudNioFileProvider])
-    fileSystemProvider.isFatal(new RuntimeException) should be(false)
-    fileSystemProvider.isTransient(new RuntimeException) should be(false)
-    fileSystemProvider.getScheme should be("drs")
-    fileSystemProvider.getHost("drs://dg.4503:dg.4503/abc") should be("dg.4503")
-    fileSystemProvider.getHost("drs://dg.4503:abc") should be("dg.4503")
-    fileSystemProvider.getHost("drs://dg.4503:") should be("dg.4503")
-    fileSystemProvider.getHost("drs://dg.4DFC:abc") should be("dg.4DFC")
-    fileSystemProvider.getHost("drs://dg.712c:abc") should be("dg.712c")
-    fileSystemProvider.getHost("drs://dg.ANV0:abc") should be("dg.ANV0")
-    fileSystemProvider.getHost("drs://dg.F82A1A:abc") should be("dg.F82A1A")
-    fileSystemProvider.getHost("drs://:abc") should be("")
+    for (exampleUri <- exampleUris) {
+      fileSystemProvider.getHost(exampleUri) should be(exampleUri)
+    }
   }
 
-  it should "list existing drs objects" in {
+  it should "check existing drs objects" in {
     val httpResponse = mock[CloseableHttpResponse].smart
     httpResponse.getStatusLine returns new BasicStatusLine(HttpVersion.HTTP_1_1, 200, "OK")
 
@@ -79,9 +69,7 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
 
     val fileSystemProvider = new MockDrsCloudNioFileSystemProvider(httpClientBuilder = Option(httpClientBuilder))
     val fileProvider = fileSystemProvider.fileProvider.asInstanceOf[DrsCloudNioFileProvider]
-    fileProvider.existsPaths("dg.123", "abc") should be(true)
-    fileProvider.listObjects("dg.123", "abc", None) should be(CloudNioFileList(List("abc"), None))
-    fileProvider.listObjects("dg.123", "abc/", None) should be(CloudNioFileList(Nil, None))
+    fileProvider.existsPaths("drs://dg.123/abc", "") should be(true)
   }
 
   it should "return a file provider that can read bytes" in {
@@ -89,17 +77,7 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
       override def resolveDrsThroughMartha(drsPath: String,
                                            fields: NonEmptyList[MarthaField.Value],
                                           ): IO[MarthaResponse] = {
-        IO(
-          MarthaResponse(
-            size = None,
-            timeCreated = None,
-            timeUpdated = None,
-            gsUri = Option("gs://bucket/object/path"),
-            googleServiceAccount = None,
-            fileName = None,
-            hashes = None,
-          )
-        )
+        IO(MarthaResponse(gsUri = Option("gs://bucket/object/path")))
       }
     }
 
@@ -132,9 +110,6 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
             size = Option(789L),
             timeCreated = Option(OffsetDateTime.ofInstant(instantCreated, ZoneOffset.UTC).toString),
             timeUpdated = Option(OffsetDateTime.ofInstant(instantUpdated, ZoneOffset.UTC).toString),
-            gsUri = None,
-            googleServiceAccount = None,
-            fileName = None,
             hashes = Option(Map("rot13" -> "gg0217869")),
           )
         )
@@ -142,7 +117,7 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
     }
 
     val fileSystemProvider = new MockDrsCloudNioFileSystemProvider(mockResolver = Option(drsPathResolver))
-    val fileAttributes = fileSystemProvider.fileProvider.fileAttributes("dg.123", "abc")
+    val fileAttributes = fileSystemProvider.fileProvider.fileAttributes("drs://dg.123/abc", "")
     val drsFileAttributes = fileAttributes.get.asInstanceOf[DrsCloudNioRegularFileAttributes]
     drsFileAttributes.fileKey() should be("drs://dg.123/abc")
     drsFileAttributes.creationTime().toMillis should be(123L)
@@ -166,5 +141,9 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
     the[UnsupportedOperationException] thrownBy {
       fileProvider.deleteIfExists("", "")
     } should have message "DRS currently doesn't support delete."
+
+    the[UnsupportedOperationException] thrownBy {
+      fileProvider.listObjects("", "", None)
+    } should have message "DRS currently doesn't support list."
   }
 }

@@ -1,5 +1,6 @@
 package cromwell.engine.workflow.lifecycle.execution
 
+import java.time.OffsetDateTime
 import java.util.concurrent.atomic.AtomicInteger
 
 import _root_.wdl.draft2.model._
@@ -34,6 +35,7 @@ import cromwell.engine.workflow.lifecycle.execution.stores.{ActiveExecutionStore
 import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
 import cromwell.engine.workflow.workflowstore.{RestartableAborting, StartableState}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
+import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{CallMetadataKeys, MetadataEvent, MetadataValue}
 import cromwell.util.StopAndLogSupervisor
@@ -50,7 +52,12 @@ import scala.language.postfixOps
 import scala.util.control.NoStackTrace
 
 case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
-  extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData] with WorkflowLogging with CallMetadataHelper with StopAndLogSupervisor with Timers {
+  extends LoggingFSM[WorkflowExecutionActorState, WorkflowExecutionActorData]
+    with WorkflowLogging
+    with CallMetadataHelper
+    with StopAndLogSupervisor
+    with Timers
+    with CromwellInstrumentation {
 
   implicit val ec = context.dispatcher
   override val serviceRegistryActor = params.serviceRegistryActor
@@ -105,7 +112,10 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       context.stop(self)
   }
 
-  private def sendHeartBeat(): Unit = timers.startSingleTimer(ExecutionHeartBeatKey, ExecutionHeartBeat, ExecutionHeartBeatInterval)
+  private def sendHeartBeat(): Unit = {
+    measureTimeBetweenHeartbeats()
+    timers.startSingleTimer(ExecutionHeartBeatKey, ExecutionHeartBeat, ExecutionHeartBeatInterval)
+  }
 
   when(WorkflowExecutionPendingState) {
     case Event(ExecuteWorkflowCommand, _) =>
@@ -184,6 +194,15 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   when(WorkflowExecutionSuccessfulState) { FSM.NullFunction }
   when(WorkflowExecutionFailedState) { FSM.NullFunction }
   when(WorkflowExecutionAbortedState) { FSM.NullFunction }
+
+  var previousHeartbeatTime: Option[OffsetDateTime] = None
+  def measureTimeBetweenHeartbeats(): Unit = {
+    val now = OffsetDateTime.now
+    previousHeartbeatTime foreach { previous =>
+      sendGauge(NonEmptyList("workflows", List("workflowexecutionactor", "heartbeat", "interval_millis", "set")), now.toInstant.toEpochMilli - previous.toInstant.toEpochMilli)
+    }
+    previousHeartbeatTime = Option(now)
+  }
 
   // Most of the Event handling is common to all states, so put it here. Specific behavior is added / overridden in each state
   whenUnhandled {
@@ -453,7 +472,10 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     serviceRegistryActor ! PutMetadataAction(unknownBackendStatus)
   }
 
-  private def handleRetryableFailure(jobKey: BackendJobDescriptorKey, reason: Throwable, returnCode: Option[Int], memoryMultiplier: GreaterEqualRefined) = {
+  private def handleRetryableFailure(jobKey: BackendJobDescriptorKey,
+                                     reason: Throwable,
+                                     returnCode: Option[Int],
+                                     memoryMultiplier: MemoryRetryMultiplierRefined) = {
     pushFailedCallMetadata(jobKey, returnCode, reason, retryableFailure = true)
 
     val newJobKey = jobKey.copy(attempt = jobKey.attempt + 1, memoryMultiplier = memoryMultiplier)
@@ -480,12 +502,21 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     stay() using data.expressionEvaluationSuccess(key, values)
   }
 
+  override def receive: Receive = {
+    case msg =>
+      val starttime = OffsetDateTime.now
+      super[LoggingFSM].receive(msg)
+      sendGauge(NonEmptyList("workflows", List("workflowexecutionactor", this.stateName.toString, msg.getClass.getSimpleName , "processing_millis", "set")), OffsetDateTime.now.toInstant.toEpochMilli - starttime.toInstant.toEpochMilli)
+  }
+
   /**
     * Attempt to start all runnable jobs and return updated state data. This will create a new copy
     * of the state data.
     */
   private def startRunnableNodes(data: WorkflowExecutionActorData): WorkflowExecutionActorData = {
     import keys._
+
+    val startRunnableStartTimestamp = OffsetDateTime.now
 
     def updateExecutionStore(diffs: List[WorkflowExecutionDiff], updatedData: WorkflowExecutionActorData): WorkflowExecutionActorData = {
       val notStartedBackendJobs = diffs.flatMap(d => d.executionStoreChanges.collect{
@@ -510,7 +541,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       else updatedData.mergeExecutionDiffs(diffs)
     }
 
-    val DataStoreUpdate(runnableKeys, statusChanges, updatedData) = data.executionStoreUpdate
+    val DataStoreUpdate(runnableKeys, _, updatedData) = data.executionStoreUpdate
     val runnableCalls = runnableKeys.view
       .collect({ case k: BackendJobDescriptorKey => k })
       .groupBy(_.node)
@@ -523,10 +554,6 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       })
     val mode = if (restarting) "Restarting" else "Starting"
     if (runnableCalls.nonEmpty) workflowLogger.info(s"$mode " + runnableCalls.mkString(", "))
-
-    statusChanges.collect({
-      case (jobKey, WaitingForQueueSpace) => pushWaitingForQueueSpaceCallMetadata(jobKey)
-    })
 
     val keyStartDiffs: List[WorkflowExecutionDiff] = runnableKeys map { k => k -> (k match {
       case key: BackendJobDescriptorKey => processRunnableJob(key, data)
@@ -550,7 +577,9 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     }
 
     // Merge the execution diffs upon success
-    updateExecutionStore(keyStartDiffs, updatedData)
+    val result = updateExecutionStore(keyStartDiffs, updatedData)
+    sendGauge(NonEmptyList("workflows", List("workflowexecutionactor", "startRunnableNodes", "duration_millis", "set")), OffsetDateTime.now.toInstant.toEpochMilli - startRunnableStartTimestamp.toInstant.toEpochMilli)
+    result
   }
 
   /*

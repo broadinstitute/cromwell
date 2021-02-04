@@ -69,7 +69,8 @@ object EngineFunctionEvaluators {
   implicit val readJsonFunctionEvaluator: TypeEvaluator[ReadJson] = new TypeEvaluator[ReadJson] {
     override def evaluateType(a: ReadJson, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])
                              (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
-      validateParamType(a.param, linkedValues, WomSingleFileType).map(_ => WomObjectType)
+      // we can't figure out the WomType of data without reading the file hence evaluate it to `WomAnyType`
+      validateParamType(a.param, linkedValues, WomSingleFileType).map(_ => WomAnyType)
     }
   }
 
@@ -139,7 +140,17 @@ object EngineFunctionEvaluators {
   implicit val writeJsonFunctionEvaluator: TypeEvaluator[WriteJson] = new TypeEvaluator[WriteJson] {
     override def evaluateType(a: WriteJson, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])
                              (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
-      validateParamType(a.param, linkedValues, WomObjectType).map(_ => WomSingleFileType)
+      a.param.evaluateType(linkedValues).flatMap {
+        case v if WomBooleanType.isCoerceableFrom(v) ||
+          WomIntegerType.isCoerceableFrom(v) ||
+          WomFloatType.isCoerceableFrom(v) ||
+          WomStringType.isCoerceableFrom(v) ||
+          WomObjectType.isCoerceableFrom(v) ||
+          WomPairType(WomAnyType, WomAnyType).isCoerceableFrom(v) ||
+          WomArrayType(WomAnyType).isCoerceableFrom(v) => WomSingleFileType.validNel
+        case v => (s"Invalid parameter '${a.param}'. Valid input types are 'Boolean', 'String', 'Integer', 'Float', 'Object'," +
+          s" 'Pair[_, _]', 'Map[_, _] or 'Array[_]' but got '${v.friendlyName}'").invalidNel
+      }
     }
   }
 

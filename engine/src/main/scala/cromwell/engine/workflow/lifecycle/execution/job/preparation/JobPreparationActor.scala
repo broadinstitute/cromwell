@@ -4,8 +4,9 @@ import _root_.wdl.draft2.model._
 import akka.actor.{ActorRef, FSM, Props}
 import cats.data.Validated.{Invalid, Valid}
 import common.exception.MessageAggregation
+import common.validation.ErrorOr
 import common.validation.ErrorOr.ErrorOr
-import common.validation.Validation.{GreaterEqualOne, GreaterEqualRefined}
+import common.validation.Validation.MemoryRetryMultiplierRefined
 import cromwell.backend._
 import cromwell.backend.validation.DockerValidation
 import cromwell.core.Dispatcher.EngineDispatcher
@@ -23,7 +24,6 @@ import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{CallMetadataKeys, MetadataEvent, MetadataValue}
-import eu.timepit.refined.api.Refined
 import wom.RuntimeAttributesKeys
 import wom.callable.Callable.InputDefinition
 import wom.expression.IoFunctionSet
@@ -32,6 +32,7 @@ import wom.values._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success}
 
 /**
@@ -78,7 +79,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
           val updatedRuntimeAttributes = updateRuntimeMemory(attributes)
           fetchDockerHashesIfNecessary(inputs, updatedRuntimeAttributes)
         }
-        case Invalid(failure) => sendFailureAndStop(new MessageAggregation {
+        case Invalid(failure) => sendFailureAndStop(new MessageAggregation with NoStackTrace {
           override def exceptionContext: String = s"Call input and runtime attributes evaluation failed for ${jobKey.call.localName}"
           override def errorMessages: Traversable[String] = failure.toList
         })
@@ -122,9 +123,9 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   private [preparation] def evaluateInputsAndAttributes(valueStore: ValueStore): ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WomValue])] = {
-    import common.validation.ErrorOr.ShortCircuitingFlatMap
+    import common.validation.ErrorOr.{ShortCircuitingFlatMap, NestedErrorOr}
     for {
-      evaluatedInputs <- resolveAndEvaluateInputs(jobKey, expressionLanguageFunctions, valueStore)
+      evaluatedInputs <- ErrorOr(resolveAndEvaluateInputs(jobKey, expressionLanguageFunctions, valueStore)).flatten
       runtimeAttributes <- prepareRuntimeAttributes(evaluatedInputs)
     } yield (evaluatedInputs, runtimeAttributes)
   }
@@ -165,7 +166,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   private def updateRuntimeMemory(runtimeAttributes: Map[LocallyQualifiedName, WomValue]): Map[LocallyQualifiedName, WomValue] = {
-    def multiplyRuntimeMemory(multiplier: GreaterEqualRefined): Map[LocallyQualifiedName, WomValue] = {
+    def multiplyRuntimeMemory(multiplier: MemoryRetryMultiplierRefined): Map[LocallyQualifiedName, WomValue] = {
       runtimeAttributes.get(RuntimeAttributesKeys.MemoryKey) match {
         case Some(WomString(memory)) =>
           MemorySize.parse(memory) match {
@@ -179,8 +180,8 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     }
 
     jobKey.memoryMultiplier match {
-      case multiplier: Refined[Double, GreaterEqualOne] if multiplier.value == 1.0 => runtimeAttributes
-      case multiplier: Refined[Double, GreaterEqualOne] => multiplyRuntimeMemory(multiplier)
+      case multiplier: MemoryRetryMultiplierRefined if multiplier.value == 1.0 => runtimeAttributes
+      case multiplier: MemoryRetryMultiplierRefined => multiplyRuntimeMemory(multiplier)
     }
   }
 

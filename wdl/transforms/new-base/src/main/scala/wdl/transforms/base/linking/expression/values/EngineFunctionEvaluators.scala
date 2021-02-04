@@ -3,6 +3,7 @@ package wdl.transforms.base.linking.expression.values
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import cats.instances.list._
+import common.validation.ErrorOr
 import common.validation.ErrorOr._
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
@@ -146,17 +147,38 @@ object EngineFunctionEvaluators {
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
-                              (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomObject]] = {
-      processValidatedSingleValue[WomSingleFile, WomObject](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
-        val tryResult: Try[WomObject] = for {
+                              (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomValue]] = {
+
+      def convertJsonToWom(jsValue: JsValue): Try[WomValue] = {
+        jsValue match {
+          case _: JsNumber => WomIntegerType.coerceRawValue(jsValue).recoverWith { case _ => WomFloatType.coerceRawValue(jsValue) }
+          case _: JsString => WomStringType.coerceRawValue(jsValue)
+          case _: JsBoolean => WomBooleanType.coerceRawValue(jsValue)
+          case _: JsArray => WomArrayType(WomAnyType).coerceRawValue(jsValue)
+          case _ => WomObjectType.coerceRawValue(jsValue)
+        }
+      }
+
+      def readJson(fileToRead: WomSingleFile): ErrorOr[EvaluatedValue[WomValue]] = {
+        val tryResult: Try[WomValue] = for {
           read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readJsonLimit)
           jsValue <- Try(read.parseJson)
-          coerced <- WomObjectType.coerceRawValue(jsValue)
-          womObject <- Try(coerced.asInstanceOf[WomObject])
-        } yield womObject
+          womValue <- convertJsonToWom(jsValue)
+        } yield womValue
 
         tryResult.map(EvaluatedValue(_, Seq.empty)).toErrorOr.contextualizeErrors(s"""read_json("${fileToRead.value}")""")
       }
+
+      def convertToSingleFile(womValue: WomValue): ErrorOr[WomSingleFile] = {
+        if (womValue.coercionDefined[WomSingleFile]) womValue.coerceToType[WomSingleFile]
+        else s"Expected File argument but got ${womValue.womType.stableName}".invalidNel
+      }
+
+      for {
+        evaluatedValue <- a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
+        fileToRead <- convertToSingleFile(evaluatedValue.value)
+        womValue <- readJson(fileToRead)
+      } yield womValue
     }
   }
 
@@ -327,13 +349,33 @@ object EngineFunctionEvaluators {
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomSingleFile]] = {
       val functionName = "write_json"
-      processValidatedSingleValue[WomObject, WomSingleFile](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { objectToWrite =>
+
+      def convertToSingleFile(objectToWrite: WomValue): ErrorOr[EvaluatedValue[WomSingleFile]] = {
         val serialized = ValueEvaluation.valueToJson(objectToWrite)
         val tryResult = for {
           written <- writeContent(functionName, ioFunctionSet, serialized.compactPrint)
         } yield written
 
         tryResult.map(v => EvaluatedValue(v, Seq(CommandSetupSideEffectFile(v)))).toErrorOr.contextualizeErrors(s"""$functionName(...)""")
+      }
+
+      def evaluateParam(womValue: WomValue): ErrorOr[EvaluatedValue[WomSingleFile]] = {
+        womValue match {
+          case WomBoolean(_) | WomString(_) | WomInteger(_) | WomFloat(_) | WomPair(_, _) => convertToSingleFile(womValue)
+          case v if v.coercionDefined[WomObject] => v.coerceToType[WomObject].flatMap(convertToSingleFile)
+          case v if v.coercionDefined[WomArray] => v.coerceToType[WomArray].flatMap(convertToSingleFile)
+          case _ => (s"The '$functionName' method expects one of 'Boolean', 'String', 'Integer', 'Float', 'Object', 'Pair[_, _]', " +
+            s"'Map[_, _] or 'Array[_]' argument but instead got '${womValue.womType.friendlyName}'.").invalidNel
+        }
+      }
+
+      val evaluatedSingleFile: ErrorOr[(EvaluatedValue[WomSingleFile], Seq[CommandSetupSideEffectFile])] = for {
+        evaluatedValue <- a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)
+        evaluatedSingleFile <- evaluateParam(evaluatedValue.value)
+      } yield (evaluatedSingleFile, evaluatedValue.sideEffectFiles)
+
+      evaluatedSingleFile map {
+        case (result, previousSideEffectFiles) => result.copy(sideEffectFiles = result.sideEffectFiles ++ previousSideEffectFiles)
       }
     }
   }
@@ -618,7 +660,7 @@ object EngineFunctionEvaluators {
         a.input.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions),
         a.pattern.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions),
         a.replace.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { (input, pattern, replace) =>
-        EvaluatedValue(WomString(pattern.valueString.r.replaceAllIn(input.valueString, replace.valueString)), Seq.empty).validNel
+        ErrorOr(EvaluatedValue(WomString(pattern.valueString.r.replaceAllIn(input.valueString, replace.valueString)), Seq.empty))
       }
     }
   }

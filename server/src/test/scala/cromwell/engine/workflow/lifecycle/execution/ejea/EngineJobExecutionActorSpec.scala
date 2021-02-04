@@ -1,12 +1,11 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
-import java.util.concurrent.atomic.AtomicInteger
-
-import akka.actor.{Actor, ActorSystem}
-import akka.testkit.{DefaultTimeout, ImplicitSender, TestFSMRef, TestKit}
-import com.typesafe.config.ConfigFactory
+import akka.actor.Actor
+import akka.testkit.{DefaultTimeout, ImplicitSender, TestFSMRef}
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.BackendJobExecutionActor
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionActorCommand
+import cromwell.core.TestKitSuite
 import cromwell.core.callcaching._
 import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor._
 import org.scalatest._
@@ -63,7 +62,7 @@ trait EngineJobExecutionActorSpec extends AbstractEngineJobExecutionActorSpec
 object EngineJobExecutionActorSpec {
   implicit class EnhancedTestEJEA[S,D,T <: Actor](me: TestFSMRef[S, D, T]) {
     // Like setState, but mirrors back the EJEA (for easier inlining)
-    def setStateInline(state: S = me.stateName, data: D = me.stateData) = {
+    def setStateInline(state: S = me.stateName, data: D = me.stateData): TestFSMRef[S, D, T] = {
       me.setState(state, data)
       me
     }
@@ -71,7 +70,7 @@ object EngineJobExecutionActorSpec {
 }
 
 object AbstractEngineJobExecutionActorSpec {
-  val ConfigText =
+  val ConfigText: String =
     """
       |akka {
       |  loggers = ["akka.testkit.TestEventListener"]
@@ -126,11 +125,11 @@ object AbstractEngineJobExecutionActorSpec {
       |services {}
     """.stripMargin
 
-  private val testWorkflowManagerSystemCount = new AtomicInteger()
-
-  def systemName: String = "test-system-" + testWorkflowManagerSystemCount.incrementAndGet()
-  protected def newActorSystem: ActorSystem = ActorSystem(systemName, ConfigFactory.parseString(ConfigText))
+  private lazy val testConfig = ConfigFactory.parseString(ConfigText)
 }
 
-abstract class AbstractEngineJobExecutionActorSpec extends TestKit(AbstractEngineJobExecutionActorSpec.newActorSystem)
-  with DefaultTimeout with ImplicitSender with Matchers with ScalaFutures with Eventually with Suite with OneInstancePerTest with BeforeAndAfterAll with AnyWordSpecLike
+abstract class AbstractEngineJobExecutionActorSpec extends TestKitSuite
+  with DefaultTimeout with ImplicitSender with Matchers with ScalaFutures with Eventually with Suite
+  with OneInstancePerTest with BeforeAndAfterAll with AnyWordSpecLike {
+  override protected lazy val actorSystemConfig: Config = AbstractEngineJobExecutionActorSpec.testConfig
+}

@@ -15,7 +15,6 @@ import cromwell.filesystems.http.HttpPath
 import cromwell.filesystems.sra.SraPath
 import simulacrum.typeclass
 
-import scala.language.implicitConversions
 @typeclass trait ToParameter[A <: PipelinesParameter] {
   def toActions(p: A, mounts: List[Mount])(implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Action]
 }
@@ -29,13 +28,16 @@ trait PipelinesParameterConversions {
       val labels = ActionBuilder.parameterLabels(fileInput)
       fileInput.cloudPath match {
         case drsPath: DrsPath =>
-          import cromwell.backend.google.pipelines.v2beta.api.ActionCommands.ShellPath
+
           import collection.JavaConverters._
 
           val drsFileSystemProvider = drsPath.drsPath.getFileSystem.provider.asInstanceOf[DrsCloudNioFileSystemProvider]
 
           val drsDockerImage = config.getString("drs.localization.docker-image")
-          val drsCommand = List(fileInput.cloudPath.escape, fileInput.containerPath.escape) ++ drsPath.requesterPaysProjectIdOption.toList
+          // Note: Don't ShellPath.escape the paths as we are directly invoking the localizer and NOT launching a shell.
+          val drsCommand =
+            List(fileInput.cloudPath.pathAsString, fileInput.containerPath.pathAsString) ++
+              drsPath.requesterPaysProjectIdOption.toList
           val marthaEnv = DrsConfig.toEnv(drsFileSystemProvider.drsConfig)
           val localizationAction = ActionBuilder
             .withImage(drsDockerImage)

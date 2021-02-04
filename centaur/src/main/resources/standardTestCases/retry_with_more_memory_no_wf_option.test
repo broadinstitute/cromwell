@@ -1,0 +1,19 @@
+name: retry_with_more_memory_no_wf_option
+testFormat: workflowfailure
+backends: [Papiv2]
+
+files {
+  workflow: retry_with_more_memory/retry_with_more_memory.wdl
+}
+
+metadata {
+  workflowName: retry_with_more_memory
+  status: Failed
+  "failures.0.message": "Workflow failed"
+  "retry_with_more_memory.imitate_oom_error.-1.1.executionStatus": "RetryableFailure"
+  "retry_with_more_memory.imitate_oom_error.-1.1.runtimeAttributes.memory": "1 GB"
+  "retry_with_more_memory.imitate_oom_error.-1.2.executionStatus": "RetryableFailure"
+  "retry_with_more_memory.imitate_oom_error.-1.2.runtimeAttributes.memory": "1 GB"
+  "retry_with_more_memory.imitate_oom_error.-1.3.executionStatus": "Failed"
+  "retry_with_more_memory.imitate_oom_error.-1.3.runtimeAttributes.memory": "1 GB"
+}

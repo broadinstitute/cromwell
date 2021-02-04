@@ -7,8 +7,6 @@ import wom.CommandSetupSideEffectFile
 import wom.expression.IoFunctionSet
 import wom.values.WomValue
 
-import scala.language.implicitConversions
-
 @typeclass
 trait ValueEvaluator[A] {
   /**

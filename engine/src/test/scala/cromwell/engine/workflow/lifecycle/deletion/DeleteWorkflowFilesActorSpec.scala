@@ -7,13 +7,13 @@ import akka.testkit.{TestFSMRef, TestProbe}
 import common.util.Backoff
 import cromwell.core._
 import cromwell.core.actor.StreamIntegration.BackPressure
-import cromwell.core.io.{IoDeleteCommand, IoFailure, IoSuccess}
+import cromwell.core.io.{IoCommandBuilder, IoDeleteCommand, IoFailure, IoSuccess, PartialIoCommandBuilder}
 import cromwell.core.path.Path
 import cromwell.core.path.PathFactory.PathBuilders
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.engine.io.IoAttempts.EnhancedCromwellIoException
 import cromwell.engine.workflow.lifecycle.deletion.DeleteWorkflowFilesActor.{StartWorkflowFilesDeletion, WaitingForIoResponses}
-import cromwell.filesystems.gcs.batch.GcsBatchDeleteCommand
+import cromwell.filesystems.gcs.batch.{GcsBatchCommandBuilder, GcsBatchDeleteCommand}
 import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder, MockGcsPathBuilder}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.impl.FileDeletionStatus
@@ -28,16 +28,18 @@ import wom.types.{WomMaybeEmptyArrayType, WomSingleFileType, WomStringType}
 import wom.values.{WomArray, WomSingleFile, WomString}
 
 import scala.concurrent.duration._
+import scala.util.control.NoStackTrace
+import scala.util.{Failure, Try}
 
-class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActorSpec")
+class DeleteWorkflowFilesActorSpec extends TestKitSuite
   with AnyFlatSpecLike
   with Matchers
   with BeforeAndAfter {
 
   val mockPathBuilder: GcsPathBuilder = MockGcsPathBuilder.instance
   val mockPathBuilders = List(mockPathBuilder)
-  val serviceRegistryActor = TestProbe()
-  val ioActor = TestProbe()
+  private val serviceRegistryActor = TestProbe("serviceRegistryActor")
+  private val ioActor = TestProbe("ioActor")
 
   val emptyWorkflowIdSet = Set.empty[WorkflowId]
 
@@ -50,9 +52,9 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
   var gcsFilePath: GcsPath = _
 
   before {
-    testProbe = TestProbe()
     rootWorkflowId = RootWorkflowId(WorkflowId.randomId().id)
     subworkflowId = WorkflowId.randomId()
+    testProbe = TestProbe(s"test-probe-$rootWorkflowId")
 
     allOutputs = CallOutputs(Map(
       GraphNodeOutputPort(WomIdentifier(LocalName("main_output"),FullyQualifiedName("main_workflow.main_output")), WomSingleFileType, null)
@@ -98,7 +100,8 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
       testDeleteWorkflowFilesActor.stateName shouldBe WaitingForIoResponses
     }
 
-    testDeleteWorkflowFilesActor ! IoSuccess(GcsBatchDeleteCommand(gcsFilePath, swallowIOExceptions = false), ())
+    testDeleteWorkflowFilesActor !
+      IoSuccess(GcsBatchDeleteCommand.forPath(gcsFilePath, swallowIOExceptions = false).get, ())
 
     serviceRegistryActor.expectMsgPF(10.seconds) {
       case m: PutMetadataAction =>
@@ -125,7 +128,7 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
         event.value.get.value shouldBe FileDeletionStatus.toDatabaseValue(InProgress)
     }
 
-    val expectedDeleteCommand = GcsBatchDeleteCommand(gcsFilePath, swallowIOExceptions = false)
+    val expectedDeleteCommand = GcsBatchDeleteCommand.forPath(gcsFilePath, swallowIOExceptions = false).get
 
     ioActor.expectMsgPF(10.seconds) {
       case `expectedDeleteCommand` => // woohoo!
@@ -136,7 +139,7 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
     }
 
     // Simulate a few backpressure events before we get the success:
-    (0.until(10)) foreach { _ =>
+    0 until 10 foreach { _ =>
       ioActor.send(testDeleteWorkflowFilesActor, BackPressure(expectedDeleteCommand))
       ioActor.expectMsgPF(10.seconds) {
         case cmd: IoDeleteCommand => cmd.file shouldBe gcsFilePath
@@ -179,7 +182,11 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
       testDeleteWorkflowFilesActor.stateName shouldBe WaitingForIoResponses
     }
 
-    testDeleteWorkflowFilesActor ! IoFailure(GcsBatchDeleteCommand(gcsFilePath, swallowIOExceptions = false), new Exception(s"Something is fishy!"))
+    testDeleteWorkflowFilesActor !
+      IoFailure(
+        command = GcsBatchDeleteCommand.forPath(gcsFilePath, swallowIOExceptions = false).get,
+        failure = new Exception(s"Something is fishy!"),
+      )
 
     serviceRegistryActor.expectMsgPF(10.seconds) {
       case m: PutMetadataAction =>
@@ -216,7 +223,11 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
     }
 
     val fileNotFoundException = EnhancedCromwellIoException(s"File not found", new FileNotFoundException(gcsFilePath.pathAsString))
-    testDeleteWorkflowFilesActor ! IoFailure(GcsBatchDeleteCommand(gcsFilePath, swallowIOExceptions = false), fileNotFoundException)
+    testDeleteWorkflowFilesActor !
+      IoFailure(
+        command = GcsBatchDeleteCommand.forPath(gcsFilePath, swallowIOExceptions = false).get,
+        failure = fileNotFoundException,
+      )
 
     serviceRegistryActor.expectMsgPF(10.seconds) {
       case m: PutMetadataAction =>
@@ -262,6 +273,41 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
     actualIntermediateFiles shouldBe expectedIntermediateFiles
   }
 
+  it should "send failure when delete command creation is unsuccessful for a file" in {
+
+    val partialIoCommandBuilder = new PartialIoCommandBuilder {
+      override def deleteCommand: PartialFunction[(Path, Boolean), Try[IoDeleteCommand]] = {
+        case _ => Failure(new Exception("everything's fine, I am an expected delete fail") with NoStackTrace)
+      }
+    }
+    val ioCommandBuilder = new IoCommandBuilder(List(partialIoCommandBuilder))
+
+    testDeleteWorkflowFilesActor =
+      TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId,
+        rootAndSubworkflowIds = emptyWorkflowIdSet,
+        workflowFinalOutputs = finalOutputs,
+        workflowAllOutputs = allOutputs,
+        pathBuilders = mockPathBuilders,
+        serviceRegistryActor = serviceRegistryActor.ref,
+        ioActor = ioActor.ref,
+        gcsCommandBuilder = ioCommandBuilder,
+      ))
+    testProbe.watch(testDeleteWorkflowFilesActor)
+
+    testDeleteWorkflowFilesActor ! StartWorkflowFilesDeletion
+
+    serviceRegistryActor.expectMsgPF(10.seconds) {
+      case m: PutMetadataAction =>
+        val event = m.events.head
+        m.events.size shouldBe 1
+        event.key.workflowId shouldBe rootWorkflowId
+        event.key.key shouldBe WorkflowMetadataKeys.FileDeletionStatus
+        event.value.get.value shouldBe FileDeletionStatus.toDatabaseValue(InProgress)
+    }
+
+    testProbe.expectTerminated(testDeleteWorkflowFilesActor, 10.seconds)
+    testProbe.unwatch(testDeleteWorkflowFilesActor)
+  }
 
   it should "terminate if root workflow has no intermediate outputs to delete" in {
 
@@ -338,8 +384,12 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite("DeleteWorkflowFilesActo
 class MockDeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
                                    rootAndSubworkflowIds: Set[WorkflowId],
                                    workflowFinalOutputs: CallOutputs,
-                                   workflowAllOutputs: CallOutputs, pathBuilders: PathBuilders,
-                                   serviceRegistryActor: ActorRef, ioActor: ActorRef) extends
+                                   workflowAllOutputs: CallOutputs,
+                                   pathBuilders: PathBuilders,
+                                   serviceRegistryActor: ActorRef,
+                                   ioActor: ActorRef,
+                                   gcsCommandBuilder: IoCommandBuilder = GcsBatchCommandBuilder,
+                                  ) extends
   DeleteWorkflowFilesActor(
     rootWorkflowId,
     rootAndSubworkflowIds,
@@ -347,7 +397,8 @@ class MockDeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
     workflowAllOutputs.outputs.values.toSet,
     pathBuilders,
     serviceRegistryActor,
-    ioActor
+    ioActor,
+    gcsCommandBuilder,
   ) {
   // Override the IO actor backoff for the benefit of the backpressure tests:
   override def initialBackoff(): Backoff = SimpleExponentialBackoff(100.millis, 1.second, 1.2D)

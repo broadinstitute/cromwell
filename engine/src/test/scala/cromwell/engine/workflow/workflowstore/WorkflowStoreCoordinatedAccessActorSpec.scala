@@ -8,7 +8,9 @@ import akka.testkit._
 import akka.util.Timeout
 import cats.data.NonEmptyVector
 import cromwell.core._
-import cromwell.engine.workflow.workflowstore.WorkflowStoreCoordinatedAccessActor.{FetchStartableWorkflows, WriteHeartbeats}
+import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreAbortResponse
+import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreAbortResponse.WorkflowStoreAbortResponse
+import cromwell.engine.workflow.workflowstore.WorkflowStoreCoordinatedAccessActor.{Abort, DeleteFromStore, FetchStartableWorkflows, WriteHeartbeats}
 import org.scalatest.flatspec.AsyncFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -16,13 +18,13 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
-class WorkflowStoreCoordinatedAccessActorSpec extends TestKitSuite("WorkflowStoreCoordinatedWriteActorSpec")
+class WorkflowStoreCoordinatedAccessActorSpec extends TestKitSuite
   with AsyncFlatSpecLike with Matchers with TableDrivenPropertyChecks {
 
   behavior of "WorkflowStoreCoordinatedWriteActor"
 
   // So that we can timeout the asks below, change from the serial execution context to a parallel one
-  override implicit def executionContext = scala.concurrent.ExecutionContext.Implicits.global
+  override implicit def executionContext: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
 
   def sleepAndThrow: Nothing = {
     Thread.sleep(30.seconds.dilated.toMillis)
@@ -102,6 +104,36 @@ class WorkflowStoreCoordinatedAccessActorSpec extends TestKitSuite("WorkflowStor
     val request = FetchStartableWorkflows(1, "test fetchStartableWorkflows with workflow url success", 1.second)
     implicit val timeout: Timeout = Timeout(2.seconds.dilated)
     actor.ask(request).mapTo[List[WorkflowToStart]] map { actual =>
+      actual should be(expected)
+    }
+  }
+
+  it should "abort workflows" in {
+    val expected = WorkflowStoreAbortResponse.AbortRequested
+    val workflowStore = new InMemoryWorkflowStore {
+      override def abort(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse] = {
+        Future.successful(WorkflowStoreAbortResponse.AbortRequested)
+      }
+    }
+    val actor = TestActorRef(new WorkflowStoreCoordinatedAccessActor(workflowStore))
+    val request = Abort(WorkflowId.fromString("00001111-2222-3333-aaaa-bbbbccccdddd"))
+    implicit val timeout: Timeout = Timeout(2.seconds.dilated)
+    actor.ask(request).mapTo[WorkflowStoreAbortResponse] map { actual =>
+      actual should be(expected)
+    }
+  }
+
+  it should "delete workflow store entries" in {
+    val expected = 1 // 1 row deleted
+    val workflowStore = new InMemoryWorkflowStore {
+      override def deleteFromStore(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int] = {
+        Future.successful(1)
+      }
+    }
+    val actor = TestActorRef(new WorkflowStoreCoordinatedAccessActor(workflowStore))
+    val request = DeleteFromStore(WorkflowId.fromString("00001111-2222-3333-aaaa-bbbbccccdddd"))
+    implicit val timeout: Timeout = Timeout(2.seconds.dilated)
+    actor.ask(request).mapTo[Int] map { actual =>
       actual should be(expected)
     }
   }

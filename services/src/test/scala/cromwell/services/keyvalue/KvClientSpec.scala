@@ -2,25 +2,26 @@ package cromwell.services.keyvalue
 
 import java.io.IOException
 
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem}
-import akka.testkit.{TestActorRef, TestKit, TestProbe}
+import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.testkit.{TestActorRef, TestProbe}
+import cromwell.core.TestKitSuite
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-import scala.concurrent.Await
+import scala.concurrent.{Await, ExecutionContextExecutor}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class KvClientSpec extends TestKit(ActorSystem("KvClientSpec")) with AnyFlatSpecLike with Matchers {
+class KvClientSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
 
-  implicit val ec = system.dispatcher
+  implicit val ec: ExecutionContextExecutor = system.dispatcher
 
   behavior of "KvClient"
 
   it should "Correctly forward multiple requests and responses" in {
-    val serviceActorProbe = TestProbe()
-    val kvTestClient = TestActorRef(new KvTestClientActor(serviceActorProbe.ref))
+    val serviceActorProbe = TestProbe("serviceActorProbe")
+    val kvTestClient = TestActorRef(factory = new KvTestClientActor(serviceActorProbe.ref), name = "kvTestClient")
 
     val scopedKey1 = ScopedKey(null, null, "key1")
     val scopedKey2 = ScopedKey(null, null, "key2")
@@ -55,7 +56,7 @@ class KvClientSpec extends TestKit(ActorSystem("KvClientSpec")) with AnyFlatSpec
 }
 
 class KvTestClientActor(val serviceRegistryActor: ActorRef) extends Actor with ActorLogging with KvClient {
-  override def receive = kvClientReceive orElse Actor.ignoringBehavior
+  override def receive: Receive = kvClientReceive orElse Actor.ignoringBehavior
 }
 
 

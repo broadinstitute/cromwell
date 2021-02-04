@@ -1,8 +1,9 @@
 package cromwell.services.metadata.hybridcarbonite
 
+import java.nio.charset.StandardCharsets
 import java.nio.file.StandardOpenOption
 
-import akka.actor.{ActorRef, LoggingFSM, Props}
+import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import cromwell.core.WorkflowId
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
 import cromwell.services.metadata.MetadataArchiveStatus.{ArchiveFailed, Archived, TooLargeToArchive}
@@ -50,10 +51,17 @@ class CarbonitingMetadataFreezerActor(freezingConfig: ActiveMetadataFreezingConf
 
   when(Fetching) {
     case Event(SuccessfulMetadataJsonResponse(_, responseJson), FetchingData(workflowId)) =>
-      asyncIo.writeAsync(carboniterConfig.makePath(workflowId), responseJson.prettyPrint, Seq(StandardOpenOption.CREATE), compressPayload = true) onComplete {
-        result => self ! CarbonitingFreezeResult(result)
+      val jsonAsString = responseJson.prettyPrint
+      val jsonStringBytesSize = jsonAsString.getBytes(StandardCharsets.UTF_8).length
+      if (jsonStringBytesSize <= carboniterConfig.bucketReadLimit) {
+        asyncIo.writeAsync(carboniterConfig.makePath(workflowId), jsonAsString, Seq(StandardOpenOption.CREATE), compressPayload = true) onComplete {
+          result => self ! CarbonitingFreezeResult(result)
+        }
+        goto(Freezing) using FreezingData(workflowId)
+      } else {
+        log.warning(s"Carbonited metadata length is $jsonStringBytesSize bytes, which is greater than configured bucket-read-limit-bytes=${carboniterConfig.bucketReadLimit} value. Marking as $TooLargeToArchive")
+        scheduleDatabaseUpdateAndAwaitResult(workflowId, TooLargeToArchive)
       }
-      goto(Freezing) using FreezingData(workflowId)
 
     case Event(FailedMetadataJsonResponse(_, reason: MetadataTooLargeException), FetchingData(workflowId)) =>
       log.error(reason, s"Carboniting failure: $reason. Marking as $TooLargeToArchive")
@@ -97,12 +105,15 @@ class CarbonitingMetadataFreezerActor(freezingConfig: ActiveMetadataFreezingConf
     case Failure(_) => ArchiveFailed
   }
 
-  def scheduleDatabaseUpdateAndAwaitResult(workflowId: WorkflowId, newStatus: MetadataArchiveStatus, delay: Option[FiniteDuration] = None) = {
+  def scheduleDatabaseUpdateAndAwaitResult(workflowId: WorkflowId,
+                                           newStatus: MetadataArchiveStatus,
+                                           delay: Option[FiniteDuration] = None): FSM.State[CarbonitingMetadataFreezingState, CarbonitingMetadataFreezingData] = {
 
-    def updateDatabase() = {
+    def updateDatabase(): Unit = {
       val dbUpdateFuture = updateMetadataArchiveStatus(workflowId, newStatus)
       dbUpdateFuture onComplete { dbUpdateResult => self ! DatabaseUpdateCompleted(dbUpdateResult) }
     }
+
     delay match {
       case Some(d) => context.system.scheduler.scheduleOnce(d)(updateDatabase())
       case None => updateDatabase()

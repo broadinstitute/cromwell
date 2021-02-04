@@ -1,17 +1,21 @@
 name: retry_with_more_memory
 testFormat: workflowfailure
-backends: [Papiv2-Retry-With-More-Memory]
+backends: [Papiv2]
 
 files {
   workflow: retry_with_more_memory/retry_with_more_memory.wdl
+  options: retry_with_more_memory/retry_with_more_memory.options
 }
 
 metadata {
   workflowName: retry_with_more_memory
   status: Failed
   "failures.0.message": "Workflow failed"
-  "failures.0.causedBy.0.message": "stderr for job retry_with_more_memory.imitate_oom_error:NA:2 contained one of the `memory-retry` error-keys specified in the config. Job might have run out of memory."
-  "retry_with_more_memory.imitate_oom_error.-1.attempt": 2
-  "retry_with_more_memory.imitate_oom_error.-1.executionStatus": "Failed"
-  "retry_with_more_memory.imitate_oom_error.-1.runtimeAttributes.memory": "1.1 GB"
+  "failures.0.causedBy.0.message": "stderr for job `retry_with_more_memory.imitate_oom_error:NA:3` contained one of the `memory-retry-error-keys: [OutOfMemory,Killed]` specified in the Cromwell config. Job might have run out of memory."
+  "retry_with_more_memory.imitate_oom_error.-1.1.executionStatus": "RetryableFailure"
+  "retry_with_more_memory.imitate_oom_error.-1.1.runtimeAttributes.memory": "1 GB"
+  "retry_with_more_memory.imitate_oom_error.-1.2.executionStatus": "RetryableFailure"
+  "retry_with_more_memory.imitate_oom_error.-1.2.runtimeAttributes.memory": "1.1 GB"
+  "retry_with_more_memory.imitate_oom_error.-1.3.executionStatus": "Failed"
+  "retry_with_more_memory.imitate_oom_error.-1.3.runtimeAttributes.memory": "1.2100000000000002 GB"
 }

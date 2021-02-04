@@ -25,9 +25,7 @@ google {
     {
       name = "service_account"
       scheme = "service_account"
-      # See cromwell::private::papi::setup_papi_service_account() for more info
-      json-dir = "Error: BA-6546 The environment variable CROMWELL_BUILD_PAPI_JSON_FILE must be set/export pointing to a valid json path for your specific Papi backend"
-      json-file = ${?CROMWELL_BUILD_PAPI_JSON_FILE}
+      json-file = ${google.json-dir}/cromwell-centaur-service-account.json
     }
     {
       name = "requester_pays_service_account"

@@ -1,11 +1,12 @@
 package cromwell.subworkflowstore
 
 import akka.testkit.TestProbe
+import common.assertion.CromwellTimeoutSpec
 import cromwell.core.ExecutionIndex._
 import cromwell.core.{JobKey, WorkflowId, WorkflowOptions, WorkflowSourceFilesWithoutImports}
 import cromwell.database.sql.tables.SubWorkflowStoreEntry
 import cromwell.engine.MockCromwellTerminator
-import cromwell.engine.workflow.CoordinatedWorkflowStoreBuilder
+import cromwell.engine.workflow.CoordinatedWorkflowStoreActorBuilder
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.SubmitWorkflow
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.WorkflowSubmittedToStore
 import cromwell.engine.workflow.workflowstore._
@@ -23,12 +24,13 @@ import wom.graph.{GraphNode, WomIdentifier}
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
+//noinspection TypeAnnotation
 object SubWorkflowStoreSpec {
   val MaxWait = 5 seconds
   val EmptyExpression = WdlExpression.fromString(""" "" """)
 }
 
-class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with CoordinatedWorkflowStoreBuilder with Matchers with Mockito {
+class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with CoordinatedWorkflowStoreActorBuilder with CromwellTimeoutSpec with Matchers with Mockito {
   "SubWorkflowStore" should {
     "work" in {
       lazy val subWorkflowStore = new SqlSubWorkflowStore(EngineServicesStore.engineDatabaseInterface)
@@ -39,7 +41,7 @@ class SubWorkflowStoreSpec extends CromwellTestKitWordSpec with CoordinatedWorkf
       val workflowStoreService = system.actorOf(
         WorkflowStoreActor.props(
           workflowStore,
-          workflowStore |> access,
+          workflowStore |> access("coordinatedAccessActor-Work"),
           TestProbe("ServiceRegistryProbe-Work").ref,
           MockCromwellTerminator,
           abortAllJobsOnTerminate = false,

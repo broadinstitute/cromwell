@@ -9,7 +9,7 @@ import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.ExecutionIndex.ExecutionIndex
 import cromwell.core.ExecutionStatus._
-import cromwell.core.{CallKey, ExecutionIndex, ExecutionStatus, JobKey}
+import cromwell.core.{ExecutionIndex, ExecutionStatus, JobKey}
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{apply => _}
 import cromwell.engine.workflow.lifecycle.execution.keys._
 import cromwell.engine.workflow.lifecycle.execution.stores.ExecutionStore._
@@ -119,6 +119,17 @@ object ExecutionStore {
   * Execution store in its nominal state
   */
 final case class ActiveExecutionStore private[stores](private val statusStore: Map[JobKey, ExecutionStatus], override val needsUpdate: Boolean) extends ExecutionStore(statusStore, needsUpdate) {
+
+  override def toString: String = {
+    import io.circe.syntax._
+    import io.circe.Printer
+
+    statusStore.map {
+      case (k, v) if k.isShard => s"${k.node.fullyQualifiedName}:${k.index.get}" -> v.toString
+      case (k, v) => k.node.fullyQualifiedName -> v.toString
+    }.asJson.printWith(Printer.spaces2.copy(dropNullValues = true, colonLeft = ""))
+  }
+
   override def updateKeys(values: Map[JobKey, ExecutionStatus], needsUpdate: Boolean): ActiveExecutionStore = {
     this.copy(statusStore = statusStore ++ values, needsUpdate = needsUpdate)
   }
@@ -154,7 +165,6 @@ final case class SealedExecutionStore private[stores](private val statusStore: M
 sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, ExecutionStatus], val needsUpdate: Boolean) {
   // View of the statusStore more suited for lookup based on status
   lazy val store: Map[ExecutionStatus, List[JobKey]] = statusStore.groupBy(_._2).safeMapValues(_.keys.toList)
-  lazy val queuedJobsAboveThreshold = queuedJobs > MaxJobsToStartPerTick
 
   def backendJobDescriptorKeyForNode(node: GraphNode): Option[BackendJobDescriptorKey] = {
     statusStore.keys collectFirst { case k: BackendJobDescriptorKey if k.node eq node => k }
@@ -174,6 +184,7 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     * Update key statuses
     */
   def updateKeys(values: Map[JobKey, ExecutionStatus]): ExecutionStore = {
+    // The store might newly need updating now if a job has completed because downstream jobs might now be runnable
     updateKeys(values, needsUpdate || values.values.exists(_.isTerminalOrRetryable))
   }
 
@@ -196,7 +207,7 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     * Create 2 Tables, one for keys in done status and one for keys in terminal status.
     * A Table is nothing more than a Map[R, Map[C, V]], see Table trait for more details
     * In this case, rows are GraphNodes, columns are ExecutionIndexes, and values are JobKeys
-    * This allows for quick lookup of all shards for a node, as well as accessing a specific key with a 
+    * This allows for quick lookup of all shards for a node, as well as accessing a specific key with a
     * (node, index) pair
    */
   lazy val (doneStatus, terminalStatus) = {
@@ -257,7 +268,6 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
     */
   def update: ExecutionStoreUpdate = if (needsUpdate) {
     // When looking for runnable keys, keep track of the ones that are unstartable so we can mark them as such
-    // Also keep track of jobs that need to be updated to WaitingForQueueSpace
     var internalUpdates = Map.empty[JobKey, ExecutionStatus]
 
     // Returns true if a key should be run now. Update its status if necessary
@@ -270,22 +280,11 @@ sealed abstract class ExecutionStore private[stores](statusStore: Map[JobKey, Ex
         internalUpdates = internalUpdates ++ key.nonStartableOutputKeys.map(_ -> Unstartable) + (key -> Unstartable)
       }
 
-      key match {
-        // Even if the key is runnable, if it's a call key and there's already too many queued jobs,
-        // don't start it and mark it as WaitingForQueueSpace
-        // TODO maybe also limit the number of expression keys to run somehow ?
-        case callKey: CallKey if runnable && queuedJobsAboveThreshold =>
-          internalUpdates = internalUpdates + (callKey -> WaitingForQueueSpace)
-          false
-        case _ => runnable
-      }
+      runnable
     }
 
-    // If the queued jobs are not above the threshold, use the nodes that are already waiting for queue space
-    val runnableWaitingForQueueSpace = if (!queuedJobsAboveThreshold) keysWithStatus(WaitingForQueueSpace).toStream else Stream.empty[JobKey]
-    
-    // Start with keys that are waiting for queue space as we know they're runnable already. Then filter the not started ones
-    val readyToStart = runnableWaitingForQueueSpace ++ keysWithStatus(NotStarted).toStream.filter(filterFunction)
+    // Filter for unstarted keys:
+    val readyToStart = keysWithStatus(NotStarted).toStream.filter(filterFunction)
 
     // Compute the first ExecutionStore.MaxJobsToStartPerTick + 1 runnable keys
     val keysToStartPlusOne = readyToStart.take(MaxJobsToStartPerTick + 1).toList

@@ -155,11 +155,13 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     val preamble =
       s"""
          |{
+         |set -e
          |echo '*** LOCALIZING INPUTS ***'
          |if [ ! -d $workDir ]; then mkdir $workDir && chmod 777 $workDir; fi
          |cd $workDir
          |$inputCopyCommand
          |echo '*** COMPLETED LOCALIZATION ***'
+         |set +e
          |}
          |""".stripMargin
 

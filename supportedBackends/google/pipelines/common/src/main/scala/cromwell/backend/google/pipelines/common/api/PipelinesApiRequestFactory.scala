@@ -6,7 +6,7 @@ import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttribu
 import cromwell.backend.google.pipelines.common._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.io.PipelinesApiAttachedDisk
-import cromwell.backend.google.pipelines.common.monitoring.MonitoringImage
+import cromwell.backend.google.pipelines.common.monitoring.{CheckpointingConfiguration, MonitoringImage}
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.Path
@@ -87,10 +87,12 @@ object PipelinesApiRequestFactory {
                                       retryWithMoreMemoryKeys: Option[List[String]],
                                       fuseEnabled: Boolean,
                                       allowNoAddress: Boolean,
-                                      referenceDisksForLocalization: List[PipelinesApiAttachedDisk],
+                                      referenceDisksForLocalizationOpt: Option[List[PipelinesApiAttachedDisk]],
                                       monitoringImage: MonitoringImage,
+                                      checkpointingConfiguration: CheckpointingConfiguration,
                                       enableSshAccess: Boolean,
                                       vpcNetworkAndSubnetworkProjectLabels: Option[VpcAndSubnetworkProjectLabelValues],
+                                      dockerImageCacheDiskOpt: Option[String]
                                      ) {
     def literalInputs = inputOutputParameters.literalInputParameters
     def inputParameters = inputOutputParameters.fileInputParameters

@@ -23,11 +23,12 @@ import cromwell.backend.standard.StandardAdHocValue._
 import cromwell.backend.validation._
 import cromwell.core.io.{AsyncIoActorClient, DefaultIoCommandBuilder, IoCommandBuilder}
 import cromwell.core.path.Path
-import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent, StandardPaths}
+import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent, StandardPaths, WorkflowOptions}
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
 import eu.timepit.refined.api._
+import eu.timepit.refined.refineV
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.StringUtils
@@ -131,6 +132,8 @@ trait StandardAsyncExecutionActor
     default = s"""$$(mkdir -p "${runtimeEnvironment.tempPath}" && echo "${runtimeEnvironment.tempPath}")"""
   )
 
+  val logJobIds: Boolean = true
+
   /** Used to convert cloud paths into local paths. */
   protected def preProcessWomFile(womFile: WomFile): WomFile = womFile
 
@@ -219,7 +222,27 @@ trait StandardAsyncExecutionActor
     */
   lazy val commandDirectory: Path = jobPaths.callExecutionRoot
 
-  lazy val memoryRetryFactor: Option[GreaterEqualRefined] = None
+  lazy val memoryRetryErrorKeys: Option[List[String]] = configurationDescriptor.globalConfig.as[Option[List[String]]]("system.memory-retry-error-keys")
+
+  lazy val memoryRetryFactor: Option[MemoryRetryMultiplierRefined] = {
+    jobDescriptor.workflowDescriptor.getWorkflowOption(WorkflowOptions.MemoryRetryMultiplier) flatMap { value: String =>
+      Try(value.toDouble) match {
+        case Success(v) => refineV[MemoryRetryMultiplier](v.toDouble) match {
+          case Left(e) =>
+            // should not happen, this case should have been screened for and fast-failed during workflow materialization.
+            log.error(e, s"Programmer error: unexpected failure attempting to read value for workflow option " +
+              s"'${WorkflowOptions.MemoryRetryMultiplier.name}'. Expected value should be in range 1.0 ≤ n ≤ 99.0")
+            None
+          case Right(refined) => Option(refined)
+        }
+        case Failure(e) =>
+          // should not happen, this case should have been screened for and fast-failed during workflow materialization.
+          log.error(e, s"Programmer error: unexpected failure attempting to convert value for workflow option " +
+            s"'${WorkflowOptions.MemoryRetryMultiplier.name}' to Double.")
+          None
+      }
+    }
+  }
 
   /**
     * Returns the shell scripting for finding all files listed within a directory.
@@ -984,8 +1007,8 @@ trait StandardAsyncExecutionActor
           case failed: FailedNonRetryableExecutionHandle if maxRetriesNotReachedYet =>
             val currentMemoryMultiplier = jobDescriptor.key.memoryMultiplier
             (retryWithMoreMemory, memoryRetryFactor) match {
-              case (true, Some(multiplier)) =>
-                val newMultiplier = Refined.unsafeApply[Double, GreaterEqualOne](currentMemoryMultiplier.value * multiplier.value)
+              case (true, Some(retryFactor)) =>
+                val newMultiplier = Refined.unsafeApply[Double, MemoryRetryMultiplier](currentMemoryMultiplier.value * retryFactor.value)
                 saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true, Option(newMultiplier))
               case (_, _) => saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true)
             }
@@ -997,10 +1020,10 @@ trait StandardAsyncExecutionActor
   }
 
   private def saveAttrsAndRetry(failedExecHandle: FailedExecutionHandle,
-                        kvPrev: Map[String, KvPair],
-                        kvNext: Map[String, KvPair],
-                        incFailedCount: Boolean,
-                        memoryMultiplier: Option[GreaterEqualRefined] = None): Future[FailedRetryableExecutionHandle] = {
+                                kvPrev: Map[String, KvPair],
+                                kvNext: Map[String, KvPair],
+                                incFailedCount: Boolean,
+                                memoryMultiplier: Option[MemoryRetryMultiplierRefined] = None): Future[FailedRetryableExecutionHandle] = {
     failedExecHandle match {
       case failedNonRetryable: FailedNonRetryableExecutionHandle =>
         saveKvPairsForNextAttempt(kvPrev, kvNext, incFailedCount) map { _ =>
@@ -1105,7 +1128,7 @@ trait StandardAsyncExecutionActor
         configurationDescriptor.slowJobWarningAfter foreach { duration => self ! WarnAboutSlownessAfter(handle.pendingJob.jobId, duration) }
 
         tellKvJobId(handle.pendingJob) map { _ =>
-          jobLogger.info(s"job id: ${handle.pendingJob.jobId}")
+          if (logJobIds) jobLogger.info(s"job id: ${handle.pendingJob.jobId}")
           tellMetadata(Map(CallMetadataKeys.JobId -> handle.pendingJob.jobId))
           /*
           NOTE: Because of the async nature of the Scala Futures, there is a point in time where we have submitted this or
@@ -1220,7 +1243,7 @@ trait StandardAsyncExecutionActor
               }
               case Failure(e) =>
                 log.error(s"'CheckingForMemoryRetry' action exited with code '$codeAsString' which couldn't be " +
-                  s"converted to an Integer. Task will not be retried with double memory. Error: ${ExceptionUtils.getMessage(e)}")
+                  s"converted to an Integer. Task will not be retried with more memory. Error: ${ExceptionUtils.getMessage(e)}")
                 false
             }
           case None => false
@@ -1267,7 +1290,7 @@ trait StandardAsyncExecutionActor
               val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption), Option(returnCodeAsInt), None))
               retryElseFail(executionHandle)
             case Success(returnCodeAsInt) if retryWithMoreMemory  =>
-              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption), Option(returnCodeAsInt), None))
+              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption, memoryRetryErrorKeys, log), Option(returnCodeAsInt), None))
               retryElseFail(executionHandle, retryWithMoreMemory)
             case Success(returnCodeAsInt) =>
               handleExecutionSuccess(status, oldHandle, returnCodeAsInt)
@@ -1277,7 +1300,7 @@ trait StandardAsyncExecutionActor
         } else {
           tryReturnCodeAsInt match {
             case Success(returnCodeAsInt) if retryWithMoreMemory =>
-              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption), Option(returnCodeAsInt), None))
+              val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption, memoryRetryErrorKeys, log), Option(returnCodeAsInt), None))
               retryElseFail(executionHandle, retryWithMoreMemory)
             case _ =>
               val failureStatus = handleExecutionFailure(status, tryReturnCodeAsInt.toOption)

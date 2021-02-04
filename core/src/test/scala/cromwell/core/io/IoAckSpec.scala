@@ -12,7 +12,7 @@ class IoAckSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matchers {
 
   "IoFailAck pattern matching" should "work for both IoFailure and IoReadForbiddenFailure" in {
     import DefaultPathBuilder._
-    val command = DefaultIoCopyCommand(build(Paths.get("foo")), build(Paths.get("bar")), overwrite = false)
+    val command = DefaultIoCopyCommand(build(Paths.get("foo")), build(Paths.get("bar")))
 
     val ioFailure = IoFailure(command, new RuntimeException("blah"))
     val ioReadForbiddenFailure = IoFailure(command, new RuntimeException("blah"))

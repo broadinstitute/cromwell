@@ -6,7 +6,7 @@ import common.assertion.CromwellTimeoutSpec
 import common.validation.ErrorOr.ErrorOr
 import cromwell.util.JsonEditor._
 import io.circe.parser._
-import io.circe.{DecodingFailure, FailedCursor, Json}
+import io.circe.{DecodingFailure, FailedCursor, Json, JsonObject}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -344,14 +344,15 @@ class JsonEditorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
     actual shouldEqual expected
   }
 
+  val helloFqn = "wf_hello.hello"
   it should "handle includes nested multiple levels" in {
     val includeKeys = NonEmptyList.of("callCaching:hashes:backend name", "callCaching:hashes:input:String addressee")
     val actual = includeJson(helloWorldPapiV2, includeKeys).get
     val expectedJson =
-      """
+      s"""
         |{
         |  "calls" : {
-        |    "wf_hello.hello" : [
+        |    "$helloFqn" : [
         |      {
         |        "callCaching" : {
         |          "hashes": {
@@ -393,11 +394,11 @@ class JsonEditorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
 
     val actual = includeExcludeJson(helloWorldPapiV2, includeKeys, excludeKeys).get
     val expectedJson =
-      """
+      s"""
         |{
         |  "id": "d53a063a-e8b7-403f-a400-a85f089a8928",
         |  "calls" : {
-        |    "wf_hello.hello" : [
+        |    "$helloFqn" : [
         |      {
         |        "backendLabels": {
         |          "cromwell-workflow-id": "cromwell-d53a063a-e8b7-403f-a400-a85f089a8928",
@@ -420,10 +421,10 @@ class JsonEditorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
 
     val actual = includeExcludeJson(helloWorldPapiV2, includeKeys, excludeKeys).get
     val expectedJson =
-      """
+      s"""
         |{
         |  "calls": {
-        |    "wf_hello.hello": [
+        |    "$helloFqn": [
         |      {
         |        "callCaching": {
         |          "allowResultReuse": true,
@@ -463,10 +464,10 @@ class JsonEditorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
 
     val actual = includeExcludeJson(helloWorldPapiV2, includeKeys, excludeKeys).get
     val expectedJson =
-      """
+      s"""
         |{
         |  "calls": {
-        |    "wf_hello.hello": [
+        |    "$helloFqn": [
         |      {
         |        "backendStatus": "Success",
         |        "attempt": 1,
@@ -488,10 +489,10 @@ class JsonEditorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
 
     val actual = includeExcludeJson(helloWorldPapiV2, includeKeys, excludeKeys).get
     val expectedJson =
-      """
+      s"""
         |{
         |  "calls": {
-        |    "wf_hello.hello": [
+        |    "$helloFqn": [
         |      {
         |        "backendStatus": "Success",
         |        "attempt": 1,
@@ -525,6 +526,60 @@ class JsonEditorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
     val expected = helloWorldPapiV2.mapObject(_.remove("calls"))
     actual shouldEqual expected
   }
+
+  it should "filter unscattered calls by FQN, if so asked" in {
+    val actual = filterCalls(helloGoodbyePapiV2, helloFqn, None).get
+    val expected = helloGoodbyePapiV2.mapObject { metadata =>
+      // We expect to see only the hello call after filtering.
+      val helloCall = metadata(Keys.calls).get.asObject.get(helloFqn).get
+      metadata.add(Keys.calls, Json.fromFields(List((helloFqn, helloCall))))
+    }
+    actual shouldEqual expected
+  }
+
+  it should "filter scattered calls by FQN and index, if so asked" in {
+    val actual = filterCalls(helloGoodbyeScatteredPapiV2, helloFqn, Option(1)).get
+    val expected = helloGoodbyeScatteredPapiV2.mapObject { metadata =>
+      val helloCalls = metadata(Keys.calls).get.asObject.get(helloFqn).get
+      val helloShard1 = helloCalls.asArray.get.filter(_.asObject.get(Keys.shardIndex).get.asNumber.get.toInt.get == 1)
+      metadata.add(Keys.calls, Json.fromFields(List((helloFqn, Json.fromValues(helloShard1)))))
+    }
+    actual shouldEqual expected
+  }
+
+  val nonexistentFqn = "wf_hello.nonexistent"
+  it should "gracefully handle being asked to filter an unscattered call that has no matching FQN" in {
+    val actual = filterCalls(helloGoodbyeScatteredPapiV2, nonexistentFqn, None).get.asObject.get
+
+    // It seems a bit strange but this is what the classic metadata endpoint returns.
+    actual shouldEqual JsonObject.empty
+  }
+
+  it should "gracefully handle being asked to filter an unscattered call that exists as a shard of a scatter" in {
+    val actual = filterCalls(helloGoodbyeScatteredPapiV2, helloFqn, None).get.asObject.get
+
+    actual shouldEqual JsonObject.empty
+  }
+
+  it should "gracefully handle being asked to filter a scattered call that has no matching FQN (or index)" in {
+    val actual = filterCalls(helloGoodbyeScatteredPapiV2, nonexistentFqn, Option(0)).get.asObject.get
+
+    actual shouldEqual JsonObject.empty
+  }
+
+  it should "gracefully handle being asked to filter an unscattered call which has a matching FQN but not matching index" in {
+    val actual = filterCalls(helloGoodbyeScatteredPapiV2, helloFqn, Option(2)).get.asObject.get
+
+    actual shouldEqual JsonObject.empty
+  }
+
+  it should "return an empty object when asked to filter calls in a workflow without calls" in {
+    // Not sure how/if we could end up with a Carbonited workflow that had no calls IRL but if it happens we are ready.
+    val noCalls = helloGoodbyePapiV2.asObject.get.remove(Keys.calls)
+    val actual = filterCalls(Json.fromJsonObject(noCalls), helloFqn, None).get.asObject.get
+
+    actual shouldEqual JsonObject.empty
+  }
 }
 
 object JsonEditorSpec {
@@ -545,13 +600,15 @@ object JsonEditorSpec {
   val treblyNestedSubworkflowCachedJson: Json = parseMetadata("trebly_nested_subworkflow_papiv2_cached.json")
   val helloWorldJson: Json = parseMetadata("hello_world.json")
   val helloWorldPapiV2: Json = parseMetadata("hello_papiv2.json")
+  val helloGoodbyePapiV2: Json = parseMetadata("hello_goodbye_papiv2.json")
+  val helloGoodbyeScatteredPapiV2: Json = parseMetadata("hello_goodbye_scattered_papiv2.json")
 
   implicit class EnhancedErrorOr[A](val e: ErrorOr[A]) extends AnyVal {
     def get: A = e.toEither.right.get
   }
 
   object JobManagerKeys {
-    val includeKeys = NonEmptyList.of(
+    val includeKeys: NonEmptyList[String] = NonEmptyList.of(
       "attempt",
       "backendLogs:log",
       "callCaching:hit",
@@ -576,6 +633,6 @@ object JsonEditorSpec {
       "workflowName"
     )
 
-    val excludeKeys = NonEmptyList.of("callCaching:hitFailures")
+    val excludeKeys: NonEmptyList[String] = NonEmptyList.of("callCaching:hitFailures")
   }
 }

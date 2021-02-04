@@ -23,7 +23,6 @@ class SqlJobStore(sqlDatabase: EngineSqlDatabase) extends JobStore {
     val completedWorkflowIds = workflowCompletions.toList.map(_.workflowId.toString)
     for {
       _ <- sqlDatabase.addJobStores(jobCompletions map toDatabase, batchSize)
-      _ <- completedWorkflowIds traverse sqlDatabase.removeWorkflowStoreEntry
       _ <- completedWorkflowIds traverse sqlDatabase.removeDockerHashStoreEntries
       _ <- sqlDatabase.removeJobStores(completedWorkflowIds)
     } yield ()

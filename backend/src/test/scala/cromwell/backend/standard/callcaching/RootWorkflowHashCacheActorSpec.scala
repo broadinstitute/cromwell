@@ -13,17 +13,20 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 
 import scala.concurrent.duration._
 
-class RootWorkflowHashCacheActorSpec extends TestKitSuite("RootWorkflowHashCacheActorSpec") with ImplicitSender
+class RootWorkflowHashCacheActorSpec extends TestKitSuite with ImplicitSender
   with AnyFlatSpecLike {
 
   private val fakeWorkflowId = WorkflowId.randomId()
   private val fakeFileName = "fakeFileName"
 
   it should "properly handle the situation when response from IoActor received after the timeout" in {
-    val ioActorProbe = TestProbe()
-    val rootWorkflowFileHashCacheActor = system.actorOf(Props(new RootWorkflowFileHashCacheActor(ioActorProbe.ref, fakeWorkflowId) {
-      override lazy val defaultIoTimeout = 1.second
-    }))
+    val ioActorProbe = TestProbe("ioActorProbe-without-timer")
+    val rootWorkflowFileHashCacheActor = system.actorOf(
+      props = Props(new RootWorkflowFileHashCacheActor(ioActorProbe.ref, fakeWorkflowId) {
+        override lazy val defaultIoTimeout: FiniteDuration = 1.second
+      }),
+      name = "rootWorkflowFileHashCacheActor-without-timer",
+    )
 
     val ioHashCommandWithContext = IoHashCommandWithContext(DefaultIoHashCommand(DefaultPathBuilder.build("").get), FileHashContext(HashKey(checkForHitOrMiss = false, List.empty), fakeFileName))
     rootWorkflowFileHashCacheActor ! ioHashCommandWithContext
@@ -37,11 +40,14 @@ class RootWorkflowHashCacheActorSpec extends TestKitSuite("RootWorkflowHashCache
   }
 
   it should "properly handle the situation when timeout occurs when response from IoActor has already been received, but timer has not yet been disabled" in {
-    val ioActorProbe = TestProbe()
-    val rootWorkflowFileHashCacheActor = system.actorOf(Props(new RootWorkflowFileHashCacheActor(ioActorProbe.ref, fakeWorkflowId) {
-      // Effectively disabling automatic timeout firing here. We'll send RequestTimeout ourselves
-      override lazy val defaultIoTimeout = 1.hour
-    }))
+    val ioActorProbe = TestProbe("ioActorProbe-with-timer")
+    val rootWorkflowFileHashCacheActor = system.actorOf(
+      Props(new RootWorkflowFileHashCacheActor(ioActorProbe.ref, fakeWorkflowId) {
+        // Effectively disabling automatic timeout firing here. We'll send RequestTimeout ourselves
+        override lazy val defaultIoTimeout: FiniteDuration = 1.hour
+      }),
+      "rootWorkflowFileHashCacheActor-with-timer",
+    )
 
     val ioHashCommandWithContext = IoHashCommandWithContext(DefaultIoHashCommand(DefaultPathBuilder.build("").get), FileHashContext(HashKey(checkForHitOrMiss = false, List.empty), fakeFileName))
     rootWorkflowFileHashCacheActor ! ioHashCommandWithContext

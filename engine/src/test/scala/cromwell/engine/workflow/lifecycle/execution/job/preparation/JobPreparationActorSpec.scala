@@ -22,7 +22,8 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.control.NoStackTrace
 
-class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") with AnyFlatSpecLike with Matchers with ImplicitSender with BeforeAndAfter with Mockito {
+class JobPreparationActorSpec
+  extends TestKitSuite with AnyFlatSpecLike with Matchers with ImplicitSender with BeforeAndAfter with Mockito {
 
   behavior of "JobPreparationActor"
 
@@ -100,7 +101,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     val req = helper.workflowDockerLookupActor.expectMsgClass(classOf[DockerInfoRequest])
     helper.workflowDockerLookupActor.reply(DockerInfoSuccessResponse(DockerInformation(hashResult, None), req))
 
-    def respondFromKv() = {
+    def respondFromKv(): Unit = {
       helper.serviceRegistryProbe.expectMsgPF(max = 100 milliseconds) {
         case KvGet(k) if keysToPrefetch.contains(k.key) =>
           actor.tell(msg = prefetchedValues(k.key), sender = helper.serviceRegistryProbe.ref)
@@ -157,7 +158,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
     }
   }
 
-  it should "double memory attribute when `memoryMultiplier` in BackendJobDescriptorKey is greater than 1" in {
+  it should "retry with more memory attribute when `memoryMultiplier` in BackendJobDescriptorKey is greater than 1" in {
     val attributes = Map(
       "memory" -> WomString("2 GB")
     )
@@ -169,7 +170,7 @@ class JobPreparationActorSpec extends TestKitSuite("JobPrepActorSpecSystem") wit
       dockerHashCredentials = null,
       inputsAndAttributes = inputsAndAttributes,
       kvStoreKeysForPrefetch = List.empty,
-      jobKey = helper.mockJobKeyWithMemoryMultiplier4
+      jobKey = helper.mockJobKeyWithMemoryMultiplier
     ), self)
     actor ! Start(ValueStore.empty)
     expectMsgPF(5 seconds) {

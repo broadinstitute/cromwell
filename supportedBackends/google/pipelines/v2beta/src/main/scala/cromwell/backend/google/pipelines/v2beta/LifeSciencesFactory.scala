@@ -30,6 +30,7 @@ import scala.collection.JavaConverters._
 case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode, endpointUrl: URL, location: String)(implicit gcsTransferConfiguration: GcsTransferConfiguration) extends PipelinesApiFactoryInterface
   with ContainerSetup
   with MonitoringAction
+  with CheckpointingAction
   with Localization
   with UserAction
   with Delocalization
@@ -72,7 +73,8 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
         }
       }
 
-      val allDisksToBeMounted = createPipelineParameters.adjustedSizeDisks ++ createPipelineParameters.referenceDisksForLocalization
+      val allDisksToBeMounted = createPipelineParameters.adjustedSizeDisks ++
+        createPipelineParameters.referenceDisksForLocalizationOpt.getOrElse(List.empty)
 
       // Disks defined in the runtime attributes and reference-files-localization disks
       val disks = allDisksToBeMounted |> toDisks
@@ -86,6 +88,8 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
       val deLocalization: List[Action] = deLocalizeActions(createPipelineParameters, mounts)
       val monitoringSetup: List[Action] = monitoringSetupActions(createPipelineParameters, mounts)
       val monitoringShutdown: List[Action] = monitoringShutdownActions(createPipelineParameters)
+      val checkpointingStart: List[Action] = checkpointingSetupActions(createPipelineParameters, mounts)
+      val checkpointingShutdown: List[Action] = checkpointingShutdownActions(createPipelineParameters)
       val sshAccess: List[Action] = sshAccessActions(createPipelineParameters, mounts)
 
       // adding memory as environment variables makes it easy for a user to retrieve the new value of memory
@@ -102,6 +106,8 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
           deLocalization = deLocalization,
           monitoringSetup = monitoringSetup,
           monitoringShutdown = monitoringShutdown,
+          checkpointingStart = checkpointingStart,
+          checkpointingShutdown = checkpointingShutdown,
           sshAccess = sshAccess,
           isBackground = _.getRunInBackground,
         )
@@ -128,6 +134,19 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
       val accelerators = createPipelineParameters.runtimeAttributes
         .gpuResource.map(toAccelerator).toList.asJava
 
+      val virtualMachine = new VirtualMachine()
+        .setDisks(disks.asJava)
+        .setPreemptible(createPipelineParameters.preemptible)
+        .setServiceAccount(serviceAccount)
+        .setMachineType(createPipelineParameters.runtimeAttributes |> toMachineType(jobLogger))
+        .setLabels(createPipelineParameters.googleLabels.map(label => label.key -> label.value).toMap.asJava)
+        .setNetwork(network)
+        .setAccelerators(accelerators)
+
+      createPipelineParameters.dockerImageCacheDiskOpt foreach { dockerImageCacheDisk =>
+        virtualMachine.setDockerCacheImages(List(dockerImageCacheDisk).asJava)
+      }
+
       /*
        * Adjust using docker images used by Cromwell as well as the tool's docker image size if available
        */
@@ -138,21 +157,19 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
         val userCommandImageSizeInGB = MemorySize(userCommandImageSizeInBytes.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB).amount
         val userCommandImageSizeRoundedUpInGB = userCommandImageSizeInGB.ceil.toInt
 
-        val totalSize = fromRuntimeAttributes + userCommandImageSizeRoundedUpInGB + ActionUtils.cromwellImagesSizeRoundedUpInGB
-        jobLogger.info(s"Adjusting boot disk size to $totalSize GB: $fromRuntimeAttributes GB (runtime attributes) + $userCommandImageSizeRoundedUpInGB GB (user command image) + ${ActionUtils.cromwellImagesSizeRoundedUpInGB} GB (Cromwell support images)")
+        val totalSize = fromRuntimeAttributes +
+          createPipelineParameters
+            .dockerImageCacheDiskOpt
+            .map(_ => 0) // if we are using docker image cache then we don't need this additional volume for the boot disk
+            .getOrElse(userCommandImageSizeRoundedUpInGB + ActionUtils.cromwellImagesSizeRoundedUpInGB)
+
+        if (totalSize != fromRuntimeAttributes) {
+          jobLogger.info(s"Adjusting boot disk size to $totalSize GB: $fromRuntimeAttributes GB (runtime attributes) + $userCommandImageSizeRoundedUpInGB GB (user command image) + ${ActionUtils.cromwellImagesSizeRoundedUpInGB} GB (Cromwell support images)")
+        }
 
         totalSize
       }
-
-      val virtualMachine = new VirtualMachine()
-        .setDisks(disks.asJava)
-        .setPreemptible(createPipelineParameters.preemptible)
-        .setServiceAccount(serviceAccount)
-        .setMachineType(createPipelineParameters.runtimeAttributes |> toMachineType(jobLogger))
-        .setBootDiskSizeGb(adjustedBootDiskSize)
-        .setLabels(createPipelineParameters.googleLabels.map(label => label.key -> label.value).toMap.asJava)
-        .setNetwork(network)
-        .setAccelerators(accelerators)
+      virtualMachine.setBootDiskSizeGb(adjustedBootDiskSize)
 
       createPipelineParameters.runtimeAttributes.gpuResource foreach { resource =>
         virtualMachine.setNvidiaDriverVersion(resource.nvidiaDriverVersion)

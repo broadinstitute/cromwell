@@ -1,10 +1,13 @@
 package cromwell.services.instrumentation
 
+import java.time.OffsetDateTime
+
 import cats.data.NonEmptyList
 import cromwell.core.actor.BatchActor
 import cromwell.services.instrumentation.InstrumentedBatchActor.{QueueSizeTimerAction, QueueSizeTimerKey}
 
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 object InstrumentedBatchActor {
@@ -27,6 +30,7 @@ trait InstrumentedBatchActor[C] { this: BatchActor[C] with CromwellInstrumentati
     instrumentationPath.concatNel(NonEmptyList.one(name))
 
   private val processedPath = makePath("processed")
+  private val durationPath = makePath("time_per_batch")
   private val failurePath = makePath("failure")
   private val queueSizePath = makePath("queue")
 
@@ -50,9 +54,12 @@ trait InstrumentedBatchActor[C] { this: BatchActor[C] with CromwellInstrumentati
     * }
     */
   protected def instrumentedProcess(f: => Future[Int]) = {
+    val startTime = OffsetDateTime.now()
     val action = f
     action onComplete {
-      case Success(numProcessed) => count(processedPath, numProcessed.toLong, instrumentationPrefix)
+      case Success(numProcessed) =>
+        count(processedPath, numProcessed.toLong, instrumentationPrefix)
+        sendTiming(durationPath, (OffsetDateTime.now().toEpochSecond - startTime.toEpochSecond).seconds, instrumentationPrefix)
       case Failure(_) => count(failurePath, 1L, instrumentationPrefix)
     }
     action

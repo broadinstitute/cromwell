@@ -4,6 +4,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowId
+import cromwell.engine.workflow.workflowstore.WorkflowStoreAccess
 import cromwell.jobstore.JobStore.{Completion, JobCompletion, WorkflowCompletion}
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
@@ -16,9 +17,9 @@ import scala.language.postfixOps
   *
   * This level of indirection is a tiny bit awkward but allows the database to be injected.
   */
-class JobStoreActor(jobStore: JobStore, dbBatchSize: Int, dbFlushRate: FiniteDuration, registryActor: ActorRef) extends Actor with ActorLogging with GracefulShutdownHelper {
+class JobStoreActor(jobStore: JobStore, dbBatchSize: Int, dbFlushRate: FiniteDuration, registryActor: ActorRef, workflowStoreAccess: WorkflowStoreAccess) extends Actor with ActorLogging with GracefulShutdownHelper {
   import JobStoreActor._
-  val jobStoreWriterActor = context.actorOf(JobStoreWriterActor.props(jobStore, dbBatchSize, dbFlushRate, registryActor), "JobStoreWriterActor")
+  val jobStoreWriterActor = context.actorOf(JobStoreWriterActor.props(jobStore, dbBatchSize, dbFlushRate, registryActor, workflowStoreAccess), "JobStoreWriterActor")
   val jobStoreReaderActor = context.actorOf(JobStoreReaderActor.props(jobStore, registryActor), "JobStoreReaderActor")
 
   override def receive: Receive = {
@@ -64,7 +65,7 @@ object JobStoreActor {
 
   case class JobStoreReadFailure(reason: Throwable) extends JobStoreReaderResponse
 
-  def props(database: JobStore, registryActor: ActorRef) = Props(new JobStoreActor(database, dbBatchSize, dbFlushRate, registryActor)).withDispatcher(EngineDispatcher)
+  def props(database: JobStore, registryActor: ActorRef, workflowStoreAccess: WorkflowStoreAccess) = Props(new JobStoreActor(database, dbBatchSize, dbFlushRate, registryActor, workflowStoreAccess)).withDispatcher(EngineDispatcher)
 
   val dbFlushRate = 1 second
 

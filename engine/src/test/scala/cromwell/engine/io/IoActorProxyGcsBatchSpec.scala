@@ -21,13 +21,12 @@ import scala.language.postfixOps
 class IoActorProxyGcsBatchSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with ImplicitSender with Eventually {
   behavior of "IoActor [GCS Batch]"
 
-  implicit val actorSystem = system
   implicit val ec: ExecutionContext = system.dispatcher
-  implicit val materializer = ActorMaterializer()
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-  val instanceConfig = ConfigFactory.parseString("auth = \"application-default\"")
+  private val instanceConfig = ConfigFactory.parseString("auth = \"integration-test\"")
 
-  override def afterAll() = {
+  override def afterAll(): Unit = {
     materializer.shutdown()
     src.delete(swallowIOExceptions = true)
     srcRequesterPays.delete(swallowIOExceptions = true)
@@ -38,23 +37,29 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with AnyFlatSpecLike with Ma
     super.afterAll()
   }
 
-  lazy val gcsPathBuilder = GcsPathBuilderFactory(ConfigFactory.load(), instanceConfig)
-  lazy val pathBuilder: GcsPathBuilder = Await.result(gcsPathBuilder.withOptions(WorkflowOptions.empty), 1 second)
+  private lazy val gcsPathBuilder = GcsPathBuilderFactory(ConfigFactory.load(), instanceConfig)
+  private lazy val pathBuilder: GcsPathBuilder =
+    Await.result(gcsPathBuilder.withOptions(WorkflowOptions.empty), 30.seconds)
 
-  lazy val randomUUID = UUID.randomUUID().toString
+  private lazy val randomUUID = UUID.randomUUID().toString
 
-  lazy val directory = pathBuilder.build(s"gs://cloud-cromwell-dev/unit-test").get
-  lazy val src = pathBuilder.build(s"gs://cloud-cromwell-dev/unit-test/$randomUUID/testFile.txt").get
-  lazy val dst = pathBuilder.build(s"gs://cloud-cromwell-dev/unit-test/$randomUUID/testFile-copy.txt").get
+  private lazy val directory = pathBuilder.build(s"gs://cloud-cromwell-dev/unit-test").get
+  private lazy val src = pathBuilder.build(s"gs://cloud-cromwell-dev/unit-test/$randomUUID/testFile.txt").get
+  private lazy val dst = pathBuilder.build(s"gs://cloud-cromwell-dev/unit-test/$randomUUID/testFile-copy.txt").get
 
-  lazy val directoryRequesterPays = pathBuilder.build(s"gs://cromwell_bucket_with_requester_pays/unit-test").get
-  lazy val srcRequesterPays = pathBuilder.build(s"gs://cromwell_bucket_with_requester_pays/unit-test/$randomUUID/testFile.txt").get
-  lazy val dstRequesterPays = pathBuilder.build(s"gs://cromwell_bucket_with_requester_pays/unit-test/$randomUUID/testFile-copy.txt").get
+  private lazy val directoryRequesterPays =
+    pathBuilder.build(s"gs://cromwell_bucket_with_requester_pays/unit-test").get
+  private lazy val srcRequesterPays =
+    pathBuilder.build(s"gs://cromwell_bucket_with_requester_pays/unit-test/$randomUUID/testFile.txt").get
+  private lazy val dstRequesterPays =
+    pathBuilder.build(s"gs://cromwell_bucket_with_requester_pays/unit-test/$randomUUID/testFile-copy.txt").get
 
-  lazy val srcRegional = pathBuilder.build(s"gs://cloud-cromwell-dev-regional/unit-test/$randomUUID/testRegional.txt").get
-  lazy val dstMultiRegional = pathBuilder.build(s"gs://cloud-cromwell-dev/unit-test/$randomUUID/testFileRegional-copy.txt").get
+  private lazy val srcRegional =
+    pathBuilder.build(s"gs://cloud-cromwell-dev-regional/unit-test/$randomUUID/testRegional.txt").get
+  private lazy val dstMultiRegional =
+    pathBuilder.build(s"gs://cloud-cromwell-dev/unit-test/$randomUUID/testFileRegional-copy.txt").get
 
-  override def beforeAll() = {
+  override def beforeAll(): Unit = {
     // Write commands can't be batched, so for the sake of this test, just create a file in GCS synchronously here
     src.write("hello")
     srcRequesterPays.write("hello")
@@ -62,19 +67,26 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with AnyFlatSpecLike with Ma
     super.beforeAll()
   }
 
-  def testWith(src: GcsPath, dst: GcsPath, directory: GcsPath) = {
-    val testActor = TestActorRef(new IoActor(10, 10, 10, None, TestProbe().ref, "cromwell test"))
+  private def testWith(src: GcsPath,
+                       dst: GcsPath,
+                       directory: GcsPath,
+                       testActorName: String,
+                       serviceRegistryActorName: String) = {
+    val testActor = TestActorRef(
+      factory = new IoActor(10, 10, 10, None, TestProbe(serviceRegistryActorName).ref, "cromwell test"),
+      name = testActorName,
+    )
 
-    val copyCommand = GcsBatchCopyCommand(src, dst, overwrite = false)
-    val sizeCommand = GcsBatchSizeCommand(src)
-    val hashCommand = GcsBatchCrc32Command(src)
+    val copyCommand = GcsBatchCopyCommand.forPaths(src, dst).get
+    val sizeCommand = GcsBatchSizeCommand.forPath(src).get
+    val hashCommand = GcsBatchCrc32Command.forPath(src).get
     // Should return true
-    val isDirectoryCommand = GcsBatchIsDirectoryCommand(directory)
+    val isDirectoryCommand = GcsBatchIsDirectoryCommand.forPath(directory).get
     // Should return false
-    val isDirectoryCommand2 = GcsBatchIsDirectoryCommand(src)
+    val isDirectoryCommand2 = GcsBatchIsDirectoryCommand.forPath(src).get
 
-    val deleteSrcCommand = GcsBatchDeleteCommand(src, swallowIOExceptions = false)
-    val deleteDstCommand = GcsBatchDeleteCommand(dst, swallowIOExceptions = false)
+    val deleteSrcCommand = GcsBatchDeleteCommand.forPath(src, swallowIOExceptions = false).get
+    val deleteDstCommand = GcsBatchDeleteCommand.forPath(dst, swallowIOExceptions = false).get
 
     testActor ! copyCommand
     testActor ! sizeCommand
@@ -116,17 +128,32 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with AnyFlatSpecLike with Ma
   }
 
   it should "batch queries" taggedAs IntegrationTest in {
-    testWith(src, dst, directory)
+    testWith(
+      src = src,
+      dst = dst,
+      directory = directory,
+      testActorName = "testActor-batch",
+      serviceRegistryActorName = "serviceRegistryActor-batch",
+    )
   }
 
   it should "batch queries on requester pays buckets" taggedAs IntegrationTest in {
-    testWith(srcRequesterPays, dstRequesterPays, directoryRequesterPays)
+    testWith(
+      src = srcRequesterPays,
+      dst = dstRequesterPays,
+      directory = directoryRequesterPays,
+      testActorName = "testActor-batch-rp",
+      serviceRegistryActorName = "serviceRegistryActor-batch-rp",
+    )
   }
 
   it should "copy files across GCS storage classes" taggedAs IntegrationTest in {
-    val testActor = TestActorRef(new IoActor(10, 10, 10, None, TestProbe().ref, "cromwell test"))
+    val testActor = TestActorRef(
+      factory = new IoActor(10, 10, 10, None, TestProbe("serviceRegistryActor").ref, "cromwell test"),
+      name = "testActor",
+    )
 
-    val copyCommand = GcsBatchCopyCommand(srcRegional, dstMultiRegional, overwrite = false)
+    val copyCommand = GcsBatchCopyCommand.forPaths(srcRegional, dstMultiRegional).get
 
     testActor ! copyCommand
 

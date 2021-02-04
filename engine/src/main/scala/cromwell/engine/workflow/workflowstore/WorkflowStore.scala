@@ -20,7 +20,7 @@ trait WorkflowStore {
   /**
     * Mark a workflow as aborting, unless the row is OnHold or Submitted, in which case the row is deleted.
     */
-  def aborting(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse]
+  def abort(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse]
 
   def findWorkflows(cromwellId: String)(implicit ec: ExecutionContext): Future[Iterable[WorkflowId]]
 
@@ -46,4 +46,5 @@ trait WorkflowStore {
 
   def switchOnHoldToSubmitted(id: WorkflowId)(implicit ec: ExecutionContext): Future[Unit]
 
+  def deleteFromStore(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int]
 }

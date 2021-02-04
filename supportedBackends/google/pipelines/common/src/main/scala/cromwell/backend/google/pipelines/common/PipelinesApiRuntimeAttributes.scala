@@ -49,7 +49,9 @@ final case class PipelinesApiRuntimeAttributes(cpu: Int Refined Positive,
                                                failOnStderr: Boolean,
                                                continueOnReturnCode: ContinueOnReturnCode,
                                                noAddress: Boolean,
-                                               googleLegacyMachineSelection: Boolean)
+                                               googleLegacyMachineSelection: Boolean,
+                                               useDockerImageCache: Option[Boolean],
+                                               checkpointFilename: Option[String])
 
 object PipelinesApiRuntimeAttributes {
 
@@ -73,6 +75,12 @@ object PipelinesApiRuntimeAttributes {
 
   val CpuPlatformKey = "cpuPlatform"
   private val cpuPlatformValidationInstance = new StringRuntimeAttributesValidation(CpuPlatformKey).optional
+
+  val UseDockerImageCacheKey = "useDockerImageCache"
+  private val useDockerImageCacheValidationInstance = new BooleanRuntimeAttributesValidation(UseDockerImageCacheKey).optional
+
+  val CheckpointFileKey = "checkpointFile"
+  private val checkpointFileValidationInstance = new StringRuntimeAttributesValidation(CheckpointFileKey).optional
 
   private val MemoryDefaultValue = "2048 MB"
 
@@ -124,6 +132,10 @@ object PipelinesApiRuntimeAttributes {
   private def noAddressValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] = noAddressValidationInstance
     .withDefault(noAddressValidationInstance.configDefaultWomValue(runtimeConfig) getOrElse NoAddressDefaultValue)
 
+  private def useDockerImageCacheValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Boolean] =
+    useDockerImageCacheValidationInstance
+
+
   private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
 
   private val outDirMinValidation: OptionalRuntimeAttributesValidation[MemorySize] = {
@@ -155,6 +167,8 @@ object PipelinesApiRuntimeAttributes {
       bootDiskSizeValidation(runtimeConfig),
       noAddressValidation(runtimeConfig),
       cpuPlatformValidation(runtimeConfig),
+      useDockerImageCacheValidation(runtimeConfig),
+      checkpointFileValidationInstance,
       dockerValidation,
       outDirMinValidation,
       tmpDirMinValidation,
@@ -165,6 +179,8 @@ object PipelinesApiRuntimeAttributes {
   def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, runtimeAttrsConfig: Option[Config], googleLegacyMachineSelection: Boolean = false): PipelinesApiRuntimeAttributes = {
     val cpu: Int Refined Positive = RuntimeAttributesValidation.extract(cpuValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val cpuPlatform: Option[String] = RuntimeAttributesValidation.extractOption(cpuPlatformValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
+
+    val checkpointFileName: Option[String] = RuntimeAttributesValidation.extractOption(checkpointFileValidationInstance.key, validatedRuntimeAttributes)
 
     // GPU
     lazy val gpuType: Option[GpuType] = RuntimeAttributesValidation.extractOption(gpuTypeValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
@@ -186,6 +202,7 @@ object PipelinesApiRuntimeAttributes {
     val failOnStderr: Boolean = RuntimeAttributesValidation.extract(failOnStderrValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val continueOnReturnCode: ContinueOnReturnCode = RuntimeAttributesValidation.extract(continueOnReturnCodeValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val noAddress: Boolean = RuntimeAttributesValidation.extract(noAddressValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val useDockerImageCache: Option[Boolean] = RuntimeAttributesValidation.extractOption(useDockerImageCacheValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
 
     val outDirMin: Option[MemorySize] = RuntimeAttributesValidation.extractOption(outDirMinValidation.key, validatedRuntimeAttributes)
     val tmpDirMin: Option[MemorySize] = RuntimeAttributesValidation.extractOption(tmpDirMinValidation.key, validatedRuntimeAttributes)
@@ -209,7 +226,9 @@ object PipelinesApiRuntimeAttributes {
       failOnStderr,
       continueOnReturnCode,
       noAddress,
-      googleLegacyMachineSelection
+      googleLegacyMachineSelection,
+      useDockerImageCache,
+      checkpointFileName
     )
   }
 }

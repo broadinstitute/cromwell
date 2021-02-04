@@ -3,14 +3,14 @@ package cromwell.engine.io.nio
 import java.io._
 import java.nio.charset.StandardCharsets
 
-import akka.actor.Scheduler
 import akka.stream.scaladsl.Flow
-import cats.effect.IO
+import cats.effect.{IO, Timer}
 import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
 import common.util.IORetry
 import cromwell.core.io._
 import cromwell.core.path.Path
 import cromwell.engine.io.IoActor._
+import cromwell.engine.io.RetryableRequestSupport.{isRetryable, isInfinitelyRetryable}
 import cromwell.engine.io.{IoAttempts, IoCommandContext}
 import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPath
@@ -20,18 +20,17 @@ import cromwell.util.TryWithResource._
 
 import scala.concurrent.ExecutionContext
 object NioFlow {
-  def NoopOnRetry(context: IoCommandContext[_])(failure: Throwable) = ()
+  val NoopOnRetry: IoCommandContext[_] => Throwable => Unit = _ => _ => ()
 }
 
 /**
   * Flow that executes IO operations by calling java.nio.Path methods
   */
 class NioFlow(parallelism: Int,
-              scheduler: Scheduler,
               onRetryCallback: IoCommandContext[_] => Throwable => Unit = NioFlow.NoopOnRetry,
               nbAttempts: Int = MaxAttemptsNumber)(implicit ec: ExecutionContext) {
   
-  implicit private val timer = IO.timer(ec)
+  implicit private val timer: Timer[IO] = IO.timer(ec)
   
   private val processCommand: DefaultCommandContext[_] => IO[IoResult] = commandContext => {
 
@@ -45,8 +44,8 @@ class NioFlow(parallelism: Int,
       IoAttempts(1),
       maxRetries = Option(nbAttempts),
       backoff = IoCommand.defaultBackoff,
-      isTransient = isTransient,
-      isFatal = isFatal,
+      isRetryable = isRetryable,
+      isInfinitelyRetryable = isInfinitelyRetryable,
       onRetry = onRetry
     )
 
@@ -76,11 +75,12 @@ class NioFlow(parallelism: Int,
     }
   }
 
-  val flow = Flow[DefaultCommandContext[_]].mapAsyncUnordered[IoResult](parallelism)(processCommand.andThen(_.unsafeToFuture()))
+  private[io] val flow =
+    Flow[DefaultCommandContext[_]].mapAsyncUnordered[IoResult](parallelism)(processCommand.andThen(_.unsafeToFuture()))
 
   private def copy(copy: IoCopyCommand) = IO {
     createDirectories(copy.destination)
-    copy.source.copyTo(copy.destination, copy.overwrite)
+    copy.source.copyTo(copy.destination, overwrite = true)
     ()
   }
 
@@ -109,7 +109,7 @@ class NioFlow(parallelism: Int,
 
   private def hash(hash: IoHashCommand): IO[String] = {
     hash.file match {
-      case gcsPath: GcsPath => IO { gcsPath.cloudStorage.get(gcsPath.blob).getCrc32c }
+      case gcsPath: GcsPath => IO.fromTry { gcsPath.objectBlobId.map(gcsPath.cloudStorage.get(_).getCrc32c) }
       case drsPath: DrsPath => getFileHashForDrsPath(drsPath)
       case s3Path: S3Path => IO { s3Path.eTag }
       case ossPath: OssPath => IO { ossPath.eTag}

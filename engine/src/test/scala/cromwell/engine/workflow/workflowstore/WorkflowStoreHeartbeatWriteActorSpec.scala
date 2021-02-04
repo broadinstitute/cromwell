@@ -16,7 +16,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NoStackTrace
 
-class WorkflowStoreHeartbeatWriteActorSpec extends TestKitSuite("WorkflowStoreHeartbeatWriteActorSpec")
+class WorkflowStoreHeartbeatWriteActorSpec extends TestKitSuite
   with AnyFlatSpecLike with Matchers with Eventually {
 
   behavior of "WorkflowStoreHeartbeatWriteActor"
@@ -64,7 +64,7 @@ class WorkflowStoreHeartbeatWriteActorSpec extends TestKitSuite("WorkflowStoreHe
     val workflowId = WorkflowId.randomId()
     val submissionTime = OffsetDateTime.now()
 
-    implicit val patienceConfig = PatienceConfig(timeout = 30.seconds, interval = 200.milliseconds)
+    implicit val patienceConfig: PatienceConfig = PatienceConfig(timeout = 30.seconds, interval = 200.milliseconds)
     eventually {
       if (!shutdownCalled) {
         // Workflow heartbeats are not automatically retried. Instead, write the heartbeat each time we retry.

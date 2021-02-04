@@ -10,7 +10,7 @@ import cromwell.services.metadata.impl.{MetadataServiceActor, MetadataServiceAct
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-class MetadataQuerySpec extends TestKitSuite("MetadataQuerySpec") with AnyFlatSpecLike with Matchers  {
+class MetadataQuerySpec extends TestKitSuite with AnyFlatSpecLike with Matchers  {
 
   it should "correctly forward requests to read workers and responses back to requesters" in {
 
@@ -44,15 +44,15 @@ object MetadataQuerySpec {
   }
 
   object MetadataServiceActor_CustomizeRead {
-    val config = ConfigFactory.parseString(MetadataServiceActorSpec.ConfigWithoutSummarizer)
+    val config: Config = ConfigFactory.parseString(MetadataServiceActorSpec.ConfigWithoutSummarizer)
 
-    def props(readActorProps: () => Props, serviceRegistryProbe: TestProbe) =
+    def props(readActorProps: () => Props, serviceRegistryProbe: TestProbe): Props =
       Props(new MetadataServiceActor_CustomizeRead(config, serviceRegistryProbe.ref, readActorProps))
   }
 
 
   final class CannedResponseReadMetadataWorker(cannedResponses: Map[BuildMetadataJsonAction, MetadataServiceResponse]) extends Actor {
-    override def receive = {
+    override def receive: Receive = {
       case msg: BuildMetadataJsonAction => sender ! cannedResponses.getOrElse(msg, throw new Exception(s"Unexpected inbound message: $msg"))
     }
   }

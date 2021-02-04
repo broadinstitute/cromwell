@@ -2,10 +2,10 @@ package cromwell.util
 
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
-import cats.syntax.traverse._
-import cats.syntax.validated._
 import cats.instances.list._
 import cats.instances.vector._
+import cats.syntax.traverse._
+import cats.syntax.validated._
 import common.collections.EnhancedCollections._
 import common.util.StringUtil._
 import common.validation.ErrorOr._
@@ -40,6 +40,60 @@ object JsonEditor {
       case (Some(includeKeys), None) => includeJson(json, includeKeys)
       case _ => json.validNel
     }
+
+  /**
+    * If the workflow's `calls` element contains call attempts matching the specified FQN and index, return an edited
+    * version of the workflow containing only those matching call attempts, otherwise return an empty JSON.
+    *
+    * @param workflowJson Full input workflow JSON.
+    * @param callFqn Fully qualified name of the call to be included.
+    * @param index Scatter index of the call to be returned, `None` if the call is not scattered.
+    * @return Workflow JSON edited to include only call attempts matching the specified `callFqn` and `index`
+    *         within `calls`, or an empty JSON if there are no matching call attempts.
+    */
+  def filterCalls(workflowJson: Json, callFqn: String, index: Option[Int]): ErrorOr[Json] = {
+
+    def workflowAsObject: ErrorOr[JsonObject] =
+      workflowJson.asObject.map(_.validNel).getOrElse(s"Workflow JSON unexpectedly not an object: $workflowJson".invalidNel)
+
+    // Return the value for the "calls" key as a JsonObject, or an empty JsonObject if "calls" is missing.
+    def callsAsObject(obj: JsonObject): ErrorOr[JsonObject] = obj(Keys.calls) match {
+      case None => JsonObject.empty.validNel
+      case Some(cs) =>
+        cs.asObject map { _.validNel } getOrElse s"calls JSON unexpectedly not an object: $cs".invalidNel
+    }
+
+    // Return only those calls which match the call FQN and the shard index.
+    def findMatchingCalls(callsObject: JsonObject): Vector[Json] = {
+      val effectiveIndex = index.getOrElse(-1)
+
+      for {
+        callForFqn <- callsObject(callFqn).toVector
+        attemptsForFqn <- callForFqn.asArray.toVector
+        attempt <- attemptsForFqn
+        attemptAsObject <- attempt.asObject
+        shardIndexJson <- attemptAsObject(Keys.shardIndex)
+        shardIndex <- shardIndexJson.asNumber
+        shardIndexInt <- shardIndex.toInt
+        if shardIndexInt == effectiveIndex
+      } yield attempt
+    }
+
+    // Assigns the workflow's `calls` entry to include only the `matchingCalls` values.
+    def writeMatchingCallsToWorkflow(workflow: JsonObject, matchingCalls: Vector[Json]): JsonObject = {
+      val callsObject = JsonObject.singleton(callFqn, Json.fromValues(matchingCalls))
+      workflow.add(Keys.calls, Json.fromJsonObject(callsObject))
+    }
+
+    for {
+      workflowObject <- workflowAsObject
+      callsObject <- callsAsObject(workflowObject)
+      matchingCalls = findMatchingCalls(callsObject)
+      // Consistent with the classic metadata service, this returns a completely empty JSON object if there are
+      // no matching calls.
+      resultObject = if (matchingCalls.isEmpty) JsonObject.empty else writeMatchingCallsToWorkflow(workflowObject, matchingCalls)
+    } yield Json.fromJsonObject(resultObject)
+  }
 
   /** A `Filter` represents a list of one or more components corresponding to a single `includeKey` or `excludeKey` parameter.
     * If an `includeKey` or `excludeKey` parameter specifies a nested term such as `foo:bar`, the `Filter`'s `components`

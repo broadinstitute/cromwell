@@ -27,9 +27,10 @@ digraph {
     style=filled
     node [style=filled,color=white];
     color="lightgrey"
-
+    confirm_ticket [shape="oval" label="Confirm there is a JIRA ticket representing this release and that its description field is filled out"]
     fcdev_pr [shape=oval label="Make (or update) the firecloud-develop PR for the new Cromwell version"];
-    helmfile_pr [shape=oval label="Make (or update) the terra-helmfile PR for the new Cromwell version"];
+    # For an example PR see https://github.com/broadinstitute/terra-helmfile/pull/550#pullrequestreview-527531319
+    helmfile_pr [shape=oval label="Make (or update) the terra-helmfile PR for the new Cromwell version\n(We only need to update the versions.yaml version.\nEverything else is \"train\" style promotions)"];
     confirm_cromwell_v [shape=oval label="[Jenkins] Check for the correct Cromwell version hash in fiab-start logs\n(otherwise re-run 'dsl-seed' and use 'jenkins retest')"];
     confirm_cromwell_v [shape=oval label="[Jenkins] Check for the correct Cromwell version hash in fiab-start logs\n(otherwise re-run 'dsl-seed' and use 'jenkins retest')"];
     fcdev_success [shape=oval label="Wait for swatomation to succeed"];
@@ -48,17 +49,22 @@ digraph {
 
   coordinate_release_timing [shape=oval label="If downtime will be required, co-ordinate with the release engineer\nand user support/comms about timings and banners"];
 
+  update_release_ticket [shape=oval label="Update the release with full commit list (see doc)"];
+
+  resume_core_release_process [shape=oval label="Resume the core Cromwell release process to complete remaining steps"];
+
   # Edges
   check_jenkins_tests -> release_cromwell
 
   hotfix_changes -> publish_hotfix
-  publish_hotfix -> dspjenkins_PR
+  publish_hotfix -> confirm_ticket
 
-  release_cromwell -> dspjenkins_PR
+  release_cromwell -> confirm_ticket
 
   fcdev_pr -> helmfile_pr
   helmfile_pr -> confirm_cromwell_v
 
+  confirm_ticket -> dspjenkins_PR
   dspjenkins_PR -> jenkins_set
 
   jenkins_set -> fcdev_pr
@@ -72,4 +78,6 @@ digraph {
 
   fcdev_merge -> helmfile_merge
   helmfile_merge -> coordinate_release_timing
+  coordinate_release_timing -> update_release_ticket
+  update_release_ticket -> resume_core_release_process
 }

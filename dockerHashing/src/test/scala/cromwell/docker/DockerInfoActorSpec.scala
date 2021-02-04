@@ -12,7 +12,7 @@ import org.scalatest.matchers.should.Matchers
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class DockerInfoActorSpec extends DockerRegistrySpec("DockerHashActorSpec") with AnyFlatSpecLike with Matchers with BeforeAndAfterAll {
+class DockerInfoActorSpec extends DockerRegistrySpec with AnyFlatSpecLike with Matchers with BeforeAndAfterAll {
   behavior of "DockerRegistryActor"
 
   override protected lazy val registryFlows = List(
@@ -76,7 +76,10 @@ class DockerInfoActorSpec extends DockerRegistrySpec("DockerHashActorSpec") with
     
     // Send back success, failure, success, failure, ...
     val mockHttpFlow = new DockerRegistryMock(mockResponseSuccess, mockResponseFailure)
-    val dockerActorWithCache = system.actorOf(DockerInfoActor.props(Seq(mockHttpFlow), 1000, 3 seconds, 10))
+    val dockerActorWithCache = system.actorOf(
+      props = DockerInfoActor.props(Seq(mockHttpFlow), 1000, 3 seconds, 10),
+      name = "dockerActorWithCache",
+    )
     
     dockerActorWithCache ! request
     expectMsg(DockerInfoSuccessResponse(DockerInformation(hashSuccess, None), request))
@@ -99,7 +102,10 @@ class DockerInfoActorSpec extends DockerRegistrySpec("DockerHashActorSpec") with
 
 
   it should "not deadlock" taggedAs IntegrationTest in {
-    lazy val dockerActorScale = system.actorOf(DockerInfoActor.props(registryFlows, 1000, 20.minutes, 0))
+    lazy val dockerActorScale = system.actorOf(
+      props = DockerInfoActor.props(registryFlows, 1000, 20.minutes, 0),
+      name = "dockerActorScale",
+    )
     0 until 400 foreach { _ =>
       dockerActorScale ! makeRequest("gcr.io/google-containers/alpine-with-bash:1.0")
     }

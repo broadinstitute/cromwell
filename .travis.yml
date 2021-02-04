@@ -33,6 +33,9 @@ env:
       BUILD_TYPE=centaurBcs
       BUILD_MYSQL=5.7
     - >-
+      BUILD_TYPE=centaurDummy
+      BUILD_MYSQL=5.7
+    - >-
       BUILD_TYPE=centaurEngineUpgradeLocal
       BUILD_MYSQL=5.7
     - >-
@@ -54,12 +57,6 @@ env:
       BUILD_TYPE=centaurHoricromtalEngineUpgradePapiV2alpha1
       BUILD_MARIADB=10.3
     - >-
-      BUILD_TYPE=centaurPapiUpgradePapiV1
-      BUILD_MYSQL=5.7
-    - >-
-      BUILD_TYPE=centaurPapiUpgradeNewWorkflowsPapiV1
-      BUILD_MYSQL=5.7
-    - >-
       BUILD_TYPE=centaurPapiUpgradePapiV2alpha1
       BUILD_MYSQL=5.7
     - >-
@@ -71,9 +68,6 @@ env:
     - >-
       BUILD_TYPE=centaurLocal
       BUILD_POSTGRESQL=11.3
-    - >-
-      BUILD_TYPE=centaurPapiV1
-      BUILD_MYSQL=5.7
     - >-
       BUILD_TYPE=centaurPapiV2alpha1
       BUILD_MYSQL=5.7

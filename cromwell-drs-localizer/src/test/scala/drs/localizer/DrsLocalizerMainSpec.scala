@@ -150,11 +150,7 @@ class MockGcsLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
     IO.pure(
       MarthaResponse(
         size = Option(1234),
-        timeCreated = None,
-        timeUpdated = None,
         gsUri = gcsUrl,
-        googleServiceAccount = None,
-        fileName = None,
         hashes = Option(Map("md5" -> "abc123", "crc32c" -> "34fd67"))
       )
     )

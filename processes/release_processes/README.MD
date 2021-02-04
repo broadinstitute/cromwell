@@ -63,16 +63,17 @@ I chose to increase it from 2GB to 8GB but 4 might have been sufficient.
 
 * Check that the workflow succeeded
 * Check that there's now a new Cromwell release listed [here](https://github.com/broadinstitute/cromwell/releases).
-* Check that there's a homebrew PR for the new Cromwell version [here](https://github.com/Homebrew/homebrew-core/pulls) (and that it passes their CI)  
+* If publishing to Homebrew, check that there's a Homebrew PR for the new Cromwell version [here](https://github.com/Homebrew/homebrew-core/pulls) (and that it passes their CI)
 * Have a look at https://travis-ci.com/broadinstitute/cromwell/branches. There should be a build for the new release tag that publishes new docker images for the version.
 
-### How to Release Cromwell into Firecloud
+### How to Release Cromwell into Firecloud / Terra
 
-**Note:** If the Cromwell CHANGELOG indicates that the upgrade might take some time (eg because of a database migration), checking in with the release engineer
+**Note:** If the Cromwell CHANGELOG indicates that the upgrade might take some time (e.g. because of a database migration), checking in with the release engineer
 and user support/comms to let them know that the upgrade may involve downtime is also required. You may need to help draft an impact statement and co-ordinate timing
 the deploy to make sure user impact in minimized.
 
-**Note:** How to accomplish some of these steps might be non-obvious to you. If so, refer to the additional details in the [full document](https://docs.google.com/document/d/1EEzwemE8IedCplIwL506fiqXr0262Pz4G0x6Cr6V-5E). 
+**Note:** How to accomplish some of these steps might be non-obvious to you (e.g. generating the release notes).
+If so, refer to the additional details in the [full document](https://docs.google.com/document/d/1EEzwemE8IedCplIwL506fiqXr0262Pz4G0x6Cr6V-5E). 
 
 ![firecloud-develop](firecloud-develop.dot.png) 
 

@@ -1,0 +1,24 @@
+name: preemptible_and_memory_retry
+testFormat: workflowfailure
+backends: [Papiv2]
+
+files {
+  workflow: retry_with_more_memory/preemptible_and_memory_retry.wdl
+  options: retry_with_more_memory/retry_with_more_memory.options
+}
+
+metadata {
+  workflowName: preemptible_and_memory_retry
+  status: Failed
+  "failures.0.message": "Workflow failed"
+  "failures.0.causedBy.0.message": "stderr for job `preemptible_and_memory_retry.imitate_oom_error_on_preemptible:NA:3` contained one of the `memory-retry-error-keys: [OutOfMemory,Killed]` specified in the Cromwell config. Job might have run out of memory."
+  "preemptible_and_memory_retry.imitate_oom_error_on_preemptible.-1.1.preemptible": "true"
+  "preemptible_and_memory_retry.imitate_oom_error_on_preemptible.-1.1.executionStatus": "RetryableFailure"
+  "preemptible_and_memory_retry.imitate_oom_error_on_preemptible.-1.1.runtimeAttributes.memory": "1 GB"
+  "preemptible_and_memory_retry.imitate_oom_error_on_preemptible.-1.2.preemptible": "false"
+  "preemptible_and_memory_retry.imitate_oom_error_on_preemptible.-1.2.executionStatus": "RetryableFailure"
+  "preemptible_and_memory_retry.imitate_oom_error_on_preemptible.-1.2.runtimeAttributes.memory": "1 GB"
+  "preemptible_and_memory_retry.imitate_oom_error_on_preemptible.-1.3.preemptible": "false"
+  "preemptible_and_memory_retry.imitate_oom_error_on_preemptible.-1.3.executionStatus": "Failed"
+  "preemptible_and_memory_retry.imitate_oom_error_on_preemptible.-1.3.runtimeAttributes.memory": "1.1 GB"
+}

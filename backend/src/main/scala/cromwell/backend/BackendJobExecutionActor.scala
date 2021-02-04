@@ -2,7 +2,7 @@ package cromwell.backend
 
 import akka.actor.ActorLogging
 import akka.event.LoggingReceive
-import common.validation.Validation.{GreaterEqualOne, GreaterEqualRefined}
+import common.validation.Validation.{MemoryRetryMultiplier, MemoryRetryMultiplierRefined}
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.OutputEvaluator.EvaluatedJobOutputs
@@ -49,7 +49,7 @@ object BackendJobExecutionActor {
   case class JobFailedRetryableResponse(jobKey: BackendJobDescriptorKey,
                                         throwable: Throwable,
                                         returnCode: Option[Int],
-                                        memoryMultiplier: GreaterEqualRefined = refineMV[GreaterEqualOne](1.0)) extends BackendJobFailedResponse
+                                        memoryMultiplier: MemoryRetryMultiplierRefined = refineMV[MemoryRetryMultiplier](1.0)) extends BackendJobFailedResponse
   
   // Reconnection Exceptions
   case class JobReconnectionNotSupportedException(jobKey: BackendJobDescriptorKey) extends Exception(

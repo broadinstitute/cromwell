@@ -472,7 +472,10 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     serviceRegistryActor ! PutMetadataAction(unknownBackendStatus)
   }
 
-  private def handleRetryableFailure(jobKey: BackendJobDescriptorKey, reason: Throwable, returnCode: Option[Int], memoryMultiplier: GreaterEqualRefined) = {
+  private def handleRetryableFailure(jobKey: BackendJobDescriptorKey,
+                                     reason: Throwable,
+                                     returnCode: Option[Int],
+                                     memoryMultiplier: MemoryRetryMultiplierRefined) = {
     pushFailedCallMetadata(jobKey, returnCode, reason, retryableFailure = true)
 
     val newJobKey = jobKey.copy(attempt = jobKey.attempt + 1, memoryMultiplier = memoryMultiplier)

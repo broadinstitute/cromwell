@@ -241,35 +241,6 @@ On the Local, SGE, and associated backends any GCS URI will be downloaded locall
 precedence over the `root` specified at `backend.providers.JES.config.root` in the configuration file. Google Cloud Storage URIs are the only acceptable values for `File` inputs for
 workflows using the Google backend.
 
-**Retry with More Memory**
-
-With `memory-retry` you can specify an array of strings which when encountered in the `stderr` file by Cromwell, allows the task to be retried with more memory.
-The optional `multiplier` config specifies the factor by which the memory should be multiplied while retrying. This multiplier should be greater than 1.0. 
-If the value is not mentioned in config, it will default to 2.0. The retry will be counted against the `maxRetries` count mentioned in the `runtimeAtrributes` in the task. 
-For example,
-```hocon
-backend.providers.Papiv2.config {
-  memory-retry {
-    error-keys = ["OutOfMemoryError", "Killed"]
-    multiplier = 1.1
-  }
-}
-```  
-this tells Cromwell to retry the task with 1.1x memory when it sees either `OutOfMemoryError` or `Killed` in the `stderr` file. If the task has 
-runtime attributes as below 
-```hocon
-runtimeAtrributes {
-  memory: "1 GB"
-  continueOnReturnCode: true
-  maxRetries: 1
-}
-``` 
-the task will be retried at max 1 more time, and this time with "1.1 GB" memory. Please note that Pipelines API will adjust the memory value based on their
-standards for memory for a VM. So it's possible that even though the request says 1.1 GB memory, it actually allocated a bit more memory to the VM.
-
-Two environment variables called `${MEM_UNIT}` and `${MEM_SIZE}` are also available inside the command block of a task,
-making it easy to retrieve the new value of memory on the machine.
-
 **Pipeline timeout**
 
 Google sets a default pipeline timeout of 7 days, after which the pipeline will abort. Setting `pipeline-timeout` overrides this limit to a maximum of 30 days.

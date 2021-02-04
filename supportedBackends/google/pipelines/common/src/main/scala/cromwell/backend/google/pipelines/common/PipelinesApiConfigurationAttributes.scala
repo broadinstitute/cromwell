@@ -2,8 +2,8 @@ package cromwell.backend.google.pipelines.common
 
 import java.net.URL
 
-import cats.data.{NonEmptyList, Validated}
 import cats.data.Validated._
+import cats.data.{NonEmptyList, Validated}
 import cats.implicits._
 import com.typesafe.config.{Config, ConfigValue}
 import com.typesafe.scalalogging.StrictLogging
@@ -11,7 +11,7 @@ import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.backend.CommonBackendConfigurationAttributes
-import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{BatchRequestTimeoutConfiguration, GcsTransferConfiguration, MemoryRetryConfiguration, VirtualPrivateCloudConfiguration}
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{BatchRequestTimeoutConfiguration, GcsTransferConfiguration, VirtualPrivateCloudConfiguration}
 import cromwell.backend.google.pipelines.common.authentication.PipelinesApiAuths
 import cromwell.backend.google.pipelines.common.callcaching.{CopyCachedOutputs, PipelinesCacheHitDuplicationStrategy, UseOriginalCachedOutputs}
 import cromwell.backend.google.pipelines.common.io.PipelinesApiReferenceFilesDisk
@@ -47,10 +47,9 @@ case class PipelinesApiConfigurationAttributes(project: String,
                                                gcsTransferConfiguration: GcsTransferConfiguration,
                                                virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
                                                batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
-                                               memoryRetryConfiguration: Option[MemoryRetryConfiguration],
                                                allowNoAddress: Boolean,
                                                referenceFileToDiskImageMappingOpt: Option[Map[String, PipelinesApiReferenceFilesDisk]],
-                                               dockerImageToCacheDiskImageMappingOpt: Option[Map[String, String]],
+                                               dockerImageToCacheDiskImageMappingOpt: Option[Map[String, DockerImageCacheEntry]],
                                                checkpointingInterval: FiniteDuration
                                               )
 
@@ -66,15 +65,12 @@ object PipelinesApiConfigurationAttributes
 
   final case class VirtualPrivateCloudConfiguration(name: String, subnetwork: Option[String], auth: GoogleAuthMode)
   final case class BatchRequestTimeoutConfiguration(readTimeoutMillis: Option[Int Refined Positive], connectTimeoutMillis: Option[Int Refined Positive])
-  final case class MemoryRetryConfiguration(errorKeys: List[String], multiplier: GreaterEqualRefined)
 
 
   lazy val Logger: Logger = LoggerFactory.getLogger("PipelinesApiConfiguration")
 
   val GenomicsApiDefaultQps = 1000
   val DefaultGcsTransferAttempts: Refined[Int, Positive] = refineMV[Positive](3)
-
-  lazy val DefaultMemoryRetryFactor: GreaterEqualRefined = refineMV[GreaterEqualOne](2.0)
 
   val allowNoAddressAttributeKey = "allow-noAddress-attribute"
   val checkpointingIntervalKey = "checkpointing-interval"
@@ -111,8 +107,6 @@ object PipelinesApiConfigurationAttributes
     "virtual-private-cloud.network-label-key",
     "virtual-private-cloud.subnetwork-label-key",
     "virtual-private-cloud.auth",
-    "memory-retry.error-keys",
-    "memory-retry.multiplier",
     allowNoAddressAttributeKey,
     "reference-disk-localization-manifest-files",
     "docker-image-cache-manifest-file",
@@ -137,15 +131,6 @@ object PipelinesApiConfigurationAttributes
         case (None, _, Some(_)) => vpcErrorMessage(List("network-label-key"))
         case (None, Some(_), None) => vpcErrorMessage(List("network-label-key", "auth"))
         case (None, None, None) => None.validNel
-      }
-    }
-
-    def validateMemoryRetryConfig(errorKeys: Option[List[String]], multiplier: Option[GreaterEqualRefined]): ErrorOr[Option[MemoryRetryConfiguration]] = {
-      (errorKeys, multiplier) match {
-        case (Some(keys), Some(mul)) => Option(MemoryRetryConfiguration(keys, mul)).validNel
-        case (Some(keys), None) => Option(MemoryRetryConfiguration(keys, DefaultMemoryRetryFactor)).validNel
-        case (None, Some(_)) => "memory-retry configuration is invalid. No error-keys provided.".invalidNel
-        case (None, None) => None.validNel
       }
     }
 
@@ -212,17 +197,6 @@ object PipelinesApiConfigurationAttributes
       BatchRequestTimeoutConfiguration(readTimeoutMillis = read, connectTimeoutMillis = connect)
     }
 
-    val memoryRetryMultiplier: ErrorOr[Option[GreaterEqualRefined]] = validatePositiveOptionDouble(
-      backendConfig.as[Option[Double]]("memory-retry.multiplier"),
-      configPath = "memory-retry.multiplier"
-    )
-
-    val memoryRetryKeys: ErrorOr[Option[List[String]]] = validate { backendConfig.as[Option[List[String]]]("memory-retry.error-keys") }
-
-    val memoryRetryConfig: ErrorOr[Option[MemoryRetryConfiguration]] = {
-      (memoryRetryKeys, memoryRetryMultiplier) flatMapN validateMemoryRetryConfig
-    }
-
     val referenceDiskLocalizationManifestFiles: ErrorOr[Option[List[ValidFullGcsPath]]] = validateGcsPathsToReferenceDiskManifestFiles(backendConfig, backendName)
 
     val dockerImageCacheManifestFile: ErrorOr[Option[ValidFullGcsPath]] = validateGcsPathToDockerImageCacheManifestFile(backendConfig)
@@ -243,7 +217,6 @@ object PipelinesApiConfigurationAttributes
                                                        gcsTransferConfiguration: GcsTransferConfiguration,
                                                        virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
                                                        batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
-                                                       memoryRetryConfig: Option[MemoryRetryConfiguration],
                                                        allowNoAddress: Boolean,
                                                        referenceDiskLocalizationManifestFilesOpt: Option[List[ValidFullGcsPath]],
                                                        dockerImageCacheManifestFileOpt: Option[ValidFullGcsPath]): ErrorOr[PipelinesApiConfigurationAttributes] =
@@ -273,7 +246,6 @@ object PipelinesApiConfigurationAttributes
             gcsTransferConfiguration = gcsTransferConfiguration,
             virtualPrivateCloudConfiguration = virtualPrivateCloudConfiguration,
             batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration,
-            memoryRetryConfiguration = memoryRetryConfig,
             allowNoAddress,
             referenceFileToDiskImageMappingOpt = generatedReferenceFilesMappingOpt,
             dockerImageToCacheDiskImageMappingOpt = dockerImageToCacheDiskImageMappingOpt,
@@ -295,7 +267,6 @@ object PipelinesApiConfigurationAttributes
       gcsTransferConfiguration,
       virtualPrivateCloudConfiguration,
       batchRequestTimeoutConfigurationValidation,
-      memoryRetryConfig,
       allowNoAddress,
       referenceDiskLocalizationManifestFiles,
       dockerImageCacheManifestFile
@@ -392,16 +363,6 @@ object PipelinesApiConfigurationAttributes
 
     backendConfig.as[Option[FiniteDuration]](configPath) match {
       case Some(value) => validate(value).map(Option.apply)
-      case None => None.validNel
-    }
-  }
-
-  def validatePositiveOptionDouble(value: Option[Double], configPath: String): ErrorOr[Option[GreaterEqualRefined]] = {
-    value match {
-      case Some(n) => refineV[GreaterEqualOne](n) match {
-        case Left(_) => s"Value $n for $configPath should be greater than 1.0.".invalidNel
-        case Right(refined) => Option(refined).validNel
-      }
       case None => None.validNel
     }
   }

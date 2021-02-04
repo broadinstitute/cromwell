@@ -24,8 +24,8 @@ trait PipelinesApiReferenceFilesMappingOperations {
   case class ManifestFile(imageIdentifier: String, diskSizeGb: Int, files: List[ReferenceFile])
 
   /**
-   * This method will read and parse reference disk manifests from config. It will also validate reference
-   * files' CRC32Cs. Depending on number of manifests and their sizes may take significant amount of time.
+   * This method validates reference files' CRC32Cs. Depending on the number of manifests and their sizes this
+    * may take a significant amount of time.
    */
   def generateReferenceFilesMapping(auth: GoogleAuthMode,
                                     referenceDiskLocalizationManifests: List[ManifestFile]): Map[String, PipelinesApiReferenceFilesDisk] = {

@@ -303,6 +303,8 @@ object PipelinesApiConfigurationAttributes
         import _root_.io.circe.generic.auto._
         import _root_.io.circe.config.parser
 
+        // Unfortunately the `as` method of `config` collides with the Ficus method of the same name, so invoke its
+        // equivalent using clunkier syntax:
         configs traverse parser.decode[ManifestFile] match {
           case Right(manifests) =>
             logger.info(s"Reference disks feature for $backendName backend is configured with the following manifest files: ${manifests.map(_.imageIdentifier).mkString(",")}.")

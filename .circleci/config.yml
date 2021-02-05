@@ -1,10 +1,9 @@
 version: 2.1
 
 commands:
-  prepare-for-build:
-    description: "Build preparation includes installing adoptopenjdk 8 and cloning the Cromwell repo"
+  install-adoptopenjdk:
+    description: "Installing adoptopenjdk 8 and setting it as default Java"
     steps:
-      - run: git clone --depth 1 "$CIRCLE_REPOSITORY_URL" --branch "$CIRCLE_BRANCH" . # clone to working dir not `cromwell/`
       - run: wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | sudo apt-key add -
       - run: sudo add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/
       - run: sudo apt update
@@ -17,6 +16,9 @@ jobs:
       image: ubuntu-2004:202010-01
     resource_class: large
     parameters:
+      requires-java:
+        type: boolean
+        default: true
       build-type:
         type: string
       build-mysql:
@@ -29,7 +31,12 @@ jobs:
         type: string
         default: ""
     steps:
-      - prepare-for-build
+      - when:
+          condition:
+            equal: [ true, << parameters.requires-java >> ]
+          steps:
+            - install-adoptopenjdk
+      - run: git clone --depth 1 "$CIRCLE_REPOSITORY_URL" --branch "$CIRCLE_BRANCH" . # clone to working dir not `cromwell/`
       - run:
           command: src/ci/bin/test.sh
           no_output_timeout: 1h
@@ -51,3 +58,17 @@ workflows:
       - test:
           name: testDbms
           build-type: "dbms"
+      - test:
+          name: testHoricromtalDeadlock
+          build-type: "horicromtalDeadlock"
+      - test:
+          name: testDockerScripts
+          build-type: "dockerScripts"
+          requires-java: false
+      - test:
+          name: testMetadataComparisonPython
+          build-type: "metadataComparisonPython"
+          requires-java: false
+      - test:
+          name: testReferenceDiskManifestBuilderApp
+          build-type: "referenceDiskManifestBuilderApp"

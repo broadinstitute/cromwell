@@ -25,7 +25,9 @@ jobs:
       - run: sudo update-java-alternatives --set adoptopenjdk-8-hotspot-amd64
       - run: java -version
       - run:
-          name: 'Single workflow runner'
+          #name: 'Single workflow runner'
           command: src/ci/bin/test.sh
           #command: src/ci/bin/testSingleWorkflowRunner.sh
           no_output_timeout: 1h
+    environment:
+      BUILD_TYPE: <<matrix.BUILD_TYPE>>

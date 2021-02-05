@@ -107,7 +107,7 @@ object PipelinesApiConfigurationAttributes
     "virtual-private-cloud.subnetwork-label-key",
     "virtual-private-cloud.auth",
     allowNoAddressAttributeKey,
-    "reference-disk-localization-manifest-files",
+    "reference-disk-localization-manifests",
     "docker-image-cache-manifest-file",
     checkpointingIntervalKey
   )
@@ -294,11 +294,11 @@ object PipelinesApiConfigurationAttributes
   }
 
   /**
-    * Validate that the entries corresponding to "reference-disk-localization-manifest-files" in the specified
+    * Validate that the entries corresponding to "reference-disk-localization-manifests" in the specified
     * backend are parseable as `ManifestFile`s.
     */
-  def validateReferenceDiskManifestConfigs(backendConfig: Config, backendName: String): ErrorOr[Option[List[ManifestFile]]] = {
-    Try(backendConfig.getAs[List[Config]]("reference-disk-localization-manifest-files")) match {
+  private [common] def validateReferenceDiskManifestConfigs(backendConfig: Config, backendName: String): ErrorOr[Option[List[ManifestFile]]] = {
+    Try(backendConfig.getAs[List[Config]]("reference-disk-localization-manifests")) match {
       case Failure(e) =>
         e.getMessage.invalidNel
       case Success(s) =>

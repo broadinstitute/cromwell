@@ -321,7 +321,7 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
     }
   }
 
-  it should "parse a missing \"reference-disk-localization-manifest-files\"" in {
+  it should "parse a missing \"reference-disk-localization-manifests\"" in {
     val backendConfig = ConfigFactory.parseString(configString())
 
     val validation = PipelinesApiConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "papi")
@@ -329,10 +329,10 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
     validation shouldBe None.validNel
   }
 
-  it should "parse a present but empty \"reference-disk-localization-manifest-files\"" in {
+  it should "parse a present but empty \"reference-disk-localization-manifests\"" in {
     val manifestConfig =
     """
-    |reference-disk-localization-manifest-files = []
+    |reference-disk-localization-manifests = []
     """.stripMargin
 
     val backendConfig = ConfigFactory.parseString(configString(customContent = manifestConfig))
@@ -343,12 +343,12 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
     validation shouldBe Option(List.empty).validNel
   }
 
-  it should "parse a present and populated \"reference-disk-localization-manifest-files\"" in {
+  it should "parse a present and populated \"reference-disk-localization-manifests\"" in {
     // Highly abridged versions of hg19 and hg38 manifests just to test for correctness
     // of parsing.
     val manifestConfig =
     """
-      |reference-disk-localization-manifest-files = [
+      |reference-disk-localization-manifests = [
       |{
       |  "imageIdentifier" : "hg19-public-2020-10-26",
       |  "diskSizeGb" : 10,
@@ -409,7 +409,7 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
     )
   }
 
-  it should "parse a present and invalid \"reference-disk-localization-manifest-files\"" in {
+  it should "parse a present and invalid \"reference-disk-localization-manifests\"" in {
     val badValues = List(
       "\"foo\"",
       "{ foo: bar }",
@@ -440,7 +440,7 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
     )
 
     badValues foreach { badValue =>
-      val customContent = s""""reference-disk-localization-manifest-files" = $badValue"""
+      val customContent = s""""reference-disk-localization-manifests" = $badValue"""
       val backendConfig = ConfigFactory.parseString(configString(customContent))
       val validation = PipelinesApiConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "papi")
       validation.isInvalid shouldBe true

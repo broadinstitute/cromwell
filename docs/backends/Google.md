@@ -495,8 +495,8 @@ before eventually giving up and running the job. This behavior may be corrected 
 
 ### Reference Disk Support
 
-Cromwell 55 and later support mounting reference disks from prebuilt GCP disk images as an alternative to localizing large
-input reference files on PAPI v2. Within the `config` stanza of a PAPI v2 backend the `reference-disk-localization-manifest-files`
+Cromwell 57 and later support mounting reference disks from prebuilt GCP disk images as an alternative to localizing large
+input reference files on PAPI v2. Within the `config` stanza of a PAPI v2 backend the `reference-disk-localization-manifests`
 key specifies an array of manifest JSONs in GCS:  
 
 
@@ -509,7 +509,21 @@ backend {
       actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
       config {
         ...
-        reference-disk-localization-manifest-files = ["gs://path/to/a/reference/disk/manifest.json"]
+        reference-disk-localization-manifests = [
+          {
+            "imageIdentifier" : "projects/broad-dsde-cromwell-dev/global/images/broad-references-disk-image",
+            "diskSizeGb" : 500,
+            "files" : [ {
+              "path" : "gcp-public-data--broad-references/Homo_sapiens_assembly19_1000genomes_decoy/Homo_sapiens_assembly19_1000genomes_decoy.fasta.nhr",
+              "crc32c" : 407769621
+            }, {
+              "path" : "gcp-public-data--broad-references/Homo_sapiens_assembly19_1000genomes_decoy/Homo_sapiens_assembly19_1000genomes_decoy.fasta.sa",
+              "crc32c" : 1902048083
+            },
+            ...
+          },
+          ...
+        ]
         ...
       }
     }

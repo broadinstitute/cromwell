@@ -21,10 +21,13 @@ jobs:
         type: string
       build-mysql:
         type: string
+        default: ""
       build-mariadb:
         type: string
+        default: ""
       build-postgresql:
         type: string
+        default: ""
     steps:
       - prepare-for-build
       - run:

@@ -495,10 +495,12 @@ before eventually giving up and running the job. This behavior may be corrected 
 
 ### Reference Disk Support
 
-Cromwell 57 and later support mounting reference disks from prebuilt GCP disk images as an alternative to localizing large
-input reference files on PAPI v2. Within the `config` stanza of a PAPI v2 backend the `reference-disk-localization-manifests`
-key specifies an array of manifest JSONs in GCS:  
+Cromwell 55 and later support mounting reference disks from prebuilt GCP disk images as an alternative to localizing large
+input reference files on PAPI v2. Please note the configuration of reference disk manifests has changed starting with
+Cromwell 57 and now uses the format documented below. 
 
+Within the `config` stanza of a PAPI v2 backend the `reference-disk-localization-manifests`
+key specifies an array of reference disk manifests:  
 
 ```hocon
 backend {
@@ -531,24 +533,6 @@ backend {
 }
 ```
 
-Reference manifest JSONs have a format like:
-
-```json
-{
-  "imageIdentifier" : "projects/my_project/global/images/my-references-disk-image",
-  "diskSizeGb" : 30,
-  "files" : [ {
-    "path" : "my-references/enormous_reference.bam",
-    "crc32c" : 407769621
-  }, {
-    "path" : "my-references/enormous_reference.bam.bai",
-    "crc32c" : 1902048083
-  },
-...
-  ]
-}
-```
-
 Reference disk usage is an opt-in feature, so workflow submissions must specify this workflow option:
 
 ```json
@@ -566,7 +550,7 @@ reference image without the leading `gs://`, Cromwell would
 arrange for a reference disk based on this image to be mounted and for the call's input to refer to the 
 copy of the file on the reference disk, bypassing localization of the input.     
 
-The Cromwell git repository includes a Java-based tool to facilitate the creation of manifest files called
+The Cromwell git repository includes a Java-based tool to facilitate the creation of manifests called
 [CromwellRefdiskManifestCreatorApp](https://github.com/broadinstitute/cromwell/tree/develop/CromwellRefdiskManifestCreator).
 Please see the help command of that tool for more details.
 

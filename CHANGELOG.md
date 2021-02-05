@@ -1,5 +1,14 @@
 # Cromwell Change Log
 
+
+## 57 Release Notes
+
+### Breaking configuration change to reference disk support on PAPI v2
+
+Beginning with Cromwell 57, reference disk manifests are now specified completely within Cromwell configuration
+rather than through a level of indirection to a manifest file stored in GCS. More details can be found
+[here](https://cromwell.readthedocs.io/en/develop/backends/Google#reference-disk-support).
+
 ## 56 Release Notes
 
 ### Retry with More Memory as workflow option

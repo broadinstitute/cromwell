@@ -284,12 +284,12 @@ cromwell::private::create_build_variables() {
                 [[ "${BUILD_TYPE}" != "checkPublish" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=false
             elif [[ "${circle_minimal_tests}" == "true" ]] && \
-                [[ "${TRAVIS_EVENT_TYPE}" != "push" ]]; then
+                [[ "${CROMWELL_BUILD_EVENT}" != "push" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=false
             elif [[ "${CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED}" == "true" ]] && \
                 [[ "${BUILD_TYPE}" != "metadataComparisonPython" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=false
-            elif [[ "${TRAVIS_EVENT_TYPE}" == "push" ]] && \
+            elif [[ "${CROMWELL_BUILD_EVENT}" == "push" ]] && \
                 [[ "${BUILD_TYPE}" != "sbt" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=false
             else

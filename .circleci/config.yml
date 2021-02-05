@@ -4,7 +4,7 @@ version: 2.1
 #  openjdk-install: cloudesire/openjdk-install@1.2.3
 
 jobs:
-  build:
+  testSingleWorkflowRunner:
     machine:
       image: ubuntu-2004:202010-01
     resource_class: large
@@ -18,12 +18,37 @@ jobs:
       - run: sudo add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/
       - run: sudo apt update
       - run: sudo apt install adoptopenjdk-8-hotspot
-#      - run: sudo update-java-alternatives --list
+      #- run: sudo update-java-alternatives --list
       - run: sudo update-java-alternatives --set adoptopenjdk-8-hotspot-amd64
       - run: java -version
       - run:
           name: 'Single workflow runner'
-          command: src/ci/bin/testSingleWorkflowRunner.sh
+          command: src/ci/bin/test.sh
+          #command: src/ci/bin/testSingleWorkflowRunner.sh
+          no_output_timeout: 1h
+    environment:
+      BUILD_TYPE: singleWorkflowRunner
+  testSbt:
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: large
+    steps:
+      - run: java -version
+      - run: docker version
+      - run: docker-compose version
+      - run: git clone --depth 1 "$CIRCLE_REPOSITORY_URL" --branch "$CIRCLE_BRANCH" . # clone to working dir not `cromwell/`
+      - run: ls -la
+      - run: wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | sudo apt-key add -
+      - run: sudo add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/
+      - run: sudo apt update
+      - run: sudo apt install adoptopenjdk-8-hotspot
+      #- run: sudo update-java-alternatives --list
+      - run: sudo update-java-alternatives --set adoptopenjdk-8-hotspot-amd64
+      - run: java -version
+      - run:
+          name: 'SBT'
+          command: src/ci/bin/test.sh
+          #command: src/ci/bin/testSingleWorkflowRunner.sh
           no_output_timeout: 1h
     environment:
       BUILD_TYPE: sbt

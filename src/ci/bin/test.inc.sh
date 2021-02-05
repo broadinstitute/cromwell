@@ -241,14 +241,49 @@ cromwell::private::create_build_variables() {
 
             CROMWELL_BUILD_EVENT="pull_request"
 
+            # Extract commit range (or single commit)
+            CIRCLE_COMMIT_RANGE=$(echo "${CIRCLE_COMPARE_URL}" | cut -d/ -f7)
+
+            # Fix single commit, unfortunately we don't always get a commit range from Circle CI
+            if [[ CIRCLE_COMMIT_RANGE != *"..."* ]]; then
+              CIRCLE_COMMIT_RANGE="${CIRCLE_COMMIT_RANGE}...${CIRCLE_COMMIT_RANGE}"
+            fi
+
+            local circle_commit_message
+            local circle_force_tests
+            local circle_minimal_tests
+            if [[ -n "${CIRCLE_COMMIT_RANGE:+set}" ]]; then
+                # The commit message to analyze should be the last one in the commit range.
+                # This works for both pull_request and push builds, unlike using 'git log HEAD' which
+                # gives a merge commit message on pull requests.
+                circle_commit_message="$(git log --reverse "${CIRCLE_COMMIT_RANGE}" | tail -n1 2>/dev/null || true)"
+            fi
+
+            if [[ -z "${circle_commit_message:-}" ]]; then
+                circle_commit_message="$(git log --format=%B --max-count=1 HEAD 2>/dev/null || true)"
+            fi
+
+            if [[ "${circle_commit_message}" == *"[force ci]"* ]]; then
+                circle_force_tests=true
+                circle_minimal_tests=false
+            elif [[ "${circle_commit_message}" == *"[minimal ci]"* ]]; then
+                circle_force_tests=false
+                circle_minimal_tests=true
+            else
+                circle_force_tests=false
+                circle_minimal_tests=false
+            fi
+
+            echo "Building for commit message='${circle_commit_message}' with force=${circle_force_tests} and minimal=${circle_minimal_tests}"
+
             # For solely documentation updates run only checkPublish. Otherwise always run sbt, even for 'push'.
             # This allows quick sanity checks before starting PRs *and* publishing after merges into develop.
-            if [[ "${travis_force_tests}" == "true" ]]; then
+            if [[ "${circle_force_tests}" == "true" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=true
             elif [[ "${CROMWELL_BUILD_ONLY_DOCS_CHANGED}" == "true" ]] && \
                 [[ "${BUILD_TYPE}" != "checkPublish" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=false
-            elif [[ "${travis_minimal_tests}" == "true" ]] && \
+            elif [[ "${circle_minimal_tests}" == "true" ]] && \
                 [[ "${TRAVIS_EVENT_TYPE}" != "push" ]]; then
                 CROMWELL_BUILD_RUN_TESTS=false
             elif [[ "${CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED}" == "true" ]] && \

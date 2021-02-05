@@ -1,41 +1,50 @@
 version: 2.1
 
-#orbs:
-#  openjdk-install: cloudesire/openjdk-install@1.2.3
+commands:
+  prepare-for-build:
+    description: "Build preparation includes installing adoptopenjdk 8 and cloning the Cromwell repo"
+    steps:
+      - run: git clone --depth 1 "$CIRCLE_REPOSITORY_URL" --branch "$CIRCLE_BRANCH" . # clone to working dir not `cromwell/`
+      - run: wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | sudo apt-key add -
+      - run: sudo add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/
+      - run: sudo apt update
+      - run: sudo apt install adoptopenjdk-8-hotspot
+      - run: sudo update-java-alternatives --set adoptopenjdk-8-hotspot-amd64
 
 jobs:
-  build:
+  test:
     machine:
       image: ubuntu-2004:202010-01
     resource_class: large
     parameters:
       build-type:
         type: string
+      build-mysql:
+        type: string
+      build-mariadb:
+        type: string
+      build-postgresql:
+        type: string
     steps:
-      - run: java -version
-      - run: docker version
-      - run: docker-compose version
-      - run: git clone --depth 1 "$CIRCLE_REPOSITORY_URL" --branch "$CIRCLE_BRANCH" . # clone to working dir not `cromwell/`
-      - run: ls -la
-      - run: wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | sudo apt-key add -
-      - run: sudo add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/
-      - run: sudo apt update
-      - run: sudo apt install adoptopenjdk-8-hotspot
-      #- run: sudo update-java-alternatives --list
-      - run: sudo update-java-alternatives --set adoptopenjdk-8-hotspot-amd64
-      - run: java -version
+      - prepare-for-build
       - run:
-          #name: 'Single workflow runner'
           command: src/ci/bin/test.sh
-          #command: src/ci/bin/testSingleWorkflowRunner.sh
           no_output_timeout: 1h
     environment:
       BUILD_TYPE: << parameters.build-type >>
+      BUILD_MYSQL: << parameters.build-mysql >>
+      BUILD_MARIADB: << parameters.build-mariadb >>
+      BUILD_POSTGRESQL: << parameters.build-postgresql >>
 
 workflows:
   all-tests:
     jobs:
-      - build:
-          matrix:
-            parameters:
-              build-type: [ "singleWorkflowRunner", "sbt" ]
+      - test:
+          name: testSbt
+          build-type: "sbt"
+      - test:
+          name: testSbt
+          build-type: "singleWorkflowRunner"
+      - test:
+          name: testDbms
+          build-type: "dbms"

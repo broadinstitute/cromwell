@@ -52,3 +52,10 @@ jobs:
           no_output_timeout: 1h
     environment:
       BUILD_TYPE: sbt
+
+workflows:
+  version: 2
+  CI_Workflow:
+    jobs:
+      - testSingleWorkflowRunner
+      - testSbt

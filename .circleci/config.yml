@@ -5,13 +5,10 @@ version: 2.1
 
 jobs:
   build:
-    name: test-<<matrix.BUILD_TYPE>>
+    name: test-<< parameters.BUILD_TYPE >>
     machine:
       image: ubuntu-2004:202010-01
     resource_class: large
-    matrix:
-      parameters:
-        BUILD_TYPE: ["singleWorkflowRunner", "sbt"]
     steps:
       - run: java -version
       - run: docker version
@@ -31,4 +28,12 @@ jobs:
           #command: src/ci/bin/testSingleWorkflowRunner.sh
           no_output_timeout: 1h
     environment:
-      BUILD_TYPE: <<matrix.BUILD_TYPE>>
+      BUILD_TYPE: << parameters.BUILD_TYPE >>
+
+workflows:
+  all-tests:
+    jobs:
+      - build:
+          matrix:
+            parameters:
+              BUILD_TYPE: [ "singleWorkflowRunner", "sbt" ]

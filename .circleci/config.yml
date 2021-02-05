@@ -46,7 +46,7 @@ workflows:
           name: testSbt
           build-type: "sbt"
       - test:
-          name: testSbt
+          name: testSingleWorkflowRunner
           build-type: "singleWorkflowRunner"
       - test:
           name: testDbms

@@ -29,10 +29,13 @@ class PipelinesApiReferenceFilesMappingOperationsSpec extends AnyFlatSpecLike wi
   private val refFileMappingsMock = papiReferenceFilesMappingOperationsMockObject.generateReferenceFilesMapping(
     MockAuthMode("default"),
     List(
-      ManifestFile(imageIdentifier = "my-image", diskSizeGb = 500, files = List(
-        ReferenceFile(path = "gs://bucketname/manifest1", crc32c = 5),
-        ReferenceFile(path = "gs://bucketname2/manifest2", crc32c = 6),
+      ManifestFile(imageIdentifier = disk1.image, diskSizeGb = disk1.sizeGb, files = List(
+        ReferenceFile(path = refFile1Disk1, crc32c = 5),
+        ReferenceFile(path = refFile2Disk1, crc32c = 6)
       )),
+      ManifestFile(imageIdentifier = disk2.image, diskSizeGb = disk2.sizeGb, files = List(
+        ReferenceFile(path = refFile3Disk2, crc32c = 7)
+      ))
     )
   )
 

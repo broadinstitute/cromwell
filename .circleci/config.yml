@@ -58,8 +58,5 @@ workflows:
           name: testDockerScripts
           build-type: "dockerScripts"
       - test:
-          name: testMetadataComparisonPython
-          build-type: "metadataComparisonPython"
-      - test:
           name: testReferenceDiskManifestBuilderApp
           build-type: "referenceDiskManifestBuilderApp"

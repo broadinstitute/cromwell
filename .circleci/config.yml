@@ -16,9 +16,6 @@ jobs:
       image: ubuntu-2004:202010-01
     resource_class: large
     parameters:
-      requires-java:
-        type: boolean
-        default: true
       build-type:
         type: string
       build-mysql:
@@ -31,11 +28,7 @@ jobs:
         type: string
         default: ""
     steps:
-      - when:
-          condition:
-            equal: [ true, << parameters.requires-java >> ]
-          steps:
-            - install-adoptopenjdk
+      - install-adoptopenjdk
       - run: git clone --depth 1 "$CIRCLE_REPOSITORY_URL" --branch "$CIRCLE_BRANCH" . # clone to working dir not `cromwell/`
       - run:
           command: src/ci/bin/test.sh
@@ -64,11 +57,9 @@ workflows:
       - test:
           name: testDockerScripts
           build-type: "dockerScripts"
-          requires-java: false
       - test:
           name: testMetadataComparisonPython
           build-type: "metadataComparisonPython"
-          requires-java: false
       - test:
           name: testReferenceDiskManifestBuilderApp
           build-type: "referenceDiskManifestBuilderApp"

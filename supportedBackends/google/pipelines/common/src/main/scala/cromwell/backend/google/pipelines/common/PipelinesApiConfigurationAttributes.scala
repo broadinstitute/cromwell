@@ -311,7 +311,7 @@ object PipelinesApiConfigurationAttributes
             // equivalent using clunkier syntax:
             configs traverse parser.decode[ManifestFile] match {
               case Right(manifests) =>
-                logger.info(s"Reference disks feature for $backendName backend is configured with the following manifest files: ${manifests.map(_.imageIdentifier).mkString(",")}.")
+                logger.info(s"Reference disks feature for $backendName backend is configured with the following reference images: ${manifests.map(_.imageIdentifier).mkString(",")}.")
                 Option(manifests).validNel
               case Left(err) =>
                 val message = s"Reference disks misconfigured for backend $backendName, could not parse as List[ManifestFile]"

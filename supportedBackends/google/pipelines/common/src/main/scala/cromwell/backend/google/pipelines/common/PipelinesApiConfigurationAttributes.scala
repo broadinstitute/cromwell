@@ -1,6 +1,5 @@
 package cromwell.backend.google.pipelines.common
 
-import java.net.URL
 import cats.data.Validated._
 import cats.data.{NonEmptyList, Validated}
 import cats.implicits._
@@ -24,10 +23,11 @@ import eu.timepit.refined.{refineMV, refineV}
 import net.ceedubs.ficus.Ficus._
 import org.slf4j.{Logger, LoggerFactory}
 
+import java.net.URL
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-import scala.util.Try
 import scala.util.matching.Regex
+import scala.util.{Failure, Success, Try}
 
 case class PipelinesApiConfigurationAttributes(project: String,
                                                computeServiceAccount: String,
@@ -286,7 +286,7 @@ object PipelinesApiConfigurationAttributes
     }
   }
 
-  def validateGcsPathToDockerImageCacheManifestFile(backendConfig: Config): ErrorOr[Option[ValidFullGcsPath]] = {
+  private [common] def validateGcsPathToDockerImageCacheManifestFile(backendConfig: Config): ErrorOr[Option[ValidFullGcsPath]] = {
     backendConfig.getAs[String]("docker-image-cache-manifest-file") match {
       case Some(gcsPath) => validateSingleGcsPath(gcsPath).map(Option.apply)
       case None => None.validNel
@@ -298,25 +298,30 @@ object PipelinesApiConfigurationAttributes
     * backend are parseable as `ManifestFile`s.
     */
   def validateReferenceDiskManifestConfigs(backendConfig: Config, backendName: String): ErrorOr[Option[List[ManifestFile]]] = {
-    backendConfig.getAs[List[Config]]("reference-disk-localization-manifest-files") match {
-      case Some(configs) =>
-        import _root_.io.circe.generic.auto._
-        import _root_.io.circe.config.parser
+    Try(backendConfig.getAs[List[Config]]("reference-disk-localization-manifest-files")) match {
+      case Failure(e) =>
+        e.getMessage.invalidNel
+      case Success(s) =>
+        s match {
+          case Some(configs) =>
+            import _root_.io.circe.config.parser
+            import _root_.io.circe.generic.auto._
 
-        // Unfortunately the `as` method of `config` collides with the Ficus method of the same name, so invoke its
-        // equivalent using clunkier syntax:
-        configs traverse parser.decode[ManifestFile] match {
-          case Right(manifests) =>
-            logger.info(s"Reference disks feature for $backendName backend is configured with the following manifest files: ${manifests.map(_.imageIdentifier).mkString(",")}.")
-            Option(manifests).validNel
-          case Left(err) =>
-            val message = s"Reference disks misconfigured for backend $backendName, could not parse as List[ManifestFile]"
-            logger.error(message, err.getCause)
-            s"$message: ${err.getMessage}".invalidNel
+            // Unfortunately the `as` method of `config` collides with the Ficus method of the same name, so invoke its
+            // equivalent using clunkier syntax:
+            configs traverse parser.decode[ManifestFile] match {
+              case Right(manifests) =>
+                logger.info(s"Reference disks feature for $backendName backend is configured with the following manifest files: ${manifests.map(_.imageIdentifier).mkString(",")}.")
+                Option(manifests).validNel
+              case Left(err) =>
+                val message = s"Reference disks misconfigured for backend $backendName, could not parse as List[ManifestFile]"
+                logger.error(message, err.getCause)
+                s"$message: ${err.getMessage}".invalidNel
+            }
+          case None =>
+            logger.info(s"Reference disks feature for $backendName backend is not configured.")
+            None.validNel
         }
-      case None =>
-        logger.info(s"Reference disks feature for $backendName backend is not configured.")
-        None.validNel
     }
   }
 

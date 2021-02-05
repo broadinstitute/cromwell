@@ -1,8 +1,7 @@
 package cromwell.backend.google.pipelines.common
 
-import java.net.URL
-
 import cats.data.Validated.{Invalid, Valid}
+import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigFactory}
 import common.assertion.CromwellTimeoutSpec
 import common.exception.MessageAggregation
@@ -12,6 +11,8 @@ import cromwell.filesystems.gcs.GcsPathBuilder
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.net.URL
+import scala.List
 import scala.concurrent.duration._
 
 class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
@@ -302,6 +303,117 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
       |   }
       |}
       | """.stripMargin
+
+  it should "handle missing \"reference-disk-localization-manifest-files\"" in {
+    val backendConfig = ConfigFactory.parseString(configString())
+
+    val validation = PipelinesApiConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "papi")
+
+    validation shouldBe None.validNel
+  }
+
+  it should "handle present and valid \"reference-disk-localization-manifest-files\"" in {
+    // highly abridged edition
+    val manifestConfig =
+      """
+        |reference-disk-localization-manifest-files = [
+        |{
+        |  "imageIdentifier" : "hg19-public-2020-10-26",
+        |  "diskSizeGb" : 10,
+        |  "files" : [ {
+        |    "path" : "gcp-public-data--broad-references/hg19/v0/Homo_sapiens_assembly19.fasta.fai",
+        |    "crc32c" : 159565724
+        |  }, {
+        |    "path" : "gcp-public-data--broad-references/hg19/v0/Homo_sapiens_assembly19.dict",
+        |    "crc32c" : 1679459712
+        |  }]
+        |},
+        |{
+        |  "imageIdentifier" : "hg38-public-2020-10-26",
+        |  "diskSizeGb" : 10,
+        |  "files" : [ {
+        |    "path" : "gcp-public-data--broad-references/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz",
+        |    "crc32c" : 930173616
+        |  }, {
+        |    "path" : "gcp-public-data--broad-references/hg38/v0/exome_evaluation_regions.v1.interval_list",
+        |    "crc32c" : 289077232
+        |  }]
+        |}
+        |]
+        |""".stripMargin
+    val backendConfig = ConfigFactory.parseString(configString(manifestConfig))
+    val validation = PipelinesApiConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "papi")
+    val manifests: List[ManifestFile] = validation.toEither.right.get.get
+
+    manifests shouldBe List(
+      ManifestFile(
+        imageIdentifier = "hg19-public-2020-10-26",
+        diskSizeGb = 10,
+        files = List(
+          ReferenceFile(
+            path = "gcp-public-data--broad-references/hg19/v0/Homo_sapiens_assembly19.fasta.fai",
+            crc32c = 159565724
+          ),
+          ReferenceFile(
+            path = "gcp-public-data--broad-references/hg19/v0/Homo_sapiens_assembly19.dict",
+            crc32c = 1679459712
+          )
+        )
+      ),
+      ManifestFile(
+        imageIdentifier = "hg38-public-2020-10-26",
+        diskSizeGb = 10,
+        files = List(
+          ReferenceFile(
+            path = "gcp-public-data--broad-references/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz",
+            crc32c = 930173616
+          ),
+          ReferenceFile(
+            path = "gcp-public-data--broad-references/hg38/v0/exome_evaluation_regions.v1.interval_list",
+            crc32c = 289077232
+          )
+        )
+      )
+    )
+  }
+
+  it should "handle present and invalid \"reference-disk-localization-manifest-files\"" in {
+    val badValues = List(
+      "\"foo\"",
+      "{ foo: bar }",
+      s"""
+         |[{
+         |   # missing imageIdentifier
+         |   "diskSizeGb" : 10,
+         |   "files" : [ {
+         |     "path" : "gcp-public-data--broad-references/hg19/v0/Homo_sapiens_assembly19.fasta.fai",
+         |     "crc32c" : 159565724
+         |     }]
+         |}]""",
+      s"""
+         |[{
+         |   "imageIdentifier" : "hg19-public-2020-10-26",
+         |   # missing diskSizeGb
+         |   "files" : [ {
+         |     "path" : "gcp-public-data--broad-references/hg19/v0/Homo_sapiens_assembly19.fasta.fai",
+         |     "crc32c" : 159565724
+         |     }]
+         |}]""",
+      s"""
+         |[{
+         |   "imageIdentifier" : "hg19-public-2020-10-26",
+         |   "diskSizeGb" : 10,
+         |   # missing files
+         |}]""",
+    )
+
+    badValues foreach { badValue =>
+      val customContent = s""""reference-disk-localization-manifest-files" = $badValue"""
+      val backendConfig = ConfigFactory.parseString(configString(customContent))
+      val validation = PipelinesApiConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "papi")
+      validation.isInvalid shouldBe true
+    }
+  }
 
   it should "parse gsutil memory specifications" in {
     val valids = List("0", "150M", "14   PIBIT", "6kib")

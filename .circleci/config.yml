@@ -10,7 +10,8 @@ jobs:
       image: ubuntu-2004:202010-01
     resource_class: large
     matrix:
-      BUILD_TYPE: ["singleWorkflowRunner", "sbt"]
+      parameters:
+        BUILD_TYPE: ["singleWorkflowRunner", "sbt"]
     steps:
       - run: java -version
       - run: docker version

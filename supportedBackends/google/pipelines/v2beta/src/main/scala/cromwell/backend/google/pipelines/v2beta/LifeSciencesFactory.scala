@@ -143,14 +143,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
         .setNetwork(network)
         .setAccelerators(accelerators)
 
-
-      val dockerImageCacheDiskOpt = createPipelineParameters.useDockerImageCache.option {
-        createPipelineParameters
-          .dockerImageToCacheDiskImageMappingOpt
-          .flatMap(_.get(createPipelineParameters.runtimeAttributes.dockerImage))
-      }.flatten
-
-      dockerImageCacheDiskOpt foreach { dockerImageCacheDisk =>
+      createPipelineParameters.dockerImageCacheDiskOpt foreach { dockerImageCacheDisk =>
         virtualMachine.setDockerCacheImages(List(dockerImageCacheDisk).asJava)
       }
 
@@ -165,7 +158,8 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
         val userCommandImageSizeRoundedUpInGB = userCommandImageSizeInGB.ceil.toInt
 
         val totalSize = fromRuntimeAttributes +
-          dockerImageCacheDiskOpt
+          createPipelineParameters
+            .dockerImageCacheDiskOpt
             .map(_ => 0) // if we are using docker image cache then we don't need this additional volume for the boot disk
             .getOrElse(userCommandImageSizeRoundedUpInGB + ActionUtils.cromwellImagesSizeRoundedUpInGB)
 

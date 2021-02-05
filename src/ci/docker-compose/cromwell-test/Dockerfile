@@ -1,4 +1,4 @@
-FROM us.gcr.io/broad-dsp-gcr-public/base/jre:8-debian
+FROM adoptopenjdk:8
 
 WORKDIR /cromwell-test/
 COPY docker-setup.sh ./

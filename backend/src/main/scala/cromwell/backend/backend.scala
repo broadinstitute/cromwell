@@ -30,7 +30,7 @@ import scala.util.Try
 case class BackendJobDescriptorKey(call: CommandCallNode,
                                    index: Option[Int],
                                    attempt: Int,
-                                   memoryMultiplier: GreaterEqualRefined = refineMV[GreaterEqualOne](1.0)) extends CallKey {
+                                   memoryMultiplier: MemoryRetryMultiplierRefined = refineMV[MemoryRetryMultiplier](1.0)) extends CallKey {
   def node = call
   private val indexString = index map { _.toString } getOrElse "NA"
   lazy val tag = s"${call.fullyQualifiedName}:$indexString:$attempt"

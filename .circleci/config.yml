@@ -2,6 +2,7 @@ version: 2.1
 
 orbs:
   slack: circleci/slack@4.2.1
+  build-tools: circleci/build-tools@2.7.1
 
 commands:
   install-adoptopenjdk:
@@ -19,6 +20,8 @@ jobs:
       image: ubuntu-2004:202010-01
     resource_class: large
     parameters:
+      #simulate-merge-before-test:
+      #  type: boolean
       build-type:
         type: string
       build-mysql:
@@ -32,7 +35,8 @@ jobs:
         default: ""
     steps:
       - install-adoptopenjdk
-      - run: git clone "$CIRCLE_REPOSITORY_URL" --branch "$CIRCLE_BRANCH" . # clone to working dir not `cromwell/`
+      #- run: git clone "$CIRCLE_REPOSITORY_URL" --branch "$CIRCLE_BRANCH" . # clone to working dir not `cromwell/`
+      - checkout
       - run:
           command: src/ci/bin/test.sh
           no_output_timeout: 1h

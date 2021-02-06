@@ -32,7 +32,7 @@ jobs:
         default: ""
     steps:
       - install-adoptopenjdk
-      - run: git clone --depth 1 "$CIRCLE_REPOSITORY_URL" --branch "$CIRCLE_BRANCH" . # clone to working dir not `cromwell/`
+      - run: git clone "$CIRCLE_REPOSITORY_URL" --branch "$CIRCLE_BRANCH" . # clone to working dir not `cromwell/`
       - run:
           command: src/ci/bin/test.sh
           no_output_timeout: 1h

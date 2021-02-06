@@ -241,14 +241,6 @@ cromwell::private::create_build_variables() {
 
             CROMWELL_BUILD_EVENT="pull_request"
 
-            # Extract commit range (or single commit)
-            CIRCLE_COMMIT_RANGE=$(echo "${CIRCLE_COMPARE_URL}" | cut -d/ -f7)
-
-            # Fix single commit, unfortunately we don't always get a commit range from Circle CI
-            if [[ CIRCLE_COMMIT_RANGE != *"..."* ]]; then
-              CIRCLE_COMMIT_RANGE="${CIRCLE_COMMIT_RANGE}...${CIRCLE_COMMIT_RANGE}"
-            fi
-
             local circle_commit_message
             local circle_force_tests
             local circle_minimal_tests

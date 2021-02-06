@@ -1,5 +1,8 @@
 version: 2.1
 
+orbs:
+  slack: circleci/slack@4.2.1
+
 commands:
   install-adoptopenjdk:
     description: "Installing adoptopenjdk 8 and setting it as default Java"
@@ -28,6 +31,8 @@ jobs:
         type: string
         default: ""
     steps:
+      - run: echo "${CIRCLE_COMPARE_URL}"
+      - run: echo << pipeline.project.git_url >>/compare/<< pipeline.git.base_revision >>..<<pipeline.git.revision>>
       - install-adoptopenjdk
       - run: git clone --depth 1 "$CIRCLE_REPOSITORY_URL" --branch "$CIRCLE_BRANCH" . # clone to working dir not `cromwell/`
       - run:

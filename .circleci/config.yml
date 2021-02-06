@@ -37,7 +37,7 @@ jobs:
           command: src/ci/bin/test.sh
           no_output_timeout: 1h
     environment:
-      CIRCLE_COMMIT_RANGE: << pipeline.git.base_revision >>..<< pipeline.git.revision >>
+      CIRCLE_COMMIT_RANGE: << pipeline.git.base_revision >>...<< pipeline.git.revision >>
       BUILD_TYPE: << parameters.build-type >>
       BUILD_MYSQL: << parameters.build-mysql >>
       BUILD_MARIADB: << parameters.build-mariadb >>

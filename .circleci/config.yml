@@ -5,7 +5,7 @@ orbs:
   build-tools: circleci/build-tools@2.7.1
 
 commands:
-  install-adoptopenjdk:
+  install_adoptopenjdk:
     description: "Installing adoptopenjdk 8 and setting it as default Java"
     steps:
       - run: wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | sudo apt-key add -
@@ -35,16 +35,30 @@ jobs:
         type: string
         default: ""
     steps:
-      - install-adoptopenjdk
+      - install_adoptopenjdk
       - checkout
       - when:
           condition:
             equal: [ pr, << parameters.branch-or-pr-build >> ]
           steps:
             - build-tools/merge-with-parent
+      - restore_cache:
+          key: sbt-cache
       - run:
           command: src/ci/bin/test.sh
           no_output_timeout: 1h
+      - run:
+          name: Do tricks to avoid unnecessary cache updates
+          command: |
+            find ~/.ivy2/cache -name "ivydata-*.properties" -print -delete
+            find ~/.coursier/cache -name "ivydata-*.properties" -print -delete
+            find ~/.sbt -name "*.lock" -print -delete
+      - save_cache:
+          key: sbt-cache
+          paths:
+            - "~/.ivy2/cache"
+            - "~/.coursier/cache"
+            - "~/.sbt"
     environment:
       CIRCLE_COMMIT_RANGE: << pipeline.git.base_revision >>...<< pipeline.git.revision >>
       BUILD_TYPE: << parameters.build-type >>

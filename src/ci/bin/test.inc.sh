@@ -241,7 +241,10 @@ cromwell::private::create_build_variables() {
 
             if [[ "$BUILD_BRANCH_OR_PR" == "pr" ]]; then
               CROMWELL_BUILD_EVENT="pull_request"
+            elif [[ "$BUILD_BRANCH_OR_PR" == "branch" ]]; then
+              CROMWELL_BUILD_EVENT="push"
             else
+              echo "Allowed values for BUILD_BRANCH_OR_PR environment variable are 'branch' and 'pr', but got '${BUILD_BRANCH_OR_PR}'. Fallback to default 'branch' case."
               CROMWELL_BUILD_EVENT="push"
             fi
 

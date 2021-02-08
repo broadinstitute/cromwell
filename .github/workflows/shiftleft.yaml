@@ -9,7 +9,8 @@ jobs:
       - uses: actions/checkout@v2
 
       - env:
+          SHIFTLEFT_ORG_ID: ${{ secrets.SHIFTLEFT_ORG_ID }}
           SHIFTLEFT_TOKEN: ${{ secrets.SHIFTLEFT_TOKEN }}
         run: |
-          curl https://cdn.shiftleft.io/download/sl > $HOME/sl && chmod a+rx $HOME/sl
-          $HOME/sl auth --token "${SHIFTLEFT_TOKEN}"
+          curl https://cdn.shiftleft.io/download/sl > $HOME/sl && chmod +x $HOME/sl
+          $HOME/sl auth --org "${SHIFTLEFT_ORG_ID}" --token "${SHIFTLEFT_TOKEN}"

@@ -300,7 +300,8 @@ object PipelinesApiConfigurationAttributes
   private [common] def validateReferenceDiskManifestConfigs(backendConfig: Config, backendName: String): ErrorOr[Option[List[ManifestFile]]] = {
     Try(backendConfig.getAs[List[Config]]("reference-disk-localization-manifests")) match {
       case Failure(e) =>
-        e.getMessage.invalidNel
+        ("Error attempting to parse value for 'reference-disk-localization-manifests' as List[Config]: " +
+          e.getMessage).invalidNel
       case Success(s) =>
         s match {
           case Some(configs) =>

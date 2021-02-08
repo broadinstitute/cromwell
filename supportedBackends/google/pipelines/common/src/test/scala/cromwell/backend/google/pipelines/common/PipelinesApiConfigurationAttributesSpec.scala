@@ -330,13 +330,9 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
   }
 
   it should "parse a present but empty \"reference-disk-localization-manifests\"" in {
-    val manifestConfig =
-    """
-    |reference-disk-localization-manifests = []
-    """.stripMargin
+    val manifestConfig = "reference-disk-localization-manifests = []"
 
     val backendConfig = ConfigFactory.parseString(configString(customContent = manifestConfig))
-
 
     val validation = PipelinesApiConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "papi")
 

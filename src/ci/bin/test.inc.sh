@@ -239,7 +239,11 @@ cromwell::private::create_build_variables() {
                 CROMWELL_BUILD_IS_SECURE=false
             fi
 
-            CROMWELL_BUILD_EVENT="pull_request"
+            if [[ "$BUILD_BRANCH_OR_PR" == "pr" ]]; then
+              CROMWELL_BUILD_EVENT="pull_request"
+            else
+              CROMWELL_BUILD_EVENT="push"
+            fi
 
             local circle_commit_message
             local circle_force_tests

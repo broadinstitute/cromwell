@@ -51,6 +51,7 @@ jobs:
       BUILD_MYSQL: << parameters.build-mysql >>
       BUILD_MARIADB: << parameters.build-mariadb >>
       BUILD_POSTGRESQL: << parameters.build-postgresql >>
+      BUILD_BRANCH_OR_PR: << parameters.branch-or-pr-build >>
 
 workflows:
   all-tests:

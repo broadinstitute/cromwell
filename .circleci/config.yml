@@ -56,37 +56,37 @@ workflows:
   all-tests:
     jobs:
       - test:
-          name: testSbt
+          name: testSbt-<< parameters.branch-or-pr-build >>
           build-type: "sbt"
           matrix:
              parameters:
                branch-or-pr-build: [branch, pr]
       - test:
-          name: testSingleWorkflowRunner
+          name: testSingleWorkflowRunner-<< parameters.branch-or-pr-build >>
           build-type: "singleWorkflowRunner"
           matrix:
             parameters:
               branch-or-pr-build: [branch, pr]
       - test:
-          name: testDbms
+          name: testDbms-<< parameters.branch-or-pr-build >>
           build-type: "dbms"
           matrix:
             parameters:
               branch-or-pr-build: [branch, pr]
       - test:
-          name: testHoricromtalDeadlock
+          name: testHoricromtalDeadlock-<< parameters.branch-or-pr-build >>
           build-type: "horicromtalDeadlock"
           matrix:
             parameters:
               branch-or-pr-build: [branch, pr]
       - test:
-          name: testDockerScripts
+          name: testDockerScripts-<< parameters.branch-or-pr-build >>
           build-type: "dockerScripts"
           matrix:
             parameters:
               branch-or-pr-build: [branch, pr]
       - test:
-          name: testReferenceDiskManifestBuilderApp
+          name: testReferenceDiskManifestBuilderApp-<< parameters.branch-or-pr-build >>
           build-type: "referenceDiskManifestBuilderApp"
           matrix:
             parameters:

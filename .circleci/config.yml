@@ -20,8 +20,9 @@ jobs:
       image: ubuntu-2004:202010-01
     resource_class: large
     parameters:
-      simulate-merge-before-test:
-        type: boolean
+      branch-or-pr-build:
+        description: supported values are `branch` or `pr`
+        type: string
       build-type:
         type: string
       build-mysql:
@@ -38,7 +39,7 @@ jobs:
       - checkout
       - when:
           condition:
-            equal: [ true, << parameters.simulate-merge-before-test >> ]
+            equal: [ pr, << parameters.simulate-merge-before-test >> ]
           steps:
             - build-tools/merge-with-parent
       - run:
@@ -59,34 +60,34 @@ workflows:
           build-type: "sbt"
           matrix:
              parameters:
-               simulate-merge-before-test: [true, false]
+               branch-or-pr-build: [branch, pr]
       - test:
           name: testSingleWorkflowRunner
           build-type: "singleWorkflowRunner"
           matrix:
             parameters:
-              simulate-merge-before-test: [ true, false ]
+              branch-or-pr-build: [branch, pr]
       - test:
           name: testDbms
           build-type: "dbms"
           matrix:
             parameters:
-              simulate-merge-before-test: [ true, false ]
+              branch-or-pr-build: [branch, pr]
       - test:
           name: testHoricromtalDeadlock
           build-type: "horicromtalDeadlock"
           matrix:
             parameters:
-              simulate-merge-before-test: [ true, false ]
+              branch-or-pr-build: [branch, pr]
       - test:
           name: testDockerScripts
           build-type: "dockerScripts"
           matrix:
             parameters:
-              simulate-merge-before-test: [ true, false ]
+              branch-or-pr-build: [branch, pr]
       - test:
           name: testReferenceDiskManifestBuilderApp
           build-type: "referenceDiskManifestBuilderApp"
           matrix:
             parameters:
-              simulate-merge-before-test: [ true, false ]
+              branch-or-pr-build: [branch, pr]

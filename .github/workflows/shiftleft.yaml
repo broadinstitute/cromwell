@@ -12,5 +12,4 @@ jobs:
           SHIFTLEFT_TOKEN: ${{ secrets.SHIFTLEFT_TOKEN }}
         run: |
           curl https://cdn.shiftleft.io/download/sl > $HOME/sl && chmod a+rx $HOME/sl
-          mv $HOME/sl /usr/local/bin/
-          sl auth --token "${SHIFTLEFT_TOKEN}"
+          $HOME/sl auth --token "${SHIFTLEFT_TOKEN}"

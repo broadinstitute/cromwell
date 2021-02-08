@@ -1,0 +1,16 @@
+name: dsp-appsec-shiftleft
+on: [pull_request]
+
+jobs:
+  shiftleft:
+    name: ShiftLeft static security analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - env:
+          SHIFTLEFT_TOKEN: ${{ secrets.SHIFTLEFT_TOKEN }}
+        run: |
+          curl https://cdn.shiftleft.io/download/sl > $HOME/sl && chmod a+rx $HOME/sl
+          mv $HOME/sl /usr/local/bin/
+          sl auth --token "${SHIFTLEFT_TOKEN}"

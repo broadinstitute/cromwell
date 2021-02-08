@@ -13,4 +13,4 @@ jobs:
           SHIFTLEFT_TOKEN: ${{ secrets.SHIFTLEFT_TOKEN }}
         run: |
           curl https://cdn.shiftleft.io/download/sl > $HOME/sl && chmod +x $HOME/sl
-          $HOME/sl auth --org "${SHIFTLEFT_ORG_ID}" --token "${SHIFTLEFT_TOKEN}"
+          $HOME/sl auth --org "${SHIFTLEFT_ORG_ID}" --token "${SHIFTLEFT_TOKEN}" --no-diagnostic

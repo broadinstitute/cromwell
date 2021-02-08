@@ -20,8 +20,8 @@ jobs:
       image: ubuntu-2004:202010-01
     resource_class: large
     parameters:
-      #simulate-merge-before-test:
-      #  type: boolean
+      simulate-merge-before-test:
+        type: boolean
       build-type:
         type: string
       build-mysql:
@@ -35,8 +35,12 @@ jobs:
         default: ""
     steps:
       - install-adoptopenjdk
-      #- run: git clone "$CIRCLE_REPOSITORY_URL" --branch "$CIRCLE_BRANCH" . # clone to working dir not `cromwell/`
       - checkout
+      - when:
+          condition:
+            equal: [ true, << parameters.simulate-merge-before-test >> ]
+          steps:
+            - build-tools/merge-with-parent
       - run:
           command: src/ci/bin/test.sh
           no_output_timeout: 1h
@@ -53,18 +57,36 @@ workflows:
       - test:
           name: testSbt
           build-type: "sbt"
+          matrix:
+             parameters:
+               simulate-merge-before-test: [true, false]
       - test:
           name: testSingleWorkflowRunner
           build-type: "singleWorkflowRunner"
+          matrix:
+            parameters:
+              simulate-merge-before-test: [ true, false ]
       - test:
           name: testDbms
           build-type: "dbms"
+          matrix:
+            parameters:
+              simulate-merge-before-test: [ true, false ]
       - test:
           name: testHoricromtalDeadlock
           build-type: "horicromtalDeadlock"
+          matrix:
+            parameters:
+              simulate-merge-before-test: [ true, false ]
       - test:
           name: testDockerScripts
           build-type: "dockerScripts"
+          matrix:
+            parameters:
+              simulate-merge-before-test: [ true, false ]
       - test:
           name: testReferenceDiskManifestBuilderApp
           build-type: "referenceDiskManifestBuilderApp"
+          matrix:
+            parameters:
+              simulate-merge-before-test: [ true, false ]

@@ -50,9 +50,9 @@ jobs:
       - run:
           name: Do tricks to avoid unnecessary cache updates
           command: |
-            find ~/.ivy2/cache -name "ivydata-*.properties" -print -delete
-            find ~/.coursier/cache -name "ivydata-*.properties" -print -delete
-            find ~/.sbt -name "*.lock" -print -delete
+            find ~/.ivy2/cache -name "ivydata-*.properties" -print -delete || true
+            find ~/.coursier/cache -name "ivydata-*.properties" -print -delete || true
+            find ~/.sbt -name "*.lock" -print -delete || true
       - save_cache:
           key: sbt-cache
           paths:

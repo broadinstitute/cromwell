@@ -1,5 +1,300 @@
 # Cromwell Change Log
 
+## 56 Release Notes
+
+### Retry with More Memory as workflow option
+
+The experimental memory retry feature gains per-workflow customization and includes breaking changes:
+* The per-backend configuration key `<backend>.config.memory-retry.error-keys` has been removed and replaced 
+with global key `system.memory-retry-error-keys`
+* The per-backend configuration key `<backend>.config.memory-retry.multiplier` has been replaced with **workflow option** 
+`memory_retry_multiplier`
+
+More details can be found [here](https://cromwell.readthedocs.io/en/develop/wf_options/Overview.md#retry-with-more-memory-multiplier).
+
+### Bug Fixes
+
+* Fixed a bug that caused Cromwell to mark workflows as failed after a single `500`, `503`, or `504` error from Google Cloud Storage.
+  * Cromwell will now retry these errors as designed.
+  * The default retry count is `5` and may be customized with `system.io.number-of-attempts`. 
+
+## 55 Release Notes
+
+### Apple Silicon support statement
+
+Users with access to the new Mac hardware should review [important information provided here](https://cromwell.readthedocs.io/en/stable/Releases).
+
+### Bug Fixes
+
+* Fixed a bug that prevented `read_json()` from working with arrays and primitives. The function now works as expected for all valid JSON data inputs. 
+More information on JSON Type to WDL Type conversion can be found [here](https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#mixed-read_jsonstringfile).
+
+* Now retries HTTP 408 responses as well as HTTP 429 responses during DOS/DRS resolution requests.
+
+* Fixed a bug that prevented the call caching diff endpoint from working with scatters in workflows with archived metadata.
+
+### New Features
+
+#### Reference disk support on PAPI v2
+
+Cromwell now offers support for the use of reference disks on the PAPI v2 backend as an alternative to localizing
+reference inputs. More details [here](https://cromwell.readthedocs.io/en/develop/backends/Google#reference-disk-support).
+
+#### Docker image cache support on PAPI v2 lifesciences beta
+
+Cromwell now offers support for the use of Docker image caches on the PAPI v2 lifesciences beta backend. More details [here](https://cromwell.readthedocs.io/en/develop/backends/Google#docker-image-cache-support).
+
+#### Preemptible Recovery via Checkpointing
+
+* Cromwell can now help tasks recover from preemption by allowing them to specify a 'checkpoint' file which will be restored
+to the worker VM on the next attempt if the task is interrupted. More details [here](https://cromwell.readthedocs.io/en/develop/optimizations/CheckpointFiles)
+
+## 54 Release Notes
+
+### Bug Fixes
+
+* Fixed a bug that prevented `write_json()` from working with arrays and primitives. The function now works as expected for `Boolean`, `String`, `Integer`, `Float`,
+ `Pair[_, _]`, `Object`, `Map[_, _]` and `Array[_]` (including array of objects) type inputs. More information on WDL Type to JSON Type 
+ conversion can be found [here](https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#mixed-read_jsonstringfile).
+
+### Spark backend support removal
+
+Spark backend was not widely used and it was decided to remove it from the codebase in order to narrow the scope of Cromwell code. 
+
+### Improved DRS Localizer logging
+
+Error logging while localizing a DRS URI should now be more clear especially when there is a Requester Pays bucket involved.
+
+### Per-backend hog factors
+Cromwell now allows overriding system-level log factors on back-end level. First, Cromwell will try to use hog-factor 
+defined in the backend config, and if it is not defined, it will default to using system-wide hog factor.
+```conf
+backend {
+  providers {
+    PAPIv2 {
+      config {
+        hog-factor: 2
+      }
+    }
+  }
+}
+```
+For more information about hog factors please see [this page](https://cromwell.readthedocs.io/en/develop/cromwell_features/HogFactors/).
+
+### `martha_v2` Support Removed
+
+Cromwell now only supports resolving DOS or DRS URIs through [Martha](https://github.com/broadinstitute/martha)'s most
+recent metadata endpoint `martha_v3`, dropping support for Martha's previous metadata endpoint `martha_v2`. To switch to
+the new version of Martha's metadata endpoint, update the `martha.url` found in the [filesystems
+config](https://cromwell.readthedocs.io/en/stable/filesystems/Filesystems/#overview) to point to `/martha_v3`. More
+information on Martha's `martha_v3` request and response schema can be found
+[here](https://github.com/broadinstitute/martha#martha-v3).
+
+### DOS/DRS `localization_optional` Support
+
+When running on a backend that supports `localization_optional: true` any DOS or DRS `File` values in the generated
+command line will be substituted with the `gsUri` returned from Martha's `martha_v3` endpoint. More information on
+`localization_optional` can be found [here](https://cromwell.readthedocs.io/en/stable/optimizations/FileLocalization/).
+
+### DOS/DRS metadata retrieval retried by default
+
+Attempts to retrieve DOS/DRS metadata from Martha will be retried by default. More information can be found
+[here](https://cromwell.readthedocs.io/en/stable/optimizations/FileLocalization/).
+
+## 53 Release Notes
+
+### Martha v3 Support
+
+Cromwell now supports resolving DRS URIs through Martha v3 (in addition to Martha v2). To switch to the new version of Martha, update the `martha.url` found in the [filesystems config](https://cromwell.readthedocs.io/en/stable/filesystems/Filesystems/#overview) to
+point to `/martha_v3`. More information on Martha v3 request and response schema can be found [here](https://github.com/broadinstitute/martha#martha-v3).
+
+### Support for custom entrypoints on Docker images
+
+Cromwell can now support docker images which have custom entrypoints in the PAPIv2 alpha and beta backends.
+
+### Alpha support for WDL optional outputs on PAPI v2
+
+* Alpha support for WDL optional output files on the PAPI v2 backend has been added, please see the
+[documentation](https://cromwell.readthedocs.io/en/stable/wf_options/Google#alpha-support-for-wdl-optional-outputs-on-papi-v2)
+for known limitations.
+
+### Monitoring Image Script
+
+* Cromwell now supports an optional `monitoring_image_script` workflow option in addition to the existing
+`monitoring_script` and `monitoring_image` options. For more information see the [Google Pipelines API Workflow Options
+documentation](https://cromwell.readthedocs.io/en/stable/wf_options/Google#google-pipelines-api-workflow-options).
+
+## 52 Release Notes
+
+### Documentation
+
+Information on how to properly use the Singularity cache with Cromwell is now
+provided in the [Cromwell Singularity documentation](
+https://cromwell.readthedocs.io/en/stable/tutorials/Containers/#singularity).
+
+### Google library upgrade [(#5565)](https://github.com/broadinstitute/cromwell/pull/5565)
+
+All previous versions of Cromwell shipped with Google Cloud Storage (GCS) libraries that are now deprecated and will [stop working in August 2020](https://developers.googleblog.com/2018/03/discontinuing-support-for-json-rpc-and.html). This release adopts updated libraries to ensure uninterrupted operation. The only user action required is upgrading Cromwell.   
+
+### Bug fixes
+
+* Fixed a bug that required Cromwell to be restarted in order to pick up DNS changes.
+    * By default, the JVM caches DNS records with a TTL of infinity.
+    * Cromwell now configures its JVM with a 3-minute TTL. This value can be customized by setting `system.dns-cache-ttl`.  
+* Clarified an error message that Cromwell emits when the compute backend terminates a job of its own volition (as opposed to termination in response to an abort request from Cromwell)
+    * Previously, the error read `The job was aborted from outside Cromwell`
+    * The new error reads `The compute backend terminated the job. If this termination is unexpected, examine likely causes such as preemption, running out of disk or memory on the compute instance, or exceeding the backend's maximum job duration.` 
+
+## 51 Release Notes
+
+### Changes and Warnings
+
+The configuration format for call cache blacklisting has been updated, please see the [call caching documentation](
+https://cromwell.readthedocs.io/en/stable/Configuring/#call-caching) for details.
+
+### Bug fixes
+
+* Fixed a bug where the `size(...)` function did not work correctly on files 
+  from a shared filesystem if `size(...)` was called in the input section on a 
+  relative path.
++ Fixed a bug where the `use_relative_output_paths` option would not preserve intermediate folders.
+
+### New functionality
+
+#### Call caching blacklisting improvements
+
+Cromwell previously supported blacklisting GCS buckets containing cache hits which could not be copied for permissions 
+reasons. Cromwell now adds support for blacklisting individual cache hits which could not be copied for any reason,
+as well as grouping blacklist caches according to a workflow option key. More information available in the [
+call caching documentation]( https://cromwell.readthedocs.io/en/stable/Configuring/#call-caching). 
+
+#### new xxh64 and fingerprint strategies for call caching
+
+Existing call cache strategies `path` and `path+modtime` don't work when using docker on shared filesystems 
+(SFS backend, i.e. not in cloud storage). The `file` (md5sum) strategy works, but uses a lot of resources.
+Two faster strategies have been added for this use case: `xxh64` and 
+`fingerprint`. `xxh64` is a lightweight hashing algorithm, `fingerprint` is a strategy designed to be very 
+lightweight. Read more about it in the [call caching documentation](
+https://cromwell.readthedocs.io/en/stable/Configuring/#call-caching).
+
+## 50 Release Notes
+
+### Changes and Warnings
+
+#### Metadata Archival Config Change
+
+**Note:** Unless you have already opted-in to GCS-archival of metadata during its development, this change will not affect you.
+Cromwell's metadata archival configuration has changed in a backwards incompatible way to increase consistency,
+please see
+[the updated documentation](https://cromwell.readthedocs.io/en/stable/Configuring#hybrid-metadata-storage-classic-carbonite) for details.
+
+## 49 Release Notes
+
+### Changes and Warnings
+
+#### Job store database refactoring
+
+The primary keys of Cromwell's job store tables have been refactored to use a `BIGINT` datatype in place of the previous
+`INT` datatype. Cromwell will not be usable during the time the Liquibase migration for this refactor is running.
+In the Google Cloud SQL with SSD environment this migration runs at a rate of approximately 40,000 `JOB_STORE_SIMPLETON_ENTRY`
+rows per second. In deployments with millions or billions of `JOB_STORE_SIMPLETON_ENTRY` rows the migration may require
+a significant amount of downtime so please plan accordingly. The following SQL could be used to estimate the number of
+rows in this table:
+
+```
+SELECT table_rows FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'cromwell' AND table_name = 'JOB_STORE_SIMPLETON_ENTRY';
+```
+
+#### Execution Directory Layout (cache copies)
+
+When an attempt to copy a cache result is made, you'll now see a `cacheCopy` directory in the call root directory. 
+This prevents them clashing with the files staged to the same directory for attempt 1 if the cache copy fails (see also: Bug Fixes).
+
+The directory layout used to be:
+
+```
+[...]/callRoot/
+  - script [from the cache copy attempt, or for execution attempt 1 if the cache copy fails]
+  - stdout [from the cache copy attempt, or for execution attempt 1 if the cache copy fails]
+  - output.file [from the cache copy attempt, or for execution attempt 1 if the cache copy fails]
+  - attempt-2/ [if attempt 1 fails]
+    - script
+    - stdout
+    - output.file
+```
+
+but is now:
+
+```
+[...]/callRoot/
+  - cacheCopy/
+    - script
+    - stdout
+    - output.file
+  - script [for attempt 1 if the cache copy fails]
+  - stdout [for attempt 1 if the cache copy fails]
+  - output.file [for attempt 1 if the cache copy fails]
+  - attempt-2/ [if attempt 1 fails]
+    - script
+    - stdout
+    - output.file
+```
+
+### New Functionality
+
+#### Disable call-caching for tasks
+
+It is now possible to indicate in a workflow that a task should not be call-cached. See details 
+[here](https://cromwell.readthedocs.io/en/stable/optimizations/VolatileTasks).
+
+#### Delete Intermediate Outputs on PapiV2
+
+* **Experimental:** When a new workflow option `delete_intermediate_output_files` is submitted with the workflow,
+intermediate `File` objects will be deleted when the workflow completes. See the [Google Pipelines API Workflow Options
+documentation](https://cromwell.readthedocs.io/en/stable/wf_options/Google#google-pipelines-api-workflow-options)
+for more information.
+
+#### Metadata Archival Support
+
+Cromwell 49 now offers the option to archive metadata to GCS and remove the equivalent metadata from relational
+database storage. Please see 
+[the documentation](https://cromwell.readthedocs.io/en/stable/Configuring#hybrid-metadata-storage-classic-carbonite) for more details. 
+
+#### Adding support for Google Cloud Life Sciences v2beta
+Cromwell now supports running workflows using Google Cloud Life Sciences v2beta API in addition to Google Cloud Genomics v2alpha1. 
+More information about migration to the new API from v2alpha1 
+[here](https://cromwell.readthedocs.io/en/stable/backends/Google#migration-from-google-cloud-genomics-v2alpha1-to-google-cloud-life-sciences-v2beta). 
+* **Note** Google Cloud Life Sciences is the new name for newer versions of Google Cloud Genomics.
+* **Note** Support for Google Cloud Genomics v2alpha1 will be removed in a future version of Cromwell. Advance notice will be provided.
+
+### New Docs
+
+#### Installation methods
+
+Links to the conda package and docker container are now available in 
+[the install documentation](https://cromwell.readthedocs.io/en/stable/Getting/).
+
+
+### Bug Fixes
+
++ Fix a bug where zip files with directories could not be imported. 
+  For example a zip with `a.wdl` and `b.wdl` could be imported but one with `sub_workflows/a.wdl` 
+  and `imports/b.wdl` could not.
++ Fix a bug which sometimes allowed execution scripts copied by a failed cache-copy to be run instead
+  of the attempt-1 script for a live job execution. 
+  
+## 48 Release Notes
+
+### Womtool Graph for WDL 1.0
+
+The `womtool graph` command now supports WDL 1.0 workflows. 
+* **Note:** Generated graphs - including in WDL draft 2 - may look slightly different than they did in version 47.
+
+### Documentation
+
++ Documented the use of a HSQLDB file-based database so users can try call-caching without needing a database server.
+  Please checkout [the database documentation](https://cromwell.readthedocs.io/en/stable/Configuring#database).
+
 ## 47 Release Notes
 
 ### Retry with more memory on Papiv2 [(#5180)](https://github.com/broadinstitute/cromwell/pull/5180)
@@ -658,10 +953,11 @@ In addition, the following changes are to be expected:
 The `actor-factory` value for the google backend (`cromwell.backend.impl.jes.JesBackendLifecycleActorFactory`) is being deprecated.
 Please update your configuration accordingly.
 
-| PAPI Version |                                 actor-factory                                |
-|--------------|:----------------------------------------------------------------------------:|
-|      V1      | cromwell.backend.google.pipelines.v1alpha2.PipelinesApiLifecycleActorFactory |
-|      V2      | cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory |
+| PAPI Version  |                                 actor-factory                                |
+|---------------|:----------------------------------------------------------------------------:|
+|      V1       | cromwell.backend.google.pipelines.v1alpha2.PipelinesApiLifecycleActorFactory |
+|      V2alpha1 | cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory |
+|      V2beta   | cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory   |
 
 If you don't update the `actor-factory` value, you'll get a deprecation warning in the logs, and Cromwell will default back to **PAPI V1**
 

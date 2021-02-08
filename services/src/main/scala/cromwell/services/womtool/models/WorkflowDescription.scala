@@ -24,20 +24,16 @@ case class WorkflowDescription( valid: Boolean,
 
 case object WorkflowDescription {
 
-  def withErrors(errors: List[String]): WorkflowDescription = {
+  def withErrors(errors: List[String], submittedDescriptorType: Map[String, String]): WorkflowDescription = {
     WorkflowDescription(
       valid = false,
       errors = errors,
-      validWorkflow = false
+      validWorkflow = false,
+      submittedDescriptorType = submittedDescriptorType
     )
   }
 
-  def fromBundle(bundle: WomBundle, languageName: String, languageVersionName: String, inputErrors: List[String] = List.empty): WorkflowDescription = {
-
-    val sdt = Map(
-      "descriptorType" -> languageName,
-      "descriptorTypeVersion" -> languageVersionName
-    )
+  def fromBundle(bundle: WomBundle, submittedDescriptorType: Map[String, String], inputErrors: List[String] = List.empty): WorkflowDescription = {
 
     val images: List[String] = bundle.allCallables.values.toList flatMap { callable: Callable =>
       callable match {
@@ -55,19 +51,19 @@ case object WorkflowDescription {
 
       // There is a primary callable in the form of a workflow
       case (_, Some(primaryCallable: WorkflowDefinition)) =>
-        fromBundleInner(inputErrors, primaryCallable.name, sdt, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta, primaryCallable.parameterMeta, images, isRunnableWorkflow = true)
+        fromBundleInner(inputErrors, primaryCallable.name, submittedDescriptorType, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta, primaryCallable.parameterMeta, images, isRunnableWorkflow = true)
 
       // There is a primary callable in the form of a task
       case (_, Some(primaryCallable: CallableTaskDefinition)) =>
-        fromBundleInner(inputErrors, primaryCallable.name, sdt, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta, primaryCallable.parameterMeta, images, isRunnableWorkflow = false)
+        fromBundleInner(inputErrors, primaryCallable.name, submittedDescriptorType, primaryCallable.inputs, primaryCallable.outputs, primaryCallable.meta, primaryCallable.parameterMeta, images, isRunnableWorkflow = false)
 
       // WDL draft-2: a solo task is not primary, but we should still use its name and IO
       case ((soloNonPrimaryTask: CallableTaskDefinition) :: Nil, None) =>
-        fromBundleInner(inputErrors, soloNonPrimaryTask.name, sdt, soloNonPrimaryTask.inputs, soloNonPrimaryTask.outputs, soloNonPrimaryTask.meta, soloNonPrimaryTask.parameterMeta, images, isRunnableWorkflow = false)
+        fromBundleInner(inputErrors, soloNonPrimaryTask.name, submittedDescriptorType, soloNonPrimaryTask.inputs, soloNonPrimaryTask.outputs, soloNonPrimaryTask.meta, soloNonPrimaryTask.parameterMeta, images, isRunnableWorkflow = false)
 
       // Multiple tasks
       case _ =>
-        fromBundleInner(inputErrors, "", sdt, List.empty, List.empty, Map.empty, Map.empty, images, isRunnableWorkflow = false)
+        fromBundleInner(inputErrors, "", submittedDescriptorType, List.empty, List.empty, Map.empty, Map.empty, images, isRunnableWorkflow = false)
     }
   }
 

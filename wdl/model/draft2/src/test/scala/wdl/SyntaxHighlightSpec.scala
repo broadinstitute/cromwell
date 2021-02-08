@@ -1,12 +1,14 @@
 package wdl
 
-import org.scalatest.{Matchers, WordSpec}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 import wdl.draft2.Draft2ResolvedImportBundle
 import wdl.draft2.model.WdlNamespace
 import wdl.draft2.model.formatter.{AnsiSyntaxHighlighter, HtmlSyntaxHighlighter, SyntaxFormatter}
 import wom.ResolvedImportRecord
 
-class SyntaxHighlightSpec extends WordSpec with Matchers {
+class SyntaxHighlightSpec extends AnyWordSpec with CromwellTimeoutSpec with Matchers {
   "SyntaxFormatter for typical workflow" should {
     val namespace = WdlNamespace.loadUsingSource(
       """

@@ -25,14 +25,15 @@ import cromwell.engine.{ContinueWhilePossible, EngineIoFunctions, EngineWorkflow
 import cromwell.subworkflowstore.SubWorkflowStoreActor.{QuerySubWorkflow, SubWorkflowFound, SubWorkflowNotFound}
 import cromwell.util.WomMocks
 import org.scalatest.concurrent.Eventually
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 import wom.graph.WomIdentifier
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with Matchers with Mockito with Eventually {
+class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Mockito with Eventually {
   
   behavior of "SubWorkflowExecutionActor"
 
@@ -189,15 +190,16 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with FlatSpecLike with 
   
   it should "Relay Workflow Successful message" in {
     val ewea = buildEWEA()
-    ewea.setState(SubWorkflowRunningState, SubWorkflowExecutionActorData(Some(WorkflowId.randomId()), None))
+    val subworkflowId = WorkflowId.randomId()
+    ewea.setState(SubWorkflowRunningState, SubWorkflowExecutionActorData(Some(subworkflowId), None))
 
     deathWatch watch ewea
 
     val jobExecutionMap: JobExecutionMap = Map.empty
     val outputs: CallOutputs = CallOutputs.empty
-    val workflowSuccessfulMessage = WorkflowExecutionSucceededResponse(jobExecutionMap, outputs)
+    val workflowSuccessfulMessage = WorkflowExecutionSucceededResponse(jobExecutionMap, Set.empty[WorkflowId], outputs)
     ewea ! workflowSuccessfulMessage
-    parentProbe.expectMsg(SubWorkflowSucceededResponse(subKey, jobExecutionMap, outputs))
+    parentProbe.expectMsg(SubWorkflowSucceededResponse(subKey, jobExecutionMap, Set.empty[WorkflowId], outputs))
     deathWatch.expectTerminated(ewea, awaitTimeout)
   }
 

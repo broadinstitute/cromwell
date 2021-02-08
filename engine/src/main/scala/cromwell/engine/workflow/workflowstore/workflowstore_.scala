@@ -2,7 +2,7 @@ package cromwell.engine.workflow.workflowstore
 
 import java.time.OffsetDateTime
 
-import cromwell.core.{HogGroup, WorkflowId, WorkflowSourceFilesCollection}
+import cromwell.core.{HasWorkflowIdAndSources, HogGroup, WorkflowId, WorkflowSourceFilesCollection}
 
 /**
   * States of a workflow for which it can be fetched from the workflow store and started.
@@ -27,4 +27,4 @@ final case class WorkflowToStart(id: WorkflowId,
                                  submissionTime: OffsetDateTime,
                                  sources: WorkflowSourceFilesCollection,
                                  state: StartableState,
-                                 hogGroup: HogGroup)
+                                 hogGroup: HogGroup) extends HasWorkflowIdAndSources

@@ -6,7 +6,9 @@ import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
+import akka.http.scaladsl.unmarshalling.Unmarshaller
 import akka.pattern.{AskTimeoutException, ask}
+import akka.stream.Materializer
 import akka.util.Timeout
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
@@ -17,6 +19,7 @@ import cromwell.engine.instrumentation.HttpInstrumentation
 import cromwell.server.CromwellShutdown
 import cromwell.services.metadata.MetadataService._
 import cromwell.services._
+import cromwell.services.metadata.MetadataQuery.{MetadataSourceForceArchived, MetadataSourceForceUnarchived, MetadataSourceOverride}
 import cromwell.webservice.LabelsManagerActor
 import cromwell.webservice.LabelsManagerActor._
 import cromwell.webservice.routes.CromwellApiService.{InvalidWorkflowException, UnrecognizedWorkflowException, serviceShuttingDownResponse, validateWorkflowIdInMetadata, validateWorkflowIdInMetadataSummaries}
@@ -47,27 +50,32 @@ trait MetadataRouteSupport extends HttpInstrumentation {
     path("workflows" / Segment / Segment / "outputs") { (_, possibleWorkflowId) =>
       get {
         instrumentRequest {
-          metadataLookup(possibleWorkflowId, (w: WorkflowId) => WorkflowOutputs(w), serviceRegistryActor)
+          parameters('metadataSource.as[MetadataSourceOverride](metadataSourceUnmarshaller).?) { metadataSourceOverride =>
+            metadataLookup(possibleWorkflowId, (w: WorkflowId) => WorkflowOutputs(w, metadataSourceOverride), serviceRegistryActor)
+          }
         }
       }
     },
     path("workflows" / Segment / Segment / "logs") { (_, possibleWorkflowId) =>
       get {
         instrumentRequest {
-          metadataLookup(possibleWorkflowId, (w: WorkflowId) => GetLogs(w), serviceRegistryActor)
+          parameters('metadataSource.as[MetadataSourceOverride](metadataSourceUnmarshaller).?) { metadataSourceOverride =>
+            metadataLookup(possibleWorkflowId, (w: WorkflowId) => GetLogs(w, metadataSourceOverride), serviceRegistryActor)
+          }
         }
       }
     },
     encodeResponse {
       path("workflows" / Segment / Segment / "metadata") { (_, possibleWorkflowId) =>
         instrumentRequest {
-          parameters(('includeKey.*, 'excludeKey.*, 'expandSubWorkflows.as[Boolean].?)) { (includeKeys, excludeKeys, expandSubWorkflowsOption) =>
+          parameters(('includeKey.*, 'excludeKey.*, 'expandSubWorkflows.as[Boolean].?, 'metadataSource.as[MetadataSourceOverride](metadataSourceUnmarshaller).?)) { (includeKeys, excludeKeys, expandSubWorkflowsOption, metadataSourceOverride) =>
             val includeKeysOption = NonEmptyList.fromList(includeKeys.toList)
             val excludeKeysOption = NonEmptyList.fromList(excludeKeys.toList)
             val expandSubWorkflows = expandSubWorkflowsOption.getOrElse(false)
 
-            metadataLookup(possibleWorkflowId,
-              (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, includeKeysOption, excludeKeysOption, expandSubWorkflows),
+            metadataLookup(
+              possibleWorkflowId,
+              (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, includeKeysOption, excludeKeysOption, expandSubWorkflows, metadataSourceOverride),
               serviceRegistryActor)
           }
         }
@@ -173,6 +181,14 @@ object MetadataRouteSupport {
       case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() => serviceShuttingDownResponse
       case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
       case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
+    }
+  }
+
+  val metadataSourceUnmarshaller = new Unmarshaller[String, MetadataSourceOverride] {
+    override def apply(value: String)(implicit ec: ExecutionContext, materializer: Materializer): Future[MetadataSourceOverride] = Future {
+      if (value == "Archived") MetadataSourceForceArchived
+      else if (value == "Unarchived") MetadataSourceForceUnarchived
+      else throw new Exception(s"Invalid metadataSource value: $value")
     }
   }
 }

@@ -1,0 +1,25 @@
+# Tests that the stdout will be deleted when listed as a call-but-not-workflow output
+
+name: stdout_delete
+testFormat: workflowsuccess
+backends: [Papiv2]
+
+files {
+  workflow: delete_intermediates/stdout_delete.wdl
+  options: delete_intermediates/delete_intermediates.options
+}
+
+metadata {
+  workflowName: stdout_delete
+  status: Succeeded
+  fileDeletionStatus: Succeeded
+}
+
+fileSystemCheck: "gcs"
+outputExpectations: {
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/stdout_delete/<<UUID>>/call-do_stdout/stdout": 0
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/stdout_delete/<<UUID>>/call-do_stdout/stderr": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/stdout_delete/<<UUID>>/call-do_stdout/rc": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/stdout_delete/<<UUID>>/call-do_stdout/delete.txt": 0
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/stdout_delete/<<UUID>>/call-do_stdout/keep.txt": 1
+}

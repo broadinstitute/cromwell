@@ -1,10 +1,10 @@
 package wdl.transforms.base.wdlom2wom.graph
 
-import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.foldable._
 import cats.syntax.validated._
 import cats.syntax.traverse._
+import cats.instances.list._
 import common.validation.ErrorOr.{ErrorOr, _}
 import common.validation.Validation.OptionValidation
 import shapeless.Coproduct
@@ -54,7 +54,7 @@ object CallElementToGraphNode {
 
     def supplyableInput(definition: Callable.InputDefinition): Boolean = {
         !definition.isInstanceOf[FixedInputDefinitionWithDefault] &&
-        !definition.name.contains(".") // NB: Remove this check when sub-workflows allow pass-through task inputs
+          (!definition.name.contains(".") || a.allowNestedInputs)
     }
 
     def validInput(name: String, definition: Callable.InputDefinition): Boolean = {
@@ -224,4 +224,5 @@ case class CallNodeMakerInputs(node: CallElement,
                                availableTypeAliases: Map[String, WomType],
                                workflowName: String,
                                insideAnotherScatter: Boolean,
+                               allowNestedInputs: Boolean,
                                callables: Map[String, Callable])

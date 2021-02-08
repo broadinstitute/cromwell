@@ -2,10 +2,10 @@ package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.actor.{ActorRef, LoggingFSM, Props}
 import cats.data.NonEmptyList
-import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.traverse._
 import cats.syntax.validated._
+import cats.instances.list._
 import common.exception.AggregatedMessageException
 import common.validation.ErrorOr._
 import common.validation.Validation._
@@ -32,17 +32,17 @@ class CallCacheDiffActor(serviceRegistryActor: ActorRef) extends LoggingFSM[Call
   when(WaitingForMetadata) {
     // First Response
     // Response A
-    case Event(SuccessfulMetadataJsonResponse(GetMetadataAction(originalQuery), responseJson), data@CallCacheDiffWithRequest(queryA, _, None, None, _)) if queryA == originalQuery =>
+    case Event(SuccessfulMetadataJsonResponse(GetMetadataAction(originalQuery, _, _), responseJson), data@CallCacheDiffWithRequest(queryA, _, None, None, _)) if queryA == originalQuery =>
       stay() using data.copy(responseA = Option(WorkflowMetadataJson(responseJson)))
     // Response B
-    case Event(SuccessfulMetadataJsonResponse(GetMetadataAction(originalQuery), responseJson), data@CallCacheDiffWithRequest(_, queryB, None, None, _)) if queryB == originalQuery =>
+    case Event(SuccessfulMetadataJsonResponse(GetMetadataAction(originalQuery, _, _), responseJson), data@CallCacheDiffWithRequest(_, queryB, None, None, _)) if queryB == originalQuery =>
       stay() using data.copy(responseB = Option(WorkflowMetadataJson(responseJson)))
     // Second Response
     // Response A
-    case Event(SuccessfulMetadataJsonResponse(GetMetadataAction(originalQuery), responseJson), CallCacheDiffWithRequest(queryA, queryB, None, Some(responseB), replyTo)) if queryA == originalQuery =>
+    case Event(SuccessfulMetadataJsonResponse(GetMetadataAction(originalQuery, _, _), responseJson), CallCacheDiffWithRequest(queryA, queryB, None, Some(responseB), replyTo)) if queryA == originalQuery =>
       buildDiffAndRespond(queryA, queryB, WorkflowMetadataJson(responseJson), responseB, replyTo)
     // Response B
-    case Event(SuccessfulMetadataJsonResponse(GetMetadataAction(originalQuery), responseJson), CallCacheDiffWithRequest(queryA, queryB, Some(responseA), None, replyTo)) if queryB == originalQuery =>
+    case Event(SuccessfulMetadataJsonResponse(GetMetadataAction(originalQuery, _, _), responseJson), CallCacheDiffWithRequest(queryA, queryB, Some(responseA), None, replyTo)) if queryB == originalQuery =>
       buildDiffAndRespond(queryA, queryB, responseA, WorkflowMetadataJson(responseJson), replyTo)
     case Event(FailedMetadataJsonResponse(_, failure), data: CallCacheDiffWithRequest) =>
       data.replyTo ! FailedCallCacheDiffResponse(failure)
@@ -212,7 +212,7 @@ object CallCacheDiffActor {
     def fieldAsBoolean(field: String): ErrorOr[JsBoolean] = jsObject.getField(field) flatMap { _.mapToJsBoolean }
     def checkFieldValue(field: String, expectation: String): ErrorOr[Unit] = jsObject.getField(field) flatMap {
       case v: JsValue if v.toString == expectation => ().validNel
-      case other => s"Unexpected metadata field '$field'. Expected '$expectation' but got ${other.toString}".invalidNel
+      case other => s"Unexpected value '${other.toString}' for metadata field '$field', should have been '$expectation'".invalidNel
     }
 
     def validateNonEmptyResponse(): ErrorOr[Unit] = if (jsObject.fields.nonEmpty) { ().validNel } else {

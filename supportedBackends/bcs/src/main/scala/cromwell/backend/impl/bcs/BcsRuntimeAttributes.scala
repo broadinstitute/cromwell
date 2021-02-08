@@ -42,7 +42,8 @@ final case class BcsRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode
                                 timeout: Option[Int],
                                 verbose: Option[Boolean],
                                 vpc: Option[BcsVpcConfiguration],
-                                tag: Option[String])
+                                tag: Option[String],
+                                isv:Option[String])
 
 object BcsRuntimeAttributes {
 
@@ -93,6 +94,8 @@ object BcsRuntimeAttributes {
 
   private def imageIdValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] = ImageIdValidation.optionalWithDefault(runtimeConfig)
 
+  private def isvValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] = IsvValidation.optionalWithDefault(runtimeConfig)
+
   def runtimeAttributesBuilder(backendRuntimeConfig: Option[Config]): StandardValidatedRuntimeAttributesBuilder = {
     val defaults = StandardValidatedRuntimeAttributesBuilder.default(backendRuntimeConfig).withValidation(
       mountsValidation(backendRuntimeConfig),
@@ -106,7 +109,8 @@ object BcsRuntimeAttributes {
       verboseValidation(backendRuntimeConfig),
       vpcValidation(backendRuntimeConfig),
       tagValidation(backendRuntimeConfig),
-      imageIdValidation(backendRuntimeConfig)
+      imageIdValidation(backendRuntimeConfig),
+      isvValidation(backendRuntimeConfig),
     )
 
     // TODO: docker trips up centaur testing, for now https://github.com/broadinstitute/cromwell/issues/3518
@@ -141,6 +145,7 @@ object BcsRuntimeAttributes {
     val verbose: Option[Boolean] = RuntimeAttributesValidation.extractOption(verboseValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
     val vpc: Option[BcsVpcConfiguration] = RuntimeAttributesValidation.extractOption(vpcValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
     val tag: Option[String] = RuntimeAttributesValidation.extractOption(tagValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+    val isv: Option[String] = RuntimeAttributesValidation.extractOption(isvValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
 
     new BcsRuntimeAttributes(
       continueOnReturnCode,
@@ -158,7 +163,8 @@ object BcsRuntimeAttributes {
       timeout,
       verbose,
       vpc,
-      tag
+      tag,
+      isv
     )
   }
 }
@@ -373,6 +379,15 @@ object ImageIdValidation {
 }
 
 class ImageIdValidation(override val config: Option[Config]) extends StringRuntimeAttributesValidation("imageId") with OptionalWithDefault[String]
+{
+  override def usedInCallCaching: Boolean = true
+}
+
+object IsvValidation {
+  def optionalWithDefault(config: Option[Config]): OptionalRuntimeAttributesValidation[String] = new IsvValidation(config).optional
+}
+
+class IsvValidation(override val config: Option[Config]) extends StringRuntimeAttributesValidation("isv") with OptionalWithDefault[String]
 {
   override def usedInCallCaching: Boolean = true
 }

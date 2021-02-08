@@ -1,7 +1,9 @@
 package wdl.types
 
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks._
-import org.scalatest.{FlatSpec, Matchers}
 import spray.json._
 import wdl.draft2.model.WdlNamespaceWithWorkflow
 import wom.types._
@@ -9,7 +11,7 @@ import wom.values.{WomInteger, WomMap, WomPair, WomString, _}
 
 import scala.util.{Failure, Success}
 
-class WdlPairTypeSpec extends FlatSpec with Matchers {
+class WdlPairTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "WdlPairType"
 

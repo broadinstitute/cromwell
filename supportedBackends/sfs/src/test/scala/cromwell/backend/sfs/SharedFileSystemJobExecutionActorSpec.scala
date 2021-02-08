@@ -23,8 +23,9 @@ import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.util.WomMocks
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{Assertion, FlatSpecLike, OptionValues}
+import org.scalatest.{Assertion, OptionValues}
 import wom.expression.NoIoFunctionSet
 import wom.graph.{CommandCallNode, WomIdentifier}
 import wom.types._
@@ -32,16 +33,16 @@ import wom.values._
 
 import scala.concurrent.duration._
 
-class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSystemJobExecutionActorSpec")
-  with FlatSpecLike with BackendSpec with TableDrivenPropertyChecks with OptionValues {
+class SharedFileSystemJobExecutionActorSpec extends TestKitSuite
+  with AnyFlatSpecLike with BackendSpec with TableDrivenPropertyChecks with OptionValues {
 
   behavior of "SharedFileSystemJobExecutionActor"
 
   lazy val runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
     StandardValidatedRuntimeAttributesBuilder.default(Some(TestConfig.optionalRuntimeConfig)).definitions.toSet
 
-  val call = CommandCallNode(WomIdentifier("SfsJEASpec_call"), null, null, null, Set.empty, null, None)
-  val mockBackendJobDescriptorKey = BackendJobDescriptorKey(call, None, 1)
+  private val call = CommandCallNode(WomIdentifier("SfsJEASpec_call"), null, null, null, Set.empty, null, None)
+  private val mockBackendJobDescriptorKey = BackendJobDescriptorKey(call, None, 1)
 
   def executeSpec(docker: Boolean): Any = {
     val expectedOutputs: CallOutputs = WomMocks.mockOutputExpectations(Map("hello.salutation" -> WomString("Hello you !")))
@@ -211,7 +212,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite("SharedFileSyst
     val scopedKey = ScopedKey(workflowDescriptor.id, kvJobKey, SharedFileSystemAsyncJobExecutionActor.JobIdKey)
     val kvPair = KvPair(scopedKey, pid)
 
-    val previousKvPutter = TestProbe()
+    val previousKvPutter = TestProbe("previousKvPutter")
     val kvPutReq = KvPut(kvPair)
     backendRef.underlyingActor.serviceRegistryActor.tell(msg = kvPutReq, sender = previousKvPutter.ref)
     previousKvPutter.expectMsg(KvPutSuccess(kvPutReq))

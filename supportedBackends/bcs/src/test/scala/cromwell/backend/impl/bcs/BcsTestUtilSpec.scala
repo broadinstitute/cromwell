@@ -2,15 +2,17 @@ package cromwell.backend.impl.bcs
 
 import com.typesafe.config.ConfigFactory
 import common.collections.EnhancedCollections._
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptorKey, RuntimeAttributeDefinition}
 import cromwell.backend.BackendSpec.buildWdlWorkflowDescriptor
 import cromwell.backend.validation.ContinueOnReturnCodeSet
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptorKey, RuntimeAttributeDefinition}
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.filesystems.oss.OssPathBuilder
 import cromwell.filesystems.oss.nio.DefaultOssStorageConfiguration
 import cromwell.util.SampleWdl
-import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
-import org.scalatest.mockito.MockitoSugar
+import org.scalatest.BeforeAndAfter
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.mockito.MockitoSugar
 import org.slf4j.helpers.NOPLogger
 import spray.json.{JsObject, JsString}
 import wom.values.WomValue
@@ -36,6 +38,7 @@ object BcsTestUtilSpec {
       |  vpc: "192.168.0.0/16 vpc-xxxx"
       |  tag: "jobTag"
       |  imageId: "img-ubuntu-vpc"
+      |  isv: "test-isv"
       |}
     """.stripMargin
 
@@ -114,7 +117,7 @@ object BcsTestUtilSpec {
   val EmptyWorkflowOption = WorkflowOptions.fromMap(Map.empty).get
 }
 
-trait BcsTestUtilSpec extends TestKitSuite with FlatSpecLike with Matchers with MockitoSugar with BeforeAndAfter {
+trait BcsTestUtilSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with MockitoSugar with BeforeAndAfter {
 
   before {
     BcsMount.pathBuilders = List(mockPathBuilder)
@@ -151,10 +154,11 @@ trait BcsTestUtilSpec extends TestKitSuite with FlatSpecLike with Matchers with 
   val expectedVerbose = Option(false)
   val expectedVpc = Option(BcsVpcConfiguration(Option("192.168.0.0/16"), Option("vpc-xxxx")))
   val expectedTag = Option("jobTag")
+  val expectedIsv = Option("test-isv")
 
 
   val expectedRuntimeAttributes = new BcsRuntimeAttributes(expectedContinueOnReturn, expectedDockerTag, expectedDocker, expectedFailOnStderr,  expectedMounts, expectedUserData, expectedCluster,
-    expectedImageId, expectedSystemDisk, expectedDataDisk, expectedReserveOnFail, expectedAutoRelease, expectedTimeout, expectedVerbose, expectedVpc, expectedTag)
+    expectedImageId, expectedSystemDisk, expectedDataDisk, expectedReserveOnFail, expectedAutoRelease, expectedTimeout, expectedVerbose, expectedVpc, expectedTag, expectedIsv)
 
 
   protected def createBcsRuntimeAttributes(runtimeAttributes: Map[String, WomValue]): BcsRuntimeAttributes = {

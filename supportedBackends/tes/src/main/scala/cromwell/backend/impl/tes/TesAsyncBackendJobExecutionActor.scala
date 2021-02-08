@@ -241,7 +241,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override def customPollStatusFailure: PartialFunction[(ExecutionHandle, Exception), ExecutionHandle] = {
     case (oldHandle: StandardAsyncPendingExecutionHandle@unchecked, e: Exception) =>
       jobLogger.error(s"$tag TES Job ${oldHandle.pendingJob.jobId} has not been found, failing call")
-      FailedNonRetryableExecutionHandle(e)
+      FailedNonRetryableExecutionHandle(e, kvPairsToSave = None)
   }
 
   override def handleExecutionFailure(status: StandardAsyncRunState, returnCode: Option[Int]) = {

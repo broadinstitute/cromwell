@@ -103,6 +103,7 @@ object ScatterElementToGraphNode {
       val graphLikeConvertInputs = GraphLikeConvertInputs(graphElements.toSet, ogins ++ Set(womInnerGraphScatterVariableInput), foundOuterGenerators.completionPorts, a.availableTypeAliases, a.workflowName,
                                                           insideAScatter = true,
                                                           convertNestedScatterToSubworkflow = a.convertNestedScatterToSubworkflow,
+                                                          allowNestedInputs = a.allowNestedInputs,
                                                           a.callables)
       val innerGraph: ErrorOr[Graph] = WorkflowDefinitionElementToWomWorkflowDefinition.convertGraphElements(graphLikeConvertInputs)
 
@@ -131,6 +132,7 @@ object ScatterElementToGraphNode {
       val graphLikeConvertInputs = GraphLikeConvertInputs(Set(a.node), subWorkflowInputs, Map.empty, a.availableTypeAliases, a.workflowName,
                                                           insideAScatter = false,
                                                           convertNestedScatterToSubworkflow = a.convertNestedScatterToSubworkflow,
+                                                          allowNestedInputs = a.allowNestedInputs,
                                                           a.callables)
       val subWorkflowGraph = WorkflowDefinitionElementToWomWorkflowDefinition.convertGraphElements(graphLikeConvertInputs)
       subWorkflowGraph map { WomGraphMakerTools.addDefaultOutputs(_) }
@@ -188,4 +190,5 @@ final case class ScatterNodeMakerInputs(node: ScatterElement,
                                         workflowName: String,
                                         insideAnotherScatter: Boolean,
                                         convertNestedScatterToSubworkflow: Boolean,
+                                        allowNestedInputs: Boolean,
                                         callables: Map[String, Callable])

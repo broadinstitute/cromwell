@@ -2,7 +2,7 @@ package centaur.test.standard
 
 import better.files._
 import cats.data.Validated._
-import cats.implicits._
+import cats.syntax.all._
 import centaur.CromwellTracker
 import centaur.test._
 import centaur.test.formulas.TestFormulas
@@ -23,6 +23,7 @@ case class CentaurTestCase(workflow: Workflow,
 
   def testFunction: Test[SubmitResponse] = this.testFormat match {
     case WorkflowSuccessTest => TestFormulas.runSuccessfulWorkflowAndVerifyMetadata(workflow)
+    case WorkflowSuccessAndTimedOutputsTest => TestFormulas.runSuccessfulWorkflowAndVerifyTimeAndOutputs(workflow)
     case WorkflowFailureTest => TestFormulas.runFailingWorkflowAndVerifyMetadata(workflow)
     case RunTwiceExpectingCallCachingTest => TestFormulas.runWorkflowTwiceExpectingCaching(workflow)
     case RunThriceExpectingCallCachingTest => TestFormulas.runWorkflowThriceExpectingCaching(workflow)
@@ -51,6 +52,14 @@ case class CentaurTestCase(workflow: Workflow,
   }
 
   def containsTag(tag: String): Boolean = testOptions.tags.contains(tag)
+
+  def reliesOnCallCachingMetadataVerification: Boolean = {
+    val callCachingMetadataKey = "callCaching"
+    workflow.metadata match {
+      case Some(flatMetadata) => flatMetadata.value.keySet.exists(_.contains(callCachingMetadataKey))
+      case None => false
+    }
+  }
 }
 
 object CentaurTestCase {

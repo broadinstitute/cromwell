@@ -3,6 +3,7 @@ testFormat: workflowsuccess
 workflowType: CWL
 workflowTypeVersion: v1.0
 workflowRoot: input_typearray
+skipDescribeEndpointValidation: true
 
 files {
   workflow: cwl_input_typearray/input_typearray.cwl

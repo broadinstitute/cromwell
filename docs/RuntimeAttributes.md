@@ -51,7 +51,9 @@ There are a number of additional runtime attributes that apply to the Google Clo
 - [preemptible](#preemptible)
 - [bootDiskSizeGb](#bootdisksizegb)
 - [noAddress](#noaddress)
-- [gpuCount and gpuType](#gpucount-and-gputype)
+- [gpuCount, gpuType, and nvidiaDriverVersion](#gpucount-gputype-and-nvidiadriverversion)
+- [cpuPlatform](#cpuplatform)
+- [useDockerImageCache](#usedockerimagecache)
 
 
 
@@ -405,3 +407,23 @@ runtime {
     zones: ["us-central1-c"]
 }
 ```
+
+### `cpuPlatform`
+
+This option is specific to the Google Cloud backend, specifically [this](https://cloud.google.com/compute/docs/instances/specify-min-cpu-platform) feature when a certain minimum CPU platform is desired.
+
+A usage example:
+
+```
+runtime {
+    cpu: 2
+    cpuPlatform: "Intel Skylake"
+}
+```
+Note that when this options is specified, make sure the requested CPU platform is [available](https://cloud.google.com/compute/docs/regions-zones/#available) in the `zones` you selected.
+
+### 'useDockerImageCache'
+
+This option is specific to the Google Cloud backend, moreover it is only supported by Google Life Sciences API starting from version v2 beta.
+In order to use this feature Cromwell has to have PAPI v2 backend configured with this feature enabled.  
+More information about this feature and it's configuration can be found [in the Google backend section of documentation](backends/Google.md).

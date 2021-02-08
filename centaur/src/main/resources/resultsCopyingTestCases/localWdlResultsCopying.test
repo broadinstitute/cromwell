@@ -1,0 +1,20 @@
+name: localWdlResultsCopying
+testFormat: workflowsuccess
+tags: ["copyLocal"]
+
+files {
+  workflow: wdlResultsCopying/simpleWorkflow.wdl
+  options: wdlResultsCopying/local/options.json
+}
+
+metadata {
+  status: Succeeded
+}
+
+fileSystemCheck: "local"
+outputExpectations: {
+    "<<local-path-placeholder>>/wf_results/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/execution/output.txt": 1
+    "<<local-path-placeholder>>/wf_logs/workflow.<<UUID>>.log": 1
+    "<<local-path-placeholder>>/cl_logs/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/execution/stderr": 1
+    "<<local-path-placeholder>>/cl_logs/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/execution/stdout": 1
+}

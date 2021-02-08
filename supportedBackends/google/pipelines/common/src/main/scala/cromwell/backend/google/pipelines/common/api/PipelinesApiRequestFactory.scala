@@ -6,10 +6,13 @@ import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttribu
 import cromwell.backend.google.pipelines.common._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.io.PipelinesApiAttachedDisk
+import cromwell.backend.google.pipelines.common.monitoring.{CheckpointingConfiguration, MonitoringImage}
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.Path
 import wom.runtime.WomOutputRuntimeExtractor
+
+import scala.concurrent.duration._
 
 /**
   * The PipelinesApiRequestFactory defines the HttpRequests needed to run jobs
@@ -21,6 +24,8 @@ trait PipelinesApiRequestFactory {
 }
 
 object PipelinesApiRequestFactory {
+
+  type MountsToEnv = List[String] => Map[String, String]
 
   /**
     * Input parameters that are not strictly needed by the user's command but are Cromwell byproducts.
@@ -60,7 +65,7 @@ object PipelinesApiRequestFactory {
   }
 
   case class CreatePipelineDockerKeyAndToken(key: String, encryptedToken: String)
-  
+
   case class CreatePipelineParameters(jobDescriptor: BackendJobDescriptor,
                                       runtimeAttributes: PipelinesApiRuntimeAttributes,
                                       dockerImage: String,
@@ -73,15 +78,28 @@ object PipelinesApiRequestFactory {
                                       computeServiceAccount: String,
                                       googleLabels: Seq[GoogleLabel],
                                       preemptible: Boolean,
+                                      pipelineTimeout: FiniteDuration,
                                       jobShell: String,
                                       privateDockerKeyAndEncryptedToken: Option[CreatePipelineDockerKeyAndToken],
                                       womOutputRuntimeExtractor: Option[WomOutputRuntimeExtractor],
                                       adjustedSizeDisks: Seq[PipelinesApiAttachedDisk],
                                       virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
-                                      retryWithMoreMemoryKeys: Option[List[String]]) {
+                                      retryWithMoreMemoryKeys: Option[List[String]],
+                                      fuseEnabled: Boolean,
+                                      allowNoAddress: Boolean,
+                                      referenceDisksForLocalizationOpt: Option[List[PipelinesApiAttachedDisk]],
+                                      monitoringImage: MonitoringImage,
+                                      checkpointingConfiguration: CheckpointingConfiguration,
+                                      enableSshAccess: Boolean,
+                                      vpcNetworkAndSubnetworkProjectLabels: Option[VpcAndSubnetworkProjectLabelValues],
+                                      dockerImageCacheDiskOpt: Option[String]
+                                     ) {
     def literalInputs = inputOutputParameters.literalInputParameters
     def inputParameters = inputOutputParameters.fileInputParameters
     def outputParameters = inputOutputParameters.fileOutputParameters
     def allParameters = inputParameters ++ outputParameters
+
+    // Takes into account the 'noAddress' runtime attribute and the allowNoAddress configuration option:
+    def effectiveNoAddressValue: Boolean = allowNoAddress && runtimeAttributes.noAddress
   }
 }

@@ -1,13 +1,17 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
+import cats.data.NonEmptyList
 import cromwell.core.callcaching._
 import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheReadingJobActor.NextHit
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.{CacheHit, CallCacheHashes, EJHAResponse, HashError}
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
 import cromwell.engine.workflow.lifecycle.execution.ejea.HasJobSuccessResponse.SuccessfulCallCacheHashes
+import cromwell.services.CallCaching.CallCachingEntryId
+import cromwell.services.instrumentation.{CromwellBucket, CromwellIncrement}
+import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 
+import scala.concurrent.duration._
 import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success, Try}
 
@@ -98,10 +102,23 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
         }
 
         if (mode.readFromCache) {
-          s"invalidate a call for caching if backend coping failed when it was going to receive $hashComboName, if call caching is $mode" in {
+          s"invalidate a call for caching if backend copying failed when it was going to receive $hashComboName, if call caching is $mode" in {
+
             ejea = ejeaInBackendIsCopyingCachedOutputsState(initialHashData, mode)
+
+            ejea.stateData should be(ResponsePendingData(
+              helper.backendJobDescriptor,
+              helper.bjeaProps,
+              initialHashData,
+              Option(helper.ejhaProbe.ref),
+              cacheHit,
+              None,
+              cacheHitFailureCount = 0,
+              failedCopyAttempts = 0
+            ))
+
             // Send the response from the copying actor
-            ejea ! failedToCopyResponse(cacheHitNumber)
+            ejea ! copyAttemptFailedResponse(cacheHitNumber)
 
             expectInvalidateCallCacheActor(cacheId)
             eventually {
@@ -114,11 +131,12 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
               Option(helper.ejhaProbe.ref),
               cacheHit,
               None,
-              1,
+              cacheHitFailureCount = 1,
+              failedCopyAttempts = 1
             ))
           }
 
-          s"not invalidate a call for caching if backend coping failed when invalidation is disabled, when it was going to receive $hashComboName, if call caching is $mode" in {
+          s"not invalidate a call for caching if backend copying failed when invalidation is disabled, when it was going to receive $hashComboName, if call caching is $mode" in {
             val invalidationDisabledOptions = CallCachingOptions(invalidateBadCacheResults = false, workflowOptionCallCachePrefixes = None)
             val cacheInvalidationDisabledMode = mode match {
               case CallCachingActivity(rw, _) => CallCachingActivity(rw, invalidationDisabledOptions)
@@ -126,45 +144,66 @@ class EjeaBackendIsCopyingCachedOutputsSpec extends EngineJobExecutionActorSpec 
             }
             ejea = ejeaInBackendIsCopyingCachedOutputsState(initialHashData, cacheInvalidationDisabledMode)
             // Send the response from the copying actor
-            ejea ! failedToCopyResponse(cacheHitNumber)
+            ejea ! copyAttemptFailedResponse(cacheHitNumber)
 
             helper.ejhaProbe.expectMsg(NextHit)
-            
+
             eventually {
               ejea.stateName should be(CheckingCallCache)
             }
             // Make sure we didn't start invalidating anything:
             helper.invalidateCacheActorCreations.hasExactlyOne should be(false)
-            ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, initialHashData, Option(helper.ejhaProbe.ref), cacheHit))
+            ejea.stateData should be(ResponsePendingData(helper.backendJobDescriptor, helper.bjeaProps, initialHashData, Option(helper.ejhaProbe.ref), cacheHit, cacheHitFailureCount = 1, failedCopyAttempts = 1))
           }
 
-          s"invalidate a call for caching if backend copying failed (preserving and received hashes) when call caching is $mode, the EJEA has $hashComboName and then gets a success result" in {
-            ejea = ejeaInBackendIsCopyingCachedOutputsState(initialHashData, mode)
-            // Send the response from the EJHA (if there was one!):
-            ejhaResponse foreach {
-              ejea ! _
+          def checkInvalidateOnCopyFailure(expectMetric: Boolean) = {
+            val metricsExpectationString = (if (expectMetric) "and " else "but not ") + "generate a metric"
+            s"invalidate a call for caching $metricsExpectationString if backend copying failed (preserving any received hashes) when call caching is $mode, the EJEA has $hashComboName and then gets a success result" in {
+              ejea = ejeaInBackendIsCopyingCachedOutputsState(initialHashData, mode)
+              // Send the response from the EJHA (if there was one!):
+              ejhaResponse foreach {
+                ejea ! _
+              }
+
+              // Nothing should happen here:
+              helper.jobStoreProbe.expectNoMessage(awaitAlmostNothing)
+
+              // Send the response from the copying actor
+              val copyFailureMessage = if (expectMetric) cacheHitBlacklistedResponse(cacheHitNumber) else copyAttemptFailedResponse(cacheHitNumber)
+              ejea ! copyFailureMessage
+
+              expectInvalidateCallCacheActor(cacheId)
+              eventually {
+                ejea.stateName should be(InvalidatingCacheEntry)
+              }
+              ejea.stateData should be(ResponsePendingData(
+                helper.backendJobDescriptor,
+                helper.bjeaProps,
+                finalHashData,
+                Option(helper.ejhaProbe.ref),
+                cacheHit,
+                None,
+                cacheHitFailureCount = 1,
+                failedCopyAttempts = if (expectMetric) 0 else 1
+                // In this context `expectMetric` means "was blacklisted".
+                // If the cache hit was blacklisted there should have been no additional copy attempt so no failed copy attempt.
+              ))
+
+              if (expectMetric) {
+                helper.serviceRegistryProbe.fishForSpecificMessage(2.seconds) {
+                  case InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(prefix, path))) =>
+                    prefix should be(List.empty[String])
+                    path should be(NonEmptyList.of(
+                      "job",
+                      "callcaching", "read", "error", "bucketblacklisted", helper.taskName, helper.backendWorkflowDescriptor.hogGroup.value
+                    ))
+                }
+              }
             }
-
-            // Nothing should happen here:
-            helper.jobStoreProbe.expectNoMessage(awaitAlmostNothing)
-
-            // Send the response from the copying actor
-            ejea ! failedToCopyResponse(cacheHitNumber)
-
-            expectInvalidateCallCacheActor(cacheId)
-            eventually {
-              ejea.stateName should be(InvalidatingCacheEntry)
-            }
-            ejea.stateData should be(ResponsePendingData(
-              helper.backendJobDescriptor,
-              helper.bjeaProps,
-              finalHashData,
-              Option(helper.ejhaProbe.ref),
-              cacheHit,
-              None,
-              1,
-            ))
           }
+
+          checkInvalidateOnCopyFailure(expectMetric = false)
+          checkInvalidateOnCopyFailure(expectMetric = true)
         }
       }
     }

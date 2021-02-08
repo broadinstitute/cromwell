@@ -1,9 +1,12 @@
 package wdl.util
 
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
 
-class StringUtilSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+
+class StringUtilSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "StringUtilSpec"
 

@@ -12,7 +12,8 @@
   "images" : [
   ],
   "submittedDescriptorType" : {
-
+    "descriptorType" : "WDL",
+    "descriptorTypeVersion" : "draft-2"
   },
   "importedDescriptorTypes" : [
   ],

@@ -1,18 +1,20 @@
 package wdl.transforms.biscayne.linking.expression.values
 
+import common.assertion.CromwellTimeoutSpec
 import common.assertion.ErrorOrAssertions._
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.ManyTimes.intWithTimes
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.graph.expression.EvaluatedValue
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wdl.transforms.biscayne.Ast2WdlomSpec.{fromString, parser}
 import wdl.transforms.biscayne.ast2wdlom._
 import wom.expression.NoIoFunctionSet
-import wom.values.{WomArray, WomInteger, WomMap, WomOptionalValue, WomPair, WomString}
-import common.assertion.ManyTimes.intWithTimes
 import wom.types.{WomIntegerType, WomMapType, WomOptionalType, WomStringType}
+import wom.values.{WomArray, WomInteger, WomMap, WomOptionalValue, WomPair, WomString}
 
-class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
+class BiscayneValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "biscayne value evaluator"
 
@@ -163,4 +165,25 @@ class BiscayneValueEvaluatorSpec extends FlatSpec with Matchers {
     }
   }
 
+  it should "evaluate a simple sep expression correctly" in {
+    val str = """ sep(" ", ["a", "b", "c"]) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedString: WomString = WomString("a b c")
+
+    expr.shouldBeValidPF {
+      case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedString, Seq.empty)
+    }
+  }
+
+  it should "evaluate a sep expression containing a sub-call to prefix correctly" in {
+    val str = """ sep(" ", prefix("-i ", ["a", "b", "c"])) """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    val expectedString: WomString = WomString("-i a -i b -i c")
+
+    expr.shouldBeValidPF {
+      case e => e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedString, Seq.empty)
+    }
+  }
 }

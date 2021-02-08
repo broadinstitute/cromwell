@@ -33,8 +33,8 @@ object IORetry {
                       state: S,
                       maxRetries: Option[Int],
                       backoff: Backoff,
-                      isTransient: Throwable => Boolean = throwableToFalse,
-                      isFatal: Throwable => Boolean = throwableToFalse,
+                      isRetryable: Throwable => Boolean = throwableToTrue,
+                      isInfinitelyRetryable: Throwable => Boolean = throwableToFalse,
                       onRetry: (Throwable, S) => S = noOpOnRetry[S])
                      (implicit timer: Timer[IO], statefulIoException: StatefulIoError[S]): IO[A] = {
     lazy val delay = backoff.backoffMillis.millis
@@ -42,14 +42,14 @@ object IORetry {
     def fail(throwable: Throwable) = IO.raiseError(statefulIoException.toThrowable(state, throwable))
 
     io handleErrorWith {
-      case throwable if isFatal(throwable) => fail(throwable)
+      case throwable if !isRetryable(throwable) => fail(throwable)
       case NonFatal(throwable) =>
-        val retriesLeft = if (isTransient(throwable)) maxRetries else maxRetries map { _ - 1 }
+        val retriesLeft = if (isInfinitelyRetryable(throwable)) maxRetries else maxRetries map { _ - 1 }
 
         if (retriesLeft.forall(_ > 0)) {
           for {
             _ <- IO.sleep(delay)
-            retried <- withRetry(io, onRetry(throwable, state), retriesLeft, backoff.next, isTransient, isFatal, onRetry)
+            retried <- withRetry(io, onRetry(throwable, state), retriesLeft, backoff.next, isRetryable, isInfinitelyRetryable, onRetry)
           } yield retried
         }
         else fail(throwable)
@@ -59,4 +59,6 @@ object IORetry {
   }
 
   def throwableToFalse(t: Throwable) = false
+
+  def throwableToTrue(t: Throwable) = true
 }

@@ -111,7 +111,7 @@ if [[ -n ${CROMWELL_BRANCH} ]]; then
     git checkout "${CROMWELL_BRANCH}"
     git pull
     echo "Building Cromwell"
-    sbt assembly >> "${ASSEMBLY_LOG}" 2>&1
+    sbt --warn assembly >> "${ASSEMBLY_LOG}" 2>&1
     cd ..
     # This is the "branch" logic but sets the CROMWELL_JAR to be used in either the "branch" or "jar" use cases.
     # Note that this may not be necessary in the docker-compose use case.
@@ -124,11 +124,11 @@ cd "${RUN_DIR}"
 TEST_STATUS="failed"
 
 if [[ "${CENTAUR_SBT_COVERAGE}" == "true" ]]; then
-    sbt coverage centaur/it:compile
-    CP=$(sbt coverage "export centaur/it:dependencyClasspath" -error)
+    sbt --warn coverage centaur/it:compile
+    CP=$(sbt --warn coverage "export centaur/it:dependencyClasspath" -error)
 else
-    sbt centaur/it:compile
-    CP=$(sbt "export centaur/it:dependencyClasspath" -error)
+    sbt --warn centaur/it:compile
+    CP=$(sbt --warn "export centaur/it:dependencyClasspath" -error)
 fi
 
 # Add the it-classes folder to the classpath to ensure logback configuration files are picked up.

@@ -38,7 +38,7 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestDuration}
 import common.collections.EnhancedCollections._
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend._
-import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle}
+import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.aws.AwsBatchAsyncBackendJobExecutionActor.AwsBatchPendingExecutionHandle
 import cromwell.backend.impl.aws.RunStatus.UnsuccessfulRunStatus
 import cromwell.backend.impl.aws.io.AwsBatchWorkingDisk
@@ -57,6 +57,9 @@ import cromwell.services.keyvalue.KeyValueServiceActor.KvResponse
 import cromwell.util.JsonFormatting.WomValueJsonFormatter._
 import cromwell.util.SampleWdl
 import org.scalatest._
+import org.scalatest.concurrent.PatienceConfiguration
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.slf4j.Logger
 import org.specs2.mock.Mockito
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
@@ -74,12 +77,12 @@ import wom.types._
 import wom.values._
 
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future, Promise}
+import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 import scala.util.Success
 
-class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAsyncBackendJobExecutionActorSpec")
-  with FlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter with DefaultJsonProtocol {
+class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
+  with AnyFlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter with DefaultJsonProtocol {
   lazy val mockPathBuilder: S3PathBuilder = S3PathBuilder.fromProvider(
     AnonymousCredentialsProvider.create,
     S3Storage.DefaultConfiguration,
@@ -87,7 +90,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
     Option(Region.US_EAST_1)
   )
 
-  var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor))
+  var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor), "kvService")
 
   import AwsBatchTestConfig._
 
@@ -114,18 +117,19 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
       |}
     """.stripMargin
 
-  val Inputs: Map[FullyQualifiedName, WomValue] = Map("wf_sup.sup.addressee" -> WomString("dog"))
+  private val Inputs: Map[FullyQualifiedName, WomValue] = Map("wf_sup.sup.addressee" -> WomString("dog"))
 
-  val NoOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
+  private val NoOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
 
-  lazy val TestableCallContext =
+  private lazy val TestableCallContext =
     CallContext(mockPathBuilder.build("s3://root").get, DummyStandardPaths, isDocker = false)
 
-  lazy val TestableStandardExpressionFunctionsParams = new StandardExpressionFunctionsParams {
+  lazy val TestableStandardExpressionFunctionsParams: StandardExpressionFunctionsParams =
+    new StandardExpressionFunctionsParams {
     override lazy val pathBuilders: List[PathBuilder] = List(mockPathBuilder)
     override lazy val callContext: CallContext = TestableCallContext
     override val ioActorProxy: ActorRef = simpleIoActor
-    override val executionContext = system.dispatcher
+    override val executionContext: ExecutionContext = system.dispatcher
   }
 
   lazy val TestableAwsBatchExpressionFunctions: AwsBatchExpressionFunctions = {
@@ -168,7 +172,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
       )
     }
 
-    override lazy val jobLogger = new JobLogger(
+    override lazy val jobLogger: JobLogger = new JobLogger(
       "TestLogger",
       workflowIdForLogging,
       rootWorkflowIdForLogging,
@@ -250,13 +254,13 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
   // private def runAndFail(previousPreemptions: Int, previousUnexpectedRetries: Int, errorCode: Status, innerErrorMessage: String): BackendJobExecutionResponse = {
   //
   //   // val runStatus = UnsuccessfulRunStatus("test", "failed", errorCode, Option(innerErrorMessage), Seq.empty)
-  //   val statusPoller = TestProbe()
+  //   val statusPoller = TestProbe("statusPoller")
   //
   //   val promise = Promise[BackendJobExecutionResponse]()
   //   val jobDescriptor =  buildJobDescriptor()
   //
   //   // TODO: Use this to check the new KV entries are there!
-  //   //val kvProbe = TestProbe()
+  //   //val kvProbe = TestProbe("kvProbe")
   //
   //   val backend = executionActor(jobDescriptor, AwsBatchBackendConfigurationDescriptor, promise, statusPoller.ref)
   //   backend ! Execute
@@ -267,7 +271,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
   //   Await.result(promise.future, Timeout)
   // }
 
-  def buildTestActorRef(attempt: Int): TestActorRef[TestableAwsBatchJobExecutionActor] = {
+  def buildTestActorRef(): TestActorRef[TestableAwsBatchJobExecutionActor] = {
     // For this test we say that all previous attempts were preempted:
     val jobDescriptor = buildJobDescriptor()
     val props = Props(new TestableAwsBatchJobExecutionActor(jobDescriptor, Promise(),
@@ -280,7 +284,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
 
   behavior of "AwsBatchAsyncBackendJobExecutionActor"
 
-  val timeout = 25 seconds
+  private val timeout = 25 seconds
 
 //   { // Set of "handle call failures appropriately with respect to preemption and failure" tests
 //     val expectations = Table(
@@ -392,7 +396,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
   // }
 
   it should "handle Failure Status for various errors" taggedAs AwsTest in {
-    val actorRef = buildTestActorRef(1)
+    val actorRef = buildTestActorRef()
     val backend = actorRef.underlyingActor
     val runId = StandardAsyncJob(UUID.randomUUID().toString)
     val handle = new AwsBatchPendingExecutionHandle(null, runId, None, None)
@@ -459,7 +463,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
 
 
         def pathToLocal(womValue: WomValue): WomValue = {
-          WomFileMapper.mapWomFiles(testActorRef.underlyingActor.mapCommandLineWomFile, exceptions = Set.empty)(womValue).get
+          WomFileMapper.mapWomFiles(testActorRef.underlyingActor.mapCommandLineWomFile)(womValue).get
         }
 
         val mappedInputs = jobDescriptor.localInputs safeMapValues pathToLocal
@@ -745,7 +749,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
       props, s"TestableAwsBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     def wdlValueToS3Path(outputs: Set[AwsBatchFileOutput])(womValue: WomValue): WomValue = {
-      WomFileMapper.mapWomFiles(testActorRef.underlyingActor.womFileToPath(outputs), exceptions = Set.empty)(womValue).get
+      WomFileMapper.mapWomFiles(testActorRef.underlyingActor.womFileToPath(outputs))(womValue).get
     }
 
     val result = outputValues map wdlValueToS3Path(outputs)
@@ -823,6 +827,26 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite("AwsBatchAs
     backend.callPaths.stderr should be(a[S3Path])
     backend.callPaths.stderr.pathAsString shouldBe
       "s3://path/to/root/w/e6236763-c518-41d0-9688-432549a8bf7d/call-B/shard-2/B-2-stderr.log"
+  }
+
+  it should "recover a job as a pending execution handle" taggedAs AwsTest in {
+    val backendRef = makeAwsBatchActorRef(SampleWdl.EmptyString, "hello", Map())
+    val backend = backendRef.underlyingActor
+    val jobDescriptor = backend.jobDescriptor
+
+    val jobId = "the-job-id"
+
+    def execute:Future[ExecutionHandle] ={ backend.recoverAsync(StandardAsyncJob(jobId)) }
+
+    whenReady(execute, PatienceConfiguration.Timeout(10.seconds.dilated)) { executionResponse =>
+      executionResponse should be(a[PendingExecutionHandle[_,_,_]])
+      val pendingExecutionResponse = executionResponse.asInstanceOf[PendingExecutionHandle[StandardAsyncJob, AwsBatchJob, RunStatus]]
+      pendingExecutionResponse.isDone should be(false)
+      pendingExecutionResponse.jobDescriptor should be(jobDescriptor)
+      pendingExecutionResponse.pendingJob should be(StandardAsyncJob(jobId))
+      pendingExecutionResponse.previousState should be(None)
+      pendingExecutionResponse.runInfo should be(Some(backend.batchJob))
+    }
   }
 
   private def makeRuntimeAttributes(job: CommandCallNode) = {

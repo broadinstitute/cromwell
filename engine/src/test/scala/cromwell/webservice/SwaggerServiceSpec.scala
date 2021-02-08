@@ -2,10 +2,12 @@ package cromwell.webservice
 
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.testkit.ScalatestRouteTest
+import common.assertion.CromwellTimeoutSpec
 import io.swagger.models.properties.RefProperty
 import io.swagger.parser.SwaggerParser
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
 import org.yaml.snakeyaml.constructor.Constructor
 import org.yaml.snakeyaml.error.YAMLException
 import org.yaml.snakeyaml.nodes.MappingNode
@@ -13,7 +15,7 @@ import org.yaml.snakeyaml.{Yaml => SnakeYaml}
 
 import scala.collection.JavaConverters._
 
-class SwaggerServiceSpec extends FlatSpec with SwaggerService with ScalatestRouteTest with Matchers
+class SwaggerServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with SwaggerService with ScalatestRouteTest with Matchers
   with TableDrivenPropertyChecks {
   def actorRefFactory = system
 

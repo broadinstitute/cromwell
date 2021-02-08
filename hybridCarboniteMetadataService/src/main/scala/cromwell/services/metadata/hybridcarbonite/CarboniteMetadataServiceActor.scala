@@ -9,7 +9,6 @@ import cromwell.services.ServiceRegistryActor.{IoActorRef, NoIoActorRefAvailable
 import cromwell.services.metadata.MetadataService.{BuildWorkflowMetadataJsonAction, MetadataWriteAction, MetadataWriteFailure}
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
-import mouse.boolean._
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -40,7 +39,11 @@ class CarboniteMetadataServiceActor(carboniteConfig: HybridCarboniteConfig, serv
     case IoActorRef(ref) =>
       log.info(s"${getClass.getSimpleName} has received an IoActor reference")
       ioActorOption = Option(ref)
-      carboniteWorker = carboniteConfig.enabled.option(context.actorOf(CarboniteWorkerActor.props(carboniteConfig, serviceRegistryActor, ref)))
+      carboniteWorker = carboniteConfig.freezingConfig match {
+        case a: ActiveMetadataFreezingConfig =>
+          Option(context.actorOf(CarboniteWorkerActor.props(a, carboniteConfig, serviceRegistryActor, ref)))
+        case _ => None
+      }
     case NoIoActorRefAvailable =>
       log.warning(s"${getClass.getSimpleName} is still waiting for an IoActor reference")
       scheduleIoActorLookup()

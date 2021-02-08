@@ -3,14 +3,16 @@ package cromwell.core.filesystem
 import akka.actor.ActorSystem
 import cats.data.NonEmptyList
 import com.typesafe.config.{Config, ConfigFactory}
+import common.assertion.CromwellTimeoutSpec
 import common.exception.AggregatedMessageException
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.MockPathBuilderFactory
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.ExecutionContext
 
-class CromwellFileSystemsSpec extends FlatSpec with Matchers {
+class CromwellFileSystemsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   behavior of "CromwellFileSystems"
 
   val globalConfig = ConfigFactory.parseString(

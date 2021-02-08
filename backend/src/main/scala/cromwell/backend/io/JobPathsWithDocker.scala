@@ -3,24 +3,23 @@ package cromwell.backend.io
 import com.typesafe.config.Config
 import common.util.StringUtil._
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
-import cromwell.core.path.{Path, PathBuilder}
+import cromwell.core.path.Path
 
 object JobPathsWithDocker {
   def apply(jobKey: BackendJobDescriptorKey,
             workflowDescriptor: BackendWorkflowDescriptor,
-            config: Config,
-            pathBuilders: List[PathBuilder] = WorkflowPaths.DefaultPathBuilders) = {
-    val workflowPaths = new WorkflowPathsWithDocker(workflowDescriptor, config, pathBuilders)
+            config: Config) = {
+    val workflowPaths = new WorkflowPathsWithDocker(workflowDescriptor, config, WorkflowPaths.DefaultPathBuilders)
     new JobPathsWithDocker(workflowPaths, jobKey)
   }
 }
 
-case class JobPathsWithDocker private[io] (override val workflowPaths: WorkflowPathsWithDocker, jobKey: BackendJobDescriptorKey) extends JobPaths {
+case class JobPathsWithDocker private[io] (override val workflowPaths: WorkflowPathsWithDocker, jobKey: BackendJobDescriptorKey, override val isCallCacheCopyAttempt: Boolean = false) extends JobPaths {
   import JobPaths._
 
   override lazy val callExecutionRoot = { callRoot.resolve("execution") }
   override def isDocker: Boolean = true
-  val callDockerRoot = callPathBuilder(workflowPaths.dockerWorkflowRoot, jobKey)
+  val callDockerRoot = callPathBuilder(workflowPaths.dockerWorkflowRoot, jobKey, isCallCacheCopyAttempt)
   val callExecutionDockerRoot = callDockerRoot.resolve("execution")
   val callInputsRoot = callRoot.resolve("inputs")
   val callInputsDockerRoot = callDockerRoot.resolve("inputs")
@@ -58,4 +57,6 @@ case class JobPathsWithDocker private[io] (override val workflowPaths: WorkflowP
         workflowPaths.dockerRoot.resolve(subpath)
     }
   }
+
+  override def forCallCacheCopyAttempts: JobPaths = this.copy(isCallCacheCopyAttempt = true)
 }

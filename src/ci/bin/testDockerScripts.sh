@@ -24,4 +24,4 @@ docker run \
     --volume "${CROMWELL_BUILD_ROOT_DIRECTORY}:${CROMWELL_BUILD_ROOT_DIRECTORY}" \
     --workdir "${CROMWELL_BUILD_ROOT_DIRECTORY}" \
     "${docker_tag}" \
-    sbt assembly
+    sbt --warn assembly

@@ -6,7 +6,8 @@ import cats.data.NonEmptyList
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.services.MetadataServicesStore
-import cromwell.services.instrumentation.CromwellInstrumentation
+import cromwell.services.instrumentation.AsynchronousThrottlingGaugeMetricActor.CalculateMetricValue
+import cromwell.services.instrumentation.{AsynchronousThrottlingGaugeMetricActor, CromwellInstrumentation}
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor._
 
 import scala.util.{Failure, Success}
@@ -54,13 +55,16 @@ class MetadataSummaryRefreshActor(override val serviceRegistryActor: ActorRef)
 
   private val instrumentationPrefix: Option[String] = InstrumentationPrefixes.ServicesPrefix
 
+  private val summarizerQueueIncreasingGapMetricActor =
+    context.actorOf(AsynchronousThrottlingGaugeMetricActor.props(increasingGapPath, instrumentationPrefix, serviceRegistryActor))
+
   startWith(WaitingForRequest, SummaryRefreshData)
 
   when (WaitingForRequest) {
     case Event(SummarizeMetadata(limit, respondTo), _) =>
       refreshWorkflowMetadataSummaries(limit) onComplete {
         case Success(summaryResult) =>
-          sendGauge(increasingGapPath, summaryResult.increasingGap, instrumentationPrefix)
+          summarizerQueueIncreasingGapMetricActor ! CalculateMetricValue { ec => getSummaryQueueSize()(ec) }
           sendGauge(decreasingGapPath, summaryResult.decreasingGap, instrumentationPrefix)
 
           count(increasingProcessedPath, summaryResult.rowsProcessedIncreasing, instrumentationPrefix)

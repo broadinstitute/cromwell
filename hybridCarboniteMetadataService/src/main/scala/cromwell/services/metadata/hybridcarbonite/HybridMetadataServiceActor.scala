@@ -7,7 +7,7 @@ import common.exception.AggregatedMessageException
 import common.validation.Checked._
 import common.validation.Validation._
 import cromwell.core.Dispatcher.ServiceDispatcher
-import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, DeleteMetadataAction, MetadataServiceAction, MetadataWriteAction, ValidateWorkflowIdInMetadata}
+import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, MetadataServiceAction, MetadataWriteAction, ValidateWorkflowIdInMetadata, ValidateWorkflowIdInMetadataSummaries}
 import cromwell.services.metadata.impl.{MetadataServiceActor, ReadMetadataRegulatorActor}
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
@@ -41,12 +41,17 @@ class HybridMetadataServiceActor(serviceConfig: Config, globalConfig: Config, se
 
   val readRegulatorActor = context.actorOf(ReadMetadataRegulatorActor.props(readDeciderActorProps, readDeciderActorProps), "ReadMetadataRegulatorActor_for_HMSA")
 
+  var deleteMetadataActor: Option[ActorRef] = carboniteMetadataServiceActorConfig.deletionConfig match {
+    case a: ActiveMetadataDeletionConfig => Option(context.actorOf(DeleteMetadataActor.props(a, serviceRegistryActor)))
+    case _ => None
+  }
+
   override def receive = {
     case action: MetadataServiceAction => action match {
       case read: BuildMetadataJsonAction => readRegulatorActor forward read
       case write: MetadataWriteAction => classicMetadataService forward write
       case validate: ValidateWorkflowIdInMetadata => classicMetadataService forward validate
-      case delete: DeleteMetadataAction => classicMetadataService forward delete
+      case validate: ValidateWorkflowIdInMetadataSummaries => classicMetadataService forward validate
     }
     case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(classicMetadataService, carboniteMetadataService))
   }

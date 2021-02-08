@@ -106,6 +106,10 @@ package object types {
         case a: AsMap => a.evaluateType(linkedValues)(typeEvaluator)
         case a: AsPairs => a.evaluateType(linkedValues)(typeEvaluator)
         case a: CollectByKey => a.evaluateType(linkedValues)(typeEvaluator)
+        case a: Sep => a.evaluateType(linkedValues)(typeEvaluator)
+
+        case a: Min => a.evaluateType(linkedValues)(typeEvaluator)
+        case a: Max => a.evaluateType(linkedValues)(typeEvaluator)
 
         case other => s"Unable to process ${other.getClass.getSimpleName}: No evaluateType exists for that type.".invalidNel
       }

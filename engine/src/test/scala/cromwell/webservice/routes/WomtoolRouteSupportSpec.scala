@@ -11,7 +11,8 @@ import cromwell.services.womtool.models.WorkflowDescription.workflowDescriptionD
 import cromwell.webservice.routes.CromwellApiServiceSpec.MockServiceRegistryActor
 import cromwell.webservice.routes.WomtoolRouteSupportSpec.MockWomtoolRouteSupport
 import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
-import org.scalatest.{AsyncFlatSpec, Matchers}
+import org.scalatest.flatspec.AsyncFlatSpec
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 

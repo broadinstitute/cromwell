@@ -1,13 +1,16 @@
 package wom.values
 
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
 import wom.WomExpressionException
 import wom.types._
 
 import scala.util.{Success, Try}
 
-class WomFileSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+
+class WomFileSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "WomFile"
 
@@ -193,6 +196,16 @@ class WomFileSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks 
     it should s"add an optional string suffix to $description" in {
       WomOptionalValue(womFile.womType, Option(womFile)).add(
         WomOptionalValue(WomStringType, Option(WomString("/suffix")))
+      ) should be(Success(expectedSuffix))
+    }
+
+    it should s"add a string suffix to $description, trimming that suffix before addition" in {
+      womFile.add(WomString("  \n\r\t /suffix  \n\r\t ")) should be(Success(expectedSuffix))
+    }
+
+    it should s"add an optional string suffix to $description, trimming that suffix before addition" in {
+      WomOptionalValue(womFile.womType, Option(womFile)).add(
+        WomOptionalValue(WomStringType, Option(WomString("  \n\r\t /suffix  \n\r\t ")))
       ) should be(Success(expectedSuffix))
     }
 

@@ -1,8 +1,8 @@
 package cromwell.engine.workflow
 
 import akka.actor.{ActorRef, Props}
-import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
-import com.typesafe.config.ConfigFactory
+import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestProbe}
+import com.typesafe.config.{Config, ConfigFactory}
 import common.util.Backoff
 import cromwell.core.actor.StreamIntegration.BackPressure
 import cromwell.core.retry.SimpleExponentialBackoff
@@ -11,12 +11,14 @@ import cromwell.database.slick.EngineSlickDatabase
 import cromwell.database.sql.tables.DockerHashStoreEntry
 import cromwell.docker.DockerInfoActor.{DockerInfoFailedResponse, DockerInfoSuccessResponse, DockerInformation}
 import cromwell.docker.{DockerHashResult, DockerImageIdentifier, DockerImageIdentifierWithoutHash, DockerInfoRequest}
-import cromwell.engine.workflow.WorkflowDockerLookupActor.{DockerHashActorTimeout, WorkflowDockerLookupFailure, WorkflowDockerTerminalFailure}
+import cromwell.engine.workflow.WorkflowDockerLookupActor.{DockerHashActorTimeout, Running, WorkflowDockerLookupFailure, WorkflowDockerTerminalFailure}
 import cromwell.engine.workflow.WorkflowDockerLookupActorSpec._
 import cromwell.engine.workflow.workflowstore.{StartableState, Submitted}
 import cromwell.services.EngineServicesStore
 import cromwell.services.ServicesStore._
-import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
+import org.scalatest.BeforeAndAfter
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 
 import scala.concurrent.duration._
@@ -25,7 +27,14 @@ import scala.language.postfixOps
 import scala.util.control.NoStackTrace
 
 
-class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupActorSpecSystem") with FlatSpecLike with Matchers with ImplicitSender with BeforeAndAfter with Mockito {
+class WorkflowDockerLookupActorSpec
+  extends TestKitSuite
+    with AnyFlatSpecLike
+    with Matchers
+    with ImplicitSender
+    with BeforeAndAfter
+    with Mockito {
+
   var workflowId: WorkflowId = _
   var dockerHashingActor: TestProbe = _
   var numReads: Int = _
@@ -33,7 +42,7 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
 
   before {
     workflowId = WorkflowId.randomId()
-    dockerHashingActor = TestProbe()
+    dockerHashingActor = TestProbe(s"test-probe-$workflowId")
     numReads = 0
     numWrites = 0
   }
@@ -108,6 +117,36 @@ class WorkflowDockerLookupActorSpec extends TestKitSuite("WorkflowDockerLookupAc
     val hashResponses = responses collect { case msg: DockerInfoSuccessResponse => msg }
     // Success after transient timeout failures:
     hashResponses should equal(Set(LatestSuccessResponse, OlderSuccessResponse))
+  }
+
+  // BA-6495
+  it should "not fail and enter terminal state when response for certain image id from DockerHashingActor arrived after the self-imposed timeout" in {
+    val lookupActor = TestFSMRef(new WorkflowDockerLookupActor(workflowId, dockerHashingActor.ref, isRestart = false, EngineServicesStore.engineDatabaseInterface))
+
+    lookupActor ! LatestRequest
+
+    val timeout = DockerHashActorTimeout(LatestRequest)
+
+    // The WorkflowDockerLookupActor should not have the hash for this tag yet and will need to query the dockerHashingActor.
+    dockerHashingActor.expectMsg(LatestRequest)
+    // WorkflowDockerLookupActor actually sends DockerHashActorTimeout to itself
+    lookupActor.tell(timeout, lookupActor)
+
+    val failedRequest: WorkflowDockerLookupFailure = receiveOne(2 seconds).asInstanceOf[WorkflowDockerLookupFailure]
+    failedRequest.request shouldBe LatestRequest
+
+    lookupActor ! LatestRequest
+    dockerHashingActor.expectMsg(LatestRequest)
+    dockerHashingActor.reply(LatestSuccessResponse) // responding for previously timeouted request
+    dockerHashingActor.reply(LatestSuccessResponse) // responding for current request
+
+    val hashResponse = receiveOne(2 seconds)
+    hashResponse shouldBe LatestSuccessResponse
+
+    // Give WorkflowDockerLookupActor a chance to finish its unfinished business
+    Thread.sleep(5000)
+    // WorkflowLookup actor should not be in terminal state, since nothing bad happened here
+    lookupActor.stateName shouldBe Running
   }
 
   it should "respond appropriately to docker hash lookup failures" in {
@@ -256,19 +295,23 @@ object WorkflowDockerLookupActorSpec {
   val Latest = "ubuntu:latest"
   val Older = "ubuntu:older"
 
-  val LatestImageId = DockerImageIdentifier.fromString(Latest).get.asInstanceOf[DockerImageIdentifierWithoutHash]
-  val OlderImageId = DockerImageIdentifier.fromString(Older).get.asInstanceOf[DockerImageIdentifierWithoutHash]
+  val LatestImageId: DockerImageIdentifierWithoutHash =
+    DockerImageIdentifier.fromString(Latest).get.asInstanceOf[DockerImageIdentifierWithoutHash]
+  val OlderImageId: DockerImageIdentifierWithoutHash =
+    DockerImageIdentifier.fromString(Older).get.asInstanceOf[DockerImageIdentifierWithoutHash]
 
-  val LatestRequest = DockerInfoRequest(LatestImageId)
-  val OlderRequest = DockerInfoRequest(OlderImageId)
+  val LatestRequest: DockerInfoRequest = DockerInfoRequest(LatestImageId)
+  val OlderRequest: DockerInfoRequest = DockerInfoRequest(OlderImageId)
 
   def LatestStoreEntry(workflowId: WorkflowId): DockerHashStoreEntry = DockerHashStoreEntry(workflowId.toString, Latest, "md5:AAAAAAAA", None)
   def OlderStoreEntry(workflowId: WorkflowId): DockerHashStoreEntry = DockerHashStoreEntry(workflowId.toString, Older, "md5:BBBBBBBB", None)
 
-  val LatestSuccessResponse = DockerInfoSuccessResponse(DockerInformation(DockerHashResult("md5", "AAAAAAAA"), None), LatestRequest)
-  val OlderSuccessResponse = DockerInfoSuccessResponse(DockerInformation(DockerHashResult("md5", "BBBBBBBB"), None), OlderRequest)
+  val LatestSuccessResponse: DockerInfoSuccessResponse =
+    DockerInfoSuccessResponse(DockerInformation(DockerHashResult("md5", "AAAAAAAA"), None), LatestRequest)
+  val OlderSuccessResponse: DockerInfoSuccessResponse =
+    DockerInfoSuccessResponse(DockerInformation(DockerHashResult("md5", "BBBBBBBB"), None), OlderRequest)
 
-  val DatabaseConfig = ConfigFactory.load.getConfig("database")
+  val DatabaseConfig: Config = ConfigFactory.load.getConfig("database")
 
   def abjectFailure[A, B]: A => Future[B] = _ => Future.failed(new RuntimeException("Should not be called!"))
 
@@ -278,6 +321,6 @@ object WorkflowDockerLookupActorSpec {
       dockerHashingActor,
       startState.restarted,
       EngineServicesStore.engineDatabaseInterface) {
-    override protected def initialBackoff = backoff
+    override protected def initialBackoff(): Backoff = backoff
   }
 }

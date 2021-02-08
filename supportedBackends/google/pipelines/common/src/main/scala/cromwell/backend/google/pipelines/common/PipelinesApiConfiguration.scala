@@ -15,6 +15,7 @@ class PipelinesApiConfiguration(val configurationDescriptor: BackendConfiguratio
 
   val jesAuths = papiAttributes.auths
   val root = configurationDescriptor.backendConfig.getString("root")
+  val pipelineTimeout = papiAttributes.pipelineTimeout
   val runtimeConfig = configurationDescriptor.backendRuntimeAttributesConfig
   val jesComputeServiceAccount = papiAttributes.computeServiceAccount
 

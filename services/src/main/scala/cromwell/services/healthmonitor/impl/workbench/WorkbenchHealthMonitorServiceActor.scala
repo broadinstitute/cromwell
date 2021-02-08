@@ -4,11 +4,13 @@ import java.net.URL
 
 import akka.actor.ActorRef
 import cats.data.Validated.{Invalid, Valid}
-import cats.instances.future._
 import cats.syntax.functor._
+import cats.instances.future._
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import com.google.api.gax.retrying.RetrySettings
-import com.google.api.services.genomics.v2alpha1.GenomicsScopes
+import com.google.api.services.genomics.v2alpha1.Genomics
+import com.google.api.services.lifesciences.v2beta.CloudLifeSciencesScopes
+import com.google.api.services.lifesciences.v2beta.CloudLifeSciences
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
 import com.google.auth.http.HttpCredentialsAdapter
@@ -42,16 +44,33 @@ abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, glo
   }
 
   protected lazy val Gcs = MonitoredSubsystem("GCS", () => checkGcs())
+  protected lazy val CarboniterGcsAccess = MonitoredSubsystem("CarboniterGcsAccess", () => checkGcsAccess(carboniterBucketName, gcsObjectToCheckCarboniterAccess, carboniterGoogleAuth))
   protected lazy val PapiSubsystems = papiBackendConfigurations map papiMonitoredSubsystem
 
   lazy val googleConfig = GoogleConfiguration(globalConfig)
 
   lazy val googleAuthName = serviceConfig.as[Option[String]]("google-auth-name").getOrElse("application-default")
+  lazy val googleAuth = getGoogleAuthConfigurationOrFail(googleAuthName)
 
-  lazy val googleAuth = googleConfig.auth(googleAuthName) match {
-    case Valid(a) => a
-    case Invalid(e) => throw new IllegalArgumentException("Unable to configure WorkbenchHealthMonitor: " + e.toList.mkString(", "))
-  }
+  private lazy val carboniterAuthNameConfigPath = "services.MetadataService.config.carbonite-metadata-service.filesystems.gcs.auth"
+  lazy val carboniterAuthName = getGlobalConfigValueOrFail(carboniterAuthNameConfigPath)
+  lazy val carboniterGoogleAuth = getGoogleAuthConfigurationOrFail(carboniterAuthName)
+
+  private lazy val carboniterBucketNameConfigPath = "services.MetadataService.config.carbonite-metadata-service.bucket"
+  lazy val carboniterBucketName = getGlobalConfigValueOrFail(carboniterBucketNameConfigPath)
+  lazy val gcsObjectToCheckCarboniterAccess = serviceConfig.as[String]("gcs-object-to-check-carboniter-access")
+
+  private def getGlobalConfigValueOrFail(configPath: String): String =
+    globalConfig.as[Option[String]](configPath) match {
+      case Some(value) => value
+      case None => throw new IllegalArgumentException(s"Unable to configure WorkbenchHealthMonitor: path $configPath does not exist in the Cromwell configuration file")
+    }
+
+  private def getGoogleAuthConfigurationOrFail(googleAuthName: String): GoogleAuthMode =
+    googleConfig.auth(googleAuthName) match {
+      case Valid(a) => a
+      case Invalid(e) => throw new IllegalArgumentException("Unable to configure WorkbenchHealthMonitor: " + e.toList.mkString(", "))
+    }
 
   /**
     * Demonstrates connectivity to GCS by stat-ing a bucket
@@ -66,6 +85,17 @@ abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, glo
     storage map { _.buckets.get(gcsBucketToCheck).execute() } as OkStatus
   }
 
+  /**
+   * Demonstrates ability to read data from specified GCS location with Carboniter credentials
+   */
+  private def checkGcsAccess(gcsBucket: String, gcsObjectPath: String, googleAuth: GoogleAuthMode): Future[SubsystemStatus] = {
+    val storageScopes = List(StorageScopes.DEVSTORAGE_READ_ONLY)
+    val storage = Future(googleAuth.credentials(storageScopes)) map { credentials =>
+      GcsStorage.gcsStorage(googleConfig.applicationName, credentials, RetrySettings.newBuilder().build())
+    }
+    storage map { _.objects().get(gcsBucket, gcsObjectPath).execute() } as OkStatus
+  }
+
   private def checkPapi(papiConfiguration: PapiConfiguration): Future[SubsystemStatus] = {
     val papiConfig = papiConfiguration.papiConfig
     val papiProviderConfig = papiConfiguration.papiProviderConfig
@@ -74,11 +104,16 @@ abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, glo
     val papiProjectId = papiConfig.as[String]("project")
 
     val check = for {
-      credentials <- Future(googleAuth.credentials(List(GenomicsScopes.GENOMICS)))
-      genomicsChecker = if (papiProviderConfig.as[String]("actor-factory").contains("v2alpha1"))
-        GenomicsCheckerV2(googleConfig.applicationName, googleAuth, endpointUrl, credentials, papiProjectId)
-      else
+      credentials <- Future(googleAuth.credentials(List(CloudLifeSciencesScopes.CLOUD_PLATFORM)))
+      actorFactoryName = papiProviderConfig.as[String]("actor-factory")
+      genomicsChecker = if (actorFactoryName.contains("v2beta")) {
+        val location = papiConfig.as[String]("genomics.location")
+        GenomicsCheckerV2Beta(googleConfig.applicationName, googleAuth, endpointUrl, location, credentials, papiProjectId)
+      } else if (actorFactoryName.contains("v2alpha1")) {
+        GenomicsCheckerV2Alpha1(googleConfig.applicationName, googleAuth, endpointUrl, credentials, papiProjectId)
+      } else {
         GenomicsCheckerV1(googleConfig.applicationName, googleAuth, endpointUrl, credentials, papiProjectId)
+      }
       checked <- genomicsChecker.check
     } yield checked
 
@@ -119,12 +154,33 @@ object WorkbenchHealthMonitorServiceActor {
     }
   }
 
-  case class GenomicsCheckerV2(applicationName: String,
-                               authMode: GoogleAuthMode,
-                               endpointUrl: URL,
-                               credentials: Credentials,
-                               papiProjectId: String)(implicit val ec: ExecutionContext) extends GenomicsChecker {
-    val genomics = new com.google.api.services.genomics.v2alpha1.Genomics.Builder(
+  case class GenomicsCheckerV2Beta(applicationName: String,
+                                   authMode: GoogleAuthMode,
+                                   endpointUrl: URL,
+                                   location: String,
+                                   credentials: Credentials,
+                                   papiProjectId: String)(implicit val ec: ExecutionContext) extends GenomicsChecker {
+    val lifeSciences = new CloudLifeSciences.Builder(
+      GoogleAuthMode.httpTransport,
+      GoogleAuthMode.jsonFactory,
+      httpInitializer(credentials))
+      .setApplicationName(applicationName)
+      .setRootUrl(endpointUrl.toString)
+      .build
+
+    override def check = Future {
+      // https://cloud.google.com/life-sciences/docs/reference/rest/v2beta/projects.locations.operations
+      lifeSciences.projects().locations().operations().list(s"projects/$papiProjectId/locations/$location").setPageSize(1).execute()
+      ()
+    }
+  }
+
+  case class GenomicsCheckerV2Alpha1(applicationName: String,
+                                   authMode: GoogleAuthMode,
+                                   endpointUrl: URL,
+                                   credentials: Credentials,
+                                   papiProjectId: String)(implicit val ec: ExecutionContext) extends GenomicsChecker {
+    val genomics = new Genomics.Builder(
       GoogleAuthMode.httpTransport,
       GoogleAuthMode.jsonFactory,
       httpInitializer(credentials))

@@ -31,7 +31,6 @@
 
 package cromwell.backend.impl.aws
 
-import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import cromwell.backend.io.WorkflowPaths
@@ -39,11 +38,19 @@ import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.PathBuilder
 import cromwell.filesystems.s3.S3PathBuilderFactory
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 
 object AwsBatchWorkflowPaths {
   private val RootOptionKey = "aws_s3_root"
 }
 
+/**
+ * Paths in the container where the workflow executes, reads from and writes to
+ * @param workflowDescriptor
+ * @param provider
+ * @param configuration
+ * @param actorSystem
+ */
 case class AwsBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
                                  provider: AwsCredentialsProvider,
                                  configuration: AwsBatchConfiguration)(implicit actorSystem: ActorSystem) extends WorkflowPaths {

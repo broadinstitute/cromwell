@@ -12,5 +12,5 @@ metadata {
 fileSystemCheck: "local"
 outputExpectations: {
     "/tmp/outputs/relative_output_paths/typeset.txt": 1
-    "/tmp/outputs/relative_output_paths/greatpress.txt": 1
+    "/tmp/outputs/relative_output_paths/greatpress/typeset.txt": 1
 }

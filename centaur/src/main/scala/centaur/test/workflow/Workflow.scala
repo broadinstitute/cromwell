@@ -2,7 +2,6 @@ package centaur.test.workflow
 
 import java.nio.file.Path
 
-import common.validation.Validation._
 import better.files._
 import cats.data.Validated._
 import cats.syntax.apply._
@@ -10,11 +9,12 @@ import cats.syntax.validated._
 import centaur.test.metadata.WorkflowFlatMetadata
 import com.typesafe.config.{Config, ConfigFactory}
 import common.validation.ErrorOr.ErrorOr
+import common.validation.Validation._
 import configs.Result
 import configs.syntax._
-import cromwell.api.CromwellClient
-import cromwell.api.model.WorkflowSingleSubmission
+import cromwell.api.model.{WorkflowDescribeRequest, WorkflowSingleSubmission}
 
+import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success, Try}
 
 final case class Workflow private(testName: String,
@@ -24,17 +24,27 @@ final case class Workflow private(testName: String,
                                   directoryContentCounts: Option[DirectoryContentCountCheck],
                                   backends: BackendsRequirement,
                                   retryTestFailures: Boolean,
-                                  allowOtherOutputs: Boolean) {
-  def toWorkflowSubmission(refreshToken: Option[String]) = WorkflowSingleSubmission(
+                                  allowOtherOutputs: Boolean,
+                                  skipDescribeEndpointValidation: Boolean,
+                                  maximumAllowedTime: Option[FiniteDuration]) {
+  def toWorkflowSubmission: WorkflowSingleSubmission = WorkflowSingleSubmission(
     workflowSource = data.workflowContent,
     workflowUrl = data.workflowUrl,
     workflowRoot = data.workflowRoot,
     workflowType = data.workflowType,
     workflowTypeVersion = data.workflowTypeVersion,
     inputsJson = data.inputs.map(_.unsafeRunSync()),
-    options = CromwellClient.replaceJson(data.options.map(_.unsafeRunSync()), "refresh_token", refreshToken),
+    options = data.options.map(_.unsafeRunSync()),
     labels = Option(data.labels),
     zippedImports = data.zippedImports)
+
+  def toWorkflowDescribeRequest: WorkflowDescribeRequest = WorkflowDescribeRequest(
+    workflowSource = data.workflowContent,
+    workflowUrl = data.workflowUrl,
+    workflowType = data.workflowType,
+    workflowTypeVersion = data.workflowTypeVersion,
+    inputsJson = data.inputs.map(_.unsafeRunSync())
+  )
 
   def secondRun: Workflow = {
     copy(data = data.copy(options = data.secondOptions))
@@ -81,11 +91,15 @@ object Workflow {
           case Result.Failure(_) => true
         }
 
+        val validateDescription: Boolean = conf.get[Boolean]("skipDescribeEndpointValidation").valueOrElse(false)
+
+        val maximumTime: Option[FiniteDuration] = conf.get[Option[FiniteDuration]]("maximumTime").value
+
         (files, directoryContentCheckValidation, metadata, retryTestFailuresErrorOr) mapN {
-          (f, d, m, retryTestFailures) => Workflow(n, f, m, absentMetadata, d, backendsRequirement, retryTestFailures, allowOtherOutputs)
+          (f, d, m, retryTestFailures) => Workflow(n, f, m, absentMetadata, d, backendsRequirement, retryTestFailures, allowOtherOutputs, validateDescription, maximumTime)
         }
 
-      case Result.Failure(_) => invalidNel(s"No name for: $configFile")
+      case Result.Failure(_) => invalidNel(s"No test 'name' for: $configFile")
     }
   }
 }

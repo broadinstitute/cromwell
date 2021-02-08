@@ -192,7 +192,7 @@ object ImportResolver {
 
           // temporary situation to get functionality working before
           // starting in on async-ifying the entire WdlNamespace flow
-          val result: Checked[String] = Await.result(responseIO.unsafeToFuture, 15.seconds).body.leftMap(NonEmptyList(_, List.empty))
+          val result: Checked[String] = Await.result(responseIO.unsafeToFuture, 15.seconds).body.leftMap { e => NonEmptyList(e.toString.trim, List.empty) }
 
           result map {
             ResolvedImportBundle(_, newResolverList(toLookup), ResolvedImportRecord(toLookup))

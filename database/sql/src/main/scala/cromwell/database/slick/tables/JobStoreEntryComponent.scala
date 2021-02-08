@@ -11,7 +11,7 @@ trait JobStoreEntryComponent {
   import driver.api._
 
   class JobStoreEntries(tag: Tag) extends Table[JobStoreEntry](tag, "JOB_STORE_ENTRY") {
-    def jobStoreEntryId = column[Int]("JOB_STORE_ENTRY_ID", O.PrimaryKey, O.AutoInc)
+    def jobStoreEntryId = column[Long]("JOB_STORE_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
     def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID", O.Length(255))
 

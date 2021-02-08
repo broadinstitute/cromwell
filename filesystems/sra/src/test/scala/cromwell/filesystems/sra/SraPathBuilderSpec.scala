@@ -1,10 +1,11 @@
 package cromwell.filesystems.sra
 
-import cromwell.core.path._
 import cromwell.core.TestKitSuite
-import org.scalatest.{FlatSpecLike, Matchers}
+import cromwell.core.path._
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
-class SraPathBuilderSpec extends TestKitSuite with FlatSpecLike with Matchers with PathBuilderSpecUtils {
+class SraPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with PathBuilderSpecUtils {
   behavior of "SraPathBuilder"
 
   goodPaths foreach {

@@ -5,8 +5,6 @@ import cromwell.backend.google.pipelines.common.io.PipelinesApiAttachedDisk
 import cromwell.backend.google.pipelines.common._
 import simulacrum.typeclass
 
-import scala.language.implicitConversions
-
 @typeclass trait ToParameter[A] {
   def toGooglePipelineParameter(a: A): PipelineParameter
   def toGoogleRunParameter(a: A): String

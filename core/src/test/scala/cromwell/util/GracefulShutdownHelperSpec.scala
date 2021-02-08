@@ -5,9 +5,10 @@ import akka.testkit.TestProbe
 import cats.data.NonEmptyList
 import cromwell.core.TestKitSuite
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
-class GracefulShutdownHelperSpec extends TestKitSuite with FlatSpecLike with Matchers {
+class GracefulShutdownHelperSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
   behavior of "GracefulShutdownHelper"
   
   it should "send ShutdownCommand to actors, wait for them to shutdown, then shut itself down" in {

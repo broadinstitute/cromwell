@@ -1,4 +1,3 @@
-
 **Google Cloud Backend**
 
 Google Genomics Pipelines API is a Docker-as-a-service from Google. It was formerly called JES (Job Execution Service);
@@ -147,7 +146,7 @@ backend {
 
 `token` is the standard base64-encoded username:password for the appropriate Docker Hub account.
 
-For PAPI version 2:
+For PAPI version 2 alpha 1:
 
 ```
 backend {
@@ -155,6 +154,26 @@ backend {
   providers {
     PAPIv2 {
       actor-factory = "cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory"
+      config {
+        dockerhub {
+          token = "base64-encoded-docker-hub-username:password"
+          key-name = "name/of/the/kms/key/used/for/encrypting/and/decrypting/the/docker/hub/token"
+          auth = "reference-to-the-auth-cromwell-should-use-for-kms-encryption"
+        }
+      }
+    }
+  }
+}
+```
+
+For PAPI version 2 beta:
+
+```
+backend {
+  default = "PAPIv2"
+  providers {
+    PAPIv2 {
+      actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
       config {
         dockerhub {
           token = "base64-encoded-docker-hub-username:password"
@@ -222,35 +241,45 @@ On the Local, SGE, and associated backends any GCS URI will be downloaded locall
 precedence over the `root` specified at `backend.providers.JES.config.root` in the configuration file. Google Cloud Storage URIs are the only acceptable values for `File` inputs for
 workflows using the Google backend.
 
-**Retry with More Memory**
+**Pipeline timeout**
 
-With `memory-retry` you can specify an array of strings which when encountered in the `stderr` file by Cromwell, allows the task to be retried with more memory.
-The optional `multiplier` config specifies the factor by which the memory should be multiplied while retrying. This multiplier should be greater than 1.0. 
-If the value is not mentioned in config, it will default to 2.0. The retry will be counted against the `maxRetries` count mentioned in the `runtimeAtrributes` in the task. 
-For example,
+Google sets a default pipeline timeout of 7 days, after which the pipeline will abort. Setting `pipeline-timeout` overrides this limit to a maximum of 30 days.
+
 ```hocon
+backend.providers.PAPIv2.config {
+    pipeline-timeout: 14 days
+}
+```
+
+**Enabling FUSE capabilities**
+
+*This is a community contribution and not officially supported by the Cromwell team.*
+By default Cromwell task containers doesn't allow to mount any FUSE filesystems. It happens because containers are launched without specific linux capabilities being enabled. 
+Google pipelines backend supports running containers with the enabled capabilities and so does Cromwell. 
+
+If you need to use fuses within task containers then you can set `enable_fuse` workflow option. 
+
+```
+{
+    "enable_fuse": true
+}
+```
+
+Differently you can enable support for fuses right in your backend configuration.
+
+```
 backend.providers.Papiv2.config {
-  memory-retry {
-    error-keys = ["OutOfMemoryError", "Killed"]
-    multiplier = 1.1
-  }
+    genomics {
+        enable-fuse = true
+    }
 }
-```  
-this tells Cromwell to retry the task with 1.1x memory when it sees either `OutOfMemoryError` or `Killed` in the `stderr` file. If the task has 
-runtime attributes as below 
-```hocon
-runtimeAtrributes {
-  memory: "1 GB"
-  continueOnReturnCode: true
-  maxRetries: 1
-}
-``` 
-the task will be retried at max 1 more time, and this time with "1.1 GB" memory. Please note that Pipelines API will adjust the memory value based on their
-standards for memory for a VM. So it's possible that even though the request says 1.1 GB memory, it actually allocated a bit more memory to the VM.
+```
 
-Two environment variables called `${MEM_UNIT}` and `${MEM_SIZE}` are also available inside the command block of a task,
-making it easy to retrieve the new value of memory on the machine.
+There is a list of limitations regarding the usage of FUSE filesystems:
 
++ Any inputs brought in via a FUSE filesystem will not be considered for call caching.
++ Any outputs stored via a FUSE filesystem will not be recreated if a task is replayed from a call-cache hit.
++ If the filesystem is writable, your job is potentially no longer idempotent - Cromwell may decide to retry your job for you, and you might get unforeseen file collisions or even incorrect results if that happens.
 
 #### Google Labels
 
@@ -268,7 +297,7 @@ Any custom labels provided as '`google_labels`' in the [workflow options](../wf_
 
 ## Using NCBI Sequence Read Archive (SRA) Data
 
-The v2alpha1 backend supports accessing [NCBI
+The v2alpha1 and v2beta backends support accessing [NCBI
 SRA](https://www.ncbi.nlm.nih.gov/sra) accessions natively.  To configure this
 support you'll need to enable it in your config file like so:
 
@@ -303,7 +332,7 @@ backend {
   providers {
   	...
   	PapiV2 {
-  	  actor-factory = "cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory"
+  	  actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
   	  config {
   		...
   		virtual-private-cloud {
@@ -333,6 +362,19 @@ Cromwell will get labels from the project's metadata and look for a label whose 
 Then it will use the value of the label, which is `vpc-network` here, as the name of private network and run the jobs on this network.
 If the network key is not present in the project's metadata Cromwell will fall back to running jobs on the default network.
 
+
+### Custom Google Cloud SDK container
+Cromwell can't use Google's container registry if VPC Perimeter is used in project.
+Own repository can be used by adding `cloud-sdk-image-url` reference to used container:
+
+```
+google {
+  ...
+  cloud-sdk-image-url = "eu.gcr.io/your-project-id/cloudsdktool/cloud-sdk:275.0.0-slim"
+  cloud-sdk-image-size-gb = 1
+}
+```
+
 ### Parallel Composite Uploads
 
 Cromwell can be configured to use GCS parallel composite uploads which can greatly improve delocalization performance. This feature
@@ -346,7 +388,7 @@ backend {
   providers {
     ...
     PapiV2 {
-      actor-factory = "cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory"
+      actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
       config {
         ...
         genomics {
@@ -405,3 +447,187 @@ Because the parallel composite upload threshold is not considered part of the ha
 which would be expected to generate non-composite outputs may call cache to results that did generate composite
 outputs. Calls which are executed and not cached will always honor the parallel composite upload setting at the time of
 their execution.
+
+### Migration from Google Cloud Genomics v2alpha1 to Google Cloud Life Sciences v2beta
+
+1. If you currently run your workflows using Cloud Genomics v2alpha1 and would like to switch to Google Cloud Life 
+Sciences v2beta, you will need to do a few changes to your configuration file: `actor-factory` value should be changed 
+from `cromwell.backend.google.pipelines.v2alpha1.PipelinesApiLifecycleActorFactory` to `cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory`.
+2. Parameter `genomics.endpoint-url` value should be changed from `https://genomics.googleapis.com/` to 
+`https://lifesciences.googleapis.com/`.
+3. Also you should add a new mandatory parameter `genomics.location` to your backend configuration. Currently Google Cloud 
+Life Sciences API is available only in `us-central1` and `europe-west2` locations.
+
+### Alpha support for WDL optional outputs on PAPI v2
+
+Cromwell 53 adds alpha-quality support for WDL optional outputs on PAPI v2 backends. Constructs such as: 
+
+```
+  struct MyStruct {
+    String name
+    File? file
+  }
+  .
+  .
+  .
+  output {
+    File? file_does_not_exist = "does_not_exist"
+    Pair[String, File?] pair_file_does_not_exist = ("this", "does_not_exist")
+    Map[String, File?] map_file_does_not_exist = { "does_not_exist": "does_not_exist" }
+    Array[File?] array_file_does_not_exist = ["does_not_exist"]
+    MyStruct struct_file_does_not_exist = object { name: "this", file: "does_not_exist" } 
+  }
+```
+
+will not produce errors if the file `does_not_exist` does not exist. This support for optional files is considered alpha
+quality for two reasons:
+
+1. As seen in the example above, support for optional files extends to complex WDL types but there is a restriction that
+all `File` components of non-primitive types must be optional. e.g. Cromwell would not allow the assignment of a 
+missing file to the right side of a pair of type `Pair[File, File?]` since the left member of the pair is a non-optional
+file. This restriction exists solely due to technical limitations in how type evaluation works in Cromwell today and
+may be removed in a future Cromwell release.
+
+2. Call caching does not work for calls with empty optional outputs. Cromwell currently does not recognize
+that it is okay for optional output files to be missing, will incorrectly claim that any cache hits with missing 
+optional output files are unusable, and will proceed to search for more cache hits which if found will also be unusable,
+before eventually giving up and running the job. This behavior may be corrected in a future Cromwell release.
+
+### Reference Disk Support
+
+Cromwell 55 and later support mounting reference disks from prebuilt GCP disk images as an alternative to localizing large
+input reference files on PAPI v2. Within the `config` stanza of a PAPI v2 backend the `reference-disk-localization-manifest-files`
+key specifies an array of manifest JSONs in GCS:  
+
+
+```hocon
+backend {
+  ...
+  providers {
+    ...
+    PapiV2 {
+      actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
+      config {
+        ...
+        reference-disk-localization-manifest-files = ["gs://path/to/a/reference/disk/manifest.json"]
+        ...
+      }
+    }
+  }
+}
+```
+
+Reference manifest JSONs have a format like:
+
+```json
+{
+  "imageIdentifier" : "projects/my_project/global/images/my-references-disk-image",
+  "diskSizeGb" : 30,
+  "files" : [ {
+    "path" : "my-references/enormous_reference.bam",
+    "crc32c" : 407769621
+  }, {
+    "path" : "my-references/enormous_reference.bam.bai",
+    "crc32c" : 1902048083
+  },
+...
+  ]
+}
+```
+
+Reference disk usage is an opt-in feature, so workflow submissions must specify this workflow option:
+
+```json
+{
+  ...
+  "use_reference_disks": true,
+  ...
+}
+```
+
+Using the first file in the manifest above as an example, assume a PAPI v2 backend is configured to use this manifest and the appropriate
+`use_reference_disks` workflow option is set to `true` in the workflow submission. If a call in that workflow 
+specifies the input `gs://my-references/enormous_reference.bam` and because that input matches the path of a file on the
+reference image without the leading `gs://`, Cromwell would
+arrange for a reference disk based on this image to be mounted and for the call's input to refer to the 
+copy of the file on the reference disk, bypassing localization of the input.     
+
+The Cromwell git repository includes a Java-based tool to facilitate the creation of manifest files called
+[CromwellRefdiskManifestCreatorApp](https://github.com/broadinstitute/cromwell/tree/develop/CromwellRefdiskManifestCreator).
+Please see the help command of that tool for more details.
+
+### Docker Image Cache Support
+
+To optimize job execution time, Cromwell 55 and later support the use of Docker image caches on the PAPI v2 lifesciences beta backend. Docker image caches are not available on the PAPI v2 genomics alpha backend.
+Configuration looks like:
+
+```hocon
+backend {
+  ...
+  providers {
+    ...
+    PapiV2 {
+      actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
+      config {
+        ...
+        docker-image-cache-manifest-file = "gs://path/to/a/docker/image/cache/manifest.json"
+        ...
+      }
+    }
+  }
+}
+```
+
+Docker image cache manifest JSONs have a format like:
+
+```json
+{
+  "biocontainers/samtools:1.3.1": "projects/broad-dsde-cromwell-dev/global/images/v1-docker-biocontainers-samtools-1-3-1",
+  "gcr.io/gcp-runtimes/ubuntu_16_0_4:latest": "projects/broad-dsde-cromwell-dev/global/images/v1-docker-gcr-io-gcp-runtimes-ubuntu-16-0-4-latest",
+  ...
+}
+```
+
+Docker image cache usage is an opt-in feature, so workflow submissions must specify this workflow option:
+
+```json
+{
+  ...
+  "use_docker_image_cache": true,
+  ...
+}
+```
+
+Individual tasks within a workflow can turn off Docker image caching through the use of a runtime attribute:
+
+```wdl
+task my_task {
+  ...
+  runtime {
+    ...
+    useDockerImageCache: false
+  }
+}
+```
+
+If Cromwell is running a workflow on PAPI v2 beta with Docker image caching enabled and a task specifies a
+Docker image which corresponds to a configured Docker image cache JSON, Cromwell will arrange for the
+job's VM to mount a disk built from the corresponding disk image. In the event that multiple
+manifests describe disk images containing the specified Docker image, Cromwell will choose the disk image with the
+smallest `diskSizeGb` value.
+
+Conversely, Docker image caching can be turned off at the workflow level (either turned off explicitly or left at the
+default setting of `false`) but turned on at the individual task level:
+
+```wdl
+task my_task {
+  ...
+  runtime {
+    ...
+    useDockerImageCache: true
+  }
+}
+```
+
+These settings could be useful for cost reasons: mounting Docker image caches adds nonzero cost
+which might not be offset by eliminating Docker image pull times for long-running jobs.

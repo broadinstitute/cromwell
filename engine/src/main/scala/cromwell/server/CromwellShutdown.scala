@@ -9,8 +9,8 @@ import akka.pattern.{AskTimeoutException, GracefulStopSupport}
 import akka.routing.Broadcast
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import cats.instances.future._
 import cats.syntax.functor._
+import cats.instances.future._
 import cromwell.core.WorkflowId
 import cromwell.core.WorkflowProcessingEvents.DescriptionEventValue.Released
 import cromwell.engine.workflow.WorkflowManagerActor.{AbortAllWorkflowsCommand, PreventNewWorkflowsFromStarting}

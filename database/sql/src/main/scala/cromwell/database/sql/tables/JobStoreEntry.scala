@@ -12,5 +12,5 @@ case class JobStoreEntry
   returnCode: Option[Int],
   exceptionMessage: Option[SerialClob],
   retryableFailure: Option[Boolean],
-  jobStoreEntryId: Option[Int] = None
+  jobStoreEntryId: Option[Long] = None
 )

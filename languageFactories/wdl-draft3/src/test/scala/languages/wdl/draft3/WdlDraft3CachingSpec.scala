@@ -1,18 +1,21 @@
 package languages.wdl.draft3
 
 import com.typesafe.config.{Config, ConfigFactory}
+import common.assertion.CromwellTimeoutSpec
 import common.validation.ErrorOr.ErrorOr
 import cromwell.core.{WorkflowId, WorkflowOptions, WorkflowSourceFilesWithoutImports}
 import cromwell.languages.LanguageFactory
 import cromwell.languages.util.ImportResolver
 import languages.wdl.draft3.WdlDraft3CachingSpec.EvaluationCountingDraft3Factory
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wom.ResolvedImportRecord
 import wom.core.{WorkflowOptionsJson, WorkflowSource}
 import wom.executable.WomBundle
 import wom.expression.NoIoFunctionSet
 
-class WdlDraft3CachingSpec extends FlatSpec with Matchers {
+
+class WdlDraft3CachingSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   val languageConfig = ConfigFactory.parseString(
     """{

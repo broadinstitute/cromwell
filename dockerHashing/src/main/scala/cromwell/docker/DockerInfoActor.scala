@@ -4,8 +4,8 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.stream._
 import cats.effect.IO
 import cats.effect.IO._
-import cats.instances.list._
 import cats.syntax.parallel._
+import cats.instances.list._
 import com.google.common.cache.CacheBuilder
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
@@ -109,6 +109,7 @@ final class DockerInfoActor(
   }
 
   private def backpressure(commandContext: DockerInfoContext) = IO {
+    logger.warn(s"Backpressuring DockerInfoActor enqueue for image ${commandContext.dockerImageID.fullName}")
     commandContext.replyTo ! BackPressure(commandContext.request)
   }
 
@@ -227,7 +228,6 @@ object DockerInfoActor {
   }
 
   def remoteRegistriesFromConfig(config: Config): List[DockerRegistry] = {
-    import cats.instances.list._
     import cats.syntax.traverse._
 
     val gcrConstructor = { c: DockerRegistryConfig =>

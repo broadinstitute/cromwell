@@ -4,6 +4,7 @@ callMark: cromwell_killer
 backendsMode: "only"
 backends: [Local, LocalNoDocker]
 tags: [localdockertest]
+skipDescribeEndpointValidation: true
 
 files {
   workflow: cwl_restart/cwl_restart.cwl

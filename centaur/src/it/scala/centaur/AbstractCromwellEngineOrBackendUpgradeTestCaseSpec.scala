@@ -7,6 +7,7 @@ import cromwell.database.slick.{EngineSlickDatabase, MetadataSlickDatabase, Slic
 import cromwell.database.sql.SqlDatabase
 import org.scalatest.{Assertions, BeforeAndAfter, DoNotDiscover}
 import shapeless.syntax.typeable._
+import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.Future
 
@@ -71,7 +72,7 @@ object AbstractCromwellEngineOrBackendUpgradeTestCaseSpec {
 
   private def recreateDatabase(slickDatabase: SlickDatabase)(implicit cs: ContextShift[IO]): IO[Unit] = {
     import slickDatabase.dataAccess.driver.api._
-    val schemaName = slickDatabase.databaseConfig.getString("db.schema")
+    val schemaName = slickDatabase.databaseConfig.getOrElse("db.cromwell-database-name", "cromwell_test")
     //noinspection SqlDialectInspection
     for {
       _ <- IO.fromFuture(IO(slickDatabase.database.run(sqlu"""DROP SCHEMA IF EXISTS #$schemaName""")))

@@ -13,16 +13,17 @@ import cromwell.core.Tags.PostWomTest
 import cromwell.core.TestKitSuite
 import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.logging.LoggingTest._
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 import wom.graph.CommandCallNode
 
 import scala.concurrent.duration._
 
-class TesInitializationActorSpec extends TestKitSuite("TesInitializationActorSpec")
-  with WordSpecLike with Matchers with ImplicitSender {
-  val Timeout = 10.second.dilated
+class TesInitializationActorSpec extends TestKitSuite
+  with AnyWordSpecLike with Matchers with ImplicitSender {
+  val Timeout: FiniteDuration = 10.second.dilated
 
-  val HelloWorld =
+  val HelloWorld: String =
     s"""
        |task hello {
        |  String addressee = "you"
@@ -59,6 +60,7 @@ class TesInitializationActorSpec extends TestKitSuite("TesInitializationActorSpe
       |    continueOnReturnCode: 0
       |    memory: "2 GB"
       |    disk: "2 GB"
+      |    preemptible: false
       |    # The keys below have been commented out as they are optional runtime attributes.
       |    # dockerWorkingDir
       |    # docker
@@ -74,7 +76,7 @@ class TesInitializationActorSpec extends TestKitSuite("TesInitializationActorSpe
   }
 
   val backendConfig: Config = ConfigFactory.parseString(backendConfigTemplate)
-  val conf = new BackendConfigurationDescriptor(backendConfig, globalConfig) {
+  val conf: BackendConfigurationDescriptor = new BackendConfigurationDescriptor(backendConfig, globalConfig) {
     override private[backend] lazy val cromwellFileSystems = new CromwellFileSystems(globalConfig)
   } 
 

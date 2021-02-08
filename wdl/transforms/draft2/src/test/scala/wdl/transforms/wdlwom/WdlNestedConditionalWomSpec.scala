@@ -1,18 +1,20 @@
 package wdl.transforms.wdlwom
 
 import cats.data.Validated.Invalid
-import cats.instances.list._
 import cats.syntax.functor._
+import cats.instances.list._
+import common.assertion.CromwellTimeoutSpec
 import common.validation.ErrorOr.ErrorOr
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
 import wdl.draft2.model.{WdlNamespace, WdlNamespaceWithWorkflow}
+import wdl.transforms.draft2.wdlom2wom._
+import wdl.transforms.wdlwom.WdlNestedConditionalWomSpec._
 import wom.graph.Graph
 import wom.transforms.WomWorkflowDefinitionMaker.ops._
-import wdl.transforms.wdlwom.WdlNestedConditionalWomSpec._
-import wdl.transforms.draft2.wdlom2wom._
 
-class WdlNestedConditionalWomSpec extends FlatSpec with Matchers {
+class WdlNestedConditionalWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "WDL to WOM conversion of nested scopes"
 

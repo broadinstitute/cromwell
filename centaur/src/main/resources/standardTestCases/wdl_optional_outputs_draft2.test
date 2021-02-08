@@ -1,0 +1,12 @@
+name: wdl_optional_outputs_draft2
+testFormat: workflowsuccess
+backends: [Papiv2]
+
+files {
+  workflow: wdl_optional_outputs_draft2/wdl_optional_outputs_draft2.wdl
+}
+
+metadata {
+  workflowName: wdl_optional_outputs
+  status: Succeeded
+}

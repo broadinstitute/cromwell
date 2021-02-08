@@ -1,8 +1,11 @@
 package cromwell.cloudsupport.gcp.auth
 
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class RefreshTokenModeSpec extends FlatSpec with Matchers {
+
+class RefreshTokenModeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "RefreshTokenMode"
 

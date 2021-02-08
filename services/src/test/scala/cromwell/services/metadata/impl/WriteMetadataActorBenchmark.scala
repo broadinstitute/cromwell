@@ -1,22 +1,24 @@
 package cromwell.services.metadata.impl
 
 import akka.testkit.{TestFSMRef, TestProbe}
+import com.dimafeng.testcontainers.Container
 import cromwell.core.Tags.IntegrationTest
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.database.slick.MetadataSlickDatabase
-import cromwell.services.MetadataServicesStore
-import cromwell.services.database.{DatabaseTestKit, EngineDatabaseType, MetadataDatabaseType, MysqlEarliestDatabaseSystem}
+import cromwell.services.database.{DatabaseTestKit, MetadataDatabaseType, MysqlEarliestDatabaseSystem}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import org.scalatest.concurrent.Eventually
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
-class WriteMetadataActorBenchmark extends TestKitSuite with FlatSpecLike with Eventually with Matchers {
+
+class WriteMetadataActorBenchmark extends TestKitSuite with AnyFlatSpecLike with Eventually with Matchers {
   override implicit val patienceConfig = PatienceConfig(scaled(30.seconds), 1.second)
 
   behavior of "WriteMetadataActor"
-  
+
   val workflowId = WorkflowId.randomId()
   val registry = TestProbe().ref
 
@@ -32,20 +34,20 @@ class WriteMetadataActorBenchmark extends TestKitSuite with FlatSpecLike with Ev
     x
   }
 
-  private lazy val dataAccess = new MetadataDatabaseAccess with MetadataServicesStore {
-    override val metadataDatabaseInterface: MetadataSlickDatabase = {
-      val databaseSystem = MysqlEarliestDatabaseSystem
-      // NOTE: EngineLiquibaseSettings **MUST** always run before the MetadataLiquibaseSettings
-      DatabaseTestKit.initializedDatabaseFromSystem(EngineDatabaseType, databaseSystem).close()
-      DatabaseTestKit.initializedDatabaseFromSystem(MetadataDatabaseType, databaseSystem)
-    }
+  private val databaseSystem = MysqlEarliestDatabaseSystem
+  private val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
+
+  private lazy val dataAccess = DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, MetadataDatabaseType, databaseSystem)
+
+  it should "start container if required" taggedAs IntegrationTest in {
+    containerOpt.foreach { _.start }
   }
 
   it should "provide good throughput" taggedAs IntegrationTest in {
     val writeActor = TestFSMRef(new WriteMetadataActor(1000, 5.seconds, registry, Int.MaxValue) {
-      override val metadataDatabaseInterface: MetadataSlickDatabase = dataAccess.metadataDatabaseInterface
+      override val metadataDatabaseInterface: MetadataSlickDatabase = dataAccess
     })
-    
+
     time("metadata write") {
       (0 to 1 * 1000 * 1000)
         .map(_ => makeEvent)
@@ -60,6 +62,10 @@ class WriteMetadataActorBenchmark extends TestKitSuite with FlatSpecLike with Ev
   }
 
   it should "close the database" taggedAs IntegrationTest in {
-    dataAccess.metadataDatabaseInterface.close()
+    dataAccess.close()
+  }
+
+  it should "stop container if required" taggedAs IntegrationTest in {
+    containerOpt.foreach { _.stop }
   }
 }

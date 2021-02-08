@@ -1,12 +1,13 @@
 package wom.types
 
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor2}
-import org.scalatest.{FlatSpecLike, Matchers}
 import wom.types.WomCompositeTypeSpecDefs._
 import wom.values._
 
 
-class WomCompositeTypeSpec() extends WomCoercionSpec(goodCoercionTable, badCoercionTable, behaviorOf) with FlatSpecLike with Matchers {
+class WomCompositeTypeSpec() extends WomCoercionSpec(goodCoercionTable, badCoercionTable, behaviorOf) with AnyFlatSpecLike with Matchers {
 
   "WomObject with composite type" should "fail to build invalid values" in {
     val wrongType = the[Exception] thrownBy {

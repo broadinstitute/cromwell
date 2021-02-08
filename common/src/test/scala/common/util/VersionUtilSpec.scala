@@ -1,8 +1,11 @@
 package common.util
 
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class VersionUtilSpec extends FlatSpec with Matchers {
+
+class VersionUtilSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "VersionUtil"
 

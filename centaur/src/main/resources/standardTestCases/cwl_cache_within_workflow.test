@@ -3,6 +3,7 @@ testFormat: workflowsuccess
 workflowRoot: cwl-cache-within-workflow
 workflowType: CWL
 workflowTypeVersion: v1.0
+skipDescribeEndpointValidation: true
 
 files {
   workflow: cwl_cache_within_workflow/cwl_cache_within_workflow.cwl

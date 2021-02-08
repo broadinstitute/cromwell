@@ -5,14 +5,28 @@ import cats.data.{NonEmptyList, Validated}
 import cats.syntax.apply._
 import cats.syntax.traverse._
 import cats.instances.list._
+import common.validation.Validation._
+
+import scala.util.Try
 
 object ErrorOr {
   type ErrorOr[+A] = Validated[NonEmptyList[String], A]
+
+  def apply[A](f: => A): ErrorOr[A] = {
+    Try(f).toErrorOr
+  }
 
   implicit class EnhancedErrorOr[A](val eoa: ErrorOr[A]) extends AnyVal {
     def contextualizeErrors(s: => String): ErrorOr[A] = eoa.leftMap { errors =>
       val total = errors.size
       errors.zipWithIndex map { case (e, i) => s"Failed to $s (reason ${i + 1} of $total): $e" }
+    }
+  }
+
+  implicit class NestedErrorOr[A](val eoeoa: ErrorOr[ErrorOr[A]]) extends AnyVal {
+    def flatten: ErrorOr[A] = eoeoa match {
+      case Valid(eoa) => eoa
+      case Invalid(nel) => Invalid(nel)
     }
   }
 
@@ -24,7 +38,7 @@ object ErrorOr {
       */
     def flatMap[B](f: A => ErrorOr[B]): ErrorOr[B] = {
       fa match {
-        case Valid(v) => f(v)
+        case Valid(v) => ErrorOr(f(v)).flatten
         case i @ Invalid(_) => i
       }
     }

@@ -1,12 +1,14 @@
 package wdl.draft3.transforms.ast2wdlom
 
+import cats.instances.either._
 import java.util
 
-import cats.instances.either._
 import common.Checked
+import common.assertion.CromwellTimeoutSpec
 import common.assertion.ErrorOrAssertions._
 import common.transforms.CheckedAtoB
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.draft3.parser.WdlParser
 import wdl.draft3.parser.WdlParser.{ParseTree, SyntaxErrorFormatter}
 import wdl.draft3.transforms.parsing.WdlDraft3SyntaxErrorFormatter
@@ -16,7 +18,7 @@ import wdl.transforms.base.ast2wdlom.GenericAstNode
 
 import scala.collection.JavaConverters._
 
-class Ast2WdlomSpec extends FlatSpec with Matchers {
+class Ast2WdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   val parser = new WdlParser()
 

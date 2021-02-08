@@ -1,0 +1,14 @@
+# NB: To request this test by name, make it lowercase, eg sbt "centaur/it:testOnly * -- -n ignore_noaddress"
+name: ignore_noAddress
+backends: [Papi,Papiv2]
+backendsMode: any
+testFormat: workflowsuccess
+
+files {
+  workflow: ignore_noAddress/ignore_noAddress.wdl
+}
+
+metadata {
+  workflowName: ignore_noAddress
+  status: Succeeded
+}

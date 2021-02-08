@@ -1,9 +1,11 @@
 package cromwell.backend.google.pipelines.common
 
 import cats.data.Validated.{Invalid, Valid}
-import org.scalatest.{FlatSpec, Matchers}
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class GoogleLabelsSpec extends FlatSpec with Matchers {
+class GoogleLabelsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "GoogleLabels"
 

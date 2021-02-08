@@ -1,12 +1,14 @@
 package wdl
 
+import common.assertion.CromwellTimeoutSpec
 import common.validation.Validation._
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import wdl.draft2.model.WdlNamespaceWithWorkflow
 import wdl.draft2.model.expression.NoFunctions
 import wom.values.WomString
 
-class AdvancedInterpolationSpec extends FlatSpec with Matchers {
+class AdvancedInterpolationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   val wdl =
     """
       |task test {

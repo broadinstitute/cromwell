@@ -14,7 +14,9 @@ import cromwell.api.model._
 import cromwell.api.{CromwellClient => CromwellApiClient}
 import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import org.broadinstitute.dsde.workbench.model.WorkbenchUserId
-import org.scalatest.{AsyncFlatSpec, BeforeAndAfterAll, Matchers}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AsyncFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json.{JsObject, JsString}
 
 import scala.concurrent.duration.FiniteDuration

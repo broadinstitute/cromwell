@@ -21,9 +21,6 @@ class PipelinesApiRequestWorker(val pollingManager: ActorRef, val batchInterval:
                                (implicit val batchHandler: PipelinesApiRequestHandler)
   extends Actor with ActorLogging with CromwellInstrumentationActor {
 
-  // The interval to delay between submitting each batch
-  log.info("PAPI request worker batch interval is {}", batchInterval)
-
   self ! NoWorkToDo // Starts the check-for-work cycle when the actor is fully initialized.
 
   implicit val ec: ExecutionContext = context.dispatcher

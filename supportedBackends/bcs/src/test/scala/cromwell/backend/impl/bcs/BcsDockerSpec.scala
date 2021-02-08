@@ -4,6 +4,7 @@ import org.scalatest.prop.Tables.Table
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.TryValues._
 
+
 class BcsDockerSpec extends BcsTestUtilSpec {
   behavior of s"BcsDocker"
 

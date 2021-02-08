@@ -1,5 +1,7 @@
 package cromwell.services.database
 
+import com.dimafeng.testcontainers.Container
+import common.assertion.CromwellTimeoutSpec
 import cromwell.core.Tags._
 import cromwell.database.slick.SlickDatabase
 import cromwell.services.database.LiquibaseComparisonSpec._
@@ -9,7 +11,8 @@ import liquibase.statement.DatabaseFunction
 import liquibase.structure.DatabaseObject
 import liquibase.structure.core._
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import slick.jdbc.GetResult
 
 import scala.collection.JavaConverters._
@@ -20,7 +23,7 @@ import scala.reflect._
 /**
   * Compares all of the various liquibase schemas against an in-memory HSQLDB-Slick schema.
   */
-class LiquibaseComparisonSpec extends FlatSpec with Matchers with ScalaFutures {
+class LiquibaseComparisonSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures {
 
   implicit val executionContext = ExecutionContext.global
 
@@ -38,7 +41,10 @@ class LiquibaseComparisonSpec extends FlatSpec with Matchers with ScalaFutures {
 
       behavior of s"Liquibase Comparison for ${databaseType.name} ${databaseSystem.name}"
 
-      lazy val liquibasedDatabase = DatabaseTestKit.initializedDatabaseFromSystem(databaseType, databaseSystem)
+      val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
+
+      lazy val liquibasedDatabase = DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, databaseType, databaseSystem)
+
       lazy val connectionMetadata = DatabaseTestKit.connectionMetadata(liquibasedDatabase)
 
       lazy val actualSnapshot = DatabaseTestKit.liquibaseSnapshot(liquibasedDatabase)
@@ -49,6 +55,10 @@ class LiquibaseComparisonSpec extends FlatSpec with Matchers with ScalaFutures {
       lazy val actualIndexes = get[Index](actualSnapshot)
 
       lazy val columnMapping = getColumnMapping(databaseSystem)
+
+      it should "start container if required" taggedAs DbmsTest in {
+        containerOpt.foreach { _.start }
+      }
 
       expectedColumns foreach { expectedColumn =>
         val description = s"column ${expectedColumn.getRelation.getName}.${expectedColumn.getName}"
@@ -206,6 +216,10 @@ class LiquibaseComparisonSpec extends FlatSpec with Matchers with ScalaFutures {
 
       it should "close the database" taggedAs DbmsTest in {
         liquibasedDatabase.close()
+      }
+
+      it should "stop container if required" taggedAs DbmsTest in {
+        containerOpt.foreach { _.stop }
       }
     }
   }

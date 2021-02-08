@@ -27,6 +27,8 @@ trait PipelinesApiAbortClient { this: Actor with ActorLogging with JobLogging wi
   }
 
   def abortActorClientReceive: Actor.Receive = {
+    /* When we deprecate PAPIv1: v2+ do not seem to distinguish between cancelled and finished, unify into "terminated" or similar [PROD-444] */
+
     case PAPIAbortRequestSuccessful(jobId) =>
       abortSuccess()
       jobLogger.info(s"Successfully requested cancellation of $jobId")

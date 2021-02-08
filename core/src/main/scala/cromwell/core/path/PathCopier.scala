@@ -40,10 +40,9 @@ object PathCopier {
     * Copies from source to destination. NOTE: Copies are not atomic, and may create a partial copy.
     */
   def copy(sourceFilePath: Path, destinationFilePath: Path): Try[Unit] = {
-    Option(destinationFilePath.parent).foreach(_.createPermissionedDirectories())
     Try {
+      Option(destinationFilePath.parent).foreach(_.createDirectories)
       sourceFilePath.copyTo(destinationFilePath, overwrite = true)
-
       ()
     } recoverWith {
       case ex => Failure(new IOException(s"Failed to copy $sourceFilePath to $destinationFilePath", ex))

@@ -68,11 +68,10 @@ cromwell::private::papi::gcr_image_push() {
     shift
     shift
 
+    cromwell::build::build_docker_image "${executable_name}" "${docker_image}"
     echo "${docker_image}" >> "${CROMWELL_BUILD_PAPI_GCR_IMAGES}"
-
-    sbt \
-        "set \`${executable_name}\`/docker/imageNames := List(ImageName(\"${docker_image}\"))" \
-        "${executable_name}/dockerBuildAndPush"
+    # Use cat to quiet docker: https://github.com/moby/moby/issues/36655#issuecomment-375136087
+    docker push "${docker_image}" | cat
 }
 
 cromwell::private::papi::gcr_image_delete() {
@@ -83,44 +82,45 @@ cromwell::private::papi::gcr_image_delete() {
 }
 
 cromwell::private::papi::setup_papi_gcr() {
-    if command -v docker; then
+    # Build a DOS/DRS localizer image from source, or for faster local debugging use an already provided image
+    if [[ -n "${CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS:+set}" ]]; then
+        # If CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS is already set then use that image
+        echo "Using CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS='${CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS}'"
+    elif command -v docker; then
         # Upload images built from this commit
         gcloud auth configure-docker --quiet
-        CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS="gcr.io/${CROMWELL_BUILD_PAPI_PROJECT_ID}/cromwell-drs-localizer:${CROMWELL_BUILD_CENTAUR_DOCKER_TAG}"
+        CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS="gcr.io/${CROMWELL_BUILD_PAPI_PROJECT_ID}/cromwell-drs-localizer:${CROMWELL_BUILD_DOCKER_TAG}"
         cromwell::private::papi::gcr_image_push cromwell-drs-localizer "${CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS}"
+        export CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
     else
-        # Just use the default images
-        CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS="broadinstitute/cromwell-drs-localizer:45-d46ff9f"
+        echo "Error: BA-6546 The environment variable CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS must be set/export pointing to a valid docker image" >&2
+        exit 1
     fi
-
-    export CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
 }
 
 cromwell::private::papi::setup_papi_service_account() {
-    GOOGLE_AUTH_MODE="service-account"
-
-    # See papi_application.inc.conf.ctmpl for more info.
-    # Delete GOOGLE_SERVICE_ACCOUNT_JSON from there if you delete this block!
-    if [[ "${CROMWELL_BUILD_TYPE}" == "centaurPapiV1" ]]; then
-        GOOGLE_SERVICE_ACCOUNT_JSON="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-service-account.json"
-    else
-        GOOGLE_SERVICE_ACCOUNT_JSON="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-centaur-service-account.json"
-    fi
-
-    export GOOGLE_AUTH_MODE
-    export GOOGLE_SERVICE_ACCOUNT_JSON
+    CROMWELL_BUILD_PAPI_AUTH_MODE="service-account"
+    export CROMWELL_BUILD_PAPI_AUTH_MODE
 }
 
-cromwell::private::papi::setup_papi_refresh_token() {
-    GOOGLE_REFRESH_TOKEN_PATH="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_refresh_token.txt"
-    export GOOGLE_REFRESH_TOKEN_PATH
+cromwell::private::papi::setup_papi_endpoint_url() {
+    if [[ "${CROMWELL_BUILD_TYPE}" == "centaurPapiV2" ]]; then
+        CROMWELL_BUILD_PAPI_ENDPOINT_URL="https://lifesciences.googleapis.com/"
+    else
+        CROMWELL_BUILD_PAPI_ENDPOINT_URL="https://genomics.googleapis.com/"
+    fi
+
+    export CROMWELL_BUILD_PAPI_ENDPOINT_URL
 }
 
 cromwell::build::papi::setup_papi_centaur_environment() {
     cromwell::private::papi::setup_papi_gcloud
-    cromwell::private::papi::setup_papi_gcr
+    if [[ "${CROMWELL_BUILD_PROVIDER}" != "${CROMWELL_BUILD_PROVIDER_JENKINS}" ]]
+    then
+        cromwell::private::papi::setup_papi_gcr
+    fi
     cromwell::private::papi::setup_papi_service_account
-    cromwell::private::papi::setup_papi_refresh_token
+    cromwell::private::papi::setup_papi_endpoint_url
 }
 
 cromwell::build::papi::setup_papi_conformance_environment() {

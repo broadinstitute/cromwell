@@ -37,7 +37,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         val commandLine = s"/bin/bash ${createPipelineParameters.commandScriptContainerPath.pathAsString}"
         
         val pipelineInfoBuilder = if (createPipelineParameters.preemptible) PreemptiblePipelineInfoBuilder else NonPreemptiblePipelineInfoBuilder
-        val pipelineInfo = pipelineInfoBuilder.build(commandLine, createPipelineParameters.runtimeAttributes, createPipelineParameters.dockerImage)
+        val pipelineInfo = pipelineInfoBuilder.build(commandLine, createPipelineParameters)
 
         val inputParameters: Map[String, PipelinesApiInput] = createPipelineParameters.inputParameters.map({ i => i.name -> i }).toMap
 
@@ -57,7 +57,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
 
         // disks cannot have mount points at runtime, so set them null
         val runtimePipelineResources = {
-          val resources = pipelineInfoBuilder.build(commandLine, createPipelineParameters.runtimeAttributes, createPipelineParameters.dockerImage).resources
+          val resources = pipelineInfoBuilder.build(commandLine, createPipelineParameters).resources
           val disksWithoutMountPoint = resources.getDisks.asScala map {
             _.setMountPoint(null)
           }

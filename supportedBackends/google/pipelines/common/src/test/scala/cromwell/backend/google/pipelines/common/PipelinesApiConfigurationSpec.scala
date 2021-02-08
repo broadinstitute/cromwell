@@ -1,14 +1,17 @@
 package cromwell.backend.google.pipelines.common
 
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.BackendConfigurationDescriptor
-import cromwell.core.path.DefaultPathBuilder
-import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
-import PipelinesApiTestConfig._
+import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig._
 import cromwell.cloudsupport.gcp.GoogleConfiguration
+import cromwell.core.path.DefaultPathBuilder
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.prop.TableDrivenPropertyChecks
 
-class PipelinesApiConfigurationSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks with BeforeAndAfterAll {
+class PipelinesApiConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks with BeforeAndAfterAll {
 
   behavior of "PipelinesApiConfigurationSpec"
 
@@ -124,6 +127,21 @@ class PipelinesApiConfigurationSpec extends FlatSpec with Matchers with TableDri
     val dockerConf = new PipelinesApiConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig), genomicsFactory, googleConfiguration, papiAttributes).dockerCredentials
     dockerConf shouldBe defined
     dockerConf.get.token shouldBe "dockerToken"
+  }
+
+  it should "correctly default allowNoAddress to true" in {
+    val noAddressConf = new PipelinesApiConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig), genomicsFactory, googleConfiguration, papiAttributes)
+    noAddressConf.papiAttributes.allowNoAddress should be(true)
+  }
+
+  it should "be able to set allowNoAddress to false" in {
+    val updatedBackendConfig = backendConfig.withValue(
+      PipelinesApiConfigurationAttributes.allowNoAddressAttributeKey,
+      ConfigValueFactory.fromAnyRef(false)
+    )
+    val updatedPapiAttributes = PipelinesApiConfigurationAttributes(googleConfiguration, updatedBackendConfig, "papi")
+    val noAddressConf = new PipelinesApiConfiguration(BackendConfigurationDescriptor(updatedBackendConfig, globalConfig), genomicsFactory, googleConfiguration, updatedPapiAttributes)
+    noAddressConf.papiAttributes.allowNoAddress should be(false)
   }
 
   it should "have correct needAuthFileUpload" in {

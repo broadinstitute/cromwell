@@ -1,7 +1,6 @@
 package cromwell.database.slick
-
-import cats.instances.future._
 import cats.syntax.functor._
+import cats.instances.future._
 import cromwell.database.sql.JobKeyValueSqlDatabase
 import cromwell.database.sql.tables.JobKeyValueEntry
 
@@ -26,7 +25,12 @@ trait JobKeyValueSlickDatabase extends JobKeyValueSqlDatabase {
     } else manualUpsertQuery(jobKeyValueEntry)
     runTransaction(action)
   }
-  
+
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  // !!!!!!! Be careful using this function with multiple        !!!!!!!!
+  // !!!!!!! updates running in a single transaction.            !!!!!!!!
+  // !!!!!!! https://broadworkbench.atlassian.net/browse/BA-6262 !!!!!!!!
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   private def manualUpsertQuery(jobKeyValueEntry: JobKeyValueEntry)
                        (implicit ec: ExecutionContext) = for {
     updateCount <- dataAccess.

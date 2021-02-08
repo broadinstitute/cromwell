@@ -160,7 +160,7 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
 
   private def metadataLookupForTimingRoute(workflowId: WorkflowId): Future[MetadataJsonResponse] = {
     val includeKeys = NonEmptyList.of("start", "end", "executionStatus", "executionEvents", "subWorkflowMetadata")
-    val readMetadataRequest = (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, Option(includeKeys), None, expandSubWorkflows = true)
+    val readMetadataRequest = (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, Option(includeKeys), None, expandSubWorkflows = true, metadataSourceOverride = None)
 
     serviceRegistryActor.ask(readMetadataRequest(workflowId)).mapTo[MetadataJsonResponse]
   }
@@ -288,10 +288,10 @@ object CromwellApiService {
                                   (implicit timeout: Timeout, executor: ExecutionContext): Future[WorkflowId] = {
     Try(WorkflowId.fromString(possibleWorkflowId)) match {
       case Success(w) =>
-        serviceRegistryActor.ask(ValidateWorkflowIdInMetadata(w)).mapTo[WorkflowValidationResponse] map {
-          case RecognizedWorkflowId => w
-          case UnrecognizedWorkflowId => throw UnrecognizedWorkflowException(w)
-          case FailedToCheckWorkflowId(t) => throw t
+        serviceRegistryActor.ask(ValidateWorkflowIdInMetadata(w)).mapTo[WorkflowValidationResponse] flatMap {
+          case RecognizedWorkflowId => Future.successful(w)
+          case UnrecognizedWorkflowId => validateWorkflowIdInMetadataSummaries(possibleWorkflowId, serviceRegistryActor)
+          case FailedToCheckWorkflowId(t) => Future.failed(t)
         }
       case Failure(_) => Future.failed(InvalidWorkflowException(possibleWorkflowId))
     }

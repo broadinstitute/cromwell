@@ -32,6 +32,7 @@ object GoogleUtil {
     def retryCredentials(options: WorkflowOptions, scopes: Iterable[String])
                         (implicit actorSystem: ActorSystem, executionContext: ExecutionContext): Future[Credentials] = {
       def credential(): Credentials = {
+
         try {
           googleAuthMode.credentials(options.get(_).get, scopes)
         } catch {

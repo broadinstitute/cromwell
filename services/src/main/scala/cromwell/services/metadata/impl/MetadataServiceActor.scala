@@ -49,16 +49,24 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
 
   private val metadataReadTimeout: Duration =
     serviceConfig.getOrElse[Duration]("metadata-read-query-timeout", Duration.Inf)
+  private val metadataReadRowNumberSafetyThreshold: Int =
+    serviceConfig.getOrElse[Int]("metadata-read-row-number-safety-threshold", 1000000)
 
-  def readMetadataWorkerActorProps(): Props = ReadDatabaseMetadataWorkerActor.props(metadataReadTimeout).withDispatcher(ServiceDispatcher)
-  def metadataBuilderActorProps(): Props = MetadataBuilderActor.props(readMetadataWorkerActorProps).withDispatcher(ServiceDispatcher)
+  def readMetadataWorkerActorProps(): Props =
+    ReadDatabaseMetadataWorkerActor
+      .props(metadataReadTimeout, metadataReadRowNumberSafetyThreshold)
+      .withDispatcher(ServiceDispatcher)
+
+  def metadataBuilderActorProps(): Props = MetadataBuilderActor
+    .props(readMetadataWorkerActorProps, metadataReadRowNumberSafetyThreshold)
+    .withDispatcher(ServiceDispatcher)
 
   val readActor = context.actorOf(ReadMetadataRegulatorActor.props(metadataBuilderActorProps, readMetadataWorkerActorProps), "ClassicMSA-ReadMetadataRegulatorActor")
 
   val dbFlushRate = serviceConfig.getOrElse("db-flush-rate", 5.seconds)
   val dbBatchSize = serviceConfig.getOrElse("db-batch-size", 200)
   val writeActor = context.actorOf(WriteMetadataActor.props(dbBatchSize, dbFlushRate, serviceRegistryActor, LoadConfig.MetadataWriteThreshold), "WriteMetadataActor")
-  val deleteActor = context.actorOf(DeleteMetadataActor.props(), "DeleteMetadataActor")
+
   implicit val ec = context.dispatcher
   //noinspection ActorMutableStateInspection
   private var summaryRefreshCancellable: Option[Cancellable] = None
@@ -120,7 +128,6 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
     case action: PutMetadataActionAndRespond => writeActor forward action
     // Assume that listen messages are directed to the write metadata actor
     case listen: Listen => writeActor forward listen
-    case action: DeleteMetadataAction => deleteActor forward action
     case v: ValidateWorkflowIdInMetadata => validateWorkflowIdInMetadata(v.possibleWorkflowId, sender())
     case v: ValidateWorkflowIdInMetadataSummaries => validateWorkflowIdInMetadataSummaries(v.possibleWorkflowId, sender())
     case action: BuildMetadataJsonAction => readActor forward action

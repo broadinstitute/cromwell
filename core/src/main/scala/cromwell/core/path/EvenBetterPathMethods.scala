@@ -1,8 +1,9 @@
 package cromwell.core.path
 
-import java.io.{BufferedInputStream, BufferedReader, IOException, InputStream, InputStreamReader}
+import java.io.{BufferedInputStream, BufferedReader, ByteArrayOutputStream, IOException, InputStream, InputStreamReader}
 import java.nio.file.{FileAlreadyExistsException, Files}
 import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
+import java.util.zip.GZIPOutputStream
 
 import better.files.File.OpenOptions
 import cromwell.util.TryWithResource.tryWithResource
@@ -96,9 +97,20 @@ trait EvenBetterPathMethods {
     newInputStream
   }
 
-  def writeContent(content: String)(openOptions: OpenOptions, codec: Codec)(implicit ec: ExecutionContext): this.type = {
+  protected def gzipByteArray(byteArray: Array[Byte]): Array[Byte] = {
+    val byteStream = new ByteArrayOutputStream
+    tryWithResource(() => new GZIPOutputStream(byteStream)) {
+      _.write(byteArray)
+    }
+    byteStream.toByteArray
+  }
+
+  def writeContent(content: String)(openOptions: OpenOptions, codec: Codec, compressPayload: Boolean)(implicit ec: ExecutionContext): this.type = {
     locally(ec)
-    write(content)(openOptions, Codec.UTF8)
+    val contentByteArray = content.getBytes(codec.charSet)
+    writeByteArray {
+      if (compressPayload) gzipByteArray(contentByteArray) else contentByteArray
+    }(openOptions)
   }
 
   private def fileIoErrorPf[A]: PartialFunction[Throwable, Try[A]] = {
@@ -127,14 +139,14 @@ trait EvenBetterPathMethods {
     * Returns an Array[Byte] from a Path. Limit the array size to "limit" byte if defined.
     * @throws IOException if failOnOverflow is true and the file is larger than limit
     */
-  def limitFileContent(limit: Option[Int], failOnOverflow: Boolean)(implicit ec: ExecutionContext) = withBufferedStream { bufferedStream =>
+  def limitFileContent(limit: Option[Int], failOnOverflow: Boolean)(implicit ec: ExecutionContext): Array[Byte] = withBufferedStream { bufferedStream =>
     val bytesIterator = Iterator.continually(bufferedStream.read).takeWhile(_ != -1).map(_.toByte)
     // Take 1 more than the limit so that we can look at the size and know if it's overflowing
     val bytesArray = limit.map(l => bytesIterator.take(l + 1)).getOrElse(bytesIterator).toArray
 
     limit match {
       case Some(l) if failOnOverflow && bytesArray.length > l =>
-        throw new IOException(s"File $this is larger than $l Bytes. Maximum read limits can be adjusted in the configuration under system.input-read-limits.")
+        throw new IOException(s"File $this is larger than requested maximum of $l Bytes.")
       case Some(l) => bytesArray.take(l)
       case _ => bytesArray
     }

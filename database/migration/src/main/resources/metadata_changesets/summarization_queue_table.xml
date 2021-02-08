@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet id="summary_queue_table" author="gsterin" dbms="hsqldb,mariadb,mysql,postgresql">
+        <createTable tableName="SUMMARY_QUEUE_ENTRY">
+            <column name="METADATA_JOURNAL_ID" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <modifySql dbms="mysql">
+            <append value=" ENGINE=INNODB"/>
+        </modifySql>
+    </changeSet>
+
+    <changeSet id="summary_queue_initialization" author="gsterin" dbms="hsqldb,mariadb,mysql">
+        <preConditions onFail="MARK_RAN">
+            <!-- if METADATA_ENTRY table not exists yet, then skip this changeset -->
+            <tableExists tableName="METADATA_ENTRY"/>
+        </preConditions>
+        <comment>
+            Populate SUMMARY_QUEUE_ENTRY with not-yet-summarized metadata entry ids
+        </comment>
+        <sql>
+            INSERT INTO SUMMARY_QUEUE_ENTRY(
+                METADATA_JOURNAL_ID
+            )
+            SELECT
+                METADATA_JOURNAL_ID
+            FROM
+                METADATA_ENTRY
+            WHERE
+                METADATA_JOURNAL_ID >= (SELECT SUMMARY_POSITION FROM SUMMARY_STATUS_ENTRY WHERE upper(SUMMARY_NAME) = 'WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING')
+        </sql>
+    </changeSet>
+
+    <changeSet id="summary_queue_initialization_postgresql" author="gsterin" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <!-- if METADATA_ENTRY table not exists yet, then skip this changeset -->
+            <tableExists tableName="METADATA_ENTRY"/>
+        </preConditions>
+        <comment>
+            Populate SUMMARY_QUEUE_ENTRY with not-yet-summarized metadata entry ids
+        </comment>
+        <sql>
+            INSERT INTO "SUMMARY_QUEUE_ENTRY" (
+                "METADATA_JOURNAL_ID"
+            )
+            SELECT
+                "METADATA_JOURNAL_ID"
+            FROM
+                "METADATA_ENTRY"
+            WHERE
+                "METADATA_JOURNAL_ID" >= (SELECT "SUMMARY_POSITION" FROM "SUMMARY_STATUS_ENTRY" WHERE upper("SUMMARY_NAME") = 'WORKFLOW_METADATA_SUMMARY_ENTRY_INCREASING')
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

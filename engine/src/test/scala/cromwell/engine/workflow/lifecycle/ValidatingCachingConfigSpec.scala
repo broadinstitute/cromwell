@@ -1,12 +1,14 @@
 package cromwell.engine.workflow.lifecycle
 
 import com.typesafe.config.ConfigFactory
+import common.assertion.CromwellTimeoutSpec
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{FlatSpec, Matchers}
+
 import scala.util.{Failure, Success, Try}
 
-
-class ValidatingCachingConfigSpec extends FlatSpec with Matchers with TableDrivenPropertyChecks {
+class ValidatingCachingConfigSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks {
 
     it should "run config tests" in {
       val cases = Table(
@@ -15,7 +17,7 @@ class ValidatingCachingConfigSpec extends FlatSpec with Matchers with TableDrive
         ("enabled = true"         , true                                                                            ),
         ("enabled = false"        , false                                                                           ),
         ("enabled = 1"            , "String: 1: enabled has type NUMBER rather than BOOLEAN"                        ),
-        (""                       , "No configuration setting found for key 'enabled'"                              )
+        (""                       , "String: 1: No configuration setting found for key 'enabled'"                   )
       )
 
       forEvery(cases) { (config, expected) =>

@@ -8,11 +8,11 @@ import cromwell.backend.standard.callcaching._
 import cromwell.core.callcaching._
 import cromwell.core.{CallOutputs, HogGroup, WorkflowId, WorkflowOptions}
 import cromwell.engine.EngineWorkflowDescriptor
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCachingEntryId
 import cromwell.engine.workflow.lifecycle.execution.ejea.EngineJobExecutionActorSpec._
 import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor
-import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor.{EJEAData, EngineJobExecutionActorState, ResponsePendingData}
+import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor.{CallCachingParameters, EJEAData, EngineJobExecutionActorState, ResponsePendingData}
 import cromwell.engine.workflow.mocks.{DeclarationMock, TaskMock, WdlWomExpressionMock}
+import cromwell.services.CallCaching.CallCachingEntryId
 import cromwell.util.AkkaTestUtil._
 import cromwell.util.WomMocks
 import org.specs2.mock.Mockito
@@ -72,11 +72,11 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
   val jobTokenDispenserProbe = TestProbe()
   val ejhaProbe = TestProbe()
 
-  def buildFactory() = new BackendLifecycleActorFactory {
+  def buildFactory(backendConfigurationDescriptor: BackendConfigurationDescriptor): BackendLifecycleActorFactory = new BackendLifecycleActorFactory {
 
     override val name = "PerTestHelper"
 
-    override val configurationDescriptor = TestConfig.emptyBackendConfigDescriptor
+    override val configurationDescriptor: BackendConfigurationDescriptor = backendConfigurationDescriptor
 
     override def jobExecutionActorProps(jobDescriptor: BackendJobDescriptor,
                                         initializationData: Option[BackendInitializationData],
@@ -123,11 +123,22 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
   }
 
   def buildEJEA(restarting: Boolean = true,
-                callCachingMode: CallCachingMode = CallCachingOff)
+                callCachingMode: CallCachingMode = CallCachingOff,
+                callCachingMaxFailedCopyAttempts: Int = 1000000,
+                backendConfigurationDescriptor: BackendConfigurationDescriptor = TestConfig.emptyBackendConfigDescriptor)
                (implicit startingState: EngineJobExecutionActorState): TestFSMRef[EngineJobExecutionActorState, EJEAData, MockEjea] = {
 
-    val factory: BackendLifecycleActorFactory = buildFactory()
+    val factory: BackendLifecycleActorFactory = buildFactory(backendConfigurationDescriptor)
     val descriptor = EngineWorkflowDescriptor(WomMocks.mockWorkflowDefinition(workflowName), backendWorkflowDescriptor, null, null, null, callCachingMode)
+
+    val callCachingParameters = CallCachingParameters(
+      mode = callCachingMode,
+      readActor = callCacheReadActorProbe.ref,
+      writeActor = callCacheWriteActorProbe.ref,
+      fileHashCacheActor = Option(dockerHashActorProbe.ref),
+      maxFailedCopyAttempts = callCachingMaxFailedCopyAttempts,
+      blacklistCache = None
+    )
 
     val myBrandNewEjea = new TestFSMRef[EngineJobExecutionActorState, EJEAData, MockEjea](system, Props(new MockEjea(
       helper = this,
@@ -141,11 +152,9 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
       serviceRegistryActor = serviceRegistryProbe.ref,
       ioActor = ioActorProbe.ref,
       jobStoreActor = jobStoreProbe.ref,
-      callCacheReadActor = callCacheReadActorProbe.ref,
-      callCacheWriteActor = callCacheWriteActorProbe.ref,
       dockerHashActor = dockerHashActorProbe.ref,
       jobTokenDispenserActor = jobTokenDispenserProbe.ref,
-      callCachingMode = callCachingMode
+      callCachingParameters = callCachingParameters
     )), parentProbe.ref, s"EngineJobExecutionActorSpec-$workflowId")
 
     deathwatch watch myBrandNewEjea
@@ -164,16 +173,23 @@ private[ejea] class MockEjea(helper: PerTestHelper,
                              serviceRegistryActor: ActorRef,
                              ioActor: ActorRef,
                              jobStoreActor: ActorRef,
-                             callCacheReadActor: ActorRef,
-                             callCacheWriteActor: ActorRef,
                              dockerHashActor: ActorRef,
                              jobTokenDispenserActor: ActorRef,
-                             callCachingMode: CallCachingMode) extends EngineJobExecutionActor(replyTo, jobDescriptorKey, workflowDescriptor, factory,
-  initializationData, restarting, serviceRegistryActor, ioActor,
-  jobStoreActor, callCacheReadActor, callCacheWriteActor,
-  dockerHashActor, jobTokenDispenserActor, None, callCachingMode,
-  if (restarting) RecoverJobCommand else ExecuteJobCommand, fileHashCachingActor = None, blacklistCache = None
-) {
+                             callCachingParameters: EngineJobExecutionActor.CallCachingParameters) extends EngineJobExecutionActor(
+  replyTo = replyTo,
+  jobDescriptorKey = jobDescriptorKey,
+  workflowDescriptor = workflowDescriptor,
+  backendLifecycleActorFactory = factory,
+  initializationData = initializationData,
+  restarting = restarting,
+  serviceRegistryActor = serviceRegistryActor,
+  ioActor = ioActor,
+  jobStoreActor = jobStoreActor,
+  workflowDockerLookupActor = dockerHashActor,
+  jobTokenDispenserActor = jobTokenDispenserActor,
+  backendSingletonActor = None,
+  command = if (restarting) RecoverJobCommand else ExecuteJobCommand,
+  callCachingParameters = callCachingParameters) {
 
   implicit val system = context.system
   override def makeFetchCachedResultsActor(cacheId: CallCachingEntryId) = helper.fetchCachedResultsActorCreations = helper.fetchCachedResultsActorCreations.foundOne((cacheId, null))

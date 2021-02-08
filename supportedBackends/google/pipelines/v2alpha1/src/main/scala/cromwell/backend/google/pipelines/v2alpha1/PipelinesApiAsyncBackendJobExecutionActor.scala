@@ -1,9 +1,7 @@
 package cromwell.backend.google.pipelines.v2alpha1
 
 import cats.data.NonEmptyList
-import cats.instances.list._
-import cats.instances.map._
-import cats.syntax.foldable._
+import cats.implicits._
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import common.util.StringUtil._
 import cromwell.backend.BackendJobDescriptor
@@ -24,8 +22,11 @@ import wom.values.{GlobFunctions, WomFile, WomGlobFile, WomMaybeListedDirectory,
 import scala.concurrent.Future
 import scala.io.Source
 import scala.language.postfixOps
+import scala.util.control.NoStackTrace
 
-class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExecutionActorParams) extends cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor(standardParams) {
+class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExecutionActorParams)
+  extends cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor(standardParams)
+    with PipelinesApiReferenceFilesMappingOperations {
 
   // The original implementation assumes the WomFiles are all WomMaybePopulatedFiles and wraps everything in a PipelinesApiFileInput
   // In v2 we can differentiate files from directories 
@@ -162,14 +163,71 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
       """.stripMargin
   }
 
-  private def generateGcsLocalizationScript(inputs: List[PipelinesApiInput])(implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
-    val bundleFunction = (gcsLocalizationTransferBundle(gcsTransferConfiguration) _).tupled
-    generateGcsTransferScript(inputs, bundleFunction)
+  private def bracketTransfersWithMessages(activity: String)(transferBody: String): String = {
+    List(
+      s"timestamped_message '$activity script execution started...'",
+      transferBody,
+      s"timestamped_message '$activity script execution complete.'"
+    ) mkString "\n"
+  }
+
+  import mouse.all._
+
+  private def generateGcsLocalizationScript(inputs: List[PipelinesApiInput],
+                                            referenceInputsToMountedPathsOpt: Option[Map[PipelinesApiInput, String]])
+                                           (implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
+    // Generate a mapping of reference inputs to their mounted paths and a section of the localization script to
+    // "faux localize" these reference inputs with symlinks to their locations on mounted reference disks.
+    val referenceFilesLocalizationScript = {
+      val symlinkCreationCommandsOpt = referenceInputsToMountedPathsOpt map { referenceInputsToMountedPaths =>
+        referenceInputsToMountedPaths map {
+          case (input, absolutePathOnRefDisk) =>
+            s"mkdir -p ${input.containerPath.parent.pathAsString} && ln -s $absolutePathOnRefDisk ${input.containerPath.pathAsString}"
+        }
+      }
+
+      if (symlinkCreationCommandsOpt.exists(_.nonEmpty)) {
+        s"""
+           |# Faux-localizing reference files (if any) by creating symbolic links to the files located on the mounted reference disk
+           |${symlinkCreationCommandsOpt.get.mkString("\n")}
+           |""".stripMargin
+      } else {
+        "\n# No reference disks mounted / no symbolic links created since no matching reference files found in the inputs to this call.\n"
+      }
+    }
+
+    val maybeReferenceFilesLocalizationScript =
+      if (useReferenceDisks) {
+        referenceFilesLocalizationScript
+      } else {
+        "\n# No reference disks mounted since not requested in workflow options.\n"
+      }
+
+    val regularFilesLocalizationScript = {
+      val regularFiles = referenceInputsToMountedPathsOpt.map(maybeReferenceInputsToMountedPaths =>
+        inputs diff maybeReferenceInputsToMountedPaths.keySet.toList
+      ).getOrElse(inputs)
+      if (regularFiles.nonEmpty) {
+        val bundleFunction = (gcsLocalizationTransferBundle(gcsTransferConfiguration) _).tupled
+        generateGcsTransferScript(regularFiles, bundleFunction)
+      } else {
+        ""
+      }
+    }
+
+    val combinedLocalizationScript =
+      s"""
+         |$maybeReferenceFilesLocalizationScript
+         |
+         |$regularFilesLocalizationScript
+         |""".stripMargin
+
+    combinedLocalizationScript |> bracketTransfersWithMessages("Localization")
   }
 
   private def generateGcsDelocalizationScript(outputs: List[PipelinesApiOutput])(implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
     val bundleFunction = (gcsDelocalizationTransferBundle(gcsTransferConfiguration) _).tupled
-    generateGcsTransferScript(outputs, bundleFunction)
+    generateGcsTransferScript(outputs, bundleFunction) |> bracketTransfersWithMessages("Delocalization")
   }
 
   private def generateGcsTransferScript[T <: PipelinesParameter](items: List[T], bundleFunction: ((String, NonEmptyList[T])) => String): String = {
@@ -187,8 +245,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   override def uploadGcsLocalizationScript(createPipelineParameters: CreatePipelineParameters,
                                            cloudPath: Path,
                                            transferLibraryContainerPath: Path,
-                                           gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = {
-    val content = generateGcsLocalizationScript(createPipelineParameters.inputOutputParameters.fileInputParameters)(gcsTransferConfiguration)
+                                           gcsTransferConfiguration: GcsTransferConfiguration,
+                                           referenceInputsToMountedPathsOpt: Option[Map[PipelinesApiInput, String]]): Future[Unit] = {
+    val content = generateGcsLocalizationScript(createPipelineParameters.inputOutputParameters.fileInputParameters, referenceInputsToMountedPathsOpt)(gcsTransferConfiguration)
     asyncIo.writeAsync(cloudPath, s"source '$transferLibraryContainerPath'\n\n" + content, Seq(CloudStorageOptions.withMimeType("text/plain")))
   }
 
@@ -286,7 +345,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
     case _ => List.empty
   }
 
-  override def generateSingleFileOutputs(womFile: WomSingleFile, fileEvaluation: FileEvaluation) = {
+  override def generateSingleFileOutputs(womFile: WomSingleFile, fileEvaluation: FileEvaluation): List[PipelinesApiFileOutput] = {
     val (relpath, disk) = relativePathAndAttachedDisk(womFile.value, runtimeAttributes.disks)
     // If the file is on a custom mount point, resolve it so that the full mount path will show up in the cloud path
     // For the default one (cromwell_root), the expectation is that it does not appear
@@ -300,15 +359,31 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
 }
 
 object PipelinesApiAsyncBackendJobExecutionActor {
-  private val gcsPathMatcher = "^gs://?([^/]+)/.*".r
+  // GCS path regexes comments:
+  // - The (?s) option at the start makes '.' expression to match any symbol, including '\n'
+  // - All valid GCS paths start with gs://
+  // - Bucket names:
+  //  - The bucket name is matched inside a set of '()'s so it can be used later.
+  //  - The bucket name must start with a letter or number (https://cloud.google.com/storage/docs/naming)
+  //  - Then, anything that is not a '/' is part of the bucket name
+  // - Allow zero or more subdirectories, with (/[^/]+)*
+  // - Then, for files:
+  //  - There must be at least one '/', followed by some content in the file name.
+  // - Or, then, for directories:
+  //  - If we got this far, we already have a valid directory path. Allow it to optionally end with a `/` character.
+  private val gcsFilePathMatcher =      "(?s)^gs://([a-zA-Z0-9][^/]+)(/[^/]+)*/[^/]+$".r
+  private val gcsDirectoryPathMatcher = "(?s)^gs://([a-zA-Z0-9][^/]+)(/[^/]+)*/?$".r
 
   private [v2alpha1] def groupParametersByGcsBucket[T <: PipelinesParameter](parameters: List[T]): Map[String, NonEmptyList[T]] = {
     parameters.map { param =>
-      param.cloudPath.toString match {
-        case gcsPathMatcher(bucket) =>
-          Map(bucket -> NonEmptyList.of(param))
+      def pathTypeString = if (param.isFileParameter) "File" else "Directory"
+      val regexToUse = if (param.isFileParameter) gcsFilePathMatcher else gcsDirectoryPathMatcher
+
+      param.cloudPath.pathAsString match {
+        case regexToUse(bucket) => Map(bucket -> NonEmptyList.of(param))
+        case regexToUse(bucket, _) => Map(bucket -> NonEmptyList.of(param))
         case other =>
-          throw new RuntimeException(s"Programmer error: Path '$other' did not match the expected regex. This should have been impossible")
+          throw new Exception(s"$pathTypeString path '$other' did not match the expected regex: ${regexToUse.pattern.toString}") with NoStackTrace
       }
     } combineAll
   }

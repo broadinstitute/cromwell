@@ -1,0 +1,8 @@
+name: monitoring_script_localization_failure
+testFormat: workflowfailure
+backends: [Papiv2]
+
+files {
+  workflow: monitoring_script_localization_failure/monitoring_script_localization_failure.wdl
+  options: monitoring_script_localization_failure/monitoring_script_localization_failure.options
+}

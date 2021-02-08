@@ -6,9 +6,9 @@ import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{WorkflowAborted, WorkflowFailed, WorkflowId, WorkflowSucceeded}
 import cromwell.services.instrumentation.CromwellInstrumentation
-import cromwell.services.metadata.MetadataArchiveStatus.{ArchiveFailed, Archived, Unarchived}
+import cromwell.services.metadata.MetadataArchiveStatus.{ArchiveFailed, Archived, TooLargeToArchive, Unarchived}
 import cromwell.services.metadata.MetadataService
-import cromwell.services.metadata.MetadataService.{DeleteMetadataAction, DeleteMetadataFailedResponse, DeleteMetadataSuccessfulResponse, QueryForWorkflowsMatchingParameters, WorkflowQueryFailure, WorkflowQuerySuccess}
+import cromwell.services.metadata.MetadataService.{QueryForWorkflowsMatchingParameters, WorkflowQueryFailure, WorkflowQuerySuccess}
 import cromwell.services.metadata.WorkflowQueryKey._
 import cromwell.services.metadata.hybridcarbonite.CarboniteWorkerActor._
 import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActor.FreezeMetadata
@@ -20,20 +20,23 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
+class CarboniteWorkerActor(freezingConfig: ActiveMetadataFreezingConfig,
+                           carboniterConfig: HybridCarboniteConfig,
                            override val serviceRegistryActor: ActorRef,
                            ioActor: ActorRef) extends Actor with ActorLogging with GracefulShutdownHelper with CromwellInstrumentation {
 
   implicit val ec: ExecutionContext = context.dispatcher
 
-  val carboniteFreezerActor = context.actorOf(CarbonitingMetadataFreezerActor.props(carboniterConfig, self, serviceRegistryActor, ioActor))
+  val carboniteFreezerActor = context.actorOf(CarbonitingMetadataFreezerActor.props(freezingConfig, carboniterConfig, self, serviceRegistryActor, ioActor))
 
-  val backOff = SimpleExponentialBackoff(
-    initialInterval = 5.seconds,
-    maxInterval = 5.minutes,
-    multiplier = 1.1,
-    randomizationFactor = 0.0
-  )
+  val backOff = {
+    SimpleExponentialBackoff(
+      initialInterval = freezingConfig.initialInterval,
+      maxInterval = freezingConfig.maxInterval,
+      multiplier = freezingConfig.multiplier,
+      randomizationFactor = 0.0
+    )
+  }
 
   scheduleNextCarbonitingQuery()
 
@@ -64,37 +67,20 @@ class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
       recordTimeSinceStartAsMetric(CarboniteFreezingTimeMetricPath, carboniteFreezeStartTime)
       carboniteFreezeStartTime = None
 
-      log.info(s"Carboniting complete for workflow ${c.workflowId}")
+      if (freezingConfig.debugLogging) { log.info(s"Carboniting complete for workflow ${c.workflowId}") }
 
       c.result match {
-        case Archived =>
-          increment(CarboniteSuccessesMetricPath, InstrumentationPrefix)
-
-          log.info(s"Starting deleting metadata from database for carbonited workflow: ${c.workflowId}")
-          serviceRegistryActor ! DeleteMetadataAction(c.workflowId, self)
-        case ArchiveFailed =>
-          increment(CarboniteFailuresMetricPath, InstrumentationPrefix)
+        case Archived => increment(CarboniteSuccessesMetricPath, InstrumentationPrefix)
+        case ArchiveFailed | TooLargeToArchive => increment(CarboniteFailuresMetricPath, InstrumentationPrefix)
         case _ =>
           log.error(s"Programmer Error! The CarboniteWorkerActor cannot convert this into a completion metric: $c")
       }
 
-      if (c.result != Archived) {
-        resetBackoffAndFindNextWorkflowForCarboniting()
-      }
-    case DeleteMetadataSuccessfulResponse(workflowId) =>
-      log.info(s"Completed deleting metadata from database for carbonited workflow: $workflowId")
-      resetBackoffAndFindNextWorkflowForCarboniting()
-    case DeleteMetadataFailedResponse(workflowId, reason) =>
-      log.error(reason, s"All attempts to delete metadata from database for carbonited workflow $workflowId failed.")
-      resetBackoffAndFindNextWorkflowForCarboniting()
+      // Immediately reset the timer and check for the next workflow to carbonite:
+      backOff.googleBackoff.reset()
+      findWorkflowToCarbonite()
     case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(carboniteFreezerActor))
     case other => log.error(s"Programmer Error! The CarboniteWorkerActor received unexpected message! ($sender sent $other})")
-  }
-
-  private def resetBackoffAndFindNextWorkflowForCarboniting() = {
-    // Immediately reset the timer and check for the next workflow to carbonite:
-    backOff.googleBackoff.reset()
-    findWorkflowToCarbonite()
   }
 
   def scheduleNextCarbonitingQuery(resetBackoff: Boolean = false): Unit = {
@@ -107,7 +93,7 @@ class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
 
   def findWorkflowToCarbonite(): Unit = {
     workflowQueryStartTime = Option(System.currentTimeMillis())
-    serviceRegistryActor ! QueryForWorkflowsMatchingParameters(CarboniteWorkerActor.findWorkflowToCarboniteQueryParameters)
+    serviceRegistryActor ! QueryForWorkflowsMatchingParameters(CarboniteWorkerActor.buildQueryParametersForWorkflowToCarboniteQuery(freezingConfig.minimumSummaryEntryId))
   }
 
 
@@ -116,7 +102,7 @@ class CarboniteWorkerActor(carboniterConfig: HybridCarboniteConfig,
 
     Try(WorkflowId.fromString(workflowId)) match {
       case Success(id: WorkflowId) =>
-        log.info(s"Starting carboniting of workflow: $workflowId")
+        if (freezingConfig.debugLogging) { log.info(s"Starting carboniting of workflow: $workflowId") }
         carboniteFreezerActor ! FreezeMetadata(id)
       case Failure(e) =>
         log.error(e, s"Cannot carbonite workflow $workflowId. Error while converting it to WorkflowId, will retry.")
@@ -138,8 +124,7 @@ object CarboniteWorkerActor {
   sealed trait CarboniteWorkerMessage
   case class CarboniteWorkflowComplete(workflowId: WorkflowId, result: cromwell.services.metadata.MetadataArchiveStatus) extends CarboniteWorkerMessage
 
-
-  val findWorkflowToCarboniteQueryParameters: Seq[(String, String)] = Seq(
+  def buildQueryParametersForWorkflowToCarboniteQuery(minimumSummaryEntryId: Option[Long]): Seq[(String, String)] = Seq(
     IncludeSubworkflows.name -> "false",
     Status.name -> WorkflowSucceeded.toString,
     Status.name -> WorkflowFailed.toString,
@@ -147,11 +132,10 @@ object CarboniteWorkerActor {
     MetadataArchiveStatus.name -> Unarchived.toString,
     Page.name -> "1",
     PageSize.name -> "1"
-  )
+  ) ++ minimumSummaryEntryId.map(id => MinimumSummaryEntryId.name -> s"$id")
 
-
-  def props(carboniterConfig: HybridCarboniteConfig, serviceRegistryActor: ActorRef, ioActor: ActorRef) =
-    Props(new CarboniteWorkerActor(carboniterConfig, serviceRegistryActor, ioActor))
+  def props(freezingConfig: ActiveMetadataFreezingConfig, carboniterConfig: HybridCarboniteConfig, serviceRegistryActor: ActorRef, ioActor: ActorRef) =
+    Props(new CarboniteWorkerActor(freezingConfig, carboniterConfig, serviceRegistryActor, ioActor))
 
   val InstrumentationPrefix: Option[String] = InstrumentationPrefixes.ServicesPrefix
   private val carboniteMetricsBasePath: NonEmptyList[String] = MetadataServiceActor.MetadataInstrumentationPrefix :+ "carbonite"

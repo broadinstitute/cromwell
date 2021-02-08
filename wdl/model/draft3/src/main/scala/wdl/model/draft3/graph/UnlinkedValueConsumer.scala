@@ -6,8 +6,6 @@ import wdl.model.draft3.elements.ExpressionElement
 import wom.callable.Callable
 import wom.types.WomType
 
-import scala.language.implicitConversions
-
 @typeclass
 trait GraphElementValueConsumer[A] {
   def graphElementConsumedValueHooks(a: A,

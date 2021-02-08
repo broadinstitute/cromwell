@@ -6,6 +6,7 @@ backendsMode: "only"
 workflowRoot: cwl_input_json
 backends: [Local, LocalNoDocker]
 tags: [localdockertest]
+skipDescribeEndpointValidation: true
 
 files {
   workflow: cwl_input_json/cwl_input_json.yaml

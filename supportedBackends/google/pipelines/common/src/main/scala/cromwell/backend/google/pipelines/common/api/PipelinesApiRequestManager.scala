@@ -73,7 +73,6 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
 
   private[api] lazy val nbWorkers = requestWorkers.value
 
-  //
   private lazy val workerBatchInterval = determineBatchInterval(qps) * nbWorkers.toLong
 
 
@@ -87,7 +86,8 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
   private def papiRequestWorkerProps = PipelinesApiRequestWorker.props(self, workerBatchInterval, serviceRegistryActor).withMailbox(Mailbox.PriorityMailbox)
 
   // statusPollers is protected for the unit tests, not intended to be generally overridden
-  protected[api] var statusPollers: Vector[ActorRef] = resetAllWorkers()
+  protected[api] var statusPollers: Vector[ActorRef] = Vector.empty
+  self ! ResetAllRequestWorkers
 
   override def preStart() = {
     log.info("Running with {} PAPI request workers", requestWorkers.value)
@@ -102,6 +102,7 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
   }
 
   val requestManagerReceive: Receive = {
+    case ResetAllRequestWorkers => resetAllWorkers()
     case BackendSingletonActorAbortWorkflow(id) => abort(id)
     case status: PAPIStatusPollRequest => workQueue :+= status
     case create: PAPIRunCreationRequest =>
@@ -250,9 +251,10 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
     log.info("PAPI request worker {} has been removed and replaced by {} in the pool of {} workers", worker.path.name, newWorker.path.name, statusPollers.size)
   }
 
-  private[api] def resetAllWorkers(): Vector[ActorRef] = {
-    val pollers = Vector.fill(nbWorkers) { makeAndWatchWorkerActor() }
-    pollers
+  private[api] def resetAllWorkers() = {
+    log.info("'resetAllWorkers()' called to fill vector with {} new workers", nbWorkers)
+    val result = Vector.fill(nbWorkers) { makeAndWatchWorkerActor() }
+    statusPollers = result
   }
 
   private[api] def makeAndWatchWorkerActor(): ActorRef = {
@@ -263,11 +265,14 @@ class PipelinesApiRequestManager(val qps: Int Refined Positive, requestWorkers: 
 
   // Separate method to allow overriding in tests:
   private[api] def makeWorkerActor(): ActorRef = {
-    context.actorOf(papiRequestWorkerProps, s"PAPIQueryWorker-${UUID.randomUUID()}")
+    val result = context.actorOf(papiRequestWorkerProps, s"PAPIQueryWorker-${UUID.randomUUID()}")
+    log.info(s"Request manager ${self.path.name} created new PAPI request worker ${result.path.name} with batch interval of ${workerBatchInterval}")
+    result
   }
 }
 
 object PipelinesApiRequestManager {
+  case object ResetAllRequestWorkers
   case object QueueMonitoringTimerKey
   case object QueueMonitoringTimerAction extends ControlMessage
   def props(qps: Int Refined Positive, requestWorkers: Int Refined Positive, serviceRegistryActor: ActorRef)

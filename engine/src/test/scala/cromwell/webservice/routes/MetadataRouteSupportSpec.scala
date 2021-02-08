@@ -9,7 +9,8 @@ import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import cromwell.core.WorkflowMetadataKeys
 import cromwell.webservice.routes.CromwellApiServiceSpec.MockServiceRegistryActor
 import cromwell.webservice.routes.MetadataRouteSupportSpec.MockMetadataRouteSupport
-import org.scalatest.{AsyncFlatSpec, Matchers}
+import org.scalatest.flatspec.AsyncFlatSpec
+import org.scalatest.matchers.should.Matchers
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 
@@ -138,6 +139,20 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
   behavior of "REST API /metadata endpoint"
   it should "return with full metadata from the metadata route" in {
     Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/metadata") ~>
+      akkaHttpService.metadataRoutes ~>
+      check {
+        status should be(StatusCodes.OK)
+        val result = responseAs[JsObject]
+        result.fields.keys should contain allOf("testKey1a", "testKey1b", "testKey2a")
+        result.fields.keys shouldNot contain("testKey3")
+        result.fields("testKey1a") should be(JsString("myValue1a"))
+        result.fields("testKey1b") should be(JsString("myValue1b"))
+        result.fields("testKey2a") should be(JsString("myValue2a"))
+      }
+  }
+
+  it should "return with full metadata from the metadata route for workflow id which exists only in summary table" in {
+    Get(s"/workflows/$version/${CromwellApiServiceSpec.WorkflowIdExistingOnlyInSummaryTable}/metadata") ~>
       akkaHttpService.metadataRoutes ~>
       check {
         status should be(StatusCodes.OK)

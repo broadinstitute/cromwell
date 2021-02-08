@@ -1,21 +1,25 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
+import com.dimafeng.testcontainers.Container
+import common.assertion.CromwellTimeoutSpec
 import cromwell.core.Tags.DbmsTest
 import cromwell.core.WorkflowId
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.CallCachingJoin
 import cromwell.database.sql.tables._
 import cromwell.services.database.{DatabaseSystem, DatabaseTestKit, EngineDatabaseType}
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.specs2.mock.Mockito
 
 import scala.concurrent.ExecutionContext
 
 class CallCachingSlickDatabaseSpec
-  extends FlatSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito with TableDrivenPropertyChecks {
+  extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito with TableDrivenPropertyChecks {
 
   implicit val ec = ExecutionContext.global
   implicit val defaultPatience = PatienceConfig(scaled(Span(5, Seconds)), scaled(Span(100, Millis)))
@@ -32,7 +36,13 @@ class CallCachingSlickDatabaseSpec
   DatabaseSystem.All foreach { databaseSystem =>
     behavior of s"CallCachingSlickDatabase on ${databaseSystem.name}"
 
-    lazy val dataAccess = DatabaseTestKit.initializedDatabaseFromSystem(EngineDatabaseType, databaseSystem)
+    val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
+
+    lazy val dataAccess = DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, EngineDatabaseType, databaseSystem)
+
+    it should "start container if required" taggedAs DbmsTest in {
+      containerOpt.foreach { _.start }
+    }
 
     forAll(allowResultReuseTests) { (description, prefixOption) =>
 
@@ -128,6 +138,10 @@ class CallCachingSlickDatabaseSpec
 
     it should "close the database" taggedAs DbmsTest in {
       dataAccess.close()
+    }
+
+    it should "stop container if required" taggedAs DbmsTest in {
+      containerOpt.foreach { _.stop }
     }
   }
 }

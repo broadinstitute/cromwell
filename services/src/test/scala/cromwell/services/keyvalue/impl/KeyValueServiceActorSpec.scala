@@ -1,15 +1,16 @@
 package cromwell.services.keyvalue.impl
 
+import akka.actor.ActorRef
 import akka.pattern._
 import akka.testkit.TestProbe
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.WorkflowId
 import cromwell.services.ServicesSpec
 import cromwell.services.keyvalue.KeyValueServiceActor._
 
-class KeyValueServiceActorSpec extends ServicesSpec("KeyValue") {
+class KeyValueServiceActorSpec extends ServicesSpec {
 
-  val cromwellConfig = ConfigFactory.parseString(
+  val cromwellConfig: Config = ConfigFactory.parseString(
     s"""services: {
         |  KeyValue: {
         |    class: "cromwell.services.keyvalue.KeyValueServiceActor"
@@ -21,16 +22,20 @@ class KeyValueServiceActorSpec extends ServicesSpec("KeyValue") {
      """.stripMargin
   )
 
-  val emptyConfig = ConfigFactory.empty()
-  val sqlKvServiceActor = system.actorOf(SqlKeyValueServiceActor.props(emptyConfig, emptyConfig, TestProbe().ref))
-  val wfID = WorkflowId.randomId()
+  val emptyConfig: Config = ConfigFactory.empty()
+  val sqlKvServiceActor: ActorRef =
+    system.actorOf(
+      props = SqlKeyValueServiceActor.props(emptyConfig, emptyConfig, TestProbe("serviceRegistryActor").ref),
+      name = "sqlKvServiceActor",
+    )
+  val wfID: WorkflowId = WorkflowId.randomId()
 
-  val jobKey1 = KvJobKey("some_FQN", Option(-1), 1)
-  val jobKey2 = KvJobKey("some_FQN", Option(-1), 2)
+  val jobKey1: KvJobKey = KvJobKey("some_FQN", Option(-1), 1)
+  val jobKey2: KvJobKey = KvJobKey("some_FQN", Option(-1), 2)
 
-  val kvPair1 = KvPair(ScopedKey(wfID, jobKey1, "k1"), "v1")
-  val kvPair2 = KvPair(ScopedKey(wfID, jobKey1, "k2"), "v2")
-  val kvPair3 = KvPair(ScopedKey(wfID, jobKey2, "k1"), "v1")
+  val kvPair1: KvPair = KvPair(ScopedKey(wfID, jobKey1, "k1"), "v1")
+  val kvPair2: KvPair = KvPair(ScopedKey(wfID, jobKey1, "k2"), "v2")
+  val kvPair3: KvPair = KvPair(ScopedKey(wfID, jobKey2, "k1"), "v1")
 
   "KeyValueServiceActor" should {
     "insert a key/value" in {

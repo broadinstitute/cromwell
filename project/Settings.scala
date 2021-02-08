@@ -9,7 +9,7 @@ import sbt.Keys._
 import sbt._
 import sbtassembly.AssemblyPlugin
 import sbtassembly.AssemblyPlugin.autoImport._
-import sbtdocker.DockerPlugin
+import sbtdocker.{DockerPlugin, Instruction, Instructions}
 import sbtrelease.ReleasePlugin
 
 object Settings {
@@ -102,7 +102,14 @@ object Settings {
     organization := "org.broadinstitute",
     scalaVersion := ScalaVersion,
     resolvers ++= commonResolvers,
-    parallelExecution := false,
+    // Don't run tasks in parallel, especially helps in low CPU environments like Travis
+    parallelExecution in Global := false,
+    concurrentRestrictions in Global ++= List(
+      // Don't run any other tasks while running tests, especially helps in low CPU environments like Travis
+      Tags.exclusive(Tags.Test),
+      // Only run tests on one sub-project at a time, especially helps in low CPU environments like Travis
+      Tags.limit(Tags.Test, 1)
+    ),
     dependencyOverrides ++= cromwellDependencyOverrides,
     scalacOptions ++= baseSettings ++ warningSettings ++ consoleHostileSettings,
     // http://stackoverflow.com/questions/31488335/scaladoc-2-11-6-fails-on-throws-tag-with-unable-to-find-any-member-to-link#31497874
@@ -110,13 +117,46 @@ object Settings {
     // No console-hostile options, otherwise the console is effectively unusable.
     // https://github.com/sbt/sbt/issues/1815
     scalacOptions in(Compile, console) --= consoleHostileSettings,
-    addCompilerPlugin(paradisePlugin)
+    addCompilerPlugin(paradisePlugin),
+    excludeDependencies ++= List(
+      "org.typelevel" % "simulacrum-scalafix-annotations_2.12",
+      "org.typelevel" % "simulacrum-scalafix-annotations_2.13"
+    )
+  )
+
+  /*
+      Docker instructions to install Google Cloud SDK image in docker image. It also installs `crcmod` which
+      is needed while downloading large files using `gsutil`
+      References:
+        - https://stackoverflow.com/questions/28372328/how-to-install-the-google-cloud-sdk-in-a-docker-image
+        - https://cromwell.readthedocs.io/en/develop/backends/Google/#issues-with-composite-files
+        - https://cloud.google.com/storage/docs/gsutil/addlhelp/CRC32CandInstallingcrcmod
+   */
+  val installGcloudSettings: List[Def.Setting[Seq[Instruction]]] = List(
+    dockerCustomSettings := List(
+      Instructions.Env("PATH", "$PATH:/usr/local/gcloud/google-cloud-sdk/bin"),
+      // instructions to install `crcmod`
+      Instructions.Run("apt-get -y update"),
+      Instructions.Run("apt-get -y install python3.8"),
+      Instructions.Run("apt -y install python3-pip"),
+      Instructions.Run("apt-get -y install gcc python-dev python-setuptools"),
+      Instructions.Run("pip3 uninstall crcmod"),
+      Instructions.Run("pip3 install --no-cache-dir -U crcmod"),
+      Instructions.Run("update-alternatives --install /usr/bin/python python /usr/bin/python3 1"),
+      Instructions.Env("CLOUDSDK_PYTHON", "python3"),
+      // instructions to install Google Cloud SDK
+      Instructions.Run("curl https://dl.google.com/dl/cloudsdk/release/google-cloud-sdk.tar.gz > /tmp/google-cloud-sdk.tar.gz"),
+      Instructions.Run("""mkdir -p /usr/local/gcloud \
+                         | && tar -C /usr/local/gcloud -xvf /tmp/google-cloud-sdk.tar.gz \
+                         | && /usr/local/gcloud/google-cloud-sdk/install.sh""".stripMargin),
+    )
   )
 
   val swaggerUiSettings = List(resourceGenerators in Compile += writeSwaggerUiVersionConf)
   val backendSettings = List(addCompilerPlugin(kindProjectorPlugin))
   val engineSettings = swaggerUiSettings
   val cromiamSettings = swaggerUiSettings
+  val drsLocalizerSettings = installGcloudSettings
 
   private def buildProject(project: Project,
                            projectName: String,

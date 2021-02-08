@@ -1,6 +1,7 @@
 name: gpu_on_papi_valid
 testFormat: workflowsuccess
 backends: [Papi]
+ignore: true
 
 files {
   workflow: gpu_on_papi/gpu_on_papi.wdl

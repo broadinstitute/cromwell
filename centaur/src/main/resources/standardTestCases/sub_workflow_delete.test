@@ -1,0 +1,73 @@
+# Tests file deletion from calls of sub workflow
+
+name: sub_workflow_delete
+testFormat: workflowsuccess
+backends: [Papiv2]
+
+files {
+  workflow: delete_intermediates/sub_workflow_delete.wdl
+  imports: [
+    delete_intermediates/sub_workflow_delete_import.wdl
+  ]
+  options: delete_intermediates/delete_intermediates.options
+}
+
+metadata {
+  workflowName: sub_workflow_delete
+  status: Succeeded
+  fileDeletionStatus: Succeeded
+}
+
+fileSystemCheck: "gcs"
+outputExpectations: {
+  # No current way to match on the subworkflow id, so for now just make sure the total directory count matches.
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/": 48
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/gcs_delocalization.sh": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/gcs_localization.sh": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/gcs_transfer.sh": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/keep.txt": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/1/stderr": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/1/stdout": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/10/stderr": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/10/stdout": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/11/stderr": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/11/stdout": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/12/stderr": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/12/stdout": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/13/stderr": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/13/stdout": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/14/stderr": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/14/stdout": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/15/stderr": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/15/stdout": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/16/stderr": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/16/stdout": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/17/stderr": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/17/stdout": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/18/stderr": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/18/stdout": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/19/stderr": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/19/stdout": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/2/stderr": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/2/stdout": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/3/stderr": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/3/stdout": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/4/stderr": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/4/stdout": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/5/stderr": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/5/stdout": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/6/stderr": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/6/stdout": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/7/stderr": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/7/stdout": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/8/stderr": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/8/stdout": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/9/stderr": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/action/9/stdout": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/pipelines-logs/output": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/rc": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/script": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/stderr": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/stdout": 1
+  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/sub_workflow_task.log": 1
+}

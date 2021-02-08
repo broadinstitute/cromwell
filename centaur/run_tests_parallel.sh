@@ -10,6 +10,6 @@ THREADS=${1:-3}
 
 echo "Running tests with ${THREADS}-way parallelism"
 
-sbt centaur/it:compile
+sbt --warn centaur/it:compile
 CP=$(sbt "export centaur/it:dependencyClasspath" --error)
 java -cp $CP org.scalatest.tools.Runner -R centaur/target/scala-2.12/it-classes -oD -PS${THREADS}

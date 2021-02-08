@@ -279,7 +279,7 @@ final class BcsAsyncBackendJobExecutionActor(override val standardParams: Standa
     runStatus match {
       case RunStatus.Failed(jobId, Some(errorMessage), _) =>
         val exception = new Exception(s"Job id $jobId failed: '$errorMessage'")
-        Future.successful(FailedNonRetryableExecutionHandle(exception, returnCode))
+        Future.successful(FailedNonRetryableExecutionHandle(exception, returnCode, None))
       case _ => super.handleExecutionFailure(runStatus, returnCode)
     }
   }

@@ -1,30 +1,31 @@
 package cromwell.core
 
+import java.nio.charset.StandardCharsets
+
 import akka.actor.{Actor, Props}
 import cromwell.core.io.IoPromiseProxyActor.IoCommandWithPromise
 import cromwell.core.io._
 
 import scala.concurrent.Promise
-import scala.io.Codec
 import scala.util.{Failure, Success, Try}
 
 object SimpleIoActor {
-  def props = Props(new SimpleIoActor)
+  def props: Props = Props(new SimpleIoActor)
 }
 
 class SimpleIoActor extends Actor {
   
-  override def receive = {
+  override def receive: Receive = {
     case command: IoCopyCommand =>
       
-      Try(command.source.copyTo(command.destination, command.overwrite)) match {
+      Try(command.source.copyTo(command.destination)) match {
         case Success(_) => sender() ! IoSuccess(command, ())
         case Failure(failure) => sender() ! IoFailure(command, failure)
       }
       
     case command: IoWriteCommand =>
       
-      Try(command.file.write(command.content)(command.openOptions, Codec.UTF8)) match {
+      Try(command.file.write(command.content)(command.openOptions, StandardCharsets.UTF_8)) match {
         case Success(_) => sender() ! IoSuccess(command, ())
         case Failure(failure) => sender() ! IoFailure(command, failure)
       }
@@ -65,7 +66,7 @@ class SimpleIoActor extends Actor {
     // With context
     case (requestContext: Any, command: IoCopyCommand) =>
       
-      Try(command.source.copyTo(command.destination, command.overwrite)) match {
+      Try(command.source.copyTo(command.destination, overwrite = true)) match {
         case Success(_) => sender() ! (requestContext -> IoSuccess(command, ()))
         case Failure(failure) => sender() ! (requestContext -> IoFailure(command, failure))
       }

@@ -133,7 +133,7 @@ public class S3FileChannel extends FileChannel implements S3Channel {
     }
 
     @Override
-    public MappedByteBuffer map(FileChannel.MapMode mode, long position, long size) throws IOException {
+    public MappedByteBuffer map(MapMode mode, long position, long size) throws IOException {
         return filechannel.map(mode, position, size);
     }
 

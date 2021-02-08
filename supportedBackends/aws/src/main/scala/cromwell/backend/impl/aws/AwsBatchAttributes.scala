@@ -43,6 +43,7 @@ import cromwell.cloudsupport.aws.AwsConfiguration
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import common.validation.Validation._
+import cromwell.backend.CommonBackendConfigurationAttributes
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.api._
 import eu.timepit.refined._
@@ -63,27 +64,14 @@ case class AwsBatchAttributes(fileSystem: String,
 object AwsBatchAttributes {
   lazy val Logger = LoggerFactory.getLogger(this.getClass)
 
-  private val availableConfigKeys = Set(
+  private val availableConfigKeys = CommonBackendConfigurationAttributes.commonValidConfigurationAttributeKeys ++ Set(
     "concurrent-job-limit",
     "root",
-    "dockerhub",
-    "dockerhub.account",
-    "dockerhub.token",
     "filesystems",
     "filesystems.local.auth",
     "filesystems.s3.auth",
     "filesystems.s3.caching.duplication-strategy",
-    "filesystems.local.caching.duplication-strategy",
-    "default-runtime-attributes",
-    "default-runtime-attributes.disks",
-    "default-runtime-attributes.memory",
-    "default-runtime-attributes.zones",
-    "default-runtime-attributes.continueOnReturnCode",
-    "default-runtime-attributes.cpu",
-    "default-runtime-attributes.noAddress",
-    "default-runtime-attributes.docker",
-    "default-runtime-attributes.queueArn",
-    "default-runtime-attributes.failOnStderr"
+    "filesystems.local.caching.duplication-strategy"
   )
 
   private val deprecatedAwsBatchKeys: Map[String, String] = Map(

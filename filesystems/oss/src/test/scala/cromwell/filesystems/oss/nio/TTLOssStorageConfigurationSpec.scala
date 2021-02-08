@@ -1,10 +1,13 @@
 package cromwell.filesystems.oss.nio
 
 import java.net.URI
+
 import com.typesafe.config.ConfigFactory
 import cromwell.core.TestKitSuite
-import org.scalatest.{BeforeAndAfter, FlatSpecLike, Matchers}
-import org.scalatest.mockito.MockitoSugar
+import org.scalatest.BeforeAndAfter
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.mockito.MockitoSugar
 
 
 object TTLOssStorageConfigurationSpec {
@@ -25,7 +28,7 @@ object TTLOssStorageConfigurationSpec {
   val BcsBackendConfig = ConfigFactory.parseString(BcsBackendConfigString)
 }
 
-class TTLOssStorageConfigurationSpec extends TestKitSuite with FlatSpecLike with Matchers with MockitoSugar with BeforeAndAfter {
+class TTLOssStorageConfigurationSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with MockitoSugar with BeforeAndAfter {
   val expectedEndpoint = "oss-cn-shanghai.aliyuncs.com"
   val expectedAccessId = "test-access-id"
   val expectedAccessKey = "test-access-key"

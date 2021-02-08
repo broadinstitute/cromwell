@@ -35,6 +35,16 @@ sealed trait PipelinesParameter {
     * e.g: /cromwell_root/root_bucket/input_data/my_input.bam
     */
   def containerPath: Path = mount.mountPoint.resolve(relativeHostPath)
+
+  /**
+    * True if this parameter represents a file; false if it represents a directory.
+    */
+  def isFileParameter: Boolean = this match {
+    case _: PipelinesApiFileInput => true
+    case _: PipelinesApiFileOutput => true
+    case _: PipelinesApiDirectoryInput => false
+    case _: PipelinesApiDirectoryOutput => false
+  }
 }
 
 sealed trait PipelinesApiInput extends PipelinesParameter

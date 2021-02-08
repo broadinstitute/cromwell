@@ -1,14 +1,17 @@
 package cromwell.backend.google.pipelines.common
 
+import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiAttachedDisk, PipelinesApiEmptyMountedDisk, PipelinesApiWorkingDisk}
 import cromwell.core.path.DefaultPathBuilder
+import org.scalatest.TryValues
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
-import org.scalatest.{FlatSpec, Matchers, TryValues}
 
 import scala.util.Failure
 
-class PipelinesApiAttachedDiskSpec extends FlatSpec with Matchers with TryValues {
+class PipelinesApiAttachedDiskSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TryValues {
   val validTable = Table(
     ("unparsed", "parsed"),
     ("/mnt 3 SSD", PipelinesApiEmptyMountedDisk(DiskType.SSD, 3, DefaultPathBuilder.get("/mnt"))),

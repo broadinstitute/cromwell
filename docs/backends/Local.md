@@ -15,5 +15,5 @@ The Local backend makes use of the same generic configuration as HPC backends. T
 If you try to mount a volume from a disallowed directory, jobs can fail in an odd manner. Before mounting a directory make sure it is in the list
 of allowed directories. See the [Docker documentation](https://docs.docker.com/docker-for-mac/osxfs/#namespaces) for how to configure those directories.
 
-[cromwell-examples-conf]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.examples.conf
+[cromwell-examples-conf]: https://github.com/broadinstitute/cromwell/blob/develop/cromwell.example.backends/cromwell.examples.conf
 [cromwell-examples-folder]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends

@@ -2,6 +2,7 @@ name: cwl_import_type
 testFormat: workflowsuccess
 workflowType: CWL
 workflowTypeVersion: v1.0
+skipDescribeEndpointValidation: true
 
 files {
   workflow: cwl_import_type/test_wf.cwl

@@ -3,6 +3,7 @@ package cromwell.services.database
 import java.io.{ByteArrayOutputStream, PrintStream}
 
 import better.files._
+import common.assertion.CromwellTimeoutSpec
 import cromwell.core.Tags.DbmsTest
 import cromwell.database.migration.liquibase.LiquibaseUtils
 import cromwell.database.slick.SlickDatabase
@@ -11,7 +12,8 @@ import liquibase.diff.DiffResult
 import liquibase.diff.output.DiffOutputControl
 import liquibase.diff.output.changelog.DiffToChangeLog
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import slick.jdbc.JdbcProfile
 import slick.jdbc.meta._
 
@@ -23,7 +25,7 @@ import scala.xml._
 /**
   * Tests that all table objects are consistently named using in-memory HSQLDB instances.
   */
-class SchemaManagerSpec extends FlatSpec with Matchers with ScalaFutures {
+class SchemaManagerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures {
 
   import SchemaManagerSpec._
 

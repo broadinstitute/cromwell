@@ -10,6 +10,7 @@ import eu.timepit.refined.refineV
 import io.circe.{Json, ParsingFailure}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
+import org.yaml.snakeyaml.LoaderOptions
 import org.yaml.snakeyaml.composer.Composer
 import org.yaml.snakeyaml.constructor.Constructor
 import org.yaml.snakeyaml.nodes.Node
@@ -73,11 +74,21 @@ object YamlUtils {
   private val defaultMaxNodes = yamlConfig.as[Int Refined NonNegative]("max-nodes")
   private val defaultMaxDepth = yamlConfig.as[Int Refined NonNegative]("max-depth")
 
+  // Effectively turning off alias limits, inspired by
+  // https://github.com/jenkinsci/configuration-as-code-plugin/issues/1374
+  // https://github.com/jenkinsci/configuration-as-code-plugin/pull/1375
+  // Cromwell still error checks and produces a hopefully more useful message than the
+  // org.yaml.snakeyaml.error.YAMLException: Number of aliases for non-scalar nodes exceeds the specified max=50
+  // that comes from the SnakeYAML library.
+  private val loaderOptions = new LoaderOptions()
+  loaderOptions.setMaxAliasesForCollections(Integer.MAX_VALUE)
+
   /** Extends SnakeYaml's Composer checking for a maximum depth before a StackOverflowError occurs. */
   private class MaxDepthComposer(yaml: String, maxDepth: Int Refined NonNegative)
     extends Composer(
       new ParserImpl(new StreamReader(new StringReader(yaml))),
-      new Resolver()
+      new Resolver(),
+      loaderOptions
     ) {
 
     private lazy val composerRecursiveFields: java.util.Set[Node] = getRecursiveNodeSet(this)

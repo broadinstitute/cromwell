@@ -1,10 +1,10 @@
 package wom.graph
 
 import cats.data.Validated.Valid
-import cats.instances.list._
 import cats.kernel.Monoid
 import cats.syntax.foldable._
 import cats.syntax.validated._
+import cats.instances.list._
 import common.validation.ErrorOr._
 import common.validation.IOChecked._
 import shapeless.{:+:, CNil, Coproduct}

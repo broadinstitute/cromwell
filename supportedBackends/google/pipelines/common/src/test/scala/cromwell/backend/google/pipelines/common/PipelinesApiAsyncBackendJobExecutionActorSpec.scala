@@ -1,11 +1,14 @@
 package cromwell.backend.google.pipelines.common
 
+import java.nio.file.Paths
 import java.util.UUID
 
 import _root_.io.grpc.Status
 import _root_.wdl.draft2.model._
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration, TestProbe}
+import cats.data.NonEmptyList
+import com.google.api.client.http.HttpRequest
 import com.google.cloud.NoCredentials
 import common.collections.EnhancedCollections._
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse}
@@ -26,11 +29,15 @@ import cromwell.core.labels.Labels
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, PathBuilder}
 import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder, MockGcsPathBuilder}
+import cromwell.services.instrumentation.{CromwellBucket, CromwellIncrement}
+import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.keyvalue.InMemoryKvServiceActor
-import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, KvPair, ScopedKey}
+import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvJobKey, KvPair, ScopedKey}
 import cromwell.util.JsonFormatting.WomValueJsonFormatter._
 import cromwell.util.SampleWdl
 import org.scalatest._
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.Tables.Table
 import org.slf4j.Logger
 import org.specs2.mock.Mockito
@@ -50,13 +57,20 @@ import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 import scala.util.Success
 
-class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsyncBackendJobExecutionActorSpec")
-  with FlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter with DefaultJsonProtocol {
+class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite
+  with AnyFlatSpecLike
+  with Matchers
+  with ImplicitSender
+  with Mockito
+  with BackendSpec
+  with BeforeAndAfter
+  with DefaultJsonProtocol {
+
   val mockPathBuilder: GcsPathBuilder = MockGcsPathBuilder.instance
   import MockGcsPathBuilder._
-  var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor))
+  var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor), "kvService")
 
-  def gcsPath(str: String) = mockPathBuilder.build(str).getOrElse(fail(s"Invalid gcs path: $str"))
+  private def gcsPath(str: String) = mockPathBuilder.build(str).getOrElse(fail(s"Invalid gcs path: $str"))
 
   import PipelinesApiTestConfig._
 
@@ -85,15 +99,16 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
 
   val Inputs: Map[FullyQualifiedName, WomValue] = Map("wf_sup.sup.addressee" -> WomString("dog"))
 
-  val NoOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
+  private val NoOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
 
-  lazy val TestableCallContext = CallContext(mockPathBuilder.build("gs://root").get, DummyStandardPaths, isDocker = false)
+  private lazy val TestableCallContext = CallContext(mockPathBuilder.build("gs://root").get, DummyStandardPaths, isDocker = false)
 
-  lazy val TestableStandardExpressionFunctionsParams = new StandardExpressionFunctionsParams {
+  private lazy val TestableStandardExpressionFunctionsParams: StandardExpressionFunctionsParams
+  = new StandardExpressionFunctionsParams {
     override lazy val pathBuilders: List[PathBuilder] = List(mockPathBuilder)
     override lazy val callContext: CallContext = TestableCallContext
     override val ioActorProxy: ActorRef = simpleIoActor
-    override val executionContext = system.dispatcher
+    override val executionContext: ExecutionContext = system.dispatcher
   }
 
   lazy val TestableJesExpressionFunctions: PipelinesApiExpressionFunctions = {
@@ -105,12 +120,14 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     val workflowPaths = PipelinesApiWorkflowPaths(
       jobDescriptor.workflowDescriptor, NoCredentials.getInstance(), NoCredentials.getInstance(), configuration, pathBuilders, PipelinesApiInitializationActor.defaultStandardStreamNameToFileNameMetadataMapper)
     val runtimeAttributesBuilder = PipelinesApiRuntimeAttributes.runtimeAttributesBuilder(configuration)
-    val requestFactory = new PipelinesApiRequestFactory {
-      override def cancelRequest(job: StandardAsyncJob) = null
-      override def getRequest(job: StandardAsyncJob) = null
-      override def runRequest(createPipelineParameters: PipelinesApiRequestFactory.CreatePipelineParameters, jobLogger: JobLogger) = null
+    val requestFactory: PipelinesApiRequestFactory = new PipelinesApiRequestFactory {
+      override def cancelRequest(job: StandardAsyncJob): HttpRequest = null
+      override def getRequest(job: StandardAsyncJob): HttpRequest = null
+      override def runRequest(createPipelineParameters: PipelinesApiRequestFactory.CreatePipelineParameters,
+                              jobLogger: JobLogger,
+                             ): HttpRequest = null
     }
-    PipelinesApiBackendInitializationData(workflowPaths, runtimeAttributesBuilder, configuration, null, requestFactory, None, None)
+    PipelinesApiBackendInitializationData(workflowPaths, runtimeAttributesBuilder, configuration, null, requestFactory, None, None, None)
   }
 
   class TestablePipelinesApiJobExecutionActor(params: StandardAsyncExecutionActorParams, functions: PipelinesApiExpressionFunctions)
@@ -121,12 +138,13 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
              jesConfiguration: PipelinesApiConfiguration,
              functions: PipelinesApiExpressionFunctions = TestableJesExpressionFunctions,
              jesSingletonActor: ActorRef = emptyActor,
-             ioActor: ActorRef = mockIoActor) = {
+             ioActor: ActorRef = mockIoActor,
+             serviceRegistryActor: ActorRef = kvService) = {
 
       this(
         DefaultStandardAsyncExecutionActorParams(
           jobIdKey = PipelinesApiAsyncBackendJobExecutionActor.JesOperationIdKey,
-          serviceRegistryActor = kvService,
+          serviceRegistryActor = serviceRegistryActor,
           ioActor = ioActor,
           jobDescriptor = jobDescriptor,
           configurationDescriptor = jesConfiguration.configurationDescriptor,
@@ -139,7 +157,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
       )
     }
 
-    override lazy val jobLogger = new JobLogger(
+    override lazy val jobLogger: JobLogger = new JobLogger(
       loggerName = "TestLogger",
       workflowIdForLogging = workflowId.toPossiblyNotRoot,
       rootWorkflowIdForLogging = workflowId.toRoot,
@@ -165,7 +183,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
       |}
     """.stripMargin
 
-  private def buildPreemptibleJobDescriptor(preemptible: Int, previousPreemptions: Int, previousUnexpectedRetries: Int): BackendJobDescriptor = {
+  private def buildPreemptibleJobDescriptor(preemptible: Int, previousPreemptions: Int, previousUnexpectedRetries: Int, failedRetriesCountOpt: Option[Int] = None): BackendJobDescriptor = {
     val attempt = previousPreemptions + previousUnexpectedRetries + 1
     val wdlNamespace = WdlNamespaceWithWorkflow.load(YoSup.replace("[PREEMPTIBLE]", s"preemptible: $preemptible"),
       Seq.empty[Draft2ImportResolver]).get
@@ -196,24 +214,45 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         val prefetchedKvEntries = Map(
           PipelinesApiBackendLifecycleActorFactory.preemptionCountKey -> KvPair(ScopedKey(workflowDescriptor.id, KvJobKey(key), PipelinesApiBackendLifecycleActorFactory.preemptionCountKey), previousPreemptions.toString),
           PipelinesApiBackendLifecycleActorFactory.unexpectedRetryCountKey -> KvPair(ScopedKey(workflowDescriptor.id, KvJobKey(key), PipelinesApiBackendLifecycleActorFactory.unexpectedRetryCountKey), previousUnexpectedRetries.toString))
-        BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(Inputs), NoDocker, None, prefetchedKvEntries)
+        val prefetchedKvEntriesUpd = if(failedRetriesCountOpt.isEmpty) {
+          prefetchedKvEntries
+        } else {
+          prefetchedKvEntries + (BackendLifecycleActorFactory.FailedRetryCountKey -> KvPair(ScopedKey(workflowDescriptor.id, KvJobKey(key), BackendLifecycleActorFactory.FailedRetryCountKey), failedRetriesCountOpt.get.toString ))
+        }
+        BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(Inputs), NoDocker, None, prefetchedKvEntriesUpd)
       case Left(badtimes) => fail(badtimes.toList.mkString(", "))
     }
   }
 
+  private case class DockerImageCacheTestingParameters(dockerImageCacheDiskOpt: Option[String],
+                                                       dockerImageAsSpecifiedByUser: String,
+                                                       isDockerImageCacheUsageRequested: Boolean)
+
   private def executionActor(jobDescriptor: BackendJobDescriptor,
-                             configurationDescriptor: BackendConfigurationDescriptor,
                              promise: Promise[BackendJobExecutionResponse],
                              jesSingletonActor: ActorRef,
-                             shouldBePreemptible: Boolean): ActorRef = {
+                             shouldBePreemptible: Boolean,
+                             serviceRegistryActor: ActorRef = kvService,
+                             referenceInputFilesOpt: Option[Set[PipelinesApiInput]] = None,
+                             dockerImageCacheTestingParamsOpt: Option[DockerImageCacheTestingParameters] = None
+                            ): ActorRef = {
 
     val job = StandardAsyncJob(UUID.randomUUID().toString)
     val run = Run(job)
     val handle = new JesPendingExecutionHandle(jobDescriptor, run.job, Option(run), None)
 
-    class ExecuteOrRecoverActor extends TestablePipelinesApiJobExecutionActor(jobDescriptor, promise, papiConfiguration, jesSingletonActor = jesSingletonActor) {
+    class ExecuteOrRecoverActor extends TestablePipelinesApiJobExecutionActor(jobDescriptor, promise, papiConfiguration, jesSingletonActor = jesSingletonActor, serviceRegistryActor = serviceRegistryActor) {
       override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
-        if(preemptible == shouldBePreemptible) Future.successful(handle)
+        sendIncrementMetricsForReferenceFiles(referenceInputFilesOpt)
+        dockerImageCacheTestingParamsOpt.foreach { dockerImageCacheTestingParams =>
+          sendIncrementMetricsForDockerImageCache(
+            dockerImageCacheTestingParams.dockerImageCacheDiskOpt,
+            dockerImageCacheTestingParams.dockerImageAsSpecifiedByUser,
+            dockerImageCacheTestingParams.isDockerImageCacheUsageRequested
+          )
+        }
+
+        if (preemptible == shouldBePreemptible) Future.successful(handle)
         else Future.failed(new Exception(s"Test expected preemptible to be $shouldBePreemptible but got $preemptible"))
       }
     }
@@ -224,15 +263,15 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
   private def runAndFail(previousPreemptions: Int, previousUnexpectedRetries: Int, preemptible: Int, errorCode: Status, innerErrorMessage: String, expectPreemptible: Boolean): BackendJobExecutionResponse = {
 
     val runStatus = UnsuccessfulRunStatus(errorCode, Option(innerErrorMessage), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), expectPreemptible)
-    val statusPoller = TestProbe()
+    val statusPoller = TestProbe("statusPoller")
 
     val promise = Promise[BackendJobExecutionResponse]()
     val jobDescriptor =  buildPreemptibleJobDescriptor(preemptible, previousPreemptions, previousUnexpectedRetries)
 
     // TODO: Use this to check the new KV entries are there!
-    //val kvProbe = TestProbe()
+    //val kvProbe = TestProbe("kvProbe")
 
-    val backend = executionActor(jobDescriptor, PapiBackendConfigurationDescriptor, promise, statusPoller.ref, expectPreemptible)
+    val backend = executionActor(jobDescriptor, promise, statusPoller.ref, expectPreemptible)
     backend ! Execute
     statusPoller.expectMsgPF(max = Timeout, hint = "awaiting status poll") {
       case _: PAPIStatusPollRequest => backend ! runStatus
@@ -241,9 +280,9 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     Await.result(promise.future, Timeout)
   }
 
-  def buildPreemptibleTestActorRef(attempt: Int, preemptible: Int): TestActorRef[TestablePipelinesApiJobExecutionActor] = {
+  def buildPreemptibleTestActorRef(attempt: Int, preemptible: Int, failedRetriesCountOpt: Option[Int] = None): TestActorRef[TestablePipelinesApiJobExecutionActor] = {
     // For this test we say that all previous attempts were preempted:
-    val jobDescriptor = buildPreemptibleJobDescriptor(preemptible, attempt - 1, 0)
+    val jobDescriptor = buildPreemptibleJobDescriptor(preemptible, attempt - 1, previousUnexpectedRetries = 0, failedRetriesCountOpt = failedRetriesCountOpt)
     val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(),
       papiConfiguration,
       TestableJesExpressionFunctions,
@@ -254,7 +293,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
 
   behavior of "JesAsyncBackendJobExecutionActor"
 
-  val timeout = 25 seconds
+  private val timeout = 25 seconds
 
   { // Set of "handle call failures appropriately with respect to preemption and failure" tests
     val expectations = Table(
@@ -304,6 +343,121 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
         }
       }
     }
+  }
+
+  it should "send proper value for \"number of reference files used gauge\" metric, or don't send anything if reference disks feature is disabled" in {
+    val expectedInput1 = PipelinesApiFileInput(name = "testfile1", relativeHostPath = DefaultPathBuilder.build(Paths.get(s"test/reference/path/file1")), mount = null, cloudPath = null)
+    val expectedInput2 = PipelinesApiFileInput(name = "testfile2", relativeHostPath = DefaultPathBuilder.build(Paths.get(s"test/reference/path/file2")), mount = null, cloudPath = null)
+    val expectedReferenceInputFiles = Set[PipelinesApiInput](expectedInput1, expectedInput2)
+
+    val expectedMsg1 = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, NonEmptyList.of("referencefiles", expectedInput1.relativeHostPath.pathAsString))))
+    val expectedMsg2 = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, NonEmptyList.of("referencefiles", expectedInput2.relativeHostPath.pathAsString))))
+
+    val jobDescriptor = buildPreemptibleJobDescriptor(0, 0, 0)
+    val serviceRegistryProbe = TestProbe()
+
+    val backend1 = executionActor(
+      jobDescriptor,
+      Promise[BackendJobExecutionResponse](),
+      TestProbe().ref,
+      shouldBePreemptible = false,
+      serviceRegistryActor = serviceRegistryProbe.ref,
+      referenceInputFilesOpt = Option(expectedReferenceInputFiles)
+    )
+    backend1 ! Execute
+    serviceRegistryProbe.expectMsgAllOf(expectedMsg1, expectedMsg2)
+
+    val backend2 = executionActor(
+      jobDescriptor,
+      Promise[BackendJobExecutionResponse](),
+      TestProbe().ref,
+      shouldBePreemptible = false,
+      serviceRegistryActor = serviceRegistryProbe.ref,
+      referenceInputFilesOpt = None
+    )
+    backend2 ! Execute
+    serviceRegistryProbe.expectNoMessage(timeout)
+  }
+
+  it should "sends proper metrics for docker image cache feature" in {
+    val jobDescriptor = buildPreemptibleJobDescriptor(0, 0, 0)
+    val serviceRegistryProbe = TestProbe()
+    val madeUpDockerImageName = "test_madeup_docker_image_name"
+
+    val expectedMessageWhenRequestedNotFound = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, NonEmptyList("docker", List("image", "cache", "image_not_in_cache", madeUpDockerImageName)))))
+    val backendDockerCacheRequestedButNotFound = executionActor(
+      jobDescriptor,
+      Promise[BackendJobExecutionResponse](),
+      TestProbe().ref,
+      shouldBePreemptible = false,
+      serviceRegistryActor = serviceRegistryProbe.ref,
+      dockerImageCacheTestingParamsOpt =
+        Option(
+          DockerImageCacheTestingParameters(
+            None,
+            "test_madeup_docker_image_name",
+            isDockerImageCacheUsageRequested = true
+          )
+        )
+    )
+    backendDockerCacheRequestedButNotFound ! Execute
+    serviceRegistryProbe.expectMsg(expectedMessageWhenRequestedNotFound)
+
+    val expectedMessageWhenRequestedAndFound = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, NonEmptyList("docker", List("image", "cache", "used_image_from_cache", madeUpDockerImageName)))))
+    val backendDockerCacheRequestedAndFound = executionActor(
+      jobDescriptor,
+      Promise[BackendJobExecutionResponse](),
+      TestProbe().ref,
+      shouldBePreemptible = false,
+      serviceRegistryActor = serviceRegistryProbe.ref,
+      dockerImageCacheTestingParamsOpt =
+        Option(
+          DockerImageCacheTestingParameters(
+            Some("test_madeup_disk_image_name"),
+            "test_madeup_docker_image_name",
+            isDockerImageCacheUsageRequested = true
+          )
+        )
+    )
+    backendDockerCacheRequestedAndFound ! Execute
+    serviceRegistryProbe.expectMsg(expectedMessageWhenRequestedAndFound)
+
+    val expectedMessageWhenNotRequestedButFound = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(List.empty, NonEmptyList("docker", List("image", "cache", "cached_image_not_used", madeUpDockerImageName)))))
+    val backendDockerCacheNotRequestedButFound = executionActor(
+      jobDescriptor,
+      Promise[BackendJobExecutionResponse](),
+      TestProbe().ref,
+      shouldBePreemptible = false,
+      serviceRegistryActor = serviceRegistryProbe.ref,
+      dockerImageCacheTestingParamsOpt =
+        Option(
+          DockerImageCacheTestingParameters(
+            Some("test_madeup_disk_image_name"),
+            "test_madeup_docker_image_name",
+            isDockerImageCacheUsageRequested = false
+          )
+        )
+    )
+    backendDockerCacheNotRequestedButFound ! Execute
+    serviceRegistryProbe.expectMsg(expectedMessageWhenNotRequestedButFound)
+
+    val backendDockerCacheNotRequestedNotFound = executionActor(
+      jobDescriptor,
+      Promise[BackendJobExecutionResponse](),
+      TestProbe().ref,
+      shouldBePreemptible = false,
+      serviceRegistryActor = serviceRegistryProbe.ref,
+      dockerImageCacheTestingParamsOpt =
+        Option(
+          DockerImageCacheTestingParameters(
+            None,
+            "test_madeup_docker_image_name",
+            isDockerImageCacheUsageRequested = false
+          )
+        )
+    )
+    backendDockerCacheNotRequestedNotFound ! Execute
+    serviceRegistryProbe.expectNoMessage(timeout)
   }
 
   it should "not restart 2 of 1 unexpected shutdowns without another preemptible VM" in {
@@ -395,6 +549,41 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
     retryableHandle.throwable.getMessage should include("The call will be restarted with a non-preemptible VM.")
   }
 
+  it should "merge KvPairs from previous attempt with KvPairs generated by backend for the next attempt and send to KeyValueServiceActor in case of job retryable failure" in {
+    val actorRef = buildPreemptibleTestActorRef(attempt = 1, preemptible = 1, failedRetriesCountOpt = Option(1))
+    val jesBackend = actorRef.underlyingActor
+    val runId = StandardAsyncJob(UUID.randomUUID().toString)
+    val handle = new JesPendingExecutionHandle(null, runId, None, None)
+
+    val failedStatus = UnsuccessfulRunStatus(Status.ABORTED, Option(PipelinesApiAsyncBackendJobExecutionActor.FailedV2Style), Seq.empty, Option("fakeMachine"), Option("fakeZone"), Option("fakeInstance"), wasPreemptible = true)
+    val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
+    val result = Await.result(executionResult, timeout)
+    result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+
+
+    val probe = TestProbe("probe")
+    val job = jesBackend.workflowDescriptor.callable.taskCallNodes.head
+    val key = BackendJobDescriptorKey(job, None, attempt = 2)
+
+    val scopedKeyPreempt = ScopedKey(jesBackend.workflowId, KvJobKey(key), PipelinesApiBackendLifecycleActorFactory.preemptionCountKey)
+    probe.send(kvService, KvGet(scopedKeyPreempt))
+    probe.expectMsgPF(5.seconds) {
+      case kvPreempt: KvPair => kvPreempt.value shouldBe 1.toString
+    }
+
+    val scopedKeyUnexpected = ScopedKey(jesBackend.workflowId, KvJobKey(key), PipelinesApiBackendLifecycleActorFactory.unexpectedRetryCountKey)
+    probe.send(kvService, KvGet(scopedKeyUnexpected))
+    probe.expectMsgPF(5.seconds) {
+      case kvUnexpected: KvPair => kvUnexpected.value shouldBe 0.toString
+    }
+
+    val scopedKeyFailedAttempts = ScopedKey(jesBackend.workflowId, KvJobKey(key), BackendLifecycleActorFactory.FailedRetryCountKey)
+    probe.send(kvService, KvGet(scopedKeyFailedAttempts))
+    probe.expectMsgPF(5.seconds) {
+      case kvFailedRetry: KvPair => kvFailedRetry.value shouldBe 1.toString
+    }
+  }
+
   it should "handle Failure Status for various errors" in {
     val actorRef = buildPreemptibleTestActorRef(1, 1)
     val jesBackend = actorRef.underlyingActor
@@ -461,7 +650,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
 
 
         def gcsPathToLocal(womValue: WomValue): WomValue = {
-          WomFileMapper.mapWomFiles(testActorRef.underlyingActor.mapCommandLineWomFile, Set.empty)(womValue).get
+          WomFileMapper.mapWomFiles(testActorRef.underlyingActor.mapCommandLineWomFile)(womValue).get
         }
 
         val mappedInputs = jobDescriptor.localInputs safeMapValues gcsPathToLocal
@@ -748,7 +937,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
       props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
 
     def wdlValueToGcsPath(jesOutputs: Set[PipelinesApiFileOutput])(womValue: WomValue): WomValue = {
-      WomFileMapper.mapWomFiles(testActorRef.underlyingActor.womFileToGcsPath(jesOutputs.toSet), Set.empty)(womValue).get
+      WomFileMapper.mapWomFiles(testActorRef.underlyingActor.womFileToGcsPath(jesOutputs.toSet))(womValue).get
     }
 
     val result = outputValues map wdlValueToGcsPath(jesOutputs)
@@ -953,7 +1142,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec extends TestKitSuite("JesAsy
       Map(
         "backendLogs:log" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/goodbye.log",
         "callRoot" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye",
-        "jes:endpointUrl" -> "https://genomics.googleapis.com/",
+        "jes:endpointUrl" -> "https://lifesciences.googleapis.com/",
         "jes:executionBucket" -> jesGcsRoot,
         "jes:googleProject" -> googleProject,
         "labels:cromwell-workflow-id" -> s"cromwell-$workflowId",

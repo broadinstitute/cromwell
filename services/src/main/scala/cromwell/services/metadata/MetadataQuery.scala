@@ -111,4 +111,8 @@ object MetadataQuery {
   def forKey(key: MetadataKey): MetadataQuery = {
     MetadataQuery(key.workflowId, key.jobKey map MetadataQueryJobKey.forMetadataJobKey, Option(key.key), None, None, expandSubWorkflows = false)
   }
+
+  sealed trait MetadataSourceOverride
+  case object MetadataSourceForceArchived extends MetadataSourceOverride
+  case object MetadataSourceForceUnarchived extends MetadataSourceOverride
 }

@@ -7,6 +7,8 @@ backendsMode: "any"
 backends: [Local, LocalNoDocker]
 tags: [localdockertest]
 
+skipDescribeEndpointValidation: true
+
 files {
   workflow: cwl_stdout_expression/cwl_stdout_expression.cwl
   inputs: cwl_stdout_expression/cwl_stdout_expression.json

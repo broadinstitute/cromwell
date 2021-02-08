@@ -8,11 +8,13 @@ import akka.testkit.{ImplicitSender, TestActorRef}
 import cromwell.core.TestKitSuite
 import cromwell.core.actor.StreamIntegration._
 import cromwell.core.actor.TestStreamActor.{TestStreamActorCommand, TestStreamActorContext}
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.ExecutionContext
 
-class StreamActorHelperSpec extends TestKitSuite with FlatSpecLike with Matchers with ImplicitSender {
+
+class StreamActorHelperSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with ImplicitSender {
   behavior of "StreamActorHelper"
   
   implicit val materializer = ActorMaterializer()

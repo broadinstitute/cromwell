@@ -4,9 +4,9 @@
   "HaplotypeCallerGvcf_GATK4.input_bam_index": "gs://gatk-test-data/wgs_bam/NA12878_24RG_hg38/NA12878_24RG_small.hg38.bai",
 
   "##_COMMENT2": "REFERENCE FILES",
-  "HaplotypeCallerGvcf_GATK4.ref_dict": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.dict",
-  "HaplotypeCallerGvcf_GATK4.ref_fasta": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta",
-  "HaplotypeCallerGvcf_GATK4.ref_fasta_index": "gs://broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.fai",
+  "HaplotypeCallerGvcf_GATK4.ref_dict": "gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.dict",
+  "HaplotypeCallerGvcf_GATK4.ref_fasta": "gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.fasta",
+  "HaplotypeCallerGvcf_GATK4.ref_fasta_index": "gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.fasta.fai",
 
   "##_COMMENT3": "INTERVALS",
   "HaplotypeCallerGvcf_GATK4.scattered_calling_intervals_list": "gs://gatk-test-data/intervals/hg38_wgs_scattered_calling_intervals.txt",

@@ -1,0 +1,54 @@
+digraph "Hermes ASTs" {
+  compound=true;
+
+  InputDeclarationElement [shape=oval label="InputDeclarationElement"]
+
+  declarationName [shape=none label="\"foo\""]
+
+  PrimitiveTypeElement [shape=oval label="PrimitiveTypeElement"]
+  WomIntegerType [shape=oval label="WomIntegerType"]
+
+  Min [shape=oval label="Min"]
+  Max [shape=oval label="Max"]
+
+  PrimitiveLiteralExpressionElement100 [shape=oval label="PrimitiveLiteralExpressionElement"]
+  WomInteger100 [shape=oval label="WomInteger"]
+  literal100 [shape=none label="100"]
+
+  PrimitiveLiteralExpressionElement1 [shape=oval label="PrimitiveLiteralExpressionElement"]
+  WomInteger1 [shape=oval label="WomInteger"]
+  literal1 [shape=none label="1"]
+
+  PrimitiveLiteralExpressionElement2 [shape=oval label="PrimitiveLiteralExpressionElement"]
+  WomInteger2 [shape=oval label="WomInteger"]
+  literal2 [shape=none label="2"]
+
+  InputDeclarationElement -> PrimitiveTypeElement [label=" typeElement"]
+  InputDeclarationElement -> declarationName [label=" name"]
+  InputDeclarationElement -> Min [label=" expression"]
+
+  PrimitiveTypeElement -> WomIntegerType
+
+  Min -> PrimitiveLiteralExpressionElement100 [label=" arg1"]
+  Min -> Max [label="arg2"]
+  Max -> PrimitiveLiteralExpressionElement1 [label=" arg1"]
+  Max -> PrimitiveLiteralExpressionElement2 [label=" arg2"]
+
+
+  PrimitiveLiteralExpressionElement100 -> WomInteger100 [label=" value"]
+  WomInteger100 -> literal100 [label=" value"]
+
+  PrimitiveLiteralExpressionElement1 -> WomInteger1 [label=" value"]
+  WomInteger1 -> literal1 [label=" value"]
+
+  PrimitiveLiteralExpressionElement2 -> WomInteger2 [label=" value"]
+  WomInteger2 -> literal2 [label=" value"]
+
+  # These lines are optional, and only here to encourage graphviz layout to place the arg1s to the left of the arg2s
+  { rank=same; PrimitiveLiteralExpressionElement100; Max; }
+  PrimitiveLiteralExpressionElement100 -> Max [style="invis"]
+  { rank=same; PrimitiveLiteralExpressionElement1; PrimitiveLiteralExpressionElement2; }
+  PrimitiveLiteralExpressionElement1 -> PrimitiveLiteralExpressionElement2 [style="invis"]
+  { rank=same; PrimitiveTypeElement; declarationName; }
+  PrimitiveTypeElement -> declarationName [style="invis"]
+}

@@ -7,7 +7,9 @@ import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiAttach
 import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
 import cromwell.core.WorkflowOptions
 import eu.timepit.refined.refineMV
-import org.scalatest.{Matchers, TestSuite, WordSpecLike}
+import org.scalatest.TestSuite
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 import org.slf4j.helpers.NOPLogger
 import org.specs2.mock.Mockito
 import spray.json._
@@ -19,7 +21,7 @@ import wom.values._
 import scala.util.{Failure, Success, Try}
 
 final class PipelinesApiRuntimeAttributesSpec
-  extends WordSpecLike
+  extends AnyWordSpecLike
     with Matchers
     with Mockito
     with PipelinesApiRuntimeAttributesSpecsMixin {
@@ -261,7 +263,7 @@ trait PipelinesApiRuntimeAttributesSpecsMixin { this: TestSuite =>
 
   val expectedDefaults = new PipelinesApiRuntimeAttributes(refineMV(1), None, None, Vector("us-central1-b", "us-central1-a"), 0, 10,
     MemorySize(2, MemoryUnit.GB), Vector(PipelinesApiWorkingDisk(DiskType.SSD, 10)), "ubuntu:latest", false,
-    ContinueOnReturnCodeSet(Set(0)), false)
+    ContinueOnReturnCodeSet(Set(0)), false, false, None, None)
 
   def assertPapiRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WomValue],
                                                     expectedRuntimeAttributes: PipelinesApiRuntimeAttributes,

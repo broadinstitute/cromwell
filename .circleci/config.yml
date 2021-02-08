@@ -39,7 +39,7 @@ jobs:
       - checkout
       - when:
           condition:
-            equal: [ pr, << parameters.simulate-merge-before-test >> ]
+            equal: [ pr, << parameters.branch-or-pr-build >> ]
           steps:
             - build-tools/merge-with-parent
       - run:

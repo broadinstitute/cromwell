@@ -358,7 +358,7 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
       |},
       |{
       |  "imageIdentifier" : "hg38-public-2020-10-26",
-      |  "diskSizeGb" : 10,
+      |  "diskSizeGb" : 20,
       |  "files" : [ {
       |    "path" : "gcp-public-data--broad-references/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz",
       |    "crc32c" : 930173616
@@ -390,7 +390,7 @@ class PipelinesApiConfigurationAttributesSpec extends AnyFlatSpec with CromwellT
       ),
       ManifestFile(
         imageIdentifier = "hg38-public-2020-10-26",
-        diskSizeGb = 10,
+        diskSizeGb = 20,
         files = List(
           ReferenceFile(
             path = "gcp-public-data--broad-references/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz",

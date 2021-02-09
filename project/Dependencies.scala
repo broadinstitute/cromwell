@@ -15,6 +15,7 @@ object Dependencies {
   private val betterFilesV = "3.9.1"
   private val catsEffectV = "2.3.0"
   private val catsV = "2.3.0"
+  private val circeConfigV = "0.8.0"
   private val circeGenericExtrasV = "0.13.0"
   private val circeOpticsV = "0.13.0"
   private val circeV = "0.13.0"
@@ -151,7 +152,8 @@ object Dependencies {
     "refined",
     "literal"
   ).map(m => "io.circe" %% s"circe-$m" % circeV) :+ circeYamlDependency :+
-  "io.circe" %% "circe-generic-extras" % circeGenericExtrasV
+  "io.circe" %% "circe-generic-extras" % circeGenericExtrasV :+
+  "io.circe" %% "circe-config" % circeConfigV
 
   private val catsDependencies = List(
     "org.typelevel" %% "cats-core" % catsV,

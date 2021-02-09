@@ -50,14 +50,12 @@ jobs:
       - run:
           name: Do tricks to avoid unnecessary cache updates
           command: |
-            find ~/.ivy2/cache -name "ivydata-*.properties" -print -delete || true
-            find ~/.coursier/cache -name "ivydata-*.properties" -print -delete || true
-            find ~/.sbt -name "*.lock" -print -delete || true
+            find ~/.ivy2/cache -name "ivydata-*.properties" -print -delete
+            find ~/.sbt -name "*.lock" -print -delete
       - save_cache:
           key: sbt-cache
           paths:
             - "~/.ivy2/cache"
-            - "~/.coursier/cache"
             - "~/.sbt"
     environment:
       CIRCLE_COMMIT_RANGE: << pipeline.git.base_revision >>...<< pipeline.git.revision >>

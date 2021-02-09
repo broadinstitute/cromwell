@@ -1342,11 +1342,18 @@ cromwell::build::exec_test_script() {
     cromwell::private::exec_test_script
 }
 
+cromwell::private::pull_common_docker_images_and_start_docker_databases() {
+  if [[ "${BUILD_TYPE}" != "sbt" ]]; then
+      cromwell::private::pull_common_docker_images
+      cromwell::private::create_database_variables
+      cromwell::private::start_docker_databases
+  fi
+}
+
 cromwell::build::setup_common_environment() {
     cromwell::private::check_debug
     cromwell::private::create_build_variables
     cromwell::private::echo_build_variables
-    cromwell::private::create_database_variables
     cromwell::private::verify_secure_build
     cromwell::private::make_build_directories
     cromwell::private::install_git_secrets
@@ -1360,22 +1367,17 @@ cromwell::build::setup_common_environment() {
             cromwell::private::delete_boto_config
             cromwell::private::delete_sbt_boot
             cromwell::private::upgrade_pip
-            cromwell::private::pull_common_docker_images
-            cromwell::private::start_docker_databases
+            cromwell::private::pull_common_docker_images_and_start_docker_databases
             ;;
         "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
-            cromwell::private::pull_common_docker_images
-            cromwell::private::start_docker_databases
-            ;;
-        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
-            cromwell::private::delete_boto_config
-            cromwell::private::delete_sbt_boot
+            cromwell::private::pull_common_docker_images_and_start_docker_databases
             ;;
         *)
             cromwell::private::pull_common_docker_images
             ;;
     esac
 }
+
 
 cromwell::build::setup_centaur_environment() {
     cromwell::private::create_centaur_variables

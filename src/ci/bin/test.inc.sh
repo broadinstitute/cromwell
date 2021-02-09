@@ -1372,6 +1372,9 @@ cromwell::build::setup_common_environment() {
         "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
             cromwell::private::pull_common_docker_images_and_start_docker_databases
             ;;
+        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
+            # do nothing
+            ;;
         *)
             cromwell::private::pull_common_docker_images
             ;;

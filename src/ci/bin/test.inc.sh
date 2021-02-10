@@ -1022,7 +1022,7 @@ cromwell::private::vault_login() {
                 # Don't fail here if vault login fails
                 # shellcheck disable=SC2015
                 docker run --rm \
-                    -v "${CROMWELL_BUILD_HOME_DIRECTORY}:/root:rw" \
+                    -v "/home/circleci:/root:rw" \
                     broadinstitute/dsde-toolbox:dev \
                     vault auth "${vault_token}" < /dev/null > /dev/null && echo vault auth success \
                 || true

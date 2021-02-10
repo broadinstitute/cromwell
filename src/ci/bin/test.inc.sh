@@ -1067,7 +1067,8 @@ cromwell::private::copy_all_resources() {
 cromwell::private::setup_secure_resources() {
     if [[ "${CROMWELL_BUILD_REQUIRES_SECURE}" == "true" ]] || [[ "${CROMWELL_BUILD_OPTIONAL_SECURE}" == "true" ]]; then
         case "${CROMWELL_BUILD_PROVIDER}" in
-            "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
+            "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
+            "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
                 cromwell::private::vault_login
                 cromwell::private::render_secure_resources
                 cromwell::private::docker_login

@@ -206,7 +206,7 @@ backend.providers.SGE.config {
 
 #### How Cromwell should abort an HPC job
 
-When aborting an HPC job, Cromwell will run a command confifured under the key `kill`, passing in the WDL variable `job_id`:
+When aborting an HPC job, Cromwell will run a command configured under the key `kill`, passing in the WDL variable `job_id`:
 
 ```hocon
 backend.providers.SGE.config {

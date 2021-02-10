@@ -62,12 +62,15 @@ cromwell::private::set_variable_if_only_some_files_changed() {
 cromwell::private::create_build_variables() {
     CROMWELL_BUILD_PROVIDER_TRAVIS="travis"
     CROMWELL_BUILD_PROVIDER_JENKINS="jenkins"
+    CROMWELL_BUILD_PROVIDER_CIRCLE="circle"
     CROMWELL_BUILD_PROVIDER_UNKNOWN="unknown"
 
     if [[ "${TRAVIS-false}" == "true" ]]; then
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_TRAVIS}"
     elif [[ "${JENKINS-false}" == "true" ]]; then
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_JENKINS}"
+    elif [[ "${CIRCLECI-false}" == "true" ]]; then
+        CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_CIRCLE}"
     else
         CROMWELL_BUILD_PROVIDER="${CROMWELL_BUILD_PROVIDER_UNKNOWN}"
     fi
@@ -215,6 +218,83 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_GENERATE_COVERAGE=false
             CROMWELL_BUILD_RUN_TESTS=true
             ;;
+        "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
+            CROMWELL_BUILD_IS_CI=true
+            CROMWELL_BUILD_TYPE="${BUILD_TYPE}"
+            CROMWELL_BUILD_NUMBER="${CIRCLE_BUILD_NUM}"
+            CROMWELL_BUILD_URL="${CIRCLE_BUILD_URL}"
+            CROMWELL_BUILD_GIT_USER_EMAIL="builds@circleci.com"
+            CROMWELL_BUILD_GIT_USER_NAME="CircleCI"
+            CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
+            CROMWELL_BUILD_GENERATE_COVERAGE=true
+            CROMWELL_BUILD_BRANCH="${CIRCLE_BRANCH:-${CIRCLE_TAG}}"
+            CROMWELL_BUILD_TAG="${CIRCLE_TAG:-}"
+
+            local circle_github_repository
+            circle_github_repository="${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}"
+
+            if [[ "${circle_github_repository}" == "broadinstitute/cromwell" ]]; then
+                CROMWELL_BUILD_IS_SECURE=true
+            else
+                CROMWELL_BUILD_IS_SECURE=false
+            fi
+
+            if [[ "$BUILD_BRANCH_OR_PR" == "pr" ]]; then
+              CROMWELL_BUILD_EVENT="pull_request"
+            elif [[ "$BUILD_BRANCH_OR_PR" == "branch" ]]; then
+              CROMWELL_BUILD_EVENT="push"
+            else
+              echo "Allowed values for BUILD_BRANCH_OR_PR environment variable are 'branch' and 'pr', but got '${BUILD_BRANCH_OR_PR}'. Fallback to default 'branch' case."
+              CROMWELL_BUILD_EVENT="push"
+            fi
+
+            local circle_commit_message
+            local circle_force_tests
+            local circle_minimal_tests
+            if [[ -n "${CIRCLE_COMMIT_RANGE:+set}" ]]; then
+                # The commit message to analyze should be the last one in the commit range.
+                # This works for both pull_request and push builds, unlike using 'git log HEAD' which
+                # gives a merge commit message on pull requests.
+                circle_commit_message="$(git log --reverse "${CIRCLE_COMMIT_RANGE}" | tail -n1 2>/dev/null || true)"
+            fi
+
+            if [[ -z "${circle_commit_message:-}" ]]; then
+                circle_commit_message="$(git log --format=%B --max-count=1 HEAD 2>/dev/null || true)"
+            fi
+
+            if [[ "${circle_commit_message}" == *"[force ci]"* ]]; then
+                circle_force_tests=true
+                circle_minimal_tests=false
+            elif [[ "${circle_commit_message}" == *"[minimal ci]"* ]]; then
+                circle_force_tests=false
+                circle_minimal_tests=true
+            else
+                circle_force_tests=false
+                circle_minimal_tests=false
+            fi
+
+            echo "Building for commit message='${circle_commit_message}' with force=${circle_force_tests} and minimal=${circle_minimal_tests}"
+
+            # For solely documentation updates run only checkPublish. Otherwise always run sbt, even for 'push'.
+            # This allows quick sanity checks before starting PRs *and* publishing after merges into develop.
+            if [[ "${circle_force_tests}" == "true" ]]; then
+                CROMWELL_BUILD_RUN_TESTS=true
+            elif [[ "${CROMWELL_BUILD_ONLY_DOCS_CHANGED}" == "true" ]] && \
+                [[ "${BUILD_TYPE}" != "checkPublish" ]]; then
+                CROMWELL_BUILD_RUN_TESTS=false
+            elif [[ "${circle_minimal_tests}" == "true" ]] && \
+                [[ "${CROMWELL_BUILD_EVENT}" != "push" ]]; then
+                CROMWELL_BUILD_RUN_TESTS=false
+            elif [[ "${CROMWELL_BUILD_ONLY_SCRIPTS_CHANGED}" == "true" ]] && \
+                [[ "${BUILD_TYPE}" != "metadataComparisonPython" ]]; then
+                CROMWELL_BUILD_RUN_TESTS=false
+            elif [[ "${CROMWELL_BUILD_EVENT}" == "push" ]] && \
+                [[ "${BUILD_TYPE}" != "sbt" ]]; then
+                CROMWELL_BUILD_RUN_TESTS=false
+            else
+                CROMWELL_BUILD_RUN_TESTS=true
+            fi
+            ;;
         *)
             CROMWELL_BUILD_IS_CI=false
             CROMWELL_BUILD_IS_SECURE=true
@@ -342,6 +422,7 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_PROVIDER
     export CROMWELL_BUILD_PROVIDER_JENKINS
     export CROMWELL_BUILD_PROVIDER_TRAVIS
+    export CROMWELL_BUILD_PROVIDER_CIRCLE
     export CROMWELL_BUILD_PROVIDER_UNKNOWN
     export CROMWELL_BUILD_REQUIRES_SECURE
     export CROMWELL_BUILD_REQUIRES_PRIOR_VERSION
@@ -386,7 +467,8 @@ cromwell::private::create_database_variables() {
     CROMWELL_BUILD_DATABASE_SCHEMA="cromwell_test"
 
     case "${CROMWELL_BUILD_PROVIDER}" in
-        "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
+        "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
+        "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
             CROMWELL_BUILD_MARIADB_HOSTNAME="localhost"
             CROMWELL_BUILD_MARIADB_PORT="23306"
             CROMWELL_BUILD_MARIADB_DOCKER_TAG="${BUILD_MARIADB-}"
@@ -1260,11 +1342,18 @@ cromwell::build::exec_test_script() {
     cromwell::private::exec_test_script
 }
 
+cromwell::private::pull_common_docker_images_and_start_docker_databases() {
+  if [[ "${BUILD_TYPE}" != "sbt" ]]; then
+      cromwell::private::pull_common_docker_images
+      cromwell::private::create_database_variables
+      cromwell::private::start_docker_databases
+  fi
+}
+
 cromwell::build::setup_common_environment() {
     cromwell::private::check_debug
     cromwell::private::create_build_variables
     cromwell::private::echo_build_variables
-    cromwell::private::create_database_variables
     cromwell::private::verify_secure_build
     cromwell::private::make_build_directories
     cromwell::private::install_git_secrets
@@ -1278,18 +1367,20 @@ cromwell::build::setup_common_environment() {
             cromwell::private::delete_boto_config
             cromwell::private::delete_sbt_boot
             cromwell::private::upgrade_pip
-            cromwell::private::pull_common_docker_images
-            cromwell::private::start_docker_databases
+            cromwell::private::pull_common_docker_images_and_start_docker_databases
+            ;;
+        "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
+            cromwell::private::pull_common_docker_images_and_start_docker_databases
             ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")
-            cromwell::private::delete_boto_config
-            cromwell::private::delete_sbt_boot
+            cromwell::private::create_database_variables
             ;;
         *)
             cromwell::private::pull_common_docker_images
             ;;
     esac
 }
+
 
 cromwell::build::setup_centaur_environment() {
     cromwell::private::create_centaur_variables

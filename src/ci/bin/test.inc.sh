@@ -1016,13 +1016,20 @@ cromwell::private::vault_login() {
         case "${CROMWELL_BUILD_PROVIDER}" in
             "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
             "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
+
+                if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_CIRCLE}" ]]; then
+                  VAULT_TOKEN=$( docker run --rm -v "${CROMWELL_BUILD_HOME_DIRECTORY}:/root:rw" \
+                    broadinstitute/dsde-toolbox:dev vault write -field=token auth/approle/login \
+                    role_id="${VAULT_ROLE_ID}" secret_id="${VAULT_SECRET_ID}" )
+                fi
+
                 # Login to vault to access secrets
                 local vault_token
                 vault_token="${VAULT_TOKEN}"
                 # Don't fail here if vault login fails
                 # shellcheck disable=SC2015
                 docker run --rm \
-                    -v "/home/circleci:/root:rw" \
+                    -v "${CROMWELL_BUILD_HOME_DIRECTORY}:/root:rw" \
                     broadinstitute/dsde-toolbox:dev \
                     vault auth "${vault_token}" < /dev/null > /dev/null && echo vault auth success \
                 || true

@@ -1014,7 +1014,8 @@ cromwell::private::vault_login() {
         cromwell::private::exec_silent_function cromwell::private::vault_login
     elif [[ "${CROMWELL_BUILD_IS_SECURE}" == "true" ]]; then
         case "${CROMWELL_BUILD_PROVIDER}" in
-            "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
+            "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
+            "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
                 # Login to vault to access secrets
                 local vault_token
                 vault_token="${VAULT_TOKEN}"

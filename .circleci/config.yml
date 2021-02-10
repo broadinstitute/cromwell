@@ -39,11 +39,19 @@ jobs:
       - checkout
       - when:
           condition:
-            equal: [ pr, << parameters.branch-or-pr-build >> ]
+            and:
+              - equal: [ pr, << parameters.branch-or-pr-build >> ]
+              - not:
+                  equal: [ develop, << pipeline.git.branch >> ]
           steps:
             - build-tools/merge-with-parent
       - restore_cache:
           key: sbt-cache
+      - run:
+          - name: Generate Vault token
+          - command: |
+              export VAULT_TOKEN=$( docker run --rm -v "${HOME}:/root:rw" broadinstitute/dsde-toolbox:dev \
+              vault write -field=token auth/approle/login role_id="${VAULT_ROLE_ID}" secret_id="${VAULT_SECRET_ID}" )
       - run:
           command: src/ci/bin/test.sh
           no_output_timeout: 1h

@@ -16,10 +16,10 @@ commands:
 
 jobs:
   test:
-    machine:
-      image: ubuntu-2004:202010-01
-    resource_class: large
     parameters:
+      machine-size:
+        type: string
+        default: large
       branch-or-pr-build:
         description: supported values are `branch` or `pr`
         type: string
@@ -34,15 +34,23 @@ jobs:
       build-postgresql:
         type: string
         default: ""
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: << parameters.machine-size >>
     steps:
+      - run:
+          name: Halt PR build if there is no PR associated with the commit
+          command: |
+            if [[ -z "${CI_PULL_REQUEST}" ]]; then
+              circleci-agent step halt
+            else
+              echo "Build associated with the following PR: '${CI_PULL_REQUEST}'"
+            fi
       - install_adoptopenjdk
       - checkout
       - when:
           condition:
-            and:
-              - equal: [ pr, << parameters.branch-or-pr-build >> ]
-              - not:
-                  equal: [ develop, << pipeline.git.branch >> ]
+            equal: [ pr, << parameters.branch-or-pr-build >> ]
           steps:
             - build-tools/merge-with-parent
       - restore_cache:

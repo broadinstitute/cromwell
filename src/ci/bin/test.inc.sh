@@ -811,7 +811,7 @@ cromwell::private::pip_install() {
 
     if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
         if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_CIRCLE}" ]]; then
-            pip install "${pip_package}" "$@"
+            pip3 install "${pip_package}" "$@"
         else
             sudo -H "${PYTHON3_HOME}/bin/pip" install "${pip_package}" "$@"
         fi

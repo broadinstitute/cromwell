@@ -22,7 +22,7 @@ cromwell::build::slurm::setup_slurm_environment() {
     sudo apt-get update
 
     # Try the Lawrence Livermore National Laboratory (LLNL) version first
-    sudo apt-get install -y slurm-llnl || apt-get install -y slurm-wlm
+    sudo apt-get install -y slurm-llnl || sudo apt-get install -y slurm-wlm
 
     # Create various directories used by slurm
     sudo mkdir -p /etc/slurm-llnl

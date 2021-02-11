@@ -810,7 +810,11 @@ cromwell::private::pip_install() {
     pip_package="${1:?pip_install called without a package}"; shift
 
     if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
-        sudo -H "${PYTHON3_HOME}/bin/pip" install "${pip_package}" "$@"
+        if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_CIRCLE}" ]]; then
+            pip install "${pip_package}" "$@"
+        else
+            sudo -H "${PYTHON3_HOME}/bin/pip" install "${pip_package}" "$@"
+        fi
     elif [[ "${CROMWELL_BUILD_IS_VIRTUAL_ENV}" == "true" ]]; then
         pip install "${pip_package}" "$@"
     else

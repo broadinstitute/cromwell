@@ -38,14 +38,18 @@ jobs:
       image: ubuntu-2004:202010-01
     resource_class: << parameters.machine-size >>
     steps:
-      - run:
-          name: Halt PR build if there is no PR associated with the commit
-          command: |
-            if [[ -z "${CI_PULL_REQUEST}" ]]; then
-              circleci-agent step halt
-            else
-              echo "Build associated with the following PR: '${CI_PULL_REQUEST}'"
-            fi
+      - when:
+          condition:
+            equal: [ pr, << parameters.branch-or-pr-build >> ]
+          steps:
+            - run:
+                name: Halt PR build if there is no PR associated with the commit
+                command: |
+                  if [[ -z "${CI_PULL_REQUEST}" ]]; then
+                    circleci-agent step halt
+                  else
+                    echo "Build associated with the following PR: '${CI_PULL_REQUEST}'"
+                  fi
       - install_adoptopenjdk
       - checkout
       - when:

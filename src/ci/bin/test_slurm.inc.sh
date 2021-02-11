@@ -36,6 +36,7 @@ cromwell::build::slurm::setup_slurm_environment() {
     # https://slurm.schedmd.com/slurm.conf.html
     # https://slurm.schedmd.com/quickstart_admin.html
     cat <<SLURM_CONF | sudo tee /etc/slurm-llnl/slurm.conf >/dev/null
+ClusterName=localhost
 ControlMachine=localhost
 NodeName=localhost
 PartitionName=localpartition Nodes=localhost Default=YES
@@ -44,7 +45,6 @@ ReturnToService=1
 SelectType=select/cons_res
 SelectTypeParameters=CR_CPU
 SlurmctldDebug=3
-ClusterName=SlurmClusterForCentaurTests
 SLURM_CONF
 
     # Start the slurm master

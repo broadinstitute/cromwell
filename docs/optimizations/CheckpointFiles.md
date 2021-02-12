@@ -4,19 +4,20 @@
 
 Available in Cromwell 55 and higher.
 
-This optimization hopes to resolve the issue of your worker VM being preempted 9 hours and 55 minutes into the runtime of
-a 10 hour job and having no option but to re-run the entire computation again.
+This optimization provides a way to mitigate the problem of long-running tasks getting preempted partway through execution. It allows the user to save intermediates of a task at regularly scheduled checkpoints. After an interruption, the task can be restarted from the last saved checkpoint, thereby avoiding having to re-run the entire computation again.
 
 ### Description
 
 Specifying a `checkpointFile` value in a task's `runtime` section designates a checkpoint file which will periodically be
-copied to cloud storage every 10 minutes.
-This checkpoint file will then be restored automatically on subsequent attempts if the job is interrupted.
+copied to cloud storage every 10 minutes. This checkpoint file will then be restored automatically on subsequent attempts if the job is interrupted. Once the final output has been successfully generated, the checkpoint file will be deleted.
 
-**Note:** Although the checkpoint file is deleted if the task succeeds, additional charges may accrue storing the checkpoint file during
-the running of the task, if the task is aborted or otherwise stopped externally, and by transferring it between the VM and the cloud. These
-cost should be minor, especially balanced against the performance and cost benefits of being able to restore from the
-checkpoint when preemptible VMs are interrupted.   
+To use this feature effectively, the WDL task must be written intentionally to use the checkpoint file. See example below. 
+
+### Effects on cloud charges
+
+Charges will accrue from storing the checkpoint file during the running of the task, and additional charges may apply to the transfer between the VM and the cloud storage bucket depending on their locations. These costs should be minor, especially balanced against the performance and cost benefits of being able to restore from the checkpoint when a worker VM gets preempted.
+
+Since the checkpoint file is deleted after successful completion of the task, no further charges will accrue after completion. However, if the task is aborted or otherwise stopped externally, ie through interruption of Cromwell's operation, the checkpoint file will NOT be deleted and storage charges will continue to accrue indefinitely, or until the file is deleted manually. 
 
 ### Effect on Call Caching
 
@@ -24,7 +25,7 @@ The presence or absence of the `checkpointFile` attribute is not considered when
 
 ### Example
 
-The following WDL demonstrates the use of the `checkpointFile` optimization. It has a command which is checkpoint-aware:
+The following WDL demonstrates the use of the `checkpointFile` optimization. It has a command that is checkpoint-aware:
 
 * It starts by attempting to restore state from the `my_checkpoint` file (or starts at `1` if the checkpoint is empty)
 * Then it counts up to 100, printing out the current counter value and a date timestamp at each value.

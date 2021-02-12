@@ -637,7 +637,8 @@ cromwell::private::create_centaur_variables() {
 
     # Pick **one** of the databases to run Centaur against
     case "${CROMWELL_BUILD_PROVIDER}" in
-        "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
+        "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
+        "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
 
             if [[ -n "${CROMWELL_BUILD_MYSQL_DOCKER_TAG:+set}" ]]; then
                 CROMWELL_BUILD_CENTAUR_SLICK_PROFILE="slick.jdbc.MySQLProfile$"
@@ -810,7 +811,11 @@ cromwell::private::pip_install() {
     pip_package="${1:?pip_install called without a package}"; shift
 
     if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
-        sudo -H "${PYTHON3_HOME}/bin/pip" install "${pip_package}" "$@"
+        if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_CIRCLE}" ]]; then
+            pip3 install "${pip_package}" "$@"
+        else
+            sudo -H "${PYTHON3_HOME}/bin/pip" install "${pip_package}" "$@"
+        fi
     elif [[ "${CROMWELL_BUILD_IS_VIRTUAL_ENV}" == "true" ]]; then
         pip install "${pip_package}" "$@"
     else
@@ -1014,7 +1019,15 @@ cromwell::private::vault_login() {
         cromwell::private::exec_silent_function cromwell::private::vault_login
     elif [[ "${CROMWELL_BUILD_IS_SECURE}" == "true" ]]; then
         case "${CROMWELL_BUILD_PROVIDER}" in
-            "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
+            "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
+            "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
+
+                if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_CIRCLE}" ]]; then
+                  VAULT_TOKEN=$( docker run --rm -v "${CROMWELL_BUILD_HOME_DIRECTORY}:/root:rw" \
+                    broadinstitute/dsde-toolbox:dev vault write -field=token auth/approle/login \
+                    role_id="${VAULT_ROLE_ID}" secret_id="${VAULT_SECRET_ID}" )
+                fi
+
                 # Login to vault to access secrets
                 local vault_token
                 vault_token="${VAULT_TOKEN}"
@@ -1059,7 +1072,8 @@ cromwell::private::copy_all_resources() {
 cromwell::private::setup_secure_resources() {
     if [[ "${CROMWELL_BUILD_REQUIRES_SECURE}" == "true" ]] || [[ "${CROMWELL_BUILD_OPTIONAL_SECURE}" == "true" ]]; then
         case "${CROMWELL_BUILD_PROVIDER}" in
-            "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
+            "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
+            "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
                 cromwell::private::vault_login
                 cromwell::private::render_secure_resources
                 cromwell::private::docker_login

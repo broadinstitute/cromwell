@@ -23,8 +23,6 @@ services:
         -Dsystem.max-workflow-launch-count=0
         -Dsystem.new-workflow-poll-rate=999999
         -Dservices.MetadataService.config.metadata-summary-refresh-interval=Inf
-        -Dservices.MetadataService.config.carbonite-metadata-service.metadata-freezing.initial-interval=Inf
-        -Dservices.MetadataService.config.carbonite-metadata-service.metadata-deletion.interval=Inf
       - CROMWELL_BUILD_RESOURCES_DIRECTORY
       - CROMWELL_BUILD_CENTAUR_SLICK_PROFILE
       - CROMWELL_BUILD_CENTAUR_JDBC_DRIVER
@@ -103,8 +101,6 @@ services:
         -Dwebservice.port=${CROMWELL_BUILD_CENTAUR_MANAGED_PORT}
         -Dsystem.cromwell_id=frontend
         -Dservices.MetadataService.config.metadata-summary-refresh-interval=Inf
-        -Dservices.MetadataService.config.carbonite-metadata-service.metadata-freezing.initial-interval=Inf
-        -Dservices.MetadataService.config.carbonite-metadata-service.metadata-deletion.interval=Inf
       - CROMWELL_BUILD_RESOURCES_DIRECTORY
       - CROMWELL_BUILD_CENTAUR_SLICK_PROFILE
       - CROMWELL_BUILD_CENTAUR_JDBC_DRIVER

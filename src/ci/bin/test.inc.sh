@@ -591,15 +591,7 @@ cromwell::private::create_centaur_variables() {
         "${CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL}")
             # Use the standard test cases despite the horicromtal Centaur build type.
             CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY="${CROMWELL_BUILD_CENTAUR_RESOURCES}/standardTestCases"
-
-            # Determine horicromtal Centaur config:
-            if test "${CROMWELL_BUILD_BACKEND_TYPE}" = "papi_v2alpha1" || test "${CROMWELL_BUILD_BACKEND_TYPE}" = "papi_v2beta"
-            then
-              CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application_papi_v2_horicromtal.conf"
-            else
-              CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application_horicromtal.conf"
-            fi
-            echo "*** Using centaur config '${CROMWELL_BUILD_CENTAUR_CONFIG}' for backend type '${CROMWELL_BUILD_BACKEND_TYPE}'"
+            CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application_horicromtal.conf"
             ;;
         "${CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL_ENGINE_UPGRADE}")
             # Use the engine upgrade test cases despite the horicromtal Centaur build type.
@@ -609,12 +601,7 @@ cromwell::private::create_centaur_variables() {
             ;;
         *)
             CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY="${CROMWELL_BUILD_CENTAUR_RESOURCES}/${CROMWELL_BUILD_CENTAUR_TYPE}TestCases"
-            if test "${CROMWELL_BUILD_BACKEND_TYPE}" = "papi_v2alpha1" || test "${CROMWELL_BUILD_BACKEND_TYPE}" = "papi_v2beta"
-            then
-              CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application_papi_v2.conf"
-            else
-              CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application.conf"
-            fi
+            CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application.conf"
             ;;
     esac
 

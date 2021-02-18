@@ -37,7 +37,7 @@ import akka.actor.ActorRef
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import cromwell.filesystems.s3.batch.S3BatchCommandBuilder
 import cromwell.backend.standard.{StandardInitializationActor, StandardInitializationActorParams, StandardValidatedRuntimeAttributesBuilder}
-import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor, BackendInitializationData}
 import cromwell.core.io.DefaultIoCommandBuilder
 import cromwell.core.io.AsyncIoActorClient
 import cromwell.core.path.Path
@@ -68,6 +68,18 @@ class AwsBatchInitializationActor(params: AwsBatchInitializationActorParams)
   override lazy val ioActor = params.ioActor
   private val configuration = params.configuration
   override implicit val system = context.system
+
+  override def beforeAll(): Future[Option[BackendInitializationData]] = {
+    configuration.fileSystem match {
+      case AWSBatchStorageSystems.s3  => super.beforeAll
+      case _ => { 
+        initializationData map { data =>
+          publishWorkflowRoot(data.workflowPaths.workflowRoot.pathAsString)
+          Option(data)
+        } 
+      }
+    }
+  }
 
   override lazy val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =
     AwsBatchRuntimeAttributes.runtimeAttributesBuilder(configuration)

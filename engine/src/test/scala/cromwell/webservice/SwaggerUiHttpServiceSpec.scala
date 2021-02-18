@@ -3,7 +3,7 @@ package cromwell.webservice
 import akka.http.scaladsl.model.headers.Location
 import akka.http.scaladsl.model.{StatusCodes, Uri}
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.testkit.ScalatestRouteTest
+import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
 import com.typesafe.config.ConfigFactory
 import common.assertion.CromwellTimeoutSpec
 import cromwell.webservice.SwaggerUiHttpServiceSpec._
@@ -11,6 +11,7 @@ import cromwell.webservice.routes.CromwellApiService
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
+import scala.concurrent.duration._
 
 trait SwaggerUiHttpServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalatestRouteTest with SwaggerUiHttpService {
   override def swaggerUiVersion = CromwellApiService.swaggerUiVersion
@@ -20,6 +21,8 @@ trait SwaggerResourceHttpServiceSpec extends AnyFlatSpec with CromwellTimeoutSpe
 TableDrivenPropertyChecks with SwaggerResourceHttpService {
   val testPathsForOptions = Table("endpoint", "/", "/swagger", "/swagger/index.html", "/api", "/api/example",
     "/api/example?with=param", "/api/example/path")
+
+  implicit val timeout: RouteTestTimeout = RouteTestTimeout(5.seconds)
 }
 
 trait SwaggerUiResourceHttpServiceSpec extends SwaggerUiHttpServiceSpec with SwaggerResourceHttpServiceSpec with

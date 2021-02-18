@@ -496,9 +496,11 @@ before eventually giving up and running the job. This behavior may be corrected 
 ### Reference Disk Support
 
 Cromwell 55 and later support mounting reference disks from prebuilt GCP disk images as an alternative to localizing large
-input reference files on PAPI v2. Within the `config` stanza of a PAPI v2 backend the `reference-disk-localization-manifest-files`
-key specifies an array of manifest JSONs in GCS:  
+input reference files on PAPI v2. Please note the configuration of reference disk manifests has changed starting with
+Cromwell 57 and now uses the format documented below. 
 
+Within the `config` stanza of a PAPI v2 backend the `reference-disk-localization-manifests`
+key specifies an array of reference disk manifests:  
 
 ```hocon
 backend {
@@ -509,29 +511,25 @@ backend {
       actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
       config {
         ...
-        reference-disk-localization-manifest-files = ["gs://path/to/a/reference/disk/manifest.json"]
+        reference-disk-localization-manifests = [
+          {
+            "imageIdentifier" : "projects/broad-dsde-cromwell-dev/global/images/broad-references-disk-image",
+            "diskSizeGb" : 500,
+            "files" : [ {
+              "path" : "gcp-public-data--broad-references/Homo_sapiens_assembly19_1000genomes_decoy/Homo_sapiens_assembly19_1000genomes_decoy.fasta.nhr",
+              "crc32c" : 407769621
+            }, {
+              "path" : "gcp-public-data--broad-references/Homo_sapiens_assembly19_1000genomes_decoy/Homo_sapiens_assembly19_1000genomes_decoy.fasta.sa",
+              "crc32c" : 1902048083
+            },
+            ...
+          },
+          ...
+        ]
         ...
       }
     }
   }
-}
-```
-
-Reference manifest JSONs have a format like:
-
-```json
-{
-  "imageIdentifier" : "projects/my_project/global/images/my-references-disk-image",
-  "diskSizeGb" : 30,
-  "files" : [ {
-    "path" : "my-references/enormous_reference.bam",
-    "crc32c" : 407769621
-  }, {
-    "path" : "my-references/enormous_reference.bam.bai",
-    "crc32c" : 1902048083
-  },
-...
-  ]
 }
 ```
 
@@ -552,7 +550,7 @@ reference image without the leading `gs://`, Cromwell would
 arrange for a reference disk based on this image to be mounted and for the call's input to refer to the 
 copy of the file on the reference disk, bypassing localization of the input.     
 
-The Cromwell git repository includes a Java-based tool to facilitate the creation of manifest files called
+The Cromwell git repository includes a Java-based tool to facilitate the creation of manifests called
 [CromwellRefdiskManifestCreatorApp](https://github.com/broadinstitute/cromwell/tree/develop/CromwellRefdiskManifestCreator).
 Please see the help command of that tool for more details.
 

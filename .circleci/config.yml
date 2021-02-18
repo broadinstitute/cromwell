@@ -1,0 +1,282 @@
+version: 2.1
+
+orbs:
+  slack: circleci/slack@4.2.1
+  build-tools: circleci/build-tools@2.7.1
+
+commands:
+  install_adoptopenjdk:
+    description: "Installing adoptopenjdk 8 and setting it as default Java"
+    steps:
+      - run: wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | sudo apt-key add -
+      - run: sudo add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/
+      - run: sudo apt update
+      - run: sudo apt install adoptopenjdk-8-hotspot
+      - run: sudo update-java-alternatives --set adoptopenjdk-8-hotspot-amd64
+
+jobs:
+  test:
+    parameters:
+      machine-size:
+        type: string
+        default: large
+      branch-or-pr-build:
+        description: supported values are `branch` or `pr`
+        type: string
+      build-type:
+        type: string
+      build-mysql:
+        type: string
+        default: ""
+      build-mariadb:
+        type: string
+        default: ""
+      build-postgresql:
+        type: string
+        default: ""
+    machine:
+      image: ubuntu-2004:202010-01
+    resource_class: << parameters.machine-size >>
+    steps:
+      - when:
+          condition:
+            equal: [ pr, << parameters.branch-or-pr-build >> ]
+          steps:
+            - run:
+                name: Halt PR build if there is no PR associated with the commit
+                command: |
+                  if [[ -z "${CI_PULL_REQUEST}" ]]; then
+                    circleci-agent step halt
+                  else
+                    echo "Build associated with the following PR: '${CI_PULL_REQUEST}'"
+                  fi
+      - install_adoptopenjdk
+      - checkout
+      - when:
+          condition:
+            equal: [ pr, << parameters.branch-or-pr-build >> ]
+          steps:
+            - build-tools/merge-with-parent
+      - restore_cache:
+          key: sbt-cache
+      - run:
+          command: src/ci/bin/test.sh
+          no_output_timeout: 1h
+      - run:
+          name: Do tricks to avoid unnecessary cache updates
+          command: |
+            find ~/.ivy2/cache -name "ivydata-*.properties" -print -delete
+            find ~/.sbt -name "*.lock" -print -delete
+      - save_cache:
+          key: sbt-cache
+          paths:
+            - "~/.ivy2/cache"
+            - "~/.sbt"
+    environment:
+      CIRCLE_COMMIT_RANGE: << pipeline.git.base_revision >>...<< pipeline.git.revision >>
+      BUILD_TYPE: << parameters.build-type >>
+      BUILD_MYSQL: << parameters.build-mysql >>
+      BUILD_MARIADB: << parameters.build-mariadb >>
+      BUILD_POSTGRESQL: << parameters.build-postgresql >>
+      BUILD_BRANCH_OR_PR: << parameters.branch-or-pr-build >>
+
+workflows:
+  all-tests:
+    jobs:
+      - test:
+          name: testSbt-<< matrix.branch-or-pr-build >>
+          build-type: "sbt"
+          matrix:
+             parameters:
+               branch-or-pr-build: [branch, pr]
+      - test:
+          name: testSingleWorkflowRunner-<< matrix.branch-or-pr-build >>
+          build-type: "singleWorkflowRunner"
+          matrix:
+            parameters:
+              branch-or-pr-build: [branch, pr]
+      - test:
+          name: testDbms-<< matrix.branch-or-pr-build >>
+          build-type: "dbms"
+          matrix:
+            parameters:
+              branch-or-pr-build: [branch, pr]
+      - test:
+          name: testHoricromtalDeadlock-<< matrix.branch-or-pr-build >>
+          build-type: "horicromtalDeadlock"
+          matrix:
+            parameters:
+              branch-or-pr-build: [branch, pr]
+      - test:
+          name: testDockerScripts-<< matrix.branch-or-pr-build >>
+          build-type: "dockerScripts"
+          matrix:
+            parameters:
+              branch-or-pr-build: [branch, pr]
+      - test:
+          name: testReferenceDiskManifestBuilderApp-<< matrix.branch-or-pr-build >>
+          build-type: "referenceDiskManifestBuilderApp"
+          matrix:
+            parameters:
+              branch-or-pr-build: [branch, pr]
+      - test:
+          name: testCentaurAws-<< matrix.branch-or-pr-build >>
+          build-type: "centaurAws"
+          build-mysql: "5.7"
+          matrix:
+            parameters:
+              branch-or-pr-build: [branch, pr]
+      - test:
+          name: testCentaurBcs-<< matrix.branch-or-pr-build >>
+          build-type: "centaurBcs"
+          build-mysql: "5.7"
+          matrix:
+            parameters:
+              branch-or-pr-build: [branch, pr]
+      - test:
+          name: testCentaurDummy-<< matrix.branch-or-pr-build >>
+          build-type: "centaurDummy"
+          build-mysql: "5.7"
+          matrix:
+            parameters:
+              branch-or-pr-build: [ branch, pr ]
+      - test:
+          name: testCentaurEngineUpgradeLocal-<< matrix.branch-or-pr-build >>
+          build-type: "centaurEngineUpgradeLocal"
+          build-mysql: "5.7"
+          matrix:
+            parameters:
+              branch-or-pr-build: [ branch, pr ]
+      - test:
+          name: testCentaurEngineUpgradePapiV2alpha1-<< matrix.branch-or-pr-build >>
+          build-type: "centaurEngineUpgradePapiV2alpha1"
+          build-mysql: "5.7"
+          matrix:
+            parameters:
+              branch-or-pr-build: [ branch, pr ]
+      - test:
+          name: testCentaurHoricromtalPapiV2alpha1-<< matrix.branch-or-pr-build >>
+          build-type: "centaurHoricromtalPapiV2alpha1"
+          build-mysql: "5.7"
+          matrix:
+            parameters:
+              branch-or-pr-build: [ branch, pr ]
+      - test:
+          name: testCentaurHoricromtalPapiV2beta-MySQL-<< matrix.branch-or-pr-build >>
+          build-type: "centaurHoricromtalPapiV2beta"
+          build-mysql: "5.7"
+          matrix:
+            parameters:
+              branch-or-pr-build: [ branch, pr ]
+      - test:
+          name: testCentaurHoricromtalPapiV2beta-MariaDB-<< matrix.branch-or-pr-build >>
+          build-type: "centaurHoricromtalPapiV2beta"
+          build-mariadb: "10.3"
+          matrix:
+            parameters:
+              branch-or-pr-build: [ branch, pr ]
+      - test:
+          name: testCentaurHoricromtalEngineUpgradePapiV2alpha1-MySQL-<< matrix.branch-or-pr-build >>
+          build-type: "centaurHoricromtalEngineUpgradePapiV2alpha1"
+          build-mysql: "5.7"
+          matrix:
+            parameters:
+              branch-or-pr-build: [ branch, pr ]
+      - test:
+          name: testCentaurHoricromtalEngineUpgradePapiV2alpha1-MariaDB-<< matrix.branch-or-pr-build >>
+          build-type: "centaurHoricromtalEngineUpgradePapiV2alpha1"
+          build-mariadb: "10.3"
+          matrix:
+            parameters:
+              branch-or-pr-build: [ branch, pr ]
+      - test:
+          name: testCentaurPapiUpgradePapiV2alpha1-<< matrix.branch-or-pr-build >>
+          build-type: "centaurPapiUpgradePapiV2alpha1"
+          build-mysql: "5.7"
+          matrix:
+            parameters:
+              branch-or-pr-build: [ branch, pr ]
+      - test:
+          name: testCentaurPapiUpgradeNewWorkflowsPapiV2alpha1-<< matrix.branch-or-pr-build >>
+          build-type: "centaurPapiUpgradeNewWorkflowsPapiV2alpha1"
+          build-mysql: "5.7"
+          matrix:
+            parameters:
+              branch-or-pr-build: [ branch, pr ]
+      - test:
+          name: testCentaurLocal-MySQL-<< matrix.branch-or-pr-build >>
+          build-type: "centaurLocal"
+          build-mysql: "5.7"
+          matrix:
+            parameters:
+              branch-or-pr-build: [ branch, pr ]
+      - test:
+          name: testCentaurLocal-Postgresql-<< matrix.branch-or-pr-build >>
+          build-type: "centaurLocal"
+          build-postgresql: "11.3"
+          matrix:
+            parameters:
+              branch-or-pr-build: [ branch, pr ]
+      - test:
+          name: testCentaurPapiV2alpha1-<< matrix.branch-or-pr-build >>
+          build-type: "centaurPapiV2alpha1"
+          build-mysql: "5.7"
+          matrix:
+            parameters:
+              branch-or-pr-build: [ branch, pr ]
+      - test:
+          name: testCentaurPapiV2beta-<< matrix.branch-or-pr-build >>
+          build-type: "centaurPapiV2beta"
+          build-mysql: "5.7"
+          matrix:
+            parameters:
+              branch-or-pr-build: [ branch, pr ]
+      - test:
+          name: testCentaurSlurm-<< matrix.branch-or-pr-build >>
+          build-type: "centaurSlurm"
+          build-mysql: "5.7"
+          matrix:
+            parameters:
+              branch-or-pr-build: [ branch, pr ]
+      - test:
+          name: testCentaurTes-<< matrix.branch-or-pr-build >>
+          build-type: "centaurTes"
+          build-mysql: "5.7"
+          matrix:
+            parameters:
+              branch-or-pr-build: [ branch, pr ]
+      - test:
+          name: testCentaurWdlUpgradeLocal-<< matrix.branch-or-pr-build >>
+          build-type: "centaurWdlUpgradeLocal"
+          build-mysql: "5.7"
+          matrix:
+            parameters:
+              branch-or-pr-build: [ branch, pr ]
+      - test:
+          name: testCheckPublish-<< matrix.branch-or-pr-build >>
+          build-type: "checkPublish"
+          build-mysql: "5.7"
+          matrix:
+            parameters:
+              branch-or-pr-build: [ branch, pr ]
+      - test:
+          name: testConformanceLocal-<< matrix.branch-or-pr-build >>
+          build-type: "conformanceLocal"
+          build-mysql: "5.7"
+          matrix:
+            parameters:
+              branch-or-pr-build: [ branch, pr ]
+      - test:
+          name: testConformancePapiV2beta-<< matrix.branch-or-pr-build >>
+          build-type: "conformancePapiV2beta"
+          build-mysql: "5.7"
+          matrix:
+            parameters:
+              branch-or-pr-build: [ branch, pr ]
+      - test:
+          name: testConformanceTesk-<< matrix.branch-or-pr-build >>
+          build-type: "conformanceTesk"
+          build-mysql: "5.7"
+          matrix:
+            parameters:
+              branch-or-pr-build: [ branch, pr ]

@@ -19,6 +19,26 @@ class PipelinesApiReferenceFilesMappingOperationsSpec extends AnyFlatSpecLike wi
   private val disk1 = PipelinesApiReferenceFilesDisk("image_identifier_1", 500)
   private val disk2 = PipelinesApiReferenceFilesDisk("image_identifier_2", 100)
 
+  private val papiReferenceFilesMappingOperationsMockObject: PipelinesApiReferenceFilesMappingOperations =
+    new PipelinesApiReferenceFilesMappingOperations {
+
+      override def bulkValidateCrc32cs(gcsClient: Storage, filesWithValidPaths: Map[ReferenceFile, ValidFullGcsPath]): IO[Map[ReferenceFile, Boolean]] =
+        IO.pure(filesWithValidPaths.keySet.map(file => (file, file.path != refFile4Disk2MismatchingChecksum)).toMap)
+    }
+
+  private val refFileMappingsMock = papiReferenceFilesMappingOperationsMockObject.generateReferenceFilesMapping(
+    MockAuthMode("default"),
+    List(
+      ManifestFile(imageIdentifier = disk1.image, diskSizeGb = disk1.sizeGb, files = List(
+        ReferenceFile(path = refFile1Disk1, crc32c = 5),
+        ReferenceFile(path = refFile2Disk1, crc32c = 6)
+      )),
+      ManifestFile(imageIdentifier = disk2.image, diskSizeGb = disk2.sizeGb, files = List(
+        ReferenceFile(path = refFile3Disk2, crc32c = 7)
+      ))
+    )
+  )
+
   it should "correctly figure out which disks have to be mounted based on provided input file paths" in {
     val nonReferenceInputFilePaths = Set("gs://not/a/reference/file")
     val forNonReferenceFile = papiReferenceFilesMappingOperationsMockObject.getReferenceDisksToMount(refFileMappingsMock, nonReferenceInputFilePaths)
@@ -39,44 +59,4 @@ class PipelinesApiReferenceFilesMappingOperationsSpec extends AnyFlatSpecLike wi
     val forMismatchingChecksumReferenceFile = papiReferenceFilesMappingOperationsMockObject.getReferenceDisksToMount(refFileMappingsMock, mismatchingChecksumReferenceFile)
     forMismatchingChecksumReferenceFile.isEmpty shouldBe true
   }
-
-  private val papiReferenceFilesMappingOperationsMockObject: PipelinesApiReferenceFilesMappingOperations =
-    new PipelinesApiReferenceFilesMappingOperations {
-      override def readReferenceDiskManifestFileFromGCS(gcsClient: Storage, gcsPath: ValidFullGcsPath): IO[ManifestFile] =
-        IO.pure {
-          gcsPath match {
-            case ValidFullGcsPath("bucketname", "manifest1") =>
-              ManifestFile(
-                imageIdentifier = disk1.image,
-                diskSizeGb = 500,
-                files = List(
-                  ReferenceFile(path = refFile1Disk1, crc32c = 12345L),
-                  ReferenceFile(path = refFile2Disk1, crc32c = 12345678L)
-                )
-              )
-            case ValidFullGcsPath("bucketname2", "manifest2") =>
-              ManifestFile(
-                imageIdentifier = disk2.image,
-                diskSizeGb = 100,
-                files = List(
-                  ReferenceFile(path = refFile3Disk2, crc32c = 12L),
-                  ReferenceFile(path = refFile4Disk2MismatchingChecksum, crc32c = 12345L),
-                )
-              )
-            case _ => throw new RuntimeException(s"Exception in mock object. This should not happen. " +
-              s"Expecting valid full GCS path, but got: $gcsPath")
-          }
-        }
-
-      override def bulkValidateCrc32cs(gcsClient: Storage, filesWithValidPaths: Map[ReferenceFile, ValidFullGcsPath]): IO[Map[ReferenceFile, Boolean]] =
-        IO.pure(filesWithValidPaths.keySet.map(file => (file, file.path != refFile4Disk2MismatchingChecksum)).toMap)
-    }
-
-  private val refFileMappingsMock = papiReferenceFilesMappingOperationsMockObject.generateReferenceFilesMapping(
-    MockAuthMode("default"),
-    List(
-      ValidFullGcsPath("bucketname", "manifest1"),
-      ValidFullGcsPath("bucketname2", "manifest2"),
-    )
-  )
 }

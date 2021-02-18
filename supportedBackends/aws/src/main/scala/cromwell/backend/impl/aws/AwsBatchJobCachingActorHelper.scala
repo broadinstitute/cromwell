@@ -53,7 +53,7 @@ trait AwsBatchJobCachingActorHelper extends StandardCachingActorHelper {
   // TODO: Determine if call paths are relevant
   lazy val callPaths: AwsBatchJobPaths = jobPaths.asInstanceOf[AwsBatchJobPaths]
 
-  lazy val runtimeAttributes: AwsBatchRuntimeAttributes = AwsBatchRuntimeAttributes(validatedRuntimeAttributes, configuration.runtimeConfig)
+  lazy val runtimeAttributes: AwsBatchRuntimeAttributes = AwsBatchRuntimeAttributes(validatedRuntimeAttributes, configuration.runtimeConfig, configuration.fileSystem)
 
   lazy val workingDisk: AwsBatchVolume = runtimeAttributes.disks.find(x => configuration.fileSystem match {
     case AWSBatchStorageSystems.s3 => x.name == AwsBatchWorkingDisk.Name

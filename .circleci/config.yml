@@ -20,9 +20,6 @@ jobs:
       machine-size:
         type: string
         default: large
-      branch-or-pr-build:
-        description: supported values are `branch` or `pr`
-        type: string
       build-type:
         type: string
       build-mysql:
@@ -38,25 +35,16 @@ jobs:
       image: ubuntu-2004:202010-01
     resource_class: << parameters.machine-size >>
     steps:
-      - when:
-          condition:
-            equal: [ pr, << parameters.branch-or-pr-build >> ]
-          steps:
-            - run:
-                name: Halt PR build if there is no PR associated with the commit
-                command: |
-                  if [[ -z "${CI_PULL_REQUEST}" ]]; then
-                    circleci-agent step halt
-                  else
-                    echo "Build associated with the following PR: '${CI_PULL_REQUEST}'"
-                  fi
+      - run:
+          name: Halt builds except SBT test suite if there is no PR associated with the commit
+          command: |
+            if [[ -z "${CI_PULL_REQUEST}" ]] && [[ "${BUILD_TYPE}" != "sbt" ]] ; then
+              circleci-agent step halt
+            fi
       - install_adoptopenjdk
       - checkout
-      - when:
-          condition:
-            equal: [ pr, << parameters.branch-or-pr-build >> ]
-          steps:
-            - build-tools/merge-with-parent
+      - build-tools/merge-with-parent:
+          parent: develop
       - restore_cache:
           key: sbt-cache
       - run:
@@ -78,205 +66,117 @@ jobs:
       BUILD_MYSQL: << parameters.build-mysql >>
       BUILD_MARIADB: << parameters.build-mariadb >>
       BUILD_POSTGRESQL: << parameters.build-postgresql >>
-      BUILD_BRANCH_OR_PR: << parameters.branch-or-pr-build >>
 
 workflows:
   all-tests:
     jobs:
       - test:
-          name: testSbt-<< matrix.branch-or-pr-build >>
+          name: testSbt
           build-type: "sbt"
-          matrix:
-             parameters:
-               branch-or-pr-build: [branch, pr]
       - test:
-          name: testSingleWorkflowRunner-<< matrix.branch-or-pr-build >>
+          name: testSingleWorkflowRunner
           build-type: "singleWorkflowRunner"
-          matrix:
-            parameters:
-              branch-or-pr-build: [branch, pr]
       - test:
-          name: testDbms-<< matrix.branch-or-pr-build >>
+          name: testDbms
           build-type: "dbms"
-          matrix:
-            parameters:
-              branch-or-pr-build: [branch, pr]
       - test:
-          name: testHoricromtalDeadlock-<< matrix.branch-or-pr-build >>
+          name: testHoricromtalDeadlock
           build-type: "horicromtalDeadlock"
-          matrix:
-            parameters:
-              branch-or-pr-build: [branch, pr]
       - test:
-          name: testDockerScripts-<< matrix.branch-or-pr-build >>
+          name: testDockerScripts
           build-type: "dockerScripts"
-          matrix:
-            parameters:
-              branch-or-pr-build: [branch, pr]
       - test:
-          name: testReferenceDiskManifestBuilderApp-<< matrix.branch-or-pr-build >>
+          name: testReferenceDiskManifestBuilderApp
           build-type: "referenceDiskManifestBuilderApp"
-          matrix:
-            parameters:
-              branch-or-pr-build: [branch, pr]
       - test:
-          name: testCentaurAws-<< matrix.branch-or-pr-build >>
+          name: testCentaurAws
           build-type: "centaurAws"
           build-mysql: "5.7"
-          matrix:
-            parameters:
-              branch-or-pr-build: [branch, pr]
       - test:
-          name: testCentaurBcs-<< matrix.branch-or-pr-build >>
+          name: testCentaurBcs
           build-type: "centaurBcs"
           build-mysql: "5.7"
-          matrix:
-            parameters:
-              branch-or-pr-build: [branch, pr]
       - test:
-          name: testCentaurDummy-<< matrix.branch-or-pr-build >>
+          name: testCentaurDummy
           build-type: "centaurDummy"
           build-mysql: "5.7"
-          matrix:
-            parameters:
-              branch-or-pr-build: [ branch, pr ]
       - test:
-          name: testCentaurEngineUpgradeLocal-<< matrix.branch-or-pr-build >>
+          name: testCentaurEngineUpgradeLocal
           build-type: "centaurEngineUpgradeLocal"
           build-mysql: "5.7"
-          matrix:
-            parameters:
-              branch-or-pr-build: [ branch, pr ]
       - test:
-          name: testCentaurEngineUpgradePapiV2alpha1-<< matrix.branch-or-pr-build >>
+          name: testCentaurEngineUpgradePapiV2alpha1
           build-type: "centaurEngineUpgradePapiV2alpha1"
           build-mysql: "5.7"
-          matrix:
-            parameters:
-              branch-or-pr-build: [ branch, pr ]
       - test:
-          name: testCentaurHoricromtalPapiV2alpha1-<< matrix.branch-or-pr-build >>
+          name: testCentaurHoricromtalPapiV2alpha1
           build-type: "centaurHoricromtalPapiV2alpha1"
           build-mysql: "5.7"
-          matrix:
-            parameters:
-              branch-or-pr-build: [ branch, pr ]
       - test:
-          name: testCentaurHoricromtalPapiV2beta-MySQL-<< matrix.branch-or-pr-build >>
+          name: testCentaurHoricromtalPapiV2beta-MySQL
           build-type: "centaurHoricromtalPapiV2beta"
           build-mysql: "5.7"
-          matrix:
-            parameters:
-              branch-or-pr-build: [ branch, pr ]
       - test:
-          name: testCentaurHoricromtalPapiV2beta-MariaDB-<< matrix.branch-or-pr-build >>
+          name: testCentaurHoricromtalPapiV2beta-MariaDB
           build-type: "centaurHoricromtalPapiV2beta"
           build-mariadb: "10.3"
-          matrix:
-            parameters:
-              branch-or-pr-build: [ branch, pr ]
       - test:
-          name: testCentaurHoricromtalEngineUpgradePapiV2alpha1-MySQL-<< matrix.branch-or-pr-build >>
+          name: testCentaurHoricromtalEngineUpgradePapiV2alpha1-MySQL
           build-type: "centaurHoricromtalEngineUpgradePapiV2alpha1"
           build-mysql: "5.7"
-          matrix:
-            parameters:
-              branch-or-pr-build: [ branch, pr ]
       - test:
-          name: testCentaurHoricromtalEngineUpgradePapiV2alpha1-MariaDB-<< matrix.branch-or-pr-build >>
+          name: testCentaurHoricromtalEngineUpgradePapiV2alpha1-MariaDB
           build-type: "centaurHoricromtalEngineUpgradePapiV2alpha1"
           build-mariadb: "10.3"
-          matrix:
-            parameters:
-              branch-or-pr-build: [ branch, pr ]
       - test:
-          name: testCentaurPapiUpgradePapiV2alpha1-<< matrix.branch-or-pr-build >>
+          name: testCentaurPapiUpgradePapiV2alpha1
           build-type: "centaurPapiUpgradePapiV2alpha1"
           build-mysql: "5.7"
-          matrix:
-            parameters:
-              branch-or-pr-build: [ branch, pr ]
       - test:
-          name: testCentaurPapiUpgradeNewWorkflowsPapiV2alpha1-<< matrix.branch-or-pr-build >>
+          name: testCentaurPapiUpgradeNewWorkflowsPapiV2alpha1
           build-type: "centaurPapiUpgradeNewWorkflowsPapiV2alpha1"
           build-mysql: "5.7"
-          matrix:
-            parameters:
-              branch-or-pr-build: [ branch, pr ]
       - test:
-          name: testCentaurLocal-MySQL-<< matrix.branch-or-pr-build >>
+          name: testCentaurLocal-MySQL
           build-type: "centaurLocal"
           build-mysql: "5.7"
-          matrix:
-            parameters:
-              branch-or-pr-build: [ branch, pr ]
       - test:
-          name: testCentaurLocal-Postgresql-<< matrix.branch-or-pr-build >>
+          name: testCentaurLocal-Postgresql
           build-type: "centaurLocal"
           build-postgresql: "11.3"
-          matrix:
-            parameters:
-              branch-or-pr-build: [ branch, pr ]
       - test:
-          name: testCentaurPapiV2alpha1-<< matrix.branch-or-pr-build >>
+          name: testCentaurPapiV2alpha1
           build-type: "centaurPapiV2alpha1"
           build-mysql: "5.7"
-          matrix:
-            parameters:
-              branch-or-pr-build: [ branch, pr ]
       - test:
-          name: testCentaurPapiV2beta-<< matrix.branch-or-pr-build >>
+          name: testCentaurPapiV2beta
           build-type: "centaurPapiV2beta"
           build-mysql: "5.7"
-          matrix:
-            parameters:
-              branch-or-pr-build: [ branch, pr ]
       - test:
-          name: testCentaurSlurm-<< matrix.branch-or-pr-build >>
+          name: testCentaurSlurm
           build-type: "centaurSlurm"
           build-mysql: "5.7"
-          matrix:
-            parameters:
-              branch-or-pr-build: [ branch, pr ]
       - test:
-          name: testCentaurTes-<< matrix.branch-or-pr-build >>
+          name: testCentaurTes
           build-type: "centaurTes"
           build-mysql: "5.7"
-          matrix:
-            parameters:
-              branch-or-pr-build: [ branch, pr ]
       - test:
-          name: testCentaurWdlUpgradeLocal-<< matrix.branch-or-pr-build >>
+          name: testCentaurWdlUpgradeLocal
           build-type: "centaurWdlUpgradeLocal"
           build-mysql: "5.7"
-          matrix:
-            parameters:
-              branch-or-pr-build: [ branch, pr ]
       - test:
-          name: testCheckPublish-<< matrix.branch-or-pr-build >>
+          name: testCheckPublish
           build-type: "checkPublish"
           build-mysql: "5.7"
-          matrix:
-            parameters:
-              branch-or-pr-build: [ branch, pr ]
       - test:
-          name: testConformanceLocal-<< matrix.branch-or-pr-build >>
+          name: testConformanceLocal
           build-type: "conformanceLocal"
           build-mysql: "5.7"
-          matrix:
-            parameters:
-              branch-or-pr-build: [ branch, pr ]
       - test:
-          name: testConformancePapiV2beta-<< matrix.branch-or-pr-build >>
+          name: testConformancePapiV2beta
           build-type: "conformancePapiV2beta"
           build-mysql: "5.7"
-          matrix:
-            parameters:
-              branch-or-pr-build: [ branch, pr ]
       - test:
-          name: testConformanceTesk-<< matrix.branch-or-pr-build >>
+          name: testConformanceTesk
           build-type: "conformanceTesk"
           build-mysql: "5.7"
-          matrix:
-            parameters:
-              branch-or-pr-build: [ branch, pr ]

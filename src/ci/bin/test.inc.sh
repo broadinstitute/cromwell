@@ -940,14 +940,6 @@ cromwell::private::start_docker_databases() {
     fi
 }
 
-cromwell::private::pull_common_docker_images() {
-    # All tests use ubuntu:latest - make sure it's there before starting the tests
-    # because pulling the image during some of the tests would cause them to fail
-    # (specifically output_redirection which expects a specific value in stderr)
-    # Use cat to quiet docker: https://github.com/moby/moby/issues/36655#issuecomment-375136087
-    docker pull ubuntu | cat
-}
-
 cromwell::private::install_cwltest() {
     # TODO: No clue why these are needed for cwltool. If you know please update this comment.
     sudo apt-get install procps || true
@@ -1336,14 +1328,6 @@ cromwell::build::exec_test_script() {
     cromwell::private::exec_test_script
 }
 
-cromwell::private::pull_common_docker_images_and_start_docker_databases() {
-  if [[ "${BUILD_TYPE}" != "sbt" ]]; then
-      cromwell::private::pull_common_docker_images
-      cromwell::private::create_database_variables
-      cromwell::private::start_docker_databases
-  fi
-}
-
 cromwell::build::setup_common_environment() {
     cromwell::private::check_debug
     cromwell::private::create_build_variables
@@ -1353,7 +1337,7 @@ cromwell::build::setup_common_environment() {
     cromwell::private::install_git_secrets
     cromwell::private::install_minnie_kenny
     cromwell::private::install_wait_for_it
-    cromwell::private::setup_secure_resources
+    cromwell::private::create_database_variables
 
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
@@ -1361,18 +1345,17 @@ cromwell::build::setup_common_environment() {
             cromwell::private::delete_boto_config
             cromwell::private::delete_sbt_boot
             cromwell::private::upgrade_pip
-            cromwell::private::pull_common_docker_images_and_start_docker_databases
+            cromwell::private::start_docker_databases
             ;;
         "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
-            cromwell::private::pull_common_docker_images_and_start_docker_databases
+            cromwell::private::start_docker_databases
             ;;
-        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
-            cromwell::private::create_database_variables
-            ;;
+        "${CROMWELL_BUILD_PROVIDER_JENKINS}"|\
         *)
-            cromwell::private::pull_common_docker_images
             ;;
     esac
+
+    cromwell::private::setup_secure_resources
 }
 
 

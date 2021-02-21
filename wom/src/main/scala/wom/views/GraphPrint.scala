@@ -3,7 +3,6 @@ package wom.views
 import java.util.concurrent.atomic.AtomicInteger
 
 import cats.syntax.all._
-import cats.instances.set._
 import cats.instances.list._
 import cats.Monoid
 import wom.callable.ExecutableCallable
@@ -15,7 +14,11 @@ import wom.views.GraphPrint._
 
 final class GraphPrint(executableCallable: ExecutableCallable) {
 
-  def dotString = WorkflowDigraph(executableCallable.name, listAllGraphNodes(executableCallable.graph, new AtomicInteger(0), Map.empty)).dotString
+  def dotString: String =
+    WorkflowDigraph(
+      workflowName = executableCallable.name,
+      digraph = listAllGraphNodes(executableCallable.graph, new AtomicInteger(0), Map.empty),
+    ).dotString
 
   // A "monoid" is just a fancy way of saying "thing you can add together".
   // The cats library makes it easy to turn case classes into Monoids - ie into "things you can add together".
@@ -46,7 +49,7 @@ final class GraphPrint(executableCallable: ExecutableCallable) {
     val clusterNumber = clusterCounter.getAndIncrement()
     val id = s"cluster_$clusterNumber"
 
-    def handleScatterVariableNode(scatterVariableNode: ScatterVariableNode): NodesAndLinks = {
+    def handleScatterVariableNode(): NodesAndLinks = {
       scatterNode.scatterVariableNodes foldMap { node =>
         val dotNode = DotScatterVariableNode.apply(node, clusterNumber)
         val links = upstreamLinks(node.linkToOuterGraph.graphNode, dotNode, Map.empty)
@@ -54,7 +57,7 @@ final class GraphPrint(executableCallable: ExecutableCallable) {
       }
     }
 
-    val scatterExpressionNodesAndLinks = scatterNode.scatterVariableNodes.foldMap(handleScatterVariableNode)
+    val scatterExpressionNodesAndLinks = scatterNode.scatterVariableNodes.foldMap(_ => handleScatterVariableNode())
 
     val madeScatterVariableNodes = scatterNode.scatterVariableNodes.map { svn =>
       val link = scatterExpressionNodesAndLinks.nodes.collectFirst {
@@ -110,10 +113,10 @@ object GraphPrint {
           |  compound=true;
           |
           |  # Links
-          |  ${digraph.links.toList.flatMap(_.dotString.lines).mkString(System.lineSeparator + "  ")}
+          |  ${digraph.links.toList.flatMap(_.dotString.linesIterator).mkString(System.lineSeparator + "  ")}
           |
           |  # Nodes
-          |  ${digraph.nodes.toList.flatMap(_.dotString.lines).mkString(System.lineSeparator + "  ")}
+          |  ${digraph.nodes.toList.flatMap(_.dotString.linesIterator).mkString(System.lineSeparator + "  ")}
           |}""".stripMargin
   }
 
@@ -156,7 +159,7 @@ object GraphPrint {
       s"""subgraph $id {
           |  style="filled,solid";
           |  fillcolor=white;
-          |  ${nodes.toList.flatMap(_.dotString.lines).mkString(System.lineSeparator() + "  ")}
+          |  ${nodes.toList.flatMap(_.dotString.linesIterator).mkString(System.lineSeparator() + "  ")}
           |}""".stripMargin
   }
 
@@ -165,7 +168,7 @@ object GraphPrint {
       s"""subgraph $id {
          |  style="filled,dashed";
          |  fillcolor=white;
-         |  ${nodes.toList.flatMap(_.dotString.lines).mkString(System.lineSeparator() + "  ")}
+         |  ${nodes.toList.flatMap(_.dotString.linesIterator).mkString(System.lineSeparator() + "  ")}
          |}""".stripMargin
   }
 
@@ -193,9 +196,9 @@ object GraphPrint {
     upstreamLinksforNode(originNode).map(DotLink(_, origin))
   }
 
-  def hasCallAncestor(g: GraphNode) = g.upstreamAncestry.exists(_.isInstanceOf[CommandCallNode])
+  def hasCallAncestor(g: GraphNode): Boolean = g.upstreamAncestry.exists(_.isInstanceOf[CommandCallNode])
 
-  def escapeQuotes(s: String) = s.replace("\"", "\\\"")
+  def escapeQuotes(s: String): String = s.replace("\"", "\\\"")
 
   def worthDisplaying(node: GraphNode): Boolean = node match {
     case _: CommandCallNode => true

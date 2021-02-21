@@ -10,7 +10,6 @@ import sbt._
 import sbtassembly.AssemblyPlugin
 import sbtassembly.AssemblyPlugin.autoImport._
 import sbtdocker.{DockerPlugin, Instruction, Instructions}
-import sbtrelease.ReleasePlugin
 
 object Settings {
 
@@ -95,9 +94,10 @@ object Settings {
       sys.env.get("CROMWELL_SBT_ASSEMBLY_LOG_LEVEL").flatMap(Level.apply).getOrElse((logLevel in assembly).value)
   )
 
-  val Scala2_12Version = "2.12.9"
+  // 2.12.13 blocked on the release of sbt-scoverage 1.6.2 https://github.com/scoverage/sbt-scoverage/issues/319
+  val Scala2_12Version = "2.12.12"
   val ScalaVersion = Scala2_12Version
-  val sharedSettings = ReleasePlugin.projectSettings ++
+  val sharedSettings =
     cromwellVersionWithGit ++ artifactorySettings ++ List(
     organization := "org.broadinstitute",
     scalaVersion := ScalaVersion,

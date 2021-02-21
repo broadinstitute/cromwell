@@ -6,11 +6,10 @@
 set +x
 
 local docker_username
-local docker_password
 
 {{with $cromwellDockerhub := vault (printf "secret/dsde/cromwell/common/cromwell-dockerhub")}}
 docker_username="{{$cromwellDockerhub.Data.username}}"
-docker_password="{{$cromwellDockerhub.Data.password}}"
 {{end}}
 
-docker login --username "${docker_username}" --password "${docker_password}"
+sed '/^$/d' "${BASH_SOURCE%/*}/dockerhub_auth.txt" |
+docker login --username "${docker_username}" --password-stdin

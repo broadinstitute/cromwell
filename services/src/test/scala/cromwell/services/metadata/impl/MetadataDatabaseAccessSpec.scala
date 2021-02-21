@@ -132,7 +132,7 @@ class MetadataDatabaseAccessSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
 
       def unorderedEvents(id: WorkflowId): Future[Vector[MetadataEvent]] = {
         val workflowKey = MetadataKey(id, jobKey = None, key = null)
-        val now = OffsetDateTime.now()
+        val now = OffsetDateTime.now().withNano(0)
         val yesterday = now.minusDays(1)
         val tomorrow = now.plusDays(1)
 

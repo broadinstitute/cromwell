@@ -1,14 +1,10 @@
-sudo: required
-dist: xenial
+os: linux
+dist: focal
 services:
   - docker
-language: scala
-scala:
-  - 2.12.9
+language: minimal
 git:
   depth: false
-jdk:
-  - openjdk8
 cache:
   directories:
     - $HOME/.ivy2/cache
@@ -22,9 +18,8 @@ before_cache:
   - find $HOME/.sbt -name "*.lock" -print -delete
 env:
   global:
-    - PYTHON3_HOME=/opt/python/3.7.1
-    - PATH=$PYTHON3_HOME/bin\:$PATH
-  matrix:
+    - PATH=/opt/python/3.7.1/bin\:$PATH
+  jobs:
     # Setting this variable twice will cause the 'script' section to run twice with the respective env var invoked
     - >-
       BUILD_TYPE=centaurAws

@@ -5,7 +5,6 @@ import sbt.Keys._
 import sbt._
 import sbtassembly.AssemblyPlugin.autoImport._
 import sbtdocker.DockerPlugin.autoImport._
-import ContinuousIntegration._
 import sbtdocker.Instruction
 
 import scala.sys.process._
@@ -47,7 +46,7 @@ object Publishing {
       val additionalDockerInstr: Seq[Instruction] = dockerCustomSettings.value
 
       new Dockerfile {
-        from("us.gcr.io/broad-dsp-gcr-public/base/jre:8-debian")
+        from("us.gcr.io/broad-dsp-gcr-public/base/jre:11-debian")
         expose(8000)
         add(artifact, artifactTargetPath)
         runRaw(s"ln -s $artifactTargetPath /app/$projectName.jar")

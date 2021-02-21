@@ -125,10 +125,10 @@ TEST_STATUS="failed"
 
 if [[ "${CENTAUR_SBT_COVERAGE}" == "true" ]]; then
     sbt --warn coverage centaur/it:compile
-    CP=$(sbt --warn coverage "export centaur/it:dependencyClasspath" -error)
+    CP=$(sbt -no-colors --error coverage "export centaur/it:dependencyClasspath")
 else
     sbt --warn centaur/it:compile
-    CP=$(sbt --warn "export centaur/it:dependencyClasspath" -error)
+    CP=$(sbt -no-colors --error "export centaur/it:dependencyClasspath")
 fi
 
 # Add the it-classes folder to the classpath to ensure logback configuration files are picked up.

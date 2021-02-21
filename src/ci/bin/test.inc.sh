@@ -376,7 +376,6 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_OPTIONAL_SECURE="${CROMWELL_BUILD_OPTIONAL_SECURE-false}"
     CROMWELL_BUILD_REQUIRES_SECURE="${CROMWELL_BUILD_REQUIRES_SECURE-false}"
     CROMWELL_BUILD_REQUIRES_PRIOR_VERSION="${CROMWELL_BUILD_REQUIRES_PRIOR_VERSION-false}"
-    VAULT_TOKEN="${VAULT_TOKEN-vault token is not set as an environment variable}"
 
     local hours_to_minutes
     hours_to_minutes=60
@@ -769,8 +768,8 @@ cromwell::private::exec_test_script() {
 
 cromwell::private::stop_travis_defaults() {
   # https://stackoverflow.com/questions/27382295/how-to-stop-services-on-travis-ci-running-by-default#answer-27410479
-  sudo /etc/init.d/mysql stop
-  sudo /etc/init.d/postgresql stop
+  sudo /etc/init.d/mysql stop || true
+  sudo /etc/init.d/postgresql stop || true
 }
 
 cromwell::private::delete_boto_config() {
@@ -786,16 +785,52 @@ cromwell::private::delete_sbt_boot() {
     rm -rf ~/.sbt/boot/
 }
 
+cromwell::private::install_adoptopenjdk() {
+    # https://adoptopenjdk.net/installation.html#linux-pkg-deb
+    sudo apt-get install -y wget apt-transport-https gnupg
+    wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public |
+        sudo apt-key add -
+    echo "deb https://adoptopenjdk.jfrog.io/adoptopenjdk/deb $(
+            grep UBUNTU_CODENAME /etc/os-release | cut -d = -f 2
+        ) main" |
+        sudo tee /etc/apt/sources.list.d/adoptopenjdk.list
+    sudo apt-get update
+    sudo apt-get install -y adoptopenjdk-11-hotspot
+    sudo update-java-alternatives --set adoptopenjdk-11-hotspot-amd64
+}
+
+cromwell::private::install_sbt() {
+    # https://www.scala-sbt.org/1.x/docs/Installing-sbt-on-Linux.html#Ubuntu+and+other+Debian-based+distributions
+    echo "deb https://dl.bintray.com/sbt/debian /" | sudo tee -a /etc/apt/sources.list.d/sbt.list
+    curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" |
+        sudo apt-key add
+    sudo apt-get update
+    sudo apt-get install -y sbt
+}
+
+cromwell::private::install_docker_compose() {
+    # Install or upgrade docker-compose so that we get the correct exit codes
+    # https://docs.docker.com/compose/release-notes/#1230
+    # https://docs.docker.com/compose/install/
+    curl \
+        -L "https://github.com/docker/compose/releases/download/1.27.4/docker-compose-$(uname -s)-$(uname -m)" \
+        > docker-compose
+    sudo mv docker-compose /usr/local/bin
+    sudo chmod +x /usr/local/bin/docker-compose
+}
+
+cromwell::private::setup_pyenv_python_latest() {
+    # Make `python` whatever the most recent version of python installed
+    # Fixes cases where someone has set pyenv to override `python` to use an older `python2` instead of `python3`
+    pyenv global "$(pyenv versions --bare --skip-aliases | sort -t '.' -k1,1n -k2,2n -k3,3n | tail -n 1)"
+}
+
 cromwell::private::pip_install() {
     local pip_package
     pip_package="${1:?pip_install called without a package}"; shift
 
     if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
-        if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_CIRCLE}" ]]; then
-            pip3 install "${pip_package}" "$@"
-        else
-            sudo -H "${PYTHON3_HOME}/bin/pip" install "${pip_package}" "$@"
-        fi
+        sudo -H "$(command -v pip)" install "${pip_package}" "$@"
     elif [[ "${CROMWELL_BUILD_IS_VIRTUAL_ENV}" == "true" ]]; then
         pip install "${pip_package}" "$@"
     else
@@ -994,22 +1029,30 @@ cromwell::private::vault_login() {
             "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
             "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
 
-                if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_CIRCLE}" ]]; then
-                  VAULT_TOKEN=$( docker run --rm -v "${CROMWELL_BUILD_HOME_DIRECTORY}:/root:rw" \
-                    broadinstitute/dsde-toolbox:dev vault write -field=token auth/approle/login \
-                    role_id="${VAULT_ROLE_ID}" secret_id="${VAULT_SECRET_ID}" )
+                local vault_token
+
+                # shellcheck disable=SC2153
+                if [[ -n "${VAULT_ROLE_ID:+set}" ]] && [[ -n "${VAULT_SECRET_ID:+set}" ]]; then
+                    vault_token="$(
+                        docker run --rm -v "${CROMWELL_BUILD_HOME_DIRECTORY}:/root:rw" \
+                            broadinstitute/dsde-toolbox:dev vault write -field=token auth/approle/login \
+                            role_id="${VAULT_ROLE_ID}" secret_id="${VAULT_SECRET_ID}"
+                    )"
+                elif [[ -n "${VAULT_TOKEN:+set}" ]]; then
+                    vault_token="${VAULT_TOKEN}"
+                else
+                    vault_token=""
                 fi
 
-                # Login to vault to access secrets
-                local vault_token
-                vault_token="${VAULT_TOKEN}"
-                # Don't fail here if vault login fails
-                # shellcheck disable=SC2015
-                docker run --rm \
-                    -v "${CROMWELL_BUILD_HOME_DIRECTORY}:/root:rw" \
-                    broadinstitute/dsde-toolbox:dev \
-                    vault auth "${vault_token}" < /dev/null > /dev/null && echo vault auth success \
-                || true
+                if [[ -n "${vault_token}" ]]; then
+                    # Don't fail here if vault login fails
+                    # shellcheck disable=SC2015
+                    docker run --rm \
+                        -v "${CROMWELL_BUILD_HOME_DIRECTORY}:/root:rw" \
+                        broadinstitute/dsde-toolbox:dev \
+                        vault auth "${vault_token}" < /dev/null > /dev/null && echo vault auth success \
+                    || true
+                fi
                 ;;
             *)
                 ;;
@@ -1090,10 +1133,9 @@ cromwell::private::assemble_jars() {
     # shellcheck disable=SC2086
     CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=error \
         sbt \
-        --warn \
+        --error \
         ${CROMWELL_BUILD_SBT_COVERAGE_COMMAND} \
-        ${CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND} \
-        -error
+        ${CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND}
 }
 
 cromwell::private::setup_prior_version_resources() {
@@ -1342,12 +1384,17 @@ cromwell::build::setup_common_environment() {
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
             cromwell::private::stop_travis_defaults
+            cromwell::private::install_adoptopenjdk
+            cromwell::private::install_sbt
+            cromwell::private::install_docker_compose
             cromwell::private::delete_boto_config
             cromwell::private::delete_sbt_boot
             cromwell::private::upgrade_pip
             cromwell::private::start_docker_databases
             ;;
         "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
+            cromwell::private::install_adoptopenjdk
+            cromwell::private::setup_pyenv_python_latest
             cromwell::private::start_docker_databases
             ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}"|\
@@ -1356,12 +1403,12 @@ cromwell::build::setup_common_environment() {
     esac
 
     cromwell::private::setup_secure_resources
+    cromwell::private::start_build_heartbeat
 }
 
 
 cromwell::build::setup_centaur_environment() {
     cromwell::private::create_centaur_variables
-    cromwell::private::start_build_heartbeat
     cromwell::private::start_cromwell_log_tail
     cromwell::private::start_centaur_log_tail
     if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
@@ -1377,24 +1424,7 @@ cromwell::build::setup_conformance_environment() {
     fi
     cromwell::private::checkout_pinned_cwl
     cromwell::private::write_cwl_test_inputs
-    cromwell::private::start_build_heartbeat
     cromwell::private::add_exit_function cromwell::private::cat_conformance_log
-}
-
-cromwell::build::setup_docker_environment() {
-    cromwell::private::start_build_heartbeat
-
-    if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ]]; then
-        # Upgrade docker-compose so that we get the correct exit codes
-        docker-compose -version
-        sudo rm /usr/local/bin/docker-compose
-        curl \
-            -L "https://github.com/docker/compose/releases/download/1.23.2/docker-compose-$(uname -s)-$(uname -m)" \
-            > docker-compose
-        chmod +x docker-compose
-        sudo mv docker-compose /usr/local/bin
-        docker-compose -version
-    fi
 }
 
 cromwell::private::find_or_assemble_cromwell_jar() {
@@ -1545,10 +1575,6 @@ cromwell::build::exec_silent_function() {
 
 cromwell::build::pip_install() {
     cromwell::private::pip_install "$@"
-}
-
-cromwell::build::start_build_heartbeat() {
-    cromwell::private::start_build_heartbeat
 }
 
 cromwell::build::add_exit_function() {

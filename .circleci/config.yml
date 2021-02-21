@@ -4,16 +4,6 @@ orbs:
   slack: circleci/slack@4.2.1
   build-tools: circleci/build-tools@2.7.1
 
-commands:
-  install_adoptopenjdk:
-    description: "Installing adoptopenjdk 8 and setting it as default Java"
-    steps:
-      - run: wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | sudo apt-key add -
-      - run: sudo add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/
-      - run: sudo apt update
-      - run: sudo apt install adoptopenjdk-8-hotspot
-      - run: sudo update-java-alternatives --set adoptopenjdk-8-hotspot-amd64
-
 jobs:
   test:
     parameters:
@@ -41,7 +31,6 @@ jobs:
             if [[ -z "${CI_PULL_REQUEST}" ]] && [[ "${BUILD_TYPE}" != "sbt" ]] ; then
               circleci-agent step halt
             fi
-      - install_adoptopenjdk
       - checkout
       - build-tools/merge-with-parent:
           parent: develop

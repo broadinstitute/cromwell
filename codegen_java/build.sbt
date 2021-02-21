@@ -6,7 +6,7 @@ lazy val root = (project in file(".")).
     Seq(organization := "org.broadinstitute.cromwell",
     name := "cromwell-client",
     version := createVersion("0.1"),
-    scalaVersion := "2.12.8",
+    scalaVersion := "2.12.12",
     scalacOptions ++= Seq("-feature"),
     javacOptions in compile ++= Seq("-Xlint:deprecation"),
     publishArtifact in (Compile, packageDoc) := false,
@@ -25,4 +25,3 @@ lazy val root = (project in file(".")).
       "com.novocode" % "junit-interface" % "0.10" % "test"
     )) ++ publishSettings:_*
   )
-  

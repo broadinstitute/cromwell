@@ -46,20 +46,26 @@ case object WorkflowAborting extends WorkflowState {
   override val ordinal = 3
 }
 
+case object WorkflowPublishingMetadata extends WorkflowState {
+  override val toString: String = "PublishingMetadata"
+  override val isTerminal = false
+  override val ordinal = 4
+}
+
 case object WorkflowAborted extends WorkflowState {
   override val toString: String = "Aborted"
   override val isTerminal = true
-  override val ordinal = 4
+  override val ordinal = 5
 }
 
 case object WorkflowSucceeded extends WorkflowState {
   override val toString: String = "Succeeded"
   override val isTerminal = true
-  override val ordinal = 5
+  override val ordinal = 6
 }
 
 case object WorkflowFailed extends WorkflowState {
   override val toString: String = "Failed"
   override val isTerminal = true
-  override val ordinal = 6
+  override val ordinal = 7
 }

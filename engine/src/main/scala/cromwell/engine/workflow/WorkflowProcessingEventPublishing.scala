@@ -12,10 +12,35 @@ import cromwell.core.{WorkflowId, WorkflowMetadataKeys}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 
+import scala.collection.immutable
 import scala.util.Random
 
 object WorkflowProcessingEventPublishing {
   private lazy val cromwellVersion = VersionUtil.getVersion("cromwell")
+
+  // only for WorkflowActor for now
+  def publishForWA(workflowId: WorkflowId, cromwellId: String, descriptionValue: DescriptionEventValue.Value, serviceRegistry: ActorRef): Seq[MetadataEvent] = {
+    def randomNumberString: String = Random.nextInt(Int.MaxValue).toString
+
+    def metadataKey(workflowId: WorkflowId, randomNumberString: String, key: String) =
+      MetadataKey(workflowId = workflowId, jobKey = None, s"$ProcessingEventsKey[$randomNumberString]:$key")
+
+    val random = randomNumberString
+
+    val processingFields = List(
+      Description.key -> descriptionValue.value,
+      CromwellId.key -> cromwellId,
+      Timestamp.key -> OffsetDateTime.now(),
+      CromwellVersion.key -> cromwellVersion
+    )
+
+    val metadata = processingFields map { case (k, v) =>
+      MetadataEvent(metadataKey(workflowId = workflowId, randomNumberString = random, key = k), MetadataValue(v))
+    }
+
+    metadata
+  }
+
 
   def publish(workflowId: WorkflowId, cromwellId: String, descriptionValue: DescriptionEventValue.Value, serviceRegistry: ActorRef): Unit = {
     def randomNumberString: String = Random.nextInt(Int.MaxValue).toString

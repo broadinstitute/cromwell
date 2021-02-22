@@ -32,7 +32,7 @@ case class JobStoreWriterActor(jsd: JobStore,
     val completions = data.collect({ case CommandAndReplyTo(c: JobStoreWriterCommand, _) => c.completion })
 
     if (completions.nonEmpty) {
-      val workflowCompletions = completions collect { case w: WorkflowCompletion => w }
+      val workflowCompletions: immutable.Seq[WorkflowCompletion] = completions collect { case w: WorkflowCompletion => w }
       val completedWorkflowIds = workflowCompletions map { _.workflowId } toSet
       // Filter job completions that also have a corresponding workflow completion; these would just be
       // immediately deleted anyway.

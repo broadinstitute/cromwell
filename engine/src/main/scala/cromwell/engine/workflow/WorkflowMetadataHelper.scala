@@ -7,6 +7,8 @@ import cromwell.core._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import cromwell.services.metadata.MetadataService._
 
+import scala.collection.immutable
+
 trait WorkflowMetadataHelper {
 
   def serviceRegistryActor: ActorRef
@@ -19,17 +21,25 @@ trait WorkflowMetadataHelper {
     serviceRegistryActor ! PutMetadataAction(startEvent)
   }
   
-  def pushWorkflowEnd(workflowId: WorkflowId) = {
+  def pushWorkflowEnd(workflowId: WorkflowId): MetadataEvent = {
     val metadataEventMsg = MetadataEvent(
       MetadataKey(workflowId, None, WorkflowMetadataKeys.EndTime),
       MetadataValue(OffsetDateTime.now)
     )
-    serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
+//    serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
+
+    metadataEventMsg
   }
   
   def pushWorkflowFailures(workflowId: WorkflowId, failures: List[Throwable]) = {
     val failureEvents = failures flatMap { r => throwableToMetadataEvents(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Failures}"), r) }
     serviceRegistryActor ! PutMetadataAction(failureEvents)
+  }
+
+  def pushWorkflowFailuresForWA(workflowId: WorkflowId, failures: List[Throwable]): Seq[MetadataEvent] = {
+    val failureEvents = failures flatMap { r => throwableToMetadataEvents(MetadataKey(workflowId, None, s"${WorkflowMetadataKeys.Failures}"), r) }
+//    serviceRegistryActor ! PutMetadataAction(failureEvents)
+    failureEvents
   }
   
   def pushCurrentStateToMetadataService(workflowId: WorkflowId, workflowState: WorkflowState): Unit = {

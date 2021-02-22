@@ -194,6 +194,11 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     /*
      Watched transitions
      */
+      /*
+      maybe a case where WA tells the workflow has completed but with a list of metadata events that it
+      fired that WMA should wait before call the workflow completed and removing from Workflow Store Entry
+      table. We might need WMA to not watch the transition to terminal state ???
+       */
     case Event(Transition(workflowActor, _, toState: WorkflowActorTerminalState), data) =>
       log.info(s"$tag ${workflowActor.path.name} is in a terminal state: $toState")
       // This silently fails if idFromActor is None, but data.without call right below will as well

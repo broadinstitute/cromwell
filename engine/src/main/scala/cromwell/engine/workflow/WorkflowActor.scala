@@ -30,6 +30,8 @@ import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDes
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorCommand, MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.WorkflowStoreWriteHeartbeatCommand
 import cromwell.engine.workflow.workflowstore.{RestartableAborting, StartableState, WorkflowHeartbeatConfig, WorkflowToStart}
+import cromwell.services.metadata.MetadataEvent
+import cromwell.services.metadata.MetadataService.{MetadataWriteFailure, MetadataWriteSuccess, PutMetadataActionAndRespond}
 import cromwell.subworkflowstore.SubWorkflowStoreActor.WorkflowComplete
 import cromwell.webservice.EngineStatsActor
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -104,6 +106,10 @@ object WorkflowActor {
     override val workflowState = WorkflowAborting
   }
 
+  case object WorkflowPublishingMetadataState extends WorkflowActorState {
+    override val workflowState = WorkflowPublishingMetadata
+  }
+
   /**
     * We're done.
     */
@@ -137,7 +143,8 @@ object WorkflowActor {
                                effectiveStartableState: StartableState,
                                workflowFinalOutputs: Set[WomValue] = Set.empty,
                                workflowAllOutputs: Set[WomValue] = Set.empty,
-                               rootAndSubworkflowIds: Set[WorkflowId] = Set.empty)
+                               rootAndSubworkflowIds: Set[WorkflowId] = Set.empty,
+                               publishEndMetadata: Seq[MetadataEvent] = Seq.empty[MetadataEvent])
   object WorkflowActorData {
     def apply(startableState: StartableState): WorkflowActorData = WorkflowActorData(
       currentLifecycleStateActor = None,
@@ -311,7 +318,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
   /* ************************** */
 
   when(InitializingWorkflowState) {
-    case Event(WorkflowInitializationSucceededResponse(initializationData), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _)) =>
+    case Event(WorkflowInitializationSucceededResponse(initializationData), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _, _)) =>
       val executionActor = context.actorOf(WorkflowExecutionActor.props(
         workflowDescriptor,
         ioActor = ioActor,
@@ -337,11 +344,11 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
         case _ => ExecutingWorkflowState
       }
       goto(nextState) using data.copy(currentLifecycleStateActor = Option(executionActor), initializationData = initializationData)
-    case Event(WorkflowInitializationFailedResponse(reason), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _)) =>
+    case Event(WorkflowInitializationFailedResponse(reason), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, Map.empty, CallOutputs.empty, Option(reason.toList))
 
     // If the workflow is not restarting, handle the Abort command normally and send an abort message to the init actor
-    case Event(AbortWorkflowCommand, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _)) if !restarting =>
+    case Event(AbortWorkflowCommand, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _, _)) if !restarting =>
       handleAbortCommand(data, workflowDescriptor)
   }
   
@@ -353,20 +360,20 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
   val executionResponseHandler: StateFunction = {
     // Workflow responses
     case Event(WorkflowExecutionSucceededResponse(jobKeys, rootAndSubworklowIds, finalOutputs, allOutputs),
-    data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _)) =>
+    data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, jobKeys, finalOutputs, None, allOutputs, rootAndSubworklowIds)
     case Event(WorkflowExecutionFailedResponse(jobKeys, failures),
-    data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _)) =>
+    data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, jobKeys, CallOutputs.empty, Option(List(failures)))
     case Event(WorkflowExecutionAbortedResponse(jobKeys),
-    data @ WorkflowActorData(_, Some(workflowDescriptor), _, StateCheckpoint(_, failures), _, _, _, _)) =>
+    data @ WorkflowActorData(_, Some(workflowDescriptor), _, StateCheckpoint(_, failures), _, _, _, _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, jobKeys, CallOutputs.empty, failures)
 
     // Whether we're running or aborting, restarting or not, pass along the abort command.
     // Note that aborting a workflow multiple times will result in as many abort commands sent to the execution actor
-    case Event(AbortWorkflowWithExceptionCommand(ex), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _)) =>
+    case Event(AbortWorkflowWithExceptionCommand(ex), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _, _)) =>
       handleAbortCommand(data, workflowDescriptor, Option(ex))
-    case Event(AbortWorkflowCommand, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _)) =>
+    case Event(AbortWorkflowCommand, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _, _)) =>
       handleAbortCommand(data, workflowDescriptor)
   }
 
@@ -379,11 +386,11 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
   // Handles initialization responses we can get if the abort came in when we were initializing the workflow
   val abortHandler: StateFunction = {
     // If the initialization failed, record the failure in the data and finalize the workflow
-    case Event(WorkflowInitializationFailedResponse(reason), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _)) =>
+    case Event(WorkflowInitializationFailedResponse(reason), data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, Map.empty, CallOutputs.empty, Option(reason.toList))
 
     // Otherwise (success or abort), finalize the workflow without failures
-    case Event(_: WorkflowInitializationResponse, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _)) =>
+    case Event(_: WorkflowInitializationResponse, data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _, _)) =>
       finalizeWorkflow(data, workflowDescriptor, Map.empty, CallOutputs.empty, failures = None)
   }
   
@@ -436,6 +443,21 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
   when(WorkflowFailedState) { FSM.NullFunction }
   when(WorkflowSucceededState) { FSM.NullFunction }
 
+  when(WorkflowPublishingMetadataState) {
+    case Event(v: MetadataWriteSuccess, data) =>
+      val remainingMetadataEvents = data.publishEndMetadata.diff(v.events.toSeq)
+
+      if (remainingMetadataEvents.isEmpty) {
+        // if the workflow state is WorkflowFailedState
+        // context.parent ! WorkflowFailedResponse(workflowId, nextStateData.lastStateReached.state, nextStateData.lastStateReached.failures.getOrElse(List.empty))
+        // else ???
+        ???
+      }
+      else stay() using data.copy(publishEndMetadata = remainingMetadataEvents)
+
+    case Event(MetadataWriteFailure, _) => ???
+  }
+
   whenUnhandled {
     case Event(SendWorkflowHeartbeatCommand, _) =>
       sendHeartbeat()
@@ -456,15 +478,15 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       // Increment counter on final transition
       setWorkflowTimePerState(terminalState.workflowState, (System.currentTimeMillis() - startTime).millis)
       workflowLogger.debug(s"transition from {} to {}. Stopping self.", arg1 = oldState, arg2 = terminalState)
-      pushWorkflowEnd(workflowId)
-      WorkflowProcessingEventPublishing.publish(workflowId, workflowHeartbeatConfig.cromwellId, Finished, serviceRegistryActor)
+      val endMsg: Seq[MetadataEvent] = Seq(pushWorkflowEnd(workflowId))
+      val publishMsgs: Seq[MetadataEvent] = WorkflowProcessingEventPublishing.publishForWA(workflowId, workflowHeartbeatConfig.cromwellId, Finished, serviceRegistryActor)
       subWorkflowStoreActor ! WorkflowComplete(workflowId)
-      terminalState match {
+      val failureMsgs: Seq[MetadataEvent] = terminalState match {
         case WorkflowFailedState =>
           val failures = nextStateData.lastStateReached.failures.getOrElse(List.empty)
-          pushWorkflowFailures(workflowId, failures)
-          context.parent ! WorkflowFailedResponse(workflowId, nextStateData.lastStateReached.state, failures)
-        case _ => // The WMA is watching state transitions and needs no further info
+          pushWorkflowFailuresForWA(workflowId, failures)
+//          context.parent ! WorkflowFailedResponse(workflowId, nextStateData.lastStateReached.state, failures)
+        case _ => Seq.empty[MetadataEvent]// The WMA is watching state transitions and needs no further info
       }
 
       // Copy/Delete workflow logs
@@ -498,7 +520,11 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
           }
         }
       }
-      context stop self
+//      context stop self
+
+      val totalEvents = endMsg ++ publishMsgs ++ failureMsgs
+      serviceRegistryActor ! PutMetadataActionAndRespond(totalEvents, self)
+      goto(WorkflowPublishingMetadataState) using stateData.copy(publishEndMetadata = totalEvents)
   }
 
   onTransition {

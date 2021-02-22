@@ -149,7 +149,8 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
     case (_, _: SubWorkflowTerminalState) =>
       stateData.subWorkflowId match {
         case Some(id) =>
-          pushWorkflowEnd(id)
+          val metadata = pushWorkflowEnd(id)
+          serviceRegistryActor ! PutMetadataAction(metadata)
           pushExecutionEventsToMetadataService(key, eventList)
         case None => jobLogger.error("Sub workflow completed without a Sub Workflow UUID.")
       }

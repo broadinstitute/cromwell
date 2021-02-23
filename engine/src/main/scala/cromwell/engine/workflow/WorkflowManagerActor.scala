@@ -11,7 +11,7 @@ import common.exception.ThrowableAggregation
 import cromwell.backend.async.KnownJobFailureException
 import cromwell.backend.standard.callcaching.{CallCachingBlacklistManager, RootWorkflowFileHashCacheActor}
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.core.WorkflowId
+import cromwell.core.{WorkflowId, WorkflowState}
 import cromwell.engine.SubWorkflowStart
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
@@ -47,6 +47,7 @@ object WorkflowManagerActor {
   final case class SubscribeToWorkflowCommand(id: WorkflowId) extends WorkflowManagerActorCommand
   case object EngineStatsCommand extends WorkflowManagerActorCommand
   case class AbortWorkflowsCommand(ids: Set[WorkflowId]) extends WorkflowManagerActorCommand
+  final case class WorkflowActorWorkComplete(id: WorkflowId, actor: ActorRef, finalState: WorkflowState) extends WorkflowManagerActorCommand
 
   def props(config: Config,
             callCachingEnabled: Boolean,
@@ -157,6 +158,8 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
 
   startWith(Running, WorkflowManagerData(workflows = Map.empty, subWorkflows = Set.empty))
 
+  // Note: Despite the name, this StateFunction is used in BOTH the standard "Running" AND
+  // the special "RunningAndNotStartingNewWorkflows" states.
   val runningAndNotStartingNewWorkflowsStateFunction: StateFunction = {
     /*
      Commands from clients
@@ -191,11 +194,8 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     case Event(WorkflowFailedResponse(workflowId, inState, reasons), _) =>
       log.info(s"$tag Workflow $workflowId failed (during $inState): ${expandFailureReasons(reasons)}")
       stay()
-    /*
-     Watched transitions
-     */
-    case Event(Transition(workflowActor, _, toState: WorkflowActorTerminalState), data) =>
-      log.info(s"$tag ${workflowActor.path.name} is in a terminal state: $toState")
+    case Event(WorkflowActorWorkComplete(id: WorkflowId, workflowActor: ActorRef, finalState: WorkflowState), data) =>
+      log.info(s"$tag Workflow actor for $id completed '$finalState'. The workflow will be removed from the workflow store.")
       // This silently fails if idFromActor is None, but data.without call right below will as well
       data.idFromActor(workflowActor) foreach { workflowId =>
         params.jobStoreActor ! RegisterWorkflowCompleted(workflowId)
@@ -214,7 +214,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
   when (RunningAndNotStartingNewWorkflows) (runningAndNotStartingNewWorkflowsStateFunction)
 
   when (Aborting) {
-    case Event(Transition(workflowActor, _, toState: WorkflowActorState), data) if toState.terminal =>
+    case Event(Transition(workflowActor, _, _: WorkflowActorTerminalState), data) =>
       // Remove this terminal actor from the workflowStore and log a progress message.
       val updatedData = data.without(workflowActor)
       // If there are no more workflows to abort we're done, otherwise just stay in the current state.
@@ -265,7 +265,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       stay()
     // Anything else certainly IS interesting:
     case Event(unhandled, _) =>
-      log.warning(s"$tag Unhandled message: $unhandled")
+      log.warning(s"$tag Unhandled message: $unhandled in state ${stateName}")
       stay()
   }
 

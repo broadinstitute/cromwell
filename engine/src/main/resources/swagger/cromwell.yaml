@@ -9,7 +9,7 @@ info:
   license:
     name: BSD
     url: 'https://github.com/broadinstitute/cromwell/blob/develop/LICENSE.txt'
-  version: '30'
+  version: '1'
 produces:
   - application/json
 paths:
@@ -1250,7 +1250,7 @@ definitions:
       cromwell:
         type: string
         description: The version of the Cromwell Engine
-        example: 30
+        example: VERSION
   StatusResponse:
     description: Returns the status of monitored subsystems.
     type: object

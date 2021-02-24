@@ -190,7 +190,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
     runTestIo.redeemWith(
       {
         case centaurTestException: CentaurTestException => maybeRetry(centaurTestException)
-        case _ => runTestIo
+        case nonCentaurException => IO.raiseError(nonCentaurException)
       },
       {
         case workflowResponse: SubmitWorkflowResponse => SuccessReporters.logSuccessfulRun(workflowResponse)

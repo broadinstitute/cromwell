@@ -40,6 +40,7 @@ case object WorkflowRunning extends WorkflowState {
   override val ordinal = 2
 }
 
+// Cromwell performs internal housekeeping such as flushing metadata to the DB before marking complete
 case object WorkflowFinalizing extends WorkflowState {
   override val toString: String = "Finalizing"
   override val isTerminal = false

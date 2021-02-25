@@ -1,7 +1,6 @@
 package centaur.reporting
 
 import cats.effect.IO
-import centaur.test.CentaurTestException
 import centaur.{CentaurConfig, CromwellDatabase}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.StrictLogging

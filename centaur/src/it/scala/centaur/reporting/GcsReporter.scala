@@ -1,6 +1,5 @@
 package centaur.reporting
 import cats.effect.IO
-import cats.syntax.functor._
 import centaur.api.CentaurCromwellClient
 import centaur.test.CentaurTestException
 import centaur.test.submit.SubmitWorkflowResponse
@@ -19,12 +18,20 @@ class GcsReporter(override val params: ErrorReporterParams) extends ErrorReporte
   override def destination = "GCS bucket"
 
   /** Send a report of a centaur failure. */
-  override def logCentaurFailure(testEnvironment: TestEnvironment, ciEnvironment: CiEnvironment, centaurTestException: CentaurTestException)(implicit executionContext: ExecutionContext) = {
-    logger.info(s"Reporting failed metadata to gs://$reportBucket/$reportPath")
-    centaurTestException.metadataJsonOption.map(pushJsonToGcs).getOrElse(IO.unit)
+  override def logFailure(testEnvironment: TestEnvironment,
+                          ciEnvironment: CiEnvironment,
+                          throwable: Throwable)
+                         (implicit executionContext: ExecutionContext): IO[Unit] = {
+    throwable match {
+      case centaurTestException: CentaurTestException =>
+        logger.info(s"Reporting failed metadata to gs://$reportBucket/$reportPath")
+        centaurTestException.metadataJsonOption.map(pushJsonToGcs).getOrElse(IO.unit)
+      case _ =>
+        IO.unit // this ErrorReporter only supports exceptions of CentaurTestException type
+    }
   }
 
-  override def logSuccessfulRun(submitResponse: SubmitWorkflowResponse) = {
+  override def logSuccessfulRun(submitResponse: SubmitWorkflowResponse): IO[Unit] = {
     logger.info(s"Reporting successful metadata to gs://$reportBucket/$reportPath")
     for {
       metadata <- CentaurCromwellClient.metadataWithId(submitResponse.submittedWorkflow.id)

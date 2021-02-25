@@ -35,7 +35,7 @@ import scala.language.postfixOps
 import scala.collection.mutable.ListBuffer
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.JobPaths
-import software.amazon.awssdk.services.batch.model.{ContainerProperties, Host, KeyValuePair, MountPoint, Volume}
+import software.amazon.awssdk.services.batch.model.{ContainerProperties, Host, KeyValuePair, MountPoint, Volume, RetryStrategy}
 import cromwell.backend.impl.aws.io.AwsBatchVolume
 
 import scala.collection.JavaConverters._
@@ -63,11 +63,13 @@ import wdl4s.parser.MemoryUnit
 sealed trait AwsBatchJobDefinition {
   def containerProperties: ContainerProperties
   def name: String
+  def retryStrategy: RetryStrategy 
 
   override def toString: String = {
     new ToStringBuilder(this, ToStringStyle.JSON_STYLE)
       .append("name", name)
       .append("containerProperties", containerProperties)
+      .append("retryStrategy", retryStrategy)
       .build
   }
 }
@@ -131,15 +133,7 @@ trait AwsBatchJobDefinitionBuilder {
     }
 
     def buildName(imageName: String, packedCommand: String, volumes: List[Volume], mountPoints: List[MountPoint], env: Seq[KeyValuePair]): String = {
-      val str = s"$imageName:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints.map(_.toString).mkString(",")}:${env.map(_.toString).mkString(",")}"
-
-      val sha1 = MessageDigest.getInstance("SHA-1")
-            .digest( str.getBytes("UTF-8") )
-            .map("%02x".format(_)).mkString
-
-      val prefix = s"cromwell_$imageName".slice(0,88) // will be joined to a 40 character SHA1 for total length of 128
-
-      sanitize(prefix + sha1)
+      s"$imageName:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints.map(_.toString).mkString(",")}:${env.map(_.toString).mkString(",")}"
     }
 
 
@@ -150,7 +144,7 @@ trait AwsBatchJobDefinitionBuilder {
     val packedCommand = packCommand("/bin/bash", "-c", cmdName)
     val volumes =  buildVolumes( context.runtimeAttributes.disks )
     val mountPoints = buildMountPoints( context.runtimeAttributes.disks)
-    val jobDefinitionName = buildName(
+    val containerPropsName = buildName(
       context.runtimeAttributes.dockerImage,
       packedCommand.mkString(","),
       volumes,
@@ -166,7 +160,7 @@ trait AwsBatchJobDefinitionBuilder {
         .mountPoints( mountPoints.asJava)
         .environment(environment.asJava),
 
-      jobDefinitionName)
+      containerPropsName)
   }
 
   private def packCommand(shell: String, options: String, mainCommand: String): Seq[String] = {
@@ -191,13 +185,28 @@ object StandardAwsBatchJobDefinitionBuilder extends AwsBatchJobDefinitionBuilder
   def build(context: AwsBatchJobDefinitionContext): AwsBatchJobDefinition = {
     //instantiate a builder with the name of the docker image
     val builderInst = builder(context.runtimeAttributes.dockerImage)
-    val (b, name) = buildResources(builderInst, context)
+    val (container, containerPropsName) = buildResources(builderInst, context)
+    val retry = RetryStrategy.builder().attempts(context.runtimeAttributes.awsBatchRetryAttempts).build
 
-    new StandardAwsBatchJobDefinitionBuilder(b.build, name)
+    val name = buildName(context.runtimeAttributes.dockerImage, containerPropsName,context.runtimeAttributes.awsBatchRetryAttempts)
+
+    new StandardAwsBatchJobDefinitionBuilder(container.build, name, retry)
   }
+
+  def buildName(imageName: String, containerPropsName: String, retryAttemps: Int): String = {
+      val str = s"$imageName:$containerPropsName:${retryAttemps.toString}"
+
+      val sha1 = MessageDigest.getInstance("SHA-1")
+            .digest( str.getBytes("UTF-8") )
+            .map("%02x".format(_)).mkString
+
+      val prefix = s"cromwell_$imageName".slice(0,88) // will be joined to a 40 character SHA1 for total length of 128
+
+      sanitize(prefix + sha1)
+    }
 }
 
-case class StandardAwsBatchJobDefinitionBuilder private(containerProperties: ContainerProperties, name: String) extends AwsBatchJobDefinition
+case class StandardAwsBatchJobDefinitionBuilder private(containerProperties: ContainerProperties, name: String, retryStrategy: RetryStrategy) extends AwsBatchJobDefinition
 
 object AwsBatchJobDefinitionContext
 

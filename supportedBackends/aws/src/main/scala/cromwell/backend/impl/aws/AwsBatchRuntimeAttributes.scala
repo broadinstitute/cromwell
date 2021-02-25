@@ -71,6 +71,7 @@ case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                      continueOnReturnCode: ContinueOnReturnCode,
                                      noAddress: Boolean,
                                      scriptS3BucketName: String,
+                                     awsBatchRetryAttempts: Int,
                                      fileSystem:String= "s3")
 
 object AwsBatchRuntimeAttributes {
@@ -78,6 +79,8 @@ object AwsBatchRuntimeAttributes {
   val QueueArnKey = "queueArn"
 
   val scriptS3BucketKey = "scriptBucketName"
+
+  val awsBatchRetryAttemptsKey = "awsBatchRetryAttempts"
 
   val ZonesKey = "zones"
   private val ZonesDefaultValue = WomString("us-east-1a")
@@ -134,6 +137,11 @@ object AwsBatchRuntimeAttributes {
     QueueArnValidation.withDefault(QueueArnValidation.configDefaultWomValue(runtimeConfig) getOrElse
       (throw new RuntimeException("queueArn is required")))
 
+  private def awsBatchRetryAttemptsValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] = {
+    AwsBatchRetryAttemptsValidation(awsBatchRetryAttemptsKey).withDefault(AwsBatchRetryAttemptsValidation(awsBatchRetryAttemptsKey)
+    .configDefaultWomValue(runtimeConfig).getOrElse(WomInteger(0)))
+  }
+
   def runtimeAttributesBuilder(configuration: AwsBatchConfiguration): StandardValidatedRuntimeAttributesBuilder = {
     val runtimeConfig = configuration.runtimeConfig
     def validationsS3backend = StandardValidatedRuntimeAttributesBuilder.default(runtimeConfig).withValidation(
@@ -146,7 +154,8 @@ object AwsBatchRuntimeAttributes {
                         noAddressValidation(runtimeConfig),
                         dockerValidation,
                         queueArnValidation(runtimeConfig),
-                        scriptS3BucketNameValidation(runtimeConfig)
+                        scriptS3BucketNameValidation(runtimeConfig),
+                        awsBatchRetryAttemptsValidation(runtimeConfig),
                       )
    def validationsLocalBackend  = StandardValidatedRuntimeAttributesBuilder.default(runtimeConfig).withValidation(
       cpuValidation(runtimeConfig),
@@ -181,6 +190,7 @@ object AwsBatchRuntimeAttributes {
        case AWSBatchStorageSystems.s3 => RuntimeAttributesValidation.extract(scriptS3BucketNameValidation(runtimeAttrsConfig) , validatedRuntimeAttributes)
        case _ => ""
      }
+    val awsBatchRetryAttempts: Int = RuntimeAttributesValidation.extract(awsBatchRetryAttemptsValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
 
 
     new AwsBatchRuntimeAttributes(
@@ -194,6 +204,7 @@ object AwsBatchRuntimeAttributes {
       continueOnReturnCode,
       noAddress,
       scriptS3BucketName,
+      awsBatchRetryAttempts,
       fileSystem
     )
   }
@@ -371,4 +382,25 @@ object DisksValidation extends RuntimeAttributesValidation[Seq[AwsBatchVolume]] 
 
   override protected def missingValueMessage: String =
     s"Expecting $key runtime attribute to be a comma separated String or Array[String]"
+}
+
+object AwsBatchRetryAttemptsValidation {
+  def apply(key: String): AwsBatchRetryAttemptsValidation = new AwsBatchRetryAttemptsValidation(key)
+}
+
+class AwsBatchRetryAttemptsValidation(key: String) extends IntRuntimeAttributesValidation(key) {
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[Int]] = {
+    case womValue if WomIntegerType.coerceRawValue(womValue).isSuccess =>
+      WomIntegerType.coerceRawValue(womValue).get match {
+        case WomInteger(value) =>
+          if (value.toInt < 0)
+            s"Expecting $key runtime attribute value greater than or equal to 0".invalidNel
+          else if (value.toInt > 10)
+            s"Expecting $key runtime attribute value lower than or equal to 10".invalidNel
+          else
+            value.toInt.validNel
+      }
+  }
+
+  override protected def missingValueMessage: String = s"Expecting $key runtime attribute to be an Integer"
 }

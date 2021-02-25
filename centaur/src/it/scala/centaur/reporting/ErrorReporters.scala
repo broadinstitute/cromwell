@@ -52,9 +52,9 @@ class ErrorReporters(rootConfig: Config) {
       IO.raiseError(throwable)
     } else {
       val listIo = errorReporters.map(_.logFailure(testEnvironment, ciEnvironment, throwable))
-      AggregatedIo.aggregateExceptions("Errors while reporting a failure", listIo).handleErrorWith(throwable => {
-        throwable.addSuppressed(throwable)
-        IO.raiseError(throwable)
+      AggregatedIo.aggregateExceptions("Errors while reporting a failure", listIo).handleErrorWith(err => {
+        err.addSuppressed(throwable)
+        IO.raiseError(err)
       }).void
     }
   }

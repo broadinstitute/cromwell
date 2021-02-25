@@ -17,7 +17,10 @@ class GcsReporter(override val params: ErrorReporterParams) extends ErrorReporte
   /** A description of where the reporter is sending the errors. */
   override def destination = "GCS bucket"
 
-  /** Send a report of a centaur failure. */
+  /**
+    * In this ErrorReporter implementation this method will save information about exceptions of type
+    * CentaurTestException to GCS. Exceptions of other types will be ignored.
+    */
   override def logFailure(testEnvironment: TestEnvironment,
                           ciEnvironment: CiEnvironment,
                           throwable: Throwable)

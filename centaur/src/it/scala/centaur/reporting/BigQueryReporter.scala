@@ -72,6 +72,10 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
     }
   }
 
+  /**
+    * In this ErrorReporter implementation this method will send information about exceptions of type
+    * CentaurTestException to BigQuery. Exceptions of other types will be ignored.
+    */
   override def logFailure(testEnvironment: TestEnvironment,
                           ciEnvironment: CiEnvironment,
                           throwable: Throwable)

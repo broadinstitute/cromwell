@@ -3,6 +3,7 @@ package centaur.reporting
 import cats.effect.IO
 import centaur.test.CentaurTestException
 import com.typesafe.scalalogging.StrictLogging
+import org.testcontainers.shaded.org.apache.commons.lang.exception.ExceptionUtils
 
 import scala.concurrent.ExecutionContext
 
@@ -40,7 +41,7 @@ class Slf4jReporter(override val params: ErrorReporterParams)
       if (testEnvironment.attempt >= testEnvironment.retries) {
         logger.error(message, throwable)
       } else {
-        val messageWithShortExceptionContext = message + " (" + Option(throwable.getMessage).getOrElse("").replace("\n", " ").take(150) + "[...])"
+        val messageWithShortExceptionContext = message + " (" + ExceptionUtils.getMessage(throwable).replace("\n", " ").take(150) + "[...])"
         logger.warn(messageWithShortExceptionContext)
       }
     }

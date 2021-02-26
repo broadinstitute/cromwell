@@ -191,9 +191,9 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
       {
         case centaurTestException: CentaurTestException =>
           maybeRetry(centaurTestException)
-        case nonCentaurException =>
+        case nonCentaurThrowable: Throwable =>
           val testEnvironment = TestEnvironment(testName, retries = attempt + 1, attempt) // allow one last retry
-          ErrorReporters.logFailure(testEnvironment, nonCentaurException)
+          ErrorReporters.logFailure(testEnvironment, nonCentaurThrowable)
           runTestIo
       },
       {

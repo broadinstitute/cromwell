@@ -1,7 +1,6 @@
 package centaur.reporting
 
 import cats.effect.IO
-import centaur.test.CentaurTestException
 import centaur.{CentaurConfig, CromwellDatabase}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.StrictLogging
@@ -41,21 +40,21 @@ class ErrorReporters(rootConfig: Config) {
     *
     * @param testEnvironment      The test information, including the name of the test and the attemp.
     * @param ciEnvironment        The information about the CI environment running the test.
-    * @param centaurTestException The exception that occurred while running the test.
+    * @param throwable            The exception that occurred while running the test.
     * @return An IO effect that will log the failure.
     */
-  def logCentaurFailure(testEnvironment: TestEnvironment,
-                        ciEnvironment: CiEnvironment,
-                        centaurTestException: CentaurTestException)
-                       (implicit executionContext: ExecutionContext): IO[Unit] = {
+  def logFailure(testEnvironment: TestEnvironment,
+                 ciEnvironment: CiEnvironment,
+                 throwable: Throwable)
+                (implicit executionContext: ExecutionContext): IO[Unit] = {
     if (errorReporters.isEmpty) {
       // If the there are no reporters, then just "throw" the exception. Do not retry to run the test.
-      IO.raiseError(centaurTestException)
+      IO.raiseError(throwable)
     } else {
-      val listIo = errorReporters.map(_.logCentaurFailure(testEnvironment, ciEnvironment, centaurTestException))
-      AggregatedIo.aggregateExceptions("Errors while reporting centaur failure", listIo).handleErrorWith(throwable => {
-        throwable.addSuppressed(centaurTestException)
-        IO.raiseError(throwable)
+      val listIo = errorReporters.map(_.logFailure(testEnvironment, ciEnvironment, throwable))
+      AggregatedIo.aggregateExceptions("Errors while reporting a failure", listIo).handleErrorWith(err => {
+        err.addSuppressed(throwable)
+        IO.raiseError(err)
       }).void
     }
   }
@@ -86,9 +85,9 @@ object ErrorReporters extends StrictLogging {
   if (retryAttempts > 0)
     logger.info("Error retry count: {}", retryAttempts)
 
-  def logCentaurFailure(testEnvironment: TestEnvironment,
-                        centaurTestException: CentaurTestException)
-                       (implicit executionContext: ExecutionContext): IO[Unit] = {
-    errorReporters.logCentaurFailure(testEnvironment, ciEnvironment, centaurTestException)
+  def logFailure(testEnvironment: TestEnvironment,
+                 throwable: Throwable)
+                (implicit executionContext: ExecutionContext): IO[Unit] = {
+    errorReporters.logFailure(testEnvironment, ciEnvironment, throwable)
   }
 }

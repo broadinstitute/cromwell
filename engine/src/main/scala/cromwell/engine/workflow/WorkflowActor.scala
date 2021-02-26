@@ -65,7 +65,6 @@ object WorkflowActor {
 
   sealed trait WorkflowActorTerminalState extends WorkflowActorState
   sealed trait WorkflowActorRunningState extends WorkflowActorState { override val workflowState = WorkflowRunning }
-  sealed trait WorkflowActorFinalizingState extends WorkflowActorState { override val workflowState = WorkflowFinalizing }
 
   /**
     * Waiting for a Start or Restart command.
@@ -92,17 +91,17 @@ object WorkflowActor {
   /**
     * The WorkflowActor has completed. So we're now finalizing whatever needs to be finalized on the backends
     */
-  case object FinalizingWorkflowState extends WorkflowActorFinalizingState
+  case object FinalizingWorkflowState extends WorkflowActorRunningState
 
   /**
     * The workflow and finalization has succeeded and wants to delete intermediate files. So we are now in deleting
     * those files state.
     */
-  case object DeletingFilesState extends WorkflowActorFinalizingState
+  case object DeletingFilesState extends WorkflowActorRunningState
 
   case object MetadataIntegrityValidationState extends WorkflowActorState {
     override def toString = "MetadataIntegrityValidationState"
-    override def workflowState: WorkflowState = WorkflowFinalizing
+    override def workflowState: WorkflowState = WorkflowRunning
   }
 
   /**

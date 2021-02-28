@@ -1474,6 +1474,12 @@ cromwell:build::run_sbt_test() {
     # Note: sbt logging level now affects the test logging level: https://github.com/sbt/sbt/issues/4480
     # Globally leaving the sbt log level at info for now.
     # Disabling the supershell to reduce log levels.
+    # Splitting the JVMs for compilation then scalatest-with-cromwell to reduce memory pressure.
+    # shellcheck disable=SC2086
+    sbt \
+        -Dsbt.supershell=false \
+        ${CROMWELL_BUILD_SBT_COVERAGE_COMMAND} \
+        test:compile
     # shellcheck disable=SC2086
     sbt \
         -Dsbt.supershell=false \

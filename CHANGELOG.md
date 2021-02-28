@@ -1,5 +1,11 @@
 # Cromwell Change Log
 
+## 58 Release Notes
+
+### Java 11
+
+As of this version, a distribution of Java 11 is required to run Cromwell. Cromwell is developed, tested, and
+containerized using [AdoptOpenJDK 11 HotSpot](https://adoptopenjdk.net/).
 
 ## 57 Release Notes
 
@@ -8,11 +14,6 @@
 Beginning with Cromwell 57, reference disk manifests are now specified completely within Cromwell configuration
 rather than through a level of indirection to a manifest file stored in GCS. More details can be found
 [here](https://cromwell.readthedocs.io/en/develop/backends/Google#reference-disk-support).
-
-### Java 11
-
-As of Cromwell 57, a distribution of Java 11 is required to run Cromwell. Cromwell is developed, tested, and
-containerized  using [AdoptOpenJDK 11 HotSpot](https://adoptopenjdk.net/).
 
 ## 56 Release Notes
 

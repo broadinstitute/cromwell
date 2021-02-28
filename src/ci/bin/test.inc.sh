@@ -830,11 +830,11 @@ cromwell::private::pip_install() {
     pip_package="${1:?pip_install called without a package}"; shift
 
     if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
-        sudo -H "$(command -v pip)" install "${pip_package}" "$@"
+        sudo -H "$(command -v pip3)" install "${pip_package}" "$@"
     elif [[ "${CROMWELL_BUILD_IS_VIRTUAL_ENV}" == "true" ]]; then
-        pip install "${pip_package}" "$@"
+        pip3 install "${pip_package}" "$@"
     else
-        pip install "${pip_package}" --user "$@"
+        pip3 install "${pip_package}" --user "$@"
     fi
 }
 
@@ -1062,7 +1062,7 @@ cromwell::private::vault_login() {
 
 cromwell::private::render_secure_resources() {
     # Copy the CI resources, then render the secure resources using Vault
-    sbt --warn renderCiResources \
+    sbt -Dsbt.supershell=false --warn renderCiResources \
     || if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
         echo
         echo "Continuing without rendering secure resources."
@@ -1081,7 +1081,7 @@ cromwell::private::render_secure_resources() {
 
 cromwell::private::copy_all_resources() {
     # Only copy the CI resources. Secure resources are not rendered.
-    sbt --warn copyCiResources
+    sbt -Dsbt.supershell=false --warn copyCiResources
 }
 
 cromwell::private::setup_secure_resources() {
@@ -1133,8 +1133,10 @@ cromwell::private::assemble_jars() {
     # shellcheck disable=SC2086
     CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=error \
         sbt \
-        --error \
+        -Dsbt.supershell=false \
+        --warn \
         ${CROMWELL_BUILD_SBT_COVERAGE_COMMAND} \
+        --error \
         ${CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND}
 }
 
@@ -1174,21 +1176,21 @@ cromwell::private::setup_prior_version_resources() {
 }
 
 cromwell::private::generate_code_coverage() {
-    sbt --warn coverageReport -warn
-    sbt --warn coverageAggregate -warn
+    sbt -Dsbt.supershell=false --warn coverageReport
+    sbt -Dsbt.supershell=false --warn coverageAggregate
     bash <(curl -s https://codecov.io/bash) > /dev/null || true
 }
 
 cromwell::private::publish_artifacts_only() {
-    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt "$@" publish -warn
+    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt -Dsbt.supershell=false --warn "$@" publish
 }
 
 cromwell::private::publish_artifacts_and_docker() {
-    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt "$@" publish dockerBuildAndPush -warn
+    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt -Dsbt.supershell=false --warn "$@" publish dockerBuildAndPush
 }
 
 cromwell::private::publish_artifacts_check() {
-    sbt --warn verifyArtifactoryCredentialsExist -warn
+    sbt -Dsbt.supershell=false --warn verifyArtifactoryCredentialsExist
 }
 
 # Some CI environments want to know when new docker images are published. They do not currently poll dockerhub but do
@@ -1469,9 +1471,12 @@ cromwell::build::build_cromwell_docker() {
 
 cromwell:build::run_sbt_test() {
     # CROMWELL_BUILD_SBT_COVERAGE_COMMAND allows enabling or disabling `sbt coverage`.
+    # Note: sbt logging level now affects the test logging level: https://github.com/sbt/sbt/issues/4480
+    # Globally leaving the sbt log level at info for now.
+    # Disabling the supershell to reduce log levels.
     # shellcheck disable=SC2086
     sbt \
-        -warn \
+        -Dsbt.supershell=false \
         -Dakka.test.timefactor=${CROMWELL_BUILD_UNIT_SPAN_SCALE_FACTOR} \
         -Dbackend.providers.Local.config.filesystems.local.localization.0=copy \
         ${CROMWELL_BUILD_SBT_COVERAGE_COMMAND} \

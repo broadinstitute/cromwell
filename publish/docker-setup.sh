@@ -37,4 +37,4 @@ apt-get install \
     -y --no-install-recommends
 
 # Update sbt
-sbt -Dsbt.rootdir=true sbtVersion
+sbt -Dsbt.supershell=false -Dsbt.rootdir=true sbtVersion

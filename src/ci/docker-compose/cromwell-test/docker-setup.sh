@@ -84,8 +84,8 @@ update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 # upgrade python dependencies
 # https://pip.pypa.io/en/stable/installing/#installing-with-get-pip-py
 curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
-python get-pip.py
-pip install --upgrade --force-reinstall pyopenssl
+python3 get-pip.py
+pip3 install --upgrade --force-reinstall pyopenssl
 
 # create a non-root user with access to sudo (but not `sudo -u` / `sudo -g`)
 # https://www.sudo.ws/man/1.9.4/sudoers.man.html#Runas_Spec

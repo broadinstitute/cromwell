@@ -7,8 +7,6 @@ source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
 cromwell::build::setup_common_environment
 
-cromwell::build::start_build_heartbeat
-
 cromwell::build::assemble_jars
 
 # Test 1: basic hello world

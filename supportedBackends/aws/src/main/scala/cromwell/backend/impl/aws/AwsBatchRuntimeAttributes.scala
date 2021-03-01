@@ -72,7 +72,7 @@ case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                      noAddress: Boolean,
                                      scriptS3BucketName: String,
                                      awsBatchRetryAttempts: Int,
-                                     fileSystem:String= "s3")
+                                     fileSystem: String= "s3")
 
 object AwsBatchRuntimeAttributes {
 

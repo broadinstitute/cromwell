@@ -16,10 +16,9 @@ metadata {
   status: Succeeded
 
   "outputs.drs_usa_hca_data_in_jdr.path" =
-    "/cromwell_root/jade.datarepo-dev.broadinstitute.org/v1_4122d403-8d70-4922-ab6e-7db13e44a9a5_aad1af32-1203-464d-a86d-d9a48e95b214"
-  "outputs.drs_usa_hca_data_in_jdr.hash" = "d18ef9b8fd14ac922588baeec4853c0d"
-  "outputs.drs_usa_hca_data_in_jdr.size" = 148.0
-  # These files must be localized by the DRS localizer, so their paths are NOT cloud paths
+    "/cromwell_root/jade.datarepo-dev.broadinstitute.org/v1_4122d403-8d70-4922-ab6e-7db13e44a9a5_aad1af32-1203-464d-a86d-d9a48e95b214/SRR3879612_1.fastq.gz"
+  "outputs.drs_usa_hca_data_in_jdr.hash" = "218791cedea390c529b6d8c57348d1b1"
+  "outputs.drs_usa_hca_data_in_jdr.size" = 13128782531
   "outputs.drs_usa_hca_data_in_jdr.cloud" =
-    "/cromwell_root/jade.datarepo-dev.broadinstitute.org/v1_4122d403-8d70-4922-ab6e-7db13e44a9a5_aad1af32-1203-464d-a86d-d9a48e95b214"
+    "gs://broad-jade-dev-data-bucket/ecb5601e-9026-428c-b49d-3c5f1807ecb7/aad1af32-1203-464d-a86d-d9a48e95b214/SRR3879612_1.fastq.gz"
 }

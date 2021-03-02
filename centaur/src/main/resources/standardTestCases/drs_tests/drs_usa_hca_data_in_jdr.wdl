@@ -42,7 +42,7 @@ task localize_drs_with_usa {
     runtime {
         docker: "ubuntu"
         backend: "papi-v2-usa"
-        bootDiskSizeGb: disk_size_required_for_file_gb
+        disks: "local-disk ~{disk_size_required_for_file_gb} SSD"
     }
 }
 

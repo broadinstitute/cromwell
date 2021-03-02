@@ -157,7 +157,7 @@ trait AwsBatchJobDefinitionBuilder {
   }
 
   def retryStrategyBuilder(context: AwsBatchJobDefinitionContext): (RetryStrategy.Builder, String) = {
-    // In the future we can add here the 'evaluateOnExit' statement
+    // We can add here the 'evaluateOnExit' statement
     
     (RetryStrategy.builder()
       .attempts(context.runtimeAttributes.awsBatchRetryAttempts),

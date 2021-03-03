@@ -660,9 +660,11 @@ cromwell::private::create_centaur_variables() {
     case "${CROMWELL_BUILD_CENTAUR_TYPE}" in
         "${CROMWELL_BUILD_CENTAUR_TYPE_INTEGRATION}")
             CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT=512000
+            CROMWELL_BUILD_CENTAUR_MAX_WORKFLOW_LENGTH="10 hours"
             ;;
         *)
             CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT=128000
+            CROMWELL_BUILD_CENTAUR_MAX_WORKFLOW_LENGTH="90 minutes"
             ;;
     esac
 
@@ -684,22 +686,23 @@ cromwell::private::create_centaur_variables() {
 
     export CROMWELL_BUILD_CENTAUR_256_BITS_KEY
     export CROMWELL_BUILD_CENTAUR_CONFIG
-    export CROMWELL_BUILD_DOCKER_TAG
     export CROMWELL_BUILD_CENTAUR_JDBC_DRIVER
     export CROMWELL_BUILD_CENTAUR_JDBC_URL
     export CROMWELL_BUILD_CENTAUR_LOG
-    export CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS
-    export CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY
+    export CROMWELL_BUILD_CENTAUR_MAX_WORKFLOW_LENGTH
+    export CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER
+    export CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL
+    export CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE
     export CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT
     export CROMWELL_BUILD_CENTAUR_RESOURCES
     export CROMWELL_BUILD_CENTAUR_SLICK_PROFILE
+    export CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS
+    export CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY
     export CROMWELL_BUILD_CENTAUR_TYPE
-    export CROMWELL_BUILD_CENTAUR_TYPE_STANDARD
-    export CROMWELL_BUILD_CENTAUR_TYPE_INTEGRATION
     export CROMWELL_BUILD_CENTAUR_TYPE_ENGINE_UPGRADE
-    export CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE
-    export CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER
-    export CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL
+    export CROMWELL_BUILD_CENTAUR_TYPE_INTEGRATION
+    export CROMWELL_BUILD_CENTAUR_TYPE_STANDARD
+    export CROMWELL_BUILD_DOCKER_TAG
 }
 
 cromwell::private::create_conformance_variables() {
@@ -1356,12 +1359,12 @@ cromwell::build::setup_common_environment() {
     esac
 
     cromwell::private::setup_secure_resources
+    cromwell::private::start_build_heartbeat
 }
 
 
 cromwell::build::setup_centaur_environment() {
     cromwell::private::create_centaur_variables
-    cromwell::private::start_build_heartbeat
     cromwell::private::start_cromwell_log_tail
     cromwell::private::start_centaur_log_tail
     if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
@@ -1377,13 +1380,10 @@ cromwell::build::setup_conformance_environment() {
     fi
     cromwell::private::checkout_pinned_cwl
     cromwell::private::write_cwl_test_inputs
-    cromwell::private::start_build_heartbeat
     cromwell::private::add_exit_function cromwell::private::cat_conformance_log
 }
 
 cromwell::build::setup_docker_environment() {
-    cromwell::private::start_build_heartbeat
-
     if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ]]; then
         # Upgrade docker-compose so that we get the correct exit codes
         docker-compose -version
@@ -1545,10 +1545,6 @@ cromwell::build::exec_silent_function() {
 
 cromwell::build::pip_install() {
     cromwell::private::pip_install "$@"
-}
-
-cromwell::build::start_build_heartbeat() {
-    cromwell::private::start_build_heartbeat
 }
 
 cromwell::build::add_exit_function() {

@@ -420,6 +420,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       // If we shut down now the WMA will erase this workflow from the workflow store, so try again and hope for
       // better luck. If we continue to be unable to write the completion message to the DB it's better to leave the
       // workflow in its current state in the DB than to let the WMA delete it
+      // Note: this is an infinite retry right now, but it doesn't consume much in terms of resources and could help us successfully weather maintenance downtime on the DB
       workflowLogger.error(reason, "Unable to complete workflow due to inability to write concluding metadata status. Retrying...")
       PutMetadataActionAndRespond(msgs, self)
       stay()

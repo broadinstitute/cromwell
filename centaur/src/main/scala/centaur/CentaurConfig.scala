@@ -50,15 +50,13 @@ object CentaurConfig {
   lazy val conf: Config = ConfigFactory.load().getConfig("centaur")
   
   lazy val runMode: CentaurRunMode = CentaurRunMode(conf)
-  lazy val expectCarbonite: Boolean = conf.getOrElse("expectCarbonite", false).value
+  lazy val expectCarbonite: Boolean = conf.getBoolean("expectCarbonite")
   
   lazy val cromwellUrl: URL = runMode.cromwellUrl
+  lazy val workflowProgressTimeout: FiniteDuration = conf.getDuration("workflow-progress-timeout").toScala
   lazy val sendReceiveTimeout: FiniteDuration = conf.getDuration("sendReceiveTimeout").toScala
   lazy val maxWorkflowLength: FiniteDuration = conf.getDuration("maxWorkflowLength").toScala
   lazy val metadataConsistencyTimeout: FiniteDuration = conf.getDuration("metadataConsistencyTimeout").toScala
-
-  lazy val metadataDeletionMinimumWait: FiniteDuration = conf.getDuration("metadataDeletionMinimumWait").toScala
-  lazy val metadataDeletionMaximumWait: FiniteDuration = conf.getDuration("metadataDeletionMaximumWait").toScala
 
   lazy val standardTestCasePath: Path = Paths.get(conf.getString("standardTestCasePath"))
 

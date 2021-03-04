@@ -15,6 +15,9 @@ backend {
         concurrent-job-limit = 8
         glob-link-command = "ls -L GLOB_PATTERN 2> /dev/null | xargs -I ? ln -s ? GLOB_DIRECTORY"
       }
+
+      # Have the engine (maybe) authenticate to docker.io. See BT-141 for more info.
+      include "dockerhub_provider_config_v1.inc.conf"
     }
   }
 }

@@ -239,14 +239,7 @@ cromwell::private::create_build_variables() {
                 CROMWELL_BUILD_IS_SECURE=false
             fi
 
-            if [[ "$BUILD_BRANCH_OR_PR" == "pr" ]]; then
-              CROMWELL_BUILD_EVENT="pull_request"
-            elif [[ "$BUILD_BRANCH_OR_PR" == "branch" ]]; then
-              CROMWELL_BUILD_EVENT="push"
-            else
-              echo "Allowed values for BUILD_BRANCH_OR_PR environment variable are 'branch' and 'pr', but got '${BUILD_BRANCH_OR_PR}'. Fallback to default 'branch' case."
-              CROMWELL_BUILD_EVENT="push"
-            fi
+            CROMWELL_BUILD_EVENT="pull_request"
 
             local circle_commit_message
             local circle_force_tests
@@ -598,15 +591,7 @@ cromwell::private::create_centaur_variables() {
         "${CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL}")
             # Use the standard test cases despite the horicromtal Centaur build type.
             CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY="${CROMWELL_BUILD_CENTAUR_RESOURCES}/standardTestCases"
-
-            # Determine horicromtal Centaur config:
-            if test "${CROMWELL_BUILD_BACKEND_TYPE}" = "papi_v2alpha1" || test "${CROMWELL_BUILD_BACKEND_TYPE}" = "papi_v2beta"
-            then
-              CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application_papi_v2_horicromtal.conf"
-            else
-              CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application_horicromtal.conf"
-            fi
-            echo "*** Using centaur config '${CROMWELL_BUILD_CENTAUR_CONFIG}' for backend type '${CROMWELL_BUILD_BACKEND_TYPE}'"
+            CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application_horicromtal.conf"
             ;;
         "${CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL_ENGINE_UPGRADE}")
             # Use the engine upgrade test cases despite the horicromtal Centaur build type.
@@ -616,12 +601,7 @@ cromwell::private::create_centaur_variables() {
             ;;
         *)
             CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY="${CROMWELL_BUILD_CENTAUR_RESOURCES}/${CROMWELL_BUILD_CENTAUR_TYPE}TestCases"
-            if test "${CROMWELL_BUILD_BACKEND_TYPE}" = "papi_v2alpha1" || test "${CROMWELL_BUILD_BACKEND_TYPE}" = "papi_v2beta"
-            then
-              CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application_papi_v2.conf"
-            else
-              CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application.conf"
-            fi
+            CROMWELL_BUILD_CENTAUR_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_application.conf"
             ;;
     esac
 
@@ -680,9 +660,11 @@ cromwell::private::create_centaur_variables() {
     case "${CROMWELL_BUILD_CENTAUR_TYPE}" in
         "${CROMWELL_BUILD_CENTAUR_TYPE_INTEGRATION}")
             CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT=512000
+            CROMWELL_BUILD_CENTAUR_MAX_WORKFLOW_LENGTH="10 hours"
             ;;
         *)
             CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT=128000
+            CROMWELL_BUILD_CENTAUR_MAX_WORKFLOW_LENGTH="90 minutes"
             ;;
     esac
 
@@ -704,22 +686,23 @@ cromwell::private::create_centaur_variables() {
 
     export CROMWELL_BUILD_CENTAUR_256_BITS_KEY
     export CROMWELL_BUILD_CENTAUR_CONFIG
-    export CROMWELL_BUILD_DOCKER_TAG
     export CROMWELL_BUILD_CENTAUR_JDBC_DRIVER
     export CROMWELL_BUILD_CENTAUR_JDBC_URL
     export CROMWELL_BUILD_CENTAUR_LOG
-    export CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS
-    export CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY
+    export CROMWELL_BUILD_CENTAUR_MAX_WORKFLOW_LENGTH
+    export CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER
+    export CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL
+    export CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE
     export CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT
     export CROMWELL_BUILD_CENTAUR_RESOURCES
     export CROMWELL_BUILD_CENTAUR_SLICK_PROFILE
+    export CROMWELL_BUILD_CENTAUR_TEST_ADDITIONAL_PARAMETERS
+    export CROMWELL_BUILD_CENTAUR_TEST_DIRECTORY
     export CROMWELL_BUILD_CENTAUR_TYPE
-    export CROMWELL_BUILD_CENTAUR_TYPE_STANDARD
-    export CROMWELL_BUILD_CENTAUR_TYPE_INTEGRATION
     export CROMWELL_BUILD_CENTAUR_TYPE_ENGINE_UPGRADE
-    export CROMWELL_BUILD_CENTAUR_PRIOR_SLICK_PROFILE
-    export CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_DRIVER
-    export CROMWELL_BUILD_CENTAUR_PRIOR_JDBC_URL
+    export CROMWELL_BUILD_CENTAUR_TYPE_INTEGRATION
+    export CROMWELL_BUILD_CENTAUR_TYPE_STANDARD
+    export CROMWELL_BUILD_DOCKER_TAG
 }
 
 cromwell::private::create_conformance_variables() {
@@ -958,14 +941,6 @@ cromwell::private::start_docker_databases() {
         cromwell::private::start_docker_postgresql \
             "${CROMWELL_BUILD_POSTGRESQL_LATEST_TAG}" "${CROMWELL_BUILD_POSTGRESQL_LATEST_PORT}"
     fi
-}
-
-cromwell::private::pull_common_docker_images() {
-    # All tests use ubuntu:latest - make sure it's there before starting the tests
-    # because pulling the image during some of the tests would cause them to fail
-    # (specifically output_redirection which expects a specific value in stderr)
-    # Use cat to quiet docker: https://github.com/moby/moby/issues/36655#issuecomment-375136087
-    docker pull ubuntu | cat
 }
 
 cromwell::private::install_cwltest() {
@@ -1356,14 +1331,6 @@ cromwell::build::exec_test_script() {
     cromwell::private::exec_test_script
 }
 
-cromwell::private::pull_common_docker_images_and_start_docker_databases() {
-  if [[ "${BUILD_TYPE}" != "sbt" ]]; then
-      cromwell::private::pull_common_docker_images
-      cromwell::private::create_database_variables
-      cromwell::private::start_docker_databases
-  fi
-}
-
 cromwell::build::setup_common_environment() {
     cromwell::private::check_debug
     cromwell::private::create_build_variables
@@ -1373,7 +1340,7 @@ cromwell::build::setup_common_environment() {
     cromwell::private::install_git_secrets
     cromwell::private::install_minnie_kenny
     cromwell::private::install_wait_for_it
-    cromwell::private::setup_secure_resources
+    cromwell::private::create_database_variables
 
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
@@ -1381,24 +1348,23 @@ cromwell::build::setup_common_environment() {
             cromwell::private::delete_boto_config
             cromwell::private::delete_sbt_boot
             cromwell::private::upgrade_pip
-            cromwell::private::pull_common_docker_images_and_start_docker_databases
+            cromwell::private::start_docker_databases
             ;;
         "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
-            cromwell::private::pull_common_docker_images_and_start_docker_databases
+            cromwell::private::start_docker_databases
             ;;
-        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
-            cromwell::private::create_database_variables
-            ;;
+        "${CROMWELL_BUILD_PROVIDER_JENKINS}"|\
         *)
-            cromwell::private::pull_common_docker_images
             ;;
     esac
+
+    cromwell::private::setup_secure_resources
+    cromwell::private::start_build_heartbeat
 }
 
 
 cromwell::build::setup_centaur_environment() {
     cromwell::private::create_centaur_variables
-    cromwell::private::start_build_heartbeat
     cromwell::private::start_cromwell_log_tail
     cromwell::private::start_centaur_log_tail
     if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
@@ -1414,13 +1380,10 @@ cromwell::build::setup_conformance_environment() {
     fi
     cromwell::private::checkout_pinned_cwl
     cromwell::private::write_cwl_test_inputs
-    cromwell::private::start_build_heartbeat
     cromwell::private::add_exit_function cromwell::private::cat_conformance_log
 }
 
 cromwell::build::setup_docker_environment() {
-    cromwell::private::start_build_heartbeat
-
     if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ]]; then
         # Upgrade docker-compose so that we get the correct exit codes
         docker-compose -version
@@ -1582,10 +1545,6 @@ cromwell::build::exec_silent_function() {
 
 cromwell::build::pip_install() {
     cromwell::private::pip_install "$@"
-}
-
-cromwell::build::start_build_heartbeat() {
-    cromwell::private::start_build_heartbeat
 }
 
 cromwell::build::add_exit_function() {

@@ -44,6 +44,10 @@ jobs:
       - install_adoptopenjdk
       - checkout
       - run: pwd
+      - run: git config --get user.email
+      - run: git config --get user.name
+      - run: git config user.email "circleci@example.com"
+      - run: git config user.name "CircleCI"
       - build-tools/merge-with-parent:
           parent: develop
       - restore_cache:

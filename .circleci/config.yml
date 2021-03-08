@@ -43,11 +43,11 @@ jobs:
             fi
       - install_adoptopenjdk
       - checkout
-      - run: pwd
-      - run: git config --get user.email
-      - run: git config --get user.name
-      - run: git config user.email "circleci@example.com"
-      - run: git config user.name "CircleCI"
+      - run:
+          name: Custom step - configure GIT identity
+          command: |
+            git config user.email "circleci@example.com"
+            git config user.name "CircleCI"
       - build-tools/merge-with-parent:
           parent: develop
       - restore_cache:

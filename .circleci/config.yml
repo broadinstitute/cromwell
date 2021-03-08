@@ -43,6 +43,7 @@ jobs:
             fi
       - install_adoptopenjdk
       - checkout
+      - run: pwd
       - build-tools/merge-with-parent:
           parent: develop
       - restore_cache:

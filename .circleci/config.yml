@@ -55,6 +55,8 @@ jobs:
           command: |
             find ~/.ivy2/cache -name "ivydata-*.properties" -print -delete
             find ~/.sbt -name "*.lock" -print -delete
+      - store_test_results:
+          path: target/test-reports
       - save_cache:
           key: sbt-cache
           paths:

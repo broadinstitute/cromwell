@@ -32,10 +32,13 @@ trait WorkflowMetadataHelper {
     serviceRegistryActor ! PutMetadataAction(failureEvents)
   }
   
-  def pushCurrentStateToMetadataService(workflowId: WorkflowId, workflowState: WorkflowState): Unit = {
-    val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Status),
-      MetadataValue(workflowState))
-    serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
+  def pushCurrentStateToMetadataService(workflowId: WorkflowId, workflowState: WorkflowState, confirmTo: Option[ActorRef] = None): Unit = {
+    val metadataEventMsg = MetadataEvent(MetadataKey(workflowId, None, WorkflowMetadataKeys.Status), MetadataValue(workflowState))
+
+    confirmTo match {
+      case None => serviceRegistryActor ! PutMetadataAction(metadataEventMsg)
+      case Some(actorRef) => serviceRegistryActor ! PutMetadataActionAndRespond(List(metadataEventMsg), actorRef)
+    }
   }
   
 }

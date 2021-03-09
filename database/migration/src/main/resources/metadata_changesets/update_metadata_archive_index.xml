@@ -8,7 +8,7 @@
         <dropIndex tableName="WORKFLOW_METADATA_SUMMARY_ENTRY"
                    indexName="IX_WORKFLOW_METADATA_SUMMARY_ENTRY_MAS"/>
 
-        <createIndex indexName="IX_WORKFLOW_METADATA_SUMMARY_ENTRY_MAS_ETS"
+        <createIndex indexName="IX_WORKFLOW_METADATA_SUMMARY_ENTRY_MAS_ET"
                      tableName="WORKFLOW_METADATA_SUMMARY_ENTRY" unique="false">
             <column name="METADATA_ARCHIVE_STATUS"/>
             <column name="END_TIMESTAMP"/>

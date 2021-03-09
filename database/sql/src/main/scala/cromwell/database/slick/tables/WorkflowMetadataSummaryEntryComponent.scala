@@ -62,8 +62,8 @@ trait WorkflowMetadataSummaryEntryComponent {
     def ixWorkflowMetadataSummaryEntryRweu =
       index("IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU", rootWorkflowExecutionUuid, unique = false)
 
-    def ixWorkflowMetadataSummaryEntryMas =
-      index("IX_WORKFLOW_METADATA_SUMMARY_ENTRY_MAS", metadataArchiveStatus, unique = false)
+    def ixWorkflowMetadataSummaryEntryMasEt =
+      index("IX_WORKFLOW_METADATA_SUMMARY_ENTRY_MAS_ET", (metadataArchiveStatus, endTimestamp), unique = false)
   }
 
   val workflowMetadataSummaryEntries = TableQuery[WorkflowMetadataSummaryEntries]

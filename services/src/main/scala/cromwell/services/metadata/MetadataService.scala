@@ -2,13 +2,14 @@ package cromwell.services.metadata
 
 import java.time.OffsetDateTime
 
-import io.circe.Json
 import akka.actor.ActorRef
 import cats.data.NonEmptyList
 import cromwell.core._
 import cromwell.services.ServiceRegistryActor.{ListenToMessage, ServiceRegistryMessage}
 import common.exception.{MessageAggregation, ThrowableAggregation}
+import cromwell.database.sql.tables.MetadataEntry
 import cromwell.services.metadata.MetadataQuery.MetadataSourceOverride
+import slick.basic.DatabasePublisher
 import wom.core._
 import wom.values._
 
@@ -110,6 +111,9 @@ object MetadataService {
 
     override def workflowId: WorkflowId = key.workflowId
   }
+
+  final case class GetMetadataStreamAction(key: MetadataQuery) extends MetadataServiceAction
+
   final case class GetStatus(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
   final case class GetLabels(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
   final case class GetRootAndSubworkflowLabels(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
@@ -135,7 +139,8 @@ object MetadataService {
     def reason: Throwable
   }
 
-  final case class MetadataLookupJsonResponse(query: MetadataQuery, result: Json) extends MetadataServiceResponse
+  final case class MetadataLookupStreamResponse(query: MetadataQuery, result: DatabasePublisher[MetadataEntry]) extends MetadataServiceResponse
+  final case class MetadataLookupStreamFailedResponse(query: MetadataQuery, reason: Throwable) extends MetadataServiceResponse
   final case class MetadataLookupFailedTooLargeResponse(query: MetadataQuery, metadataSizeRows: Int) extends MetadataServiceResponse
   final case class MetadataLookupFailedTimeoutResponse(query: MetadataQuery) extends MetadataServiceResponse
 

@@ -1,21 +1,20 @@
 package cromwell.services.metadata.hybridcarbonite
 
-import java.nio.charset.StandardCharsets
-import java.nio.file.StandardOpenOption
-
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import cromwell.core.WorkflowId
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
+import cromwell.database.sql.tables.MetadataEntry
 import cromwell.services.metadata.MetadataArchiveStatus.{ArchiveFailed, Archived, TooLargeToArchive}
-import cromwell.services.metadata.MetadataService.GetMetadataAction
+import cromwell.services.metadata.MetadataService.{GetMetadataStreamAction, MetadataLookupStreamResponse}
 import cromwell.services.metadata.hybridcarbonite.CarboniteWorkerActor.CarboniteWorkflowComplete
 import cromwell.services.metadata.hybridcarbonite.CarbonitingMetadataFreezerActor._
 import cromwell.services.metadata.impl.MetadataDatabaseAccess
 import cromwell.services.metadata.{MetadataArchiveStatus, MetadataQuery}
-import cromwell.services.{FailedMetadataJsonResponse, MetadataServicesStore, MetadataTooLargeException, SuccessfulMetadataJsonResponse}
+import cromwell.services.{FailedMetadataJsonResponse, MetadataServicesStore, MetadataTooLargeException}
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
+import slick.basic.DatabasePublisher
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
@@ -36,7 +35,8 @@ class CarbonitingMetadataFreezerActor(freezingConfig: ActiveMetadataFreezingConf
 
   when(Pending) {
     case Event(FreezeMetadata(workflowId), NoData) =>
-      val fetchMetadataRequestToServiceRegistry = GetMetadataAction(MetadataQuery(
+      log.info(s"Submitting request for metadata stream for $workflowId")
+      val fetchMetadataRequestToServiceRegistry = GetMetadataStreamAction(MetadataQuery(
         workflowId = workflowId,
         jobKey = None,
         key = None,
@@ -49,19 +49,22 @@ class CarbonitingMetadataFreezerActor(freezingConfig: ActiveMetadataFreezingConf
       goto(Fetching) using FetchingData(workflowId)
   }
 
+  def writeStreamToGcs(stream: DatabasePublisher[MetadataEntry]): Future[Unit] = {
+    // asyncIo.writeAsync(carboniterConfig.makePath(workflowId), jsonAsString, Seq(StandardOpenOption.CREATE), compressPayload = true)
+    stream.foreach(me => {
+      System.out.println(s"'Archiving': $me")
+      Thread.sleep(1000)
+    })
+  }
+
   when(Fetching) {
-    case Event(SuccessfulMetadataJsonResponse(_, responseJson), FetchingData(workflowId)) =>
-      val jsonAsString = responseJson.prettyPrint
-      val jsonStringBytesSize = jsonAsString.getBytes(StandardCharsets.UTF_8).length
-      if (jsonStringBytesSize <= carboniterConfig.bucketReadLimit) {
-        asyncIo.writeAsync(carboniterConfig.makePath(workflowId), jsonAsString, Seq(StandardOpenOption.CREATE), compressPayload = true) onComplete {
-          result => self ! CarbonitingFreezeResult(result)
-        }
-        goto(Freezing) using FreezingData(workflowId)
-      } else {
-        log.warning(s"Carbonited metadata length is $jsonStringBytesSize bytes, which is greater than configured bucket-read-limit-bytes=${carboniterConfig.bucketReadLimit} value. Marking as $TooLargeToArchive")
-        scheduleDatabaseUpdateAndAwaitResult(workflowId, TooLargeToArchive)
+    case Event(MetadataLookupStreamResponse(_, responseStream), FetchingData(workflowId)) =>
+      log.info(s"Received metadata stream for $workflowId. Beginning stream...")
+
+       writeStreamToGcs(responseStream) onComplete {
+        result => self ! CarbonitingFreezeResult(result)
       }
+      goto(Freezing) using FreezingData(workflowId)
 
     case Event(FailedMetadataJsonResponse(_, reason: MetadataTooLargeException), FetchingData(workflowId)) =>
       log.error(reason, s"Carboniting failure: $reason. Marking as $TooLargeToArchive")

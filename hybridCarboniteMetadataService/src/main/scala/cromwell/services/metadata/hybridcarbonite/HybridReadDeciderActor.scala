@@ -36,6 +36,10 @@ class HybridReadDeciderActor(classicMetadataServiceActor: ActorRef, carboniteMet
         classicMetadataServiceActor ! QueryForWorkflowsMatchingParameters(Vector(WorkflowQueryKey.Id.name -> workflowAction.workflowId.toString))
         goto(RequestingMetadataArchiveStatus) using WorkingData(sender(), workflowAction)
     }
+    case Event(gmsa: GetMetadataStreamAction, NoData) =>
+      log.info(s"${self.path.name}: Forwarding $gmsa to classic metadata service actor")
+      classicMetadataServiceActor ! gmsa
+      goto(WaitingForMetadataResponse) using WorkingData(sender(), gmsa)
   }
 
   when(RequestingMetadataArchiveStatus) {
@@ -74,9 +78,10 @@ class HybridReadDeciderActor(classicMetadataServiceActor: ActorRef, carboniteMet
       }
   }
 
-  def makeAppropriateFailureForRequest(msg: String, request: BuildMetadataJsonAction) = request match {
+  def makeAppropriateFailureForRequest(msg: String, request: MetadataServiceAction) = request match {
     case _: QueryForWorkflowsMatchingParameters => WorkflowQueryFailure(new Exception(msg))
-    case _ => FailedMetadataJsonResponse(request, new Exception(msg))
+    case jsonAction: BuildMetadataJsonAction => FailedMetadataJsonResponse(jsonAction, new Exception(msg))
+    case streamAction: GetMetadataStreamAction => MetadataLookupStreamFailedResponse(streamAction.key, new Exception(msg))
   }
 
 }
@@ -92,7 +97,7 @@ object HybridReadDeciderActor {
 
   sealed trait HybridReadDeciderData
   case object NoData extends HybridReadDeciderData
-  final case class WorkingData(requester: ActorRef, request: BuildMetadataJsonAction) extends HybridReadDeciderData
+  final case class WorkingData(requester: ActorRef, request: MetadataServiceAction) extends HybridReadDeciderData
 
   implicit class EnhancedWorkflowQuerySuccess(val success: WorkflowQuerySuccess) extends AnyVal {
     def hasMultipleSummaryRows: Boolean = success.response.results.size > 1

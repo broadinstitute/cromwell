@@ -4,13 +4,14 @@ import java.sql.Timestamp
 
 import cats.syntax.functor._
 import cats.instances.future._
-
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.database.slick.tables.MetadataDataAccessComponent
 import cromwell.database.sql.MetadataSqlDatabase
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, MetadataJobQueryValue, WorkflowQuery}
 import cromwell.database.sql.tables.{CustomLabelEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
+import slick.basic.DatabasePublisher
+import slick.jdbc.{ResultSetConcurrency, ResultSetType}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
@@ -124,6 +125,18 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                    (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
     val action = dataAccess.metadataEntriesForWorkflowExecutionUuid(workflowExecutionUuid).result
     runTransaction(action, timeout = timeout)
+  }
+
+  override def streamMetadataEntries(workflowExecutionUuid: String,
+                                     timeout: Duration)
+                                    (implicit ec: ExecutionContext): DatabasePublisher[MetadataEntry] = {
+    val action = dataAccess.metadataEntriesForWorkflowExecutionUuid(workflowExecutionUuid)
+      .result
+      .withStatementParameters(
+        rsType = ResultSetType.ForwardOnly,
+        rsConcurrency = ResultSetConcurrency.ReadOnly,
+        fetchSize = 1)
+    database.stream(action)
   }
 
   override def countMetadataEntries(workflowExecutionUuid: String,

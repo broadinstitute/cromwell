@@ -34,11 +34,11 @@ The Cromwell jar file can be built as described in [Building](Building).
 
 ## `server`
 
-`server` mode accepts no arguments and runs Cromwell as a web server that accepts REST requests. See the documentation for [Cromwell's REST endpoints](/api/RESTAPI) for how to interact with Cromwell in `server` mode.
+`server` mode accepts no arguments and runs Cromwell as a web server that accepts REST requests. The default mode for most applications of Cromwell, suitable for production use. See the documentation for [Cromwell's REST endpoints](/api/RESTAPI) for how to interact with Cromwell in `server` mode.
 
 ## `run`
 
-`run` mode executes a single workflow in Cromwell and then exits.
+`run` mode executes a single workflow in Cromwell and then exits. It is designed for local prototyping or demos and has limited features compared to `server`.
 
 * **`workflow-source`**  
 The single required argument. It can be either a local path or a remote URL pointing to the workflow source file.

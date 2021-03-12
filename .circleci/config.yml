@@ -2,7 +2,7 @@ version: 2.1
 
 orbs:
   slack: circleci/slack@4.2.1
-  build-tools: circleci/build-tools@2.7.1
+  build-tools: circleci/build-tools@2.9.0
 
 jobs:
   test:
@@ -32,6 +32,11 @@ jobs:
               circleci-agent step halt
             fi
       - checkout
+      - run:
+          name: Custom step - configure GIT identity
+          command: |
+            git config user.email "circleci@example.com"
+            git config user.name "CircleCI"
       - build-tools/merge-with-parent:
           parent: develop
       - restore_cache:
@@ -44,6 +49,8 @@ jobs:
           command: |
             find ~/.ivy2/cache -name "ivydata-*.properties" -print -delete
             find ~/.sbt -name "*.lock" -print -delete
+      - store_test_results:
+          path: target/test-reports
       - save_cache:
           key: sbt-cache
           paths:

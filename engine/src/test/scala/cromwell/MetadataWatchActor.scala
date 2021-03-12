@@ -2,8 +2,9 @@ package cromwell
 
 import akka.actor.{Actor, ActorLogging, Props}
 import cromwell.core.Dispatcher.EngineDispatcher
-import cromwell.services.metadata.MetadataService.PutMetadataAction
+import cromwell.services.metadata.MetadataService.{MetadataWriteSuccess, PutMetadataAction, PutMetadataActionAndRespond}
 import MetadataWatchActor._
+import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.{MetadataEvent, MetadataJobKey, MetadataString, MetadataValue}
 
@@ -16,17 +17,24 @@ final case class MetadataWatchActor(promise: Promise[Unit], matchers: Matcher*) 
 
   var unsatisfiedMatchers = matchers
 
+  def tryMatchingEvents(events: Iterable[MetadataEvent]) = {
+    unsatisfiedMatchers = unsatisfiedMatchers.filterNot { m => m.matches(events) }
+    if (unsatisfiedMatchers.isEmpty) {
+      promise.trySuccess(())
+      ()
+    }
+  }
+
   override def receive = {
-    case PutMetadataAction(events, _) if unsatisfiedMatchers.nonEmpty =>
-      unsatisfiedMatchers = unsatisfiedMatchers.filterNot { m => m.matches(events) }
-      if (unsatisfiedMatchers.isEmpty) {
-        promise.trySuccess(())
-        ()
-      }
-    case PutMetadataAction(_, _) => // Superfluous message. Ignore
+    case PutMetadataAction(events, _) =>
+      if (unsatisfiedMatchers.nonEmpty) tryMatchingEvents(events)
+    case PutMetadataActionAndRespond(events, replyTo, _) =>
+      if (unsatisfiedMatchers.nonEmpty) tryMatchingEvents(events)
+      replyTo ! MetadataWriteSuccess(events)
     // Because the MetadataWatchActor is sometimes used in place of the ServiceRegistryActor, this allows WFs to continue:
     case kvGet: KvGet => sender ! KvKeyLookupFailed(kvGet)
     case kvPut: KvPut => sender ! KvPutSuccess(kvPut)
+    case _: InstrumentationServiceMessage => // No-op, just ignore
     case other => log.error(s"Invalid message to MetadataWatchActor: $other")
   }
 }

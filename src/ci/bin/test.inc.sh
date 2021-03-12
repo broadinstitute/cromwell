@@ -802,13 +802,14 @@ cromwell::private::install_adoptopenjdk() {
     sudo update-java-alternatives --set adoptopenjdk-11-hotspot-amd64
 }
 
-cromwell::private::install_sbt() {
-    # https://www.scala-sbt.org/1.x/docs/Installing-sbt-on-Linux.html#Ubuntu+and+other+Debian-based+distributions
-    echo "deb https://dl.bintray.com/sbt/debian /" | sudo tee -a /etc/apt/sources.list.d/sbt.list
-    curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" |
-        sudo apt-key add
-    sudo apt-get update
-    sudo apt-get install -y sbt
+cromwell::private::install_sbt_launcher() {
+    # Install sbt launcher
+    # Non-deb package installation instructions adapted from
+    # - https://github.com/sbt/sbt/releases/tag/v1.4.9
+    # - https://github.com/broadinstitute/scala-baseimage/pull/4/files
+    curl --location --fail --silent --show-error "https://github.com/sbt/sbt/releases/download/v1.4.9/sbt-1.4.9.tgz" |
+        sudo tar zxf - -C /usr/share
+    sudo update-alternatives --install /usr/bin/sbt sbt /usr/share/sbt/bin/sbt 1
 }
 
 cromwell::private::install_docker_compose() {
@@ -816,7 +817,8 @@ cromwell::private::install_docker_compose() {
     # https://docs.docker.com/compose/release-notes/#1230
     # https://docs.docker.com/compose/install/
     curl \
-        -L "https://github.com/docker/compose/releases/download/1.27.4/docker-compose-$(uname -s)-$(uname -m)" \
+        --location --fail --silent --show-error \
+        "https://github.com/docker/compose/releases/download/1.28.5/docker-compose-$(uname -s)-$(uname -m)" \
         > docker-compose
     sudo mv docker-compose /usr/local/bin
     sudo chmod +x /usr/local/bin/docker-compose
@@ -1390,7 +1392,7 @@ cromwell::build::setup_common_environment() {
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
             cromwell::private::stop_travis_defaults
             cromwell::private::install_adoptopenjdk
-            cromwell::private::install_sbt
+            cromwell::private::install_sbt_launcher
             cromwell::private::install_docker_compose
             cromwell::private::delete_boto_config
             cromwell::private::delete_sbt_boot

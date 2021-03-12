@@ -33,12 +33,6 @@ echo "deb https://adoptopenjdk.jfrog.io/adoptopenjdk/deb $(
     ) main" |
     tee /etc/apt/sources.list.d/adoptopenjdk.list
 
-# setup install for sbt
-# https://www.scala-sbt.org/1.x/docs/Installing-sbt-on-Linux.html#Ubuntu+and+other+Debian-based+distributions
-echo "deb https://dl.bintray.com/sbt/debian /" | tee -a /etc/apt/sources.list.d/sbt.list
-curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" |
-    apt-key add
-
 # setup install for gcloud
 # https://cloud.google.com/sdk/docs/install#deb
 echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" |
@@ -63,17 +57,24 @@ apt-get install -y \
     docker-ce \
     docker-ce-cli \
     google-cloud-sdk \
-    sbt \
 
 # remove downloaded archive files
 # https://manpages.ubuntu.com/manpages/focal/en/man8/apt-get.8.html#description
 apt-get clean
 
+# install sbt launcher
+# non-deb package installation instructions adapted from
+# - https://github.com/sbt/sbt/releases/tag/v1.4.9
+# - https://github.com/broadinstitute/scala-baseimage/pull/4/files
+curl -L --silent "https://github.com/sbt/sbt/releases/download/v1.4.9/sbt-1.4.9.tgz" |
+    tar zxf - -C /usr/share
+update-alternatives --install /usr/bin/sbt sbt /usr/share/sbt/bin/sbt 1
+
 # install docker compose
 # https://docs.docker.com/compose/install/
 curl \
-  -L \
-  "https://github.com/docker/compose/releases/download/1.27.4/docker-compose-$(uname -s)-$(uname -m)" \
+  --location --fail --silent --show-error \
+  "https://github.com/docker/compose/releases/download/1.28.5/docker-compose-$(uname -s)-$(uname -m)" \
   -o /usr/local/bin/docker-compose
 chmod +x /usr/local/bin/docker-compose
 

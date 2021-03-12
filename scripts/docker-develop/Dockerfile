@@ -18,7 +18,7 @@ RUN apt-get update -q && \
 
 # Env variables
 ENV SCALA_VERSION 2.12.12
-ENV SBT_VERSION 1.4.7
+ENV SBT_VERSION 1.4.9
 
 #
 ## AdoptOpenJDK Hotspot
@@ -37,7 +37,9 @@ apt-get install -y adoptopenjdk-11-hotspot
 #
 
 RUN mkdir -p /home/pigman && \
-    curl -fsL https://downloads.typesafe.com/scala/$SCALA_VERSION/scala-$SCALA_VERSION.tgz | tar xfz - -C /opt/ && \
+    curl \
+    --location --fail --silent --show-error \
+    https://downloads.typesafe.com/scala/$SCALA_VERSION/scala-$SCALA_VERSION.tgz | tar xfz - -C /opt/ && \
     echo >> /home/pigman/.bashrc && \
     echo "export PATH=/opt/scala-$SCALA_VERSION/bin:$PATH" >> /home/pigman/.bashrc
 
@@ -45,12 +47,15 @@ RUN mkdir -p /home/pigman && \
 ## sbt
 #
 
-RUN curl -L -o sbt-$SBT_VERSION.deb https://dl.bintray.com/sbt/debian/sbt-$SBT_VERSION.deb && \
-  dpkg -i sbt-$SBT_VERSION.deb && \
-  rm sbt-$SBT_VERSION.deb && \
-  apt-get update && \
-  apt-get install sbt && \
-  sbt -Dsbt.rootdir=true sbtVersion
+# non-deb package installation instructions adapted from
+# - https://github.com/sbt/sbt/releases/tag/v1.4.9
+# - https://github.com/broadinstitute/scala-baseimage/pull/4/files
+RUN curl \
+    --location --fail --silent --show-error \
+    "https://github.com/sbt/sbt/releases/download/v$SBT_VERSION/sbt-$SBT_VERSION.tgz" | \
+    tar zxf - -C /usr/share && \
+    update-alternatives --install /usr/bin/sbt sbt /usr/share/sbt/bin/sbt 1 && \
+    sbt -Dsbt.supershell=false -Dsbt.rootdir=true sbtVersion
 
 # Instruct user to add code here during development
 RUN useradd pigman && \

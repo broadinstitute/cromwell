@@ -25,16 +25,17 @@ echo "deb https://adoptopenjdk.jfrog.io/adoptopenjdk/deb $(
 curl -L https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 -o /usr/bin/jq
 chmod +x /usr/bin/jq
 
-# Install sbt via https://www.scala-sbt.org/1.0/docs/Installing-sbt-on-Linux.html
-echo "deb https://dl.bintray.com/sbt/debian /" | tee -a /etc/apt/sources.list.d/sbt.list
-curl -sL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x2EE0EA64E40A89B84B2DF73499E82A75642AC823" |
-    apt-key add
-
 apt-get update
 apt-get install \
     adoptopenjdk-11-hotspot \
-    sbt \
     -y --no-install-recommends
 
-# Update sbt
+# sbt launcher non-deb package installation instructions adapted from
+# - https://github.com/sbt/sbt/releases/tag/v1.4.9
+# - https://github.com/broadinstitute/scala-baseimage/pull/4/files
+curl --location --fail --silent --show-error "https://github.com/sbt/sbt/releases/download/v1.4.9/sbt-1.4.9.tgz" |
+    tar zxf - -C /usr/share
+update-alternatives --install /usr/bin/sbt sbt /usr/share/sbt/bin/sbt 1
+
+# Update sbt launcher
 sbt -Dsbt.supershell=false -Dsbt.rootdir=true sbtVersion

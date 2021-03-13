@@ -153,7 +153,7 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
           .setApplicationName(pipelinesConfiguration.googleConfig.applicationName)
           .build()
 
-        val project = cloudResourceManagerBuilder.projects().get(googleProject(workflowDescriptor))
+        val project = cloudResourceManagerBuilder.projects().get(vpcConfig.projectOption.getOrElse(googleProject(workflowDescriptor)))
 
         project.buildHttpRequest()
       }
@@ -175,7 +175,7 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
           }
         }
 
-        VpcAndSubnetworkProjectLabelValues(vpcNetworkLabelValue, subnetworkLabelOption)
+        VpcAndSubnetworkProjectLabelValues(vpcConfig.projectOption, vpcNetworkLabelValue, subnetworkLabelOption)
       }
     }
 

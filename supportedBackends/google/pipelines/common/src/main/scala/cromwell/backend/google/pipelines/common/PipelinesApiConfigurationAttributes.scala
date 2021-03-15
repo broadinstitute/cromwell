@@ -62,7 +62,7 @@ object PipelinesApiConfigurationAttributes
     */
   case class GcsTransferConfiguration(transferAttempts: Int Refined Positive, parallelCompositeUploadThreshold: String)
 
-  final case class VirtualPrivateCloudConfiguration(projectOption:Option[String], name: String, subnetwork: Option[String], auth: GoogleAuthMode)
+  final case class VirtualPrivateCloudConfiguration(projectOption:Option[String], regionOption:Option[String], name: String, subnetwork: Option[String], auth: GoogleAuthMode)
   final case class BatchRequestTimeoutConfiguration(readTimeoutMillis: Option[Int Refined Positive], connectTimeoutMillis: Option[Int Refined Positive])
 
 
@@ -104,6 +104,7 @@ object PipelinesApiConfigurationAttributes
     "default-runtime-attributes.zones",
     "virtual-private-cloud",
     "virtual-private-cloud.shared-project-id", 
+    "virtual-private-cloud.shared-region", 
     "virtual-private-cloud.network-label-key",
     "virtual-private-cloud.subnetwork-label-key",
     "virtual-private-cloud.auth",
@@ -121,16 +122,23 @@ object PipelinesApiConfigurationAttributes
 
     def vpcErrorMessage(missingKeys: List[String]) = s"Virtual Private Cloud configuration is invalid. Missing keys: `${missingKeys.mkString(",")}`.".invalidNel
 
-    def validateVPCConfig(projectOption:Option[String], networkOption: Option[String], subnetworkOption: Option[String], authOption: Option[String]): ErrorOr[Option[VirtualPrivateCloudConfiguration]] = {
-      (networkOption,subnetworkOption, authOption) match {
-        case (Some(network), _, Some(auth)) => googleConfig.auth(auth) match {
-          case Valid(validAuth) => Option(VirtualPrivateCloudConfiguration(projectOption, network, subnetworkOption, validAuth)).validNel
+    def validateVPCConfig(projectOption:Option[String],
+                          regionOption:Option[String],
+                          networkOption: Option[String],
+                          subnetworkOption: Option[String],
+                          authOption: Option[String]): ErrorOr[Option[VirtualPrivateCloudConfiguration]] = {
+
+      (projectOption, regionOption, networkOption,subnetworkOption, authOption) match {
+        case (None, Some(_),_, _, _) =>  vpcErrorMessage(List("shared-project-id"))
+        case (Some(_), None, _, _, _) => vpcErrorMessage(List("shared-region"))
+        case (_, _, Some(_), _, None) => vpcErrorMessage(List("auth"))
+        case (_, _, None, _, Some(_)) => vpcErrorMessage(List("network-label-key"))
+        case (_, _, None, Some(_), None) => vpcErrorMessage(List("network-label-key", "auth"))
+        case (_, _, None, None, None) => None.validNel
+        case (_, _, Some(network), _, Some(auth)) => googleConfig.auth(auth) match {
+          case Valid(validAuth) => Option(VirtualPrivateCloudConfiguration(projectOption, regionOption, network, subnetworkOption, validAuth)).validNel
           case Invalid(error) => s"Auth $auth is not valid for Virtual Private Cloud configuration. Reason: $error" .invalidNel
         }
-        case (Some(_), _, None) => vpcErrorMessage(List("auth"))
-        case (None, _, Some(_)) => vpcErrorMessage(List("network-label-key"))
-        case (None, Some(_), None) => vpcErrorMessage(List("network-label-key", "auth"))
-        case (None, None, None) => None.validNel
       }
     }
 
@@ -183,12 +191,13 @@ object PipelinesApiConfigurationAttributes
       (localizationAttempts, parallelCompositeUploadThreshold) mapN GcsTransferConfiguration.apply
 
     val vpcSharedProject: ErrorOr[Option[String]] = validate { backendConfig.getAs[String]("virtual-private-cloud.shared-project-id") }
+    val vpcRegion: ErrorOr[Option[String]] = validate { backendConfig.getAs[String]("virtual-private-cloud.shared-region")}
     val vpcNetworkLabel: ErrorOr[Option[String]] = validate { backendConfig.getAs[String]("virtual-private-cloud.network-label-key") }
     val vpcSubnetworkLabel: ErrorOr[Option[String]] = validate { backendConfig.getAs[String]("virtual-private-cloud.subnetwork-label-key") }
     val vpcAuth: ErrorOr[Option[String]] = validate { backendConfig.getAs[String]("virtual-private-cloud.auth")}
 
     val virtualPrivateCloudConfiguration: ErrorOr[Option[VirtualPrivateCloudConfiguration]] = {
-      (vpcSharedProject, vpcNetworkLabel, vpcSubnetworkLabel, vpcAuth) flatMapN  validateVPCConfig
+      (vpcSharedProject, vpcRegion, vpcNetworkLabel, vpcSubnetworkLabel, vpcAuth) flatMapN  validateVPCConfig
     }
 
     val batchRequestsReadTimeout = readOptionalPositiveMillisecondsIntFromDuration(backendConfig, "batch-requests.timeouts.read")

@@ -61,7 +61,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
         val network = new Network()
           .setUsePrivateAddress(createPipelineParameters.effectiveNoAddressValue)
           .setNetwork(VirtualPrivateCloudNetworkPath.format(
-            vpcAndSubnetworkProjectLabelValues.project.getOrElse(createPipelineParameters.projectId), 
+            vpcAndSubnetworkProjectLabelValues.projectId.getOrElse(createPipelineParameters.projectId), 
             vpcAndSubnetworkProjectLabelValues.vpcName))
 
         vpcAndSubnetworkProjectLabelValues.subnetNameOpt.foreach(subnet => network.setSubnetwork(subnet))

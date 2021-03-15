@@ -1,6 +1,6 @@
 package cromwell.services.metadata.hybridcarbonite
 
-import java.nio.charset.StandardCharsets
+import java.io.PrintWriter
 import java.nio.file.{Files, StandardOpenOption}
 
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
@@ -16,6 +16,7 @@ import cromwell.services.metadata.impl.MetadataDatabaseAccess
 import cromwell.services.metadata.{MetadataArchiveStatus, MetadataQuery}
 import cromwell.services.{FailedMetadataJsonResponse, MetadataServicesStore, MetadataTooLargeException}
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
+import org.apache.commons.csv.{CSVFormat, CSVPrinter}
 import slick.basic.DatabasePublisher
 
 import scala.concurrent.duration._
@@ -34,6 +35,18 @@ class CarbonitingMetadataFreezerActor(freezingConfig: ActiveMetadataFreezingConf
   implicit val ec: ExecutionContext = context.dispatcher
 
   val asyncIo = new AsyncIo(ioActor, DefaultIoCommandBuilder)
+
+  val CsvFileHeaders = List(
+    "METADATA_JOURNAL_ID",
+    "WORKFLOW_EXECUTION_UUID",
+    "METADATA_KEY",
+    "CALL_FQN",
+    "JOB_SCATTER_INDEX",
+    "JOB_RETRY_ATTEMPT",
+    "METADATA_VALUE",
+    "METADATA_TIMESTAMP",
+    "METADATA_VALUE_TYPE"
+  )
 
   startWith(Pending, NoData)
 
@@ -84,18 +97,33 @@ class CarbonitingMetadataFreezerActor(freezingConfig: ActiveMetadataFreezingConf
 //  }
 
   def writeStreamToGcs(workflowId: WorkflowId, stream: DatabasePublisher[MetadataEntry]): Future[Unit] = {
-
-    // asyncIo.writeAsync(carboniterConfig.makePath(workflowId), jsonAsString, Seq(StandardOpenOption.CREATE), compressPayload = true)
     val path: Path = carboniterConfig.makePath(workflowId)
-
     val gcsStream = Files.newOutputStream(path.nioPath, StandardOpenOption.CREATE)
+    val printWriter = new PrintWriter(gcsStream)
+    val csvPrinter = new CSVPrinter(printWriter, CSVFormat.DEFAULT.withHeader(CsvFileHeaders : _*))
+
+    System.out.println(s"Archiving to ${path.pathAsString}")
+
     val streamResult = stream.foreach(me => {
-      System.out.println(s"Archiving to ${path.pathAsString}: $me")
-      gcsStream.write(me.toString.getBytes(StandardCharsets.UTF_8))
-      gcsStream.flush()
+      csvPrinter.printRecord(
+        me.metadataEntryId.map(_.toString).getOrElse(""),
+        me.workflowExecutionUuid,
+        me.metadataKey,
+        me.callFullyQualifiedName.getOrElse(""),
+        me.jobIndex.map(_.toString).getOrElse(""),
+        me.jobAttempt.map(_.toString).getOrElse(""),
+        me.metadataValue.map(
+          clob => clob.getSubString(1, clob.length().toInt) // TODO: de-stream this properly!!
+        ).getOrElse(""),
+        me.metadataTimestamp,
+        me.metadataValueType.getOrElse("")
+      )
+
+      csvPrinter.flush()
       Thread.sleep(1000)
     })
-    streamResult.onComplete { _ => gcsStream.close() }
+
+    streamResult.onComplete { _ => csvPrinter.close() }
 
     streamResult
   }

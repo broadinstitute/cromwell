@@ -49,9 +49,39 @@ class CarbonitingMetadataFreezerActor(freezingConfig: ActiveMetadataFreezingConf
       goto(Fetching) using FetchingData(workflowId)
   }
 
+  final case class CsvFriendlyMetadataEntry(
+    workflowExecutionUuid: String,
+    callFullyQualifiedName: String,
+    jobIndex: Int,
+    jobAttempt: Int,
+    metadataKey: String,
+    metadataValue: String,
+    metadataValueType: String,
+    metadataTimestamp: String
+  )
+  object CsvFriendlyMetadataEntry {
+    def apply(me: MetadataEntry): CsvFriendlyMetadataEntry = {
+      // Timestamp format YYYY-MM-DDTHH:MM:SS.00Z as per https://stackoverflow.com/questions/47466296/bigquery-datetime-format-csv-to-bigquery-yyyy-mm-dd-hhmmss-ssssss
+
+      val declobberedValue = me.metadataValue.map(_.toString).getOrElse("")
+      val bqFriendlyTimestamp = me.metadataTimestamp.formatted("YYYY-MM-DDTHH:MM:SS.00Z")
+
+      new CsvFriendlyMetadataEntry(
+        me.workflowExecutionUuid,
+        me.callFullyQualifiedName.getOrElse(""),
+        me.jobIndex.getOrElse(-1),
+        me.jobAttempt.getOrElse(1),
+        me.metadataKey,
+        declobberedValue, //me.metadataValue
+        me.metadataValueType.getOrElse(""),
+        bqFriendlyTimestamp
+      )
+    }
+  }
+
   def writeStreamToGcs(stream: DatabasePublisher[MetadataEntry]): Future[Unit] = {
     // asyncIo.writeAsync(carboniterConfig.makePath(workflowId), jsonAsString, Seq(StandardOpenOption.CREATE), compressPayload = true)
-    stream.foreach(me => {
+    stream.mapResult(CsvFriendlyMetadataEntry.apply).foreach(me => {
       System.out.println(s"'Archiving': $me")
       Thread.sleep(1000)
     })

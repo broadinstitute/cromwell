@@ -1,8 +1,12 @@
 package cromwell.services.metadata.hybridcarbonite
 
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, StandardOpenOption}
+
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
 import cromwell.core.WorkflowId
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
+import cromwell.core.path.Path
 import cromwell.database.sql.tables.MetadataEntry
 import cromwell.services.metadata.MetadataArchiveStatus.{ArchiveFailed, Archived, TooLargeToArchive}
 import cromwell.services.metadata.MetadataService.{GetMetadataStreamAction, MetadataLookupStreamResponse}
@@ -14,8 +18,8 @@ import cromwell.services.{FailedMetadataJsonResponse, MetadataServicesStore, Met
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import slick.basic.DatabasePublisher
 
-import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 class CarbonitingMetadataFreezerActor(freezingConfig: ActiveMetadataFreezingConfig,
@@ -49,49 +53,58 @@ class CarbonitingMetadataFreezerActor(freezingConfig: ActiveMetadataFreezingConf
       goto(Fetching) using FetchingData(workflowId)
   }
 
-  final case class CsvFriendlyMetadataEntry(
-    workflowExecutionUuid: String,
-    callFullyQualifiedName: String,
-    jobIndex: Int,
-    jobAttempt: Int,
-    metadataKey: String,
-    metadataValue: String,
-    metadataValueType: String,
-    metadataTimestamp: String
-  )
-  object CsvFriendlyMetadataEntry {
-    def apply(me: MetadataEntry): CsvFriendlyMetadataEntry = {
-      // Timestamp format YYYY-MM-DDTHH:MM:SS.00Z as per https://stackoverflow.com/questions/47466296/bigquery-datetime-format-csv-to-bigquery-yyyy-mm-dd-hhmmss-ssssss
+//  final case class CsvFriendlyMetadataEntry(
+//    workflowExecutionUuid: String,
+//    callFullyQualifiedName: String,
+//    jobIndex: Int,
+//    jobAttempt: Int,
+//    metadataKey: String,
+//    metadataValue: String,
+//    metadataValueType: String,
+//    metadataTimestamp: String
+//  )
+//  object CsvFriendlyMetadataEntry {
+//    def apply(me: MetadataEntry): CsvFriendlyMetadataEntry = {
+//      // Timestamp format YYYY-MM-DDTHH:MM:SS.00Z as per https://stackoverflow.com/questions/47466296/bigquery-datetime-format-csv-to-bigquery-yyyy-mm-dd-hhmmss-ssssss
+//
+//      val declobberedValue = me.metadataValue.map(_.toString).getOrElse("")
+//      val bqFriendlyTimestamp = me.metadataTimestamp.formatted("YYYY-MM-DDTHH:MM:SS.00Z")
+//
+//      new CsvFriendlyMetadataEntry(
+//        me.workflowExecutionUuid,
+//        me.callFullyQualifiedName.getOrElse(""),
+//        me.jobIndex.getOrElse(-1),
+//        me.jobAttempt.getOrElse(1),
+//        me.metadataKey,
+//        declobberedValue, //me.metadataValue
+//        me.metadataValueType.getOrElse(""),
+//        bqFriendlyTimestamp
+//      )
+//    }
+//  }
 
-      val declobberedValue = me.metadataValue.map(_.toString).getOrElse("")
-      val bqFriendlyTimestamp = me.metadataTimestamp.formatted("YYYY-MM-DDTHH:MM:SS.00Z")
+  def writeStreamToGcs(workflowId: WorkflowId, stream: DatabasePublisher[MetadataEntry]): Future[Unit] = {
 
-      new CsvFriendlyMetadataEntry(
-        me.workflowExecutionUuid,
-        me.callFullyQualifiedName.getOrElse(""),
-        me.jobIndex.getOrElse(-1),
-        me.jobAttempt.getOrElse(1),
-        me.metadataKey,
-        declobberedValue, //me.metadataValue
-        me.metadataValueType.getOrElse(""),
-        bqFriendlyTimestamp
-      )
-    }
-  }
-
-  def writeStreamToGcs(stream: DatabasePublisher[MetadataEntry]): Future[Unit] = {
     // asyncIo.writeAsync(carboniterConfig.makePath(workflowId), jsonAsString, Seq(StandardOpenOption.CREATE), compressPayload = true)
-    stream.mapResult(CsvFriendlyMetadataEntry.apply).foreach(me => {
-      System.out.println(s"'Archiving': $me")
+    val path: Path = carboniterConfig.makePath(workflowId)
+
+    val gcsStream = Files.newOutputStream(path.nioPath, StandardOpenOption.CREATE)
+    val streamResult = stream.foreach(me => {
+      System.out.println(s"Archiving to ${path.pathAsString}: $me")
+      gcsStream.write(me.toString.getBytes(StandardCharsets.UTF_8))
+      gcsStream.flush()
       Thread.sleep(1000)
     })
+    streamResult.onComplete { _ => gcsStream.close() }
+
+    streamResult
   }
 
   when(Fetching) {
     case Event(MetadataLookupStreamResponse(_, responseStream), FetchingData(workflowId)) =>
       log.info(s"Received metadata stream for $workflowId. Beginning stream...")
 
-       writeStreamToGcs(responseStream) onComplete {
+       writeStreamToGcs(workflowId, responseStream) onComplete {
         result => self ! CarbonitingFreezeResult(result)
       }
       goto(Freezing) using FreezingData(workflowId)

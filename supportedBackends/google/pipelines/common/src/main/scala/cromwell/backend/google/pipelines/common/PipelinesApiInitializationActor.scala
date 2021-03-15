@@ -175,7 +175,15 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
           }
         }
 
-        VpcAndSubnetworkProjectLabelValues(vpcConfig.projectOption, vpcNetworkLabelValue, subnetworkLabelOption)
+        val fqdnSubnetworkLabelOption:Option[String] =
+          List(vpcConfig.project, subnetworkLabelOption).flatMap(x => x)
+            match {
+              case List(google_project, subnetwork) => Some("projects/%s/%s".format(google_project, subnetwork))
+              case _ => subnetworkLabelOption
+            }
+
+        VpcAndSubnetworkProjectLabelValues(vpcConfig.project, vpcNetworkLabelValue, fqdnSubnetworkLabelOption)
+
       }
     }
 

@@ -1,0 +1,6 @@
+{
+    # Are you here because HCA DRS data moved, again? Do not rage `rm -f` this test without first
+    # reading BT-182 for the multiple reasons why HCA is different from a "hello world"!
+    "drs_usa_hca.file":
+        "drs://jade.datarepo-dev.broadinstitute.org/v1_4641bafb-5190-425b-aea9-9c7b125515c8_e37266ba-790d-4641-aa76-854d94be2fbe"
+}

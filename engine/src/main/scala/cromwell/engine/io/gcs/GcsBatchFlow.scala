@@ -68,8 +68,8 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     * - partial : https://github.com/googleapis/google-api-java-client/blob/v1.31.1/google-api-client/src/main/java/com/google/api/client/googleapis/batch/BatchRequest.java#L275
     * -   full  : https://github.com/googleapis/google-api-java-client/blob/v1.31.1/google-api-client/src/main/java/com/google/api/client/googleapis/batch/BatchRequest.java#L281
     *
-    * The BatchRequest's internal queue is NOT cleared when exception are thrown inside BatchRequest.execute().
-    * Any subsequent enqueueing operations only add to the internal queue and do not replace it the internal queue.
+    * The BatchRequest's internal queue is NOT cleared when exceptions are thrown inside BatchRequest.execute().
+    * Any subsequent enqueueing operations only add to the internal queue and do not replace the internal queue.
     * So eventually timeouts lead to large batches of 1000+ elements that cause further timeout exceptions too.
     * Those failed batch elements were re-appended leading to batches of greater than 3001 requests.
     * At least that's the theory.

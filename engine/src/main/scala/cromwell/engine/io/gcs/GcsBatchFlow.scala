@@ -1,7 +1,6 @@
 package cromwell.engine.io.gcs
 
 import java.io.IOException
-
 import akka.actor.Scheduler
 import akka.stream._
 import akka.stream.scaladsl.{Flow, GraphDSL, MergePreferred, Partition}
@@ -15,11 +14,12 @@ import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.engine.io.IoActor._
 import cromwell.engine.io.IoAttempts.EnhancedCromwellIoException
-import cromwell.engine.io.RetryableRequestSupport.{isRetryable, isInfinitelyRetryable}
+import cromwell.engine.io.RetryableRequestSupport.{isInfinitelyRetryable, isRetryable}
 import cromwell.engine.io.gcs.GcsBatchFlow.{BatchFailedException, _}
 import cromwell.engine.io.{IoAttempts, IoCommandContext}
 import mouse.boolean._
 
+import javax.net.ssl.SSLException
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
@@ -40,6 +40,8 @@ object GcsBatchFlow {
     val matcher = ReadForbiddenPattern.matcher(errorMsg)
     matcher.matches().option(matcher.group(1))
   }
+
+  var count = 0
 }
 
 class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandContext[_] => Throwable => Unit, applicationName: String)
@@ -134,13 +136,14 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     // Try to execute the batch request.
     // If it fails with an IO Exception, fail all the underlying promises with a retryable BatchFailedException
     // Otherwise fail with the original exception
+    val size = batchRequest.size()
     Try(batchRequest.execute()) match {
       case Failure(failure: IOException) =>
-        logger.info(s"Failed to execute GCS Batch request. Failed request belonged to batch of size ${batchCommandNamesList.size} containing commands: " +
+        logger.info(s"Failed to execute GCS Batch request. Failed request belonged to batch of size ${batchCommandNamesList.size} ($size) containing commands: " +
           s"${batchCommandNamesList.mkString("\n")}.", failure.toPrettyElidedString(limit = 1000))
         failAllPromisesWith(BatchFailedException(failure))
       case Failure(failure) =>
-        logger.info(s"Failed to execute GCS Batch request. Failed request belonged to batch of size ${batchCommandNamesList.size} containing commands: " +
+        logger.info(s"Failed to execute GCS Batch request. Failed request belonged to batch of size ${batchCommandNamesList.size} ($size) containing commands: " +
           s"${batchCommandNamesList.mkString("\n")}.", failure.toPrettyElidedString(limit = 1000))
         failAllPromisesWith(failure)
       case _ =>
@@ -148,9 +151,19 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
 
     // Map all promise responses to a GcsBatchResponse to be either sent back as a response or retried in the next batch
     contexts.toList map { context =>
-      context.promise.future map {
-        case Left(response) => GcsBatchTerminal(response)
-        case Right(nextRequest) => GcsBatchNextRequest(nextRequest)
+      context.promise.future map { x => {
+        GcsBatchFlow.count += 1
+        if (GcsBatchFlow.count > 2) {
+          logger.info(s"Failing the future complete with count = ${GcsBatchFlow.count}")
+          throw new SSLException("testing retries")
+        } else {
+          logger.info(s"Letting the future complete with count = ${GcsBatchFlow.count}")
+          x match {
+            case Left(response) => GcsBatchTerminal(response)
+            case Right(nextRequest) => GcsBatchNextRequest(nextRequest)
+          }
+        }
+      }
       } recoverWith recoverCommand(context)
     }
   }

@@ -164,11 +164,11 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     // Otherwise fail with the original exception
     Try(batchRequest.execute()) match {
       case Failure(failure: IOException) =>
-        logger.info(s"Failed to execute GCS Batch request. Failed request belonged to batch of size ${batchCommandNamesList.size} containing commands: " +
+        logger.info(s"Failed to execute GCS Batch request. Failed request belonged to batch of size ${batchRequest.size()} containing commands: " +
           s"${batchCommandNamesList.mkString("\n")}.\n${failure.toPrettyElidedString(limit = 1000)}")
         failAllPromisesWith(BatchFailedException(failure))
       case Failure(failure) =>
-        logger.info(s"Failed to execute GCS Batch request. Failed request belonged to batch of size ${batchCommandNamesList.size} containing commands: " +
+        logger.info(s"Failed to execute GCS Batch request. Failed request belonged to batch of size ${batchRequest.size()} containing commands: " +
           s"${batchCommandNamesList.mkString("\n")}.\n${failure.toPrettyElidedString(limit = 1000)}")
         failAllPromisesWith(failure)
       case _ =>

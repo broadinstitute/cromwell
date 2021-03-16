@@ -71,7 +71,7 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     * The BatchRequest's internal queue is NOT cleared when exceptions are thrown inside BatchRequest.execute().
     * Any subsequent enqueueing operations only add to the internal queue and do not replace the internal queue.
     * So eventually timeouts lead to large batches of 1000+ elements that cause further timeout exceptions too.
-    * Those failed batch elements were re-appended leading to batches of greater than 3001 requests.
+    * Those failed batch elements were re-appended leading to batches of greater than 3000 requests.
     * At least that's the theory.
     *
     * Instead we'll create a new BatchRequest each time we run GcsBatchFlow.executeBatch().

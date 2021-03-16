@@ -33,7 +33,7 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
     case GetLabels(workflowId) => evaluateRespondAndStop(sender(), queryLabelsAndRespond(workflowId))
     case GetRootAndSubworkflowLabels(rootWorkflowId: WorkflowId) => evaluateRespondAndStop(sender(), queryRootAndSubworkflowLabelsAndRespond(rootWorkflowId))
     case GetLogs(workflowId, _) => evaluateRespondAndStop(sender(), queryLogsAndRespond(workflowId))
-    case query: QueryForWorkflowsMatchingParameters => evaluateRespondAndStop(sender(), queryWorkflowsAndRespond(query.parameters))
+    case QueryForWorkflowsMatchingParameters(parameters) => evaluateRespondAndStop(sender(), queryWorkflowsAndRespond(parameters))
     case WorkflowOutputs(id, _) => evaluateRespondAndStop(sender(), queryWorkflowOutputsAndRespond(id))
     case unexpected => log.warning(s"Programmer Error! Unexpected message received by ${getClass.getSimpleName}: $unexpected")
   }

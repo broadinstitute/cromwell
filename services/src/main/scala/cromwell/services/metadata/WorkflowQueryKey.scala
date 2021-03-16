@@ -33,7 +33,7 @@ object WorkflowQueryKey {
     SubmissionTime,
     IncludeSubworkflows,
     MetadataArchiveStatus,
-    MinimumSummaryEntryId
+    NewestFirst
   ) map { _.name }
 
   case object StartDate extends DateTimeWorkflowQueryKey {
@@ -143,21 +143,6 @@ object WorkflowQueryKey {
     }
   }
 
-  case object MinimumSummaryEntryId extends WorkflowQueryKey[Option[Long]] {
-    override val name = "Minimumsummaryentryid"
-
-    override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Option[Long]] = {
-      val values = valuesFromMap(grouped).toList
-      if (values.isEmpty) {
-        None.validNel
-      } else if (values.length == 1) {
-        Try(Option(values.head.toLong)).toErrorOr
-      } else {
-        "Cannot specify more than one minimum summary entry ID".invalidNel
-      }
-    }
-  }
-
   case object AdditionalQueryResultFields extends SeqWorkflowQueryKey[String] {
     override val name = "Additionalqueryresultfields"
 
@@ -178,6 +163,12 @@ object WorkflowQueryKey {
   case object IncludeSubworkflows extends BooleanWorkflowQueryKey {
     override val name = "Includesubworkflows"
     override def displayName = "include subworkflows"
+    override def defaultBooleanValue: Boolean = true
+  }
+
+  case object NewestFirst extends BooleanWorkflowQueryKey {
+    override val name = "Newestfirst"
+    override def displayName = "return newest first"
     override def defaultBooleanValue: Boolean = true
   }
 }

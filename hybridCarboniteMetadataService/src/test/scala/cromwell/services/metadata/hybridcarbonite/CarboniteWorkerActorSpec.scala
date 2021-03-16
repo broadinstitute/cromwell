@@ -65,7 +65,7 @@ class CarboniteWorkerActorSpec extends TestKitSuite with AnyFlatSpecLike with Ma
   it should "carbonite workflow at intervals" in {
     10.times {
       // We might get noise from instrumentation. We can ignore that, but we expect the query to come through eventually:
-      val expectedQueryParams = CarboniteWorkerActor.buildQueryParametersForWorkflowToCarboniteQuery(freezingConfig.minimumSummaryEntryId)
+      val expectedQueryParams = CarboniteWorkerActor.buildQueryParametersForWorkflowToCarboniteQuery
       serviceRegistryActor.fishForSpecificMessage(10.seconds) {
         case QueryForWorkflowsMatchingParameters(`expectedQueryParams`) => true
       }
@@ -81,7 +81,7 @@ class CarboniteWorkerActorSpec extends TestKitSuite with AnyFlatSpecLike with Ma
   it should "keep carboniting workflow at intervals despite the query failures" in {
     10.times {
       // We might get noise from instrumentation. We can ignore that, but we expect the query to come through eventually:
-      val expectedQueryParams = CarboniteWorkerActor.buildQueryParametersForWorkflowToCarboniteQuery(freezingConfig.minimumSummaryEntryId)
+      val expectedQueryParams = CarboniteWorkerActor.buildQueryParametersForWorkflowToCarboniteQuery
       serviceRegistryActor.fishForSpecificMessage(10.seconds) {
         case QueryForWorkflowsMatchingParameters(`expectedQueryParams`) => true
       }

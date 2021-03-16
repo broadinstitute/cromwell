@@ -56,7 +56,7 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     }
   }
 
-  private val batchRequest: BatchRequest = {
+  private def newBatchRequest(): BatchRequest = {
     val storage = new Storage.Builder(
       GcsStorage.HttpTransport,
       JacksonFactory.getDefaultInstance,
@@ -64,6 +64,28 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     ).setApplicationName(applicationName)
 
     storage.build().batch()
+  }
+
+  private var batchRequest: Option[BatchRequest] = None
+
+  //noinspection AccessorLikeMethodIsEmptyParen
+  private def getEmptyBatchRequest(): BatchRequest = {
+    batchRequest match {
+      case Some(existing) if existing.size() == 0 =>
+        existing
+      case Some(existing) =>
+        logger.info(
+          s"The existing GCS BatchRequest already has ${existing.size()} elements. " +
+            s"Creating a new instance for use in this GcsBatchFlow."
+        )
+        val replacement = newBatchRequest()
+        batchRequest = Option(replacement)
+        replacement
+      case None =>
+        val replacement = newBatchRequest()
+        batchRequest = Option(replacement)
+        replacement
+    }
   }
 
   val flow = GraphDSL.create() { implicit builder =>
@@ -130,21 +152,33 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     }
 
     // Add all requests to the batch
+    val batchRequest = getEmptyBatchRequest()
     contexts foreach { _.queue(batchRequest) }
 
     val batchCommandNamesList = contexts.map(_.request.toString)
     // Try to execute the batch request.
     // If it fails with an IO Exception, fail all the underlying promises with a retryable BatchFailedException
     // Otherwise fail with the original exception
-    val size = batchRequest.size()
+    val batchRequestSize = batchRequest.size()
     Try(batchRequest.execute()) match {
       case Failure(failure: IOException) =>
-        logger.info(s"Failed to execute GCS Batch request. Failed request belonged to batch of size ${batchCommandNamesList.size} ($size) containing commands: " +
-          s"${batchCommandNamesList.mkString("\n")}.", failure.toPrettyElidedString(limit = 1000))
+        logger.info(
+          message =
+            s"Failed to execute GCS Batch request. " +
+            s"Failed request belonged to batch of size ${batchCommandNamesList.size} " +
+            s"with request of size $batchRequestSize containing commands: " +
+            s"${batchCommandNamesList.mkString("\n")}.\n${failure.toPrettyElidedString(limit = 1000)}",
+          cause = failure,
+        )
         failAllPromisesWith(BatchFailedException(failure))
       case Failure(failure) =>
-        logger.info(s"Failed to execute GCS Batch request. Failed request belonged to batch of size ${batchCommandNamesList.size} ($size) containing commands: " +
-          s"${batchCommandNamesList.mkString("\n")}.", failure.toPrettyElidedString(limit = 1000))
+        logger.info(
+          message = s"Failed to execute GCS Batch request. " +
+            s"Failed request belonged to batch of size ${batchCommandNamesList.size} " +
+            s"with request of size $batchRequestSize containing commands: " +
+            s"${batchCommandNamesList.mkString("\n")}.\n${failure.toPrettyElidedString(limit = 1000)}",
+          cause = failure,
+        )
         failAllPromisesWith(failure)
       case _ =>
     }

@@ -6,14 +6,17 @@ import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.{HttpHeaders, HttpRequest, HttpRequestInitializer}
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.gax.retrying.RetrySettings
-import com.google.api.services.storage.{Storage, StorageRequest}
 import com.google.api.services.storage.model.RewriteResponse
+import com.google.api.services.storage.{Storage, StorageRequest}
 import com.google.auth.oauth2.GoogleCredentials
 import com.google.cloud.NoCredentials
 import common.assertion.CromwellTimeoutSpec
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.time.{Duration, OffsetDateTime}
+import scala.util.Try
 
 
 class GcsStorageSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
@@ -48,7 +51,7 @@ class GcsStorageSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
     }
   }
 
-  it should "handle large GCS batches" in {
+  it should "not handle large GCS batches" in {
     // Inside the batch, per entry, embed the credentials
     val apiStorage: Storage =
       GcsStorage.gcsStorage(
@@ -90,4 +93,68 @@ class GcsStorageSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
     batchRequest.execute()
   }
 
+  it should "not handle exceptions in GCS batches" in {
+    // Inside the batch, per entry, embed the credentials
+    val apiStorage: Storage =
+      GcsStorage.gcsStorage(
+        "gcs-storage-spec",
+        GoogleCredentials.getApplicationDefault(),
+        RetrySettings.newBuilder().setMaxAttempts(1).build(),
+      )
+    // For the outer batch, do not set the credentials
+    val batchStorage: Storage = new Storage.Builder(
+      GcsStorage.HttpTransport,
+      JacksonFactory.getDefaultInstance,
+      httpRequestInitializer
+    ).setApplicationName("gcs-storage-spec").build()
+
+    val batchRequest: BatchRequest = batchStorage.batch()
+
+    val bucket: String = "kshakir-large-num-files-ok2delete"
+    val blobDir: String = "0" * 1//210
+    for {
+      _ <- 1 to 5
+    } {
+      for {
+        i <- 0 until 1000
+      } {
+        val blobName: String = f"$blobDir%s/$i%04d.txt"
+
+        val rewrite: StorageRequest[RewriteResponse] = apiStorage.objects()
+          .rewrite(bucket, "empty.txt", bucket, s"src/$blobName", null)
+        //.rewrite(bucket, s"src/$blobName", bucket, s"dst/$blobName", null)
+
+        rewrite.queue(batchRequest, new JsonBatchCallback[RewriteResponse] {
+          override def onFailure(e: GoogleJsonError, responseHeaders: HttpHeaders): Unit = {
+            println(s"Failure for $i:\n$e")
+          }
+
+          override def onSuccess(t: RewriteResponse, responseHeaders: HttpHeaders): Unit = {
+            sys.error("Expect me, does batch get cleared?")
+          }
+        })
+      }
+
+      println(s"batchRequest.size() = ${batchRequest.size()}")
+      println(Try(batchRequest.execute()))
+    }
+  }
+
+  it should "measure GCS batch creation" in {
+    Thread.sleep(1000)
+    val start = OffsetDateTime.now()
+    val created = (0 until 1000000).map { _ =>
+      val batchStorage: Storage = new Storage.Builder(
+        GcsStorage.HttpTransport,
+        JacksonFactory.getDefaultInstance,
+        httpRequestInitializer
+      ).setApplicationName("gcs-storage-spec").build()
+      val batch = batchStorage.batch()
+      batch
+    }
+    val stop = OffsetDateTime.now()
+    println(created.size)
+    println(Duration.between(start, stop))
+    Thread.sleep(10000)
+  }
 }

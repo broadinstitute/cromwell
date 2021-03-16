@@ -182,7 +182,6 @@ trait WorkflowMetadataSummaryEntryComponent {
     val customLabelKeyColumn = quoted("CUSTOM_LABEL_KEY")
     val customLabelValueColumn = quoted("CUSTOM_LABEL_VALUE")
     val parentWorkflowExecutionUuidColumn = quoted("PARENT_WORKFLOW_EXECUTION_UUID")
-    val summaryEntryIdColumn = quoted("WORKFLOW_METADATA_SUMMARY_ENTRY_ID")
 
     val summaryTableAlias = quoted("summaryTable")
     val labelsOrTableAlias = quoted("labelsOrMixin")
@@ -405,9 +404,10 @@ trait WorkflowMetadataSummaryEntryComponent {
       case _ => List.empty
     }
 
-    val orderByAddendum =
-      sql"""|  ORDER BY #${quoted("WORKFLOW_METADATA_SUMMARY_ENTRY_ID")} ${if (newestFirst) "DESC" else "ASC"}
-            |""".stripMargin
+    val orderByAddendum = if (newestFirst)
+      sql"""  ORDER BY #${quoted("WORKFLOW_METADATA_SUMMARY_ENTRY_ID")} DESC"""
+    else
+      sql"""  ORDER BY #${quoted("WORKFLOW_METADATA_SUMMARY_ENTRY_ID")} ASC"""
 
     // NB you can preview the prepared statement created here by using, for example: println(result.statements.head)
 

@@ -135,7 +135,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       .withStatementParameters(
         rsType = ResultSetType.ForwardOnly,
         rsConcurrency = ResultSetConcurrency.ReadOnly,
-        fetchSize = 1)
+        fetchSize = 1) // TODO: Set to a more reasonable default and make it configurable !!
     database.stream(action)
   }
 

@@ -1,12 +1,14 @@
 package cromwell.services.metadata.hybridcarbonite
 
-import java.io.PrintWriter
+import java.io.{OutputStream, OutputStreamWriter}
 import java.nio.file.{Files, StandardOpenOption}
 
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
+import common.util.TimeUtil.EnhancedOffsetDateTime
 import cromwell.core.WorkflowId
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
 import cromwell.core.path.Path
+import cromwell.database.sql.SqlConverters.{ClobOptionToRawString, TimestampToSystemOffsetDateTime}
 import cromwell.database.sql.tables.MetadataEntry
 import cromwell.services.metadata.MetadataArchiveStatus.{ArchiveFailed, Archived, TooLargeToArchive}
 import cromwell.services.metadata.MetadataService.{GetMetadataStreamAction, MetadataLookupStreamResponse}
@@ -97,9 +99,11 @@ class CarbonitingMetadataFreezerActor(freezingConfig: ActiveMetadataFreezingConf
 //  }
 
   def writeStreamToGcs(workflowId: WorkflowId, stream: DatabasePublisher[MetadataEntry]): Future[Unit] = {
+    // TODO: Add error handling here !!
+
     val path: Path = carboniterConfig.makePath(workflowId)
-    val gcsStream = Files.newOutputStream(path.nioPath, StandardOpenOption.CREATE)
-    val printWriter = new PrintWriter(gcsStream)
+    val gcsStream: OutputStream = Files.newOutputStream(path.nioPath, StandardOpenOption.CREATE)
+    val printWriter = new OutputStreamWriter(gcsStream)
     val csvPrinter = new CSVPrinter(printWriter, CSVFormat.DEFAULT.withHeader(CsvFileHeaders : _*))
 
     System.out.println(s"Archiving to ${path.pathAsString}")
@@ -112,19 +116,13 @@ class CarbonitingMetadataFreezerActor(freezingConfig: ActiveMetadataFreezingConf
         me.callFullyQualifiedName.getOrElse(""),
         me.jobIndex.map(_.toString).getOrElse(""),
         me.jobAttempt.map(_.toString).getOrElse(""),
-        me.metadataValue.map(
-          clob => clob.getSubString(1, clob.length().toInt) // TODO: de-stream this properly!!
-        ).getOrElse(""),
-        me.metadataTimestamp,
+        me.metadataValue.toRawString,
+        me.metadataTimestamp.toSystemOffsetDateTime.toUtcMilliString,
         me.metadataValueType.getOrElse("")
       )
-
-      csvPrinter.flush()
-      Thread.sleep(1000)
     })
 
     streamResult.onComplete { _ => csvPrinter.close() }
-
     streamResult
   }
 

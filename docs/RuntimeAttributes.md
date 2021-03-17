@@ -56,6 +56,8 @@ There are a number of additional runtime attributes that apply to the Google Clo
 - [useDockerImageCache](#usedockerimagecache)
 
 
+### AWS Specific Attributes
+- [awsBatchRetryAttempts](#awsBatchRetryAttempts)
 
 ## Expression support
 
@@ -370,6 +372,18 @@ command {
 runtime {
   docker: "docker.io/alpine/git:latest"
   noAddress: true
+}
+```
+
+### `awsBatchRetryAttempts`
+
+*Default: _0_*
+
+This runtime attribute adds support to [*AWS Batch Automated Job Retries*](https://docs.aws.amazon.com/batch/latest/userguide/job_retries.html) which makes it possible to tackle transient job failures. For example, if a task fails due to a timeout from accessing an external service, then this option helps re-run the failed the task without having to re-run the entire workflow. It takes an Int, between 1 and 10, as a value that indicates the maximum number of times AWS Batch should retry a failed task. If the value 0 is passed, the [*Retry Strategy*](https://docs.aws.amazon.com/batch/latest/userguide/job_definition_parameters.html#retryStrategy) will not be added to the job definiton and the task will run just once.
+
+```
+runtime {
+  awsBatchRetryAttempts: 3
 }
 ```
 

@@ -99,31 +99,34 @@ class CarbonitingMetadataFreezerActor(freezingConfig: ActiveMetadataFreezingConf
 //  }
 
   def writeStreamToGcs(workflowId: WorkflowId, stream: DatabasePublisher[MetadataEntry]): Future[Unit] = {
-    // TODO: Add error handling here !!
+    val getCsvPrinter: Future[CSVPrinter] = {
+      Future {
+        val path: Path = carboniterConfig.makePath(workflowId)
+        val gcsStream: OutputStream = Files.newOutputStream(path.nioPath, StandardOpenOption.CREATE)
+        val printWriter = new OutputStreamWriter(gcsStream)
+        new CSVPrinter(printWriter, CSVFormat.DEFAULT.withHeader(CsvFileHeaders : _*))
+      }
+    }
 
-    val path: Path = carboniterConfig.makePath(workflowId)
-    val gcsStream: OutputStream = Files.newOutputStream(path.nioPath, StandardOpenOption.CREATE)
-    val printWriter = new OutputStreamWriter(gcsStream)
-    val csvPrinter = new CSVPrinter(printWriter, CSVFormat.DEFAULT.withHeader(CsvFileHeaders : _*))
+    // TODO: Should we close the database `stream` as well ??
 
-    System.out.println(s"Archiving to ${path.pathAsString}")
-
-    val streamResult = stream.foreach(me => {
-      csvPrinter.printRecord(
-        me.metadataEntryId.map(_.toString).getOrElse(""),
-        me.workflowExecutionUuid,
-        me.metadataKey,
-        me.callFullyQualifiedName.getOrElse(""),
-        me.jobIndex.map(_.toString).getOrElse(""),
-        me.jobAttempt.map(_.toString).getOrElse(""),
-        me.metadataValue.toRawString,
-        me.metadataTimestamp.toSystemOffsetDateTime.toUtcMilliString,
-        me.metadataValueType.getOrElse("")
-      )
-    })
-
-    streamResult.onComplete { _ => csvPrinter.close() }
-    streamResult
+    for {
+      csvPrinter <- getCsvPrinter
+      _ <- stream.foreach(me => {
+        csvPrinter.printRecord(
+          me.metadataEntryId.map(_.toString).getOrElse(""),
+          me.workflowExecutionUuid,
+          me.metadataKey,
+          me.callFullyQualifiedName.getOrElse(""),
+          me.jobIndex.map(_.toString).getOrElse(""),
+          me.jobAttempt.map(_.toString).getOrElse(""),
+          me.metadataValue.toRawString,
+          me.metadataTimestamp.toSystemOffsetDateTime.toUtcMilliString,
+          me.metadataValueType.getOrElse("")
+        )
+      })
+      _ = csvPrinter.close()
+    } yield ()
   }
 
   when(Fetching) {

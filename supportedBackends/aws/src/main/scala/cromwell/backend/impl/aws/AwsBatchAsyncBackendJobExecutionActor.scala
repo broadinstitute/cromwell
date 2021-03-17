@@ -205,6 +205,10 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                     jobDescriptor: BackendJobDescriptor): Iterable[AwsBatchInput] = {
     (remotePathArray zip localPathArray zipWithIndex) flatMap {
       case ((remotePath, localPath), index) =>
+        val localPathString = localPath.valueString
+        if (localPathString.startsWith("s3:/")) {
+          Log.error(s"!!!Debug error: ${remotePath.valueString} -> ${localPathString}")
+        }
         Seq(AwsBatchFileInput(s"$namePrefix-$index", remotePath.valueString, DefaultPathBuilder.get(localPath.valueString), workingDisk))
     }
   }

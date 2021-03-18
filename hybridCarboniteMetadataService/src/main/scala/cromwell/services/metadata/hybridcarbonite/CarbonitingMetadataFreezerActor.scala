@@ -1,9 +1,12 @@
 package cromwell.services.metadata.hybridcarbonite
 
-import java.io.{OutputStream, OutputStreamWriter}
+import java.io.{BufferedWriter, OutputStream, OutputStreamWriter}
 import java.nio.file.{Files, StandardOpenOption}
+import java.util
 
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props}
+import com.google.common.io.BaseEncoding
+import com.google.common.primitives.Longs
 import common.util.TimeUtil.EnhancedOffsetDateTime
 import cromwell.core.WorkflowId
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
@@ -18,6 +21,7 @@ import cromwell.services.metadata.impl.MetadataDatabaseAccess
 import cromwell.services.metadata.{MetadataArchiveStatus, MetadataQuery}
 import cromwell.services.{FailedMetadataJsonResponse, MetadataServicesStore, MetadataTooLargeException}
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
+import org.apache.commons.codec.digest.PureJavaCrc32C
 import org.apache.commons.csv.{CSVFormat, CSVPrinter}
 import slick.basic.DatabasePublisher
 
@@ -99,17 +103,26 @@ class CarbonitingMetadataFreezerActor(freezingConfig: ActiveMetadataFreezingConf
 //  }
 
   def writeStreamToGcs(workflowId: WorkflowId, stream: DatabasePublisher[MetadataEntry]): Future[Unit] = {
-    val getCsvPrinter: Future[CSVPrinter] = {
-      Future {
-        val path: Path = carboniterConfig.makePath(workflowId)
+    val getPath: Future[Path] = Future.fromTry(Try(carboniterConfig.makePath(workflowId)))
+
+    def getCsvPrinter(path: Path): Future[CSVPrinter] = {
+      Future.fromTry(Try({
         val gcsStream: OutputStream = Files.newOutputStream(path.nioPath, StandardOpenOption.CREATE)
         val printWriter = new OutputStreamWriter(gcsStream)
         new CSVPrinter(printWriter, CSVFormat.DEFAULT.withHeader(CsvFileHeaders : _*))
-      }
+      }))
     }
 
+    val checksumCalculator = new PureJavaCrc32C()
+    val checksumStream = new OutputStream {
+      override def write(b: Int): Unit = checksumCalculator.update(b)
+    }
+    val checksumWriter = new BufferedWriter(new OutputStreamWriter((checksumStream)))
+    val csvPrinterForChecksum = new CSVPrinter(checksumWriter, CSVFormat.DEFAULT.withHeader(CsvFileHeaders : _*))
+
     for {
-      csvPrinter <- getCsvPrinter
+      path <- getPath
+      csvPrinter <- getCsvPrinter(path)
       _ <- stream.foreach(me => {
         csvPrinter.printRecord(
           me.metadataEntryId.map(_.toString).getOrElse(""),
@@ -122,8 +135,28 @@ class CarbonitingMetadataFreezerActor(freezingConfig: ActiveMetadataFreezingConf
           me.metadataTimestamp.toSystemOffsetDateTime.toUtcMilliString,
           me.metadataValueType.getOrElse("")
         )
+        csvPrinterForChecksum.printRecord(
+          me.metadataEntryId.map(_.toString).getOrElse(""),
+          me.workflowExecutionUuid,
+          me.metadataKey,
+          me.callFullyQualifiedName.getOrElse(""),
+          me.jobIndex.map(_.toString).getOrElse(""),
+          me.jobAttempt.map(_.toString).getOrElse(""),
+          me.metadataValue.toRawString,
+          me.metadataTimestamp.toSystemOffsetDateTime.toUtcMilliString,
+          me.metadataValueType.getOrElse("")
+        )
       })
       _ = csvPrinter.close()
+      _ = csvPrinterForChecksum.close()
+      finalChecksumValue = checksumCalculator.getValue
+      bArray = util.Arrays.copyOfRange(Longs.toByteArray(finalChecksumValue), 4, 8)
+      expectedChecksum = BaseEncoding.base64.encode(bArray)
+      uploadedChecksum <- asyncIo.hashAsync(path)
+
+      _ <- Future.fromTry(if(expectedChecksum == uploadedChecksum) Success(()) else Failure(new Exception(s"Checksum mismatch! Expected $expectedChecksum but got $uploadedChecksum")))
+
+      _ = System.out.println(s"Uploaded content with crc32c checksum: $expectedChecksum to ${path.pathAsString}")
     } yield ()
   }
 

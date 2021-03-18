@@ -45,7 +45,7 @@ case object InactiveMetadataDeletionConfig extends MetadataDeletionConfig
 
 object HybridCarboniteConfig {
 
-  def pathForWorkflow(id: WorkflowId, bucket: String) = s"gs://$bucket/$id/$id.archive"
+  def pathForWorkflow(id: WorkflowId, bucket: String) = s"gs://$bucket/$id/$id.csv"
 
   def parseConfig(carboniterConfig: Config)(implicit system: ActorSystem): Checked[HybridCarboniteConfig] = {
 

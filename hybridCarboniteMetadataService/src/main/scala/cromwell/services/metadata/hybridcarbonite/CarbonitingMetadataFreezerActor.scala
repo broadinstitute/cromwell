@@ -108,8 +108,6 @@ class CarbonitingMetadataFreezerActor(freezingConfig: ActiveMetadataFreezingConf
       }
     }
 
-    // TODO: Should we close the database `stream` as well ??
-
     for {
       csvPrinter <- getCsvPrinter
       _ <- stream.foreach(me => {
@@ -133,7 +131,7 @@ class CarbonitingMetadataFreezerActor(freezingConfig: ActiveMetadataFreezingConf
     case Event(MetadataLookupStreamResponse(_, responseStream), FetchingData(workflowId)) =>
       log.info(s"Received metadata stream for $workflowId. Beginning stream...")
 
-       writeStreamToGcs(workflowId, responseStream) onComplete {
+      writeStreamToGcs(workflowId, responseStream) onComplete {
         result => self ! CarbonitingFreezeResult(result)
       }
       goto(Freezing) using FreezingData(workflowId)

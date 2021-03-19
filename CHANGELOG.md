@@ -1,5 +1,15 @@
 # Cromwell Change Log
 
+## 59 Release Notes
+
+### Bug Fixes
+
+Fixed a bug that could cause workflows to fail unexpectedly with the error 413 Request Entity Too Large when accessing
+Google Cloud Storage.
+
+## 58 Release Notes
+
+Internal CI-related changes only.
 
 ## 57 Release Notes
 

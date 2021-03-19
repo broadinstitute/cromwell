@@ -2,31 +2,27 @@ package cromwell.services.metadata.impl.archiver
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
-import cromwell.core.{WorkflowAborted, WorkflowFailed, WorkflowId, WorkflowSucceeded}
 import cromwell.core.retry.SimpleExponentialBackoff
+import cromwell.core.{WorkflowAborted, WorkflowFailed, WorkflowId, WorkflowSucceeded}
 import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.metadata.MetadataArchiveStatus.Unarchived
-import cromwell.services.metadata.MetadataService
 import cromwell.services.metadata.MetadataService.{QueryForWorkflowsMatchingParameters, WorkflowQueryFailure, WorkflowQuerySuccess}
-import cromwell.services.metadata.WorkflowQueryKey.{IncludeSubworkflows, MetadataArchiveStatus, MinimumSummaryEntryId, Page, PageSize, Status}
-import cromwell.util.GracefulShutdownHelper
-import cromwell.util.GracefulShutdownHelper.ShutdownCommand
+import cromwell.services.metadata.WorkflowQueryKey._
 import cromwell.services.metadata.impl.archiver.ArchiveMetadataSchedulerActor._
 import cromwell.services.metadata.impl.archiver.StreamMetadataToGcsActor.ArchiveMetadataForWorkflow
+import cromwell.util.GracefulShutdownHelper
+import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.{Duration, MILLISECONDS}
 import scala.util.{Failure, Success, Try}
 
-/*
-  This class would do what CarboniteWorkerActor is doing. It would schedule workflows to archive at periodic intervals
-  and call StreamMetadataToGcsActor, who shall actually stream metadata to GCS
- */
+
 class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig,
                                     override val serviceRegistryActor: ActorRef) extends Actor with ActorLogging with GracefulShutdownHelper with CromwellInstrumentation {
 
   implicit val ec: ExecutionContext = context.dispatcher
-  val streamMetadataActor: ActorRef = context.actorOf(StreamMetadataToGcsActor.props())
+  val streamMetadataActor: ActorRef = context.actorOf(StreamMetadataToGcsActor.props(archiveMetadataConfig, serviceRegistryActor))
 
   // Schedule the initial workflows to archive query
   scheduleNextWorkflowsToArchiveQuery()
@@ -39,10 +35,16 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
         archiveWorkflow(querySuccess.response.results.head.id)
       else
         scheduleNextWorkflowsToArchiveQuery()
-    case f: WorkflowQueryFailure =>
-      log.error(f.reason, s"Error while querying workflow to carbonite, will retry.")
+    case queryFailure: WorkflowQueryFailure =>
+      log.error(queryFailure.reason, s"Error while querying workflow to archive, will retry.")
       scheduleNextWorkflowsToArchiveQuery()
+    case archiveComplete: ArchiveWorkflowComplete =>
+      // TODO: Instrument time to archive workflow?
+      if (archiveMetadataConfig.debugLogging) { log.info(s"Archiving complete for workflow ${archiveComplete.workflowId}") }
 
+      // Immediately reset the timer and check for the next workflow to archive:
+      nothingToArchiveBackoff.googleBackoff.reset()
+      queryForWorkflowToArchive()
     case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(streamMetadataActor))
     case other => log.info(s"Programmer Error! The ArchiveMetadataSchedulerActor received unexpected message! ($sender sent $other})")
   }
@@ -77,8 +79,9 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
 }
 
 object ArchiveMetadataSchedulerActor {
-  def props(archiveMetadataConfig: ArchiveMetadataConfig, serviceRegistryActor: ActorRef): Props =
-    Props(new ArchiveMetadataSchedulerActor(archiveMetadataConfig, serviceRegistryActor))
+
+  sealed trait ArchiveWorkflowWorkerMessage
+  case class ArchiveWorkflowComplete(workflowId: WorkflowId, result: cromwell.services.metadata.MetadataArchiveStatus) extends ArchiveWorkflowWorkerMessage
 
   // TODO: Archive from oldest-first
   // TODO: Allow requirements like "End timestamp not within 1y (eg)"
@@ -91,4 +94,7 @@ object ArchiveMetadataSchedulerActor {
     Page.name -> "1",
     PageSize.name -> "1"
   )
+
+  def props(archiveMetadataConfig: ArchiveMetadataConfig, serviceRegistryActor: ActorRef): Props =
+    Props(new ArchiveMetadataSchedulerActor(archiveMetadataConfig, serviceRegistryActor))
 }

@@ -75,9 +75,11 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
 
   private val summaryActor: Option[ActorRef] = buildSummaryActor
 
+  summaryActor foreach { _ => self ! RefreshSummary }
+
   private val archiveMetadataActor: Option[ActorRef] = buildArchiveMetadataActor
 
-  summaryActor foreach { _ => self ! RefreshSummary }
+  // TODO: Create instance of DeleteMetadataActor
 
   private def scheduleSummary(): Unit = {
     metadataSummaryRefreshInterval foreach { interval =>

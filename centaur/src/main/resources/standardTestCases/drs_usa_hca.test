@@ -1,0 +1,24 @@
+name: drs_usa_hca
+testFormat: WorkflowSuccess
+backends: ["papi-v2-usa"]
+skipDescribeEndpointValidation: true
+
+files {
+  workflow: drs_tests/drs_usa_hca.wdl
+  options-dir: "Error: BA-6546 The environment variable CROMWELL_BUILD_RESOURCES_DIRECTORY must be set/export pointing to a valid path such as '${YOUR_CROMWELL_DIR}/target/ci/resources'"
+  options-dir: ${?CROMWELL_BUILD_RESOURCES_DIRECTORY}
+  options: ${files.options-dir}/papi_v2_usa.options.json
+  inputs: drs_tests/drs_usa_hca.inputs
+}
+
+metadata {
+  workflowName: drs_usa_hca
+  status: Succeeded
+
+  "outputs.drs_usa_hca.path" =
+    "/cromwell_root/jade.datarepo-dev.broadinstitute.org/v1_4641bafb-5190-425b-aea9-9c7b125515c8_e37266ba-790d-4641-aa76-854d94be2fbe/E18_20161004_Neurons_Sample_49_S048_L004_R2_005.fastq.gz"
+  "outputs.drs_usa_hca.hash" = "badf266412ff0e307232421e56d647ed"
+  "outputs.drs_usa_hca.size" = 438932948
+  "outputs.drs_usa_hca.cloud" =
+    "gs://broad-jade-dev-data-bucket/ecb5601e-9026-428c-b49d-3c5f1807ecb7/e37266ba-790d-4641-aa76-854d94be2fbe/E18_20161004_Neurons_Sample_49_S048_L004_R2_005.fastq.gz"
+}

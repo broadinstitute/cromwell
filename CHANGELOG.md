@@ -1,11 +1,20 @@
 # Cromwell Change Log
 
-## 58 Release Notes
+## 59 Release Notes
 
 ### Java 11
 
 As of this version, a distribution of Java 11 is required to run Cromwell. Cromwell is developed, tested, and
 containerized using [AdoptOpenJDK 11 HotSpot](https://adoptopenjdk.net/).
+
+### Bug Fixes
+
+Fixed a bug that could cause workflows to fail unexpectedly with the error 413 Request Entity Too Large when accessing
+Google Cloud Storage.
+
+## 58 Release Notes
+
+Internal CI-related changes only.
 
 ## 57 Release Notes
 

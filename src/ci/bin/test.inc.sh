@@ -373,7 +373,6 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_DOCKER_TAG="${CROMWELL_BUILD_DOCKER_TAG:0:128}"
     CROMWELL_BUILD_DOCKER_TAG="${CROMWELL_BUILD_DOCKER_TAG//[^a-zA-Z0-9.-]/_}"
 
-    CROMWELL_BUILD_OPTIONAL_SECURE="${CROMWELL_BUILD_OPTIONAL_SECURE-false}"
     CROMWELL_BUILD_REQUIRES_SECURE="${CROMWELL_BUILD_REQUIRES_SECURE-false}"
     CROMWELL_BUILD_REQUIRES_PRIOR_VERSION="${CROMWELL_BUILD_REQUIRES_PRIOR_VERSION-false}"
     VAULT_TOKEN="${VAULT_TOKEN-vault token is not set as an environment variable}"
@@ -407,7 +406,6 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_IS_VIRTUAL_ENV
     export CROMWELL_BUILD_LOG_DIRECTORY
     export CROMWELL_BUILD_NUMBER
-    export CROMWELL_BUILD_OPTIONAL_SECURE
     export CROMWELL_BUILD_OS
     export CROMWELL_BUILD_OS_DARWIN
     export CROMWELL_BUILD_OS_LINUX
@@ -439,7 +437,6 @@ cromwell::private::echo_build_variables() {
     echo "CROMWELL_BUILD_IS_CI='${CROMWELL_BUILD_IS_CI}'"
     echo "CROMWELL_BUILD_IS_SECURE='${CROMWELL_BUILD_IS_SECURE}'"
     echo "CROMWELL_BUILD_REQUIRES_SECURE='${CROMWELL_BUILD_REQUIRES_SECURE}'"
-    echo "CROMWELL_BUILD_OPTIONAL_SECURE='${CROMWELL_BUILD_OPTIONAL_SECURE}'"
     echo "CROMWELL_BUILD_TYPE='${CROMWELL_BUILD_TYPE}'"
     echo "CROMWELL_BUILD_BRANCH='${CROMWELL_BUILD_BRANCH}'"
     echo "CROMWELL_BUILD_IS_HOTFIX='${CROMWELL_BUILD_IS_HOTFIX}'"
@@ -1045,24 +1042,22 @@ cromwell::private::copy_all_resources() {
 }
 
 cromwell::private::setup_secure_resources() {
-    if [[ "${CROMWELL_BUILD_REQUIRES_SECURE}" == "true" ]] || [[ "${CROMWELL_BUILD_OPTIONAL_SECURE}" == "true" ]]; then
-        case "${CROMWELL_BUILD_PROVIDER}" in
-            "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
-            "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
-                cromwell::private::vault_login
-                cromwell::private::render_secure_resources
-                cromwell::private::docker_login
-                ;;
-            "${CROMWELL_BUILD_PROVIDER_JENKINS}")
-                cromwell::private::copy_all_resources
-                ;;
-            *)
-                cromwell::private::render_secure_resources
-                ;;
-        esac
-    else
-        cromwell::private::copy_all_resources
-    fi
+    case "${CROMWELL_BUILD_PROVIDER}" in
+        "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
+        "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
+            # Try to login to vault, and if successful then use vault creds to login to docker.
+            # For those committers with vault access this avoids pull rate limits reported in BT-143.
+            cromwell::private::vault_login
+            cromwell::private::render_secure_resources
+            cromwell::private::docker_login
+            ;;
+        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
+            cromwell::private::copy_all_resources
+            ;;
+        *)
+            cromwell::private::render_secure_resources
+            ;;
+    esac
 }
 
 cromwell::private::make_build_directories() {

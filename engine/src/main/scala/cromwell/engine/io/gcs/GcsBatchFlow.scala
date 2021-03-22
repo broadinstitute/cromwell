@@ -54,7 +54,33 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     }
   }
 
-  private val batchRequest: BatchRequest = {
+  /**
+    * Returns a new BatchRequest instance.
+    *
+    * The correlated errors that were seen were:
+    * - Via CROM-6708 timeouts were occurring, followed usually by...
+    * - Via CROM-6709 batches had grown beyond 3001+ requests.
+    *
+    * Examining BatchRequest.execute(), if any exception occurs during the method, either during the HTTP request or
+    * during one of the response handlers, the BatchRequest.execute() method simply throws the exception.
+    *
+    * When exceptions are NOT thrown the BatchRequest's internal queue is only partially or fully cleared:
+    * - partial : https://github.com/googleapis/google-api-java-client/blob/v1.31.1/google-api-client/src/main/java/com/google/api/client/googleapis/batch/BatchRequest.java#L275
+    * -   full  : https://github.com/googleapis/google-api-java-client/blob/v1.31.1/google-api-client/src/main/java/com/google/api/client/googleapis/batch/BatchRequest.java#L281
+    *
+    * The BatchRequest's internal queue is NOT cleared when exceptions are thrown inside BatchRequest.execute().
+    * Any subsequent enqueueing operations only add to the internal queue and do not replace the internal queue.
+    * So eventually timeouts lead to large batches of 1000+ elements that cause further timeout exceptions too.
+    * Those failed batch elements were re-appended leading to batches of greater than 3000 requests.
+    * At least that's the theory.
+    *
+    * Instead we'll create a new BatchRequest each time we run GcsBatchFlow.executeBatch().
+    *
+    * From basic performance testing with YourKit we were able to create 1,000,000 of these BatchRequest objects in
+    * under 17s. However, if needed a cached var batchRequest instance could be implemented that only recreates the
+    * object when the internal queue is "dirty" with a .size() > 0.
+    */
+  private def newBatchRequest(): BatchRequest = {
     val storage = new Storage.Builder(
       GcsStorage.HttpTransport,
       JacksonFactory.getDefaultInstance,
@@ -127,6 +153,8 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
       ()
     }
 
+    val batchRequest = newBatchRequest()
+
     // Add all requests to the batch
     contexts foreach { _.queue(batchRequest) }
 
@@ -136,12 +164,12 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     // Otherwise fail with the original exception
     Try(batchRequest.execute()) match {
       case Failure(failure: IOException) =>
-        logger.info(s"Failed to execute GCS Batch request. Failed request belonged to batch of size ${batchCommandNamesList.size} containing commands: " +
-          s"${batchCommandNamesList.mkString("\n")}.", failure.toPrettyElidedString(limit = 1000))
+        logger.info(s"Failed to execute GCS Batch request. Failed request belonged to batch of size ${batchRequest.size()} containing commands: " +
+          s"${batchCommandNamesList.mkString("\n")}.\n${failure.toPrettyElidedString(limit = 1000)}")
         failAllPromisesWith(BatchFailedException(failure))
       case Failure(failure) =>
-        logger.info(s"Failed to execute GCS Batch request. Failed request belonged to batch of size ${batchCommandNamesList.size} containing commands: " +
-          s"${batchCommandNamesList.mkString("\n")}.", failure.toPrettyElidedString(limit = 1000))
+        logger.info(s"Failed to execute GCS Batch request. Failed request belonged to batch of size ${batchRequest.size()} containing commands: " +
+          s"${batchCommandNamesList.mkString("\n")}.\n${failure.toPrettyElidedString(limit = 1000)}")
         failAllPromisesWith(failure)
       case _ =>
     }

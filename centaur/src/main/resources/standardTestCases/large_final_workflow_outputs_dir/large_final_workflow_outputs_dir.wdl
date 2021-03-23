@@ -6,7 +6,7 @@ workflow large_final_workflow_outputs_dir {
         # In this case we're copying by using final_workflow_outputs_dir functionality.
         #
         # Because the file used in the test is large, via the workflow options we copy to
-        # a bucket setup with a short lifecycle for deletion of objects.
+        # gs://cloud-cromwell-dev-self-cleaning-fast which is setup with a short lifecycle for deletion of objects.
         #
         # See also https://github.com/broadinstitute/rawls/blob/c39049945867d9d6d1bb5e1cbda30a09a19147f7/automation/src/test/scala/org/broadinstitute/dsde/test/api/RawlsApiSpec.scala#L768-L783
         #

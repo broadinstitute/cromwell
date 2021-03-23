@@ -16,8 +16,7 @@ import scala.util.Try
 
 class RequestHandler(applicationName: String,
                      endpointUrl: URL,
-                     batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration
-                    )
+                     batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration)
   extends PipelinesApiRequestHandler
   with RunRequestHandler
   with GetRequestHandler 
@@ -33,7 +32,7 @@ class RequestHandler(applicationName: String,
         .setApplicationName(applicationName)
         .setRootUrl(endpointUrl.toString)
     val client = builder.build()
-    client.batch(builder.getHttpRequestInitializer)
+    client.batch(client.getRequestFactory.getInitializer)
   }
 
   override def enqueue[T <: PAPIApiRequest](papiApiRequest: T, batchRequest: BatchRequest, pollingManager: ActorRef)

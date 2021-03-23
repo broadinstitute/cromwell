@@ -89,7 +89,7 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
       httpRequestInitializer
     ).setApplicationName(applicationName)
     val client = builder.build()
-    client.batch(builder.getHttpRequestInitializer)
+    client.batch(client.getRequestFactory.getInitializer)
   }
 
   val flow: Graph[

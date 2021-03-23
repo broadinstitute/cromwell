@@ -21,8 +21,7 @@ object RequestHandler {
 
 class RequestHandler(applicationName: String,
                      endpointUrl: URL,
-                     batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration
-                    )
+                     batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration)
   extends PipelinesApiRequestHandler
   with RunRequestHandler
   with GetRequestHandler
@@ -35,10 +34,10 @@ class RequestHandler(applicationName: String,
         GoogleAuthMode.jsonFactory,
         initializeHttpRequest(batchRequestTimeoutConfiguration) _,
       )
-      .setApplicationName(applicationName)
-      .setRootUrl(endpointUrl.toString)
+        .setApplicationName(applicationName)
+        .setRootUrl(endpointUrl.toString)
     val client = builder.build()
-    client.batch(builder.getHttpRequestInitializer)
+    client.batch(client.getRequestFactory.getInitializer)
   }
 
   override def enqueue[T <: PipelinesApiRequestManager.PAPIApiRequest](papiApiRequest: T,

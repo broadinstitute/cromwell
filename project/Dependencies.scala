@@ -536,7 +536,8 @@ object Dependencies {
   ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ akkaHttpCirceIntegrationDependency ++ circeDependencies
 
   val hybridCarboniteMetadataServiceDependencies = List(
-    "net.thisptr" % "jackson-jq" % jacksonJqV % Test
+    "net.thisptr" % "jackson-jq" % jacksonJqV % Test,
+    "org.apache.commons" % "commons-csv" % "1.8",
   )
 
   val servicesDependencies = List(

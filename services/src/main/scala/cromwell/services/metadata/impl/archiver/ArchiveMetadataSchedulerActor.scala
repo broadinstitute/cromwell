@@ -8,8 +8,8 @@ import common.util.StringUtil.EnhancedToStringable
 import common.util.TimeUtil.EnhancedOffsetDateTime
 import cromwell.core.{WorkflowAborted, WorkflowFailed, WorkflowId, WorkflowSucceeded}
 import cromwell.services.instrumentation.CromwellInstrumentation
-import cromwell.services.metadata.MetadataArchiveStatus.Unarchived
-import cromwell.services.metadata.MetadataService.{GetMetadataStreamAction, MetadataLookupStreamResponse,QueryForWorkflowsMatchingParameters, WorkflowQueryFailure, WorkflowQuerySuccess}
+import cromwell.services.metadata.MetadataArchiveStatus.{Archived, Unarchived}
+import cromwell.services.metadata.MetadataService.{GetMetadataStreamAction, MetadataLookupStreamResponse, QueryForWorkflowsMatchingParameters, WorkflowQueryFailure, WorkflowQuerySuccess}
 import cromwell.services.metadata.WorkflowQueryKey._
 import cromwell.services.metadata.impl.archiver.ArchiveMetadataSchedulerActor._
 import cromwell.util.GracefulShutdownHelper
@@ -24,13 +24,22 @@ import cromwell.database.sql.tables.MetadataEntry
 import cromwell.services.metadata.MetadataQuery
 import java.io.OutputStreamWriter
 import java.io.OutputStream
+
 import cromwell.core.path.Path
 import java.nio.file.Files
 import java.nio.file.StandardOpenOption
 
+import cromwell.services.MetadataServicesStore
+import cromwell.services.metadata.impl.MetadataDatabaseAccess
+
 
 class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig,
-                                    override val serviceRegistryActor: ActorRef) extends Actor with ActorLogging with GracefulShutdownHelper with CromwellInstrumentation {
+                                    serviceRegistryActor: ActorRef)
+  extends Actor
+    with ActorLogging
+    with GracefulShutdownHelper
+    with MetadataDatabaseAccess
+    with MetadataServicesStore {
 
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val askTimeout: Timeout = new Timeout(60.seconds)
@@ -57,7 +66,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
         case Some(id) => for {
           dbStream <- fetchStreamFromDatabase(id)
           _ <- streamMetadataToGcs(id, dbStream)
-          _ <- markWorkflowAsArchived(id)
+          _ <- updateMetadataArchiveStatus(id, Archived)
         } yield true
         case None => Future.successful(false)
       }
@@ -112,10 +121,6 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
       })
       _ = csvPrinter.close()
     } yield ()
-  }
-
-  def markWorkflowAsArchived(workflowId: WorkflowId): Future[Unit] = {
-    ???
   }
 
   def scheduleNextWorkflowToArchive(): Unit = {

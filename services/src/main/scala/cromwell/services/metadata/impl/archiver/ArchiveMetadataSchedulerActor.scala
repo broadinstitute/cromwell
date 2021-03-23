@@ -86,14 +86,15 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   }
 
   def fetchStreamFromDatabase(workflowId: WorkflowId): Future[DatabasePublisher[MetadataEntry]] = {
-    (serviceRegistryActor ? GetMetadataStreamAction(MetadataQuery(
-      workflowId = workflowId,
-      jobKey = None,
-      key = None,
-      includeKeysOption = None,
-      excludeKeysOption = None,
-      expandSubWorkflows = false
-    ))) flatMap {
+    (serviceRegistryActor ? GetMetadataStreamAction(
+      MetadataQuery(
+        workflowId = workflowId,
+        jobKey = None,
+        key = None,
+        includeKeysOption = None,
+        excludeKeysOption = None,
+        expandSubWorkflows = false
+      ), archiveMetadataConfig.databaseStreamFetchSize)) flatMap {
       case MetadataLookupStreamResponse(_, responseStream) => Future.successful(responseStream)
       case other => Future.failed(new Exception(s"Failed to get metadata stream: ${other.toPrettyElidedString(1000)}"))
     }

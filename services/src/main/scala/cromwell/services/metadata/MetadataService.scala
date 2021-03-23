@@ -107,7 +107,7 @@ object MetadataService {
     override def workflowId: WorkflowId = key.workflowId
   }
 
-  final case class GetMetadataStreamAction(key: MetadataQuery) extends MetadataServiceAction
+  final case class GetMetadataStreamAction(key: MetadataQuery, fetchSize: Int) extends MetadataServiceAction
 
   final case class GetStatus(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
   final case class GetLabels(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction

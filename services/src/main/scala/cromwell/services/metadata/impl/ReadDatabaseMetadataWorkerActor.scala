@@ -29,8 +29,8 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
   def receive = {
     case GetMetadataAction(query: MetadataQuery, checkTotalMetadataRowNumberBeforeQuerying: Boolean) =>
       evaluateRespondAndStop(sender(), getMetadata(query, checkTotalMetadataRowNumberBeforeQuerying))
-    case GetMetadataStreamAction(query: MetadataQuery) =>
-      evaluateRespondAndStop(sender(), Future.fromTry(getMetadataStream(query)))
+    case GetMetadataStreamAction(query, fetchSize) =>
+      evaluateRespondAndStop(sender(), Future.fromTry(getMetadataStream(query, fetchSize)))
     case GetStatus(workflowId) => evaluateRespondAndStop(sender(), getStatus(workflowId))
     case GetLabels(workflowId) => evaluateRespondAndStop(sender(), queryLabelsAndRespond(workflowId))
     case GetRootAndSubworkflowLabels(rootWorkflowId: WorkflowId) => evaluateRespondAndStop(sender(), queryRootAndSubworkflowLabelsAndRespond(rootWorkflowId))
@@ -68,8 +68,8 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
     }
   }
 
-  private def getMetadataStream(query: MetadataQuery): Try[MetadataServiceResponse] = {
-    metadataEventsStream(query, metadataReadTimeout) map {
+  private def getMetadataStream(query: MetadataQuery, fetchSize: Int): Try[MetadataServiceResponse] = {
+    metadataEventsStream(query, fetchSize, metadataReadTimeout) map {
       s => MetadataLookupStreamResponse(query, s)
     } recover {
       case _: SQLTimeoutException => MetadataLookupFailedTimeoutResponse(query)

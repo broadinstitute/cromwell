@@ -128,6 +128,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   }
 
   override def streamMetadataEntries(workflowExecutionUuid: String,
+                                     fetchSize: Int,
                                      timeout: Duration)
                                     (implicit ec: ExecutionContext): DatabasePublisher[MetadataEntry] = {
     val action = dataAccess.metadataEntriesForWorkflowExecutionUuid(workflowExecutionUuid)
@@ -135,7 +136,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       .withStatementParameters(
         rsType = ResultSetType.ForwardOnly,
         rsConcurrency = ResultSetConcurrency.ReadOnly,
-        fetchSize = 1) // TODO: Set to a more reasonable default and make it configurable !!
+        fetchSize = fetchSize)
     database.stream(action)
   }
 

@@ -19,9 +19,12 @@ import cromwell.services.metadata.MetadataService.{QueryMetadata, WorkflowQueryR
 import cromwell.services.metadata._
 import cromwell.services.metadata.impl.MetadataDatabaseAccess.SummaryResult
 import mouse.boolean._
+import slick.basic.DatabasePublisher
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Try}
+import scala.util.control.NoStackTrace
 
 object MetadataDatabaseAccess {
 
@@ -153,6 +156,15 @@ trait MetadataDatabaseAccess {
         metadataDatabaseInterface.countMetadataEntryWithKeyConstraints(uuid, listKeyRequirements(includeKeys), listKeyRequirements(excludeKeys), CallQuery(callFqn, index, attempt), q.expandSubWorkflows, timeout)
       case _ => Future.failed(new IllegalArgumentException(s"Invalid MetadataQuery: $query"))
     }
+  }
+
+  def metadataEventsStream(query: MetadataQuery, timeout: Duration)(implicit ec: ExecutionContext): Try[DatabasePublisher[MetadataEntry]] = query match {
+    case MetadataQuery(workflowId, None, None, None, None, false) =>
+      Try(metadataDatabaseInterface.streamMetadataEntries(workflowId.id.toString, timeout))
+    case MetadataQuery(workflowId, None, None, None, None, true) =>
+      System.err.println(s"Oops! Not actually scanning for subworkflows of ${workflowId.id.toString}")
+      Try(metadataDatabaseInterface.streamMetadataEntries(workflowId.id.toString, timeout))
+    case other => Failure(new Exception(s"Unexpected metadata stream query: $other") with NoStackTrace)
   }
 
   def queryMetadataEvents(query: MetadataQuery, timeout: Duration)(implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {

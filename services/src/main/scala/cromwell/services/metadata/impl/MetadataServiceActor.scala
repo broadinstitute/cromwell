@@ -146,6 +146,8 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
     case v: ValidateWorkflowIdInMetadata => validateWorkflowIdInMetadata(v.possibleWorkflowId, sender())
     case v: ValidateWorkflowIdInMetadataSummaries => validateWorkflowIdInMetadataSummaries(v.possibleWorkflowId, sender())
     case action: BuildMetadataJsonAction => readActor forward action
-
+    case streamAction: GetMetadataStreamAction =>
+      log.info(s"${self.path.name}: Forwarding $streamAction to readActor")
+      readActor forward streamAction
   }
 }

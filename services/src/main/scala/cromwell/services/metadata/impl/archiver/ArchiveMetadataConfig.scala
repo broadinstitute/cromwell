@@ -6,7 +6,7 @@ import common.Checked
 import common.validation.Validation._
 import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.path.PathFactory.PathBuilders
-import cromwell.core.path.{PathBuilderFactory, PathFactory}
+import cromwell.core.path.{Path, PathBuilderFactory, PathFactory}
 import cromwell.core.{WorkflowId, WorkflowOptions}
 import net.ceedubs.ficus.Ficus._
 
@@ -17,10 +17,10 @@ import scala.util.Try
 
 final case class ArchiveMetadataConfig(pathBuilders: PathBuilders,
                                        bucket: String,
-                                       bucketReadLimit: Int,
                                        interval: FiniteDuration,
+                                       databaseStreamFetchSize: Int,
                                        debugLogging: Boolean) {
-  def makePath(workflowId: WorkflowId)= PathFactory.buildPath(ArchiveMetadataConfig.pathForWorkflow(workflowId, bucket), pathBuilders)
+  def makePath(workflowId: WorkflowId): Path = PathFactory.buildPath(ArchiveMetadataConfig.pathForWorkflow(workflowId, bucket), pathBuilders)
 }
 
 object ArchiveMetadataConfig {
@@ -39,9 +39,9 @@ object ArchiveMetadataConfig {
       pathBuilders <- Try(Await.result(PathBuilderFactory.instantiatePathBuilders(pathBuilderFactories.values.toList, WorkflowOptions.empty), 60.seconds))
         .toCheckedWithContext("construct Carboniter path builders from factories")
       bucket <- Try(archiveMetadataConfig.getString("bucket")).toCheckedWithContext("parse Carboniter 'bucket' field from config")
-      bucketReadLimit <- Try(archiveMetadataConfig.getOrElse[Int]("bucket-read-limit-bytes", 150000000)).toCheckedWithContext("parse Carboniter 'bucket-read-limit-bytes' field from config")
       interval <- Try(archiveMetadataConfig.getOrElse[FiniteDuration]("interval", defaultMaxInterval)).toChecked
+      databaseStreamFetchSize <- Try(archiveMetadataConfig.getOrElse[Int]("database-stream-fetch-size", 100)).toChecked
       debugLogging <- Try(archiveMetadataConfig.getOrElse("debug-logging", defaultDebugLogging)).toChecked
-    } yield ArchiveMetadataConfig(pathBuilders, bucket, bucketReadLimit, interval, debugLogging)
+    } yield ArchiveMetadataConfig(pathBuilders, bucket, interval, databaseStreamFetchSize, debugLogging)
   }
 }

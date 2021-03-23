@@ -10,6 +10,7 @@ import cats.syntax.traverse._
 import cats.instances.list._
 import cats.instances.future._
 import common.validation.Validation._
+import common.util.StringUtil.EnhancedToStringable
 import cromwell.core._
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, WorkflowQuery}
@@ -158,12 +159,11 @@ trait MetadataDatabaseAccess {
     }
   }
 
-  def metadataEventsStream(query: MetadataQuery, timeout: Duration)(implicit ec: ExecutionContext): Try[DatabasePublisher[MetadataEntry]] = query match {
+  def metadataEventsStream(query: MetadataQuery, fetchSize: Int, timeout: Duration)(implicit ec: ExecutionContext): Try[DatabasePublisher[MetadataEntry]] = query match {
     case MetadataQuery(workflowId, None, None, None, None, false) =>
-      Try(metadataDatabaseInterface.streamMetadataEntries(workflowId.id.toString, timeout))
-    case MetadataQuery(workflowId, None, None, None, None, true) =>
-      System.err.println(s"Oops! Not actually scanning for subworkflows of ${workflowId.id.toString}")
-      Try(metadataDatabaseInterface.streamMetadataEntries(workflowId.id.toString, timeout))
+      Try(metadataDatabaseInterface.streamMetadataEntries(workflowId.id.toString, fetchSize, timeout))
+    case other: MetadataQuery =>
+      Failure(new NotImplementedError(s"Unsupported MetadataQuery shape for streaming. Expected single-workflow-all-rows but got: ${other.toPrettyElidedString(1000)}"))
     case other => Failure(new Exception(s"Unexpected metadata stream query: $other") with NoStackTrace)
   }
 

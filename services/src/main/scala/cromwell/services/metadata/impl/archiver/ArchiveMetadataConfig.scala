@@ -26,6 +26,7 @@ final case class ArchiveMetadataConfig(pathBuilders: PathBuilders,
 object ArchiveMetadataConfig {
 
   // TODO: Confirm if this makes sense to the users? Should we store /bucket/parent-wf-id/sub-wf-id or /bucket/wf-id ?
+  // When deciding keep in mind that workflows can nest to arbitrary depth, mustn't exceed path length limits: /bucket/parent-wf-id/parent-wf-id/parent-wf-id/parent-wf-id/sub-wf-id
   def pathForWorkflow(id: WorkflowId, bucket: String) = s"gs://$bucket/$id/$id.csv"
 
   def parseConfig(archiveMetadataConfig: Config)(implicit system: ActorSystem): Checked[ArchiveMetadataConfig] = {
@@ -44,4 +45,3 @@ object ArchiveMetadataConfig {
     } yield ArchiveMetadataConfig(pathBuilders, bucket, bucketReadLimit, interval, debugLogging)
   }
 }
-

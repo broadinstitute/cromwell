@@ -32,7 +32,6 @@ sealed trait MetadataFreezingConfig
 final case class ActiveMetadataFreezingConfig(initialInterval: FiniteDuration,
                                         maxInterval: FiniteDuration,
                                         multiplier: Double,
-                                        minimumSummaryEntryId: Option[Long],
                                         debugLogging: Boolean) extends MetadataFreezingConfig
 case object InactiveMetadataFreezingConfig extends MetadataFreezingConfig
 
@@ -54,7 +53,6 @@ object HybridCarboniteConfig {
         val defaultInitialInterval: Duration = Duration.Inf
         val defaultMaxInterval = 5 minutes
         val defaultMultiplier = 1.1
-        val defaultMinimumSummaryEntryId: Option[Long] = None
         val defaultDebugLogging = true
 
         val freeze = carboniterConfig.getConfig("metadata-freezing")
@@ -62,19 +60,17 @@ object HybridCarboniteConfig {
         val initialInterval = Try { freeze.getOrElse("initial-interval", defaultInitialInterval) } toErrorOr
         val maxInterval = Try { freeze.getOrElse("max-interval", defaultMaxInterval) } toErrorOr
         val multiplier = Try { freeze.getOrElse("multiplier", defaultMultiplier) } toErrorOr
-        val minimumSummaryEntryId = Try { freeze.getOrElse("minimum-summary-entry-id", defaultMinimumSummaryEntryId) } toErrorOr
         val debugLogging = Try { freeze.getOrElse("debug-logging", defaultDebugLogging)}  toErrorOr
 
-        val errorOrFreezingConfig: ErrorOr[MetadataFreezingConfig] = (initialInterval, maxInterval, multiplier, minimumSummaryEntryId, debugLogging) flatMapN {
-          case (i, m, x, s, d) =>
+        val errorOrFreezingConfig: ErrorOr[MetadataFreezingConfig] = (initialInterval, maxInterval, multiplier, debugLogging) flatMapN {
+          case (i, m, x, d) =>
             i match {
               case f: FiniteDuration =>
-                val summaryCheck = if (s.exists(_ < 0)) "`minimum-summary-entry-id` must be greater than or equal to 0. Omit or set to 0 to allow all entries to be summarized.".invalidNel else "".validNel
                 val maxGteInitialCheck = if (f > m) s"'max-interval' $m should be greater than or equal to finite 'initial-interval' $f.".invalidNel else "".validNel
                 val multiplierGt1 = if (x > 1) "".validNel else "`multiplier` must be greater than 1.".invalidNel
 
-                (summaryCheck, maxGteInitialCheck, multiplierGt1) mapN {
-                  case (_, _, _) => ActiveMetadataFreezingConfig(f, m, x, s, d)
+                (maxGteInitialCheck, multiplierGt1) mapN {
+                  case (_, _) => ActiveMetadataFreezingConfig(f, m, x, d)
                 }
               case _ => InactiveMetadataFreezingConfig.validNel
             }

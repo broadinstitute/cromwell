@@ -26,7 +26,7 @@ case class WorkflowQueryParameters private(statuses: Set[String],
                                            pageSize: Option[Int],
                                            additionalQueryResultFields: Set[String],
                                            includeSubworkflows: Boolean,
-                                           minimumSummaryEntryId: Option[Long])
+                                           newestFirst: Boolean)
 
 object WorkflowQueryParameters {
 
@@ -84,6 +84,7 @@ object WorkflowQueryParameters {
     val additionalQueryResultFieldsValidation: ErrorOr[Set[String]] = AdditionalQueryResultFields.validate(valuesByCanonicalCapitalization).map(_.toSet)
     val includeSubworkflowsValidation = IncludeSubworkflows.validate(valuesByCanonicalCapitalization)
     val metadataArchiveStatusValidation: ErrorOr[Set[MetadataArchiveStatus]] = WorkflowQueryKey.MetadataArchiveStatus.validate(valuesByCanonicalCapitalization).map(_.toSet)
+    val newestFirstValidation = NewestFirst.validate(valuesByCanonicalCapitalization)
 
     // Only validate start before end if both of the individual date parsing validations have already succeeded.
     val startBeforeEndValidation: ErrorOr[Unit] = (startDateValidation, endDateValidation) match {
@@ -96,8 +97,6 @@ object WorkflowQueryParameters {
       case (Valid(sub), Valid(st)) => validateDate1BeforeDate2(sub, st, "submission", "start")
       case _ => ().validNel[String]
     }
-
-    val minimumSummaryEntryIdValidation: ErrorOr[Option[Long]] = WorkflowQueryKey.MinimumSummaryEntryId.validate(valuesByCanonicalCapitalization)
 
     (onlyRecognizedKeysValidation,
       startBeforeEndValidation,
@@ -117,9 +116,9 @@ object WorkflowQueryParameters {
       additionalQueryResultFieldsValidation,
       includeSubworkflowsValidation,
       metadataArchiveStatusValidation,
-      minimumSummaryEntryIdValidation
+      newestFirstValidation
     ) mapN {
-      (_, _, _, statuses, names, ids, labelsAnd, labelsOr, excludeLabelsAnd, excludeLabelsOr, submissionTime, startDate, endDate, page, pageSize, additionalQueryResultFields, includeSubworkflows, metadataArchiveStatus, minimumSummaryEntryId) =>
+      (_, _, _, statuses, names, ids, labelsAnd, labelsOr, excludeLabelsAnd, excludeLabelsOr, submissionTime, startDate, endDate, page, pageSize, additionalQueryResultFields, includeSubworkflows, metadataArchiveStatus, newestFirst) =>
         WorkflowQueryParameters(
           statuses,
           names,
@@ -136,7 +135,7 @@ object WorkflowQueryParameters {
           pageSize,
           additionalQueryResultFields,
           includeSubworkflows,
-          minimumSummaryEntryId
+          newestFirst
         )
     }
   }

@@ -93,7 +93,7 @@ class CarboniteWorkerActor(freezingConfig: ActiveMetadataFreezingConfig,
 
   def findWorkflowToCarbonite(): Unit = {
     workflowQueryStartTime = Option(System.currentTimeMillis())
-    serviceRegistryActor ! QueryForWorkflowsMatchingParameters(CarboniteWorkerActor.buildQueryParametersForWorkflowToCarboniteQuery(freezingConfig.minimumSummaryEntryId))
+    serviceRegistryActor ! QueryForWorkflowsMatchingParameters(CarboniteWorkerActor.buildQueryParametersForWorkflowToCarboniteQuery)
   }
 
 
@@ -124,15 +124,16 @@ object CarboniteWorkerActor {
   sealed trait CarboniteWorkerMessage
   case class CarboniteWorkflowComplete(workflowId: WorkflowId, result: cromwell.services.metadata.MetadataArchiveStatus) extends CarboniteWorkerMessage
 
-  def buildQueryParametersForWorkflowToCarboniteQuery(minimumSummaryEntryId: Option[Long]): Seq[(String, String)] = Seq(
-    IncludeSubworkflows.name -> "false",
+  val buildQueryParametersForWorkflowToCarboniteQuery: Seq[(String, String)] = Seq(
+    IncludeSubworkflows.name -> "true", // We are treating subworkflows individually for archiving purposes. Don't want to have unmanageably large files from parent WF + 10,000 sub-WFs.
     Status.name -> WorkflowSucceeded.toString,
     Status.name -> WorkflowFailed.toString,
     Status.name -> WorkflowAborted.toString,
     MetadataArchiveStatus.name -> Unarchived.toString,
     Page.name -> "1",
-    PageSize.name -> "1"
-  ) ++ minimumSummaryEntryId.map(id => MinimumSummaryEntryId.name -> s"$id")
+    PageSize.name -> "1",
+    NewestFirst.name -> "false"
+  )
 
   def props(freezingConfig: ActiveMetadataFreezingConfig, carboniterConfig: HybridCarboniteConfig, serviceRegistryActor: ActorRef, ioActor: ActorRef) =
     Props(new CarboniteWorkerActor(freezingConfig, carboniterConfig, serviceRegistryActor, ioActor))

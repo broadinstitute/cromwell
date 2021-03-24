@@ -7,7 +7,6 @@ import akka.util.Timeout
 import common.util.StringUtil.EnhancedToStringable
 import common.util.TimeUtil.EnhancedOffsetDateTime
 import cromwell.core.{WorkflowAborted, WorkflowFailed, WorkflowId, WorkflowSucceeded}
-import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.metadata.MetadataArchiveStatus.{Archived, Unarchived}
 import cromwell.services.metadata.MetadataService.{GetMetadataStreamAction, MetadataLookupStreamResponse, QueryForWorkflowsMatchingParameters, WorkflowQueryFailure, WorkflowQuerySuccess}
 import cromwell.services.metadata.WorkflowQueryKey._
@@ -23,9 +22,6 @@ import slick.basic.DatabasePublisher
 import cromwell.database.sql.tables.MetadataEntry
 import cromwell.services.metadata.MetadataQuery
 import java.io.OutputStreamWriter
-import java.io.OutputStream
-
-import cromwell.core.path.Path
 import java.nio.file.Files
 import java.nio.file.StandardOpenOption
 

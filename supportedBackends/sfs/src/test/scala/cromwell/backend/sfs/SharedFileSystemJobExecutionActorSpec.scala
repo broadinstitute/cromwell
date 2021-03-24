@@ -58,6 +58,11 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite
   private val dockerImageUbuntu = "ubuntu:latest"
 
   it should "docker pull images now so that 'DockerTest' specs below do not timeout" taggedAs DockerTest in {
+    /*
+    This is a poor substitute for `beforeAll()`.
+    If one wants to parallelize the test runs consider using a separate tagged-Suite with a `.beforeAll()`.
+    - https://medium.com/@linda0511ny/tag-whole-test-class-in-scalatest-94cd67fa85a4
+     */
     List("docker", "pull", dockerImageUbuntu).! should be(0)
   }
 

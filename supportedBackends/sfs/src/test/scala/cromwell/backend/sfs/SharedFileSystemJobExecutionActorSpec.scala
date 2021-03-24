@@ -1,7 +1,5 @@
 package cromwell.backend.sfs
 
-import java.io.FileNotFoundException
-
 import _root_.wdl.draft2.model.LocallyQualifiedName
 import akka.testkit.{TestDuration, TestProbe}
 import com.typesafe.config.ConfigFactory
@@ -31,7 +29,9 @@ import wom.graph.{CommandCallNode, WomIdentifier}
 import wom.types._
 import wom.values._
 
+import java.io.FileNotFoundException
 import scala.concurrent.duration._
+import scala.sys.process._
 
 class SharedFileSystemJobExecutionActorSpec extends TestKitSuite
   with AnyFlatSpecLike with BackendSpec with TableDrivenPropertyChecks with OptionValues {
@@ -48,11 +48,22 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite
     val expectedOutputs: CallOutputs = WomMocks.mockOutputExpectations(Map("hello.salutation" -> WomString("Hello you !")))
 
     val expectedResponse = JobSucceededResponse(mockBackendJobDescriptorKey, Some(0), expectedOutputs, None, Seq.empty, None, resultGenerationMode = RunOnBackend)
-    val runtime = if (docker) """runtime { docker: "ubuntu:latest" }""" else ""
+    val runtime = if (docker) s"""runtime { docker: "$dockerImageUbuntu" }""" else ""
     val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = runtime)
     val workflow = TestWorkflow(workflowDescriptor, TestConfig.backendRuntimeConfigDescriptor, expectedResponse)
     val backend = createBackend(jobDescriptorFromSingleCallWorkflow(workflow.workflowDescriptor, Map.empty, WorkflowOptions.empty, runtimeAttributeDefinitions), workflow.config)
     testWorkflow(workflow, backend)
+  }
+
+  private val dockerImageUbuntu = "ubuntu:latest"
+
+  it should "docker pull images now so that 'DockerTest' specs below do not timeout" taggedAs DockerTest in {
+    /*
+    This is a poor substitute for `beforeAll()`.
+    If one wants to parallelize the test runs consider using a separate tagged-Suite with a `.beforeAll()`.
+    - https://medium.com/@linda0511ny/tag-whole-test-class-in-scalatest-94cd67fa85a4
+     */
+    List("docker", "pull", dockerImageUbuntu).! should be(0)
   }
 
   it should "execute an hello world workflow" in {
@@ -121,7 +132,7 @@ class SharedFileSystemJobExecutionActorSpec extends TestKitSuite
     )
 
     forAll(localizers) { (conf, isSymlink) =>
-      val runtime = if (docker) """runtime { docker: "ubuntu:latest" } """ else ""
+      val runtime = if (docker) s"""runtime { docker: "$dockerImageUbuntu" } """ else ""
       val workflowDescriptor = buildWdlWorkflowDescriptor(InputFiles, inputs, runtime = runtime)
       val callInputs = Map(
         "inputFileFromCallInputs" -> workflowDescriptor.knownValues.collectFirst({

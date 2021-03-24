@@ -46,6 +46,7 @@ class HybridCarboniteConfigSpec extends TestKitSuite with AnyFlatSpecLike with M
           initialInterval = 5 seconds,
           maxInterval = 5 minutes,
           multiplier = 1.1,
+          minimumSummaryEntryId = None,
           debugLogging = true
         )
         c.freezingConfig shouldBe defaultFreezeScanConfig
@@ -163,7 +164,7 @@ class HybridCarboniteConfigSpec extends TestKitSuite with AnyFlatSpecLike with M
     }
   }
 
-  private def buildFreezeScanConfig(initInterval: Any, maxInterval: Any, multiplier: Any): Config = {
+  private def buildFreezeScanConfig(initInterval: Any, maxInterval: Any, multiplier: Any, minimumSummaryEntryId: Int = 0): Config = {
     ConfigFactory.parseString(s"""{
       |   bucket = "my_test_bucket"
       |   filesystems {
@@ -175,6 +176,7 @@ class HybridCarboniteConfigSpec extends TestKitSuite with AnyFlatSpecLike with M
       |     initial-interval = $initInterval
       |     max-interval = $maxInterval
       |     multiplier = $multiplier
+      |     minimum-summary-entry-id = $minimumSummaryEntryId
       |   }
       |}
       """.stripMargin)
@@ -191,6 +193,7 @@ class HybridCarboniteConfigSpec extends TestKitSuite with AnyFlatSpecLike with M
           initialInterval = 1 second,
           maxInterval = 5 seconds,
           multiplier = 1.2,
+          minimumSummaryEntryId = Some(0),
           debugLogging = true
         )
         c.freezingConfig shouldBe expectedConfig
@@ -225,13 +228,14 @@ class HybridCarboniteConfigSpec extends TestKitSuite with AnyFlatSpecLike with M
   }
 
   it should "reject more subtly invalid values in metadata-freezing config" in {
-    val config = buildFreezeScanConfig(initInterval = "10 seconds", maxInterval = "1 second", multiplier = "0.3")
+    val config = buildFreezeScanConfig(initInterval = "10 seconds", maxInterval = "1 second", multiplier = "0.3", minimumSummaryEntryId = -1)
     val carboniteConfig = HybridCarboniteConfig.parseConfig(config)
 
     carboniteConfig match {
       case Left(e) =>
-        e.size shouldBe 2
+        e.size shouldBe 3
         e.toList.toSet shouldEqual Set(
+          "Failed to parse Carboniter 'metadata-freezing' stanza (reason 1 of 3): `minimum-summary-entry-id` must be greater than or equal to 0. Omit or set to 0 to allow all entries to be summarized.",
           "Failed to parse Carboniter 'metadata-freezing' stanza (reason 2 of 3): 'max-interval' 1 second should be greater than or equal to finite 'initial-interval' 10 seconds.",
           "Failed to parse Carboniter 'metadata-freezing' stanza (reason 3 of 3): `multiplier` must be greater than 1."
         )

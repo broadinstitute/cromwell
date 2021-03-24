@@ -47,7 +47,6 @@ class ReadMetadataRegulatorActor(metadataBuilderActorProps: PropsMaker, readMeta
           }
       }
     case streamRequest: GetMetadataStreamAction =>
-      log.info(s"${self.path.name}: Forwarding metadata stream request $streamRequest to a new metadata query worker")
       val currentRequesters = apiRequests.getOrElse(streamRequest, Set.empty)
       apiRequests.put(streamRequest, currentRequesters + sender())
       if(currentRequesters.isEmpty) {

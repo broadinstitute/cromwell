@@ -62,10 +62,11 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
       result <- maybeWorkflowId match {
         case Some(id) => for {
           path <- Future(archiveMetadataConfig.makePath(id))
+          _ = log.info(s"Archiving metadata for $id to ${path.pathAsString}")
           dbStream <- fetchStreamFromDatabase(id)
           _ <- streamMetadataToGcs(path, dbStream)
           _ <- updateMetadataArchiveStatus(id, Archived)
-          _ = log.info(s"Archiving succeeded streaming metadata for $maybeWorkflowId to ${path.pathAsString}")
+          _ = log.info(s"Archiving succeeded for $id")
         } yield true
         case None => Future.successful(false)
       }

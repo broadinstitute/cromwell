@@ -106,11 +106,15 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
 
   private def buildArchiveMetadataActor: Option[ActorRef] = {
     if (serviceConfig.hasPath("archive-metadata")) {
+      log.info("Building metadata archiver from config")
       ArchiveMetadataConfig.parseConfig(serviceConfig.getConfig("archive-metadata"))(context.system) match {
         case Right(config) => Option(context.actorOf(ArchiveMetadataSchedulerActor.props(config, serviceRegistryActor), "archive-metadata-scheduler"))
         case Left(errorList) => throw AggregatedMessageException("Failed to parse the archive-metadata config", errorList.toList)
       }
-    } else None
+    } else {
+      log.info("No metadata archiver defined in config")
+      None
+    }
   }
 
   private def validateWorkflowIdInMetadata(possibleWorkflowId: WorkflowId, sender: ActorRef): Unit = {
@@ -146,8 +150,6 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
     case v: ValidateWorkflowIdInMetadata => validateWorkflowIdInMetadata(v.possibleWorkflowId, sender())
     case v: ValidateWorkflowIdInMetadataSummaries => validateWorkflowIdInMetadataSummaries(v.possibleWorkflowId, sender())
     case action: BuildMetadataJsonAction => readActor forward action
-    case streamAction: GetMetadataStreamAction =>
-      log.info(s"${self.path.name}: Forwarding $streamAction to readActor")
-      readActor forward streamAction
+    case streamAction: GetMetadataStreamAction => readActor forward streamAction
   }
 }

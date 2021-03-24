@@ -25,6 +25,7 @@ import java.io.OutputStreamWriter
 import java.nio.file.Files
 import java.nio.file.StandardOpenOption
 
+import cromwell.core.path.Path
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.impl.MetadataDatabaseAccess
 
@@ -60,9 +61,11 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
       maybeWorkflowId <- lookupNextWorkflowToArchive()
       result <- maybeWorkflowId match {
         case Some(id) => for {
+          path <- Future(archiveMetadataConfig.makePath(id))
           dbStream <- fetchStreamFromDatabase(id)
-          _ <- streamMetadataToGcs(id, dbStream)
+          _ <- streamMetadataToGcs(path, dbStream)
           _ <- updateMetadataArchiveStatus(id, Archived)
+          _ = log.info(s"Archiving succeeded streaming metadata for $maybeWorkflowId to ${path.pathAsString}")
         } yield true
         case None => Future.successful(false)
       }
@@ -96,10 +99,9 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
     }
   }
 
-  def streamMetadataToGcs(workflowId: WorkflowId, stream: DatabasePublisher[MetadataEntry]): Future[Unit] = {
+  def streamMetadataToGcs(path: Path, stream: DatabasePublisher[MetadataEntry]): Future[Unit] = {
     for {
       csvPrinter <- Future {
-        val path = archiveMetadataConfig.makePath(workflowId)
         val gcsStream = Files.newOutputStream(path.nioPath, StandardOpenOption.CREATE)
         new CSVPrinter(new OutputStreamWriter(gcsStream), CSVFormat.DEFAULT.withHeader(CsvFileHeaders : _*))
       }

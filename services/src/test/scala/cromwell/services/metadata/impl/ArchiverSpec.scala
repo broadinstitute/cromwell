@@ -11,7 +11,6 @@ import scala.language.postfixOps
 import java.time.OffsetDateTime
 
 class ArchiverSpec extends AnyFlatSpec with Matchers {
-  behavior of "Deserialization"
 
   it should "archive workflows of the right age" in {
     val notActuallyNow = OffsetDateTime.parse("2007-12-03T10:15:30+01:00")

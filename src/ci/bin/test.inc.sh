@@ -100,6 +100,8 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_WAIT_FOR_IT_BRANCH="db049716e42767d39961e95dd9696103dca813f1"
     CROMWELL_BUILD_WAIT_FOR_IT_URL="https://raw.githubusercontent.com/vishnubob/wait-for-it/${CROMWELL_BUILD_WAIT_FOR_IT_BRANCH}/${CROMWELL_BUILD_WAIT_FOR_IT_FILENAME}"
     CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_WAIT_FOR_IT_FILENAME}"
+    CROMWELL_BUILD_VAULT_ZIP="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/vault.zip"
+    CROMWELL_BUILD_VAULT_EXECUTABLE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/vault"
     CROMWELL_BUILD_EXIT_FUNCTIONS="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell_build_exit_functions.$$"
 
     if [[ -n "${VIRTUAL_ENV:+set}" ]]; then
@@ -373,10 +375,8 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_DOCKER_TAG="${CROMWELL_BUILD_DOCKER_TAG:0:128}"
     CROMWELL_BUILD_DOCKER_TAG="${CROMWELL_BUILD_DOCKER_TAG//[^a-zA-Z0-9.-]/_}"
 
-    CROMWELL_BUILD_OPTIONAL_SECURE="${CROMWELL_BUILD_OPTIONAL_SECURE-false}"
     CROMWELL_BUILD_REQUIRES_SECURE="${CROMWELL_BUILD_REQUIRES_SECURE-false}"
     CROMWELL_BUILD_REQUIRES_PRIOR_VERSION="${CROMWELL_BUILD_REQUIRES_PRIOR_VERSION-false}"
-    VAULT_TOKEN="${VAULT_TOKEN-vault token is not set as an environment variable}"
 
     local hours_to_minutes
     hours_to_minutes=60
@@ -407,7 +407,6 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_IS_VIRTUAL_ENV
     export CROMWELL_BUILD_LOG_DIRECTORY
     export CROMWELL_BUILD_NUMBER
-    export CROMWELL_BUILD_OPTIONAL_SECURE
     export CROMWELL_BUILD_OS
     export CROMWELL_BUILD_OS_DARWIN
     export CROMWELL_BUILD_OS_LINUX
@@ -429,6 +428,8 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_TAG
     export CROMWELL_BUILD_TYPE
     export CROMWELL_BUILD_URL
+    export CROMWELL_BUILD_VAULT_EXECUTABLE
+    export CROMWELL_BUILD_VAULT_ZIP
     export CROMWELL_BUILD_WAIT_FOR_IT_BRANCH
     export CROMWELL_BUILD_WAIT_FOR_IT_FILENAME
     export CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT
@@ -439,7 +440,6 @@ cromwell::private::echo_build_variables() {
     echo "CROMWELL_BUILD_IS_CI='${CROMWELL_BUILD_IS_CI}'"
     echo "CROMWELL_BUILD_IS_SECURE='${CROMWELL_BUILD_IS_SECURE}'"
     echo "CROMWELL_BUILD_REQUIRES_SECURE='${CROMWELL_BUILD_REQUIRES_SECURE}'"
-    echo "CROMWELL_BUILD_OPTIONAL_SECURE='${CROMWELL_BUILD_OPTIONAL_SECURE}'"
     echo "CROMWELL_BUILD_TYPE='${CROMWELL_BUILD_TYPE}'"
     echo "CROMWELL_BUILD_BRANCH='${CROMWELL_BUILD_BRANCH}'"
     echo "CROMWELL_BUILD_IS_HOTFIX='${CROMWELL_BUILD_IS_HOTFIX}'"
@@ -816,6 +816,14 @@ cromwell::private::install_wait_for_it() {
     chmod +x "$CROMWELL_BUILD_WAIT_FOR_IT_SCRIPT"
 }
 
+cromwell::private::install_vault() {
+    curl \
+        --location --fail --silent --show-error \
+        --output "${CROMWELL_BUILD_VAULT_ZIP}" \
+        "https://releases.hashicorp.com/vault/1.6.3/vault_1.6.3_${CROMWELL_BUILD_OS}_amd64.zip"
+    unzip "${CROMWELL_BUILD_VAULT_ZIP}" -d "$(dirname "${CROMWELL_BUILD_VAULT_EXECUTABLE}")"
+}
+
 cromwell::private::install_git_secrets() {
     # Only install git-secrets on CI. Users should have already installed the executable.
     if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
@@ -976,47 +984,59 @@ cromwell::private::write_cwl_test_inputs() {
 JSON
 }
 
-cromwell::private::docker_login() {
+cromwell::private::vault_run() {
     if cromwell::private::is_xtrace_enabled; then
-        cromwell::private::exec_silent_function cromwell::private::docker_login
+        cromwell::private::exec_silent_function cromwell::private::vault_run "$@"
     else
-        local dockerhub_auth_include
-        dockerhub_auth_include="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/dockerhub_auth.inc.sh"
-        if [[ -f "${dockerhub_auth_include}" ]]; then
-            # shellcheck source=/dev/null
-            source "${dockerhub_auth_include}"
+        # Run a vault executable that is NOT hosted inside of a docker.io image.
+        # For those committers with vault access this avoids pull rate limits reported in BT-143.
+        VAULT_ADDR=https://clotho.broadinstitute.org:8200 "${CROMWELL_BUILD_VAULT_EXECUTABLE}" "$@"
+    fi
+}
+
+cromwell::private::login_vault() {
+    if cromwell::private::is_xtrace_enabled; then
+        cromwell::private::exec_silent_function cromwell::private::login_vault
+    else
+        local vault_token
+
+        # shellcheck disable=SC2153
+        if [[ -n "${VAULT_ROLE_ID:+set}" ]] && [[ -n "${VAULT_SECRET_ID:+set}" ]]; then
+            vault_token="$(
+                cromwell::private::vault_run \
+                    write -field=token \
+                    auth/approle/login role_id="${VAULT_ROLE_ID}" secret_id="${VAULT_SECRET_ID}"
+            )"
+        else
+            vault_token="${VAULT_TOKEN:-}"
+        fi
+
+        if [[ -n "${vault_token}" ]]; then
+            # Don't fail here if vault login fails
+            # shellcheck disable=SC2015
+            cromwell::private::vault_run \
+                login "${vault_token}" < /dev/null > /dev/null \
+                && echo vault login success \
+                || true
         fi
     fi
 }
 
-cromwell::private::vault_login() {
+cromwell::private::login_docker() {
     if cromwell::private::is_xtrace_enabled; then
-        cromwell::private::exec_silent_function cromwell::private::vault_login
-    elif [[ "${CROMWELL_BUILD_IS_SECURE}" == "true" ]]; then
-        case "${CROMWELL_BUILD_PROVIDER}" in
-            "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
-            "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
+        cromwell::private::exec_silent_function cromwell::private::login_docker
+    else
+        local docker_username
+        local docker_password
 
-                if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_CIRCLE}" ]]; then
-                  VAULT_TOKEN=$( docker run --rm -v "${CROMWELL_BUILD_HOME_DIRECTORY}:/root:rw" \
-                    broadinstitute/dsde-toolbox:dev vault write -field=token auth/approle/login \
-                    role_id="${VAULT_ROLE_ID}" secret_id="${VAULT_SECRET_ID}" )
-                fi
-
-                # Login to vault to access secrets
-                local vault_token
-                vault_token="${VAULT_TOKEN}"
-                # Don't fail here if vault login fails
-                # shellcheck disable=SC2015
-                docker run --rm \
-                    -v "${CROMWELL_BUILD_HOME_DIRECTORY}:/root:rw" \
-                    broadinstitute/dsde-toolbox:dev \
-                    vault auth "${vault_token}" < /dev/null > /dev/null && echo vault auth success \
-                || true
-                ;;
-            *)
-                ;;
-        esac
+        # Do not fail if docker login fails. We'll try to pull images anonymously.
+        docker_username="$(
+            cromwell::private::vault_run read -field=username secret/dsde/cromwell/common/cromwell-dockerhub || true
+        )"
+        docker_password="$(
+            cromwell::private::vault_run read -field=password secret/dsde/cromwell/common/cromwell-dockerhub || true
+        )"
+        docker login --username "${docker_username}" --password-stdin <<< "${docker_password}" || true
     fi
 }
 
@@ -1045,24 +1065,24 @@ cromwell::private::copy_all_resources() {
 }
 
 cromwell::private::setup_secure_resources() {
-    if [[ "${CROMWELL_BUILD_REQUIRES_SECURE}" == "true" ]] || [[ "${CROMWELL_BUILD_OPTIONAL_SECURE}" == "true" ]]; then
-        case "${CROMWELL_BUILD_PROVIDER}" in
-            "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
-            "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
-                cromwell::private::vault_login
-                cromwell::private::render_secure_resources
-                cromwell::private::docker_login
-                ;;
-            "${CROMWELL_BUILD_PROVIDER_JENKINS}")
-                cromwell::private::copy_all_resources
-                ;;
-            *)
-                cromwell::private::render_secure_resources
-                ;;
-        esac
-    else
-        cromwell::private::copy_all_resources
-    fi
+    case "${CROMWELL_BUILD_PROVIDER}" in
+        "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
+        "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
+            # Try to login to vault, and if successful then use vault creds to login to docker.
+            # For those committers with vault access this avoids pull rate limits reported in BT-143.
+            cromwell::private::install_vault
+            cromwell::private::login_vault
+            cromwell::private::login_docker
+            cromwell::private::render_secure_resources
+            ;;
+        "${CROMWELL_BUILD_PROVIDER_JENKINS}")
+            # Jenkins secret resources should have already been rendered outside the CI's docker-compose container.
+            cromwell::private::copy_all_resources
+            ;;
+        *)
+            cromwell::private::render_secure_resources
+            ;;
+    esac
 }
 
 cromwell::private::make_build_directories() {

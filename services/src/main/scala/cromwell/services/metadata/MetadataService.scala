@@ -112,7 +112,7 @@ object MetadataService {
     override def workflowId: WorkflowId = key.workflowId
   }
 
-  final case class GetMetadataStreamAction(key: MetadataQuery, fetchSize: Int) extends MetadataServiceAction
+  final case class GetMetadataStreamAction(workflowId: WorkflowId, fetchSize: Int) extends MetadataServiceAction
 
   final case class GetStatus(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
   final case class GetLabels(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
@@ -139,8 +139,8 @@ object MetadataService {
     def reason: Throwable
   }
 
-  final case class MetadataLookupStreamResponse(query: MetadataQuery, result: DatabasePublisher[MetadataEntry]) extends MetadataServiceResponse
-  final case class MetadataLookupStreamFailedResponse(query: MetadataQuery, reason: Throwable) extends MetadataServiceResponse
+  final case class MetadataLookupStreamSuccess(id: WorkflowId, result: DatabasePublisher[MetadataEntry]) extends MetadataServiceResponse
+  final case class MetadataLookupStreamFailed(id: WorkflowId, reason: Throwable) extends MetadataServiceResponse
   final case class MetadataLookupFailedTooLargeResponse(query: MetadataQuery, metadataSizeRows: Int) extends MetadataServiceResponse
   final case class MetadataLookupFailedTimeoutResponse(query: MetadataQuery) extends MetadataServiceResponse
 

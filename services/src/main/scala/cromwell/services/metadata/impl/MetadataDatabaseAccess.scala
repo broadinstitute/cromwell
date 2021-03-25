@@ -4,13 +4,12 @@ import java.time.OffsetDateTime
 
 import cats.Semigroup
 import cats.data.NonEmptyList
+import cats.instances.future._
+import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.semigroup._
 import cats.syntax.traverse._
-import cats.instances.list._
-import cats.instances.future._
 import common.validation.Validation._
-import common.util.StringUtil.EnhancedToStringable
 import cromwell.core._
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, WorkflowQuery}
@@ -24,8 +23,7 @@ import slick.basic.DatabasePublisher
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Try}
-import scala.util.control.NoStackTrace
+import scala.util.Try
 
 object MetadataDatabaseAccess {
 
@@ -159,12 +157,8 @@ trait MetadataDatabaseAccess {
     }
   }
 
-  def metadataEventsStream(query: MetadataQuery, fetchSize: Int, timeout: Duration)(implicit ec: ExecutionContext): Try[DatabasePublisher[MetadataEntry]] = query match {
-    case MetadataQuery(workflowId, None, None, None, None, false) =>
-      Try(metadataDatabaseInterface.streamMetadataEntries(workflowId.id.toString, fetchSize, timeout))
-    case other: MetadataQuery =>
-      Failure(new NotImplementedError(s"Unsupported MetadataQuery shape for streaming. Expected single-workflow-all-rows but got: ${other.toPrettyElidedString(1000)}"))
-    case other => Failure(new Exception(s"Unexpected metadata stream query: $other") with NoStackTrace)
+  def metadataEventsStream(workflowId: WorkflowId, fetchSize: Int): Try[DatabasePublisher[MetadataEntry]] = {
+    Try(metadataDatabaseInterface.streamMetadataEntries(workflowId.id.toString, fetchSize))
   }
 
   def queryMetadataEvents(query: MetadataQuery, timeout: Duration)(implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {

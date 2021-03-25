@@ -132,7 +132,7 @@ object CarboniteWorkerActor {
     MetadataArchiveStatus.name -> Unarchived.toString,
     Page.name -> "1",
     PageSize.name -> "1"
-  ) ++ minimumSummaryEntryId.map(id => MinimumSummaryEntryId.name -> s"$id")
+  )
 
   def props(freezingConfig: ActiveMetadataFreezingConfig, carboniterConfig: HybridCarboniteConfig, serviceRegistryActor: ActorRef, ioActor: ActorRef) =
     Props(new CarboniteWorkerActor(freezingConfig, carboniterConfig, serviceRegistryActor, ioActor))

@@ -8,7 +8,7 @@ import common.util.StringUtil.EnhancedToStringable
 import common.util.TimeUtil.EnhancedOffsetDateTime
 import cromwell.core.{WorkflowAborted, WorkflowFailed, WorkflowId, WorkflowSucceeded}
 import cromwell.services.metadata.MetadataArchiveStatus.{Archived, Unarchived}
-import cromwell.services.metadata.MetadataService.{GetMetadataStreamAction, MetadataLookupStreamResponse, QueryForWorkflowsMatchingParameters, WorkflowQueryFailure, WorkflowQuerySuccess}
+import cromwell.services.metadata.MetadataService.{GetMetadataStreamAction, MetadataLookupStreamSuccess, QueryForWorkflowsMatchingParameters, WorkflowQueryFailure, WorkflowQuerySuccess}
 import cromwell.services.metadata.WorkflowQueryKey._
 import cromwell.services.metadata.impl.archiver.ArchiveMetadataSchedulerActor._
 import cromwell.util.GracefulShutdownHelper
@@ -20,7 +20,6 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 import slick.basic.DatabasePublisher
 import cromwell.database.sql.tables.MetadataEntry
-import cromwell.services.metadata.MetadataQuery
 
 import java.io.OutputStreamWriter
 import java.nio.file.Files
@@ -87,16 +86,8 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   }
 
   def fetchStreamFromDatabase(workflowId: WorkflowId): Future[DatabasePublisher[MetadataEntry]] = {
-    (serviceRegistryActor ? GetMetadataStreamAction(
-      MetadataQuery(
-        workflowId = workflowId,
-        jobKey = None,
-        key = None,
-        includeKeysOption = None,
-        excludeKeysOption = None,
-        expandSubWorkflows = false
-      ), archiveMetadataConfig.databaseStreamFetchSize)) flatMap {
-      case MetadataLookupStreamResponse(_, responseStream) => Future.successful(responseStream)
+    (serviceRegistryActor ? GetMetadataStreamAction(workflowId, archiveMetadataConfig.databaseStreamFetchSize)) flatMap {
+      case MetadataLookupStreamSuccess(_, responseStream) => Future.successful(responseStream)
       case other => Future.failed(new Exception(s"Failed to get metadata stream: ${other.toPrettyElidedString(1000)}"))
     }
   }

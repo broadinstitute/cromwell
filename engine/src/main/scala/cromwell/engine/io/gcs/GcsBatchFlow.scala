@@ -1,7 +1,8 @@
 package cromwell.engine.io.gcs
 
-import java.io.IOException
+import akka.NotUsed
 
+import java.io.IOException
 import akka.actor.Scheduler
 import akka.stream._
 import akka.stream.scaladsl.{Flow, GraphDSL, MergePreferred, Partition}
@@ -13,10 +14,11 @@ import com.typesafe.scalalogging.StrictLogging
 import common.util.StringUtil.EnhancedToStringable
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
+import cromwell.core.io.IoAck
 import cromwell.engine.io.IoActor._
 import cromwell.engine.io.IoAttempts.EnhancedCromwellIoException
-import cromwell.engine.io.RetryableRequestSupport.{isRetryable, isInfinitelyRetryable}
-import cromwell.engine.io.gcs.GcsBatchFlow.{BatchFailedException, _}
+import cromwell.engine.io.RetryableRequestSupport.{isInfinitelyRetryable, isRetryable}
+import cromwell.engine.io.gcs.GcsBatchFlow._
 import cromwell.engine.io.{IoAttempts, IoCommandContext}
 import mouse.boolean._
 
@@ -81,16 +83,22 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
     * object when the internal queue is "dirty" with a .size() > 0.
     */
   private def newBatchRequest(): BatchRequest = {
-    val storage = new Storage.Builder(
+    val builder = new Storage.Builder(
       GcsStorage.HttpTransport,
       JacksonFactory.getDefaultInstance,
       httpRequestInitializer
     ).setApplicationName(applicationName)
-
-    storage.build().batch()
+    val client = builder.build()
+    client.batch(client.getRequestFactory.getInitializer)
   }
 
-  val flow = GraphDSL.create() { implicit builder =>
+  val flow: Graph[
+    FlowShape[
+      GcsBatchCommandContext[_, _],
+      (IoAck[_], IoCommandContext[_]),
+    ],
+    NotUsed,
+  ] = GraphDSL.create() { implicit builder =>
     import GraphDSL.Implicits._
 
     // Source where batch commands are coming from. This is the input port of this flow
@@ -148,7 +156,7 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
   }
 
   private def executeBatch(contexts: Seq[GcsBatchCommandContext[_, _]]): List[Future[GcsBatchResponse[_]]] = {
-    def failAllPromisesWith(failure: Throwable) = contexts foreach { context =>
+    def failAllPromisesWith(failure: Throwable): Unit = contexts foreach { context =>
       context.promise.tryFailure(failure)
       ()
     }

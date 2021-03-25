@@ -16,13 +16,11 @@ final class HealthMonitorServiceActor(serviceConfig: Config, globalConfig: Confi
     val dockerHubSubsystemOption = if (serviceConfig.getBoolean("check-dockerhub")) Some(DockerHub) else None
     val engineDatabaseSubsystemOption = if (serviceConfig.getBoolean("check-engine-database")) Some(EngineDb) else None
     val gcsSubsystemOption = if (serviceConfig.getBoolean("check-gcs")) Some(Gcs) else None
-    val carboniterGcsSubsystemOption = serviceConfig.getOrElse[Boolean]("check-carboniter-gcs-access", false).option(CarboniterGcsAccess)
 
     Set(
       dockerHubSubsystemOption,
       engineDatabaseSubsystemOption,
       gcsSubsystemOption,
-      carboniterGcsSubsystemOption,
     ).flatten ++ PapiSubsystems
   }
 }

@@ -126,8 +126,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
         |    }]
         |  },
         |  "NOT_CHECKED": "NOT_CHECKED",
-        |  "id": "$workflowA",
-        |  "metadataSource": "Unarchived"
+        |  "id": "$workflowA"
       |}""".stripMargin
 
     val mdQuery = MetadataQuery(workflowA, None, None, None, None, expandSubWorkflows = false)
@@ -168,10 +167,10 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
                                 ): Future[Assertion] = {
 
     val events = eventList map { e => (e._1, MetadataValue(e._2), e._3) } map Function.tupled(eventMaker(workflow))
-    val expectedRes = s"""{ "calls": {}, $expectedJson, "id":"$workflow", "metadataSource": "Unarchived" }"""
+    val expectedRes = s"""{ "calls": {}, $expectedJson, "id":"$workflow" }"""
 
     val mdQuery = MetadataQuery(workflow, None, None, None, None, expandSubWorkflows = false)
-    val queryAction = GetSingleWorkflowMetadataAction(workflow, None, None, expandSubWorkflows = false, metadataSourceOverride = None)
+    val queryAction = GetSingleWorkflowMetadataAction(workflow, None, None, expandSubWorkflows = false)
     assertMetadataResponse(queryAction, mdQuery, events, expectedRes, metadataBuilderActorName)
   }
 
@@ -438,8 +437,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
           | "f": true,
           | "g": false,
           | "h": "false",
-          | "id":"$workflowId",
-          | "metadataSource": "Unarchived"
+          | "id":"$workflowId"
           | }
       """.stripMargin
 
@@ -466,8 +464,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       s"""{
           | "calls": {},
           | "i": "UnknownClass(50)",
-          | "id":"$workflowId",
-          | "metadataSource": "Unarchived"
+          | "id":"$workflowId"
           |}
       """.stripMargin
 
@@ -493,8 +490,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       s"""{
           | "calls": {},
           | "i": "notAnInt",
-          | "id":"$workflowId",
-          | "metadataSource": "Unarchived"
+          | "id":"$workflowId"
           |}
       """.stripMargin
 
@@ -506,20 +502,6 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       events = events,
       expectedRes = expectedResponse,
       metadataBuilderActorName = "mba-coerce-fails",
-    )
-  }
-
-  it should "add metadataSource field even if rendered Json is empty" in {
-    val workflowId = WorkflowId.randomId()
-    val mdQuery = MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)
-    val queryAction = GetMetadataAction(mdQuery)
-    val expectedEmptyResponse = """{"metadataSource": "Unarchived"}"""
-    assertMetadataResponse(
-      action = queryAction,
-      queryReply = mdQuery,
-      events = List.empty,
-      expectedRes = expectedEmptyResponse,
-      metadataBuilderActorName = "mba-json-empty",
     )
   }
 
@@ -543,8 +525,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
           | "calls": {},
           | "hey": {},
           | "emptyList": [],
-          | "id":"$workflowId",
-          | "metadataSource": "Unarchived"
+          | "id":"$workflowId"
           |}
       """.stripMargin
 
@@ -563,8 +544,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
           | "calls": {},
           | "hey": "something",
           | "emptyList": ["something", "something"],
-          | "id":"$workflowId",
-          | "metadataSource": "Unarchived"
+          | "id":"$workflowId"
           |}
       """.stripMargin
 
@@ -574,36 +554,6 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       events = valueEvents,
       expectedRes = expectedNonEmptyResponse,
       metadataBuilderActorName = "mba-non-empty-values",
-    )
-  }
-
-  it should "not include metadataSource field if includeKeys field is defined in request" in {
-    val workflowId = WorkflowId.randomId()
-    val value = MetadataValue("something")
-    val valueEvents = List(
-      MetadataEvent(MetadataKey(workflowId, None, "hey"), Option(value), OffsetDateTime.now().plusSeconds(1L)),
-      MetadataEvent(MetadataKey(workflowId, None, "emptyList[0]"), Option(value), OffsetDateTime.now().plusSeconds(1L)),
-      MetadataEvent(MetadataKey(workflowId, None, "emptyList[1]"), Option(value), OffsetDateTime.now().plusSeconds(1L))
-    )
-
-    val mdQuery = MetadataQuery(workflowId, None, None, includeKeysOption = Option(NonEmptyList.of("hey")), None, expandSubWorkflows = false)
-    val queryAction = GetMetadataAction(mdQuery)
-
-    val expectedResponse =
-      s"""{
-         | "calls": {},
-         | "hey": "something",
-         | "emptyList": ["something", "something"],
-         | "id":"$workflowId"
-         |}
-      """.stripMargin
-
-    assertMetadataResponse(
-      action = queryAction,
-      queryReply = mdQuery,
-      events = valueEvents,
-      expectedRes = expectedResponse,
-      metadataBuilderActorName = "mba-exclude-includeKeys",
     )
   }
   
@@ -658,8 +608,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
          |      }
          |    ]
          |  },
-         |  "id": "$mainWorkflowId",
-         |  "metadataSource": "Unarchived"
+         |  "id": "$mainWorkflowId"
          |}
        """.stripMargin
 
@@ -706,8 +655,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
          |      }  
          |    ]
          |  },
-         |  "id": "$mainWorkflowId",
-         |  "metadataSource": "Unarchived"
+         |  "id": "$mainWorkflowId"
          |}
        """.stripMargin
 
@@ -840,8 +788,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
          |    "Quux": [{ "attempt": 1, "executionStatus": "Bypassed", "shardIndex": -1 }],
          |    "Quuux": [{ "attempt": 1, "executionStatus": "Unstartable", "shardIndex": -1 }]
          |  },
-         |  "id": "$workflowId",
-         |  "metadataSource": "Unarchived"
+         |  "id": "$workflowId"
          |}""".stripMargin
 
     val mdQuery = MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)

@@ -1,5 +1,14 @@
 # Cromwell Change Log
 
+## 60 Release notes
+
+### Warning! Breaking Change: Carboniting Removed
+
+All carboniting functionality has been removed from Cromwell. If you had previously enabled carboniting and deletion,
+any workflows marked as ArchivedAndPurged in your database will no longer be accessible via the cromwell metadata API.
+This is in line with future archiving plans for Cromwell which will allow a more scalable form of archiving, but not
+automated retrieval via the service APIs.
+
 ## 59 Release Notes
 
 ### Bug Fixes

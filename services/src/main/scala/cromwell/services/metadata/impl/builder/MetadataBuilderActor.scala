@@ -345,12 +345,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, metadataReadRow
 
   def buildAndStop(query: MetadataQuery, eventsList: Seq[MetadataEvent], expandedValues: Map[String, JsValue], target: ActorRef, originalRequest: BuildMetadataJsonAction) = {
     val groupedEvents = groupEvents(eventsList)
-    val intermediate = processMetadataEvents(query, groupedEvents, expandedValues).fields
-    val res =
-      if (query.includeKeysOption.isDefined || isForSubworkflows)
-        intermediate
-      else
-        intermediate + (WorkflowMetadataKeys.MetadataSource -> JsString("Unarchived"))
+    val res = processMetadataEvents(query, groupedEvents, expandedValues).fields
     target ! SuccessfulMetadataJsonResponse(originalRequest, JsObject(res))
     allDone()
   }

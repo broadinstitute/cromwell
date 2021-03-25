@@ -45,9 +45,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
   def streamMetadataEntries(workflowExecutionUuid: String,
-                            fetchSize: Int,
-                            timeout: Duration)
-                           (implicit ec: ExecutionContext): DatabasePublisher[MetadataEntry]
+                            fetchSize: Int): DatabasePublisher[MetadataEntry]
 
   def countMetadataEntries(workflowExecutionUuid: String,
                            expandSubWorkflows: Boolean,

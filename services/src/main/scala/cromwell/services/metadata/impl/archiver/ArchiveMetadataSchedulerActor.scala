@@ -1,32 +1,31 @@
 package cromwell.services.metadata.impl.archiver
 
-import org.apache.commons.csv.{CSVFormat, CSVPrinter}
+import java.io.OutputStreamWriter
+import java.nio.file.{Files, StandardOpenOption}
+
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import common.util.StringUtil.EnhancedToStringable
 import common.util.TimeUtil.EnhancedOffsetDateTime
+import cromwell.core.path.Path
 import cromwell.core.{WorkflowAborted, WorkflowFailed, WorkflowId, WorkflowSucceeded}
+import cromwell.database.sql.SqlConverters.{ClobOptionToRawString, TimestampToSystemOffsetDateTime}
+import cromwell.database.sql.tables.MetadataEntry
+import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataArchiveStatus.{Archived, Unarchived}
 import cromwell.services.metadata.MetadataService.{GetMetadataStreamAction, MetadataLookupStreamFailed, MetadataLookupStreamSuccess, QueryForWorkflowsMatchingParameters, WorkflowQueryFailure, WorkflowQuerySuccess}
 import cromwell.services.metadata.WorkflowQueryKey._
+import cromwell.services.metadata.impl.MetadataDatabaseAccess
 import cromwell.services.metadata.impl.archiver.ArchiveMetadataSchedulerActor._
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
-import cromwell.database.sql.SqlConverters.{ClobOptionToRawString, TimestampToSystemOffsetDateTime}
-
-import scala.concurrent.{ExecutionContext, Future}
-import scala.concurrent.duration._
-import scala.util.{Failure, Success}
+import org.apache.commons.csv.{CSVFormat, CSVPrinter}
 import slick.basic.DatabasePublisher
-import cromwell.database.sql.tables.MetadataEntry
 
-import java.io.OutputStreamWriter
-import java.nio.file.Files
-import java.nio.file.StandardOpenOption
-import cromwell.core.path.Path
-import cromwell.services.MetadataServicesStore
-import cromwell.services.metadata.impl.MetadataDatabaseAccess
+import scala.concurrent.duration._
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success}
 
 import java.time.OffsetDateTime
 

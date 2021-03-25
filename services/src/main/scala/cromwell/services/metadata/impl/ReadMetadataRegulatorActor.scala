@@ -6,7 +6,6 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.services.MetadataJsonResponse
 import cromwell.services.metadata.MetadataService
-
 import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, BuildWorkflowMetadataJsonAction, GetMetadataStreamAction, MetadataLookupStreamSuccess, MetadataQueryResponse, MetadataServiceAction, MetadataServiceResponse, RootAndSubworkflowLabelsLookupResponse}
 import cromwell.services.metadata.impl.ReadMetadataRegulatorActor.PropsMaker
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor

@@ -19,6 +19,8 @@ final case class ArchiveMetadataConfig(pathBuilders: PathBuilders,
                                        bucket: String,
                                        interval: FiniteDuration,
                                        databaseStreamFetchSize: Int,
+                                       archiveDelay: FiniteDuration,
+                                       deleteDelay: FiniteDuration,
                                        debugLogging: Boolean) {
   def makePath(workflowId: WorkflowId): Path = PathFactory.buildPath(ArchiveMetadataConfig.pathForWorkflow(workflowId, bucket), pathBuilders)
 }
@@ -30,6 +32,8 @@ object ArchiveMetadataConfig {
 
   def parseConfig(archiveMetadataConfig: Config)(implicit system: ActorSystem): Checked[ArchiveMetadataConfig] = {
     val defaultMaxInterval: FiniteDuration = 5 minutes
+    val defaultArchiveDelay = 365 days
+    val defaultDeleteDelay  = 400 days
     val defaultDebugLogging = true
 
     for {
@@ -40,8 +44,10 @@ object ArchiveMetadataConfig {
       bucket <- Try(archiveMetadataConfig.getString("bucket")).toCheckedWithContext("parse Carboniter 'bucket' field from config")
       interval <- Try(archiveMetadataConfig.getOrElse[FiniteDuration]("interval", defaultMaxInterval)).toChecked
       databaseStreamFetchSize <- Try(archiveMetadataConfig.getOrElse[Int]("database-stream-fetch-size", 100)).toChecked
+      archiveDelay <- Try(archiveMetadataConfig.getOrElse("archive-delay", defaultArchiveDelay)).toChecked
+      deleteDelay  <- Try(archiveMetadataConfig.getOrElse("delete-delay",  defaultDeleteDelay)).toChecked
       debugLogging <- Try(archiveMetadataConfig.getOrElse("debug-logging", defaultDebugLogging)).toChecked
-    } yield ArchiveMetadataConfig(pathBuilders, bucket, interval, databaseStreamFetchSize, debugLogging)
+    } yield ArchiveMetadataConfig(pathBuilders, bucket, interval, databaseStreamFetchSize, archiveDelay, deleteDelay, debugLogging)
   }
 }
 

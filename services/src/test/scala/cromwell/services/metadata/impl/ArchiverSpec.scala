@@ -1,0 +1,30 @@
+package cromwell.services.metadata.impl
+
+import cromwell.services.metadata.WorkflowQueryKey.EndDate
+import cromwell.services.metadata.impl.archiver.{ArchiveMetadataSchedulerActor, DeleteMetadataActor}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.must.Matchers
+
+import scala.concurrent.duration._
+import scala.language.postfixOps
+import scala.language.postfixOps
+import java.time.OffsetDateTime
+
+class ArchiverSpec extends AnyFlatSpec with Matchers {
+  behavior of "Deserialization"
+
+  it should "archive workflows of the right age" in {
+    val notActuallyNow = OffsetDateTime.parse("2007-12-03T10:15:30+01:00")
+    val result = ArchiveMetadataSchedulerActor.queryParametersForWorkflowsToArchive(notActuallyNow, 38 days).toMap
+
+    assert(result(EndDate.name) == "2007-10-26T09:15:30.000Z")
+  }
+
+  it should "delete workflows of the right age" in {
+    val notActuallyNow = OffsetDateTime.parse("2007-12-03T10:15:30+01:00")
+    val result = DeleteMetadataActor.queryParametersForWorkflowsToDelete(notActuallyNow, 42 days).toMap
+
+    assert(result(EndDate.name) == "2007-10-22T09:15:30.000Z")
+  }
+
+}

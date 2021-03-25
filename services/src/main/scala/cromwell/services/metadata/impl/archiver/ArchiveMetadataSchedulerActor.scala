@@ -8,7 +8,7 @@ import common.util.StringUtil.EnhancedToStringable
 import common.util.TimeUtil.EnhancedOffsetDateTime
 import cromwell.core.{WorkflowAborted, WorkflowFailed, WorkflowId, WorkflowSucceeded}
 import cromwell.services.metadata.MetadataArchiveStatus.{Archived, Unarchived}
-import cromwell.services.metadata.MetadataService.{GetMetadataStreamAction, MetadataLookupStreamSuccess, QueryForWorkflowsMatchingParameters, WorkflowQueryFailure, WorkflowQuerySuccess}
+import cromwell.services.metadata.MetadataService.{GetMetadataStreamAction, MetadataLookupStreamFailed, MetadataLookupStreamSuccess, QueryForWorkflowsMatchingParameters, WorkflowQueryFailure, WorkflowQuerySuccess}
 import cromwell.services.metadata.WorkflowQueryKey._
 import cromwell.services.metadata.impl.archiver.ArchiveMetadataSchedulerActor._
 import cromwell.util.GracefulShutdownHelper
@@ -63,10 +63,11 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
       result <- maybeWorkflowId match {
         case Some(id) => for {
           path <- Future(archiveMetadataConfig.makePath(id))
+          _ = log.info(s"Archiving metadata for $id to ${path.pathAsString}")
           dbStream <- fetchStreamFromDatabase(id)
           _ <- streamMetadataToGcs(path, dbStream)
           _ <- updateMetadataArchiveStatus(id, Archived)
-          _ = log.info(s"Archiving succeeded streaming metadata for $maybeWorkflowId to ${path.pathAsString}")
+          _ = log.info(s"Archiving succeeded for $id")
         } yield true
         case None => Future.successful(false)
       }
@@ -88,6 +89,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   def fetchStreamFromDatabase(workflowId: WorkflowId): Future[DatabasePublisher[MetadataEntry]] = {
     (serviceRegistryActor ? GetMetadataStreamAction(workflowId, archiveMetadataConfig.databaseStreamFetchSize)) flatMap {
       case MetadataLookupStreamSuccess(_, responseStream) => Future.successful(responseStream)
+      case MetadataLookupStreamFailed(_, reason) => Future.failed(new Exception(s"Failed to get metadata stream", reason))
       case other => Future.failed(new Exception(s"Failed to get metadata stream: ${other.toPrettyElidedString(1000)}"))
     }
   }

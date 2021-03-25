@@ -407,9 +407,12 @@ trait WorkflowMetadataSummaryEntryComponent {
     // `true` for queries, newest workflows are the most relevant
     // `false` for archiving, going oldest-to-newest
     val orderByAddendum = if (newestFirst)
-      sql"""  ORDER BY #${quoted("WORKFLOW_METADATA_SUMMARY_ENTRY_ID")} DESC"""
+      sql"""|  ORDER BY #${quoted("WORKFLOW_METADATA_SUMMARY_ENTRY_ID")} DESC
+            |""".stripMargin
     else
-      sql"""  ORDER BY #${quoted("WORKFLOW_METADATA_SUMMARY_ENTRY_ID")} ASC"""
+      sql"""|  ORDER BY #${quoted("WORKFLOW_METADATA_SUMMARY_ENTRY_ID")} ASC
+            |""".stripMargin
+
 
     // NB you can preview the prepared statement created here by using, for example: println(result.statements.head)
 

@@ -161,9 +161,7 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
                                      (implicit ec: ExecutionContext): Nothing = notImplemented()
 
     override def streamMetadataEntries(workflowExecutionUuid: String,
-                                       fetchSize: Int,
-                                       timeout: Duration)
-                                      (implicit ec: ExecutionContext): Nothing = notImplemented()
+                                       fetchSize: Int): Nothing = notImplemented()
 
     override def queryMetadataEntries(workflowExecutionUuid: String,
                                       metadataKey: String,

@@ -163,8 +163,11 @@ object CallCacheDiffActor {
   def extractHashes(callCachingMetadataJson: JsObject): ErrorOr[Map[String, String]] = {
     def processField(keyPrefix: String)(fieldValue: (String, JsValue)): ErrorOr[Map[String, String]] = fieldValue match {
       case (key, hashString: JsString) => Map(keyPrefix + key -> hashString.value).validNel
-      case (key, subObject: JsObject) => extractHashEntries(key + ":", subObject)
-      case (key, otherValue) => s"Cannot extract hashes for $key. Expected JsString or JsObject but got ${otherValue.getClass.getSimpleName} $otherValue".invalidNel
+      case (key, subObject: JsObject) => extractHashEntries(s"$keyPrefix$key:", subObject)
+      case (key, jsArray: JsArray) =>
+        val subObjectElements = jsArray.elements.zipWithIndex.map { case (element, index) => (s"[$index]", element) }
+        extractHashEntries(keyPrefix + key, JsObject(subObjectElements: _*))
+      case (key, otherValue) => s"Cannot extract hashes for $key. Expected JsString, JsObject, or JsArray but got ${otherValue.getClass.getSimpleName} $otherValue".invalidNel
     }
 
     def extractHashEntries(keyPrefix: String, jsObject: JsObject): ErrorOr[Map[String, String]] = {

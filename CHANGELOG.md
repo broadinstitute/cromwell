@@ -1,5 +1,15 @@
 # Cromwell Change Log
 
+## 59 Release Notes
+
+### Bug Fixes
+
+* Fixed a pair of bugs that could cause workflows to fail unexpectedly with the errors "413 Request Entity Too Large"
+  and "java.net.SocketTimeoutException: Read timed out" when accessing Google Cloud Storage.
+
+## 58 Release Notes
+
+Internal CI-related changes only.
 
 ## 57 Release Notes
 

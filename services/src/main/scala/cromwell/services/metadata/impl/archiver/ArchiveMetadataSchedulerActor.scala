@@ -52,8 +52,8 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
         log.error(error, s"Error while archiving, will retry.")
         scheduleNextWorkflowToArchive()
     })
-    case ShutdownCommand => context.stop(self)  // TODO: cancel any streaming that might be happening
-    case other => log.info(s"Programmer Error! The ArchiveMetadataSchedulerActor received unexpected message! ($sender sent $other})")
+    case ShutdownCommand => context.stop(self)  // TODO: cancel any streaming that might be happening?
+    case other => log.info(s"Programmer Error! The ArchiveMetadataSchedulerActor received unexpected message! ($sender sent ${other.toPrettyElidedString(1000)}})")
   }
 
   def archiveNextWorkflow(): Future[Boolean] = {

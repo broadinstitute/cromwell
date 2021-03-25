@@ -71,11 +71,10 @@ trait WorkflowMetadataSummaryEntryComponent {
   val workflowMetadataSummaryEntryIdsAutoInc = workflowMetadataSummaryEntries returning
     workflowMetadataSummaryEntries.map(_.workflowMetadataSummaryEntryId)
 
-  val rootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp = Compiled(
+  val workflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp = Compiled(
     (metadataArchiveStatus: Rep[Option[String]], workflowEndTimestampThreshold: Rep[Timestamp], batchSize: ConstColumn[Long]) => {
       (for {
         summary <- workflowMetadataSummaryEntries
-        if summary.rootWorkflowExecutionUuid.isEmpty && summary.parentWorkflowExecutionUuid.isEmpty // is root workflow entry
         if summary.metadataArchiveStatus === metadataArchiveStatus
         if summary.endTimestamp <= workflowEndTimestampThreshold
       } yield summary.workflowExecutionUuid).take(batchSize)
@@ -129,10 +128,10 @@ trait WorkflowMetadataSummaryEntryComponent {
     }
   )
 
-  val metadataArchiveStatusByWorkflowIdOrRootWorkflowId = Compiled(
+  val metadataArchiveStatusByWorkflowId = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
       workflowMetadataSummaryEntry <- workflowMetadataSummaryEntries
-      if workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid || workflowMetadataSummaryEntry.rootWorkflowExecutionUuid === workflowExecutionUuid
+      if workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid
     } yield workflowMetadataSummaryEntry.metadataArchiveStatus)
 
   val metadataArchiveStatusByWorkflowId = Compiled(

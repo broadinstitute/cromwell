@@ -383,7 +383,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   }
 
   override def updateMetadataArchiveStatus(workflowExecutionUuid: String, newArchiveStatus: Option[String]): Future[Int] = {
-    val action = dataAccess.metadataArchiveStatusByWorkflowIdOrRootWorkflowId(workflowExecutionUuid).update(newArchiveStatus)
+    val action = dataAccess.metadataArchiveStatusByWorkflowId(workflowExecutionUuid).update(newArchiveStatus)
     runTransaction(action)
   }
 
@@ -459,11 +459,11 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action)
   }
 
-  override def deleteNonLabelMetadataForWorkflowAndUpdateArchiveStatus(rootWorkflowId: String, newArchiveStatus: Option[String])(implicit ec: ExecutionContext): Future[Int] = {
+  override def deleteAllMetadataForWorkflowAndUpdateArchiveStatus(workflowId: String, newArchiveStatus: Option[String])(implicit ec: ExecutionContext): Future[Int] = {
     runTransaction {
       for {
-        numDeleted <- dataAccess.metadataEntriesWithoutLabelsForRootWorkflowId(rootWorkflowId).delete
-        _ <- dataAccess.metadataArchiveStatusByWorkflowIdOrRootWorkflowId(rootWorkflowId).update(newArchiveStatus)
+        numDeleted <- dataAccess.metadataEntriesForWorkflowExecutionUuid(workflowId).delete
+        _ <- dataAccess.metadataArchiveStatusByWorkflowId(workflowId).update(newArchiveStatus)
       } yield numDeleted
     }
   }
@@ -480,9 +480,9 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     )
   }
 
-  override def queryRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp, batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[String]] = {
+  override def queryWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp, batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[String]] = {
     runAction(
-      dataAccess.rootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp((archiveStatus, thresholdTimestamp, batchSize)).result
+      dataAccess.workflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp((archiveStatus, thresholdTimestamp, batchSize)).result
     )
   }
 

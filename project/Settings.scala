@@ -46,7 +46,6 @@ object Settings {
     "-Ybackend-parallelism", "3",
     "-Ycache-plugin-class-loader:last-modified",
     "-Ycache-macro-class-loader:last-modified",
-    "-target:jvm-1.8",
     "-encoding", "UTF-8"
   )
 

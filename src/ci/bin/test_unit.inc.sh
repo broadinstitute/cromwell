@@ -19,7 +19,7 @@ source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 cromwell::build::unit::setup_unit_environment() {
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
-            CROMWELL_BUILD_UNIT_SBT_MEMORY="-Xmx5g"
+            CROMWELL_BUILD_UNIT_SBT_MEMORY="-Xmx6g"
             CROMWELL_BUILD_UNIT_SPAN_SCALE_FACTOR=2
             CROMWELL_BUILD_UNIT_EXCLUDE_TAGS="AwsTest,CromwellIntegrationTest,DbmsTest,GcsIntegrationTest"
             ;;

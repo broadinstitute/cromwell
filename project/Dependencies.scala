@@ -318,7 +318,8 @@ object Dependencies {
     "cloudwatchlogs",
     "s3",
     "sts",
-    "ecs"
+    "ecs",
+    "sns"
   ).map(artifactName => "software.amazon.awssdk" % artifactName % awsSdkV)
 
   private val googleCloudDependencies = List(
@@ -541,7 +542,7 @@ object Dependencies {
 
   val servicesDependencies = List(
     "com.google.api" % "gax-grpc" % googleGaxGrpcV
-  )
+  ) ++ awsCloudDependencies
 
   val serverDependencies = slf4jBindingDependencies
 

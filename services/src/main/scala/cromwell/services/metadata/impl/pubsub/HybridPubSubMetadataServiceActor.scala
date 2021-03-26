@@ -1,10 +1,9 @@
-package cromwell.services.metadata.impl.hybridpubsub
+package cromwell.services.metadata.impl.pubsub
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import com.typesafe.config.Config
 import cromwell.services.metadata.MetadataService.{PutMetadataAction, PutMetadataActionAndRespond}
 import cromwell.services.metadata.impl.MetadataServiceActor
-import cromwell.services.metadata.impl.pubsub.PubSubMetadataServiceActor
 
 
 /**

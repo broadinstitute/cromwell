@@ -9,7 +9,7 @@ source "${BASH_SOURCE%/*}/test_unit.inc.sh" || source test_unit.inc.sh
 
 cromwell::build::setup_common_environment
 
-cromwell::build::unit::setup_unit_environment
+cromwell::build::unit::setup_scale_factor
 
 CROMWELL_SBT_TEST_INCLUDE_TAGS="DbmsTest" \
 CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR="${CROMWELL_BUILD_UNIT_SPAN_SCALE_FACTOR}" \

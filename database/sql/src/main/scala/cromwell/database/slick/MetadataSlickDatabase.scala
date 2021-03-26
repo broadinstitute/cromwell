@@ -428,14 +428,14 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       endTimestampOption: Option[Timestamp],
                                       metadataArchiveStatus: Set[Option[String]],
                                       includeSubworkflows: Boolean,
-                                      minimumSummaryEntryId: Option[Long],
                                       page: Option[Int],
-                                      pageSize: Option[Int])
+                                      pageSize: Option[Int],
+                                      newestFirst: Boolean)
                                      (implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = {
 
     val action = dataAccess.queryWorkflowMetadataSummaryEntries(parentIdWorkflowMetadataKey, workflowStatuses, workflowNames, workflowExecutionUuids,
       labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption,
-      endTimestampOption, metadataArchiveStatus, includeSubworkflows, minimumSummaryEntryId, page, pageSize)
+      endTimestampOption, metadataArchiveStatus, includeSubworkflows, page, pageSize, newestFirst)
     runTransaction(action)
   }
 
@@ -451,12 +451,11 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       startTimestampOption: Option[Timestamp],
                                       endTimestampOption: Option[Timestamp],
                                       metadataArchiveStatus: Set[Option[String]],
-                                      includeSubworkflows: Boolean,
-                                      minimumSummaryEntryId: Option[Long])
+                                      includeSubworkflows: Boolean)
                                      (implicit ec: ExecutionContext): Future[Int] = {
     val action = dataAccess.countWorkflowMetadataSummaryEntries(parentIdWorkflowMetadataKey, workflowStatuses, workflowNames, workflowExecutionUuids,
       labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption,
-      endTimestampOption, metadataArchiveStatus, includeSubworkflows, minimumSummaryEntryId)
+      endTimestampOption, metadataArchiveStatus, includeSubworkflows)
     runTransaction(action)
   }
 

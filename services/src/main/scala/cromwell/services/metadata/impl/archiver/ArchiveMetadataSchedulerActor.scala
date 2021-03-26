@@ -27,6 +27,8 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
+import java.time.OffsetDateTime
+
 
 class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig,
                                     serviceRegistryActor: ActorRef)
@@ -72,7 +74,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   }
 
   def lookupNextWorkflowToArchive(): Future[Option[WorkflowId]] = {
-    (serviceRegistryActor ? QueryForWorkflowsMatchingParameters(queryParametersForWorkflowsToArchive)) flatMap {
+    (serviceRegistryActor ? QueryForWorkflowsMatchingParameters(queryParametersForWorkflowsToArchive(OffsetDateTime.now(), archiveMetadataConfig.archiveDelay))) flatMap {
       case WorkflowQuerySuccess(response, _) =>
         if (response.results.nonEmpty)
           Future.successful(Option(WorkflowId.fromString(response.results.head.id)))
@@ -135,16 +137,16 @@ object ArchiveMetadataSchedulerActor {
     "METADATA_VALUE_TYPE"
   )
 
-  // TODO: Archive from oldest-first
-  // TODO: Allow requirements like "End timestamp not within 1y (eg)"
-  val queryParametersForWorkflowsToArchive: Seq[(String, String)] = Seq(
+  def queryParametersForWorkflowsToArchive(currentTime: OffsetDateTime, archiveDelay: FiniteDuration): Seq[(String, String)] = Seq(
     IncludeSubworkflows.name -> "true",
     Status.name -> WorkflowSucceeded.toString,
     Status.name -> WorkflowFailed.toString,
     Status.name -> WorkflowAborted.toString,
     MetadataArchiveStatus.name -> Unarchived.toString,
     Page.name -> "1",
-    PageSize.name -> "1"
+    PageSize.name -> "1",
+    NewestFirst.name -> "false", // oldest first for archiving
+    EndDate.name -> currentTime.minusNanos(archiveDelay.toNanos).toUtcMilliString
   )
 
   def props(archiveMetadataConfig: ArchiveMetadataConfig, serviceRegistryActor: ActorRef): Props =

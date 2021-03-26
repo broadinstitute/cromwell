@@ -1104,15 +1104,6 @@ cromwell::private::copy_all_resources() {
 
 cromwell::private::setup_secure_resources() {
     case "${CROMWELL_BUILD_PROVIDER}" in
-        "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
-        "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
-            # Try to login to vault, and if successful then use vault creds to login to docker.
-            # For those committers with vault access this avoids pull rate limits reported in BT-143.
-            cromwell::private::install_vault
-            cromwell::private::login_vault
-            cromwell::private::login_docker
-            cromwell::private::render_secure_resources
-            ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")
             # Jenkins secret resources should have already been rendered outside the CI's docker-compose container.
             cromwell::private::copy_all_resources
@@ -1404,6 +1395,11 @@ cromwell::build::setup_common_environment() {
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
             cromwell::private::stop_travis_defaults
+            # Try to login to vault, and if successful then use vault creds to login to docker.
+            # For those committers with vault access this avoids pull rate limits reported in BT-143.
+            cromwell::private::install_vault
+            cromwell::private::login_vault
+            cromwell::private::login_docker
             cromwell::private::install_adoptopenjdk
             cromwell::private::install_sbt_launcher
             cromwell::private::install_docker_compose
@@ -1413,6 +1409,11 @@ cromwell::build::setup_common_environment() {
             cromwell::private::start_docker_databases
             ;;
         "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
+            # Try to login to vault, and if successful then use vault creds to login to docker.
+            # For those committers with vault access this avoids pull rate limits reported in BT-143.
+            cromwell::private::install_vault
+            cromwell::private::login_vault
+            cromwell::private::login_docker
             cromwell::private::install_adoptopenjdk
             cromwell::private::setup_pyenv_python_latest
             cromwell::private::start_docker_databases

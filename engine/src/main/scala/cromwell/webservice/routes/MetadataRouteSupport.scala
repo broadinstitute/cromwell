@@ -6,9 +6,7 @@ import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.http.scaladsl.unmarshalling.Unmarshaller
 import akka.pattern.{AskTimeoutException, ask}
-import akka.stream.Materializer
 import akka.util.Timeout
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
@@ -17,14 +15,14 @@ import cromwell.core.labels.Labels
 import cromwell.core.{WorkflowId, path => _}
 import cromwell.engine.instrumentation.HttpInstrumentation
 import cromwell.server.CromwellShutdown
-import cromwell.services.metadata.MetadataService._
 import cromwell.services._
+import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.LabelsManagerActor
 import cromwell.webservice.LabelsManagerActor._
-import cromwell.webservice.routes.CromwellApiService.{InvalidWorkflowException, UnrecognizedWorkflowException, serviceShuttingDownResponse, validateWorkflowIdInMetadata, validateWorkflowIdInMetadataSummaries}
-import cromwell.webservice.routes.MetadataRouteSupport._
 import cromwell.webservice.WebServiceUtils.EnhancedThrowable
 import cromwell.webservice.WorkflowJsonSupport._
+import cromwell.webservice.routes.CromwellApiService._
+import cromwell.webservice.routes.MetadataRouteSupport._
 
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.util.{Failure, Success}

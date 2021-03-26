@@ -5,7 +5,6 @@ import java.time.{OffsetDateTime, ZoneOffset}
 import akka.pattern.ask
 import akka.testkit._
 import akka.util.Timeout
-import cats.data.NonEmptyList
 import cromwell.core._
 import cromwell.services._
 import cromwell.services.metadata.MetadataService._

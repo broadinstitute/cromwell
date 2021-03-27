@@ -1494,25 +1494,18 @@ cromwell:build::run_sbt_test() {
     # Globally leaving the sbt log level at info for now.
     # Disabling the supershell to reduce log levels.
     # Splitting the JVMs for compilation then scalatest-with-cromwell to reduce memory pressure.
-    # Splitting the JVMs for testing-by-sbt-project to also reduce memory pressure.
-    # For more information on testing and memory see also: https://olegych.github.io/blog/sbt-fork.html
-
     # shellcheck disable=SC2086
     sbt \
         -Dsbt.supershell=false \
         ${CROMWELL_BUILD_SBT_COVERAGE_COMMAND} \
         test:compile
-
-    for sbt_project in $(sbt projects | grep -F $'[info] \t  ' | awk '{print $2}'); do
-        echo "Starting sbt ${sbt_project}/test"
-        # shellcheck disable=SC2086
-        sbt \
-            -Dsbt.supershell=false \
-            -Dakka.test.timefactor=${CROMWELL_BUILD_UNIT_SPAN_SCALE_FACTOR} \
-            -Dbackend.providers.Local.config.filesystems.local.localization.0=copy \
-            ${CROMWELL_BUILD_SBT_COVERAGE_COMMAND} \
-            "${sbt_project}/test"
-    done
+    # shellcheck disable=SC2086
+    sbt \
+        -Dsbt.supershell=false \
+        -Dakka.test.timefactor=${CROMWELL_BUILD_UNIT_SPAN_SCALE_FACTOR} \
+        -Dbackend.providers.Local.config.filesystems.local.localization.0=copy \
+        ${CROMWELL_BUILD_SBT_COVERAGE_COMMAND} \
+        test
 }
 
 cromwell::build::run_centaur() {

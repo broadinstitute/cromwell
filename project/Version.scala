@@ -18,38 +18,38 @@ object Version {
   // Adapted from SbtGit.versionWithGit
   def cromwellVersionWithGit: Seq[Setting[_]] =
     Seq(
-      git.versionProperty in ThisBuild := "project.version",
-      git.baseVersion in ThisBuild := cromwellVersion,
-      version in ThisBuild :=
+      ThisBuild / git.versionProperty := "project.version",
+      ThisBuild / git.baseVersion := cromwellVersion,
+      ThisBuild / version :=
         makeVersion(
           versionProperty = git.versionProperty.value,
           baseVersion = git.baseVersion.?.value,
           headCommit = git.gitHeadCommit.value),
-      shellPrompt in ThisBuild := { state => "%s| %s> ".format(GitCommand.prompt.apply(state), cromwellVersion) }
+      ThisBuild / shellPrompt := { state => "%s| %s> ".format(GitCommand.prompt.apply(state), cromwellVersion) }
     )
 
   val writeProjectVersionConf: Def.Initialize[Task[Seq[File]]] = Def.task {
-    writeVersionConf(name.value, (resourceManaged in Compile).value, version.value)
+    writeVersionConf(name.value, (Compile / resourceManaged).value, version.value)
   }
 
   val writeSwaggerUiVersionConf: Def.Initialize[Task[Seq[File]]] = Def.task {
-    writeVersionConf("swagger-ui", (resourceManaged in Compile).value, swaggerUiVersion)
+    writeVersionConf("swagger-ui", (Compile / resourceManaged).value, swaggerUiVersion)
   }
 
   /**
     * Writes a version.conf compatible with cromwell-common's VersionUtil. Returns the written file wrapped in a Seq to
-    * make it compatible for appending to `resourceGenerators in Compile`.
+    * make it compatible for appending to `Compile / resourceGenerators`.
     *
     * Ex:
     * {{{
-    * resourceGenerators in Compile += writeVersionConf(name.value, (resourceManaged in Compile).value, version.value)
+    * Compile / resourceGenerators += writeVersionConf(name.value, (Compile / resourceManaged).value, version.value)
     * }}}
     *
     * For a project named "my-project", writes a conf named "my-project-version.conf" containing
     * "my.project.version = [version]"
     *
     * @param projectName Name of the project
-    * @param directory The managed resource directory, usually `(resourceManaged in Compile).value`
+    * @param directory The managed resource directory, usually `(Compile / resourceManaged).value`
     * @param version The version to write
     * @return The written file
     */

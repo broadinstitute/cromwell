@@ -34,12 +34,12 @@ object ArchiveMetadataConfig {
     val defaultDebugLogging = true
 
     for {
-      _ <- Try(archiveMetadataConfig.getConfig("filesystems.gcs")).toCheckedWithContext("parse Carboniter 'filesystems.gcs' field from config")
+      _ <- Try(archiveMetadataConfig.getConfig("filesystems.gcs")).toCheckedWithContext("parse archiver 'filesystems.gcs' field from config")
       pathBuilderFactories <- CromwellFileSystems.instance.factoriesFromConfig(archiveMetadataConfig)
       pathBuilders <- Try(Await.result(PathBuilderFactory.instantiatePathBuilders(pathBuilderFactories.values.toList, WorkflowOptions.empty), 60.seconds))
-        .toCheckedWithContext("construct Carboniter path builders from factories")
-      bucket <- Try(archiveMetadataConfig.getString("bucket")).toCheckedWithContext("parse Carboniter 'bucket' field from config")
-      bucketReadLimit <- Try(archiveMetadataConfig.getOrElse[Int]("bucket-read-limit-bytes", 150000000)).toCheckedWithContext("parse Carboniter 'bucket-read-limit-bytes' field from config")
+        .toCheckedWithContext("construct archiver path builders from factories")
+      bucket <- Try(archiveMetadataConfig.getString("bucket")).toCheckedWithContext("parse archiver 'bucket' field from config")
+      bucketReadLimit <- Try(archiveMetadataConfig.getOrElse[Int]("bucket-read-limit-bytes", 150000000)).toCheckedWithContext("parse archiver 'bucket-read-limit-bytes' field from config")
       interval <- Try(archiveMetadataConfig.getOrElse[FiniteDuration]("interval", defaultMaxInterval)).toChecked
       debugLogging <- Try(archiveMetadataConfig.getOrElse("debug-logging", defaultDebugLogging)).toChecked
     } yield ArchiveMetadataConfig(pathBuilders, bucket, bucketReadLimit, interval, debugLogging)

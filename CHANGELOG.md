@@ -1,5 +1,17 @@
 # Cromwell Change Log
 
+## 60 Release Notes
+
+### Hybrid metadata storage ("carboniting") removed
+
+Carboniting functionality has been removed from Cromwell. 
+There will be no effect for customers who store metadata permanently in the relational database (most common),
+and there will also be no effect for customers who use the in-memory database.
+
+Breaking change only for customers who explicitly enabled `carbonite-metadata-service` in their configuration to split
+metadata storage between a relational database and Google Cloud Storage. If you had previously enabled carboniting and 
+deletion, any workflows marked as `ArchivedAndPurged` in your database will no longer be accessible via the Cromwell metadata API.
+
 ## 59 Release Notes
 
 ### Bug Fixes

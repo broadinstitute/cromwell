@@ -94,6 +94,16 @@ env:
       BUILD_TYPE=dockerScripts
     - >-
       BUILD_TYPE=sbt
+      BUILD_SBT_INCLUDE=engine
+    - >-
+      BUILD_TYPE=sbt
+      BUILD_SBT_INCLUDE=server
+    - >-
+      BUILD_TYPE=sbt
+      BUILD_SBT_INCLUDE=services
+    - >-
+      BUILD_TYPE=sbt
+      BUILD_SBT_EXCLUDE=engine|server|services
     - >-
       BUILD_TYPE=dbms
     - >-

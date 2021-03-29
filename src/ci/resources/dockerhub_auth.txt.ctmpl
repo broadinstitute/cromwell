@@ -1,3 +1,0 @@
-{{with $cromwellDockerhub := vault (printf "secret/dsde/cromwell/common/cromwell-dockerhub")}}
-{{$cromwellDockerhub.Data.password}}
-{{end}}

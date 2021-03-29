@@ -111,7 +111,7 @@ object Settings {
     ),
     dependencyOverrides ++= cromwellDependencyOverrides,
     scalacOptions ++= baseSettings ++ warningSettings ++ consoleHostileSettings,
-    // http://stackoverflow.com/questions/31488335/scaladoc-2-11-6-fails-on-throws-tag-with-unable-to-find-any1-member-to-link#31497874
+    // http://stackoverflow.com/questions/31488335/scaladoc-2-11-6-fails-on-throws-tag-with-unable-to-find-any-member-to-link#31497874
     Compile / doc / scalacOptions ++= baseSettings ++ List("-no-link-warnings"),
     // No console-hostile options, otherwise the console is effectively unusable.
     // https://github.com/sbt/sbt/issues/1815

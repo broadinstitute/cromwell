@@ -103,7 +103,7 @@ env:
       BUILD_SBT_INCLUDE=services
     - >-
       BUILD_TYPE=sbt
-      BUILD_SBT_EXCLUDE=engine|server|services
+      BUILD_SBT_EXCLUDE='engine|server|services'
     - >-
       BUILD_TYPE=dbms
     - >-

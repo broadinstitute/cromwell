@@ -1594,6 +1594,7 @@ cromwell::build::generate_code_coverage() {
 cromwell::build::publish_artifacts() {
     if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ]] && \
         [[ "${CROMWELL_BUILD_TYPE}" == "sbt" ]] && \
+        [[ "${CROMWELL_BUILD_SBT_INCLUDE}" == "" ]] && \
         [[ "${CROMWELL_BUILD_EVENT}" == "push" ]]; then
 
         if [[ "${CROMWELL_BUILD_BRANCH}" == "develop" ]]; then

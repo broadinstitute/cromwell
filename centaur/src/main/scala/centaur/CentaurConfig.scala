@@ -50,7 +50,6 @@ object CentaurConfig {
   lazy val conf: Config = ConfigFactory.load().getConfig("centaur")
   
   lazy val runMode: CentaurRunMode = CentaurRunMode(conf)
-  lazy val expectCarbonite: Boolean = conf.getBoolean("expectCarbonite")
   
   lazy val cromwellUrl: URL = runMode.cromwellUrl
   lazy val workflowProgressTimeout: FiniteDuration = conf.getDuration("workflow-progress-timeout").toScala

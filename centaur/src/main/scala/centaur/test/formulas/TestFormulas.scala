@@ -24,7 +24,6 @@ import spray.json.JsString
 object TestFormulas extends StrictLogging {
   logger.info(
     s"""Running with CentaurConfig:
-       |  - expectCarbonite: '${CentaurConfig.expectCarbonite}'
        |  - workflowProgressTimeout: '${CentaurConfig.workflowProgressTimeout}'
        |  - sendReceiveTimeout: '${CentaurConfig.sendReceiveTimeout}'
        |  - maxWorkflowLength: '${CentaurConfig.maxWorkflowLength}'

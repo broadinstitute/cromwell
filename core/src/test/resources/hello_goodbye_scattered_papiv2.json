@@ -725,7 +725,6 @@
   "labels": {
     "cromwell-workflow-id": "cromwell-fd07f36a-3b17-4ae1-bf50-801ba6b773bd"
   },
-  "metadataSource": "Archived",
   "outputs": {
     "wf_hello.goodbyes": [
       "Goodbye there.",

@@ -2,6 +2,11 @@
 
 ## 60 Release Notes
 
+### Java 11
+
+As of this version, a distribution of Java 11 is required to run Cromwell. Cromwell is developed, tested, and
+containerized using [AdoptOpenJDK 11 HotSpot](https://adoptopenjdk.net/).
+
 ### Hybrid metadata storage ("carboniting") removed
 
 Carboniting functionality has been removed from Cromwell. 
@@ -13,11 +18,6 @@ metadata storage between a relational database and Google Cloud Storage. If you 
 deletion, any workflows marked as `ArchivedAndPurged` in your database will no longer be accessible via the Cromwell metadata API.
 
 ## 59 Release Notes
-
-### Java 11
-
-As of this version, a distribution of Java 11 is required to run Cromwell. Cromwell is developed, tested, and
-containerized using [AdoptOpenJDK 11 HotSpot](https://adoptopenjdk.net/).
 
 ### Bug Fixes
 

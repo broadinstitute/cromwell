@@ -49,15 +49,13 @@ final class GraphPrint(executableCallable: ExecutableCallable) {
     val clusterNumber = clusterCounter.getAndIncrement()
     val id = s"cluster_$clusterNumber"
 
-    def handleScatterVariableNode(): NodesAndLinks = {
-      scatterNode.scatterVariableNodes foldMap { node =>
-        val dotNode = DotScatterVariableNode.apply(node, clusterNumber)
-        val links = upstreamLinks(node.linkToOuterGraph.graphNode, dotNode, Map.empty)
-        NodesAndLinks(Set(dotNode), links)
-      }
+    def handleScatterVariableNode(node: ScatterVariableNode): NodesAndLinks = {
+      val dotNode = DotScatterVariableNode.apply(node, clusterNumber)
+      val links = upstreamLinks(node.linkToOuterGraph.graphNode, dotNode, Map.empty)
+      NodesAndLinks(Set(dotNode), links)
     }
 
-    val scatterExpressionNodesAndLinks = scatterNode.scatterVariableNodes.foldMap(_ => handleScatterVariableNode())
+    val scatterExpressionNodesAndLinks = scatterNode.scatterVariableNodes.foldMap(handleScatterVariableNode)
 
     val madeScatterVariableNodes = scatterNode.scatterVariableNodes.map { svn =>
       val link = scatterExpressionNodesAndLinks.nodes.collectFirst {

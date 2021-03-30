@@ -6,11 +6,8 @@ import cats.Semigroup
 import cats.data.NonEmptyList
 import cats.instances.future._
 import cats.instances.list._
-import cats.instances.future._
-import cats.instances.list._
 import cats.syntax.semigroup._
 import cats.syntax.traverse._
-import common.util.StringUtil.EnhancedToStringable
 import common.validation.Validation._
 import cromwell.core._
 import cromwell.database.sql.SqlConverters._
@@ -25,8 +22,7 @@ import slick.basic.DatabasePublisher
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.control.NoStackTrace
-import scala.util.{Failure, Try}
+import scala.util.Try
 
 object MetadataDatabaseAccess {
 

@@ -5,7 +5,6 @@ import sbt.Keys._
 import sbt._
 import sbtassembly.AssemblyPlugin.autoImport._
 import sbtdocker.DockerPlugin.autoImport._
-import ContinuousIntegration._
 import sbtdocker.Instruction
 
 import scala.sys.process._
@@ -36,10 +35,10 @@ object Publishing {
       val versionsCsv = if (Version.isSnapshot) version.value else s"$cromwellVersion,${version.value}"
       sys.env.getOrElse("CROMWELL_SBT_DOCKER_TAGS", versionsCsv).split(",")
     },
-    imageNames in docker := dockerTags.value map { tag =>
+    docker / imageNames := dockerTags.value map { tag =>
       ImageName(namespace = Option("broadinstitute"), repository = name.value, tag = Option(tag))
     },
-    dockerfile in docker := {
+    docker / dockerfile := {
       // The assembly task generates a fat JAR file
       val artifact: File = assembly.value
       val artifactTargetPath = s"/app/${artifact.name}"
@@ -47,7 +46,7 @@ object Publishing {
       val additionalDockerInstr: Seq[Instruction] = dockerCustomSettings.value
 
       new Dockerfile {
-        from("us.gcr.io/broad-dsp-gcr-public/base/jre:8-debian")
+        from("us.gcr.io/broad-dsp-gcr-public/base/jre:11-debian")
         expose(8000)
         add(artifact, artifactTargetPath)
         runRaw(s"ln -s $artifactTargetPath /app/$projectName.jar")
@@ -94,11 +93,11 @@ object Publishing {
         additionalDockerInstr.foreach(addInstruction)
       }
     },
-    buildOptions in docker := BuildOptions(
+    docker / buildOptions := BuildOptions(
       cache = false,
       removeIntermediateContainers = BuildOptions.Remove.Always
     ),
-    dockerCustomSettings in ThisBuild := Nil, // setting the default value
+    ThisBuild / dockerCustomSettings := Nil, // setting the default value
   )
 
   def dockerPushSettings(pushEnabled: Boolean): Seq[Setting[_]] = {

@@ -2,6 +2,11 @@
 
 ## 60 Release Notes
 
+### Java 11
+
+As of this version, a distribution of Java 11 is required to run Cromwell. Cromwell is developed, tested, and
+containerized using [AdoptOpenJDK 11 HotSpot](https://adoptopenjdk.net/).
+
 ### Hybrid metadata storage ("carboniting") removed
 
 Carboniting functionality has been removed from Cromwell. 

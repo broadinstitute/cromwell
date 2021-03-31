@@ -4,6 +4,7 @@ import java.sql.Timestamp
 
 import cromwell.database.sql.joins.MetadataJobQueryValue
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
+import slick.basic.DatabasePublisher
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
@@ -42,6 +43,9 @@ trait MetadataSqlDatabase extends SqlDatabase {
   def queryMetadataEntries(workflowExecutionUuid: String,
                            timeout: Duration)
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
+
+  def streamMetadataEntries(workflowExecutionUuid: String,
+                            fetchSize: Int): DatabasePublisher[MetadataEntry]
 
   def countMetadataEntries(workflowExecutionUuid: String,
                            expandSubWorkflows: Boolean,
@@ -155,9 +159,9 @@ trait MetadataSqlDatabase extends SqlDatabase {
                              endTimestampOption: Option[Timestamp],
                              metadataArchiveStatus: Set[Option[String]],
                              includeSubworkflows: Boolean,
-                             minimumSummaryEntryId: Option[Long],
                              page: Option[Int],
-                             pageSize: Option[Int])
+                             pageSize: Option[Int],
+                             newestFirst: Boolean)
                              (implicit ec: ExecutionContext): Future[Traversable[WorkflowMetadataSummaryEntry]]
 
   def countWorkflowSummaries(parentIdWorkflowMetadataKey: String,
@@ -171,8 +175,7 @@ trait MetadataSqlDatabase extends SqlDatabase {
                              startTimestampOption: Option[Timestamp],
                              endTimestampOption: Option[Timestamp],
                              metadataArchiveStatus: Set[Option[String]],
-                             includeSubworkflows: Boolean,
-                             minimumSummaryEntryId: Option[Long])
+                             includeSubworkflows: Boolean)
                              (implicit ec: ExecutionContext): Future[Int]
 
   def deleteNonLabelMetadataForWorkflowAndUpdateArchiveStatus(rootWorkflowId: String, newArchiveStatus: Option[String])(implicit ec: ExecutionContext): Future[Int]

@@ -27,14 +27,16 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
   implicit val ec = context.dispatcher
 
   def receive = {
-    case GetMetadataAction(query: MetadataQuery, _, checkTotalMetadataRowNumberBeforeQuerying: Boolean) =>
+    case GetMetadataAction(query: MetadataQuery, checkTotalMetadataRowNumberBeforeQuerying: Boolean) =>
       evaluateRespondAndStop(sender(), getMetadata(query, checkTotalMetadataRowNumberBeforeQuerying))
+    case GetMetadataStreamAction(workflowId, fetchSize) =>
+      evaluateRespondAndStop(sender(), Future.fromTry(getMetadataStream(workflowId, fetchSize)))
     case GetStatus(workflowId) => evaluateRespondAndStop(sender(), getStatus(workflowId))
     case GetLabels(workflowId) => evaluateRespondAndStop(sender(), queryLabelsAndRespond(workflowId))
     case GetRootAndSubworkflowLabels(rootWorkflowId: WorkflowId) => evaluateRespondAndStop(sender(), queryRootAndSubworkflowLabelsAndRespond(rootWorkflowId))
-    case GetLogs(workflowId, _) => evaluateRespondAndStop(sender(), queryLogsAndRespond(workflowId))
-    case query: QueryForWorkflowsMatchingParameters => evaluateRespondAndStop(sender(), queryWorkflowsAndRespond(query.parameters))
-    case WorkflowOutputs(id, _) => evaluateRespondAndStop(sender(), queryWorkflowOutputsAndRespond(id))
+    case GetLogs(workflowId) => evaluateRespondAndStop(sender(), queryLogsAndRespond(workflowId))
+    case QueryForWorkflowsMatchingParameters(parameters) => evaluateRespondAndStop(sender(), queryWorkflowsAndRespond(parameters))
+    case WorkflowOutputs(id) => evaluateRespondAndStop(sender(), queryWorkflowOutputsAndRespond(id))
     case unexpected => log.warning(s"Programmer Error! Unexpected message received by ${getClass.getSimpleName}: $unexpected")
   }
 
@@ -63,6 +65,14 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
       }
     } else {
       queryMetadata(query)
+    }
+  }
+
+  private def getMetadataStream(workflowId: WorkflowId, fetchSize: Int): Try[MetadataServiceResponse] = {
+    metadataEventsStream(workflowId, fetchSize) map {
+      s => MetadataLookupStreamSuccess(workflowId, s)
+    } recover {
+      case t => MetadataLookupStreamFailed(workflowId, t)
     }
   }
 

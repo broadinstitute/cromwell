@@ -6,7 +6,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.services.MetadataJsonResponse
 import cromwell.services.metadata.MetadataService
-import cromwell.services.metadata.MetadataService.{MetadataQueryResponse, BuildMetadataJsonAction, MetadataServiceAction, MetadataServiceResponse, RootAndSubworkflowLabelsLookupResponse, BuildWorkflowMetadataJsonAction}
+import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, BuildWorkflowMetadataJsonAction, GetMetadataStreamAction, MetadataLookupStreamSuccess, MetadataQueryResponse, MetadataServiceAction, MetadataServiceResponse, RootAndSubworkflowLabelsLookupResponse}
 import cromwell.services.metadata.impl.ReadMetadataRegulatorActor.PropsMaker
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
 
@@ -46,9 +46,17 @@ class ReadMetadataRegulatorActor(metadataBuilderActorProps: PropsMaker, readMeta
             readMetadataActor ! crossWorkflowAction
           }
       }
+    case streamRequest: GetMetadataStreamAction =>
+      val currentRequesters = apiRequests.getOrElse(streamRequest, Set.empty)
+      apiRequests.put(streamRequest, currentRequesters + sender())
+      if(currentRequesters.isEmpty) {
+        val readMetadataActor = context.actorOf(readMetadataWorkerProps.apply().withDispatcher(ApiDispatcher), s"MetadataQueryWorker-${UUID.randomUUID()}")
+        builderRequests.put(readMetadataActor, streamRequest)
+        readMetadataActor ! streamRequest
+      }
     case serviceResponse: MetadataServiceResponse =>
       serviceResponse match {
-        case response @ (_: MetadataJsonResponse | _: MetadataQueryResponse | _: RootAndSubworkflowLabelsLookupResponse) =>
+        case response @ (_: MetadataJsonResponse | _: MetadataQueryResponse | _: RootAndSubworkflowLabelsLookupResponse | _: MetadataLookupStreamSuccess) =>
           handleResponseFromMetadataWorker(response)
       }
     case other => log.error(s"Programmer Error: Unexpected message $other received from $sender")

@@ -1,14 +1,10 @@
-sudo: required
-dist: xenial
+os: linux
+dist: focal
 services:
   - docker
-language: scala
-scala:
-  - 2.12.9
+language: minimal
 git:
   depth: false
-jdk:
-  - openjdk8
 cache:
   directories:
     - $HOME/.ivy2/cache
@@ -21,10 +17,7 @@ before_cache:
   - find $HOME/.coursier/cache -name "ivydata-*.properties" -print -delete
   - find $HOME/.sbt -name "*.lock" -print -delete
 env:
-  global:
-    - PYTHON3_HOME=/opt/python/3.7.1
-    - PATH=$PYTHON3_HOME/bin\:$PATH
-  matrix:
+  jobs:
     # Setting this variable twice will cause the 'script' section to run twice with the respective env var invoked
     - >-
       BUILD_TYPE=centaurAws
@@ -101,6 +94,16 @@ env:
       BUILD_TYPE=dockerScripts
     - >-
       BUILD_TYPE=sbt
+      BUILD_SBT_INCLUDE=engine
+    - >-
+      BUILD_TYPE=sbt
+      BUILD_SBT_INCLUDE=server
+    - >-
+      BUILD_TYPE=sbt
+      BUILD_SBT_INCLUDE=services
+    - >-
+      BUILD_TYPE=sbt
+      BUILD_SBT_EXCLUDE='engine|server|services'
     - >-
       BUILD_TYPE=dbms
     - >-

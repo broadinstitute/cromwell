@@ -535,12 +535,9 @@ object Dependencies {
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV
   ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ akkaHttpCirceIntegrationDependency ++ circeDependencies
 
-  val hybridCarboniteMetadataServiceDependencies = List(
-    "net.thisptr" % "jackson-jq" % jacksonJqV % Test
-  )
-
   val servicesDependencies = List(
-    "com.google.api" % "gax-grpc" % googleGaxGrpcV
+    "com.google.api" % "gax-grpc" % googleGaxGrpcV,
+    "org.apache.commons" % "commons-csv" % "1.8",
   )
 
   val serverDependencies = slf4jBindingDependencies

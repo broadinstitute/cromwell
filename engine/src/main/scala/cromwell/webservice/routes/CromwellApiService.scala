@@ -160,7 +160,7 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
 
   private def metadataLookupForTimingRoute(workflowId: WorkflowId): Future[MetadataJsonResponse] = {
     val includeKeys = NonEmptyList.of("start", "end", "executionStatus", "executionEvents", "subWorkflowMetadata")
-    val readMetadataRequest = (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, Option(includeKeys), None, expandSubWorkflows = true, metadataSourceOverride = None)
+    val readMetadataRequest = (w: WorkflowId) => GetSingleWorkflowMetadataAction(w, Option(includeKeys), None, expandSubWorkflows = true)
 
     serviceRegistryActor.ask(readMetadataRequest(workflowId)).mapTo[MetadataJsonResponse]
   }

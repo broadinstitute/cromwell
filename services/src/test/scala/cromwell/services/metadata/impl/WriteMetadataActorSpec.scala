@@ -160,6 +160,9 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
                                       timeout: Duration)
                                      (implicit ec: ExecutionContext): Nothing = notImplemented()
 
+    override def streamMetadataEntries(workflowExecutionUuid: String,
+                                       fetchSize: Int): Nothing = notImplemented()
+
     override def queryMetadataEntries(workflowExecutionUuid: String,
                                       metadataKey: String,
                                       timeout: Duration)(implicit ec: ExecutionContext): Nothing = notImplemented()
@@ -228,9 +231,9 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
                                         endTimestampOption: Option[Timestamp],
                                         metadataArchiveStatus: Set[Option[String]],
                                         includeSubworkflows: Boolean,
-                                        minimumSummaryEntryId: Option[Long],
                                         page: Option[Int],
-                                        pageSize: Option[Int])
+                                        pageSize: Option[Int],
+                                        newestFirst: Boolean)
                                        (implicit ec: ExecutionContext): Nothing = {
       notImplemented()
     }
@@ -247,8 +250,7 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
                                         startTimestampOption: Option[Timestamp],
                                         endTimestampOption: Option[Timestamp],
                                         metadataArchiveStatus: Set[Option[String]],
-                                        includeSubworkflows: Boolean,
-                                        minimumSummaryEntryId: Option[Long])
+                                        includeSubworkflows: Boolean)
                                        (implicit ec: ExecutionContext): Nothing = {
       notImplemented()
     }

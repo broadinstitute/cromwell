@@ -4,11 +4,11 @@ import java.time.OffsetDateTime
 
 import cats.Semigroup
 import cats.data.NonEmptyList
+import cats.instances.future._
+import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.semigroup._
 import cats.syntax.traverse._
-import cats.instances.list._
-import cats.instances.future._
 import common.validation.Validation._
 import cromwell.core._
 import cromwell.database.sql.SqlConverters._
@@ -19,9 +19,11 @@ import cromwell.services.metadata.MetadataService.{QueryMetadata, WorkflowQueryR
 import cromwell.services.metadata._
 import cromwell.services.metadata.impl.MetadataDatabaseAccess.SummaryResult
 import mouse.boolean._
+import slick.basic.DatabasePublisher
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
 
 object MetadataDatabaseAccess {
 
@@ -155,6 +157,10 @@ trait MetadataDatabaseAccess {
     }
   }
 
+  def metadataEventsStream(workflowId: WorkflowId, fetchSize: Int): Try[DatabasePublisher[MetadataEntry]] = {
+    Try(metadataDatabaseInterface.streamMetadataEntries(workflowId.id.toString, fetchSize))
+  }
+
   def queryMetadataEvents(query: MetadataQuery, timeout: Duration)(implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
 
     def listKeyRequirements(keyRequirementsInput: Option[NonEmptyList[String]]): List[String] = keyRequirementsInput.map(_.toList).toList.flatten.map(_ + "%")
@@ -268,9 +274,9 @@ trait MetadataDatabaseAccess {
       queryParameters.endDate.map(_.toSystemTimestamp),
       queryParameters.metadataArchiveStatus.map(MetadataArchiveStatus.toDatabaseValue),
       queryParameters.includeSubworkflows,
-      queryParameters.minimumSummaryEntryId,
       queryParameters.page,
-      queryParameters.pageSize
+      queryParameters.pageSize,
+      queryParameters.newestFirst
     )
 
     val workflowSummaryCount: Future[Int] = metadataDatabaseInterface.countWorkflowSummaries(
@@ -286,8 +292,7 @@ trait MetadataDatabaseAccess {
       queryParameters.startDate.map(_.toSystemTimestamp),
       queryParameters.endDate.map(_.toSystemTimestamp),
       queryParameters.metadataArchiveStatus.map(MetadataArchiveStatus.toDatabaseValue),
-      queryParameters.includeSubworkflows,
-      queryParameters.minimumSummaryEntryId
+      queryParameters.includeSubworkflows
     )
 
     def queryMetadata(count: Int): Option[QueryMetadata] = {

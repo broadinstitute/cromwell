@@ -4,13 +4,14 @@ import java.sql.Timestamp
 
 import cats.syntax.functor._
 import cats.instances.future._
-
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.database.slick.tables.MetadataDataAccessComponent
 import cromwell.database.sql.MetadataSqlDatabase
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, MetadataJobQueryValue, WorkflowQuery}
 import cromwell.database.sql.tables.{CustomLabelEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
+import slick.basic.DatabasePublisher
+import slick.jdbc.{ResultSetConcurrency, ResultSetType}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
@@ -124,6 +125,17 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                    (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
     val action = dataAccess.metadataEntriesForWorkflowExecutionUuid(workflowExecutionUuid).result
     runTransaction(action, timeout = timeout)
+  }
+
+  override def streamMetadataEntries(workflowExecutionUuid: String,
+                                     fetchSize: Int): DatabasePublisher[MetadataEntry] = {
+    val action = dataAccess.metadataEntriesForWorkflowExecutionUuid(workflowExecutionUuid)
+      .result
+      .withStatementParameters(
+        rsType = ResultSetType.ForwardOnly,
+        rsConcurrency = ResultSetConcurrency.ReadOnly,
+        fetchSize = fetchSize)
+    database.stream(action)
   }
 
   override def countMetadataEntries(workflowExecutionUuid: String,
@@ -416,14 +428,14 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       endTimestampOption: Option[Timestamp],
                                       metadataArchiveStatus: Set[Option[String]],
                                       includeSubworkflows: Boolean,
-                                      minimumSummaryEntryId: Option[Long],
                                       page: Option[Int],
-                                      pageSize: Option[Int])
+                                      pageSize: Option[Int],
+                                      newestFirst: Boolean)
                                      (implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = {
 
     val action = dataAccess.queryWorkflowMetadataSummaryEntries(parentIdWorkflowMetadataKey, workflowStatuses, workflowNames, workflowExecutionUuids,
       labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption,
-      endTimestampOption, metadataArchiveStatus, includeSubworkflows, minimumSummaryEntryId, page, pageSize)
+      endTimestampOption, metadataArchiveStatus, includeSubworkflows, page, pageSize, newestFirst)
     runTransaction(action)
   }
 
@@ -439,12 +451,11 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       startTimestampOption: Option[Timestamp],
                                       endTimestampOption: Option[Timestamp],
                                       metadataArchiveStatus: Set[Option[String]],
-                                      includeSubworkflows: Boolean,
-                                      minimumSummaryEntryId: Option[Long])
+                                      includeSubworkflows: Boolean)
                                      (implicit ec: ExecutionContext): Future[Int] = {
     val action = dataAccess.countWorkflowMetadataSummaryEntries(parentIdWorkflowMetadataKey, workflowStatuses, workflowNames, workflowExecutionUuids,
       labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption,
-      endTimestampOption, metadataArchiveStatus, includeSubworkflows, minimumSummaryEntryId)
+      endTimestampOption, metadataArchiveStatus, includeSubworkflows)
     runTransaction(action)
   }
 

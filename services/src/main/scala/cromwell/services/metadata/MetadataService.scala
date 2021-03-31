@@ -160,6 +160,8 @@ object MetadataService {
   final case class MetadataWriteSuccess(events: Iterable[MetadataEvent]) extends MetadataServiceResponse
   final case class MetadataWriteFailure(reason: Throwable, events: Iterable[MetadataEvent]) extends MetadataServiceFailure
 
+  final case class WorkflowMetadataArchivedResponse(id: WorkflowId, archiveStatus: MetadataArchiveStatus) extends MetadataServiceResponse
+
   sealed abstract class WorkflowValidationResponse extends MetadataServiceResponse
   case object RecognizedWorkflowId extends WorkflowValidationResponse
   case object UnrecognizedWorkflowId extends WorkflowValidationResponse

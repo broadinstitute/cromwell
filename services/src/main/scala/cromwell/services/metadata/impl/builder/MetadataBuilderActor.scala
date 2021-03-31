@@ -225,6 +225,17 @@ object MetadataBuilderActor {
     ))
   }
 
+  def processArchivedWorkflowResponse(workflowId: WorkflowId, archiveStatus: MetadataArchiveStatus): JsObject = {
+    // TODO: Once we have support article published, link it here in the response (https://broadworkbench.atlassian.net/browse/BW-566)
+    val message = s"Metadata for workflow $workflowId has been archived. Please contact Support Team if you would like" +
+      s"to get metadata for this workflow."
+    JsObject(Map(
+      WorkflowMetadataKeys.Id -> JsString(workflowId.toString),
+      WorkflowMetadataKeys.ArchiveStatus -> JsString(archiveStatus.toString),
+      WorkflowMetadataKeys.Message -> JsString(message)
+    ))
+  }
+
   def processOutputsResponse(id: WorkflowId, events: Seq[MetadataEvent]): JsObject = {
     // Add in an empty output event if there aren't already any output events.
     val hasOutputs = events exists { _.key.key.startsWith(WorkflowMetadataKeys.Outputs + ":") }
@@ -278,6 +289,9 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, metadataReadRow
       allDone()
     case Event(MetadataLookupResponse(query, metadata), HasWorkData(target, originalRequest)) =>
       processMetadataResponse(query, metadata, target, originalRequest)
+    case Event(WorkflowMetadataArchivedResponse(id, archiveStatus), HasWorkData(target, originalRequest)) =>
+      target ! SuccessfulMetadataJsonResponse(originalRequest, processArchivedWorkflowResponse(id, archiveStatus))
+      allDone()
     case Event(MetadataLookupFailedTooLargeResponse(query, metadataSizeRows), HasWorkData(target, originalRequest)) =>
       val metadataTooLargeNumberOfRowsException = new MetadataTooLargeNumberOfRowsException(query.workflowId, metadataSizeRows, metadataReadRowNumberSafetyThreshold)
       target ! FailedMetadataJsonResponse(originalRequest, metadataTooLargeNumberOfRowsException)

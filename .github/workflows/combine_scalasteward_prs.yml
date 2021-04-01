@@ -17,13 +17,16 @@ jobs:
         id: msp
         run: |
           export GITHUB_TOKEN=${{ secrets.BROADBOT_GITHUB_TOKEN }}
-          set +x
 
-          gh pr list --limit 1000
+          echo "Bringing in PRs:"
+          gh pr list --limit 1000 | grep 'scala-steward:' | tac
 
           # 1000 is probably overkill, but it's still not _that_ much data to return.
           PR_LIST=$(gh pr list --limit 1000 | grep 'scala-steward:' | cut -d$'\t'  -f 1 | tac)
           BRANCH="consolidated-scala-steward-prs-$(date +'%Y-%m-%d')"
+
+          git fetch
+          git checkout develop
           git checkout -B $BRANCH
 
           while IFS= read -r pr

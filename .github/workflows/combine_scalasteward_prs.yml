@@ -17,6 +17,7 @@ jobs:
         id: msp
         run: |
           export GITHUB_TOKEN=${{ secrets.BROADBOT_GITHUB_TOKEN }}
+          git config user.name "broadbot"
 
           echo "Bringing in PRs:"
           gh pr list --limit 1000 | grep 'scala-steward:' | tac

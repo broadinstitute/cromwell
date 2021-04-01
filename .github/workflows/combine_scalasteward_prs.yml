@@ -17,13 +17,22 @@ jobs:
         id: msp
         run: |
           export GITHUB_TOKEN=${{ secrets.BROADBOT_GITHUB_TOKEN }}
+          # 1000 is probably overkill, but it's still not _that_ much data to return:
+          PR_LIST=$(gh pr list --author scala-steward --limit 1000 | cut -d$'\t'  -f 1)
+          echo "Consolidating:"
+          echo "$PR_LIST"
+          echo
+
+          BRANCH="consolidated-scala-steward-prs-$(date +'%Y-%m-%d')"
+          git checkout -B $BRANCH
+
           while IFS= read -r pr
           do
-            echo "$pr"
+            echo "Bringing in: $pr"
             gh pr checkout $pr
             curBranch=`git branch --show-current`
-            git checkout -B merged-scala-steward-prs
+            git checkout $BRANCH
             git merge -m "merging" $curBranch
-          done <<< `gh pr list | grep scala-steward | cut -d$'\t'  -f 1`
+          done <<< "$PR_LIST"
           git push origin merged-scala-steward-prs
-          gh pr create --title "[No Ticket] Bump dependencies" --body "Consolidate scala-steward PRs"
+          gh pr create --title '[!! NEEDS Jira ID !!] Scala-steward shepherding consolidation' --body "Consolidate scala-steward PRs"

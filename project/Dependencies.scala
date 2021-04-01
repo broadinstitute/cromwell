@@ -43,7 +43,7 @@ object Dependencies {
   private val googleCloudMonitoringV = "2.0.8"
   private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off
   private val googleCloudStorageV = "1.113.4"
-  private val googleGaxGrpcV = "1.60.1"
+  private val googleGaxGrpcV = "1.62.0"
   private val googleGenomicsServicesV1ApiV = "v1alpha2-rev495-1.23.0"
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20200330-1.30.9"
   private val googleHttpClientApacheV = "2.1.2"

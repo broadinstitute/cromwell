@@ -85,7 +85,7 @@ object Dependencies {
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "2.7.1"
   private val mockserverNettyV = "5.5.4" // scala-steward:off (BA-6582)
-  private val mouseV = "0.26.2"
+  private val mouseV = "1.0.0"
   private val mysqlV = "8.0.22" // scala-steward:off (CROM-6772: DateTime/String conversion and connection string updates required)
   private val nettyV = "4.1.46.Final"
   private val owlApiV = "5.1.16" // scala-steward:off (CROM-6677)

@@ -26,8 +26,8 @@ jobs:
           PR_LIST=$(gh pr list --limit 1000 | grep 'scala-steward:' | cut -d$'\t'  -f 1 | tac)
           BRANCH="consolidated-scala-steward-prs-$(date +'%Y-%m-%d')"
 
-          SUCCESSFUL=()
-          UNSUCCESSFUL=()
+          SUCCESSFUL_PRS=()
+          UNSUCCESSFUL_PRS=()
 
           git fetch
           git checkout develop
@@ -38,16 +38,14 @@ jobs:
             echo "Bringing in: $pr"
             git fetch origin pull/${pr}/head:pr_${pr}
 
-            set -e
-            git rebase pr_${pr} $BRANCH
-            if [ "$?" == "0" ]
+            git rebase pr_${pr} $BRANCH || EXIT_CODE="$?"
+            if [ "${EXIT_CODE}" == "0" ]
             then
-              SUCCESSFUL+=( "$pr" )
+              SUCCESSFUL_PRS+=( "$pr" )
             else
-              UNSUCCESSFUL+=( "$pr" )
+              UNSUCCESSFUL_PRS+=( "$pr" )
             fi
-            set +e
           done <<< "$PR_LIST"
           git checkout $BRANCH
           git push origin $BRANCH
-          gh pr create --title '[!! NEEDS Jira ID !!] Scala-steward shepherding consolidation' --body "Consolidates scala-steward PRs ${SUCCESSFUL}. Note that the following PRs were not able to be consolidated: ${UNSUCCESSFUL}"
+          gh pr create --title '[!! NEEDS Jira ID !!] Scala-steward shepherding consolidation' --body "Consolidates scala-steward PRs ${SUCCESSFUL_PRS}. Note that the following PRs were not able to be consolidated: ${UNSUCCESSFUL_PRS}"

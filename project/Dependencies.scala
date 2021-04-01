@@ -53,7 +53,7 @@ object Dependencies {
   private val googleOauthClientV = "1.31.4"
   private val googleCloudResourceManagerV = "0.87.0-alpha"
   private val grpcV = "1.33.1"
-  private val guavaV = "30.0-jre"
+  private val guavaV = "30.1.1-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.5.1"
   private val http4sVersion = "0.21.7" // scala-steward:off (CROM-6678)

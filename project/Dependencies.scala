@@ -9,7 +9,7 @@ object Dependencies {
   private val aliyunCrV = "4.1.1"
   private val aliyunOssV = "3.11.1"
   private val ammoniteOpsV = "2.3.8"
-  private val apacheCommonNetV = "3.7.2"
+  private val apacheCommonNetV = "3.8.0"
   private val apacheHttpClientV = "4.5.13"
   private val awsSdkV = "2.15.82"
   private val betterFilesV = "3.9.1"

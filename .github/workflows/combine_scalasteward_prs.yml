@@ -29,10 +29,8 @@ jobs:
           while IFS= read -r pr
           do
             echo "Bringing in: $pr"
-            gh pr checkout $pr
-            curBranch=`git branch --show-current`
-            git checkout $BRANCH
-            git merge -m "merging" $curBranch
+            git fetch origin pull/${pr}/head:pr_${pr}
+            git rebase pr_${pr} $BRANCH
           done <<< "$PR_LIST"
           git push origin merged-scala-steward-prs
           gh pr create --title '[!! NEEDS Jira ID !!] Scala-steward shepherding consolidation' --body "Consolidate scala-steward PRs"

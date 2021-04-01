@@ -17,12 +17,12 @@ jobs:
         id: msp
         run: |
           export GITHUB_TOKEN=${{ secrets.BROADBOT_GITHUB_TOKEN }}
-          # 1000 is probably overkill, but it's still not _that_ much data to return:
-          PR_LIST=$(gh pr list --limit 1000 | grep 'scala-steward' | cut -d$'\t'  -f 1)
-          echo "Consolidating:"
-          echo "$PR_LIST"
-          echo
+          set +x
 
+          gh pr list --limit 1000
+
+          # 1000 is probably overkill, but it's still not _that_ much data to return. The final 'tail' reverses the list
+          PR_LIST=$(gh pr list --limit 1000 | grep 'scala-steward' | cut -d$'\t'  -f 1 | tail -r -n1000)
           BRANCH="consolidated-scala-steward-prs-$(date +'%Y-%m-%d')"
           git checkout -B $BRANCH
 

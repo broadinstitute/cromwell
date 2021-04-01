@@ -43,6 +43,7 @@ jobs:
             then
               SUCCESSFUL_PRS+=( "$pr" )
             else
+              git rebase --abort
               UNSUCCESSFUL_PRS+=( "$pr" )
             fi
           done <<< "$PR_LIST"

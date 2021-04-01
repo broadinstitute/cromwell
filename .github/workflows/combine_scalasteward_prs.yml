@@ -21,8 +21,8 @@ jobs:
 
           gh pr list --limit 1000
 
-          # 1000 is probably overkill, but it's still not _that_ much data to return. The final 'tail' reverses the list
-          PR_LIST=$(gh pr list --limit 1000 | grep 'scala-steward' | cut -d$'\t'  -f 1 | tail -r -n1000)
+          # 1000 is probably overkill, but it's still not _that_ much data to return.
+          PR_LIST=$(gh pr list --limit 1000 | grep 'scala-steward:' | cut -d$'\t'  -f 1 | tac)
           BRANCH="consolidated-scala-steward-prs-$(date +'%Y-%m-%d')"
           git checkout -B $BRANCH
 

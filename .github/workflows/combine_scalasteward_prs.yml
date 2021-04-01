@@ -35,5 +35,6 @@ jobs:
             git fetch origin pull/${pr}/head:pr_${pr}
             git rebase pr_${pr} $BRANCH
           done <<< "$PR_LIST"
-          git push origin merged-scala-steward-prs
+          git checkout $BRANCH
+          git push origin $BRANCH
           gh pr create --title '[!! NEEDS Jira ID !!] Scala-steward shepherding consolidation' --body "Consolidate scala-steward PRs"

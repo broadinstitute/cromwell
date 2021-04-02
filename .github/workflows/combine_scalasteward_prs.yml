@@ -23,7 +23,9 @@ jobs:
           gh pr list --limit 1000 | grep 'scala-steward:' | tac
 
           # 1000 is probably overkill, but it's still not _that_ much data to return.
-          PR_LIST=$(gh pr list --limit 1000 | grep 'scala-steward:' | cut -d$'\t'  -f 1 | tac)
+          # We leave the list in latest-first order here. We build up the rebase by starting at the final
+          # commit and iteratively rebasing onto each previous PR.
+          PR_LIST=$(gh pr list --limit 1000 | grep 'scala-steward:' | cut -d$'\t'  -f 1)
           BRANCH="consolidated-scala-steward-prs-$(date +'%Y-%m-%d_%H-%M')"
 
           SUCCESSFUL_PRS=()

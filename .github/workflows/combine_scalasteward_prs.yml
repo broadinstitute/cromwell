@@ -40,8 +40,7 @@ jobs:
 
             git rebase pr_${pr} $BRANCH && EXIT_CODE=$? || EXIT_CODE=$?
 
-            # EXIT_CODE is only set if the command failed:
-            if [ "${EXIT_CODE}" == "" ]
+            if [ "${EXIT_CODE}" == "0" ]
             then
               SUCCESSFUL_PRS+=( "$pr" )
             else

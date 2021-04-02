@@ -136,15 +136,33 @@ class DrsLocalizerMain(drsUrl: String,
   }
 
 
+  def downloadFileFromHttp(signedUrl: String): IO[ExitCode] = {
+    // TODO probably don't want to log the actual signed URL
+    logger.info(s"Attempting to download $signedUrl to $downloadLoc")
+    // TODO retries, requester pays
+    val copyCommand = Seq("curl", "-L", "-o", downloadLoc, signedUrl)
+    val copyProcess = Process(copyCommand)
+
+    val returnCode = copyProcess ! ProcessLogger(logger.underlying.info, logger.underlying.error)
+
+    IO(ExitCode(returnCode))
+  }
+
   def resolveAndDownload(): IO[ExitCode] = {
-    val fields = NonEmptyList.of(MarthaField.GsUri, MarthaField.GoogleServiceAccount)
+    val fields = NonEmptyList.of(MarthaField.GsUri, MarthaField.GoogleServiceAccount, MarthaField.AccessUrl)
     for {
       localizerGcsDrsPathResolver <- getGcsDrsPathResolver
       marthaResponse <- localizerGcsDrsPathResolver.resolveDrsThroughMartha(drsUrl, fields)
+
       // Currently Martha only supports resolving DRS paths to GCS paths
+      // ...and signed URLs
       gcsUrl <- IO.fromEither(marthaResponse.gsUri.toRight(new RuntimeException(ExtractGcsUrlErrorMsg)))
       serviceAccountJsonOption = marthaResponse.googleServiceAccount.map(_.data.spaces2)
-      exitState <- downloadFileFromGcs(gcsUrl, serviceAccountJsonOption)
+      signedUrl = marthaResponse.accessUrl map (_.url)
+      exitState <- signedUrl match {
+        case None => downloadFileFromGcs(gcsUrl, serviceAccountJsonOption)
+        case Some(s) => downloadFileFromHttp(s)
+      }
     } yield exitState
   }
 }

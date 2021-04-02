@@ -82,11 +82,14 @@ object MarthaField extends Enumeration {
   val GoogleServiceAccount: MarthaField.Value = Value("googleServiceAccount")
   val Hashes: MarthaField.Value = Value("hashes")
   val FileName: MarthaField.Value = Value("fileName")
+  val AccessUrl: MarthaField.Value = Value("accessUrl")
 }
 
 final case class MarthaRequest(url: String, fields: NonEmptyList[MarthaField.Value])
 
 final case class SADataObject(data: Json)
+
+final case class AccessUrl(url: String, headers: Option[Map[String, String]])
 
 /**
   * A response from `martha_v3`.
@@ -99,6 +102,7 @@ final case class SADataObject(data: Json)
   * @param googleServiceAccount The service account to access the gsUri contents created via bondProvider
   * @param fileName A possible different file name for the object at gsUri, ex: "gsutil cp gs://bucket/12/345 my.vcf"
   * @param hashes Hashes for the contents stored at gsUri
+  * @param accessUrl URL to query for signed URL
   */
 final case class MarthaResponse(size: Option[Long] = None,
                                 timeCreated: Option[String] = None,
@@ -108,6 +112,7 @@ final case class MarthaResponse(size: Option[Long] = None,
                                 googleServiceAccount: Option[SADataObject] = None,
                                 fileName: Option[String] = None,
                                 hashes: Option[Map[String, String]] = None,
+                                accessUrl: Option[AccessUrl] = None
                                )
 
 // Adapted from https://github.com/broadinstitute/martha/blob/f31933a3a11e20d30698ec4b4dc1e0abbb31a8bc/common/helpers.js#L210-L218
@@ -124,6 +129,8 @@ object MarthaResponseSupport {
 
   implicit lazy val marthaFailureResponseDecoder: Decoder[MarthaFailureResponse] = deriveDecoder
   implicit lazy val marthaFailureResponsePayloadDecoder: Decoder[MarthaFailureResponsePayload] = deriveDecoder
+
+  implicit lazy val marthaAccessUrlDecoder: Decoder[AccessUrl] = deriveDecoder
 
   private val GcsScheme = "gs://"
 

@@ -24,7 +24,7 @@ jobs:
 
           # 1000 is probably overkill, but it's still not _that_ much data to return.
           PR_LIST=$(gh pr list --limit 1000 | grep 'scala-steward:' | cut -d$'\t'  -f 1 | tac)
-          BRANCH="consolidated-scala-steward-prs-$(date +'%Y-%m-%d')"
+          BRANCH="consolidated-scala-steward-prs-$(date +'%Y-%m-%d_%H-%M')"
 
           SUCCESSFUL_PRS=()
           UNSUCCESSFUL_PRS=()
@@ -51,4 +51,4 @@ jobs:
           done <<< "$PR_LIST"
           git checkout $BRANCH
           git push origin $BRANCH
-          gh pr create --title '[!! NEEDS Jira ID !!] Scala-steward shepherding consolidation' --body "Consolidates scala-steward PRs ${SUCCESSFUL_PRS}. Note that the following PRs were not able to be consolidated: ${UNSUCCESSFUL_PRS}"
+          gh pr create --title '[!! NEEDS Jira ID !!] Scala-steward shepherding consolidation' --body "Consolidates scala-steward PRs ${SUCCESSFUL_PRS[*]}. Note that the following PRs were not able to be consolidated: ${UNSUCCESSFUL_PRS[*]}"

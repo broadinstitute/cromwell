@@ -42,13 +42,16 @@ jobs:
 
             if [ "${EXIT_CODE}" == "0" ]
             then
-              SUCCESSFUL_PRS+=( "$pr" )
+              SUCCESSFUL_PRS+=( "#$pr" )
             else
               echo "Unexpected exit code: ${EXIT_CODE}"
               git rebase --abort
-              UNSUCCESSFUL_PRS+=( "$pr" )
+              UNSUCCESSFUL_PRS+=( "#$pr" )
             fi
           done <<< "$PR_LIST"
           git checkout $BRANCH
           git push origin $BRANCH
-          gh pr create --title '[!! NEEDS Jira ID !!] Scala-steward shepherding consolidation' --body "Consolidates scala-steward PRs ${SUCCESSFUL_PRS[*]}. Note that the following PRs were not able to be consolidated: ${UNSUCCESSFUL_PRS[*]}"
+          gh pr create \
+            --title '[!! NEEDS Jira ID !!] Scala-steward shepherding consolidation' \
+            --body "Consolidates scala-steward PRs ${SUCCESSFUL_PRS[*]}.
+          Note that the following PRs were not able to be consolidated: ${UNSUCCESSFUL_PRS[*]}"

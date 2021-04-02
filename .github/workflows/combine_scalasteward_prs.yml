@@ -38,7 +38,7 @@ jobs:
             echo "Bringing in: $pr"
             git fetch origin pull/${pr}/head:pr_${pr}
 
-            git rebase pr_${pr} $BRANCH || EXIT_CODE=$?
+            git rebase pr_${pr} $BRANCH && EXIT_CODE=$? || EXIT_CODE=$?
 
             # EXIT_CODE is only set if the command failed:
             if [ "${EXIT_CODE}" == "" ]

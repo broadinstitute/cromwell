@@ -535,19 +535,6 @@ class MetadataDatabaseAccessSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
         .getMessage should be(s"""Metadata deletion precondition failed: workflow ID "33333333-3333-3333-3333-333333333333" was in non-terminal status "Submitted"""")
     }
 
-    // ??? not sure what value does it add?
-    it should "properly check metadata archival statuses" taggedAs DbmsTest in {
-      (for {
-        workflowId <- succeededWorkflowMetadata(WorkflowId.fromString("11111111-1111-abcd-1111-111111111112"))
-        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000)
-        _ <- dataAccess.getWorkflowArchiveStatus(workflowId) map { status => status shouldBe None }
-        _ <- dataAccess.updateMetadataArchiveStatus(workflowId, MetadataArchiveStatus.Archived)
-        _ <- dataAccess.getWorkflowArchiveStatus(workflowId) map { status => status.get shouldBe "Archived" }
-        _ <- dataAccess.updateMetadataArchiveStatus(workflowId, MetadataArchiveStatus.ArchivedAndDeleted)
-        _ <- dataAccess.getWorkflowArchiveStatus(workflowId) map { status => status.get shouldBe "ArchivedAndDeleted" }
-      } yield()).futureValue
-    }
-
     it should "close the database" taggedAs DbmsTest in {
       dataAccess.metadataDatabaseInterface.close()
     }

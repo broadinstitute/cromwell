@@ -145,4 +145,5 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
       case t => LogsFailure(id, t)
     }
   }
+
 }

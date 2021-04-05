@@ -168,8 +168,8 @@ object MetadataRouteSupport {
 
     validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor) flatMap { id =>
       /*
-        perform an additional check to see if metadata for the workflow has been archived and deleted or not for
-        requests made to one of /metadata, /logs or /outputs endpoints (as they interact with metadata table)
+        for requests made to one of /metadata, /logs or /outputs endpoints, perform an additional check to see
+        if metadata for the workflow has been archived and deleted or not (as they interact with metadata table)
       */
       request(id) match {
         case m: BuildWorkflowMetadataJsonWithOverridableSourceAction => checkIfMetadataDeletedAndRespond(id, m)

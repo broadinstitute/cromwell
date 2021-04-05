@@ -117,7 +117,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   }
 
   def scheduleNextWorkflowToArchive(): Unit = {
-    context.system.scheduler.scheduleOnce(archiveMetadataConfig.interval)(self ! ArchiveNextWorkflowMessage)
+    context.system.scheduler.scheduleOnce(archiveMetadataConfig.backoffInterval)(self ! ArchiveNextWorkflowMessage)
     ()
   }
 }

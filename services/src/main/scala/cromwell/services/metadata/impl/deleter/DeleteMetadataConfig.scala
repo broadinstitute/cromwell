@@ -19,7 +19,7 @@ object DeleteMetadataConfig {
 
     for {
       backoffInterval <- Try(archiveMetadataConfig.getOrElse[FiniteDuration]("backoff-interval", defaultBackoffInterval)).toChecked
-      delayAfterWorkflowCompletion <- Try(archiveMetadataConfig.as[FiniteDuration]("delay-after-workflow-completion")).toChecked
-    } yield DeleteMetadataConfig(backoffInterval, delayAfterWorkflowCompletion)
+      deletionDelay <- Try(archiveMetadataConfig.as[FiniteDuration]("deletion-delay")).toChecked
+    } yield DeleteMetadataConfig(backoffInterval, deletionDelay)
   }
 }

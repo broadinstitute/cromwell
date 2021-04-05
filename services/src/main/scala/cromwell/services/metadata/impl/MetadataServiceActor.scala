@@ -164,7 +164,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
     case listen: Listen => writeActor forward listen
     case v: ValidateWorkflowIdInMetadata => validateWorkflowIdInMetadata(v.possibleWorkflowId, sender())
     case v: ValidateWorkflowIdInMetadataSummaries => validateWorkflowIdInMetadataSummaries(v.possibleWorkflowId, sender())
-    case c: CheckIfWorkflowArchivedAndDeleted => checkIfMetadataArchivedAndDeleted(c.workflowId, sender())
+    case c: CheckIfWorkflowMetadataArchivedAndDeleted => checkIfMetadataArchivedAndDeleted(c.workflowId, sender())
     case action: BuildMetadataJsonAction => readActor forward action
     case streamAction: GetMetadataStreamAction => readActor forward streamAction
   }

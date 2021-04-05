@@ -600,7 +600,7 @@ object CromwellApiServiceSpec {
       case ValidateWorkflowIdInMetadataSummaries(id) =>
         if (SummarizedWorkflowIds.contains(id)) sender ! MetadataService.RecognizedWorkflowId
         else sender ! MetadataService.UnrecognizedWorkflowId
-      case CheckIfWorkflowArchivedAndDeleted(id) =>
+      case CheckIfWorkflowMetadataArchivedAndDeleted(id) =>
         id match {
           case ArchivedAndDeletedWorkflowId => sender ! WorkflowMetadataArchivedAndDeleted(ArchivedAndDeleted)
           case _ => sender ! WorkflowMetadataExists

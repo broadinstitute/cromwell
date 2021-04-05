@@ -156,9 +156,9 @@ object MetadataRouteSupport {
                                  (implicit timeout: Timeout,
                                   ec: ExecutionContext): Future[MetadataJsonResponse] = {
 
-    def checkIfWorkflowArchivedAndDeletedAndRespond(id: WorkflowId,
-                                                    metadataRequest: BuildWorkflowMetadataJsonWithOverridableSourceAction): Future[MetadataJsonResponse] = {
-      serviceRegistryActor.ask(CheckIfWorkflowArchivedAndDeleted(id)).mapTo[WorkflowArchivedAndDeletedCheckResponse] flatMap {
+    def checkIfMetadataDeletedAndRespond(id: WorkflowId,
+                                         metadataRequest: BuildWorkflowMetadataJsonWithOverridableSourceAction): Future[MetadataJsonResponse] = {
+      serviceRegistryActor.ask(CheckIfWorkflowMetadataArchivedAndDeleted(id)).mapTo[WorkflowArchivedAndDeletedCheckResponse] flatMap {
         case WorkflowMetadataArchivedAndDeleted(archiveStatus) =>
           Future.successful(SuccessfulMetadataJsonResponse(metadataRequest, processWorkflowMetadataDeletedResponse(id, archiveStatus)))
         case WorkflowMetadataExists => serviceRegistryActor.ask(request(id)).mapTo[MetadataJsonResponse]
@@ -168,11 +168,11 @@ object MetadataRouteSupport {
 
     validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor) flatMap { id =>
       /*
-        we perform an additional check to see if metadata for the workflow has been archived and deleted or not for
+        perform an additional check to see if metadata for the workflow has been archived and deleted or not for
         requests made to one of /metadata, /logs or /outputs endpoints (as they interact with metadata table)
       */
       request(id) match {
-        case m: BuildWorkflowMetadataJsonWithOverridableSourceAction => checkIfWorkflowArchivedAndDeletedAndRespond(id, m)
+        case m: BuildWorkflowMetadataJsonWithOverridableSourceAction => checkIfMetadataDeletedAndRespond(id, m)
         case _ => serviceRegistryActor.ask(request(id)).mapTo[MetadataJsonResponse]
       }
     }

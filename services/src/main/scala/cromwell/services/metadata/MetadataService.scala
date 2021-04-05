@@ -125,7 +125,7 @@ object MetadataService {
 
   final case class ValidateWorkflowIdInMetadata(possibleWorkflowId: WorkflowId) extends MetadataServiceAction
   final case class ValidateWorkflowIdInMetadataSummaries(possibleWorkflowId: WorkflowId) extends MetadataServiceAction
-  final case class CheckIfWorkflowArchivedAndDeleted(workflowId: WorkflowId) extends MetadataServiceAction
+  final case class CheckIfWorkflowMetadataArchivedAndDeleted(workflowId: WorkflowId) extends MetadataServiceAction
 
   /**
     * Responses

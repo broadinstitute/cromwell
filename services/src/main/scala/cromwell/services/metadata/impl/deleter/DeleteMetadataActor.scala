@@ -37,7 +37,7 @@ class DeleteMetadataActor(deleteMetadataConfig: DeleteMetadataConfig,
       case Success(true) => self ! DeleteNextWorkflowMessage
       case Success(false) => scheduleNextDeleteAttemptAfterInterval()
       case Failure(error) =>
-        log.error(error, s"Error while deleting, will wait ${deleteMetadataConfig.nonSuccessInterval} then try again.")
+        log.error(error, s"Error while deleting, will wait ${deleteMetadataConfig.backoffInterval} then try again.")
         scheduleNextDeleteAttemptAfterInterval()
     })
     case ShutdownCommand => context.stop(self)  // TODO: cancel any deletion action that might be happening?
@@ -59,20 +59,15 @@ class DeleteMetadataActor(deleteMetadataConfig: DeleteMetadataConfig,
 
   def lookupNextWorkflowToDelete(): Future[Option[WorkflowId]] = {
     val currentTimestampMinusDelay = OffsetDateTime.now().minusSeconds(deleteMetadataConfig.delayAfterWorkflowCompletion.toSeconds)
-
-    for {
-      queryResult <- queryWorkflowIdsByArchiveStatusAndOlderThanTimestamp(
-        MetadataArchiveStatus.toDatabaseValue(Archived),
-        currentTimestampMinusDelay,
-        batchSize = 1
-      )
-      headOption = queryResult.headOption
-      workflowId = headOption.map(WorkflowId.fromString)
-    } yield workflowId
+    queryWorkflowIdsByArchiveStatusAndOlderThanTimestamp(
+      MetadataArchiveStatus.toDatabaseValue(Archived),
+      currentTimestampMinusDelay,
+      batchSize = 1
+    ).map(_.headOption.map(WorkflowId.fromString))
   }
 
   def scheduleNextDeleteAttemptAfterInterval(): Unit = {
-    context.system.scheduler.scheduleOnce(deleteMetadataConfig.nonSuccessInterval)(self ! DeleteNextWorkflowMessage)
+    context.system.scheduler.scheduleOnce(deleteMetadataConfig.backoffInterval)(self ! DeleteNextWorkflowMessage)
     ()
   }
 

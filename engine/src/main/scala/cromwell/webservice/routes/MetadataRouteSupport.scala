@@ -133,7 +133,9 @@ object MetadataRouteSupport {
   private def processWorkflowMetadataDeletedResponse(workflowId: WorkflowId, archiveStatus: MetadataArchiveStatus): JsObject = {
     JsObject(Map(
       WorkflowMetadataKeys.Id -> JsString(workflowId.toString),
-      WorkflowMetadataKeys.MetadataArchiveStatus -> JsString(archiveStatus.toString)
+      WorkflowMetadataKeys.MetadataArchiveStatus -> JsString(archiveStatus.toString),
+      WorkflowMetadataKeys.Message -> JsString("Cromwell has archived this workflow's metadata according to the lifecycle policy. " +
+        "It is available in the archive bucket, or via a support request in the case of a managed instance.")
     ))
   }
 

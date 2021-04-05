@@ -130,6 +130,8 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
         val responseJson =  responseAs[JsObject]
         responseJson.fields.keys should contain allOf(WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus)
         responseJson.fields("metadataArchiveStatus").asInstanceOf[JsString].value shouldBe "ArchivedAndDeleted"
+        responseJson.fields("message").asInstanceOf[JsString].value shouldBe "Cromwell has archived this workflow's metadata " +
+          "according to the lifecycle policy. It is available in the archive bucket, or via a support request in the case of a managed instance."
         contentType should be(ContentTypes.`application/json`)
       }
   }
@@ -182,6 +184,8 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
         val responseJson =  responseAs[JsObject]
         responseJson.fields.keys should contain allOf(WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus)
         responseJson.fields("metadataArchiveStatus").asInstanceOf[JsString].value shouldBe "ArchivedAndDeleted"
+        responseJson.fields("message").asInstanceOf[JsString].value shouldBe "Cromwell has archived this workflow's metadata " +
+          "according to the lifecycle policy. It is available in the archive bucket, or via a support request in the case of a managed instance."
        }
   }
 
@@ -295,6 +299,8 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
         val responseJson =  responseAs[JsObject]
         responseJson.fields.keys should contain allOf(WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus)
         responseJson.fields("metadataArchiveStatus").asInstanceOf[JsString].value shouldBe "ArchivedAndDeleted"
+        responseJson.fields("message").asInstanceOf[JsString].value shouldBe "Cromwell has archived this workflow's metadata " +
+          "according to the lifecycle policy. It is available in the archive bucket, or via a support request in the case of a managed instance."
       }
   }
 

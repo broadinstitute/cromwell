@@ -5,12 +5,13 @@ name: combine-scalasteward-prs
   # GitHub blog demo: https://github.blog/changelog/2020-07-06-github-actions-manual-triggers-with-workflow_dispatch/.
 
 on:
-  workflow_dispatch:
-    inputs:
-      prLimit:
-        description: 'How many scala-steward PRs to consolidate'
-        required: true
-        default: 1000
+  push:
+#  workflow_dispatch:
+#    inputs:
+#      prLimit:
+#        description: 'How many scala-steward PRs to consolidate'
+#        required: true
+#        default: 1000
 
 jobs:
   build:

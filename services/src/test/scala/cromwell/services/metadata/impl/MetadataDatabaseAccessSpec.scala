@@ -507,13 +507,13 @@ class MetadataDatabaseAccessSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
         responseNonEmpty should contain noElementsOf Seq(workflowId2.toString)
       }
 
-      val deleteMetadataFuture = dataAccess.deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(workflowId1, Option("ArchivedAndPurged"))
+      val deleteMetadataFuture = dataAccess.deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(workflowId1, Option("ArchivedAndDeleted"))
       Await.result(deleteMetadataFuture, defaultTimeout)
 
       val summaryResponseFuture = dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(WorkflowQueryKey.Id.name -> workflowId1.toString)))
       val summaryResponse = Await.result(summaryResponseFuture, defaultTimeout)
       summaryResponse._1.results should not be empty
-      summaryResponse._1.results.head.metadataArchiveStatus.toString shouldBe "ArchivedAndPurged"
+      summaryResponse._1.results.head.metadataArchiveStatus.toString shouldBe "ArchivedAndDeleted"
     }
 
     it should "error when deleting metadata for a root workflow that does not exist" taggedAs DbmsTest in {
@@ -546,6 +546,19 @@ class MetadataDatabaseAccessSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
       test
         .failed.futureValue(Timeout(10.seconds))
         .getMessage should be(s"""Metadata deletion precondition failed: workflow ID "33333333-3333-3333-3333-333333333333" was in non-terminal status "Submitted"""")
+    }
+
+    // ??? not sure what value does it add?
+    it should "properly check metadata archival statuses" taggedAs DbmsTest in {
+      (for {
+        workflowId <- succeededWorkflowMetadata(WorkflowId.fromString("11111111-1111-abcd-1111-111111111112"))
+        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000)
+        _ <- dataAccess.getWorkflowArchiveStatus(workflowId) map { status => status shouldBe None }
+        _ <- dataAccess.updateMetadataArchiveStatus(workflowId, MetadataArchiveStatus.Archived)
+        _ <- dataAccess.getWorkflowArchiveStatus(workflowId) map { status => status.get shouldBe "Archived" }
+        _ <- dataAccess.updateMetadataArchiveStatus(workflowId, MetadataArchiveStatus.ArchivedAndDeleted)
+        _ <- dataAccess.getWorkflowArchiveStatus(workflowId) map { status => status.get shouldBe "ArchivedAndDeleted" }
+      } yield()).futureValue
     }
 
     it should "close the database" taggedAs DbmsTest in {

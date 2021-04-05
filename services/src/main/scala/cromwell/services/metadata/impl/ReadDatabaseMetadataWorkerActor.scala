@@ -3,12 +3,11 @@ package cromwell.services.metadata.impl
 import java.sql.SQLTimeoutException
 
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
-import common.validation.Validation._
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.{WorkflowId, WorkflowSubmitted}
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService._
-import cromwell.services.metadata.{MetadataArchiveStatus, MetadataQuery, WorkflowQueryParameters}
+import cromwell.services.metadata.{MetadataQuery, WorkflowQueryParameters}
 
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
@@ -29,38 +28,15 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
 
   def receive = {
     case GetMetadataAction(query: MetadataQuery, checkTotalMetadataRowNumberBeforeQuerying: Boolean) =>
-      evaluateRespondAndStop(
-        sender(),
-        checkWorkflowArchivedThenEvaluate(
-          query.workflowId,
-          () => getMetadata(query, checkTotalMetadataRowNumberBeforeQuerying),
-          (t: Throwable) => MetadataServiceKeyLookupFailed(query, t)
-        )
-      ) // metadata table
+      evaluateRespondAndStop(sender(), getMetadata(query, checkTotalMetadataRowNumberBeforeQuerying))
     case GetMetadataStreamAction(workflowId, fetchSize) =>
       evaluateRespondAndStop(sender(), Future.fromTry(getMetadataStream(workflowId, fetchSize)))
     case GetStatus(workflowId) => evaluateRespondAndStop(sender(), getStatus(workflowId))
     case GetLabels(workflowId) => evaluateRespondAndStop(sender(), queryLabelsAndRespond(workflowId))
     case GetRootAndSubworkflowLabels(rootWorkflowId: WorkflowId) => evaluateRespondAndStop(sender(), queryRootAndSubworkflowLabelsAndRespond(rootWorkflowId))
-    case GetLogs(workflowId) =>
-      evaluateRespondAndStop(
-        sender(),
-        checkWorkflowArchivedThenEvaluate(
-          workflowId,
-          () => queryLogsAndRespond(workflowId),
-          (t: Throwable) => LogsFailure(workflowId, t)
-        )
-      ) // metadata table
+    case GetLogs(workflowId) => evaluateRespondAndStop(sender(), queryLogsAndRespond(workflowId))
     case QueryForWorkflowsMatchingParameters(parameters) => evaluateRespondAndStop(sender(), queryWorkflowsAndRespond(parameters))
-    case WorkflowOutputs(workflowId) =>
-      evaluateRespondAndStop(
-        sender(),
-        checkWorkflowArchivedThenEvaluate(
-          workflowId,
-          () => queryWorkflowOutputsAndRespond(workflowId),
-          (t: Throwable) => WorkflowOutputsFailure(workflowId, t)
-        )
-      ) // metadata table
+    case WorkflowOutputs(id) => evaluateRespondAndStop(sender(), queryWorkflowOutputsAndRespond(id))
     case unexpected => log.warning(s"Programmer Error! Unexpected message received by ${getClass.getSimpleName}: $unexpected")
   }
 
@@ -73,25 +49,6 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
       case t => log.error(t, s"Programmer Error! Unexpected error fall-through to 'evaluateRespondAndStop in ${getClass.getSimpleName}'")
     }
     ()
-  }
-
-  private def fetchWorkflowArchiveStatus(id: WorkflowId): Future[MetadataArchiveStatus] = {
-    for {
-      status <- getWorkflowArchiveStatus(id)
-      archiveState <- Future.fromTry(MetadataArchiveStatus.fromDatabaseValue(status).toTry)
-    } yield archiveState
-  }
-
-  private def checkWorkflowArchivedThenEvaluate(id: WorkflowId,
-                                                evalFunc: () => Future[MetadataServiceResponse],
-                                                recoverFunc: Throwable => MetadataServiceResponse): Future[MetadataServiceResponse] = {
-    fetchWorkflowArchiveStatus(id) flatMap { archiveState =>
-      if (archiveState.isArchived) {
-        Future.successful(WorkflowMetadataArchivedResponse(id, archiveState))
-      } else evalFunc()
-    } recoverWith {
-      case e => Future.successful(recoverFunc(e))
-    }
   }
 
   private def getMetadata(query: MetadataQuery, checkResultSizeBeforeQuerying: Boolean): Future[MetadataServiceResponse] = {

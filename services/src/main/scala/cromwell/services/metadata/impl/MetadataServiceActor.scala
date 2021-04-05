@@ -6,9 +6,11 @@ import akka.routing.Listen
 import cats.data.NonEmptyList
 import com.typesafe.config.Config
 import common.exception.AggregatedMessageException
+import common.validation.Validation._
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.{LoadConfig, WorkflowId}
 import cromwell.services.MetadataServicesStore
+import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.{MetadataSummaryFailure, MetadataSummarySuccess, SummarizeMetadata}
 import cromwell.services.metadata.impl.archiver.{ArchiveMetadataConfig, ArchiveMetadataSchedulerActor}
@@ -133,6 +135,19 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
     }
   }
 
+  private def checkIfMetadataArchivedAndDeleted(workflowId: WorkflowId, sender: ActorRef): Unit = {
+    getWorkflowArchiveStatus(workflowId) onComplete {
+      case Success(status) =>
+        MetadataArchiveStatus.fromDatabaseValue(status).toTry match {
+          case Success(archiveStatus) =>
+            if (archiveStatus.isDeleted) sender ! WorkflowMetadataArchivedAndDeleted(archiveStatus)
+            else sender ! WorkflowMetadataExists
+          case Failure(e) => sender ! FailedToGetArchiveStatus(new RuntimeException(s"Failed to get metadata archive status for workflow ID $workflowId", e))
+        }
+      case Failure(e) => sender ! FailedToGetArchiveStatus(new RuntimeException(s"Failed to get metadata archive status for workflow ID $workflowId", e))
+    }
+  }
+
   def summarizerReceive: Receive = {
     case RefreshSummary => summaryActor foreach { _ ! SummarizeMetadata(metadataSummaryRefreshLimit, sender()) }
     case MetadataSummarySuccess => scheduleSummary()
@@ -149,6 +164,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
     case listen: Listen => writeActor forward listen
     case v: ValidateWorkflowIdInMetadata => validateWorkflowIdInMetadata(v.possibleWorkflowId, sender())
     case v: ValidateWorkflowIdInMetadataSummaries => validateWorkflowIdInMetadataSummaries(v.possibleWorkflowId, sender())
+    case c: CheckIfWorkflowArchivedAndDeleted => checkIfMetadataArchivedAndDeleted(c.workflowId, sender())
     case action: BuildMetadataJsonAction => readActor forward action
     case streamAction: GetMetadataStreamAction => readActor forward streamAction
   }

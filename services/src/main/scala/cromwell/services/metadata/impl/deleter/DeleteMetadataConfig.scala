@@ -15,11 +15,11 @@ final case class DeleteMetadataConfig(backoffInterval: FiniteDuration,
 object DeleteMetadataConfig {
 
   def parseConfig(archiveMetadataConfig: Config): Checked[DeleteMetadataConfig] = {
-    val defaultNonSuccessInterval: FiniteDuration = 1 minute
+    val defaultBackoffInterval: FiniteDuration = 1 minute
 
     for {
-      nonSuccessInterval <- Try(archiveMetadataConfig.getOrElse[FiniteDuration]("backoff-interval", defaultNonSuccessInterval)).toChecked
+      backoffInterval <- Try(archiveMetadataConfig.getOrElse[FiniteDuration]("backoff-interval", defaultBackoffInterval)).toChecked
       delayAfterWorkflowCompletion <- Try(archiveMetadataConfig.as[FiniteDuration]("delay-after-workflow-completion")).toChecked
-    } yield DeleteMetadataConfig(nonSuccessInterval, delayAfterWorkflowCompletion)
+    } yield DeleteMetadataConfig(backoffInterval, delayAfterWorkflowCompletion)
   }
 }

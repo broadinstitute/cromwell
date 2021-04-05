@@ -307,7 +307,7 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
       notImplemented()
     }
 
-    override def getWorkflowArchiveStatus(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = notImplemented()
+    override def getMetadataArchiveStatus(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = notImplemented()
   }
 }
 

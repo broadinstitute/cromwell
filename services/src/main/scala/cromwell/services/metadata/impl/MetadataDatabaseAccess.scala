@@ -370,7 +370,7 @@ trait MetadataDatabaseAccess {
   def getSummaryQueueSize()(implicit ec: ExecutionContext): Future[Int] =
     metadataDatabaseInterface.getSummaryQueueSize()
 
-  def getWorkflowArchiveStatus(id: WorkflowId)(implicit ec: ExecutionContext): Future[Option[String]] = {
-    metadataDatabaseInterface.getWorkflowArchiveStatus(id.toString)
+  def getMetadataArchiveStatus(id: WorkflowId)(implicit ec: ExecutionContext): Future[Option[String]] = {
+    metadataDatabaseInterface.getMetadataArchiveStatus(id.toString)
   }
 }

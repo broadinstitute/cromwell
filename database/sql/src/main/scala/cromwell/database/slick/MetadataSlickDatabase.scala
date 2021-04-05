@@ -497,7 +497,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       countSummaryQueueEntries()
     )
 
-  override def getWorkflowArchiveStatus(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = {
+  override def getMetadataArchiveStatus(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = {
     val action = dataAccess.metadataArchiveStatusByWorkflowId(workflowId).result.headOption
     runTransaction(action).map(_.flatten)
   }

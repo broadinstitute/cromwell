@@ -136,7 +136,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
   }
 
   private def checkIfMetadataArchivedAndDeleted(workflowId: WorkflowId, sender: ActorRef): Unit = {
-    getWorkflowArchiveStatus(workflowId) onComplete {
+    getMetadataArchiveStatus(workflowId) onComplete {
       case Success(status) =>
         MetadataArchiveStatus.fromDatabaseValue(status).toTry match {
           case Success(archiveStatus) =>

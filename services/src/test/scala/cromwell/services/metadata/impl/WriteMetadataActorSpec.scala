@@ -306,6 +306,8 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
     override def countMetadataEntryWithKeyConstraints(workflowExecutionUuid: String, metadataKeysToFilterFor: List[String], metadataKeysToFilterAgainst: List[String], metadataJobQueryValue: MetadataJobQueryValue, expandSubWorkflows: Boolean, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
       notImplemented()
     }
+
+    override def getMetadataArchiveStatus(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = notImplemented()
   }
 }
 

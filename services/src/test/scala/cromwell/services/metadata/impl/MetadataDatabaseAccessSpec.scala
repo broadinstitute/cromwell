@@ -507,13 +507,13 @@ class MetadataDatabaseAccessSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
         responseNonEmpty should contain noElementsOf Seq(workflowId2.toString)
       }
 
-      val deleteMetadataFuture = dataAccess.deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(workflowId1, Option("ArchivedAndPurged"))
+      val deleteMetadataFuture = dataAccess.deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(workflowId1, Option("ArchivedAndDeleted"))
       Await.result(deleteMetadataFuture, defaultTimeout)
 
       val summaryResponseFuture = dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(WorkflowQueryKey.Id.name -> workflowId1.toString)))
       val summaryResponse = Await.result(summaryResponseFuture, defaultTimeout)
       summaryResponse._1.results should not be empty
-      summaryResponse._1.results.head.metadataArchiveStatus.toString shouldBe "ArchivedAndPurged"
+      summaryResponse._1.results.head.metadataArchiveStatus.toString shouldBe "ArchivedAndDeleted"
     }
 
     it should "error when deleting metadata for a root workflow that does not exist" taggedAs DbmsTest in {

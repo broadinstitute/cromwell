@@ -54,7 +54,7 @@ jobs:
           * #$pr" )
             else
               echo "Unexpected exit code: ${EXIT_CODE}"
-              git reset --hard HEAD~1
+              git reset --hard HEAD
               UNSUCCESSFUL_PRS+=( "
           * #$pr" )
             fi

@@ -106,7 +106,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
     for {
       asyncIo <- futureAsyncIo
       gcsStream <- Future.fromTry(Try(Files.newOutputStream(path.nioPath, StandardOpenOption.CREATE)))
-        crc32cStream = new Crc32cStream()
+      crc32cStream = new Crc32cStream()
       teeStream = new TeeingOutputStream(gcsStream, crc32cStream)
       csvPrinter = new CSVPrinter(new OutputStreamWriter(teeStream), CSVFormat.DEFAULT.withHeader(CsvFileHeaders : _*))
       _ <- stream.foreach(me => {

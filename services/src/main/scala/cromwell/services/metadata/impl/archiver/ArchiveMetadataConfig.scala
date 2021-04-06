@@ -6,8 +6,8 @@ import common.Checked
 import common.validation.Validation._
 import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.path.PathFactory.PathBuilders
-import cromwell.core.path.{PathBuilderFactory}
-import cromwell.core.{WorkflowOptions}
+import cromwell.core.path.PathBuilderFactory
+import cromwell.core.WorkflowOptions
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.Await

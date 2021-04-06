@@ -5,13 +5,12 @@ name: combine-scalasteward-prs
   # GitHub blog demo: https://github.blog/changelog/2020-07-06-github-actions-manual-triggers-with-workflow_dispatch/.
 
 on:
-  push:
-#  workflow_dispatch:
-#    inputs:
-#      prLimit:
-#        description: 'How many scala-steward PRs to consolidate'
-#        required: true
-#        default: 1000
+  workflow_dispatch:
+    inputs:
+      prLimit:
+        description: 'How many scala-steward PRs to consolidate'
+        required: true
+        default: 1000
 
 jobs:
   build:
@@ -27,10 +26,10 @@ jobs:
 
           echo "Bringing in PRs:"
           #gh pr list --limit 1000 | grep 'scala-steward:' | tac | head -n${{ github.event.inputs.prLimit }}
-          gh pr list --limit 1000 | grep 'scala-steward:' | tac | head -n10
+          gh pr list --limit 1000 | grep 'scala-steward:' | tac | head -n100
 
           #PR_LIST=$(gh pr list --limit 1000 | grep 'scala-steward:' | cut -d$'\t'  -f 1 | tac | head -n${{ github.event.inputs.prLimit }})
-          PR_LIST=$(gh pr list --limit 1000 | grep 'scala-steward:' | cut -d$'\t'  -f 1 | tac | head -n10)
+          PR_LIST=$(gh pr list --limit 1000 | grep 'scala-steward:' | cut -d$'\t'  -f 1 | tac | head -n100)
           BRANCH="consolidated-scala-steward-prs-$(date +'%Y-%m-%d_%H-%M')"
 
           SUCCESSFUL_PRS=()
@@ -46,8 +45,7 @@ jobs:
             git fetch origin pull/${pr}/head:pr_${pr}
 
             git checkout $BRANCH
-            git merge -m "merging PR #${pr}" pr_${pr}
-            #git rebase pr_${pr} $BRANCH && EXIT_CODE=$? || EXIT_CODE=$?
+            git merge -m "merging PR #${pr}" pr_${pr} && EXIT_CODE=$? || EXIT_CODE=$?
 
             if [ "${EXIT_CODE}" == "0" ]
             then
@@ -55,7 +53,7 @@ jobs:
           * #$pr" )
             else
               echo "Unexpected exit code: ${EXIT_CODE}"
-              git reset --hard HEAD
+              git reset --hard HEAD~1
               UNSUCCESSFUL_PRS+=( "
           * #$pr" )
             fi

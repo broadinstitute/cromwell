@@ -12,10 +12,11 @@ import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import cromwell.core.Dispatcher.ApiDispatcher
 import cromwell.core.labels.Labels
-import cromwell.core.{WorkflowId, path => _}
+import cromwell.core.{WorkflowId, WorkflowMetadataKeys, path => _}
 import cromwell.engine.instrumentation.HttpInstrumentation
 import cromwell.server.CromwellShutdown
 import cromwell.services._
+import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataService._
 import cromwell.webservice.LabelsManagerActor
 import cromwell.webservice.LabelsManagerActor._
@@ -23,6 +24,7 @@ import cromwell.webservice.WebServiceUtils.EnhancedThrowable
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.routes.CromwellApiService._
 import cromwell.webservice.routes.MetadataRouteSupport._
+import spray.json.{JsObject, JsString}
 
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
 import scala.util.{Failure, Success}
@@ -127,6 +129,16 @@ trait MetadataRouteSupport extends HttpInstrumentation {
 }
 
 object MetadataRouteSupport {
+
+  private def processWorkflowMetadataDeletedResponse(workflowId: WorkflowId, archiveStatus: MetadataArchiveStatus): JsObject = {
+    JsObject(Map(
+      WorkflowMetadataKeys.Id -> JsString(workflowId.toString),
+      WorkflowMetadataKeys.MetadataArchiveStatus -> JsString(archiveStatus.toString),
+      WorkflowMetadataKeys.Message -> JsString("Cromwell has archived this workflow's metadata according to the lifecycle policy. " +
+        "It is available in the archive bucket, or via a support request in the case of a managed instance.")
+    ))
+  }
+
   def metadataLookup(possibleWorkflowId: String,
                      request: WorkflowId => BuildMetadataJsonAction,
                      serviceRegistryActor: ActorRef)
@@ -145,7 +157,27 @@ object MetadataRouteSupport {
                                   serviceRegistryActor: ActorRef)
                                  (implicit timeout: Timeout,
                                   ec: ExecutionContext): Future[MetadataJsonResponse] = {
-    validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor) flatMap { w => serviceRegistryActor.ask(request(w)).mapTo[MetadataJsonResponse] }
+
+    def checkIfMetadataDeletedAndRespond(id: WorkflowId,
+                                         metadataRequest: BuildWorkflowMetadataJsonWithOverridableSourceAction): Future[MetadataJsonResponse] = {
+      serviceRegistryActor.ask(CheckIfWorkflowMetadataArchivedAndDeleted(id)).mapTo[WorkflowArchivedAndDeletedCheckResponse] flatMap {
+        case WorkflowMetadataArchivedAndDeleted(archiveStatus) =>
+          Future.successful(SuccessfulMetadataJsonResponse(metadataRequest, processWorkflowMetadataDeletedResponse(id, archiveStatus)))
+        case WorkflowMetadataExists => serviceRegistryActor.ask(request(id)).mapTo[MetadataJsonResponse]
+        case FailedToGetArchiveStatus(e) => Future.failed(e)
+      }
+    }
+
+    validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor) flatMap { id =>
+      /*
+        for requests made to one of /metadata, /logs or /outputs endpoints, perform an additional check to see
+        if metadata for the workflow has been archived and deleted or not (as they interact with metadata table)
+      */
+      request(id) match {
+        case m: BuildWorkflowMetadataJsonWithOverridableSourceAction => checkIfMetadataDeletedAndRespond(id, m)
+        case _ => serviceRegistryActor.ask(request(id)).mapTo[MetadataJsonResponse]
+      }
+    }
   }
 
   def completeMetadataBuilderResponse(response: Future[MetadataJsonResponse]): Route = {

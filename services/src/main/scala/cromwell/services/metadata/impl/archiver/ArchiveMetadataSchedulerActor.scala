@@ -1,14 +1,15 @@
 package cromwell.services.metadata.impl.archiver
 
 import java.io.OutputStreamWriter
-import java.nio.file.{Files, StandardOpenOption}
+import java.nio.file.{Files, Paths, StandardOpenOption}
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import common.util.StringUtil.EnhancedToStringable
 import common.util.TimeUtil.EnhancedOffsetDateTime
-import cromwell.core.path.Path
+
+import cromwell.core.path.{DefaultPath, Path}
 import cromwell.core.{WorkflowAborted, WorkflowFailed, WorkflowId, WorkflowSucceeded}
 import cromwell.database.sql.SqlConverters.{ClobOptionToRawString, TimestampToSystemOffsetDateTime}
 import cromwell.database.sql.tables.MetadataEntry
@@ -26,7 +27,6 @@ import slick.basic.DatabasePublisher
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
-
 import java.time.OffsetDateTime
 
 
@@ -56,12 +56,19 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
     case other => log.info(s"Programmer Error! The ArchiveMetadataSchedulerActor received unexpected message! ($sender sent $other})")
   }
 
+  private def pathForWorkflow(id: WorkflowId): Future[Path] =  {
+    val bucket = archiveMetadataConfig.bucket
+    getRootWorkflowId(id.toString).map((rootWorkflowId: Option[String]) => {
+      DefaultPath(Paths.get(s"gs://$bucket/${rootWorkflowId.getOrElse(???)}/$id.csv"))
+    })
+  }
+
   def archiveNextWorkflow(): Future[Boolean] = {
     for {
       maybeWorkflowId <- lookupNextWorkflowToArchive()
       result <- maybeWorkflowId match {
         case Some(id) => for {
-          path <- Future(archiveMetadataConfig.makePath(id))
+          path <- pathForWorkflow(id)
           _ = log.info(s"Archiving metadata for $id to ${path.pathAsString}")
           dbStream <- fetchStreamFromDatabase(id)
           _ <- streamMetadataToGcs(path, dbStream)

@@ -87,19 +87,7 @@ trait MetadataRouteSupport extends HttpInstrumentation {
           entity(as[Map[String, String]]) { parameterMap =>
             instrumentRequest {
               Labels.validateMapOfLabels(parameterMap) match {
-                case Valid(labels) =>
-                  val response = validateWorkflowIdInMetadataSummaries(possibleWorkflowId, serviceRegistryActor) flatMap { id =>
-                    val lma = actorRefFactory.actorOf(LabelsManagerActor.props(serviceRegistryActor).withDispatcher(ApiDispatcher))
-                    lma.ask(LabelsAddition(LabelsData(id, labels))).mapTo[LabelsManagerActorResponse]
-                  }
-                  onComplete(response) {
-                    case Success(r: BuiltLabelsManagerResponse) => complete(r.response)
-                    case Success(e: FailedLabelsManagerResponse) => e.reason.failRequest(StatusCodes.InternalServerError)
-                    case Failure(e: UnrecognizedWorkflowException) => e.failRequest(StatusCodes.NotFound)
-                    case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
-                    case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
-
-                  }
+                case Valid(labels) => labelsPatchRequest(possibleWorkflowId, labels, serviceRegistryActor, actorRefFactory)
                 case Invalid(e) =>
                   val iae = new IllegalArgumentException(e.toList.mkString(","))
                   iae.failRequest(StatusCodes.BadRequest)
@@ -164,7 +152,7 @@ object MetadataRouteSupport {
         case WorkflowMetadataArchivedAndDeleted(archiveStatus) =>
           Future.successful(SuccessfulMetadataJsonResponse(metadataRequest, processWorkflowMetadataDeletedResponse(id, archiveStatus)))
         case WorkflowMetadataExists => serviceRegistryActor.ask(request(id)).mapTo[MetadataJsonResponse]
-        case FailedToGetArchiveStatus(e) => Future.failed(e)
+        case FailedToGetArchiveStatus1(e) => Future.failed(e)
       }
     }
 
@@ -208,4 +196,41 @@ object MetadataRouteSupport {
       case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
     }
   }
+
+  def labelsPatchRequest(possibleWorkflowId: String,
+                         labels: Labels,
+                         serviceRegistryActor: ActorRef,
+                         actorRefFactory: ActorRefFactory)
+                        (implicit timeout: Timeout, ec: ExecutionContext): Route = {
+    val response = validateWorkflowIdInMetadataSummaries(possibleWorkflowId, serviceRegistryActor) flatMap { id =>
+      // check if metadata archived here ??
+
+      serviceRegistryActor.ask(FetchWorkflowMetadataArchiveStatus(id)).mapTo[FetchWorkflowArchiveStatusResponse] flatMap {
+        case WorkflowMetadataArchivedStatus(archiveStatus) =>
+          if (archiveStatus.isArchived)
+            Future.successful(BuiltLabelsManagerResponse(processWorkflowMetadataDeletedResponse(id, archiveStatus)))
+          else {
+            val lma = actorRefFactory.actorOf(LabelsManagerActor.props(serviceRegistryActor).withDispatcher(ApiDispatcher))
+            lma.ask(LabelsAddition(LabelsData(id, labels))).mapTo[LabelsManagerActorResponse]
+          }
+        case FailedToGetArchiveStatus(e) => Future.failed(e)
+      }
+    }
+
+    onComplete(response) {
+      case Success(r: BuiltLabelsManagerResponse) => complete(r.response)
+      case Success(e: FailedLabelsManagerResponse) => e.reason.failRequest(StatusCodes.InternalServerError)
+      case Failure(e: UnrecognizedWorkflowException) => e.failRequest(StatusCodes.NotFound)
+      case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
+      case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
+    }
+  }
+
+//  def checkIfMetadataArchivedAndRespond(id: WorkflowId, serviceRegistryActor: ActorRef, actorRefFactory: ActorRefFactory)
+//                                       (implicit timeout: Timeout, ec: ExecutionContext) = {
+//    serviceRegistryActor.ask(FetchWorkflowMetadataArchiveStatus(id)).mapTo[FetchWorkflowArchiveStatusResponse] flatMap {
+//      case WorkflowMetadataArchivedStatus(archiveStatus) => ???
+//      case FailedToGetArchiveStatus(e) => Future.failed(e)
+//    }
+//  }
 }

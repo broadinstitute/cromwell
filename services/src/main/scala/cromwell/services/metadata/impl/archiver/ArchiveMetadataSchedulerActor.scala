@@ -45,7 +45,10 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
 
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val askTimeout: Timeout = new Timeout(60.seconds)
-  val futureAsyncIo: Future[AsyncIo] = requestIoActor() map { ioActor => new AsyncIo(ioActor, DefaultIoCommandBuilder) }
+  lazy val futureAsyncIo: Future[AsyncIo] = requestIoActor() map { ioActor => {
+    log.info(s"IoActor reference received by ${self.path.name}")
+    new AsyncIo(ioActor, DefaultIoCommandBuilder)
+  } }
 
   // kick off archiving immediately
   self ! ArchiveNextWorkflowMessage
@@ -163,7 +166,9 @@ object ArchiveMetadataSchedulerActor {
     Props(new ArchiveMetadataSchedulerActor(archiveMetadataConfig, serviceRegistryActor))
 
   final class TeeingOutputStream(streams: OutputStream*) extends OutputStream {
-    override def write(b: Int): Unit = streams.foreach(_.write(b))
+    override def write(b: Int): Unit = { streams.foreach(_.write(b)) }
+    override def close(): Unit = { streams.foreach(_.close())}
+    override def flush(): Unit = { streams.foreach(_.flush())}
   }
 
   final class Crc32cStream() extends OutputStream {

@@ -14,7 +14,8 @@ trait IoActorRequester extends StrictLogging { this: Actor =>
 
   val serviceRegistryActor: ActorRef
 
-  var _ioActorPromise: Option[Promise[ActorRef]] = _
+  var _ioActorPromise: Option[Promise[ActorRef]] = None
+
   def requestIoActor(): Future[ActorRef] = _ioActorPromise match {
     case Some(promise) => promise.future
     case None =>

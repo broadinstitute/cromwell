@@ -9,7 +9,7 @@ import cromwell.core.WorkflowId
 import cromwell.services.MetadataServicesStore
 import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.metadata.MetadataArchiveStatus
-import cromwell.services.metadata.MetadataArchiveStatus.{Archived, ArchivedAndPurged}
+import cromwell.services.metadata.MetadataArchiveStatus.{Archived, ArchivedAndDeleted}
 import cromwell.services.metadata.impl.MetadataDatabaseAccess
 import cromwell.services.metadata.impl.deleter.DeleteMetadataActor._
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
@@ -50,7 +50,7 @@ class DeleteMetadataActor(deleteMetadataConfig: DeleteMetadataConfig,
       case Some(id) =>
         log.info(s"Workflow $id identified for metadata deletion")
         for {
-          rowsDeleted <- deleteAllMetadataEntriesForWorkflowAndUpdateArchiveStatus(id, MetadataArchiveStatus.toDatabaseValue(ArchivedAndPurged))
+          rowsDeleted <- deleteAllMetadataEntriesForWorkflowAndUpdateArchiveStatus(id, MetadataArchiveStatus.toDatabaseValue(ArchivedAndDeleted))
           _ = log.info(s"Deleted $rowsDeleted metadata rows for $id")
         } yield true
       case None => Future.successful(false)

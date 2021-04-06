@@ -134,13 +134,6 @@ trait WorkflowMetadataSummaryEntryComponent {
       if workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid
     } yield workflowMetadataSummaryEntry.metadataArchiveStatus)
 
-  val metadataArchiveStatusByWorkflowId = Compiled(
-    (workflowExecutionUuid: Rep[String]) => for {
-      workflowMetadataSummaryEntry <- workflowMetadataSummaryEntries
-      if workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid
-    } yield workflowMetadataSummaryEntry.metadataArchiveStatus
-  )
-
   def concat(a: SQLActionBuilder, b: SQLActionBuilder): SQLActionBuilder = {
     SQLActionBuilder(a.queryParts ++ b.queryParts, (p: Unit, pp: PositionedParameters) => {
       a.unitPConv.apply(p, pp)

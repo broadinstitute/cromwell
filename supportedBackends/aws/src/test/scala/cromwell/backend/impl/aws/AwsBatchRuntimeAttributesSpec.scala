@@ -76,7 +76,7 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
     ContinueOnReturnCodeSet(Set(0)),
     false,
     "",
-    "local")
+    1)
 
   "AwsBatchRuntimeAttributes" should {
 

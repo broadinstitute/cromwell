@@ -16,16 +16,16 @@ trait IoActorRequester extends StrictLogging { this: Actor =>
 
   var _ioActorPromise: Option[Promise[ActorRef]] = None
 
-  def requestIoActor(): Future[ActorRef] = _ioActorPromise match {
+  def requestIoActor(backoffInterval: FiniteDuration = 1.minute): Future[ActorRef] = _ioActorPromise match {
     case Some(promise) => promise.future
     case None =>
       val newPromise = Promise[ActorRef]
       _ioActorPromise = Option(newPromise)
-      requestIoActorInner(newPromise)
+      requestIoActorInner(newPromise, backoffInterval)
       newPromise.future
   }
 
-  private def requestIoActorInner(promise: Promise[ActorRef]): Unit = {
+  private def requestIoActorInner(promise: Promise[ActorRef], backoffInterval: FiniteDuration): Unit = {
     implicit val ec: ExecutionContext = context.system.dispatcher
     implicit val timeout: Timeout = new Timeout(1.minute)
 
@@ -33,8 +33,8 @@ trait IoActorRequester extends StrictLogging { this: Actor =>
       case Success(IoActorRef(actorRef)) =>
         promise.complete(Success(actorRef))
       case Success(NoIoActorRefAvailable) =>
-        logger.warn(s"No IoActorRef available for ${self.path} yet. Retrying in 1 minute.")
-        context.system.scheduler.scheduleOnce(1.minute) { requestIoActorInner(promise) }
+        logger.warn(s"No IoActorRef available for ${self.path} yet. Retrying in $backoffInterval.")
+        context.system.scheduler.scheduleOnce(backoffInterval) { requestIoActorInner(promise, backoffInterval) }
       case Success(other) =>
         val message = s"Programmer Error: Unexpected response to a RequestIoActor message in ${self.path}'s IoActorRequester: $other"
         logger.error(message)

@@ -43,7 +43,7 @@ jobs:
             git fetch origin pull/${pr}/head:pr_${pr}
 
             git checkout $BRANCH
-            git merge -m "merging PR #${pr}" pr_${pr} && EXIT_CODE=$? || EXIT_CODE=$?
+            git merge -m "merging PR #${pr}" pr_${pr} --allow-unrelated-histories && EXIT_CODE=$? || EXIT_CODE=$?
 
             if [ "${EXIT_CODE}" == "0" ]
             then

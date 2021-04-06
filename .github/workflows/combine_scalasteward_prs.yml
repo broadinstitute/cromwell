@@ -1,0 +1,67 @@
+name: combine-scalasteward-prs
+
+  # With a thousand thanks to Qi who showed us this in Leonardo: https://github.com/DataBiosphere/leonardo/pull/1975
+  # Allows manually triggering of workflow on a selected branch via the GitHub Actions tab.
+  # GitHub blog demo: https://github.blog/changelog/2020-07-06-github-actions-manual-triggers-with-workflow_dispatch/.
+
+on:
+  workflow_dispatch:
+    inputs:
+      prLimit:
+        description: 'How many scala-steward PRs to consolidate'
+        required: true
+        default: 1000
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Merge scala-steward PRs
+        id: msp
+        run: |
+          export GITHUB_TOKEN=${{ secrets.BROADBOT_GITHUB_TOKEN }}
+          git config user.name "broadbot"
+
+          echo "Bringing in PRs:"
+          gh pr list --limit 1000 | grep 'scala-steward:' | tac | head -n${{ github.event.inputs.prLimit }}
+
+          PR_LIST=$(gh pr list --limit 1000 | grep 'scala-steward:' | cut -d$'\t'  -f 1 | tac | head -n${{ github.event.inputs.prLimit }})
+          BRANCH="consolidated-scala-steward-prs-$(date +'%Y-%m-%d_%H-%M')"
+
+          SUCCESSFUL_PRS=()
+          UNSUCCESSFUL_PRS=()
+
+          git fetch
+          git checkout develop
+          git checkout -B $BRANCH
+
+          while IFS= read -r pr
+          do
+            echo "Bringing in: $pr"
+            git fetch origin pull/${pr}/head:pr_${pr}
+
+            git checkout $BRANCH
+            git merge -m "merging PR #${pr}" pr_${pr} && EXIT_CODE=$? || EXIT_CODE=$?
+
+            if [ "${EXIT_CODE}" == "0" ]
+            then
+              SUCCESSFUL_PRS+=( "
+          * #$pr" )
+            else
+              echo "Unexpected exit code: ${EXIT_CODE}"
+              git reset --hard HEAD
+              UNSUCCESSFUL_PRS+=( "
+          * #$pr" )
+            fi
+          done <<< "$PR_LIST"
+          git checkout $BRANCH
+          git push origin $BRANCH
+          gh pr create \
+            --title '[!! NEEDS Jira ID !!] Scala-steward shepherding consolidation' \
+            --body "This PR was generated automatically by the github action: https://github.com/broadinstitute/cromwell/actions/workflows/combine_scalasteward_prs.yml
+
+          Consolidates scala-steward PRs ${SUCCESSFUL_PRS[*]}.
+
+          Note that the following PRs were not able to be consolidated: ${UNSUCCESSFUL_PRS[*]}"

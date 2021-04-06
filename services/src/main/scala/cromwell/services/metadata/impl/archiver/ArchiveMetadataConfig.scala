@@ -8,6 +8,7 @@ import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.path.PathFactory.PathBuilders
 import cromwell.core.path.{Path, PathBuilderFactory, PathFactory}
 import cromwell.core.{WorkflowId, WorkflowOptions}
+import cromwell.services.metadata.impl.MetadataDatabaseAccess
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.Await
@@ -26,9 +27,10 @@ final case class ArchiveMetadataConfig(pathBuilders: PathBuilders,
 
 object ArchiveMetadataConfig {
 
-  // TODO: Confirm if this makes sense to the users? Should we store /bucket/parent-wf-id/sub-wf-id or /bucket/wf-id ?
-  // When deciding keep in mind that workflows can nest to arbitrary depth, mustn't exceed path length limits: /bucket/parent-wf-id/parent-wf-id/parent-wf-id/parent-wf-id/sub-wf-id
-  def pathForWorkflow(id: WorkflowId, bucket: String) = s"gs://$bucket/$id/$id.csv"
+  def pathForWorkflow(id: WorkflowId, bucket: String) =  {
+    val rootWorkflowId = MetadataDatabaseAccess.baseSummary(id.toString).rootWorkflowExecutionUuid
+    s"gs://$bucket/$rootWorkflowId/$id.csv"
+  }
 
   def parseConfig(archiveMetadataConfig: Config)(implicit system: ActorSystem): Checked[ArchiveMetadataConfig] = {
     val defaultMaxInterval: FiniteDuration = 5 minutes

@@ -140,7 +140,7 @@ class DrsLocalizerMain(drsUrl: String,
     // TODO probably don't want to log the actual signed URL
     logger.info(s"Attempting to download $signedUrl to $downloadLoc")
     // TODO retries, requester pays
-    val script = s"""mkdir -p $$(dirname '$downloadLoc') && curl -L -o '$downloadLoc' '$signedUrl'"""
+    val script = s"""mkdir -p $$(dirname '$downloadLoc') && curl --location --fail --output '$downloadLoc' '$signedUrl'"""
     val copyCommand = Seq("bash", "-c", script)
     val copyProcess = Process(copyCommand)
 

@@ -105,7 +105,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   def streamMetadataToGcs(path: Path, stream: DatabasePublisher[MetadataEntry]): Future[Unit] = {
     for {
       asyncIo <- futureAsyncIo
-      gcsStream <- Future.fromTry(Try(Files.newOutputStream(path.nioPath, StandardOpenOption.CREATE)))
+      gcsStream = Files.newOutputStream(path.nioPath, StandardOpenOption.CREATE)
       crc32cStream = new Crc32cStream()
       teeStream = new TeeingOutputStream(gcsStream, crc32cStream)
       csvPrinter = new CSVPrinter(new OutputStreamWriter(teeStream), CSVFormat.DEFAULT.withHeader(CsvFileHeaders : _*))
@@ -174,8 +174,10 @@ object ArchiveMetadataSchedulerActor {
   final class Crc32cStream() extends OutputStream {
     private val checksumCalculator = new PureJavaCrc32C()
     override def write(b: Int): Unit = checksumCalculator.update(b)
+
     def checksumString: String = {
       val finalChecksumValue = checksumCalculator.getValue
+      // Google checksums are actually only the lower four bytes of the crc32c checksum:
       val bArray = java.util.Arrays.copyOfRange(Longs.toByteArray(finalChecksumValue), 4, 8)
       BaseEncoding.base64.encode(bArray)
     }

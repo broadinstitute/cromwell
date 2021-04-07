@@ -1,5 +1,10 @@
+<!--
+Start DB:
+  docker run -d -e MYSQL_ROOT_PASSWORD=private -e MYSQL_USER=cromwell -e MYSQL_PASSWORD=test -e MYSQL_DATABASE=cromwell_test -p 3306:3306 -v ${PWD}/src/ci/docker-compose/mysql-conf.d:/etc/mysql/conf.d mysql:5.6
+-->
+
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Cromwell server" type="Application" factoryName="Application">
+  <configuration default="false" name="Cromwell server (shared)" type="Application" factoryName="Application">
     <option name="ALTERNATIVE_JRE_PATH" value="$USER_HOME$/.sdkman/candidates/java/current" />
     <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
     <envs>

@@ -1,8 +1,3 @@
-<!--
-Start DB:
-  docker run -d -e MYSQL_ROOT_PASSWORD=private -e MYSQL_USER=cromwell -e MYSQL_PASSWORD=test -e MYSQL_DATABASE=cromwell_test -p 3306:3306 -v ${PWD}/src/ci/docker-compose/mysql-conf.d:/etc/mysql/conf.d mysql:5.6
--->
-
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Cromwell server" type="Application" factoryName="Application">
     <option name="ALTERNATIVE_JRE_PATH" value="$USER_HOME$/.sdkman/candidates/java/current" />
@@ -12,7 +7,7 @@ Start DB:
       <env name="CROMWELL_BUILD_CENTAUR_JDBC_DRIVER" value="com.mysql.cj.jdbc.Driver" />
       <env name="CROMWELL_BUILD_CENTAUR_JDBC_URL" value="jdbc:mysql://localhost:3306/cromwell_test?allowPublicKeyRetrieval=true&amp;useSSL=false&amp;rewriteBatchedStatements=true&amp;serverTimezone=UTC&amp;useInformationSchema=true" />
       <env name="CROMWELL_BUILD_RESOURCES_DIRECTORY" value="target/ci/resources" />
-      <env name="CROMWELL_BUILD_PAPI_JSON_FILE" value="$HOME/Projects/cromwell/target/ci/resources/cromwell-centaur-service-account.json" />
+      <env name="CROMWELL_BUILD_PAPI_JSON_FILE" value="target/ci/resources/cromwell-centaur-service-account.json" />
       <env name="CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT" value="128000" />
     </envs>
     <option name="MAIN_CLASS_NAME" value="cromwell.CromwellApp" />

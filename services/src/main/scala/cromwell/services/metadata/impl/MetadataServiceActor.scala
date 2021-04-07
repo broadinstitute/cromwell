@@ -149,40 +149,14 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
     }
   }
 
-  private def checkIfMetadataArchivedAndDeleted(workflowId: WorkflowId, sender: ActorRef): Unit = {
-    getMetadataArchiveStatus(workflowId) onComplete {
-      case Success(status) =>
-        MetadataArchiveStatus.fromDatabaseValue(status).toTry match {
-          case Success(archiveStatus) =>
-            if (archiveStatus.isDeleted) sender ! WorkflowMetadataArchivedAndDeleted(archiveStatus)
-            else sender ! WorkflowMetadataExists
-          case Failure(e) => sender ! FailedToGetArchiveStatus1(new RuntimeException(s"Failed to get metadata archive status for workflow ID $workflowId", e))
-        }
-      case Failure(e) => sender ! FailedToGetArchiveStatus1(new RuntimeException(s"Failed to get metadata archive status for workflow ID $workflowId", e))
-    }
-  }
-
-  private def checkIfMetadataArchived(workflowId: WorkflowId, sender: ActorRef): Unit = {
-    getMetadataArchiveStatus(workflowId) onComplete {
-      case Success(status) =>
-        MetadataArchiveStatus.fromDatabaseValue(status).toTry match {
-          case Success(archiveStatus) =>
-            if (archiveStatus.isArchived) sender ! WorkflowMetadataArchived(archiveStatus)
-            else sender ! WorkflowMetadataNotArchived
-          case Failure(e) => sender ! FailedToGetArchiveStatusCheck(new RuntimeException(s"Failed to get metadata archive status for workflow ID $workflowId", e))
-        }
-      case Failure(e) => sender ! FailedToGetArchiveStatusCheck(new RuntimeException(s"Failed to get metadata archive status for workflow ID $workflowId", e))
-    }
-  }
-
   private def fetchWorkflowMetadataArchiveStatus(workflowId: WorkflowId, sender: ActorRef): Unit = {
     getMetadataArchiveStatus(workflowId) onComplete {
       case Success(status) =>
         MetadataArchiveStatus.fromDatabaseValue(status).toTry match {
           case Success(archiveStatus) => sender ! WorkflowMetadataArchivedStatus(archiveStatus)
-          case Failure(e) => sender ! FailedToGetArchiveStatus1(new RuntimeException(s"Failed to get metadata archive status for workflow ID $workflowId", e))
+          case Failure(e) => sender ! FailedToGetArchiveStatus(new RuntimeException(s"Failed to get metadata archive status for workflow ID $workflowId", e))
         }
-      case Failure(e) => sender ! FailedToGetArchiveStatus1(new RuntimeException(s"Failed to get metadata archive status for workflow ID $workflowId", e))
+      case Failure(e) => sender ! FailedToGetArchiveStatus(new RuntimeException(s"Failed to get metadata archive status for workflow ID $workflowId", e))
     }
   }
 
@@ -202,8 +176,6 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
     case listen: Listen => writeActor forward listen
     case v: ValidateWorkflowIdInMetadata => validateWorkflowIdInMetadata(v.possibleWorkflowId, sender())
     case v: ValidateWorkflowIdInMetadataSummaries => validateWorkflowIdInMetadataSummaries(v.possibleWorkflowId, sender())
-    case c: CheckIfWorkflowMetadataArchivedAndDeleted => checkIfMetadataArchivedAndDeleted(c.workflowId, sender())
-    case c: CheckIfWorkflowMetadataArchived => checkIfMetadataArchived(c.workflowId, sender())
     case g: FetchWorkflowMetadataArchiveStatus => fetchWorkflowMetadataArchiveStatus(g.workflowId, sender())
     case action: BuildMetadataJsonAction => readActor forward action
     case streamAction: GetMetadataStreamAction => readActor forward streamAction

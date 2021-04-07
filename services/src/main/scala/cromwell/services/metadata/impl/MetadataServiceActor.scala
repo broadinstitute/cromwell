@@ -15,6 +15,7 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.{MetadataSummaryFailure, MetadataSummarySuccess, SummarizeMetadata}
 import cromwell.services.metadata.impl.archiver.{ArchiveMetadataConfig, ArchiveMetadataSchedulerActor}
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
+import cromwell.services.metadata.impl.deleter.{DeleteMetadataActor, DeleteMetadataConfig}
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import net.ceedubs.ficus.Ficus._
@@ -81,7 +82,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
 
   private val archiveMetadataActor: Option[ActorRef] = buildArchiveMetadataActor
 
-  // TODO: Create instance of DeleteMetadataActor
+  private val deleteMetadataActor: Option[ActorRef] = buildDeleteMetadataActor
 
   private def scheduleSummary(): Unit = {
     metadataSummaryRefreshInterval foreach { interval =>
@@ -115,6 +116,19 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
       }
     } else {
       log.info("No metadata archiver defined in config")
+      None
+    }
+  }
+
+  private def buildDeleteMetadataActor: Option[ActorRef] = {
+    if (serviceConfig.hasPath("delete-metadata")) {
+      log.info("Building metadata deleter from config")
+      DeleteMetadataConfig.parseConfig(serviceConfig.getConfig("delete-metadata")) match {
+        case Right(config) => Option(context.actorOf(DeleteMetadataActor.props(config, serviceRegistryActor), "delete-metadata-actor"))
+        case Left(errorList) => throw AggregatedMessageException("Failed to parse the archive-metadata config", errorList.toList)
+      }
+    } else {
+      log.info("No metadata deleter defined in config")
       None
     }
   }
@@ -157,7 +171,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
   }
 
   def receive = summarizerReceive orElse {
-    case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(writeActor) ++ archiveMetadataActor.toList)
+    case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(writeActor) ++ archiveMetadataActor.toList ++ deleteMetadataActor.toList)
     case action: PutMetadataAction => writeActor forward action
     case action: PutMetadataActionAndRespond => writeActor forward action
     // Assume that listen messages are directed to the write metadata actor

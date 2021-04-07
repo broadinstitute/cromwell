@@ -25,7 +25,7 @@ import slick.basic.DatabasePublisher
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 import java.time.OffsetDateTime
 
 import com.google.common.io.BaseEncoding

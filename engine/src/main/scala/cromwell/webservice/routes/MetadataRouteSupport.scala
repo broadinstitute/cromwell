@@ -217,8 +217,8 @@ object MetadataRouteSupport {
                          actorRefFactory: ActorRefFactory)
                         (implicit timeout: Timeout, ec: ExecutionContext): Route = {
 
-    def checkIfMetadataArchivedAndRespond(id: WorkflowId, archiveStatus: FetchWorkflowArchiveStatusResponse): Future[LabelsManagerActorResponse] = {
-      archiveStatus match {
+    def checkIfMetadataArchivedAndRespond(id: WorkflowId, archiveStatusResponse: FetchWorkflowArchiveStatusResponse): Future[LabelsManagerActorResponse] = {
+      archiveStatusResponse match {
         case WorkflowMetadataArchivedStatus(archiveStatus) =>
           if (archiveStatus.isArchived) {
             val message = " As a result, new labels can't be added or existing labels can't be updated for this workflow."
@@ -234,8 +234,8 @@ object MetadataRouteSupport {
 
     val response = for {
       id <- validateWorkflowIdInMetadataSummaries(possibleWorkflowId, serviceRegistryActor)
-      archiveStatus <- serviceRegistryActor.ask(FetchWorkflowMetadataArchiveStatus(id)).mapTo[FetchWorkflowArchiveStatusResponse]
-      response <- checkIfMetadataArchivedAndRespond(id, archiveStatus)
+      archiveStatusResponse <- serviceRegistryActor.ask(FetchWorkflowMetadataArchiveStatus(id)).mapTo[FetchWorkflowArchiveStatusResponse]
+      response <- checkIfMetadataArchivedAndRespond(id, archiveStatusResponse)
     } yield response
 
     completePatchLabelsResponse(response)

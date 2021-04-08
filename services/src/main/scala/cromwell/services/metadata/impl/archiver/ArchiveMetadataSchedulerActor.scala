@@ -1,6 +1,6 @@
 package cromwell.services.metadata.impl.archiver
 
-import java.io.OutputStreamWriter
+import java.io.{OutputStream, OutputStreamWriter}
 import java.nio.file.{Files, StandardOpenOption}
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.ask
@@ -11,7 +11,7 @@ import cromwell.core.path.{Path, PathFactory}
 import cromwell.core.{WorkflowAborted, WorkflowFailed, WorkflowId, WorkflowSucceeded}
 import cromwell.database.sql.SqlConverters.{ClobOptionToRawString, TimestampToSystemOffsetDateTime}
 import cromwell.database.sql.tables.MetadataEntry
-import cromwell.services.MetadataServicesStore
+import cromwell.services.{IoActorRequester, MetadataServicesStore}
 import cromwell.services.metadata.MetadataArchiveStatus.{Archived, Unarchived}
 import cromwell.services.metadata.MetadataService.{GetMetadataStreamAction, MetadataLookupStreamFailed, MetadataLookupStreamSuccess, QueryForWorkflowsMatchingParameters, WorkflowQueryFailure, WorkflowQuerySuccess}
 import cromwell.services.metadata.WorkflowQueryKey._
@@ -27,17 +27,27 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 import java.time.OffsetDateTime
 
+import com.google.common.io.BaseEncoding
+import com.google.common.primitives.Longs
+import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
+import org.apache.commons.codec.digest.PureJavaCrc32C
+
 
 class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig,
-                                    serviceRegistryActor: ActorRef)
+                                    override val serviceRegistryActor: ActorRef)
   extends Actor
     with ActorLogging
     with GracefulShutdownHelper
     with MetadataDatabaseAccess
-    with MetadataServicesStore {
+    with MetadataServicesStore
+    with IoActorRequester {
 
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val askTimeout: Timeout = new Timeout(60.seconds)
+  lazy val futureAsyncIo: Future[AsyncIo] = requestIoActor() map { ioActor => {
+    log.info(s"IoActor reference received by ${self.path.name}")
+    new AsyncIo(ioActor, DefaultIoCommandBuilder)
+  } }
 
   // kick off archiving immediately
   self ! ArchiveNextWorkflowMessage
@@ -100,10 +110,11 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
 
   def streamMetadataToGcs(path: Path, stream: DatabasePublisher[MetadataEntry]): Future[Unit] = {
     for {
-      csvPrinter <- Future {
-        val gcsStream = Files.newOutputStream(path.nioPath, StandardOpenOption.CREATE)
-        new CSVPrinter(new OutputStreamWriter(gcsStream), CSVFormat.DEFAULT.withHeader(CsvFileHeaders : _*))
-      }
+      asyncIo <- futureAsyncIo
+      gcsStream = Files.newOutputStream(path.nioPath, StandardOpenOption.CREATE)
+      crc32cStream = new Crc32cStream()
+      teeStream = new TeeingOutputStream(gcsStream, crc32cStream)
+      csvPrinter = new CSVPrinter(new OutputStreamWriter(teeStream), CSVFormat.DEFAULT.withHeader(CsvFileHeaders : _*))
       _ <- stream.foreach(me => {
         csvPrinter.printRecord(
           me.metadataEntryId.map(_.toString).getOrElse(""),
@@ -118,6 +129,9 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
         )
       })
       _ = csvPrinter.close()
+      expectedChecksum = crc32cStream.checksumString
+      uploadedChecksum <- asyncIo.hashAsync(path)
+      _ <- if (uploadedChecksum == expectedChecksum) Future.successful(()) else Future.failed(new Exception(s"Uploaded checksum '$uploadedChecksum' did not match local calculation ('$expectedChecksum')"))
     } yield ()
   }
 
@@ -156,4 +170,22 @@ object ArchiveMetadataSchedulerActor {
 
   def props(archiveMetadataConfig: ArchiveMetadataConfig, serviceRegistryActor: ActorRef): Props =
     Props(new ArchiveMetadataSchedulerActor(archiveMetadataConfig, serviceRegistryActor))
+
+  final class TeeingOutputStream(streams: OutputStream*) extends OutputStream {
+    override def write(b: Int): Unit = { streams.foreach(_.write(b)) }
+    override def close(): Unit = { streams.foreach(_.close())}
+    override def flush(): Unit = { streams.foreach(_.flush())}
+  }
+
+  final class Crc32cStream() extends OutputStream {
+    private val checksumCalculator = new PureJavaCrc32C()
+    override def write(b: Int): Unit = checksumCalculator.update(b)
+
+    def checksumString: String = {
+      val finalChecksumValue = checksumCalculator.getValue
+      // Google checksums are actually only the lower four bytes of the crc32c checksum:
+      val bArray = java.util.Arrays.copyOfRange(Longs.toByteArray(finalChecksumValue), 4, 8)
+      BaseEncoding.base64.encode(bArray)
+    }
+  }
 }

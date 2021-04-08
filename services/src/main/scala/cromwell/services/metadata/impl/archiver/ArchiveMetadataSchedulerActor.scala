@@ -64,19 +64,12 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
     case other => log.info(s"Programmer Error! The ArchiveMetadataSchedulerActor received unexpected message! ($sender sent ${other.toPrettyElidedString(1000)}})")
   }
 
-  private def pathForWorkflow(id: WorkflowId): Future[Path] =  {
-    val bucket = archiveMetadataConfig.bucket
-    getRootWorkflowId(id.toString).map((rootWorkflowId: Option[String]) => {
-      PathFactory.buildPath(s"gs://$bucket/${rootWorkflowId.getOrElse(???)}/$id.csv", archiveMetadataConfig.pathBuilders)
-    })
-  }
-
   def archiveNextWorkflow(): Future[Boolean] = {
     for {
       maybeWorkflowId <- lookupNextWorkflowToArchive()
       result <- maybeWorkflowId match {
         case Some(id) => for {
-          path <- pathForWorkflow(id)
+          path <- getGcsPathForMetadata(id)
           _ = log.info(s"Archiving metadata for $id to ${path.pathAsString}")
           dbStream <- fetchStreamFromDatabase(id)
           _ <- streamMetadataToGcs(path, dbStream)
@@ -98,6 +91,13 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
       case WorkflowQueryFailure(reason) => Future.failed(new Exception("Failed to fetch new workflow to archive", reason))
       case other => Future.failed(new Exception(s"Programmer Error: Got unexpected message fetching new workflows to archive: ${other.toPrettyElidedString(1000)}"))
     }
+  }
+
+  private def getGcsPathForMetadata(id: WorkflowId): Future[Path] =  {
+    val bucket = archiveMetadataConfig.bucket
+    getRootWorkflowId(id.toString).map((rootWorkflowId: Option[String]) => {
+      PathFactory.buildPath(s"gs://$bucket/${rootWorkflowId.getOrElse(id)}/$id.csv", archiveMetadataConfig.pathBuilders)
+    })
   }
 
   def fetchStreamFromDatabase(workflowId: WorkflowId): Future[DatabasePublisher[MetadataEntry]] = {

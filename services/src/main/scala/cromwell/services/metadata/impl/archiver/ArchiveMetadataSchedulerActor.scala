@@ -3,6 +3,7 @@ package cromwell.services.metadata.impl.archiver
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.ask
 import akka.util.Timeout
+import cats.data.NonEmptyList
 import com.google.common.io.BaseEncoding
 import com.google.common.primitives.Longs
 import common.util.StringUtil.EnhancedToStringable
@@ -12,11 +13,12 @@ import cromwell.core.path.{Path, PathFactory}
 import cromwell.core.{WorkflowAborted, WorkflowFailed, WorkflowId, WorkflowSucceeded}
 import cromwell.database.sql.SqlConverters.{ClobOptionToRawString, TimestampToSystemOffsetDateTime}
 import cromwell.database.sql.tables.MetadataEntry
+import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.metadata.MetadataArchiveStatus.{Archived, Unarchived}
 import cromwell.services.metadata.MetadataService.{GetMetadataStreamAction, MetadataLookupStreamFailed, MetadataLookupStreamSuccess, QueryForWorkflowsMatchingParameters, WorkflowQueryFailure, WorkflowQueryResult, WorkflowQuerySuccess}
 import cromwell.services.metadata.WorkflowQueryKey._
-import cromwell.services.metadata.impl.MetadataDatabaseAccess
 import cromwell.services.metadata.impl.archiver.ArchiveMetadataSchedulerActor._
+import cromwell.services.metadata.impl.{MetadataDatabaseAccess, MetadataServiceActor}
 import cromwell.services.{IoActorRequester, MetadataServicesStore}
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
@@ -26,9 +28,9 @@ import slick.basic.DatabasePublisher
 
 import java.io.{OutputStream, OutputStreamWriter}
 import java.nio.file.{Files, StandardOpenOption}
-import java.time.OffsetDateTime
+import java.time.{OffsetDateTime, Duration => JDuration}
 import java.util.UUID
-
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -41,7 +43,8 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
     with GracefulShutdownHelper
     with MetadataDatabaseAccess
     with MetadataServicesStore
-    with IoActorRequester {
+    with IoActorRequester
+    with CromwellInstrumentation {
 
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val askTimeout: Timeout = new Timeout(60.seconds)
@@ -50,17 +53,32 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
     new AsyncIo(ioActor, DefaultIoCommandBuilder)
   } }
 
+  private val archiverMetricsBasePath: NonEmptyList[String] = MetadataServiceActor.MetadataInstrumentationPrefix :+ "archiver"
+  private val rowsProcessedMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "rows_processed"
+  private val workflowsProcessedSuccessMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflows_processed" :+ "success"
+  private val workflowsProcessedFailureMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflows_processed" :+ "failure"
+  private val workflowArchiveTotalTimeSuccessMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflow_archive_total_time" :+ "success"
+  private val workflowArchiveTotalTimeFailureMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflow_archive_total_time" :+ "failure"
+  private val workflowsToArchiveMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflows_to_archive"
+
   // kick off archiving immediately
   self ! ArchiveNextWorkflowMessage
 
   override def receive: Receive = {
-    case ArchiveNextWorkflowMessage => archiveNextWorkflow().onComplete({
-      case Success(true) => self ! ArchiveNextWorkflowMessage
-      case Success(false) => scheduleNextWorkflowToArchive()
-      case Failure(error) =>
-        log.error(error, s"Error while archiving, will retry.")
-        scheduleNextWorkflowToArchive()
-    })
+    case ArchiveNextWorkflowMessage =>
+      val startTime = OffsetDateTime.now()
+      archiveNextWorkflow().onComplete({
+        case Success(true) =>
+          increment(workflowsProcessedSuccessMetricPath)
+          sendTiming(workflowArchiveTotalTimeSuccessMetricPath, FiniteDuration(JDuration.between(startTime, OffsetDateTime.now()).toMillis, TimeUnit.MILLISECONDS))
+          self ! ArchiveNextWorkflowMessage
+        case Success(false) => scheduleNextWorkflowToArchive()
+        case Failure(error) =>
+          increment(workflowsProcessedFailureMetricPath)
+          sendTiming(workflowArchiveTotalTimeFailureMetricPath, FiniteDuration(JDuration.between(startTime, OffsetDateTime.now()).toMillis, TimeUnit.MILLISECONDS))
+          log.error(error, s"Error while archiving, will retry.")
+          scheduleNextWorkflowToArchive()
+      })
     case ShutdownCommand => context.stop(self)  // TODO: cancel any streaming that might be happening?
     case other => log.info(s"Programmer Error! The ArchiveMetadataSchedulerActor received unexpected message! ($sender sent ${other.toPrettyElidedString(1000)}})")
   }
@@ -84,7 +102,14 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
 
   def lookupNextWorkflowToArchive(): Future[Option[WorkflowQueryResult]] = {
     (serviceRegistryActor ? QueryForWorkflowsMatchingParameters(queryParametersForWorkflowsToArchive(OffsetDateTime.now(), archiveMetadataConfig.archiveDelay))) flatMap {
-      case WorkflowQuerySuccess(response, _) =>
+      case WorkflowQuerySuccess(response, maybeQueryInfo) =>
+        // Record total number of records available to archive (if provided in the response):
+        for {
+          queryInfo <- maybeQueryInfo
+          totalRecords <- queryInfo.totalRecords
+          _ = sendGauge(workflowsToArchiveMetricPath, totalRecords.longValue())
+        } yield ()
+
         if (response.results.nonEmpty)
           Future.successful(Option(response.results.head))
         else
@@ -110,6 +135,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   }
 
   def streamMetadataToGcs(path: Path, stream: DatabasePublisher[MetadataEntry]): Future[Unit] = {
+    var rowsCount: Long = 0
     for {
       asyncIo <- futureAsyncIo
       gcsStream = Files.newOutputStream(path.nioPath, StandardOpenOption.CREATE)
@@ -128,7 +154,9 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
           me.metadataTimestamp.toSystemOffsetDateTime.toUtcMilliString,
           me.metadataValueType.getOrElse("")
         )
+        rowsCount += 1
       })
+      _ = count(rowsProcessedMetricPath, rowsCount)
       _ = csvPrinter.close()
       expectedChecksum = crc32cStream.checksumString
       uploadedChecksum <- asyncIo.hashAsync(path)

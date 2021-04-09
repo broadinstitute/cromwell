@@ -444,6 +444,7 @@ trait StandardAsyncExecutionActor
         |$out="$${tmpDir}/out.$$$$" $err="$${tmpDir}/err.$$$$"
         |mkfifo "$$$out" "$$$err"
         |trap 'rm "$$$out" "$$$err"' EXIT
+        |touch $stdoutRedirection $stderrRedirection
         |tee $stdoutRedirection < "$$$out" &
         |tee $stderrRedirection < "$$$err" >&2 &
         |(

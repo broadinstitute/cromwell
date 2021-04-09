@@ -5,9 +5,9 @@ object Dependencies {
   private val akkaHttpV = "10.1.12" // scala-steward:off (BA-6619)
   private val akkaV = "2.5.31" // scala-steward:off (BA-6637)
   private val aliyunBcsV = "6.2.4"
-  private val aliyunCoreV = "4.5.16"
+  private val aliyunCoreV = "4.5.20"
   private val aliyunCrV = "4.1.1"
-  private val aliyunOssV = "3.11.1"
+  private val aliyunOssV = "3.11.3"
   private val ammoniteOpsV = "2.3.8"
   private val apacheCommonNetV = "3.7.2"
   private val apacheHttpClientV = "4.5.13"
@@ -25,25 +25,25 @@ object Dependencies {
   private val commonsLang3V = "3.11"
   private val commonsMathV = "3.6.1"
   private val commonsTextV = "1.9"
-  private val configsV = "0.5.0"
+  private val configsV = "0.6.0"
   private val delightRhinoSandboxV = "0.0.12"
   private val ficusV = "1.5.0"
   // The "com.vladsch.flexmark" % "flexmark-profile-pegdown" % flexmarkV dependency is an implicit, version-specific
   // runtime dependency of ScalaTest. At the time of this writing this is the newest version known to work.
   private val flexmarkV = "0.36.8" // scala-steward:off
-  private val fs2V = "2.4.6"
+  private val fs2V = "2.5.4"
   // Scala Steward opened PR #5775 titled "Update fs2-io from 2.0.1 to 2.4.3" to upgrade the following dependency.
   // However that PR was actually attempting an upgrade from 1.0.5 to 2.4.3 which is a much more significant
   // undertaking, resulting in some thoroughly broken statsd proxy code. As this component lacks tests and is
   // probably not the most important corner of the Cromwell repo, going to punt on this for now.
   private val fs2VStatsDProxy = "1.0.5" // scala-steward:off
-  private val googleApiClientV = "1.30.11"
+  private val googleApiClientV = "1.31.3"
   private val googleCloudBigQueryV = "1.122.2"
-  private val googleCloudKmsV = "v1-rev20201102-1.31.0"
+  private val googleCloudKmsV = "v1-rev20210312-1.31.0"
   private val googleCloudMonitoringV = "2.0.8"
   private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off
-  private val googleCloudStorageV = "1.113.14"
-  private val googleGaxGrpcV = "1.60.1"
+  private val googleCloudStorageV = "1.113.4"
+  private val googleGaxGrpcV = "1.62.0"
   private val googleGenomicsServicesV1ApiV = "v1alpha2-rev495-1.23.0"
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20200330-1.30.9"
   private val googleHttpClientApacheV = "2.1.2"
@@ -57,7 +57,7 @@ object Dependencies {
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.5.1"
   private val http4sVersion = "0.21.7" // scala-steward:off (CROM-6678)
-  private val jacksonV = "2.12.0"
+  private val jacksonV = "2.12.2"
   private val jacksonJqV = "1.0.0-preview.20201123"
   private val janinoV = "3.1.2"
   private val javaxActivationV = "1.2.0"
@@ -108,13 +108,13 @@ object Dependencies {
   private val scalatestV = "3.2.3"
   private val scalatestPlusMockitoV = "1.0.0-M2"
   private val scalazV = "7.3.2"
-  private val scoptV = "4.0.0"
+  private val scoptV = "4.0.1"
   private val sentryLogbackV = "1.7.30" // scala-steward:off (BA-6640)
   private val shapelessV = "2.3.3"
   private val simulacrumV = "1.0.1"
   private val slf4jV = "1.7.30"
   private val slickCatsV = "0.10.2"
-  private val testContainersScalaV = "0.38.6"
+  private val testContainersScalaV = "0.38.9"
 
   /* If you're about to update our Slick version:
     * Consider checking whether the new Slick version passes tests with upserts enabled (eg KeyValueDatabaseSpec)

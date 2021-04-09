@@ -263,7 +263,7 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
 
     override def close(): Nothing = notImplemented()
 
-    override def deleteNonLabelMetadataForWorkflowAndUpdateArchiveStatus(rootWorkflowId: String, newArchiveStatus: Option[String])(implicit ec: ExecutionContext): Future[Int] = {
+    override def deleteAllMetadataForWorkflowAndUpdateArchiveStatus(workflowId: String, newArchiveStatus: Option[String])(implicit ec: ExecutionContext): Future[Int] = {
       notImplemented()
     }
 
@@ -275,7 +275,7 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
       notImplemented()
     }
 
-    override def queryRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp, batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[String]] = {
+    override def queryWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp, batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[String]] = {
       notImplemented()
     }
 
@@ -306,6 +306,8 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
     override def countMetadataEntryWithKeyConstraints(workflowExecutionUuid: String, metadataKeysToFilterFor: List[String], metadataKeysToFilterAgainst: List[String], metadataJobQueryValue: MetadataJobQueryValue, expandSubWorkflows: Boolean, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
       notImplemented()
     }
+
+    override def getMetadataArchiveStatus(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = notImplemented()
   }
 }
 

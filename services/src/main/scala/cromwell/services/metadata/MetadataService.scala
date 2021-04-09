@@ -125,6 +125,7 @@ object MetadataService {
 
   final case class ValidateWorkflowIdInMetadata(possibleWorkflowId: WorkflowId) extends MetadataServiceAction
   final case class ValidateWorkflowIdInMetadataSummaries(possibleWorkflowId: WorkflowId) extends MetadataServiceAction
+  final case class CheckIfWorkflowMetadataArchivedAndDeleted(workflowId: WorkflowId) extends MetadataServiceAction
 
   /**
     * Responses
@@ -164,6 +165,11 @@ object MetadataService {
   case object RecognizedWorkflowId extends WorkflowValidationResponse
   case object UnrecognizedWorkflowId extends WorkflowValidationResponse
   final case class FailedToCheckWorkflowId(cause: Throwable) extends WorkflowValidationResponse
+
+  sealed abstract class WorkflowArchivedAndDeletedCheckResponse extends MetadataServiceResponse
+  final case class WorkflowMetadataArchivedAndDeleted(archiveStatus: MetadataArchiveStatus) extends WorkflowArchivedAndDeletedCheckResponse
+  case object WorkflowMetadataExists extends WorkflowArchivedAndDeletedCheckResponse
+  final case class FailedToGetArchiveStatus(reason: Throwable) extends WorkflowArchivedAndDeletedCheckResponse
 
   sealed abstract class MetadataQueryResponse extends MetadataServiceResponse
   final case class WorkflowQuerySuccess(response: WorkflowQueryResponse, meta: Option[QueryMetadata]) extends MetadataQueryResponse

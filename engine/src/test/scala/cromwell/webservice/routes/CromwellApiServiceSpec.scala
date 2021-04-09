@@ -17,7 +17,7 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{Workflow
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse, SubsystemStatus}
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
-import cromwell.services.metadata.MetadataArchiveStatus.Unarchived
+import cromwell.services.metadata.MetadataArchiveStatus.{ArchivedAndDeleted, Unarchived}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
@@ -525,8 +525,21 @@ object CromwellApiServiceSpec {
   val FailedWorkflowId = WorkflowId.fromString("df501790-cef5-4df7-9b48-8760533e3136")
   val SummarizedWorkflowId = WorkflowId.fromString("f0000000-0000-0000-0000-000000000000")
   val WorkflowIdExistingOnlyInSummaryTable = WorkflowId.fromString("f0000000-0000-0000-0000-000000000011")
-  val RecognizedWorkflowIds = Set(ExistingWorkflowId, AbortedWorkflowId, OnHoldWorkflowId, RunningWorkflowId, AbortingWorkflowId, SucceededWorkflowId, FailedWorkflowId, SummarizedWorkflowId)
+  val ArchivedWorkflowId = WorkflowId.fromString("c4c6339c-2145-47fb-acc5-b5cb8d2809f5")
+  val ArchivedAndDeletedWorkflowId = WorkflowId.fromString("abc1234d-2145-47fb-acc5-b5cb8d2809f5")
   val SummarizedWorkflowIds = Set(SummarizedWorkflowId, WorkflowIdExistingOnlyInSummaryTable)
+  val RecognizedWorkflowIds = Set(
+    ExistingWorkflowId,
+    AbortedWorkflowId,
+    OnHoldWorkflowId,
+    RunningWorkflowId,
+    AbortingWorkflowId,
+    SucceededWorkflowId,
+    FailedWorkflowId,
+    SummarizedWorkflowId,
+    ArchivedWorkflowId,
+    ArchivedAndDeletedWorkflowId
+  )
 
   class MockApiService()(implicit val system: ActorSystem) extends CromwellApiService {
     override def actorRefFactory = system
@@ -587,6 +600,11 @@ object CromwellApiServiceSpec {
       case ValidateWorkflowIdInMetadataSummaries(id) =>
         if (SummarizedWorkflowIds.contains(id)) sender ! MetadataService.RecognizedWorkflowId
         else sender ! MetadataService.UnrecognizedWorkflowId
+      case CheckIfWorkflowMetadataArchivedAndDeleted(id) =>
+        id match {
+          case ArchivedAndDeletedWorkflowId => sender ! WorkflowMetadataArchivedAndDeleted(ArchivedAndDeleted)
+          case _ => sender ! WorkflowMetadataExists
+        }
       case GetCurrentStatus =>
         sender ! StatusCheckResponse(
           ok = true,

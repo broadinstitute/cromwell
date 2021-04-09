@@ -3,10 +3,11 @@ package cromwell.backend.google.pipelines.v2beta.api
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets
 import java.util.{ArrayList => JArrayList, Map => JMap}
+
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import cats.instances.list._
-import com.google.api.client.json.jackson2.JacksonFactory
+import com.google.api.client.json.gson.GsonFactory
 import com.google.api.client.json.{GenericJson, JsonObjectParser}
 import com.google.api.services.lifesciences.v2beta.model._
 import common.validation.ErrorOr._
@@ -26,7 +27,7 @@ import scala.util.Try
   */
 private [api] object Deserialization {
 
-  private val jsonFactory = new JacksonFactory
+  private val jsonFactory = new GsonFactory
   private val jsonParser = new JsonObjectParser.Builder(jsonFactory).build
 
   implicit class OperationDeserialization(val operation: Operation) extends AnyVal {

@@ -1,36 +1,37 @@
 package cromwell.services.metadata.impl.archiver
 
-import java.io.{OutputStream, OutputStreamWriter}
-import java.nio.file.{Files, StandardOpenOption}
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.ask
 import akka.util.Timeout
+import com.google.common.io.BaseEncoding
+import com.google.common.primitives.Longs
 import common.util.StringUtil.EnhancedToStringable
 import common.util.TimeUtil.EnhancedOffsetDateTime
+import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
 import cromwell.core.path.{Path, PathFactory}
 import cromwell.core.{WorkflowAborted, WorkflowFailed, WorkflowId, WorkflowSucceeded}
 import cromwell.database.sql.SqlConverters.{ClobOptionToRawString, TimestampToSystemOffsetDateTime}
 import cromwell.database.sql.tables.MetadataEntry
-import cromwell.services.{IoActorRequester, MetadataServicesStore}
 import cromwell.services.metadata.MetadataArchiveStatus.{Archived, Unarchived}
-import cromwell.services.metadata.MetadataService.{GetMetadataStreamAction, MetadataLookupStreamFailed, MetadataLookupStreamSuccess, QueryForWorkflowsMatchingParameters, WorkflowQueryFailure, WorkflowQuerySuccess}
+import cromwell.services.metadata.MetadataService.{GetMetadataStreamAction, MetadataLookupStreamFailed, MetadataLookupStreamSuccess, QueryForWorkflowsMatchingParameters, WorkflowQueryFailure, WorkflowQueryResult, WorkflowQuerySuccess}
 import cromwell.services.metadata.WorkflowQueryKey._
 import cromwell.services.metadata.impl.MetadataDatabaseAccess
 import cromwell.services.metadata.impl.archiver.ArchiveMetadataSchedulerActor._
+import cromwell.services.{IoActorRequester, MetadataServicesStore}
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
+import org.apache.commons.codec.digest.PureJavaCrc32C
 import org.apache.commons.csv.{CSVFormat, CSVPrinter}
 import slick.basic.DatabasePublisher
+
+import java.io.{OutputStream, OutputStreamWriter}
+import java.nio.file.{Files, StandardOpenOption}
+import java.time.OffsetDateTime
+import java.util.UUID
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
-import java.time.OffsetDateTime
-
-import com.google.common.io.BaseEncoding
-import com.google.common.primitives.Longs
-import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
-import org.apache.commons.codec.digest.PureJavaCrc32C
 
 
 class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig,
@@ -66,26 +67,26 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
 
   def archiveNextWorkflow(): Future[Boolean] = {
     for {
-      maybeWorkflowId <- lookupNextWorkflowToArchive()
-      result <- maybeWorkflowId match {
-        case Some(id) => for {
-          path <- getGcsPathForMetadata(id)
-          _ = log.info(s"Archiving metadata for $id to ${path.pathAsString}")
-          dbStream <- fetchStreamFromDatabase(id)
+      maybeWorkflowQueryResult <- lookupNextWorkflowToArchive()
+      result <- maybeWorkflowQueryResult match {
+        case Some(workflow) => for {
+          path <- getGcsPathForMetadata(workflow)
+          dbStream <- fetchStreamFromDatabase(WorkflowId(UUID.fromString(workflow.id)))
+          _ = log.info(s"Archiving metadata for ${workflow.id} to ${path.pathAsString}")
           _ <- streamMetadataToGcs(path, dbStream)
-          _ <- updateMetadataArchiveStatus(id, Archived)
-          _ = log.info(s"Archiving succeeded for $id")
+          _ <- updateMetadataArchiveStatus(WorkflowId(UUID.fromString(workflow.id)), Archived)
+          _ = log.info(s"Archiving succeeded for ${workflow.id}")
         } yield true
         case None => Future.successful(false)
       }
     } yield result
   }
 
-  def lookupNextWorkflowToArchive(): Future[Option[WorkflowId]] = {
+  def lookupNextWorkflowToArchive(): Future[Option[WorkflowQueryResult]] = {
     (serviceRegistryActor ? QueryForWorkflowsMatchingParameters(queryParametersForWorkflowsToArchive(OffsetDateTime.now(), archiveMetadataConfig.archiveDelay))) flatMap {
       case WorkflowQuerySuccess(response, _) =>
         if (response.results.nonEmpty)
-          Future.successful(Option(WorkflowId.fromString(response.results.head.id)))
+          Future.successful(Option(response.results.head))
         else
           Future.successful(None)
       case WorkflowQueryFailure(reason) => Future.failed(new Exception("Failed to fetch new workflow to archive", reason))
@@ -93,11 +94,11 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
     }
   }
 
-  private def getGcsPathForMetadata(id: WorkflowId): Future[Path] =  {
+  private def getGcsPathForMetadata(workflow: WorkflowQueryResult): Future[Path] =  {
     val bucket = archiveMetadataConfig.bucket
-    getRootWorkflowId(id.toString).map((rootWorkflowId: Option[String]) => {
-      PathFactory.buildPath(s"gs://$bucket/${rootWorkflowId.getOrElse(id)}/$id.csv", archiveMetadataConfig.pathBuilders)
-    })
+    val workflowId = workflow.id
+    val rootWorkflowId = workflow.rootWorkflowId.getOrElse(workflowId)
+    Future(PathFactory.buildPath(s"gs://$bucket/$rootWorkflowId/$workflowId.csv", archiveMetadataConfig.pathBuilders))
   }
 
   def fetchStreamFromDatabase(workflowId: WorkflowId): Future[DatabasePublisher[MetadataEntry]] = {

@@ -4,8 +4,9 @@
 
 ### No labels update for Archived workflows
 
-For a workflow whose metadata has been archived by Cromwell according to the lifecycle policy, Cromwell will no longer 
-add new labels or update existing labels for this workflow coming through PATCH `/labels` endpoint.
+If **- and ONLY if -** you have metadata archiving turned on, then for a workflow whose metadata has been archived by Cromwell 
+according to the lifecycle policy, Cromwell will no longer add new labels or update existing labels for this workflow 
+coming through PATCH `/labels` endpoint.
 
 ## 60 Release Notes
 

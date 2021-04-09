@@ -122,11 +122,15 @@ object MetadataRouteSupport {
   private def processMetadataArchivedResponse(workflowId: WorkflowId,
                                               archiveStatus: MetadataArchiveStatus,
                                               additionalMsg: String = ""): JsObject = {
+    val baseMessage = "Cromwell has archived this workflow's metadata according to the lifecycle policy."
+    val additionalDetails = if (archiveStatus == MetadataArchiveStatus.ArchivedAndDeleted)
+      " It is available in the archive bucket, or via a support request in the case of a managed instance." + additionalMsg
+    else additionalMsg
+
     JsObject(Map(
       WorkflowMetadataKeys.Id -> JsString(workflowId.toString),
       WorkflowMetadataKeys.MetadataArchiveStatus -> JsString(archiveStatus.toString),
-      WorkflowMetadataKeys.Message -> JsString("Cromwell has archived this workflow's metadata according to the lifecycle policy. " +
-        "It is available in the archive bucket, or via a support request in the case of a managed instance." + additionalMsg)
+      WorkflowMetadataKeys.Message -> JsString(baseMessage + additionalDetails)
     ))
   }
 

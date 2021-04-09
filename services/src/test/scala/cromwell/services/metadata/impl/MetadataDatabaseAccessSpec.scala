@@ -495,52 +495,39 @@ class MetadataDatabaseAccessSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
       val updateMetadataArchiveStatusFuture = dataAccess.updateMetadataArchiveStatus(workflowId1, MetadataArchiveStatus.Archived)
       Await.result(updateMetadataArchiveStatusFuture, defaultTimeout)
 
-      val responseEmptyFuture = dataAccess.queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(Option("Archived"), OffsetDateTime.now().minusMinutes(1), 200)
+      val responseEmptyFuture = dataAccess.queryWorkflowIdsByArchiveStatusAndOlderThanTimestamp(Option("Archived"), OffsetDateTime.now().minusMinutes(1), 200)
       val responseEmpty = Await.result(responseEmptyFuture, defaultTimeout)
       responseEmpty shouldBe empty
 
       eventually(Timeout(2.minutes)) {
-        val responseNonEmptyFuture = dataAccess.queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp (Option ("Archived"), OffsetDateTime.now().minusMinutes(1), 200)
+        val responseNonEmptyFuture = dataAccess.queryWorkflowIdsByArchiveStatusAndOlderThanTimestamp (Option ("Archived"), OffsetDateTime.now().minusMinutes(1), 200)
         val responseNonEmpty = Await.result(responseNonEmptyFuture, 10.seconds)
         responseNonEmpty should not be empty
         responseNonEmpty should contain allElementsOf Seq(workflowId1.toString)
         responseNonEmpty should contain noElementsOf Seq(workflowId2.toString)
       }
 
-      val deleteMetadataFuture = dataAccess.deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(workflowId1, Option("ArchivedAndPurged"))
+      val deleteMetadataFuture = dataAccess.deleteAllMetadataEntriesForWorkflowAndUpdateArchiveStatus(workflowId1, Option("ArchivedAndDeleted"))
       Await.result(deleteMetadataFuture, defaultTimeout)
 
       val summaryResponseFuture = dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(WorkflowQueryKey.Id.name -> workflowId1.toString)))
       val summaryResponse = Await.result(summaryResponseFuture, defaultTimeout)
       summaryResponse._1.results should not be empty
-      summaryResponse._1.results.head.metadataArchiveStatus.toString shouldBe "ArchivedAndPurged"
+      summaryResponse._1.results.head.metadataArchiveStatus.toString shouldBe "ArchivedAndDeleted"
     }
 
     it should "error when deleting metadata for a root workflow that does not exist" taggedAs DbmsTest in {
       dataAccess
-        .deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(WorkflowId.fromString("00000000-0000-0000-0000-000000000000"), None)
+        .deleteAllMetadataEntriesForWorkflowAndUpdateArchiveStatus(WorkflowId.fromString("00000000-0000-0000-0000-000000000000"), None)
         .failed.futureValue(Timeout(10.seconds))
-        .getMessage should be("""Metadata deletion precondition failed: workflow ID "00000000-0000-0000-0000-000000000000" not found in summary table""")
-    }
-
-    it should "error when deleting metadata for a subworkflow" taggedAs DbmsTest in {
-      val test = for {
-        rootWorkflowId <- baseWorkflowMetadata("root workflow name", workflowId = WorkflowId.fromString("11111111-1111-1111-1111-111111111111"))
-        subworkflowId <- subworkflowMetadata(rootWorkflowId, "subworkflow name", workflowId = WorkflowId.fromString("22222222-2222-2222-2222-222222222222"))
-        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000)
-        _ <- dataAccess.deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(subworkflowId, None)
-      } yield ()
-
-      test
-        .failed.futureValue(Timeout(10.seconds))
-        .getMessage should be(s"""Metadata deletion precondition failed: workflow ID "22222222-2222-2222-2222-222222222222" is not a root workflow""")
+        .getMessage should be("""Metadata deletion precondition failed: workflow ID "00000000-0000-0000-0000-000000000000" did not have a status in the summary table""")
     }
 
     it should "refuse to delete a non-terminal workflow" taggedAs DbmsTest in {
       val test = for {
         rootWorkflowId <- baseWorkflowMetadata("root workflow name", workflowId = WorkflowId.fromString("33333333-3333-3333-3333-333333333333"))
         _ <- dataAccess.refreshWorkflowMetadataSummaries(1000)
-        _ <- dataAccess.deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(rootWorkflowId, None)
+        _ <- dataAccess.deleteAllMetadataEntriesForWorkflowAndUpdateArchiveStatus(rootWorkflowId, None)
       } yield ()
 
       test

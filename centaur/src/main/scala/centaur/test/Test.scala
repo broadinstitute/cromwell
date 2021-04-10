@@ -10,7 +10,7 @@ import centaur.test.metadata.WorkflowFlatMetadata
 import centaur.test.metadata.WorkflowFlatMetadata._
 import centaur.test.submit.SubmitHttpResponse
 import centaur.test.workflow.Workflow
-import com.google.api.services.genomics.{Genomics, GenomicsScopes}
+import com.google.api.services.genomics.v2alpha1.{Genomics, GenomicsScopes}
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
 import com.google.auth.http.HttpCredentialsAdapter
@@ -384,7 +384,7 @@ object Operations extends StrictLogging {
     new Test[Unit] {
       def checkPAPIAborted(): IO[Unit] = {
         for {
-          operation <- IO { genomics.operations().get(jobId).execute() }
+          operation <- IO { genomics.projects().operations().get(jobId).execute() }
           done = operation.getDone
           operationError = Option(operation.getError)
           aborted = operationError.exists(_.getCode == 1) && operationError.exists(_.getMessage.startsWith("Operation canceled"))

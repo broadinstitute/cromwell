@@ -47,8 +47,14 @@ task doMajorRelease {
         echo 'Tag the release'
         git tag --message=~{releaseVersion} ~{releaseVersion}
 
+        # Use sbt.server.forcestart to workaround https://github.com/sbt/sbt/issues/6101
         echo 'Assemble jars for cromwell and womtool'
-        sbt -Dproject.version=~{releaseVersion} -Dproject.isSnapshot=false server/assembly womtool/assembly
+        sbt \
+        -Dsbt.server.forcestart=true \
+        -Dproject.version=~{releaseVersion} \
+        -Dproject.isSnapshot=false \
+        server/assembly \
+        womtool/assembly
 
         echo 'Smoke test Cromwell and Womtool artifacts'
         cat > hello.wdl <<FIN
@@ -141,8 +147,14 @@ task doMinorRelease {
         echo 'Tag the release'
         git tag --message=~{releaseVersion} ~{releaseVersion}
 
+        # Use sbt.server.forcestart to workaround https://github.com/sbt/sbt/issues/6101
         echo 'Assemble jars for cromwell and womtool'
-        sbt -Dproject.version=~{releaseVersion} -Dproject.isSnapshot=false server/assembly womtool/assembly
+        sbt \
+        -Dsbt.server.forcestart=true \
+        -Dproject.version=~{releaseVersion} \
+        -Dproject.isSnapshot=false \
+        server/assembly \
+        womtool/assembly
 
         echo 'Smoke test Cromwell and Womtool artifacts'
         cat > hello.wdl <<FIN

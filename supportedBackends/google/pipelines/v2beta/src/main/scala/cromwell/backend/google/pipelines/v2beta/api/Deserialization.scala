@@ -25,9 +25,6 @@ import scala.util.{Failure, Success, Try}
   */
 private [api] object Deserialization {
 
-//  private val jsonFactory = new GsonFactory
-//  private val jsonParser = new JsonObjectParser.Builder(jsonFactory).build
-
   implicit class OperationDeserialization(val operation: Operation) extends AnyVal {
     /**
       * Deserializes the events to com.google.api.services.genomics.v2beta.model.Event

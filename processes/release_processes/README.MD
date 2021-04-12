@@ -11,9 +11,9 @@ If you're the lucky "Release Rotation Engineer" this time, you should do the fol
 
 1. Check that all most recent executions of Cromwell's Jenkins tests have succeeded, and that all those executions were 
 against the most recent commit in "develop" branch. There are 2 groups of Jenkins tests which have to be checked (you 
-will need to be on the VPN to open the following links):
-    1. [Tests for various backends supported by Cromwell](https://gotc-jenkins.dsp-techops.broadinstitute.org/view/cromwell-cron/job/cromwell-cron-parent/)
-    1. [Tests for Cromwell in Terra environment](https://fc-jenkins.dsp-techops.broadinstitute.org/view/Batch/)  
+will need to be on the Broad internal network or VPN to open the following links):
+    1. Tests for various backends supported by Cromwell. Log into Jenkins [here](https://gotc-jenkins.dsp-techops.broadinstitute.org), tests [here](https://gotc-jenkins.dsp-techops.broadinstitute.org/view/cromwell-cron/job/cromwell-cron-parent/).
+    1. Tests for Cromwell in Terra environment. Log into Jenkins [here](https://fc-jenkins.dsp-techops.broadinstitute.org), tests [here](https://fc-jenkins.dsp-techops.broadinstitute.org/view/Batch/).
 1. [Run the publish script to create a new version of Cromwell](#how-to-publish-a-new-cromwell-version)  
 1. [Run through the "How to Release Cromwell into Firecloud" process](#how-to-release-cromwell-into-firecloud)  
 1. [Run through the "How to Deploy Cromwell in CAAS prod" process](#how-to-deploy-cromwell-in-caas-prod)  
@@ -52,6 +52,11 @@ This is optional, but I find it useful. Make or copy the following files into so
 
 I had to follow the instructions [here](https://docs.docker.com/docker-for-mac/#resources) to increase my docker memory.
 I chose to increase it from 2GB to 8GB but 4 might have been sufficient.
+
+#### Let folks know
+
+Post a message in `#dsp-batch` that the release is underway. Ask everyone to hold off on any merges to develop until
+the release is published.
 
 #### Run the `publish_workflow.wdl` Workflow
 

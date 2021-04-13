@@ -141,35 +141,5 @@ export ARTIFACTORY_PASSWORD=<the-password>
 ## Cromwell setup for publishing
 
 One can run a publishing-friendly Cromwell using a containerized MySQL server and config files
-from Cromwell's CI. The instructions below assume the current working directory is the root of the Cromwell
-git working tree.
-
-To start the MySQL server:
-
-```
-docker run -p 3306:3306 --name cromwell_publish_db -e MYSQL_ROOT_PASSWORD=test -e MYSQL_DATABASE=cromwell_test -e MYSQL_USER=cromwell -e MYSQL_PASSWORD=test -d mysql/mysql-server:5.6
-```
-
-Rendering CI config files will require authenticating to Vault as described
-[here](https://github.com/broadinstitute/dsde-toolbox#authenticating-to-vault). Once authenticated the config files can
-be rendered with:
-
-```
-sbt renderCiResources
-```
-
-Then start Cromwell with:
-
-```
-export CROMWELL_BUILD_CENTAUR_SLICK_PROFILE=slick.jdbc.MySQLProfile$
-export CROMWELL_BUILD_CENTAUR_JDBC_DRIVER=com.mysql.cj.jdbc.Driver
-export CROMWELL_BUILD_CENTAUR_JDBC_URL="jdbc:mysql://localhost:3306/cromwell_test?allowPublicKeyRetrieval=true&useSSL=false&rewriteBatchedStatements=true&serverTimezone=UTC&useInformationSchema=true"
-export CROMWELL_BUILD_RESOURCES_DIRECTORY="${PWD}/target/ci/resources"
-export CROMWELL_BUILD_PAPI_JSON_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-centaur-service-account.json"
-export CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT=128000
-export CROMWELL_BUILD_CENTAUR_256_BITS_KEY="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-
-sbt -Dconfig.file=${CROMWELL_BUILD_RESOURCES_DIRECTORY}/local_application.conf "server/run server"
-```
-
-One can now submit the publish WDL, inputs and options using Swagger at `http://localhost:8000/swagger/index.html`. 
+from Cromwell's CI. See the `start_publish_mysql_docker.sh` and `start_publish_cromwell.sh` 
+scripts under `release_processes/scripts`.

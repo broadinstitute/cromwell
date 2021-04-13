@@ -53,7 +53,7 @@ This is optional, but I find it useful. Make or copy the following files into so
 I had to follow the instructions [here](https://docs.docker.com/docker-for-mac/#resources) to increase my docker memory.
 I chose to increase it from 2GB to 8GB but 4 might have been sufficient.
 
-#### Let folks know
+#### Let people know the publish is underway
 
 Post a message in `#dsp-batch` that the release is underway. Ask everyone to hold off on any merges to develop until
 the release is published.
@@ -72,6 +72,7 @@ the release is published.
 * Check that there's now a new Cromwell release listed [here](https://github.com/broadinstitute/cromwell/releases).
 * If publishing to Homebrew, check that there's a Homebrew PR for the new Cromwell version [here](https://github.com/Homebrew/homebrew-core/pulls) (and that it passes their CI)
 * Have a look at https://travis-ci.com/broadinstitute/cromwell/branches. There should be a build for the new release tag that publishes new docker images for the version.
+* Let people in `#dsp-batch` know that it's okay to resume their merges to `develop`.
 
 ### How to Release Cromwell into Firecloud / Terra
 

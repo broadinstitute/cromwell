@@ -71,7 +71,13 @@ object AwsBatchAttributes {
     "filesystems.local.auth",
     "filesystems.s3.auth",
     "filesystems.s3.caching.duplication-strategy",
-    "filesystems.local.caching.duplication-strategy"
+    "filesystems.local.caching.duplication-strategy",
+    "auth",
+    "numCreateDefinitionAttempts",
+    "filesystems.s3.duplication-strategy",
+    "numSubmitAttempts",
+    "default-runtime-attributes.scriptBucketName",
+    "awsBatchRetryAttempts"
   )
 
   private val deprecatedAwsBatchKeys: Map[String, String] = Map(

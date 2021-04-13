@@ -35,7 +35,7 @@ import scala.language.postfixOps
 import scala.collection.mutable.ListBuffer
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.JobPaths
-import software.amazon.awssdk.services.batch.model.{ContainerProperties, Host, KeyValuePair, MountPoint, RetryStrategy, Volume}
+import software.amazon.awssdk.services.batch.model.{ContainerProperties, Host, KeyValuePair, MountPoint, RetryStrategy, Volume, Ulimit}
 import cromwell.backend.impl.aws.io.AwsBatchVolume
 
 import scala.collection.JavaConverters._
@@ -124,8 +124,20 @@ trait AwsBatchJobDefinitionBuilder {
     }
 
 
+    def buildUlimits(ulimits: Seq[Map[String, String]]): List[Ulimit] = {
+
+      ulimits.filter(_.nonEmpty).map(u =>
+        Ulimit.builder()
+          .name(u("name"))
+          .softLimit(u("softLimit").toInt)
+          .hardLimit(u("hardLimit").toInt)
+          .build()
+      ).toList
+    }
+
+
     def buildName(imageName: String, packedCommand: String, volumes: List[Volume], mountPoints: List[MountPoint], env: Seq[KeyValuePair]): String = {
-      s"$imageName:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints.map(_.toString).mkString(",")}:${env.map(_.toString).mkString(",")}"
+      s"$imageName:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints.map(_.toString).mkString(",")}:${env.map(_.toString).mkString(",")}:${ulimits.map(_.toString).mkString(",")}"
     }
     
 
@@ -137,12 +149,14 @@ trait AwsBatchJobDefinitionBuilder {
     val packedCommand = packCommand("/bin/bash", "-c", cmdName)
     val volumes =  buildVolumes( context.runtimeAttributes.disks )
     val mountPoints = buildMountPoints( context.runtimeAttributes.disks)
+    val ulimits = buildUlimits( context.runtimeAttributes.ulimits)
     val containerPropsName = buildName(
       context.runtimeAttributes.dockerImage,
       packedCommand.mkString(","),
       volumes,
       mountPoints,
-      environment
+      environment,
+      ulimits
     )
 
     (ContainerProperties.builder()
@@ -150,9 +164,10 @@ trait AwsBatchJobDefinitionBuilder {
       .command(packedCommand.asJava)
       .memory(context.runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt)
       .vcpus(context.runtimeAttributes.cpu##)
-      .volumes( volumes.asJava)
-      .mountPoints( mountPoints.asJava)
-      .environment(environment.asJava),
+      .volumes(volumes.asJava)
+      .mountPoints(mountPoints.asJava)
+      .environment(environment.asJava)
+      .ulimits(ulimits.asJava),
      containerPropsName)
   }
 

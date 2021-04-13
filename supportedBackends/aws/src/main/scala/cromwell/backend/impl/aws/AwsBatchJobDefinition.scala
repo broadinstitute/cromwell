@@ -123,19 +123,19 @@ trait AwsBatchJobDefinitionBuilder {
       )
     }
 
-    
+
     def buildUlimits(ulimits: Seq[Map[String, String]]): List[Ulimit] = {
 
       ulimits.filter(_.nonEmpty).map(u =>
-          Ulimit.builder()
-            .name(u("name"))
-            .softLimit(u("softLimit").toInt)
-            .hardLimit(u("hardLimit").toInt)
-            .build()
+        Ulimit.builder()
+          .name(u("name"))
+          .softLimit(u("softLimit").toInt)
+          .hardLimit(u("hardLimit").toInt)
+          .build()
       ).toList
     }
 
-    
+
     def buildName(imageName: String, packedCommand: String, volumes: List[Volume], mountPoints: List[MountPoint], env: Seq[KeyValuePair], ulimits: List[Ulimit]): String = {
       s"$imageName:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints.map(_.toString).mkString(",")}:${env.map(_.toString).mkString(",")}:${ulimits.map(_.toString).mkString(",")}"
     }
@@ -164,9 +164,10 @@ trait AwsBatchJobDefinitionBuilder {
       .command(packedCommand.asJava)
       .memory(context.runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt)
       .vcpus(context.runtimeAttributes.cpu##)
-      .volumes( volumes.asJava)
-      .mountPoints( mountPoints.asJava)
-      .environment(environment.asJava).ulimits(ulimits.asJava),
+      .volumes(volumes.asJava)
+      .mountPoints(mountPoints.asJava)
+      .environment(environment.asJava)
+      .ulimits(ulimits.asJava),
      containerPropsName)
   }
 

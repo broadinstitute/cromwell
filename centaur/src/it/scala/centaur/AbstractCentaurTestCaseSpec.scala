@@ -176,7 +176,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
     def maybeRetry(centaurTestException: CentaurTestException): IO[SubmitResponse] = {
       val testEnvironment = TestEnvironment(testName, retries, attempt)
       for {
-        _ <- ErrorReporters.logCentaurFailure(testEnvironment, centaurTestException)
+        _ <- ErrorReporters.logFailure(testEnvironment, centaurTestException)
         r <- if (attempt < retries) {
           tryTryAgain(testName, runTest, retries, attempt + 1)
         } else {
@@ -189,8 +189,12 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
 
     runTestIo.redeemWith(
       {
-        case centaurTestException: CentaurTestException => maybeRetry(centaurTestException)
-        case _ => runTestIo
+        case centaurTestException: CentaurTestException =>
+          maybeRetry(centaurTestException)
+        case nonCentaurThrowable: Throwable =>
+          val testEnvironment = TestEnvironment(testName, retries = attempt + 1, attempt) // allow one last retry
+          ErrorReporters.logFailure(testEnvironment, nonCentaurThrowable)
+          runTestIo
       },
       {
         case workflowResponse: SubmitWorkflowResponse => SuccessReporters.logSuccessfulRun(workflowResponse)

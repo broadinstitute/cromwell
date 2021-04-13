@@ -22,7 +22,7 @@ case class DockerComposeCromwellConfiguration(dockerTag: String, dockerComposeFi
         Array("docker-compose", "-f", dockerComposeFile) ++ command
       }
 
-      private val startCommand = composeCommand("up")
+      private val startCommand = composeCommand("up", "--abort-on-container-exit")
       private val logsCommand = composeCommand("logs")
       private val stopCommand = composeCommand("down", "-v")
       private val rmCommand = composeCommand("rm", "-fsv")

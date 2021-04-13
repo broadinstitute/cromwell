@@ -35,6 +35,4 @@ object WorkflowMetadataKeys {
   val SummaryNameDecreasing = "WORKFLOW_METADATA_SUMMARY_ENTRY_DECREASING"
 
   val Labels = "labels"
-
-  val MetadataSource = "metadataSource"
 }

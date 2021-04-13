@@ -11,13 +11,10 @@ import centaur.test.submit.{SubmitHttpResponse, SubmitResponse}
 import centaur.test.workflow.Workflow
 import centaur.test.{Operations, Test}
 import centaur.{CentaurConfig, CromwellManager, CromwellTracker, ManagedCromwellServer}
-import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.api.model.{Aborted, Aborting, Failed, Running, SubmittedWorkflow, Succeeded, TerminalStatus, WorkflowMetadata}
-import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
-import scala.language.postfixOps
 import centaur.test.metadata.WorkflowFlatMetadata._
 import spray.json.JsString
 /**
@@ -25,14 +22,27 @@ import spray.json.JsString
   * for comprehension. These assembled formulas can then be run by a client
   */
 object TestFormulas extends StrictLogging {
-  private val workflowProgressTimeout = ConfigFactory.load().getOrElse("centaur.workflow-progress-timeout", 1 minute)
-  logger.info(s"Running with a workflow progress timeout of $workflowProgressTimeout")
+  logger.info(
+    s"""Running with CentaurConfig:
+       |  - workflowProgressTimeout: '${CentaurConfig.workflowProgressTimeout}'
+       |  - sendReceiveTimeout: '${CentaurConfig.sendReceiveTimeout}'
+       |  - maxWorkflowLength: '${CentaurConfig.maxWorkflowLength}'
+       |  - metadataConsistencyTimeout: '${CentaurConfig.metadataConsistencyTimeout}'
+       |  - standardTestCasePath: '${CentaurConfig.standardTestCasePath}'
+       |  - optionalTestPath: '${CentaurConfig.optionalTestPath}'
+       |""".stripMargin.trim
+  )
 
   private def runWorkflowUntilTerminalStatus(workflow: Workflow, status: TerminalStatus): Test[SubmittedWorkflow] = {
     for {
       _ <- checkVersion()
       s <- submitWorkflow(workflow)
-      _ <- expectSomeProgress(s, workflow, Set(Running, status), workflowProgressTimeout)
+      _ <- expectSomeProgress(
+        workflow = s,
+        testDefinition = workflow,
+        expectedStatuses = Set(Running, status),
+        timeout = CentaurConfig.workflowProgressTimeout,
+      )
       _ <- pollUntilStatus(s, workflow, status)
     } yield s
   }
@@ -149,7 +159,12 @@ object TestFormulas extends StrictLogging {
           jobId <- pollUntilCallIsRunning(workflowDefinition, submittedWorkflow, callMarker.callKey)
           _ = CromwellManager.stopCromwell(s"Scheduled restart from ${workflowDefinition.testName}")
           _ = CromwellManager.startCromwell(postRestart)
-          _ <- expectSomeProgress(submittedWorkflow, workflowDefinition, Set(Running, finalStatus), workflowProgressTimeout)
+          _ <- expectSomeProgress(
+            workflow = submittedWorkflow,
+            testDefinition = workflowDefinition,
+            expectedStatuses = Set(Running, finalStatus),
+            timeout = CentaurConfig.workflowProgressTimeout,
+          )
           _ <- pollUntilStatus(submittedWorkflow, workflowDefinition, finalStatus)
           metadata <- fetchAndValidateNonSubworkflowMetadata(submittedWorkflow, workflowDefinition)
           _ <- fetchAndValidateJobManagerStyleMetadata(submittedWorkflow, workflowDefinition, prefetchedOriginalNonSubWorkflowMetadata = None)
@@ -173,7 +188,12 @@ object TestFormulas extends StrictLogging {
     _ <- timingVerificationNotSupported(workflowDefinition.maximumAllowedTime)
     submittedWorkflow <- submitWorkflow(workflowDefinition)
     _ <- abortWorkflow(submittedWorkflow)
-    _ <- expectSomeProgress(submittedWorkflow, workflowDefinition, Set(Running, Aborting, Aborted), workflowProgressTimeout)
+    _ <- expectSomeProgress(
+      workflow = submittedWorkflow,
+      testDefinition = workflowDefinition,
+      expectedStatuses = Set(Running, Aborting, Aborted),
+      timeout = CentaurConfig.workflowProgressTimeout,
+    )
     _ <- pollUntilStatus(submittedWorkflow, workflowDefinition, Aborted)
     metadata <- fetchAndValidateNonSubworkflowMetadata(submittedWorkflow, workflowDefinition)
     _ <- fetchAndValidateJobManagerStyleMetadata(submittedWorkflow, workflowDefinition, prefetchedOriginalNonSubWorkflowMetadata = None)
@@ -198,7 +218,12 @@ object TestFormulas extends StrictLogging {
       _ <- waitFor(30.seconds)
       _ <- abortWorkflow(submittedWorkflow)
       _ = if(restart) withRestart()
-      _ <- expectSomeProgress(submittedWorkflow, workflowDefinition, Set(Running, Aborting, Aborted), workflowProgressTimeout)
+      _ <- expectSomeProgress(
+        workflow = submittedWorkflow,
+        testDefinition = workflowDefinition,
+        expectedStatuses = Set(Running, Aborting, Aborted),
+        timeout = CentaurConfig.workflowProgressTimeout,
+      )
       _ <- pollUntilStatus(submittedWorkflow, workflowDefinition, Aborted)
       _ <- validatePAPIAborted(workflowDefinition, submittedWorkflow, jobId)
       // Wait a little to make sure that if the abort didn't work and calls start running we see them in the metadata
@@ -237,7 +262,12 @@ object TestFormulas extends StrictLogging {
           _ <- pollUntilCallIsRunning(workflowDefinition, first, callMarker.callKey)
           _ = CromwellManager.stopCromwell(s"Scheduled restart from ${workflowDefinition.testName}")
           _ = CromwellManager.startCromwell(postRestart)
-          _ <- expectSomeProgress(first, workflowDefinition, Set(Running, Succeeded), workflowProgressTimeout)
+          _ <- expectSomeProgress(
+            workflow = first,
+            testDefinition = workflowDefinition,
+            expectedStatuses = Set(Running, Succeeded),
+            timeout = CentaurConfig.workflowProgressTimeout,
+          )
           _ <- pollUntilStatus(first, workflowDefinition, Succeeded)
           _ <- checkDescription(workflowDefinition.secondRun, validityExpectation = Option(true))
           second <- runSuccessfulWorkflow(workflowDefinition.secondRun) // Same WDL and config but a "backend" runtime option targeting PAPI v2.

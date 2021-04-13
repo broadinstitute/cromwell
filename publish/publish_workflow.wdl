@@ -240,9 +240,7 @@ task prepGithub {
         | grep -i -F 'X-OAuth-Scopes:' || true > scopesHeader.txt
 
         # All of these scopes are required
-        required_scopes=(repo)
-        # Plus one scopes of these are required
-        email_scopes=(user user:email)
+        required_scopes=(repo user)
 
         echo 'Verify that all required scopes are present'
         correct_scopes=true
@@ -252,18 +250,8 @@ task prepGithub {
             fi
         done
 
-        if [[ "${correct_scopes}" == true ]]; then
-            # Verify that at least one of the email scopes is present
-            correct_scopes=false
-            for scope in "${email_scopes[@]}"; do
-                if grep -F " ${scope}" scopesHeader.txt; then
-                    correct_scopes=true
-                fi
-            done
-        fi
-
         if [[ "${correct_scopes}" != true ]]; then
-             echo "Token must have the scopes: (${required_scopes[*]}), plus one of (${email_scopes[*]})." >&2
+             echo "Token must have the scopes: (${required_scopes[*]})." >&2
              echo "Instead found $(cat scopesHeader.txt || echo "no scopes!")" >&2
              exit 1
         fi

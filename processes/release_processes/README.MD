@@ -24,7 +24,7 @@ will need to be on the Broad internal network or VPN to open the following links
 
 The release WDL uses a github token to perform actions on your behalf.
 * Follow the directions [here](https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line).
-    * When asked, give the token the full set of `repo` permissions and also one of either `user` or `user:email`.
+    * When asked, give the token the full set of `repo` permissions and also `user`.
 * Copy the token and save it to a file on your local machine. You'll use it in a second.
 
 #### Prepare a temporary `release` directory

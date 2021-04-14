@@ -20,6 +20,11 @@ will need to be on the Broad internal network or VPN to open the following links
 
 ### How to publish a new Cromwell version
 
+#### Announce your intentions
+
+Post a message in `#dsp-batch` letting people know that a publish is imminent in case there are PRs they want to get
+wrapped up and merged to `develop` to go out in the forthcoming version of Cromwell.
+
 #### Get a Github token
 
 The release WDL uses a github token to perform actions on your behalf.
@@ -55,7 +60,7 @@ I chose to increase it from 2GB to 8GB but 4 might have been sufficient.
 
 #### Let people know the publish is underway
 
-Post a message in `#dsp-batch` that the release is underway. Ask everyone to hold off on any merges to develop until
+Post another message in `#dsp-batch` that the release is underway, asking everyone to hold off merges to develop until
 the release is published.
 
 #### Run the `publish_workflow.wdl` Workflow
@@ -72,7 +77,7 @@ the release is published.
 * Check that there's now a new Cromwell release listed [here](https://github.com/broadinstitute/cromwell/releases).
 * If publishing to Homebrew, check that there's a Homebrew PR for the new Cromwell version [here](https://github.com/Homebrew/homebrew-core/pulls) (and that it passes their CI)
 * Have a look at https://travis-ci.com/broadinstitute/cromwell/branches. There should be a build for the new release tag that publishes new docker images for the version.
-* Let people in `#dsp-batch` know that it's okay to resume their merges to `develop`.
+* Let `#dsp-batch` know that it's okay to resume merges to `develop`.
 
 ### How to Release Cromwell into Firecloud / Terra
 

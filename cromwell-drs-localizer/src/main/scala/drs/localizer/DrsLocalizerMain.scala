@@ -40,10 +40,10 @@ class DrsLocalizerMain(drsUrl: String,
   private final val RequesterPaysErrorMsg = "Bucket is requester pays bucket but no user project provided."
   private final val ExtractUriErrorMsg = "No access URL nor GCS URI starting with 'gs://' found in Martha response!"
 
-  def getDrsPathResolver: IO[GcsLocalizerDrsPathResolver] = {
+  def getDrsPathResolver: IO[LocalizerDrsPathResolver] = {
     IO {
       val drsConfig = DrsConfig.fromEnv(sys.env)
-      new GcsLocalizerDrsPathResolver(drsConfig)
+      new LocalizerDrsPathResolver(drsConfig)
     }
   }
 

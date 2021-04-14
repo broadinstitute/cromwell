@@ -6,7 +6,7 @@ import com.google.auth.oauth2.GoogleCredentials
 import scala.collection.JavaConverters._
 
 
-class GcsLocalizerDrsPathResolver(drsConfig: DrsConfig)
+class LocalizerDrsPathResolver(drsConfig: DrsConfig)
   extends DrsPathResolver(drsConfig) {
 
   private final val UserInfoEmailScope = "https://www.googleapis.com/auth/userinfo.email"

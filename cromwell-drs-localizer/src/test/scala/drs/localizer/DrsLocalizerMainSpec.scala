@@ -127,7 +127,7 @@ class MockDrsLocalizerMain(drsUrl: String,
                           )
   extends DrsLocalizerMain(drsUrl, downloadLoc, requesterPaysProjectIdOption) {
 
-  override def getGcsDrsPathResolver: IO[GcsLocalizerDrsPathResolver] = {
+  override def getDrsPathResolver: IO[GcsLocalizerDrsPathResolver] = {
     IO {
       new MockGcsLocalizerDrsPathResolver(cloud.nio.impl.drs.MockDrsPaths.mockDrsConfig)
     }

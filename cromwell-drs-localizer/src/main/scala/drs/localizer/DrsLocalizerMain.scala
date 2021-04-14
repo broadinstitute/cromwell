@@ -40,7 +40,7 @@ class DrsLocalizerMain(drsUrl: String,
   private final val RequesterPaysErrorMsg = "Bucket is requester pays bucket but no user project provided."
   private final val ExtractUriErrorMsg = "No access URL nor GCS URI starting with 'gs://' found in Martha response!"
 
-  def getGcsDrsPathResolver: IO[GcsLocalizerDrsPathResolver] = {
+  def getDrsPathResolver: IO[GcsLocalizerDrsPathResolver] = {
     IO {
       val drsConfig = DrsConfig.fromEnv(sys.env)
       new GcsLocalizerDrsPathResolver(drsConfig)
@@ -152,10 +152,10 @@ class DrsLocalizerMain(drsUrl: String,
   def resolveAndDownload(): IO[ExitCode] = {
     val fields = NonEmptyList.of(MarthaField.GsUri, MarthaField.GoogleServiceAccount, MarthaField.AccessUrl)
     for {
-      localizerGcsDrsPathResolver <- getGcsDrsPathResolver
-      marthaResponse <- localizerGcsDrsPathResolver.resolveDrsThroughMartha(drsUrl, fields)
+      resolver <- getDrsPathResolver
+      marthaResponse <- resolver.resolveDrsThroughMartha(drsUrl, fields)
 
-      // Currently Martha only supports resolving DRS paths to GCS paths and signed URLs.
+      // Currently Martha only supports resolving DRS paths to access URLs and GCS paths.
       exitState <- (marthaResponse.accessUrl, marthaResponse.gsUri) match {
         case (Some(accessUrl), _) =>
           downloadFileFromHttp(accessUrl.url) // TODO handle accessUrl.headers

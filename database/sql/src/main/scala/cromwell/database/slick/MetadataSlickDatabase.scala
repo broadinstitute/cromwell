@@ -133,6 +133,8 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       .withStatementParameters(
         rsType = ResultSetType.ForwardOnly,
         rsConcurrency = ResultSetConcurrency.ReadOnly,
+        // Magic number alert: fetchSize is set to MIN_VALUE for MySQL to stream rather than cache in memory first.
+        // Inspired by: https://github.com/slick/slick/issues/1218
         fetchSize = Integer.MIN_VALUE)
     database.stream(action)
   }

@@ -127,14 +127,15 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action, timeout = timeout)
   }
 
-  override def streamMetadataEntries(workflowExecutionUuid: String,
-                                     fetchSize: Int): DatabasePublisher[MetadataEntry] = {
+  override def streamMetadataEntries(workflowExecutionUuid: String): DatabasePublisher[MetadataEntry] = {
     val action = dataAccess.metadataEntriesForWorkflowExecutionUuid(workflowExecutionUuid)
       .result
       .withStatementParameters(
         rsType = ResultSetType.ForwardOnly,
         rsConcurrency = ResultSetConcurrency.ReadOnly,
-        fetchSize = fetchSize)
+        // Magic number alert: fetchSize is set to MIN_VALUE for MySQL to stream rather than cache in memory first.
+        // Inspired by: https://github.com/slick/slick/issues/1218
+        fetchSize = Integer.MIN_VALUE)
     database.stream(action)
   }
 

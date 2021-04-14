@@ -350,17 +350,17 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
       assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
-    "fail to validate an invalid awsBatchRetryAttempts entry" in {
+    "fail to validate with -1 as awsBatchRetryAttempts" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "awsBatchRetryAttempts" -> WomInteger(-1))
       assertAwsBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting awsBatchRetryAttempts runtime attribute value greater than or equal to 0")
     }
 
-    "fail to validate an invalid awsBatchRetryAttempts entry" in {
+    "fail to validate with 12 as awsBatchRetryAttempts" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "awsBatchRetryAttempts" -> WomInteger(12))
       assertAwsBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting awsBatchRetryAttempts runtime attribute value lower than or equal to 10")
     }
 
-    "fail to validate an invalid awsBatchRetryAttempts entry" in {
+    "fail to validate with a string as  awsBatchRetryAttempts" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "awsBatchRetryAttempts" -> WomString("test"))
       assertAwsBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting awsBatchRetryAttempts runtime attribute to be an Integer")
     }

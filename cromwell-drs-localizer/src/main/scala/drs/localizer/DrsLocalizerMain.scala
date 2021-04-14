@@ -47,7 +47,6 @@ class DrsLocalizerMain(drsUrl: String,
     }
   }
 
-
   /*
      Bash to download the GCS file using `gsutil`
    */

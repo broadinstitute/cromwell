@@ -142,17 +142,20 @@ class MockLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
   LocalizerDrsPathResolver(drsConfig) {
 
   override def resolveDrsThroughMartha(drsPath: String, fields: NonEmptyList[MarthaField.Value]): IO[MarthaResponse] = {
-    val gcsUrl = drsPath match {
-      case MockDrsPaths.fakeDrsUrl => Option("gs://abc/foo-123/abc123")
-      case _ => None
+    def marthaResponseGsUriOnly(maybeGsUri: Option[String]): IO[MarthaResponse] = {
+      IO.pure(
+        MarthaResponse(
+          size = Option(1234),
+          gsUri = maybeGsUri,
+          hashes = Option(Map("md5" -> "abc123", "crc32c" -> "34fd67"))
+        )
+      )
     }
 
-    IO.pure(
-      MarthaResponse(
-        size = Option(1234),
-        gsUri = gcsUrl,
-        hashes = Option(Map("md5" -> "abc123", "crc32c" -> "34fd67"))
-      )
-    )
+    drsPath match {
+      case MockDrsPaths.fakeDrsUrl => marthaResponseGsUriOnly(Option("gs://abc/foo-123/abc123"))
+      case MockDrsPaths.fakeDrsUrlWithoutGcsResolution => marthaResponseGsUriOnly(None)
+      case _ => IO.raiseError(new RuntimeException("fudge"))
+    }
   }
 }

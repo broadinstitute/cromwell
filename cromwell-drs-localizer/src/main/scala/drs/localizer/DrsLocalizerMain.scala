@@ -154,11 +154,11 @@ class DrsLocalizerMain(drsUrl: String,
       resolver <- getDrsPathResolver
       marthaResponse <- resolver.resolveDrsThroughMartha(drsUrl, fields)
 
-      // Currently Martha only supports resolving DRS paths to access URLs and GCS paths.
+      // Currently Martha only supports resolving DRS paths to access URLs or GCS paths.
       exitState <- (marthaResponse.accessUrl, marthaResponse.gsUri) match {
         case (Some(accessUrl), _) =>
           downloadFileFromHttp(accessUrl.url) // TODO handle accessUrl.headers
-        case (None, Some(gcsPath)) =>
+        case (_, Some(gcsPath)) =>
           val serviceAccountJsonOption = marthaResponse.googleServiceAccount.map(_.data.spaces2)
           downloadFileFromGcs(gcsPath, serviceAccountJsonOption)
         case _ =>

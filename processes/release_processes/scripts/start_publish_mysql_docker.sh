@@ -12,5 +12,3 @@ docker run \
   -e MYSQL_USER=cromwell \
   -e MYSQL_PASSWORD=test \
   -d mysql/mysql-server:5.6
-
-

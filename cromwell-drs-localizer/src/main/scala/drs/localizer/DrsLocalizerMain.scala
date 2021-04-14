@@ -38,7 +38,7 @@ class DrsLocalizerMain(drsUrl: String,
                        requesterPaysProjectIdOption: Option[String]) extends StrictLogging {
 
   private final val RequesterPaysErrorMsg = "Bucket is requester pays bucket but no user project provided."
-  private final val ExtractGcsUrlErrorMsg = "No resolved url starting with 'gs://' found from Martha response!"
+  private final val ExtractUriErrorMsg = "No access URL nor GCS URI starting with 'gs://' found in Martha response!"
 
   def getGcsDrsPathResolver: IO[GcsLocalizerDrsPathResolver] = {
     IO {
@@ -155,14 +155,15 @@ class DrsLocalizerMain(drsUrl: String,
       localizerGcsDrsPathResolver <- getGcsDrsPathResolver
       marthaResponse <- localizerGcsDrsPathResolver.resolveDrsThroughMartha(drsUrl, fields)
 
-      // Currently Martha only supports resolving DRS paths to GCS paths
-      // ...and signed URLs
-      gcsUrl <- IO.fromEither(marthaResponse.gsUri.toRight(new RuntimeException(ExtractGcsUrlErrorMsg)))
-      serviceAccountJsonOption = marthaResponse.googleServiceAccount.map(_.data.spaces2)
-      signedUrl = marthaResponse.accessUrl map (_.url)
-      exitState <- signedUrl match {
-        case None => downloadFileFromGcs(gcsUrl, serviceAccountJsonOption)
-        case Some(s) => downloadFileFromHttp(s)
+      // Currently Martha only supports resolving DRS paths to GCS paths and signed URLs.
+      exitState <- (marthaResponse.accessUrl, marthaResponse.gsUri) match {
+        case (Some(accessUrl), _) =>
+          downloadFileFromHttp(accessUrl.url) // TODO handle accessUrl.headers
+        case (None, Some(gcsPath)) =>
+          val serviceAccountJsonOption = marthaResponse.googleServiceAccount.map(_.data.spaces2)
+          downloadFileFromGcs(gcsPath, serviceAccountJsonOption)
+        case _ =>
+          IO.raiseError(new RuntimeException(ExtractUriErrorMsg))
       }
     } yield exitState
   }

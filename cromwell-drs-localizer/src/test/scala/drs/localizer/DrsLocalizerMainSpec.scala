@@ -41,7 +41,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
     the[RuntimeException] thrownBy {
       mockDrsLocalizer.resolveAndDownload().unsafeRunSync()
-    } should have message "No resolved url starting with 'gs://' found from Martha response!"
+    } should have message "No access URL nor GCS URI starting with 'gs://' found in Martha response!"
   }
 
   it should "return correct download script for a drs url without Requester Pays ID and Google SA returned from Martha" in {

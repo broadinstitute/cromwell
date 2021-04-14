@@ -65,7 +65,9 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
     false,
     ContinueOnReturnCodeSet(Set(0)),
     false,
-    "my-stuff", 0)
+    "my-stuff",
+    0,
+    Vector(Map.empty[String, String]))
 
   val expectedDefaultsLocalFS = new AwsBatchRuntimeAttributes(refineMV[Positive](1), Vector("us-east-1a", "us-east-1b"),
 
@@ -76,6 +78,8 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
     ContinueOnReturnCodeSet(Set(0)),
     false,
     "",
+    0,
+    Vector(Map.empty[String, String]),
     "local")
 
   "AwsBatchRuntimeAttributes" should {

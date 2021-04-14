@@ -114,6 +114,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       noAddress = false,
       scriptS3BucketName = "script-bucket",
       awsBatchRetryAttempts = 1,
+      ulimits = Vector(Map.empty[String, String]),
       fileSystem = "s3")
 
   private def generateBasicJob: AwsBatchJob = {

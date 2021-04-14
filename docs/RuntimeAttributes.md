@@ -58,6 +58,7 @@ There are a number of additional runtime attributes that apply to the Google Clo
 
 ### AWS Specific Attributes
 - [awsBatchRetryAttempts](#awsBatchRetryAttempts)
+- [ulimits](#ulimits)
 
 ## Expression support
 
@@ -325,8 +326,6 @@ runtime {
 ```
 
 
-
-
 ### `bootDiskSizeGb`
 
 In addition to working disks, Google Cloud allows specification of a boot disk size. This is the disk where the docker image itself is booted (**not the working directory of your task on the VM**).
@@ -375,6 +374,7 @@ runtime {
 }
 ```
 
+
 ### `awsBatchRetryAttempts`
 
 *Default: _0_*
@@ -383,9 +383,44 @@ This runtime attribute adds support to [*AWS Batch Automated Job Retries*](https
 
 ```
 runtime {
-  awsBatchRetryAttempts: 3
+  awsBatchRetryAttempts: integer
 }
 ```
+
+
+### `ulimits`
+
+*Default: _empty_*
+
+A list of [`ulimits`](https://docs.aws.amazon.com/batch/latest/userguide/job_definition_parameters.html#containerProperties) values to set in the container. This parameter maps to `Ulimits` in the [Create a container](https://docs.docker.com/engine/api/v1.38/) section of the [Docker Remote API](https://docs.docker.com/engine/api/v1.38/) and the `--ulimit` option to [docker run](https://docs.docker.com/engine/reference/commandline/run/).
+
+```
+"ulimits": [
+  {
+    "name": string,
+    "softLimit": integer,
+    "hardLimit": integer
+  }
+  ...
+]
+```
+Parameter description:
+
+- `name`
+  - The `type` of the `ulimit`.
+  - Type: String
+  - Required: Yes, when `ulimits` is used.
+
+- `softLimit`
+  - The soft limit for the `ulimit` type.
+  - Type: Integer
+  - Required: Yes, when `ulimits` is used.
+
+- `hardLimit`
+  - The hard limit for the `ulimit` type.
+  - Type: Integer
+  - Required: Yes, when `ulimits` is used.
+
 
 #### How to Setup
 

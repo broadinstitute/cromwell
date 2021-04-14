@@ -1,5 +1,6 @@
-# Launch a Cromwell server using the Local backend and a local MySQL instance (such as one launched by
-# `start_publish_mysql_docker.sh`). Well suited for publishing new versions of Cromwell.
+# Launch a Cromwell server suited for publishing new versions of Cromwell. This uses the Local backend
+# and presumes the existence of an appropriately configured MySQL instance. See
+# `start_publish_mysql_docker.sh` for launching a containerized version of such a MySQL instance.
 #
 # Vault authentication is required to render config files, see
 # https://github.com/broadinstitute/dsde-toolbox#authenticating-to-vault.
@@ -9,6 +10,9 @@
 #
 # Once Cromwell is running, the publish WDL, inputs and options can be submitted using Swagger
 # at `http://localhost:8000/swagger/index.html`.
+#
+# Terminate the Cromwell server and MySQL server (if appropriate to avoid unwanted future call caching)
+# when the publish is complete.
 
 # Fail loudly if things go wrong https://gist.github.com/mohanpedala/1e2ff5661761d3abd0385e8223e16425
 set -euo pipefail
@@ -26,5 +30,10 @@ export CROMWELL_BUILD_PAPI_JSON_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/crom
 export CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT=128000
 export CROMWELL_BUILD_CENTAUR_256_BITS_KEY="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 
-# Launch the Cromwell server
-cd "${CROMWELL_ROOT}" && sbt -Dconfig.file="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/local_application.conf -Dcall-caching.enabled=true "server/run server"
+# Launch the Cromwell server. Call caching is explicitly enabled to support resuming
+# if one of the publish steps fails transiently.
+cd "${CROMWELL_ROOT}" && \
+  sbt \
+  -Dconfig.file="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/local_application.conf \
+  -Dcall-caching.enabled=true \
+  "server/run server"

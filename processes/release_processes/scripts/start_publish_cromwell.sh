@@ -1,8 +1,7 @@
 set -euo pipefail
 
-# Launch a Cromwell server using the Local backend and configured to connect to a locally running MySQL
-# instance such as one launched by `start_publish_mysql_docker.sh`. Well suited for publishing new
-# versions of Cromwell.
+# Launch a Cromwell server using the Local backend and a local MySQL instance (such as one launched by
+# `start_publish_mysql_docker.sh`). Well suited for publishing new versions of Cromwell.
 #
 # To run this script the current working directory should be the root of the Cromwell git working tree.
 # Vault authentication is required to render config files, see
@@ -11,7 +10,7 @@ set -euo pipefail
 #
 # sbt renderCiResources
 #
-# Once Cromwell is running, one can submit the publish WDL, inputs and options using Swagger
+# Once Cromwell is running, the publish WDL, inputs and options can be submitted using Swagger
 # at `http://localhost:8000/swagger/index.html`.
 
 # Set up a number of variables required by the configuration files:
@@ -23,4 +22,5 @@ export CROMWELL_BUILD_PAPI_JSON_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/crom
 export CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT=128000
 export CROMWELL_BUILD_CENTAUR_256_BITS_KEY="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 
+# Launch the Cromwell server
 sbt -Dconfig.file=${CROMWELL_BUILD_RESOURCES_DIRECTORY}/local_application.conf "server/run server"

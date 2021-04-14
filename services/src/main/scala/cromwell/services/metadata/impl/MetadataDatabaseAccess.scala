@@ -156,8 +156,8 @@ trait MetadataDatabaseAccess {
     }
   }
 
-  def metadataEventsStream(workflowId: WorkflowId, fetchSize: Int): Try[DatabasePublisher[MetadataEntry]] = {
-    Try(metadataDatabaseInterface.streamMetadataEntries(workflowId.id.toString, fetchSize))
+  def metadataEventsStream(workflowId: WorkflowId): Try[DatabasePublisher[MetadataEntry]] = {
+    Try(metadataDatabaseInterface.streamMetadataEntries(workflowId.id.toString))
   }
 
   def queryMetadataEvents(query: MetadataQuery, timeout: Duration)(implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {

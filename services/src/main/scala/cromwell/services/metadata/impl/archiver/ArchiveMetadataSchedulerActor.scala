@@ -67,15 +67,26 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   override def receive: Receive = {
     case ArchiveNextWorkflowMessage =>
       val startTime = OffsetDateTime.now()
+      def calculateTimeSinceStart() = {
+        FiniteDuration(JDuration.between(startTime, OffsetDateTime.now()).toMillis, TimeUnit.MILLISECONDS)
+      }
+
       archiveNextWorkflow().onComplete({
         case Success(true) =>
           increment(workflowsProcessedSuccessMetricPath)
-          sendTiming(workflowArchiveTotalTimeSuccessMetricPath, FiniteDuration(JDuration.between(startTime, OffsetDateTime.now()).toMillis, TimeUnit.MILLISECONDS))
+          sendTiming(workflowArchiveTotalTimeSuccessMetricPath, calculateTimeSinceStart())
           self ! ArchiveNextWorkflowMessage
-        case Success(false) => scheduleNextWorkflowToArchive()
+        case Success(false) =>
+          // Provide a stream of data points even when nothing is being archived:
+          count(rowsProcessedMetricPath, 0L)
+          count(workflowsProcessedSuccessMetricPath, 0L)
+          sendGauge(workflowsToArchiveMetricPath, 0L)
+          sendTiming(workflowArchiveTotalTimeSuccessMetricPath, calculateTimeSinceStart())
+          scheduleNextWorkflowToArchive()
+          if (archiveMetadataConfig.debugLogging) log.info(s"No complete workflows which finished over ${archiveMetadataConfig.archiveDelay} ago remain to be archived. Scheduling next poll in ${archiveMetadataConfig.backoffInterval}.")
         case Failure(error) =>
           increment(workflowsProcessedFailureMetricPath)
-          sendTiming(workflowArchiveTotalTimeFailureMetricPath, FiniteDuration(JDuration.between(startTime, OffsetDateTime.now()).toMillis, TimeUnit.MILLISECONDS))
+          sendTiming(workflowArchiveTotalTimeFailureMetricPath, calculateTimeSinceStart())
           log.error(error, s"Error while archiving, will retry.")
           scheduleNextWorkflowToArchive()
       })
@@ -127,7 +138,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   }
 
   def fetchStreamFromDatabase(workflowId: WorkflowId): Future[DatabasePublisher[MetadataEntry]] = {
-    (serviceRegistryActor ? GetMetadataStreamAction(workflowId, archiveMetadataConfig.databaseStreamFetchSize)) flatMap {
+    (serviceRegistryActor ? GetMetadataStreamAction(workflowId)) flatMap {
       case MetadataLookupStreamSuccess(_, responseStream) => Future.successful(responseStream)
       case MetadataLookupStreamFailed(_, reason) => Future.failed(new Exception(s"Failed to get metadata stream", reason))
       case other => Future.failed(new Exception(s"Failed to get metadata stream: ${other.toPrettyElidedString(1000)}"))
@@ -135,7 +146,10 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   }
 
   def streamMetadataToGcs(path: Path, stream: DatabasePublisher[MetadataEntry]): Future[Unit] = {
-    var rowsCount: Long = 0
+    val rowsCounter = new RowsCounterAndProgressiveLogger( logFunction = (newRows, totalRows) => {
+      if (archiveMetadataConfig.debugLogging) logger.info(s"Uploaded $newRows new rows to ${path.pathAsString}. Total uploaded is now ${totalRows}") else ()
+      count(rowsProcessedMetricPath, newRows)
+    }, 100000)
     for {
       asyncIo <- futureAsyncIo
       gcsStream = Files.newOutputStream(path.nioPath, StandardOpenOption.CREATE)
@@ -154,9 +168,9 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
           me.metadataTimestamp.toSystemOffsetDateTime.toUtcMilliString,
           me.metadataValueType.getOrElse("")
         )
-        rowsCount += 1
+        rowsCounter.increment()
       })
-      _ = count(rowsProcessedMetricPath, rowsCount)
+      _ = rowsCounter.finalLog()
       _ = csvPrinter.close()
       expectedChecksum = crc32cStream.checksumString
       uploadedChecksum <- asyncIo.hashAsync(path)
@@ -215,6 +229,23 @@ object ArchiveMetadataSchedulerActor {
       // Google checksums are actually only the lower four bytes of the crc32c checksum:
       val bArray = java.util.Arrays.copyOfRange(Longs.toByteArray(finalChecksumValue), 4, 8)
       BaseEncoding.base64.encode(bArray)
+    }
+  }
+
+  final class RowsCounterAndProgressiveLogger(logFunction: (Long, Long) => Unit, logInterval: Int) {
+    private var rowsSinceLog: Long = 0
+    private var totalRows: Long = 0
+
+    def increment(): Unit = {
+      rowsSinceLog = rowsSinceLog + 1
+      totalRows = totalRows + 1
+      if (rowsSinceLog >= logInterval) {
+        logFunction(rowsSinceLog, totalRows)
+        rowsSinceLog = 0
+      }
+    }
+    def finalLog(): Unit = {
+      logFunction(rowsSinceLog, totalRows)
     }
   }
 }

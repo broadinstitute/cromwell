@@ -1,5 +1,3 @@
-set -euo pipefail
-
 # Launch a Cromwell server using the Local backend and a local MySQL instance (such as one launched by
 # `start_publish_mysql_docker.sh`). Well suited for publishing new versions of Cromwell.
 #
@@ -12,6 +10,9 @@ set -euo pipefail
 #
 # Once Cromwell is running, the publish WDL, inputs and options can be submitted using Swagger
 # at `http://localhost:8000/swagger/index.html`.
+
+# Fail loudly if things go wrong https://gist.github.com/mohanpedala/1e2ff5661761d3abd0385e8223e16425
+set -euo pipefail
 
 # Set up a number of variables required by the configuration files:
 export CROMWELL_BUILD_CENTAUR_SLICK_PROFILE=slick.jdbc.MySQLProfile$

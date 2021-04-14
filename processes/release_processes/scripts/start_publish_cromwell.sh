@@ -4,9 +4,6 @@
 #
 # Vault authentication is required to render config files, see
 # https://github.com/broadinstitute/dsde-toolbox#authenticating-to-vault.
-# Once authenticated, the Cromwell config files can be rendered with:
-#
-# sbt renderCiResources
 #
 # Once Cromwell is running, the publish WDL, inputs and options can be submitted using Swagger
 # at `http://localhost:8000/swagger/index.html`.
@@ -21,6 +18,10 @@ set -euo pipefail
 # shellcheck disable=SC2155
 export CROMWELL_ROOT=$(git rev-parse --show-toplevel)
 
+cd "${CROMWELL_ROOT}"
+
+sbt renderCiResources
+
 # Set up variables required by the configuration files
 export CROMWELL_BUILD_CENTAUR_SLICK_PROFILE=slick.jdbc.MySQLProfile$
 export CROMWELL_BUILD_CENTAUR_JDBC_DRIVER=com.mysql.cj.jdbc.Driver
@@ -30,10 +31,9 @@ export CROMWELL_BUILD_PAPI_JSON_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/crom
 export CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT=128000
 export CROMWELL_BUILD_CENTAUR_256_BITS_KEY="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 
-# Launch the Cromwell server. Call caching is explicitly enabled to support resuming
-# if one of the publish steps fails transiently.
-cd "${CROMWELL_ROOT}" && \
-  sbt \
+# Launch the Cromwell server. Call caching is enabled by default which is helpful to support resuming
+# a publish if one of the steps fails transiently.
+
+sbt \
   -Dconfig.file="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/local_application.conf \
-  -Dcall-caching.enabled=true \
   "server/run server"

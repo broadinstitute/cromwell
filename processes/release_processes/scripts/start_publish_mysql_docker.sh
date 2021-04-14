@@ -19,10 +19,10 @@
 set -euo pipefail
 
 docker run \
-  -p 3306:3306 \
+  --publish 3306:3306 \
   --name cromwell_publish_db \
-  -e MYSQL_ROOT_PASSWORD=test \
-  -e MYSQL_DATABASE=cromwell_test \
-  -e MYSQL_USER=cromwell \
-  -e MYSQL_PASSWORD=test \
+  --env MYSQL_ROOT_PASSWORD=test \
+  --env MYSQL_DATABASE=cromwell_test \
+  --env MYSQL_USER=cromwell \
+  --env MYSQL_PASSWORD=test \
   --rm mysql/mysql-server:5.6

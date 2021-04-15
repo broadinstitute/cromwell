@@ -1,10 +1,9 @@
 package drs.localizer
 
 import java.nio.file.{Files, Path}
-
 import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO}
-import cloud.nio.impl.drs.{DrsConfig, MarthaField, MarthaResponse}
+import cloud.nio.impl.drs.{AccessUrl, DrsConfig, MarthaField, MarthaResponse}
 import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -113,6 +112,15 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
     mockDrsLocalizer.downloadScript(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, Option(fakeSAJsonPath)) shouldBe expectedDownloadScript
   }
+
+  it should "return the correct download script for a drs url that resolves to an access URL only" in {
+    fail("need to write the download script for this")
+  }
+
+  it should "return the correct download script for a drs url that resolves to an access URL and a GCS path" in {
+    fail("need to write the download script for this")
+  }
+
 }
 
 object MockDrsPaths {
@@ -144,20 +152,25 @@ class MockLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
   LocalizerDrsPathResolver(drsConfig) {
 
   override def resolveDrsThroughMartha(drsPath: String, fields: NonEmptyList[MarthaField.Value]): IO[MarthaResponse] = {
-    def marthaResponseGsUriOnly(maybeGsUri: Option[String]): IO[MarthaResponse] = {
-      IO.pure(
-        MarthaResponse(
-          size = Option(1234),
-          gsUri = maybeGsUri,
-          hashes = Option(Map("md5" -> "abc123", "crc32c" -> "34fd67"))
-        )
-      )
-    }
+    val baseResponse = MarthaResponse(
+      size = Option(1234),
+      hashes = Option(Map("md5" -> "abc123", "crc32c" -> "34fd67"))
+    )
 
-    drsPath match {
-      case MockDrsPaths.`fakeDrsUrlWithGcsResolutionOnly` => marthaResponseGsUriOnly(Option("gs://abc/foo-123/abc123"))
-      case MockDrsPaths.`fakeDrsUrlWithoutAnyResolution` => marthaResponseGsUriOnly(None)
-      case _ => IO.raiseError(new RuntimeException("fudge"))
+    IO.pure(drsPath) map {
+      case MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly =>
+        baseResponse.copy(
+          gsUri = Option("gs://abc/foo-123/abc123"))
+      case MockDrsPaths.fakeDrsUrlWithoutAnyResolution =>
+        baseResponse
+      case MockDrsPaths.fakeDrsUrlWithAccessUrlResolutionOnly =>
+        baseResponse.copy(
+          accessUrl = Option(AccessUrl(url = "http://abc/def/ghi.bam", headers = None)))
+      case MockDrsPaths.fakeDrsUrlWithAccessUrlAndGcsResolution =>
+        baseResponse.copy(
+          accessUrl = Option(AccessUrl(url = "http://abc/def/ghi.bam", headers = None)),
+          gsUri = Option("gs://some/uri"))
+      case _ => throw new RuntimeException("fudge")
     }
   }
 }

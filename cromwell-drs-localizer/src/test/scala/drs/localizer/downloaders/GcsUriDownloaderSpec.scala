@@ -40,7 +40,7 @@ class GcsUriDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
          |  exit 0
          |fi""".stripMargin
 
-    downloader.gcsDownloadScript(gcsUrl = gcsUrl, saJsonPathOption = None) shouldBe expectedDownloadScript
+    downloader.generateDownloadScript(gcsUrl = gcsUrl, saJsonPathOption = None) shouldBe expectedDownloadScript
   }
 
   it should "inject Requester Pays flag & gcloud auth using SA returned from Martha" in {
@@ -91,6 +91,6 @@ class GcsUriDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
          |  exit 0
          |fi""".stripMargin
 
-    downloader.gcsDownloadScript(gcsUrl, Option(fakeSAJsonPath)) shouldBe expectedDownloadScript
+    downloader.generateDownloadScript(gcsUrl, Option(fakeSAJsonPath)) shouldBe expectedDownloadScript
   }
 }

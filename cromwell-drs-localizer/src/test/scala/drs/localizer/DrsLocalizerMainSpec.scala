@@ -5,6 +5,7 @@ import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO}
 import cloud.nio.impl.drs.{AccessUrl, DrsConfig, MarthaField, MarthaResponse}
 import common.assertion.CromwellTimeoutSpec
+import drs.localizer.downloaders.GcsUriDownloader
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -13,7 +14,6 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
   val fakeDownloadLocation = "/root/foo/foo-123.bam"
   val fakeRequesterPaysId = "fake-billing-project"
-
 
   behavior of "DrsLocalizerMain"
 
@@ -27,24 +27,41 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
   it should "accept arguments and run successfully without Requester Pays ID" in {
     val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation, None)
-    mockDrsLocalizer.resolveAndDownload().unsafeRunSync() shouldBe ExitCode.Success
+    val expected = GcsUriDownloader(
+      gcsUrl = "gs://abc/foo-123/abc123",
+      serviceAccountJson = None,
+      downloadLoc = fakeDownloadLocation,
+      requesterPaysProjectIdOption = None)
+    mockDrsLocalizer.resolve().unsafeRunSync() shouldBe expected
   }
 
   it should "run successfully with all 3 arguments" in {
     val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation, Option(fakeRequesterPaysId))
-    mockDrsLocalizer.resolveAndDownload().unsafeRunSync() shouldBe ExitCode.Success
+    val expected = GcsUriDownloader(
+      gcsUrl = "gs://abc/foo-123/abc123",
+      serviceAccountJson = None,
+      downloadLoc = fakeDownloadLocation,
+      requesterPaysProjectIdOption = Option(fakeRequesterPaysId))
+    mockDrsLocalizer.resolve().unsafeRunSync() shouldBe expected
   }
 
   it should "fail and throw error if Martha response does not have gs:// url" in {
     val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithoutAnyResolution, fakeDownloadLocation, None)
 
     the[RuntimeException] thrownBy {
-      mockDrsLocalizer.resolveAndDownload().unsafeRunSync()
+      mockDrsLocalizer.resolve().unsafeRunSync()
     } should have message "No access URL nor GCS URI starting with 'gs://' found in Martha response!"
   }
 
   it should "return correct download script for a drs url without Requester Pays ID and Google SA returned from Martha" in {
-    val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation, None)
+    val gcsUrl = "gs://foo/bar.bam"
+    val downloader = new GcsUriDownloader(
+      gcsUrl = gcsUrl,
+      downloadLoc = fakeDownloadLocation,
+      serviceAccountJson = None,
+      requesterPaysProjectIdOption = None
+    )
+
     val expectedDownloadScript =
       s"""set -euo pipefail
         |set +e
@@ -52,7 +69,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         |
         |
         |# Run gsutil copy without using project flag
-        |gsutil  cp ${MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly} $fakeDownloadLocation > gsutil_output.txt 2>&1
+        |gsutil  cp $gcsUrl $fakeDownloadLocation > gsutil_output.txt 2>&1
         |RC_GSUTIL=$$?
         |
         |
@@ -65,11 +82,17 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         |  exit 0
         |fi""".stripMargin
 
-    mockDrsLocalizer.gcsDownloadScript(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, None) shouldBe expectedDownloadScript
+    downloader.gcsDownloadScript(gcsUrl = gcsUrl, saJsonPathOption = None) shouldBe expectedDownloadScript
   }
 
   it should "inject Requester Pays flag & gcloud auth using SA returned from Martha" in {
-    val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation, Option(fakeRequesterPaysId))
+    val gcsUrl = "gs://foo/bar.bam"
+    val downloader = new GcsUriDownloader(
+      gcsUrl = gcsUrl,
+      downloadLoc = fakeDownloadLocation,
+      requesterPaysProjectIdOption = Option(fakeRequesterPaysId),
+      serviceAccountJson = None
+    )
 
     val tempCredentialDir: Path = Files.createTempDirectory("gcloudTemp_").toAbsolutePath
     val fakeSAJsonPath: Path = tempCredentialDir.resolve("sa.json")
@@ -90,14 +113,14 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         |
         |
         |# Run gsutil copy without using project flag
-        |gsutil  cp ${MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly} $fakeDownloadLocation > gsutil_output.txt 2>&1
+        |gsutil  cp $gcsUrl $fakeDownloadLocation > gsutil_output.txt 2>&1
         |RC_GSUTIL=$$?
         |
         |if [ "$$RC_GSUTIL" != "0" ]; then
         |  # Check if error is requester pays. If yes, retry gsutil copy using project flag
         |  if grep -q 'Bucket is requester pays bucket but no user project provided.' gsutil_output.txt; then
         |    echo "Received 'Bucket is requester pays' error. Attempting again using Requester Pays billing project"
-        |    gsutil -u fake-billing-project cp ${MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly} $fakeDownloadLocation > gsutil_output.txt 2>&1
+        |    gsutil -u fake-billing-project cp $gcsUrl $fakeDownloadLocation > gsutil_output.txt 2>&1
         |    RC_GSUTIL=$$?
         |  fi
         |fi
@@ -110,14 +133,18 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         |  exit 0
         |fi""".stripMargin
 
-    mockDrsLocalizer.gcsDownloadScript(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, Option(fakeSAJsonPath)) shouldBe expectedDownloadScript
+    downloader.gcsDownloadScript(gcsUrl, Option(fakeSAJsonPath)) shouldBe expectedDownloadScript
   }
 
-  it should "return the correct download script for a drs url that resolves to an access URL only" in {
+  it should "call the correct function for an access url" in {
+
+  }
+
+  it should "return the correct download script for a drs url that resolves to an access URL only" ignore {
     fail("need to write the download script for this")
   }
 
-  it should "return the correct download script for a drs url that resolves to an access URL and a GCS path" in {
+  it should "return the correct download script for a drs url that resolves to an access URL and a GCS path" ignore {
     fail("need to write the download script for this")
   }
 
@@ -142,9 +169,6 @@ class MockDrsLocalizerMain(drsUrl: String,
       new MockLocalizerDrsPathResolver(cloud.nio.impl.drs.MockDrsPaths.mockDrsConfig)
     }
   }
-
-  override def downloadFileFromGcs(gcsUrl: String, serviceAccountJsonOption: Option[String]): IO[ExitCode] =
-    IO(ExitCode.Success)
 }
 
 

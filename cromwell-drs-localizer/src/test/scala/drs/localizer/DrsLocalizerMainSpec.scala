@@ -23,21 +23,21 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
   }
 
   it should "fail if download location is not passed" in {
-    DrsLocalizerMain.run(List(MockDrsPaths.fakeDrsUrl)).unsafeRunSync() shouldBe ExitCode.Error
+    DrsLocalizerMain.run(List(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly)).unsafeRunSync() shouldBe ExitCode.Error
   }
 
   it should "accept arguments and run successfully without Requester Pays ID" in {
-    val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrl, fakeDownloadLocation, None)
+    val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation, None)
     mockDrsLocalizer.resolveAndDownload().unsafeRunSync() shouldBe ExitCode.Success
   }
 
   it should "run successfully with all 3 arguments" in {
-    val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrl, fakeDownloadLocation, Option(fakeRequesterPaysId))
+    val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation, Option(fakeRequesterPaysId))
     mockDrsLocalizer.resolveAndDownload().unsafeRunSync() shouldBe ExitCode.Success
   }
 
   it should "fail and throw error if Martha response does not have gs:// url" in {
-    val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithoutGcsResolution, fakeDownloadLocation, None)
+    val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithoutAnyResolution, fakeDownloadLocation, None)
 
     the[RuntimeException] thrownBy {
       mockDrsLocalizer.resolveAndDownload().unsafeRunSync()
@@ -45,7 +45,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
   }
 
   it should "return correct download script for a drs url without Requester Pays ID and Google SA returned from Martha" in {
-    val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrl, fakeDownloadLocation, None)
+    val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation, None)
     val expectedDownloadScript =
       s"""set -euo pipefail
         |set +e
@@ -53,7 +53,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         |
         |
         |# Run gsutil copy without using project flag
-        |gsutil  cp ${MockDrsPaths.fakeDrsUrl} $fakeDownloadLocation > gsutil_output.txt 2>&1
+        |gsutil  cp ${MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly} $fakeDownloadLocation > gsutil_output.txt 2>&1
         |RC_GSUTIL=$$?
         |
         |
@@ -66,11 +66,11 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         |  exit 0
         |fi""".stripMargin
 
-    mockDrsLocalizer.downloadScript(MockDrsPaths.fakeDrsUrl, None) shouldBe expectedDownloadScript
+    mockDrsLocalizer.downloadScript(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, None) shouldBe expectedDownloadScript
   }
 
   it should "inject Requester Pays flag & gcloud auth using SA returned from Martha" in {
-    val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrl, fakeDownloadLocation, Option(fakeRequesterPaysId))
+    val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation, Option(fakeRequesterPaysId))
 
     val tempCredentialDir: Path = Files.createTempDirectory("gcloudTemp_").toAbsolutePath
     val fakeSAJsonPath: Path = tempCredentialDir.resolve("sa.json")
@@ -91,14 +91,14 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         |
         |
         |# Run gsutil copy without using project flag
-        |gsutil  cp ${MockDrsPaths.fakeDrsUrl} $fakeDownloadLocation > gsutil_output.txt 2>&1
+        |gsutil  cp ${MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly} $fakeDownloadLocation > gsutil_output.txt 2>&1
         |RC_GSUTIL=$$?
         |
         |if [ "$$RC_GSUTIL" != "0" ]; then
         |  # Check if error is requester pays. If yes, retry gsutil copy using project flag
         |  if grep -q 'Bucket is requester pays bucket but no user project provided.' gsutil_output.txt; then
         |    echo "Received 'Bucket is requester pays' error. Attempting again using Requester Pays billing project"
-        |    gsutil -u fake-billing-project cp ${MockDrsPaths.fakeDrsUrl} $fakeDownloadLocation > gsutil_output.txt 2>&1
+        |    gsutil -u fake-billing-project cp ${MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly} $fakeDownloadLocation > gsutil_output.txt 2>&1
         |    RC_GSUTIL=$$?
         |  fi
         |fi
@@ -111,13 +111,15 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         |  exit 0
         |fi""".stripMargin
 
-    mockDrsLocalizer.downloadScript(MockDrsPaths.fakeDrsUrl, Option(fakeSAJsonPath)) shouldBe expectedDownloadScript
+    mockDrsLocalizer.downloadScript(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, Option(fakeSAJsonPath)) shouldBe expectedDownloadScript
   }
 }
 
 object MockDrsPaths {
-  val fakeDrsUrl = "drs://abc/foo-123/abc123"
-  val fakeDrsUrlWithoutGcsResolution = "drs://foo/bar/no-gcs-path"
+  val fakeDrsUrlWithGcsResolutionOnly = "drs://abc/foo-123/abc123"
+  val fakeDrsUrlWithAccessUrlResolutionOnly = "drs://def/bar-456/def456"
+  val fakeDrsUrlWithAccessUrlAndGcsResolution = "drs://ghi/baz-789/ghi789"
+  val fakeDrsUrlWithoutAnyResolution = "drs://foo/bar/no-gcs-path"
 }
 
 
@@ -153,8 +155,8 @@ class MockLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
     }
 
     drsPath match {
-      case MockDrsPaths.fakeDrsUrl => marthaResponseGsUriOnly(Option("gs://abc/foo-123/abc123"))
-      case MockDrsPaths.fakeDrsUrlWithoutGcsResolution => marthaResponseGsUriOnly(None)
+      case MockDrsPaths.`fakeDrsUrlWithGcsResolutionOnly` => marthaResponseGsUriOnly(Option("gs://abc/foo-123/abc123"))
+      case MockDrsPaths.`fakeDrsUrlWithoutAnyResolution` => marthaResponseGsUriOnly(None)
       case _ => IO.raiseError(new RuntimeException("fudge"))
     }
   }

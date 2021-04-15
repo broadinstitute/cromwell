@@ -65,7 +65,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         |  exit 0
         |fi""".stripMargin
 
-    mockDrsLocalizer.downloadScript(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, None) shouldBe expectedDownloadScript
+    mockDrsLocalizer.gcsDownloadScript(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, None) shouldBe expectedDownloadScript
   }
 
   it should "inject Requester Pays flag & gcloud auth using SA returned from Martha" in {
@@ -110,7 +110,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         |  exit 0
         |fi""".stripMargin
 
-    mockDrsLocalizer.downloadScript(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, Option(fakeSAJsonPath)) shouldBe expectedDownloadScript
+    mockDrsLocalizer.gcsDownloadScript(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, Option(fakeSAJsonPath)) shouldBe expectedDownloadScript
   }
 
   it should "return the correct download script for a drs url that resolves to an access URL only" in {

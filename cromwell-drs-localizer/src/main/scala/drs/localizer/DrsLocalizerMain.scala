@@ -47,10 +47,10 @@ class DrsLocalizerMain(drsUrl: String,
     }
   }
 
-  /*
-     Bash to download the GCS file using `gsutil`
+  /**
+   * Bash to download the GCS file using `gsutil`.
    */
-  def downloadScript(gcsUrl: String, saJsonPathOption: Option[Path]): String = {
+  def gcsDownloadScript(gcsUrl: String, saJsonPathOption: Option[Path]): String = {
 
     def gcsCopyCommand(flag: String = ""): String = s"gsutil $flag cp $gcsUrl $downloadLoc"
 
@@ -120,11 +120,11 @@ class DrsLocalizerMain(drsUrl: String,
         val saJsonPath: Path = tempCredentialDir.resolve("sa.json")
         Files.write(saJsonPath, sa.getBytes(StandardCharsets.UTF_8))
         val extraEnv = Map("CLOUDSDK_CONFIG" -> tempCredentialDir.toString)
-        val copyCommand = Seq("bash", "-c", downloadScript(gcsUrl, Option(saJsonPath)))
+        val copyCommand = Seq("bash", "-c", gcsDownloadScript(gcsUrl, Option(saJsonPath)))
         Process(copyCommand, None, extraEnv.toSeq: _*)
       case None =>
         // No SA returned from Martha. gsutil will use the application default credentials.
-        val copyCommand = Seq("bash", "-c", downloadScript(gcsUrl, None))
+        val copyCommand = Seq("bash", "-c", gcsDownloadScript(gcsUrl, None))
         Process(copyCommand)
     }
 

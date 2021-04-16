@@ -237,7 +237,7 @@ task prepGithub {
             --header "Authorization: token $(cat ~{githubTokenFile})" \
             --head \
             https://api.github.com/rate_limit \
-        | grep -i -F 'X-OAuth-Scopes:' || true > scopesHeader.txt
+        | grep -i -F 'X-OAuth-Scopes:' > scopesHeader.txt
 
         # All of these scopes are required
         required_scopes=(repo user)

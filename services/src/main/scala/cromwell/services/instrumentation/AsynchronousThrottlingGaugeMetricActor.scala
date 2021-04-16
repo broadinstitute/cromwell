@@ -38,7 +38,7 @@ class AsynchronousThrottlingGaugeMetricActor(metricPath: NonEmptyList[String],
       sendGauge(metricPath, value, instrumentationPrefix)
       goto(WaitingForMetricCalculationRequestOrMetricValue)
     case Event(Status.Failure(ex), _) =>
-      log.error(s"Cannot send gauge metric value: error occurred while evaluating Future value.", ex)
+      log.error(ex, s"Cannot send gauge metric value: error occurred while evaluating Future value.")
       goto(WaitingForMetricCalculationRequestOrMetricValue)
   }
 

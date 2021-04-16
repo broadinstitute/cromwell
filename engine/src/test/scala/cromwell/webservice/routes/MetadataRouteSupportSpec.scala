@@ -111,6 +111,31 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
       }
   }
 
+  it should "return 200 with GET of outputs of archived workflow (not deleted)" in {
+    Get(s"/workflows/$version/${CromwellApiServiceSpec.ArchivedWorkflowId}/outputs") ~>
+      akkaHttpService.metadataRoutes ~>
+      check {
+        status should be(StatusCodes.OK)
+        responseAs[JsObject].fields.keys should contain allOf(WorkflowMetadataKeys.Id, WorkflowMetadataKeys.Outputs)
+        contentType should be(ContentTypes.`application/json`)
+      }
+  }
+
+  it should "return 200 with ArchivedAndDeleted status for workflow whose metadata is deleted" in {
+    Get(s"/workflows/$version/${CromwellApiServiceSpec.ArchivedAndDeletedWorkflowId}/outputs") ~>
+      akkaHttpService.metadataRoutes ~>
+      check {
+        status should be(StatusCodes.OK)
+
+        val responseJson =  responseAs[JsObject]
+        responseJson.fields.keys should contain allOf(WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus, WorkflowMetadataKeys.Message)
+        responseJson.fields("metadataArchiveStatus").asInstanceOf[JsString].value shouldBe "ArchivedAndDeleted"
+        responseJson.fields("message").asInstanceOf[JsString].value shouldBe "Cromwell has archived this workflow's metadata " +
+          "according to the lifecycle policy. It is available in the archive bucket, or via a support request in the case of a managed instance."
+        contentType should be(ContentTypes.`application/json`)
+      }
+  }
+
   behavior of "REST API /logs endpoint"
   it should "return 200 with paths to stdout/stderr/backend log" in {
     Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/logs") ~>
@@ -134,6 +159,34 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
           status
         }
       }
+  }
+
+  it should "return 200 with paths to stdout/stderr/backend log for archived workflow (not deleted)" in {
+    Get(s"/workflows/$version/${CromwellApiServiceSpec.ArchivedWorkflowId}/logs") ~>
+      akkaHttpService.metadataRoutes ~>
+      check {
+        status should be(StatusCodes.OK)
+
+        val call = responseAs[JsObject].fields("calls").convertTo[JsObject].fields("mycall").convertTo[Seq[JsObject]].head
+        call.fields("stdout") should be(JsString("stdout.txt"))
+        call.fields("stderr") should be(JsString("stderr.txt"))
+        call.fields("stdout") should be(JsString("stdout.txt"))
+        call.fields("backendLogs").convertTo[JsObject].fields("log") should be (JsString("backend.log"))
+      }
+  }
+
+  it should "return 200 with ArchivedAndDeleted status for workflow whose metadata is deleted" in {
+    Get(s"/workflows/$version/${CromwellApiServiceSpec.ArchivedAndDeletedWorkflowId}/logs") ~>
+      akkaHttpService.metadataRoutes ~>
+      check {
+        status should be(StatusCodes.OK)
+
+        val responseJson =  responseAs[JsObject]
+        responseJson.fields.keys should contain allOf(WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus, WorkflowMetadataKeys.Message)
+        responseJson.fields("metadataArchiveStatus").asInstanceOf[JsString].value shouldBe "ArchivedAndDeleted"
+        responseJson.fields("message").asInstanceOf[JsString].value shouldBe "Cromwell has archived this workflow's metadata " +
+          "according to the lifecycle policy. It is available in the archive bucket, or via a support request in the case of a managed instance."
+       }
   }
 
   behavior of "REST API /metadata endpoint"
@@ -220,6 +273,34 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
           result.fields.keys should contain noneOf("testKey1a", "testKey2")
           result.fields("testKey1b") should be(JsString("myValue1b"))
         }
+      }
+  }
+
+  it should "return with full metadata from the metadata route for archived workflow (not deleted)" in {
+    Get(s"/workflows/$version/${CromwellApiServiceSpec.ArchivedWorkflowId}/metadata") ~>
+      akkaHttpService.metadataRoutes ~>
+      check {
+        status should be(StatusCodes.OK)
+        val result = responseAs[JsObject]
+        result.fields.keys should contain allOf("testKey1a", "testKey1b", "testKey2a")
+        result.fields.keys shouldNot contain("testKey3")
+        result.fields("testKey1a") should be(JsString("myValue1a"))
+        result.fields("testKey1b") should be(JsString("myValue1b"))
+        result.fields("testKey2a") should be(JsString("myValue2a"))
+      }
+  }
+
+  it should "return 200 with ArchivedAndDeleted status for workflow whose metadata is deleted" in {
+    Get(s"/workflows/$version/${CromwellApiServiceSpec.ArchivedAndDeletedWorkflowId}/metadata") ~>
+      akkaHttpService.metadataRoutes ~>
+      check {
+        status should be(StatusCodes.OK)
+
+        val responseJson =  responseAs[JsObject]
+        responseJson.fields.keys should contain allOf(WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus, WorkflowMetadataKeys.Message)
+        responseJson.fields("metadataArchiveStatus").asInstanceOf[JsString].value shouldBe "ArchivedAndDeleted"
+        responseJson.fields("message").asInstanceOf[JsString].value shouldBe "Cromwell has archived this workflow's metadata " +
+          "according to the lifecycle policy. It is available in the archive bucket, or via a support request in the case of a managed instance."
       }
   }
 
@@ -357,6 +438,53 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
             """.stripMargin.parseJson
 
         actualResult shouldBe expectedResults
+      }
+  }
+
+  it should "not update labels for workflow whose metadata is archived (not deleted)" in {
+    val validLabelsJson =
+      """
+        |{
+        |  "label-key-1":"label-value-1",
+        |  "label-key-2":"label-value-2"
+        |}
+      """.stripMargin
+
+    val workflowId = CromwellApiServiceSpec.ArchivedWorkflowId
+
+    Patch(s"/workflows/$version/$workflowId/labels", HttpEntity(ContentTypes.`application/json`, validLabelsJson)) ~>
+      akkaHttpService.metadataRoutes ~>
+      check {
+        status shouldBe StatusCodes.BadRequest
+        val actualResult = responseAs[JsObject]
+        actualResult.fields.keys should contain allOf(WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus, WorkflowMetadataKeys.Message)
+        actualResult.fields("metadataArchiveStatus").asInstanceOf[JsString].value shouldBe "Archived"
+        actualResult.fields("message").asInstanceOf[JsString].value shouldBe "Cromwell has archived this workflow's metadata " +
+          "according to the lifecycle policy. As a result, new labels can't be added or existing labels can't be updated for this workflow."
+      }
+  }
+
+  it should "not update labels for workflow whose metadata is archived and deleted" in {
+    val validLabelsJson =
+      """
+        |{
+        |  "label-key-1":"label-value-1",
+        |  "label-key-2":"label-value-2"
+        |}
+      """.stripMargin
+
+    val workflowId = CromwellApiServiceSpec.ArchivedAndDeletedWorkflowId
+
+    Patch(s"/workflows/$version/$workflowId/labels", HttpEntity(ContentTypes.`application/json`, validLabelsJson)) ~>
+      akkaHttpService.metadataRoutes ~>
+      check {
+        status shouldBe StatusCodes.BadRequest
+        val actualResult = responseAs[JsObject]
+        actualResult.fields.keys should contain allOf(WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus, WorkflowMetadataKeys.Message)
+        actualResult.fields("metadataArchiveStatus").asInstanceOf[JsString].value shouldBe "ArchivedAndDeleted"
+        actualResult.fields("message").asInstanceOf[JsString].value shouldBe "Cromwell has archived this workflow's metadata " +
+          "according to the lifecycle policy. It is available in the archive bucket, or via a support request in the case of a managed instance. " +
+          "As a result, new labels can't be added or existing labels can't be updated for this workflow."
       }
   }
 

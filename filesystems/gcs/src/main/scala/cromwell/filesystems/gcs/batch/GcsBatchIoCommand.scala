@@ -75,7 +75,7 @@ case class GcsBatchCopyCommand(
                               )
   extends IoCopyCommand(source, destination) with GcsBatchIoCommand[Unit, RewriteResponse] {
   override def commandDescription: String = s"GcsBatchCopyCommand source '$source' destination '$destination' " +
-    s"setUserProject '$setUserProject'"
+    s"setUserProject '$setUserProject' rewriteToken '$rewriteToken'"
 
   override def operation: StorageRequest[RewriteResponse] = {
     val rewriteOperation = source.apiStorage.objects()

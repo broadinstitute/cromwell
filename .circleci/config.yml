@@ -2,7 +2,7 @@ version: 2.1
 
 orbs:
   slack: circleci/slack@4.2.1
-  build-tools: circleci/build-tools@2.7.1
+  build-tools: circleci/build-tools@2.9.0
 
 commands:
   install_adoptopenjdk:
@@ -43,6 +43,11 @@ jobs:
             fi
       - install_adoptopenjdk
       - checkout
+      - run:
+          name: Custom step - configure GIT identity
+          command: |
+            git config user.email "circleci@example.com"
+            git config user.name "CircleCI"
       - build-tools/merge-with-parent:
           parent: develop
       - restore_cache:

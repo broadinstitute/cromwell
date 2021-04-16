@@ -5,11 +5,13 @@ import akka.actor.{Actor, ActorContext, ActorInitializationException, ActorLoggi
 import akka.routing.Listen
 import cats.data.NonEmptyList
 import com.typesafe.config.Config
+import common.exception.AggregatedMessageException
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.{LoadConfig, WorkflowId}
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.{MetadataSummaryFailure, MetadataSummarySuccess, SummarizeMetadata}
+import cromwell.services.metadata.impl.archiver.{ArchiveMetadataConfig, ArchiveMetadataSchedulerActor}
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
@@ -75,6 +77,10 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
 
   summaryActor foreach { _ => self ! RefreshSummary }
 
+  private val archiveMetadataActor: Option[ActorRef] = buildArchiveMetadataActor
+
+  // TODO: Create instance of DeleteMetadataActor
+
   private def scheduleSummary(): Unit = {
     metadataSummaryRefreshInterval foreach { interval =>
       summaryRefreshCancellable = Option(context.system.scheduler.scheduleOnce(interval, self, RefreshSummary)(context.dispatcher, self))
@@ -96,6 +102,15 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
     }
     log.info(message)
     actor
+  }
+
+  private def buildArchiveMetadataActor: Option[ActorRef] = {
+    if (serviceConfig.hasPath("archive-metadata")) {
+      ArchiveMetadataConfig.parseConfig(serviceConfig.getConfig("archive-metadata"))(context.system) match {
+        case Right(config) => Option(context.actorOf(ArchiveMetadataSchedulerActor.props(config, serviceRegistryActor), "archive-metadata-scheduler"))
+        case Left(errorList) => throw AggregatedMessageException("Failed to parse the archive-metadata config", errorList.toList)
+      }
+    } else None
   }
 
   private def validateWorkflowIdInMetadata(possibleWorkflowId: WorkflowId, sender: ActorRef): Unit = {
@@ -123,7 +138,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
   }
 
   def receive = summarizerReceive orElse {
-    case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(writeActor))
+    case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(writeActor) ++ archiveMetadataActor.toList)
     case action: PutMetadataAction => writeActor forward action
     case action: PutMetadataActionAndRespond => writeActor forward action
     // Assume that listen messages are directed to the write metadata actor

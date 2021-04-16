@@ -1,15 +1,13 @@
 version 1.0
 
-workflow drs_usa_hca_data_in_jdr {
+workflow drs_usa_hca {
     input {
         File file
-        Int disk_size_required_for_file_gb
     }
 
     call localize_drs_with_usa {
         input:
-            file = file,
-            disk_size_required_for_file_gb = disk_size_required_for_file_gb
+            file = file
     }
 
     call skip_localize_drs_with_usa { input: file = file }
@@ -25,7 +23,6 @@ workflow drs_usa_hca_data_in_jdr {
 task localize_drs_with_usa {
     input {
         File file
-        Int disk_size_required_for_file_gb
     }
 
     command <<<
@@ -42,7 +39,7 @@ task localize_drs_with_usa {
     runtime {
         docker: "ubuntu"
         backend: "papi-v2-usa"
-        disks: "local-disk ~{disk_size_required_for_file_gb} SSD"
+        disks: "local-disk 100 HDD"
     }
 }
 

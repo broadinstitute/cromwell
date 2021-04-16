@@ -2,6 +2,7 @@ package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import akka.testkit.{ImplicitSender, TestFSMRef, TestProbe}
 import cats.data.NonEmptyList
+import cats.syntax.validated._
 import cromwell.core._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffQueryParameter.CallCacheDiffQueryCall
@@ -12,7 +13,7 @@ import cromwell.services.{FailedMetadataJsonResponse, SuccessfulMetadataJsonResp
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import spray.json.JsObject
+import spray.json.{JsArray, JsField, JsObject, JsString, JsValue}
 
 class CallCacheDiffActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with ImplicitSender with Eventually {
 
@@ -290,6 +291,29 @@ class CallCacheDiffActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
                  |Failed to extract relevant metadata for call A (971652a6-139c-4ef3-96b5-aeb611a40dbf / callFqnA:1) (reason 1 of 1): No 'calls' field found
                  |Failed to extract relevant metadata for call B (bb85b3ec-e179-4f12-b90f-5191216da598 / callFqnB:-1) (reason 1 of 1): No 'calls' field found""".stripMargin
     )
+  }
+
+  locally {
+    def obj(members: JsField*): JsObject = JsObject(members: _*)
+
+    def arr(elements: JsValue*): JsArray = JsArray(elements: _*)
+
+    def str(s: String): JsString = JsString(s)
+
+    it should "handle nested JsObjects if field names collide" in {
+      val objectToParse = obj("hashes" -> obj("subObj" -> obj("field" -> str("fieldValue1"), "subObj" -> obj("field" -> str("fieldValue2")))))
+      val res = CallCacheDiffActor.extractHashes(objectToParse).toOption
+
+      res should be(defined)
+      res.get.values should contain theSameElementsAs List("fieldValue1", "fieldValue2")
+    }
+
+    it should "handle JsArray" in {
+      val objectToParse = obj("hashes" -> obj("array" -> arr(str("element #0"), str("element #1"))))
+      val res = CallCacheDiffActor.extractHashes(objectToParse)
+
+      res shouldBe Map("array[0]" -> "element #0", "array[1]" -> "element #1").validNel
+    }
   }
 
   def testExpectedErrorForModifiedMetadata(metadataFilter: MetadataEvent => Boolean, error: String) = {

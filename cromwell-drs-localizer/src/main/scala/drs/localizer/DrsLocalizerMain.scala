@@ -35,10 +35,10 @@ class DrsLocalizerMain(drsUrl: String,
 
   private final val ExtractUriErrorMsg = "No access URL nor GCS URI starting with 'gs://' found in Martha response!"
 
-  def getDrsPathResolver: IO[LocalizerDrsPathResolver] = {
+  def getDrsPathResolver: IO[DrsLocalizerDrsPathResolver] = {
     IO {
       val drsConfig = DrsConfig.fromEnv(sys.env)
-      new LocalizerDrsPathResolver(drsConfig)
+      new DrsLocalizerDrsPathResolver(drsConfig)
     }
   }
 

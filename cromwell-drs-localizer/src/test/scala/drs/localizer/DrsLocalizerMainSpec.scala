@@ -94,16 +94,16 @@ class MockDrsLocalizerMain(drsUrl: String,
                           )
   extends DrsLocalizerMain(drsUrl, downloadLoc, requesterPaysProjectIdOption) {
 
-  override def getDrsPathResolver: IO[LocalizerDrsPathResolver] = {
+  override def getDrsPathResolver: IO[DrsLocalizerDrsPathResolver] = {
     IO {
-      new MockLocalizerDrsPathResolver(cloud.nio.impl.drs.MockDrsPaths.mockDrsConfig)
+      new MockDrsLocalizerDrsPathResolver(cloud.nio.impl.drs.MockDrsPaths.mockDrsConfig)
     }
   }
 }
 
 
-class MockLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
-  LocalizerDrsPathResolver(drsConfig) {
+class MockDrsLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
+  DrsLocalizerDrsPathResolver(drsConfig) {
 
   override def resolveDrsThroughMartha(drsPath: String, fields: NonEmptyList[MarthaField.Value]): IO[MarthaResponse] = {
     val marthaResponse = MarthaResponse(

@@ -52,17 +52,6 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     } should have message "No access URL nor GCS URI starting with 'gs://' found in Martha response!"
   }
 
-  it should "resolve to use the correct downloader for a gs uri" in {
-    val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation, None)
-    val expected = GcsUriDownloader(
-      gcsUrl = "gs://abc/foo-123/abc123",
-      downloadLoc = fakeDownloadLocation,
-      serviceAccountJson = None,
-      requesterPaysProjectIdOption = None
-    )
-    mockDrsLocalizer.resolve().unsafeRunSync() shouldBe expected
-  }
-
   it should "resolve to use the correct downloader for an access url" in {
     val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithAccessUrlResolutionOnly, fakeDownloadLocation, None)
     val expected = AccessUrlDownloader(

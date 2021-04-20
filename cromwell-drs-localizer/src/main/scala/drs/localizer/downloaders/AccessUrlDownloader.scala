@@ -10,7 +10,7 @@ case class AccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String) extend
 
   def generateDownloadScript(): String = {
     val signedUrl = accessUrl.url
-    // TODO headers, requester pays, refinements to retry strategy for certain 4xx statuses
+    // TODO headers, refinements to retry strategy for certain 4xx statuses
     s"""mkdir -p $$(dirname '$downloadLoc') && curl --location --retry 3 --retry-connrefused --retry-delay 10 --fail --output '$downloadLoc' '$signedUrl'"""
   }
 

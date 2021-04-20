@@ -6,7 +6,7 @@ import org.scalatest.matchers.should.Matchers
 
 import java.nio.file.{Files, Path}
 
-class GcsUriDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers{
+class GcsUriDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   val fakeDownloadLocation = "/root/foo/foo-123.bam"
   val fakeRequesterPaysId = "fake-billing-project"
@@ -38,7 +38,8 @@ class GcsUriDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
          |else
          |  echo "Download complete!"
          |  exit 0
-         |fi""".stripMargin
+         |fi
+         |""".stripMargin
 
     downloader.generateDownloadScript(gcsUrl = gcsUrl, saJsonPathOption = None) shouldBe expectedDownloadScript
   }
@@ -83,13 +84,15 @@ class GcsUriDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
          |  fi
          |fi
          |
+         |
          |if [ "$$RC_GSUTIL" != "0" ]; then
          |  echo "Failed to download the file. Error: $$(cat gsutil_output.txt)" >&2
          |  exit "$$RC_GSUTIL"
          |else
          |  echo "Download complete!"
          |  exit 0
-         |fi""".stripMargin
+         |fi
+         |""".stripMargin
 
     downloader.generateDownloadScript(gcsUrl, Option(fakeSAJsonPath)) shouldBe expectedDownloadScript
   }

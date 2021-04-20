@@ -72,7 +72,8 @@ case class GcsUriDownloader(gcsUrl: String,
              |    ${gcsCopyCommand(s"-u $userProject")} > gsutil_output.txt 2>&1
              |    RC_GSUTIL=$$?
              |  fi
-             |fi""".stripMargin
+             |fi
+             |""".stripMargin
         case None => ""
       }
     }
@@ -95,7 +96,8 @@ case class GcsUriDownloader(gcsUrl: String,
        |else
        |  echo "Download complete!"
        |  exit 0
-       |fi""".stripMargin
+       |fi
+       |""".stripMargin
   }
 }
 

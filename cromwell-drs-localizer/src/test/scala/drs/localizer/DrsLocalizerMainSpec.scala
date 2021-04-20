@@ -124,7 +124,7 @@ class MockLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
         marthaResponse.copy(
           accessUrl = Option(AccessUrl(url = "http://abc/def/ghi.bam", headers = None)),
           gsUri = Option("gs://some/uri"))
-      case _ => throw new RuntimeException("fudge")
+      case e => throw new RuntimeException(s"Unexpected exception in DRS localization test code: $e")
     }
   }
 }

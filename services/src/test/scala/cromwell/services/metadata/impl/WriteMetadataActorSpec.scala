@@ -278,10 +278,6 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
       notImplemented()
     }
 
-    override def countRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp)(implicit ec: ExecutionContext): Future[Int] = {
-      notImplemented()
-    }
-
     override def getSummaryQueueSize()(implicit ec: ExecutionContext): Future[Int] = {
       notImplemented()
     }

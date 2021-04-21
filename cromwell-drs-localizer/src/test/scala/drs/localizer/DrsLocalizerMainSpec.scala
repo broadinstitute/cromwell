@@ -67,6 +67,35 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     )
     mockDrsLocalizer.resolve().unsafeRunSync() shouldBe expected
   }
+
+  it should "fail when there is no gs url and the access url fails to be generated" in {
+    val mockDrsLocalizer =
+      new NoAccessUrlMockDrsLocalizerMain(
+        MockDrsPaths.fakeDrsUrlWithAccessUrlResolutionOnly,
+        fakeDownloadLocation,
+        None,
+      )
+
+    the[RuntimeException] thrownBy {
+      mockDrsLocalizer.resolve().unsafeRunSync()
+    } should have message "Expected test error: simulated accessUrl problem"
+  }
+
+  it should "succeed when there is a gs url and the access url fails to be generated" in {
+    val mockDrsLocalizer =
+      new NoAccessUrlMockDrsLocalizerMain(
+        MockDrsPaths.fakeDrsUrlWithAccessUrlAndGcsResolution,
+        fakeDownloadLocation,
+        None,
+      )
+    val expected = GcsUriDownloader(
+      gcsUrl = "gs://some/uri",
+      serviceAccountJson = None,
+      downloadLoc = fakeDownloadLocation,
+      requesterPaysProjectIdOption = None,
+    )
+    mockDrsLocalizer.resolve().unsafeRunSync() shouldBe expected
+  }
 }
 
 object MockDrsPaths {
@@ -90,6 +119,18 @@ class MockDrsLocalizerMain(drsUrl: String,
   }
 }
 
+class NoAccessUrlMockDrsLocalizerMain(drsUrl: String,
+                                      downloadLoc: String,
+                                      requesterPaysProjectIdOption: Option[String],
+                                     )
+  extends DrsLocalizerMain(drsUrl, downloadLoc, requesterPaysProjectIdOption) {
+
+  override def getDrsPathResolver: IO[DrsLocalizerDrsPathResolver] = {
+    IO {
+      new NoAccessUrlMockDrsLocalizerDrsPathResolver(cloud.nio.impl.drs.MockDrsPaths.mockDrsConfig)
+    }
+  }
+}
 
 class MockDrsLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
   DrsLocalizerDrsPathResolver(drsConfig) {
@@ -108,12 +149,28 @@ class MockDrsLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
         marthaResponse
       case MockDrsPaths.fakeDrsUrlWithAccessUrlResolutionOnly =>
         marthaResponse.copy(
-          accessUrl = Option(AccessUrl(url = "http://abc/def/ghi.bam", headers = None)))
+          accessMethodType = Option("gs"),
+          accessUrl = Option(AccessUrl(url = "http://abc/def/ghi.bam", headers = None)),
+        )
       case MockDrsPaths.fakeDrsUrlWithAccessUrlAndGcsResolution =>
         marthaResponse.copy(
+          accessMethodType = Option("gs"),
           accessUrl = Option(AccessUrl(url = "http://abc/def/ghi.bam", headers = None)),
-          gsUri = Option("gs://some/uri"))
+          gsUri = Option("gs://some/uri"),
+        )
       case e => throw new RuntimeException(s"Unexpected exception in DRS localization test code: $e")
+    }
+  }
+}
+
+class NoAccessUrlMockDrsLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
+  MockDrsLocalizerDrsPathResolver(drsConfig) {
+
+  override def resolveDrsThroughMartha(drsPath: String, fields: NonEmptyList[MarthaField.Value]): IO[MarthaResponse] = {
+    if (fields.exists(_ == MarthaField.AccessUrl)) {
+      IO.raiseError(new RuntimeException("Expected test error: simulated accessUrl problem"))
+    } else {
+      super.resolveDrsThroughMartha(drsPath, fields)
     }
   }
 }

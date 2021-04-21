@@ -45,17 +45,64 @@ class DrsLocalizerMain(drsUrl: String,
   def resolveAndDownload(): IO[ExitCode] = resolve flatMap { _.download }
 
   def resolve(): IO[Downloader] = {
-    val fields = NonEmptyList.of(MarthaField.GsUri, MarthaField.GoogleServiceAccount, MarthaField.AccessUrl)
+    /*
+    Initially do NOT ask for the accessUrl, but do ask for the accessMethodType to know if we should go back and
+    attempt to generate an accessUrl.
+
+    As of 2021-04-20 it is not clear if the underlying accessUrl generators will be able to handle the expected load.
+    Separating the request for the accessUrl allows this localizer to fall back to the gsUri if the accessUrl
+    generation request fails.
+
+    We do NOT want to just retry generic server errors with an uneducated guess that any and all HTTP 5xx responses
+    automatically infer that the accessUrl generator is overloaded. If the localizer were to assume that, then ALL
+    overloaded DRS providers would be subjected to extra followup requests, including DRS providers that would _never_
+    generate an accessUrl.
+
+    A reminder that ailing DRS providers returning HTTP 5xx errors, or even HTTP 429, are already hammered by
+    `martha_v3` rapidly retrying due to WA-90.
+     */
+    val initialRequestFields =
+      NonEmptyList.of(MarthaField.GsUri, MarthaField.GoogleServiceAccount, MarthaField.AccessMethodType)
+    val accessUrlFields = NonEmptyList.of(MarthaField.AccessUrl)
     for {
       resolver <- getDrsPathResolver
-      marthaResponse <- resolver.resolveDrsThroughMartha(drsUrl, fields)
+      initialMarthaResponse <- resolver.resolveDrsThroughMartha(drsUrl, initialRequestFields)
+      gsUriOption = initialMarthaResponse.gsUri
+      serviceAccountJsonOption = initialMarthaResponse.googleServiceAccount.map(_.data.spaces2)
+      accessMethodTypeOption = initialMarthaResponse.accessMethodType
+
+      accessUrlOption <- accessMethodTypeOption match {
+        case None =>
+          // If there is no accessMethodType reported by martha_v3, do not ask for an accessUrl
+          IO.pure(None)
+        case Some(_) =>
+          // Try to get an accessUrl...
+          resolver
+            .resolveDrsThroughMartha(drsUrl, accessUrlFields)
+            .map(_.accessUrl)
+            .handleErrorWith(
+              throwable =>
+                gsUriOption match {
+                  case Some(_) =>
+                    // Do not worry about the throwable. Use the gsUri.
+                    logger.error(
+                      "Will use the gsUri due to an error that occurred while requesting the accessUrl: " +
+                        throwable.getMessage,
+                      throwable,
+                    )
+                    IO.pure(None)
+                  case None =>
+                    // There was no gsUri. Return the original throwable.
+                    IO.raiseError(throwable)
+                }
+            )
+      }
 
       // Currently Martha only supports resolving DRS paths to access URLs or GCS paths.
-      downloader <- (marthaResponse.accessUrl, marthaResponse.gsUri) match {
+      downloader <- (accessUrlOption, gsUriOption) match {
         case (Some(accessUrl), _) =>
           IO.pure(AccessUrlDownloader(accessUrl, downloadLoc))
         case (_, Some(gcsPath)) =>
-          val serviceAccountJsonOption = marthaResponse.googleServiceAccount.map(_.data.spaces2)
           IO.pure(GcsUriDownloader(
             gcsUrl = gcsPath,
             serviceAccountJson = serviceAccountJsonOption,

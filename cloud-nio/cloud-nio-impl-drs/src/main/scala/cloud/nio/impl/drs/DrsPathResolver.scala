@@ -82,6 +82,7 @@ object MarthaField extends Enumeration {
   val GoogleServiceAccount: MarthaField.Value = Value("googleServiceAccount")
   val Hashes: MarthaField.Value = Value("hashes")
   val FileName: MarthaField.Value = Value("fileName")
+  val AccessMethodType: MarthaField.Value = Value("accessMethodType")
   val AccessUrl: MarthaField.Value = Value("accessUrl")
 }
 
@@ -102,6 +103,7 @@ final case class AccessUrl(url: String, headers: Option[Map[String, String]])
   * @param googleServiceAccount The service account to access the gsUri contents created via bondProvider
   * @param fileName A possible different file name for the object at gsUri, ex: "gsutil cp gs://bucket/12/345 my.vcf"
   * @param hashes Hashes for the contents stored at gsUri
+  * @param accessMethodType Access method type used to return the accessUrl
   * @param accessUrl URL to query for signed URL
   */
 final case class MarthaResponse(size: Option[Long] = None,
@@ -112,7 +114,8 @@ final case class MarthaResponse(size: Option[Long] = None,
                                 googleServiceAccount: Option[SADataObject] = None,
                                 fileName: Option[String] = None,
                                 hashes: Option[Map[String, String]] = None,
-                                accessUrl: Option[AccessUrl] = None
+                                accessMethodType: Option[String] = None,
+                                accessUrl: Option[AccessUrl] = None,
                                )
 
 // Adapted from https://github.com/broadinstitute/martha/blob/f31933a3a11e20d30698ec4b4dc1e0abbb31a8bc/common/helpers.js#L210-L218

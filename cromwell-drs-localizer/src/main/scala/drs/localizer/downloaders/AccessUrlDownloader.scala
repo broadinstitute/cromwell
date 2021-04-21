@@ -15,15 +15,14 @@ case class AccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String) extend
   }
 
   override def download: IO[ExitCode] = {
-    val signedUrl = accessUrl.url
-      // We don't want to log the actual signed URL here. On a PAPI backend this log will end up under the user's
-      // workspace bucket, but that bucket may have visibility different than the data referenced by the signed URL.
-      logger.info(s"Attempting to download data to $downloadLoc from access URL.")
-      val copyCommand = Seq("bash", "-c", generateDownloadScript())
-      val copyProcess = Process(copyCommand)
+    // We don't want to log the actual signed URL here. On a PAPI backend this log will end up under the user's
+    // workspace bucket, but that bucket may have visibility different than the data referenced by the signed URL.
+    logger.info(s"Attempting to download data to $downloadLoc from access URL.")
+    val copyCommand = Seq("bash", "-c", generateDownloadScript())
+    val copyProcess = Process(copyCommand)
 
-      val returnCode = copyProcess ! ProcessLogger(logger.underlying.info, logger.underlying.error)
+    val returnCode = copyProcess ! ProcessLogger(logger.underlying.info, logger.underlying.error)
 
-      IO(ExitCode(returnCode))
+    IO(ExitCode(returnCode))
   }
 }

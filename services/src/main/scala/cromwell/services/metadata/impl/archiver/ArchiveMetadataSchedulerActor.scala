@@ -99,8 +99,8 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
       maybeWorkflowQueryResult <- lookupNextWorkflowToArchive()
       result <- maybeWorkflowQueryResult match {
         case Some(workflow) => for {
-          path <- getGcsPathForMetadata(workflow)
           dbStream <- fetchStreamFromDatabase(WorkflowId(UUID.fromString(workflow.id)))
+          path = getGcsPathForMetadata(workflow)
           _ = log.info(s"Archiving metadata for ${workflow.id} to ${path.pathAsString}")
           _ <- streamMetadataToGcs(path, dbStream)
           _ <- updateMetadataArchiveStatus(WorkflowId(UUID.fromString(workflow.id)), Archived)
@@ -130,11 +130,11 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
     }
   }
 
-  private def getGcsPathForMetadata(workflow: WorkflowQueryResult): Future[Path] =  {
+  private def getGcsPathForMetadata(workflow: WorkflowQueryResult): Path =  {
     val bucket = archiveMetadataConfig.bucket
     val workflowId = workflow.id
     val rootWorkflowId = workflow.rootWorkflowId.getOrElse(workflowId)
-    Future(PathFactory.buildPath(s"gs://$bucket/$rootWorkflowId/$workflowId.csv", archiveMetadataConfig.pathBuilders))
+    PathFactory.buildPath(s"gs://$bucket/$rootWorkflowId/$workflowId.csv", archiveMetadataConfig.pathBuilders)
   }
 
   def fetchStreamFromDatabase(workflowId: WorkflowId): Future[DatabasePublisher[MetadataEntry]] = {

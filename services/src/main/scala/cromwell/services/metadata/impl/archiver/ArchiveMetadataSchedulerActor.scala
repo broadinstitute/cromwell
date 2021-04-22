@@ -99,8 +99,8 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
       maybeWorkflowQueryResult <- lookupNextWorkflowToArchive()
       result <- maybeWorkflowQueryResult match {
         case Some(workflow) => for {
+          path <- Future.fromTry(getGcsPathForMetadata(workflow))
           dbStream <- fetchStreamFromDatabase(WorkflowId(UUID.fromString(workflow.id)))
-          path: Path <- Future.fromTry(getGcsPathForMetadata(workflow))
           _ = log.info(s"Archiving metadata for ${workflow.id} to ${path.pathAsString}")
           _ <- streamMetadataToGcs(path, dbStream)
           _ <- updateMetadataArchiveStatus(WorkflowId(UUID.fromString(workflow.id)), Archived)

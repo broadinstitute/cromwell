@@ -2,7 +2,7 @@ name: hello_private_repo
 testFormat: runtwiceexpectingcallcaching
 backends: [Local]
 # For demo purposes only. This test would fail for external contributors since they will not
-# have the required credentials to access the private Docker Hub repo rendered into their configs.
+# have the required credentials rendered into their configs to access the private Docker Hub repo.
 ignore: true
 
 files {

@@ -1,8 +1,6 @@
 name: hello_private_repo
 testFormat: runtwiceexpectingcallcaching
 backends: [LocalDockerSecure]
-# For demo purposes only. This test would fail for external contributors since they will not
-# have the required credentials rendered into their configs to access the private Docker Hub repo.
 
 files {
   workflow: hello_private_repo/hello_private_repo.wdl

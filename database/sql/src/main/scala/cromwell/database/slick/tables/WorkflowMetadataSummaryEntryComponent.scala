@@ -115,6 +115,27 @@ trait WorkflowMetadataSummaryEntryComponent {
       if workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid
     } yield workflowMetadataSummaryEntry.metadataArchiveStatus)
 
+  def workflowIdsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[Option[String]],
+                                                                workflowEndTimestampThreshold: Timestamp,
+                                                                batchSize: Long): Query[WorkflowMetadataSummaryEntries, WorkflowMetadataSummaryEntry, Seq] = {
+    (for {
+      summaryEntry <- workflowMetadataSummaryEntries
+      if workflowStatuses.map(summaryEntry.workflowStatus === _).reduce(_ || _)
+      if summaryEntry.metadataArchiveStatus.isEmpty // get Unarchived workflows only
+      if summaryEntry.endTimestamp <= workflowEndTimestampThreshold
+    } yield summaryEntry).sortBy(_.workflowMetadataSummaryEntryId).take(batchSize)
+  }
+
+  def countWorkflowIdsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[Option[String]],
+                                                                     workflowEndTimestampThreshold: Timestamp): Rep[Int] = {
+    (for {
+      summaryEntry <- workflowMetadataSummaryEntries
+      if workflowStatuses.map(summaryEntry.workflowStatus === _).reduce(_ || _)
+      if summaryEntry.metadataArchiveStatus.isEmpty // get Unarchived workflows only
+      if summaryEntry.endTimestamp <= workflowEndTimestampThreshold
+    } yield summaryEntry).length
+  }
+
   def concat(a: SQLActionBuilder, b: SQLActionBuilder): SQLActionBuilder = {
     SQLActionBuilder(a.queryParts ++ b.queryParts, (p: Unit, pp: PositionedParameters) => {
       a.unitPConv.apply(p, pp)

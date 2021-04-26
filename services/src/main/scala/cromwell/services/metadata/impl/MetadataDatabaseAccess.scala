@@ -365,4 +365,13 @@ trait MetadataDatabaseAccess {
   def getMetadataArchiveStatus(id: WorkflowId)(implicit ec: ExecutionContext): Future[Option[String]] = {
     metadataDatabaseInterface.getMetadataArchiveStatus(id.toString)
   }
+
+  def queryWorkflowIdsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[Option[String]],
+                                                                     workflowEndTimestampThreshold: OffsetDateTime,
+                                                                     batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] =
+    metadataDatabaseInterface.queryWorkflowIdsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses, workflowEndTimestampThreshold.toSystemTimestamp, batchSize)
+
+  def countWorkflowIdsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[Option[String]],
+                                                                     workflowEndTimestampThreshold: OffsetDateTime)(implicit ec: ExecutionContext): Future[Int] =
+    metadataDatabaseInterface.countWorkflowIdsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses, workflowEndTimestampThreshold.toSystemTimestamp)
 }

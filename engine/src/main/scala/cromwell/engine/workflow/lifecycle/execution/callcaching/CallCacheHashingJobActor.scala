@@ -122,9 +122,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
     import cromwell.core.simpleton.WomValueSimpleton._
 
     val unqualifiedInputs = jobDescriptor.evaluatedTaskInputs map { case (declaration, value) => declaration.name -> value }
-    log.info(s"WILLY - unqualifiedInputs: $unqualifiedInputs")
     val inputSimpletons = unqualifiedInputs.simplifyForCaching
-    log.info(s"WILLY - inputSimpletons: $inputSimpletons")
     val (fileInputSimpletons, nonFileInputSimpletons) = inputSimpletons partition {
       case WomValueSimpleton(_, _: WomFile) => true
       case _ => false
@@ -157,13 +155,6 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
     val inputCountHash = HashResult(HashKey("input count"), (nonFileInputs.size + fileInputs.size).toString.md5HashValue)
     val outputCountHash = HashResult(HashKey("output count"), jobDescriptor.taskCall.callable.outputs.size.toString.md5HashValue)
 
-    val commandTemplate = jobDescriptor.taskCall.callable.commandTemplateString(jobDescriptor.evaluatedTaskInputs)
-    val inputCount = (nonFileInputs.size + fileInputs.size).toString
-    val outputCount = jobDescriptor.taskCall.callable.outputs.size.toString
-    log.info(s"WILLY - commandTemplate: $commandTemplate")
-    log.info(s"WILLY - backendName: $backendNameForCallCachingPurposes")
-    log.info(s"WILLY - inputCount: $inputCount")
-    log.info(s"WILLY - outputCount: $outputCount")
     val runtimeAttributeHashes = runtimeAttributeDefinitions map { definition => jobDescriptor.runtimeAttributes.get(definition.name) match {
       case Some(_) if definition.name == RuntimeAttributesKeys.DockerKey && callCachingEligible.dockerHash.isDefined =>
         HashResult(HashKey(definition.usedInCallCaching, "runtime attribute", definition.name), callCachingEligible.dockerHash.get.md5HashValue)

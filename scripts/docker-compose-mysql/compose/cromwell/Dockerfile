@@ -1,8 +1,4 @@
-FROM broadinstitute/cromwell:61-64592db-SNAP
-
-RUN apt-get update && \
-    apt-get upgrade -y && \
-    apt-get install -y git
+FROM broadinstitute/cromwell:develop
 
 RUN git clone https://github.com/vishnubob/wait-for-it.git
 RUN mkdir cromwell-working-dir

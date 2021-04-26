@@ -11,7 +11,8 @@ task hello {
         String salutation = read_string(stdout())
     }
     runtime {
-        docker: "mcovarr/private-repo:latest"
+        backend: "LocalDockerSecure"
+        docker: "broadinstitute/cromwell-docker-test:private-repo"
     }
 }
 

@@ -184,3 +184,8 @@ abstract class IoIsDirectoryCommand(val file: Path) extends SingleFileIoCommand[
   override def toString = s"check whether ${file.pathAsString} is a directory"
   override lazy val name = "is directory"
 }
+
+abstract class IoLocationCommand(val file: Path) extends SingleFileIoCommand[String] {
+  override def toString = s"location of ${file.pathAsString}"
+  override lazy val name = "location"
+}

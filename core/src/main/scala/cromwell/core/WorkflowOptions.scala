@@ -50,6 +50,7 @@ object WorkflowOptions {
   case object WriteToCache extends WorkflowOption("write_to_cache")
   case object ReadFromCache extends WorkflowOption("read_from_cache")
   case object CallCacheHitPathPrefixes extends WorkflowOption("call_cache_hit_path_prefixes")
+  case object CallCacheEgress extends WorkflowOption("call_cache_egress")
 
   // Copying
   case object FinalWorkflowLogDir extends WorkflowOption("final_workflow_log_dir")

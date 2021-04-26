@@ -195,7 +195,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       log.info(s"$tag: Workflow $workflowId failed (during $inState): ${expandFailureReasons(reasons)}")
       stay()
     case Event(WorkflowActorWorkComplete(id: WorkflowId, workflowActor: ActorRef, finalState: WorkflowState), data) =>
-      log.info(s"$tag: Workflow actor for $id completed with status '$finalState'. The workflow will be removed from the workflow store.")
+      log.info(s"$tag: Workflow actor for $id completed with status '$finalState'. The workflow will be removed from the workflow store, WILLY.")
       // This silently fails if idFromActor is None, but data.without call right below will as well
       data.idFromActor(workflowActor) foreach { workflowId =>
         params.jobStoreActor ! RegisterWorkflowCompleted(workflowId)

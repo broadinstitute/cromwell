@@ -10,6 +10,7 @@ import cromwell.core.CallOutputs
 import cromwell.core.io.{IoCommand, IoTouchCommand}
 import cromwell.core.path.Path
 import cromwell.core.simpleton.{WomValueBuilder, WomValueSimpleton}
+import cromwell.core.WorkflowOptions.{CallCacheEgress, WorkflowOption}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import wom.values.WomFile
 
@@ -26,7 +27,31 @@ class PipelinesApiBackendCacheHitCopyingActor(standardParams: StandardCacheHitCo
                                  sourceCallRootPath: Path,
                                 ): Try[(CallOutputs, Set[IoCommand[_]])] =
     cachingStrategy match {
-    case CopyCachedOutputs => super.processSimpletons(womValueSimpletons, sourceCallRootPath)
+    case CopyCachedOutputs =>
+      // This is the super's implementation copy and pasted here, with an additional location check
+      // If the location of the buckets cause an undesired egress charge, raise an exception
+      val (destinationSimpletons, ioCommands): (List[WomValueSimpleton], Set[IoCommand[_]]) = womValueSimpletons.toList.foldMap({
+        case WomValueSimpleton(key, wdlFile: WomSingleFile) =>
+          val sourcePath = getPath(wdlFile.value).get
+          val destinationPath = PathCopier.getDestinationFilePath(sourceCallRootPath, sourcePath, destinationCallRootPath)
+
+          val sourceBucket = sourcePath.toString.split("/")(2)
+          val destinationBucket = destinationPath.toString.split("/")(2)
+          log.info(s"Comparing $sourceBucket and $destinationBucket")
+          // IMPORTANT TODO: Obviously I can't just call bucket.location
+          // How do I properly use GcsBatchCommandBuilder.locationCommand here?
+          // And how do I get the WorkflowOption CallCacheEgress here?
+          if (sourceBucket.location != destinationBucket.location) (failAndStop(CopyAttemptError(new TimeoutException("Buckets are from different locations"))))
+          
+          val destinationSimpleton = WomValueSimpleton(key, WomSingleFile(destinationPath.pathAsString))
+
+          log.info(s"WILLY: copying $sourcePath to $destinationPath in processSimpletons")
+          List(destinationSimpleton) -> Set(commandBuilder.copyCommand(sourcePath, destinationPath).get)
+        case nonFileSimpleton => (List(nonFileSimpleton), Set.empty[IoCommand[_]])
+      })
+      log.info(s"WILLY: destinationSimpletons are $destinationSimpletons")
+      log.info(s"WILLY: ioCommands are $ioCommands")
+      (WomValueBuilder.toJobOutputs(jobDescriptor.taskCall.outputPorts, destinationSimpletons), ioCommands)
     case UseOriginalCachedOutputs =>
       val touchCommands: Seq[Try[IoTouchCommand]] = womValueSimpletons collect {
         case WomValueSimpleton(_, wdlFile: WomFile) => getPath(wdlFile.value) flatMap GcsBatchCommandBuilder.touchCommand
@@ -42,7 +67,28 @@ class PipelinesApiBackendCacheHitCopyingActor(standardParams: StandardCacheHitCo
   override def processDetritus(sourceJobDetritusFiles: Map[String, String]
                               ): Try[(Map[String, Path], Set[IoCommand[_]])] = 
     cachingStrategy match {
-    case CopyCachedOutputs => super.processDetritus(sourceJobDetritusFiles)
+      val fileKeys = detritusFileKeys(sourceJobDetritusFiles)
+
+      val zero = (Map.empty[String, Path], Set.empty[IoCommand[_]])
+
+      val (destinationDetritus, ioCommands) = fileKeys.foldLeft(zero)({
+        case ((detrituses, commands), detritus) =>
+          val sourcePath = getPath(sourceJobDetritusFiles(detritus)).get
+          val destinationPath = destinationJobDetritusPaths(detritus)
+
+          val newDetrituses = detrituses + (detritus -> destinationPath)
+        val sourceBucket = sourcePath.toString.split("/")(2)
+        val destinationBucket = destinationPath.toString.split("/")(2)
+        log.info(s"Comparing $sourceBucket and $destinationBucket")
+        // IMPORTANT TODO: Obviously I can't just call bucket.location
+        // How do I properly use GcsBatchCommandBuilder.locationCommand here?
+        if (sourceBucket.location != destinationBucket.location) (failAndStop(CopyAttemptError(new TimeoutException("Buckets are from different locations"))))
+        log.info(s"WILLY: copying $sourcePath to $destinationPath in processDetritus")
+        (newDetrituses, commands + commandBuilder.copyCommand(sourcePath, destinationPath).get)
+      })
+      log.info(s"WILLY: destinationDetritus is $destinationDetritus")
+      log.info(s"WILLY: ioCommands are $ioCommands")
+      (destinationDetritus + (JobPaths.CallRootPathKey -> destinationCallRootPath), ioCommands)
     case UseOriginalCachedOutputs =>
       // apply getPath on each detritus string file
       val detritusAsPaths = detritusFileKeys(sourceJobDetritusFiles).toSeq map { key =>

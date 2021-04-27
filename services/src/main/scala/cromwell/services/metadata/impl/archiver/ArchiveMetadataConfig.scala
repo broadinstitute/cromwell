@@ -19,6 +19,7 @@ final case class ArchiveMetadataConfig(pathBuilders: PathBuilders,
                                        bucket: String,
                                        backoffInterval: FiniteDuration,
                                        archiveDelay: FiniteDuration,
+                                       instrumentationInterval: FiniteDuration,
                                        debugLogging: Boolean) {
 }
 
@@ -26,6 +27,7 @@ object ArchiveMetadataConfig {
   def parseConfig(archiveMetadataConfig: Config)(implicit system: ActorSystem): Checked[ArchiveMetadataConfig] = {
     val defaultMaxInterval: FiniteDuration = 5 minutes
     val defaultArchiveDelay = 365 days
+    val defaultInstrumentationInterval = 1 minute
     val defaultDebugLogging = true
 
     for {
@@ -36,7 +38,8 @@ object ArchiveMetadataConfig {
       bucket <- Try(archiveMetadataConfig.getString("bucket")).toCheckedWithContext("parse Carboniter 'bucket' field from config")
       backoffInterval <- Try(archiveMetadataConfig.getOrElse[FiniteDuration]("backoff-interval", defaultMaxInterval)).toChecked
       archiveDelay <- Try(archiveMetadataConfig.getOrElse("archive-delay", defaultArchiveDelay)).toChecked
+      instrumentationInterval <- Try(archiveMetadataConfig.getOrElse("instrumentation-interval", defaultInstrumentationInterval)).toChecked
       debugLogging <- Try(archiveMetadataConfig.getOrElse("debug-logging", defaultDebugLogging)).toChecked
-    } yield ArchiveMetadataConfig(pathBuilders, bucket, backoffInterval, archiveDelay, debugLogging)
+    } yield ArchiveMetadataConfig(pathBuilders, bucket, backoffInterval, archiveDelay, instrumentationInterval, debugLogging)
   }
 }

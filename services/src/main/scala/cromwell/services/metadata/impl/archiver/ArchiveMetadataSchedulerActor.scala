@@ -21,9 +21,8 @@ import cromwell.core.{WorkflowAborted, WorkflowFailed, WorkflowId, WorkflowSucce
 import cromwell.database.sql.SqlConverters.{ClobOptionToRawString, TimestampToSystemOffsetDateTime}
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 import cromwell.services.instrumentation.CromwellInstrumentation
-import cromwell.services.metadata.MetadataArchiveStatus.{Archived, Unarchived}
+import cromwell.services.metadata.MetadataArchiveStatus.Archived
 import cromwell.services.metadata.MetadataService.{GetMetadataStreamAction, MetadataLookupStreamFailed, MetadataLookupStreamSuccess}
-import cromwell.services.metadata.WorkflowQueryKey._
 import cromwell.services.metadata.impl.archiver.ArchiveMetadataSchedulerActor._
 import cromwell.services.metadata.impl.{MetadataDatabaseAccess, MetadataServiceActor}
 import cromwell.services.{IoActorRequester, MetadataServicesStore}
@@ -35,7 +34,6 @@ import slick.basic.DatabasePublisher
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.language.postfixOps
 import scala.util.{Failure, Success}
 import scala.util.{Failure, Success, Try}
 
@@ -71,8 +69,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   self ! ArchiveNextWorkflowMessage
 
   // schedule for workflows left to archive metric
-  // TODO: the interval should be a config value
-  context.system.scheduler.schedule(archiveMetadataConfig.backoffInterval, 1 minute)(workflowsLeftToArchiveMetric())
+  context.system.scheduler.schedule(archiveMetadataConfig.backoffInterval, archiveMetadataConfig.instrumentationInterval)(workflowsLeftToArchiveMetric())
 
   override def receive: Receive = {
     case ArchiveNextWorkflowMessage =>
@@ -221,18 +218,6 @@ object ArchiveMetadataSchedulerActor {
     "METADATA_VALUE",
     "METADATA_TIMESTAMP",
     "METADATA_VALUE_TYPE"
-  )
-
-  def queryParametersForWorkflowsToArchive(currentTime: OffsetDateTime, archiveDelay: FiniteDuration): Seq[(String, String)] = Seq(
-    IncludeSubworkflows.name -> "true",
-    Status.name -> WorkflowSucceeded.toString,
-    Status.name -> WorkflowFailed.toString,
-    Status.name -> WorkflowAborted.toString,
-    MetadataArchiveStatus.name -> Unarchived.toString,
-    Page.name -> "1",
-    PageSize.name -> "1",
-    NewestFirst.name -> "false", // oldest first for archiving
-    EndDate.name -> currentTime.minusNanos(archiveDelay.toNanos).toUtcMilliString
   )
 
   def props(archiveMetadataConfig: ArchiveMetadataConfig, serviceRegistryActor: ActorRef): Props =

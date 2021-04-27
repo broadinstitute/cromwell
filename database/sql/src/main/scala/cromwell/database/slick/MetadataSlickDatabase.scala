@@ -491,11 +491,11 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action).map(_.flatten)
   }
 
-  override def queryWorkflowIdsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[Option[String]],
-                                                                              workflowEndTimestampThreshold: Timestamp,
-                                                                              batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = {
+  override def queryWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[Option[String]],
+                                                                            workflowEndTimestampThreshold: Timestamp,
+                                                                            batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = {
     runAction(
-      dataAccess.workflowIdsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses, workflowEndTimestampThreshold, batchSize).result
+      dataAccess.workflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses, workflowEndTimestampThreshold, batchSize).result
     )
   }
 

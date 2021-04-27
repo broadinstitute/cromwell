@@ -187,9 +187,9 @@ trait MetadataSqlDatabase extends SqlDatabase {
 
   def getMetadataArchiveStatus(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]]
 
-  def queryWorkflowIdsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[Option[String]],
-                                                                     workflowEndTimestampThreshold: Timestamp,
-                                                                     batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]]
+  def queryWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[Option[String]],
+                                                                   workflowEndTimestampThreshold: Timestamp,
+                                                                   batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]]
 
   def countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[Option[String]],
                                                                        workflowEndTimestampThreshold: Timestamp)(implicit ec: ExecutionContext): Future[Int]

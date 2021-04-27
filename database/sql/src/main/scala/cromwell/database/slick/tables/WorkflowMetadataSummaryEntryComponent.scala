@@ -115,9 +115,9 @@ trait WorkflowMetadataSummaryEntryComponent {
       if workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid
     } yield workflowMetadataSummaryEntry.metadataArchiveStatus)
 
-  def workflowIdsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[Option[String]],
-                                                                workflowEndTimestampThreshold: Timestamp,
-                                                                batchSize: Long): Query[WorkflowMetadataSummaryEntries, WorkflowMetadataSummaryEntry, Seq] = {
+  def workflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[Option[String]],
+                                                              workflowEndTimestampThreshold: Timestamp,
+                                                              batchSize: Long): Query[WorkflowMetadataSummaryEntries, WorkflowMetadataSummaryEntry, Seq] = {
     (for {
       summaryEntry <- workflowMetadataSummaryEntries
       if workflowStatuses.map(summaryEntry.workflowStatus === _).reduce(_ || _)

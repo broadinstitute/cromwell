@@ -142,7 +142,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
 
   def lookupNextWorkflowToArchive(): Future[Option[WorkflowMetadataSummaryEntry]] = {
     val currentTimestampMinusDelay = OffsetDateTime.now().minusSeconds(archiveMetadataConfig.archiveDelay.toSeconds)
-    queryWorkflowIdsToArchiveThatEndedOnOrBeforeThresholdTimestamp(
+    queryWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(
       TerminalWorkflowStatuses,
       currentTimestampMinusDelay,
       batchSize = 1

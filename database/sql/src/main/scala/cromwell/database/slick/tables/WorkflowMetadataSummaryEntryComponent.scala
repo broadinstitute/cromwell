@@ -126,8 +126,8 @@ trait WorkflowMetadataSummaryEntryComponent {
     } yield summaryEntry).sortBy(_.workflowMetadataSummaryEntryId).take(batchSize)
   }
 
-  def countWorkflowIdsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[Option[String]],
-                                                                     workflowEndTimestampThreshold: Timestamp): Rep[Int] = {
+  def countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[Option[String]],
+                                                                       workflowEndTimestampThreshold: Timestamp): Rep[Int] = {
     (for {
       summaryEntry <- workflowMetadataSummaryEntries
       if workflowStatuses.map(summaryEntry.workflowStatus === _).reduce(_ || _)

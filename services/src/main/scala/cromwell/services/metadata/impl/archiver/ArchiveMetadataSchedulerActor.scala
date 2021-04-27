@@ -108,7 +108,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
 
   def workflowsLeftToArchiveMetric(): Unit = {
     val currentTimestampMinusDelay = OffsetDateTime.now().minusSeconds(archiveMetadataConfig.archiveDelay.toSeconds)
-    countWorkflowIdsToArchiveThatEndedOnOrBeforeThresholdTimestamp(
+    countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(
       TerminalWorkflowStatuses,
       currentTimestampMinusDelay
     ).map(workflowsToArchive => sendGauge(workflowsToArchiveMetricPath, workflowsToArchive.longValue(), ServicesPrefix))

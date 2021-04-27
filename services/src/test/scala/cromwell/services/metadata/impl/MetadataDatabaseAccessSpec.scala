@@ -124,7 +124,7 @@ class MetadataDatabaseAccessSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
 
       // both workflows should be available for archiving
       eventually(Timeout(2.minutes)) {
-        val workflowsLeftToArchiveFuture = dataAccess.countWorkflowIdsToArchiveThatEndedOnOrBeforeThresholdTimestamp(terminalWorkflowStatuses, OffsetDateTime.now().minusSeconds(10))
+        val workflowsLeftToArchiveFuture = dataAccess.countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(terminalWorkflowStatuses, OffsetDateTime.now().minusSeconds(10))
         val workflowsLeftToArchiveResponse = Await.result(workflowsLeftToArchiveFuture, defaultTimeout)
         workflowsLeftToArchiveResponse shouldBe 2
       }
@@ -146,7 +146,7 @@ class MetadataDatabaseAccessSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
 
       // only 1 workflow should be left for archiving
       eventually(Timeout(2.minutes)) {
-        val workflowsLeftToArchiveFuture = dataAccess.countWorkflowIdsToArchiveThatEndedOnOrBeforeThresholdTimestamp(terminalWorkflowStatuses, OffsetDateTime.now().minusSeconds(10))
+        val workflowsLeftToArchiveFuture = dataAccess.countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(terminalWorkflowStatuses, OffsetDateTime.now().minusSeconds(10))
         val workflowsLeftToArchiveResponse = Await.result(workflowsLeftToArchiveFuture, defaultTimeout)
         workflowsLeftToArchiveResponse shouldBe 1
       }

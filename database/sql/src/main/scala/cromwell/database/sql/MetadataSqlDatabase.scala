@@ -191,6 +191,6 @@ trait MetadataSqlDatabase extends SqlDatabase {
                                                                      workflowEndTimestampThreshold: Timestamp,
                                                                      batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]]
 
-  def countWorkflowIdsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[Option[String]],
-                                                                     workflowEndTimestampThreshold: Timestamp)(implicit ec: ExecutionContext): Future[Int]
+  def countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[Option[String]],
+                                                                       workflowEndTimestampThreshold: Timestamp)(implicit ec: ExecutionContext): Future[Int]
 }

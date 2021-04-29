@@ -150,6 +150,13 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   }
 
   private def getGcsPathForMetadata(summaryEntry: WorkflowMetadataSummaryEntry): Try[Path] =  {
+    /*
+      Note: The naming convention for archived workflows is:
+        - if a workflow has no root workflow, its archived metadata is put in GCS at <workflow_id>/<workflow_id>.csv
+        - if a workflow is a subworkflow, its archived metadata is put in GCS under it's root workflow's directory i.e.
+          <root_workflow_id>/<subworkflow_id>.csv
+      Changing this convention would break the expectations of where to find the archived metadata files.
+   */
     val bucket = archiveMetadataConfig.bucket
     val workflowId = summaryEntry.workflowExecutionUuid
     val rootWorkflowId = summaryEntry.rootWorkflowExecutionUuid.getOrElse(workflowId)

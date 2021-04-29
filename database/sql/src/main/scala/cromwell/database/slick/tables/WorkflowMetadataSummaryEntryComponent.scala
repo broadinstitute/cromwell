@@ -115,25 +115,31 @@ trait WorkflowMetadataSummaryEntryComponent {
       if workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid
     } yield workflowMetadataSummaryEntry.metadataArchiveStatus)
 
-  def workflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[Option[String]],
-                                                              workflowEndTimestampThreshold: Timestamp,
-                                                              batchSize: Long): Query[WorkflowMetadataSummaryEntries, WorkflowMetadataSummaryEntry, Seq] = {
-    (for {
+  private def fetchAllWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[Option[String]],
+                                                                              workflowEndTimestampThreshold: Timestamp): Query[WorkflowMetadataSummaryEntries, WorkflowMetadataSummaryEntry, Seq] = {
+    for {
       summaryEntry <- workflowMetadataSummaryEntries
       if workflowStatuses.map(summaryEntry.workflowStatus === _).reduce(_ || _)
       if summaryEntry.metadataArchiveStatus.isEmpty // get Unarchived workflows only
       if summaryEntry.endTimestamp <= workflowEndTimestampThreshold
-    } yield summaryEntry).sortBy(_.workflowMetadataSummaryEntryId).take(batchSize)
+    } yield summaryEntry
+  }
+
+  def workflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[Option[String]],
+                                                              workflowEndTimestampThreshold: Timestamp,
+                                                              batchSize: Long): Query[WorkflowMetadataSummaryEntries, WorkflowMetadataSummaryEntry, Seq] = {
+    fetchAllWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(
+      workflowStatuses,
+      workflowEndTimestampThreshold
+    ).sortBy(_.workflowMetadataSummaryEntryId).take(batchSize)
   }
 
   def countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[Option[String]],
                                                                        workflowEndTimestampThreshold: Timestamp): Rep[Int] = {
-    (for {
-      summaryEntry <- workflowMetadataSummaryEntries
-      if workflowStatuses.map(summaryEntry.workflowStatus === _).reduce(_ || _)
-      if summaryEntry.metadataArchiveStatus.isEmpty // get Unarchived workflows only
-      if summaryEntry.endTimestamp <= workflowEndTimestampThreshold
-    } yield summaryEntry).length
+    fetchAllWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(
+      workflowStatuses,
+      workflowEndTimestampThreshold
+    ).length
   }
 
   def concat(a: SQLActionBuilder, b: SQLActionBuilder): SQLActionBuilder = {

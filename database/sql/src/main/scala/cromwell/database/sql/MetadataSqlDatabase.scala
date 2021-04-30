@@ -179,13 +179,9 @@ trait MetadataSqlDatabase extends SqlDatabase {
 
   def deleteAllMetadataForWorkflowAndUpdateArchiveStatus(rootWorkflowId: String, newArchiveStatus: Option[String])(implicit ec: ExecutionContext): Future[Int]
 
-  def isRootWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Option[Boolean]]
-
   def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]]
 
   def queryWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp, batchSizeOpt: Long)(implicit ec: ExecutionContext): Future[Seq[String]]
-
-  def countRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp)(implicit ec: ExecutionContext): Future[Int]
 
   def getSummaryQueueSize()(implicit ec: ExecutionContext): Future[Int]
 

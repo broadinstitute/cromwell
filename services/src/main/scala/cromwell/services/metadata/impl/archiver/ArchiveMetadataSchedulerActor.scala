@@ -34,7 +34,7 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 
 class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig,
@@ -110,7 +110,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
             sendGauge(timeBehindExpectedDelayMetricPath, millisSinceWorkflowEnd - archiveMetadataConfig.archiveDelay.toMillis, ServicesPrefix)
           }
           for {
-            path <- getGcsPathForMetadata(workflow)
+            path <- Future.fromTry(getGcsPathForMetadata(workflow))
             dbStream <- fetchStreamFromDatabase(WorkflowId(UUID.fromString(workflow.id)))
             _ = log.info(s"Archiving metadata for ${workflow.id} to ${path.pathAsString}")
             _ <- streamMetadataToGcs(path, dbStream)
@@ -143,11 +143,13 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
     }
   }
 
-  private def getGcsPathForMetadata(workflow: WorkflowQueryResult): Future[Path] =  {
+  private def getGcsPathForMetadata(workflow: WorkflowQueryResult): Try[Path] =  {
     val bucket = archiveMetadataConfig.bucket
     val workflowId = workflow.id
     val rootWorkflowId = workflow.rootWorkflowId.getOrElse(workflowId)
-    Future(PathFactory.buildPath(s"gs://$bucket/$rootWorkflowId/$workflowId.csv", archiveMetadataConfig.pathBuilders))
+    Try {
+      PathFactory.buildPath(s"gs://$bucket/$rootWorkflowId/$workflowId.csv", archiveMetadataConfig.pathBuilders)
+    }
   }
 
   def fetchStreamFromDatabase(workflowId: WorkflowId): Future[DatabasePublisher[MetadataEntry]] = {

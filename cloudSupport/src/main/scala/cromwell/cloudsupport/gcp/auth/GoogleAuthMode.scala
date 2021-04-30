@@ -7,7 +7,7 @@ import java.nio.charset.StandardCharsets
 import better.files.File
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.http.{HttpResponseException, HttpTransport}
-import com.google.api.client.json.jackson2.JacksonFactory
+import com.google.api.client.json.gson.GsonFactory
 import com.google.auth.Credentials
 import com.google.auth.http.HttpTransportFactory
 import com.google.auth.oauth2.{GoogleCredentials, OAuth2Credentials, ServiceAccountCredentials, UserCredentials}
@@ -38,7 +38,7 @@ object GoogleAuthMode {
     throw new UnsupportedOperationException(s"cannot lookup $string")
   }
 
-  lazy val jsonFactory: JacksonFactory = JacksonFactory.getDefaultInstance
+  lazy val jsonFactory: GsonFactory = GsonFactory.getDefaultInstance
   lazy val httpTransport: HttpTransport = GoogleNetHttpTransport.newTrustedTransport
   lazy val HttpTransportFactory: HttpTransportFactory = () => httpTransport
 

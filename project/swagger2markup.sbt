@@ -17,7 +17,8 @@ val slf4jV = "1.7.21"
 val swagger2markupV = "1.3.3"
 
 resolvers ++= List(
-  "JCenter" at "https://jcenter.bintray.com"
+  "Broad Artifactory Releases" at "https://broadinstitute.jfrog.io/broadinstitute/libs-release/",
+  "Broad Artifactory Snapshots" at "https://broadinstitute.jfrog.io/broadinstitute/libs-snapshot/"
 )
 
 libraryDependencies ++= List(

@@ -14,7 +14,6 @@ import sbtdocker.{DockerPlugin, Instruction, Instructions}
 object Settings {
 
   val commonResolvers = List(
-    Resolver.jcenterRepo,
     "Broad Artifactory Releases" at "https://broadinstitute.jfrog.io/broadinstitute/libs-release/",
     "Broad Artifactory Snapshots" at "https://broadinstitute.jfrog.io/broadinstitute/libs-snapshot/",
     Resolver.sonatypeRepo("releases")

@@ -10,6 +10,7 @@ import common.util.StringUtil.EnhancedToStringable
 import common.util.TimeUtil.EnhancedOffsetDateTime
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
 import cromwell.core.path.{Path, PathFactory}
+import cromwell.core.instrumentation.InstrumentationPrefixes.ServicesPrefix
 import cromwell.core.{WorkflowAborted, WorkflowFailed, WorkflowId, WorkflowSucceeded}
 import cromwell.database.sql.SqlConverters.{ClobOptionToRawString, TimestampToSystemOffsetDateTime}
 import cromwell.database.sql.tables.MetadataEntry
@@ -33,7 +34,7 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 
 class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig,
@@ -57,8 +58,8 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   private val rowsProcessedMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "rows_processed"
   private val workflowsProcessedSuccessMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflows_processed" :+ "success"
   private val workflowsProcessedFailureMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflows_processed" :+ "failure"
-  private val workflowArchiveTotalTimeSuccessMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflow_archive_total_time" :+ "success"
-  private val workflowArchiveTotalTimeFailureMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflow_archive_total_time" :+ "failure"
+  private val timeBehindExpectedDelayMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "time_behind_expected_delay"
+  private val workflowArchiveTotalTimeMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflow_archive_total_time"
   private val workflowsToArchiveMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflows_to_archive"
 
   // kick off archiving immediately
@@ -67,15 +68,31 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   override def receive: Receive = {
     case ArchiveNextWorkflowMessage =>
       val startTime = OffsetDateTime.now()
+      def calculateTimeSinceStart() = {
+        FiniteDuration(JDuration.between(startTime, OffsetDateTime.now()).toMillis, TimeUnit.MILLISECONDS)
+      }
+
+      // These handlers send metrics for most paths even when they're not incremented, so that the metrics
+      // paths are actively receiving data points throughout:
       archiveNextWorkflow().onComplete({
         case Success(true) =>
-          increment(workflowsProcessedSuccessMetricPath)
-          sendTiming(workflowArchiveTotalTimeSuccessMetricPath, FiniteDuration(JDuration.between(startTime, OffsetDateTime.now()).toMillis, TimeUnit.MILLISECONDS))
+          increment(workflowsProcessedSuccessMetricPath, ServicesPrefix)
+          count(workflowsProcessedFailureMetricPath, 0L, ServicesPrefix)
+          sendTiming(workflowArchiveTotalTimeMetricPath, calculateTimeSinceStart(), ServicesPrefix)
           self ! ArchiveNextWorkflowMessage
-        case Success(false) => scheduleNextWorkflowToArchive()
+        case Success(false) =>
+          count(rowsProcessedMetricPath, 0L, ServicesPrefix)
+          count(workflowsProcessedSuccessMetricPath, 0L, ServicesPrefix)
+          count(workflowsProcessedFailureMetricPath, 0L, ServicesPrefix)
+          sendGauge(workflowsToArchiveMetricPath, 0L, ServicesPrefix)
+          sendTiming(workflowArchiveTotalTimeMetricPath, calculateTimeSinceStart(), ServicesPrefix)
+          scheduleNextWorkflowToArchive()
+          if (archiveMetadataConfig.debugLogging) log.info(s"No complete workflows which finished over ${archiveMetadataConfig.archiveDelay} ago remain to be archived. Scheduling next poll in ${archiveMetadataConfig.backoffInterval}.")
         case Failure(error) =>
-          increment(workflowsProcessedFailureMetricPath)
-          sendTiming(workflowArchiveTotalTimeFailureMetricPath, FiniteDuration(JDuration.between(startTime, OffsetDateTime.now()).toMillis, TimeUnit.MILLISECONDS))
+          count(rowsProcessedMetricPath, 0L, ServicesPrefix)
+          count(workflowsProcessedSuccessMetricPath, 0L, ServicesPrefix)
+          increment(workflowsProcessedFailureMetricPath, ServicesPrefix)
+          sendTiming(workflowArchiveTotalTimeMetricPath, calculateTimeSinceStart(), ServicesPrefix)
           log.error(error, s"Error while archiving, will retry.")
           scheduleNextWorkflowToArchive()
       })
@@ -87,15 +104,22 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
     for {
       maybeWorkflowQueryResult <- lookupNextWorkflowToArchive()
       result <- maybeWorkflowQueryResult match {
-        case Some(workflow) => for {
-          path <- getGcsPathForMetadata(workflow)
-          dbStream <- fetchStreamFromDatabase(WorkflowId(UUID.fromString(workflow.id)))
-          _ = log.info(s"Archiving metadata for ${workflow.id} to ${path.pathAsString}")
-          _ <- streamMetadataToGcs(path, dbStream)
-          _ <- updateMetadataArchiveStatus(WorkflowId(UUID.fromString(workflow.id)), Archived)
-          _ = log.info(s"Archiving succeeded for ${workflow.id}")
-        } yield true
-        case None => Future.successful(false)
+        case Some(workflow) =>
+          workflow.end.foreach { workflowEndTime =>
+            val millisSinceWorkflowEnd = JDuration.between(workflowEndTime, OffsetDateTime.now()).toMillis
+            sendGauge(timeBehindExpectedDelayMetricPath, millisSinceWorkflowEnd - archiveMetadataConfig.archiveDelay.toMillis, ServicesPrefix)
+          }
+          for {
+            path <- Future.fromTry(getGcsPathForMetadata(workflow))
+            dbStream <- fetchStreamFromDatabase(WorkflowId(UUID.fromString(workflow.id)))
+            _ = log.info(s"Archiving metadata for ${workflow.id} to ${path.pathAsString}")
+            _ <- streamMetadataToGcs(path, dbStream)
+            _ <- updateMetadataArchiveStatus(WorkflowId(UUID.fromString(workflow.id)), Archived)
+            _ = log.info(s"Archiving succeeded for ${workflow.id}")
+          } yield true
+        case None =>
+          sendGauge(timeBehindExpectedDelayMetricPath, 0L, ServicesPrefix)
+          Future.successful(false)
       }
     } yield result
   }
@@ -107,7 +131,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
         for {
           queryInfo <- maybeQueryInfo
           totalRecords <- queryInfo.totalRecords
-          _ = sendGauge(workflowsToArchiveMetricPath, totalRecords.longValue())
+          _ = sendGauge(workflowsToArchiveMetricPath, totalRecords.longValue(), ServicesPrefix)
         } yield ()
 
         if (response.results.nonEmpty)
@@ -119,15 +143,17 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
     }
   }
 
-  private def getGcsPathForMetadata(workflow: WorkflowQueryResult): Future[Path] =  {
+  private def getGcsPathForMetadata(workflow: WorkflowQueryResult): Try[Path] =  {
     val bucket = archiveMetadataConfig.bucket
     val workflowId = workflow.id
     val rootWorkflowId = workflow.rootWorkflowId.getOrElse(workflowId)
-    Future(PathFactory.buildPath(s"gs://$bucket/$rootWorkflowId/$workflowId.csv", archiveMetadataConfig.pathBuilders))
+    Try {
+      PathFactory.buildPath(s"gs://$bucket/$rootWorkflowId/$workflowId.csv", archiveMetadataConfig.pathBuilders)
+    }
   }
 
   def fetchStreamFromDatabase(workflowId: WorkflowId): Future[DatabasePublisher[MetadataEntry]] = {
-    (serviceRegistryActor ? GetMetadataStreamAction(workflowId, archiveMetadataConfig.databaseStreamFetchSize)) flatMap {
+    (serviceRegistryActor ? GetMetadataStreamAction(workflowId)) flatMap {
       case MetadataLookupStreamSuccess(_, responseStream) => Future.successful(responseStream)
       case MetadataLookupStreamFailed(_, reason) => Future.failed(new Exception(s"Failed to get metadata stream", reason))
       case other => Future.failed(new Exception(s"Failed to get metadata stream: ${other.toPrettyElidedString(1000)}"))
@@ -135,7 +161,10 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   }
 
   def streamMetadataToGcs(path: Path, stream: DatabasePublisher[MetadataEntry]): Future[Unit] = {
-    var rowsCount: Long = 0
+    val rowsCounter = new RowsCounterAndProgressiveLogger( logFunction = (newRows, totalRows) => {
+      if (archiveMetadataConfig.debugLogging) logger.info(s"Uploaded $newRows new rows to ${path.pathAsString}. Total uploaded is now ${totalRows}") else ()
+      count(rowsProcessedMetricPath, newRows, ServicesPrefix)
+    }, 100000)
     for {
       asyncIo <- futureAsyncIo
       gcsStream = Files.newOutputStream(path.nioPath, StandardOpenOption.CREATE)
@@ -154,9 +183,9 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
           me.metadataTimestamp.toSystemOffsetDateTime.toUtcMilliString,
           me.metadataValueType.getOrElse("")
         )
-        rowsCount += 1
+        rowsCounter.increment()
       })
-      _ = count(rowsProcessedMetricPath, rowsCount)
+      _ = rowsCounter.finalLog()
       _ = csvPrinter.close()
       expectedChecksum = crc32cStream.checksumString
       uploadedChecksum <- asyncIo.hashAsync(path)
@@ -215,6 +244,23 @@ object ArchiveMetadataSchedulerActor {
       // Google checksums are actually only the lower four bytes of the crc32c checksum:
       val bArray = java.util.Arrays.copyOfRange(Longs.toByteArray(finalChecksumValue), 4, 8)
       BaseEncoding.base64.encode(bArray)
+    }
+  }
+
+  final class RowsCounterAndProgressiveLogger(logFunction: (Long, Long) => Unit, logInterval: Int) {
+    private var rowsSinceLog: Long = 0
+    private var totalRows: Long = 0
+
+    def increment(): Unit = {
+      rowsSinceLog = rowsSinceLog + 1
+      totalRows = totalRows + 1
+      if (rowsSinceLog >= logInterval) {
+        logFunction(rowsSinceLog, totalRows)
+        rowsSinceLog = 0
+      }
+    }
+    def finalLog(): Unit = {
+      logFunction(rowsSinceLog, totalRows)
     }
   }
 }

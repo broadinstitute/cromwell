@@ -156,8 +156,8 @@ trait MetadataDatabaseAccess {
     }
   }
 
-  def metadataEventsStream(workflowId: WorkflowId, fetchSize: Int): Try[DatabasePublisher[MetadataEntry]] = {
-    Try(metadataDatabaseInterface.streamMetadataEntries(workflowId.id.toString, fetchSize))
+  def metadataEventsStream(workflowId: WorkflowId): Try[DatabasePublisher[MetadataEntry]] = {
+    Try(metadataDatabaseInterface.streamMetadataEntries(workflowId.id.toString))
   }
 
   def queryMetadataEvents(query: MetadataQuery, timeout: Duration)(implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
@@ -358,9 +358,6 @@ trait MetadataDatabaseAccess {
 
   def queryWorkflowIdsByArchiveStatusAndOlderThanTimestamp(archiveStatus: Option[String], thresholdTimestamp: OffsetDateTime, batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[String]] =
     metadataDatabaseInterface.queryWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus, thresholdTimestamp.toSystemTimestamp, batchSize)
-
-  def countRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(archiveStatus: Option[String], thresholdTimestamp: OffsetDateTime)(implicit ec: ExecutionContext): Future[Int] =
-    metadataDatabaseInterface.countRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus, thresholdTimestamp.toSystemTimestamp)
 
   def getSummaryQueueSize()(implicit ec: ExecutionContext): Future[Int] =
     metadataDatabaseInterface.getSummaryQueueSize()

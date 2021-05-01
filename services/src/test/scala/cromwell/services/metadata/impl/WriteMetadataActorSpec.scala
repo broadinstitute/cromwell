@@ -160,8 +160,7 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
                                       timeout: Duration)
                                      (implicit ec: ExecutionContext): Nothing = notImplemented()
 
-    override def streamMetadataEntries(workflowExecutionUuid: String,
-                                       fetchSize: Int): Nothing = notImplemented()
+    override def streamMetadataEntries(workflowExecutionUuid: String): Nothing = notImplemented()
 
     override def queryMetadataEntries(workflowExecutionUuid: String,
                                       metadataKey: String,
@@ -267,19 +266,11 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
       notImplemented()
     }
 
-    override def isRootWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Option[Boolean]] = {
-      notImplemented()
-    }
-
     override def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = {
       notImplemented()
     }
 
     override def queryWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp, batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[String]] = {
-      notImplemented()
-    }
-
-    override def countRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp)(implicit ec: ExecutionContext): Future[Int] = {
       notImplemented()
     }
 

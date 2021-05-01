@@ -18,7 +18,6 @@ import scala.util.Try
 final case class ArchiveMetadataConfig(pathBuilders: PathBuilders,
                                        bucket: String,
                                        backoffInterval: FiniteDuration,
-                                       databaseStreamFetchSize: Int,
                                        archiveDelay: FiniteDuration,
                                        debugLogging: Boolean) {
 }
@@ -36,9 +35,8 @@ object ArchiveMetadataConfig {
         .toCheckedWithContext("construct archiver path builders from factories")
       bucket <- Try(archiveMetadataConfig.getString("bucket")).toCheckedWithContext("parse Carboniter 'bucket' field from config")
       backoffInterval <- Try(archiveMetadataConfig.getOrElse[FiniteDuration]("backoff-interval", defaultMaxInterval)).toChecked
-      databaseStreamFetchSize <- Try(archiveMetadataConfig.getOrElse[Int]("database-stream-fetch-size", 100)).toChecked
       archiveDelay <- Try(archiveMetadataConfig.getOrElse("archive-delay", defaultArchiveDelay)).toChecked
       debugLogging <- Try(archiveMetadataConfig.getOrElse("debug-logging", defaultDebugLogging)).toChecked
-    } yield ArchiveMetadataConfig(pathBuilders, bucket, backoffInterval, databaseStreamFetchSize, archiveDelay, debugLogging)
+    } yield ArchiveMetadataConfig(pathBuilders, bucket, backoffInterval, archiveDelay, debugLogging)
   }
 }

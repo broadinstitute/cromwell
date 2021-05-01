@@ -25,6 +25,7 @@ object LabelsManagerActor {
   sealed abstract class LabelsManagerActorResponse
   final case class BuiltLabelsManagerResponse(response: JsObject) extends LabelsManagerActorResponse
   final case class FailedLabelsManagerResponse(reason: Throwable) extends LabelsManagerActorResponse
+  final case class WorkflowArchivedLabelsManagerResponse(response: JsObject) extends LabelsManagerActorResponse
 }
 
 class LabelsManagerActor(serviceRegistryActor: ActorRef) extends Actor with ActorLogging with DefaultJsonProtocol {

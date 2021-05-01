@@ -38,21 +38,21 @@ object Dependencies {
   // probably not the most important corner of the Cromwell repo, going to punt on this for now.
   private val fs2VStatsDProxy = "1.0.5" // scala-steward:off
   private val googleApiClientV = "1.31.3"
-  private val googleCloudBigQueryV = "1.122.2"
+  private val googleCloudBigQueryV = "1.127.11"
   private val googleCloudKmsV = "v1-rev20210312-1.31.0"
-  private val googleCloudMonitoringV = "2.0.8"
+  private val googleCloudMonitoringV = "2.0.14"
   private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off
-  private val googleCloudStorageV = "1.113.4"
+  private val googleCloudStorageV = "1.113.14"
   private val googleGaxGrpcV = "1.62.0"
-  private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20200330-1.30.9"
+  private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210322-1.31.0"
   private val googleHttpClientApacheV = "2.1.2"
   private val googleHttpClientV = "1.38.0"
-  private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20201105-1.31.0"
-  private val googleOauth2V = "0.22.1"
-  private val googleOauthClientV = "1.31.2"
+  private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20210319-1.31.0"
+  private val googleOauth2V = "0.22.2"
+  private val googleOauthClientV = "1.31.4"
   private val googleCloudResourceManagerV = "0.87.0-alpha"
   private val grpcV = "1.33.1"
-  private val guavaV = "30.0-jre"
+  private val guavaV = "30.1.1-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.5.1"
   private val http4sVersion = "0.21.7" // scala-steward:off (CROM-6678)
@@ -112,7 +112,7 @@ object Dependencies {
   private val shapelessV = "2.3.3"
   private val simulacrumV = "1.0.1"
   private val slf4jV = "1.7.30"
-  private val slickCatsV = "0.10.2"
+  private val slickCatsV = "0.10.4"
   private val testContainersScalaV = "0.38.9"
 
   /* If you're about to update our Slick version:
@@ -392,7 +392,7 @@ object Dependencies {
     "org.typelevel" %% "cats-effect" % catsEffectV,
     "org.apache.commons" % "commons-lang3" % commonsLang3V,
     "org.apache.commons" % "commons-text" % commonsTextV,
-    "com.lihaoyi" %% "pprint" % "0.6.0",
+    "com.lihaoyi" %% "pprint" % "0.6.3",
   ) ++ catsDependencies ++ configDependencies ++ slf4jFacadeDependencies ++ refinedTypeDependenciesList
 
   val cloudSupportDependencies = googleApiClientDependencies ++ googleCloudDependencies ++ betterFilesDependencies ++ awsCloudDependencies

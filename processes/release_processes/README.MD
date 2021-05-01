@@ -11,20 +11,25 @@ If you're the lucky "Release Rotation Engineer" this time, you should do the fol
 
 1. Check that all most recent executions of Cromwell's Jenkins tests have succeeded, and that all those executions were 
 against the most recent commit in "develop" branch. There are 2 groups of Jenkins tests which have to be checked (you 
-will need to be on the VPN to open the following links):
-    1. [Tests for various backends supported by Cromwell](https://gotc-jenkins.dsp-techops.broadinstitute.org/view/cromwell-cron/job/cromwell-cron-parent/)
-    1. [Tests for Cromwell in Terra environment](https://fc-jenkins.dsp-techops.broadinstitute.org/view/Batch/)  
+will need to be on the Broad internal network or VPN to open the following links):
+    1. Tests for various backends supported by Cromwell. Log into Jenkins [here](https://gotc-jenkins.dsp-techops.broadinstitute.org), check the tests [here](https://gotc-jenkins.dsp-techops.broadinstitute.org/view/cromwell-cron/job/cromwell-cron-parent/).
+    1. Tests for Cromwell in Terra environment. Log into Jenkins [here](https://fc-jenkins.dsp-techops.broadinstitute.org), check the tests [here](https://fc-jenkins.dsp-techops.broadinstitute.org/view/Batch/).
 1. [Run the publish script to create a new version of Cromwell](#how-to-publish-a-new-cromwell-version)  
 1. [Run through the "How to Release Cromwell into Firecloud" process](#how-to-release-cromwell-into-firecloud)  
 1. [Run through the "How to Deploy Cromwell in CAAS prod" process](#how-to-deploy-cromwell-in-caas-prod)  
 
 ### How to publish a new Cromwell version
 
+#### Announce your intentions
+
+Post a message in `#dsp-batch` letting people know that a publish is imminent in case there are PRs they want to get
+wrapped up and merged to `develop` to go out in the forthcoming version of Cromwell.
+
 #### Get a Github token
 
 The release WDL uses a github token to perform actions on your behalf.
 * Follow the directions [here](https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line).
-    * When asked, give the token the full set of `repo` permissions and also one of either `user` or `user:email`.
+    * When asked, give the token the full set of `repo` permissions and also `user`.
 * Copy the token and save it to a file on your local machine. You'll use it in a second.
 
 #### Prepare a temporary `release` directory
@@ -53,10 +58,17 @@ This is optional, but I find it useful. Make or copy the following files into so
 I had to follow the instructions [here](https://docs.docker.com/docker-for-mac/#resources) to increase my docker memory.
 I chose to increase it from 2GB to 8GB but 4 might have been sufficient.
 
+#### Let people know the publish is underway
+
+Post another message in `#dsp-batch` that the release is underway, asking everyone to hold off merges to develop until
+the release is published.
+
 #### Run the `publish_workflow.wdl` Workflow
 
 * Run the Cromwell instance using the local-backend.
     * In server mode with a persistent backing database is probably a good idea - it will allow call caching to happen if you need to restart for any reason.
+      Some instructions for using a Dockerized MySQL server and CI config [here](#cromwell-setup-for-publishing).
+
 * Submit the workflow to Cromwell along with the inputs file.
 
 #### Make sure it all went swimmingly
@@ -65,6 +77,7 @@ I chose to increase it from 2GB to 8GB but 4 might have been sufficient.
 * Check that there's now a new Cromwell release listed [here](https://github.com/broadinstitute/cromwell/releases).
 * If publishing to Homebrew, check that there's a Homebrew PR for the new Cromwell version [here](https://github.com/Homebrew/homebrew-core/pulls) (and that it passes their CI)
 * Have a look at https://travis-ci.com/broadinstitute/cromwell/branches. There should be a build for the new release tag that publishes new docker images for the version.
+* Let `#dsp-batch` know that it's okay to resume merges to `develop`.
 
 ### How to Release Cromwell into Firecloud / Terra
 
@@ -129,3 +142,9 @@ export ARTIFACTORY_USERNAME=<the-username>
 export ARTIFACTORY_PASSWORD=<the-password>
 ./scripts/publish-client.sh
 ```
+
+## Cromwell setup for publishing
+
+One can run a publishing-friendly Cromwell using a containerized MySQL server and config files
+from Cromwell's CI. See the `start_publish_mysql_docker.sh` and `start_publish_cromwell.sh` 
+scripts under `release_processes/scripts`.

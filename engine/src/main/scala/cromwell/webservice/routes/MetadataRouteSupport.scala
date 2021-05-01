@@ -24,6 +24,7 @@ import cromwell.webservice.WebServiceUtils.EnhancedThrowable
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.routes.CromwellApiService._
 import cromwell.webservice.routes.MetadataRouteSupport._
+import cromwell.webservice.WebServiceUtils._
 import spray.json.{JsObject, JsString}
 
 import scala.concurrent.{ExecutionContext, Future, TimeoutException}
@@ -87,19 +88,7 @@ trait MetadataRouteSupport extends HttpInstrumentation {
           entity(as[Map[String, String]]) { parameterMap =>
             instrumentRequest {
               Labels.validateMapOfLabels(parameterMap) match {
-                case Valid(labels) =>
-                  val response = validateWorkflowIdInMetadataSummaries(possibleWorkflowId, serviceRegistryActor) flatMap { id =>
-                    val lma = actorRefFactory.actorOf(LabelsManagerActor.props(serviceRegistryActor).withDispatcher(ApiDispatcher))
-                    lma.ask(LabelsAddition(LabelsData(id, labels))).mapTo[LabelsManagerActorResponse]
-                  }
-                  onComplete(response) {
-                    case Success(r: BuiltLabelsManagerResponse) => complete(r.response)
-                    case Success(e: FailedLabelsManagerResponse) => e.reason.failRequest(StatusCodes.InternalServerError)
-                    case Failure(e: UnrecognizedWorkflowException) => e.failRequest(StatusCodes.NotFound)
-                    case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
-                    case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
-
-                  }
+                case Valid(labels) => patchLabelsRequest(possibleWorkflowId, labels, serviceRegistryActor, actorRefFactory)
                 case Invalid(e) =>
                   val iae = new IllegalArgumentException(e.toList.mkString(","))
                   iae.failRequest(StatusCodes.BadRequest)
@@ -130,12 +119,18 @@ trait MetadataRouteSupport extends HttpInstrumentation {
 
 object MetadataRouteSupport {
 
-  private def processWorkflowMetadataDeletedResponse(workflowId: WorkflowId, archiveStatus: MetadataArchiveStatus): JsObject = {
+  private def processMetadataArchivedResponse(workflowId: WorkflowId,
+                                              archiveStatus: MetadataArchiveStatus,
+                                              additionalMsg: String = ""): JsObject = {
+    val baseMessage = "Cromwell has archived this workflow's metadata according to the lifecycle policy."
+    val additionalDetails = if (archiveStatus == MetadataArchiveStatus.ArchivedAndDeleted)
+      " It is available in the archive bucket, or via a support request in the case of a managed instance." + additionalMsg
+    else additionalMsg
+
     JsObject(Map(
       WorkflowMetadataKeys.Id -> JsString(workflowId.toString),
       WorkflowMetadataKeys.MetadataArchiveStatus -> JsString(archiveStatus.toString),
-      WorkflowMetadataKeys.Message -> JsString("Cromwell has archived this workflow's metadata according to the lifecycle policy. " +
-        "It is available in the archive bucket, or via a support request in the case of a managed instance.")
+      WorkflowMetadataKeys.Message -> JsString(baseMessage + additionalDetails)
     ))
   }
 
@@ -160,10 +155,10 @@ object MetadataRouteSupport {
 
     def checkIfMetadataDeletedAndRespond(id: WorkflowId,
                                          metadataRequest: BuildWorkflowMetadataJsonWithOverridableSourceAction): Future[MetadataJsonResponse] = {
-      serviceRegistryActor.ask(CheckIfWorkflowMetadataArchivedAndDeleted(id)).mapTo[WorkflowArchivedAndDeletedCheckResponse] flatMap {
-        case WorkflowMetadataArchivedAndDeleted(archiveStatus) =>
-          Future.successful(SuccessfulMetadataJsonResponse(metadataRequest, processWorkflowMetadataDeletedResponse(id, archiveStatus)))
-        case WorkflowMetadataExists => serviceRegistryActor.ask(request(id)).mapTo[MetadataJsonResponse]
+      serviceRegistryActor.ask(FetchWorkflowMetadataArchiveStatus(id)).mapTo[FetchWorkflowArchiveStatusResponse] flatMap {
+        case WorkflowMetadataArchivedStatus(archiveStatus) =>
+          if (archiveStatus.isDeleted) Future.successful(SuccessfulMetadataJsonResponse(metadataRequest, processMetadataArchivedResponse(id, archiveStatus)))
+          else serviceRegistryActor.ask(request(id)).mapTo[MetadataJsonResponse]
         case FailedToGetArchiveStatus(e) => Future.failed(e)
       }
     }
@@ -207,5 +202,46 @@ object MetadataRouteSupport {
       case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
       case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
     }
+  }
+
+  def completePatchLabelsResponse(response: Future[LabelsManagerActorResponse]): Route = {
+    onComplete(response) {
+      case Success(r: BuiltLabelsManagerResponse) => complete(r.response)
+      case Success(r: WorkflowArchivedLabelsManagerResponse) => completeResponse(StatusCodes.BadRequest, r.response, Seq.empty)
+      case Success(e: FailedLabelsManagerResponse) => e.reason.failRequest(StatusCodes.InternalServerError)
+      case Failure(e: UnrecognizedWorkflowException) => e.failRequest(StatusCodes.NotFound)
+      case Failure(e: TimeoutException) => e.failRequest(StatusCodes.ServiceUnavailable)
+      case Failure(e) => e.errorRequest(StatusCodes.InternalServerError)
+    }
+  }
+
+  def patchLabelsRequest(possibleWorkflowId: String,
+                         labels: Labels,
+                         serviceRegistryActor: ActorRef,
+                         actorRefFactory: ActorRefFactory)
+                        (implicit timeout: Timeout, ec: ExecutionContext): Route = {
+
+    def checkIfMetadataArchivedAndRespond(id: WorkflowId, archiveStatusResponse: FetchWorkflowArchiveStatusResponse): Future[LabelsManagerActorResponse] = {
+      archiveStatusResponse match {
+        case WorkflowMetadataArchivedStatus(archiveStatus) =>
+          if (archiveStatus.isArchived) {
+            val message = " As a result, new labels can't be added or existing labels can't be updated for this workflow."
+            Future.successful(WorkflowArchivedLabelsManagerResponse(processMetadataArchivedResponse(id, archiveStatus, message)))
+          }
+          else {
+            val lma = actorRefFactory.actorOf(LabelsManagerActor.props(serviceRegistryActor).withDispatcher(ApiDispatcher))
+            lma.ask(LabelsAddition(LabelsData(id, labels))).mapTo[LabelsManagerActorResponse]
+          }
+        case FailedToGetArchiveStatus(e) => Future.failed(e)
+      }
+    }
+
+    val response = for {
+      id <- validateWorkflowIdInMetadataSummaries(possibleWorkflowId, serviceRegistryActor)
+      archiveStatusResponse <- serviceRegistryActor.ask(FetchWorkflowMetadataArchiveStatus(id)).mapTo[FetchWorkflowArchiveStatusResponse]
+      response <- checkIfMetadataArchivedAndRespond(id, archiveStatusResponse)
+    } yield response
+
+    completePatchLabelsResponse(response)
   }
 }

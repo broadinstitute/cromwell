@@ -93,8 +93,7 @@ object Settings {
       sys.env.get("CROMWELL_SBT_ASSEMBLY_LOG_LEVEL").flatMap(Level.apply).getOrElse((assembly / logLevel).value)
   )
 
-  // 2.12.13 blocked on the release of sbt-scoverage 1.6.2 https://github.com/scoverage/sbt-scoverage/issues/319
-  val Scala2_12Version = "2.12.12"
+  val Scala2_12Version = "2.12.13"
   val ScalaVersion = Scala2_12Version
   val sharedSettings =
     cromwellVersionWithGit ++ artifactorySettings ++ List(

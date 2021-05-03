@@ -108,7 +108,7 @@ class MetadataDatabaseAccessSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
 
     it should "properly get next workflow to archive and number of workflows left to archive" taggedAs DbmsTest in {
       val defaultTimeout: FiniteDuration = 60.seconds
-      val terminalWorkflowStatuses = List(WorkflowSucceeded, WorkflowAborted, WorkflowFailed).map(s => Option(s.toString))
+      val terminalWorkflowStatuses = List(WorkflowSucceeded, WorkflowAborted, WorkflowFailed).map(_.toString)
 
       // succeed first workflow and summarize it's metadata
       val workflowId1Future = succeededWorkflowMetadata(WorkflowId.fromString("11111111-abcd-1111-1111-111111111111"))

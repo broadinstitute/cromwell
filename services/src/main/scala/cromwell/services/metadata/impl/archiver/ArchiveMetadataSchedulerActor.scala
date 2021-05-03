@@ -63,7 +63,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   private val workflowArchiveTotalTimeMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflow_archive_total_time"
   private val workflowsToArchiveMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflows_to_archive"
 
-  private val TerminalWorkflowStatuses: List[Option[String]] = List(WorkflowSucceeded, WorkflowAborted, WorkflowFailed).map(s => Option(s.toString))
+  private val TerminalWorkflowStatuses: List[String] = List(WorkflowSucceeded, WorkflowAborted, WorkflowFailed).map(_.toString)
 
   // kick off archiving immediately
   self ! ArchiveNextWorkflowMessage

@@ -115,17 +115,17 @@ trait WorkflowMetadataSummaryEntryComponent {
       if workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid
     } yield workflowMetadataSummaryEntry.metadataArchiveStatus)
 
-  private def fetchAllWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[Option[String]],
+  private def fetchAllWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],
                                                                               workflowEndTimestampThreshold: Timestamp): Query[WorkflowMetadataSummaryEntries, WorkflowMetadataSummaryEntry, Seq] = {
     for {
       summaryEntry <- workflowMetadataSummaryEntries
-      if workflowStatuses.map(summaryEntry.workflowStatus === _).reduce(_ || _)
+      if summaryEntry.workflowStatus.inSet(workflowStatuses)
       if summaryEntry.metadataArchiveStatus.isEmpty // get Unarchived workflows only
       if summaryEntry.endTimestamp <= workflowEndTimestampThreshold
     } yield summaryEntry
   }
 
-  def workflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[Option[String]],
+  def workflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],
                                                               workflowEndTimestampThreshold: Timestamp,
                                                               batchSize: Long): Query[WorkflowMetadataSummaryEntries, WorkflowMetadataSummaryEntry, Seq] = {
     fetchAllWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(
@@ -134,7 +134,7 @@ trait WorkflowMetadataSummaryEntryComponent {
     ).sortBy(_.workflowMetadataSummaryEntryId).take(batchSize)
   }
 
-  def countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[Option[String]],
+  def countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],
                                                                        workflowEndTimestampThreshold: Timestamp): Rep[Int] = {
     fetchAllWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(
       workflowStatuses,

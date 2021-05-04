@@ -219,6 +219,14 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
     context.system.scheduler.scheduleOnce(archiveMetadataConfig.backoffInterval)(self ! ArchiveNextWorkflowMessage)
     ()
   }
+
+  final class TeeingOutputStream(streams: OutputStream*) extends OutputStream {
+    override def write(b: Int): Unit = { streams.foreach(_.write(b)) }
+    override def close(): Unit = { streams.foreach( s =>
+      Try(s.close()).recover { case e => log.warning("Error while archiving (error in stream.close())", e) }
+    )}
+    override def flush(): Unit = { streams.foreach(_.flush())}
+  }
 }
 
 object ArchiveMetadataSchedulerActor {
@@ -238,12 +246,6 @@ object ArchiveMetadataSchedulerActor {
 
   def props(archiveMetadataConfig: ArchiveMetadataConfig, serviceRegistryActor: ActorRef): Props =
     Props(new ArchiveMetadataSchedulerActor(archiveMetadataConfig, serviceRegistryActor))
-
-  final class TeeingOutputStream(streams: OutputStream*) extends OutputStream {
-    override def write(b: Int): Unit = { streams.foreach(_.write(b)) }
-    override def close(): Unit = { streams.foreach(_.close())}
-    override def flush(): Unit = { streams.foreach(_.flush())}
-  }
 
   final class Crc32cStream() extends OutputStream {
     private val checksumCalculator = new PureJavaCrc32C()

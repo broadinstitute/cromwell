@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+echo $VAULT_TOKEN
+
 set -o errexit -o nounset -o pipefail
 # import in shellcheck / CI / IntelliJ compatible ways
 # shellcheck source=/dev/null

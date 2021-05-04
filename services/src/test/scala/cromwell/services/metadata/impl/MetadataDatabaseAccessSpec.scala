@@ -106,6 +106,63 @@ class MetadataDatabaseAccessSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
       containerOpt.foreach { _.start }
     }
 
+    it should "properly get next workflow to archive and number of workflows left to archive" taggedAs DbmsTest in {
+      val defaultTimeout: FiniteDuration = 60.seconds
+      val terminalWorkflowStatuses = List(WorkflowSucceeded, WorkflowAborted, WorkflowFailed).map(_.toString)
+
+      // succeed first workflow and summarize it's metadata
+      val workflowId1Future = succeededWorkflowMetadata(WorkflowId.fromString("11111111-abcd-1111-1111-111111111111"))
+      val workflowId1 = Await.result(workflowId1Future, defaultTimeout)
+      val refreshSummariesFuture1 = dataAccess.refreshWorkflowMetadataSummaries(1000)
+      Await.result(refreshSummariesFuture1, defaultTimeout)
+
+      // succeed second workflow and summarize it's metadata
+      val workflowId2Future = succeededWorkflowMetadata(WorkflowId.fromString("11111111-1111-1111-abcd-111111111111"))
+      val workflowId2 = Await.result(workflowId2Future, defaultTimeout)
+      val refreshSummariesFuture2 = dataAccess.refreshWorkflowMetadataSummaries(1000)
+      Await.result(refreshSummariesFuture2, defaultTimeout)
+
+      // both workflows should be available for archiving
+      eventually(Timeout(2.minutes)) {
+        val workflowsLeftToArchiveFuture = dataAccess.countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(terminalWorkflowStatuses, OffsetDateTime.now().minusSeconds(10))
+        val workflowsLeftToArchiveResponse = Await.result(workflowsLeftToArchiveFuture, defaultTimeout)
+        workflowsLeftToArchiveResponse shouldBe 2
+      }
+
+      // check that the first workflow should be the one to be archived first
+      val workflowToArchiveResponse1 = eventually(Timeout(2.minutes)) {
+        val workflowToArchiveFuture = dataAccess.queryWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(terminalWorkflowStatuses, OffsetDateTime.now().minusSeconds(10), 1)
+        val workflowToArchiveResponse = Await.result(workflowToArchiveFuture, defaultTimeout)
+        workflowToArchiveResponse should not be empty
+        workflowToArchiveResponse
+      }
+
+      workflowToArchiveResponse1.length shouldBe 1
+      workflowToArchiveResponse1.head.workflowExecutionUuid shouldBe workflowId1.toString
+
+      // assume first workflow has been archived
+      val updateMetadataArchiveStatusFuture = dataAccess.updateMetadataArchiveStatus(workflowId1, MetadataArchiveStatus.Archived)
+      Await.result(updateMetadataArchiveStatusFuture, defaultTimeout)
+
+      // only 1 workflow should be left for archiving
+      eventually(Timeout(2.minutes)) {
+        val workflowsLeftToArchiveFuture = dataAccess.countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(terminalWorkflowStatuses, OffsetDateTime.now().minusSeconds(10))
+        val workflowsLeftToArchiveResponse = Await.result(workflowsLeftToArchiveFuture, defaultTimeout)
+        workflowsLeftToArchiveResponse shouldBe 1
+      }
+
+      // check that the second workflow should be the one to be archived next
+      val workflowToArchiveResponse2 = eventually(Timeout(2.minutes)) {
+        val workflowToArchiveFuture = dataAccess.queryWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(terminalWorkflowStatuses, OffsetDateTime.now().minusSeconds(10), 1)
+        val workflowToArchiveResponse = Await.result(workflowToArchiveFuture, defaultTimeout)
+        workflowToArchiveResponse should not be empty
+        workflowToArchiveResponse
+      }
+
+      workflowToArchiveResponse2.length shouldBe 1
+      workflowToArchiveResponse2.head.workflowExecutionUuid shouldBe workflowId2.toString
+    }
+
     it should "return pagination metadata only when page and pagesize query params are specified" taggedAs DbmsTest in {
       (for {
         _ <- baseWorkflowMetadata(Workflow1Name)

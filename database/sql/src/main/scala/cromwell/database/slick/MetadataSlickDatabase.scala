@@ -490,4 +490,19 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     val action = dataAccess.metadataArchiveStatusByWorkflowId(workflowId).result.headOption
     runTransaction(action).map(_.flatten)
   }
+
+  override def queryWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],
+                                                                            workflowEndTimestampThreshold: Timestamp,
+                                                                            batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = {
+    runAction(
+      dataAccess.workflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses, workflowEndTimestampThreshold, batchSize).result
+    )
+  }
+
+  override def countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],
+                                                                                workflowEndTimestampThreshold: Timestamp)(implicit ec: ExecutionContext): Future[Int] = {
+    runAction(
+      dataAccess.countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses, workflowEndTimestampThreshold).result
+    )
+  }
 }

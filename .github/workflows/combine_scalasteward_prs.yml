@@ -40,6 +40,7 @@ jobs:
           while IFS= read -r pr
           do
             echo "Bringing in: $pr"
+            echo "Current branch hash: $(git rev-parse --verify HEAD)"
             git fetch origin pull/${pr}/head:pr_${pr}
 
             git checkout $BRANCH

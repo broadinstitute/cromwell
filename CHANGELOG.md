@@ -1157,7 +1157,7 @@ data. When switching connection information for an existing database containing 
 should be manually replicated from one database instance to another using the tools appropriate for your specific
 database types. Cromwell will not move any existing data automatically. This feature should be considered experimental
 and likely to change in the future. See the [Database Documentation](https://cromwell.readthedocs.io/en/develop/Configuring/#database) or the `database` section in
-[cromwell.examples.conf](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.examples.conf) for more
+[cromwell.examples.conf](https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends/cromwell.examples.conf) for more
 information.
 
 * **StatsD**  

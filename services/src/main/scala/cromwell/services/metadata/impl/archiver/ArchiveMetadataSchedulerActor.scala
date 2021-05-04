@@ -68,8 +68,8 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   // kick off archiving immediately
   self ! ArchiveNextWorkflowMessage
 
-  // schedule for workflows left to archive metric
-  context.system.scheduler.schedule(archiveMetadataConfig.backoffInterval, archiveMetadataConfig.instrumentationInterval)(workflowsLeftToArchiveMetric())
+  // initial schedule for workflows left to archive metric
+  context.system.scheduler.scheduleOnce(archiveMetadataConfig.instrumentationInterval)(workflowsLeftToArchiveMetric())
 
   override def receive: Receive = {
     case ArchiveNextWorkflowMessage =>
@@ -111,8 +111,17 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
     countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(
       TerminalWorkflowStatuses,
       currentTimestampMinusDelay
-    ).map(workflowsToArchive => sendGauge(workflowsToArchiveMetricPath, workflowsToArchive.longValue(), ServicesPrefix))
-    ()
+    ).onComplete({
+      case Success(workflowsToArchive) =>
+        sendGauge(workflowsToArchiveMetricPath, workflowsToArchive.longValue(), ServicesPrefix)
+        // schedule next workflows left to archive query after interval
+        context.system.scheduler.scheduleOnce(archiveMetadataConfig.instrumentationInterval)(workflowsLeftToArchiveMetric())
+      case Failure(exception) =>
+        log.error(exception, s"Something went wrong while fetching number of workflows left to archive. " +
+          s"Scheduling next poll in ${archiveMetadataConfig.instrumentationInterval}.")
+        // schedule next workflows left to archive query after interval
+        context.system.scheduler.scheduleOnce(archiveMetadataConfig.instrumentationInterval)(workflowsLeftToArchiveMetric())
+    })
   }
 
   def archiveNextWorkflow(): Future[Boolean] = {

@@ -14,15 +14,15 @@ import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataArchiveStatus.{Archived, ArchivedAndDeleted}
 import cromwell.services.metadata.impl.{MetadataDatabaseAccess, MetadataServiceActor}
-import cromwell.services.metadata.impl.deleter.DeleteMetadataSchedulerActor._
+import cromwell.services.metadata.impl.deleter.DeleteMetadataActor._
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-class DeleteMetadataSchedulerActor(deleteMetadataConfig: DeleteMetadataConfig,
-                                   override val serviceRegistryActor: ActorRef)
+class DeleteMetadataActor(deleteMetadataConfig: DeleteMetadataConfig,
+                          override val serviceRegistryActor: ActorRef)
   extends Actor
   with ActorLogging
   with MetadataDatabaseAccess
@@ -70,7 +70,7 @@ class DeleteMetadataSchedulerActor(deleteMetadataConfig: DeleteMetadataConfig,
           sendGauge(workflowsToDeleteMetricPath, 0L, ServicesPrefix)
           sendTiming(workflowDeleteTotalTimeMetricPath, calculateTimeSinceStart(), ServicesPrefix)
           scheduleNextDeleteAttemptAfterInterval()
-          if (deleteMetadataConfig.debugLogging) log.info(s"No complete workflows which finished over ${deleteMetadataConfig.deletionDelay} ago remain to be archived. Scheduling next poll in ${deleteMetadataConfig.backoffInterval}.")
+          if (deleteMetadataConfig.debugLogging) log.info(s"No complete workflows which finished over ${deleteMetadataConfig.delayAfterWorkflowCompletion} ago remain to be archived. Scheduling next poll in ${deleteMetadataConfig.backoffInterval}.")
         case Failure(error) =>
           count(rowsDeletedMetricPath, 0L, ServicesPrefix)
           count(workflowsDeletedSuccessMetricPath, 0L, ServicesPrefix)
@@ -86,7 +86,7 @@ class DeleteMetadataSchedulerActor(deleteMetadataConfig: DeleteMetadataConfig,
   }
 
   def workflowsLeftToDeleteMetric(): Unit = {
-    val currentTimestampMinusDelay = OffsetDateTime.now().minusSeconds(deleteMetadataConfig.deletionDelay.toSeconds)
+    val currentTimestampMinusDelay = OffsetDateTime.now().minusSeconds(deleteMetadataConfig.delayAfterWorkflowCompletion.toSeconds)
     countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(
       TerminalWorkflowStatuses,
       currentTimestampMinusDelay
@@ -117,7 +117,7 @@ class DeleteMetadataSchedulerActor(deleteMetadataConfig: DeleteMetadataConfig,
   } yield result
 
   def lookupNextWorkflowToDelete(): Future[Option[WorkflowId]] = {
-    val currentTimestampMinusDelay = OffsetDateTime.now().minusSeconds(deleteMetadataConfig.deletionDelay.toSeconds)
+    val currentTimestampMinusDelay = OffsetDateTime.now().minusSeconds(deleteMetadataConfig.delayAfterWorkflowCompletion.toSeconds)
     queryWorkflowIdsByArchiveStatusAndOlderThanTimestamp(
       MetadataArchiveStatus.toDatabaseValue(Archived),
       currentTimestampMinusDelay,
@@ -132,8 +132,8 @@ class DeleteMetadataSchedulerActor(deleteMetadataConfig: DeleteMetadataConfig,
 
 }
 
-object DeleteMetadataSchedulerActor {
+object DeleteMetadataActor {
   case object DeleteNextWorkflowMessage
 
-  def props(config: DeleteMetadataConfig, serviceRegistryActor: ActorRef): Props = Props(new DeleteMetadataSchedulerActor(config, serviceRegistryActor))
+  def props(config: DeleteMetadataConfig, serviceRegistryActor: ActorRef): Props = Props(new DeleteMetadataActor(config, serviceRegistryActor))
 }

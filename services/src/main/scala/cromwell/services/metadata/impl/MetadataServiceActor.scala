@@ -15,7 +15,7 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.{MetadataSummaryFailure, MetadataSummarySuccess, SummarizeMetadata}
 import cromwell.services.metadata.impl.archiver.{ArchiveMetadataConfig, ArchiveMetadataSchedulerActor}
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
-import cromwell.services.metadata.impl.deleter.{DeleteMetadataSchedulerActor, DeleteMetadataConfig}
+import cromwell.services.metadata.impl.deleter.{DeleteMetadataActor, DeleteMetadataConfig}
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import net.ceedubs.ficus.Ficus._
@@ -124,7 +124,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
     if (serviceConfig.hasPath("delete-metadata")) {
       log.info("Building metadata deleter from config")
       DeleteMetadataConfig.parseConfig(serviceConfig.getConfig("delete-metadata")) match {
-        case Right(config) => Option(context.actorOf(DeleteMetadataSchedulerActor.props(config, serviceRegistryActor), "delete-metadata-actor"))
+        case Right(config) => Option(context.actorOf(DeleteMetadataActor.props(config, serviceRegistryActor), "delete-metadata-actor"))
         case Left(errorList) => throw AggregatedMessageException("Failed to parse the archive-metadata config", errorList.toList)
       }
     } else {

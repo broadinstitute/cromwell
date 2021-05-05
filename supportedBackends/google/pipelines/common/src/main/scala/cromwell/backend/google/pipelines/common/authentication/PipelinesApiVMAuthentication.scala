@@ -19,18 +19,6 @@ sealed trait PipelinesApiAuthObject {
   def toMap: Map[String, Map[String, JsValue]] =  Map(context -> map)
 }
 
-/**
- * Authentication information for data (de)localization as the user.
- */
-case class GcsLocalizing(clientSecrets: ClientSecrets, token: String) extends PipelinesApiAuthObject {
-  override val context = "boto"
-  override val map = Map(
-    "client_id" -> JsString(clientSecrets.clientId),
-    "client_secret" -> JsString(clientSecrets.clientSecret),
-    "refresh_token" -> JsString(token)
-  )
-}
-
 object PipelinesApiDockerCredentials {
 
   def apply(dockerCredentials: DockerCredentials, googleConfig: GoogleConfiguration): PipelinesApiDockerCredentials = {

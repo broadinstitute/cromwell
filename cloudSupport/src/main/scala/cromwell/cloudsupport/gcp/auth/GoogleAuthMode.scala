@@ -42,7 +42,6 @@ object GoogleAuthMode {
   lazy val httpTransport: HttpTransport = GoogleNetHttpTransport.newTrustedTransport
   lazy val HttpTransportFactory: HttpTransportFactory = () => httpTransport
 
-  val RefreshTokenOptionKey = "refresh_token"
   val UserServiceAccountKey = "user_service_account_json"
   val DockerCredentialsEncryptionKeyNameKey = "docker_credentials_key_name"
   val DockerCredentialsTokenKey = "docker_credentials_token"

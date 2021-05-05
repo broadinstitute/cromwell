@@ -54,6 +54,7 @@ object ActionUtils {
 
   /** Start background actions first, leave the rest as is */
   def sortActions[Action](containerSetup: List[Action],
+                          egressCheck: List[Action],
                           localization: List[Action],
                           userAction: List[Action],
                           memoryRetryAction: List[Action],
@@ -70,6 +71,6 @@ object ActionUtils {
       case (action, _) => isBackground(action)
     })
 
-    sshAccess ++ containerSetup ++ monitoringSetup ++ checkpointingStart ++ sortedActions ++ checkpointingShutdown ++ monitoringShutdown
+    egressCheck ++ sshAccess ++ containerSetup ++ monitoringSetup ++ checkpointingStart ++ sortedActions ++ checkpointingShutdown ++ monitoringShutdown
   }
 }

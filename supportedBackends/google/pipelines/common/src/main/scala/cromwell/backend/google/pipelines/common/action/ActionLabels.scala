@@ -12,6 +12,7 @@ object ActionLabels {
   }
   object Value {
     val ContainerSetup = "ContainerSetup"
+    val EgressCheckAction = "EgressCheckAction"
     val UserAction = "UserAction"
     val Localization = "Localization"
     val Delocalization = "Delocalization"

@@ -128,6 +128,24 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
     (directoryTransferBundle :: (filesWithSameNamesTransferBundles ++ filesWithDifferentNamesTransferBundles)) mkString "\n\n"
   }
 
+  private def gcsEgressCheckBundle[T <: PipelinesApiInput](transferConfiguration: GcsTransferConfiguration)(bucket: String, inputs: NonEmptyList[T]): String = {
+    val project = inputs.head.cloudPath.asInstanceOf[GcsPath].projectId
+    val maxAttempts = transferConfiguration.transferAttempts
+    // Use a digest as bucket names can contain characters that are not legal in bash identifiers.
+    val arrayIdentifier = s"egress_check_" + DigestUtils.md5Hex(bucket)
+    val entries = inputs.toList.map(_.cloudPath) mkString("\"", "\"\n|  \"", "\"")
+
+    s"""
+       |$arrayIdentifier=(
+       |  "$project"       # project
+       |  "$maxAttempts"   # max attempts
+       |  $entries
+       |)
+       |
+       |egress_check "$${$arrayIdentifier[@]}"
+      """.stripMargin
+  }
+
   private def gcsDelocalizationTransferBundle[T <: PipelinesApiOutput](transferConfiguration: GcsTransferConfiguration)(bucket: String, outputs: NonEmptyList[T]): String = {
     val project = outputs.head.cloudPath.asInstanceOf[GcsPath].projectId
     val maxAttempts = transferConfiguration.transferAttempts
@@ -172,6 +190,12 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   }
 
   import mouse.all._
+
+  private def generateGcsEgressCheckScript(inputs: List[PipelinesApiInput])
+                                          (implicit gcsTransferConfiguration: GcsTransferConfiguration): String = {
+    val bundleFunction = (gcsEgressCheckBundle(gcsTransferConfiguration) _).tupled
+    generateGcsTransferScript(inputs, bundleFunction) |> bracketTransfersWithMessages("Egress Check")
+  }
 
   private def generateGcsLocalizationScript(inputs: List[PipelinesApiInput],
                                             referenceInputsToMountedPathsOpt: Option[Map[PipelinesApiInput, String]])
@@ -240,6 +264,15 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
                                                   gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = {
 
     asyncIo.writeAsync(cloudPath, gcsTransferLibrary, Seq(CloudStorageOptions.withMimeType("text/plain")))
+  }
+
+  override def uploadGcsEgressCheckScript(createPipelineParameters: CreatePipelineParameters,
+                                          cloudPath: Path,
+                                          transferLibraryContainerPath: Path,
+                                          gcsTransferConfiguration: GcsTransferConfiguration,
+                                          referenceInputsToMountedPathsOpt: Option[Map[PipelinesApiInput, String]]): Future[Unit] = {
+    val content = generateGcsEgressCheckScript(createPipelineParameters.inputOutputParameters.fileInputParameters)(gcsTransferConfiguration)
+    asyncIo.writeAsync(cloudPath, s"source '$transferLibraryContainerPath'\n\n" + content, Seq(CloudStorageOptions.withMimeType("text/plain")))
   }
 
   override def uploadGcsLocalizationScript(createPipelineParameters: CreatePipelineParameters,

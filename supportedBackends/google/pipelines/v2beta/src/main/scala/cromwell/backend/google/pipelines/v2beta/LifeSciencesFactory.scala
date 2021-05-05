@@ -29,6 +29,7 @@ import scala.collection.JavaConverters._
 
 case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode, endpointUrl: URL, location: String)(implicit gcsTransferConfiguration: GcsTransferConfiguration) extends PipelinesApiFactoryInterface
   with ContainerSetup
+  with EgressCheckAction
   with MonitoringAction
   with CheckpointingAction
   with Localization
@@ -82,6 +83,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
       val mounts = allDisksToBeMounted |> toMounts
 
       val containerSetup: List[Action] = containerSetupActions(mounts)
+      val egressCheck: List[Action] = egressCheckAction(createPipelineParameters, mounts)
       val localization: List[Action] = localizeActions(createPipelineParameters, mounts)
       val userAction: List[Action] = userActions(createPipelineParameters, mounts)
       val memoryRetryAction: List[Action] = checkForMemoryRetryActions(createPipelineParameters, mounts)
@@ -100,6 +102,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
       val sortedActions: List[Action] =
         ActionUtils.sortActions[Action](
           containerSetup = containerSetup,
+          egressCheck = egressCheck,
           localization = localization,
           userAction = userAction,
           memoryRetryAction = memoryRetryAction,

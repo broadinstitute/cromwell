@@ -209,31 +209,6 @@ final case class ApplicationDefaultMode(name: String) extends GoogleAuthMode {
   }
 }
 
-final case class RefreshTokenMode(name: String,
-                                  clientId: String,
-                                  clientSecret: String) extends GoogleAuthMode with ClientSecrets {
-
-  import GoogleAuthMode._
-
-  override def requiresAuthFile = true
-
-  private def extractRefreshToken(options: OptionLookup): String = {
-    extract(options, RefreshTokenOptionKey)
-  }
-
-  override def credentials(options: OptionLookup, scopes: Iterable[String]): GoogleCredentials = {
-    val refreshToken = extractRefreshToken(options)
-    val newCredentials: UserCredentials = UserCredentials
-      .newBuilder()
-      .setClientId(clientId)
-      .setClientSecret(clientSecret)
-      .setRefreshToken(refreshToken)
-      .setHttpTransportFactory(GoogleAuthMode.HttpTransportFactory)
-      .build()
-    validateCredentials(newCredentials, scopes)
-  }
-}
-
 sealed trait ClientSecrets {
   val clientId: String
   val clientSecret: String

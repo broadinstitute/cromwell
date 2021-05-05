@@ -3,6 +3,7 @@ testFormat: workflowsuccess
 
 files {
   workflow: memory_units/memory_units.wdl
+  options: memory_units/memory_units.options
 }
 
 metadata {

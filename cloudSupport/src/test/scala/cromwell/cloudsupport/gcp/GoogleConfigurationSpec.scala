@@ -76,11 +76,6 @@ class GoogleConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
     val appDefault = (auths collectFirst { case a: ApplicationDefaultMode => a }).get
     appDefault.name shouldBe "name-default"
 
-    val refreshToken = (auths collectFirst { case a: RefreshTokenMode => a }).get
-    refreshToken.name shouldBe "name-refresh"
-    refreshToken.clientSecret shouldBe "secret_secret"
-    refreshToken.clientId shouldBe "secret_id"
-
     val userServiceAccount = (auths collectFirst { case a: UserServiceAccountMode => a }).get
     userServiceAccount.name shouldBe "name-user-service-account"
 

@@ -374,4 +374,8 @@ trait MetadataDatabaseAccess {
   def countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],
                                                                        workflowEndTimestampThreshold: OffsetDateTime)(implicit ec: ExecutionContext): Future[Int] =
     metadataDatabaseInterface.countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses, workflowEndTimestampThreshold.toSystemTimestamp)
+
+  def countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],
+                                                                       workflowEndTimestampThreshold: OffsetDateTime)(implicit ec: ExecutionContext): Future[Int] =
+    metadataDatabaseInterface.countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses, workflowEndTimestampThreshold.toSystemTimestamp)
 }

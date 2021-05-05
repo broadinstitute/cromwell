@@ -505,4 +505,11 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       dataAccess.countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses, workflowEndTimestampThreshold).result
     )
   }
+
+  override def countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],
+                                                                                workflowEndTimestampThreshold: Timestamp)(implicit ec: ExecutionContext): Future[Int] = {
+    runAction(
+      dataAccess.countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses, workflowEndTimestampThreshold).result
+    )
+  }
 }

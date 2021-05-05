@@ -58,6 +58,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
 
   private val archiverMetricsBasePath: NonEmptyList[String] = MetadataServiceActor.MetadataInstrumentationPrefix :+ "archiver"
   private val rowsProcessedMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "rows_processed"
+  private val bytesProcessedMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "bytes_processed"
   private val workflowsProcessedSuccessMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflows_processed" :+ "success"
   private val workflowsProcessedFailureMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflows_processed" :+ "failure"
   private val timeBehindExpectedDelayMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "time_behind_expected_delay"
@@ -204,7 +205,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   def streamMetadataToGcs(path: Path, stream: DatabasePublisher[MetadataEntry]): Future[Unit] = {
     val streamStartTime = OffsetDateTime.now()
 
-    val rowsCounter = new RowsCounterAndProgressiveLogger( logFunction = (newRows, totalRows) => {
+    val rowsCounter = new CounterAndProgressiveLogger( logFunction = (newRows, totalRows) => {
       if (archiveMetadataConfig.debugLogging) logger.info(s"Uploaded $newRows new rows to ${path.pathAsString}. Total uploaded is now ${totalRows}") else ()
       count(rowsProcessedMetricPath, newRows, ServicesPrefix)
     }, 100000)
@@ -242,7 +243,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
         mostRecentWrite = Option(OffsetDateTime.now())
         rowsCounter.increment()
       })
-      _ = rowsCounter.finalLog()
+      _ = rowsCounter.manualLog()
       _ = csvPrinter.close()
       streamingCompleteTime = OffsetDateTime.now()
       _ = sendTiming(archiverStreamTimingMetricsBasePath :+ "stream_data_to_gcs", calculateTimeDifference(csvPrinterCreatedTime, streamingCompleteTime), ServicesPrefix)
@@ -268,6 +269,17 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
       }
     )}
     override def flush(): Unit = { streams.foreach(_.flush())}
+  }
+
+  final class ByteCountingOutputStream() extends OutputStream {
+    val byteCounter = new CounterAndProgressiveLogger( logFunction = (newBytes, totalBytes) => {
+      if (archiveMetadataConfig.debugLogging) logger.info(s"Uploaded $newBytes new bytes. Total uploaded is now $totalBytes") else ()
+      count(bytesProcessedMetricPath, newBytes, ServicesPrefix)
+    }, 100000)
+
+    override def write(b: Int): Unit = byteCounter.increment()
+    override def close(): Unit = byteCounter.manualLog()
+    override def flush(): Unit = byteCounter.manualLog()
   }
 }
 
@@ -301,20 +313,21 @@ object ArchiveMetadataSchedulerActor {
     }
   }
 
-  final class RowsCounterAndProgressiveLogger(logFunction: (Long, Long) => Unit, logInterval: Int) {
-    private var rowsSinceLog: Long = 0
-    private var totalRows: Long = 0
+  final class CounterAndProgressiveLogger(logFunction: (Long, Long) => Unit, logInterval: Int) {
+    private var countSinceLog: Long = 0
+    private var totalCount: Long = 0
 
     def increment(): Unit = {
-      rowsSinceLog = rowsSinceLog + 1
-      totalRows = totalRows + 1
-      if (rowsSinceLog >= logInterval) {
-        logFunction(rowsSinceLog, totalRows)
-        rowsSinceLog = 0
+      countSinceLog = countSinceLog + 1
+      totalCount = totalCount + 1
+      if (countSinceLog >= logInterval) {
+        logFunction(countSinceLog, totalCount)
+        countSinceLog = 0
       }
     }
-    def finalLog(): Unit = {
-      logFunction(rowsSinceLog, totalRows)
+    def manualLog(): Unit = {
+      logFunction(countSinceLog, totalCount)
+      countSinceLog = 0
     }
   }
 }

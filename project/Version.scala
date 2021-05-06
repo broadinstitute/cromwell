@@ -5,7 +5,7 @@ import sbt._
 
 object Version {
   // Upcoming release, or current if we're on a master / hotfix branch
-  val cromwellVersion = "62"
+  val cromwellVersion = "63"
 
   /**
     * Returns true if this project should be considered a snapshot.

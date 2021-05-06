@@ -80,16 +80,6 @@ trait WorkflowMetadataSummaryEntryComponent {
       } yield summary.workflowExecutionUuid).take(batchSize)
     })
 
-  val countRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp = Compiled(
-    (metadataArchiveStatus: Rep[Option[String]], workflowEndTimestampThreshold: Rep[Timestamp]) => {
-      (for {
-        summary <- workflowMetadataSummaryEntries
-        if summary.rootWorkflowExecutionUuid.isEmpty && summary.parentWorkflowExecutionUuid.isEmpty // is root workflow entry
-        if summary.metadataArchiveStatus === metadataArchiveStatus
-        if summary.endTimestamp <= workflowEndTimestampThreshold
-      } yield summary.workflowExecutionUuid).length
-    })
-
   val workflowMetadataSummaryEntriesForWorkflowExecutionUuid = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
       workflowMetadataSummaryEntry <- workflowMetadataSummaryEntries
@@ -110,15 +100,6 @@ trait WorkflowMetadataSummaryEntryComponent {
     } yield workflowMetadataSummaryEntry.workflowStatus
   )
 
-  val isRootWorkflow = Compiled(
-    (workflowId: Rep[String]) => for {
-      summary <- workflowMetadataSummaryEntries
-      if summary.workflowExecutionUuid === workflowId
-    } yield {
-      summary.rootWorkflowExecutionUuid.isEmpty && summary.parentWorkflowExecutionUuid.isEmpty
-    }
-  )
-
   val rootWorkflowId = Compiled(
     (workflowId: Rep[String]) => for {
       summary <- workflowMetadataSummaryEntries
@@ -133,6 +114,33 @@ trait WorkflowMetadataSummaryEntryComponent {
       workflowMetadataSummaryEntry <- workflowMetadataSummaryEntries
       if workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid
     } yield workflowMetadataSummaryEntry.metadataArchiveStatus)
+
+  private def fetchAllWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],
+                                                                              workflowEndTimestampThreshold: Timestamp): Query[WorkflowMetadataSummaryEntries, WorkflowMetadataSummaryEntry, Seq] = {
+    for {
+      summaryEntry <- workflowMetadataSummaryEntries
+      if summaryEntry.workflowStatus.inSet(workflowStatuses)
+      if summaryEntry.metadataArchiveStatus.isEmpty // get Unarchived workflows only
+      if summaryEntry.endTimestamp <= workflowEndTimestampThreshold
+    } yield summaryEntry
+  }
+
+  def workflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],
+                                                              workflowEndTimestampThreshold: Timestamp,
+                                                              batchSize: Long): Query[WorkflowMetadataSummaryEntries, WorkflowMetadataSummaryEntry, Seq] = {
+    fetchAllWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(
+      workflowStatuses,
+      workflowEndTimestampThreshold
+    ).sortBy(_.workflowMetadataSummaryEntryId).take(batchSize)
+  }
+
+  def countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],
+                                                                       workflowEndTimestampThreshold: Timestamp): Rep[Int] = {
+    fetchAllWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(
+      workflowStatuses,
+      workflowEndTimestampThreshold
+    ).length
+  }
 
   def concat(a: SQLActionBuilder, b: SQLActionBuilder): SQLActionBuilder = {
     SQLActionBuilder(a.queryParts ++ b.queryParts, (p: Unit, pp: PositionedParameters) => {

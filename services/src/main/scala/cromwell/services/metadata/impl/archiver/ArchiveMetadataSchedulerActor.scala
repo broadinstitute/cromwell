@@ -1,5 +1,11 @@
 package cromwell.services.metadata.impl.archiver
 
+import java.io.{OutputStream, OutputStreamWriter}
+import java.nio.file.{Files, StandardOpenOption}
+import java.time.{OffsetDateTime, Duration => JDuration}
+import java.util.UUID
+import java.util.concurrent.TimeUnit
+
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.ask
 import akka.util.Timeout
@@ -10,13 +16,13 @@ import common.util.StringUtil.EnhancedToStringable
 import common.util.TimeUtil.EnhancedOffsetDateTime
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
 import cromwell.core.path.{Path, PathFactory}
+import cromwell.core.instrumentation.InstrumentationPrefixes.ServicesPrefix
 import cromwell.core.{WorkflowAborted, WorkflowFailed, WorkflowId, WorkflowSucceeded}
 import cromwell.database.sql.SqlConverters.{ClobOptionToRawString, TimestampToSystemOffsetDateTime}
-import cromwell.database.sql.tables.MetadataEntry
+import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 import cromwell.services.instrumentation.CromwellInstrumentation
-import cromwell.services.metadata.MetadataArchiveStatus.{Archived, Unarchived}
-import cromwell.services.metadata.MetadataService.{GetMetadataStreamAction, MetadataLookupStreamFailed, MetadataLookupStreamSuccess, QueryForWorkflowsMatchingParameters, WorkflowQueryFailure, WorkflowQueryResult, WorkflowQuerySuccess}
-import cromwell.services.metadata.WorkflowQueryKey._
+import cromwell.services.metadata.MetadataArchiveStatus.Archived
+import cromwell.services.metadata.MetadataService.{GetMetadataStreamAction, MetadataLookupStreamFailed, MetadataLookupStreamSuccess}
 import cromwell.services.metadata.impl.archiver.ArchiveMetadataSchedulerActor._
 import cromwell.services.metadata.impl.{MetadataDatabaseAccess, MetadataServiceActor}
 import cromwell.services.{IoActorRequester, MetadataServicesStore}
@@ -26,14 +32,10 @@ import org.apache.commons.codec.digest.PureJavaCrc32C
 import org.apache.commons.csv.{CSVFormat, CSVPrinter}
 import slick.basic.DatabasePublisher
 
-import java.io.{OutputStream, OutputStreamWriter}
-import java.nio.file.{Files, StandardOpenOption}
-import java.time.{OffsetDateTime, Duration => JDuration}
-import java.util.UUID
-import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 
 class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig,
@@ -57,12 +59,17 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   private val rowsProcessedMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "rows_processed"
   private val workflowsProcessedSuccessMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflows_processed" :+ "success"
   private val workflowsProcessedFailureMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflows_processed" :+ "failure"
-  private val workflowArchiveTotalTimeSuccessMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflow_archive_total_time" :+ "success"
-  private val workflowArchiveTotalTimeFailureMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflow_archive_total_time" :+ "failure"
+  private val timeBehindExpectedDelayMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "time_behind_expected_delay"
+  private val workflowArchiveTotalTimeMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflow_archive_total_time"
   private val workflowsToArchiveMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflows_to_archive"
+
+  private val TerminalWorkflowStatuses: List[String] = List(WorkflowSucceeded, WorkflowAborted, WorkflowFailed).map(_.toString)
 
   // kick off archiving immediately
   self ! ArchiveNextWorkflowMessage
+
+  // initial schedule for workflows left to archive metric
+  context.system.scheduler.scheduleOnce(archiveMetadataConfig.instrumentationInterval)(workflowsLeftToArchiveMetric())
 
   override def receive: Receive = {
     case ArchiveNextWorkflowMessage =>
@@ -71,22 +78,27 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
         FiniteDuration(JDuration.between(startTime, OffsetDateTime.now()).toMillis, TimeUnit.MILLISECONDS)
       }
 
+      // These handlers send metrics for most paths even when they're not incremented, so that the metrics
+      // paths are actively receiving data points throughout:
       archiveNextWorkflow().onComplete({
         case Success(true) =>
-          increment(workflowsProcessedSuccessMetricPath)
-          sendTiming(workflowArchiveTotalTimeSuccessMetricPath, calculateTimeSinceStart())
+          increment(workflowsProcessedSuccessMetricPath, ServicesPrefix)
+          count(workflowsProcessedFailureMetricPath, 0L, ServicesPrefix)
+          sendTiming(workflowArchiveTotalTimeMetricPath, calculateTimeSinceStart(), ServicesPrefix)
           self ! ArchiveNextWorkflowMessage
         case Success(false) =>
-          // Provide a stream of data points even when nothing is being archived:
-          count(rowsProcessedMetricPath, 0L)
-          count(workflowsProcessedSuccessMetricPath, 0L)
-          sendGauge(workflowsToArchiveMetricPath, 0L)
-          sendTiming(workflowArchiveTotalTimeSuccessMetricPath, calculateTimeSinceStart())
+          count(rowsProcessedMetricPath, 0L, ServicesPrefix)
+          count(workflowsProcessedSuccessMetricPath, 0L, ServicesPrefix)
+          count(workflowsProcessedFailureMetricPath, 0L, ServicesPrefix)
+          sendGauge(workflowsToArchiveMetricPath, 0L, ServicesPrefix)
+          sendTiming(workflowArchiveTotalTimeMetricPath, calculateTimeSinceStart(), ServicesPrefix)
           scheduleNextWorkflowToArchive()
           if (archiveMetadataConfig.debugLogging) log.info(s"No complete workflows which finished over ${archiveMetadataConfig.archiveDelay} ago remain to be archived. Scheduling next poll in ${archiveMetadataConfig.backoffInterval}.")
         case Failure(error) =>
-          increment(workflowsProcessedFailureMetricPath)
-          sendTiming(workflowArchiveTotalTimeFailureMetricPath, calculateTimeSinceStart())
+          count(rowsProcessedMetricPath, 0L, ServicesPrefix)
+          count(workflowsProcessedSuccessMetricPath, 0L, ServicesPrefix)
+          increment(workflowsProcessedFailureMetricPath, ServicesPrefix)
+          sendTiming(workflowArchiveTotalTimeMetricPath, calculateTimeSinceStart(), ServicesPrefix)
           log.error(error, s"Error while archiving, will retry.")
           scheduleNextWorkflowToArchive()
       })
@@ -94,47 +106,72 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
     case other => log.info(s"Programmer Error! The ArchiveMetadataSchedulerActor received unexpected message! ($sender sent ${other.toPrettyElidedString(1000)}})")
   }
 
+  def workflowsLeftToArchiveMetric(): Unit = {
+    val currentTimestampMinusDelay = OffsetDateTime.now().minusSeconds(archiveMetadataConfig.archiveDelay.toSeconds)
+    countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(
+      TerminalWorkflowStatuses,
+      currentTimestampMinusDelay
+    ).onComplete({
+      case Success(workflowsToArchive) =>
+        sendGauge(workflowsToArchiveMetricPath, workflowsToArchive.longValue(), ServicesPrefix)
+        // schedule next workflows left to archive query after interval
+        context.system.scheduler.scheduleOnce(archiveMetadataConfig.instrumentationInterval)(workflowsLeftToArchiveMetric())
+      case Failure(exception) =>
+        log.error(exception, s"Something went wrong while fetching number of workflows left to archive. " +
+          s"Scheduling next poll in ${archiveMetadataConfig.instrumentationInterval}.")
+        // schedule next workflows left to archive query after interval
+        context.system.scheduler.scheduleOnce(archiveMetadataConfig.instrumentationInterval)(workflowsLeftToArchiveMetric())
+    })
+  }
+
   def archiveNextWorkflow(): Future[Boolean] = {
     for {
-      maybeWorkflowQueryResult <- lookupNextWorkflowToArchive()
-      result <- maybeWorkflowQueryResult match {
-        case Some(workflow) => for {
-          path <- getGcsPathForMetadata(workflow)
-          dbStream <- fetchStreamFromDatabase(WorkflowId(UUID.fromString(workflow.id)))
-          _ = log.info(s"Archiving metadata for ${workflow.id} to ${path.pathAsString}")
-          _ <- streamMetadataToGcs(path, dbStream)
-          _ <- updateMetadataArchiveStatus(WorkflowId(UUID.fromString(workflow.id)), Archived)
-          _ = log.info(s"Archiving succeeded for ${workflow.id}")
-        } yield true
-        case None => Future.successful(false)
+      maybeWorkflowSummaryEntry <- lookupNextWorkflowToArchive()
+      result <- maybeWorkflowSummaryEntry match {
+        case Some(summaryEntry) =>
+          summaryEntry.endTimestamp.foreach { workflowEndTime =>
+            val millisSinceWorkflowEnd = JDuration.between(workflowEndTime.toSystemOffsetDateTime, OffsetDateTime.now()).toMillis
+            sendGauge(timeBehindExpectedDelayMetricPath, millisSinceWorkflowEnd - archiveMetadataConfig.archiveDelay.toMillis, ServicesPrefix)
+          }
+          for {
+            path <- Future.fromTry(getGcsPathForMetadata(summaryEntry))
+            workflowId = summaryEntry.workflowExecutionUuid
+            dbStream <- fetchStreamFromDatabase(WorkflowId(UUID.fromString(workflowId)))
+            _ = log.info(s"Archiving metadata for $workflowId to ${path.pathAsString}")
+            _ <- streamMetadataToGcs(path, dbStream)
+            _ <- updateMetadataArchiveStatus(WorkflowId(UUID.fromString(workflowId)), Archived)
+            _ = log.info(s"Archiving succeeded for $workflowId")
+          } yield true
+        case None =>
+          sendGauge(timeBehindExpectedDelayMetricPath, 0L, ServicesPrefix)
+          Future.successful(false)
       }
     } yield result
   }
 
-  def lookupNextWorkflowToArchive(): Future[Option[WorkflowQueryResult]] = {
-    (serviceRegistryActor ? QueryForWorkflowsMatchingParameters(queryParametersForWorkflowsToArchive(OffsetDateTime.now(), archiveMetadataConfig.archiveDelay))) flatMap {
-      case WorkflowQuerySuccess(response, maybeQueryInfo) =>
-        // Record total number of records available to archive (if provided in the response):
-        for {
-          queryInfo <- maybeQueryInfo
-          totalRecords <- queryInfo.totalRecords
-          _ = sendGauge(workflowsToArchiveMetricPath, totalRecords.longValue())
-        } yield ()
-
-        if (response.results.nonEmpty)
-          Future.successful(Option(response.results.head))
-        else
-          Future.successful(None)
-      case WorkflowQueryFailure(reason) => Future.failed(new Exception("Failed to fetch new workflow to archive", reason))
-      case other => Future.failed(new Exception(s"Programmer Error: Got unexpected message fetching new workflows to archive: ${other.toPrettyElidedString(1000)}"))
-    }
+  def lookupNextWorkflowToArchive(): Future[Option[WorkflowMetadataSummaryEntry]] = {
+    val currentTimestampMinusDelay = OffsetDateTime.now().minusSeconds(archiveMetadataConfig.archiveDelay.toSeconds)
+    queryWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(
+      TerminalWorkflowStatuses,
+      currentTimestampMinusDelay,
+      batchSize = 1
+    ).map(_.headOption)
   }
 
-  private def getGcsPathForMetadata(workflow: WorkflowQueryResult): Future[Path] =  {
+  private def getGcsPathForMetadata(summaryEntry: WorkflowMetadataSummaryEntry): Try[Path] =  {
+    /*
+      Note: The naming convention for archived workflows is:
+        - if a workflow has no root workflow, its archived metadata is put in GCS at <workflow_id>/<workflow_id>.csv
+        - if a workflow is a subworkflow, its archived metadata is put in GCS under it's root workflow's directory i.e.
+          <root_workflow_id>/<subworkflow_id>.csv
+      Changing this convention would break the expectations of where to find the archived metadata files.
+   */
     val bucket = archiveMetadataConfig.bucket
-    val workflowId = workflow.id
-    val rootWorkflowId = workflow.rootWorkflowId.getOrElse(workflowId)
-    Future(PathFactory.buildPath(s"gs://$bucket/$rootWorkflowId/$workflowId.csv", archiveMetadataConfig.pathBuilders))
+    val workflowId = summaryEntry.workflowExecutionUuid
+    val rootWorkflowId = summaryEntry.rootWorkflowExecutionUuid.getOrElse(workflowId)
+    Try {
+      PathFactory.buildPath(s"gs://$bucket/$rootWorkflowId/$workflowId.csv", archiveMetadataConfig.pathBuilders)
+    }
   }
 
   def fetchStreamFromDatabase(workflowId: WorkflowId): Future[DatabasePublisher[MetadataEntry]] = {
@@ -148,7 +185,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   def streamMetadataToGcs(path: Path, stream: DatabasePublisher[MetadataEntry]): Future[Unit] = {
     val rowsCounter = new RowsCounterAndProgressiveLogger( logFunction = (newRows, totalRows) => {
       if (archiveMetadataConfig.debugLogging) logger.info(s"Uploaded $newRows new rows to ${path.pathAsString}. Total uploaded is now ${totalRows}") else ()
-      count(rowsProcessedMetricPath, newRows)
+      count(rowsProcessedMetricPath, newRows, ServicesPrefix)
     }, 100000)
     for {
       asyncIo <- futureAsyncIo
@@ -197,18 +234,6 @@ object ArchiveMetadataSchedulerActor {
     "METADATA_VALUE",
     "METADATA_TIMESTAMP",
     "METADATA_VALUE_TYPE"
-  )
-
-  def queryParametersForWorkflowsToArchive(currentTime: OffsetDateTime, archiveDelay: FiniteDuration): Seq[(String, String)] = Seq(
-    IncludeSubworkflows.name -> "true",
-    Status.name -> WorkflowSucceeded.toString,
-    Status.name -> WorkflowFailed.toString,
-    Status.name -> WorkflowAborted.toString,
-    MetadataArchiveStatus.name -> Unarchived.toString,
-    Page.name -> "1",
-    PageSize.name -> "1",
-    NewestFirst.name -> "false", // oldest first for archiving
-    EndDate.name -> currentTime.minusNanos(archiveDelay.toNanos).toUtcMilliString
   )
 
   def props(archiveMetadataConfig: ArchiveMetadataConfig, serviceRegistryActor: ActorRef): Props =

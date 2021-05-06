@@ -87,12 +87,3 @@ update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 python3 get-pip.py
 pip3 install --upgrade --force-reinstall pyopenssl
-
-# create a non-root user with access to sudo (but not `sudo -u` / `sudo -g`)
-# https://www.sudo.ws/man/1.9.4/sudoers.man.html#Runas_Spec
-# https://www.sudo.ws/man/1.9.4/sudoers.man.html#NOPASSWD
-# https://www.sudo.ws/man/1.9.4/sudoers.man.html#EXAMPLES
-useradd hoggett
-echo "hoggett ALL=NOPASSWD: ALL" >> /etc/sudoers
-mkdir -p /home/hoggett
-chown hoggett:hoggett /home/hoggett

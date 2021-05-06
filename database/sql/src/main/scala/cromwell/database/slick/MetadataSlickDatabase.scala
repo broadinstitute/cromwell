@@ -469,12 +469,6 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     }
   }
 
-  override def isRootWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Option[Boolean]] = {
-    runTransaction(
-      dataAccess.isRootWorkflow(rootWorkflowId).result.headOption
-    )
-  }
-
   override def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = {
     runAction(
       dataAccess.rootWorkflowId(workflowId).result.headOption
@@ -487,12 +481,6 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     )
   }
 
-  override def countRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp)(implicit ec: ExecutionContext): Future[Int] = {
-    runAction(
-      dataAccess.countRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp((archiveStatus, thresholdTimestamp)).result
-    )
-  }
-
   override def getSummaryQueueSize()(implicit ec: ExecutionContext): Future[Int] =
     runAction(
       countSummaryQueueEntries()
@@ -501,5 +489,20 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   override def getMetadataArchiveStatus(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = {
     val action = dataAccess.metadataArchiveStatusByWorkflowId(workflowId).result.headOption
     runTransaction(action).map(_.flatten)
+  }
+
+  override def queryWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],
+                                                                            workflowEndTimestampThreshold: Timestamp,
+                                                                            batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = {
+    runAction(
+      dataAccess.workflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses, workflowEndTimestampThreshold, batchSize).result
+    )
+  }
+
+  override def countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],
+                                                                                workflowEndTimestampThreshold: Timestamp)(implicit ec: ExecutionContext): Future[Int] = {
+    runAction(
+      dataAccess.countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses, workflowEndTimestampThreshold).result
+    )
   }
 }

@@ -1,14 +1,14 @@
 package cromwell.engine.io.gcs
 
 import akka.NotUsed
-
 import java.io.IOException
+
 import akka.actor.Scheduler
 import akka.stream._
 import akka.stream.scaladsl.{Flow, GraphDSL, MergePreferred, Partition}
 import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
-import com.google.api.client.json.jackson2.JacksonFactory
+import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.storage.Storage
 import com.typesafe.scalalogging.StrictLogging
 import common.util.StringUtil.EnhancedToStringable
@@ -85,7 +85,7 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
   private def newBatchRequest(): BatchRequest = {
     val builder = new Storage.Builder(
       GcsStorage.HttpTransport,
-      JacksonFactory.getDefaultInstance,
+      GsonFactory.getDefaultInstance,
       httpRequestInitializer
     ).setApplicationName(applicationName)
     val client = builder.build()

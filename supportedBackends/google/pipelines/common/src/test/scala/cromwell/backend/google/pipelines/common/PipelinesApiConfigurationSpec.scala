@@ -34,12 +34,6 @@ class PipelinesApiConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec
       |      scheme = "application_default"
       |    },
       |    {
-      |      name = "user-via-refresh"
-      |      scheme = "refresh_token"
-      |      client-id = "secret_id"
-      |      client-secret = "${mockFile.pathAsString}"
-      |    },
-      |    {
       |      name = "service-account"
       |      scheme = "service_account"
       |      service-account-id = "my-service-account"
@@ -149,11 +143,9 @@ class PipelinesApiConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec
       ("backendConfig", "globalConfig"),
       // With Docker
       (backendConfig.withValue("filesystems.gcs.auth", ConfigValueFactory.fromAnyRef("application-default")), true),
-      (backendConfig.withValue("filesystems.gcs.auth", ConfigValueFactory.fromAnyRef("user-via-refresh")), true),
       (backendConfig.withValue("filesystems.gcs.auth", ConfigValueFactory.fromAnyRef("service-account")), true),
       // Without Docker
       (backendConfig.withValue("filesystems.gcs.auth", ConfigValueFactory.fromAnyRef("application-default")).withoutPath("dockerhub"), false),
-      (backendConfig.withValue("filesystems.gcs.auth", ConfigValueFactory.fromAnyRef("user-via-refresh")).withoutPath("dockerhub"), true),
       (backendConfig.withValue("filesystems.gcs.auth", ConfigValueFactory.fromAnyRef("service-account")).withoutPath("dockerhub"), false)
     )
 

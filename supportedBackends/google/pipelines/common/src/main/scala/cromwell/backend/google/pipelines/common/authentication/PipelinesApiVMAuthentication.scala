@@ -5,7 +5,6 @@ import cats.syntax.validated._
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.cloudsupport.gcp.GoogleConfiguration
-import cromwell.cloudsupport.gcp.auth.ClientSecrets
 import cromwell.core.DockerCredentials
 import spray.json.{JsString, JsValue}
 /**

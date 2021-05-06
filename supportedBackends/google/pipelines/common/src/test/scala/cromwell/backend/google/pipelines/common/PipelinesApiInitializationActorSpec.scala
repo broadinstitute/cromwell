@@ -111,12 +111,6 @@ object PipelinesApiInitializationActorSpec {
       |    {
       |      name = "application-default"
       |      scheme = "application_default"
-      |    },
-      |    {
-      |      name = "user-via-refresh"
-      |      scheme = "refresh_token"
-      |      client-id = "secret_id"
-      |      client-secret = "secret_secret"
       |    }
       |  ]
       |}

@@ -36,7 +36,6 @@ class DeleteMetadataActor(deleteMetadataConfig: DeleteMetadataConfig,
   private val rowsDeletedMetricPath: NonEmptyList[String] = deleterMetricsBasePath :+ "rows_deleted"
   private val workflowsDeletedSuccessMetricPath: NonEmptyList[String] = deleterMetricsBasePath :+ "workflows_deleted" :+ "success"
   private val workflowsDeletedFailureMetricPath: NonEmptyList[String] = deleterMetricsBasePath :+ "workflows_deleted" :+ "failure"
-//  private val timeBehindExpectedDelayMetricPath: NonEmptyList[String] = deleterMetricsBasePath :+ "time_behind_expected_delay"
   private val workflowDeleteTotalTimeMetricPath: NonEmptyList[String] = deleterMetricsBasePath :+ "workflow_delete_total_time"
   private val workflowsToDeleteMetricPath: NonEmptyList[String] = deleterMetricsBasePath :+ "workflows_to_delete"
 

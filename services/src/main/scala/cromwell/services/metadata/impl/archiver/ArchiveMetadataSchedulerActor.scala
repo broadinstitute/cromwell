@@ -58,7 +58,9 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
 
   private val archiverMetricsBasePath: NonEmptyList[String] = MetadataServiceActor.MetadataInstrumentationPrefix :+ "archiver"
   private val rowsProcessedMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "rows_processed"
+  private val rowsPerWorkflowMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "rows_per_workflow"
   private val bytesProcessedMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "bytes_processed"
+  private val bytesPerWorkflowMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "bytes_per_workflow"
   private val workflowsProcessedSuccessMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflows_processed" :+ "success"
   private val workflowsProcessedFailureMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflows_processed" :+ "failure"
   private val timeBehindExpectedDelayMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "time_behind_expected_delay"
@@ -210,8 +212,6 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
       count(rowsProcessedMetricPath, newRows, ServicesPrefix)
     }, 100000)
 
-    var mostRecentWrite: Option[OffsetDateTime] = None
-
     for {
       asyncIo <- futureAsyncIo
       gotAsyncIoTime = OffsetDateTime.now()
@@ -236,14 +236,10 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
           me.metadataTimestamp.toSystemOffsetDateTime.toUtcMilliString,
           me.metadataValueType.getOrElse("")
         )
-        mostRecentWrite match {
-          case None => sendTiming(archiverStreamTimingMetricsBasePath :+ "first_row_write_time", calculateTimeSince(csvPrinterCreatedTime), ServicesPrefix)
-          case Some(time) => sendTiming(archiverStreamTimingMetricsBasePath :+ "subsequent_row_write_time", calculateTimeSince(time), ServicesPrefix)
-        }
-        mostRecentWrite = Option(OffsetDateTime.now())
         rowsCounter.increment()
       })
       _ = rowsCounter.manualLog()
+      _ = sendGauge(rowsPerWorkflowMetricPath, rowsCounter.getTotalCount, ServicesPrefix)
       _ = csvPrinter.close()
       streamingCompleteTime = OffsetDateTime.now()
       _ = sendTiming(archiverStreamTimingMetricsBasePath :+ "stream_data_to_gcs", calculateTimeDifference(csvPrinterCreatedTime, streamingCompleteTime), ServicesPrefix)
@@ -278,7 +274,10 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
     }, 100000)
 
     override def write(b: Int): Unit = byteCounter.increment()
-    override def close(): Unit = byteCounter.manualLog()
+    override def close(): Unit = {
+      byteCounter.manualLog()
+      sendGauge(bytesPerWorkflowMetricPath, byteCounter.getTotalCount, ServicesPrefix)
+    }
     override def flush(): Unit = byteCounter.manualLog()
   }
 }
@@ -329,5 +328,6 @@ object ArchiveMetadataSchedulerActor {
       logFunction(countSinceLog, totalCount)
       countSinceLog = 0
     }
+    def getTotalCount: Long = totalCount
   }
 }

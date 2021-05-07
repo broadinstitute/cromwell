@@ -32,7 +32,7 @@ class DeleteMetadataActor(deleteMetadataConfig: DeleteMetadataConfig,
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val askTimeout: Timeout = new Timeout(60.seconds)
 
-  private val deleterMetricsBasePath: NonEmptyList[String] = MetadataServiceActor.MetadataInstrumentationPrefix :+ "archiver"
+  private val deleterMetricsBasePath: NonEmptyList[String] = MetadataServiceActor.MetadataInstrumentationPrefix :+ "deleter"
   private val rowsDeletedMetricPath: NonEmptyList[String] = deleterMetricsBasePath :+ "rows_deleted"
   private val workflowsDeletedSuccessMetricPath: NonEmptyList[String] = deleterMetricsBasePath :+ "workflows_deleted" :+ "success"
   private val workflowsDeletedFailureMetricPath: NonEmptyList[String] = deleterMetricsBasePath :+ "workflows_deleted" :+ "failure"

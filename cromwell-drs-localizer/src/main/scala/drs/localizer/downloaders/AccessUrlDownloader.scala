@@ -3,6 +3,7 @@ package drs.localizer.downloaders
 import cats.effect.{ExitCode, IO}
 import cloud.nio.impl.drs.AccessUrl
 import com.typesafe.scalalogging.StrictLogging
+import common.util.StringUtil._
 
 import scala.sys.process.{Process, ProcessLogger}
 
@@ -15,9 +16,9 @@ case class AccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String) extend
   }
 
   override def download: IO[ExitCode] = {
-    // We don't want to log the actual signed URL here. On a PAPI backend this log will end up under the user's
+    // We don't want to log the unmasked signed URL here. On a PAPI backend this log will end up under the user's
     // workspace bucket, but that bucket may have visibility different than the data referenced by the signed URL.
-    logger.info(s"Attempting to download data to $downloadLoc from access URL.")
+    logger.info(s"Attempting to download data to '$downloadLoc' from access URL '${accessUrl.url.maskSensitiveUri}'.")
     val copyCommand = Seq("bash", "-c", generateDownloadScript())
     val copyProcess = Process(copyCommand)
 

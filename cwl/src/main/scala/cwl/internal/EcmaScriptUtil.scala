@@ -98,11 +98,11 @@ object EcmaScriptUtil {
                     decoder: CwlEcmaScriptDecoder = new CwlEcmaScriptDecoder): ErrorOr[WomValue] = {
     def evaluate = evalRaw(expr) { (context, scope) =>
 
-      val (key, value) = rawValues
-
-      val jsValue = encoder.encode(value)
-      val field = writeValue(jsValue)(context, scope)
-      ScriptableObject.putProperty(scope, key, field)
+//      val (key, value) = rawValues
+//
+//      val jsValue = encoder.encode(value)
+//      val field = writeValue(jsValue)(context, scope)
+//      ScriptableObject.putProperty(scope, key, field)
 
       val jsMap = mapValues.safeMapValues{ _.safeMapValues(encoder.encode) }
 

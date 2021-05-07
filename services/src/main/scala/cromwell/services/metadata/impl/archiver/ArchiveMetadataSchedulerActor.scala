@@ -251,17 +251,6 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
     ()
   }
 
-  final class TeeingOutputStream(streams: OutputStream*) extends OutputStream {
-    override def write(b: Int): Unit = { streams.foreach(_.write(b)) }
-    override def close(): Unit = { streams.foreach( s =>
-      Try(s.close()).recoverWith { case e =>
-        log.warning("Error while archiving (error in stream.close()): {}", e)
-        Success(())
-      }
-    )}
-    override def flush(): Unit = { streams.foreach(_.flush())}
-  }
-
   final class ByteCountingOutputStream() extends OutputStream {
     val byteCounter = new CounterAndProgressiveLogger( logFunction = (newBytes, totalBytes) => {
       if (archiveMetadataConfig.debugLogging) logger.info(s"Uploaded $newBytes new bytes. Total uploaded is now $totalBytes") else ()
@@ -294,6 +283,12 @@ object ArchiveMetadataSchedulerActor {
 
   def props(archiveMetadataConfig: ArchiveMetadataConfig, serviceRegistryActor: ActorRef): Props =
     Props(new ArchiveMetadataSchedulerActor(archiveMetadataConfig, serviceRegistryActor))
+
+  final class TeeingOutputStream(streams: OutputStream*) extends OutputStream {
+    override def write(b: Int): Unit = { streams.foreach(_.write(b)) }
+    override def close(): Unit = { streams.foreach(_.close())}
+    override def flush(): Unit = { streams.foreach(_.flush())}
+  }
 
   final class Crc32cStream() extends OutputStream {
     private val checksumCalculator = new PureJavaCrc32C()

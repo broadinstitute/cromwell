@@ -15,7 +15,7 @@
     <option name="VM_PARAMETERS" value="-Dconfig.file=target/ci/resources/local_application.conf" />
     <method v="2">
       <option name="Make" enabled="true" />
-      <option name="RunConfigurationTask" enabled="true" run_configuration_name="renderCiResources" run_configuration_type="SbtRunConfiguration" />
+      <option name="RunConfigurationTask" enabled="true" />
     </method>
   </configuration>
 </component>

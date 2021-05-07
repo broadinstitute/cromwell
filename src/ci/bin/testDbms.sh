@@ -16,5 +16,3 @@ CROMWELL_SBT_TEST_SPAN_SCALE_FACTOR="${CROMWELL_BUILD_UNIT_SPAN_SCALE_FACTOR}" \
 cromwell:build::run_sbt_test
 
 cromwell::build::generate_code_coverage
-
-cromwell::build::publish_artifacts

@@ -6,7 +6,7 @@ import java.time.{OffsetDateTime, Duration => JDuration}
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props}
 import akka.pattern.ask
 import akka.util.Timeout
 import cats.data.NonEmptyList
@@ -34,7 +34,6 @@ import slick.basic.DatabasePublisher
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
 import scala.util.{Failure, Success, Try}
 
 
@@ -55,6 +54,8 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
     new AsyncIo(ioActor, DefaultIoCommandBuilder)
   } }
 
+  var scheduledNextWorkflowAction: Option[Cancellable] = None
+
   private val archiverMetricsBasePath: NonEmptyList[String] = MetadataServiceActor.MetadataInstrumentationPrefix :+ "archiver"
   private val rowsProcessedMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "rows_processed"
   private val workflowsProcessedSuccessMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflows_processed" :+ "success"
@@ -69,10 +70,11 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   self ! ArchiveNextWorkflowMessage
 
   // initial schedule for workflows left to archive metric
-  context.system.scheduler.scheduleOnce(archiveMetadataConfig.instrumentationInterval)(workflowsLeftToArchiveMetric())
+  var scheduledMetricAction: Cancellable = context.system.scheduler.scheduleOnce(archiveMetadataConfig.instrumentationInterval)(workflowsLeftToArchiveMetric())
 
   override def receive: Receive = {
     case ArchiveNextWorkflowMessage =>
+      scheduledNextWorkflowAction = None
       val startTime = OffsetDateTime.now()
       def calculateTimeSinceStart() = {
         FiniteDuration(JDuration.between(startTime, OffsetDateTime.now()).toMillis, TimeUnit.MILLISECONDS)
@@ -102,7 +104,10 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
           log.error(error, s"Error while archiving, will retry.")
           scheduleNextWorkflowToArchive()
       })
-    case ShutdownCommand => context.stop(self)  // TODO: cancel any streaming that might be happening?
+    case ShutdownCommand =>
+      scheduledMetricAction.cancel()
+      scheduledNextWorkflowAction.foreach(_.cancel())
+      context.stop(self)  // TODO: cancel any streaming that might be happening?
     case other => log.info(s"Programmer Error! The ArchiveMetadataSchedulerActor received unexpected message! ($sender sent ${other.toPrettyElidedString(1000)}})")
   }
 
@@ -115,12 +120,12 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
       case Success(workflowsToArchive) =>
         sendGauge(workflowsToArchiveMetricPath, workflowsToArchive.longValue(), ServicesPrefix)
         // schedule next workflows left to archive query after interval
-        context.system.scheduler.scheduleOnce(archiveMetadataConfig.instrumentationInterval)(workflowsLeftToArchiveMetric())
+        scheduledMetricAction = context.system.scheduler.scheduleOnce(archiveMetadataConfig.instrumentationInterval)(workflowsLeftToArchiveMetric())
       case Failure(exception) =>
         log.error(exception, s"Something went wrong while fetching number of workflows left to archive. " +
           s"Scheduling next poll in ${archiveMetadataConfig.instrumentationInterval}.")
         // schedule next workflows left to archive query after interval
-        context.system.scheduler.scheduleOnce(archiveMetadataConfig.instrumentationInterval)(workflowsLeftToArchiveMetric())
+        scheduledMetricAction = context.system.scheduler.scheduleOnce(archiveMetadataConfig.instrumentationInterval)(workflowsLeftToArchiveMetric())
     })
   }
 
@@ -216,14 +221,17 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   }
 
   def scheduleNextWorkflowToArchive(): Unit = {
-    context.system.scheduler.scheduleOnce(archiveMetadataConfig.backoffInterval)(self ! ArchiveNextWorkflowMessage)
+    scheduledNextWorkflowAction = Option(context.system.scheduler.scheduleOnce(archiveMetadataConfig.backoffInterval)(self ! ArchiveNextWorkflowMessage))
     ()
   }
 
   final class TeeingOutputStream(streams: OutputStream*) extends OutputStream {
     override def write(b: Int): Unit = { streams.foreach(_.write(b)) }
     override def close(): Unit = { streams.foreach( s =>
-      Try(s.close()).recover { case e => log.warning("Error while archiving (error in stream.close())", e) }
+      Try(s.close()).recoverWith { case e =>
+        log.warning("Error while archiving (error in stream.close()): {}", e)
+        Success(())
+      }
     )}
     override def flush(): Unit = { streams.foreach(_.flush())}
   }

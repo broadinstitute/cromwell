@@ -1,6 +1,6 @@
 package cromwell.webservice.routes
 
-import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
+import akka.actor.{Actor, ActorRef, ActorRefFactory, ActorSystem, Props}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.model._
@@ -10,28 +10,28 @@ import com.typesafe.scalalogging.StrictLogging
 import common.util.VersionUtil
 import cromwell.core._
 import cromwell.core.abort.{WorkflowAbortFailureResponse, WorkflowAbortRequestedResponse, WorkflowAbortedResponse}
-import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor._
 import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{WorkflowOnHoldToSubmittedFailure, WorkflowOnHoldToSubmittedSuccess}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
+import cromwell.services._
 import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse, SubsystemStatus}
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.metadata.MetadataArchiveStatus._
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
-import cromwell.services._
 import cromwell.services.womtool.WomtoolServiceMessages.{DescribeFailure, DescribeRequest, DescribeSuccess}
 import cromwell.services.womtool.models.WorkflowDescription
 import cromwell.util.SampleWdl.HelloWorld
+import cromwell.webservice.FailureResponse
 import cromwell.webservice.WorkflowJsonSupport._
-import cromwell.webservice.{EngineStatsActor, FailureResponse}
 import mouse.boolean._
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import spray.json._
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with Matchers {
@@ -40,7 +40,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
   val akkaHttpService = new MockApiService()
   val version = "v1"
 
-  implicit def default = RouteTestTimeout(5.seconds)
+  implicit def default: RouteTestTimeout = RouteTestTimeout(5.seconds)
 
   "REST ENGINE /stats endpoint" should "no longer return 200 for stats" in {
     Get(s"/engine/$version/stats") ~>
@@ -514,19 +514,20 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
 }
 
 object CromwellApiServiceSpec {
-  val ExistingWorkflowId = WorkflowId.fromString("c4c6339c-8cc9-47fb-acc5-b5cb8d2809f5")
-  val AbortedWorkflowId = WorkflowId.fromString("0574111c-c7d3-4145-8190-7a7ed8e8324a")
-  val UnrecognizedWorkflowId = WorkflowId.fromString("2bdd06cc-e794-46c8-a897-4c86cedb6a06")
-  val OnHoldWorkflowId = WorkflowId.fromString("fe6dbaf6-e15c-4438-813c-479b35867142")
-  val SubmittedWorkflowId = WorkflowId.fromString("1d4ec2e2-7c1c-407d-9be8-75b39ab72dfd")
-  val RunningWorkflowId = WorkflowId.fromString("dcfea0ab-9a3e-4bc0-ab82-794a37c4d484")
-  val AbortingWorkflowId = WorkflowId.fromString("2e3503f5-24f5-4a01-a4d1-bb1088bb5c1e")
-  val SucceededWorkflowId = WorkflowId.fromString("0cb43b8c-0259-4a19-b7fe-921ced326738")
-  val FailedWorkflowId = WorkflowId.fromString("df501790-cef5-4df7-9b48-8760533e3136")
-  val SummarizedWorkflowId = WorkflowId.fromString("f0000000-0000-0000-0000-000000000000")
-  val WorkflowIdExistingOnlyInSummaryTable = WorkflowId.fromString("f0000000-0000-0000-0000-000000000011")
-  val ArchivedWorkflowId = WorkflowId.fromString("c4c6339c-2145-47fb-acc5-b5cb8d2809f5")
-  val ArchivedAndDeletedWorkflowId = WorkflowId.fromString("abc1234d-2145-47fb-acc5-b5cb8d2809f5")
+  val ExistingWorkflowId: WorkflowId = WorkflowId.fromString("c4c6339c-8cc9-47fb-acc5-b5cb8d2809f5")
+  val AbortedWorkflowId: WorkflowId = WorkflowId.fromString("0574111c-c7d3-4145-8190-7a7ed8e8324a")
+  val UnrecognizedWorkflowId: WorkflowId = WorkflowId.fromString("2bdd06cc-e794-46c8-a897-4c86cedb6a06")
+  val OnHoldWorkflowId: WorkflowId = WorkflowId.fromString("fe6dbaf6-e15c-4438-813c-479b35867142")
+  val SubmittedWorkflowId: WorkflowId = WorkflowId.fromString("1d4ec2e2-7c1c-407d-9be8-75b39ab72dfd")
+  val RunningWorkflowId: WorkflowId = WorkflowId.fromString("dcfea0ab-9a3e-4bc0-ab82-794a37c4d484")
+  val AbortingWorkflowId: WorkflowId = WorkflowId.fromString("2e3503f5-24f5-4a01-a4d1-bb1088bb5c1e")
+  val SucceededWorkflowId: WorkflowId = WorkflowId.fromString("0cb43b8c-0259-4a19-b7fe-921ced326738")
+  val FailedWorkflowId: WorkflowId = WorkflowId.fromString("df501790-cef5-4df7-9b48-8760533e3136")
+  val SummarizedWorkflowId: WorkflowId = WorkflowId.fromString("f0000000-0000-0000-0000-000000000000")
+  val WorkflowIdExistingOnlyInSummaryTable: WorkflowId =
+    WorkflowId.fromString("f0000000-0000-0000-0000-000000000011")
+  val ArchivedWorkflowId: WorkflowId = WorkflowId.fromString("c4c6339c-2145-47fb-acc5-b5cb8d2809f5")
+  val ArchivedAndDeletedWorkflowId: WorkflowId = WorkflowId.fromString("abc1234d-2145-47fb-acc5-b5cb8d2809f5")
   val SummarizedWorkflowIds = Set(
     SummarizedWorkflowId,
     WorkflowIdExistingOnlyInSummaryTable,
@@ -547,13 +548,12 @@ object CromwellApiServiceSpec {
   )
 
   class MockApiService()(implicit val system: ActorSystem) extends CromwellApiService {
-    override def actorRefFactory = system
+    override def actorRefFactory: ActorRefFactory = system
 
-    override val materializer = ActorMaterializer()
-    override val ec = system.dispatcher
-    override val workflowStoreActor = actorRefFactory.actorOf(Props(new MockWorkflowStoreActor()))
-    override val serviceRegistryActor = actorRefFactory.actorOf(Props(new MockServiceRegistryActor()))
-    override val workflowManagerActor = actorRefFactory.actorOf(Props(new MockWorkflowManagerActor()))
+    override val materializer: ActorMaterializer = ActorMaterializer()
+    override val ec: ExecutionContext = system.dispatcher
+    override val workflowStoreActor: ActorRef = actorRefFactory.actorOf(Props(new MockWorkflowStoreActor()))
+    override val serviceRegistryActor: ActorRef = actorRefFactory.actorOf(Props(new MockServiceRegistryActor()))
   }
 
   object MockServiceRegistryActor {
@@ -575,10 +575,10 @@ object CromwellApiServiceSpec {
       MetadataBuilderActor.workflowMetadataResponse(workflowId, events, includeCallsIfEmpty = false, Map.empty)
     }
 
-    def metadataQuery(workflowId: WorkflowId) =
+    def metadataQuery(workflowId: WorkflowId): MetadataQuery =
       MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)
 
-    def logsEvents(id: WorkflowId) = {
+    def logsEvents(id: WorkflowId): Vector[MetadataEvent] = {
       val stdout = MetadataEvent(MetadataKey(id, Some(MetadataJobKey("mycall", None, 1)), CallMetadataKeys.Stdout), MetadataValue("stdout.txt", MetadataString))
       val stderr = MetadataEvent(MetadataKey(id, Some(MetadataJobKey("mycall", None, 1)), CallMetadataKeys.Stderr), MetadataValue("stderr.txt", MetadataString))
       val backend = MetadataEvent(MetadataKey(id, Some(MetadataJobKey("mycall", None, 1)), s"${CallMetadataKeys.BackendLogsPrefix}:log"), MetadataValue("backend.log", MetadataString))
@@ -589,7 +589,7 @@ object CromwellApiServiceSpec {
   class MockServiceRegistryActor extends Actor with StrictLogging {
     import MockServiceRegistryActor._
 
-    override def receive = {
+    override def receive: Receive = {
       case QueryForWorkflowsMatchingParameters(parameters) =>
         val labels: Option[Map[String, String]] = {
           parameters.contains(("additionalQueryResultFields", "labels")).option(
@@ -669,7 +669,7 @@ object CromwellApiServiceSpec {
   }
 
   class MockWorkflowStoreActor extends Actor {
-    override def receive = {
+    override def receive: Receive = {
       case command: WorkflowOnHoldToSubmittedCommand if command.id == ExistingWorkflowId =>
         sender ! WorkflowOnHoldToSubmittedSuccess(command.id)
       case command: WorkflowOnHoldToSubmittedCommand if command.id == UnrecognizedWorkflowId =>
@@ -687,18 +687,6 @@ object CromwellApiServiceSpec {
         }
         sender ! message
       case GetWorkflowStoreStats => sender ! Map(WorkflowRunning -> 5, WorkflowSubmitted -> 3, WorkflowAborting -> 2)
-    }
-  }
-  
-  class MockWorkflowManagerActor extends Actor with ActorLogging {
-    override def receive: Receive = {
-      case WorkflowManagerActor.EngineStatsCommand =>
-        val response = EngineStatsActor.EngineStats(1, 23)
-        sender ! response
-      case unexpected =>
-        val sndr = sender()
-        log.error(s"Unexpected message {} from {}", unexpected, sndr)
-        sender ! s"Unexpected message received: $unexpected"
     }
   }
 }

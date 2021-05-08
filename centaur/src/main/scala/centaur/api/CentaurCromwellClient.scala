@@ -73,6 +73,10 @@ object CentaurCromwellClient extends StrictLogging {
     sendReceiveFutureCompletion(() => cromwellClient.abort(workflow.id))
   }
 
+  def clearCachedResults(workflowId: WorkflowId): IO[Unit] = {
+    sendReceiveFutureCompletion(() => cromwellClient.callCacheInvalidate(workflowId))
+  }
+
   def outputs(workflow: SubmittedWorkflow): IO[WorkflowOutputs] = {
     sendReceiveFutureCompletion(() => cromwellClient.outputs(workflow.id))
   }

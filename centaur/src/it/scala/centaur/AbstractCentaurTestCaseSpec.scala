@@ -6,11 +6,13 @@ import cats.effect.IO
 import cats.instances.list._
 import cats.syntax.flatMap._
 import cats.syntax.traverse._
+import centaur.api.CentaurCromwellClient
 import centaur.reporting.{ErrorReporters, SuccessReporters, TestEnvironment}
 import centaur.test.CentaurTestException
 import centaur.test.standard.CentaurTestCase
 import centaur.test.submit.{SubmitResponse, SubmitWorkflowResponse}
 import centaur.test.workflow.WorkflowData
+import cromwell.api.model.WorkflowId
 import org.scalatest._
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -64,11 +66,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
     // Make tags, but enforce lowercase:
     val tags = (testCase.testOptions.tags :+ testCase.workflow.testName :+ testCase.testFormat.name) map { x => Tag(x.toLowerCase) }
     val isIgnored = testCase.isIgnored(cromwellBackends)
-    val retries =
-      // in this case retrying may end up to be waste of time if some tasks have been cached on previous test attempts
-      if (testCase.reliesOnCallCachingMetadataVerification) 0
-      else if (testCase.workflow.retryTestFailures) ErrorReporters.retryAttempts
-      else 0
+    val retries = ErrorReporters.retryAttempts
 
     runOrDont(nameTest, tags, isIgnored, retries, runTestAndDeleteZippedImports())
   }
@@ -178,6 +176,11 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
       for {
         _ <- ErrorReporters.logFailure(testEnvironment, centaurTestException)
         r <- if (attempt < retries) {
+          centaurTestException
+            .workflowIdOption
+            .map(WorkflowId.fromString)
+            .map(CentaurCromwellClient.clearCachedResults)
+            .getOrElse(IO.unit) *>
           tryTryAgain(testName, runTest, retries, attempt + 1)
         } else {
           IO.raiseError(centaurTestException)

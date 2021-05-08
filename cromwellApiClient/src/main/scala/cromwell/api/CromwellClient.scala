@@ -1,7 +1,6 @@
 package cromwell.api
 
 import java.net.URL
-
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.coding.{Deflate, Gzip, NoCoding}
@@ -11,7 +10,7 @@ import akka.http.scaladsl.model.headers.{Authorization, HttpCredentials, HttpEnc
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
-import cats.effect.IO
+import cats.effect.{ContextShift, IO}
 import cromwell.api.CromwellClient._
 import cromwell.api.model._
 import spray.json._
@@ -31,7 +30,7 @@ class CromwellClient(val cromwellUrl: URL,
   lazy val womtoolEndpoint = s"$cromwellUrl/api/womtool/$apiVersion"
   // Everything else is a suffix off the submit endpoint:
 
-  lazy val submitEndpoint = workflowsEndpoint
+  lazy val submitEndpoint: String = workflowsEndpoint
   lazy val batchSubmitEndpoint = s"$submitEndpoint/batch"
   def describeEndpoint= s"$womtoolEndpoint/describe"
 
@@ -57,6 +56,8 @@ class CromwellClient(val cromwellUrl: URL,
     def shardParam(aOrB: String, s: ShardIndex) = s.index.map(i => s"&index$aOrB=$i.toString").getOrElse("")
     s"$workflowsEndpoint/callcaching/diff?workflowA=$workflowA&callA=$callA&workflowB=$workflowB&callB=$callB${shardParam("A", indexA)}${shardParam("B", indexB)}"
   }
+  def callCachingEndpoint(workflowId: WorkflowId): Uri =
+    workflowSpecificGetEndpoint(workflowsEndpoint, workflowId, "callcaching")
   lazy val backendsEndpoint = s"$workflowsEndpoint/backends"
   lazy val versionEndpoint = s"$engineEndpoint/version"
 
@@ -163,6 +164,10 @@ class CromwellClient(val cromwellUrl: URL,
     simpleRequest[CallCacheDiff](diffEndpoint(workflowA, callA, shardIndexA, workflowB, callB, shardIndexB))
   }
 
+  def callCacheInvalidate(workflowId: WorkflowId)(implicit ec: ExecutionContext): FailureResponseOrT[Unit] = {
+    simpleRequest[String](uri = callCachingEndpoint(workflowId), method = HttpMethods.DELETE) map (_ => ())
+  }
+
   def backends(implicit ec: ExecutionContext): FailureResponseOrT[CromwellBackends] = {
     simpleRequest[CromwellBackends](backendsEndpoint)
   }
@@ -180,7 +185,7 @@ class CromwellClient(val cromwellUrl: URL,
   private def makeRequest[A](request: HttpRequest, headers: List[HttpHeader] = defaultHeaders)
                             (implicit um: Unmarshaller[ResponseEntity, A], ec: ExecutionContext):
   FailureResponseOrT[A] = {
-    implicit def cs = IO.contextShift(ec)
+    implicit def cs: ContextShift[IO] = IO.contextShift(ec)
     for {
       response <- executeRequest(request, headers).asFailureResponseOrT
       decoded <- FailureResponseOrT.right(decodeResponse(response))

@@ -94,18 +94,26 @@ class CallCache(database: CallCachingSqlDatabase) {
     database.callCacheJoinForCall(workflowUuid, callFqn, index)
   }
 
-  def invalidate(callCachingEntryId: CallCachingEntryId)(implicit ec: ExecutionContext) = {
+  def invalidate(callCachingEntryId: CallCachingEntryId)
+                (implicit ec: ExecutionContext): Future[Option[CallCachingEntry]] = {
     database.invalidateCall(callCachingEntryId.id)
   }
 
-  def callCacheEntryIdsForWorkflowId(workflowId: String)(implicit ec: ExecutionContext) = {
+  def invalidate(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Unit] = {
+    database.invalidateCallCacheEntryIdsForWorkflowId(workflowId.id.toString)
+  }
+
+  def callCacheEntryIdsForWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Seq[Int]] = {
     database.callCacheEntryIdsForWorkflowId(workflowId)
   }
 }
 
 object CallCache {
   object CallCacheHashBundle {
-    def apply(workflowId: WorkflowId, callCacheHashes: CallCacheHashes, jobSucceededResponse: JobSucceededResponse) = {
+    def apply(workflowId: WorkflowId,
+              callCacheHashes: CallCacheHashes,
+              jobSucceededResponse: JobSucceededResponse,
+             ): CallCacheHashBundle = {
       new CallCacheHashBundle(
         workflowId = workflowId,
         callCacheHashes = callCacheHashes,
@@ -119,7 +127,10 @@ object CallCache {
       )
     }
 
-    def apply(workflowId: WorkflowId, callCacheHashes: CallCacheHashes, jobFailedNonRetryableResponse: JobFailedNonRetryableResponse) = {
+    def apply(workflowId: WorkflowId,
+              callCacheHashes: CallCacheHashes,
+              jobFailedNonRetryableResponse: JobFailedNonRetryableResponse,
+             ): CallCacheHashBundle = {
       new CallCacheHashBundle(
         workflowId = workflowId,
         callCacheHashes = callCacheHashes,

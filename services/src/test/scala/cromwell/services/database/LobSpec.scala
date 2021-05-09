@@ -1,7 +1,5 @@
 package cromwell.services.database
 
-import java.time.OffsetDateTime
-
 import com.dimafeng.testcontainers.Container
 import common.assertion.CromwellTimeoutSpec
 import cromwell.core.Tags._
@@ -9,19 +7,21 @@ import cromwell.core.WorkflowId
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.JobStoreJoin
 import cromwell.database.sql.tables.{JobStoreEntry, JobStoreSimpletonEntry, WorkflowStoreEntry}
-import javax.sql.rowset.serial.SerialBlob
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.time.OffsetDateTime
+import javax.sql.rowset.serial.SerialBlob
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 class LobSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures {
 
-  implicit val executionContext = ExecutionContext.global
+  implicit val executionContext: ExecutionContext = ExecutionContext.global
 
-  implicit val defaultPatience = PatienceConfig(timeout = scaled(5.seconds), interval = scaled(100.millis))
+  implicit val defaultPatience: PatienceConfig =
+    PatienceConfig(timeout = scaled(5.seconds), interval = scaled(100.millis))
 
   DatabaseSystem.All foreach { databaseSystem =>
 
@@ -35,7 +35,7 @@ class LobSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Sc
       containerOpt.foreach { _.start }
     }
 
-    it should "fail to store and retrieve empty blobs" taggedAs DbmsTest in {
+    it should "store empty blobs" taggedAs DbmsTest in {
       // See notes in BytesToBlobOption
       import eu.timepit.refined.auto._
       val clob = "".toClob(default = "{}")

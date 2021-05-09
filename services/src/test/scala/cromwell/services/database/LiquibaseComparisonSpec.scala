@@ -25,16 +25,18 @@ import scala.reflect._
   */
 class LiquibaseComparisonSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures {
 
-  implicit val executionContext = ExecutionContext.global
+  implicit val executionContext: ExecutionContext = ExecutionContext.global
 
-  implicit val defaultPatience = PatienceConfig(timeout = scaled(5.seconds), interval = scaled(100.millis))
+  implicit val defaultPatience: PatienceConfig =
+    PatienceConfig(timeout = scaled(5.seconds), interval = scaled(100.millis))
 
   CromwellDatabaseType.All foreach { databaseType =>
+
     lazy val expectedSnapshot = DatabaseTestKit.inMemorySnapshot(databaseType, SlickSchemaManager)
-    lazy val expectedColumns = get[Column](expectedSnapshot)
-    lazy val expectedPrimaryKeys = get[PrimaryKey](expectedSnapshot)
-    lazy val expectedForeignKeys = get[ForeignKey](expectedSnapshot)
-    lazy val expectedUniqueConstraints = get[UniqueConstraint](expectedSnapshot)
+    lazy val expectedColumns = get[Column](expectedSnapshot).sorted
+    lazy val expectedPrimaryKeys = get[PrimaryKey](expectedSnapshot).sorted
+    lazy val expectedForeignKeys = get[ForeignKey](expectedSnapshot).sorted
+    lazy val expectedUniqueConstraints = get[UniqueConstraint](expectedSnapshot).sorted
     lazy val expectedIndexes = get[Index](expectedSnapshot) filterNot DatabaseTestKit.isGenerated
 
     DatabaseSystem.All foreach { databaseSystem =>
@@ -80,7 +82,8 @@ class LiquibaseComparisonSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
               // Auto increment columns may have different types, such as SERIAL/BIGSERIAL
               // https://www.postgresql.org/docs/11/datatype-numeric.html#DATATYPE-SERIAL
               val actualColumnDefault = ColumnDefault(actualColumnType, actualColumn.getDefaultValue)
-              val autoIncrementDefault = getAutoIncrementDefault(databaseSystem, columnMapping, expectedColumn)
+              val autoIncrementDefault =
+                getAutoIncrementDefault(expectedColumn, columnMapping, databaseSystem, connectionMetadata)
               actualColumnDefault should be(autoIncrementDefault)
             } else {
 
@@ -162,6 +165,8 @@ class LiquibaseComparisonSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
           }
           val actualForeignKey = actualForeignKeyOption getOrElse fail(s"Did not find $description")
 
+          actualForeignKey.getPrimaryKeyTable.getName should be(expectedForeignKey.getPrimaryKeyTable.getName)
+          actualForeignKey.getForeignKeyTable.getName should be(expectedForeignKey.getForeignKeyTable.getName)
           actualForeignKey.getPrimaryKeyColumns.asScala.map(ColumnDescription.from) should
             contain theSameElementsAs expectedForeignKey.getPrimaryKeyColumns.asScala.map(ColumnDescription.from)
           actualForeignKey.getForeignKeyColumns.asScala.map(ColumnDescription.from) should
@@ -194,6 +199,7 @@ class LiquibaseComparisonSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
           val actualUniqueConstraint = actualUniqueConstraintOption getOrElse
             fail(s"Did not find $description")
 
+          actualUniqueConstraint.getRelation.getName should be(expectedUniqueConstraint.getRelation.getName)
           actualUniqueConstraint.getColumns.asScala.map(ColumnDescription.from) should
             contain theSameElementsAs expectedUniqueConstraint.getColumns.asScala.map(ColumnDescription.from)
         }
@@ -228,7 +234,7 @@ class LiquibaseComparisonSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
 object LiquibaseComparisonSpec {
   private def get[T <: DatabaseObject : ClassTag : Ordering](databaseSnapshot: DatabaseSnapshot): Seq[T] = {
     val databaseObjectClass = classTag[T].runtimeClass.asInstanceOf[Class[T]]
-    databaseSnapshot.get(databaseObjectClass).asScala.toSeq.sorted
+    databaseSnapshot.get(databaseObjectClass).asScala.toSeq
   }
 
   private val DefaultNullBoolean = Boolean.box(false)
@@ -276,8 +282,8 @@ object LiquibaseComparisonSpec {
 
   case class ColumnMapping
   (
-    typeMapping: Map[ColumnType, ColumnType] = Map.empty,
-    defaultMapping: Map[ColumnDefault, ColumnDefault] = Map.empty,
+    typeMapping: PartialFunction[ColumnType, ColumnType] = PartialFunction.empty,
+    defaultMapping: Map[ColumnDefault, AnyRef] = Map.empty,
   )
 
   /** Generate the expected PostgreSQL sequence name for a column. */
@@ -315,6 +321,9 @@ object LiquibaseComparisonSpec {
   private val HsqldbTypeInteger = ColumnType("INTEGER", Option(32))
   private val HsqldbTypeTimestamp = ColumnType("TIMESTAMP")
 
+  // Defaults as they are represented in HSQLDB that will have different representations in other DBMS.
+  private val HsqldbDefaultBooleanTrue = ColumnDefault(HsqldbTypeBoolean, Boolean.box(true))
+
   // Nothing to map as the original is also HSQLDB
   private val HsqldbColumnMapping = ColumnMapping()
 
@@ -331,13 +340,25 @@ object LiquibaseComparisonSpec {
       HsqldbTypeTimestamp -> ColumnType("DATETIME"),
     ),
     defaultMapping = Map(
-      ColumnDefault(HsqldbTypeBoolean, Boolean.box(true)) ->
-        ColumnDefault(ColumnType("TINYINT", Option(3)), Int.box(1)),
+      HsqldbDefaultBooleanTrue -> Int.box(1)
     ),
   )
 
-  // MariaDB should behave exactly the same as MySQL
-  private val MariadbColumnMapping = MysqldbColumnMapping
+  // MariaDB should behave similar to MySQL except that only LOBs have sizes
+  private val MariadbColumnMapping =
+    ColumnMapping(
+      typeMapping = Map(
+        HsqldbTypeBigInt -> ColumnType("BIGINT"),
+        HsqldbTypeBlob -> ColumnType("LONGBLOB", Option(2147483647)),
+        HsqldbTypeBoolean -> ColumnType("TINYINT"),
+        HsqldbTypeClob -> ColumnType("LONGTEXT", Option(2147483647)),
+        HsqldbTypeInteger -> ColumnType("INT"),
+        HsqldbTypeTimestamp -> ColumnType("DATETIME"),
+      ),
+      defaultMapping = Map(
+        HsqldbDefaultBooleanTrue -> Int.box(1),
+      ),
+    )
 
   private val PostgresqlColumnMapping =
     ColumnMapping(
@@ -367,24 +388,26 @@ object LiquibaseComparisonSpec {
     */
   private def getColumnType(column: Column, columnMapping: ColumnMapping): ColumnType = {
     val columnType = ColumnType.from(column)
-    columnMapping.typeMapping.getOrElse(columnType, columnType)
+    columnMapping.typeMapping.applyOrElse[ColumnType, ColumnType](columnType, _ => columnType)
   }
 
   /**
     * Returns the default for the column, either from ColumnMapping or the column itself.
     */
   private def getColumnDefault(column: Column, columnMapping: ColumnMapping): AnyRef = {
-    columnMapping.defaultMapping get ColumnDefault.from(column) map (_.defaultValue) getOrElse column.getDefaultValue
+    columnMapping.defaultMapping.getOrElse(ColumnDefault.from(column), column.getDefaultValue)
   }
 
   /**
     * Return the default for the auto increment column.
     */
-  private def getAutoIncrementDefault(databaseSystem: DatabaseSystem,
+  private def getAutoIncrementDefault(column: Column,
                                       columnMapping: ColumnMapping,
-                                      column: Column): ColumnDefault = {
+                                      databaseSystem: DatabaseSystem,
+                                      connectionMetadata: ConnectionMetadata,
+                                     ): ColumnDefault = {
     databaseSystem.platform match {
-      case PostgresqlDatabasePlatform =>
+      case PostgresqlDatabasePlatform if connectionMetadata.databaseMajorVersion <= 9 =>
         val columnType = column.getType.getTypeName match {
           case "BIGINT" => ColumnType("BIGSERIAL", None)
           case "INTEGER" => ColumnType("SERIAL", None)
@@ -441,8 +464,8 @@ object LiquibaseComparisonSpec {
   /**
     * Returns an optional extra check to ensure that sequences have the same types as their auto increment columns.
     *
-    * This is because PostgreSQL requires two statements to modify SERIAL columns to BIGSERIAL, one to widen the column,
-    * and another to widen the sequence.
+    * This is because PostgreSQL <= 9 requires two statements to modify SERIAL columns to BIGSERIAL, one to widen the
+    * column, and another to widen the sequence.
     *
     * https://stackoverflow.com/questions/52195303/postgresql-primary-key-id-datatype-from-serial-to-bigserial#answer-52195920
     * https://www.postgresql.org/docs/11/datatype-numeric.html#DATATYPE-SERIAL
@@ -455,8 +478,6 @@ object LiquibaseComparisonSpec {
       case PostgresqlDatabasePlatform if column.isAutoIncrement && connectionMetadata.databaseMajorVersion <= 9 =>
         // "this is currently always bigint" --> https://www.postgresql.org/docs/9.6/infoschema-sequences.html
         Option("bigint")
-      case PostgresqlDatabasePlatform if column.isAutoIncrement =>
-        Option(column.getType.getTypeName.toLowerCase)
       case _ => None
     }
   }
@@ -467,8 +488,8 @@ object LiquibaseComparisonSpec {
     import database.dataAccess.driver.api._
     databaseSystem.platform match {
       case PostgresqlDatabasePlatform if column.isAutoIncrement =>
-          //noinspection SqlDialectInspection
-          sql"""select data_type
+        //noinspection SqlDialectInspection
+        sql"""select data_type
               from INFORMATION_SCHEMA.sequences
               where sequence_name = '#${postgresqlSeqName(column)}'
            """.as[String].head

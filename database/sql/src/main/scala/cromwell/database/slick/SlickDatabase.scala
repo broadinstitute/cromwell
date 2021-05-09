@@ -228,7 +228,7 @@ abstract class SlickDatabase(override val originalDatabaseConfig: Config) extend
               Instead resorting to reflection.
                */
               val message = pSQLException.getServerErrorMessage
-              val field = classOf[ServerErrorMessage].getDeclaredField("m_mesgParts")
+              val field = classOf[ServerErrorMessage].getDeclaredField("mesgParts")
               field.setAccessible(true)
               val parts = field.get(message).asInstanceOf[java.util.Map[Character, String]]
               parts.remove('D')

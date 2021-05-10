@@ -1,5 +1,13 @@
 # Cromwell Change Log
 
+## 63 Release Notes
+
+### Removed refresh token authentication mode
+
+Google Pipelines API v1 supported authentication with refresh tokens, while v2 of the API does not.
+
+Now that v1 has been discontinued and shut down, this version of Cromwell removes support for refresh tokens.
+
 ## 61 Release Notes
 
 ### No labels update for Archived workflows

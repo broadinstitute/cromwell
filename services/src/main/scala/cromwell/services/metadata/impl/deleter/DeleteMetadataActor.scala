@@ -85,9 +85,9 @@ class DeleteMetadataActor(deleteMetadataConfig: DeleteMetadataConfig,
   def workflowsLeftToDeleteMetric(): Unit = {
     val currentTimestampMinusDelay = OffsetDateTime.now().minusSeconds(deleteMetadataConfig.delayAfterWorkflowCompletion.toSeconds)
     countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(currentTimestampMinusDelay).onComplete({
-      case Success(workflowsToArchive) =>
-        sendGauge(workflowsToDeleteMetricPath, workflowsToArchive.longValue(), ServicesPrefix)
-        // schedule next workflows left to archive query after interval
+      case Success(workflowsToDelete) =>
+        sendGauge(workflowsToDeleteMetricPath, workflowsToDelete.longValue(), ServicesPrefix)
+        // schedule next workflows left to delete query after interval
         context.system.scheduler.scheduleOnce(deleteMetadataConfig.instrumentationInterval)(workflowsLeftToDeleteMetric())
       case Failure(exception) =>
         log.error(exception, s"Something went wrong while fetching number of workflows left to delete. " +

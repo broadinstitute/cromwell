@@ -92,7 +92,7 @@ class DeleteMetadataActor(deleteMetadataConfig: DeleteMetadataConfig,
       case Failure(exception) =>
         log.error(exception, s"Something went wrong while fetching number of workflows left to delete. " +
           s"Scheduling next poll in ${deleteMetadataConfig.instrumentationInterval}.")
-        // schedule next workflows left to archive query after interval
+        // schedule next workflows left to delete query after interval
         context.system.scheduler.scheduleOnce(deleteMetadataConfig.instrumentationInterval)(workflowsLeftToDeleteMetric())
     })
   }

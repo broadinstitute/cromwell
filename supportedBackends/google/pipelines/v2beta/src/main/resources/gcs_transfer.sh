@@ -380,20 +380,29 @@ egress_check() {
   local max_attempts="$2"
   shift 2
 
+  declare -A multi_regions=(
+    [asia]=1 [eu]=1 [us]=1
+  )
+  declare -A dual_regions=(
+    [asia1]=1 [eur4]=1 [nam4]=1
+  )
+
+  declare -A buckets
   while [[ $# -gt 0 ]]; do
     cloud_file="$1"
+    bucket_name="$(echo "${cloud_file}" | cut -d "/" -f3)"
+    buckets["${bucket_name}"]=1
     shift
+  done
 
+  for bucket_name in "${!buckets[@]}"; do
     # What if cloud_file is an authorized url?
     # We likely couldn't handle this as we may not have permission to get bucket metadata (for location lookup)
 
-    # Can avoid repeated lookups by checking this bucket once
-    # declare -A MYMAP
-    bucket="$(echo "${cloud_file}" | cut -d "/" -f3)"
     # bucket_location will be either a region (e.g. us-central1), dual-region (e.g. nam4), or a multi-region (e.g. US)
     # We may have access to the object, but not the bucket metadata. So we may not be able to get bucket location
     # In this case, Cromwell should determine (based on a flag) whether to proceed or hard-fail. Should default to a "best-effort".
-    bucket_location="$(gsutil ls -L -b "gs://${bucket}" | grep "Location constraint" | awk '{print $3}')"
+    bucket_location="$(gsutil ls -L -b "gs://${bucket_name}" | grep "Location constraint" | awk '{print $3}')"
 
     curl_output="$(curl "http://metadata.google.internal/computeMetadata/v1/instance/zone" -H "Metadata-Flavor: Google")"
     vm_location_zone="$(basename ${curl_output})"

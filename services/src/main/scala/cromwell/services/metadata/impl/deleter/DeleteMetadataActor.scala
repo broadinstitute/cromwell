@@ -67,7 +67,7 @@ class DeleteMetadataActor(deleteMetadataConfig: DeleteMetadataConfig,
           sendGauge(workflowsToDeleteMetricPath, 0L, ServicesPrefix)
           sendTiming(workflowDeleteTotalTimeMetricPath, calculateTimeSinceStart(), ServicesPrefix)
           scheduleNextDeleteAttemptAfterInterval()
-          if (deleteMetadataConfig.debugLogging) log.info(s"No complete workflows which finished over ${deleteMetadataConfig.delayAfterWorkflowCompletion} ago remain to be archived. Scheduling next poll in ${deleteMetadataConfig.backoffInterval}.")
+          if (deleteMetadataConfig.debugLogging) log.info(s"No archived workflows which finished over ${deleteMetadataConfig.delayAfterWorkflowCompletion} ago remain to be deleted. Scheduling next poll in ${deleteMetadataConfig.backoffInterval}.")
         case Failure(error) =>
           count(rowsDeletedMetricPath, 0L, ServicesPrefix)
           count(workflowsDeletedSuccessMetricPath, 0L, ServicesPrefix)

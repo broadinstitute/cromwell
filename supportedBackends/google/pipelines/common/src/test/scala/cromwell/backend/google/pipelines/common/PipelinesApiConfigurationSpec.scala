@@ -129,21 +129,6 @@ class PipelinesApiConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec
     dockerConf.get.token shouldBe "dockerToken"
   }
 
-  it should "correctly default allowNoAddress to true" in {
-    val noAddressConf = new PipelinesApiConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig), genomicsFactory, googleConfiguration, papiAttributes)
-    noAddressConf.papiAttributes.allowNoAddress should be(true)
-  }
-
-  it should "be able to set allowNoAddress to false" in {
-    val updatedBackendConfig = backendConfig.withValue(
-      PipelinesApiConfigurationAttributes.allowNoAddressAttributeKey,
-      ConfigValueFactory.fromAnyRef(false)
-    )
-    val updatedPapiAttributes = PipelinesApiConfigurationAttributes(googleConfiguration, updatedBackendConfig, "papi")
-    val noAddressConf = new PipelinesApiConfiguration(BackendConfigurationDescriptor(updatedBackendConfig, globalConfig), genomicsFactory, googleConfiguration, updatedPapiAttributes)
-    noAddressConf.papiAttributes.allowNoAddress should be(false)
-  }
-
   it should "have correct needAuthFileUpload" in {
     val configs = Table(
       ("backendConfig", "globalConfig"),

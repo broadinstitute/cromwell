@@ -18,7 +18,7 @@ trait PipelineInfoBuilder {
     val docker = new DockerExecutor()
     docker.setImageName(dockerImage).setCmd(commandLine)
   }
-  
+
   def setGpu(resources: PipelineResources, runtimeAttributes: PipelinesApiRuntimeAttributes) = {
     runtimeAttributes.gpuResource match {
       case Some(GpuResource(gpuType, gpuCount, _)) => resources
@@ -36,7 +36,7 @@ trait PipelineInfoBuilder {
       .setZones(runtimeAttributes.zones.asJava)
       .setDisks(runtimeAttributes.disks.map(_.toGoogleDisk).asJava)
       .setBootDiskSizeGb(runtimeAttributes.bootDiskSize)
-      .setNoAddress(createPipelineParameters.effectiveNoAddressValue)
+      .setNoAddress(createPipelineParameters.runtimeAttributes.noAddress)
 
       setGpu(resources, runtimeAttributes)
   }

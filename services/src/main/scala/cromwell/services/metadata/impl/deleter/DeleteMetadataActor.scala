@@ -8,7 +8,7 @@ import akka.util.Timeout
 import cats.data.NonEmptyList
 import common.util.StringUtil.EnhancedToStringable
 import cromwell.core.instrumentation.InstrumentationPrefixes.ServicesPrefix
-import cromwell.core.{WorkflowAborted, WorkflowFailed, WorkflowId, WorkflowSucceeded}
+import cromwell.core.WorkflowId
 import cromwell.services.MetadataServicesStore
 import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.metadata.MetadataArchiveStatus
@@ -38,8 +38,6 @@ class DeleteMetadataActor(deleteMetadataConfig: DeleteMetadataConfig,
   private val workflowsDeletedFailureMetricPath: NonEmptyList[String] = deleterMetricsBasePath :+ "workflows_deleted" :+ "failure"
   private val workflowDeleteTotalTimeMetricPath: NonEmptyList[String] = deleterMetricsBasePath :+ "workflow_delete_total_time"
   private val workflowsToDeleteMetricPath: NonEmptyList[String] = deleterMetricsBasePath :+ "workflows_to_delete"
-
-  private val TerminalWorkflowStatuses: List[String] = List(WorkflowSucceeded, WorkflowAborted, WorkflowFailed).map(_.toString)
 
   // Send an initial delete message to get things started:
   self ! DeleteNextWorkflowMessage
@@ -86,10 +84,7 @@ class DeleteMetadataActor(deleteMetadataConfig: DeleteMetadataConfig,
 
   def workflowsLeftToDeleteMetric(): Unit = {
     val currentTimestampMinusDelay = OffsetDateTime.now().minusSeconds(deleteMetadataConfig.delayAfterWorkflowCompletion.toSeconds)
-    countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(
-      TerminalWorkflowStatuses,
-      currentTimestampMinusDelay
-    ).onComplete({
+    countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(currentTimestampMinusDelay).onComplete({
       case Success(workflowsToArchive) =>
         sendGauge(workflowsToDeleteMetricPath, workflowsToArchive.longValue(), ServicesPrefix)
         // schedule next workflows left to archive query after interval

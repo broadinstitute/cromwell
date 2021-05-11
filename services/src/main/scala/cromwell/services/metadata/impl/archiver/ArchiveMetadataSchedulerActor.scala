@@ -127,7 +127,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
 
   def archiveNextWorkflows(): Future[Long] = {
     for {
-      workflowSummaryEntries <- lookupNextWorkflowsToArchive()
+      workflowSummaryEntries <- lookupNextWorkflowsToArchive(archiveMetadataConfig.batchSize)
       result <- archiveSummaryEntries(workflowSummaryEntries)
     } yield result
   }
@@ -140,7 +140,6 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
       val resultSeq: Seq[Future[Long]] = entries.map(archiveSummaryEntry)
       val result: Future[Seq[Long]] = Future.sequence(resultSeq)
 
-      // If we fail one workflow, mark the whole batch as failed
       result.map(_.sum)
     }
   }
@@ -161,7 +160,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
     } yield 1
   }
 
-  def lookupNextWorkflowsToArchive(count: Long = 10): Future[Seq[WorkflowMetadataSummaryEntry]] = {
+  def lookupNextWorkflowsToArchive(count: Long): Future[Seq[WorkflowMetadataSummaryEntry]] = {
     val currentTimestampMinusDelay = OffsetDateTime.now().minusSeconds(archiveMetadataConfig.archiveDelay.toSeconds)
     queryWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(
       TerminalWorkflowStatuses,

@@ -8,6 +8,14 @@ Google Pipelines API v1 supported authentication with refresh tokens, while v2 o
 
 Now that v1 has been discontinued and shut down, this version of Cromwell removes support for refresh tokens.
 
+## 62 Release Notes
+
+### Downloading Access URLs
+
+Added experimental support to download data during Google [Cloud Life Sciences](https://cloud.google.com/life-sciences)
+jobs using [DRS
+AccessURLs](https://ga4gh.github.io/data-repository-service-schemas/preview/release/drs-1.1.0/docs/#_accessurl).
+
 ## 61 Release Notes
 
 ### No labels update for Archived workflows

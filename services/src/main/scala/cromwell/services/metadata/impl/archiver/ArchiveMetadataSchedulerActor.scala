@@ -33,7 +33,6 @@ import slick.basic.DatabasePublisher
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
 import scala.util.{Failure, Success, Try}
 
 
@@ -133,6 +132,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   }
 
   private def archiveSummaryEntries(entries: Seq[WorkflowMetadataSummaryEntry]): Future[Long] = {
+    log.info(s"About to archive batch of ${entries.size} workflows.")
     if (entries.isEmpty) {
       sendGauge(timeBehindExpectedDelayMetricPath, 0L, ServicesPrefix)
       Future.successful(0)

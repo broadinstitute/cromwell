@@ -136,7 +136,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
     for {
       workflowSummaryEntries <- lookupNextWorkflowsToArchive(archiveMetadataConfig.batchSize)
       workflowSelectedTime = OffsetDateTime.now()
-      _ = sendTiming(archiverTimingMetricsBasePath :+ "lookup_next_workflow", calculateTimeDifference(startTime, workflowSelectedTime), ServicesPrefix)
+      _ = sendTiming(archiverTimingMetricsBasePath :+ "lookup_next_workflows", calculateTimeDifference(startTime, workflowSelectedTime), ServicesPrefix)
       _ = log.info(s"About to archive batch of ${workflowSummaryEntries.size} workflows.")
       result <- archiveSummaryEntries(workflowSummaryEntries, workflowSelectedTime)
     } yield result
@@ -148,7 +148,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
       Future.successful(0)
     } else {
       val resultSeq: Seq[Future[Long]] = entries.map(archiveSummaryEntry(_, workflowSelectedTime))
-      val result: Future[Seq[Long]] = Future.sequence(resultSeq)
+      val result: Future[Seq[Long]] = Future.sequence(resultSeq) // The special sauce that makes 'em execute in parallel
 
       result.map(_.sum)
     }

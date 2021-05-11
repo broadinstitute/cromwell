@@ -2,12 +2,13 @@ package cromwell.services.metadata
 
 import java.time.OffsetDateTime
 
-import io.circe.Json
 import akka.actor.ActorRef
 import cats.data.NonEmptyList
 import cromwell.core._
 import cromwell.services.ServiceRegistryActor.{ListenToMessage, ServiceRegistryMessage}
 import common.exception.{MessageAggregation, ThrowableAggregation}
+import cromwell.database.sql.tables.MetadataEntry
+import slick.basic.DatabasePublisher
 import wom.core._
 import wom.values._
 
@@ -105,6 +106,9 @@ object MetadataService {
 
     override def workflowId: WorkflowId = key.workflowId
   }
+
+  final case class GetMetadataStreamAction(workflowId: WorkflowId) extends MetadataServiceAction
+
   final case class GetStatus(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
   final case class GetLabels(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
   final case class GetRootAndSubworkflowLabels(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonAction
@@ -121,6 +125,7 @@ object MetadataService {
 
   final case class ValidateWorkflowIdInMetadata(possibleWorkflowId: WorkflowId) extends MetadataServiceAction
   final case class ValidateWorkflowIdInMetadataSummaries(possibleWorkflowId: WorkflowId) extends MetadataServiceAction
+  final case class FetchWorkflowMetadataArchiveStatus(workflowId: WorkflowId) extends MetadataServiceAction
 
   /**
     * Responses
@@ -130,7 +135,8 @@ object MetadataService {
     def reason: Throwable
   }
 
-  final case class MetadataLookupJsonResponse(query: MetadataQuery, result: Json) extends MetadataServiceResponse
+  final case class MetadataLookupStreamSuccess(id: WorkflowId, result: DatabasePublisher[MetadataEntry]) extends MetadataServiceResponse
+  final case class MetadataLookupStreamFailed(id: WorkflowId, reason: Throwable) extends MetadataServiceResponse
   final case class MetadataLookupFailedTooLargeResponse(query: MetadataQuery, metadataSizeRows: Int) extends MetadataServiceResponse
   final case class MetadataLookupFailedTimeoutResponse(query: MetadataQuery) extends MetadataServiceResponse
 
@@ -159,6 +165,10 @@ object MetadataService {
   case object RecognizedWorkflowId extends WorkflowValidationResponse
   case object UnrecognizedWorkflowId extends WorkflowValidationResponse
   final case class FailedToCheckWorkflowId(cause: Throwable) extends WorkflowValidationResponse
+
+  sealed abstract class FetchWorkflowArchiveStatusResponse extends MetadataServiceResponse
+  final case class WorkflowMetadataArchivedStatus(archiveStatus: MetadataArchiveStatus) extends FetchWorkflowArchiveStatusResponse
+  final case class FailedToGetArchiveStatus(reason: Throwable) extends FetchWorkflowArchiveStatusResponse
 
   sealed abstract class MetadataQueryResponse extends MetadataServiceResponse
   final case class WorkflowQuerySuccess(response: WorkflowQueryResponse, meta: Option[QueryMetadata]) extends MetadataQueryResponse

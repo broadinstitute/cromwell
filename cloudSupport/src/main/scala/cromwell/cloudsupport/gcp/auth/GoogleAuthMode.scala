@@ -7,7 +7,7 @@ import java.nio.charset.StandardCharsets
 import better.files.File
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.http.{HttpResponseException, HttpTransport}
-import com.google.api.client.json.jackson2.JacksonFactory
+import com.google.api.client.json.gson.GsonFactory
 import com.google.auth.Credentials
 import com.google.auth.http.HttpTransportFactory
 import com.google.auth.oauth2.{GoogleCredentials, OAuth2Credentials, ServiceAccountCredentials, UserCredentials}
@@ -38,11 +38,10 @@ object GoogleAuthMode {
     throw new UnsupportedOperationException(s"cannot lookup $string")
   }
 
-  lazy val jsonFactory: JacksonFactory = JacksonFactory.getDefaultInstance
+  lazy val jsonFactory: GsonFactory = GsonFactory.getDefaultInstance
   lazy val httpTransport: HttpTransport = GoogleNetHttpTransport.newTrustedTransport
   lazy val HttpTransportFactory: HttpTransportFactory = () => httpTransport
 
-  val RefreshTokenOptionKey = "refresh_token"
   val UserServiceAccountKey = "user_service_account_json"
   val DockerCredentialsEncryptionKeyNameKey = "docker_credentials_key_name"
   val DockerCredentialsTokenKey = "docker_credentials_token"
@@ -206,31 +205,6 @@ final case class ApplicationDefaultMode(name: String) extends GoogleAuthMode {
   override def credentials(unusedOptions: OptionLookup,
                            scopes: Iterable[String]): GoogleCredentials = {
     validateCredentials(applicationDefaultCredentials, scopes)
-  }
-}
-
-final case class RefreshTokenMode(name: String,
-                                  clientId: String,
-                                  clientSecret: String) extends GoogleAuthMode with ClientSecrets {
-
-  import GoogleAuthMode._
-
-  override def requiresAuthFile = true
-
-  private def extractRefreshToken(options: OptionLookup): String = {
-    extract(options, RefreshTokenOptionKey)
-  }
-
-  override def credentials(options: OptionLookup, scopes: Iterable[String]): GoogleCredentials = {
-    val refreshToken = extractRefreshToken(options)
-    val newCredentials: UserCredentials = UserCredentials
-      .newBuilder()
-      .setClientId(clientId)
-      .setClientSecret(clientSecret)
-      .setRefreshToken(refreshToken)
-      .setHttpTransportFactory(GoogleAuthMode.HttpTransportFactory)
-      .build()
-    validateCredentials(newCredentials, scopes)
   }
 }
 

@@ -37,7 +37,6 @@ final case class GcsPathBuilderFactory(globalConfig: Config, instanceConfig: Con
       .setInitialRetryDelay(Duration.ofMillis(100))
       .setRetryDelayMultiplier(1.1)
       .setMaxRetryDelay(Duration.ofSeconds(1))
-      .setJittered(true)
       .setInitialRpcTimeout(Duration.ofMillis(100))
       .setRpcTimeoutMultiplier(1.1)
       .setMaxRpcTimeout(Duration.ofSeconds(5))

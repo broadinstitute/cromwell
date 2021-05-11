@@ -343,6 +343,9 @@ cromwell::private::create_build_variables() {
         CROMWELL_BUILD_SBT_COVERAGE_COMMAND=""
     fi
 
+    CROMWELL_BUILD_SBT_INCLUDE="${BUILD_SBT_INCLUDE:-}"
+    CROMWELL_BUILD_SBT_EXCLUDE="${BUILD_SBT_EXCLUDE:-}"
+
     case "${CROMWELL_BUILD_TYPE}" in
         centaurPapiUpgradePapiV2alpha1*)
             CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2alpha1_v2beta_upgrade_application.conf"
@@ -382,7 +385,6 @@ cromwell::private::create_build_variables() {
     hours_to_minutes=60
     CROMWELL_BUILD_HEARTBEAT_MINUTES=$((20 * hours_to_minutes))
 
-    export CROMWELL_BUILD_UNIT_TEST_EXCLUDE_TAGS
     export CROMWELL_BUILD_BACKEND_TYPE
     export CROMWELL_BUILD_BRANCH
     export CROMWELL_BUILD_CROMWELL_CONFIG
@@ -412,21 +414,24 @@ cromwell::private::create_build_variables() {
     export CROMWELL_BUILD_OS_LINUX
     export CROMWELL_BUILD_PRIOR_VERSION_NUMBER
     export CROMWELL_BUILD_PROVIDER
+    export CROMWELL_BUILD_PROVIDER_CIRCLE
     export CROMWELL_BUILD_PROVIDER_JENKINS
     export CROMWELL_BUILD_PROVIDER_TRAVIS
-    export CROMWELL_BUILD_PROVIDER_CIRCLE
     export CROMWELL_BUILD_PROVIDER_UNKNOWN
-    export CROMWELL_BUILD_REQUIRES_SECURE
     export CROMWELL_BUILD_REQUIRES_PRIOR_VERSION
+    export CROMWELL_BUILD_REQUIRES_SECURE
     export CROMWELL_BUILD_RESOURCES_DIRECTORY
     export CROMWELL_BUILD_RESOURCES_SOURCES
     export CROMWELL_BUILD_ROOT_DIRECTORY
     export CROMWELL_BUILD_RUN_TESTS
     export CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND
     export CROMWELL_BUILD_SBT_COVERAGE_COMMAND
+    export CROMWELL_BUILD_SBT_EXCLUDE
+    export CROMWELL_BUILD_SBT_INCLUDE
     export CROMWELL_BUILD_SCRIPTS_DIRECTORY
     export CROMWELL_BUILD_TAG
     export CROMWELL_BUILD_TYPE
+    export CROMWELL_BUILD_UNIT_TEST_EXCLUDE_TAGS
     export CROMWELL_BUILD_URL
     export CROMWELL_BUILD_VAULT_EXECUTABLE
     export CROMWELL_BUILD_VAULT_ZIP
@@ -772,8 +777,8 @@ cromwell::private::exec_test_script() {
 
 cromwell::private::stop_travis_defaults() {
   # https://stackoverflow.com/questions/27382295/how-to-stop-services-on-travis-ci-running-by-default#answer-27410479
-  sudo /etc/init.d/mysql stop
-  sudo /etc/init.d/postgresql stop
+  sudo /etc/init.d/mysql stop || true
+  sudo /etc/init.d/postgresql stop || true
 }
 
 cromwell::private::delete_boto_config() {
@@ -789,20 +794,58 @@ cromwell::private::delete_sbt_boot() {
     rm -rf ~/.sbt/boot/
 }
 
+cromwell::private::install_adoptopenjdk() {
+    # https://adoptopenjdk.net/installation.html#linux-pkg-deb
+    sudo apt-get install -y wget apt-transport-https gnupg
+    wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public |
+        sudo apt-key add -
+    echo "deb https://adoptopenjdk.jfrog.io/adoptopenjdk/deb $(
+            grep UBUNTU_CODENAME /etc/os-release | cut -d = -f 2
+        ) main" |
+        sudo tee /etc/apt/sources.list.d/adoptopenjdk.list
+    sudo apt-get update
+    sudo apt-get install -y adoptopenjdk-11-hotspot
+    sudo update-java-alternatives --set adoptopenjdk-11-hotspot-amd64
+}
+
+cromwell::private::install_sbt_launcher() {
+    # Install sbt launcher
+    # Non-deb package installation instructions adapted from
+    # - https://github.com/sbt/sbt/releases/tag/v1.4.9
+    # - https://github.com/broadinstitute/scala-baseimage/pull/4/files
+    curl --location --fail --silent --show-error "https://github.com/sbt/sbt/releases/download/v1.4.9/sbt-1.4.9.tgz" |
+        sudo tar zxf - -C /usr/share
+    sudo update-alternatives --install /usr/bin/sbt sbt /usr/share/sbt/bin/sbt 1
+}
+
+cromwell::private::install_docker_compose() {
+    # Install or upgrade docker-compose so that we get the correct exit codes
+    # https://docs.docker.com/compose/release-notes/#1230
+    # https://docs.docker.com/compose/install/
+    curl \
+        --location --fail --silent --show-error \
+        "https://github.com/docker/compose/releases/download/1.28.5/docker-compose-$(uname -s)-$(uname -m)" \
+        > docker-compose
+    sudo mv docker-compose /usr/local/bin
+    sudo chmod +x /usr/local/bin/docker-compose
+}
+
+cromwell::private::setup_pyenv_python_latest() {
+    # Make `python` whatever the most recent version of python installed
+    # Fixes cases where someone has set pyenv to override `python` to use an older `python2` instead of `python3`
+    pyenv global "$(pyenv versions --bare --skip-aliases | sort -t '.' -k1,1n -k2,2n -k3,3n | tail -n 1)"
+}
+
 cromwell::private::pip_install() {
     local pip_package
     pip_package="${1:?pip_install called without a package}"; shift
 
     if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
-        if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_CIRCLE}" ]]; then
-            pip3 install "${pip_package}" "$@"
-        else
-            sudo -H "${PYTHON3_HOME}/bin/pip" install "${pip_package}" "$@"
-        fi
+        sudo -H "$(command -v pip3)" install "${pip_package}" "$@"
     elif [[ "${CROMWELL_BUILD_IS_VIRTUAL_ENV}" == "true" ]]; then
-        pip install "${pip_package}" "$@"
+        pip3 install "${pip_package}" "$@"
     else
-        pip install "${pip_package}" --user "$@"
+        pip3 install "${pip_package}" --user "$@"
     fi
 }
 
@@ -979,7 +1022,7 @@ cromwell::private::write_cwl_test_inputs() {
     "cwl_conformance_test.centaur_cwl_runner": "${CROMWELL_BUILD_CWL_TEST_RUNNER}",
     "cwl_conformance_test.conformance_expected_failures":
         "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_BACKEND_TYPE}_conformance_expected_failures.txt",
-    "cwl_conformance_test.timeout": 1200
+    "cwl_conformance_test.timeout": 2400
 }
 JSON
 }
@@ -1042,7 +1085,7 @@ cromwell::private::login_docker() {
 
 cromwell::private::render_secure_resources() {
     # Copy the CI resources, then render the secure resources using Vault
-    sbt --warn renderCiResources \
+    sbt -Dsbt.supershell=false --warn renderCiResources \
     || if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
         echo
         echo "Continuing without rendering secure resources."
@@ -1061,20 +1104,11 @@ cromwell::private::render_secure_resources() {
 
 cromwell::private::copy_all_resources() {
     # Only copy the CI resources. Secure resources are not rendered.
-    sbt --warn copyCiResources
+    sbt -Dsbt.supershell=false --warn copyCiResources
 }
 
 cromwell::private::setup_secure_resources() {
     case "${CROMWELL_BUILD_PROVIDER}" in
-        "${CROMWELL_BUILD_PROVIDER_TRAVIS}"|\
-        "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
-            # Try to login to vault, and if successful then use vault creds to login to docker.
-            # For those committers with vault access this avoids pull rate limits reported in BT-143.
-            cromwell::private::install_vault
-            cromwell::private::login_vault
-            cromwell::private::login_docker
-            cromwell::private::render_secure_resources
-            ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}")
             # Jenkins secret resources should have already been rendered outside the CI's docker-compose container.
             cromwell::private::copy_all_resources
@@ -1113,10 +1147,11 @@ cromwell::private::assemble_jars() {
     # shellcheck disable=SC2086
     CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=error \
         sbt \
+        -Dsbt.supershell=false \
         --warn \
         ${CROMWELL_BUILD_SBT_COVERAGE_COMMAND} \
-        ${CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND} \
-        -error
+        --error \
+        ${CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND}
 }
 
 cromwell::private::setup_prior_version_resources() {
@@ -1155,21 +1190,21 @@ cromwell::private::setup_prior_version_resources() {
 }
 
 cromwell::private::generate_code_coverage() {
-    sbt --warn coverageReport -warn
-    sbt --warn coverageAggregate -warn
+    sbt -Dsbt.supershell=false --warn coverageReport
+    sbt -Dsbt.supershell=false --warn coverageAggregate
     bash <(curl -s https://codecov.io/bash) > /dev/null || true
 }
 
 cromwell::private::publish_artifacts_only() {
-    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt "$@" publish -warn
+    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt -Dsbt.supershell=false --warn "$@" publish
 }
 
 cromwell::private::publish_artifacts_and_docker() {
-    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt "$@" publish dockerBuildAndPush -warn
+    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt -Dsbt.supershell=false --warn "$@" publish dockerBuildAndPush
 }
 
 cromwell::private::publish_artifacts_check() {
-    sbt --warn verifyArtifactoryCredentialsExist -warn
+    sbt -Dsbt.supershell=false --warn verifyArtifactoryCredentialsExist
 }
 
 # Some CI environments want to know when new docker images are published. They do not currently poll dockerhub but do
@@ -1365,12 +1400,27 @@ cromwell::build::setup_common_environment() {
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_TRAVIS}")
             cromwell::private::stop_travis_defaults
+            # Try to login to vault, and if successful then use vault creds to login to docker.
+            # For those committers with vault access this avoids pull rate limits reported in BT-143.
+            cromwell::private::install_vault
+            cromwell::private::login_vault
+            cromwell::private::login_docker
+            cromwell::private::install_adoptopenjdk
+            cromwell::private::install_sbt_launcher
+            cromwell::private::install_docker_compose
             cromwell::private::delete_boto_config
             cromwell::private::delete_sbt_boot
             cromwell::private::upgrade_pip
             cromwell::private::start_docker_databases
             ;;
         "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
+            # Try to login to vault, and if successful then use vault creds to login to docker.
+            # For those committers with vault access this avoids pull rate limits reported in BT-143.
+            cromwell::private::install_vault
+            cromwell::private::login_vault
+            cromwell::private::login_docker
+            cromwell::private::install_adoptopenjdk
+            cromwell::private::setup_pyenv_python_latest
             cromwell::private::start_docker_databases
             ;;
         "${CROMWELL_BUILD_PROVIDER_JENKINS}"|\
@@ -1401,20 +1451,6 @@ cromwell::build::setup_conformance_environment() {
     cromwell::private::checkout_pinned_cwl
     cromwell::private::write_cwl_test_inputs
     cromwell::private::add_exit_function cromwell::private::cat_conformance_log
-}
-
-cromwell::build::setup_docker_environment() {
-    if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ]]; then
-        # Upgrade docker-compose so that we get the correct exit codes
-        docker-compose -version
-        sudo rm /usr/local/bin/docker-compose
-        curl \
-            -L "https://github.com/docker/compose/releases/download/1.23.2/docker-compose-$(uname -s)-$(uname -m)" \
-            > docker-compose
-        chmod +x docker-compose
-        sudo mv docker-compose /usr/local/bin
-        docker-compose -version
-    fi
 }
 
 cromwell::private::find_or_assemble_cromwell_jar() {
@@ -1459,13 +1495,64 @@ cromwell::build::build_cromwell_docker() {
 
 cromwell:build::run_sbt_test() {
     # CROMWELL_BUILD_SBT_COVERAGE_COMMAND allows enabling or disabling `sbt coverage`.
+    # Note: sbt logging level now affects the test logging level: https://github.com/sbt/sbt/issues/4480
+    # Globally leaving the sbt log level at info for now.
+    # Disabling the supershell to reduce log levels.
+    # Splitting the JVMs for compilation then scalatest-with-cromwell to reduce memory pressure.
+    # Splitting the JVMs for testing-by-sbt-project to also reduce memory pressure.
+    # The list of sbt projects is generated by parsing this `log.info()` output, with log color formatting turned off:
+    # https://github.com/sbt/sbt/blob/v1.4.9/main/src/main/scala/sbt/Main.scala#L759-L760
+    # For more information on testing and memory see also: https://olegych.github.io/blog/sbt-fork.html
+
     # shellcheck disable=SC2086
     sbt \
-        -warn \
+        -Dsbt.supershell=false \
+        ${CROMWELL_BUILD_SBT_COVERAGE_COMMAND} \
+        test:compile
+
+    local sbt_tests
+
+    if [[ -n "${CROMWELL_BUILD_SBT_INCLUDE}" ]]; then
+        # Test only the projects specified
+        sbt_tests=$(
+            sbt -Dsbt.log.noformat=true projects |
+                grep -F $'[info] \t   ' |
+                awk '{print $2}' |
+                grep -E "^(${CROMWELL_BUILD_SBT_INCLUDE})$" |
+                awk '{printf "%s/test ", $1}' \
+                || true
+        )
+    elif [[ -n "${CROMWELL_BUILD_SBT_EXCLUDE}" ]]; then
+        # Test all the projects except a few exclusions
+        sbt_tests=$(
+            sbt -Dsbt.log.noformat=true projects |
+                grep -F $'[info] \t   ' |
+                awk '{print $2}' |
+                grep -v -E "^(${CROMWELL_BUILD_SBT_EXCLUDE})$" |
+                awk '{printf "%s/test ", $1}' \
+                || true
+        )
+    else
+        # Test all the projects
+        sbt_tests="test"
+    fi
+
+    # Ensure we are testing something
+    if [[ -z "${sbt_tests}" ]]; then
+        echo "Error: Unable to retrieve list of sbt projects." >&2
+        echo "CROMWELL_BUILD_SBT_INCLUDE='${CROMWELL_BUILD_SBT_INCLUDE}'" >&2
+        echo "CROMWELL_BUILD_SBT_EXCLUDE='${CROMWELL_BUILD_SBT_EXCLUDE}'" >&2
+        exit 1
+    fi
+
+    echo "Starting sbt ${sbt_tests}"
+    # shellcheck disable=SC2086
+    sbt \
+        -Dsbt.supershell=false \
         -Dakka.test.timefactor=${CROMWELL_BUILD_UNIT_SPAN_SCALE_FACTOR} \
         -Dbackend.providers.Local.config.filesystems.local.localization.0=copy \
         ${CROMWELL_BUILD_SBT_COVERAGE_COMMAND} \
-        test
+        ${sbt_tests}
 }
 
 cromwell::build::run_centaur() {
@@ -1507,6 +1594,7 @@ cromwell::build::generate_code_coverage() {
 cromwell::build::publish_artifacts() {
     if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ]] && \
         [[ "${CROMWELL_BUILD_TYPE}" == "sbt" ]] && \
+        [[ "${CROMWELL_BUILD_SBT_INCLUDE}" == "" ]] && \
         [[ "${CROMWELL_BUILD_EVENT}" == "push" ]]; then
 
         if [[ "${CROMWELL_BUILD_BRANCH}" == "develop" ]]; then

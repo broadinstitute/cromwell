@@ -16,8 +16,8 @@ import scala.collection.immutable
 class WomtoolValidateSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   private val presentWorkingDirectoryName = DefaultPathBuilder.get(".").toAbsolutePath.name
-  val validationTestCases = File("womtool/src/test/resources/validate")
-  val languageVersions = Option(validationTestCases.list).toList.flatten
+  val validationTestCases: File = File("womtool/src/test/resources/validate")
+  val languageVersions: List[File] = Option(validationTestCases.list).toList.flatten
 
   val knownUngraphableTests = List("task_only")
 
@@ -72,16 +72,16 @@ class WomtoolValidateSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
             case SuccessfulTermination(womtoolGraph) =>
 
               // Check that every call in the WDL is represented in the 'womtool graph' output, and vice versa:
-              val callsInWdl = (Files.readAllLines(wdl.toPath).asScala.collect {
+              val callsInWdl = Files.readAllLines(wdl.toPath).asScala.collect {
                 case WdlCallRegex(taskName, null, null, null, null) => taskName
                 case WdlCallRegex(_, _, taskName, null, null) =>
                   taskName
                 case WdlCallRegex(_, _, _, _, callAlias) => callAlias
-              }).toSet
+              }.toSet
 
-              val callsInWomtoolGraph = (womtoolGraph.lines.collect {
+              val callsInWomtoolGraph = womtoolGraph.linesIterator.collect {
                 case WomtoolGraphCallRegex(call) => call
-              }).toSet
+              }.toSet
 
               if (!callsInWomtoolGraph.exists(_.startsWith("ScatterAt"))) {
                 withClue(s"In WDL not in Graph: ${callsInWdl -- callsInWomtoolGraph}; In Graph not in WDL: ${callsInWomtoolGraph -- callsInWdl}") {
@@ -123,10 +123,10 @@ class WomtoolValidateSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
 
   behavior of "womtool validate with --list-dependencies flag"
 
-  val validationWithImportsTests = File("womtool/src/test/resources/validate-with-imports")
-  val validateWithImportsLanguageVersions = Option(validationWithImportsTests.list).toList.flatten
-  val userDirectory = sys.props("user.dir")
-  val workingDirectory = File(sys.env.getOrElse("CROMWELL_BUILD_ROOT_DIRECTORY", userDirectory)).pathAsString
+  val validationWithImportsTests: File = File("womtool/src/test/resources/validate-with-imports")
+  val validateWithImportsLanguageVersions: List[File] = Option(validationWithImportsTests.list).toList.flatten
+  val userDirectory: String = sys.props("user.dir")
+  val workingDirectory: String = File(sys.env.getOrElse("CROMWELL_BUILD_ROOT_DIRECTORY", userDirectory)).pathAsString
 
   it should "test at least one version" in {
     validateWithImportsLanguageVersions.isEmpty should be(false)
@@ -146,6 +146,7 @@ class WomtoolValidateSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
 
       it should s"successfully validate and print the workflow dependencies for $versionName workflow: '$caseName'" in {
         val rawOutput = expectedOutput(versionDirectory, caseName, "expected_imports.txt")
+        //noinspection RegExpRedundantEscape
         val importsExpectation = rawOutput.replaceAll("\\{REPLACE_WITH_ROOT_PATH\\}", workingDirectory)
 
         val res = WomtoolMain.runWomtool(Seq("validate", "-l", wdlFile.getAbsolutePath))
@@ -163,6 +164,7 @@ class WomtoolValidateSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
   // The filterNot(_.contains(".DS")) stuff prevents Mac 'Desktop Services' hidden directories from accidentally being picked up:
   private def listFilesAndFilterDSFile(path: Path): immutable.Seq[String] =  Option(path.toFile.list).toList.flatten.filterNot(_.contains(".DS"))
 
+  //noinspection SameParameterValue
   private def expectedOutput(versionDirectory: File, caseName: String, outputTextFileName: String): String =
     File(mustExist(versionDirectory.path.resolve(caseName).resolve(outputTextFileName).toFile).getAbsolutePath).contentAsString.trim
 }

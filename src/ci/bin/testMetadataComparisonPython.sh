@@ -24,11 +24,11 @@ docker run -it --rm \
            -v "${CROMWELL_BUILD_ROOT_DIRECTORY}/scripts/metadata_comparison:/metadata_comparison" \
            python:3 /bin/bash -c "
 
-pip install --upgrade requests
-pip install --upgrade google-api-python-client
-pip install --upgrade google-cloud
-pip install --upgrade google-cloud-storage
-pip install --upgrade gitpython
-pip install --upgrade python-dateutil
-python -m unittest discover -v /metadata_comparison
+pip3 install --upgrade requests
+pip3 install --upgrade google-api-python-client
+pip3 install --upgrade google-cloud
+pip3 install --upgrade google-cloud-storage
+pip3 install --upgrade gitpython
+pip3 install --upgrade python-dateutil
+python3 -m unittest discover -v /metadata_comparison
 "

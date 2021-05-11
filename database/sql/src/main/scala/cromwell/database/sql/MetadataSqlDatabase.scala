@@ -4,6 +4,7 @@ import java.sql.Timestamp
 
 import cromwell.database.sql.joins.MetadataJobQueryValue
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
+import slick.basic.DatabasePublisher
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
@@ -42,6 +43,8 @@ trait MetadataSqlDatabase extends SqlDatabase {
   def queryMetadataEntries(workflowExecutionUuid: String,
                            timeout: Duration)
                           (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
+
+  def streamMetadataEntries(workflowExecutionUuid: String): DatabasePublisher[MetadataEntry]
 
   def countMetadataEntries(workflowExecutionUuid: String,
                            expandSubWorkflows: Boolean,
@@ -155,9 +158,9 @@ trait MetadataSqlDatabase extends SqlDatabase {
                              endTimestampOption: Option[Timestamp],
                              metadataArchiveStatus: Set[Option[String]],
                              includeSubworkflows: Boolean,
-                             minimumSummaryEntryId: Option[Long],
                              page: Option[Int],
-                             pageSize: Option[Int])
+                             pageSize: Option[Int],
+                             newestFirst: Boolean)
                              (implicit ec: ExecutionContext): Future[Traversable[WorkflowMetadataSummaryEntry]]
 
   def countWorkflowSummaries(parentIdWorkflowMetadataKey: String,
@@ -171,19 +174,23 @@ trait MetadataSqlDatabase extends SqlDatabase {
                              startTimestampOption: Option[Timestamp],
                              endTimestampOption: Option[Timestamp],
                              metadataArchiveStatus: Set[Option[String]],
-                             includeSubworkflows: Boolean,
-                             minimumSummaryEntryId: Option[Long])
+                             includeSubworkflows: Boolean)
                              (implicit ec: ExecutionContext): Future[Int]
 
-  def deleteNonLabelMetadataForWorkflowAndUpdateArchiveStatus(rootWorkflowId: String, newArchiveStatus: Option[String])(implicit ec: ExecutionContext): Future[Int]
-
-  def isRootWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Option[Boolean]]
+  def deleteAllMetadataForWorkflowAndUpdateArchiveStatus(rootWorkflowId: String, newArchiveStatus: Option[String])(implicit ec: ExecutionContext): Future[Int]
 
   def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]]
 
-  def queryRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp, batchSizeOpt: Long)(implicit ec: ExecutionContext): Future[Seq[String]]
-
-  def countRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp)(implicit ec: ExecutionContext): Future[Int]
+  def queryWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp, batchSizeOpt: Long)(implicit ec: ExecutionContext): Future[Seq[String]]
 
   def getSummaryQueueSize()(implicit ec: ExecutionContext): Future[Int]
+
+  def getMetadataArchiveStatus(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]]
+
+  def queryWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],
+                                                                   workflowEndTimestampThreshold: Timestamp,
+                                                                   batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]]
+
+  def countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],
+                                                                       workflowEndTimestampThreshold: Timestamp)(implicit ec: ExecutionContext): Future[Int]
 }

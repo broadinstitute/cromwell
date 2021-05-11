@@ -50,10 +50,10 @@ object ContinuousIntegration {
 
   def aggregateSettings(rootProject: Project): Seq[Setting[_]] = List(
     // Before compiling, check if the expected projects are aggregated so that they will be compiled-and-tested too.
-    compile in Compile := {
+    Compile / compile := {
       streams.value.log // make sure logger is loaded
       validateAggregatedProjects(rootProject, state.value)
-      (compile in Compile).value
+      (Compile / compile).value
     },
   )
 

@@ -15,7 +15,7 @@ services:
       - CENTAUR_TEST_ADDITIONAL_PARAMETERS
     working_dir: ${PWD}
     volumes:
-      - ${PWD}:${PWD}
+      - ${HOME}:${HOME}
     links:
       - mysql-db
       - mariadb-db

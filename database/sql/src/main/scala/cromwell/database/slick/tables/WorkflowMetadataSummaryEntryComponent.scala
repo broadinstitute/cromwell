@@ -125,6 +125,14 @@ trait WorkflowMetadataSummaryEntryComponent {
     } yield summaryEntry
   }
 
+  private def fetchAllWorkflowsToDeleteThatEndedOnOrBeforeThresholdTimestamp(workflowEndTimestampThreshold: Timestamp): Query[WorkflowMetadataSummaryEntries, WorkflowMetadataSummaryEntry, Seq] = {
+    for {
+      summaryEntry <- workflowMetadataSummaryEntries
+      if summaryEntry.metadataArchiveStatus === Option("Archived") // get archived but not deleted workflows only
+      if summaryEntry.endTimestamp <= workflowEndTimestampThreshold
+    } yield summaryEntry
+  }
+
   def workflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],
                                                               workflowEndTimestampThreshold: Timestamp,
                                                               batchSize: Long): Query[WorkflowMetadataSummaryEntries, WorkflowMetadataSummaryEntry, Seq] = {
@@ -138,6 +146,12 @@ trait WorkflowMetadataSummaryEntryComponent {
                                                                        workflowEndTimestampThreshold: Timestamp): Rep[Int] = {
     fetchAllWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(
       workflowStatuses,
+      workflowEndTimestampThreshold
+    ).length
+  }
+
+  def countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(workflowEndTimestampThreshold: Timestamp): Rep[Int] = {
+    fetchAllWorkflowsToDeleteThatEndedOnOrBeforeThresholdTimestamp(
       workflowEndTimestampThreshold
     ).length
   }

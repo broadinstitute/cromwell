@@ -29,7 +29,11 @@ wrapped up and merged to `develop` to go out in the forthcoming version of Cromw
 
 The release WDL uses a github token to perform actions on your behalf.
 * Follow the directions [here](https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line).
-    * When asked, give the token the full set of `repo` permissions and also `user`.
+  When asked give the token these exact permissions ([example screenshot](github_token_scopes.png)):
+  * the full set of `repo` permissions
+  * the `workflow` permission
+  * only the `read:org` permission (do not let this token administer your organizations!)
+  * only the `user:email` permission (do not let this token administer your organizations!)
 * Copy the token and save it to a file on your local machine. You'll use it in a second.
 
 #### Prepare a temporary `release` directory
@@ -44,14 +48,11 @@ This is optional, but I find it useful. Make or copy the following files into so
 {
   "publish_workflow.githubToken": "<<GITHUB TOKEN VALUE>>",
   "publish_workflow.majorRelease": true,
-  "publish_workflow.publishHomebrew": false,
+  "publish_workflow.publishHomebrew": true,
   "publish_workflow.publishDocker": "broadinstitute/cromwell-publish:latest",
   "publish_workflow.organization": "broadinstitute"
 }
 ```
-
-**Note:** `publish_workflow.publishHomebrew` should be `false` until we are ready to complete
-[BT-36](https://broadworkbench.atlassian.net/browse/BT-36).
 
 #### Make sure docker will have enough memory
 
@@ -92,7 +93,7 @@ If so, refer to the additional details in the [full document](https://docs.googl
 
 #### Performance Testing
 
-This performance testing process happens as part of the release into FireCloud.
+This performance testing process happens as part of the release into FireCloud / Terra.
 
 * **Note:** This process is non-blocking and optional for HOTFIX releases.
 
@@ -105,7 +106,7 @@ for any performance changes since the previous release.
 runs and fill in any missing entries in the table.
  
 
-### How to Deploy Cromwell in CAAS prod
+### How to Deploy Cromwell in CaaS staging and CaaS prod
 
 **Note:** If the Cromwell CHANGELOG indicates that the upgrade might take some time (eg because of a database migration), checking in with the CaaS users
 to let them know that the upgrade is about to happen is a good idea.

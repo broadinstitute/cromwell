@@ -1,6 +1,7 @@
 package cromwell.webservice.routes
 
 import java.util.UUID
+
 import akka.actor.{ActorRef, ActorRefFactory}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActorJsonFormatting.successfulResponseJsonFormatter
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
@@ -25,7 +26,6 @@ import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheDiffActor.{CachedCallNotFoundException, CallCacheDiffActorResponse, FailedCallCacheDiffResponse, SuccessfulCallCacheDiffResponse}
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCacheDiffActor, CallCacheDiffQueryParameter}
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.NotInOnHoldStateException
-import cromwell.engine.workflow.workflowstore.WorkflowCacheInvalidateActor.{WorkflowCacheInvalidateActorResponse, WorkflowCacheInvalidateFailed, WorkflowCacheInvalidateSuccess}
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreEngineActor, WorkflowStoreSubmitActor}
 import cromwell.server.CromwellShutdown
 import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse}
@@ -50,13 +50,14 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
   implicit val ec: ExecutionContext
 
   val workflowStoreActor: ActorRef
+  val workflowManagerActor: ActorRef
+  val serviceRegistryActor: ActorRef
 
   // Derive timeouts (implicit and not) from akka http's request timeout since there's no point in being higher than that
-  implicit val duration: FiniteDuration =
-    ConfigFactory.load().as[FiniteDuration]("akka.http.server.request-timeout")
+  implicit val duration = ConfigFactory.load().as[FiniteDuration]("akka.http.server.request-timeout")
   implicit val timeout: Timeout = duration
 
-  val engineRoutes: Route = concat(
+  val engineRoutes = concat(
     path("engine" / Segment / "stats") { _ =>
       get {
         completeResponse(StatusCodes.Forbidden, APIResponse.fail(new RuntimeException("The /stats endpoint is currently disabled.")), warnings = Seq.empty)
@@ -76,7 +77,7 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
     }
   )
 
-  val workflowRoutes: Route =
+  val workflowRoutes =
     path("workflows" / Segment / "backends") { _ =>
       get { instrumentRequest { complete(ToResponseMarshallable(backendResponse)) } }
     } ~
@@ -103,33 +104,6 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
         }
       }
     } ~
-      path("workflows" / Segment / Segment / "callcaching") { (_, possibleWorkflowId) =>
-        delete {
-          instrumentRequest {
-            Try(WorkflowId.fromString(possibleWorkflowId)) match {
-              case Failure(throwable) =>
-                throwable.failRequest(StatusCodes.BadRequest)
-              case Success(workflowId) =>
-                val response =
-                  workflowStoreActor
-                    .ask(WorkflowStoreActor.InvalidateWorkflowCallCache(workflowId))
-                    .mapTo[WorkflowCacheInvalidateActorResponse]
-                onComplete(response) {
-                  case Success(WorkflowCacheInvalidateSuccess) =>
-                    completeResponse(StatusCodes.OK, APIResponse.success("invalidated"), Nil)
-                  case Success(failure: WorkflowCacheInvalidateFailed) =>
-                    failure.throwable.failRequest(StatusCodes.InternalServerError)
-                  case Failure(_: AskTimeoutException) if CromwellShutdown.shutdownInProgress() =>
-                    serviceShuttingDownResponse
-                  case Failure(e: TimeoutException) =>
-                    e.failRequest(StatusCodes.ServiceUnavailable)
-                  case Failure(throwable) =>
-                    throwable.failRequest(StatusCodes.InternalServerError)
-                }
-            }
-          }
-        }
-      } ~
     path("workflows" / Segment / Segment / "timing") { (_, possibleWorkflowId) =>
       instrumentRequest {
         onComplete(validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor)) {
@@ -143,7 +117,7 @@ trait CromwellApiService extends HttpInstrumentation with MetadataRouteSupport w
     path("workflows" / Segment / Segment / "abort") { (_, possibleWorkflowId) =>
       post {
         instrumentRequest {
-          abortWorkflow(possibleWorkflowId, workflowStoreActor)
+          abortWorkflow(possibleWorkflowId, workflowStoreActor, workflowManagerActor)
         }
       }
     } ~
@@ -272,6 +246,7 @@ object CromwellApiService {
     */
   def abortWorkflow(possibleWorkflowId: String,
                     workflowStoreActor: ActorRef,
+                    workflowManagerActor: ActorRef,
                     successHandler: PartialFunction[SuccessfulAbortResponse, Route] = standardAbortSuccessHandler,
                     errorHandler: PartialFunction[Throwable, Route] = standardAbortErrorHandler)
                    (implicit timeout: Timeout): Route = {
@@ -342,18 +317,9 @@ object CromwellApiService {
 
   final case class InvalidWorkflowException(possibleWorkflowId: String) extends Exception(s"Invalid workflow ID: '$possibleWorkflowId'.")
 
-  val cromwellVersion: String = VersionUtil.getVersion("cromwell-engine")
-  val swaggerUiVersion: String =
-    VersionUtil.getVersion(
-      projectName = "swagger-ui",
-      default = VersionUtil.sbtDependencyVersion("swaggerUi"),
-    )
-  val backendResponse: BackendResponse =
-    BackendResponse(
-      supportedBackends = BackendConfiguration.AllBackendEntries.map(_.name).sorted,
-      defaultBackend = BackendConfiguration.DefaultBackendEntry.name,
-    )
-  val versionResponse: JsObject = JsObject(Map("cromwell" -> cromwellVersion.toJson))
-  val serviceShuttingDownResponse: Route =
-    new Exception("Cromwell service is shutting down.").failRequest(StatusCodes.ServiceUnavailable)
+  val cromwellVersion = VersionUtil.getVersion("cromwell-engine")
+  val swaggerUiVersion = VersionUtil.getVersion("swagger-ui", VersionUtil.sbtDependencyVersion("swaggerUi"))
+  val backendResponse = BackendResponse(BackendConfiguration.AllBackendEntries.map(_.name).sorted, BackendConfiguration.DefaultBackendEntry.name)
+  val versionResponse = JsObject(Map("cromwell" -> cromwellVersion.toJson))
+  val serviceShuttingDownResponse = new Exception("Cromwell service is shutting down.").failRequest(StatusCodes.ServiceUnavailable)
 }

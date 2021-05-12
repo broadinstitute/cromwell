@@ -597,23 +597,6 @@ paths:
            description: No matching cache entry. Cromwell versions prior to 28 will not have recorded information necessary for this endpoint and thus will also appear to not exist.
         '500':
           $ref: '#/responses/ServerError'
-  '/api/workflows/{version}/{id}/callcaching':
-    delete:
-      operationId: callCacheDelete
-      summary: Invalidate the call cache
-      description: This endpoint invalidates the call cache for a workflow.
-      parameters:
-        - $ref: '#/parameters/versionParam'
-        - $ref: '#/parameters/singleId'
-      tags:
-        - Workflows
-      responses:
-        '200':
-          $ref: '#/responses/OK'
-        '400':
-          $ref: '#/responses/BadRequest'
-        '500':
-          $ref: '#/responses/ServerError'
   '/api/workflows/{version}/backends':
     get:
       operationId: backends
@@ -697,6 +680,8 @@ responses:
       $ref: '#/definitions/WorkflowIdAndStatus'
   OK:
     description: Successful Request
+    schema:
+      $ref: '#/definitions/WorkflowIdAndStatus'
   InvalidSubmission:
     description: Invalid submission request
   BadRequest:

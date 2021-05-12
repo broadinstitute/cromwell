@@ -1,5 +1,7 @@
 package cromwell.engine.workflow.workflowstore
 
+import java.time.OffsetDateTime
+
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.pipe
 import cats.data.NonEmptyList
@@ -8,9 +10,6 @@ import cromwell.core._
 import cromwell.engine.CromwellTerminator
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
-
-import java.time.OffsetDateTime
-import scala.concurrent.ExecutionContext
 
 final case class WorkflowStoreActor private(
                                              workflowStore: WorkflowStore,
@@ -22,7 +21,7 @@ final case class WorkflowStoreActor private(
   extends Actor with ActorLogging with GracefulShutdownHelper {
   import WorkflowStoreActor._
 
-  implicit val ec: ExecutionContext = context.dispatcher
+  implicit val ec = context.dispatcher
 
   lazy val workflowStoreSubmitActor: ActorRef = context.actorOf(
     WorkflowStoreSubmitActor.props(
@@ -47,16 +46,10 @@ final case class WorkflowStoreActor private(
       serviceRegistryActor = serviceRegistryActor),
     "WorkflowStoreHeartbeatWriteActor")
 
-  lazy val workflowCacheInvalidateActor: ActorRef = context.actorOf(
-    props = WorkflowCacheInvalidateActor.props(serviceRegistryActor = serviceRegistryActor),
-    name = "WorkflowCacheInvalidateActor",
-  )
-
-  override def receive: Receive = {
+  override def receive = {
     case ShutdownCommand => waitForActorsAndShutdown(NonEmptyList.of(workflowStoreSubmitActor, workflowStoreEngineActor))
     case cmd: WorkflowStoreActorSubmitCommand => workflowStoreSubmitActor forward cmd
     case cmd: WorkflowStoreActorEngineCommand => workflowStoreEngineActor forward cmd
-    case cmd: InvalidateWorkflowCallCache => workflowCacheInvalidateActor forward cmd
     case cmd: WorkflowStoreWriteHeartbeatCommand => workflowStoreHeartbeatWriteActor forward cmd
     case GetWorkflowStoreStats =>
       // Retrieve the workflow store stats, convert the WorkflowStoreStates to WorkflowStates
@@ -88,8 +81,6 @@ object WorkflowStoreActor {
 
   case class WorkflowStoreWriteHeartbeatCommand(workflowId: WorkflowId, submissionTime: OffsetDateTime)
 
-  final case class InvalidateWorkflowCallCache(id: WorkflowId)
-
   def props(
              workflowStoreDatabase: WorkflowStore,
              workflowStoreAccess: WorkflowStoreAccess,
@@ -97,7 +88,7 @@ object WorkflowStoreActor {
              terminator: CromwellTerminator,
              abortAllJobsOnTerminate: Boolean,
              workflowHeartbeatConfig: WorkflowHeartbeatConfig
-           ): Props = {
+      ) = {
     Props(WorkflowStoreActor(
       workflowStore = workflowStoreDatabase,
       workflowStoreAccess = workflowStoreAccess,

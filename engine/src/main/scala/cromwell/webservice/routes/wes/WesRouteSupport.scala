@@ -24,6 +24,7 @@ import cromwell.webservice.routes.CromwellApiService
 
 trait WesRouteSupport extends HttpInstrumentation {
   val serviceRegistryActor: ActorRef
+  val workflowManagerActor: ActorRef
   val workflowStoreActor: ActorRef
 
   implicit val ec: ExecutionContext
@@ -72,6 +73,7 @@ trait WesRouteSupport extends HttpInstrumentation {
                   post {
                     CromwellApiService.abortWorkflow(possibleWorkflowId,
                       workflowStoreActor,
+                      workflowManagerActor,
                       successHandler = WesAbortSuccessHandler,
                       errorHandler = WesAbortErrorHandler)
                   }
@@ -85,7 +87,7 @@ trait WesRouteSupport extends HttpInstrumentation {
 }
 
 object WesRouteSupport {
-  private val NotFoundError = WesErrorResponse("The requested workflow run wasn't found", StatusCodes.NotFound.intValue)
+  val NotFoundError = WesErrorResponse("The requested workflow run wasn't found", StatusCodes.NotFound.intValue)
 
   def WesAbortSuccessHandler: PartialFunction[SuccessfulAbortResponse, Route] = {
     case response => complete(WesRunId(response.workflowId.toString))

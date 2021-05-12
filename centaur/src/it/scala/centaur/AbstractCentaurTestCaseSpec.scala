@@ -6,13 +6,12 @@ import cats.effect.IO
 import cats.instances.list._
 import cats.syntax.flatMap._
 import cats.syntax.traverse._
-import centaur.api.CentaurCromwellClient
+import centaur.callcaching.CromwellDatabaseCallCaching
 import centaur.reporting.{ErrorReporters, SuccessReporters, TestEnvironment}
 import centaur.test.CentaurTestException
 import centaur.test.standard.CentaurTestCase
 import centaur.test.submit.{SubmitResponse, SubmitWorkflowResponse}
 import centaur.test.workflow.WorkflowData
-import cromwell.api.model.WorkflowId
 import org.scalatest._
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -114,9 +113,9 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
           workflowContent = Option(upgradeResult.stdout.get), // this '.get' catches an error if upgrade fails
           zippedImports = Option(upgradedImportsDir.zip()))))(cromwellTracker) // An empty zip appears to be completely harmless, so no special handling
 
-    rootWorkflowFile.delete(true)
-    upgradedImportsDir.delete(true)
-    workingDir.delete(true)
+    rootWorkflowFile.delete(swallowIOExceptions = true)
+    upgradedImportsDir.delete(swallowIOExceptions = true)
+    workingDir.delete(swallowIOExceptions = true)
 
     newCase
   }
@@ -178,8 +177,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
         r <- if (attempt < retries) {
           centaurTestException
             .workflowIdOption
-            .map(WorkflowId.fromString)
-            .map(CentaurCromwellClient.clearCachedResults)
+            .map(CromwellDatabaseCallCaching.clearCachedResults)
             .getOrElse(IO.unit) *>
           tryTryAgain(testName, runTest, retries, attempt + 1)
         } else {

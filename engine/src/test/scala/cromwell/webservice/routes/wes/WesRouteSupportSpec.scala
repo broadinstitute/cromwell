@@ -1,28 +1,26 @@
 package cromwell.webservice.routes.wes
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.Props
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.model.HttpMethods.POST
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import cromwell.webservice.routes.CromwellApiServiceSpec
 
 import scala.concurrent.duration._
-import cromwell.webservice.routes.CromwellApiServiceSpec.{MockServiceRegistryActor, MockWorkflowStoreActor}
+import cromwell.webservice.routes.CromwellApiServiceSpec.{MockServiceRegistryActor, MockWorkflowManagerActor, MockWorkflowStoreActor}
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import WesResponseJsonSupport._
 import akka.http.scaladsl.server.MethodRejection
-import akka.util.Timeout
-
-import scala.concurrent.ExecutionContextExecutor
 
 class WesRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with Matchers with WesRouteSupport {
-  val actorRefFactory: ActorSystem = system
-  override implicit val ec: ExecutionContextExecutor = system.dispatcher
-  override implicit val timeout: Timeout = 5.seconds
+  val actorRefFactory = system
+  override implicit val ec = system.dispatcher
+  override implicit val timeout = 5.seconds
 
-  override val workflowStoreActor: ActorRef = actorRefFactory.actorOf(Props(new MockWorkflowStoreActor()))
-  override val serviceRegistryActor: ActorRef = actorRefFactory.actorOf(Props(new MockServiceRegistryActor()))
+  override val workflowStoreActor = actorRefFactory.actorOf(Props(new MockWorkflowStoreActor()))
+  override val serviceRegistryActor = actorRefFactory.actorOf(Props(new MockServiceRegistryActor()))
+  override val workflowManagerActor = actorRefFactory.actorOf(Props(new MockWorkflowManagerActor()))
 
   val version = "v1"
 

@@ -16,7 +16,6 @@ engine {
   }
 }
 
-{{with $cromwellRefreshToken := vault (printf "secret/dsde/cromwell/common/cromwell-refresh-token")}}
 google {
   application-name = "cromwell"
   json-dir = "Error: BA-6546 The environment variable CROMWELL_BUILD_RESOURCES_DIRECTORY must be set/export pointing to a valid path such as '${YOUR_CROMWELL_DIR}/target/ci/resources'"
@@ -42,18 +41,11 @@ google {
       json-file = ${google.json-dir}/cromwell-centaur-google-compute-service-account.json
     }
     {
-      name = "refresh_token"
-      scheme = "refresh_token"
-      client-id = "{{$cromwellRefreshToken.Data.client_id}}"
-      client-secret = "{{$cromwellRefreshToken.Data.client_secret}}"
-    }
-    {
       name = "user_service_account"
       scheme = "user_service_account"
     }
   ]
 }
-{{end}}
 
 services {
   HealthMonitor {

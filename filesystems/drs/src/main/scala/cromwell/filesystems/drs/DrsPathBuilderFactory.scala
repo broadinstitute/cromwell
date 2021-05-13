@@ -1,12 +1,10 @@
 package cromwell.filesystems.drs
 
-import java.nio.channels.ReadableByteChannel
-
 import akka.actor.ActorSystem
 import cats.data.Validated.{Invalid, Valid}
 import cats.effect.IO
 import cloud.nio.impl.drs.MarthaResponseSupport._
-import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, SADataObject}
+import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, DrsPathResolver, MarthaResponse, SADataObject}
 import com.google.api.services.oauth2.Oauth2Scopes
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.oauth2.OAuth2Credentials
@@ -18,6 +16,7 @@ import cromwell.cloudsupport.gcp.auth.{GoogleAuthMode, UserServiceAccountMode}
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{PathBuilder, PathBuilderFactory}
 
+import java.nio.channels.ReadableByteChannel
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
@@ -60,9 +59,24 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
     } yield readChannel
   }
 
-
   private def drsReadInterpreter(options: WorkflowOptions, requesterPaysProjectIdOption: Option[String])
-                                (gsUri: Option[String], googleServiceAccount: Option[SADataObject])
+                                (drsPathResolver: DrsPathResolver, marthaResponse: MarthaResponse)
+  : IO[ReadableByteChannel] = {
+    (marthaResponse.accessUrl, marthaResponse.gsUri) match {
+      case (Some(accessUrl), _) =>
+        drsPathResolver.openChannel(accessUrl)
+      case (_, Some(gcsPath)) =>
+        drsReadInterpreter(options, requesterPaysProjectIdOption, gcsPath, marthaResponse.googleServiceAccount)
+      case _ =>
+        IO.raiseError(new RuntimeException(DrsPathResolver.ExtractUriErrorMsg))
+    }
+  }
+
+  private def drsReadInterpreter(options: WorkflowOptions,
+                                 requesterPaysProjectIdOption: Option[String],
+                                 gsUri: String,
+                                 googleServiceAccount: Option[SADataObject],
+                                )
   : IO[ReadableByteChannel] = {
     val readScopes = List(StorageScopes.DEVSTORAGE_READ_ONLY)
     val credentialsIo = googleServiceAccount match {
@@ -79,52 +93,49 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
 
     for {
       credentials <- credentialsIo
-      //Currently, Martha only supports resolving DRS paths to GCS paths
-      gsUri <- IO.fromEither(gsUri.toRight(MarthaResponseMissingKeyException("gsUri")))
       readableByteChannel <- gcsInputStream(gsUri, credentials, requesterPaysProjectIdOption)
     } yield readableByteChannel
   }
 
-
   override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[PathBuilder] = {
-    val marthaScopes = List(
-      // Profile and Email scopes are requirements for interacting with Martha
-      Oauth2Scopes.USERINFO_EMAIL,
-      Oauth2Scopes.USERINFO_PROFILE
-    )
-    val authCredentials = googleAuthMode.credentials(options.get(_).get, marthaScopes)
+    Future {
+      val marthaScopes = List(
+        // Profile and Email scopes are requirements for interacting with Martha
+        Oauth2Scopes.USERINFO_EMAIL,
+        Oauth2Scopes.USERINFO_PROFILE
+      )
+      val authCredentials = googleAuthMode.credentials(options.get(_).get, marthaScopes)
 
-    // Unlike PAPI we're not going to fall back to a "default" project from the backend config.
-    // ONLY use the project id from the User Service Account for requester pays
-    val requesterPaysProjectIdOption = options.get("google_project").toOption
+      // Unlike PAPI we're not going to fall back to a "default" project from the backend config.
+      // ONLY use the project id from the User Service Account for requester pays
+      val requesterPaysProjectIdOption = options.get("google_project").toOption
 
-    /*
-    `override_preresolve_for_test` is a workflow option to override the default `martha.preresolve` specified in the
-    global config. This is only used for testing purposes.
-     */
-    val preResolve: Boolean =
-      options
-        .getBoolean("override_preresolve_for_test")
-        .toOption
-        .getOrElse(
-          singletonConfig
-            .config
-            .getBoolean("martha.preresolve")
-        )
+      /*
+      `override_preresolve_for_test` is a workflow option to override the default `martha.preresolve` specified in the
+      global config. This is only used for testing purposes.
+       */
+      val preResolve: Boolean =
+        options
+          .getBoolean("override_preresolve_for_test")
+          .toOption
+          .getOrElse(
+            singletonConfig
+              .config
+              .getBoolean("martha.preresolve")
+          )
 
-    Future(DrsPathBuilder(
-      new DrsCloudNioFileSystemProvider(
-        singletonConfig.config,
-        authCredentials,
-        drsReadInterpreter(options, requesterPaysProjectIdOption),
-      ),
-      requesterPaysProjectIdOption,
-      preResolve,
-    ))
+      DrsPathBuilder(
+        new DrsCloudNioFileSystemProvider(
+          singletonConfig.config,
+          authCredentials,
+          drsReadInterpreter(options, requesterPaysProjectIdOption),
+        ),
+        requesterPaysProjectIdOption,
+        preResolve,
+      )
+    }
   }
 }
-
-
 
 case class UrlNotFoundException(scheme: String) extends Exception(s"No $scheme url associated with given DRS path.")
 

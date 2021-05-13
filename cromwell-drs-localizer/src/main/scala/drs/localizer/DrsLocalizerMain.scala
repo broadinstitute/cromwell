@@ -2,7 +2,7 @@ package drs.localizer
 
 import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO, IOApp}
-import cloud.nio.impl.drs.{DrsConfig, MarthaField}
+import cloud.nio.impl.drs.{DrsConfig, DrsPathResolver, MarthaField}
 import com.typesafe.scalalogging.StrictLogging
 import drs.localizer.downloaders.{AccessUrlDownloader, Downloader, GcsUriDownloader}
 
@@ -33,8 +33,6 @@ class DrsLocalizerMain(drsUrl: String,
                        downloadLoc: String,
                        requesterPaysProjectIdOption: Option[String]) extends StrictLogging {
 
-  private final val ExtractUriErrorMsg = "No access URL nor GCS URI starting with 'gs://' found in Martha response!"
-
   def getDrsPathResolver: IO[DrsLocalizerDrsPathResolver] = {
     IO {
       val drsConfig = DrsConfig.fromEnv(sys.env)
@@ -63,7 +61,7 @@ class DrsLocalizerMain(drsUrl: String,
             requesterPaysProjectIdOption = requesterPaysProjectIdOption)
           )
         case _ =>
-          IO.raiseError(new RuntimeException(ExtractUriErrorMsg))
+          IO.raiseError(new RuntimeException(DrsPathResolver.ExtractUriErrorMsg))
       }
     } yield downloader
   }

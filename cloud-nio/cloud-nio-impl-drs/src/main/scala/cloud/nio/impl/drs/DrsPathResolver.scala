@@ -11,11 +11,13 @@ import io.circe.parser.decode
 import io.circe.syntax._
 import mouse.boolean._
 import org.apache.commons.lang3.exception.ExceptionUtils
-import org.apache.http.client.methods.HttpPost
+import org.apache.http.client.methods.{HttpGet, HttpPost}
 import org.apache.http.entity.{ContentType, StringEntity}
 import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.util.EntityUtils
 import org.apache.http.{HttpResponse, HttpStatus, StatusLine}
+
+import java.nio.channels.{Channels, ReadableByteChannel}
 
 abstract class DrsPathResolver(drsConfig: DrsConfig) {
 
@@ -71,6 +73,21 @@ abstract class DrsPathResolver(drsConfig: DrsConfig) {
   def resolveDrsThroughMartha(drsPath: String, fields: NonEmptyList[MarthaField.Value]): IO[MarthaResponse] = {
     rawMarthaResponse(drsPath, fields).use(httpResponseToMarthaResponse(drsPathForDebugging = drsPath))
   }
+
+  def openChannel(accessUrl: AccessUrl): IO[ReadableByteChannel] = {
+    IO {
+      val httpGet = new HttpGet(accessUrl.url)
+      accessUrl.headers.getOrElse(Map.empty).toList foreach {
+        case (name, value) => httpGet.addHeader(name, value)
+      }
+      val response = httpClientBuilder.build().execute(httpGet)
+      Channels.newChannel(response.getEntity.getContent)
+    }
+  }
+}
+
+object DrsPathResolver {
+  final val ExtractUriErrorMsg = "No access URL nor GCS URI starting with 'gs://' found in Martha response!"
 }
 
 object MarthaField extends Enumeration {

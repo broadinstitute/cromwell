@@ -86,22 +86,31 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
 
       // These handlers send metrics for most paths even when they're not incremented, so that the metrics
       // paths are actively receiving data points throughout:
-      archiveNextWorkflows(startTime).onComplete({
-        case Success(cnt) if cnt > 0 =>
-          1 to cnt.toInt foreach { _ =>
-            increment(workflowsProcessedSuccessMetricPath, ServicesPrefix)
-            count(workflowsProcessedFailureMetricPath, 0L, ServicesPrefix)
-          }
-          sendTiming(workflowArchiveTotalTimeMetricPath, calculateTimeSince(startTime) / cnt, ServicesPrefix)
-          self ! ArchiveNextWorkflowMessage
-        case Success(_) =>
-          count(rowsProcessedMetricPath, 0L, ServicesPrefix)
-          count(workflowsProcessedSuccessMetricPath, 0L, ServicesPrefix)
+      archiveNextWorkflows.onComplete({
+        case Success(cnt) =>
+          count(workflowsProcessedSuccessMetricPath, cnt, ServicesPrefix)
           count(workflowsProcessedFailureMetricPath, 0L, ServicesPrefix)
-          sendGauge(workflowsToArchiveMetricPath, 0L, ServicesPrefix)
-          sendTiming(workflowArchiveTotalTimeMetricPath, calculateTimeSince(startTime), ServicesPrefix)
-          scheduleNextWorkflowToArchive()
-          if (archiveMetadataConfig.debugLogging) log.info(s"No complete workflows which finished over ${archiveMetadataConfig.archiveDelay} ago remain to be archived. Scheduling next poll in ${archiveMetadataConfig.backoffInterval}.")
+
+          if (cnt > 0) {
+            if (archiveMetadataConfig.debugLogging) log.info(s"Successfully archived $cnt workflows.")
+            self ! ArchiveNextWorkflowMessage
+          } else {
+            count(rowsProcessedMetricPath, 0L, ServicesPrefix)
+            sendGauge(workflowsToArchiveMetricPath, 0L, ServicesPrefix)
+            sendTiming(workflowArchiveTotalTimeMetricPath, calculateTimeSince(startTime), ServicesPrefix)
+            if (archiveMetadataConfig.debugLogging) log.info(s"No complete workflows which finished over ${archiveMetadataConfig.archiveDelay} ago remain to be archived. Scheduling next poll in ${archiveMetadataConfig.backoffInterval}.")
+            scheduleNextWorkflowToArchive()
+          }
+        case Success(cnt) if cnt > 0 =>
+//          count(workflowsProcessedSuccessMetricPath, cnt, ServicesPrefix)
+//          count(workflowsProcessedFailureMetricPath, 0L, ServicesPrefix)
+        case Success(_) =>
+//          count(rowsProcessedMetricPath, 0L, ServicesPrefix)
+//          count(workflowsProcessedSuccessMetricPath, 0L, ServicesPrefix)
+//          count(workflowsProcessedFailureMetricPath, 0L, ServicesPrefix)
+//          sendTiming(workflowArchiveTotalTimeMetricPath, calculateTimeSince(startTime), ServicesPrefix)
+//          scheduleNextWorkflowToArchive()
+//          if (archiveMetadataConfig.debugLogging) log.info(s"No complete workflows which finished over ${archiveMetadataConfig.archiveDelay} ago remain to be archived. Scheduling next poll in ${archiveMetadataConfig.backoffInterval}.")
         case Failure(error) =>
           count(rowsProcessedMetricPath, 0L, ServicesPrefix)
           count(workflowsProcessedSuccessMetricPath, 0L, ServicesPrefix)
@@ -132,48 +141,55 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
     })
   }
 
-  def archiveNextWorkflows(startTime: OffsetDateTime): Future[Long] = {
+  def archiveNextWorkflows: Future[Long] = {
+    val batchLookupStartTime = OffsetDateTime.now()
+
     for {
       workflowSummaryEntries <- lookupNextWorkflowsToArchive(archiveMetadataConfig.batchSize)
-      workflowSelectedTime = OffsetDateTime.now()
-      _ = sendTiming(archiverTimingMetricsBasePath :+ "lookup_next_workflows", calculateTimeDifference(startTime, workflowSelectedTime), ServicesPrefix)
-      _ = log.info(s"About to archive batch of ${workflowSummaryEntries.size} workflows.")
-      result <- archiveSummaryEntries(workflowSummaryEntries, workflowSelectedTime)
+      batchLookupEndTime = OffsetDateTime.now()
+      _ = sendTiming(archiverTimingMetricsBasePath :+ "lookup_next_workflows", calculateTimeDifference(batchLookupStartTime, batchLookupEndTime), ServicesPrefix)
+      _ = if (archiveMetadataConfig.debugLogging) log.info(s"About to archive batch of ${workflowSummaryEntries.size} workflows.")
+      result <- archiveSummaryEntries(workflowSummaryEntries)
+      _ = sendTiming(archiverTimingMetricsBasePath :+ "batch_archive_time", calculateTimeDifference(batchLookupEndTime, OffsetDateTime.now()), ServicesPrefix)
     } yield result
   }
 
-  private def archiveSummaryEntries(entries: Seq[WorkflowMetadataSummaryEntry], workflowSelectedTime: OffsetDateTime): Future[Long] = {
+  private def archiveSummaryEntries(entries: Seq[WorkflowMetadataSummaryEntry]): Future[Long] = {
     if (entries.isEmpty) {
       sendGauge(timeBehindExpectedDelayMetricPath, 0L, ServicesPrefix)
       Future.successful(0L)
     } else {
-      val resultSeq: Seq[Future[Long]] = entries.map(archiveSummaryEntry(_, workflowSelectedTime))
+      val resultSeq: Seq[Future[Long]] = entries.map(archiveSummaryEntry)
       val result: Future[Seq[Long]] = Future.sequence(resultSeq)
 
       result.map(_.sum)
     }
   }
 
-  private def archiveSummaryEntry(entry: WorkflowMetadataSummaryEntry, workflowSelectedTime: OffsetDateTime): Future[Long] = {
+  private def archiveSummaryEntry(entry: WorkflowMetadataSummaryEntry): Future[Long] = {
     entry.endTimestamp.foreach { workflowEndTime =>
       val millisSinceWorkflowEnd = JDuration.between(workflowEndTime.toSystemOffsetDateTime, OffsetDateTime.now()).toMillis
       sendGauge(timeBehindExpectedDelayMetricPath, millisSinceWorkflowEnd - archiveMetadataConfig.archiveDelay.toMillis, ServicesPrefix)
     }
+
+    val archiveStartTime = OffsetDateTime.now()
+
     for {
       path <- Future.fromTry(getGcsPathForMetadata(entry))
       workflowId = entry.workflowExecutionUuid
       dbStream <- fetchStreamFromDatabase(WorkflowId(UUID.fromString(workflowId)))
       _ = log.info(s"Archiving metadata for $workflowId to ${path.pathAsString}")
       readyToStreamTime = OffsetDateTime.now()
-      _ = sendTiming(archiverTimingMetricsBasePath :+ "prepare_to_stream", calculateTimeDifference(workflowSelectedTime, readyToStreamTime), ServicesPrefix)
+      _ = sendTiming(archiverTimingMetricsBasePath :+ "prepare_to_stream", calculateTimeDifference(archiveStartTime, readyToStreamTime), ServicesPrefix)
       _ <- streamMetadataToGcs(path, dbStream)
       streamCompleteTime = OffsetDateTime.now()
       _ = sendTiming(archiverTimingMetricsBasePath :+ "stream_to_gcs", calculateTimeDifference(readyToStreamTime, streamCompleteTime), ServicesPrefix)
       _ <- updateMetadataArchiveStatus(WorkflowId(UUID.fromString(workflowId)), Archived)
       statusUpdatedTime = OffsetDateTime.now()
       _ = sendTiming(archiverTimingMetricsBasePath :+ "archive_status_update", calculateTimeDifference(streamCompleteTime, statusUpdatedTime), ServicesPrefix)
+      _ = sendTiming(workflowArchiveTotalTimeMetricPath, calculateTimeDifference(archiveStartTime, statusUpdatedTime), ServicesPrefix)
       _ = log.info(s"Archiving succeeded for $workflowId")
-    } yield 1
+    } yield 1L
   }
 
   def lookupNextWorkflowsToArchive(count: Long): Future[Seq[WorkflowMetadataSummaryEntry]] = {

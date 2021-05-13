@@ -409,7 +409,7 @@ egress_check() {
     # vm_location_zone is something like us-central1-a. Get its region by removing everything after and including the last hyphen 
     vm_location="${vm_location_zone%-*}"
     
-    if [[ "${multi_regions[$bucket_location]}" ]]; then
+    if [[ -v multi_regions[$bucket_location] ]]; then
       # Bucket is a multi-region bucket. Exit if the vm is in a different continent.
       vm_continent=$(echo "${vm_location}" | cut -d- -f1)
       if [[ "${bucket_location}" == "asia" ]] && [[ "${vm_continent}" != "asia" ]]; then
@@ -424,7 +424,7 @@ egress_check() {
       else
         echo "Multi-region bucket in ${bucket_location}. VM in ${vm_location}. No egress will occur."
       fi
-    elif [[ "${dual_regions[$bucket_location]}" ]]; then
+    elif [[ -v dual_regions[$bucket_location] ]]; then
       # Bucket is a dual-region bucket. Exit if the vm is not one of the two regions.
       if [[ "${bucket_location}" == "asia1" ]]; then
         if [[ "${vm_location}" != "asia-northeast1" ]] || [[ "${vm_location}" != "asia-northeast2" ]]; then

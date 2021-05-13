@@ -145,10 +145,10 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   private def archiveSummaryEntries(entries: Seq[WorkflowMetadataSummaryEntry], workflowSelectedTime: OffsetDateTime): Future[Long] = {
     if (entries.isEmpty) {
       sendGauge(timeBehindExpectedDelayMetricPath, 0L, ServicesPrefix)
-      Future.successful(0)
+      Future.successful(0L)
     } else {
       val resultSeq: Seq[Future[Long]] = entries.map(archiveSummaryEntry(_, workflowSelectedTime))
-      val result: Future[Seq[Long]] = Future.sequence(resultSeq) // The special sauce that makes 'em execute in parallel
+      val result: Future[Seq[Long]] = Future.sequence(resultSeq)
 
       result.map(_.sum)
     }

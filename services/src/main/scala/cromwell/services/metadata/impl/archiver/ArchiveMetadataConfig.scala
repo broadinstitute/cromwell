@@ -30,7 +30,7 @@ object ArchiveMetadataConfig {
     val defaultArchiveDelay = 365 days
     val defaultInstrumentationInterval = 1 minute
     val defaultDebugLogging = true
-    val defaultBatchSize: Long = 10
+    val defaultBatchSize: Long = 1
 
     for {
       _ <- Try(archiveMetadataConfig.getConfig("filesystems.gcs")).toCheckedWithContext("parse archiver 'filesystems.gcs' field from config")

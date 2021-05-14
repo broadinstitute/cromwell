@@ -139,7 +139,7 @@ trait WorkflowMetadataSummaryEntryComponent {
     fetchAllWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(
       workflowStatuses,
       workflowEndTimestampThreshold
-    ).sortBy(_.workflowMetadataSummaryEntryId).take(batchSize)
+    ).sortBy(_.endTimestamp).take(batchSize)
   }
 
   def countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],

@@ -17,7 +17,9 @@ import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.util.EntityUtils
 import org.apache.http.{HttpResponse, HttpStatus, StatusLine}
 
+import java.nio.ByteBuffer
 import java.nio.channels.{Channels, ReadableByteChannel}
+import scala.util.Try
 
 abstract class DrsPathResolver(drsConfig: DrsConfig) {
 
@@ -80,8 +82,24 @@ abstract class DrsPathResolver(drsConfig: DrsConfig) {
       accessUrl.headers.getOrElse(Map.empty).toList foreach {
         case (name, value) => httpGet.addHeader(name, value)
       }
-      val response = httpClientBuilder.build().execute(httpGet)
-      Channels.newChannel(response.getEntity.getContent)
+      val client = httpClientBuilder.build()
+      val response = client.execute(httpGet)
+      val inner = Channels.newChannel(response.getEntity.getContent)
+      new ReadableByteChannel {
+        override def read(dst: ByteBuffer): Int = inner.read(dst)
+
+        override def isOpen: Boolean = inner.isOpen
+
+        //noinspection ScalaUnusedExpression
+        override def close(): Unit = {
+          val innerTry = Try(inner.close())
+          val responseTry = Try(response.close())
+          val clientTry = Try(client.close())
+          innerTry.get
+          responseTry.get
+          clientTry.get
+        }
+      }
     }
   }
 }

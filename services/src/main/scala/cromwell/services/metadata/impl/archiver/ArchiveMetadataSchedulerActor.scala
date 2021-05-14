@@ -140,7 +140,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
       _ = sendTiming(archiverTimingMetricsBasePath :+ "lookup_next_workflows", calculateTimeDifference(batchLookupStartTime, batchLookupEndTime), ServicesPrefix)
       _ = if (archiveMetadataConfig.debugLogging) log.info(s"About to archive batch of ${workflowSummaryEntries.size} workflows.")
       result <- archiveSummaryEntries(workflowSummaryEntries)
-      _ = sendTiming(archiverTimingMetricsBasePath :+ "batch_archive_time", calculateTimeDifference(batchLookupEndTime, OffsetDateTime.now()), ServicesPrefix)
+      _ = sendTiming(archiverTimingMetricsBasePath :+ "batch_lookup_and_archive_time", calculateTimeDifference(batchLookupStartTime, OffsetDateTime.now()), ServicesPrefix)
     } yield result
   }
 

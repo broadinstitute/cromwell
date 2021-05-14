@@ -20,7 +20,8 @@ final case class ArchiveMetadataConfig(pathBuilders: PathBuilders,
                                        backoffInterval: FiniteDuration,
                                        archiveDelay: FiniteDuration,
                                        instrumentationInterval: FiniteDuration,
-                                       debugLogging: Boolean) {
+                                       debugLogging: Boolean,
+                                       batchSize: Long) {
 }
 
 object ArchiveMetadataConfig {
@@ -29,6 +30,7 @@ object ArchiveMetadataConfig {
     val defaultArchiveDelay = 365 days
     val defaultInstrumentationInterval = 1 minute
     val defaultDebugLogging = true
+    val defaultBatchSize: Long = 1
 
     for {
       _ <- Try(archiveMetadataConfig.getConfig("filesystems.gcs")).toCheckedWithContext("parse archiver 'filesystems.gcs' field from config")
@@ -40,6 +42,7 @@ object ArchiveMetadataConfig {
       archiveDelay <- Try(archiveMetadataConfig.getOrElse("archive-delay", defaultArchiveDelay)).toChecked
       instrumentationInterval <- Try(archiveMetadataConfig.getOrElse("instrumentation-interval", defaultInstrumentationInterval)).toChecked
       debugLogging <- Try(archiveMetadataConfig.getOrElse("debug-logging", defaultDebugLogging)).toChecked
-    } yield ArchiveMetadataConfig(pathBuilders, bucket, backoffInterval, archiveDelay, instrumentationInterval, debugLogging)
+      batchSize <- Try(archiveMetadataConfig.getOrElse("batch-size", defaultBatchSize)).toChecked
+    } yield ArchiveMetadataConfig(pathBuilders, bucket, backoffInterval, archiveDelay, instrumentationInterval, debugLogging, batchSize)
   }
 }

@@ -101,16 +101,6 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
             if (archiveMetadataConfig.debugLogging) log.info(s"No complete workflows which finished over ${archiveMetadataConfig.archiveDelay} ago remain to be archived. Scheduling next poll in ${archiveMetadataConfig.backoffInterval}.")
             scheduleNextWorkflowToArchive()
           }
-        case Success(cnt) if cnt > 0 =>
-//          count(workflowsProcessedSuccessMetricPath, cnt, ServicesPrefix)
-//          count(workflowsProcessedFailureMetricPath, 0L, ServicesPrefix)
-        case Success(_) =>
-//          count(rowsProcessedMetricPath, 0L, ServicesPrefix)
-//          count(workflowsProcessedSuccessMetricPath, 0L, ServicesPrefix)
-//          count(workflowsProcessedFailureMetricPath, 0L, ServicesPrefix)
-//          sendTiming(workflowArchiveTotalTimeMetricPath, calculateTimeSince(startTime), ServicesPrefix)
-//          scheduleNextWorkflowToArchive()
-//          if (archiveMetadataConfig.debugLogging) log.info(s"No complete workflows which finished over ${archiveMetadataConfig.archiveDelay} ago remain to be archived. Scheduling next poll in ${archiveMetadataConfig.backoffInterval}.")
         case Failure(error) =>
           count(rowsProcessedMetricPath, 0L, ServicesPrefix)
           count(workflowsProcessedSuccessMetricPath, 0L, ServicesPrefix)

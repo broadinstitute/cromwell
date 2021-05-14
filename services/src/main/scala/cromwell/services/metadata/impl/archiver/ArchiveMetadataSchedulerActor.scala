@@ -104,7 +104,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
         case Failure(error) =>
           count(rowsProcessedMetricPath, 0L, ServicesPrefix)
           count(workflowsProcessedSuccessMetricPath, 0L, ServicesPrefix)
-          increment(workflowsProcessedFailureMetricPath, ServicesPrefix)
+          count(workflowsProcessedFailureMetricPath, archiveMetadataConfig.batchSize, ServicesPrefix)
           sendTiming(workflowArchiveTotalTimeMetricPath, calculateTimeSince(startTime), ServicesPrefix)
           log.error(error, s"Error while archiving, will retry.")
           scheduleNextWorkflowToArchive()

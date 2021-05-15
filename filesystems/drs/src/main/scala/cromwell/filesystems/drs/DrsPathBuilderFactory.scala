@@ -2,21 +2,13 @@ package cromwell.filesystems.drs
 
 import akka.actor.ActorSystem
 import cats.data.Validated.{Invalid, Valid}
-import cats.effect.IO
-import cloud.nio.impl.drs.MarthaResponseSupport._
-import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, DrsPathResolver, MarthaResponse, SADataObject}
+import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
 import com.google.api.services.oauth2.Oauth2Scopes
-import com.google.api.services.storage.StorageScopes
-import com.google.auth.oauth2.OAuth2Credentials
-import com.google.cloud.storage.Storage.BlobGetOption
-import com.google.cloud.storage.{Blob, StorageException, StorageOptions}
 import com.typesafe.config.Config
 import cromwell.cloudsupport.gcp.GoogleConfiguration
-import cromwell.cloudsupport.gcp.auth.{GoogleAuthMode, UserServiceAccountMode}
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{PathBuilder, PathBuilderFactory}
 
-import java.nio.channels.ReadableByteChannel
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
@@ -33,68 +25,6 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
   private lazy val googleAuthMode = googleConfiguration.auth(scheme) match {
     case Valid(auth) => auth
     case Invalid(error) => throw new RuntimeException(s"Error while instantiating DRS path builder factory. Errors: ${error.toString}")
-  }
-
-  private def gcsInputStream(gcsFile: String,
-                             credentials: OAuth2Credentials,
-                             requesterPaysProjectIdOption: Option[String],
-                            ): IO[ReadableByteChannel] = {
-    for {
-      storage <- IO(StorageOptions.newBuilder().setCredentials(credentials).build().getService)
-      gcsBucketAndName <- IO(getGcsBucketAndName(gcsFile))
-      (bucketName, objectName) = gcsBucketAndName
-      readChannel <- IO(storage.get(bucketName, objectName).reader()) handleErrorWith {
-        throwable =>
-          (requesterPaysProjectIdOption, throwable) match {
-            case (Some(requesterPaysProjectId), storageException: StorageException)
-              if storageException.getMessage == "Bucket is requester pays bucket but no user project provided." =>
-              IO(
-                storage
-                  .get(bucketName, objectName, BlobGetOption.userProject(requesterPaysProjectId))
-                  .reader(Blob.BlobSourceOption.userProject(requesterPaysProjectId))
-              )
-            case _ => IO.raiseError(throwable)
-          }
-      }
-    } yield readChannel
-  }
-
-  private def drsReadInterpreter(options: WorkflowOptions, requesterPaysProjectIdOption: Option[String])
-                                (drsPathResolver: DrsPathResolver, marthaResponse: MarthaResponse)
-  : IO[ReadableByteChannel] = {
-    (marthaResponse.accessUrl, marthaResponse.gsUri) match {
-      case (Some(accessUrl), _) =>
-        drsPathResolver.openChannel(accessUrl)
-      case (_, Some(gcsPath)) =>
-        drsReadInterpreter(options, requesterPaysProjectIdOption, gcsPath, marthaResponse.googleServiceAccount)
-      case _ =>
-        IO.raiseError(new RuntimeException(DrsPathResolver.ExtractUriErrorMsg))
-    }
-  }
-
-  private def drsReadInterpreter(options: WorkflowOptions,
-                                 requesterPaysProjectIdOption: Option[String],
-                                 gsUri: String,
-                                 googleServiceAccount: Option[SADataObject],
-                                )
-  : IO[ReadableByteChannel] = {
-    val readScopes = List(StorageScopes.DEVSTORAGE_READ_ONLY)
-    val credentialsIo = googleServiceAccount match {
-      case Some(googleSA) =>
-        IO(
-          UserServiceAccountMode("martha_service_account").credentials(
-            Map(GoogleAuthMode.UserServiceAccountKey -> googleSA.data.noSpaces),
-            readScopes,
-          )
-        )
-      case None =>
-        IO(googleAuthMode.credentials(options.get(_).get, readScopes))
-    }
-
-    for {
-      credentials <- credentialsIo
-      readableByteChannel <- gcsInputStream(gsUri, credentials, requesterPaysProjectIdOption)
-    } yield readableByteChannel
   }
 
   override def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[PathBuilder] = {
@@ -128,7 +58,7 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
         new DrsCloudNioFileSystemProvider(
           singletonConfig.config,
           authCredentials,
-          drsReadInterpreter(options, requesterPaysProjectIdOption),
+          DrsReader.readInterpreter(googleAuthMode, options, requesterPaysProjectIdOption),
         ),
         requesterPaysProjectIdOption,
         preResolve,

@@ -7,17 +7,14 @@ import com.typesafe.config.ConfigFactory
 import common.assertion.CromwellTimeoutSpec
 import org.apache.commons.compress.utils.SeekableInMemoryByteChannel
 import org.apache.http.HttpVersion
-import org.apache.http.client.methods.{CloseableHttpResponse, HttpGet, HttpPost}
-import org.apache.http.entity.ByteArrayEntity
+import org.apache.http.client.methods.{CloseableHttpResponse, HttpPost}
 import org.apache.http.impl.client.{CloseableHttpClient, HttpClientBuilder}
 import org.apache.http.message.BasicStatusLine
 import org.mockito.Mockito.verify
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
-import org.testcontainers.shaded.org.apache.commons.io.IOUtils
 
-import java.nio.ByteBuffer
 import java.nio.channels.ReadableByteChannel
 import java.time.{Instant, OffsetDateTime, ZoneOffset}
 import scala.concurrent.duration._
@@ -74,40 +71,6 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
 
     verify(httpClient).close()
     verify(httpResponse).close()
-  }
-
-  it should "return a channel for an access url" in {
-    val exampleBytes = Array[Byte](1, 2, 3)
-    val httpResponse = mock[CloseableHttpResponse].smart
-    httpResponse.getEntity returns new ByteArrayEntity(exampleBytes)
-
-    val httpClient = mock[CloseableHttpClient].smart
-    doReturn(httpResponse).when(httpClient).execute(anyObject[HttpGet])
-
-    val httpClientBuilder = mock[HttpClientBuilder].smart
-    httpClientBuilder.build() returns httpClient
-
-    val drsPathResolver = new MockEngineDrsPathResolver(httpClientBuilderOverride = Option(httpClientBuilder))
-
-    val accessUrl = AccessUrl("https://host/object/path", Option(Map("hello" -> "world")))
-    val channel = drsPathResolver.openChannel(accessUrl).unsafeRunSync()
-
-    val buffer = ByteBuffer.allocate(exampleBytes.length)
-    channel.isOpen should be (true)
-    IOUtils.readFully(channel, buffer)
-    channel.close()
-
-    val httpGetCapture = capture[HttpGet]
-    channel.isOpen should be (false)
-    buffer.array() should be(exampleBytes)
-    verify(httpClient).execute(httpGetCapture.capture)
-    verify(httpClient).close()
-    verify(httpResponse).close()
-
-    val actualHeaders = httpGetCapture.value.getAllHeaders
-    actualHeaders.length should be(1)
-    actualHeaders(0).getName should be("hello")
-    actualHeaders(0).getValue should be("world")
   }
 
   it should "return a file provider that can read bytes from gcs" in {

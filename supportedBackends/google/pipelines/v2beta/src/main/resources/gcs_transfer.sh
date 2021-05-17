@@ -399,10 +399,16 @@ egress_check() {
     # What if cloud_file is an authorized url?
     # We likely couldn't handle this as we may not have permission to get bucket metadata (for location lookup)
 
+    if ! gsutil ls -L -b "gs://${bucket_name}" 2>/dev/null; then
+      echo "No access to ${bucket_name} (or it does not exist)."
+      echo "No egress check can be done, so skipping."
+      continue
+    fi
+
     # bucket_location will be either a region (e.g. us-central1), dual-region (e.g. nam4), or a multi-region (e.g. US)
     # We may have access to the object, but not the bucket metadata. So we may not be able to get bucket location
     # In this case, Cromwell should determine (based on a flag) whether to proceed or hard-fail. Should default to a "best-effort".
-    bucket_location="$(gsutil ls -L -b "gs://${bucket_name}" | grep "Location constraint" | awk '{print $3}')"
+    bucket_location="$(gsutil ls -L -b "gs://${bucket_name}" | grep "Location constraint" | awk '{print tolower($3)}')"
 
     curl_output="$(curl "http://metadata.google.internal/computeMetadata/v1/instance/zone" -H "Metadata-Flavor: Google")"
     vm_location_zone="$(basename ${curl_output})"

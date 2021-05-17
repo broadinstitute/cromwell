@@ -4,7 +4,7 @@ import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO}
 import cloud.nio.impl.drs.{AccessUrl, DrsConfig, MarthaField, MarthaResponse}
 import common.assertion.CromwellTimeoutSpec
-import drs.localizer.downloaders.{AccessUrlDownloader, GcsUriDownloader}
+import drs.localizer.downloaders._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -31,7 +31,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
       serviceAccountJson = None,
       downloadLoc = fakeDownloadLocation,
       requesterPaysProjectIdOption = None)
-    mockDrsLocalizer.resolve().unsafeRunSync() shouldBe expected
+    mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloadBuilder).unsafeRunSync() shouldBe expected
   }
 
   it should "run successfully with all 3 arguments" in {
@@ -41,14 +41,14 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
       serviceAccountJson = None,
       downloadLoc = fakeDownloadLocation,
       requesterPaysProjectIdOption = Option(fakeRequesterPaysId))
-    mockDrsLocalizer.resolve().unsafeRunSync() shouldBe expected
+    mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloadBuilder).unsafeRunSync() shouldBe expected
   }
 
   it should "fail and throw error if Martha response does not have gs:// url" in {
     val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithoutAnyResolution, fakeDownloadLocation, None)
 
     the[RuntimeException] thrownBy {
-      mockDrsLocalizer.resolve().unsafeRunSync()
+      mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloadBuilder).unsafeRunSync()
     } should have message "No access URL nor GCS URI starting with 'gs://' found in Martha response!"
   }
 
@@ -57,7 +57,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     val expected = AccessUrlDownloader(
       accessUrl = AccessUrl(url = "http://abc/def/ghi.bam", headers = None), downloadLoc = fakeDownloadLocation
     )
-    mockDrsLocalizer.resolve().unsafeRunSync() shouldBe expected
+    mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloadBuilder).unsafeRunSync() shouldBe expected
   }
 
   it should "resolve to use the correct downloader for an access url when the Martha response also contains a gs url" in {
@@ -65,7 +65,143 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     val expected = AccessUrlDownloader(
       accessUrl = AccessUrl(url = "http://abc/def/ghi.bam", headers = None), downloadLoc = fakeDownloadLocation
     )
-    mockDrsLocalizer.resolve().unsafeRunSync() shouldBe expected
+    mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloadBuilder).unsafeRunSync() shouldBe expected
+  }
+
+  it should "not retry on access URL download success" in {
+    var actualAttempts = 0
+
+    val drsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithAccessUrlResolutionOnly, fakeDownloadLocation, None) {
+      override def resolveAndDownload(downloaderBuilder: DownloaderBuilder): IO[DownloadResult] = {
+        actualAttempts = actualAttempts + 1
+        super.resolveAndDownload(downloaderBuilder)
+      }
+    }
+    val accessUrlDownloader = IO.pure(new Downloader {
+      override def download: IO[DownloadResult] =
+        IO.pure(DownloadSuccess)
+    })
+
+    val downloaderBuilder = new DownloaderBuilder {
+      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String): IO[Downloader] = {
+        accessUrlDownloader
+      }
+
+      override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] = {
+        // This test path should never ask for the GCS downloader
+        throw new RuntimeException("test failure")
+      }
+    }
+
+    drsLocalizer.resolveAndDownloadWithRetries(
+      retries = 3,
+      downloaderBuilder = downloaderBuilder,
+      backoff = None
+    ).unsafeRunSync() shouldBe DownloadSuccess
+
+    actualAttempts shouldBe 1
+  }
+
+  it should "retry an appropriate number of times for retryable access URL download failures" in {
+    var actualAttempts = 0
+
+    val drsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithAccessUrlResolutionOnly, fakeDownloadLocation, None) {
+      override def resolveAndDownload(downloaderBuilder: DownloaderBuilder): IO[DownloadResult] = {
+        actualAttempts = actualAttempts + 1
+        super.resolveAndDownload(downloaderBuilder)
+      }
+    }
+    val accessUrlDownloader = IO.pure(new Downloader {
+      override def download: IO[DownloadResult] =
+        IO.pure(RetryableDownloadFailure())
+    })
+
+    val downloaderBuilder = new DownloaderBuilder {
+      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String): IO[Downloader] = {
+        accessUrlDownloader
+      }
+
+      override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] = {
+        // This test path should never ask for the GCS downloader
+        throw new RuntimeException("test failure")
+      }
+    }
+
+    assertThrows[Throwable] {
+      drsLocalizer.resolveAndDownloadWithRetries(
+        retries = 3,
+        downloaderBuilder = downloaderBuilder,
+        backoff = None
+      ).unsafeRunSync()
+    }
+
+    actualAttempts shouldBe 4 // 1 initial attempt + 3 retries = 4 total attempts
+  }
+
+  it should "not retry on GCS URI download success" in {
+    var actualAttempts = 0
+    val drsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation, None) {
+      override def resolveAndDownload(downloaderBuilder: DownloaderBuilder): IO[DownloadResult] = {
+        actualAttempts = actualAttempts + 1
+        super.resolveAndDownload(downloaderBuilder)
+      }
+    }
+    val gcsUriDownloader = IO.pure(new Downloader {
+      override def download: IO[DownloadResult] =
+        IO.pure(DownloadSuccess)
+    })
+
+    val downloaderBuilder = new DownloaderBuilder {
+      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String): IO[Downloader] = {
+        // This test path should never ask for the access URL downloader
+        throw new RuntimeException("test failure")
+      }
+
+      override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] = {
+        gcsUriDownloader
+      }
+    }
+
+    drsLocalizer.resolveAndDownloadWithRetries(
+      retries = 3,
+      downloaderBuilder = downloaderBuilder,
+      backoff = None).unsafeRunSync()
+
+    actualAttempts shouldBe 1
+  }
+
+  it should "retry an appropriate number of times for retryable GCS URI download failures" in {
+    var actualAttempts = 0
+    val drsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation, None) {
+      override def resolveAndDownload(downloaderBuilder: DownloaderBuilder): IO[DownloadResult] = {
+        actualAttempts = actualAttempts + 1
+        super.resolveAndDownload(downloaderBuilder)
+      }
+    }
+    val gcsUriDownloader = IO.pure(new Downloader {
+      override def download: IO[DownloadResult] =
+        IO.pure(RetryableDownloadFailure())
+    })
+
+    val downloaderBuilder = new DownloaderBuilder {
+      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String): IO[Downloader] = {
+        // This test path should never ask for the access URL downloader
+        throw new RuntimeException("test failure")
+      }
+
+      override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] = {
+        gcsUriDownloader
+      }
+    }
+
+    assertThrows[Throwable] {
+      drsLocalizer.resolveAndDownloadWithRetries(
+        retries = 3,
+        downloaderBuilder = downloaderBuilder,
+        backoff = None).unsafeRunSync()
+    }
+
+    actualAttempts shouldBe 4 // 1 initial attempt + 3 retries = 4 total attempts
   }
 }
 

@@ -303,6 +303,8 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
     override def queryWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String], workflowEndTimestampThreshold: Timestamp, batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = notImplemented()
 
     override def countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String], workflowEndTimestampThreshold: Timestamp)(implicit ec: ExecutionContext): Future[Int] = notImplemented()
+
+    override def countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(workflowEndTimestampThreshold: Timestamp)(implicit ec: ExecutionContext): Future[Int] = notImplemented()
   }
 }
 

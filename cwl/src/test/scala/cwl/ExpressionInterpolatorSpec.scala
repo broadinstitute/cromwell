@@ -19,7 +19,7 @@ class ExpressionInterpolatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
   behavior of "ExpressionInterpolator"
 
   private lazy val expressionLib = Vector(
-    better.files.File(getClass.getResource("underscore.js").getPath).contentAsString,
+    better.files.File(getClass.getResource("lodash.js").getPath).contentAsString,
     "var t = function(s) { return _.template(s, {variable: 'data'})({'inputs': inputs}); };"
   )
 

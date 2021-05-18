@@ -3,10 +3,9 @@ package cromwell.backend.google.pipelines.v1alpha2
 import java.io.IOException
 
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
-import cromwell.backend.google.pipelines.common.authentication.{GcsLocalizing, PipelinesApiAuthObject, PipelinesApiDockerCredentials}
+import cromwell.backend.google.pipelines.common.authentication.{PipelinesApiAuthObject, PipelinesApiDockerCredentials}
 import cromwell.backend.google.pipelines.common.{PipelinesApiInitializationActorParams, PipelinesApiJobPaths, PipelinesApiWorkflowPaths}
 import cromwell.backend.google.pipelines.v1alpha2.PipelinesApiInitializationActor.AuthFileAlreadyExistsException
-import cromwell.cloudsupport.gcp.auth.{ClientSecrets, GoogleAuthMode}
 import cromwell.core.path.Path
 import spray.json.{JsObject, JsTrue}
 
@@ -14,15 +13,6 @@ import scala.concurrent.Future
 
 class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializationActorParams)
   extends cromwell.backend.google.pipelines.common.PipelinesApiInitializationActor(pipelinesParams) {
-
-  // From the gcs auth and the workflow options, optionally builds a GcsLocalizing that contains
-  // the information (client Id/Secrets + refresh token) that will be uploaded to Gcs before the workflow start
-  private[pipelines] lazy val refreshTokenAuth: Option[PipelinesApiAuthObject] = {
-    for {
-      clientSecrets <- List(pipelinesConfiguration.papiAttributes.auths.gcs) collectFirst { case s: ClientSecrets => s }
-      token <- workflowDescriptor.workflowOptions.get(GoogleAuthMode.RefreshTokenOptionKey).toOption
-    } yield GcsLocalizing(clientSecrets, token)
-  }
 
   // V1 needs to upload the auth file at the beginning of the workflow, so override the default beforeAll
   override def beforeAll() = {
@@ -51,7 +41,7 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
   private def writeAuthenticationFile(workflowPath: PipelinesApiWorkflowPaths,
                                       restrictMetadataAccess: Boolean,
                                       dockerCredentials: Option[PipelinesApiDockerCredentials]): Future[Unit] = {
-    val authObjects = List(dockerCredentials, refreshTokenAuth).flatten
+    val authObjects = List(dockerCredentials).flatten
     generateAuthJson(authObjects, restrictMetadataAccess) map { content =>
       val path = workflowPath.gcsAuthFilePath
       workflowLogger.info(s"Creating authentication file for workflow ${workflowDescriptor.id} at \n $path")

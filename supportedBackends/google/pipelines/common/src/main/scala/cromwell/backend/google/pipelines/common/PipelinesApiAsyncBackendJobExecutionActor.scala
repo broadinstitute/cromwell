@@ -421,8 +421,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.UseDockerImageCache).getOrElse(false)
   }
 
-  protected def localizationEgress(descriptor: BackendWorkflowDescriptor): Map[String, String] = {
-    descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.LocalizationEgress, Map("" -> ""))
+  protected def localizationEgress(descriptor: BackendWorkflowDescriptor): String = {
+    descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.LocalizationEgress, "none")
   }
 
   override def isTerminal(runStatus: RunStatus): Boolean = {

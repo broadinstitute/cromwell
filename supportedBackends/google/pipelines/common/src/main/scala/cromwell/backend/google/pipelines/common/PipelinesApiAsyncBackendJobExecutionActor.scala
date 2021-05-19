@@ -42,6 +42,7 @@ import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.CallMetadataKeys
 import mouse.all._
 import shapeless.Coproduct
+import spray.json.JsObject
 import wdl4s.parser.MemoryUnit
 import wom.callable.Callable.OutputDefinition
 import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
@@ -421,8 +422,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.UseDockerImageCache).getOrElse(false)
   }
 
-  protected def localizationEgress(descriptor: BackendWorkflowDescriptor): Map[String, String] = {
-    descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.LocalizationEgress, Map("" -> ""))
+  protected def localizationEgress(descriptor: BackendWorkflowDescriptor): JsObject = {
+    descriptor.workflowOptions.toMap.get(WorkflowOptionKeys.LocalizationEgress)
   }
 
   override def isTerminal(runStatus: RunStatus): Boolean = {

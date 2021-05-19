@@ -92,7 +92,7 @@ object PipelinesApiRequestFactory {
                                       enableSshAccess: Boolean,
                                       vpcNetworkAndSubnetworkProjectLabels: Option[VpcAndSubnetworkProjectLabelValues],
                                       dockerImageCacheDiskOpt: Option[String],
-                                      localizationEgress: String
+                                      localizationEgress: Map[String, String]
                                      ) {
     def literalInputs = inputOutputParameters.literalInputParameters
     def inputParameters = inputOutputParameters.fileInputParameters

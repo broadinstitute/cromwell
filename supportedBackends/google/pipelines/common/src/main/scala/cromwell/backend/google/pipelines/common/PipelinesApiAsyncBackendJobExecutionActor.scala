@@ -423,10 +423,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   }
 
   protected def localizationEgress(descriptor: BackendWorkflowDescriptor): JsObject = {
-    descriptor.workflowOptions.toMap.getOrElse(WorkflowOptionKeys.LocalizationEgress) match {
+    descriptor.workflowOptions.toMap.get(WorkflowOptionKeys.LocalizationEgress) match {
       case Some(obj: JsObject) => obj
-      case Some(other) => JsObject()
-      case None => JsObject()
+      case _ => JsObject()
     }
   }
 

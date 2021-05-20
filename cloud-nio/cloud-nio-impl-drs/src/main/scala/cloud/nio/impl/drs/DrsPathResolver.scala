@@ -85,6 +85,15 @@ abstract class DrsPathResolver(drsConfig: DrsConfig) {
       val client = httpClientBuilder.build()
       val response = client.execute(httpGet)
       val inner = Channels.newChannel(response.getEntity.getContent)
+      /*
+      Create a wrapper ReadableByteChannel. When .close() is invoked on the wrapper, the wrapper will internally call
+      .close() on:
+      - the inner ReadableByteChannel
+      - the HttpResponse
+      - the HttpClient
+
+      This ensures that when the channel is released any underlying HTTP connections are also released.
+       */
       new ReadableByteChannel {
         override def read(dst: ByteBuffer): Int = inner.read(dst)
 

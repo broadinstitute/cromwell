@@ -69,7 +69,7 @@ class DrsLocalizerMain(drsUrl: String,
         logger.warn(s"Attempting retry $attempt of $retries retries to download $drsUrl", t)
         resolveAndDownloadWithRetries(retries, downloaderBuilder, backoff map { _.next }, attempt + 1)
       } else {
-        IO.raiseError(new Throwable(s"Exhausted $retries retries to resolve and download $drsUrl", t))
+        IO.raiseError(new RuntimeException(s"Exhausted $retries retries to resolve and download $drsUrl", t))
       }
     }
 

@@ -26,7 +26,7 @@ class AccessUrlDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
   val results: TableFor3[Int, String, DownloadResult] = Table(
     ("exitCode", "httpStatus", "download result"),
     (0, "200", DownloadSuccess),
-    (0, "408", RetryableDownloadFailure()),
+    (0, "408", RetryableDownloadFailure(ExitCode(0))),
     (1, "408", RetryableDownloadFailure(ExitCode(1))),
     (1, " foobar ", RetryableDownloadFailure(ExitCode(1))),
     (1, "503", RetryableDownloadFailure(ExitCode(1))),

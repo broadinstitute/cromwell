@@ -50,6 +50,8 @@ trait AwsBatchJobCachingActorHelper extends StandardCachingActorHelper {
 
   lazy val configuration: AwsBatchConfiguration = initializationData.configuration
 
+  lazy val privateDockerToken: Option[String] = initializationData.dockerToken
+
   // TODO: Determine if call paths are relevant
   lazy val callPaths: AwsBatchJobPaths = jobPaths.asInstanceOf[AwsBatchJobPaths]
 

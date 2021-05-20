@@ -121,14 +121,14 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
     val job = AwsBatchJob(null, runtimeAttributes, "commandLine", script,
       "/cromwell_root/hello-rc.txt", "/cromwell_root/hello-stdout.log", "/cromwell_root/hello-stderr.log",
       Seq.empty[AwsBatchInput].toSet, Seq.empty[AwsBatchFileOutput].toSet,
-      jobPaths, Seq.empty[AwsBatchParameter], None)
+      jobPaths, Seq.empty[AwsBatchParameter], None, None)
     job
   }
   private def generateBasicJobForLocalFS: AwsBatchJob = {
     val job = AwsBatchJob(null, runtimeAttributes.copy(fileSystem="local"), "commandLine", script,
       "/cromwell_root/hello-rc.txt", "/cromwell_root/hello-stdout.log", "/cromwell_root/hello-stderr.log",
       Seq.empty[AwsBatchInput].toSet, Seq.empty[AwsBatchFileOutput].toSet,
-      jobPaths, Seq.empty[AwsBatchParameter], None)
+      jobPaths, Seq.empty[AwsBatchParameter], None, None)
     job
   }
 

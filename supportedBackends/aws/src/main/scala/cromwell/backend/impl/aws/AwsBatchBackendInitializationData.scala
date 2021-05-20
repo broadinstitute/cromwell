@@ -40,6 +40,7 @@ case class AwsBatchBackendInitializationData
   override val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder,
   configuration: AwsBatchConfiguration,
   provider: AwsCredentialsProvider,
+  dockerToken: Option[String],
   // TODO: We'll need something specific for batch probably, but I need to
   //       understand more about the genomics node first
   //genomics: Genomics

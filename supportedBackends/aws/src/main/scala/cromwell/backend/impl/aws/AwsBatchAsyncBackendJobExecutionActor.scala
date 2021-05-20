@@ -128,7 +128,6 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         |${jobPaths.script.pathWithoutScheme}
         |""".stripMargin
 
-
   /* Batch job object (see AwsBatchJob). This has the configuration necessary
    * to perform all operations with the AWS Batch infrastructure. This is
    * where the real work happens
@@ -173,11 +172,15 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       runtimeAttributes,
       instantiatedCommand.commandString,
       cmdScript,
-      rcPath.toString, executionStdout, executionStderr,
+      rcPath.toString,
+      executionStdout,
+      executionStderr,
       generateAwsBatchInputs(jobDescriptor),
       generateAwsBatchOutputs(jobDescriptor),
-      jobPaths, Seq.empty[AwsBatchParameter],
+      jobPaths,
+      Seq.empty[AwsBatchParameter],
       configuration.awsConfig.region,
+      privateDockerToken,
       Option(configuration.awsAuth))
   }
   /* Tries to abort the job in flight

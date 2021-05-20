@@ -53,6 +53,8 @@ import software.amazon.awssdk.services.ecs.EcsClient
 import software.amazon.awssdk.services.ecs.model.DescribeContainerInstancesRequest
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.{GetObjectRequest, HeadObjectRequest, NoSuchKeyException, PutObjectRequest}
+import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient
+import software.amazon.awssdk.services.secretsmanager.model.{CreateSecretRequest, SecretsManagerException, SecretListEntry, UpdateSecretRequest}
 import wdl4s.parser.MemoryUnit
 
 import scala.collection.JavaConverters._
@@ -82,6 +84,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
                              jobPaths: JobPaths, // Based on config, calculated in Job Paths, key to all things outside container
                              parameters: Seq[AwsBatchParameter],
                              configRegion: Option[Region],
+                             privateDockerToken: Option[String],
                              optAwsAuthMode: Option[AwsAuthMode] = None
                             ) {
 
@@ -108,6 +111,11 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
   lazy val s3Client: S3Client = {
     val builder = S3Client.builder()
+    configureClient(builder, optAwsAuthMode, configRegion)
+  }
+
+  lazy val secretsClient: SecretsManagerClient = {
+    val builder = SecretsManagerClient.builder()
     configureClient(builder, optAwsAuthMode, configRegion)
   }
 
@@ -229,6 +237,43 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
       buildKVPair("BATCH_FILE_S3_URL",batch_file_s3_url(scriptBucketName,scriptKeyPrefix,scriptKey)))
   }
 
+  
+  private def storePrivateDockerToken(privateDockerToken: Option[String]) = {
+    try {
+
+      val secretName: String = "CROMWELL_DOCKERHUB_CREDENTIALS_2"
+
+      // Check if secret already exists
+      // If exists, update it otherwise create it
+      val secretsList: List[SecretListEntry] = secretsClient.listSecrets().secretList().asScala.toList
+      val secretsNameList = secretsList.map(_.name)
+
+      if(secretsNameList.contains(secretName)){
+        val secretRequest: UpdateSecretRequest = UpdateSecretRequest.builder()
+          .secretId(secretName)
+          .secretString(privateDockerToken.get)
+          .build();
+
+        secretsClient.updateSecret(secretRequest);
+
+        Log.info(s"Secret '$secretName' was updated.")
+      } else {
+        val secretRequest: CreateSecretRequest = CreateSecretRequest.builder()
+          .name(secretName)
+          .secretString(privateDockerToken.get)
+          .build()
+
+        secretsClient.createSecret(secretRequest)
+
+        Log.info(s"Secret '$secretName' was created.")
+      }
+    } 
+    catch {
+        case e: SecretsManagerException => Log.warn(e.awsErrorDetails().errorMessage())
+    }
+  }
+
+
   def submitJob[F[_]]()( implicit timer: Timer[F], async: Async[F]): Aws[F, SubmitJobResponse] = {
 
     val taskId = jobDescriptor.key.call.fullyQualifiedName + "-" + jobDescriptor.key.index + "-" + jobDescriptor.key.attempt
@@ -245,11 +290,12 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
        writeReconfiguredScriptForAudit(reconfiguredScript, bucketName, key+"/reconfigured-script.sh")
     }
 
-
     val batch_script = runtimeAttributes.fileSystem match {
        case AWSBatchStorageSystems.s3  => s"s3://${runtimeAttributes.scriptS3BucketName}/$scriptKeyPrefix$scriptKey"
        case _  => commandScript
     }
+
+    storePrivateDockerToken(privateDockerToken)
 
     //calls the client to submit the job
     def callClient(definitionArn: String, awsBatchAttributes: AwsBatchAttributes): Aws[F, SubmitJobResponse] = {

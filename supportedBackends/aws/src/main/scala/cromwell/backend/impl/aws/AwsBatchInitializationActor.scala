@@ -42,6 +42,8 @@ import cromwell.core.io.DefaultIoCommandBuilder
 import cromwell.core.io.AsyncIoActorClient
 import cromwell.core.path.Path
 import wom.graph.CommandCallNode
+import org.apache.commons.codec.binary.Base64
+import spray.json.{JsObject, JsString}
 
 import scala.concurrent.Future
 
@@ -87,6 +89,19 @@ class AwsBatchInitializationActor(params: AwsBatchInitializationActorParams)
   private lazy val provider: Future[AwsCredentialsProvider] =
     Future { configuration.awsAuth.provider() }
 
+  lazy val privateDockerUnencryptedToken: Option[String] = configuration.dockerToken flatMap { dockerToken =>
+    new String(Base64.decodeBase64(dockerToken)).split(':') match {
+      case Array(username, password) =>
+        // unencrypted tokens are base64-encoded username:password
+        Option(JsObject(
+          Map(
+            "username" -> JsString(username),
+            "password" -> JsString(password)
+          )).compactPrint)
+      case _ => throw new RuntimeException(s"provided dockerhub token '$dockerToken' is not a base64-encoded username:password")
+    }
+  }
+
   override lazy val workflowPaths: Future[AwsBatchWorkflowPaths] = for {
     prov <- provider
   } yield new AwsBatchWorkflowPaths(workflowDescriptor, prov, configuration)
@@ -94,7 +109,11 @@ class AwsBatchInitializationActor(params: AwsBatchInitializationActorParams)
   override lazy val initializationData: Future[AwsBatchBackendInitializationData] = for {
     workflowPaths <- workflowPaths
     prov <- provider
-  } yield AwsBatchBackendInitializationData(workflowPaths, runtimeAttributesBuilder, configuration, prov)
+  } yield AwsBatchBackendInitializationData(workflowPaths,
+  runtimeAttributesBuilder,
+  configuration,
+  prov,
+  dockerToken = privateDockerUnencryptedToken)
 
   override lazy val ioCommandBuilder =  {
     val conf = Option(configuration) match {

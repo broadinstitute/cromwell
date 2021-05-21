@@ -154,7 +154,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
       configuration
     )
     val runtimeAttributesBuilder = AwsBatchRuntimeAttributes.runtimeAttributesBuilder(configuration)
-    AwsBatchBackendInitializationData(workflowPaths, runtimeAttributesBuilder, configuration, null)
+    AwsBatchBackendInitializationData(workflowPaths, runtimeAttributesBuilder, configuration, null, None)
   }
 
   class TestableAwsBatchJobExecutionActor(params: StandardAsyncExecutionActorParams, functions: StandardExpressionFunctions)

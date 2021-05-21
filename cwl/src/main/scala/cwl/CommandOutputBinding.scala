@@ -231,6 +231,7 @@ object CommandOutputBinding {
         //TODO: HACK ALERT - DB: I am starting on ticket https://github.com/broadinstitute/cromwell/issues/3092 which will redeem me of this mortal sin.
         val detritusFiles = List(
           "docker_cid",
+          "gcs_egress_check.sh",
           "gcs_delocalization.sh",
           "gcs_localization.sh",
           "gcs_transfer.sh",

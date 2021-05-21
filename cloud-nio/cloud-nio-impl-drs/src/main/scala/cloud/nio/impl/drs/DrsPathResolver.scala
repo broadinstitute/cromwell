@@ -11,11 +11,15 @@ import io.circe.parser.decode
 import io.circe.syntax._
 import mouse.boolean._
 import org.apache.commons.lang3.exception.ExceptionUtils
-import org.apache.http.client.methods.HttpPost
+import org.apache.http.client.methods.{HttpGet, HttpPost}
 import org.apache.http.entity.{ContentType, StringEntity}
 import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.util.EntityUtils
 import org.apache.http.{HttpResponse, HttpStatus, StatusLine}
+
+import java.nio.ByteBuffer
+import java.nio.channels.{Channels, ReadableByteChannel}
+import scala.util.Try
 
 abstract class DrsPathResolver(drsConfig: DrsConfig) {
 
@@ -71,6 +75,46 @@ abstract class DrsPathResolver(drsConfig: DrsConfig) {
   def resolveDrsThroughMartha(drsPath: String, fields: NonEmptyList[MarthaField.Value]): IO[MarthaResponse] = {
     rawMarthaResponse(drsPath, fields).use(httpResponseToMarthaResponse(drsPathForDebugging = drsPath))
   }
+
+  def openChannel(accessUrl: AccessUrl): IO[ReadableByteChannel] = {
+    IO {
+      val httpGet = new HttpGet(accessUrl.url)
+      accessUrl.headers.getOrElse(Map.empty).toList foreach {
+        case (name, value) => httpGet.addHeader(name, value)
+      }
+      val client = httpClientBuilder.build()
+      val response = client.execute(httpGet)
+      val inner = Channels.newChannel(response.getEntity.getContent)
+      /*
+      Create a wrapper ReadableByteChannel. When .close() is invoked on the wrapper, the wrapper will internally call
+      .close() on:
+      - the inner ReadableByteChannel
+      - the HttpResponse
+      - the HttpClient
+
+      This ensures that when the channel is released any underlying HTTP connections are also released.
+       */
+      new ReadableByteChannel {
+        override def read(dst: ByteBuffer): Int = inner.read(dst)
+
+        override def isOpen: Boolean = inner.isOpen
+
+        //noinspection ScalaUnusedExpression
+        override def close(): Unit = {
+          val innerTry = Try(inner.close())
+          val responseTry = Try(response.close())
+          val clientTry = Try(client.close())
+          innerTry.get
+          responseTry.get
+          clientTry.get
+        }
+      }
+    }
+  }
+}
+
+object DrsPathResolver {
+  final val ExtractUriErrorMsg = "No access URL nor GCS URI starting with 'gs://' found in Martha response!"
 }
 
 object MarthaField extends Enumeration {

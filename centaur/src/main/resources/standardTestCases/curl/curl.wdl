@@ -8,7 +8,7 @@ task url_grab {
         File progressBar = stderr()
     }
     runtime {
-        docker: "curlimages/curl:latest"
+        docker: "google/cloud-sdk"
         failOnStderr: false
     }
 }

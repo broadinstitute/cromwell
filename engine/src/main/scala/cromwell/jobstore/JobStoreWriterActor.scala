@@ -2,6 +2,7 @@ package cromwell.jobstore
 
 import akka.actor.{ActorRef, Props}
 import cats.data.{NonEmptyList, NonEmptyVector}
+import cats.implicits._
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.LoadConfig
 import cromwell.core.actor.BatchActor._
@@ -10,6 +11,7 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreAccess
 import cromwell.jobstore.JobStore.{JobCompletion, WorkflowCompletion}
 import cromwell.jobstore.JobStoreActor._
 import cromwell.services.EnhancedBatchActor
+import cromwell.util.DatabaseUtil.withRetry
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -38,21 +40,22 @@ case class JobStoreWriterActor(jsd: JobStore,
       // immediately deleted anyway.
       val jobCompletions = completions.toList collect { case j: JobCompletion if !completedWorkflowIds.contains(j.key.workflowId) => j }
       val jobStoreAction: Future[Unit] = jsd.writeToDatabase(workflowCompletions, jobCompletions, batchSize)
-      val workflowStoreAction: Future[List[Int]] = Future.sequence {
-        completedWorkflowIds.map(workflowStoreAccess.deleteFromStore(_)).toList
-      }
+//      val workflowStoreAction: Future[List[Int]] = Future.sequence {
+//        completedWorkflowIds.map(workflowStoreAccess.deleteFromStore(_)).toList
+//      }
 
       val combinedAction: Future[Unit] = for {
         _ <- jobStoreAction
-        _ <- workflowStoreAction
+//        _ <- workflowStoreAction
+        _ <- withRetry(() => completedWorkflowIds.toList traverse workflowStoreAccess.deleteFromStore)(context.system)
       } yield ()
 
       combinedAction onComplete {
         case Success(_) =>
           data foreach { case CommandAndReplyTo(c: JobStoreWriterCommand, r) => r ! JobStoreWriteSuccess(c) }
-        case Failure(regerts) =>
-          log.error(regerts, "Failed to write job store entries to database")
-          data foreach { case CommandAndReplyTo(_, r) => r ! JobStoreWriteFailure(regerts) }
+        case Failure(error) =>
+          log.error(error, "Failed to write job store entries to database")
+          data foreach { case CommandAndReplyTo(_, r) => r ! JobStoreWriteFailure(error) }
       }
 
       combinedAction.map(_ => 1)

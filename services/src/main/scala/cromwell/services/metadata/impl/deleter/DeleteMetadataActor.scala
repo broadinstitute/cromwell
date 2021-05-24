@@ -104,6 +104,7 @@ class DeleteMetadataActor(deleteMetadataConfig: DeleteMetadataConfig,
         log.info(s"Workflow $id identified for metadata deletion")
         for {
           rowsDeleted <- deleteAllMetadataEntriesForWorkflowAndUpdateArchiveStatus(id, MetadataArchiveStatus.toDatabaseValue(ArchivedAndDeleted))
+          _ = count(rowsDeletedMetricPath, rowsDeleted.longValue(), ServicesPrefix)
           _ = log.info(s"Deleted $rowsDeleted metadata rows for $id")
         } yield true
       case None => Future.successful(false)

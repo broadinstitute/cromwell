@@ -59,7 +59,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
     override def runRequest(createPipelineParameters: CreatePipelineParameters, jobLogger: JobLogger): HttpRequest = {
       def createNetworkWithVPC(vpcAndSubnetworkProjectLabelValues: VpcAndSubnetworkProjectLabelValues): Network = {
         val network = new Network()
-          .setUsePrivateAddress(createPipelineParameters.effectiveNoAddressValue)
+          .setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)
           .setNetwork(VirtualPrivateCloudNetworkPath.format(createPipelineParameters.projectId, vpcAndSubnetworkProjectLabelValues.vpcName))
 
         vpcAndSubnetworkProjectLabelValues.subnetNameOpt.foreach(subnet => network.setSubnetwork(subnet))
@@ -69,7 +69,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
       def createNetwork(): Network = {
         createPipelineParameters.vpcNetworkAndSubnetworkProjectLabels match {
           case Some(vpcAndSubnetworkProjectLabelValues) => createNetworkWithVPC(vpcAndSubnetworkProjectLabelValues)
-          case _ => new Network().setUsePrivateAddress(createPipelineParameters.effectiveNoAddressValue)
+          case _ => new Network().setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)
         }
       }
 

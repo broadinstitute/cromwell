@@ -233,6 +233,7 @@ object CommandOutputBinding {
           "docker_cid",
           "gcs_delocalization.sh",
           "gcs_localization.sh",
+          "gcs_egress_check.sh",
           "gcs_transfer.sh",
           "rc.tmp",
           "script",

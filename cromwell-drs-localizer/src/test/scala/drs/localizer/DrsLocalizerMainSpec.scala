@@ -31,7 +31,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
       serviceAccountJson = None,
       downloadLoc = fakeDownloadLocation,
       requesterPaysProjectIdOption = None)
-    mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloadBuilder).unsafeRunSync() shouldBe expected
+    mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloaderFactory).unsafeRunSync() shouldBe expected
   }
 
   it should "run successfully with all 3 arguments" in {
@@ -41,14 +41,14 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
       serviceAccountJson = None,
       downloadLoc = fakeDownloadLocation,
       requesterPaysProjectIdOption = Option(fakeRequesterPaysId))
-    mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloadBuilder).unsafeRunSync() shouldBe expected
+    mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloaderFactory).unsafeRunSync() shouldBe expected
   }
 
   it should "fail and throw error if Martha response does not have gs:// url" in {
     val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithoutAnyResolution, fakeDownloadLocation, None)
 
     the[RuntimeException] thrownBy {
-      mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloadBuilder).unsafeRunSync()
+      mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloaderFactory).unsafeRunSync()
     } should have message "No access URL nor GCS URI starting with 'gs://' found in Martha response!"
   }
 
@@ -57,7 +57,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     val expected = AccessUrlDownloader(
       accessUrl = AccessUrl(url = "http://abc/def/ghi.bam", headers = None), downloadLoc = fakeDownloadLocation
     )
-    mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloadBuilder).unsafeRunSync() shouldBe expected
+    mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloaderFactory).unsafeRunSync() shouldBe expected
   }
 
   it should "resolve to use the correct downloader for an access url when the Martha response also contains a gs url" in {
@@ -65,16 +65,16 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     val expected = AccessUrlDownloader(
       accessUrl = AccessUrl(url = "http://abc/def/ghi.bam", headers = None), downloadLoc = fakeDownloadLocation
     )
-    mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloadBuilder).unsafeRunSync() shouldBe expected
+    mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloaderFactory).unsafeRunSync() shouldBe expected
   }
 
   it should "not retry on access URL download success" in {
     var actualAttempts = 0
 
     val drsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithAccessUrlResolutionOnly, fakeDownloadLocation, None) {
-      override def resolveAndDownload(downloaderBuilder: DownloaderBuilder): IO[DownloadResult] = {
+      override def resolveAndDownload(downloaderFactory: DownloaderFactory): IO[DownloadResult] = {
         actualAttempts = actualAttempts + 1
-        super.resolveAndDownload(downloaderBuilder)
+        super.resolveAndDownload(downloaderFactory)
       }
     }
     val accessUrlDownloader = IO.pure(new Downloader {
@@ -82,7 +82,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         IO.pure(DownloadSuccess)
     })
 
-    val downloaderBuilder = new DownloaderBuilder {
+    val downloaderFactory = new DownloaderFactory {
       override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String): IO[Downloader] = {
         accessUrlDownloader
       }
@@ -95,7 +95,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
     drsLocalizer.resolveAndDownloadWithRetries(
       retries = 3,
-      downloaderBuilder = downloaderBuilder,
+      downloaderFactory = downloaderFactory,
       backoff = None
     ).unsafeRunSync() shouldBe DownloadSuccess
 
@@ -106,9 +106,9 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     var actualAttempts = 0
 
     val drsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithAccessUrlResolutionOnly, fakeDownloadLocation, None) {
-      override def resolveAndDownload(downloaderBuilder: DownloaderBuilder): IO[DownloadResult] = {
+      override def resolveAndDownload(downloaderFactory: DownloaderFactory): IO[DownloadResult] = {
         actualAttempts = actualAttempts + 1
-        super.resolveAndDownload(downloaderBuilder)
+        super.resolveAndDownload(downloaderFactory)
       }
     }
     val accessUrlDownloader = IO.pure(new Downloader {
@@ -116,7 +116,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         IO.pure(RetryableDownloadFailure(exitCode = ExitCode(0)))
     })
 
-    val downloaderBuilder = new DownloaderBuilder {
+    val downloaderFactory = new DownloaderFactory {
       override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String): IO[Downloader] = {
         accessUrlDownloader
       }
@@ -130,7 +130,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     assertThrows[Throwable] {
       drsLocalizer.resolveAndDownloadWithRetries(
         retries = 3,
-        downloaderBuilder = downloaderBuilder,
+        downloaderFactory = downloaderFactory,
         backoff = None
       ).unsafeRunSync()
     }
@@ -141,9 +141,9 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
   it should "not retry on GCS URI download success" in {
     var actualAttempts = 0
     val drsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation, None) {
-      override def resolveAndDownload(downloaderBuilder: DownloaderBuilder): IO[DownloadResult] = {
+      override def resolveAndDownload(downloaderFactory: DownloaderFactory): IO[DownloadResult] = {
         actualAttempts = actualAttempts + 1
-        super.resolveAndDownload(downloaderBuilder)
+        super.resolveAndDownload(downloaderFactory)
       }
     }
     val gcsUriDownloader = IO.pure(new Downloader {
@@ -151,7 +151,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         IO.pure(DownloadSuccess)
     })
 
-    val downloaderBuilder = new DownloaderBuilder {
+    val downloaderFactory = new DownloaderFactory {
       override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String): IO[Downloader] = {
         // This test path should never ask for the access URL downloader
         throw new RuntimeException("test failure")
@@ -164,7 +164,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
     drsLocalizer.resolveAndDownloadWithRetries(
       retries = 3,
-      downloaderBuilder = downloaderBuilder,
+      downloaderFactory = downloaderFactory,
       backoff = None).unsafeRunSync()
 
     actualAttempts shouldBe 1
@@ -173,9 +173,9 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
   it should "retry an appropriate number of times for retryable GCS URI download failures" in {
     var actualAttempts = 0
     val drsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithGcsResolutionOnly, fakeDownloadLocation, None) {
-      override def resolveAndDownload(downloaderBuilder: DownloaderBuilder): IO[DownloadResult] = {
+      override def resolveAndDownload(downloaderFactory: DownloaderFactory): IO[DownloadResult] = {
         actualAttempts = actualAttempts + 1
-        super.resolveAndDownload(downloaderBuilder)
+        super.resolveAndDownload(downloaderFactory)
       }
     }
     val gcsUriDownloader = IO.pure(new Downloader {
@@ -183,7 +183,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
         IO.pure(RetryableDownloadFailure(exitCode = ExitCode(1)))
     })
 
-    val downloaderBuilder = new DownloaderBuilder {
+    val downloaderFactory = new DownloaderFactory {
       override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String): IO[Downloader] = {
         // This test path should never ask for the access URL downloader
         throw new RuntimeException("test failure")
@@ -197,7 +197,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     assertThrows[Throwable] {
       drsLocalizer.resolveAndDownloadWithRetries(
         retries = 3,
-        downloaderBuilder = downloaderBuilder,
+        downloaderFactory = downloaderFactory,
         backoff = None).unsafeRunSync()
     }
 

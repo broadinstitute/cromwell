@@ -24,10 +24,10 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     argsLength match {
       case 2 =>
         new DrsLocalizerMain(args.head, args(1), None).
-          resolveAndDownloadWithRetries(retries = 3, defaultDownloadBuilder, Option(defaultBackoff)).map(_.exitCode)
+          resolveAndDownloadWithRetries(retries = 3, defaultDownloaderFactory, Option(defaultBackoff)).map(_.exitCode)
       case 3 =>
         new DrsLocalizerMain(args.head, args(1), Option(args(2))).
-          resolveAndDownloadWithRetries(retries = 3, defaultDownloadBuilder, Option(defaultBackoff)).map(_.exitCode)
+          resolveAndDownloadWithRetries(retries = 3, defaultDownloaderFactory, Option(defaultBackoff)).map(_.exitCode)
       case _ =>
         val argsList = if (args.nonEmpty) args.mkString(",") else "None"
         logger.error(s"Received $argsLength arguments. DRS input and download location path is required. Requester Pays billing project ID is optional. " +
@@ -39,7 +39,7 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
   val defaultBackoff: CloudNioBackoff = CloudNioSimpleExponentialBackoff(
     initialInterval = 10 seconds, maxInterval = 60 seconds, multiplier = 2)
 
-  val defaultDownloadBuilder: DownloaderBuilder = new DownloaderBuilder {
+  val defaultDownloaderFactory: DownloaderFactory = new DownloaderFactory {
     override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String): IO[Downloader] =
       IO.pure(AccessUrlDownloader(accessUrl, downloadLoc))
 
@@ -59,7 +59,7 @@ class DrsLocalizerMain(drsUrl: String,
     }
   }
 
-  def resolveAndDownloadWithRetries(retries: Int, downloaderBuilder: DownloaderBuilder,
+  def resolveAndDownloadWithRetries(retries: Int, downloaderFactory: DownloaderFactory,
                                     backoff: Option[CloudNioBackoff],
                                     attempt: Int = 0): IO[DownloadResult] = {
 
@@ -67,13 +67,13 @@ class DrsLocalizerMain(drsUrl: String,
       if (attempt < retries) {
         backoff foreach { b => Thread.sleep(b.backoffMillis) }
         logger.warn(s"Attempting retry $attempt of $retries retries to download $drsUrl", t)
-        resolveAndDownloadWithRetries(retries, downloaderBuilder, backoff map { _.next }, attempt + 1)
+        resolveAndDownloadWithRetries(retries, downloaderFactory, backoff map { _.next }, attempt + 1)
       } else {
         IO.raiseError(new RuntimeException(s"Exhausted $retries retries to resolve and download $drsUrl", t))
       }
     }
 
-    resolveAndDownload(downloaderBuilder).redeemWith({
+    resolveAndDownload(downloaderFactory).redeemWith({
       maybeResolveAndDownloadWithRetry
     },
     {
@@ -84,11 +84,11 @@ class DrsLocalizerMain(drsUrl: String,
     })
   }
 
-  private [localizer] def resolveAndDownload(downloaderBuilder: DownloaderBuilder): IO[DownloadResult] = {
-    resolve(downloaderBuilder) flatMap { _.download }
+  private [localizer] def resolveAndDownload(downloaderFactory: DownloaderFactory): IO[DownloadResult] = {
+    resolve(downloaderFactory) flatMap { _.download }
   }
 
-  private [localizer] def resolve(downloaderBuilder: DownloaderBuilder): IO[Downloader] = {
+  private [localizer] def resolve(downloaderFactory: DownloaderFactory): IO[Downloader] = {
     val fields = NonEmptyList.of(MarthaField.GsUri, MarthaField.GoogleServiceAccount, MarthaField.AccessUrl)
     for {
       resolver <- getDrsPathResolver
@@ -97,10 +97,10 @@ class DrsLocalizerMain(drsUrl: String,
       // Currently Martha only supports resolving DRS paths to access URLs or GCS paths.
       downloader <- (marthaResponse.accessUrl, marthaResponse.gsUri) match {
         case (Some(accessUrl), _) =>
-          downloaderBuilder.buildAccessUrlDownloader(accessUrl, downloadLoc)
+          downloaderFactory.buildAccessUrlDownloader(accessUrl, downloadLoc)
         case (_, Some(gcsPath)) =>
           val serviceAccountJsonOption = marthaResponse.googleServiceAccount.map(_.data.spaces2)
-          downloaderBuilder.buildGcsUriDownloader(
+          downloaderFactory.buildGcsUriDownloader(
             gcsPath = gcsPath,
             serviceAccountJsonOption = serviceAccountJsonOption,
             downloadLoc = downloadLoc,

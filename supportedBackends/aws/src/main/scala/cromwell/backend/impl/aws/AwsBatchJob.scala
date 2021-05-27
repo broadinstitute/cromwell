@@ -238,7 +238,7 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
   private def storePrivateDockerToken(token: String) = {
     try {
 
-      val secretName: String = "CROMWELL_DOCKERHUB_CREDENTIALS"
+      val secretName: String = "cromwell/credentials/dockerhub"
 
       // Check if secret already exists
       // If exists, update it otherwise create it

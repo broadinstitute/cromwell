@@ -10,7 +10,6 @@ import cromwell.backend.google.pipelines.common.monitoring.{CheckpointingConfigu
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.Path
-import spray.json.JsObject
 import wom.runtime.WomOutputRuntimeExtractor
 
 import scala.concurrent.duration._
@@ -93,7 +92,8 @@ object PipelinesApiRequestFactory {
                                       enableSshAccess: Boolean,
                                       vpcNetworkAndSubnetworkProjectLabels: Option[VpcAndSubnetworkProjectLabelValues],
                                       dockerImageCacheDiskOpt: Option[String],
-                                      localizationEgress: JsObject
+                                      localizationEgress: String,
+                                      localizationEgressStrict: Boolean
                                      ) {
     def literalInputs = inputOutputParameters.literalInputParameters
     def inputParameters = inputOutputParameters.fileInputParameters

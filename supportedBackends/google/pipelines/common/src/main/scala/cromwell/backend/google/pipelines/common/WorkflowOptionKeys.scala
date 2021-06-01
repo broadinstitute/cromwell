@@ -11,4 +11,5 @@ object WorkflowOptionKeys {
   val GoogleLegacyMachineSelection = "google_legacy_machine_selection"
   val UseDockerImageCache = "use_docker_image_cache"
   val LocalizationEgress = "localization_egress"
+  val LocalizationEgressStrict = "localization_egress_strict"
 }

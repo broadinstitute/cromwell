@@ -42,7 +42,6 @@ import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.CallMetadataKeys
 import mouse.all._
 import shapeless.Coproduct
-import spray.json.JsObject
 import wdl4s.parser.MemoryUnit
 import wom.callable.Callable.OutputDefinition
 import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
@@ -422,11 +421,12 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.UseDockerImageCache).getOrElse(false)
   }
 
-  protected def localizationEgress(descriptor: BackendWorkflowDescriptor): JsObject = {
-    descriptor.workflowOptions.toMap.get(WorkflowOptionKeys.LocalizationEgress) match {
-      case Some(obj: JsObject) => obj
-      case _ => JsObject()
-    }
+  protected def localizationEgress(descriptor: BackendWorkflowDescriptor): String = {
+    descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.LocalizationEgress, "local")
+  }
+
+  protected def localizationEgressStrict(descriptor: BackendWorkflowDescriptor): Boolean = {
+    descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.LocalizationEgressStrict).getOrElse(false)
   }
 
   override def isTerminal(runStatus: RunStatus): Boolean = {
@@ -531,7 +531,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           enableSshAccess = enableSshAccess,
           vpcNetworkAndSubnetworkProjectLabels = data.vpcNetworkAndSubnetworkProjectLabels,
           dockerImageCacheDiskOpt = isDockerImageCacheUsageRequested.option(dockerImageCacheDiskOpt).flatten,
-          localizationEgress = localizationEgress(jobDescriptor.workflowDescriptor)
+          localizationEgress = localizationEgress(jobDescriptor.workflowDescriptor),
+          localizationEgressStrict = localizationEgressStrict(jobDescriptor.workflowDescriptor)
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")

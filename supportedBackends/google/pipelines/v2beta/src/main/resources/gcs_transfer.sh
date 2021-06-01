@@ -376,9 +376,15 @@ localize_singleton_file() {
 
 
 egress_check() {
-  local project="$1"
-  local max_attempts="$2"
+  local localization_egress_value="$1"
+  local localization_egress_strict="$2"
+  local project="$3"
+  local max_attempts="$4"
   shift 2
+
+  echo "WILLY"
+  echo "${localization_egress_value}"
+  echo "${localization_egress_strict}"
 
   declare -A multi_regions=(
     [asia]=1 [eu]=1 [us]=1

@@ -135,6 +135,11 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
     val arrayIdentifier = s"egress_check_" + DigestUtils.md5Hex(bucket)
     val entries = inputs.toList.map(_.cloudPath) mkString("\"", "\"\n|  \"", "\"")
 
+    val localizationEgressValue = jobDescriptor.workflowDescriptor.workflowOptions.getOrElse(
+      WorkflowOptionKeys.LocalizationEgress, "local")
+    val localizationEgressStrictFlag = jobDescriptor.workflowDescriptor.workflowOptions.getBoolean(
+      WorkflowOptionKeys.LocalizationEgressStrict).getOrElse(false)
+
     s"""
        |$arrayIdentifier=(
        |  "$project"       # project
@@ -142,7 +147,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
        |  $entries
        |)
        |
-       |egress_check "$${$arrayIdentifier[@]}"
+       |egress_check "$localizationEgressValue" $localizationEgressStrictFlag "$${$arrayIdentifier[@]}"
       """.stripMargin
   }
 

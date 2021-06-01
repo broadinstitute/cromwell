@@ -404,7 +404,7 @@ egress_check() {
 
   for bucket_name in "${!buckets[@]}"; do
 
-    if ! gsutil ls -L -b "gs://${bucket_name}" 2>/dev/null; then
+    if ! gsutil ls -L -b "gs://${bucket_name}" > /dev/null 2>&1; then
       echo "No access to ${bucket_name} (or it does not exist)."
       echo "No egress check can be done, so skipping."
       continue

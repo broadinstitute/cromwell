@@ -433,7 +433,7 @@ egress_check() {
         echo "Multi-region bucket ${bucket_name} in ${bucket_location}. VM in ${vm_location}. Egress will occur. Exiting due to option localization_egress_value=${localization_egress_value}"
         exit 1
       else
-        echo "Multi-region bucket ${bucket_name} in ${bucket_location}. VM in ${vm_location}. No egress will occur. Exiting due to option localization_egress_value=${localization_egress_value}."
+        echo "Multi-region bucket ${bucket_name} in ${bucket_location}. VM in ${vm_location}. No egress will occur."
       fi
     elif [[ -v dual_regions[$bucket_location] ]]; then
       # Bucket is a dual-region bucket. Exit if the vm is not one of the two regions.

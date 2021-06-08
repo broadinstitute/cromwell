@@ -217,10 +217,10 @@ object PipelinesApiConfigurationAttributes
       (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN {
         (genomicsAuth, gcsAuth) =>
           val generatedReferenceFilesMappingOpt = referenceDiskLocalizationManifestFilesOpt map {
-            generateReferenceFilesMapping(gcsAuth, _)
+            generateReferenceFilesMapping(genomicsAuth, _)
           }
           val dockerImageToCacheDiskImageMappingOpt = dockerImageCacheManifestFileOpt map {
-            generateDockerImageToDiskImageMapping(gcsAuth, _)
+            generateDockerImageToDiskImageMapping(genomicsAuth, _)
           }
           PipelinesApiConfigurationAttributes(
             project = project,

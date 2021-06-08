@@ -22,6 +22,45 @@ class PipelinesApiBackendCacheHitCopyingActor(standardParams: StandardCacheHitCo
     .as[PipelinesApiBackendInitializationData](standardParams.backendInitializationDataOption)
     .papiConfiguration.papiAttributes.cacheHitDuplicationStrategy
   
+  private def getBucketContinent(bucketLocation: String): String = {
+    val indexOf = bucketLocation.indexOf("-")
+    if (indexOf != -1) {
+      bucketLocation.substring(0, indexOf)
+    } else {
+      bucketLocation
+    }
+  }
+
+  override protected def locationCheckRequired: Boolean = {
+    val option = standardParams.jobDescriptor.workflowDescriptor.workflowOptions.getOrElse("call_cache_egress", "global")
+    val b = option != "global"
+    log.warning(s"WILLY, in locationCheckRequired, returning $b because call_cache_egress option is $option")
+    b
+  }
+
+  override protected def copyAllowedFromLocation(sourceLocation: String, destinationLocation: String): Boolean = {
+    val callCacheEgressOption = standardParams.jobDescriptor.workflowDescriptor.workflowOptions.getOrElse("call_cache_egress", "global")
+    log.warning(s"WILLY, in copyAllowedFromLocation, sourceLocation is $sourceLocation")
+    log.warning(s"WILLY, in copyAllowedFromLocation, destinationLocation is $destinationLocation")
+    log.warning(s"WILLY, in copyAllowedFromLocation, callCacheEgressOption is $callCacheEgressOption")
+    callCacheEgressOption match {
+      case "global" => true
+      case "continental" =>
+        val sourceContinent = getBucketContinent(sourceLocation)
+        val destinationContinent = getBucketContinent(destinationLocation)
+        val b = sourceContinent == destinationContinent
+        log.warning(s"WILLY, in copyAllowedFromLocation, case continental, returning $b")
+        b
+      case "none" =>
+        val b = sourceLocation == destinationLocation
+        log.warning(s"WILLY, in copyAllowedFromLocation, case none, returning $b")
+        b
+      case default =>
+        log.warning(s"WILLY, in copyAllowedFromLocation, did not match on callCacheEgressOption $default")
+        true
+    }    
+  }
+
   override def processSimpletons(womValueSimpletons: Seq[WomValueSimpleton],
                                  sourceCallRootPath: Path,
                                 ): Try[(CallOutputs, Set[IoCommand[_]])] =

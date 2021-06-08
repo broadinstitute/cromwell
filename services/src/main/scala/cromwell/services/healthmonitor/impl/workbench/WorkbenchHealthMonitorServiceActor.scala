@@ -83,10 +83,8 @@ abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config, glo
       genomicsChecker = if (actorFactoryName.contains("v2beta")) {
         val location = papiConfig.as[String]("genomics.location")
         GenomicsCheckerV2Beta(googleConfig.applicationName, googleAuth, endpointUrl, location, credentials, papiProjectId)
-      } else if (actorFactoryName.contains("v2alpha1")) {
-        GenomicsCheckerV2Alpha1(googleConfig.applicationName, googleAuth, endpointUrl, credentials, papiProjectId)
       } else {
-        GenomicsCheckerV1(googleConfig.applicationName, googleAuth, endpointUrl, credentials, papiProjectId)
+        GenomicsCheckerV2Alpha1(googleConfig.applicationName, googleAuth, endpointUrl, credentials, papiProjectId)
       }
       checked <- genomicsChecker.check
     } yield checked
@@ -107,25 +105,6 @@ object WorkbenchHealthMonitorServiceActor {
     }
 
     def check: Future[Unit]
-  }
-
-  case class GenomicsCheckerV1(applicationName: String,
-                               authMode: GoogleAuthMode,
-                               endpointUrl: URL,
-                               credentials: Credentials,
-                               papiProjectId: String)(implicit val ec: ExecutionContext) extends GenomicsChecker {
-    val genomics = new com.google.api.services.genomics.Genomics.Builder(
-      GoogleAuthMode.httpTransport,
-      GoogleAuthMode.jsonFactory,
-      httpInitializer(credentials))
-      .setApplicationName(applicationName)
-      .setRootUrl(endpointUrl.toString)
-      .build
-
-    override def check = Future {
-      genomics.pipelines().list().setProjectId(papiProjectId).setPageSize(1).execute()
-      ()
-    }
   }
 
   case class GenomicsCheckerV2Beta(applicationName: String,

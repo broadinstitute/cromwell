@@ -44,7 +44,6 @@ object Dependencies {
   private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off
   private val googleCloudStorageV = "1.113.14"
   private val googleGaxGrpcV = "1.62.0"
-  private val googleGenomicsServicesV1ApiV = "v1alpha2-rev495-1.23.0"
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210322-1.31.0"
   private val googleHttpClientApacheV = "2.1.2"
   private val googleHttpClientV = "1.38.0"
@@ -281,12 +280,6 @@ object Dependencies {
     "org.yaml" % "snakeyaml" % snakeyamlV % Test
   )
 
-  // The v1 dependency has been cloned in the broad artifactory so that we can have the 2 versions co-exist in the same jar
-  private val googleGenomicsV1Dependency = List(
-    "org.broadinstitute" % "cromwell-google-api-services-genomics" % googleGenomicsServicesV1ApiV
-      exclude("com.google.guava", "guava-jdk5")
-  )
-
   private val googleGenomicsV2Alpha1Dependency = List(
     "com.google.apis" % "google-api-services-genomics" % googleGenomicsServicesV2Alpha1ApiV
       exclude("com.google.guava", "guava-jdk5")
@@ -333,7 +326,7 @@ object Dependencies {
     "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV,
     "com.google.apis" % "google-api-services-cloudkms" % googleCloudKmsV
       exclude("com.google.guava", "guava-jdk5")
-  ) ++ googleGenomicsV1Dependency ++ googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency
+  ) ++ googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency
 
   private val aliyunOssDependencies = List(
     "com.aliyun.oss" % "aliyun-sdk-oss" % aliyunOssV

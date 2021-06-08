@@ -4,8 +4,8 @@ import cats.implicits.catsSyntaxValidatedId
 import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.HttpHeaders
 import com.google.api.services.storage.StorageRequest
-import com.google.api.services.storage.model.{Objects, RewriteResponse, StorageObject}
-import com.google.cloud.storage.BlobId
+import com.google.api.services.storage.model.{Objects, RewriteResponse, StorageObject, Bucket}
+import com.google.cloud.storage.{BlobId}
 import common.util.StringUtil._
 import common.validation.ErrorOr.ErrorOr
 import cromwell.core.io._
@@ -240,6 +240,39 @@ case class GcsBatchIsDirectoryCommand(override val file: GcsPath,
 object GcsBatchIsDirectoryCommand {
   def forPath(file: GcsPath): Try[GcsBatchIsDirectoryCommand] = {
     file.bucketOrObjectBlobId.map(GcsBatchIsDirectoryCommand(file, _))
+  }
+}
+
+case class GcsBatchLocationCommand(override val file: GcsPath,
+                                   blob: BlobId,
+                                   setUserProject: Boolean = false,
+                                  )
+  extends IoLocationCommand(file) with SingleFileGcsBatchIoCommand[String, Bucket] {
+  override def mapGoogleResponse(response: Bucket): ErrorOr[String] = {
+    Option(response.getLocation) match {
+      case None => s"'${file.pathAsString}' in project '${file.projectId}' returned null location".invalidNel
+      case Some(location) =>
+        System.err.println("In mapGoogleResponse")
+        System.err.println(location)
+        location.validNel
+    }
+  }
+  override def operation: StorageRequest[Bucket] = {
+    System.err.println("Willy, in GcsBatchLocationCommand.operation")
+    file.apiStorage.buckets().get(blob.getBucket).setUserProject(userProject)
+  }
+
+  // override def operation: StorageRequest[StorageObject] = {
+  //   file.apiStorage.objects().get(blob.getBucket, blob.getName).setUserProject(userProject)
+  // }
+
+  override def withUserProject: GcsBatchLocationCommand = this.copy(setUserProject = true)
+  override def commandDescription: String = s"GcsBatchIsDirectoryCommand file '$file' setUserProject '$setUserProject'"
+}
+
+object GcsBatchLocationCommand {
+  def forPath(file: GcsPath): Try[GcsBatchLocationCommand] = {
+    file.bucketOrObjectBlobId.map(GcsBatchLocationCommand(file, _))
   }
 }
 

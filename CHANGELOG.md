@@ -1,5 +1,14 @@
 # Cromwell Change Log
 
+## 65 Release Notes
+
+### Intel Cascade Lake support on PAPI v2
+
+On the PAPI v2 backends "Intel Cascade Lake" is now supported as a CPU platform. More details can be found
+[here](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#cpuplatform).
+
+## 64 Release Notes
+
 ## 63 Release Notes
 
 ### Removed refresh token authentication mode

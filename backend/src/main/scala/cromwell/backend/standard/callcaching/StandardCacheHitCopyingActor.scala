@@ -154,54 +154,66 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
           // Try to make a Path of the callRootPath from the detritus
           val next = lookupSourceCallRootPath(jobDetritus) match {
             case Success(sourceCallRootPath) =>
+              log.warning("willy, about to process locations")
+              val processedLocation = for {
+                (ignoreThis, simpletonLocationCheckCommands) <- processSimpletonLocations(simpletons, sourceCallRootPath)
+                (ignoreThis, processDetritusLocations) <- processDetritusLocations(jobDetritus)
+              } yield (simpletonLocationCheckCommands ++ processDetritusLocations)
+              processedLocation match {
+                case Success((locationCheckCommands)) => 
+                  locationCheckCommands foreach sendIoCommand
+                  log.warning("willy, just sent location commands {}", locationCheckCommands)
 
-              // process simpletons and detritus to get updated paths and corresponding IoCommands
-              val processed = for {
-                (destinationCallOutputs, simpletonIoCommands) <- processSimpletons(simpletons, sourceCallRootPath)
-                (destinationDetritus, detritusIoCommands) <- processDetritus(jobDetritus)
-              } yield (destinationCallOutputs, destinationDetritus, simpletonIoCommands ++ detritusIoCommands)
+                  // process simpletons and detritus to get updated paths and corresponding IoCommands
+                  val processed = for {
+                    (destinationCallOutputs, simpletonIoCommands) <- processSimpletons(simpletons, sourceCallRootPath)
+                    (destinationDetritus, detritusIoCommands) <- processDetritus(jobDetritus)
+                  } yield (destinationCallOutputs, destinationDetritus, locationCheckCommands, simpletonIoCommands ++ detritusIoCommands)
 
-              processed match {
-                case Success((destinationCallOutputs, destinationDetritus, detritusAndOutputsIoCommands)) =>
-                  duplicate(ioCommandsToCopyPairs(detritusAndOutputsIoCommands)) match {
-                    // Use the duplicate override if exists
-                    case Some(Success(_)) => succeedAndStop(returnCode, destinationCallOutputs, destinationDetritus)
-                    case Some(Failure(failure)) =>
-                      // Something went wrong in the custom duplication code. We consider this loggable because it's most likely a user-permission error:
-                      failAndStop(CopyAttemptError(failure))
-                    // Otherwise send the first round of IoCommands (file outputs and detritus) if any
-                    case None if detritusAndOutputsIoCommands.nonEmpty =>
-                      detritusAndOutputsIoCommands foreach sendIoCommand
-
-                      // Add potential additional commands to the list
-                      val additionalCommandsTry =
-                        additionalIoCommands(
-                          sourceCallRootPath = sourceCallRootPath,
-                          originalSimpletons = simpletons,
-                          newOutputs = destinationCallOutputs,
-                          originalDetritus = jobDetritus,
-                          newDetritus = destinationDetritus,
-                        )
-                      additionalCommandsTry match {
-                        case Success(additionalCommands) =>
-                          val allCommands = List(detritusAndOutputsIoCommands) ++ additionalCommands
-                          goto(WaitingForIoResponses) using
-                            Option(StandardCacheHitCopyingActorData(
-                              commandsToWaitFor = allCommands,
-                              newJobOutputs = destinationCallOutputs,
+                  processed match {
+                    case Success((destinationCallOutputs, destinationDetritus, locationCheckCommands, detritusAndOutputsIoCommands)) =>
+                      duplicate(ioCommandsToCopyPairs(detritusAndOutputsIoCommands)) match {
+                        // Use the duplicate override if exists
+                        case Some(Success(_)) => succeedAndStop(returnCode, destinationCallOutputs, destinationDetritus)
+                        case Some(Failure(failure)) =>
+                          // Something went wrong in the custom duplication code. We consider this loggable because it's most likely a user-permission error:
+                          failAndStop(CopyAttemptError(failure))
+                        // Otherwise send the first round of IoCommands (file outputs and detritus) if any
+                        case None if detritusAndOutputsIoCommands.nonEmpty =>
+                          // detritusAndOutputsIoCommands foreach sendIoCommand
+                          // log.warning("willy, just sent io detritusAndOutputsIoCommands {}", detritusAndOutputsIoCommands)
+                          // Add potential additional commands to the list
+                          val additionalCommandsTry =
+                            additionalIoCommands(
+                              sourceCallRootPath = sourceCallRootPath,
+                              originalSimpletons = simpletons,
+                              newOutputs = destinationCallOutputs,
+                              originalDetritus = jobDetritus,
                               newDetritus = destinationDetritus,
-                              cacheHit = cacheHit,
-                              returnCode = returnCode,
-                            ))
-                        // Something went wrong in generating duplication commands.
-                        // We consider this a loggable error because we don't expect this to happen:
-                        case Failure(failure) => failAndStop(CopyAttemptError(failure))
+                            )
+                          additionalCommandsTry match {
+                            case Success(additionalCommands) =>
+                              val allCommands = List(locationCheckCommands) ++ List(detritusAndOutputsIoCommands) ++ additionalCommands
+                              goto(WaitingForIoResponses) using
+                                Option(StandardCacheHitCopyingActorData(
+                                  commandsToWaitFor = allCommands,
+                                  newJobOutputs = destinationCallOutputs,
+                                  newDetritus = destinationDetritus,
+                                  cacheHit = cacheHit,
+                                  returnCode = returnCode,
+                                ))
+                            // Something went wrong in generating duplication commands.
+                            // We consider this a loggable error because we don't expect this to happen:
+                            case Failure(failure) => failAndStop(CopyAttemptError(failure))
+                          }
+                        case _ => succeedAndStop(returnCode, destinationCallOutputs, destinationDetritus)
                       }
-                    case _ => succeedAndStop(returnCode, destinationCallOutputs, destinationDetritus)
+
+                    // Something went wrong in generating duplication commands. We consider this loggable error because we don't expect this to happen:
+                    case Failure(failure) => failAndStop(CopyAttemptError(failure))
                   }
 
-                // Something went wrong in generating duplication commands. We consider this loggable error because we don't expect this to happen:
-                case Failure(failure) => failAndStop(CopyAttemptError(failure))
+                case Failure(failure) => failAndStop(CopyAttemptError(failure))  // TODO: PreProcessError
               }
 
             // Something went wrong in looking up the call root... loggable because we don't expect this to happen:
@@ -218,13 +230,20 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   when(WaitingForIoResponses) {
     case Event(IoSuccess(command: IoCommand[_], _), Some(data)) =>
       val (newData, commandState) = data.commandComplete(command)
-
+      // command.getClass.getMethods.map(_.getName)
+      command match {
+        case locationCommand: IoLocationCommand =>
+          log.warning("WILLY, Iolocation command complete. LocationCommand.file.location is {}", locationCommand.file.location)
+      }
       commandState match {
-        case StillWaiting => stay() using Option(newData)
+        case StillWaiting => 
+          log.warning("willy, in WaitingForIoResponses, case StillWaiting, newData is {}", newData)
+          stay() using Option(newData)
         case AllCommandsDone =>
           handleWhitelistingForSuccess(command)
           succeedAndStop(newData.returnCode, newData.newJobOutputs, newData.newDetritus)
         case NextSubSet(commands) =>
+          log.warning("willy, in WaitingForIoResponses, case NextSubSet, commands are {}", commands)
           commands foreach sendIoCommand
           stay() using Option(newData)
       }
@@ -356,6 +375,33 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     (WomValueBuilder.toJobOutputs(jobDescriptor.taskCall.outputPorts, destinationSimpletons), ioCommands)
   }
 
+  protected def processSimpletonLocations(womValueSimpletons: Seq[WomValueSimpleton], sourceCallRootPath: Path): Try[(CallOutputs, Set[IoCommand[_]])] = Try {
+    val (destinationSimpletons, ioCommands): (List[WomValueSimpleton], Set[IoCommand[_]]) = womValueSimpletons.toList.foldMap({
+      case WomValueSimpleton(key, wdlFile: WomSingleFile) =>
+        val sourcePath = getPath(wdlFile.value).get
+        val destinationPath = PathCopier.getDestinationFilePath(sourceCallRootPath, sourcePath, destinationCallRootPath)
+
+        val destinationSimpleton = WomValueSimpleton(key, WomSingleFile(destinationPath.pathAsString))
+        // PROD-444: Keep It Short and Simple: Throw on the first error and let the outer Try catch-and-re-wrap
+        List(destinationSimpleton) -> Set(commandBuilder.locationCommand(sourcePath).get)
+      case nonFileSimpleton => (List(nonFileSimpleton), Set.empty[IoCommand[_]])
+    })
+    log.warning("In processSimpletonLocations, ioCommands is {}", ioCommands)
+    (WomValueBuilder.toJobOutputs(jobDescriptor.taskCall.outputPorts, destinationSimpletons), ioCommands)
+  }
+
+  // protected def processLocationsOld(womValueSimpletons: Seq[WomValueSimpleton], sourceCallRootPath: Path): Try[(Set[IoCommand[_]])] = Try {
+  //   val (ioCommands): (Set[IoCommand[_]]) = womValueSimpletons.toList.foldMap({
+  //     val sourcePath = getPath(wdlFile.value).get
+  //     log.warning("In processLocationsOld, sourcePath is {}", sourcePath)
+
+  //     // PROD-444: Keep It Short and Simple: Throw on the first error and let the outer Try catch-and-re-wrap
+  //     (Set(commandBuilder.locationCommand(sourcePath).get))
+  //   })
+
+  //   (ioCommands)
+  // }
+
   /**
     * Returns the file (and ONLY the file detritus) intersection between the cache hit and this call.
     */
@@ -381,9 +427,30 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
         val newDetrituses = detrituses + (detritus -> destinationPath)
 
       // PROD-444: Keep It Short and Simple: Throw on the first error and let the outer Try catch-and-re-wrap
+      log.warning("Willy, in processDetritus, commandBuilder is type {}", commandBuilder.getClass)
       (newDetrituses, commands + commandBuilder.copyCommand(sourcePath, destinationPath).get)
     })
 
+    (destinationDetritus + (JobPaths.CallRootPathKey -> destinationCallRootPath), ioCommands)
+  }
+
+  protected def processDetritusLocations(sourceJobDetritusFiles: Map[String, String]): Try[(Map[String, Path], Set[IoCommand[_]])] = Try {
+    val fileKeys = detritusFileKeys(sourceJobDetritusFiles)
+
+    val zero = (Map.empty[String, Path], Set.empty[IoCommand[_]])
+
+    val (destinationDetritus, ioCommands) = fileKeys.foldLeft(zero)({
+      case ((detrituses, commands), detritus) =>
+        val sourcePath = getPath(sourceJobDetritusFiles(detritus)).get
+        val destinationPath = destinationJobDetritusPaths(detritus)
+
+        val newDetrituses = detrituses + (detritus -> destinationPath)
+
+      // PROD-444: Keep It Short and Simple: Throw on the first error and let the outer Try catch-and-re-wrap
+      log.warning("Willy, in processDetritusLocations, commandBuilder is type {}", commandBuilder.getClass)
+      (newDetrituses, commands + commandBuilder.locationCommand(sourcePath).get)
+    })
+    log.warning("In processDetritusLocations, ioCommands is {}", ioCommands)
     (destinationDetritus + (JobPaths.CallRootPathKey -> destinationCallRootPath), ioCommands)
   }
 

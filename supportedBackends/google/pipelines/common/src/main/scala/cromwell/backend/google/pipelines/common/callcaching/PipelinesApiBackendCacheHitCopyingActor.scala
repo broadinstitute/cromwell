@@ -84,4 +84,17 @@ class PipelinesApiBackendCacheHitCopyingActor(standardParams: StandardCacheHitCo
       case CopyCachedOutputs => List.empty
     }
   }
+
+  // override protected def duplicate(copyPairs: Set[PathPair]): Option[Try[Unit]] = Option {
+  //   // copyPairs has our src/dst paths
+  //   // We can get all the src/dst buckets
+  //   // And then build a GcsBatchCommandBuilder.locationCommand and send it
+  //   // Recieve the response?
+  //   // If response is "good", call super()
+  //   // If response is "bad", raise exception which will skip copying these pairs
+  //   val copies = copyPairs map {
+  //     case (source, destination) => 
+  //       sharedFileSystem.cacheCopy(source, destination)
+  //   }
+  //   super.duplicate(copyPairs)
 }

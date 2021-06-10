@@ -35,7 +35,7 @@ private case object PartialGcsBatchCommandBuilder extends PartialIoCommandBuilde
     case gcsPath: GcsPath => GcsBatchIsDirectoryCommand.forPath(gcsPath)
   }
 
-  def locationCommand: PartialFunction[Path, Try[GcsBatchLocationCommand]] = {
+  override def locationCommand: PartialFunction[Path, Try[GcsBatchLocationCommand]] = {
     case gcsPath: GcsPath => GcsBatchLocationCommand.forPath(gcsPath)
   }
 }

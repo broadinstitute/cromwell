@@ -339,6 +339,8 @@ trait BetterFileMethods {
 
   final def size: Long = betterFile.size
 
+  final def location: String = betterFile.location
+
   final def permissions: Set[PosixFilePermission] = betterFile.permissions
 
   final def permissionsAsString: String = betterFile.permissionsAsString

@@ -251,10 +251,14 @@ case class GcsBatchLocationCommand(override val file: GcsPath,
   override def mapGoogleResponse(response: Bucket): ErrorOr[String] = {
     Option(response.getLocation) match {
       case None => s"'${file.pathAsString}' in project '${file.projectId}' returned null location".invalidNel
-      case Some(location) => location.validNel
+      case Some(location) =>
+        System.err.println("In mapGoogleResponse")
+        System.err.println(location)
+        location.validNel
     }
   }
   override def operation: StorageRequest[Bucket] = {
+    System.err.println("Willy, in GcsBatchLocationCommand.operation")
     file.apiStorage.buckets().get(blob.getBucket)
   }
   override def withUserProject: GcsBatchLocationCommand = this.copy(setUserProject = true)

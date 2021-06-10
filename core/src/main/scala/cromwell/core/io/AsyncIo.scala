@@ -74,4 +74,8 @@ class AsyncIo(ioEndpoint: ActorRef, ioCommandBuilder: IoCommandBuilder) {
     // Allow for a much larger timeout for copies, as large files can take a while (even on gcs, if they are in different locations...)
     asyncCommand(ioCommandBuilder.copyCommand(src, dest), AsyncIo.copyTimeout)
   }
+
+  def locationAsync(path: Path): Future[String] = {
+    asyncCommand(ioCommandBuilder.locationCommand(path))
+  }
 }

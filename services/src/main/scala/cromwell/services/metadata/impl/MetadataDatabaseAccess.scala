@@ -362,8 +362,10 @@ trait MetadataDatabaseAccess {
   def getSummaryQueueSize()(implicit ec: ExecutionContext): Future[Int] =
     metadataDatabaseInterface.getSummaryQueueSize()
 
-  def getMetadataArchiveStatus(id: WorkflowId)(implicit ec: ExecutionContext): Future[Option[String]] = {
-    metadataDatabaseInterface.getMetadataArchiveStatus(id.toString)
+  def getMetadataArchiveStatusAndEndTime(id: WorkflowId)(implicit ec: ExecutionContext): Future[(Option[String], Option[OffsetDateTime])] = {
+    metadataDatabaseInterface.getMetadataArchiveStatusAndEndTime(id.toString).map {
+      case (statusOption, timestampOption) => (statusOption, timestampOption.map(_.toSystemOffsetDateTime))
+    }
   }
 
   def queryWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],

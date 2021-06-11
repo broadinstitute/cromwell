@@ -17,11 +17,6 @@ object Retry {
 
   def noopOnRetry(t: Throwable) = {}
 
-  def isTransactionRollback(t: Throwable) = t match {
-    case _: SQLTransactionRollbackException => true
-    case _ => false
-  }
-
   /**
     * Retries a Future on a designated backoff strategy until either a designated number of retries or a fatal error
     * is reached.
@@ -78,7 +73,7 @@ object Retry {
     val delay = backoff.backoffMillis.millis
 
     f() recoverWith {
-      case throwable if isTransactionRollback(throwable) =>
+      case throwable if throwable.isInstanceOf[SQLTransactionRollbackException] =>
         val retriesLeft = maxRetries map { _ - 1 }
         if (retriesLeft.forall(_ > 0)) {
           after(delay, actorSystem.scheduler)(withRetryForTransactionRollback(f, retriesLeft, backoff.next))

@@ -133,18 +133,17 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
     val maxAttempts = transferConfiguration.transferAttempts
     // Use a digest as bucket names can contain characters that are not legal in bash identifiers.
     val arrayIdentifier = s"egress_check_" + DigestUtils.md5Hex(bucket)
-    val entries = inputs.toList.map(_.cloudPath) mkString("\"", "\"\n|  \"", "\"")
+    // The caller has already grouped inputs by bucket, so we only need to test regionality of one of the inputs.
+    val entry = s"""\"${inputs.head.cloudPath}\""""
 
-    val localizationEgressValue = jobDescriptor.workflowDescriptor.workflowOptions.getOrElse(
-      WorkflowOptionKeys.LocalizationEgress, "local")
-    val localizationEgressStrictFlag = jobDescriptor.workflowDescriptor.workflowOptions.getBoolean(
-      WorkflowOptionKeys.LocalizationEgressStrict).getOrElse(false)
+    val localizationEgressValue = localizationEgress(jobDescriptor.workflowDescriptor)
+    val localizationEgressStrictFlag = localizationEgressStrict(jobDescriptor.workflowDescriptor)
 
     s"""
        |$arrayIdentifier=(
        |  "$project"       # project
        |  "$maxAttempts"   # max attempts
-       |  $entries
+       |  $entry
        |)
        |
        |egress_check "$localizationEgressValue" $localizationEgressStrictFlag "$${$arrayIdentifier[@]}"
@@ -274,8 +273,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   override def uploadGcsEgressCheckScript(createPipelineParameters: CreatePipelineParameters,
                                           cloudPath: Path,
                                           transferLibraryContainerPath: Path,
-                                          gcsTransferConfiguration: GcsTransferConfiguration,
-                                          referenceInputsToMountedPathsOpt: Option[Map[PipelinesApiInput, String]]): Future[Unit] = {
+                                          gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = {
     val content = generateGcsEgressCheckScript(createPipelineParameters.inputOutputParameters.fileInputParameters)(gcsTransferConfiguration)
     asyncIo.writeAsync(cloudPath, s"source '$transferLibraryContainerPath'\n\n" + content, Seq(CloudStorageOptions.withMimeType("text/plain")))
   }

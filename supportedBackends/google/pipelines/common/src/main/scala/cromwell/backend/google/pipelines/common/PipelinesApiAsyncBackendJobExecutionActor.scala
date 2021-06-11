@@ -422,7 +422,13 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   }
 
   protected def localizationEgress(descriptor: BackendWorkflowDescriptor): String = {
-    descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.LocalizationEgress, "local")
+    val validEgressValues = List("global","continental","local")
+    val egressValue = descriptor.workflowOptions.getOrElse(WorkflowOptionKeys.LocalizationEgress, "global")
+    if (validEgressValues.contains(egressValue)) {
+      egressValue
+    } else {
+      throw new IllegalArgumentException(s"Unsupported localizationEgress value: $egressValue")
+    }
   }
 
   protected def localizationEgressStrict(descriptor: BackendWorkflowDescriptor): Boolean = {
@@ -565,8 +571,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   protected def uploadGcsEgressCheckScript(createPipelineParameters: CreatePipelineParameters,
                                            cloudPath: Path,
                                            transferLibraryContainerPath: Path,
-                                           gcsTransferConfiguration: GcsTransferConfiguration,
-                                           referenceInputsToMountedPathsOpt: Option[Map[PipelinesApiInput, String]]): Future[Unit] = Future.successful(())
+                                           gcsTransferConfiguration: GcsTransferConfiguration): Future[Unit] = Future.successful(())
 
   protected def uploadGcsLocalizationScript(createPipelineParameters: CreatePipelineParameters,
                                             cloudPath: Path,
@@ -671,7 +676,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       referenceInputsToMountedPathsOpt = getReferenceInputsToMountedPathsOpt(createParameters)
       _ <- uploadGcsLocalizationScript(createParameters, gcsLocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration, referenceInputsToMountedPathsOpt)
       gcsEgressCheckScriptCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsEgressCheckScriptName
-      _ <- uploadGcsEgressCheckScript(createParameters, gcsEgressCheckScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration, referenceInputsToMountedPathsOpt)
+      _ <- uploadGcsEgressCheckScript(createParameters, gcsEgressCheckScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration)
       gcsDelocalizationScriptCloudPath = jobPaths.callExecutionRoot / PipelinesApiJobPaths.GcsDelocalizationScriptName
       _ <- uploadGcsDelocalizationScript(createParameters, gcsDelocalizationScriptCloudPath, transferLibraryContainerPath, gcsTransferConfiguration)
       _ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined

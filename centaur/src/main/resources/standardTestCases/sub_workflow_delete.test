@@ -21,8 +21,7 @@ metadata {
 fileSystemCheck: "gcs"
 outputExpectations: {
   # No current way to match on the subworkflow id, so for now just make sure the total directory count matches.
-  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/": 59
-  #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/gcs_egress.sh": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/": 48
   #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/gcs_delocalization.sh": 1
   #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/gcs_localization.sh": 1
   #"gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/sub_workflow_delete/<<UUID>>/call-sub_call/sub_workflow_delete_import/<<SUB_WORKFLOW_UUID>>/call-sub_workflow_task/gcs_transfer.sh": 1

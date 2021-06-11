@@ -11,6 +11,15 @@ import cromwell.backend.google.pipelines.v2beta.api.ActionCommands.localizeFile
 trait EgressCheckAction {
   def egressCheckAction(createPipelineParameters: CreatePipelineParameters, mounts: List[Mount])
                        (implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Action] = {
+    if (createPipelineParameters.localizationEgress == "global") {
+      Nil
+    } else {
+      egressCheckActionHelper(createPipelineParameters, mounts)
+    }
+  }
+
+  def egressCheckActionHelper(createPipelineParameters: CreatePipelineParameters, mounts: List[Mount])
+                             (implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Action] = {
     val egressCheckActionLabel = Map(Key.Tag -> Value.EgressCheckAction)
 
     val gcsTransferLibraryContainerPath = createPipelineParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)

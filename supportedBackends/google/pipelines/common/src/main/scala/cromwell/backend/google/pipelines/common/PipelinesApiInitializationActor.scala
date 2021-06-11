@@ -5,7 +5,7 @@ import com.google.api.client.http.{HttpRequest, HttpResponse}
 import com.google.api.services.cloudkms.v1.model.EncryptRequest
 import com.google.api.services.cloudkms.v1.{CloudKMS, CloudKMSScopes}
 import com.google.api.services.cloudresourcemanager.CloudResourceManager
-import com.google.api.services.genomics.GenomicsScopes
+import com.google.api.services.genomics.v2alpha1.GenomicsScopes
 import com.google.api.services.lifesciences.v2beta.CloudLifeSciencesScopes
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
@@ -64,10 +64,6 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
     .retryCredentials(workflowOptions, List(
       CloudLifeSciencesScopes.CLOUD_PLATFORM,
       GenomicsScopes.GENOMICS,
-      /*
-      Genomics Pipelines API v1alpha2 requires the COMPUTE scope. Does not seem to be required for either v2alpha1 or v2beta.
-       */
-      GenomicsScopes.COMPUTE,
       /*
       Used to write so-called "auth" files. The `gcsAuthFilePath` could probably be refactored such that *this* created
       `genomicsCredentials` doesn't actually need DEVSTORAGE_FULL_CONTROL, but it's also not clear how the magic

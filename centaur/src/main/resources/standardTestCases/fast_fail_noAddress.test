@@ -1,0 +1,15 @@
+# NB: To request this test by name, make it lowercase, eg sbt "centaur/it:testOnly * -- -n fast_fail_noaddress"
+name: fast_fail_noAddress
+backends: [Papi,Papiv2]
+backendsMode: any
+testFormat: workflowfailure
+
+files {
+  workflow: fast_fail_noAddress/fast_fail_noAddress.wdl
+}
+
+metadata {
+  workflowName: fast_fail_noAddress
+  "failures.0.causedBy.0.message": "Task fast_fail_noAddress.task_with_noAddress:NA:1 failed. The job was stopped before the command finished. PAPI error code 9. The worker was unable to check in, possibly due to a misconfigured network"
+  status: Failed
+}

@@ -19,7 +19,7 @@ abstract class AbstractCromwellEngineOrBackendUpgradeTestCaseSpec(cromwellBacken
 
   def this() = this(CentaurTestSuite.cromwellBackends)
 
-  private val cromwellDatabase = CromwellDatabase.fromConfig(CentaurConfig.conf)
+  private val cromwellDatabase = CromwellDatabase.instance
   private val engineSlickDatabaseOption = cromwellDatabase.engineDatabase.cast[EngineSlickDatabase]
   private val metadataSlickDatabaseOption = cromwellDatabase.metadataDatabase.cast[MetadataSlickDatabase]
   import TestContext._

@@ -12,7 +12,7 @@ case class GcsUriDownloader(gcsUrl: String,
                             downloadLoc: String,
                             requesterPaysProjectIdOption: Option[String]) extends Downloader with StrictLogging {
 
-  override def download: IO[ExitCode] = {
+  override def download: IO[DownloadResult] = {
 
     logger.info(s"Requester Pays project ID is $requesterPaysProjectIdOption")
     logger.info(s"Attempting to download $gcsUrl to $downloadLoc")
@@ -35,7 +35,9 @@ case class GcsUriDownloader(gcsUrl: String,
     // run the multiple bash script to download file and log stream sent to stdout and stderr using ProcessLogger
     val returnCode = copyProcess ! ProcessLogger(logger.underlying.info, logger.underlying.error)
 
-    IO(ExitCode(returnCode))
+    val result = if (returnCode == 0) DownloadSuccess else RetryableDownloadFailure(exitCode = ExitCode(returnCode))
+
+    IO.pure(result)
   }
 
   /**

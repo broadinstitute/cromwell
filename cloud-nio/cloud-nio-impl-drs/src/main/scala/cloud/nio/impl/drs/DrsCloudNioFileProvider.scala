@@ -47,11 +47,11 @@ class DrsCloudNioFileProvider(drsPathResolver: EngineDrsPathResolver,
     throw new UnsupportedOperationException("DRS currently doesn't support delete.")
 
   override def read(drsPath: String, unused: String, offset: Long): ReadableByteChannel = {
-    val fields = NonEmptyList.of(MarthaField.GsUri, MarthaField.GoogleServiceAccount)
+    val fields = NonEmptyList.of(MarthaField.GsUri, MarthaField.GoogleServiceAccount, MarthaField.AccessUrl)
 
     val byteChannelIO = for {
       marthaResponse <- drsPathResolver.resolveDrsThroughMartha(drsPath, fields)
-      byteChannel <- drsReadInterpreter(marthaResponse.gsUri, marthaResponse.googleServiceAccount)
+      byteChannel <- drsReadInterpreter(drsPathResolver, marthaResponse)
     } yield byteChannel
 
     byteChannelIO.handleErrorWith {
@@ -68,15 +68,15 @@ class DrsCloudNioFileProvider(drsPathResolver: EngineDrsPathResolver,
     val fileAttributesIO = for {
       marthaResponse <- drsPathResolver.resolveDrsThroughMartha(drsPath, fields)
       sizeOption = marthaResponse.size
-      hashoption = getPreferredHash(marthaResponse.hashes)
+      hashOption = getPreferredHash(marthaResponse.hashes)
       timeCreatedOption <- convertToFileTime(drsPath, MarthaField.TimeCreated, marthaResponse.timeCreated)
       timeUpdatedOption <- convertToFileTime(drsPath, MarthaField.TimeUpdated, marthaResponse.timeUpdated)
-    } yield new DrsCloudNioRegularFileAttributes(drsPath, sizeOption, hashoption, timeCreatedOption, timeUpdatedOption)
+    } yield new DrsCloudNioRegularFileAttributes(drsPath, sizeOption, hashOption, timeCreatedOption, timeUpdatedOption)
 
     Option(fileAttributesIO.unsafeRunSync())
   }
 }
 
 object DrsCloudNioFileProvider {
-  type DrsReadInterpreter = (Option[String], Option[SADataObject]) => IO[ReadableByteChannel]
+  type DrsReadInterpreter = (DrsPathResolver, MarthaResponse) => IO[ReadableByteChannel]
 }

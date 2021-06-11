@@ -1,8 +1,7 @@
 package cromwell.jobstore
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import cats.data.{NonEmptyList, NonEmptyVector}
-import cats.implicits._
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.LoadConfig
 import cromwell.core.actor.BatchActor._
@@ -11,7 +10,6 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreAccess
 import cromwell.jobstore.JobStore.{JobCompletion, WorkflowCompletion}
 import cromwell.jobstore.JobStoreActor._
 import cromwell.services.EnhancedBatchActor
-import cromwell.util.DatabaseUtil.withRetry
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -29,6 +27,8 @@ case class JobStoreWriterActor(jsd: JobStore,
   extends EnhancedBatchActor[CommandAndReplyTo[JobStoreWriterCommand]](flushRate, batchSize) {
 
   override protected def process(nonEmptyData: NonEmptyVector[CommandAndReplyTo[JobStoreWriterCommand]]): Future[Int] = instrumentedProcess {
+    implicit val actorSystem: ActorSystem = context.system
+
     val data = nonEmptyData.toVector
     log.debug("Flushing {} job store commands to the DB", data.length)
     val completions = data.collect({ case CommandAndReplyTo(c: JobStoreWriterCommand, _) => c.completion })
@@ -40,14 +40,13 @@ case class JobStoreWriterActor(jsd: JobStore,
       // immediately deleted anyway.
       val jobCompletions = completions.toList collect { case j: JobCompletion if !completedWorkflowIds.contains(j.key.workflowId) => j }
       val jobStoreAction: Future[Unit] = jsd.writeToDatabase(workflowCompletions, jobCompletions, batchSize)
-//      val workflowStoreAction: Future[List[Int]] = Future.sequence {
-//        completedWorkflowIds.map(workflowStoreAccess.deleteFromStore(_)).toList
-//      }
+      val workflowStoreAction: Future[List[Int]] = Future.sequence {
+        completedWorkflowIds.map(workflowStoreAccess.deleteFromStore(_)).toList
+      }
 
       val combinedAction: Future[Unit] = for {
         _ <- jobStoreAction
-//        _ <- workflowStoreAction
-        _ <- withRetry(() => completedWorkflowIds.toList traverse workflowStoreAccess.deleteFromStore)(context.system)
+        _ <- workflowStoreAction
       } yield ()
 
       combinedAction onComplete {

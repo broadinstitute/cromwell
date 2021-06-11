@@ -1,5 +1,7 @@
 package cromwell.core.retry
 
+import java.sql.SQLTransactionRollbackException
+
 import akka.actor.ActorSystem
 import cromwell.core.CromwellFatalException
 
@@ -10,6 +12,16 @@ import akka.pattern.after
 import common.util.Backoff
 
 object Retry {
+
+  def throwableToFalse(t: Throwable) = false
+
+  def noopOnRetry(t: Throwable) = {}
+
+  def isTransactionRollback(t: Throwable) = t match {
+    case _: SQLTransactionRollbackException => true
+    case _ => false
+  }
+
   /**
     * Retries a Future on a designated backoff strategy until either a designated number of retries or a fatal error
     * is reached.
@@ -49,7 +61,31 @@ object Retry {
     }
   }
 
-  def throwableToFalse(t: Throwable) = false
-  def noopOnRetry(t: Throwable) = {}
+  /**
+   * Retries a Future if a 'SQLTransactionRollbackException' (i.e. deadlock exception) occurs on a designated
+   * backoff strategy until a designated number of retries is reached.
+   *
+   * @param f A function Unit => Future which will be executed once per cycle.
+   * @param maxRetries An optional number of times to retry the future. If this is None, there is no limit.
+   * @param backoff An exponential backoff strategy to use for each retry strategy.
+   * @tparam A The return type of the Future
+   * @return The final completed Future[A]
+   */
+  def withRetryForTransactionRollback[A](f: () => Future[A],
+                                         maxRetries: Option[Int] = Option(5),
+                                         backoff: Backoff = SimpleExponentialBackoff(5 seconds, 10 seconds, 1.1D))
+                                        (implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[A] = {
+    val delay = backoff.backoffMillis.millis
+
+    f() recoverWith {
+      case throwable if isTransactionRollback(throwable) =>
+        val retriesLeft = maxRetries map { _ - 1 }
+        if (retriesLeft.forall(_ > 0)) {
+          after(delay, actorSystem.scheduler)(withRetryForTransactionRollback(f, retriesLeft, backoff.next))
+        } else {
+          Future.failed(new CromwellFatalException(throwable))
+        }
+    }
+  }
 }
 

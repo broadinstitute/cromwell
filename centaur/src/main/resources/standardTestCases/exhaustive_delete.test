@@ -17,7 +17,8 @@ metadata {
 fileSystemCheck: "gcs"
 outputExpectations: {
   "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/exhaustive_delete/<<UUID>>/call-exhaustive/delete.txt": 0
-  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/exhaustive_delete/<<UUID>>/call-exhaustive/": 48
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/exhaustive_delete/<<UUID>>/call-exhaustive/": 49
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/exhaustive_delete/<<UUID>>/call-exhaustive/gcs_egress_check.sh": 1
   "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/exhaustive_delete/<<UUID>>/call-exhaustive/gcs_delocalization.sh": 1
   "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/exhaustive_delete/<<UUID>>/call-exhaustive/gcs_localization.sh": 1
   "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/exhaustive_delete/<<UUID>>/call-exhaustive/gcs_transfer.sh": 1

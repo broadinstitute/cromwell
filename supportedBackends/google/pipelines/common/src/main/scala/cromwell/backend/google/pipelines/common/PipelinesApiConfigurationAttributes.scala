@@ -46,7 +46,6 @@ case class PipelinesApiConfigurationAttributes(project: String,
                                                gcsTransferConfiguration: GcsTransferConfiguration,
                                                virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
                                                batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
-                                               allowNoAddress: Boolean,
                                                referenceFileToDiskImageMappingOpt: Option[Map[String, PipelinesApiReferenceFilesDisk]],
                                                dockerImageToCacheDiskImageMappingOpt: Option[Map[String, DockerImageCacheEntry]],
                                                checkpointingInterval: FiniteDuration
@@ -71,7 +70,6 @@ object PipelinesApiConfigurationAttributes
   val GenomicsApiDefaultQps = 1000
   val DefaultGcsTransferAttempts: Refined[Int, Positive] = refineMV[Positive](3)
 
-  val allowNoAddressAttributeKey = "allow-noAddress-attribute"
   val checkpointingIntervalKey = "checkpointing-interval"
 
   private val papiKeys = CommonBackendConfigurationAttributes.commonValidConfigurationAttributeKeys ++ Set(
@@ -106,7 +104,6 @@ object PipelinesApiConfigurationAttributes
     "virtual-private-cloud.network-label-key",
     "virtual-private-cloud.subnetwork-label-key",
     "virtual-private-cloud.auth",
-    allowNoAddressAttributeKey,
     "reference-disk-localization-manifests",
     "docker-image-cache-manifest-file",
     checkpointingIntervalKey
@@ -152,7 +149,6 @@ object PipelinesApiConfigurationAttributes
     val genomicsAuthName: ErrorOr[String] = validate { backendConfig.as[String]("genomics.auth") }
     val genomicsRestrictMetadataAccess: ErrorOr[Boolean] = validate { backendConfig.as[Option[Boolean]]("genomics.restrict-metadata-access").getOrElse(false) }
     val genomicsEnableFuse: ErrorOr[Boolean] = validate { backendConfig.as[Option[Boolean]]("genomics.enable-fuse").getOrElse(false) }
-    val allowNoAddress: ErrorOr[Boolean] = validate { backendConfig.as[Option[Boolean]](allowNoAddressAttributeKey).getOrElse(true) }
     val gcsFilesystemAuthName: ErrorOr[String] = validate { backendConfig.as[String]("filesystems.gcs.auth") }
     val qpsValidation = validateQps(backendConfig)
     val duplicationStrategy = validate { backendConfig.as[Option[String]]("filesystems.gcs.caching.duplication-strategy").getOrElse("copy") match {
@@ -216,16 +212,15 @@ object PipelinesApiConfigurationAttributes
                                                        gcsTransferConfiguration: GcsTransferConfiguration,
                                                        virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
                                                        batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
-                                                       allowNoAddress: Boolean,
                                                        referenceDiskLocalizationManifestFilesOpt: Option[List[ManifestFile]],
                                                        dockerImageCacheManifestFileOpt: Option[ValidFullGcsPath]): ErrorOr[PipelinesApiConfigurationAttributes] =
       (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN {
         (genomicsAuth, gcsAuth) =>
           val generatedReferenceFilesMappingOpt = referenceDiskLocalizationManifestFilesOpt map {
-            generateReferenceFilesMapping(gcsAuth, _)
+            generateReferenceFilesMapping(genomicsAuth, _)
           }
           val dockerImageToCacheDiskImageMappingOpt = dockerImageCacheManifestFileOpt map {
-            generateDockerImageToDiskImageMapping(gcsAuth, _)
+            generateDockerImageToDiskImageMapping(genomicsAuth, _)
           }
           PipelinesApiConfigurationAttributes(
             project = project,
@@ -245,7 +240,6 @@ object PipelinesApiConfigurationAttributes
             gcsTransferConfiguration = gcsTransferConfiguration,
             virtualPrivateCloudConfiguration = virtualPrivateCloudConfiguration,
             batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration,
-            allowNoAddress,
             referenceFileToDiskImageMappingOpt = generatedReferenceFilesMappingOpt,
             dockerImageToCacheDiskImageMappingOpt = dockerImageToCacheDiskImageMappingOpt,
             checkpointingInterval = checkpointingInterval
@@ -266,7 +260,6 @@ object PipelinesApiConfigurationAttributes
       gcsTransferConfiguration,
       virtualPrivateCloudConfiguration,
       batchRequestTimeoutConfigurationValidation,
-      allowNoAddress,
       referenceDiskLocalizationManifestFiles,
       dockerImageCacheManifestFile
     ) flatMapN authGoogleConfigForPapiConfigurationAttributes match {

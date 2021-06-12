@@ -1022,7 +1022,7 @@ cromwell::private::write_cwl_test_inputs() {
     "cwl_conformance_test.centaur_cwl_runner": "${CROMWELL_BUILD_CWL_TEST_RUNNER}",
     "cwl_conformance_test.conformance_expected_failures":
         "${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_BACKEND_TYPE}_conformance_expected_failures.txt",
-    "cwl_conformance_test.timeout": 1200
+    "cwl_conformance_test.timeout": 2400
 }
 JSON
 }

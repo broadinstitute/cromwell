@@ -237,10 +237,10 @@ task prepGithub {
             --header "Authorization: token $(cat ~{githubTokenFile})" \
             --head \
             https://api.github.com/rate_limit \
-        | grep -i -F 'X-OAuth-Scopes:' > scopesHeader.txt
+        | grep -i -F 'X-OAuth-Scopes:' > scopesHeader.txt || true
 
-        # All of these scopes are required
-        required_scopes=(repo user)
+        # All of these scopes are required with an exact match
+        required_scopes=(read:org repo user:email workflow)
 
         echo 'Verify that all required scopes are present'
         correct_scopes=true
@@ -251,7 +251,7 @@ task prepGithub {
         done
 
         if [[ "${correct_scopes}" != true ]]; then
-             echo "Token must have the scopes: (${required_scopes[*]})." >&2
+             echo "Token must have the exact scopes: (${required_scopes[*]})" >&2
              echo "Instead found $(cat scopesHeader.txt || echo "no scopes!")" >&2
              exit 1
         fi
@@ -390,7 +390,7 @@ task publishGithubRelease {
     String cromwellUploadUrl = "~{uploadUrl}?name=~{cromwellJarName}&label=~{cromwellJarName}"
     String womtoolUploadUrl = "~{uploadUrl}?name=~{womtoolJarName}&label=~{womtoolJarName}"
 
-    String releaseRoot = "https://github.com/~{organization}/cromwell/releases/download/~{releaseVersion}/"
+    String releaseRoot = "https://github.com/~{organization}/cromwell/releases/download/~{releaseVersion}"
 
     command <<<
         # Do not use `set -x` or it will print the GitHub token!
@@ -540,7 +540,9 @@ task releaseHomebrew {
         echo '#####   Verify install works and create PR if so   #####'
         echo '########################################################'
 
+        # Temporarily capture-vs-exit on error, and temporarily debug bash statements
         set +e
+        set -x
         brew uninstall --force cromwell
         brew install --build-from-source Formula/cromwell.rb
         install_exit_status=$?
@@ -548,9 +550,13 @@ task releaseHomebrew {
         test_exit_status=$?
         brew audit --strict Formula/cromwell.rb
         audit_exit_status=$?
+        brew style Formula/cromwell.rb
+        style_exit_status=$?
+        set +x
         set -e
 
-        if [[ "${install_exit_status}" -eq 0 && "${test_exit_status}" -eq 0 && "${audit_exit_status}" -eq 0 ]]; then
+        if [[ "${install_exit_status}" -eq 0 && "${test_exit_status}" -eq 0 && \
+                "${audit_exit_status}" -eq 0 && "${style_exit_status}" -eq 0 ]]; then
             echo "Creating Homebrew PR"
             echo 'Download a template for the homebrew PR'
             curl \
@@ -571,7 +577,7 @@ task releaseHomebrew {
 
             jq \
                 --null-input --rawfile template template.md '{
-                    title: "Cromwell ~{releaseVersion}",
+                    title: "cromwell ~{releaseVersion}",
                     head: "~{headBranch}",
                     base: "~{baseBranch}",
                     body: $template

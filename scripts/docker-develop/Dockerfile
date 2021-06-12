@@ -17,7 +17,7 @@ RUN apt-get update -q && \
 #   Git
 
 # Env variables
-ENV SCALA_VERSION 2.12.13
+ENV SCALA_VERSION 2.12.14
 ENV SBT_VERSION 1.4.9
 
 #

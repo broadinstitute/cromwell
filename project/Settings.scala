@@ -93,7 +93,7 @@ object Settings {
       sys.env.get("CROMWELL_SBT_ASSEMBLY_LOG_LEVEL").flatMap(Level.apply).getOrElse((assembly / logLevel).value)
   )
 
-  val Scala2_12Version = "2.12.13"
+  val Scala2_12Version = "2.12.14"
   val ScalaVersion = Scala2_12Version
   val sharedSettings =
     cromwellVersionWithGit ++ artifactorySettings ++ List(

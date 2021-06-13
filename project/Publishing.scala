@@ -43,7 +43,7 @@ object Publishing {
       val artifact: File = assembly.value
       val artifactTargetPath = s"/app/${artifact.name}"
       val projectName = name.value
-      val additionalDockerInstr: Seq[Instruction] = dockerCustomSettings.value
+      val additionalDockerInstr: Seq[Instruction] = (dockerCustomSettings ?? Nil).value
 
       new Dockerfile {
         from("us.gcr.io/broad-dsp-gcr-public/base/jre:11-debian")
@@ -96,8 +96,7 @@ object Publishing {
     docker / buildOptions := BuildOptions(
       cache = false,
       removeIntermediateContainers = BuildOptions.Remove.Always
-    ),
-    ThisBuild / dockerCustomSettings := Nil, // setting the default value
+    )
   )
 
   def dockerPushSettings(pushEnabled: Boolean): Seq[Setting[_]] = {
@@ -119,13 +118,13 @@ object Publishing {
                 exception
               )
           }
-        },
+        }
       )
     } else {
       List(
         DockerKeys.dockerPush := {
           Map.empty[sbtdocker.ImageName,sbtdocker.ImageDigest]
-        },
+        }
       )
     }
   }
@@ -155,7 +154,7 @@ object Publishing {
 
   val artifactorySettings: Seq[Setting[_]] = List(
     publishTo := Option(artifactoryResolver(isSnapshot.value)),
-    credentials ++= artifactoryCredentials,
+    credentials ++= artifactoryCredentials
   )
 
   val rootArtifactorySettings: Seq[Setting[_]] = List(
@@ -169,6 +168,6 @@ object Publishing {
               |""".stripMargin
         )
       }
-    },
+    }
   )
 }

@@ -88,14 +88,12 @@ object Settings {
   lazy val assemblySettings = Seq(
     assembly / assemblyJarName := name.value + "-" + version.value + ".jar",
     assembly / test := {},
-    assembly / assemblyMergeStrategy := customMergeStrategy.value,
-    assembly / logLevel :=
-      sys.env.get("CROMWELL_SBT_ASSEMBLY_LOG_LEVEL").flatMap(Level.apply).getOrElse((assembly / logLevel).value)
+    assembly / assemblyMergeStrategy := customMergeStrategy.value
   )
 
   val Scala2_12Version = "2.12.14"
-  val ScalaVersion = Scala2_12Version
-  val sharedSettings =
+  private val ScalaVersion = Scala2_12Version
+  private val sharedSettings =
     cromwellVersionWithGit ++ artifactorySettings ++ List(
     organization := "org.broadinstitute",
     scalaVersion := ScalaVersion,
@@ -130,7 +128,7 @@ object Settings {
         - https://cromwell.readthedocs.io/en/develop/backends/Google/#issues-with-composite-files
         - https://cloud.google.com/storage/docs/gsutil/addlhelp/CRC32CandInstallingcrcmod
    */
-  val installGcloudSettings: List[Def.Setting[Seq[Instruction]]] = List(
+  val installGcloudSettings: Seq[Setting[Seq[Instruction]]] = List(
     dockerCustomSettings := List(
       Instructions.Env("PATH", "$PATH:/usr/local/gcloud/google-cloud-sdk/bin"),
       // instructions to install `crcmod`
@@ -146,15 +144,15 @@ object Settings {
       Instructions.Run("curl https://dl.google.com/dl/cloudsdk/release/google-cloud-sdk.tar.gz > /tmp/google-cloud-sdk.tar.gz"),
       Instructions.Run("""mkdir -p /usr/local/gcloud \
                          | && tar -C /usr/local/gcloud -xvf /tmp/google-cloud-sdk.tar.gz \
-                         | && /usr/local/gcloud/google-cloud-sdk/install.sh""".stripMargin),
+                         | && /usr/local/gcloud/google-cloud-sdk/install.sh""".stripMargin)
     )
   )
 
   val swaggerUiSettings = List(Compile / resourceGenerators += writeSwaggerUiVersionConf)
   val backendSettings = List(addCompilerPlugin(kindProjectorPlugin))
-  val engineSettings = swaggerUiSettings
-  val cromiamSettings = swaggerUiSettings
-  val drsLocalizerSettings = installGcloudSettings
+  val engineSettings: Seq[Setting[_]] = swaggerUiSettings
+  val cromiamSettings: Seq[Setting[_]] = swaggerUiSettings
+  val drsLocalizerSettings: Seq[Setting[_]] = installGcloudSettings
 
   private def buildProject(project: Project,
                            projectName: String,

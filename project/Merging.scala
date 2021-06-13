@@ -10,12 +10,31 @@ object Merging {
 
     override def apply(tempDir: File, path: String, files: Seq[File]): Either[String, Seq[(File, String)]] = {
       val filteredFiles = files flatMap { file =>
-        val (source, _, _, isFromJar) = sbtassembly.AssemblyUtils.sourceOfFileForMerge(tempDir, file)
+        val (source, _, _, isFromJar) = sourceOfFileForMerge(tempDir, file)
         if (isFromJar && source.getName != jarName) Option(file -> path) else None
       }
       Right(filteredFiles)
     }
   }
+
+  /* Begin borrowing from sbtassembly.AssemblyUtils due to https://github.com/sbt/sbt-assembly/issues/435 */
+  private val PathRE = "([^/]+)/(.*)".r
+  private def sourceOfFileForMerge(tempDir: File, f: File): (File, File, String, Boolean) = {
+    val baseURI = tempDir.getCanonicalFile.toURI
+    val otherURI = f.getCanonicalFile.toURI
+    val relative = baseURI.relativize(otherURI)
+    val PathRE(head, tail) = relative.getPath
+    val base = tempDir / head
+
+    if ((tempDir / (head + ".jarName")) exists) {
+      val jarName = IO.read(tempDir / (head + ".jarName"), IO.utf8)
+      (new File(jarName), base, tail, true)
+    } else {
+      val dirName = IO.read(tempDir / (head + ".dir"), IO.utf8)
+      (new File(dirName), base, tail, false)
+    } // if-else
+  }
+  /* End borrowing */
 
   val customMergeStrategy: Def.Initialize[String => MergeStrategy] = Def.setting {
     case PathList(ps@_*) if ps.last == "project.properties" =>

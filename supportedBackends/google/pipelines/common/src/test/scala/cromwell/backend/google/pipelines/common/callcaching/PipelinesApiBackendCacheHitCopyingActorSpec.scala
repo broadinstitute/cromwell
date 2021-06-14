@@ -92,7 +92,7 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
       copyActor ! copyCommand
 
       eventually {
-        copyActor.underlyingActor.stateName shouldBe WaitingForIoResponses
+        copyActor.underlyingActor.stateName shouldBe WaitingForCopyIoResponses
       }
 
       ioActor.expectMsgPF(5 seconds) {
@@ -141,7 +141,7 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
       copyActor ! command
 
       eventually {
-        copyActor.underlyingActor.stateName shouldBe WaitingForIoResponses
+        copyActor.underlyingActor.stateName shouldBe WaitingForCopyIoResponses
       }
 
       ioActor.expectMsgPF(5 seconds) {
@@ -240,7 +240,7 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
       copyActor ! command
 
       eventually {
-        copyActor.underlyingActor.stateName shouldBe WaitingForIoResponses
+        copyActor.underlyingActor.stateName shouldBe WaitingForCopyIoResponses
       }
 
       ioActor.expectMsgPF(5 seconds) {
@@ -370,7 +370,7 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
 
   type TestFSMRefPipelinesApiBackendCacheHitCopyingActor = TestFSMRef[
     StandardCacheHitCopyingActorState,
-    Option[StandardCacheHitCopyingActorData],
+    Option[CacheHitCopyingData],
     PipelinesApiBackendCacheHitCopyingActor
   ]
 

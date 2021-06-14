@@ -20,7 +20,7 @@ import cromwell.core.{WorkflowId, WorkflowMetadataKeys, path => _}
 import cromwell.engine.instrumentation.HttpInstrumentation
 import cromwell.server.CromwellShutdown
 import cromwell.services._
-import cromwell.services.instrumentation.{CromwellBucket, CromwellCount, CromwellIncrement, CromwellTiming}
+import cromwell.services.instrumentation.{CromwellBucket, CromwellIncrement, CromwellTiming}
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataService._
@@ -177,7 +177,7 @@ object MetadataRouteSupport {
       serviceRegistryActor ! lagMessage
 
       val interestingDayMarks = (5.to(55, step = 5) :+ 1).map(d => (d.days, s"${d}_day_old_lookups"))
-      val interestingMonthMarks = 2.to(11).map(m => (30.days * m, s"${m}_month_old_lookups"))
+      val interestingMonthMarks = 2.to(11).map(m => (30.days * m.longValue(), s"${m}_month_old_lookups"))
 
       (interestingDayMarks ++ interestingMonthMarks) foreach {
         case (timeSpan, metricName) if timeSinceEndTime > timeSpan =>

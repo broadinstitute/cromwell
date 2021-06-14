@@ -12,6 +12,7 @@ import cromwell.core.{LoadConfig, WorkflowId}
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataService._
+import cromwell.services.metadata.impl.MetadataDatabaseAccess.WorkflowArchiveStatusAndEndTimestamp
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.{MetadataSummaryFailure, MetadataSummarySuccess, SummarizeMetadata}
 import cromwell.services.metadata.impl.archiver.{ArchiveMetadataConfig, ArchiveMetadataSchedulerActor}
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
@@ -151,7 +152,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
 
   private def fetchWorkflowMetadataArchiveStatusAndEndTime(workflowId: WorkflowId, sender: ActorRef): Unit = {
     getMetadataArchiveStatusAndEndTime(workflowId) onComplete {
-      case Success((status, endTime)) =>
+      case Success(WorkflowArchiveStatusAndEndTimestamp(status, endTime)) =>
         MetadataArchiveStatus.fromDatabaseValue(status).toTry match {
           case Success(archiveStatus) => sender ! WorkflowMetadataArchivedStatusAndEndTime(archiveStatus, endTime)
           case Failure(e) => sender ! FailedToGetArchiveStatusAndEndTime(new RuntimeException(s"Failed to get metadata archive status for workflow ID $workflowId", e))

@@ -20,7 +20,7 @@ import cromwell.core.{WorkflowId, WorkflowMetadataKeys, path => _}
 import cromwell.engine.instrumentation.HttpInstrumentation
 import cromwell.server.CromwellShutdown
 import cromwell.services._
-import cromwell.services.instrumentation.{CromwellBucket, CromwellTiming}
+import cromwell.services.instrumentation.{CromwellBucket, CromwellCount, CromwellIncrement, CromwellTiming}
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataService._
@@ -166,22 +166,33 @@ object MetadataRouteSupport {
                                  (implicit timeout: Timeout,
                                   ec: ExecutionContext): Future[MetadataJsonResponse] = {
 
-    def recordHistoricalMetadataLookupLagMetric(endTime: Option[OffsetDateTime]): Unit = {
+    def recordHistoricalMetadataLookupMetrics(endTime: Option[OffsetDateTime]): Unit = {
       val timeSinceEndTime = endTime match {
         case Some(et) => FiniteDuration(JDuration.between(et, OffsetDateTime.now()).toMillis, TimeUnit.MILLISECONDS)
         case None => 0.seconds
       }
 
-      val instrumentationPath = MetadataServiceActor.MetadataInstrumentationPrefix :+ "archiver" :+ "historical_metadata_lookup_lag"
-      val message = InstrumentationServiceMessage(CromwellTiming(CromwellBucket(ServicesPrefix.toList, instrumentationPath), timeSinceEndTime))
-      serviceRegistryActor ! message
+      val lagInstrumentationPath = MetadataServiceActor.MetadataInstrumentationPrefix :+ "archiver" :+ "historical_metadata_lookup" :+ "lag"
+      val lagMessage = InstrumentationServiceMessage(CromwellTiming(CromwellBucket(ServicesPrefix.toList, lagInstrumentationPath), timeSinceEndTime))
+      serviceRegistryActor ! lagMessage
+
+      val interestingDayMarks = (5.to(55, step = 5) :+ 1).map(d => (d.days, s"${d}_day_old_lookups"))
+      val interestingMonthMarks = 2.to(11).map(m => (30.days * m, s"${m}_month_old_lookups"))
+
+      (interestingDayMarks ++ interestingMonthMarks) foreach {
+        case (timeSpan, metricName) if timeSinceEndTime > timeSpan =>
+          val oldMetadataCounterPath = MetadataServiceActor.MetadataInstrumentationPrefix :+ "archiver" :+ "historical_metadata_lookup" :+ s"${metricName}_lookup"
+          val oldMetadataCounterMessage = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(ServicesPrefix.toList, oldMetadataCounterPath)))
+          serviceRegistryActor ! oldMetadataCounterMessage
+        case _ => // Do nothing
+      }
     }
 
     def checkIfMetadataDeletedAndRespond(id: WorkflowId,
                                          metadataRequest: BuildWorkflowMetadataJsonWithOverridableSourceAction): Future[MetadataJsonResponse] = {
       serviceRegistryActor.ask(FetchWorkflowMetadataArchiveStatusAndEndTime(id)).mapTo[FetchWorkflowArchiveStatusAndEndTimeResponse] flatMap {
         case WorkflowMetadataArchivedStatusAndEndTime(archiveStatus, endTime) =>
-          recordHistoricalMetadataLookupLagMetric(endTime)
+          recordHistoricalMetadataLookupMetrics(endTime)
           if (archiveStatus.isDeleted) Future.successful(SuccessfulMetadataJsonResponse(metadataRequest, processMetadataArchivedResponse(id, archiveStatus, endTime)))
           else serviceRegistryActor.ask(request(id)).mapTo[MetadataJsonResponse]
         case FailedToGetArchiveStatusAndEndTime(e) => Future.failed(e)

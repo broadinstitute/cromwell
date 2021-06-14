@@ -4,7 +4,7 @@ import java.sql.SQLTransactionRollbackException
 
 import akka.actor.ActorSystem
 import akka.pattern.after
-import com.typesafe.scalalogging.LazyLogging
+import com.typesafe.scalalogging.StrictLogging
 import common.util.Backoff
 import cromwell.core.CromwellFatalException
 
@@ -12,7 +12,7 @@ import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
 
-object Retry extends LazyLogging {
+object Retry extends StrictLogging {
 
   def throwableToFalse(t: Throwable) = false
 

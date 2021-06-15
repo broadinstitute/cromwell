@@ -2,11 +2,12 @@ package cromwell.engine.workflow.workflowstore
 
 import java.time.OffsetDateTime
 
-import akka.actor.ActorRef
+import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern.ask
 import akka.util.Timeout
 import cats.data.NonEmptyVector
 import cromwell.core.WorkflowId
+import cromwell.core.retry.Retry.withRetryForTransactionRollback
 import cromwell.engine.workflow.workflowstore.SqlWorkflowStore.WorkflowStoreAbortResponse.WorkflowStoreAbortResponse
 
 import scala.concurrent.duration.FiniteDuration
@@ -24,16 +25,16 @@ import scala.concurrent.{ExecutionContext, Future}
 sealed trait WorkflowStoreAccess {
   def writeWorkflowHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)],
                               heartbeatDateTime: OffsetDateTime)
-                             (implicit ec: ExecutionContext): Future[Int]
+                             (implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[Int]
 
   def fetchStartableWorkflows(maxWorkflows: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
-                             (implicit ec: ExecutionContext): Future[List[WorkflowToStart]]
+                             (implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[List[WorkflowToStart]]
 
   def abort(workflowId: WorkflowId)
-           (implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse]
+           (implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[WorkflowStoreAbortResponse]
 
   def deleteFromStore(workflowId: WorkflowId)
-                     (implicit ec: ExecutionContext): Future[Int]
+                     (implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[Int]
 
 }
 
@@ -45,20 +46,20 @@ case class UncoordinatedWorkflowStoreAccess(store: WorkflowStore) extends Workfl
 
   override def writeWorkflowHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)],
                                        heartbeatDateTime: OffsetDateTime)
-                                      (implicit ec: ExecutionContext): Future[Int] = {
+                                      (implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[Int] = {
     store.writeWorkflowHeartbeats(workflowIds.toVector.toSet, heartbeatDateTime)
   }
 
   override def fetchStartableWorkflows(maxWorkflows: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
-                                      (implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
+                                      (implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[List[WorkflowToStart]] = {
     store.fetchStartableWorkflows(maxWorkflows, cromwellId, heartbeatTtl)
   }
 
-  override def deleteFromStore(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int] = {
+  override def deleteFromStore(workflowId: WorkflowId)(implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[Int] = {
     store.deleteFromStore(workflowId)
   }
 
-  override def abort(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse] = {
+  override def abort(workflowId: WorkflowId)(implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[WorkflowStoreAbortResponse] = {
     store.abort(workflowId)
   }
 }
@@ -72,22 +73,30 @@ case class CoordinatedWorkflowStoreAccess(coordinatedWorkflowStoreAccessActor: A
 
   override def writeWorkflowHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)],
                                        heartbeatDateTime: OffsetDateTime)
-                                      (implicit ec: ExecutionContext): Future[Int] = {
-    coordinatedWorkflowStoreAccessActor.ask(WorkflowStoreCoordinatedAccessActor.WriteHeartbeats(workflowIds, heartbeatDateTime)).mapTo[Int]
+                                      (implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[Int] = {
+    withRetryForTransactionRollback(
+      () => coordinatedWorkflowStoreAccessActor.ask(WorkflowStoreCoordinatedAccessActor.WriteHeartbeats(workflowIds, heartbeatDateTime)).mapTo[Int]
+    )
   }
 
   override def fetchStartableWorkflows(maxWorkflows: Int, cromwellId: String, heartbeatTtl: FiniteDuration)
-                                      (implicit ec: ExecutionContext): Future[List[WorkflowToStart]] = {
+                                      (implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[List[WorkflowToStart]] = {
     val message = WorkflowStoreCoordinatedAccessActor.FetchStartableWorkflows(maxWorkflows, cromwellId, heartbeatTtl)
-    coordinatedWorkflowStoreAccessActor.ask(message).mapTo[List[WorkflowToStart]]
+    withRetryForTransactionRollback(
+      () => coordinatedWorkflowStoreAccessActor.ask(message).mapTo[List[WorkflowToStart]]
+    )
   }
 
-  override def deleteFromStore(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[Int] = {
-    coordinatedWorkflowStoreAccessActor.ask(WorkflowStoreCoordinatedAccessActor.DeleteFromStore(workflowId)).mapTo[Int]
+  override def deleteFromStore(workflowId: WorkflowId)(implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[Int] = {
+    withRetryForTransactionRollback(
+      () => coordinatedWorkflowStoreAccessActor.ask(WorkflowStoreCoordinatedAccessActor.DeleteFromStore(workflowId)).mapTo[Int]
+    )
   }
 
-  override def abort(workflowId: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowStoreAbortResponse] = {
-    coordinatedWorkflowStoreAccessActor.ask(WorkflowStoreCoordinatedAccessActor.Abort(workflowId)).mapTo[WorkflowStoreAbortResponse]
+  override def abort(workflowId: WorkflowId)(implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[WorkflowStoreAbortResponse] = {
+    withRetryForTransactionRollback(
+      () => coordinatedWorkflowStoreAccessActor.ask(WorkflowStoreCoordinatedAccessActor.Abort(workflowId)).mapTo[WorkflowStoreAbortResponse]
+    )
   }
 }
 

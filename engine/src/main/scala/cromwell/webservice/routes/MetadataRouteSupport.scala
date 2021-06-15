@@ -135,7 +135,7 @@ object MetadataRouteSupport {
     val timeSinceMessage = endTime map { timestamp =>
       val duration = FiniteDuration(JDuration.between(timestamp, OffsetDateTime.now()).toMillis, TimeUnit.MILLISECONDS)
       s" The workflow completed at $timestamp, which was ${duration} ago."
-    }
+    } getOrElse("")
     val additionalDetails = if (archiveStatus == MetadataArchiveStatus.ArchivedAndDeleted)
       " It is available in the archive bucket, or via a support request in the case of a managed instance."
     else ""

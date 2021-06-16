@@ -115,6 +115,12 @@ trait WorkflowMetadataSummaryEntryComponent {
       if workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid
     } yield workflowMetadataSummaryEntry.metadataArchiveStatus)
 
+  val metadataArchiveStatusAndEndTimeByWorkflowId = Compiled(
+    (workflowExecutionUuid: Rep[String]) => for {
+      workflowMetadataSummaryEntry <- workflowMetadataSummaryEntries
+      if workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid
+    } yield (workflowMetadataSummaryEntry.metadataArchiveStatus, workflowMetadataSummaryEntry.endTimestamp))
+
   private def fetchAllWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],
                                                                               workflowEndTimestampThreshold: Timestamp): Query[WorkflowMetadataSummaryEntries, WorkflowMetadataSummaryEntry, Seq] = {
     for {

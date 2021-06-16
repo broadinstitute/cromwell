@@ -1,5 +1,7 @@
 package cromwell.webservice.routes
 
+import java.time.OffsetDateTime
+
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.ContentTypes._
@@ -605,11 +607,11 @@ object CromwellApiServiceSpec {
       case ValidateWorkflowIdInMetadataSummaries(id) =>
         if (SummarizedWorkflowIds.contains(id)) sender ! MetadataService.RecognizedWorkflowId
         else sender ! MetadataService.UnrecognizedWorkflowId
-      case FetchWorkflowMetadataArchiveStatus(id) =>
+      case FetchWorkflowMetadataArchiveStatusAndEndTime(id) =>
         id match {
-          case ArchivedAndDeletedWorkflowId => sender ! WorkflowMetadataArchivedStatus(ArchivedAndDeleted)
-          case ArchivedWorkflowId => sender ! WorkflowMetadataArchivedStatus(Archived)
-          case _ => sender ! WorkflowMetadataArchivedStatus(Unarchived)
+          case ArchivedAndDeletedWorkflowId => sender ! WorkflowMetadataArchivedStatusAndEndTime(ArchivedAndDeleted, Option(OffsetDateTime.now))
+          case ArchivedWorkflowId => sender ! WorkflowMetadataArchivedStatusAndEndTime(Archived, Option(OffsetDateTime.now))
+          case _ => sender ! WorkflowMetadataArchivedStatusAndEndTime(Unarchived, Option(OffsetDateTime.now))
         }
       case GetCurrentStatus =>
         sender ! StatusCheckResponse(
@@ -689,7 +691,7 @@ object CromwellApiServiceSpec {
       case GetWorkflowStoreStats => sender ! Map(WorkflowRunning -> 5, WorkflowSubmitted -> 3, WorkflowAborting -> 2)
     }
   }
-  
+
   class MockWorkflowManagerActor extends Actor with ActorLogging {
     override def receive: Receive = {
       case WorkflowManagerActor.EngineStatsCommand =>

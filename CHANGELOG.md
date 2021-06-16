@@ -1,5 +1,10 @@
 # Cromwell Change Log
 
+## 65 Release Notes
+
+* An additional set of metrics relating to metadata age were added.
+* No user facing changes in Cromwell 65.  
+
 ## 64 Release Notes
 
 ### Intel Cascade Lake support on PAPI v2

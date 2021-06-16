@@ -12,6 +12,7 @@ import cromwell.core.{LoadConfig, WorkflowId}
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataArchiveStatus
 import cromwell.services.metadata.MetadataService._
+import cromwell.services.metadata.impl.MetadataDatabaseAccess.WorkflowArchiveStatusAndEndTimestamp
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor.{MetadataSummaryFailure, MetadataSummarySuccess, SummarizeMetadata}
 import cromwell.services.metadata.impl.archiver.{ArchiveMetadataConfig, ArchiveMetadataSchedulerActor}
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
@@ -149,14 +150,14 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
     }
   }
 
-  private def fetchWorkflowMetadataArchiveStatus(workflowId: WorkflowId, sender: ActorRef): Unit = {
-    getMetadataArchiveStatus(workflowId) onComplete {
-      case Success(status) =>
+  private def fetchWorkflowMetadataArchiveStatusAndEndTime(workflowId: WorkflowId, sender: ActorRef): Unit = {
+    getMetadataArchiveStatusAndEndTime(workflowId) onComplete {
+      case Success(WorkflowArchiveStatusAndEndTimestamp(status, endTime)) =>
         MetadataArchiveStatus.fromDatabaseValue(status).toTry match {
-          case Success(archiveStatus) => sender ! WorkflowMetadataArchivedStatus(archiveStatus)
-          case Failure(e) => sender ! FailedToGetArchiveStatus(new RuntimeException(s"Failed to get metadata archive status for workflow ID $workflowId", e))
+          case Success(archiveStatus) => sender ! WorkflowMetadataArchivedStatusAndEndTime(archiveStatus, endTime)
+          case Failure(e) => sender ! FailedToGetArchiveStatusAndEndTime(new RuntimeException(s"Failed to get metadata archive status for workflow ID $workflowId", e))
         }
-      case Failure(e) => sender ! FailedToGetArchiveStatus(new RuntimeException(s"Failed to get metadata archive status for workflow ID $workflowId", e))
+      case Failure(e) => sender ! FailedToGetArchiveStatusAndEndTime(new RuntimeException(s"Failed to get metadata archive status for workflow ID $workflowId", e))
     }
   }
 
@@ -176,7 +177,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
     case listen: Listen => writeActor forward listen
     case v: ValidateWorkflowIdInMetadata => validateWorkflowIdInMetadata(v.possibleWorkflowId, sender())
     case v: ValidateWorkflowIdInMetadataSummaries => validateWorkflowIdInMetadataSummaries(v.possibleWorkflowId, sender())
-    case g: FetchWorkflowMetadataArchiveStatus => fetchWorkflowMetadataArchiveStatus(g.workflowId, sender())
+    case g: FetchWorkflowMetadataArchiveStatusAndEndTime => fetchWorkflowMetadataArchiveStatusAndEndTime(g.workflowId, sender())
     case action: BuildMetadataJsonAction => readActor forward action
     case streamAction: GetMetadataStreamAction => readActor forward streamAction
   }

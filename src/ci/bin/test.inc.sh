@@ -725,7 +725,7 @@ cromwell::private::create_conformance_variables() {
     # Setting CROMWELL_BUILD_CWL_TEST_PARALLELISM too high will cause false negatives due to cromwell server timeouts.
     case "${CROMWELL_BUILD_TYPE}" in
         conformanceTesk)
-            # BA-6547: TESK is not currently tested in GOTC-Jenkins, FC-Jenkins, nor Travis
+            # BA-6547: TESK is not currently tested in FC-Jenkins nor Travis
             CROMWELL_BUILD_CWL_RUNNER_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/ftp_centaur_cwl_runner.conf"
             CROMWELL_BUILD_CWL_TEST_PARALLELISM=8
             ;;

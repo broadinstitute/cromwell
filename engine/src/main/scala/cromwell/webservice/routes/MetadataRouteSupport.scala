@@ -176,12 +176,12 @@ object MetadataRouteSupport {
       val lagMessage = InstrumentationServiceMessage(CromwellTiming(CromwellBucket(ServicesPrefix.toList, lagInstrumentationPath), timeSinceEndTime))
       serviceRegistryActor ! lagMessage
 
-      val interestingDayMarks = (5.to(55, step = 5) :+ 1).map(d => (d.days, s"${d}_day_old_lookups"))
-      val interestingMonthMarks = 2.to(11).map(m => (30.days * m.longValue(), s"${m}_month_old_lookups"))
+      val interestingDayMarks = (5.to(55, step = 5) ++ 0.to(4)).map(d => (d.days, s"${d}_day_old"))
+      val interestingMonthMarks = 2.to(11).map(m => (30.days * m.longValue(), s"${m}_month_old"))
 
       (interestingDayMarks ++ interestingMonthMarks) foreach {
-        case (timeSpan, metricName) if timeSinceEndTime > timeSpan =>
-          val oldMetadataCounterPath = MetadataServiceActor.MetadataInstrumentationPrefix :+ "archiver" :+ "historical_metadata_lookup" :+ s"${metricName}_lookup"
+        case (timeSpan, metricName) if timeSinceEndTime >= timeSpan =>
+          val oldMetadataCounterPath = MetadataServiceActor.MetadataInstrumentationPrefix :+ "archiver" :+ "historical_metadata_lookup" :+ "lookup_age_counts" :+ metricName
           val oldMetadataCounterMessage = InstrumentationServiceMessage(CromwellIncrement(CromwellBucket(ServicesPrefix.toList, oldMetadataCounterPath)))
           serviceRegistryActor ! oldMetadataCounterMessage
         case _ => // Do nothing

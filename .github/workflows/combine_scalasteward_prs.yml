@@ -34,7 +34,7 @@ jobs:
           echo "Bringing in PRs:"
           gh pr list --limit 1000 | grep 'scala-steward:' | tac | head -n${{ github.event.inputs.prLimit }}
 
-          PR_LIST=($(gh pr list --limit 1000 | grep 'scala-steward:' | cut -d$'\t'  -f 1 | tac | head -n${{ github.event.inputs.prLimit }} | tr '\n' ' '))
+          PR_LIST=($(gh pr list --limit 1000 | grep 'scala-steward:' | cut -d$'\t'  -f 1 | tac | head -n${{ github.event.inputs.prLimit }} | tac | tr '\n' ' '))
           PR_LIST_LENGTH=${#PR_LIST[@]}
 
           echo "PR_LIST=${PR_LIST[@]}"
@@ -45,11 +45,8 @@ jobs:
           do
             FIRST_PR="${NEXT_SLICE[0]}"
             LAST_PR="${NEXT_SLICE[-1]}"
-            REVERSED_SLICE=("$(printf '%s\n' "${NEXT_SLICE[@]}" | tac | tr '\n' ' ')")
             echo "NEXT_SLICE=${NEXT_SLICE[@]}"
             echo "NEXT_SLICE_COUNT=${#NEXT_SLICE[@]}"
-            echo "REVERSED_SLICE=${REVERSED_SLICE[@]}"
-            echo "REVERSED_SLICE_COUNT=${#REVERSED_SLICE_COUNT[@]}"
 
             NEW_BRANCH="consolidated-scala-steward-prs-${FIRST_PR}-${LAST_PR}-$(date +'%Y-%m-%d_%H-%M')"
             git checkout develop
@@ -62,7 +59,7 @@ jobs:
             while IFS= read -r pr
             do
               echo "Bringing in: $pr"
-            done <<< "$REVERSED_SLICE"
+            done <<< "$NEXT_SLICE"
 
             NEXT_INDEX=$(( NEXT_INDEX + PR_GROUP_SIZE ))
             NEXT_SLICE="${PR_LIST[@]:$NEXT_INDEX:$PR_GROUP_SIZE}"

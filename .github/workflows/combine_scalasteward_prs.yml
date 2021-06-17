@@ -45,7 +45,7 @@ jobs:
           do
             FIRST_PR="${NEXT_SLICE[0]}"
             LAST_PR="${NEXT_SLICE[-1]}"
-            REVERSED_SLICE=("$(printf '%s\n' "${NEXT_SLICE[@]}"|tac)")
+            REVERSED_SLICE=("$(printf '%s\n' "${NEXT_SLICE[@]}" | tac | tr '\n' ' ')")
             echo "NEXT_SLICE=${NEXT_SLICE[@]}"
             echo "NEXT_SLICE_COUNT=${#NEXT_SLICE[@]}"
             echo "REVERSED_SLICE=${REVERSED_SLICE[@]}"

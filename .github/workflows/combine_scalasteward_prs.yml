@@ -44,6 +44,8 @@ jobs:
             FIRST_PR="${NEXT_SLICE[0]}"
             LAST_PR="${NEXT_SLICE[0]}"
             REVERSED_SLICE=("$(printf '%s\n' "${NEXT_SLICE[@]}"|tac)")
+            echo "NEXT_SLICE=${NEXT_SLICE}"
+            echo "REVERSED_SLICE=${REVERSED_SLICE}"
 
             NEW_BRANCH="consolidated-scala-steward-prs-${FIRST_PR}-${LAST_PR}-$(date +'%Y-%m-%d_%H-%M')"
             git checkout develop

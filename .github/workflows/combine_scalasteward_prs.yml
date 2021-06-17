@@ -45,7 +45,7 @@ jobs:
             REVERSED_SLICE=("$(printf '%s\n' "${NEXT_SLICE[@]}"|tac)")
 
             NEW_BRANCH="consolidated-scala-steward-prs-${FIRST_PR}-${LAST_PR}-$(date +'%Y-%m-%d_%H-%M')"
-            git checkout develop
+            git checkout origin/develop
             git pull
             git checkout -B ${NEW_BRANCH}
 

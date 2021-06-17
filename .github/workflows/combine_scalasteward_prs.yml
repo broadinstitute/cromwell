@@ -56,7 +56,7 @@ jobs:
             SUCCESSFUL_PRS=()
             UNSUCCESSFUL_PRS=()
 
-            while IFS= read -r pr
+            for pr in ${NEXT_SLICE[@]}
             do
               echo "Bringing in: $pr"
             done <<< ${NEXT_SLICE[@]}

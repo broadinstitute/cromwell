@@ -34,7 +34,7 @@ jobs:
           echo "Bringing in PRs:"
           gh pr list --limit 1000 | grep 'scala-steward:' | tac | head -n${{ github.event.inputs.prLimit }}
 
-          PR_LIST=$(gh pr list --limit 1000 | grep 'scala-steward:' | cut -d$'\t'  -f 1 | tac | head -n${{ github.event.inputs.prLimit }})
+          PR_LIST="$(gh pr list --limit 1000 | grep 'scala-steward:' | cut -d$'\t'  -f 1 | tac | head -n${{ github.event.inputs.prLimit }} | tr -d '\n')"
           PR_LIST_LENGTH=${#PR_LIST[@]}
 
           echo "PR_LIST=${PR_LIST}"

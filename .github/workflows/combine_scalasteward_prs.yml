@@ -68,7 +68,7 @@ jobs:
 #                git reset --hard HEAD
 #                UNSUCCESSFUL_PRS+=( "
 #            * #$pr" )
-              fi
+#              fi
             done <<< "$REVERSED_SLICE"
 
 #            git push origin "${NEW_BRANCH}"

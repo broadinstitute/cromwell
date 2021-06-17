@@ -8,9 +8,13 @@ on:
   workflow_dispatch:
     inputs:
       prLimit:
-        description: 'How many scala-steward PRs to consolidate'
+        description: 'How many scala-steward PRs to consolidate in total'
         required: true
         default: 1000
+      prGroupSize:
+        description: 'How many scala-steward PRs to consolidate in each PR'
+        required: true
+        default: 10
 
 jobs:
   build:
@@ -22,46 +26,60 @@ jobs:
         id: msp
         run: |
           export GITHUB_TOKEN=${{ secrets.BROADBOT_GITHUB_TOKEN }}
+          PR_LIMIT=${{ github.event.inputs.prLimit }}
+          PR_GROUP_SIZE=${{ github.event.inputs.prGroupSize }}
           git config user.name "broadbot"
 
           echo "Bringing in PRs:"
           gh pr list --limit 1000 | grep 'scala-steward:' | tac | head -n${{ github.event.inputs.prLimit }}
 
           PR_LIST=$(gh pr list --limit 1000 | grep 'scala-steward:' | cut -d$'\t'  -f 1 | tac | head -n${{ github.event.inputs.prLimit }})
-          BRANCH="consolidated-scala-steward-prs-$(date +'%Y-%m-%d_%H-%M')"
+          PR_LIST_LENGTH=${#PR_LIST[@]}
 
-          SUCCESSFUL_PRS=()
-          UNSUCCESSFUL_PRS=()
-
-          git fetch
-          git checkout develop
-          git checkout -B $BRANCH
-
-          while IFS= read -r pr
+          NEXT_INDEX=0
+          NEXT_SLICE=("${PR_LIST[@]:$NEXT_INDEX:$PR_GROUP_SIZE}")
+          while [[ "${#NEXT_SLICE[@]}" -gt "0" ]]
           do
-            echo "Bringing in: $pr"
-            git fetch origin pull/${pr}/head:pr_${pr}
+            FIRST_PR="${NEXT_SLICE[0]}"
+            LAST_PR="${NEXT_SLICE[0]}"
+            REVERSED_SLICE=("$(printf '%s\n' "${NEXT_SLICE[@]}"|tac)")
 
-            git checkout $BRANCH
-            git merge -m "merging PR #${pr}" pr_${pr} --allow-unrelated-histories && EXIT_CODE=$? || EXIT_CODE=$?
+            NEW_BRANCH="consolidated-scala-steward-prs-${FIRST_PR}-${LAST_PR}-$(date +'%Y-%m-%d_%H-%M')"
+            git checkout develop
+            git pull
+            git checkout -B ${NEW_BRANCH}
 
-            if [ "${EXIT_CODE}" == "0" ]
-            then
-              SUCCESSFUL_PRS+=( "
-          * #$pr" )
-            else
-              echo "Unexpected exit code: ${EXIT_CODE}"
-              git reset --hard HEAD
-              UNSUCCESSFUL_PRS+=( "
-          * #$pr" )
-            fi
-          done <<< "$PR_LIST"
-          git checkout $BRANCH
-          git push origin $BRANCH
-          gh pr create \
-            --title '[!! NEEDS Jira ID !!] Scala-steward shepherding consolidation' \
-            --body "This PR was generated automatically by the github action: https://github.com/broadinstitute/cromwell/actions/workflows/combine_scalasteward_prs.yml
+            SUCCESSFUL_PRS=()
+            UNSUCCESSFUL_PRS=()
 
-          Consolidates scala-steward PRs ${SUCCESSFUL_PRS[*]}.
+            while IFS= read -r pr
+            do
+              echo "Bringing in: $pr"
+#              git fetch origin pull/${pr}/head:pr_${pr}
+#
+#              git rebase "pr_${pr}" "${NEW_BRANCH}"
+#
+#              if [ "${EXIT_CODE}" == "0" ]
+#              then
+#                SUCCESSFUL_PRS+=( "
+#            * #$pr" )
+#              else
+#                echo "Unexpected exit code: ${EXIT_CODE}"
+#                git reset --hard HEAD
+#                UNSUCCESSFUL_PRS+=( "
+#            * #$pr" )
+              fi
+            done <<< "$REVERSED_SLICE"
 
-          Note that the following PRs were not able to be consolidated: ${UNSUCCESSFUL_PRS[*]}"
+#            git push origin "${NEW_BRANCH}"
+#            gh pr create \
+#              --title '[!! NEEDS Jira ID !!] Scala-steward shepherding consolidation' \
+#              --body "This PR was generated automatically by the github action: https://github.com/broadinstitute/cromwell/actions/workflows/combine_scalasteward_prs.yml
+#
+#            Consolidates scala-steward PRs ${SUCCESSFUL_PRS[*]}.
+#
+#            Note that the following PRs were not able to be consolidated: ${UNSUCCESSFUL_PRS[*]}"
+#
+#            NEXT_INDEX=$(( NEXT_INDEX + PR_GROUP_SIZE ))
+#            NEXT_SLICE="${PR_LIST[@]:$NEXT_INDEX:$PR_GROUP_SIZE}"
+          done

@@ -59,7 +59,7 @@ jobs:
             while IFS= read -r pr
             do
               echo "Bringing in: $pr"
-            done <<< "${NEXT_SLICE[@]}"
+            done <<< ${NEXT_SLICE[@]}
 
             NEXT_INDEX=$(( NEXT_INDEX + PR_GROUP_SIZE ))
             NEXT_SLICE="${PR_LIST[@]:$NEXT_INDEX:$PR_GROUP_SIZE}"

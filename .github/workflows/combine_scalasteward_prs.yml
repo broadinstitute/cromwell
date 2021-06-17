@@ -55,31 +55,5 @@ jobs:
             while IFS= read -r pr
             do
               echo "Bringing in: $pr"
-#              git fetch origin pull/${pr}/head:pr_${pr}
-#
-#              git rebase "pr_${pr}" "${NEW_BRANCH}"
-#
-#              if [ "${EXIT_CODE}" == "0" ]
-#              then
-#                SUCCESSFUL_PRS+=( "
-#            * #$pr" )
-#              else
-#                echo "Unexpected exit code: ${EXIT_CODE}"
-#                git reset --hard HEAD
-#                UNSUCCESSFUL_PRS+=( "
-#            * #$pr" )
-#              fi
             done <<< "$REVERSED_SLICE"
-
-#            git push origin "${NEW_BRANCH}"
-#            gh pr create \
-#              --title '[!! NEEDS Jira ID !!] Scala-steward shepherding consolidation' \
-#              --body "This PR was generated automatically by the github action: https://github.com/broadinstitute/cromwell/actions/workflows/combine_scalasteward_prs.yml
-#
-#            Consolidates scala-steward PRs ${SUCCESSFUL_PRS[*]}.
-#
-#            Note that the following PRs were not able to be consolidated: ${UNSUCCESSFUL_PRS[*]}"
-#
-#            NEXT_INDEX=$(( NEXT_INDEX + PR_GROUP_SIZE ))
-#            NEXT_SLICE="${PR_LIST[@]:$NEXT_INDEX:$PR_GROUP_SIZE}"
           done

@@ -29,6 +29,7 @@ jobs:
           PR_LIMIT=${{ github.event.inputs.prLimit }}
           PR_GROUP_SIZE=${{ github.event.inputs.prGroupSize }}
           git config user.name "broadbot"
+          git fetch
 
           echo "Bringing in PRs:"
           gh pr list --limit 1000 | grep 'scala-steward:' | tac | head -n${{ github.event.inputs.prLimit }}
@@ -45,7 +46,7 @@ jobs:
             REVERSED_SLICE=("$(printf '%s\n' "${NEXT_SLICE[@]}"|tac)")
 
             NEW_BRANCH="consolidated-scala-steward-prs-${FIRST_PR}-${LAST_PR}-$(date +'%Y-%m-%d_%H-%M')"
-            git checkout origin/develop
+            git checkout develop
             git pull
             git checkout -B ${NEW_BRANCH}
 

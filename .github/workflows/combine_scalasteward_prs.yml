@@ -57,4 +57,7 @@ jobs:
             do
               echo "Bringing in: $pr"
             done <<< "$REVERSED_SLICE"
+
+            NEXT_INDEX=$(( NEXT_INDEX + PR_GROUP_SIZE ))
+            NEXT_SLICE="${PR_LIST[@]:$NEXT_INDEX:$PR_GROUP_SIZE}"
           done

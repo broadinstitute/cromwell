@@ -1084,6 +1084,8 @@ cromwell::private::login_docker() {
 }
 
 cromwell::private::render_secure_resources() {
+    # Avoid docker output to sbt's stderr by pulling the image here
+    docker pull broadinstitute/dsde-toolbox:dev | cat
     # Copy the CI resources, then render the secure resources using Vault
     sbt -Dsbt.supershell=false --warn renderCiResources \
     || if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
@@ -1599,7 +1601,6 @@ cromwell::build::check_published_artifacts() {
 
         if [[ "${CROMWELL_BUILD_BRANCH}" == "develop" ]] || \
             [[ "${CROMWELL_BUILD_BRANCH}" =~ ^[0-9\.]+_hotfix$ ]] || \
-            [[ "${CROMWELL_BUILD_BRANCH}" == "ks_check_pub" ]] || \
             [[ -n "${CROMWELL_BUILD_TAG:+set}" ]]; then
             # If cromwell::build::publish_artifacts is going to be publishing later check now that it will work
             sbt \
@@ -1627,10 +1628,6 @@ cromwell::build::publish_artifacts() {
         elif [[ "${CROMWELL_BUILD_BRANCH}" =~ ^[0-9\.]+_hotfix$ ]]; then
             # Docker tags float. "30" is the latest hotfix. Those dockers are published here on each hotfix commit.
             cromwell::private::publish_artifacts_and_docker -Dproject.isSnapshot=false
-
-        elif [[ "${CROMWELL_BUILD_BRANCH}" == "ks_check_pub" ]]; then
-            cromwell::private::publish_artifacts_only \
-                -Dproject.isSnapshot=true
 
         elif [[ -n "${CROMWELL_BUILD_TAG:+set}" ]]; then
             # Artifact tags are static. Once "30" is set that is only "30" forever. Those artifacts are published here.

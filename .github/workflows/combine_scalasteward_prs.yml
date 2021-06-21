@@ -61,6 +61,20 @@ jobs:
 
             for pr in ${NEXT_SLICE[@]}
             do
+              git fetch origin pull/${pr}/head:pr_${pr}
+
+              git rebase "pr_${pr}" "${NEW_BRANCH}"
+
+              if [ "${EXIT_CODE}" == "0" ]
+              then
+                SUCCESSFUL_PRS+=( "
+              * #$pr" )
+              else
+                echo "Unexpected exit code: ${EXIT_CODE}"
+                git reset --hard HEAD
+                UNSUCCESSFUL_PRS+=( "
+              * #$pr" )
+              fi
               echo "Bringing in: $pr"
             done <<< ${NEXT_SLICE[@]}
 

@@ -82,6 +82,9 @@ jobs:
               fi
             done <<< ${NEXT_SLICE[@]}
 
+            echo "SUCCESSFUL_PRS=${SUCCESSFUL_PRS}"
+            echo "UNSUCCESSFUL_PRS=${UNSUCCESSFUL_PRS}"
+
             NEXT_INDEX=$(( NEXT_INDEX + PR_GROUP_SIZE ))
             NEXT_SLICE=("${PR_LIST[@]:$NEXT_INDEX:$PR_GROUP_SIZE}")
           done

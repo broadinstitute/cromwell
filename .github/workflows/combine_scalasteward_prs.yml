@@ -36,7 +36,7 @@ jobs:
           echo "Bringing in PRs:"
           gh pr list --limit 1000 | grep 'scala-steward:' | tac | head -n${PR_LIMIT}
 
-          PR_LIST=($(gh pr list --limit 1000 | grep 'scala-steward:' | cut -d$'\t'  -f 1 | tac | head -n${PR_LIMIT} | tac | tr '\n' ' '))
+          PR_LIST=($(gh pr list --limit 1000 | grep 'scala-steward:' | cut -d$'\t'  -f 1 | head -n${PR_LIMIT} | tr '\n' ' '))
           PR_LIST_LENGTH=${#PR_LIST[@]}
 
           echo "PR_LIST=${PR_LIST[@]}"

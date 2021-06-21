@@ -28,13 +28,15 @@ jobs:
           export GITHUB_TOKEN=${{ secrets.BROADBOT_GITHUB_TOKEN }}
           PR_LIMIT=${{ github.event.inputs.prLimit }}
           PR_GROUP_SIZE=${{ github.event.inputs.prGroupSize }}
+          echo "BASH_VERSION=${BASH_VERSION}"
+
           git config user.name "broadbot"
           git fetch
 
           echo "Bringing in PRs:"
-          gh pr list --limit 1000 | grep 'scala-steward:' | tac | head -n${{ github.event.inputs.prLimit }}
+          gh pr list --limit 1000 | grep 'scala-steward:' | tac | head -n${PR_LIMIT}
 
-          PR_LIST=($(gh pr list --limit 1000 | grep 'scala-steward:' | cut -d$'\t'  -f 1 | tac | head -n${{ github.event.inputs.prLimit }} | tac | tr '\n' ' '))
+          PR_LIST=($(gh pr list --limit 1000 | grep 'scala-steward:' | cut -d$'\t'  -f 1 | tac | head -n${PR_LIMIT} | tac | tr '\n' ' '))
           PR_LIST_LENGTH=${#PR_LIST[@]}
 
           echo "PR_LIST=${PR_LIST[@]}"
@@ -62,5 +64,5 @@ jobs:
             done <<< ${NEXT_SLICE[@]}
 
             NEXT_INDEX=$(( NEXT_INDEX + PR_GROUP_SIZE ))
-            NEXT_SLICE="${PR_LIST[@]:$NEXT_INDEX:$PR_GROUP_SIZE}"
+            NEXT_SLICE=("${PR_LIST[@]:$NEXT_INDEX:$PR_GROUP_SIZE}")
           done

@@ -128,7 +128,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   }
 
   override def streamMetadataEntries(workflowExecutionUuid: String): DatabasePublisher[MetadataEntry] = {
-    val action = dataAccess.metadataEntriesForWorkflowExecutionUuid(workflowExecutionUuid)
+    val action = dataAccess.metadataEntriesForWorkflowForArchiving(workflowExecutionUuid)
       .result
       .withStatementParameters(
         rsType = ResultSetType.ForwardOnly,
@@ -463,7 +463,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   override def deleteAllMetadataForWorkflowAndUpdateArchiveStatus(workflowId: String, newArchiveStatus: Option[String])(implicit ec: ExecutionContext): Future[Int] = {
     runTransaction {
       for {
-        numDeleted <- dataAccess.metadataEntriesForWorkflowExecutionUuid(workflowId).delete
+        numDeleted <- dataAccess.metadataEntriesForWorkflowForArchiving(workflowId).delete
         _ <- dataAccess.metadataArchiveStatusByWorkflowId(workflowId).update(newArchiveStatus)
       } yield numDeleted
     }

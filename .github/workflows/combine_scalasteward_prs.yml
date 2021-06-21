@@ -61,21 +61,26 @@ jobs:
 
             for pr in ${NEXT_SLICE[@]}
             do
-              git fetch origin pull/${pr}/head:pr_${pr}
+              echo "Bringing in: $pr"
 
-              git rebase "pr_${pr}" "${NEW_BRANCH}"
+              git fetch origin pull/${pr}/head:pr_${pr}
+              git checkout "pr_${pr}_temp"
+              git rebase "${NEW_BRANCH}" "pr_${pr}_temp"
+              EXIT_CODE=$?
 
               if [ "${EXIT_CODE}" == "0" ]
               then
+                git checkout ${NEW_BRANCH}
+                git reset --hard "pr_${pr}_temp"
                 SUCCESSFUL_PRS+=( "
               * #$pr" )
               else
                 echo "Unexpected exit code: ${EXIT_CODE}"
-                git reset --hard HEAD
+                git reset --hard
+                git checkout ${NEW_BRANCH}
                 UNSUCCESSFUL_PRS+=( "
               * #$pr" )
               fi
-              echo "Bringing in: $pr"
             done <<< ${NEXT_SLICE[@]}
 
             NEXT_INDEX=$(( NEXT_INDEX + PR_GROUP_SIZE ))

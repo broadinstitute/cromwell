@@ -32,7 +32,7 @@ jobs:
 
           git config user.name "broadbot"
           echo "Fetching repo state..."
-          git fetch 1>/dev/null
+          git fetch --quiet
 
           echo "Bringing in PRs:"
           gh pr list --limit 1000 | grep 'scala-steward:' | tac | head -n${PR_LIMIT}

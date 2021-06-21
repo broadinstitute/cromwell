@@ -31,7 +31,8 @@ jobs:
           echo "BASH_VERSION=${BASH_VERSION}"
 
           git config user.name "broadbot"
-          git fetch
+          echo "Fetching repo state..."
+          git fetch 1>/dev/null
 
           echo "Bringing in PRs:"
           gh pr list --limit 1000 | grep 'scala-steward:' | tac | head -n${PR_LIMIT}
@@ -64,8 +65,7 @@ jobs:
               echo "Bringing in: $pr"
 
               git fetch origin pull/${pr}/head:pr_${pr}
-              git checkout "pr_${pr}_temp"
-              git rebase "${NEW_BRANCH}" "pr_${pr}_temp"
+              git rebase "${NEW_BRANCH}" "pr_${pr}"
               EXIT_CODE=$?
 
               if [ "${EXIT_CODE}" == "0" ]

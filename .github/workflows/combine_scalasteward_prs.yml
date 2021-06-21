@@ -15,6 +15,9 @@ on:
         description: 'How many scala-steward PRs to consolidate in each "consolidated" PR'
         required: true
         default: 5
+      jiraTicketId:
+        description: 'A Jira ticket ID to associate the new PRs with'
+        required: true
 
 jobs:
   build:

@@ -64,8 +64,8 @@ jobs:
             do
               echo "Bringing in: $pr"
 
-              git fetch origin pull/${pr}/head:pr_${pr}
-              git rebase "${NEW_BRANCH}" "pr_${pr}"
+              git fetch origin pull/${pr}/head:pr_${pr}_temp
+              git rebase "${NEW_BRANCH}" "pr_${pr}_temp"
               EXIT_CODE=$?
 
               if [ "${EXIT_CODE}" == "0" ]

@@ -12,9 +12,9 @@ on:
         required: true
         default: 1000
       prGroupSize:
-        description: 'How many scala-steward PRs to consolidate in each PR'
+        description: 'How many scala-steward PRs to consolidate in each "consolidated" PR'
         required: true
-        default: 10
+        default: 5
 
 jobs:
   build:
@@ -65,8 +65,7 @@ jobs:
               echo "Bringing in: $pr"
 
               git fetch origin pull/${pr}/head:pr_${pr}_temp
-              git rebase "${NEW_BRANCH}" "pr_${pr}_temp"
-              EXIT_CODE=$?
+              git rebase "${NEW_BRANCH}" "pr_${pr}_temp" && EXIT_CODE=$? || EXIT_CODE=$?
 
               if [ "${EXIT_CODE}" == "0" ]
               then

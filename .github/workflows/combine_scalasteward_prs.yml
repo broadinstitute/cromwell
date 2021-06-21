@@ -75,15 +75,15 @@ jobs:
               * #$pr" )
               else
                 echo "Unexpected exit code: ${EXIT_CODE}"
-                git reset --hard
+                git rebase --abort
                 git checkout ${NEW_BRANCH}
                 UNSUCCESSFUL_PRS+=( "
               * #$pr" )
               fi
             done <<< ${NEXT_SLICE[@]}
 
-            echo "SUCCESSFUL_PRS=${SUCCESSFUL_PRS}"
-            echo "UNSUCCESSFUL_PRS=${UNSUCCESSFUL_PRS}"
+            echo "SUCCESSFUL_PRS=${SUCCESSFUL_PRS[@]}"
+            echo "UNSUCCESSFUL_PRS=${UNSUCCESSFUL_PRS[@]}"
 
             NEXT_INDEX=$(( NEXT_INDEX + PR_GROUP_SIZE ))
             NEXT_SLICE=("${PR_LIST[@]:$NEXT_INDEX:$PR_GROUP_SIZE}")

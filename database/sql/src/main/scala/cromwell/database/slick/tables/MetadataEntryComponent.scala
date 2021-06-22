@@ -62,7 +62,7 @@ trait MetadataEntryComponent {
     } yield metadataEntry).sortBy(_.metadataTimestamp)
   )
 
-  val metadataEntriesForWorkflowForArchiving = Compiled(
+  val metadataEntriesForWorkflowSortedById = Compiled(
     (workflowExecutionUuid: Rep[String]) => (for {
       metadataEntry <- metadataEntries
       if metadataEntry.workflowExecutionUuid === workflowExecutionUuid

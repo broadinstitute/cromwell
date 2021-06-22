@@ -51,8 +51,6 @@ jobs:
           do
             FIRST_PR="${NEXT_SLICE[0]}"
             LAST_PR="${NEXT_SLICE[-1]}"
-            #echo "NEXT_SLICE=${NEXT_SLICE[@]}"
-            #echo "NEXT_SLICE_COUNT=${#NEXT_SLICE[@]}"
 
             NEW_BRANCH="consolidated-scala-steward-prs-${FIRST_PR}-${LAST_PR}-$(date +'%Y-%m-%d_%H-%M')"
             echo "NEW_BRANCH=${NEW_BRANCH}"

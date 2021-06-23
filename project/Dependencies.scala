@@ -1,7 +1,7 @@
 import sbt._
 
 object Dependencies {
-  private val akkaHttpCirceIntegrationV = "1.35.2"
+  private val akkaHttpCirceIntegrationV = "1.35.3"
   private val akkaHttpV = "10.1.12" // scala-steward:off (BA-6619)
   private val akkaV = "2.5.31" // scala-steward:off (BA-6637)
   private val aliyunBcsV = "6.2.4"
@@ -9,7 +9,7 @@ object Dependencies {
   private val aliyunCrV = "4.1.1"
   private val aliyunOssV = "3.11.3"
   private val ammoniteOpsV = "2.3.8"
-  private val apacheCommonNetV = "3.7.2"
+  private val apacheCommonNetV = "3.8.0"
   private val apacheHttpClientV = "4.5.13"
   private val awsSdkV = "2.15.41"
   private val betterFilesV = "3.9.1"
@@ -51,7 +51,7 @@ object Dependencies {
   private val googleOauth2V = "0.22.2"
   private val googleOauthClientV = "1.31.4"
   private val googleCloudResourceManagerV = "0.87.0-alpha"
-  private val grpcV = "1.33.1"
+  private val grpcV = "1.36.1"
   private val guavaV = "30.1.1-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.5.1"
@@ -95,10 +95,10 @@ object Dependencies {
   // java.lang.NoSuchFieldException: m_mesgParts in KeyValueSpec "fail if one of the inserts fails"
   private val postgresV = "42.2.5" // scala-steward:off
   private val rdf4jV = "2.4.2"
-  private val refinedV = "0.9.18"
+  private val refinedV = "0.9.22"
   private val rhinoV = "1.7.13"
   private val scalaGraphV = "1.13.1"
-  private val scalaLoggingV = "3.9.2"
+  private val scalaLoggingV = "3.9.3"
   private val scalaPoolV = "0.4.3"
   private val scalacheckV = "1.15.1"
   private val scalacticV = "3.2.3"

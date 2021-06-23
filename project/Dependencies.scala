@@ -13,8 +13,8 @@ object Dependencies {
   private val apacheHttpClientV = "4.5.13"
   private val awsSdkV = "2.15.41"
   private val betterFilesV = "3.9.1"
-  private val catsEffectV = "2.3.0"
-  private val catsV = "2.3.0"
+  private val catsEffectV = "2.3.1"
+  private val catsV = "2.3.1"
   private val circeConfigV = "0.8.0"
   private val circeGenericExtrasV = "0.13.0"
   private val circeOpticsV = "0.13.0"
@@ -88,7 +88,7 @@ object Dependencies {
   private val mouseV = "0.26.2"
   private val mysqlV = "8.0.22"
   private val nettyV = "4.1.46.Final"
-  private val owlApiV = "5.1.16" // scala-steward: off (CROM-6677)
+  private val owlApiV = "5.1.16" // scala-steward:off (CROM-6677)
   private val paradiseV = "2.1.1"
   private val pegdownV = "1.6.0"
   // For org.postgresql:postgresql 42.2.6 - 42.2.14:
@@ -101,12 +101,12 @@ object Dependencies {
   private val scalaLoggingV = "3.9.3"
   private val scalaPoolV = "0.4.3"
   private val scalacheckV = "1.15.1"
-  private val scalacticV = "3.2.3"
+  private val scalacticV = "3.2.6"
   private val scalameterV = "0.19"
   private val scalamockV = "5.1.0"
-  private val scalatestV = "3.2.3"
+  private val scalatestV = "3.2.6"
   private val scalatestPlusMockitoV = "1.0.0-M2"
-  private val scalazV = "7.3.2"
+  private val scalazV = "7.3.3"
   private val scoptV = "4.0.1"
   private val sentryLogbackV = "1.7.30" // scala-steward:off (BA-6640)
   private val shapelessV = "2.3.3"
@@ -125,7 +125,7 @@ object Dependencies {
   */
   private val slickV = "3.3.2-2076hotfix" // scala-steward:off (BA-6620)
   private val snakeyamlV = "1.27"
-  private val specs2MockV = "4.10.5"
+  private val specs2MockV = "4.10.6"
   private val sprayJsonV = "1.3.6"
   private val sttpV = "1.5.19" // scala-steward:off (BA-6564)
   private val swaggerParserV = "1.0.52"

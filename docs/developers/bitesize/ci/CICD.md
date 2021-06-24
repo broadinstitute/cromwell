@@ -2,7 +2,7 @@ Cromwell uses [Continuous Integration](https://en.wikipedia.org/wiki/Continuous_
 
 ## CI testing in Travis and Jenkins
 
-Any suite of tests running under 2.5 hours, using 2 cpus, and 6gb of memory executes on [Travis](https://travis-ci.com/broadinstitute/cromwell/). Travis tests every pull request by a trusted contributor. Larger test suites run on [Jenkins instances](https://github.com/broadinstitute/dsp-jenkins#readme). Examples include the DSP Workbench CI testing ([swatomation](https://fc-jenkins.dsp-techops.broadinstitute.org/job/swatomation-pipeline/)), a nightly test of `develop` on (a snapshot of) the [$5 Genome WDL](https://gotc-jenkins.dsp-techops.broadinstitute.org/job/cromwell-cron-aws/), and the [Cromwell-Perf tests](https://fc-jenkins.dsp-techops.broadinstitute.org/job/cromwell-perf-cron/) that call-cache thousands of jobs.
+Any suite of tests running under 2.5 hours, using 2 cpus, and 6gb of memory executes on [Travis](https://travis-ci.com/broadinstitute/cromwell/). Travis tests every pull request by a trusted contributor. Larger test suites run on [Jenkins instances](https://github.com/broadinstitute/dsp-jenkins#readme). Examples include the DSP Workbench CI testing ([swatomation](https://fc-jenkins.dsp-techops.broadinstitute.org/job/swatomation-pipeline/)), a nightly test of `develop` on (a snapshot of) the [$5 Genome WDL](https://fc-jenkins.dsp-techops.broadinstitute.org/job/cromwell-cron-aws/), and the [Cromwell-Perf tests](https://fc-jenkins.dsp-techops.broadinstitute.org/job/cromwell-perf-cron/) that call-cache thousands of jobs.
 
 ## CD to CaaS DEV
 

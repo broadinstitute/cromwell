@@ -18,8 +18,7 @@ class ErrorReporters(rootConfig: Config) {
 
   private val errorReporterConfig: Config = rootConfig.getOrElse("error-reporter", ConfigFactory.empty)
 
-  // Parameters to CromwellDatabase() should be lazy and are only initialized when needed.
-  private val cromwellDatabase = new ErrorReporterCromwellDatabase(CromwellDatabase.fromConfig(CentaurConfig.conf))
+  private val errorReporterCromwellDatabase = new ErrorReporterCromwellDatabase(CromwellDatabase.instance)
 
   private val errorReporterNames: List[String] = {
     val providersConfig = errorReporterConfig.getOrElse("providers", ConfigFactory.empty)
@@ -67,7 +66,7 @@ class ErrorReporters(rootConfig: Config) {
       val clazz = errorReporterConfig.getString(s"providers.$errorReporterName.class")
       val reporterConfig = errorReporterConfig.getOrElse(s"providers.$errorReporterName.config", ConfigFactory.empty)
       val constructor = Class.forName(clazz).getConstructor(classOf[ErrorReporterParams])
-      val params = ErrorReporterParams(errorReporterName, rootConfig, reporterConfig, cromwellDatabase)
+      val params = ErrorReporterParams(errorReporterName, rootConfig, reporterConfig, errorReporterCromwellDatabase)
       constructor.newInstance(params).asInstanceOf[ErrorReporter]
     }
   }
@@ -76,7 +75,7 @@ class ErrorReporters(rootConfig: Config) {
 object ErrorReporters extends StrictLogging {
   private val ciEnvironment = CiEnvironment()
   private[reporting] val errorReporters = new ErrorReporters(CentaurConfig.conf)
-  val retryAttempts = errorReporters.retryAttempts
+  val retryAttempts: Int = errorReporters.retryAttempts
 
   errorReporters.errorReporters foreach { errorReporter =>
     logger.info("Error reporter loaded: {} to {}", errorReporter.params.name, errorReporter.destination)

@@ -207,4 +207,4 @@ assign all workflows to the same hog-group in their workflow options.
     + To set this as the default, you can add a value to the default workflow options. 
     + For an example see the `workflow-options` / `default` stanza of [cromwell.examples.conf][cromwell-examples-conf].
 
-[cromwell-examples-conf]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.examples.conf
+[cromwell-examples-conf]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends/cromwell.examples.conf

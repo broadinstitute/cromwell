@@ -1,5 +1,41 @@
 # Cromwell Change Log
 
+## 65 Release Notes
+
+* An additional set of metrics relating to metadata age were added.
+* No user facing changes in Cromwell 65.  
+
+## 64 Release Notes
+
+### Intel Cascade Lake support on PAPI v2
+
+On the PAPI v2 backends "Intel Cascade Lake" is now supported as a CPU platform. More details can be found
+[here](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#cpuplatform).
+
+## 63 Release Notes
+
+### Removed refresh token authentication mode
+
+Google Pipelines API v1 supported authentication with refresh tokens, while v2 of the API does not.
+
+Now that v1 has been discontinued and shut down, this version of Cromwell removes support for refresh tokens.
+
+## 62 Release Notes
+
+### Downloading Access URLs
+
+Added experimental support to download data during Google [Cloud Life Sciences](https://cloud.google.com/life-sciences)
+jobs using [DRS
+AccessURLs](https://ga4gh.github.io/data-repository-service-schemas/preview/release/drs-1.1.0/docs/#_accessurl).
+
+## 61 Release Notes
+
+### No labels update for Archived workflows
+
+If **- and ONLY if -** you have metadata archiving turned on, then for a workflow whose metadata has been archived by Cromwell 
+according to the lifecycle policy, Cromwell will no longer add new labels or update existing labels for this workflow 
+coming through PATCH `/labels` endpoint.
+
 ## 60 Release Notes
 
 ### Java 11
@@ -1149,7 +1185,7 @@ data. When switching connection information for an existing database containing 
 should be manually replicated from one database instance to another using the tools appropriate for your specific
 database types. Cromwell will not move any existing data automatically. This feature should be considered experimental
 and likely to change in the future. See the [Database Documentation](https://cromwell.readthedocs.io/en/develop/Configuring/#database) or the `database` section in
-[cromwell.examples.conf](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.examples.conf) for more
+[cromwell.examples.conf](https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends/cromwell.examples.conf) for more
 information.
 
 * **StatsD**  

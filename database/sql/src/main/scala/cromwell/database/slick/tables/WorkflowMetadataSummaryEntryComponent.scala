@@ -71,24 +71,13 @@ trait WorkflowMetadataSummaryEntryComponent {
   val workflowMetadataSummaryEntryIdsAutoInc = workflowMetadataSummaryEntries returning
     workflowMetadataSummaryEntries.map(_.workflowMetadataSummaryEntryId)
 
-  val rootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp = Compiled(
+  val workflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp = Compiled(
     (metadataArchiveStatus: Rep[Option[String]], workflowEndTimestampThreshold: Rep[Timestamp], batchSize: ConstColumn[Long]) => {
       (for {
         summary <- workflowMetadataSummaryEntries
-        if summary.rootWorkflowExecutionUuid.isEmpty && summary.parentWorkflowExecutionUuid.isEmpty // is root workflow entry
         if summary.metadataArchiveStatus === metadataArchiveStatus
         if summary.endTimestamp <= workflowEndTimestampThreshold
       } yield summary.workflowExecutionUuid).take(batchSize)
-    })
-
-  val countRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp = Compiled(
-    (metadataArchiveStatus: Rep[Option[String]], workflowEndTimestampThreshold: Rep[Timestamp]) => {
-      (for {
-        summary <- workflowMetadataSummaryEntries
-        if summary.rootWorkflowExecutionUuid.isEmpty && summary.parentWorkflowExecutionUuid.isEmpty // is root workflow entry
-        if summary.metadataArchiveStatus === metadataArchiveStatus
-        if summary.endTimestamp <= workflowEndTimestampThreshold
-      } yield summary.workflowExecutionUuid).length
     })
 
   val workflowMetadataSummaryEntriesForWorkflowExecutionUuid = Compiled(
@@ -111,15 +100,6 @@ trait WorkflowMetadataSummaryEntryComponent {
     } yield workflowMetadataSummaryEntry.workflowStatus
   )
 
-  val isRootWorkflow = Compiled(
-    (workflowId: Rep[String]) => for {
-      summary <- workflowMetadataSummaryEntries
-      if summary.workflowExecutionUuid === workflowId
-    } yield {
-      summary.rootWorkflowExecutionUuid.isEmpty && summary.parentWorkflowExecutionUuid.isEmpty
-    }
-  )
-
   val rootWorkflowId = Compiled(
     (workflowId: Rep[String]) => for {
       summary <- workflowMetadataSummaryEntries
@@ -129,11 +109,58 @@ trait WorkflowMetadataSummaryEntryComponent {
     }
   )
 
-  val metadataArchiveStatusByWorkflowIdOrRootWorkflowId = Compiled(
+  val metadataArchiveStatusByWorkflowId = Compiled(
     (workflowExecutionUuid: Rep[String]) => for {
       workflowMetadataSummaryEntry <- workflowMetadataSummaryEntries
-      if workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid || workflowMetadataSummaryEntry.rootWorkflowExecutionUuid === workflowExecutionUuid
+      if workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid
     } yield workflowMetadataSummaryEntry.metadataArchiveStatus)
+
+  val metadataArchiveStatusAndEndTimeByWorkflowId = Compiled(
+    (workflowExecutionUuid: Rep[String]) => for {
+      workflowMetadataSummaryEntry <- workflowMetadataSummaryEntries
+      if workflowMetadataSummaryEntry.workflowExecutionUuid === workflowExecutionUuid
+    } yield (workflowMetadataSummaryEntry.metadataArchiveStatus, workflowMetadataSummaryEntry.endTimestamp))
+
+  private def fetchAllWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],
+                                                                              workflowEndTimestampThreshold: Timestamp): Query[WorkflowMetadataSummaryEntries, WorkflowMetadataSummaryEntry, Seq] = {
+    for {
+      summaryEntry <- workflowMetadataSummaryEntries
+      if summaryEntry.workflowStatus.inSet(workflowStatuses)
+      if summaryEntry.metadataArchiveStatus.isEmpty // get Unarchived workflows only
+      if summaryEntry.endTimestamp <= workflowEndTimestampThreshold
+    } yield summaryEntry
+  }
+
+  private def fetchAllWorkflowsToDeleteThatEndedOnOrBeforeThresholdTimestamp(workflowEndTimestampThreshold: Timestamp): Query[WorkflowMetadataSummaryEntries, WorkflowMetadataSummaryEntry, Seq] = {
+    for {
+      summaryEntry <- workflowMetadataSummaryEntries
+      if summaryEntry.metadataArchiveStatus === Option("Archived") // get archived but not deleted workflows only
+      if summaryEntry.endTimestamp <= workflowEndTimestampThreshold
+    } yield summaryEntry
+  }
+
+  def workflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],
+                                                              workflowEndTimestampThreshold: Timestamp,
+                                                              batchSize: Long): Query[WorkflowMetadataSummaryEntries, WorkflowMetadataSummaryEntry, Seq] = {
+    fetchAllWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(
+      workflowStatuses,
+      workflowEndTimestampThreshold
+    ).sortBy(_.endTimestamp).take(batchSize)
+  }
+
+  def countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],
+                                                                       workflowEndTimestampThreshold: Timestamp): Rep[Int] = {
+    fetchAllWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(
+      workflowStatuses,
+      workflowEndTimestampThreshold
+    ).length
+  }
+
+  def countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(workflowEndTimestampThreshold: Timestamp): Rep[Int] = {
+    fetchAllWorkflowsToDeleteThatEndedOnOrBeforeThresholdTimestamp(
+      workflowEndTimestampThreshold
+    ).length
+  }
 
   def concat(a: SQLActionBuilder, b: SQLActionBuilder): SQLActionBuilder = {
     SQLActionBuilder(a.queryParts ++ b.queryParts, (p: Unit, pp: PositionedParameters) => {

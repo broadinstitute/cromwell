@@ -512,5 +512,5 @@ Congratulations for improving the reproducibility of your workflows! You might f
 - [Getting started on Alibaba Cloud](BCSIntro/)
 
 
-[cromwell-examples-conf]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.examples.conf
+[cromwell-examples-conf]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends/cromwell.examples.conf
 [cromwell-examples-folder]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends

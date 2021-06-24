@@ -83,7 +83,7 @@ object Dependencies {
   private val mariadbV = "2.7.0"
   private val metrics3ScalaV = "4.0.0" // https://github.com/erikvanoosten/metrics-scala/tree/f733e26#download-4x
   private val metrics3StatsdV = "4.2.0"
-  private val mockFtpServerV = "2.7.1"
+  private val mockFtpServerV = "2.8.0"
   private val mockserverNettyV = "5.5.4" // scala-steward:off (CROM-6582)
   private val mouseV = "1.0.0"
   private val mysqlV = "8.0.22" // scala-steward:off (CROM-6772: DateTime/String conversion and connection string updates required)

@@ -5,6 +5,10 @@
 * An additional set of metrics relating to metadata age were added.
 * No user facing changes in Cromwell 65.  
 
+### AMD Rome support on PAPI v2
+On the PAPI v2 backends "AMD Rome" is now supported as a CPU platform. More details can be found
+[here](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#cpuplatform).
+
 ## 64 Release Notes
 
 ### Intel Cascade Lake support on PAPI v2

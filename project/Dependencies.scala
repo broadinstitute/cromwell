@@ -58,7 +58,7 @@ object Dependencies {
   private val http4sVersion = "0.21.7" // scala-steward:off (CROM-6678)
   private val jacksonV = "2.12.2"
   private val jacksonJqV = "1.0.0-preview.20201123"
-  private val janinoV = "3.1.2"
+  private val janinoV = "3.1.3"
   private val javaxActivationV = "1.2.0"
   // jaxb-impl 2.3.3 depends on com.sun.activation:jakarta.activation and jakarta.xml.bind:jakarta.xml.bind-api,
   // which jaxb-impl 2.3.2 did not. jakarta.activation corresponds to the "updated" Maven coordinates for the Java
@@ -86,7 +86,7 @@ object Dependencies {
   private val mockFtpServerV = "2.7.1"
   private val mockserverNettyV = "5.5.4" // scala-steward:off (BA-6582)
   private val mouseV = "0.26.2"
-  private val mysqlV = "8.0.22"
+  private val mysqlV = "8.0.22" // scala-steward:off (CROM-6772: DateTime/String conversion and connection string updates required)
   private val nettyV = "4.1.46.Final"
   private val owlApiV = "5.1.16" // scala-steward:off (CROM-6677)
   private val paradiseV = "2.1.1"
@@ -128,9 +128,9 @@ object Dependencies {
   private val specs2MockV = "4.10.6"
   private val sprayJsonV = "1.3.6"
   private val sttpV = "1.5.19" // scala-steward:off (BA-6564)
-  private val swaggerParserV = "1.0.52"
+  private val swaggerParserV = "1.0.54"
   private val swaggerUiV = "3.23.11" // scala-steward:off (BA-6621)
-  private val tikaV = "1.25"
+  private val tikaV = "1.25" // scala-steward:off (CROM-6771) - javax vs jaxb
   private val typesafeConfigV = "1.4.1"
   private val workbenchGoogleV = "0.15-2fc79a3"
   private val workbenchModelV = "0.14-27810079-SNAP"

@@ -1084,6 +1084,8 @@ cromwell::private::login_docker() {
 }
 
 cromwell::private::render_secure_resources() {
+    # Avoid docker output to sbt's stderr by pulling the image here
+    docker pull broadinstitute/dsde-toolbox:dev | cat
     # Copy the CI resources, then render the secure resources using Vault
     sbt -Dsbt.supershell=false --warn renderCiResources \
     || if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
@@ -1588,6 +1590,25 @@ cromwell::build::run_conformance() {
 cromwell::build::generate_code_coverage() {
     if [[ "${CROMWELL_BUILD_GENERATE_COVERAGE}" == "true" ]]; then
         cromwell::private::generate_code_coverage
+    fi
+}
+
+cromwell::build::check_published_artifacts() {
+    if [[ "${CROMWELL_BUILD_PROVIDER}" == "${CROMWELL_BUILD_PROVIDER_TRAVIS}" ]] && \
+        [[ "${CROMWELL_BUILD_TYPE}" == "sbt" ]] && \
+        [[ "${CROMWELL_BUILD_SBT_INCLUDE}" == "" ]] && \
+        [[ "${CROMWELL_BUILD_EVENT}" == "push" ]]; then
+
+        if [[ "${CROMWELL_BUILD_BRANCH}" == "develop" ]] || \
+            [[ "${CROMWELL_BUILD_BRANCH}" =~ ^[0-9\.]+_hotfix$ ]] || \
+            [[ -n "${CROMWELL_BUILD_TAG:+set}" ]]; then
+            # If cromwell::build::publish_artifacts is going to be publishing later check now that it will work
+            sbt \
+                -Dsbt.supershell=false \
+                --error \
+                errorIfAlreadyPublished
+        fi
+
     fi
 }
 

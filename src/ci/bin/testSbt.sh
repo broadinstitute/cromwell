@@ -9,6 +9,8 @@ source "${BASH_SOURCE%/*}/test_unit.inc.sh" || source test_unit.inc.sh
 
 cromwell::build::setup_common_environment
 
+cromwell::build::check_published_artifacts
+
 cromwell::build::unit::setup_scale_factor
 
 cromwell::build::unit::setup_exclude_tags

@@ -26,7 +26,7 @@ object Dependencies {
   private val commonsMathV = "3.6.1"
   private val commonsTextV = "1.9"
   private val configsV = "0.6.0"
-  private val delightRhinoSandboxV = "0.0.12"
+  private val delightRhinoSandboxV = "0.0.15"
   private val ficusV = "1.5.0"
   // The "com.vladsch.flexmark" % "flexmark-profile-pegdown" % flexmarkV dependency is an implicit, version-specific
   // runtime dependency of ScalaTest. At the time of this writing this is the newest version known to work.
@@ -80,10 +80,10 @@ object Dependencies {
   private val liquibaseV = "3.6.3" // scala-steward:off
   private val logbackV = "1.2.3"
   private val lz4JavaV = "1.7.1"
-  private val mariadbV = "2.7.0"
+  private val mariadbV = "2.7.2"
   private val metrics3ScalaV = "4.0.0" // https://github.com/erikvanoosten/metrics-scala/tree/f733e26#download-4x
   private val metrics3StatsdV = "4.2.0"
-  private val mockFtpServerV = "2.7.1"
+  private val mockFtpServerV = "2.8.0"
   private val mockserverNettyV = "5.5.4" // scala-steward:off (CROM-6582)
   private val mouseV = "1.0.0"
   private val mysqlV = "8.0.22" // scala-steward:off (CROM-6772: DateTime/String conversion and connection string updates required)
@@ -100,7 +100,7 @@ object Dependencies {
   private val scalaGraphV = "1.13.1"
   private val scalaLoggingV = "3.9.3"
   private val scalaPoolV = "0.4.3"
-  private val scalacheckV = "1.15.1"
+  private val scalacheckV = "1.15.3"
   private val scalacticV = "3.2.6"
   private val scalameterV = "0.19"
   private val scalamockV = "5.1.0"

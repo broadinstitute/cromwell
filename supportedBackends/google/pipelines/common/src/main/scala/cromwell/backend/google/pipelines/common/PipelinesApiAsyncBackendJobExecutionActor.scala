@@ -517,7 +517,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           virtualPrivateCloudConfiguration = jesAttributes.virtualPrivateCloudConfiguration,
           retryWithMoreMemoryKeys = retryWithMoreMemoryKeys,
           fuseEnabled = fuseEnabled(jobDescriptor.workflowDescriptor),
-          allowNoAddress = pipelinesConfiguration.papiAttributes.allowNoAddress,
           referenceDisksForLocalizationOpt = referenceDisksToMount,
           monitoringImage = monitoringImage,
           checkpointingConfiguration,

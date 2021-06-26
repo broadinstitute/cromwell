@@ -17,7 +17,6 @@ authentication schemes that might be used:
 * `application_default` (default, recommended) - Use [application default](https://developers.google.com/identity/protocols/application-default-credentials) credentials.
 * `service_account` - Use a specific service account and key file (in PEM format) to authenticate.
 * `user_account` - Authenticate as a user.
-* `refresh_token` - Authenticate each individual workflow using a refresh token supplied in the workflow options.
 * `user_service_account` - Authenticate each individual workflow using service account credentials supplied in the workflow options.
 
 The `auths` block in the `google` stanza defines the authentication schemes within a Cromwell deployment:
@@ -29,12 +28,6 @@ google {
     {
       name = "application-default"
       scheme = "application_default"
-    },
-    {
-      name = "user-via-refresh"
-      scheme = "refresh_token"
-      client-id = "secret_id"
-      client-secret = "secret_secret"
     },
     {
       name = "service-account"
@@ -91,12 +84,6 @@ Most importantly, the value of the `client_email` field should go into the `serv
 `private_key` portion needs to be pulled into its own file (e.g. `my-key.pem`).  The `\n`s in the string need to be converted to newline characters.
 
 While technically not part of Service Account authentication mode, one can also override the default service account that the compute VM is started with via the configuration option `JES.config.genomics.compute-service-account` or through the workflow options parameter `google_compute_service_account`.  The service account you provide must have been granted Service Account Actor role to Cromwell's primary service account. As this only affects Google Pipelines API and not GCS, it's important that this service account, and the service account specified in `JES.config.genomics.auth` can both read/write the location specified by `JES.config.root`
-
-**Refresh Token**
-
-A **refresh_token** field must be specified in the [Workflow Options](../wf_options/Google.md) when submitting the job.  Omitting this field will cause the workflow to fail.
-
-The refresh token is passed to Google along with the `client-id` and `client-secret` pair specified in the corresponding entry in `auths`.
 
 **User Service Account**
 

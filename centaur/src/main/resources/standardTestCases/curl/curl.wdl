@@ -8,7 +8,7 @@ task url_grab {
         File progressBar = stderr()
     }
     runtime {
-        docker: "tutum/curl:latest"
+        docker: "google/cloud-sdk"
         failOnStderr: false
     }
 }
@@ -16,7 +16,7 @@ task url_grab {
 task news_reader {
     File news
 
-    command { 
+    command {
       wc -l < ${news}
     }
     output { Int news_size = read_int(stdout()) }

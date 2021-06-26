@@ -18,7 +18,7 @@ import scala.concurrent.duration._
 
 class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with Matchers {
   val akkaHttpService = new MockMetadataRouteSupport()
-  
+
   val version = "v1"
 
   implicit def routeTestTimeout = RouteTestTimeout(5.seconds)
@@ -121,6 +121,18 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
       }
   }
 
+  def validateArchivedMetadataResponseMessage(responseJson: JsObject, includeAvailabilityMessage: Boolean, includeLabelsMessage: Boolean) = {
+    val responseMessage = responseJson.fields("message").asInstanceOf[JsString].value
+    val expectedSuffix =
+      (if (includeAvailabilityMessage) " It is available in the archive bucket, or via a support request in the case of a managed instance." else "") +
+        (if (includeLabelsMessage) " As a result, new labels can't be added or existing labels can't be updated for this workflow." else "")
+
+    responseMessage should startWith("Cromwell has archived this workflow's metadata " +
+      "according to the lifecycle policy. The workflow completed at ")
+    // The missing middle of the message looks like "The workflow completed at x timestamp, which was y milliseconds ago."
+    responseMessage should endWith(s"ago.${expectedSuffix}")
+  }
+
   it should "return 200 with ArchivedAndDeleted status for workflow whose metadata is deleted" in {
     Get(s"/workflows/$version/${CromwellApiServiceSpec.ArchivedAndDeletedWorkflowId}/outputs") ~>
       akkaHttpService.metadataRoutes ~>
@@ -130,8 +142,7 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
         val responseJson =  responseAs[JsObject]
         responseJson.fields.keys should contain allOf(WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus, WorkflowMetadataKeys.Message)
         responseJson.fields("metadataArchiveStatus").asInstanceOf[JsString].value shouldBe "ArchivedAndDeleted"
-        responseJson.fields("message").asInstanceOf[JsString].value shouldBe "Cromwell has archived this workflow's metadata " +
-          "according to the lifecycle policy. It is available in the archive bucket, or via a support request in the case of a managed instance."
+        validateArchivedMetadataResponseMessage(responseJson, includeAvailabilityMessage = true, includeLabelsMessage = false)
         contentType should be(ContentTypes.`application/json`)
       }
   }
@@ -184,8 +195,7 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
         val responseJson =  responseAs[JsObject]
         responseJson.fields.keys should contain allOf(WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus, WorkflowMetadataKeys.Message)
         responseJson.fields("metadataArchiveStatus").asInstanceOf[JsString].value shouldBe "ArchivedAndDeleted"
-        responseJson.fields("message").asInstanceOf[JsString].value shouldBe "Cromwell has archived this workflow's metadata " +
-          "according to the lifecycle policy. It is available in the archive bucket, or via a support request in the case of a managed instance."
+        validateArchivedMetadataResponseMessage(responseJson, includeAvailabilityMessage = true, includeLabelsMessage = false)
        }
   }
 
@@ -299,8 +309,7 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
         val responseJson =  responseAs[JsObject]
         responseJson.fields.keys should contain allOf(WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus, WorkflowMetadataKeys.Message)
         responseJson.fields("metadataArchiveStatus").asInstanceOf[JsString].value shouldBe "ArchivedAndDeleted"
-        responseJson.fields("message").asInstanceOf[JsString].value shouldBe "Cromwell has archived this workflow's metadata " +
-          "according to the lifecycle policy. It is available in the archive bucket, or via a support request in the case of a managed instance."
+        validateArchivedMetadataResponseMessage(responseJson, includeAvailabilityMessage = true, includeLabelsMessage = false)
       }
   }
 
@@ -459,8 +468,7 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
         val actualResult = responseAs[JsObject]
         actualResult.fields.keys should contain allOf(WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus, WorkflowMetadataKeys.Message)
         actualResult.fields("metadataArchiveStatus").asInstanceOf[JsString].value shouldBe "Archived"
-        actualResult.fields("message").asInstanceOf[JsString].value shouldBe "Cromwell has archived this workflow's metadata " +
-          "according to the lifecycle policy. As a result, new labels can't be added or existing labels can't be updated for this workflow."
+        validateArchivedMetadataResponseMessage(actualResult, includeAvailabilityMessage = false, includeLabelsMessage = true)
       }
   }
 
@@ -482,9 +490,7 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
         val actualResult = responseAs[JsObject]
         actualResult.fields.keys should contain allOf(WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus, WorkflowMetadataKeys.Message)
         actualResult.fields("metadataArchiveStatus").asInstanceOf[JsString].value shouldBe "ArchivedAndDeleted"
-        actualResult.fields("message").asInstanceOf[JsString].value shouldBe "Cromwell has archived this workflow's metadata " +
-          "according to the lifecycle policy. It is available in the archive bucket, or via a support request in the case of a managed instance. " +
-          "As a result, new labels can't be added or existing labels can't be updated for this workflow."
+        validateArchivedMetadataResponseMessage(actualResult, includeAvailabilityMessage = true, includeLabelsMessage = true)
       }
   }
 

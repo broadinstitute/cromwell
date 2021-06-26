@@ -1,20 +1,20 @@
 import sbt._
 
 object Dependencies {
-  private val akkaHttpCirceIntegrationV = "1.35.2"
-  private val akkaHttpV = "10.1.12" // scala-steward:off (BA-6619)
-  private val akkaV = "2.5.31" // scala-steward:off (BA-6637)
+  private val akkaHttpCirceIntegrationV = "1.35.3"
+  private val akkaHttpV = "10.1.12" // scala-steward:off (CROM-6619)
+  private val akkaV = "2.5.31" // scala-steward:off (CROM-6637)
   private val aliyunBcsV = "6.2.4"
   private val aliyunCoreV = "4.5.20"
   private val aliyunCrV = "4.1.1"
   private val aliyunOssV = "3.11.3"
   private val ammoniteOpsV = "2.3.8"
-  private val apacheCommonNetV = "3.7.2"
+  private val apacheCommonNetV = "3.8.0"
   private val apacheHttpClientV = "4.5.13"
-  private val awsSdkV = "2.15.41"
+  private val awsSdkV = "2.15.41" // scala-steward:off (CROM-6776)
   private val betterFilesV = "3.9.1"
-  private val catsEffectV = "2.3.0"
-  private val catsV = "2.3.0"
+  private val catsEffectV = "2.3.3"
+  private val catsV = "2.3.1"
   private val circeConfigV = "0.8.0"
   private val circeGenericExtrasV = "0.13.0"
   private val circeOpticsV = "0.13.0"
@@ -26,7 +26,7 @@ object Dependencies {
   private val commonsMathV = "3.6.1"
   private val commonsTextV = "1.9"
   private val configsV = "0.6.0"
-  private val delightRhinoSandboxV = "0.0.12"
+  private val delightRhinoSandboxV = "0.0.15"
   private val ficusV = "1.5.0"
   // The "com.vladsch.flexmark" % "flexmark-profile-pegdown" % flexmarkV dependency is an implicit, version-specific
   // runtime dependency of ScalaTest. At the time of this writing this is the newest version known to work.
@@ -44,7 +44,6 @@ object Dependencies {
   private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off
   private val googleCloudStorageV = "1.113.14"
   private val googleGaxGrpcV = "1.62.0"
-  private val googleGenomicsServicesV1ApiV = "v1alpha2-rev495-1.23.0"
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210322-1.31.0"
   private val googleHttpClientApacheV = "2.1.2"
   private val googleHttpClientV = "1.38.0"
@@ -52,13 +51,13 @@ object Dependencies {
   private val googleOauth2V = "0.22.2"
   private val googleOauthClientV = "1.31.4"
   private val googleCloudResourceManagerV = "0.87.0-alpha"
-  private val grpcV = "1.33.1"
+  private val grpcV = "1.36.1"
   private val guavaV = "30.1.1-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.5.1"
   private val http4sVersion = "0.21.7" // scala-steward:off (CROM-6678)
   private val jacksonV = "2.12.2"
-  private val janinoV = "3.1.2"
+  private val janinoV = "3.1.3"
   private val javaxActivationV = "1.2.0"
   // jaxb-impl 2.3.3 depends on com.sun.activation:jakarta.activation and jakarta.xml.bind:jakarta.xml.bind-api,
   // which jaxb-impl 2.3.2 did not. jakarta.activation corresponds to the "updated" Maven coordinates for the Java
@@ -75,33 +74,33 @@ object Dependencies {
   private val liquibaseV = "4.3.5"
   private val logbackV = "1.2.3"
   private val lz4JavaV = "1.7.1"
-  private val mariadbV = "2.7.0"
+  private val mariadbV = "2.7.2"
   private val metrics3ScalaV = "4.0.0" // https://github.com/erikvanoosten/metrics-scala/tree/f733e26#download-4x
   private val metrics3StatsdV = "4.2.0"
-  private val mockFtpServerV = "2.7.1"
-  private val mockserverNettyV = "5.5.4" // scala-steward:off (BA-6582)
-  private val mouseV = "0.26.2"
-  private val mysqlV = "8.0.22"
+  private val mockFtpServerV = "2.8.0"
+  private val mockserverNettyV = "5.5.4" // scala-steward:off (CROM-6582)
+  private val mouseV = "1.0.0"
+  private val mysqlV = "8.0.22" // scala-steward:off (CROM-6772: DateTime/String conversion and connection string updates required)
   private val nettyV = "4.1.46.Final"
-  private val owlApiV = "5.1.16" // scala-steward: off (CROM-6677)
+  private val owlApiV = "5.1.16" // scala-steward:off (CROM-6677)
   private val paradiseV = "2.1.1"
   private val pegdownV = "1.6.0"
   private val postgresV = "42.2.20"
   private val rdf4jV = "2.4.2"
-  private val refinedV = "0.9.18"
+  private val refinedV = "0.9.22"
   private val rhinoV = "1.7.13"
   private val scalaGraphV = "1.13.1"
-  private val scalaLoggingV = "3.9.2"
+  private val scalaLoggingV = "3.9.3"
   private val scalaPoolV = "0.4.3"
-  private val scalacheckV = "1.15.1"
-  private val scalacticV = "3.2.3"
+  private val scalacheckV = "1.15.3"
+  private val scalacticV = "3.2.6"
   private val scalameterV = "0.19"
   private val scalamockV = "5.1.0"
-  private val scalatestV = "3.2.3"
+  private val scalatestV = "3.2.6"
   private val scalatestPlusMockitoV = "1.0.0-M2"
-  private val scalazV = "7.3.2"
+  private val scalazV = "7.3.3"
   private val scoptV = "4.0.1"
-  private val sentryLogbackV = "1.7.30" // scala-steward:off (BA-6640)
+  private val sentryLogbackV = "1.7.30" // scala-steward:off (CROM-6640)
   private val shapelessV = "2.3.3"
   private val simulacrumV = "1.0.1"
   private val slf4jV = "1.7.30"
@@ -116,14 +115,14 @@ object Dependencies {
     * Consider updating to the official newer Slick version once they fix issue #2076
     * Related Slick PR: https://github.com/slick/slick/pull/2101
   */
-  private val slickV = "3.3.2-2076hotfix" // scala-steward:off (BA-6620)
-  private val snakeyamlV = "1.27"
-  private val specs2MockV = "4.10.5"
+  private val slickV = "3.3.2-2076hotfix" // scala-steward:off (CROM-6620)
+  private val snakeyamlV = "1.28"
+  private val specs2MockV = "4.10.6"
   private val sprayJsonV = "1.3.6"
-  private val sttpV = "1.5.19" // scala-steward:off (BA-6564)
-  private val swaggerParserV = "1.0.52"
-  private val swaggerUiV = "3.23.11" // scala-steward:off (BA-6621)
-  private val tikaV = "1.25"
+  private val sttpV = "1.5.19" // scala-steward:off (CROM-6564)
+  private val swaggerParserV = "1.0.54"
+  private val swaggerUiV = "3.23.11" // scala-steward:off (CROM-6621)
+  private val tikaV = "1.25" // scala-steward:off (CROM-6771) - javax vs jaxb
   private val typesafeConfigV = "1.4.1"
   private val workbenchGoogleV = "0.15-2fc79a3"
   private val workbenchModelV = "0.14-27810079-SNAP"
@@ -271,12 +270,6 @@ object Dependencies {
     "org.yaml" % "snakeyaml" % snakeyamlV % Test
   )
 
-  // The v1 dependency has been cloned in the broad artifactory so that we can have the 2 versions co-exist in the same jar
-  private val googleGenomicsV1Dependency = List(
-    "org.broadinstitute" % "cromwell-google-api-services-genomics" % googleGenomicsServicesV1ApiV
-      exclude("com.google.guava", "guava-jdk5")
-  )
-
   private val googleGenomicsV2Alpha1Dependency = List(
     "com.google.apis" % "google-api-services-genomics" % googleGenomicsServicesV2Alpha1ApiV
       exclude("com.google.guava", "guava-jdk5")
@@ -323,7 +316,7 @@ object Dependencies {
     "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV,
     "com.google.apis" % "google-api-services-cloudkms" % googleCloudKmsV
       exclude("com.google.guava", "guava-jdk5")
-  ) ++ googleGenomicsV1Dependency ++ googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency
+  ) ++ googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency
 
   private val aliyunOssDependencies = List(
     "com.aliyun.oss" % "aliyun-sdk-oss" % aliyunOssV

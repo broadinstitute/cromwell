@@ -34,7 +34,6 @@ import slick.basic.DatabasePublisher
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
 import scala.util.{Failure, Success, Try}
 
 
@@ -57,11 +56,16 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
 
   private val archiverMetricsBasePath: NonEmptyList[String] = MetadataServiceActor.MetadataInstrumentationPrefix :+ "archiver"
   private val rowsProcessedMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "rows_processed"
+  private val rowsPerWorkflowMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "rows_per_workflow"
+  private val bytesProcessedMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "bytes_processed"
+  private val bytesPerWorkflowMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "bytes_per_workflow"
   private val workflowsProcessedSuccessMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflows_processed" :+ "success"
   private val workflowsProcessedFailureMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflows_processed" :+ "failure"
   private val timeBehindExpectedDelayMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "time_behind_expected_delay"
   private val workflowArchiveTotalTimeMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflow_archive_total_time"
   private val workflowsToArchiveMetricPath: NonEmptyList[String] = archiverMetricsBasePath :+ "workflows_to_archive"
+  private val archiverTimingMetricsBasePath: NonEmptyList[String] = archiverMetricsBasePath :+ "timings"
+  private val archiverStreamTimingMetricsBasePath: NonEmptyList[String] = archiverTimingMetricsBasePath :+ "streaming"
 
   private val TerminalWorkflowStatuses: List[String] = List(WorkflowSucceeded, WorkflowAborted, WorkflowFailed).map(_.toString)
 
@@ -71,34 +75,37 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   // initial schedule for workflows left to archive metric
   context.system.scheduler.scheduleOnce(archiveMetadataConfig.instrumentationInterval)(workflowsLeftToArchiveMetric())
 
+  def calculateTimeDifference(startTime: OffsetDateTime, endTime: OffsetDateTime): FiniteDuration = {
+    FiniteDuration(JDuration.between(startTime, endTime).toMillis, TimeUnit.MILLISECONDS)
+  }
+  def calculateTimeSince(startTime: OffsetDateTime): FiniteDuration = calculateTimeDifference(startTime, OffsetDateTime.now())
+
   override def receive: Receive = {
     case ArchiveNextWorkflowMessage =>
       val startTime = OffsetDateTime.now()
-      def calculateTimeSinceStart() = {
-        FiniteDuration(JDuration.between(startTime, OffsetDateTime.now()).toMillis, TimeUnit.MILLISECONDS)
-      }
 
       // These handlers send metrics for most paths even when they're not incremented, so that the metrics
       // paths are actively receiving data points throughout:
-      archiveNextWorkflow().onComplete({
-        case Success(true) =>
-          increment(workflowsProcessedSuccessMetricPath, ServicesPrefix)
+      archiveNextWorkflows.onComplete({
+        case Success(cnt) =>
+          count(workflowsProcessedSuccessMetricPath, cnt, ServicesPrefix)
           count(workflowsProcessedFailureMetricPath, 0L, ServicesPrefix)
-          sendTiming(workflowArchiveTotalTimeMetricPath, calculateTimeSinceStart(), ServicesPrefix)
-          self ! ArchiveNextWorkflowMessage
-        case Success(false) =>
-          count(rowsProcessedMetricPath, 0L, ServicesPrefix)
-          count(workflowsProcessedSuccessMetricPath, 0L, ServicesPrefix)
-          count(workflowsProcessedFailureMetricPath, 0L, ServicesPrefix)
-          sendGauge(workflowsToArchiveMetricPath, 0L, ServicesPrefix)
-          sendTiming(workflowArchiveTotalTimeMetricPath, calculateTimeSinceStart(), ServicesPrefix)
-          scheduleNextWorkflowToArchive()
-          if (archiveMetadataConfig.debugLogging) log.info(s"No complete workflows which finished over ${archiveMetadataConfig.archiveDelay} ago remain to be archived. Scheduling next poll in ${archiveMetadataConfig.backoffInterval}.")
+
+          if (cnt > 0) {
+            if (archiveMetadataConfig.debugLogging) log.info(s"Successfully archived $cnt workflows.")
+            self ! ArchiveNextWorkflowMessage
+          } else {
+            count(rowsProcessedMetricPath, 0L, ServicesPrefix)
+            sendGauge(workflowsToArchiveMetricPath, 0L, ServicesPrefix)
+            sendTiming(workflowArchiveTotalTimeMetricPath, calculateTimeSince(startTime), ServicesPrefix)
+            if (archiveMetadataConfig.debugLogging) log.info(s"No complete workflows which finished over ${archiveMetadataConfig.archiveDelay} ago remain to be archived. Scheduling next poll in ${archiveMetadataConfig.backoffInterval}.")
+            scheduleNextWorkflowToArchive()
+          }
         case Failure(error) =>
           count(rowsProcessedMetricPath, 0L, ServicesPrefix)
           count(workflowsProcessedSuccessMetricPath, 0L, ServicesPrefix)
-          increment(workflowsProcessedFailureMetricPath, ServicesPrefix)
-          sendTiming(workflowArchiveTotalTimeMetricPath, calculateTimeSinceStart(), ServicesPrefix)
+          count(workflowsProcessedFailureMetricPath, archiveMetadataConfig.batchSize, ServicesPrefix)
+          sendTiming(workflowArchiveTotalTimeMetricPath, calculateTimeSince(startTime), ServicesPrefix)
           log.error(error, s"Error while archiving, will retry.")
           scheduleNextWorkflowToArchive()
       })
@@ -124,38 +131,64 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
     })
   }
 
-  def archiveNextWorkflow(): Future[Boolean] = {
+  def archiveNextWorkflows: Future[Long] = {
+    val batchLookupStartTime = OffsetDateTime.now()
+
     for {
-      maybeWorkflowSummaryEntry <- lookupNextWorkflowToArchive()
-      result <- maybeWorkflowSummaryEntry match {
-        case Some(summaryEntry) =>
-          summaryEntry.endTimestamp.foreach { workflowEndTime =>
-            val millisSinceWorkflowEnd = JDuration.between(workflowEndTime.toSystemOffsetDateTime, OffsetDateTime.now()).toMillis
-            sendGauge(timeBehindExpectedDelayMetricPath, millisSinceWorkflowEnd - archiveMetadataConfig.archiveDelay.toMillis, ServicesPrefix)
-          }
-          for {
-            path <- Future.fromTry(getGcsPathForMetadata(summaryEntry))
-            workflowId = summaryEntry.workflowExecutionUuid
-            dbStream <- fetchStreamFromDatabase(WorkflowId(UUID.fromString(workflowId)))
-            _ = log.info(s"Archiving metadata for $workflowId to ${path.pathAsString}")
-            _ <- streamMetadataToGcs(path, dbStream)
-            _ <- updateMetadataArchiveStatus(WorkflowId(UUID.fromString(workflowId)), Archived)
-            _ = log.info(s"Archiving succeeded for $workflowId")
-          } yield true
-        case None =>
-          sendGauge(timeBehindExpectedDelayMetricPath, 0L, ServicesPrefix)
-          Future.successful(false)
-      }
+      workflowSummaryEntries <- lookupNextWorkflowsToArchive(archiveMetadataConfig.batchSize)
+      batchLookupEndTime = OffsetDateTime.now()
+      _ = sendTiming(archiverTimingMetricsBasePath :+ "lookup_next_workflows", calculateTimeDifference(batchLookupStartTime, batchLookupEndTime), ServicesPrefix)
+      _ = if (archiveMetadataConfig.debugLogging) log.info(s"About to archive batch of ${workflowSummaryEntries.size} workflows.")
+      result <- archiveSummaryEntries(workflowSummaryEntries)
+      _ = sendTiming(archiverTimingMetricsBasePath :+ "batch_lookup_and_archive_time", calculateTimeDifference(batchLookupStartTime, OffsetDateTime.now()), ServicesPrefix)
     } yield result
   }
 
-  def lookupNextWorkflowToArchive(): Future[Option[WorkflowMetadataSummaryEntry]] = {
+  private def archiveSummaryEntries(entries: Seq[WorkflowMetadataSummaryEntry]): Future[Long] = {
+    if (entries.isEmpty) {
+      sendGauge(timeBehindExpectedDelayMetricPath, 0L, ServicesPrefix)
+      Future.successful(0L)
+    } else {
+      val resultSeq: Seq[Future[Long]] = entries.map(archiveSummaryEntry)
+      val result: Future[Seq[Long]] = Future.sequence(resultSeq)
+
+      result.map(_.sum)
+    }
+  }
+
+  private def archiveSummaryEntry(entry: WorkflowMetadataSummaryEntry): Future[Long] = {
+    entry.endTimestamp.foreach { workflowEndTime =>
+      val millisSinceWorkflowEnd = JDuration.between(workflowEndTime.toSystemOffsetDateTime, OffsetDateTime.now()).toMillis
+      sendGauge(timeBehindExpectedDelayMetricPath, millisSinceWorkflowEnd - archiveMetadataConfig.archiveDelay.toMillis, ServicesPrefix)
+    }
+
+    val archiveStartTime = OffsetDateTime.now()
+
+    for {
+      path <- Future.fromTry(getGcsPathForMetadata(entry))
+      workflowId = entry.workflowExecutionUuid
+      dbStream <- fetchStreamFromDatabase(WorkflowId(UUID.fromString(workflowId)))
+      _ = log.info(s"Archiving metadata for $workflowId to ${path.pathAsString}")
+      readyToStreamTime = OffsetDateTime.now()
+      _ = sendTiming(archiverTimingMetricsBasePath :+ "prepare_to_stream", calculateTimeDifference(archiveStartTime, readyToStreamTime), ServicesPrefix)
+      _ <- streamMetadataToGcs(path, dbStream)
+      streamCompleteTime = OffsetDateTime.now()
+      _ = sendTiming(archiverTimingMetricsBasePath :+ "stream_to_gcs", calculateTimeDifference(readyToStreamTime, streamCompleteTime), ServicesPrefix)
+      _ <- updateMetadataArchiveStatus(WorkflowId(UUID.fromString(workflowId)), Archived)
+      statusUpdatedTime = OffsetDateTime.now()
+      _ = sendTiming(archiverTimingMetricsBasePath :+ "archive_status_update", calculateTimeDifference(streamCompleteTime, statusUpdatedTime), ServicesPrefix)
+      _ = sendTiming(workflowArchiveTotalTimeMetricPath, calculateTimeDifference(archiveStartTime, statusUpdatedTime), ServicesPrefix)
+      _ = log.info(s"Archiving succeeded for $workflowId")
+    } yield 1L
+  }
+
+  def lookupNextWorkflowsToArchive(count: Long): Future[Seq[WorkflowMetadataSummaryEntry]] = {
     val currentTimestampMinusDelay = OffsetDateTime.now().minusSeconds(archiveMetadataConfig.archiveDelay.toSeconds)
     queryWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(
       TerminalWorkflowStatuses,
       currentTimestampMinusDelay,
-      batchSize = 1
-    ).map(_.headOption)
+      batchSize = count
+    )
   }
 
   private def getGcsPathForMetadata(summaryEntry: WorkflowMetadataSummaryEntry): Try[Path] =  {
@@ -183,16 +216,25 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   }
 
   def streamMetadataToGcs(path: Path, stream: DatabasePublisher[MetadataEntry]): Future[Unit] = {
-    val rowsCounter = new RowsCounterAndProgressiveLogger( logFunction = (newRows, totalRows) => {
+    val streamStartTime = OffsetDateTime.now()
+
+    val rowsCounter = new CounterAndProgressiveLogger( logFunction = (newRows, totalRows) => {
       if (archiveMetadataConfig.debugLogging) logger.info(s"Uploaded $newRows new rows to ${path.pathAsString}. Total uploaded is now ${totalRows}") else ()
       count(rowsProcessedMetricPath, newRows, ServicesPrefix)
     }, 100000)
+
     for {
       asyncIo <- futureAsyncIo
+      gotAsyncIoTime = OffsetDateTime.now()
+      _ = sendTiming(archiverStreamTimingMetricsBasePath :+ "get_async_io", calculateTimeDifference(streamStartTime, gotAsyncIoTime), ServicesPrefix)
       gcsStream = Files.newOutputStream(path.nioPath, StandardOpenOption.CREATE)
+      gcsStreamCreatedTime = OffsetDateTime.now()
+      _ = sendTiming(archiverStreamTimingMetricsBasePath :+ "create_gcs_stream", calculateTimeDifference(gotAsyncIoTime, gcsStreamCreatedTime), ServicesPrefix)
       crc32cStream = new Crc32cStream()
-      teeStream = new TeeingOutputStream(gcsStream, crc32cStream)
+      teeStream = new TeeingOutputStream(gcsStream, crc32cStream, new ByteCountingOutputStream())
       csvPrinter = new CSVPrinter(new OutputStreamWriter(teeStream), CSVFormat.DEFAULT.withHeader(CsvFileHeaders : _*))
+      csvPrinterCreatedTime = OffsetDateTime.now()
+      _ = sendTiming(archiverStreamTimingMetricsBasePath :+ "create_csv_printer", calculateTimeDifference(gcsStreamCreatedTime, csvPrinterCreatedTime), ServicesPrefix)
       _ <- stream.foreach(me => {
         csvPrinter.printRecord(
           me.metadataEntryId.map(_.toString).getOrElse(""),
@@ -207,10 +249,15 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
         )
         rowsCounter.increment()
       })
-      _ = rowsCounter.finalLog()
+      _ = rowsCounter.manualLog()
+      _ = sendGauge(rowsPerWorkflowMetricPath, rowsCounter.getTotalCount, ServicesPrefix)
       _ = csvPrinter.close()
+      streamingCompleteTime = OffsetDateTime.now()
+      _ = sendTiming(archiverStreamTimingMetricsBasePath :+ "stream_data_to_gcs", calculateTimeDifference(csvPrinterCreatedTime, streamingCompleteTime), ServicesPrefix)
       expectedChecksum = crc32cStream.checksumString
       uploadedChecksum <- asyncIo.hashAsync(path)
+      checksumValidatedTime = OffsetDateTime.now()
+      _ = sendTiming(archiverStreamTimingMetricsBasePath :+ "checksum_validation", calculateTimeDifference(streamingCompleteTime, checksumValidatedTime), ServicesPrefix)
       _ <- if (uploadedChecksum == expectedChecksum) Future.successful(()) else Future.failed(new Exception(s"Uploaded checksum '$uploadedChecksum' did not match local calculation ('$expectedChecksum')"))
     } yield ()
   }
@@ -218,6 +265,20 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
   def scheduleNextWorkflowToArchive(): Unit = {
     context.system.scheduler.scheduleOnce(archiveMetadataConfig.backoffInterval)(self ! ArchiveNextWorkflowMessage)
     ()
+  }
+
+  final class ByteCountingOutputStream() extends OutputStream {
+    val byteCounter = new CounterAndProgressiveLogger( logFunction = (newBytes, totalBytes) => {
+      if (archiveMetadataConfig.debugLogging) logger.info(s"Uploaded $newBytes new bytes. Total uploaded is now $totalBytes") else ()
+      count(bytesProcessedMetricPath, newBytes, ServicesPrefix)
+    }, 100000)
+
+    override def write(b: Int): Unit = byteCounter.increment()
+    override def close(): Unit = {
+      byteCounter.manualLog()
+      sendGauge(bytesPerWorkflowMetricPath, byteCounter.getTotalCount, ServicesPrefix)
+    }
+    override def flush(): Unit = byteCounter.manualLog()
   }
 }
 
@@ -257,20 +318,22 @@ object ArchiveMetadataSchedulerActor {
     }
   }
 
-  final class RowsCounterAndProgressiveLogger(logFunction: (Long, Long) => Unit, logInterval: Int) {
-    private var rowsSinceLog: Long = 0
-    private var totalRows: Long = 0
+  final class CounterAndProgressiveLogger(logFunction: (Long, Long) => Unit, logInterval: Int) {
+    private var countSinceLog: Long = 0
+    private var totalCount: Long = 0
 
     def increment(): Unit = {
-      rowsSinceLog = rowsSinceLog + 1
-      totalRows = totalRows + 1
-      if (rowsSinceLog >= logInterval) {
-        logFunction(rowsSinceLog, totalRows)
-        rowsSinceLog = 0
+      countSinceLog = countSinceLog + 1
+      totalCount = totalCount + 1
+      if (countSinceLog >= logInterval) {
+        logFunction(countSinceLog, totalCount)
+        countSinceLog = 0
       }
     }
-    def finalLog(): Unit = {
-      logFunction(rowsSinceLog, totalRows)
+    def manualLog(): Unit = {
+      logFunction(countSinceLog, totalCount)
+      countSinceLog = 0
     }
+    def getTotalCount: Long = totalCount
   }
 }

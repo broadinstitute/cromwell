@@ -125,7 +125,7 @@ object MetadataService {
 
   final case class ValidateWorkflowIdInMetadata(possibleWorkflowId: WorkflowId) extends MetadataServiceAction
   final case class ValidateWorkflowIdInMetadataSummaries(possibleWorkflowId: WorkflowId) extends MetadataServiceAction
-  final case class FetchWorkflowMetadataArchiveStatus(workflowId: WorkflowId) extends MetadataServiceAction
+  final case class FetchWorkflowMetadataArchiveStatusAndEndTime(workflowId: WorkflowId) extends MetadataServiceAction
 
   /**
     * Responses
@@ -166,9 +166,9 @@ object MetadataService {
   case object UnrecognizedWorkflowId extends WorkflowValidationResponse
   final case class FailedToCheckWorkflowId(cause: Throwable) extends WorkflowValidationResponse
 
-  sealed abstract class FetchWorkflowArchiveStatusResponse extends MetadataServiceResponse
-  final case class WorkflowMetadataArchivedStatus(archiveStatus: MetadataArchiveStatus) extends FetchWorkflowArchiveStatusResponse
-  final case class FailedToGetArchiveStatus(reason: Throwable) extends FetchWorkflowArchiveStatusResponse
+  sealed abstract class FetchWorkflowArchiveStatusAndEndTimeResponse extends MetadataServiceResponse
+  final case class WorkflowMetadataArchivedStatusAndEndTime(archiveStatus: MetadataArchiveStatus, endTime: Option[OffsetDateTime]) extends FetchWorkflowArchiveStatusAndEndTimeResponse
+  final case class FailedToGetArchiveStatusAndEndTime(reason: Throwable) extends FetchWorkflowArchiveStatusAndEndTimeResponse
 
   sealed abstract class MetadataQueryResponse extends MetadataServiceResponse
   final case class WorkflowQuerySuccess(response: WorkflowQueryResponse, meta: Option[QueryMetadata]) extends MetadataQueryResponse
@@ -183,12 +183,12 @@ object MetadataService {
         .flatMap { case (value, index) => womValueToMetadataEvents(metadataKey.copy(key = s"${metadataKey.key}[$index]"), value) }
     }
   }
-  
+
   private def toPrimitiveEvent(metadataKey: MetadataKey, valueName: String)(value: Option[Any]) = value match {
     case Some(v) => MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:$valueName"), MetadataValue(v))
     case None => MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:$valueName"), MetadataValue("", MetadataNull))
   }
-  
+
   def womValueToMetadataEvents(metadataKey: MetadataKey, womValue: WomValue): Iterable[MetadataEvent] = womValue match {
     case WomArray(_, valueSeq) => valueSeq.toEvents(metadataKey)
     case WomMap(_, valueMap) =>

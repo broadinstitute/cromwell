@@ -128,7 +128,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   }
 
   override def streamMetadataEntries(workflowExecutionUuid: String): DatabasePublisher[MetadataEntry] = {
-    val action = dataAccess.metadataEntriesForWorkflowExecutionUuid(workflowExecutionUuid)
+    val action = dataAccess.metadataEntriesForWorkflowSortedById(workflowExecutionUuid)
       .result
       .withStatementParameters(
         rsType = ResultSetType.ForwardOnly,
@@ -463,7 +463,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   override def deleteAllMetadataForWorkflowAndUpdateArchiveStatus(workflowId: String, newArchiveStatus: Option[String])(implicit ec: ExecutionContext): Future[Int] = {
     runTransaction {
       for {
-        numDeleted <- dataAccess.metadataEntriesForWorkflowExecutionUuid(workflowId).delete
+        numDeleted <- dataAccess.metadataEntriesForWorkflowSortedById(workflowId).delete
         _ <- dataAccess.metadataArchiveStatusByWorkflowId(workflowId).update(newArchiveStatus)
       } yield numDeleted
     }
@@ -486,9 +486,9 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       countSummaryQueueEntries()
     )
 
-  override def getMetadataArchiveStatus(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = {
-    val action = dataAccess.metadataArchiveStatusByWorkflowId(workflowId).result.headOption
-    runTransaction(action).map(_.flatten)
+  override def getMetadataArchiveStatusAndEndTime(workflowId: String)(implicit ec: ExecutionContext):  Future[(Option[String], Option[Timestamp])] = {
+    val action = dataAccess.metadataArchiveStatusAndEndTimeByWorkflowId(workflowId).result.headOption
+    runTransaction(action).map(_.getOrElse((None, None)))
   }
 
   override def queryWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],

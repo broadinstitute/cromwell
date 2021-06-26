@@ -16,7 +16,7 @@ import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService.{QueryMetadata, WorkflowQueryResponse}
 import cromwell.services.metadata._
-import cromwell.services.metadata.impl.MetadataDatabaseAccess.SummaryResult
+import cromwell.services.metadata.impl.MetadataDatabaseAccess._
 import mouse.boolean._
 import slick.basic.DatabasePublisher
 
@@ -84,7 +84,8 @@ object MetadataDatabaseAccess {
     }
   }
 
-  case class SummaryResult(rowsProcessedIncreasing: Long, rowsProcessedDecreasing: Long, decreasingGap: Long)
+  final case class SummaryResult(rowsProcessedIncreasing: Long, rowsProcessedDecreasing: Long, decreasingGap: Long)
+  final case class WorkflowArchiveStatusAndEndTimestamp(archiveStatus: Option[String], endTimestamp: Option[OffsetDateTime])
 }
 
 trait MetadataDatabaseAccess {
@@ -362,8 +363,10 @@ trait MetadataDatabaseAccess {
   def getSummaryQueueSize()(implicit ec: ExecutionContext): Future[Int] =
     metadataDatabaseInterface.getSummaryQueueSize()
 
-  def getMetadataArchiveStatus(id: WorkflowId)(implicit ec: ExecutionContext): Future[Option[String]] = {
-    metadataDatabaseInterface.getMetadataArchiveStatus(id.toString)
+  def getMetadataArchiveStatusAndEndTime(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowArchiveStatusAndEndTimestamp] = {
+    metadataDatabaseInterface.getMetadataArchiveStatusAndEndTime(id.toString).map {
+      case (statusOption, timestampOption) => WorkflowArchiveStatusAndEndTimestamp(statusOption, timestampOption.map(_.toSystemOffsetDateTime))
+    }
   }
 
   def queryWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],

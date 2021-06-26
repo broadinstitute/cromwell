@@ -1,7 +1,7 @@
 import ContinuousIntegration._
 import Dependencies._
 import GenerateRestApiDocs._
-import Merging.customMergeStrategy
+import Merging._
 import Publishing._
 import Testing._
 import Version._
@@ -12,13 +12,6 @@ import sbtassembly.AssemblyPlugin.autoImport._
 import sbtdocker.{DockerPlugin, Instruction, Instructions}
 
 object Settings {
-
-  val commonResolvers = List(
-    Resolver.jcenterRepo,
-    "Broad Artifactory Releases" at "https://broadinstitute.jfrog.io/broadinstitute/libs-release/",
-    "Broad Artifactory Snapshots" at "https://broadinstitute.jfrog.io/broadinstitute/libs-snapshot/",
-    Resolver.sonatypeRepo("releases")
-  )
 
   /* The reason why -Xmax-classfile-name is set is because this will fail
      to build on Docker otherwise.  The reason why it's 200 is because it
@@ -92,12 +85,12 @@ object Settings {
   )
 
   val Scala2_12Version = "2.12.14"
-  private val ScalaVersion = Scala2_12Version
-  private val sharedSettings =
-    cromwellVersionWithGit ++ artifactorySettings ++ List(
+  private val ScalaVersion: String = Scala2_12Version
+  private val sharedSettings: Seq[Setting[_]] =
+    cromwellVersionWithGit ++ publishingSettings ++ List(
     organization := "org.broadinstitute",
     scalaVersion := ScalaVersion,
-    resolvers ++= commonResolvers,
+    resolvers ++= additionalResolvers,
     // Don't run tasks in parallel, especially helps in low CPU environments like Travis
     Global / parallelExecution := false,
     Global / concurrentRestrictions ++= List(
@@ -128,7 +121,7 @@ object Settings {
         - https://cromwell.readthedocs.io/en/develop/backends/Google/#issues-with-composite-files
         - https://cloud.google.com/storage/docs/gsutil/addlhelp/CRC32CandInstallingcrcmod
    */
-  val installGcloudSettings: Seq[Setting[Seq[Instruction]]] = List(
+  val installGcloudSettings: List[Setting[Seq[Instruction]]] = List(
     dockerCustomSettings := List(
       Instructions.Env("PATH", "$PATH:/usr/local/gcloud/google-cloud-sdk/bin"),
       // instructions to install `crcmod`
@@ -150,9 +143,9 @@ object Settings {
 
   val swaggerUiSettings = List(Compile / resourceGenerators += writeSwaggerUiVersionConf)
   val backendSettings = List(addCompilerPlugin(kindProjectorPlugin))
-  val engineSettings: Seq[Setting[_]] = swaggerUiSettings
-  val cromiamSettings: Seq[Setting[_]] = swaggerUiSettings
-  val drsLocalizerSettings: Seq[Setting[_]] = installGcloudSettings
+  val engineSettings: List[Setting[_]] = swaggerUiSettings
+  val cromiamSettings: List[Setting[_]] = swaggerUiSettings
+  val drsLocalizerSettings: List[Setting[_]] = installGcloudSettings
 
   private def buildProject(project: Project,
                            projectName: String,
@@ -225,7 +218,7 @@ object Settings {
           .settings(publish := {})
           .settings(generateRestApiDocsSettings)
           .settings(ciSettings)
-          .settings(rootArtifactorySettings)
+          .settings(rootPublishingSettings)
       )
 
       buildProject(project, "root", Nil, builders)

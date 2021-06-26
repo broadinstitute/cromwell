@@ -1087,10 +1087,6 @@ cromwell::private::render_secure_resources() {
     # Avoid docker output to sbt's stderr by pulling the image here
     docker pull broadinstitute/dsde-toolbox:dev | cat
     # Copy the CI resources, then render the secure resources using Vault
-
-    # Cosmetic: run this first so that renderCiResources doesn't write the docker pull output to SBT's standard error
-    docker pull broadinstitute/dsde-toolbox:dev
-
     sbt -Dsbt.supershell=false --warn renderCiResources \
     || if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
         echo

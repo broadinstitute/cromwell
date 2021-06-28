@@ -68,9 +68,9 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
   private val metadataTableMetricsInterval = serviceConfig.getOrElse[FiniteDuration]("table-size-metrics-interval", 1.hour)
 
   private val metadataTableMetricsPath: NonEmptyList[String] = MetadataServiceActor.MetadataInstrumentationPrefix :+ "table"
-  private val dataFreeMetricsPath: NonEmptyList[String] = metadataTableMetricsPath :+ "data_free_in_gb"
-  private val dataLengthMetricsPath: NonEmptyList[String] = metadataTableMetricsPath :+ "data_length_in_gb"
-  private val indexLengthMetricsPath:  NonEmptyList[String] = metadataTableMetricsPath :+ "index_length_in_gb"
+  private val dataFreeMetricsPath: NonEmptyList[String] = metadataTableMetricsPath :+ "data_free_in_gib"
+  private val dataLengthMetricsPath: NonEmptyList[String] = metadataTableMetricsPath :+ "data_length_in_gib"
+  private val indexLengthMetricsPath:  NonEmptyList[String] = metadataTableMetricsPath :+ "index_length_in_gib"
 
   def readMetadataWorkerActorProps(): Props =
     ReadDatabaseMetadataWorkerActor

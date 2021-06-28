@@ -111,12 +111,12 @@ object StandardCacheHitCopyingActor {
   private[callcaching] case object AllCommandsDone extends CommandSetState
   private[callcaching] case class NextSubSet(commands: Set[IoCommand[_]]) extends CommandSetState
 
-  private val WorkspaceRegex: Regex = "^gs://(fc-[-0-9a-f]+).*".r
+  private val BucketRegex: Regex = "^gs://([^/]+).*".r
 
   implicit class EnhancedIoCopyCommand(val command: IoCopyCommand) extends AnyVal {
-    def isCopyWithinWorkspace: Boolean = {
+    def isCopyWithinBucket: Boolean = {
       (command.source.pathAsString, command.destination.pathAsString) match {
-        case (WorkspaceRegex(source), WorkspaceRegex(destination)) => source == destination
+        case (BucketRegex(source), BucketRegex(destination)) => source == destination
         case _ => false
       }
     }
@@ -236,8 +236,8 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
           // This is looking at the "before" data that should contain the last IoCommand we were waiting for.
           data.commandsToWaitFor.flatten.headOption match {
             case Some(command: IoCopyCommand) =>
-              if (command.isCopyWithinWorkspace) {
-                log.info(s"BT-322 $jobTag cache hit within the same workspace: ${command.source.pathAsString} -> ${command.destination.pathAsString}")
+              if (command.isCopyWithinBucket) {
+                log.info(s"BT-322 $jobTag cache hit copy within the same bucket: ${command.source.pathAsString} -> ${command.destination.pathAsString}")
               }
             case huh =>
               log.warning(s"BT-322 $jobTag unexpected commandsToWaitFor: $huh")

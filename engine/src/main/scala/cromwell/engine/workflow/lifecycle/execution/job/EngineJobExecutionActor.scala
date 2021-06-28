@@ -495,7 +495,9 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       // If the job is eligible, initialize job hashing and go to CheckingCallCache state
       case eligible: CallCachingEligible =>
         initializeJobHashing(jobDescriptor, activity, eligible) match {
-          case Success(ejha) => goto(CheckingCallCache) using updatedData.withEJHA(ejha)
+          case Success(ejha) =>
+            log.info(s"BT-322 $jobTag is eligible for call cache reading")
+            goto(CheckingCallCache) using updatedData.withEJHA(ejha)
           case Failure(failure) => respondAndStop(JobFailedNonRetryableResponse(jobDescriptorKey, failure, None))
         }
       case _ =>
@@ -707,6 +709,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     val metadataMap = Map(callCachingHitResultMetadataKey -> true) ++ data.ejeaCacheHit.flatMap(_.details).map(details => callCachingReadResultMetadataKey -> s"Cache Hit: $details").toMap
 
     writeToMetadata(metadataMap)
+
+    log.info(s"BT-322 $jobTag successfully call cached")
 
     val totalFailures = data.cacheHitFailureCount
     if (totalFailures > 0) {

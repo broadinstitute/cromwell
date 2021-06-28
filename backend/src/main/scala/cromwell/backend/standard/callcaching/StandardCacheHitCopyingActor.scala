@@ -1,7 +1,5 @@
 package cromwell.backend.standard.callcaching
 
-import java.util.concurrent.TimeoutException
-
 import akka.actor.{ActorRef, FSM}
 import cats.implicits._
 import cromwell.backend.BackendCacheHitCopyingActor._
@@ -21,6 +19,8 @@ import cromwell.services.CallCaching.CallCachingEntryId
 import cromwell.services.instrumentation.CromwellInstrumentationActor
 import wom.values.WomSingleFile
 
+import java.util.concurrent.TimeoutException
+import scala.util.matching.Regex
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -111,6 +111,16 @@ object StandardCacheHitCopyingActor {
   private[callcaching] case object AllCommandsDone extends CommandSetState
   private[callcaching] case class NextSubSet(commands: Set[IoCommand[_]]) extends CommandSetState
 
+  private val WorkspaceRegex: Regex = "^gs://(fc-[-0-9a-f]+).*".r
+
+  implicit class EnhancedIoCopyCommand(val command: IoCopyCommand) extends AnyVal {
+    def isCopyWithinWorkspace: Boolean = {
+      (command.source.pathAsString, command.destination.pathAsString) match {
+        case (WorkspaceRegex(source), WorkspaceRegex(destination)) => source == destination
+        case _ => false
+      }
+    }
+  }
 }
 
 class DefaultStandardCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams) extends StandardCacheHitCopyingActor(standardParams)
@@ -223,6 +233,15 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
         case StillWaiting => stay() using Option(newData)
         case AllCommandsDone =>
           handleWhitelistingForSuccess(command)
+          // This is looking at the "before" data that should contain the last IoCommand we were waiting for.
+          data.commandsToWaitFor.flatten.headOption match {
+            case Some(command: IoCopyCommand) =>
+              if (command.isCopyWithinWorkspace) {
+                log.info(s"BT-322 $jobTag cache hit within the same workspace: ${command.source.pathAsString} -> ${command.destination.pathAsString}")
+              }
+            case huh =>
+              log.warning(s"BT-322 $jobTag unexpected commandsToWaitFor: $huh")
+          }
           succeedAndStop(newData.returnCode, newData.newJobOutputs, newData.newDetritus)
         case NextSubSet(commands) =>
           commands foreach sendIoCommand

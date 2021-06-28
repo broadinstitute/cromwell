@@ -9,7 +9,7 @@ import cromwell.database.slick.tables.MetadataDataAccessComponent
 import cromwell.database.sql.MetadataSqlDatabase
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, MetadataJobQueryValue, WorkflowQuery}
-import cromwell.database.sql.tables.{CustomLabelEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
+import cromwell.database.sql.tables.{CustomLabelEntry, InformationSchemaEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
 import slick.basic.DatabasePublisher
 import slick.jdbc.{ResultSetConcurrency, ResultSetType}
 
@@ -510,5 +510,9 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runAction(
       dataAccess.countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(workflowEndTimestampThreshold).result
     )
+  }
+
+  override def getMetadataTableSizeInformation()(implicit ec: ExecutionContext): Future[InformationSchemaEntry] = {
+    runAction(dataAccess.metadataTableSizeInformation())
   }
 }

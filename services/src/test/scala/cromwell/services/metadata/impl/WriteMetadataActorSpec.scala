@@ -8,7 +8,7 @@ import cats.data.NonEmptyVector
 import com.typesafe.config.ConfigFactory
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.database.sql.joins.MetadataJobQueryValue
-import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
+import cromwell.database.sql.tables.{InformationSchemaEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
 import cromwell.database.sql.{MetadataSqlDatabase, SqlDatabase}
 import cromwell.services.metadata.MetadataService.{MetadataWriteAction, MetadataWriteFailure, MetadataWriteSuccess, PutMetadataAction, PutMetadataActionAndRespond}
 import cromwell.services.metadata.impl.WriteMetadataActorSpec.BatchSizeCountingWriteMetadataActor
@@ -305,6 +305,8 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
     override def countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String], workflowEndTimestampThreshold: Timestamp)(implicit ec: ExecutionContext): Future[Int] = notImplemented()
 
     override def countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(workflowEndTimestampThreshold: Timestamp)(implicit ec: ExecutionContext): Future[Int] = notImplemented()
+
+    override def getMetadataTableSizeInformation()(implicit ec: ExecutionContext): Future[InformationSchemaEntry] = notImplemented()
   }
 }
 

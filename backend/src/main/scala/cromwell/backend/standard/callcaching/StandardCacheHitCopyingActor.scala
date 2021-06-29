@@ -112,15 +112,6 @@ object StandardCacheHitCopyingActor {
   private[callcaching] case class NextSubSet(commands: Set[IoCommand[_]]) extends CommandSetState
 
   private val BucketRegex: Regex = "^gs://([^/]+).*".r
-
-  implicit class EnhancedIoCopyCommand(val command: IoCopyCommand) extends AnyVal {
-    def isCopyWithinBucket: Boolean = {
-      (command.source.pathAsString, command.destination.pathAsString) match {
-        case (BucketRegex(source), BucketRegex(destination)) => source == destination
-        case _ => false
-      }
-    }
-  }
 }
 
 class DefaultStandardCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams) extends StandardCacheHitCopyingActor(standardParams)
@@ -236,9 +227,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
           // This is looking at the "before" data that should contain the last IoCommand we were waiting for.
           data.commandsToWaitFor.flatten.headOption match {
             case Some(command: IoCopyCommand) =>
-              if (command.isCopyWithinBucket) {
-                log.info(s"BT-322 $jobTag cache hit copy within the same bucket: ${command.source.pathAsString} -> ${command.destination.pathAsString}")
-              }
+              logCacheHitCopyCommand(command)
             case huh =>
               log.warning(s"BT-322 $jobTag unexpected commandsToWaitFor: $huh")
           }
@@ -307,6 +296,16 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     } yield()
     andThen
   }
+
+  private def logCacheHitCopyCommand(command: IoCopyCommand): Unit =
+    (command.source.pathAsString, command.destination.pathAsString) match {
+      case (BucketRegex(source), BucketRegex(destination)) =>
+        if (source == destination)
+          log.info(s"BT-322 $jobTag cache hit copy within bucket: $source -> $destination")
+        else
+          log.info(s"BT-322 $jobTag cache hit copy across buckets: $source -> $destination")
+      case _ =>
+    }
 
   def succeedAndStop(returnCode: Option[Int], copiedJobOutputs: CallOutputs, detritusMap: DetritusMap): State = {
     import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter

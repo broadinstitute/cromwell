@@ -512,7 +512,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     )
   }
 
-  override def getMetadataTableSizeInformation()(implicit ec: ExecutionContext): Future[InformationSchemaEntry] = {
+  override def getMetadataTableSizeInformation()(implicit ec: ExecutionContext): Future[Option[InformationSchemaEntry]] = {
     runAction(dataAccess.metadataTableSizeInformation())
   }
 }

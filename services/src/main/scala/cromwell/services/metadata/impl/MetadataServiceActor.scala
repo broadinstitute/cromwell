@@ -68,9 +68,9 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
   private val metadataTableMetricsInterval = serviceConfig.getOrElse[FiniteDuration]("table-size-metrics-interval", 1.hour)
 
   private val metadataTableMetricsPath: NonEmptyList[String] = MetadataServiceActor.MetadataInstrumentationPrefix :+ "table"
-  private val dataFreeMetricsPath: NonEmptyList[String] = metadataTableMetricsPath :+ "data_free_in_gib"
-  private val dataLengthMetricsPath: NonEmptyList[String] = metadataTableMetricsPath :+ "data_length_in_gib"
-  private val indexLengthMetricsPath:  NonEmptyList[String] = metadataTableMetricsPath :+ "index_length_in_gib"
+  private val dataFreeMetricsPath: NonEmptyList[String] = metadataTableMetricsPath :+ "data_free"
+  private val dataLengthMetricsPath: NonEmptyList[String] = metadataTableMetricsPath :+ "data_length"
+  private val indexLengthMetricsPath:  NonEmptyList[String] = metadataTableMetricsPath :+ "index_length"
 
   def readMetadataWorkerActorProps(): Props =
     ReadDatabaseMetadataWorkerActor
@@ -178,12 +178,14 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
   }
 
   private def sendMetadataTableSizeMetrics(): Unit = {
-    def convertToGiB(bytes: Long): Long = bytes / (1024 * 1024 * 1024)
-
-    getMetadataTableSizeInformation foreach { v =>
-      sendGauge(dataLengthMetricsPath, convertToGiB(v.dataLength))
-      sendGauge(indexLengthMetricsPath, convertToGiB(v.indexLength))
-      sendGauge(dataFreeMetricsPath, convertToGiB(v.dataFree))
+    getMetadataTableSizeInformation onComplete {
+      case Success(v) =>
+        v foreach { d =>
+          sendGauge(dataLengthMetricsPath, d.dataLength)
+          sendGauge(indexLengthMetricsPath, d.indexLength)
+          sendGauge(dataFreeMetricsPath, d.dataFree)
+        }
+      case Failure(e) => log.error(e, s"Error fetching metadata table size metrics. Will try again in $metadataTableMetricsInterval...")
     }
   }
 

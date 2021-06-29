@@ -381,5 +381,5 @@ trait MetadataDatabaseAccess {
   def countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(workflowEndTimestampThreshold: OffsetDateTime)(implicit ec: ExecutionContext): Future[Int] =
     metadataDatabaseInterface.countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(workflowEndTimestampThreshold.toSystemTimestamp)
 
-  def getMetadataTableSizeInformation()(implicit ec: ExecutionContext): Future[InformationSchemaEntry] = metadataDatabaseInterface.getMetadataTableSizeInformation()
+  def getMetadataTableSizeInformation()(implicit ec: ExecutionContext): Future[Option[InformationSchemaEntry]] = metadataDatabaseInterface.getMetadataTableSizeInformation()
 }

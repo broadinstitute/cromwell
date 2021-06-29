@@ -307,7 +307,7 @@ trait MetadataEntryComponent {
          """.stripMargin
     query.as[InformationSchemaEntry](rconv = GetResult { r =>
       InformationSchemaEntry(r.<<, r.<<, r.<<)
-    }).head
+    }).headOption
   }
 
   private[this] def metadataEntryHasMetadataKeysLike(metadataEntry: MetadataEntries,

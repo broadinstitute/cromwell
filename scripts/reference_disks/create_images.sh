@@ -312,7 +312,7 @@ create_images() {
     export CLOUDSDK_COMPUTE_ZONE
 
     # Get a list of image name prefixes, excluding 'none'
-    image_name_prefixes=$(cut -f 3 "$image_tsv" | grep -v '^none$' | sort | uniq)
+    image_name_prefixes=$(cut -f 3 "$image_tsv" | grep -v '^none$' | sort -u)
 
     echo "Checking for existing resources..."
     for image_name_prefix in $image_name_prefixes; do

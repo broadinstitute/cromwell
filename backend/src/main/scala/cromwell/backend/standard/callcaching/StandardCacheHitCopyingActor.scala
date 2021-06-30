@@ -301,7 +301,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     (command.source.pathAsString, command.destination.pathAsString) match {
       case (BucketRegex(source), BucketRegex(destination)) =>
         if (source == destination)
-          log.info(s"BT-322 $jobTag cache hit copy within bucket: $source -> $destination")
+          log.info(s"BT-322 $jobTag cache hit copy within bucket: $source")
         else
           log.info(s"BT-322 $jobTag cache hit copy across buckets: $source -> $destination")
       case _ =>

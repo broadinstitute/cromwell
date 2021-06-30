@@ -814,15 +814,17 @@ object WorkflowExecutionActor {
     */
   private case object ExecutionHeartBeatKey
 
+  sealed trait SubWorkflowTerminalStateResponse { def jobExecutionMap: JobExecutionMap }
+
   case class SubWorkflowSucceededResponse(key: SubWorkflowKey,
                                           jobExecutionMap: JobExecutionMap,
                                           rootAndSubworklowIds: Set[WorkflowId],
                                           outputs: CallOutputs,
-                                          cumulativeOutputs: Set[WomValue] = Set.empty)
+                                          cumulativeOutputs: Set[WomValue] = Set.empty) extends SubWorkflowTerminalStateResponse
 
-  case class SubWorkflowFailedResponse(key: SubWorkflowKey, jobExecutionMap: JobExecutionMap, reason: Throwable)
+  case class SubWorkflowFailedResponse(key: SubWorkflowKey, jobExecutionMap: JobExecutionMap, reason: Throwable) extends SubWorkflowTerminalStateResponse
 
-  case class SubWorkflowAbortedResponse(key: SubWorkflowKey, jobExecutionMap: JobExecutionMap)
+  case class SubWorkflowAbortedResponse(key: SubWorkflowKey, jobExecutionMap: JobExecutionMap) extends SubWorkflowTerminalStateResponse
 
   case class WorkflowExecutionActorParams(
                                            workflowDescriptor: EngineWorkflowDescriptor,

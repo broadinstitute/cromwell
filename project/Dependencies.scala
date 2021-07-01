@@ -8,7 +8,7 @@ object Dependencies {
   private val aliyunCoreV = "4.5.20"
   private val aliyunCrV = "4.1.1"
   private val aliyunOssV = "3.11.3"
-  private val ammoniteOpsV = "2.3.8"
+  private val ammoniteOpsV = "2.4.0"
   private val apacheCommonNetV = "3.8.0"
   private val apacheHttpClientV = "4.5.13"
   private val awsSdkV = "2.15.41" // scala-steward:off (CROM-6776)

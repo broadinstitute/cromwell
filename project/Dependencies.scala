@@ -58,7 +58,7 @@ object Dependencies {
   private val http4sVersion = "0.21.7" // scala-steward:off (CROM-6678)
   private val jacksonV = "2.12.2"
   private val jacksonJqV = "1.0.0-preview.20201123"
-  private val janinoV = "3.1.3"
+  private val janinoV = "3.1.4"
   private val javaxActivationV = "1.2.0"
   // jaxb-impl 2.3.3 depends on com.sun.activation:jakarta.activation and jakarta.xml.bind:jakarta.xml.bind-api,
   // which jaxb-impl 2.3.2 did not. jakarta.activation corresponds to the "updated" Maven coordinates for the Java

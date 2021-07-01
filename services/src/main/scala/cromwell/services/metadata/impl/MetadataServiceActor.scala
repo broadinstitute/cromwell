@@ -64,8 +64,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
   private val metadataReadRowNumberSafetyThreshold: Int =
     serviceConfig.getOrElse[Int]("metadata-read-row-number-safety-threshold", 1000000)
 
-  private val metadataTableMetricsInitialDelay = serviceConfig.getOrElse[FiniteDuration]("table-size-metrics-initial-delay", 5.minutes)
-  private val metadataTableMetricsInterval = serviceConfig.getOrElse[FiniteDuration]("table-size-metrics-interval", 1.hour)
+  private val metadataTableMetricsInterval: Option[FiniteDuration] = serviceConfig.getAs[FiniteDuration]("metadata-table-metrics-interval")
 
   private val metadataTableMetricsPath: NonEmptyList[String] = MetadataServiceActor.MetadataInstrumentationPrefix :+ "table"
   private val dataFreeMetricsPath: NonEmptyList[String] = metadataTableMetricsPath :+ "data_free"
@@ -99,7 +98,8 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
 
   private val deleteMetadataActor: Option[ActorRef] = buildDeleteMetadataActor
 
-  context.system.scheduler.schedule(metadataTableMetricsInitialDelay, metadataTableMetricsInterval, self, SendMetadataTableSizeMetrics)(context.dispatcher, self)
+  // if `metadata-table-size-metrics-interval` is specified, schedule sending size metrics at that interval
+  metadataTableMetricsInterval.map(context.system.scheduler.schedule(1.minute, _, self, SendMetadataTableSizeMetrics)(context.dispatcher, self))
 
   private def scheduleSummary(): Unit = {
     metadataSummaryRefreshInterval foreach { interval =>

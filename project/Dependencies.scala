@@ -109,7 +109,7 @@ object Dependencies {
   private val scalazV = "7.3.3"
   private val scoptV = "4.0.1"
   private val sentryLogbackV = "1.7.30" // scala-steward:off (CROM-6640)
-  private val shapelessV = "2.3.3"
+  private val shapelessV = "2.3.7"
   private val simulacrumV = "1.0.1"
   private val slf4jV = "1.7.30"
   private val slickCatsV = "0.10.4"

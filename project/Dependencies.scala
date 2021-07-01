@@ -37,7 +37,7 @@ object Dependencies {
   // undertaking, resulting in some thoroughly broken statsd proxy code. As this component lacks tests and is
   // probably not the most important corner of the Cromwell repo, going to punt on this for now.
   private val fs2VStatsDProxy = "1.0.5" // scala-steward:off
-  private val googleApiClientV = "1.31.3"
+  private val googleApiClientV = "1.32.1"
   private val googleCloudBigQueryV = "1.127.11"
   private val googleCloudKmsV = "v1-rev20210312-1.31.0"
   private val googleCloudMonitoringV = "2.0.14"

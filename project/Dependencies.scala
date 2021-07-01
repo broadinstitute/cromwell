@@ -19,7 +19,7 @@ object Dependencies {
   private val circeGenericExtrasV = "0.13.0"
   private val circeOpticsV = "0.13.0"
   private val circeV = "0.13.0"
-  private val circeYamlV = "0.13.1"
+  private val circeYamlV = "0.14.0"
   private val commonsCodecV = "1.15"
   private val commonsIoV = "2.8.0"
   private val commonsLang3V = "3.11"

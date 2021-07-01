@@ -79,7 +79,7 @@ object Dependencies {
   // Pinning Liquibase version for the time being.
   private val liquibaseV = "3.6.3" // scala-steward:off
   private val logbackV = "1.2.3"
-  private val lz4JavaV = "1.7.1"
+  private val lz4JavaV = "1.8.0"
   private val mariadbV = "2.7.2"
   private val metrics3ScalaV = "4.0.0" // https://github.com/erikvanoosten/metrics-scala/tree/f733e26#download-4x
   private val metrics3StatsdV = "4.2.0"

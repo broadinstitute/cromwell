@@ -98,7 +98,7 @@ object Dependencies {
   private val refinedV = "0.9.22"
   private val rhinoV = "1.7.13"
   private val scalaGraphV = "1.13.1"
-  private val scalaLoggingV = "3.9.3"
+  private val scalaLoggingV = "3.9.4"
   private val scalaPoolV = "0.4.3"
   private val scalacheckV = "1.15.3"
   private val scalacticV = "3.2.6"

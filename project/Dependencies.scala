@@ -124,7 +124,7 @@ object Dependencies {
     * Related Slick PR: https://github.com/slick/slick/pull/2101
   */
   private val slickV = "3.3.2-2076hotfix" // scala-steward:off (CROM-6620)
-  private val snakeyamlV = "1.28"
+  private val snakeyamlV = "1.29"
   private val specs2MockV = "4.10.6"
   private val sprayJsonV = "1.3.6"
   private val sttpV = "1.5.19" // scala-steward:off (CROM-6564)

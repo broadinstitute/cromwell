@@ -101,7 +101,7 @@ object Dependencies {
   private val scalaLoggingV = "3.9.3"
   private val scalaPoolV = "0.4.3"
   private val scalacheckV = "1.15.3"
-  private val scalacticV = "3.2.6"
+  private val scalacticV = "3.2.9"
   private val scalameterV = "0.19"
   private val scalamockV = "5.1.0"
   private val scalatestV = "3.2.6"

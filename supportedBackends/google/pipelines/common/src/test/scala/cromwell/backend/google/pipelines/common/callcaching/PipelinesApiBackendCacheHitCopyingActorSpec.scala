@@ -15,7 +15,7 @@ import cromwell.backend.validation.ValidatedRuntimeAttributes
 import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core._
 import cromwell.core.callcaching.DockerWithHash
-import cromwell.core.io.DefaultIoCommand.DefaultIoCopyCommand
+import cromwell.core.io.DefaultIoCommand.{DefaultIoCopyCommand, DefaultIoLocationCommand}
 import cromwell.core.io.{IoFailure, IoReadForbiddenFailure, IoSuccess}
 import cromwell.core.path.Path
 import cromwell.services.CallCaching.CallCachingEntryId
@@ -84,7 +84,8 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
         fakeIoActor = ioActor,
         fakeServiceRegistryActor = serviceRegistryActor,
         supervisor = supervisor,
-        grouping = grouping)
+        grouping = grouping,
+        workflowOptions = Map("jes_gcs_root" -> "foo"))
 
       val copyCommand = buildCopyCommand(hitId = 0, bucket = WideOpenBucket)
       supervisor watch copyActor
@@ -92,7 +93,7 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
       copyActor ! copyCommand
 
       eventually {
-        copyActor.underlyingActor.stateName shouldBe WaitingForIoResponses
+        copyActor.underlyingActor.stateName shouldBe WaitingForCopyIoResponses
       }
 
       ioActor.expectMsgPF(5 seconds) {
@@ -133,7 +134,8 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
         fakeIoActor = ioActor,
         fakeServiceRegistryActor = serviceRegistryActor,
         supervisor = supervisor,
-        grouping = grouping)
+        grouping = grouping,
+        workflowOptions = Map("jes_gcs_root" -> "foo"))
 
       val command = buildCopyCommand(hitId = 1, bucket = LockedDownBucket)
       supervisor watch copyActor
@@ -141,7 +143,7 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
       copyActor ! command
 
       eventually {
-        copyActor.underlyingActor.stateName shouldBe WaitingForIoResponses
+        copyActor.underlyingActor.stateName shouldBe WaitingForCopyIoResponses
       }
 
       ioActor.expectMsgPF(5 seconds) {
@@ -191,7 +193,8 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
         fakeIoActor = ioActor,
         fakeServiceRegistryActor = serviceRegistryActor,
         supervisor = supervisor,
-        grouping = grouping)
+        grouping = grouping,
+        workflowOptions = Map("jes_gcs_root" -> "foo"))
 
       supervisor watch copyActor
 
@@ -232,7 +235,8 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
         fakeIoActor = ioActor,
         fakeServiceRegistryActor = serviceRegistryActor,
         supervisor = supervisor,
-        grouping = grouping)
+        grouping = grouping,
+        workflowOptions = Map("jes_gcs_root" -> "foo"))
 
       supervisor watch copyActor
 
@@ -240,7 +244,7 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
       copyActor ! command
 
       eventually {
-        copyActor.underlyingActor.stateName shouldBe WaitingForIoResponses
+        copyActor.underlyingActor.stateName shouldBe WaitingForCopyIoResponses
       }
 
       ioActor.expectMsgPF(5 seconds) {
@@ -284,7 +288,8 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
         fakeIoActor = ioActor,
         fakeServiceRegistryActor = serviceRegistryActor,
         supervisor = supervisor,
-        grouping = grouping)
+        grouping = grouping,
+        workflowOptions = Map("jes_gcs_root" -> "foo"))
 
       supervisor watch copyActor
 
@@ -326,7 +331,8 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
         fakeIoActor = ioActor,
         fakeServiceRegistryActor = serviceRegistryActor,
         supervisor = supervisor,
-        grouping = grouping)
+        grouping = grouping,
+        workflowOptions = Map("jes_gcs_root" -> "foo"))
 
       supervisor watch copyActor
 
@@ -357,6 +363,88 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
       blacklistCache.hitCache.get(CallCachingEntryId(2)) shouldBe UntestedCacheResult
       blacklistCache.hitCache.get(CallCachingEntryId(3)) shouldBe BadCacheResult
       blacklistCache.hitCache.get(CallCachingEntryId(4)) shouldBe UntestedCacheResult
+    }
+  }
+
+  it should "do all the right things with location check enabled" in {
+
+    val configString =
+      """
+        |call-caching {
+        |  enabled: true
+        |  blacklist-cache {
+        |    enabled: true
+        |
+        |    groupings {
+        |      workflow-option: google_project
+        |    }
+        |  }
+        |}
+        |""".stripMargin
+
+    val blacklistManager = new CallCachingBlacklistManager(ConfigFactory.parseString(configString), NoLogging)
+    val grouping = Option(GoogleProject)
+    val workflow = buildWorkflow(grouping)
+    val blacklistCache = blacklistManager.blacklistCacheFor(workflow).get
+
+    {
+      // Step 0: a successful copy attempt.
+      val ioActor = TestProbe("ioActor")
+      val serviceRegistryActor = TestProbe("serviceRegistryActor")
+      val supervisor = TestProbe("supervisor")
+      val copyActor = buildCopyActor(
+        workflow = workflow,
+        blacklistCache = blacklistCache,
+        fakeIoActor = ioActor,
+        fakeServiceRegistryActor = serviceRegistryActor,
+        supervisor = supervisor,
+        grouping = grouping,
+        workflowOptions = Map("jes_gcs_root" -> "foo", "call_cache_egress" -> "none"))
+
+      val copyCommand = buildCopyCommand(hitId = 0, bucket = WideOpenBucket)
+      supervisor watch copyActor
+
+      copyActor ! copyCommand
+
+      eventually {
+        copyActor.underlyingActor.stateName shouldBe CheckingCacheHitLocation
+      }
+
+      ioActor.expectMsgPF(5 seconds) {
+        case ioCommand: DefaultIoLocationCommand =>
+          ioActor.reply(IoSuccess(ioCommand, "US"))
+      }
+
+      eventually {
+        copyActor.underlyingActor.stateName shouldBe CheckingCacheHitLocation
+      }
+
+      ioActor.expectMsgPF(5 seconds) {
+        case ioCommand: DefaultIoLocationCommand =>
+          ioActor.reply(IoSuccess(ioCommand, "US"))
+      }
+
+      eventually {
+        copyActor.underlyingActor.stateName shouldBe WaitingForCopyIoResponses
+      }
+
+      ioActor.expectMsgPF(5 seconds) {
+        case ioCommand: DefaultIoCopyCommand =>
+          ioActor.reply(IoSuccess(ioCommand, ()))
+      }
+
+      supervisor.expectMsgPF(5 seconds) { case _: JobSucceededResponse => }
+
+      val counts = instrumentationCounts(n = 4, serviceRegistryActor = serviceRegistryActor)
+      val (List(hitBegin, hitEnd), List(bucketBegin, bucketEnd)) = counts partition {
+        _.bucket.path.toList.contains("hit")
+      }
+
+      hitBegin.bucket.path.toList shouldBe expectedMetric(Hit, Read, UntestedCacheResult)
+      bucketBegin.bucket.path.toList shouldBe expectedMetric(Bucket, Read, UntestedCacheResult)
+
+      hitEnd.bucket.path.toList shouldBe expectedMetric(Hit, Write, GoodCacheResult)
+      bucketEnd.bucket.path.toList shouldBe expectedMetric(Bucket, Write, GoodCacheResult)
     }
   }
 
@@ -397,7 +485,9 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
                              fakeIoActor: TestProbe,
                              fakeServiceRegistryActor: TestProbe,
                              supervisor: TestProbe,
-                             grouping: Option[String]): TestFSMRefPipelinesApiBackendCacheHitCopyingActor = {
+                             grouping: Option[String],
+                             workflowOptions: Map[String, String]
+                           ): TestFSMRefPipelinesApiBackendCacheHitCopyingActor = {
     // Couldn't mock this, possibly due to the use of `Refined` in two parameters:
     //
     // Underlying exception : java.lang.IllegalArgumentException: Cannot cast to primitive type: int
@@ -452,13 +542,14 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
 
     val workflowDescriptor = mock[BackendWorkflowDescriptor]
     workflowDescriptor.id returns workflow.id
-    workflowDescriptor.workflowOptions returns WorkflowOptions.fromMap(Map("jes_gcs_root" -> "foo")).get
+    workflowDescriptor.workflowOptions returns WorkflowOptions.fromMap(workflowOptions).get
 
     val workflowPaths = mock[PipelinesApiWorkflowPaths]
     workflowPaths.standardStreamNameToFileNameMetadataMapper returns mapper
     workflowPaths.workflowRoot returns mock[Path]
     val pipelinesApiJobPaths = mock[PipelinesApiJobPaths]
     pipelinesApiJobPaths.workflowPaths returns workflowPaths
+    pipelinesApiJobPaths.detritusPaths returns Map(JobPaths.ReturnCodePathKey -> mock[Path])
 
     val copyDestinationPaths = mock[PipelinesApiJobPaths]
     val copyDestinationRcPath = mock[Path]

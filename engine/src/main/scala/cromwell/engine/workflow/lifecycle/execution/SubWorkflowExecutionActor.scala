@@ -106,16 +106,17 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
     case Event(SubWorkflowPreparationSucceeded(subWorkflowEngineDescriptor, inputs), data) =>
       startSubWorkflow(subWorkflowEngineDescriptor, inputs, data)
     case Event(failure: CallPreparationFailed, data) =>
-      goto(SubWorkflowFailedState) using SubWorkflowExecutionActorTerminalData(data.subWorkflowId, SubWorkflowFailedResponse(key, Map.empty, failure.throwable))
+      // No subworkflow ID yet, so no need to record the status. Fail here and let the parent handle the fallout:
+      recordTerminalState(SubWorkflowFailedState, SubWorkflowExecutionActorTerminalData(data.subWorkflowId, SubWorkflowFailedResponse(key, Map.empty, failure.throwable)))
   }
 
   when(SubWorkflowRunningState) {
     case Event(WorkflowExecutionSucceededResponse(executedJobKeys, rootAndSubworklowIds, outputs, cumulativeOutputs), data) =>
-      goto(SubWorkflowSucceededState) using SubWorkflowExecutionActorTerminalData(data.subWorkflowId, SubWorkflowSucceededResponse(key, executedJobKeys, rootAndSubworklowIds, outputs, cumulativeOutputs))
+      recordTerminalState(SubWorkflowSucceededState, SubWorkflowExecutionActorTerminalData(data.subWorkflowId, SubWorkflowSucceededResponse(key, executedJobKeys, rootAndSubworklowIds, outputs, cumulativeOutputs)))
     case Event(WorkflowExecutionFailedResponse(executedJobKeys, reason), data) =>
-      goto(SubWorkflowFailedState) using SubWorkflowExecutionActorTerminalData(data.subWorkflowId, SubWorkflowFailedResponse(key, executedJobKeys, reason))
+      recordTerminalState(SubWorkflowFailedState, SubWorkflowExecutionActorTerminalData(data.subWorkflowId, SubWorkflowFailedResponse(key, executedJobKeys, reason)))
     case Event(WorkflowExecutionAbortedResponse(executedJobKeys), data) =>
-      goto(SubWorkflowAbortedState) using SubWorkflowExecutionActorTerminalData(data.subWorkflowId, SubWorkflowAbortedResponse(key, executedJobKeys))
+      recordTerminalState(SubWorkflowAbortedState, SubWorkflowExecutionActorTerminalData(data.subWorkflowId, SubWorkflowAbortedResponse(key, executedJobKeys)))
     case Event(EngineLifecycleActorAbortCommand, SubWorkflowExecutionActorLiveData(_, Some(actorRef))) =>
       actorRef ! EngineLifecycleActorAbortCommand
       stay()
@@ -152,13 +153,13 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
       recordTerminalState(SubWorkflowAbortedState, SubWorkflowExecutionActorTerminalData(data.subWorkflowId, SubWorkflowAbortedResponse(key, Map.empty)))
   }
 
-  def recordTerminalState(terminalState: SubWorkflowTerminalState, stateData: SubWorkflowExecutionActorTerminalData): State = {
-    stateData.subWorkflowId match {
+  def recordTerminalState(terminalState: SubWorkflowTerminalState, newStateData: SubWorkflowExecutionActorTerminalData): State = {
+    newStateData.subWorkflowId match {
       case Some(id) =>
         pushWorkflowEnd(id)
         pushExecutionEventsToMetadataService(key, eventList)
         pushCurrentStateToMetadataService(id, terminalState.workflowState, confirmTo = Option(self))
-        goto(terminalState) using stateData
+        goto(terminalState) using newStateData
       case _ =>
         jobLogger.error("Programmer Error: Sub workflow completed without ever having a Sub Workflow UUID.")
         // Same situation as if we fail to write the final state metadata. Bail out and hope the workflow is more

@@ -6,6 +6,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import akka.actor.Props
 import akka.testkit.{TestFSMRef, TestProbe}
 import com.typesafe.config.ConfigFactory
+import common.assertion.ManyTimes
 import cromwell.backend.{AllBackendInitializationData, BackendWorkflowDescriptor, JobExecutionMap}
 import cromwell.core._
 import cromwell.core.callcaching.CallCachingOff
@@ -22,7 +23,7 @@ import cromwell.engine.workflow.lifecycle.execution.keys.SubWorkflowKey
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.engine.workflow.workflowstore.{RestartableRunning, StartableState, Submitted}
 import cromwell.engine.{ContinueWhilePossible, EngineIoFunctions, EngineWorkflowDescriptor}
-import cromwell.services.metadata.MetadataService.{MetadataWriteSuccess, PutMetadataActionAndRespond}
+import cromwell.services.metadata.MetadataService.{MetadataWriteFailure, MetadataWriteSuccess, PutMetadataActionAndRespond}
 import cromwell.subworkflowstore.SubWorkflowStoreActor.{QuerySubWorkflow, SubWorkflowFound, SubWorkflowNotFound}
 import cromwell.util.WomMocks
 import org.scalatest.BeforeAndAfterAll
@@ -34,6 +35,7 @@ import wom.graph.WomIdentifier
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.util.control.NoStackTrace
 
 class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Mockito with Eventually with BeforeAndAfterAll {
 
@@ -198,7 +200,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
     deathWatch watch swea
 
     val subWorkflowKey = mock[SubWorkflowKey]
-    val throwable: Exception = new Exception("Expected test exception")
+    val throwable: Exception = new Exception("Expected test exception") with NoStackTrace
     val preparationFailedMessage: CallPreparationFailed = CallPreparationFailed(subWorkflowKey, throwable)
     swea ! preparationFailedMessage
 
@@ -234,14 +236,57 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
     deathWatch watch swea
 
     val jobExecutionMap: JobExecutionMap = Map.empty
-    val expectedException: Exception = new Exception("Expected test exception")
+    val expectedException: Exception = new Exception("Expected test exception") with NoStackTrace
 
-    val workflowSuccessfulMessage = WorkflowExecutionFailedResponse(jobExecutionMap, expectedException)
-    swea ! workflowSuccessfulMessage
+    val workflowFailedMessage = WorkflowExecutionFailedResponse(jobExecutionMap, expectedException)
+    swea ! workflowFailedMessage
     serviceRegistryProbe.fishForSpecificMessage(awaitTimeout) {
       case PutMetadataActionAndRespond(events, _, _) => swea ! MetadataWriteSuccess(events)
     }
     parentProbe.expectMsg(SubWorkflowFailedResponse(subKey, jobExecutionMap, expectedException))
+    deathWatch.expectTerminated(swea, awaitTimeout)
+  }
+
+  it should "Switch Succeeded to Failed and try again if the final metadata entry doesn't write" in {
+    val swea = buildSWEA()
+    swea.setState(SubWorkflowRunningState, SubWorkflowExecutionActorLiveData(Some(WorkflowId.randomId()), None))
+
+    deathWatch watch swea
+
+    val jobExecutionMap: JobExecutionMap = Map.empty
+    val expectedException: Exception = new Exception("Expected test exception") with NoStackTrace
+
+    val outputs: CallOutputs = CallOutputs.empty
+    val workflowSuccessfulMessage = WorkflowExecutionSucceededResponse(jobExecutionMap, Set.empty[WorkflowId], outputs)
+    swea ! workflowSuccessfulMessage
+    serviceRegistryProbe.fishForSpecificMessage(awaitTimeout) {
+      case PutMetadataActionAndRespond(events, _, _) => swea ! MetadataWriteFailure(expectedException, events)
+    }
+
+    import ManyTimes.intWithTimes
+    10.times {
+      serviceRegistryProbe.fishForSpecificMessage(awaitTimeout) {
+        case PutMetadataActionAndRespond(events, _, _) =>
+          events.size should be(1)
+          events.head.key.key should be("status")
+          events.head.value.get.value should be("Failed")
+          swea ! MetadataWriteFailure(expectedException, events)
+      }
+      // Check there are no messages going to the parent yet:
+      parentProbe.expectNoMessage(10.millis)
+    }
+
+    // Now let's say eventually the write does somehow get through.
+    serviceRegistryProbe.fishForSpecificMessage(awaitTimeout) {
+      case PutMetadataActionAndRespond(events, _, _) => swea ! MetadataWriteSuccess(events)
+    }
+
+    // The workflow is now considered failed (since lots of metadata is probably lost:
+    parentProbe.expectMsgPF(awaitTimeout) {
+      case SubWorkflowFailedResponse(`subKey`, `jobExecutionMap`, reason) =>
+        reason.getMessage should be("Sub workflow execution actor unable to write final state to metadata")
+        reason.getCause should be(expectedException)
+    }
     deathWatch.expectTerminated(swea, awaitTimeout)
   }
 

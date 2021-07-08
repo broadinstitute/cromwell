@@ -750,8 +750,7 @@ object Operations extends StrictLogging {
         }
       }
 
-      val jsonDiff = diff(expected: JsValue, actual: JsValue).toJson.prettyPrint
-      IO.raiseError(CentaurTestException(s"Error during $testType metadata comparison. Diff (changes to mutate from 'expected' to 'actual'): $jsonDiff", workflow, submittedWorkflow))
+      IO.raiseError(CentaurTestException(s"Error during $testType metadata comparison. Expected: $expected Actual: $actual", workflow, submittedWorkflow))
     }
   }
 

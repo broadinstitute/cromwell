@@ -712,7 +712,6 @@ object Operations extends StrictLogging {
     } else {
       import diffson._
       import diffson.jsonpatch._
-      import diffson.jsonpatch.lcsdiff._
       import diffson.lcs._
       import diffson.sprayJson._
 

@@ -712,6 +712,7 @@ object Operations extends StrictLogging {
     } else {
       import diffson._
       import diffson.jsonpatch._
+      import diffson.jsonpatch.lcsdiff._
       import diffson.lcs._
       import diffson.sprayJson._
 
@@ -749,7 +750,8 @@ object Operations extends StrictLogging {
         }
       }
 
-      IO.raiseError(CentaurTestException(s"Error during $testType metadata comparison. Expected: $expected Actual: $actual", workflow, submittedWorkflow))
+      val jsonDiff = diff(expected: JsValue, actual: JsValue).toJson.prettyPrint
+      IO.raiseError(CentaurTestException(s"Error during $testType metadata comparison. Diff: $jsonDiff Expected: $expected Actual: $actual", workflow, submittedWorkflow))
     }
   }
 

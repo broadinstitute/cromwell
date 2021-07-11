@@ -8,6 +8,7 @@ import mouse.all._
 import org.slf4j.Logger
 import wdl4s.parser.MemoryUnit
 import wom.format.MemorySize
+import math.{log, pow}
 
 /**
   * Adjusts memory and cpu for custom machine types.
@@ -159,3 +160,24 @@ case object N2CustomMachineType extends CustomMachineType {
     memory.asMultipleOf(memoryFactor)
   }
 }
+
+case object N2DCustomMachineType extends CustomMachineType {
+  override val vmTypePrefix: String = "n2d-"
+  override val minMemoryPerCpu: MemorySize = MemorySize(0.5, MemoryUnit.GB)
+  override val maxMemoryPerCpu: MemorySize = MemorySize(8.0, MemoryUnit.GB)
+  override val memoryFactor: MemorySize = MemorySize(256, MemoryUnit.MB)
+  
+  override def validateCpu(cpu: Refined[Int, Positive]): Int = {
+    cpu.value match {
+      case cpu if cpu <= 16 => 2 max pow(2, (log(cpu.toDouble)/log(2)).ceil).toInt
+      case cpu if cpu > 16 && cpu <= 96 && cpu % 16 == 0 => cpu
+      case cpu if cpu > 16 && cpu <= 96 => cpu + 16 - (cpu % 16)
+      case cpu if cpu > 96 => 96
+    }
+  }
+
+  override def validateMemory(memory: MemorySize): MemorySize = {
+    memory.asMultipleOf(memoryFactor)
+  }
+}
+

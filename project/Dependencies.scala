@@ -21,12 +21,14 @@ object Dependencies {
   private val circeV = "0.13.0"
   private val circeYamlV = "0.13.1"
   private val commonsCodecV = "1.15"
+  private val commonsCsvV = "1.8"
   private val commonsIoV = "2.8.0"
   private val commonsLang3V = "3.11"
   private val commonsMathV = "3.6.1"
   private val commonsTextV = "1.9"
   private val configsV = "0.6.0"
   private val delightRhinoSandboxV = "0.0.15"
+  private val diffsonSprayJsonV = "4.0.3"
   private val ficusV = "1.5.0"
   // The "com.vladsch.flexmark" % "flexmark-profile-pegdown" % flexmarkV dependency is an implicit, version-specific
   // runtime dependency of ScalaTest. At the time of this writing this is the newest version known to work.
@@ -57,7 +59,6 @@ object Dependencies {
   private val hsqldbV = "2.5.1"
   private val http4sVersion = "0.21.7" // scala-steward:off (CROM-6678)
   private val jacksonV = "2.12.2"
-  private val jacksonJqV = "1.0.0-preview.20201123"
   private val janinoV = "3.1.3"
   private val javaxActivationV = "1.2.0"
   // jaxb-impl 2.3.3 depends on com.sun.activation:jakarta.activation and jakarta.xml.bind:jakarta.xml.bind-api,
@@ -94,9 +95,11 @@ object Dependencies {
   // For org.postgresql:postgresql 42.2.6 - 42.2.14:
   // java.lang.NoSuchFieldException: m_mesgParts in KeyValueSpec "fail if one of the inserts fails"
   private val postgresV = "42.2.5" // scala-steward:off
+  private val pprintV = "0.6.3"
   private val rdf4jV = "2.4.2"
   private val refinedV = "0.9.22"
   private val rhinoV = "1.7.13"
+  private val scalaCollectionCompatV = "2.5.0"
   private val scalaGraphV = "1.13.1"
   private val scalaLoggingV = "3.9.3"
   private val scalaPoolV = "0.4.3"
@@ -138,7 +141,7 @@ object Dependencies {
 
   private val slf4jFacadeDependencies = List(
     "org.slf4j" % "slf4j-api" % slf4jV,
-    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
+    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV
   )
 
   private val circeYamlDependency = "io.circe" %% "circe-yaml" % circeYamlV
@@ -177,16 +180,16 @@ object Dependencies {
       exclude("com.google.guava", "guava-jdk5"),
     "com.google.api-client" % "google-api-client-jackson2" % googleApiClientV
       exclude("com.google.guava", "guava-jdk5"),
-    "com.google.cloud" % "google-cloud-resourcemanager" % googleCloudResourceManagerV,
+    "com.google.cloud" % "google-cloud-resourcemanager" % googleCloudResourceManagerV
   )
 
-  val spiDependencies = List(
-    "com.iheart" %% "ficus" % ficusV,
+  val spiDependencies: List[ModuleID] = List(
+    "com.iheart" %% "ficus" % ficusV
   ) ++ googleApiClientDependencies ++ slf4jFacadeDependencies
 
   val spiUtilDependencies = List(
     "com.iheart" %% "ficus" % ficusV,
-    "org.typelevel" %% "cats-effect" % catsEffectV,
+    "org.typelevel" %% "cats-effect" % catsEffectV
   )
 
   val implFtpDependencies = List(
@@ -197,7 +200,7 @@ object Dependencies {
     "org.mockftpserver" % "MockFtpServer" % mockFtpServerV % Test
   )
 
-  val implDrsDependencies = List(
+  val implDrsDependencies: List[ModuleID] = List(
     "org.apache.commons" % "commons-lang3" % commonsLang3V,
     "com.google.cloud" % "google-cloud-storage" % googleCloudStorageV,
     "com.google.oauth-client" % "google-oauth-client" % googleOauthClientV
@@ -254,12 +257,12 @@ object Dependencies {
 
   private val akkaDependencies = List(
     "com.typesafe.akka" %% "akka-actor" % akkaV,
-    "com.typesafe.akka" %% "akka-testkit" % akkaV % Test,
+    "com.typesafe.akka" %% "akka-testkit" % akkaV % Test
   )
 
   private val akkaStreamDependencies = List(
     "com.typesafe.akka" %% "akka-stream" % akkaV,
-    "com.typesafe.akka" %% "akka-stream-testkit" % akkaV % Test,
+    "com.typesafe.akka" %% "akka-stream-testkit" % akkaV % Test
   ) ++ akkaDependencies
 
   private val akkaHttpDependencies = List(
@@ -267,7 +270,7 @@ object Dependencies {
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpV % Test,
     // WOM internally embeds spray-json. Leave this import here until WOM externalizes the json library choice like
     // other libraries do. See akka-http, elastic4s, etc.
-    "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
+    "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV
   ) ++ akkaStreamDependencies
 
   private val akkaHttpCirceIntegrationDependency = List(
@@ -300,11 +303,11 @@ object Dependencies {
     "com.google.code.findbugs" % "jsr305" % "3.0.2",
     "com.google.guava" % "guava" % guavaV,
     "org.apache.tika" % "tika-core" % tikaV,
-    "software.amazon.awssdk" % "s3" % awsSdkV,
+    "software.amazon.awssdk" % "s3" % awsSdkV
   ) ++ slf4jBindingDependencies
 
   private val awsCloudDependencies = List(
-    "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonV,
+    "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonV
   ) ++ s3fsDependencies ++ List(
     "batch",
     "core",
@@ -346,7 +349,7 @@ object Dependencies {
     "com.sun.xml.bind" % "jaxb-impl" % jaxbV,
     "org.glassfish.jaxb" % "jaxb-runtime" % jaxbV
       // already included in com.sun.activation
-      exclude("jakarta.activation", "jakarta.activation-api"),
+      exclude("jakarta.activation", "jakarta.activation-api")
   )
 
   private val aliyunBatchComputeDependencies = List(
@@ -363,7 +366,7 @@ object Dependencies {
     "com.sun.xml.bind" % "jaxb-impl" % jaxbV,
     "org.glassfish.jaxb" % "jaxb-runtime" % jaxbV
       // already included in com.sun.activation
-      exclude("jakarta.activation", "jakarta.activation-api"),
+      exclude("jakarta.activation", "jakarta.activation-api")
   )
 
   private val aliyunCrDependencies = List(
@@ -388,17 +391,17 @@ object Dependencies {
 
   // Sub-project dependencies, added in addition to any dependencies inherited from .dependsOn().
 
-  val commonDependencies = List(
+  val commonDependencies: List[ModuleID] = List(
     "org.typelevel" %% "cats-effect" % catsEffectV,
     "org.apache.commons" % "commons-lang3" % commonsLang3V,
     "org.apache.commons" % "commons-text" % commonsTextV,
-    "com.lihaoyi" %% "pprint" % "0.6.3",
+    "com.lihaoyi" %% "pprint" % pprintV
   ) ++ catsDependencies ++ configDependencies ++ slf4jFacadeDependencies ++ refinedTypeDependenciesList
 
-  val cloudSupportDependencies = googleApiClientDependencies ++ googleCloudDependencies ++ betterFilesDependencies ++ awsCloudDependencies
+  val cloudSupportDependencies: List[ModuleID] = googleApiClientDependencies ++ googleCloudDependencies ++ betterFilesDependencies ++ awsCloudDependencies
 
-  val databaseSqlDependencies = List(
-    "commons-io" % "commons-io" % commonsIoV,
+  val databaseSqlDependencies: List[ModuleID] = List(
+    "commons-io" % "commons-io" % commonsIoV
   ) ++ configDependencies ++ catsDependencies ++ slickDependencies ++ dbmsDependencies ++ refinedTypeDependenciesList
 
   val statsDDependencies = List(
@@ -410,29 +413,29 @@ object Dependencies {
     "com.google.cloud" % "google-cloud-monitoring" % googleCloudMonitoringV
   )
 
-  val gcsFileSystemDependencies = akkaHttpDependencies
+  val gcsFileSystemDependencies: List[ModuleID] = akkaHttpDependencies
 
-  val httpFileSystemDependencies = akkaHttpDependencies
+  val httpFileSystemDependencies: List[ModuleID] = akkaHttpDependencies
 
-  val ossFileSystemDependencies = googleCloudDependencies ++ aliyunOssDependencies ++ List(
+  val ossFileSystemDependencies: List[ModuleID] = googleCloudDependencies ++ aliyunOssDependencies ++ List(
     "com.github.pathikrit" %% "better-files" % betterFilesV
   )
 
-  val statsDProxyDependencies = List(
+  val statsDProxyDependencies: List[ModuleID] = List(
     "co.fs2" %% "fs2-io" % fs2VStatsDProxy,
     "com.iheart" %% "ficus" % ficusV,
     "com.google.cloud" % "google-cloud-nio" % googleCloudNioV
   ) ++ commonDependencies
 
-  val womDependencies = List(
+  val womDependencies: List[ModuleID] = List(
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "io.spray" %% "spray-json" % sprayJsonV,
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
     "org.typelevel" %% "simulacrum" % simulacrumV,
-    "commons-codec" % "commons-codec" % commonsCodecV,
+    "commons-codec" % "commons-codec" % commonsCodecV
   ) ++ circeDependencies ++ refinedTypeDependenciesList
 
-  val wdlDependencies = List(
+  val wdlDependencies: List[ModuleID] = List(
     "commons-io" % "commons-io" % commonsIoV,
     "org.scala-graph" %% "graph-core" % scalaGraphV,
     "com.chuusai" %% "shapeless" % shapelessV
@@ -470,7 +473,7 @@ object Dependencies {
     "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV
   )
 
-  val cwlDependencies = List(
+  val cwlDependencies: List[ModuleID] = List(
     "com.lihaoyi" %% "ammonite-ops" % ammoniteOpsV,
     "org.broadinstitute" % "heterodon" % heterodonV classifier "single",
     "org.scalactic" %% "scalactic" % scalacticV,
@@ -482,42 +485,42 @@ object Dependencies {
     "commons-io" % "commons-io" % commonsIoV % Test
   ) ++ betterFilesDependencies ++ owlApiDependencies
 
-  val womtoolDependencies = catsDependencies ++ slf4jBindingDependencies
+  val womtoolDependencies: List[ModuleID] = catsDependencies ++ slf4jBindingDependencies
 
-  val centaurCwlRunnerDependencies = List(
+  val centaurCwlRunnerDependencies: List[ModuleID] = List(
     "com.github.scopt" %% "scopt" % scoptV,
     "io.circe" %% "circe-optics" % circeOpticsV
   ) ++ slf4jBindingDependencies
 
-  val coreDependencies = List(
+  val coreDependencies: List[ModuleID] = List(
     "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
     "com.chuusai" %% "shapeless" % shapelessV,
     "com.storm-enroute" %% "scalameter" % scalameterV % Test,
     "com.github.scopt" %% "scopt" % scoptV,
-    "org.scalamock" %% "scalamock" % scalamockV % Test,
+    "org.scalamock" %% "scalamock" % scalamockV % Test
   ) ++ akkaStreamDependencies ++ configDependencies ++ catsDependencies ++ circeDependencies ++
     googleApiClientDependencies ++ statsDDependencies ++ betterFilesDependencies ++
     // TODO: We're not using the "F" in slf4j. Core only supports logback, specifically the WorkflowLogger.
     slf4jBindingDependencies ++ stackdriverDependencies
 
-  val databaseMigrationDependencies = liquibaseDependencies ++ dbmsDependencies
+  val databaseMigrationDependencies: List[ModuleID] = liquibaseDependencies ++ dbmsDependencies
 
-  val dockerHashingDependencies = http4sDependencies ++ circeDependencies ++ aliyunCrDependencies
+  val dockerHashingDependencies: List[ModuleID] = http4sDependencies ++ circeDependencies ++ aliyunCrDependencies
 
-  val cromwellApiClientDependencies = List(
+  val cromwellApiClientDependencies: List[ModuleID] = List(
     "org.scalaz" %% "scalaz-core" % scalazV,
     "org.typelevel" %% "cats-effect" % catsEffectV,
-    "co.fs2" %% "fs2-io" % fs2V % Test,
+    "co.fs2" %% "fs2-io" % fs2V % Test
   ) ++ akkaHttpDependencies ++ betterFilesDependencies ++ catsDependencies
 
-  val centaurDependencies = List(
+  val centaurDependencies: List[ModuleID] = List(
     "org.apache.commons" % "commons-math3" % commonsMathV,
     "com.github.kxbmap" %% "configs" % configsV,
     "com.google.cloud" % "google-cloud-bigquery" % googleCloudBigQueryV % IntegrationTest,
-    "org.gnieh" %% "diffson-spray-json" % "4.0.3"
+    "org.gnieh" %% "diffson-spray-json" % diffsonSprayJsonV
   ) ++ circeDependencies ++ slf4jBindingDependencies ++ cloudSupportDependencies ++ http4sDependencies
 
-  val engineDependencies = List(
+  val engineDependencies: List[ModuleID] = List(
     "commons-codec" % "commons-codec" % commonsCodecV,
     "commons-io" % "commons-io" % commonsIoV,
     "com.storm-enroute" %% "scalameter" % scalameterV
@@ -530,12 +533,12 @@ object Dependencies {
 
   val servicesDependencies = List(
     "com.google.api" % "gax-grpc" % googleGaxGrpcV,
-    "org.apache.commons" % "commons-csv" % "1.8",
+    "org.apache.commons" % "commons-csv" % commonsCsvV
   )
 
-  val serverDependencies = slf4jBindingDependencies
+  val serverDependencies: List[ModuleID] = slf4jBindingDependencies
 
-  val cromiamDependencies = List(
+  val cromiamDependencies: List[ModuleID] = List(
     "com.softwaremill.sttp" %% "core" % sttpV,
     "com.softwaremill.sttp" %% "async-http-client-backend-future" % sttpV,
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
@@ -543,20 +546,20 @@ object Dependencies {
     "org.broadinstitute.dsde.workbench" %% "workbench-util" % workbenchUtilV
   ) ++ akkaHttpDependencies ++ swaggerUiDependencies ++ slf4jBindingDependencies
 
-  val wes2cromwellDependencies = coreDependencies ++ akkaHttpDependencies
+  val wes2cromwellDependencies: List[ModuleID] = coreDependencies ++ akkaHttpDependencies
 
   val backendDependencies = List(
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
     "co.fs2" %% "fs2-io" % fs2V
   )
 
-  val bcsBackendDependencies = commonDependencies ++ refinedTypeDependenciesList ++ aliyunBatchComputeDependencies
-  val tesBackendDependencies = akkaHttpDependencies
+  val bcsBackendDependencies: List[ModuleID] = commonDependencies ++ refinedTypeDependenciesList ++ aliyunBatchComputeDependencies
+  val tesBackendDependencies: List[ModuleID] = akkaHttpDependencies
   val sfsBackendDependencies = List (
     "org.lz4" % "lz4-java" % lz4JavaV
   )
 
-  val testDependencies = List(
+  val testDependencies: List[ModuleID] = List(
     "org.scalatest" %% "scalatest" % scalatestV,
     "org.scalatestplus" %% "scalatestplus-mockito" % scalatestPlusMockitoV,
     "com.vladsch.flexmark" % "flexmark-profile-pegdown" % flexmarkV,
@@ -572,12 +575,12 @@ object Dependencies {
   val paradisePlugin = "org.scalamacros" % "paradise" % paradiseV cross CrossVersion.full
 
   // Version of the swagger UI to write into config files
-  val swaggerUiVersion = swaggerUiV
+  val swaggerUiVersion: String = swaggerUiV
 
-  val perfDependencies = circeDependencies ++ betterFilesDependencies ++ commonDependencies ++
+  val perfDependencies: List[ModuleID] = circeDependencies ++ betterFilesDependencies ++ commonDependencies ++
     googleApiClientDependencies ++ googleCloudDependencies
 
-  val drsLocalizerDependencies = List(
+  val drsLocalizerDependencies: List[ModuleID] = List(
     "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
     "com.google.cloud" % "google-cloud-storage" % googleCloudStorageV,
     "org.typelevel" %% "cats-effect" % catsEffectV,
@@ -585,7 +588,7 @@ object Dependencies {
     "com.softwaremill.sttp" %% "circe" % sttpV
   ) ++ circeDependencies ++ catsDependencies ++ slf4jBindingDependencies ++ languageFactoryDependencies
 
-  val allProjectDependencies =
+  val allProjectDependencies: List[ModuleID] =
     backendDependencies ++
       bcsBackendDependencies ++
       centaurCwlRunnerDependencies ++
@@ -641,10 +644,10 @@ object Dependencies {
     https://mvnrepository.com/artifact/com.google.api-client/google-api-client/1.28.0
      */
     "com.google.http-client" % "google-http-client-apache" % googleHttpClientApacheV,
-    "com.google.http-client" % "google-http-client" % googleHttpClientV,
+    "com.google.http-client" % "google-http-client" % googleHttpClientV
   )
 
-  val nettyDependencyOverrides = List(
+  val nettyDependencyOverrides: List[ModuleID] = List(
     "buffer",
     "codec",
     "codec-dns",
@@ -657,10 +660,10 @@ object Dependencies {
     "resolver-dns",
     "transport",
     "transport-native-epoll",
-    "transport-native-unix-common",
+    "transport-native-unix-common"
   ).map(m => "io.netty" % s"netty-$m" % nettyV)
 
-  val rdf4jDependencyOverrides = List(
+  val rdf4jDependencyOverrides: List[ModuleID] = List(
     /*
     Yes. All of these are required to lock in the rdf4j version.
 
@@ -685,11 +688,11 @@ object Dependencies {
     "rio-trig",
     "rio-trix",
     "rio-turtle",
-    "util",
+    "util"
   ).map(m => "org.eclipse.rdf4j" % s"rdf4j-$m" % rdf4jV)
 
   // Some libraries are importing older version of these dependencies, causing conflicts. Hence the need to override them.
-  val grpcDependencyOverrides = List(
+  val grpcDependencyOverrides: List[ModuleID] = List(
     "alts",
     "auth",
     "context",
@@ -698,17 +701,27 @@ object Dependencies {
     "netty-shaded",
     "protobuf-lite",
     "protobuf",
-    "stub",
+    "stub"
   ).map(m => "io.grpc" % s"grpc-$m" % grpcV)
+
+  /*
+  Adding this dependency to the common lib instead of explicitly to the numerous derived executables.
+  A workaround for a shading bug in an earlier versions of scala-collection-compat.
+  https://github.com/scala/scala-collection-compat/issues/426
+  */
+  private val scalaCollectionCompatOverrides = List(
+    "org.scala-lang.modules" %% "scala-collection-compat" % scalaCollectionCompatV
+  )
 
   /*
   If we use a version in one of our projects, that's the one we want all the libraries to use
   ...plus other groups of transitive dependencies shared across multiple projects
    */
-  val cromwellDependencyOverrides =
+  val cromwellDependencyOverrides: List[ModuleID] =
     allProjectDependencies ++
       googleHttpClientDependencies ++
       nettyDependencyOverrides ++
       rdf4jDependencyOverrides ++
-      grpcDependencyOverrides
+      grpcDependencyOverrides ++
+      scalaCollectionCompatOverrides
 }

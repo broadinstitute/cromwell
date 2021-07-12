@@ -16,7 +16,7 @@ import cromwell.docker.DockerInfoActor._
 import cromwell.docker.registryv2.DockerRegistryV2Abstract
 import cromwell.docker.registryv2.flows.alibabacloudcrregistry._
 import cromwell.docker.registryv2.flows.dockerhub.DockerHubRegistry
-import cromwell.docker.registryv2.flows.gcr.GcrRegistry
+import cromwell.docker.registryv2.flows.google.GoogleRegistry
 import cromwell.docker.registryv2.flows.quay.QuayRegistry
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import fs2.Pipe
@@ -230,15 +230,15 @@ object DockerInfoActor {
   def remoteRegistriesFromConfig(config: Config): List[DockerRegistry] = {
     import cats.syntax.traverse._
 
-    val gcrConstructor = { c: DockerRegistryConfig =>
+    val googleConstructor = { c: DockerRegistryConfig =>
       c.copy(throttle = c.throttle.orElse(DockerConfiguration.instance.deprecatedGcrApiQueriesPer100Seconds))
-      new GcrRegistry(c)
+      new GoogleRegistry(c)
     }
 
     // To add a new registry, simply add it to that list
     List(
       ("dockerhub", { c: DockerRegistryConfig => new DockerHubRegistry(c) }),
-      ("gcr", gcrConstructor),
+      ("gcr", googleConstructor),
       ("quay", { c: DockerRegistryConfig => new QuayRegistry(c) }),
       ("alibabacloudcr", {c: DockerRegistryConfig => new AlibabaCloudCRRegistry(c)})
     ).traverse[ErrorOr, DockerRegistry]({

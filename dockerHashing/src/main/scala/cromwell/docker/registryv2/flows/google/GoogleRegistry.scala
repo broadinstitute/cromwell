@@ -1,4 +1,4 @@
-package cromwell.docker.registryv2.flows.gcr
+package cromwell.docker.registryv2.flows.google
 
 import com.google.auth.oauth2.{AccessToken, OAuth2Credentials}
 import cromwell.docker.DockerInfoActor.DockerInfoContext
@@ -9,13 +9,13 @@ import org.http4s.{AuthScheme, Uri}
 
 import scala.concurrent.duration._
 
-class GcrRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstract(config) {
+class GoogleRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstract(config) {
   private val AccessTokenAcceptableTTL = 1.minute
   
-  def gcrRegion(dockerImageIdentifier: DockerImageIdentifier) = dockerImageIdentifier.host.flatMap(_.split("/").headOption).getOrElse("")
-  
-  override def registryHostName(dockerImageIdentifier: DockerImageIdentifier) = gcrRegion(dockerImageIdentifier)
-  override def authorizationServerHostName(dockerImageIdentifier: DockerImageIdentifier) = gcrRegion(dockerImageIdentifier)
+  def googleRegion(dockerImageIdentifier: DockerImageIdentifier): String = dockerImageIdentifier.host.flatMap(_.split("/").headOption).getOrElse("")
+
+  override def registryHostName(dockerImageIdentifier: DockerImageIdentifier): String = googleRegion(dockerImageIdentifier)
+  override def authorizationServerHostName(dockerImageIdentifier: DockerImageIdentifier): String = googleRegion(dockerImageIdentifier)
   
   override protected def buildTokenRequestUri(dockerImageID: DockerImageIdentifier): Uri = {
     val uri = super.buildTokenRequestUri(dockerImageID)
@@ -25,7 +25,7 @@ class GcrRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstract
   /**
     * Builds the list of headers for the token request
     */
-   def buildTokenRequestHeaders(dockerInfoContext: DockerInfoContext) = {
+   def buildTokenRequestHeaders(dockerInfoContext: DockerInfoContext): List[Authorization] = {
     dockerInfoContext.credentials collect {
       case credentials: OAuth2Credentials => Authorization(org.http4s.Credentials.Token(AuthScheme.Bearer, freshAccessToken(credentials)))
     }
@@ -45,6 +45,7 @@ class GcrRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstract
   }
 
   override def accepts(dockerImageIdentifier: DockerImageIdentifier): Boolean = {
+    // Supports both GCR (Google Container Registry) and GAR (Google Artifact Registry).
     dockerImageIdentifier.hostAsString.contains("gcr.io") || dockerImageIdentifier.hostAsString.contains("-docker.pkg.dev")
   }
 }

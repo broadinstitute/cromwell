@@ -44,7 +44,7 @@ class GcrRegistry(config: DockerRegistryConfig) extends DockerRegistryV2Abstract
     }
   }
 
-  override def accepts(dockerImageIdentifier: DockerImageIdentifier) = {
-    dockerImageIdentifier.hostAsString.contains("gcr.io")
+  override def accepts(dockerImageIdentifier: DockerImageIdentifier): Boolean = {
+    dockerImageIdentifier.hostAsString.contains("gcr.io") || dockerImageIdentifier.hostAsString.contains("-docker.pkg.dev")
   }
 }

@@ -4,8 +4,8 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.stream._
 import cats.effect.IO
 import cats.effect.IO._
-import cats.syntax.parallel._
 import cats.instances.list._
+import cats.syntax.parallel._
 import com.google.common.cache.CacheBuilder
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
@@ -13,8 +13,8 @@ import common.validation.Validation._
 import cromwell.core.actor.StreamIntegration.{BackPressure, StreamContext}
 import cromwell.core.{Dispatcher, DockerConfiguration}
 import cromwell.docker.DockerInfoActor._
-import cromwell.docker.registryv2.flows.alibabacloudcrregistry._
 import cromwell.docker.registryv2.DockerRegistryV2Abstract
+import cromwell.docker.registryv2.flows.alibabacloudcrregistry._
 import cromwell.docker.registryv2.flows.dockerhub.DockerHubRegistry
 import cromwell.docker.registryv2.flows.gcr.GcrRegistry
 import cromwell.docker.registryv2.flows.quay.QuayRegistry

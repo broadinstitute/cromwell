@@ -4,8 +4,8 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.stream._
 import cats.effect.IO
 import cats.effect.IO._
-import cats.syntax.parallel._
 import cats.instances.list._
+import cats.syntax.parallel._
 import com.google.common.cache.CacheBuilder
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
@@ -13,10 +13,10 @@ import common.validation.Validation._
 import cromwell.core.actor.StreamIntegration.{BackPressure, StreamContext}
 import cromwell.core.{Dispatcher, DockerConfiguration}
 import cromwell.docker.DockerInfoActor._
-import cromwell.docker.registryv2.flows.alibabacloudcrregistry._
 import cromwell.docker.registryv2.DockerRegistryV2Abstract
+import cromwell.docker.registryv2.flows.alibabacloudcrregistry._
 import cromwell.docker.registryv2.flows.dockerhub.DockerHubRegistry
-import cromwell.docker.registryv2.flows.gcr.GcrRegistry
+import cromwell.docker.registryv2.flows.google.GoogleRegistry
 import cromwell.docker.registryv2.flows.quay.QuayRegistry
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import fs2.Pipe
@@ -230,15 +230,15 @@ object DockerInfoActor {
   def remoteRegistriesFromConfig(config: Config): List[DockerRegistry] = {
     import cats.syntax.traverse._
 
-    val gcrConstructor = { c: DockerRegistryConfig =>
+    val googleConstructor = { c: DockerRegistryConfig =>
       c.copy(throttle = c.throttle.orElse(DockerConfiguration.instance.deprecatedGcrApiQueriesPer100Seconds))
-      new GcrRegistry(c)
+      new GoogleRegistry(c)
     }
 
     // To add a new registry, simply add it to that list
     List(
       ("dockerhub", { c: DockerRegistryConfig => new DockerHubRegistry(c) }),
-      ("gcr", gcrConstructor),
+      ("gcr", googleConstructor),
       ("quay", { c: DockerRegistryConfig => new QuayRegistry(c) }),
       ("alibabacloudcr", {c: DockerRegistryConfig => new AlibabaCloudCRRegistry(c)})
     ).traverse[ErrorOr, DockerRegistry]({

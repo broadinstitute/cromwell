@@ -1,9 +1,14 @@
 # Cromwell Change Log
 
+## 66 Release Notes
+
+### Google Artifact Registry Support
+Cromwell now supports call caching when using Docker images hosted on
+[Google Artifact Registry](https://cloud.google.com/artifact-registry). 
+
 ## 65 Release Notes
 
 * An additional set of metrics relating to metadata age were added.
-* No user facing changes in Cromwell 65.  
 
 ### AMD Rome support on PAPI v2
 On the PAPI v2 backends "AMD Rome" is now supported as a CPU platform. More details can be found

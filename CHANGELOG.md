@@ -4,7 +4,13 @@
 
 ### Google Artifact Registry Support
 Cromwell now supports call caching when using Docker images hosted on
-[Google Artifact Registry](https://cloud.google.com/artifact-registry). 
+[Google Artifact Registry](https://cloud.google.com/artifact-registry).
+
+### Google Image Repository Hashing Configuration Change
+Support for the `docker.hash-lookup.gcr-api-queries-per-100-seconds` configuration value has been discontinued.
+Equivalent configuration is now available via a `docker.hash-lookup.google` stanza; please see
+Cromwell's bundled [`reference.conf`](https://github.com/broadinstitute/cromwell/blob/develop/core/src/main/resources/reference.conf)
+for more details.
 
 ## 65 Release Notes
 

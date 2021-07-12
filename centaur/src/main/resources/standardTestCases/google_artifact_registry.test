@@ -1,0 +1,13 @@
+name: google_artifact_registry
+testFormat: runtwiceexpectingcallcaching
+
+files {
+  workflow: google_artifact_registry/google_artifact_registry.wdl
+}
+
+metadata {
+  workflowName: wf_hello
+  status: Succeeded
+  "calls.wf_hello.hello.callCaching.result": "Cache Hit: <<CACHE_HIT_UUID>>:wf_hello.hello:-1"
+}
+

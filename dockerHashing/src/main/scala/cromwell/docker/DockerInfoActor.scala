@@ -2,8 +2,8 @@ package cromwell.docker
 
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
 import akka.stream._
-import cats.effect.{ContextShift, IO, Timer}
 import cats.effect.IO._
+import cats.effect.{ContextShift, IO, Timer}
 import cats.instances.list._
 import cats.syntax.parallel._
 import com.google.common.cache.CacheBuilder
@@ -146,7 +146,7 @@ final class DockerInfoActor(
     Queue.boundedNoneTerminated[IO, DockerInfoContext](queueBufferSize) map { queue =>
       val source = queue.dequeue
       // If the registry imposes throttling, debounce the stream to ensure the throttling rate is respected
-      val throttledSource = registry.config.throttle.map(_.delay).map(source.debounce[IO]).getOrElse(source)
+      val throttledSource = registry.config.throttle.map(_.delay).map(source.metered[IO]).getOrElse(source)
 
       val stream = clientStream.flatMap({ client =>
         throttledSource
@@ -231,15 +231,10 @@ object DockerInfoActor {
   def remoteRegistriesFromConfig(config: Config): List[DockerRegistry] = {
     import cats.syntax.traverse._
 
-    val googleConstructor = { c: DockerRegistryConfig =>
-      c.copy(throttle = c.throttle)
-      new GoogleRegistry(c)
-    }
-
     // To add a new registry, simply add it to that list
     List(
       ("dockerhub", { c: DockerRegistryConfig => new DockerHubRegistry(c) }),
-      ("google", googleConstructor),
+      ("google", { c: DockerRegistryConfig => new GoogleRegistry(c) }),
       ("quay", { c: DockerRegistryConfig => new QuayRegistry(c) }),
       ("alibabacloudcr", {c: DockerRegistryConfig => new AlibabaCloudCRRegistry(c)})
     ).traverse[ErrorOr, DockerRegistry]({

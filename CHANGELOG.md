@@ -6,10 +6,13 @@
 Cromwell now supports call caching when using Docker images hosted on
 [Google Artifact Registry](https://cloud.google.com/artifact-registry).
 
-### Google Image Repository Hashing Configuration Change
-Support for the `docker.hash-lookup.gcr-api-queries-per-100-seconds` configuration value has been discontinued.
-Equivalent configuration is now available via a `docker.hash-lookup.google` stanza; please see
-Cromwell's bundled [`reference.conf`](https://github.com/broadinstitute/cromwell/blob/develop/core/src/main/resources/reference.conf)
+### Google Image Repository Hashing Updates
+The previously documented `docker.hash-lookup.gcr` configuration has been renamed to `docker.hash-lookup.google` and
+now applies to both Google Container Registry (GCR) and Google Artifact Registry (GAR) repositories.
+Support for the `docker.hash-lookup.gcr-api-queries-per-100-seconds` configuration key has been formally discontinued
+and a bug preventing correct handling of `docker.hash-lookup...throttle` configuration has been fixed.
+Please see Cromwell's bundled
+[`reference.conf`](https://github.com/broadinstitute/cromwell/blob/develop/core/src/main/resources/reference.conf)
 for more details.
 
 ## 65 Release Notes

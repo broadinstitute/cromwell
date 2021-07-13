@@ -1,11 +1,11 @@
 package org.lerch.s3fs;
 
-import org.apache.commons.lang3.tuple.ImmutablePair;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.lerch.s3fs.attribute.S3BasicFileAttributeView;
 import org.lerch.s3fs.attribute.S3BasicFileAttributes;
 import org.lerch.s3fs.attribute.S3PosixFileAttributeView;
@@ -37,7 +37,8 @@ import java.util.stream.IntStream;
 
 import static com.google.common.collect.Sets.difference;
 import static java.lang.String.format;
-import static java.lang.Thread.*;
+import static java.lang.Thread.currentThread;
+import static java.lang.Thread.sleep;
 import static org.lerch.s3fs.AmazonS3Factory.*;
 
 /**
@@ -287,7 +288,10 @@ public class S3FileSystemProvider extends FileSystemProvider {
         if (fileSystems.containsKey(key)) {
             return fileSystems.get(key);
         } else {
-            throw new FileSystemNotFoundException("S3 filesystem not yet created. Use newFileSystem() instead");
+            final String scheme = uri.getScheme();
+            final String uriString = uri.toString();
+            uriString.replace(scheme, "https://");
+            return (S3FileSystem) newFileSystem(uri, Collections.<String, String>emptyMap());
         }
     }
 
@@ -338,7 +342,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
 
         try {
             ResponseInputStream<GetObjectResponse> res = s3Path
-                    .getFileSystem()
+                    .getFileStore()
                     .getClient()
                     .getObject(GetObjectRequest
                             .builder()
@@ -385,7 +389,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
         Bucket bucket = s3Path.getFileStore().getBucket();
         String bucketName = s3Path.getFileStore().name();
         if (bucket == null) {
-            s3Path.getFileSystem().getClient().createBucket(CreateBucketRequest.builder().bucket(bucketName).build());
+            s3Path.getFileStore().getClient().createBucket(CreateBucketRequest.builder().bucket(bucketName).build());
         }
         // create the object as directory
         PutObjectRequest.Builder builder = PutObjectRequest.builder();
@@ -393,7 +397,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
         builder.bucket(bucketName)
                 .key(directoryKey)
                 .contentLength(0L);
-        s3Path.getFileSystem().getClient().putObject(builder.build(), RequestBody.fromBytes(new byte[0]));
+        s3Path.getFileStore().getClient().putObject(builder.build(), RequestBody.fromBytes(new byte[0]));
     }
 
     @Override
@@ -406,9 +410,9 @@ public class S3FileSystemProvider extends FileSystemProvider {
 
         String key = s3Path.getKey();
         String bucketName = s3Path.getFileStore().name();
-        s3Path.getFileSystem().getClient().deleteObject(DeleteObjectRequest.builder().bucket(bucketName).key(key).build());
+        s3Path.getFileStore().getClient().deleteObject(DeleteObjectRequest.builder().bucket(bucketName).key(key).build());
         // we delete the two objects (sometimes exists the key '/' and sometimes not)
-        s3Path.getFileSystem().getClient().deleteObject(DeleteObjectRequest.builder().bucket(bucketName).key(key + "/").build());
+        s3Path.getFileStore().getClient().deleteObject(DeleteObjectRequest.builder().bucket(bucketName).key(key + "/").build());
     }
 
     @Override
@@ -438,7 +442,8 @@ public class S3FileSystemProvider extends FileSystemProvider {
             String keySource = s3Source.getKey();
             String bucketNameTarget = s3Target.getFileStore().name();
             String keyTarget = s3Target.getKey();
-            s3Source.getFileSystem()
+            // for a cross region copy the client must be for the target (region) not the source region
+            s3Target.getFileStore()
                     .getClient()
                     .copyObject(CopyObjectRequest.builder()
                             .sourceBucket(bucketNameOrigin)
@@ -460,7 +465,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
     private void multiPartCopy(S3Path source, long objectSize, S3Path target, CopyOption... options) {
         log.info(() -> "Attempting multipart copy as part of call cache hit: source = " + source + ", objectSize = " + objectSize + ", target = " + target + ", options = " + Arrays.deepToString(options));
 
-        S3Client s3Client = target.getFileSystem().getClient();
+        S3Client s3Client = target.getFileStore().getClient();
 
         final CreateMultipartUploadRequest createMultipartUploadRequest = CreateMultipartUploadRequest.builder()
                 .bucket(target.getFileStore().name())
@@ -597,7 +602,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
      */
     private long objectSize(S3Path object) {
 
-        S3Client s3Client = object.getFileSystem().getClient();
+        S3Client s3Client = object.getFileStore().getClient();
         final String bucket = object.getFileStore().name();
         final String key = object.getKey();
         final HeadObjectResponse headObjectResponse = s3Client.headObject(HeadObjectRequest.builder()
@@ -659,7 +664,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
         String key = s3Utils.getS3ObjectSummary(s3Path).key();
         String bucket = s3Path.getFileStore().name();
         S3AccessControlList accessControlList =
-                new S3AccessControlList(bucket, key, s3Path.getFileSystem().getClient().getObjectAcl(GetObjectAclRequest.builder().bucket(bucket).key(key).build()).grants(), s3Path.getFileStore().getOwner());
+                new S3AccessControlList(bucket, key, s3Path.getFileStore().getClient().getObjectAcl(GetObjectAclRequest.builder().bucket(bucket).key(key).build()).grants(), s3Path.getFileStore().getOwner());
 
         accessControlList.checkAccess(modes);
     }

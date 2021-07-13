@@ -1,20 +1,16 @@
 package org.lerch.s3fs;
 
-import static org.lerch.s3fs.S3Path.PATH_SEPARATOR;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.Bucket;
 
 import java.io.IOException;
-import java.nio.file.FileStore;
-import java.nio.file.FileSystem;
-import java.nio.file.Path;
-import java.nio.file.PathMatcher;
-import java.nio.file.WatchService;
+import java.nio.file.*;
 import java.nio.file.attribute.UserPrincipalLookupService;
 import java.util.Set;
 
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.Bucket;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
+import static org.lerch.s3fs.S3Path.PATH_SEPARATOR;
 
 /**
  * S3FileSystem with a concrete client configured and ready to use.
@@ -63,7 +59,7 @@ public class S3FileSystem extends FileSystem implements Comparable<S3FileSystem>
 
     @Override
     public String getSeparator() {
-        return S3Path.PATH_SEPARATOR;
+        return PATH_SEPARATOR;
     }
 
     @Override
@@ -113,9 +109,15 @@ public class S3FileSystem extends FileSystem implements Comparable<S3FileSystem>
         throw new UnsupportedOperationException();
     }
 
-    public S3Client getClient() {
-        return client;
-    }
+//    /**
+//     * Deprecated: since SDKv2 many S3 operations need to be signed with a client using the same Region as the location
+//     * of the bucket. Prefer S3Path.client() instead.
+//     * @return
+//     */
+//    @Deprecated
+//    public S3Client getClient() {
+//        return client;
+//    }
 
     /**
      * get the endpoint associated with this fileSystem.

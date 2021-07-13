@@ -1,28 +1,35 @@
 package org.lerch.s3fs;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3Configuration;
+import software.amazon.awssdk.services.s3.model.*;
+
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.FileStore;
 import java.nio.file.attribute.FileAttributeView;
 import java.nio.file.attribute.FileStoreAttributeView;
 import java.util.Date;
 
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.Bucket;
-import software.amazon.awssdk.services.s3.model.GetBucketAclRequest;
-import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
-import software.amazon.awssdk.services.s3.model.ListBucketsRequest;
-import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
-import software.amazon.awssdk.services.s3.model.Owner;
-import com.google.common.collect.ImmutableList;
-
+/**
+ * In S3 a filestore translates to a bucket
+ */
 public class S3FileStore extends FileStore implements Comparable<S3FileStore> {
 
     private S3FileSystem fileSystem;
     private String name;
+    private S3Client defaultClient;
+    private S3Client bucketSpecificClient;
+    private Logger logger = LoggerFactory.getLogger("S3FileStore");
 
     public S3FileStore(S3FileSystem s3FileSystem, String name) {
         this.fileSystem = s3FileSystem;
         this.name = name;
+        // the default client can be used for getBucketLocation operations
+        this.defaultClient = S3Client.builder().endpointOverride(URI.create("https://s3.us-east-1.amazonaws.com")).region(Region.US_EAST_1).build();
     }
 
     @Override
@@ -121,8 +128,21 @@ public class S3FileStore extends FileStore implements Comparable<S3FileStore> {
         return new S3Path(fileSystem, "/" + this.name());
     }
 
-    private S3Client getClient() {
-        return fileSystem.getClient();
+    /**
+     * Gets a client suitable for this FileStore (bucket) including configuring the correct region endpoint. If no client
+     * exists one will be constructed and cached.
+     * @return a client
+     */
+    public S3Client getClient() {
+        if (bucketSpecificClient == null) {
+            String bucketLocation = defaultClient.getBucketLocation(builder -> builder.bucket(this.name)).locationConstraintAsString();
+            logger.debug("Bucket location is '{}'", bucketLocation);
+
+            Region region = bucketLocation.trim().equals("") ? Region.US_EAST_1 : Region.of(bucketLocation);
+            bucketSpecificClient = S3Client.builder().region(region).build();
+        }
+
+        return bucketSpecificClient;
     }
 
     public Owner getOwner() {

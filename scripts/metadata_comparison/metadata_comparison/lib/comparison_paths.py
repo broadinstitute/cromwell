@@ -67,7 +67,7 @@ class GcsPath(ComparisonPath):
         return self._storage_blob
 
     def read_text(self, encoding: AnyStr = 'utf_8') -> AnyStr:
-        return self.__storage_blob().download_as_string()
+        return self.__storage_blob().download_as_bytes()
 
     def __truediv__(self, other) -> ComparisonPath:
         return GcsPath(bucket=self._bucket,

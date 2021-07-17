@@ -813,7 +813,7 @@ cromwell::private::install_sbt_launcher() {
     # Non-deb package installation instructions adapted from
     # - https://github.com/sbt/sbt/releases/tag/v1.4.9
     # - https://github.com/broadinstitute/scala-baseimage/pull/4/files
-    curl --location --fail --silent --show-error "https://github.com/sbt/sbt/releases/download/v1.5.4/sbt-1.5.4.tgz" |
+    curl --location --fail --silent --show-error "https://github.com/sbt/sbt/releases/download/v1.5.5/sbt-1.5.5.tgz" |
         sudo tar zxf - -C /usr/share
     sudo update-alternatives --install /usr/bin/sbt sbt /usr/share/sbt/bin/sbt 1
 }

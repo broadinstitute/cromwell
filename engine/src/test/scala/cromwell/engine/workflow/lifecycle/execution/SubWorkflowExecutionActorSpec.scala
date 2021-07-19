@@ -281,7 +281,7 @@ class SubWorkflowExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
       case PutMetadataActionAndRespond(events, _, _) => swea ! MetadataWriteSuccess(events)
     }
 
-    // The workflow is now considered failed (since lots of metadata is probably lost:
+    // The workflow is now considered failed since lots of metadata is probably lost:
     parentProbe.expectMsgPF(awaitTimeout) {
       case SubWorkflowFailedResponse(`subKey`, `jobExecutionMap`, reason) =>
         reason.getMessage should be("Sub workflow execution actor unable to write final state to metadata")

@@ -56,7 +56,7 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
   override val workflowIdForCallMetadata = parentWorkflow.id
   override def jobTag: String = key.tag
 
-  startWith(SubWorkflowPendingState,   SubWorkflowExecutionActorData.empty)
+  startWith(SubWorkflowPendingState, SubWorkflowExecutionActorData.empty)
 
   override def preStart(): Unit = {
     context.system.eventStream.publish(SubWorkflowStart(self))
@@ -195,12 +195,12 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
     context.parent ! JobStarting(key)
     pushCurrentStateToMetadataService(subWorkflowId, WorkflowRunning)
     pushWorkflowStart(subWorkflowId)
-    goto(SubWorkflowPreparingState) using   SubWorkflowExecutionActorLiveData(Option(subWorkflowId), None)
+    goto(SubWorkflowPreparingState) using SubWorkflowExecutionActorLiveData(Option(subWorkflowId), None)
   }
 
   private def requestValueStore(workflowId: WorkflowId) = {
     context.parent ! RequestValueStore
-    goto(WaitingForValueStore) using   SubWorkflowExecutionActorLiveData(Option(workflowId), None)
+    goto(WaitingForValueStore) using SubWorkflowExecutionActorLiveData(Option(workflowId), None)
   }
 
   def createSubWorkflowPreparationActor(subWorkflowId: WorkflowId) = {

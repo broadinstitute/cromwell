@@ -1,0 +1,15 @@
+name: fail_generate_table
+testFormat: workflowsuccess
+
+files {
+    workflow: CROM_6723_test/CROM_6723_test.wdl
+}
+
+metadata {
+    workflowName: wf_test
+    status: Succeeded
+    "calls.wf_test.file_to_lines.executionStatus": Done
+    "outputs.wf_test.lines_oneline.0": "one_line"
+    "outputs.wf_test.lines_null_count": 0
+    "outputs.wf_test.lines_emptyline.0": ""
+}

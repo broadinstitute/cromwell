@@ -444,7 +444,6 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
   private def issueSourceLocationCommand(copyCommand: CopyOutputsCommand): State = {
     val sourcePath = sourcePathFromCopyOutputsCommand(copyCommand)
-    log.warning(s"Willy, in issueSourceLocationCommand, copyCommand.source is $sourcePath")
     commandBuilder.locationCommand(getPath(sourcePath).get) match {
       case Success(command) =>
         sendIoCommand(command)
@@ -456,11 +455,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
   }
 
   private def issueDestinationLocationCommand(sourceLocation: String, copyCommand: CopyOutputsCommand): State = {
-    log.warning(s"Willy, in issueDestinationLocationCommand. We already found sourceLocation is $sourceLocation")
-    log.warning(s"Willy, JobPaths is $JobPaths")
-    log.warning(s"Willy, jobPaths is $jobPaths")
     val dstRcPath = jobPaths.detritusPaths(JobPaths.ReturnCodePathKey)
-    log.warning(s"Willy, in issueDestinationLocationCommand, dstRcPath is $dstRcPath")
     commandBuilder.locationCommand(dstRcPath) match {
       case Success(command) =>
         sendIoCommand(command)

@@ -32,32 +32,18 @@ class PipelinesApiBackendCacheHitCopyingActor(standardParams: StandardCacheHitCo
   }
 
   override protected def locationCheckRequired: Boolean = {
-    val option = standardParams.jobDescriptor.workflowDescriptor.workflowOptions.getOrElse("call_cache_egress", "global")
-    val b = option != "global"
-    log.warning(s"WILLY, in locationCheckRequired, returning $b because call_cache_egress option is $option")
-    b
+    standardParams.jobDescriptor.workflowDescriptor.workflowOptions.getOrElse("call_cache_egress", "global") != "global"
   }
 
   override protected def copyAllowedFromLocation(sourceLocation: String, destinationLocation: String): Boolean = {
     val callCacheEgressOption = standardParams.jobDescriptor.workflowDescriptor.workflowOptions.getOrElse("call_cache_egress", "global")
-    log.warning(s"WILLY, in copyAllowedFromLocation, sourceLocation is $sourceLocation")
-    log.warning(s"WILLY, in copyAllowedFromLocation, destinationLocation is $destinationLocation")
-    log.warning(s"WILLY, in copyAllowedFromLocation, callCacheEgressOption is $callCacheEgressOption")
     callCacheEgressOption match {
       case "global" => true
       case "continental" =>
-        val sourceContinent = getBucketContinent(sourceLocation)
-        val destinationContinent = getBucketContinent(destinationLocation)
-        val b = sourceContinent == destinationContinent
-        log.warning(s"WILLY, in copyAllowedFromLocation, case continental, returning $b")
-        b
+        getBucketContinent(sourceLocation) == getBucketContinent(destinationLocation)
       case "none" =>
-        val b = sourceLocation == destinationLocation
-        log.warning(s"WILLY, in copyAllowedFromLocation, case none, returning $b")
-        b
-      case default =>
-        log.warning(s"WILLY, in copyAllowedFromLocation, did not match on callCacheEgressOption $default")
-        true
+        sourceLocation == destinationLocation
+      case default => true
     }    
   }
 

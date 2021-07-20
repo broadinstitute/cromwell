@@ -9,7 +9,7 @@ case class EngineDrsPathResolver(drsConfig: DrsConfig,
                                  accessTokenAcceptableTTL: Duration,
                                  authCredentials: OAuth2Credentials,
                                 )
-  extends DrsPathResolver(drsConfig) {
+  extends DrsPathResolver(drsConfig, retryInternally = false) {
 
   //Based on method from GcrRegistry
   override def getAccessToken: String = {

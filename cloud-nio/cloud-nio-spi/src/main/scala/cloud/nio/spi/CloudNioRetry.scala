@@ -4,7 +4,6 @@ import com.typesafe.config.Config
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
-import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 class CloudNioRetry(config: Config) {

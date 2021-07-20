@@ -43,8 +43,7 @@ class PipelinesApiBackendCacheHitCopyingActor(standardParams: StandardCacheHitCo
         getBucketContinent(sourceLocation) == getBucketContinent(destinationLocation)
       case "none" =>
         sourceLocation == destinationLocation
-      case default => true
-    }    
+    }
   }
 
   override def processSimpletons(womValueSimpletons: Seq[WomValueSimpleton],

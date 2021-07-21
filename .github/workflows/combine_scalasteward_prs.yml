@@ -33,6 +33,8 @@ jobs:
           PR_GROUP_SIZE=${{ github.event.inputs.prGroupSize }}
           echo "BASH_VERSION=${BASH_VERSION}"
 
+          set +x
+
           git config user.name "broadbot"
           echo "Fetching repo state..."
           git fetch --quiet

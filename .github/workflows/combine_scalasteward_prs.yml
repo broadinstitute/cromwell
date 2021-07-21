@@ -100,7 +100,7 @@ jobs:
 
           Consolidates scala-steward PRs: ${SUCCESSFUL_PRS[*]}
 
-          Merge conflicts during consolidation (need to be manually brought in): ${UNSUCCESSFUL_PRS[*]}"
+          Merge conflicts during consolidation (if non-empty, this list of PRs will need to be manually applied): ${UNSUCCESSFUL_PRS[*]}"
             fi
 
             NEXT_INDEX=$(( NEXT_INDEX + PR_GROUP_SIZE ))

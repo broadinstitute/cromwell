@@ -57,7 +57,6 @@ jobs:
             echo "NEW_BRANCH=${NEW_BRANCH}"
             git checkout origin_develop
             echo "develop is currently at: $(git rev-parse --verify HEAD)"
-            git pull
             git checkout -B ${NEW_BRANCH}
 
             SUCCESSFUL_PRS=()

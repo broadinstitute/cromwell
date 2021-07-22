@@ -478,7 +478,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
                                      memoryMultiplier: MemoryRetryMultiplierRefined) = {
     pushFailedCallMetadata(jobKey, returnCode, reason, retryableFailure = true)
 
-    val newJobKey = jobKey.copy(attempt = jobKey.attempt + 1, memoryMultiplier = memoryMultiplier)
+//    val newJobKey = jobKey.copy(attempt = jobKey.attempt + 1, memoryMultiplier = memoryMultiplier) -> ??????
+    val newJobKey = jobKey.copy(attempt = jobKey.attempt + 1)
     workflowLogger.info(s"Retrying job execution for ${newJobKey.tag}")
 
     // Update current key to RetryableFailure status and add new key with attempt incremented and NotStarted status

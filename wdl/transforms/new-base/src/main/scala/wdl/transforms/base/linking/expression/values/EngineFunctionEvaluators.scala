@@ -65,7 +65,8 @@ object EngineFunctionEvaluators {
       processValidatedSingleValue[WomSingleFile, WomArray](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { fileToRead =>
         val tryResult = for {
           //validate
-          read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readLinesLimit)
+          read: String <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readLinesLimit)
+          // Write a conditional statement here for empty String; if empty, do not split.
           lines = read.split(System.lineSeparator)
         } yield EvaluatedValue(WomArray(lines map WomString.apply), Seq.empty)
         tryResult.toErrorOr.contextualizeErrors(s"""read_lines("${fileToRead.value}")""")

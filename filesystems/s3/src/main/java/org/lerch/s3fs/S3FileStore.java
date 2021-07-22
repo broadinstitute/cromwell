@@ -2,6 +2,8 @@ package org.lerch.s3fs;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
@@ -118,8 +120,8 @@ public class S3FileStore extends FileStore implements Comparable<S3FileStore> {
         // model as HeadBucket is now required
         boolean bucket = false;
         try {
-          getClient().headBucket(HeadBucketRequest.builder().bucket(bucketName).build());
-          bucket = true;
+            getClient().headBucket(HeadBucketRequest.builder().bucket(bucketName).build());
+            bucket = true;
         }catch(NoSuchBucketException nsbe) {}
         return bucket;
     }
@@ -135,14 +137,37 @@ public class S3FileStore extends FileStore implements Comparable<S3FileStore> {
      */
     public S3Client getClient() {
         if (bucketSpecificClient == null) {
-            String bucketLocation = defaultClient.getBucketLocation(builder -> builder.bucket(this.name)).locationConstraintAsString();
-            logger.debug("Bucket location is '{}'", bucketLocation);
+            try {
+                logger.debug("Determining bucket location with getBucketLocation");
+                String bucketLocation = defaultClient.getBucketLocation(builder -> builder.bucket(this.name)).locationConstraintAsString();
 
-            Region region = bucketLocation.trim().equals("") ? Region.US_EAST_1 : Region.of(bucketLocation);
-            bucketSpecificClient = S3Client.builder().region(region).build();
+                bucketSpecificClient = this.clientForRegion(bucketLocation);
+
+            } catch (S3Exception e) {
+                if(e.statusCode() == 403) {
+                    logger.info("Cannot determine bucket location directly. Attempting to obtain bucket location with headBucket operation");
+                    try {
+                        final HeadBucketResponse headBucketResponse = defaultClient.headBucket(builder -> builder.bucket(this.name));
+                        bucketSpecificClient = this.clientForRegion(headBucketResponse.sdkHttpResponse().firstMatchingHeader("x-amz-bucket-region").orElseThrow());
+                    } catch (S3Exception e2) {
+                        if (e2.statusCode() == 301) {
+                            bucketSpecificClient = this.clientForRegion(e2.awsErrorDetails().sdkHttpResponse().firstMatchingHeader("x-amz-bucket-region").orElseThrow());
+                        }
+                    }
+                } else {
+                    logger.warn("Cannot determine location of {}, falling back to default s3 client for the current profile", this.name);
+                    bucketSpecificClient = S3Client.create();
+                }
+            }
         }
 
         return bucketSpecificClient;
+    }
+
+    private S3Client clientForRegion(String regionString){
+        Region region = regionString.equals("") ? Region.US_EAST_1 : Region.of(regionString);
+        logger.debug("Bucket region is: '{}'", region.id());
+        return S3Client.builder().region(region).build();
     }
 
     public Owner getOwner() {

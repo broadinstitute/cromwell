@@ -21,15 +21,18 @@ import java.nio.ByteBuffer
 import java.nio.channels.{Channels, ReadableByteChannel}
 import scala.util.Try
 
-abstract class DrsPathResolver(drsConfig: DrsConfig) {
+abstract class DrsPathResolver(drsConfig: DrsConfig, retryInternally: Boolean = true) {
 
-  private lazy val retryHandler = new MarthaHttpRequestRetryStrategy(drsConfig)
-
-  protected lazy val httpClientBuilder: HttpClientBuilder =
-    HttpClientBuilder
-      .create()
-      .setRetryHandler(retryHandler)
-      .setServiceUnavailableRetryStrategy(retryHandler)
+  protected lazy val httpClientBuilder: HttpClientBuilder = {
+    val clientBuilder = HttpClientBuilder.create()
+    if (retryInternally) {
+      val retryHandler = new MarthaHttpRequestRetryStrategy(drsConfig)
+      clientBuilder
+        .setRetryHandler(retryHandler)
+        .setServiceUnavailableRetryStrategy(retryHandler)
+    }
+    clientBuilder
+  }
 
   def getAccessToken: String
 

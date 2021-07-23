@@ -9,9 +9,9 @@ case class EngineDrsPathResolver(drsConfig: DrsConfig,
                                  accessTokenAcceptableTTL: Duration,
                                  authCredentials: OAuth2Credentials,
                                 )
-  extends DrsPathResolver(drsConfig) {
+  extends DrsPathResolver(drsConfig, retryInternally = false) {
 
-  //Based on method from GcrRegistry
+  //Based on method from GoogleRegistry
   override def getAccessToken: String = {
     def accessTokenTTLIsAcceptable(accessToken: AccessToken): Boolean = {
       (accessToken.getExpirationTime.getTime - System.currentTimeMillis()).millis.gteq(accessTokenAcceptableTTL)

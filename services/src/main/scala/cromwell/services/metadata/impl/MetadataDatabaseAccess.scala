@@ -12,7 +12,7 @@ import common.validation.Validation._
 import cromwell.core._
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, WorkflowQuery}
-import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
+import cromwell.database.sql.tables.{InformationSchemaEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService.{QueryMetadata, WorkflowQueryResponse}
 import cromwell.services.metadata._
@@ -380,4 +380,6 @@ trait MetadataDatabaseAccess {
 
   def countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(workflowEndTimestampThreshold: OffsetDateTime)(implicit ec: ExecutionContext): Future[Int] =
     metadataDatabaseInterface.countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(workflowEndTimestampThreshold.toSystemTimestamp)
+
+  def getMetadataTableSizeInformation()(implicit ec: ExecutionContext): Future[Option[InformationSchemaEntry]] = metadataDatabaseInterface.getMetadataTableSizeInformation()
 }

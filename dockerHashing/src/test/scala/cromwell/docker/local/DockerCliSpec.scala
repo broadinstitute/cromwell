@@ -33,6 +33,16 @@ class DockerCliSpec extends DockerRegistrySpec with AnyFlatSpecLike with Matcher
     }
   }
 
+  it should "retrieve a public docker hash on gar" taggedAs IntegrationTest in {
+    dockerActor ! makeRequest("us-central1-docker.pkg.dev/broad-dsde-cromwell-dev/bt-335/ubuntu:bt-335")
+
+    expectMsgPF(30.seconds) {
+      case DockerInfoSuccessResponse(DockerInformation(DockerHashResult(alg, hash), _), _) =>
+        alg shouldBe "sha256"
+        hash should not be empty
+    }
+  }
+
   it should "send image not found message back if the image does not exist" taggedAs IntegrationTest in {
     val notFound = makeRequest("ubuntu:nonexistingtag")
     dockerActor ! notFound

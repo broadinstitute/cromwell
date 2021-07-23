@@ -1,9 +1,27 @@
 # Cromwell Change Log
 
+## 66 Release Notes
+
+### Google Artifact Registry Support
+Cromwell now supports call caching when using Docker images hosted on
+[Google Artifact Registry](https://cloud.google.com/artifact-registry).
+
+### Google Image Repository Hashing Updates
+The previously documented `docker.hash-lookup.gcr` configuration has been renamed to `docker.hash-lookup.google` and
+now applies to both Google Container Registry (GCR) and Google Artifact Registry (GAR) repositories.
+Support for the `docker.hash-lookup.gcr-api-queries-per-100-seconds` configuration key has been formally discontinued
+and a bug preventing correct handling of `docker.hash-lookup...throttle` configuration has been fixed.
+Please see Cromwell's bundled
+[`reference.conf`](https://github.com/broadinstitute/cromwell/blob/develop/core/src/main/resources/reference.conf)
+for more details.
+
 ## 65 Release Notes
 
 * An additional set of metrics relating to metadata age were added.
-* No user facing changes in Cromwell 65.  
+
+### AMD Rome support on PAPI v2
+On the PAPI v2 backends "AMD Rome" is now supported as a CPU platform. More details can be found
+[here](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#cpuplatform).
 
 ## 64 Release Notes
 

@@ -541,6 +541,10 @@ The Cromwell git repository includes a Java-based tool to facilitate the creatio
 [CromwellRefdiskManifestCreatorApp](https://github.com/broadinstitute/cromwell/tree/develop/CromwellRefdiskManifestCreator).
 Please see the help command of that tool for more details.
 
+Alternatively for public data stored under `gs://gcp-public-data--broad-references` there exists a shell script to
+extract reference data to a new disk and then convert that disk to a public image. For more information see
+[create_images.sh](https://github.com/broadinstitute/cromwell/tree/develop/scripts/reference_disks/create_images.sh).
+
 ### Docker Image Cache Support
 
 To optimize job execution time, Cromwell 55 and later support the use of Docker image caches on the PAPI v2 lifesciences beta backend. Docker image caches are not available on the PAPI v2 genomics alpha backend.

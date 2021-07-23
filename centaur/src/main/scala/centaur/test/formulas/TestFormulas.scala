@@ -80,7 +80,7 @@ object TestFormulas extends StrictLogging {
     _ <- timingVerificationNotSupported(workflowDefinition.maximumAllowedTime)
     submittedWorkflow <- runFailingWorkflow(workflowDefinition)
     metadata <- fetchAndValidateNonSubworkflowMetadata(submittedWorkflow, workflowDefinition)
-    _ <- fetchAndValidateJobManagerStyleMetadata(submittedWorkflow, workflowDefinition, Option(metadata.value))
+    _ <- fetchAndValidateJobManagerStyleMetadata(submittedWorkflow, workflowDefinition, prefetchedOriginalNonSubWorkflowMetadata = Option(metadata.value))
     _ = cromwellTracker.track(metadata)
     _ <- validateDirectoryContentsCounts(workflowDefinition, submittedWorkflow, metadata)
   } yield SubmitResponse(submittedWorkflow)

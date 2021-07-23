@@ -457,7 +457,7 @@ docker {
 
     # How should docker hashes be looked up. Possible values are "local" and "remote"
     # "local": Lookup hashes on the local docker daemon using the cli
-    # "remote": Lookup hashes on docker hub and gcr
+    # "remote": Lookup hashes on docker hub, gcr, gar, quay
     #method = "remote"
   }
 }

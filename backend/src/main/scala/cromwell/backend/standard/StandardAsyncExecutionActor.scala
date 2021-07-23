@@ -225,7 +225,6 @@ trait StandardAsyncExecutionActor
 
   lazy val memoryRetryErrorKeys: Option[List[String]] = configurationDescriptor.globalConfig.as[Option[List[String]]]("system.memory-retry-error-keys")
 
-  // TODO: Saloni - TOL: Should default value sent to Cromwell be None instead of 1.0 ?
   lazy val memoryRetryFactor: Option[MemoryRetryMultiplierRefined] = {
     jobDescriptor.workflowDescriptor.getWorkflowOption(WorkflowOptions.MemoryRetryMultiplier) flatMap { value: String =>
       Try(value.toDouble) match {
@@ -720,7 +719,7 @@ trait StandardAsyncExecutionActor
   lazy val previousMemoryMultiplier: MemoryRetryMultiplierRefined = jobDescriptor.prefetchedKvStoreEntries.get(BackendLifecycleActorFactory.MemoryMultiplierKey) match {
     case Some(KvPair(_,v)) => refineV[MemoryRetryMultiplier](v.toDouble) match {
       case Left(e) =>
-        // should not happen as Cromwell itself is writing the value as a Double
+        // should not happen as Cromwell itself had written the value as a Double
         log.error(e, s"Programmer error: unexpected failure attempting to read value for MemoryMultiplierKey from Key Value table. " +
           "Expected value should be in range 1.0 ≤ n ≤ 99.0")
         refineMV[MemoryRetryMultiplier](1.0)

@@ -5,6 +5,8 @@ import org.lerch.s3fs.S3Path;
 import org.lerch.s3fs.attribute.S3BasicFileAttributes;
 import org.lerch.s3fs.attribute.S3PosixFileAttributes;
 import org.lerch.s3fs.attribute.S3UserPrincipal;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 
@@ -19,6 +21,7 @@ import java.util.Set;
  * Utilities to work with Amazon S3 Objects.
  */
 public class S3Utils {
+    Logger log = LoggerFactory.getLogger("S3Utils");
 
     /**
      * Get the {@link S3Object} that represent this Path or her first child if this path not exists
@@ -34,14 +37,20 @@ public class S3Utils {
         // try to find the element with the current key (maybe with end slash or maybe not.)
         try {
             HeadObjectResponse metadata = client.headObject(HeadObjectRequest.builder().bucket(bucketName).key(key).build());
-            GetObjectAclResponse acl = client.getObjectAcl(GetObjectAclRequest.builder().bucket(bucketName).key(key).build());
+            Owner objectOwner = Owner.builder().build();
+            try {
+                GetObjectAclResponse acl = client.getObjectAcl(GetObjectAclRequest.builder().bucket(bucketName).key(key).build());
+                objectOwner = acl.owner();
+            } catch (S3Exception e2){
+                log.warn("Unable to determine the owner of object: '{}', setting owner as empty", s3Path);
+            }
             S3Object.Builder builder = S3Object.builder();
 
             builder
                 .key(key)
                 .lastModified(metadata.lastModified())
                 .eTag(metadata.eTag())
-                .owner(acl.owner())
+                .owner(objectOwner)
                 .size(metadata.contentLength())
                 .storageClass(metadata.storageClassAsString());
 

@@ -1072,16 +1072,16 @@ trait StandardAsyncExecutionActor
 
     val kvsFromPreviousAttemptUpd = kvsFromPreviousAttempt.mapValues(kvPair => kvPair.copy(key = kvPair.key.copy(jobKey = nextKvJobKey)))
 
-    val failedRetryKvPair: Map[String, KvPair] =
+    val failedRetryCountKvPair: Map[String, KvPair] =
       if (incrementFailedRetryCount) getNextKvPair(FailedRetryCountKey, (previousFailedRetries + 1).toString)
       else Map.empty[String, KvPair]
 
-    val nextMemoryMultiplierKvPair = nextMemoryMultiplierOption match {
+    val memoryMultiplierKvPair = nextMemoryMultiplierOption match {
       case Some(memoryMultiplier) => getNextKvPair(MemoryMultiplierKey, memoryMultiplier.value.toString)
       case None => Map.empty[String, KvPair]
     }
 
-    val mergedKvs = kvsFromPreviousAttemptUpd ++ kvsForNextAttempt ++ failedRetryKvPair ++ nextMemoryMultiplierKvPair
+    val mergedKvs = kvsFromPreviousAttemptUpd ++ kvsForNextAttempt ++ failedRetryCountKvPair ++ memoryMultiplierKvPair
 
     makeKvRequest(mergedKvs.values.map(KvPut).toSeq) map { respSeq =>
       val failures = respSeq.filter(_.isInstanceOf[KvFailure])

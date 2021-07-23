@@ -35,9 +35,6 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
   val ioActor = TestProbe()
   val workflowDockerLookupActor = TestProbe()
 
-//  val mockJobKeyWithMemoryMultiplier = BackendJobDescriptorKey(call, None, 3) // -> ??????????
-//  val mockJobKeyWithMemoryMultiplierAs1 = BackendJobDescriptorKey(call, None, 2)
-
   val scopedKeyMaker: ScopedKeyMaker = key => ScopedKey(workflowId, KvJobKey("correct.horse.battery.staple", None, 1), key)
 
   def buildTestJobPreparationActor(backpressureTimeout: FiniteDuration,

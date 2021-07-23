@@ -7,6 +7,7 @@ import common.exception.MessageAggregation
 import common.validation.ErrorOr
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation.{MemoryRetryMultiplier, MemoryRetryMultiplierRefined}
+import cromwell.backend.BackendLifecycleActorFactory.MemoryMultiplierKey
 import cromwell.backend._
 import cromwell.backend.validation.DockerValidation
 import cromwell.core.Dispatcher.EngineDispatcher
@@ -76,10 +77,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   when(Idle) {
     case Event(Start(valueStore), JobPreparationActorNoData) =>
       evaluateInputsAndAttributes(valueStore) match {
-        case Valid((inputs, attributes)) => {
-//          val updatedRuntimeAttributes = updateRuntimeMemory(attributes, refineMV[MemoryRetryMultiplier](1.0)) // -> ???????????
-          fetchDockerHashesIfNecessary(inputs, attributes)
-        }
+        case Valid((inputs, attributes)) => fetchDockerHashesIfNecessary(inputs, attributes)
         case Invalid(failure) => sendFailureAndStop(new MessageAggregation with NoStackTrace {
           override def exceptionContext: String = s"Call input and runtime attributes evaluation failed for ${jobKey.call.localName}"
           override def errorMessages: Traversable[String] = failure.toList
@@ -181,13 +179,10 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
       }
     }
 
-//    jobKey.memoryMultiplier match { -> ???????
     memoryMultiplierOption match {
-      case Some(multiplier) => multiplier match {
-        case multiplier: MemoryRetryMultiplierRefined if multiplier.value == 1.0 => runtimeAttributes
-        case multiplier: MemoryRetryMultiplierRefined => multiplyRuntimeMemory(multiplier)
-      }
       case None => runtimeAttributes
+      case Some(multiplier) if multiplier.value == 1.0 => runtimeAttributes
+      case Some(multiplier) => multiplyRuntimeMemory(multiplier)
     }
   }
 
@@ -198,10 +193,8 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
                                                 attributes: Map[LocallyQualifiedName, WomValue],
                                                 maybeCallCachingEligible: MaybeCallCachingEligible,
                                                 dockerSize: Option[DockerSize]) = {
-    if (kvStoreKeysToPrefetch.nonEmpty)
-      lookupKeyValueEntries(inputs, attributes, maybeCallCachingEligible, dockerSize)
-    else
-      sendResponseAndStop(prepareBackendDescriptor(inputs, attributes, maybeCallCachingEligible, Map.empty, dockerSize))
+    if (kvStoreKeysToPrefetch.nonEmpty) lookupKeyValueEntries(inputs, attributes, maybeCallCachingEligible, dockerSize)
+    else sendResponseAndStop(prepareBackendDescriptor(inputs, attributes, maybeCallCachingEligible, Map.empty, dockerSize))
   }
 
   private def handleDockerHashSuccess(dockerHashResult: DockerHashResult, dockerSize: Option[DockerSize], data: JobPreparationDockerLookupData) = {
@@ -244,18 +237,19 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
                                                     maybeCallCachingEligible: MaybeCallCachingEligible,
                                                     prefetchedJobStoreEntries: Map[String, KvResponse],
                                                     dockerSize: Option[DockerSize]): BackendJobPreparationSucceeded = {
-    val nextMemoryMultiplier: Option[MemoryRetryMultiplierRefined] = prefetchedJobStoreEntries.get(BackendLifecycleActorFactory.MemoryMultiplierKey) flatMap {
+    val memoryMultiplier: Option[MemoryRetryMultiplierRefined] = prefetchedJobStoreEntries.get(MemoryMultiplierKey) flatMap {
       case KvPair(_,v) => refineV[MemoryRetryMultiplier](v.toDouble) match {
         case Left(e) =>
-          // should not happen ???
-          log.error(e, s"Programmer error: what now?")
+          // should not happen as we are converting a value that Cromwell put in DB after validation
+          log.error(e, s"Programmer error: unexpected failure attempting to read value for MemoryMultiplierKey from Key Value table. " +
+            "Expected value should be in range 1.0 ≤ n ≤ 99.0")
           None
         case Right(refined) => Option(refined)
       }
       case _ => None
     }
 
-    val updatedRuntimeAttributes = updateRuntimeMemory(runtimeAttributes, nextMemoryMultiplier)
+    val updatedRuntimeAttributes = updateRuntimeMemory(runtimeAttributes, memoryMultiplier)
 
     val jobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, updatedRuntimeAttributes, inputEvaluation, maybeCallCachingEligible, dockerSize, prefetchedJobStoreEntries)
     BackendJobPreparationSucceeded(jobDescriptor, jobExecutionProps(jobDescriptor, initializationData, serviceRegistryActor, ioActor, backendSingletonActor))

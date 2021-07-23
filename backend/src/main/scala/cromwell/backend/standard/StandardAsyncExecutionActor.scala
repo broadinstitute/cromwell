@@ -14,6 +14,7 @@ import common.validation.IOChecked._
 import common.validation.Validation._
 import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobReconnectionNotSupportedException}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
+import cromwell.backend.BackendLifecycleActorFactory.{FailedRetryCountKey, MemoryMultiplierKey}
 import cromwell.backend.OutputEvaluator._
 import cromwell.backend.SlowJobWarning.{WarnAboutSlownessAfter, WarnAboutSlownessIfNecessary}
 import cromwell.backend._
@@ -1019,11 +1020,10 @@ trait StandardAsyncExecutionActor
         val maxRetriesNotReachedYet = previousFailedRetries < maxRetries
         failedRetryableOrNonRetryable match {
           case failed: FailedNonRetryableExecutionHandle if maxRetriesNotReachedYet =>
-//            val currentMemoryMultiplier = refineMV[MemoryRetryMultiplier](1.0)  // jobDescriptor.key.memoryMultiplier -> ???????
             (retryWithMoreMemory, memoryRetryFactor) match {
               case (true, Some(retryFactor)) =>
-                val newMultiplier = Refined.unsafeApply[Double, MemoryRetryMultiplier](previousMemoryMultiplier.value * retryFactor.value)
-                saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true, Option(newMultiplier))
+                val nextMemoryMultiplier = Refined.unsafeApply[Double, MemoryRetryMultiplier](previousMemoryMultiplier.value * retryFactor.value)
+                saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true, Option(nextMemoryMultiplier))
               case (_, _) => saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true)
             }
           case failedNonRetryable: FailedNonRetryableExecutionHandle => Future.successful(failedNonRetryable)
@@ -1037,16 +1037,14 @@ trait StandardAsyncExecutionActor
                                 kvPrev: Map[String, KvPair],
                                 kvNext: Map[String, KvPair],
                                 incFailedCount: Boolean,
-                                memoryMultiplier: Option[MemoryRetryMultiplierRefined] = None): Future[FailedRetryableExecutionHandle] = {
+                                nextMemoryMultiplier: Option[MemoryRetryMultiplierRefined] = None): Future[FailedRetryableExecutionHandle] = {
     failedExecHandle match {
       case failedNonRetryable: FailedNonRetryableExecutionHandle =>
-        saveKvPairsForNextAttempt(kvPrev, kvNext, incFailedCount, memoryMultiplier) map { _ =>
-//          val currentMemoryMultiplier = refineMV[MemoryRetryMultiplier](1.0) // jobDescriptor.key.memoryMultiplier -> ???????
-          // TODO: Saloni- no need to send memoryMultiplier anymore?
-          FailedRetryableExecutionHandle(failedNonRetryable.throwable, failedNonRetryable.returnCode, memoryMultiplier.getOrElse(refineMV[MemoryRetryMultiplier](1.0)), None)
+        saveKvPairsForNextAttempt(kvPrev, kvNext, incFailedCount, nextMemoryMultiplier) map { _ =>
+          FailedRetryableExecutionHandle(failedNonRetryable.throwable, failedNonRetryable.returnCode, None)
         }
       case failedRetryable: FailedRetryableExecutionHandle =>
-        saveKvPairsForNextAttempt(kvPrev, kvNext, incFailedCount, memoryMultiplier) map (_ => failedRetryable)
+        saveKvPairsForNextAttempt(kvPrev, kvNext, incFailedCount, nextMemoryMultiplier) map (_ => failedRetryable)
     }
   }
 
@@ -1059,26 +1057,27 @@ trait StandardAsyncExecutionActor
   private def saveKvPairsForNextAttempt(kvsFromPreviousAttempt: Map[String, KvPair],
                                         kvsForNextAttempt: Map[String, KvPair],
                                         incrementFailedRetryCount: Boolean,
-                                        memoryMultiplierOption: Option[MemoryRetryMultiplierRefined]): Future[Seq[KvResponse]] = {
+                                        nextMemoryMultiplierOption: Option[MemoryRetryMultiplierRefined]): Future[Seq[KvResponse]] = {
     val nextKvJobKey = KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)
+
+    def getNextKvPair[A](key: String, value: String): Map[String, KvPair] = {
+      val nextScopedKey = ScopedKey(jobDescriptor.workflowDescriptor.id, nextKvJobKey, key)
+      val nextKvPair = KvPair(nextScopedKey, value)
+      Map(key -> nextKvPair)
+    }
+
     val kvsFromPreviousAttemptUpd = kvsFromPreviousAttempt.mapValues(kvPair => kvPair.copy(key = kvPair.key.copy(jobKey = nextKvJobKey)))
 
-    val failedRetryKvPair: Map[String, KvPair] = if (incrementFailedRetryCount) {
-      val failedRetryCountScopedKey = ScopedKey(jobDescriptor.workflowDescriptor.id, nextKvJobKey, BackendLifecycleActorFactory.FailedRetryCountKey)
-      val failedRetryCountKvPair = KvPair(failedRetryCountScopedKey, (previousFailedRetries + 1).toString)
+    val failedRetryKvPair: Map[String, KvPair] =
+      if (incrementFailedRetryCount) getNextKvPair(FailedRetryCountKey, (previousFailedRetries + 1).toString)
+      else Map.empty[String, KvPair]
 
-      Map(BackendLifecycleActorFactory.FailedRetryCountKey -> failedRetryCountKvPair)
-    } else Map.empty[String, KvPair]
-
-    val memoryMultiplierKvPair: Map[String, KvPair] = memoryMultiplierOption match {
-      case Some(memoryMultiplier) =>
-        val memoryMultiplierScopedKey = ScopedKey(jobDescriptor.workflowDescriptor.id, nextKvJobKey, BackendLifecycleActorFactory.MemoryMultiplierKey)
-        val memoryMultiplierKvPair = KvPair(memoryMultiplierScopedKey, memoryMultiplier.value.toString)
-        Map(BackendLifecycleActorFactory.MemoryMultiplierKey -> memoryMultiplierKvPair)
+    val nextMemoryMultiplierKvPair = nextMemoryMultiplierOption match {
+      case Some(memoryMultiplier) => getNextKvPair(MemoryMultiplierKey, memoryMultiplier.value.toString)
       case None => Map.empty[String, KvPair]
     }
 
-    val mergedKvs = kvsFromPreviousAttemptUpd ++ kvsForNextAttempt ++ failedRetryKvPair ++ memoryMultiplierKvPair
+    val mergedKvs = kvsFromPreviousAttemptUpd ++ kvsForNextAttempt ++ failedRetryKvPair ++ nextMemoryMultiplierKvPair
 
     makeKvRequest(mergedKvs.values.map(KvPut).toSeq) map { respSeq =>
       val failures = respSeq.filter(_.isInstanceOf[KvFailure])

@@ -716,6 +716,9 @@ trait StandardAsyncExecutionActor
     case _ => 0
   }
 
+  /**
+   * Returns the memory multiplier for previous attempt if available
+   */
   lazy val previousMemoryMultiplier: Option[MemoryRetryMultiplierRefined] = jobDescriptor.prefetchedKvStoreEntries.get(BackendLifecycleActorFactory.MemoryMultiplierKey) match {
     case Some(KvPair(_,v)) => refineV[MemoryRetryMultiplier](v.toDouble) match {
       case Left(e) =>

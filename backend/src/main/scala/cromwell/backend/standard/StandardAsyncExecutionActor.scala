@@ -24,12 +24,12 @@ import cromwell.backend.standard.StandardAdHocValue._
 import cromwell.backend.validation._
 import cromwell.core.io.{AsyncIoActorClient, DefaultIoCommandBuilder, IoCommandBuilder}
 import cromwell.core.path.Path
-import cromwell.core.{CromwellAggregatedException, CromwellFatalExceptionMarker, ExecutionEvent, StandardPaths, WorkflowOptions}
+import cromwell.core._
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
 import eu.timepit.refined.api._
-import eu.timepit.refined.{refineMV, refineV}
+import eu.timepit.refined.refineV
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.StringUtils
@@ -716,16 +716,16 @@ trait StandardAsyncExecutionActor
     case _ => 0
   }
 
-  lazy val previousMemoryMultiplier: MemoryRetryMultiplierRefined = jobDescriptor.prefetchedKvStoreEntries.get(BackendLifecycleActorFactory.MemoryMultiplierKey) match {
+  lazy val previousMemoryMultiplier: Option[MemoryRetryMultiplierRefined] = jobDescriptor.prefetchedKvStoreEntries.get(BackendLifecycleActorFactory.MemoryMultiplierKey) match {
     case Some(KvPair(_,v)) => refineV[MemoryRetryMultiplier](v.toDouble) match {
       case Left(e) =>
         // should not happen as Cromwell itself had written the value as a Double
         log.error(e, s"Programmer error: unexpected failure attempting to read value for MemoryMultiplierKey from Key Value table. " +
           "Expected value should be in range 1.0 ≤ n ≤ 99.0")
-        refineMV[MemoryRetryMultiplier](1.0)
-      case Right(refined) => refined
+        None
+      case Right(refined) => Option(refined)
     }
-    case _ => refineMV[MemoryRetryMultiplier](1.0)
+    case _ => None
   }
 
   /**
@@ -1019,11 +1019,13 @@ trait StandardAsyncExecutionActor
         val maxRetriesNotReachedYet = previousFailedRetries < maxRetries
         failedRetryableOrNonRetryable match {
           case failed: FailedNonRetryableExecutionHandle if maxRetriesNotReachedYet =>
-            (retryWithMoreMemory, memoryRetryFactor) match {
-              case (true, Some(retryFactor)) =>
-                val nextMemoryMultiplier = Refined.unsafeApply[Double, MemoryRetryMultiplier](previousMemoryMultiplier.value * retryFactor.value)
+            (retryWithMoreMemory, memoryRetryFactor, previousMemoryMultiplier) match {
+              case (true, Some(retryFactor), Some(previousMultiplier)) =>
+                val nextMemoryMultiplier = Refined.unsafeApply[Double, MemoryRetryMultiplier](previousMultiplier.value * retryFactor.value)
                 saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true, Option(nextMemoryMultiplier))
-              case (_, _) => saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true)
+              case (true, Some(_), None) =>
+                saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true, memoryRetryFactor)
+              case (_, _, _) => saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true)
             }
           case failedNonRetryable: FailedNonRetryableExecutionHandle => Future.successful(failedNonRetryable)
           case failedRetryable: FailedRetryableExecutionHandle => saveAttrsAndRetry(failedRetryable, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = false)

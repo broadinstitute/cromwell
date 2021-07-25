@@ -73,12 +73,7 @@ object Dependencies {
   private val kindProjectorV = "0.9.9"
   private val kittensV = "2.2.1"
   private val liquibaseSlf4jV = "4.0.0"
-  // Scala Steward wanted to upgrade liquibase-core to 3.10.2 but that version does not find some uniqueness
-  // constraints and models datatypes in ways that are incompatible with our test expectations.
-  // liquibase-core 4.0.0 did not have either of those problems but produced tons of strange warnings at runtime
-  // similar in form to this: https://github.com/liquibase/liquibase/issues/1294
-  // Pinning Liquibase version for the time being.
-  private val liquibaseV = "3.6.3" // scala-steward:off
+  private val liquibaseV = "4.3.5"
   private val logbackV = "1.2.3"
   private val lz4JavaV = "1.7.1"
   private val mariadbV = "2.7.2"
@@ -92,9 +87,7 @@ object Dependencies {
   private val owlApiV = "5.1.16" // scala-steward:off (CROM-6677)
   private val paradiseV = "2.1.1"
   private val pegdownV = "1.6.0"
-  // For org.postgresql:postgresql 42.2.6 - 42.2.14:
-  // java.lang.NoSuchFieldException: m_mesgParts in KeyValueSpec "fail if one of the inserts fails"
-  private val postgresV = "42.2.5" // scala-steward:off
+  private val postgresV = "42.2.20"
   private val pprintV = "0.6.3"
   private val rdf4jV = "2.4.2"
   private val refinedV = "0.9.22"
@@ -246,10 +239,8 @@ object Dependencies {
   )
 
   private val liquibaseDependencies = List(
-    "org.liquibase" % "liquibase-core" % liquibaseV,
-      // The exclusion below will be needed if / when liquibase-core is upgraded to 3.10+
-      // Avert collision with jakarta.xml.bind-api
-      // exclude("javax.xml.bind", "jaxb-api"),
+    "org.liquibase" % "liquibase-core" % liquibaseV
+      exclude("javax.xml.bind", "jaxb-api"),
     // This is to stop liquibase from being so noisy by default
     // See: http://stackoverflow.com/questions/20880783/how-to-get-liquibase-to-log-using-slf4j
     "com.mattbertolini" % "liquibase-slf4j" % liquibaseSlf4jV

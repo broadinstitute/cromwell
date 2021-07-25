@@ -81,14 +81,12 @@ object Settings {
   lazy val assemblySettings = Seq(
     assembly / assemblyJarName := name.value + "-" + version.value + ".jar",
     assembly / test := {},
-    assembly / assemblyMergeStrategy := customMergeStrategy.value,
-    assembly / logLevel :=
-      sys.env.get("CROMWELL_SBT_ASSEMBLY_LOG_LEVEL").flatMap(Level.apply).getOrElse((assembly / logLevel).value)
+    assembly / assemblyMergeStrategy := customMergeStrategy.value
   )
 
-  val Scala2_12Version = "2.12.12" // scala-steward:off (CROM-6777) - 2.12.13 blocked by duplicate import of nowarn
-  val ScalaVersion: String = Scala2_12Version
-  val sharedSettings: Seq[Setting[_]] =
+  val Scala2_12Version = "2.12.14"
+  private val ScalaVersion: String = Scala2_12Version
+  private val sharedSettings: Seq[Setting[_]] =
     cromwellVersionWithGit ++ publishingSettings ++ List(
     organization := "org.broadinstitute",
     scalaVersion := ScalaVersion,

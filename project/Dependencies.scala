@@ -1,116 +1,110 @@
 import sbt._
 
 object Dependencies {
-  private val akkaHttpCirceIntegrationV = "1.35.3"
-  private val akkaHttpV = "10.1.12" // scala-steward:off (CROM-6619)
-  private val akkaV = "2.5.31" // scala-steward:off (CROM-6637)
+  private val akkaHttpCirceIntegrationV = "1.37.0"
+  private val akkaHttpV = "10.1.14" // scala-steward:off (CROM-6619)
+  private val akkaV = "2.5.32" // scala-steward:off (CROM-6637)
   private val aliyunBcsV = "6.2.4"
-  private val aliyunCoreV = "4.5.20"
-  private val aliyunCrV = "4.1.1"
-  private val aliyunOssV = "3.11.3"
-  private val ammoniteOpsV = "2.3.8"
-  private val apacheCommonNetV = "3.8.0"
+  private val aliyunCoreV = "4.5.24"
+  private val aliyunCrV = "4.1.2"
+  private val aliyunOssV = "3.13.0"
+  private val ammoniteOpsV = "2.4.0"
   private val apacheHttpClientV = "4.5.13"
-  private val awsSdkV = "2.15.41" // scala-steward:off (CROM-6776)
+  private val awsSdkV = "2.17.4"
   private val betterFilesV = "3.9.1"
-  private val catsEffectV = "2.3.3"
-  private val catsV = "2.3.1"
+  /*
+  cats-effect, fs2, https4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.
+   */
+  private val catsEffectV = "2.5.1" // scala-steward:off
+  private val catsV = "2.6.1"
   private val circeConfigV = "0.8.0"
-  private val circeGenericExtrasV = "0.13.0"
-  private val circeOpticsV = "0.13.0"
-  private val circeV = "0.13.0"
-  private val circeYamlV = "0.13.1"
+  private val circeGenericExtrasV = "0.14.1"
+  private val circeOpticsV = "0.14.1"
+  private val circeV = "0.14.1"
+  private val circeYamlV = "0.14.0"
   private val commonsCodecV = "1.15"
   private val commonsCsvV = "1.8"
-  private val commonsIoV = "2.8.0"
-  private val commonsLang3V = "3.11"
+  private val commonsIoV = "2.11.0"
+  private val commonsLang3V = "3.12.0"
   private val commonsMathV = "3.6.1"
+  private val commonNetV = "3.8.0"
   private val commonsTextV = "1.9"
-  private val configsV = "0.6.0"
+  private val configsV = "0.6.1"
   private val delightRhinoSandboxV = "0.0.15"
-  private val diffsonSprayJsonV = "4.0.3"
+  private val diffSonSprayJsonV = "4.1.1"
   private val ficusV = "1.5.0"
   // The "com.vladsch.flexmark" % "flexmark-profile-pegdown" % flexmarkV dependency is an implicit, version-specific
   // runtime dependency of ScalaTest. At the time of this writing this is the newest version known to work.
   private val flexmarkV = "0.36.8" // scala-steward:off
-  private val fs2V = "2.5.4"
+  private val fs2V = "2.5.9" // scala-steward:off
   // Scala Steward opened PR #5775 titled "Update fs2-io from 2.0.1 to 2.4.3" to upgrade the following dependency.
   // However that PR was actually attempting an upgrade from 1.0.5 to 2.4.3 which is a much more significant
   // undertaking, resulting in some thoroughly broken statsd proxy code. As this component lacks tests and is
   // probably not the most important corner of the Cromwell repo, going to punt on this for now.
+  // NOTE: fs2VStatsDProxy usage within allProjectDependencies breaks sbt whatDependsOn.  If you want to use
+  // whatDependsOn temporarily set fs2VStatsDProxy to fs2V and revert back before trying to compile.
   private val fs2VStatsDProxy = "1.0.5" // scala-steward:off
-  private val googleApiClientV = "1.31.3"
-  private val googleCloudBigQueryV = "1.127.11"
-  private val googleCloudKmsV = "v1-rev20210312-1.31.0"
-  private val googleCloudMonitoringV = "2.0.14"
+  private val googleApiClientV = "1.32.1"
+  private val googleCloudBigQueryV = "1.137.1"
+  private val googleCloudKmsV = "v1-rev20210702-1.32.1"
+  private val googleCloudMonitoringV = "2.3.4"
   private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off
-  private val googleCloudStorageV = "1.113.14"
-  private val googleGaxGrpcV = "1.62.0"
-  private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210322-1.31.0"
+  private val googleCloudStorageV = "1.118.0"
+  private val googleGaxGrpcV = "1.67.0"
+  private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210605-1.32.1"
   private val googleHttpClientApacheV = "2.1.2"
   private val googleHttpClientV = "1.38.0"
-  private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20210319-1.31.0"
-  private val googleOauth2V = "0.22.2"
-  private val googleOauthClientV = "1.31.4"
-  private val googleCloudResourceManagerV = "0.87.0-alpha"
-  private val grpcV = "1.36.1"
+  private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20210527-1.32.1"
+  private val googleOauth2V = "0.27.0"
+  private val googleOauthClientV = "1.31.5"
+  private val googleCloudResourceManagerV = "0.119.8-alpha"
+  private val grpcV = "1.39.0"
   private val guavaV = "30.1.1-jre"
   private val heterodonV = "1.0.0-beta3"
-  private val hsqldbV = "2.5.1"
+  private val hsqldbV = "2.6.0"
   private val http4sVersion = "0.21.7" // scala-steward:off (CROM-6678)
-  private val jacksonV = "2.12.2"
-  private val janinoV = "3.1.3"
-  private val javaxActivationV = "1.2.0"
-  // jaxb-impl 2.3.3 depends on com.sun.activation:jakarta.activation and jakarta.xml.bind:jakarta.xml.bind-api,
-  // which jaxb-impl 2.3.2 did not. jakarta.activation corresponds to the "updated" Maven coordinates for the Java
-  // Activation Framework (https://wiki.eclipse.org/Jakarta_EE_Maven_Coordinates), but Cromwell has many transitive
-  // dependencies on the "old" javax.activation coordinates as well. At assembly time the classes from these two
-  // different jars collide and produce merge conflicts.
-  // It's possible that after updating all other dependencies in Cromwell we might purge the transitive dependencies on
-  // javax.activation and then be able to upgrade to jaxb-impl 2.3.3 or beyond, but some of those other dependencies
-  // such as googleCloudNioV have already been pinned for Scala Steward so this might not be a trivial undertaking.
-  private val jaxbV = "2.3.2" // scala-steward:off
-  private val kindProjectorV = "0.9.9"
-  private val kittensV = "2.2.1"
+  private val jacksonV = "2.12.4"
+  private val janinoV = "3.1.4"
+  private val jsr305V = "3.0.2"
+  private val kindProjectorV = "0.9.10"
+  private val kittensV = "2.3.2"
   private val liquibaseSlf4jV = "4.0.0"
-  private val liquibaseV = "4.3.5"
-  private val logbackV = "1.2.3"
-  private val lz4JavaV = "1.7.1"
-  private val mariadbV = "2.7.2"
-  private val metrics3ScalaV = "4.0.0" // https://github.com/erikvanoosten/metrics-scala/tree/f733e26#download-4x
+  private val liquibaseV = "4.4.2"
+  private val logbackV = "1.2.4"
+  private val lz4JavaV = "1.8.0"
+  private val mariadbV = "2.7.3"
+  private val metrics3ScalaV = "3.5.10" // scala-steward:off https://github.com/erikvanoosten/metrics-scala/tree/f733e26#download-4x
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "2.8.0"
-  private val mockserverNettyV = "5.5.4" // scala-steward:off (CROM-6582)
-  private val mouseV = "1.0.0"
-  private val mysqlV = "8.0.22" // scala-steward:off (CROM-6772: DateTime/String conversion and connection string updates required)
-  private val nettyV = "4.1.46.Final"
-  private val owlApiV = "5.1.16" // scala-steward:off (CROM-6677)
+  private val mockserverNettyV = "5.11.2"
+  private val mouseV = "1.0.4"
+  private val mysqlV = "8.0.26"
+  private val nettyV = "4.1.66.Final"
+  private val owlApiV = "5.1.17"
   private val paradiseV = "2.1.1"
   private val pegdownV = "1.6.0"
-  private val postgresV = "42.2.20"
-  private val pprintV = "0.6.3"
-  private val rdf4jV = "2.4.2"
-  private val refinedV = "0.9.22"
+  private val postgresV = "42.2.23"
+  private val pprintV = "0.6.6"
+  private val rdf4jV = "3.7.1"
+  private val refinedV = "0.9.27"
   private val rhinoV = "1.7.13"
   private val scalaCollectionCompatV = "2.5.0"
   private val scalaGraphV = "1.13.1"
-  private val scalaLoggingV = "3.9.3"
+  private val scalaLoggingV = "3.9.4"
   private val scalaPoolV = "0.4.3"
-  private val scalacheckV = "1.15.3"
-  private val scalacticV = "3.2.6"
+  private val scalacheckV = "1.15.4"
+  private val scalacticV = "3.2.9"
   private val scalameterV = "0.19"
   private val scalamockV = "5.1.0"
-  private val scalatestV = "3.2.6"
+  private val scalatestV = "3.2.9"
   private val scalatestPlusMockitoV = "1.0.0-M2"
-  private val scalazV = "7.3.3"
+  private val scalazV = "7.3.4"
   private val scoptV = "4.0.1"
-  private val sentryLogbackV = "1.7.30" // scala-steward:off (CROM-6640)
-  private val shapelessV = "2.3.3"
+  private val sentryLogbackV = "5.0.1"
+  private val shapelessV = "2.3.7"
   private val simulacrumV = "1.0.1"
-  private val slf4jV = "1.7.30"
+  private val slf4jV = "1.7.32"
   private val slickCatsV = "0.10.4"
-  private val testContainersScalaV = "0.38.9"
-
   /* If you're about to update our Slick version:
     * Consider checking whether the new Slick version passes tests with upserts enabled (eg KeyValueDatabaseSpec)
     *
@@ -120,17 +114,18 @@ object Dependencies {
     * Related Slick PR: https://github.com/slick/slick/pull/2101
   */
   private val slickV = "3.3.2-2076hotfix" // scala-steward:off (CROM-6620)
-  private val snakeyamlV = "1.28"
-  private val specs2MockV = "4.10.6"
+  private val snakeyamlV = "1.29"
+  private val specs2MockV = "4.12.3"
   private val sprayJsonV = "1.3.6"
   private val sttpV = "1.5.19" // scala-steward:off (CROM-6564)
-  private val swaggerParserV = "1.0.54"
+  private val swaggerParserV = "1.0.55"
   private val swaggerUiV = "3.23.11" // scala-steward:off (CROM-6621)
-  private val tikaV = "1.25" // scala-steward:off (CROM-6771) - javax vs jaxb
+  private val testContainersScalaV = "0.39.5"
+  private val tikaV = "2.0.0"
   private val typesafeConfigV = "1.4.1"
-  private val workbenchGoogleV = "0.15-2fc79a3"
-  private val workbenchModelV = "0.14-27810079-SNAP"
-  private val workbenchUtilV = "0.6-27810079-SNAP"
+  private val workbenchGoogleV = "0.21-89d0d9e"
+  private val workbenchModelV = "0.14-89d0d9e"
+  private val workbenchUtilV = "0.6-89d0d9e"
 
   private val slf4jFacadeDependencies = List(
     "org.slf4j" % "slf4j-api" % slf4jV,
@@ -186,7 +181,7 @@ object Dependencies {
   )
 
   val implFtpDependencies = List(
-    "commons-net" % "commons-net" % apacheCommonNetV,
+    "commons-net" % "commons-net" % commonNetV,
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV,
     "com.google.guava" % "guava" % guavaV,
     "org.scalamock" %% "scalamock" % scalamockV % Test,
@@ -239,8 +234,7 @@ object Dependencies {
   )
 
   private val liquibaseDependencies = List(
-    "org.liquibase" % "liquibase-core" % liquibaseV
-      exclude("javax.xml.bind", "jaxb-api"),
+    "org.liquibase" % "liquibase-core" % liquibaseV,
     // This is to stop liquibase from being so noisy by default
     // See: http://stackoverflow.com/questions/20880783/how-to-get-liquibase-to-log-using-slf4j
     "com.mattbertolini" % "liquibase-slf4j" % liquibaseSlf4jV
@@ -291,7 +285,7 @@ object Dependencies {
   Instead the code has been re-forked into this repo, just like many of the other FileSystemProvider extensions.
    */
   private val s3fsDependencies = List(
-    "com.google.code.findbugs" % "jsr305" % "3.0.2",
+    "com.google.code.findbugs" % "jsr305" % jsr305V,
     "com.google.guava" % "guava" % guavaV,
     "org.apache.tika" % "tika-core" % tikaV,
     "software.amazon.awssdk" % "s3" % awsSdkV
@@ -324,48 +318,16 @@ object Dependencies {
 
   private val aliyunOssDependencies = List(
     "com.aliyun.oss" % "aliyun-sdk-oss" % aliyunOssV
-      // stax is included twice by oss 3.1.0 and cause assembly merge conflicts via stax vs. javax.xml.stream
-      exclude("stax", "stax-api")
-      // Exclude jersey-json until aliyun-sdk-oss >3.4.0 is published
-      // https://github.com/aliyun/aliyun-oss-java-sdk/pull/149
-      exclude("com.sun.jersey", "jersey-json")
-      // jaxb-api and jaxb-core and included in jaxb-impl as of 2.3.1
-      // https://github.com/eclipse-ee4j/jaxb-ri/issues/1168
-      exclude("javax.xml.bind", "jaxb-api")
-      exclude("com.sun.xml.bind", "jaxb-core")
-      // javax.activation:activation has been replaced. https://stackoverflow.com/a/46493809
-      // The old version was causing an assembly merge conflict.
-      exclude("javax.activation", "activation"),
-    "com.sun.activation" % "javax.activation" % javaxActivationV,
-    "com.sun.xml.bind" % "jaxb-impl" % jaxbV,
-    "org.glassfish.jaxb" % "jaxb-runtime" % jaxbV
-      // already included in com.sun.activation
-      exclude("jakarta.activation", "jakarta.activation-api")
   )
 
   private val aliyunBatchComputeDependencies = List(
     "com.aliyun" % "aliyun-java-sdk-batchcompute" % aliyunBcsV,
     "com.aliyun" % "aliyun-java-sdk-core" % aliyunCoreV
-      // jaxb-api and jaxb-core and included in jaxb-impl as of 2.3.1
-      // https://github.com/eclipse-ee4j/jaxb-ri/issues/1168
-      exclude("javax.xml.bind", "jaxb-api")
-      exclude("com.sun.xml.bind", "jaxb-core")
-      // javax.activation:activation has been replaced. https://stackoverflow.com/a/46493809
-      // The old version was causing an assembly merge conflict.
-      exclude("javax.activation", "activation"),
-    "com.sun.activation" % "javax.activation" % javaxActivationV,
-    "com.sun.xml.bind" % "jaxb-impl" % jaxbV,
-    "org.glassfish.jaxb" % "jaxb-runtime" % jaxbV
-      // already included in com.sun.activation
-      exclude("jakarta.activation", "jakarta.activation-api")
   )
 
   private val aliyunCrDependencies = List(
     "com.aliyun" % "aliyun-java-sdk-cr" % aliyunCrV,
-    "com.aliyun" % "aliyun-java-sdk-core" % aliyunCoreV
-      exclude("javax.xml.bind", "jaxb-api")
-      exclude("com.sun.xml.bind", "jaxb-core")
-      exclude("javax.activation", "activation"),
+    "com.aliyun" % "aliyun-java-sdk-core" % aliyunCoreV,
     "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV
   )
 
@@ -508,7 +470,7 @@ object Dependencies {
     "org.apache.commons" % "commons-math3" % commonsMathV,
     "com.github.kxbmap" %% "configs" % configsV,
     "com.google.cloud" % "google-cloud-bigquery" % googleCloudBigQueryV % IntegrationTest,
-    "org.gnieh" %% "diffson-spray-json" % diffsonSprayJsonV
+    "org.gnieh" %% "diffson-spray-json" % diffSonSprayJsonV
   ) ++ circeDependencies ++ slf4jBindingDependencies ++ cloudSupportDependencies ++ http4sDependencies
 
   val engineDependencies: List[ModuleID] = List(
@@ -696,10 +658,9 @@ object Dependencies {
   ).map(m => "io.grpc" % s"grpc-$m" % grpcV)
 
   /*
-  Adding this dependency to the common lib instead of explicitly to the numerous derived executables.
-  A workaround for a shading bug in an earlier versions of scala-collection-compat.
+  Ensure we're using the latest to avoid a shading bug in earlier versions of scala-collection-compat.
   https://github.com/scala/scala-collection-compat/issues/426
-  */
+   */
   private val scalaCollectionCompatOverrides = List(
     "org.scala-lang.modules" %% "scala-collection-compat" % scalaCollectionCompatV
   )

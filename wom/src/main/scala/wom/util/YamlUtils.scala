@@ -2,7 +2,6 @@ package wom.util
 
 import java.io.StringReader
 import java.util
-
 import com.typesafe.config.ConfigException.BadValue
 import com.typesafe.config.{Config, ConfigFactory}
 import eu.timepit.refined.api.Refined
@@ -15,7 +14,7 @@ import org.yaml.snakeyaml.LoaderOptions
 import org.yaml.snakeyaml.comments.CommentLine
 import org.yaml.snakeyaml.composer.Composer
 import org.yaml.snakeyaml.constructor.Constructor
-import org.yaml.snakeyaml.nodes.Node
+import org.yaml.snakeyaml.nodes.{MappingNode, Node, NodeTuple}
 import org.yaml.snakeyaml.parser.ParserImpl
 import org.yaml.snakeyaml.reader.StreamReader
 import org.yaml.snakeyaml.resolver.Resolver
@@ -105,14 +104,29 @@ object YamlUtils {
       super.composeScalarNode(anchor, blockComments)
     }
 
-    override def composeSequenceNode(anchor: String, blockComments: util.List[CommentLine]): Node = {
+    override def composeSequenceNode(anchor: String): Node = {
       checkDepth()
-      super.composeSequenceNode(anchor, blockComments)
+      super.composeSequenceNode(anchor)
     }
 
-    override def composeMappingNode(anchor: String, blockComments: util.List[CommentLine]): Node = {
+    override def composeMappingNode(anchor: String): Node = {
       checkDepth()
-      super.composeMappingNode(anchor, blockComments)
+      super.composeMappingNode(anchor)
+    }
+
+    override def composeMappingChildren(children: util.List[NodeTuple], node: MappingNode): Unit = {
+      checkDepth()
+      super.composeMappingChildren(children, node)
+    }
+
+    override def composeKeyNode(node: MappingNode): Node = {
+      checkDepth()
+      super.composeKeyNode(node)
+    }
+
+    override def composeValueNode(node: MappingNode): Node = {
+      checkDepth()
+      super.composeValueNode(node)
     }
   }
 

@@ -22,6 +22,7 @@ import software.amazon.awssdk.services.s3.model.*;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SeekableByteChannel;
@@ -441,8 +442,8 @@ public class S3FileSystemProvider extends FileSystemProvider {
                     .getClient()
                     .copyObject(CopyObjectRequest.builder()
                             .copySource(bucketNameOrigin + "/" + keySource)
-                            .bucket(bucketNameTarget)
-                            .key(keyTarget)
+                            .destinationBucket(bucketNameTarget)
+                            .destinationKey(keyTarget)
                             .build());
         }
     }
@@ -499,8 +500,8 @@ public class S3FileSystemProvider extends FileSystemProvider {
                             .uploadId(uploadId)
                             .copySource(source.getFileStore().name() + "/" + source.getKey())
                             .copySourceRange("bytes=" + finalBytePosition + "-" + lastByte)
-                            .bucket(target.getFileStore().name())
-                            .key(target.getKey())
+                            .destinationBucket(target.getFileStore().name())
+                            .destinationKey(target.getKey())
                             .partNumber(finalPartNum)
                             .build();
                     UploadPartCopyResponse uploadPartCopyResponse =  s3Client.uploadPartCopy(uploadPartCopyRequest);
@@ -765,8 +766,13 @@ public class S3FileSystemProvider extends FileSystemProvider {
         if (props.containsKey(AMAZON_S3_FACTORY_CLASS)) {
             String amazonS3FactoryClass = props.getProperty(AMAZON_S3_FACTORY_CLASS);
             try {
-                return (AmazonS3Factory) Class.forName(amazonS3FactoryClass).newInstance();
-            } catch (InstantiationException | IllegalAccessException | ClassNotFoundException | ClassCastException e) {
+                return (AmazonS3Factory) Class.forName(amazonS3FactoryClass).getDeclaredConstructor().newInstance();
+            } catch (InstantiationException
+                    | IllegalAccessException
+                    | ClassNotFoundException
+                    | ClassCastException
+                    | NoSuchMethodException
+                    | InvocationTargetException e) {
                 throw new S3FileSystemConfigurationException("Configuration problem, couldn't instantiate AmazonS3Factory (" + amazonS3FactoryClass + "): ", e);
             }
         }

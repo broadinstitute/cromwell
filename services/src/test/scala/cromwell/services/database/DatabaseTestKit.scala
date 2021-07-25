@@ -136,7 +136,7 @@ object DatabaseTestKit extends StrictLogging {
         }
     }
 
-    // Give slow CI like TravisCI a bit more patience to pull and then start the container
+    // Give low cpu/mem CI a bit more patience to start the container
     containerOption.map(_.configure { container =>
       container.withStartupTimeoutSeconds(5.minutes.toSeconds.toInt)
       ()

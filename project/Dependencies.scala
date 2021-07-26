@@ -69,7 +69,7 @@ object Dependencies {
   private val kindProjectorV = "0.9.10"
   private val kittensV = "2.3.2"
   private val liquibaseSlf4jV = "4.0.0"
-  private val liquibaseV = "4.4.2"
+  private val liquibaseV = "4.4.0" // 4.4.1 and 4.4.2 need https://github.com/liquibase/liquibase/pull/2001
   private val logbackV = "1.2.4"
   private val lz4JavaV = "1.8.0"
   private val mariadbV = "2.7.3"

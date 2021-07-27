@@ -1,4 +1,4 @@
-name: write_lines
+name: write_lines   # name of test (or name of script being tested?)
 testFormat: workflowsuccess
 tags: ["wdl_upgrade"]
 

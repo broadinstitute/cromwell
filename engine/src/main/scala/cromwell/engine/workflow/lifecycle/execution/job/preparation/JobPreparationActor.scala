@@ -242,7 +242,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
         case Left(e) =>
           // should not happen as we are converting a value that Cromwell put in DB after validation
           log.error(e, s"Programmer error: unexpected failure attempting to read value for MemoryMultiplierKey from Key Value table. " +
-            "Expected value should be in range 1.0 ≤ n ≤ 99.0")
+            s"Value wasn't a Double.")
           None
         case Right(refined) => Option(refined)
       }

@@ -171,14 +171,11 @@ class JobPreparationActorSpec
     val actor = TestActorRef(helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, inputsAndAttributes, List(prefetchedKey)), self)
     actor ! Start(ValueStore.empty)
 
-    def respondFromKv(): Unit = {
-      helper.serviceRegistryProbe.expectMsgPF(max = 100 milliseconds) {
-        case KvGet(k) if keysToPrefetch.contains(k.key) =>
-          actor.tell(msg = prefetchedValues(k.key), sender = helper.serviceRegistryProbe.ref)
-          keysToPrefetch = keysToPrefetch diff List(k.key)
-      }
+    helper.serviceRegistryProbe.expectMsgPF(max = 100 milliseconds) {
+      case KvGet(k) if keysToPrefetch.contains(k.key) =>
+        actor.tell(msg = prefetchedValues(k.key), sender = helper.serviceRegistryProbe.ref)
+        keysToPrefetch = keysToPrefetch diff List(k.key)
     }
-    respondFromKv()
 
     expectMsgPF(5 seconds) {
       case success: BackendJobPreparationSucceeded =>

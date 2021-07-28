@@ -193,8 +193,9 @@ class JobPreparationActorSpec
 
     var previousMultiplier = 1.0
 
-    // mimic failure and retry task 100 times with more memory
-    // At the end of this loop, the task memory would have been 1.1 ^ 100 = 13780.612339822379 GB
+    // mimic failure and retry task 100 times with more memory. At the end of this loop, the task memory would
+    // have been 1.1 ^ 100 = 13780.612339822379 GB. Note: This is just a hypothetical situation. In reality, PAPI would
+    // fail the task because a VM with such a large amount of memory might not exist
     for (_ <- 1 to 100) {
       // since the task has failed, increase it's multiplier
       val nextMultiplier = previousMultiplier * retryFactor

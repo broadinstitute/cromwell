@@ -58,7 +58,11 @@ final class IoActor(queueSize: Int,
     new NioFlow(parallelism = nioParallelism, onRetry)
       .flow
       .withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
-  private [io] lazy val gcsBatchFlow = new ParallelGcsBatchFlow(parallelism = gcsParallelism, batchSize = 100, context.system.scheduler, onRetry, applicationName).flow.withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
+
+  private [io] lazy val gcsBatchFlow =
+    new ParallelGcsBatchFlow(parallelism = gcsParallelism, batchSize = 100, context.system.scheduler, onRetry, applicationName)
+      .flow
+      .withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
   
   private val source = Source.queue[IoCommandContext[_]](queueSize, OverflowStrategy.dropNew)
 
@@ -143,7 +147,9 @@ final class IoActor(queueSize: Int,
       val replyTo = sender()
       val commandContext= DefaultCommandContext(command, replyTo)
       sendToStream(commandContext)
-    case BackPressureTimerResetAction => serviceRegistryActor ! LoadMetric("IO", NormalLoad)
+
+    case BackPressureTimerResetAction =>
+      serviceRegistryActor ! LoadMetric("IO", NormalLoad)
   }
 }
 

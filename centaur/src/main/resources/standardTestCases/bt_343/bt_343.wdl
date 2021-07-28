@@ -1,0 +1,90 @@
+version 1.0
+
+task hello {
+    meta {
+        volatile: true
+    }
+    input {
+        Array[File] inputs
+    }
+    command {
+        echo "Hello world!"
+    }
+    output {
+        String out = read_string(stdout())
+    }
+    runtime {
+      docker: "ubuntu:latest"
+    }
+}
+
+task write_fofn {
+    input {
+        Int shard
+    }
+
+    # Resist the temptation to improve on my terrible Python unless you are willing to break the cache hits and
+    # re-run 700 shards of this...
+
+    command <<<
+        python <<CODE
+        bucket = 'gs://bt-343-testing/'
+        prefix = bucket + \
+            'lorem-ipsum-dolor-sit-amet/consectetur-adipiscing-elit/nullam-in-aliquet-sapien/phasellus-at-feugiat-diam'
+
+        output = open('inputs.txt', 'w')
+
+        # Write an array of input files.
+        # To replicate the scenario in BT-343 this should produce ~(6 * 285) or ~1700 inputs per shard.
+        # Cycle through all of the inputs so a hash is requested for all of them (avoid the root workflow file hash
+        # cache actor coalescing hash requests).
+
+        num_inputs = 1700
+        # num_inputs = 3
+
+        lines = []
+        for a in range(20):
+            for b in range(10):
+                for c in range(10):
+                    lines.append(f'{prefix}/{a}-{"a"*64}/{b}-{"b"*64}/{c}-{"c"*64}/input.txt')
+
+        x = (num_inputs * ~{shard}) % num_inputs
+        y = (num_inputs * (~{shard} + 1)) % num_inputs
+
+        if x < y:
+            raw = lines[x:y]
+        else:
+            raw = lines[:y] + lines[x:]
+
+        output.write('\n'.join(raw))
+
+        output.close()
+        CODE
+    >>>
+    output {
+        Array[String] inputs = read_lines("inputs.txt")
+    }
+    runtime {
+        # `python:3` trips up Cromwell's Docker image identifier regex. `3` is interpreted as a port so the hashing
+        # logic helpfully adds a "missing" `:latest` before querying the image hash. And then the `python:3:latest`
+        # lookup not-so-mysteriously fails, so no Docker image hash and no call cache.
+        # https://github.com/broadinstitute/cromwell/blob/develop/dockerHashing/src/main/scala/cromwell/docker/DockerImageIdentifier.scala#L42
+        docker: "python:latest"
+    }
+}
+
+workflow bt_343 {
+
+    Int scatter_width = 3
+
+    scatter (i in range(scatter_width)) {
+        call write_fofn { input: shard = i }
+    }
+
+    scatter (i in range(scatter_width)) {
+        call hello { input: inputs = write_fofn.inputs[i] }
+    }
+
+    output {
+    }
+}

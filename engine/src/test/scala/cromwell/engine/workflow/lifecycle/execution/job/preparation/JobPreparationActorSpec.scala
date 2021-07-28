@@ -183,4 +183,41 @@ class JobPreparationActorSpec
         success.jobDescriptor.runtimeAttributes(RuntimeAttributesKeys.MemoryKey) shouldBe WomString("1.2100000000000002 GB")
     }
   }
+
+  it should "mimic 100 memory retries and lookup MemoryMultiplier key/value to update runtime attributes" in {
+    val prefetchedKey = "MemoryMultiplier"
+    val retryFactor = 1.1
+    val taskMemory = 1.0
+    val attributes = Map ("memory" -> WomString(taskMemory + " GB"))
+    val inputsAndAttributes = (inputs, attributes).validNel
+
+    var previousMultiplier = 1.0
+
+    // mimic failure and retry task 100 times with more memory
+    // At the end of this loop, the task memory would have been 1.1 ^ 100 = 13780.612339822379 GB
+    for (_ <- 1 to 100) {
+      // since the task has failed, increase it's multiplier
+      val nextMultiplier = previousMultiplier * retryFactor
+      previousMultiplier = nextMultiplier
+
+      val prefetchedVal = KvPair(helper.scopedKeyMaker(prefetchedKey), nextMultiplier.toString)
+      val prefetchedValues = Map(prefetchedKey -> prefetchedVal)
+      var keysToPrefetch = List(prefetchedKey)
+
+      val actor = TestActorRef(helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, inputsAndAttributes, List(prefetchedKey)), self)
+      actor ! Start(ValueStore.empty)
+
+      helper.serviceRegistryProbe.expectMsgPF(max = 100 milliseconds) {
+        case KvGet(k) if keysToPrefetch.contains(k.key) =>
+          actor.tell(msg = prefetchedValues(k.key), sender = helper.serviceRegistryProbe.ref)
+          keysToPrefetch = keysToPrefetch diff List(k.key)
+      }
+
+      expectMsgPF(5 seconds) {
+        case success: BackendJobPreparationSucceeded =>
+          success.jobDescriptor.prefetchedKvStoreEntries should be(Map(prefetchedKey -> prefetchedVal))
+          success.jobDescriptor.runtimeAttributes(RuntimeAttributesKeys.MemoryKey) shouldBe WomString((taskMemory * nextMultiplier) + " GB")
+      }
+    }
+  }
 }

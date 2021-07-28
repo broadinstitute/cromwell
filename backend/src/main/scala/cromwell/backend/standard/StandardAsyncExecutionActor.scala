@@ -28,7 +28,6 @@ import cromwell.core._
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
-import eu.timepit.refined.api._
 import eu.timepit.refined.refineV
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
@@ -719,14 +718,13 @@ trait StandardAsyncExecutionActor
   /**
    * Returns the memory multiplier for previous attempt if available
    */
-  lazy val previousMemoryMultiplier: Option[MemoryRetryMultiplierRefined] = jobDescriptor.prefetchedKvStoreEntries.get(BackendLifecycleActorFactory.MemoryMultiplierKey) match {
-    case Some(KvPair(_,v)) => refineV[MemoryRetryMultiplier](v.toDouble) match {
-      case Left(e) =>
+  lazy val previousMemoryMultiplier: Option[Double] = jobDescriptor.prefetchedKvStoreEntries.get(BackendLifecycleActorFactory.MemoryMultiplierKey) match {
+    case Some(KvPair(_,v)) => Try(v.toDouble) match {
+      case Success(m) => Option(m)
+      case Failure(e) =>
         // should not happen as Cromwell itself had written the value as a Double
-        log.error(e, s"Programmer error: unexpected failure attempting to read value for MemoryMultiplierKey from Key Value table. " +
-          s"Value wasn't a Double.")
+        log.error(e, s"Programmer error: unexpected failure attempting to convert value of MemoryMultiplierKey from JOB_KEY_VALUE_ENTRY table to Double.")
         None
-      case Right(refined) => Option(refined)
     }
     case _ => None
   }
@@ -1024,10 +1022,10 @@ trait StandardAsyncExecutionActor
           case failed: FailedNonRetryableExecutionHandle if maxRetriesNotReachedYet =>
             (retryWithMoreMemory, memoryRetryFactor, previousMemoryMultiplier) match {
               case (true, Some(retryFactor), Some(previousMultiplier)) =>
-                val nextMemoryMultiplier = Refined.unsafeApply[Double, MemoryRetryMultiplier](previousMultiplier.value * retryFactor.value)
+                val nextMemoryMultiplier = previousMultiplier * retryFactor.value
                 saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true, Option(nextMemoryMultiplier))
-              case (true, Some(_), None) =>
-                saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true, memoryRetryFactor)
+              case (true, Some(retryFactor), None) =>
+                saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true, Option(retryFactor.value))
               case (_, _, _) => saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true)
             }
           case failedNonRetryable: FailedNonRetryableExecutionHandle => Future.successful(failedNonRetryable)
@@ -1041,7 +1039,7 @@ trait StandardAsyncExecutionActor
                                 kvPrev: Map[String, KvPair],
                                 kvNext: Map[String, KvPair],
                                 incFailedCount: Boolean,
-                                nextMemoryMultiplier: Option[MemoryRetryMultiplierRefined] = None): Future[FailedRetryableExecutionHandle] = {
+                                nextMemoryMultiplier: Option[Double] = None): Future[FailedRetryableExecutionHandle] = {
     failedExecHandle match {
       case failedNonRetryable: FailedNonRetryableExecutionHandle =>
         saveKvPairsForNextAttempt(kvPrev, kvNext, incFailedCount, nextMemoryMultiplier) map { _ =>
@@ -1061,7 +1059,7 @@ trait StandardAsyncExecutionActor
   private def saveKvPairsForNextAttempt(kvsFromPreviousAttempt: Map[String, KvPair],
                                         kvsForNextAttempt: Map[String, KvPair],
                                         incrementFailedRetryCount: Boolean,
-                                        nextMemoryMultiplierOption: Option[MemoryRetryMultiplierRefined]): Future[Seq[KvResponse]] = {
+                                        nextMemoryMultiplierOption: Option[Double]): Future[Seq[KvResponse]] = {
     val nextKvJobKey = KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)
 
     def getNextKvPair[A](key: String, value: String): Map[String, KvPair] = {
@@ -1077,7 +1075,7 @@ trait StandardAsyncExecutionActor
       else Map.empty[String, KvPair]
 
     val memoryMultiplierKvPair = nextMemoryMultiplierOption match {
-      case Some(memoryMultiplier) => getNextKvPair(MemoryMultiplierKey, memoryMultiplier.value.toString)
+      case Some(memoryMultiplier) => getNextKvPair(MemoryMultiplierKey, memoryMultiplier.toString)
       case None => Map.empty[String, KvPair]
     }
 

@@ -87,7 +87,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
          |  $entries
          |)
          |
-         |localize_files "$${$arrayIdentifier[@]}"
+         |#localize_files "$${$arrayIdentifier[@]}"
        """.stripMargin
     }
 

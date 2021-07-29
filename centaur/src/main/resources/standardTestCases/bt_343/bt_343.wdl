@@ -1,9 +1,6 @@
 version 1.0
 
 task hello {
-    meta {
-        volatile: true
-    }
     input {
         Array[File] inputs
     }
@@ -23,6 +20,8 @@ task write_fofn {
         Int shard
     }
 
+    Int num_inputs = 1700
+
     # Resist the temptation to improve on my terrible Python unless you are willing to break the cache hits and
     # re-run 700 shards of this...
 
@@ -39,17 +38,14 @@ task write_fofn {
         # Cycle through all of the inputs so a hash is requested for all of them (avoid the root workflow file hash
         # cache actor coalescing hash requests).
 
-        num_inputs = 1700
-        # num_inputs = 3
-
         lines = []
         for a in range(20):
             for b in range(10):
                 for c in range(10):
                     lines.append(f'{prefix}/{a}-{"a"*64}/{b}-{"b"*64}/{c}-{"c"*64}/input.txt')
 
-        x = (num_inputs * ~{shard}) % num_inputs
-        y = (num_inputs * (~{shard} + 1)) % num_inputs
+        x = (~{num_inputs} * ~{shard}) % ~{num_inputs}
+        y = (~{num_inputs} * (~{shard} + 1)) % ~{num_inputs}
 
         if x < y:
             raw = lines[x:y]
@@ -84,7 +80,6 @@ workflow bt_343 {
 #    scatter (i in range(scatter_width)) {
 #        call hello { input: inputs = write_fofn.inputs[i] }
 #    }
-
 
     output {
     }

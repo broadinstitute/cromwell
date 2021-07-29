@@ -1,0 +1,14 @@
+name: call_cache_egress_flag_global
+backends: [Papiv2]
+
+files {
+  workflow: call_cache_egress_flag/call_cache_egress_flag.wdl
+  options: call_cache_egress_flag/global_egress_allowed.options
+}
+
+metadata {
+  workflowName: call_cache_egress_flag
+  status: Succeeded
+  "calls.call_cache_egress_flag.make_files.callCaching.hit": false
+  "calls.call_cache_egress_flag.make_files_cached.callCaching.hit": true
+}

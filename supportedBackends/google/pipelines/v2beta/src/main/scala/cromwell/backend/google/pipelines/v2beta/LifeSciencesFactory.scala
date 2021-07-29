@@ -57,8 +57,8 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
     }
 
     override def runRequest(createPipelineParameters: CreatePipelineParameters, jobLogger: JobLogger): HttpRequest = {
-      // jobLogger.info("zzz... effectively eternal sleep instead of creating a PAPI job...")
-      // Thread.sleep(Long.MaxValue);
+      jobLogger.info("zzz... effectively eternal sleep instead of creating a PAPI job...")
+      Thread.sleep(Long.MaxValue);
       def createNetworkWithVPC(vpcAndSubnetworkProjectLabelValues: VpcAndSubnetworkProjectLabelValues): Network = {
         val network = new Network()
           .setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)

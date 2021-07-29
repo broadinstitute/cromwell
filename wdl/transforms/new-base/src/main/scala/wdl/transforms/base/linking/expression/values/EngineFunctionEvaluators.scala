@@ -68,18 +68,14 @@ object EngineFunctionEvaluators {
           read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readLinesLimit)
           lines = if (read.nonEmpty) {
             read.split(System.lineSeparator).toList
-          } else{
-            println(s"***** $read")
+          } else {
             List.empty
           }
-          // Write a conditional statement here for empty String; if empty, do not split.
-          // lines = read.getLines().toArray
         } yield EvaluatedValue(WomArray(lines map WomString.apply), Seq.empty)
         tryResult.toErrorOr.contextualizeErrors(s"""read_lines("${fileToRead.value}")""")
       }
     }
   }
-
   implicit val readTsvFunctionEvaluator: ValueEvaluator[ReadTsv] = new ValueEvaluator[ReadTsv] {
     override def evaluateValue(a: ReadTsv,
                                inputs: Map[String, WomValue],

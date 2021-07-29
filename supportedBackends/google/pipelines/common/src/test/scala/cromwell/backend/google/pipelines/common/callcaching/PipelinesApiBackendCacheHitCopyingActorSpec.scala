@@ -37,7 +37,6 @@ import scala.language.postfixOps
 import scala.util.{Success, Try}
 
 
-
 class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
   with AnyFlatSpecLike with Matchers with ImplicitSender with Mockito with Eventually {
 

@@ -77,9 +77,9 @@ workflow bt_343 {
         call write_fofn { input: shard = i }
     }
 
-#    scatter (i in range(scatter_width)) {
-#        call hello { input: inputs = write_fofn.inputs[i] }
-#    }
+    scatter (i in range(scatter_width)) {
+        call hello { input: inputs = write_fofn.inputs[i] }
+    }
 
     output {
     }

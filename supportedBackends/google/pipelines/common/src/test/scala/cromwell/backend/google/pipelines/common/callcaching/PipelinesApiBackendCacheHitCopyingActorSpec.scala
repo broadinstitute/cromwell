@@ -366,7 +366,7 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
     }
   }
 
-  it should "do all the right things with location check enabled" in {
+  it should "do all the right things with call_cache_egress set to none" in {
 
     val configString =
       """
@@ -422,6 +422,152 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
       ioActor.expectMsgPF(5 seconds) {
         case ioCommand: DefaultIoLocationCommand =>
           ioActor.reply(IoSuccess(ioCommand, "US"))
+      }
+
+      eventually {
+        copyActor.underlyingActor.stateName shouldBe WaitingForCopyIoResponses
+      }
+
+      ioActor.expectMsgPF(5 seconds) {
+        case ioCommand: DefaultIoCopyCommand =>
+          ioActor.reply(IoSuccess(ioCommand, ()))
+      }
+
+      supervisor.expectMsgPF(5 seconds) { case _: JobSucceededResponse => }
+
+      val counts = instrumentationCounts(n = 4, serviceRegistryActor = serviceRegistryActor)
+      val (List(hitBegin, hitEnd), List(bucketBegin, bucketEnd)) = counts partition {
+        _.bucket.path.toList.contains("hit")
+      }
+
+      hitBegin.bucket.path.toList shouldBe expectedMetric(Hit, Read, UntestedCacheResult)
+      bucketBegin.bucket.path.toList shouldBe expectedMetric(Bucket, Read, UntestedCacheResult)
+
+      hitEnd.bucket.path.toList shouldBe expectedMetric(Hit, Write, GoodCacheResult)
+      bucketEnd.bucket.path.toList shouldBe expectedMetric(Bucket, Write, GoodCacheResult)
+    }
+  }
+
+  it should "do no location checks with call_cache_egress set to global" in {
+
+    val configString =
+      """
+        |call-caching {
+        |  enabled: true
+        |  blacklist-cache {
+        |    enabled: true
+        |
+        |    groupings {
+        |      workflow-option: google_project
+        |    }
+        |  }
+        |}
+        |""".stripMargin
+
+    val blacklistManager = new CallCachingBlacklistManager(ConfigFactory.parseString(configString), NoLogging)
+    val grouping = Option(GoogleProject)
+    val workflow = buildWorkflow(grouping)
+    val blacklistCache = blacklistManager.blacklistCacheFor(workflow).get
+
+    {
+      // Step 0: a successful copy attempt.
+      val ioActor = TestProbe("ioActor")
+      val serviceRegistryActor = TestProbe("serviceRegistryActor")
+      val supervisor = TestProbe("supervisor")
+      val copyActor = buildCopyActor(
+        workflow = workflow,
+        blacklistCache = blacklistCache,
+        fakeIoActor = ioActor,
+        fakeServiceRegistryActor = serviceRegistryActor,
+        supervisor = supervisor,
+        grouping = grouping,
+        workflowOptions = Map("jes_gcs_root" -> "foo", "call_cache_egress" -> "global"))
+
+      val copyCommand = buildCopyCommand(hitId = 0, bucket = WideOpenBucket)
+      supervisor watch copyActor
+
+      copyActor ! copyCommand
+
+      eventually {
+        copyActor.underlyingActor.stateName shouldBe WaitingForCopyIoResponses
+      }
+
+      ioActor.expectMsgPF(5 seconds) {
+        case ioCommand: DefaultIoCopyCommand =>
+          ioActor.reply(IoSuccess(ioCommand, ()))
+      }
+
+      supervisor.expectMsgPF(5 seconds) { case _: JobSucceededResponse => }
+
+      val counts = instrumentationCounts(n = 4, serviceRegistryActor = serviceRegistryActor)
+      val (List(hitBegin, hitEnd), List(bucketBegin, bucketEnd)) = counts partition {
+        _.bucket.path.toList.contains("hit")
+      }
+
+      hitBegin.bucket.path.toList shouldBe expectedMetric(Hit, Read, UntestedCacheResult)
+      bucketBegin.bucket.path.toList shouldBe expectedMetric(Bucket, Read, UntestedCacheResult)
+
+      hitEnd.bucket.path.toList shouldBe expectedMetric(Hit, Write, GoodCacheResult)
+      bucketEnd.bucket.path.toList shouldBe expectedMetric(Bucket, Write, GoodCacheResult)
+    }
+  }
+
+  it should "do all the right things with call_cache_egress set to continental" in {
+
+    val configString =
+      """
+        |call-caching {
+        |  enabled: true
+        |  blacklist-cache {
+        |    enabled: true
+        |
+        |    groupings {
+        |      workflow-option: google_project
+        |    }
+        |  }
+        |}
+        |""".stripMargin
+
+    val blacklistManager = new CallCachingBlacklistManager(ConfigFactory.parseString(configString), NoLogging)
+    val grouping = Option(GoogleProject)
+    val workflow = buildWorkflow(grouping)
+    val blacklistCache = blacklistManager.blacklistCacheFor(workflow).get
+
+    {
+      // Step 0: a successful copy attempt.
+      val ioActor = TestProbe("ioActor")
+      val serviceRegistryActor = TestProbe("serviceRegistryActor")
+      val supervisor = TestProbe("supervisor")
+      val copyActor = buildCopyActor(
+        workflow = workflow,
+        blacklistCache = blacklistCache,
+        fakeIoActor = ioActor,
+        fakeServiceRegistryActor = serviceRegistryActor,
+        supervisor = supervisor,
+        grouping = grouping,
+        workflowOptions = Map("jes_gcs_root" -> "foo", "call_cache_egress" -> "continental"))
+
+      val copyCommand = buildCopyCommand(hitId = 0, bucket = WideOpenBucket)
+      supervisor watch copyActor
+
+      copyActor ! copyCommand
+
+      eventually {
+        copyActor.underlyingActor.stateName shouldBe CheckingCacheHitLocation
+      }
+
+      ioActor.expectMsgPF(5 seconds) {
+        case ioCommand: DefaultIoLocationCommand =>
+          ioActor.reply(IoSuccess(ioCommand, "AUSTRALIA-SOUTHEAST1"))
+      }
+
+      eventually {
+        copyActor.underlyingActor.stateName shouldBe CheckingCacheHitLocation
+      }
+
+      ioActor.expectMsgPF(5 seconds) {
+        case ioCommand: DefaultIoLocationCommand =>
+          ioActor.reply(IoSuccess(ioCommand, "AUSTRALIA-SOUTHEAST2"))
       }
 
       eventually {

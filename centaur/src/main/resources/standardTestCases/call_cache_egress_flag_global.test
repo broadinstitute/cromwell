@@ -10,6 +10,6 @@ files {
 metadata {
   workflowName: call_cache_egress_flag
   status: Succeeded
-  "calls.call_cache_egress_flag.make_files.callCaching.hit": false
-  "calls.call_cache_egress_flag.make_files_cached.callCaching.hit": true
+  "calls.call_cache_egress_flag.make_files_for_egress_flag.callCaching.hit": false
+  "calls.call_cache_egress_flag.make_files_for_egress_flag_cached.callCaching.hit": true
 }

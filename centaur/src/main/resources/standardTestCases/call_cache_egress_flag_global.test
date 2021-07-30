@@ -1,4 +1,5 @@
 name: call_cache_egress_flag_global
+testFormat: workflowsuccess
 backends: [Papiv2]
 
 files {

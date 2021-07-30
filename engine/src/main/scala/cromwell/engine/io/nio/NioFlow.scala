@@ -1,8 +1,5 @@
 package cromwell.engine.io.nio
 
-import java.io._
-import java.nio.charset.StandardCharsets
-
 import akka.stream.scaladsl.Flow
 import cats.effect.{IO, Timer}
 import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
@@ -10,17 +7,22 @@ import common.util.IORetry
 import cromwell.core.io._
 import cromwell.core.path.Path
 import cromwell.engine.io.IoActor._
-import cromwell.engine.io.RetryableRequestSupport.{isRetryable, isInfinitelyRetryable}
-import cromwell.engine.io.{IoAttempts, IoCommandContext}
+import cromwell.engine.io.RetryableRequestSupport.{isInfinitelyRetryable, isRetryable}
+import cromwell.engine.io.nio.NioFlow.HighLoadThreshold
+import cromwell.engine.io.{IoActor, IoAttempts, IoCommandContext}
 import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.oss.OssPath
 import cromwell.filesystems.s3.S3Path
 import cromwell.util.TryWithResource._
 
+import java.io._
+import java.nio.charset.StandardCharsets
+import java.time.{Duration, OffsetDateTime}
 import scala.concurrent.ExecutionContext
 object NioFlow {
   val NoopOnRetry: IoCommandContext[_] => Throwable => Unit = _ => _ => ()
+  val HighLoadThreshold: Long = 30 * 1000L
 }
 
 /**
@@ -28,7 +30,8 @@ object NioFlow {
   */
 class NioFlow(parallelism: Int,
               onRetryCallback: IoCommandContext[_] => Throwable => Unit = NioFlow.NoopOnRetry,
-              nbAttempts: Int = MaxAttemptsNumber)(implicit ec: ExecutionContext) {
+              nbAttempts: Int = MaxAttemptsNumber,
+              ioActor: Option[IoActor] = None)(implicit ec: ExecutionContext) {
   
   implicit private val timer: Timer[IO] = IO.timer(ec)
   
@@ -60,7 +63,7 @@ class NioFlow(parallelism: Int,
   }
 
   private [nio] def handleSingleCommand(ioSingleCommand: IoCommand[_]): IO[IoSuccess[_]] = {
-    ioSingleCommand match {
+    val ret = ioSingleCommand match {
       case copyCommand: IoCopyCommand => copy(copyCommand) map copyCommand.success
       case writeCommand: IoWriteCommand => write(writeCommand) map writeCommand.success
       case deleteCommand: IoDeleteCommand => delete(deleteCommand) map deleteCommand.success
@@ -73,6 +76,11 @@ class NioFlow(parallelism: Int,
       case isDirectoryCommand: IoIsDirectoryCommand => isDirectory(isDirectoryCommand) map isDirectoryCommand.success
       case _ => IO.raiseError(new UnsupportedOperationException("Method not implemented"))
     }
+    if (Duration.between(ioSingleCommand.creation, OffsetDateTime.now).toMillis > HighLoadThreshold) {
+      println("NIO YO applying backpressure")
+      ioActor foreach { _.onBackpressure() }
+    }
+    ret
   }
 
   private[io] val flow =

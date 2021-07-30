@@ -1,25 +1,27 @@
 package cromwell.engine.io.gcs
 
+import akka.NotUsed
 import akka.actor.Scheduler
-import akka.stream.FlowShape
+import akka.stream.{FlowShape, Graph}
 import akka.stream.scaladsl.{Balance, GraphDSL, Merge}
+import cromwell.core.io.IoAck
 import cromwell.engine.io.IoActor.IoResult
-import cromwell.engine.io.IoCommandContext
+import cromwell.engine.io.{IoActor, IoCommandContext}
 
 import scala.concurrent.ExecutionContext
 
 /**
   * Balancer that distributes requests to multiple batch flows in parallel
   */
-class ParallelGcsBatchFlow(parallelism: Int, batchSize: Int, scheduler: Scheduler, onRetry: IoCommandContext[_] => Throwable => Unit, applicationName: String)(implicit ec: ExecutionContext) {
+class ParallelGcsBatchFlow(parallelism: Int, batchSize: Int, scheduler: Scheduler, onRetry: IoCommandContext[_] => Throwable => Unit, applicationName: String, ioActor: Option[IoActor] = None)(implicit ec: ExecutionContext) {
   
-  val flow = GraphDSL.create() { implicit builder =>
+  val flow: Graph[FlowShape[GcsBatchCommandContext[_, _], (IoAck[_], IoCommandContext[_])], NotUsed] = GraphDSL.create() { implicit builder =>
     import GraphDSL.Implicits._
     val balancer = builder.add(Balance[GcsBatchCommandContext[_, _]](parallelism, waitForAllDownstreams = false))
     val merge = builder.add(Merge[IoResult](parallelism))
 
     for (_ <- 1 to parallelism) {
-      val workerFlow = new GcsBatchFlow(batchSize, scheduler, onRetry, applicationName).flow
+      val workerFlow = new GcsBatchFlow(batchSize, scheduler, onRetry, applicationName, ioActor).flow
       // for each worker, add an edge from the balancer to the worker, then wire
       // it to the merge element
       balancer ~> workerFlow.async ~> merge

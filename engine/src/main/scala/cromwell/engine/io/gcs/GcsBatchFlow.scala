@@ -1,8 +1,6 @@
 package cromwell.engine.io.gcs
 
 import akka.NotUsed
-import java.io.IOException
-
 import akka.actor.Scheduler
 import akka.stream._
 import akka.stream.scaladsl.{Flow, GraphDSL, MergePreferred, Partition}
@@ -19,9 +17,12 @@ import cromwell.engine.io.IoActor._
 import cromwell.engine.io.IoAttempts.EnhancedCromwellIoException
 import cromwell.engine.io.RetryableRequestSupport.{isInfinitelyRetryable, isRetryable}
 import cromwell.engine.io.gcs.GcsBatchFlow._
-import cromwell.engine.io.{IoAttempts, IoCommandContext}
+import cromwell.engine.io.{IoActor, IoAttempts, IoCommandContext}
 import mouse.boolean._
 
+import java.io.IOException
+import java.time.OffsetDateTime
+import java.time.temporal.ChronoUnit
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
@@ -44,7 +45,7 @@ object GcsBatchFlow {
   }
 }
 
-class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandContext[_] => Throwable => Unit, applicationName: String)
+class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandContext[_] => Throwable => Unit, applicationName: String, ioActor: Option[IoActor] = None)
                   (implicit ec: ExecutionContext) extends StrictLogging {
 
   // Does not carry any authentication, assumes all underlying requests are properly authenticated
@@ -165,6 +166,13 @@ class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandConte
 
     // Add all requests to the batch
     contexts foreach { _.queue(batchRequest) }
+
+    val threshold = OffsetDateTime.now.minus(30, ChronoUnit.SECONDS)
+
+    if (contexts.exists { _.creationTime.isBefore(threshold) }) {
+      println("GCS Batch YO applying backpressure")
+      ioActor foreach { _.onBackpressure() }
+    }
 
     val batchCommandNamesList = contexts.map(_.request.toString)
     // Try to execute the batch request.

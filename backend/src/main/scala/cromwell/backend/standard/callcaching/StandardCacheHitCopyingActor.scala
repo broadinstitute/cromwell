@@ -236,7 +236,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
             case Some(command: IoCopyCommand) =>
               logCacheHitCopyCommand(command)
             case huh =>
-              log.warning(s"BT-322 $jobTag unexpected commandsToWaitFor: $huh")
+              log.warning(s"BT-322 {} unexpected commandsToWaitFor: {}", jobTag, huh)
           }
           succeedAndStop(newData.returnCode, newData.newJobOutputs, newData.newDetritus)
         case NextSubSet(commands) =>
@@ -308,9 +308,9 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     (command.source.pathAsString, command.destination.pathAsString) match {
       case (BucketRegex(source), BucketRegex(destination)) =>
         if (source == destination)
-          log.info(s"BT-322 $jobTag cache hit copy within bucket: $source -> $destination")
+          log.info(s"BT-322 {} cache hit copy within bucket: {}", jobTag, source)
         else
-          log.info(s"BT-322 $jobTag cache hit copy across buckets: $source -> $destination")
+          log.info(s"BT-322 {} cache hit copy across buckets: {} -> {}", jobTag, source, destination)
       case _ =>
     }
 

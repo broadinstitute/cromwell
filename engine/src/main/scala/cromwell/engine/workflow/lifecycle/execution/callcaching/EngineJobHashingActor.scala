@@ -125,6 +125,13 @@ object EngineJobHashingActor {
   case class FileHashes(hashes: Set[HashResult], aggregatedHash: String)
   case class CallCacheHashes(initialHashes: Set[HashResult], aggregatedInitialHash: String, fileHashes: Option[FileHashes]) extends EJHAResponse {
     val hashes = initialHashes ++ fileHashes.map(_.hashes).getOrElse(Set.empty)
+    def aggregatedHashString: String = {
+      val file = fileHashes match {
+        case Some(f) => f.aggregatedHash
+        case None => "None"
+      }
+      s"aggregated hashes: initial = $aggregatedInitialHash, file = $file"
+    }
   }
 
   def props(receiver: ActorRef,

@@ -105,8 +105,8 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
   lazy val subWorkflowStoreActor = context.actorOf(SubWorkflowStoreActor.props(subWorkflowStore), "SubWorkflowStoreActor")
 
   // Io Actor
-  lazy val nioParallelism: Int = systemConfig.as[Option[Int]]("io.nio.parallelism").getOrElse(50)
-  lazy val gcsParallelism: Int = systemConfig.as[Option[Int]]("io.gcs.parallelism").getOrElse(50)
+  lazy val nioParallelism: Int = systemConfig.as[Option[Int]]("io.nio.parallelism").getOrElse(10)
+  lazy val gcsParallelism: Int = systemConfig.as[Option[Int]]("io.gcs.parallelism").getOrElse(10)
   lazy val ioThrottle: Throttle = systemConfig.getAs[Throttle]("io.throttle").getOrElse(Throttle(100000, 100.seconds, 100000))
   lazy val ioActor = context.actorOf(IoActor.props(LoadConfig.IoQueueSize, nioParallelism, gcsParallelism, Option(ioThrottle), serviceRegistryActor, GoogleConfiguration(config).applicationName), "IoActor")
   lazy val ioActorProxy = context.actorOf(IoActorProxy.props(ioActor), "IoProxy")

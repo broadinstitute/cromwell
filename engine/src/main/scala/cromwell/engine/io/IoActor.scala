@@ -55,12 +55,21 @@ final class IoActor(queueSize: Int,
   }
   
   private [io] lazy val defaultFlow =
-    new NioFlow(parallelism = nioParallelism, onRetryCallback = onRetry, ioActor = Option(this))
+    new NioFlow(
+      parallelism = nioParallelism,
+      onRetryCallback = onRetry,
+      ioActor = Option(this))
       .flow
       .withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
 
   private [io] lazy val gcsBatchFlow =
-    new ParallelGcsBatchFlow(parallelism = gcsParallelism, batchSize = 100, context.system.scheduler, onRetry, applicationName, Option(this))
+    new ParallelGcsBatchFlow(
+      parallelism = gcsParallelism,
+      batchSize = 100,
+      scheduler = context.system.scheduler,
+      onRetry = onRetry,
+      applicationName = applicationName,
+      ioActor = Option(this))
       .flow
       .withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
   

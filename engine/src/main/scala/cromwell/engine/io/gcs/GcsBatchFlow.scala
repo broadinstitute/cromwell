@@ -48,7 +48,11 @@ object GcsBatchFlow {
   private val backpressureStaleDuration: TemporalAmount = time.Duration.ofSeconds(10)
 }
 
-class GcsBatchFlow(batchSize: Int, scheduler: Scheduler, onRetry: IoCommandContext[_] => Throwable => Unit, applicationName: String, ioActor: Option[IoActor] = None)
+class GcsBatchFlow(batchSize: Int,
+                   scheduler: Scheduler,
+                   onRetry: IoCommandContext[_] => Throwable => Unit,
+                   applicationName: String,
+                   ioActor: Option[IoActor] = None)
                   (implicit ec: ExecutionContext) extends StrictLogging {
 
   // Does not carry any authentication, assumes all underlying requests are properly authenticated

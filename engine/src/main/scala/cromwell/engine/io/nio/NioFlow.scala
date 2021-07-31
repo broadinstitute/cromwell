@@ -8,7 +8,7 @@ import cromwell.core.io._
 import cromwell.core.path.Path
 import cromwell.engine.io.IoActor._
 import cromwell.engine.io.RetryableRequestSupport.{isInfinitelyRetryable, isRetryable}
-import cromwell.engine.io.nio.NioFlow.HighLoadThreshold
+import cromwell.engine.io.nio.NioFlow.backpressureStaleDuration
 import cromwell.engine.io.{IoActor, IoAttempts, IoCommandContext}
 import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPath
@@ -18,11 +18,12 @@ import cromwell.util.TryWithResource._
 
 import java.io._
 import java.nio.charset.StandardCharsets
+import java.time.temporal.TemporalAmount
 import java.time.{Duration, OffsetDateTime}
 import scala.concurrent.ExecutionContext
 object NioFlow {
   val NoopOnRetry: IoCommandContext[_] => Throwable => Unit = _ => _ => ()
-  val HighLoadThreshold: Long = 30 * 1000L
+  val backpressureStaleDuration: TemporalAmount = Duration.ofSeconds(10)
 }
 
 /**
@@ -32,9 +33,9 @@ class NioFlow(parallelism: Int,
               onRetryCallback: IoCommandContext[_] => Throwable => Unit = NioFlow.NoopOnRetry,
               nbAttempts: Int = MaxAttemptsNumber,
               ioActor: Option[IoActor] = None)(implicit ec: ExecutionContext) {
-  
+
   implicit private val timer: Timer[IO] = IO.timer(ec)
-  
+
   private val processCommand: DefaultCommandContext[_] => IO[IoResult] = commandContext => {
 
     val onRetry: (Throwable, IoAttempts) => IoAttempts = (t, s) => {
@@ -76,7 +77,8 @@ class NioFlow(parallelism: Int,
       case isDirectoryCommand: IoIsDirectoryCommand => isDirectory(isDirectoryCommand) map isDirectoryCommand.success
       case _ => IO.raiseError(new UnsupportedOperationException("Method not implemented"))
     }
-    if (Duration.between(ioSingleCommand.creation, OffsetDateTime.now).toMillis > HighLoadThreshold) {
+    val backpressureStaleThreshold = OffsetDateTime.now().minus(backpressureStaleDuration)
+    if (ioSingleCommand.creation.isBefore(backpressureStaleThreshold)) {
       println("NIO YO applying backpressure")
       ioActor foreach { _.onBackpressure() }
     }

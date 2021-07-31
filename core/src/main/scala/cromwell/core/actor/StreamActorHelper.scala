@@ -36,7 +36,7 @@ trait StreamActorHelper[T <: StreamContext] { this: Actor with ActorLogging =>
   
   protected def streamSource: Source[(Any, T), SourceQueueWithComplete[T]]
 
-  override def receive: PartialFunction[Any, Unit] = streamReceive.orElse(actorReceive)
+  override def receive = streamReceive.orElse(actorReceive)
   
   protected def onBackpressure(): Unit = {}
 
@@ -54,7 +54,7 @@ trait StreamActorHelper[T <: StreamContext] { this: Actor with ActorLogging =>
     }
   }
 
-  def sendToStream(commandContext: T): Unit = {
+  def sendToStream(commandContext: T) = {
     val enqueue = stream offer commandContext map {
       case Enqueued => EnqueueResponse(Enqueued, commandContext)
       case other => EnqueueResponse(other, commandContext)

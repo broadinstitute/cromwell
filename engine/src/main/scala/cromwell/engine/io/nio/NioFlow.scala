@@ -23,7 +23,7 @@ import java.time.{Duration, OffsetDateTime}
 import scala.concurrent.ExecutionContext
 object NioFlow {
   val NoopOnRetry: IoCommandContext[_] => Throwable => Unit = _ => _ => ()
-  val backpressureStaleDuration: TemporalAmount = Duration.ofSeconds(10)
+  val backpressureStaleDuration: TemporalAmount = Duration.ofSeconds(5)
 }
 
 /**

@@ -45,7 +45,7 @@ object GcsBatchFlow {
     matcher.matches().option(matcher.group(1))
   }
 
-  private val backpressureStaleDuration: TemporalAmount = time.Duration.ofSeconds(10)
+  private val backpressureStaleDuration: TemporalAmount = time.Duration.ofSeconds(5)
 }
 
 class GcsBatchFlow(batchSize: Int,
@@ -119,7 +119,7 @@ class GcsBatchFlow(batchSize: Int,
     val batchProcessor = builder.add(
       Flow[GcsBatchCommandContext[_, _]]
         // Group commands together in batches so they can be processed as such
-      .groupedWithin(batchSize, 5 seconds)
+      .groupedWithin(batchSize, 2 seconds)
         // execute the batch and outputs each sub-response individually, as a Future
       .mapConcat[Future[GcsBatchResponse[_]]](executeBatch)
         // Wait for each Future to complete

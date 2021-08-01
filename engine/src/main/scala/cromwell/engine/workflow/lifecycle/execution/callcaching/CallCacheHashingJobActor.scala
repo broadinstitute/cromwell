@@ -233,7 +233,7 @@ object CallCacheHashingJobActor {
 
   object CallCacheHashingJobActorData {
     // Slick will eventually build a prepared statement with that many parameters. Don't set this too high or it will stackoverflow.
-    val BatchSize = 100
+    val BatchSize = 5
 
     def apply(fileHashRequestsRemaining: List[SingleFileHashRequest], callCacheReadingJobActor: Option[ActorRef]) = {
       new CallCacheHashingJobActorData(fileHashRequestsRemaining.grouped(BatchSize).toList, List.empty, callCacheReadingJobActor)

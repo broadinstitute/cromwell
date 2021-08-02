@@ -22,7 +22,6 @@ import mouse.boolean._
 import java.io.IOException
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.language.postfixOps
 import scala.util.{Failure, Try}
 
 object GcsBatchFlow {
@@ -43,6 +42,7 @@ object GcsBatchFlow {
 }
 
 class GcsBatchFlow(batchSize: Int,
+                   batchTimespan: FiniteDuration,
                    scheduler: Scheduler,
                    onRetry: IoCommandContext[_] => Throwable => Unit,
                    onBackpressure: () => Unit,
@@ -116,7 +116,7 @@ class GcsBatchFlow(batchSize: Int,
     val batchProcessor = builder.add(
       Flow[GcsBatchCommandContext[_, _]]
         // Group commands together in batches so they can be processed as such
-      .groupedWithin(batchSize, 2 seconds)
+      .groupedWithin(batchSize, batchTimespan)
         // execute the batch and outputs each sub-response individually, as a Future
       .mapConcat[Future[GcsBatchResponse[_]]](executeBatch)
         // Wait for each Future to complete

@@ -108,8 +108,16 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
   lazy val nioConfig: Config = systemConfig.getConfig("io.nio")
   lazy val gcsConfig: Config = systemConfig.getConfig("io.gcs")
   lazy val ioThrottle: Throttle = systemConfig.getAs[Throttle]("io.throttle").getOrElse(Throttle(100000, 100.seconds, 100000))
-  lazy val ioActor = context.actorOf(IoActor.props(LoadConfig.IoQueueSize, nioConfig, gcsConfig, Option(ioThrottle), serviceRegistryActor, GoogleConfiguration(config).applicationName), "IoActor")
-  lazy val ioActorProxy = context.actorOf(IoActorProxy.props(ioActor), "IoProxy")
+  lazy val ioActor: ActorRef = context.actorOf(
+    IoActor.props(
+      queueSize = LoadConfig.IoQueueSize,
+      nioConfig = nioConfig,
+      gcsConfig = gcsConfig,
+      throttle = Option(ioThrottle),
+      serviceRegistryActor = serviceRegistryActor,
+      applicationName = GoogleConfiguration(config).applicationName),
+    "IoActor")
+  lazy val ioActorProxy: ActorRef = context.actorOf(IoActorProxy.props(ioActor), "IoProxy")
 
   // Register the IoActor with the service registry:
   serviceRegistryActor ! IoActorRef(ioActorProxy)

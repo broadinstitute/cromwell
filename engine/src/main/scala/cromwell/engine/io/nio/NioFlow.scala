@@ -77,7 +77,7 @@ class NioFlow(parallelism: Int,
       case _ => IO.raiseError(new UnsupportedOperationException("Method not implemented"))
     }
 
-    // Apply backpressure if any of this command has been waiting too long to execute.
+    // Apply backpressure if this command has been waiting too long to execute.
     backpressureIfStale(ioSingleCommand, onBackpressure)
     ret
   }

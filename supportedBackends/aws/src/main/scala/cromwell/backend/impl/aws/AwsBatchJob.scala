@@ -151,18 +151,16 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
          |  # destination must be the path to a file and not just the directory you want the file in
          |  local destination=$$2
          |
-         |  if [[ $$s3_path =~ s3://([^/]+)/(.+) ]]; then
-         |      bucket="$${BASH_REMATCH[1]}"
-         |      key="$${BASH_REMATCH[2]}"
-         |      content_length=$$($awsCmd s3api head-object --bucket "$$bucket" --key "$$key" --query 'ContentLength')
-         |  else
-         |    echo "$$s3_path is not an S3 path with a bucket and key. aborting"
-         |    exit 1
-         |  fi
-         |
-         |
          |  for i in {1..5};
          |  do
+         |    if [[ $$s3_path =~ s3://([^/]+)/(.+) ]]; then
+         |        bucket="$${BASH_REMATCH[1]}"
+         |        key="$${BASH_REMATCH[2]}"
+         |        content_length=$$($awsCmd s3api head-object --bucket "$$bucket" --key "$$key" --query 'ContentLength')
+         |    else
+         |      echo "$$s3_path is not an S3 path with a bucket and key. aborting"
+         |      exit 1
+         |    fi
          |    $awsCmd s3 cp --no-progress "$$s3_path" "$$destination" &&
          |    [[ $$(LC_ALL=C ls -dn -- "$$destination" | awk '{print $$5; exit}') -eq "$$content_length" ]] && break ||
          |    echo "attempt $$i to copy $$s3_path failed";

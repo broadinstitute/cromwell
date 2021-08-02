@@ -21,9 +21,7 @@ import cromwell.engine.io.{IoActor, IoAttempts, IoCommandContext}
 import mouse.boolean._
 
 import java.io.IOException
-import java.time
 import java.time.OffsetDateTime
-import java.time.temporal.TemporalAmount
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
@@ -44,15 +42,14 @@ object GcsBatchFlow {
     val matcher = ReadForbiddenPattern.matcher(errorMsg)
     matcher.matches().option(matcher.group(1))
   }
-
-  private val backpressureStaleDuration: TemporalAmount = time.Duration.ofSeconds(5)
 }
 
 class GcsBatchFlow(batchSize: Int,
                    scheduler: Scheduler,
                    onRetry: IoCommandContext[_] => Throwable => Unit,
                    applicationName: String,
-                   ioActor: Option[IoActor] = None)
+                   ioActor: Option[IoActor] = None,
+                   backpressureStaleness: FiniteDuration = IoActor.CommandBackpressureStaleness)
                   (implicit ec: ExecutionContext) extends StrictLogging {
 
   // Does not carry any authentication, assumes all underlying requests are properly authenticated
@@ -174,9 +171,9 @@ class GcsBatchFlow(batchSize: Int,
     // Add all requests to the batch
     contexts foreach { _.queue(batchRequest) }
 
-    val backpressureStaleThreshold = OffsetDateTime.now.minus(backpressureStaleDuration)
+    val commandStalenessThreshold = OffsetDateTime.now.minusSeconds(backpressureStaleness.toSeconds)
 
-    if (contexts.exists { _.creationTime.isBefore(backpressureStaleThreshold) }) {
+    if (contexts.exists { _.creationTime.isBefore(commandStalenessThreshold) }) {
       println("GCS Batch YO applying backpressure")
       ioActor foreach { _.onBackpressure() }
     }

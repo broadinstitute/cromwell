@@ -46,9 +46,9 @@ class AwsBatchConfiguration(val configurationDescriptor: BackendConfigurationDes
   val batchAttributes = AwsBatchAttributes.fromConfigs(awsConfig, configurationDescriptor.backendConfig)
   val awsAuth = batchAttributes.auth
   val fileSystem =
-    configurationDescriptor.backendConfig.hasPath("filesystems.s3") match {
-      case true =>  "s3"
-      case false => "local"
+  configurationDescriptor.backendConfig.hasPath("filesystems.s3") match {
+    case true =>  "s3"
+    case false => "local"
   }
   val pathBuilderFactory = configurationDescriptor.backendConfig.hasPath("filesystems.s3") match {
     case true => S3PathBuilderFactory(configurationDescriptor.globalConfig, configurationDescriptor.backendConfig)

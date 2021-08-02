@@ -50,7 +50,12 @@ class GcsBatchFlowSpec extends TestKitSuite with AnyFlatSpecLike with CromwellTi
 
   "GcsBatchFlow" should "not throw unhandled exception and kill the thread when trying to recover from unretryable exception with null error message" in {
     implicit val ec: ExecutionContextExecutor = system.dispatcher
-    val gcsBatchFlow = new GcsBatchFlow(1, system.scheduler, null, "testAppName")
+    val gcsBatchFlow = new GcsBatchFlow(
+      batchSize = 1,
+      scheduler = system.scheduler,
+      onRetry = null,
+      onBackpressure = null,
+      applicationName = "testAppName")
 
     val mockGcsPath = GcsPath(
       nioPath = CloudStorageFileSystem.forBucket("bucket").getPath("test"),

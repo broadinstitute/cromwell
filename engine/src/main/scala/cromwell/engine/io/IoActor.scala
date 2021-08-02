@@ -58,7 +58,7 @@ final class IoActor(queueSize: Int,
   }
 
   private [io] lazy val defaultFlow = {
-    val parallelism: Int = nioConfig.getOrElse("parallelism", 10)
+    val parallelism: Int = nioConfig.getOrElse("parallelism", 20)
 
     new NioFlow(parallelism, onRetry, onBackpressure)
       .flow

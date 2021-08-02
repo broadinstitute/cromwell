@@ -8,12 +8,14 @@ import cromwell.core.TestKitSuite
 import cromwell.engine.io.IoCommandContext
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.gcs.batch.GcsBatchCrc32Command
-import org.specs2.mock.Mockito
 import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+import org.specs2.mock.Mockito
 
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContextExecutor, Future}
+import scala.language.postfixOps
 
 
 class GcsBatchFlowSpec extends TestKitSuite with AnyFlatSpecLike with CromwellTimeoutSpec with Matchers with PrivateMethodTester with Mockito {
@@ -56,6 +58,7 @@ class GcsBatchFlowSpec extends TestKitSuite with AnyFlatSpecLike with CromwellTi
     implicit val ec: ExecutionContextExecutor = system.dispatcher
     val gcsBatchFlow = new GcsBatchFlow(
       batchSize = 1,
+      batchTimespan = 2 seconds,
       scheduler = system.scheduler,
       onRetry = NoopOnRetry,
       onBackpressure = NoopOnBackpressure,

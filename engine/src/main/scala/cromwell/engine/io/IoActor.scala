@@ -5,7 +5,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props, Timers}
 import akka.dispatch.ControlMessage
 import akka.stream._
 import akka.stream.scaladsl.{Flow, GraphDSL, Merge, Partition, Sink, Source, SourceQueueWithComplete}
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.actor.StreamActorHelper
 import cromwell.core.actor.StreamIntegration.StreamContext
@@ -22,6 +22,8 @@ import java.time.OffsetDateTime
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import net.ceedubs.ficus.Ficus._
+
 
 /**
   * Actor that performs IO operations asynchronously using akka streams
@@ -33,8 +35,8 @@ import scala.language.postfixOps
   * @param serviceRegistryActor actorRef for the serviceRegistryActor
   */
 final class IoActor(queueSize: Int,
-                    nioParallelism: Int,
-                    gcsParallelism: Int,
+                    nioConfig: Config,
+                    gcsConfig: Config,
                     throttle: Option[Throttle],
                     override val serviceRegistryActor: ActorRef,
                     applicationName: String)(implicit val materializer: ActorMaterializer)
@@ -48,23 +50,31 @@ final class IoActor(queueSize: Int,
   private def onRetry(commandContext: IoCommandContext[_])(throwable: Throwable): Unit = {
     incrementIoRetry(commandContext.request, throwable)
   }
-  
+
   override def preStart(): Unit = {
     // On start up, let the controller know that the load is normal
     serviceRegistryActor ! LoadMetric("IO", NormalLoad)
     super.preStart()
   }
 
-  private [io] lazy val defaultFlow =
-    new NioFlow(nioParallelism, onRetry, onBackpressure)
-      .flow
-      .withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
+  private [io] lazy val defaultFlow = {
+    val parallelism: Int = nioConfig.getOrElse("parallelism", 10)
 
-  private [io] lazy val gcsBatchFlow =
-    new ParallelGcsBatchFlow(gcsParallelism, batchSize = 20, context.system.scheduler, onRetry, onBackpressure, applicationName)
+    new NioFlow(parallelism, onRetry, onBackpressure)
       .flow
       .withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
-  
+  }
+
+  private [io] lazy val gcsBatchFlow = {
+    val parallelism: Int = gcsConfig.getOrElse("parallelism", 5)
+    val batchSize: Int = gcsConfig.getOrElse("max-batch-size", 20)
+    val batchTimespan = gcsConfig.getOrElse("max-batch-timespan", 2 seconds)
+    new ParallelGcsBatchFlow(
+      parallelism, batchSize, batchTimespan, context.system.scheduler, onRetry, onBackpressure, applicationName)
+      .flow
+      .withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
+  }
+
   private val source = Source.queue[IoCommandContext[_]](queueSize, OverflowStrategy.dropNew)
 
   private val flow = GraphDSL.create() { implicit builder =>
@@ -177,7 +187,7 @@ object IoActor {
   /** Maximum number of times a command will be attempted: First attempt + 5 retries */
   val MaxAttemptsNumber: Int = ioConfig.getOrElse("number-of-attempts", 5)
 
-  /** Commands that are more than `command-backpressure-staleness` old at the time they begin to be processed will
+  /** I/O Commands that are more than `command-backpressure-staleness` old at the time they begin to be processed will
     * trigger I/O backpressure. */
   val CommandBackpressureStaleness: FiniteDuration =
     ioConfig.getOrElse("command-backpressure-staleness", 5 seconds)
@@ -188,13 +198,13 @@ object IoActor {
   case object BackPressureTimerResetAction extends ControlMessage
 
   def props(queueSize: Int,
-            nioParallelism: Int,
-            gcsParallelism: Int,
+            nioConfig: Config,
+            gcsConfig: Config,
             throttle: Option[Throttle],
             serviceRegistryActor: ActorRef,
             applicationName: String,
            )
            (implicit materializer: ActorMaterializer): Props = {
-    Props(new IoActor(queueSize, nioParallelism, gcsParallelism, throttle, serviceRegistryActor, applicationName)).withDispatcher(IoDispatcher)
+    Props(new IoActor(queueSize, nioConfig, gcsConfig, throttle, serviceRegistryActor, applicationName)).withDispatcher(IoDispatcher)
   }
 }

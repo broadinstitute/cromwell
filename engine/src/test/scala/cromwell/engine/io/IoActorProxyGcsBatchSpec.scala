@@ -1,7 +1,5 @@
 package cromwell.engine.io
 
-import java.util.UUID
-
 import akka.stream.ActorMaterializer
 import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
 import com.typesafe.config.ConfigFactory
@@ -14,6 +12,7 @@ import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
+import java.util.UUID
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
 import scala.language.postfixOps
@@ -73,7 +72,7 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with AnyFlatSpecLike with Ma
                        testActorName: String,
                        serviceRegistryActorName: String) = {
     val testActor = TestActorRef(
-      factory = new IoActor(10, 10, 10, None, TestProbe(serviceRegistryActorName).ref, "cromwell test"),
+      factory = new IoActor(10, ConfigFactory.empty(), ConfigFactory.empty(), None, TestProbe(serviceRegistryActorName).ref, "cromwell test"),
       name = testActorName,
     )
 
@@ -149,7 +148,7 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with AnyFlatSpecLike with Ma
 
   it should "copy files across GCS storage classes" taggedAs IntegrationTest in {
     val testActor = TestActorRef(
-      factory = new IoActor(10, 10, 10, None, TestProbe("serviceRegistryActor").ref, "cromwell test"),
+      factory = new IoActor(10, ConfigFactory.empty(), ConfigFactory.empty(), None, TestProbe("serviceRegistryActor").ref, "cromwell test"),
       name = "testActor",
     )
 

@@ -8,7 +8,7 @@ import cromwell.core.io._
 import cromwell.core.path.Path
 import cromwell.engine.io.IoActor._
 import cromwell.engine.io.RetryableRequestSupport.{isInfinitelyRetryable, isRetryable}
-import cromwell.engine.io.{IoActor, IoAttempts, IoCommandContext}
+import cromwell.engine.io.{IoAttempts, IoCommandContext, IoCommandStalenessBackpressuring}
 import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.oss.OssPath
@@ -17,23 +17,23 @@ import cromwell.util.TryWithResource._
 
 import java.io._
 import java.nio.charset.StandardCharsets
-import java.time.OffsetDateTime
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
-object NioFlow {
-  val NoopOnRetry: IoCommandContext[_] => Throwable => Unit = _ => _ => ()
-}
+
 
 /**
   * Flow that executes IO operations by calling java.nio.Path methods
   */
 class NioFlow(parallelism: Int,
-              onRetryCallback: IoCommandContext[_] => Throwable => Unit = NioFlow.NoopOnRetry,
+              onRetryCallback: IoCommandContext[_] => Throwable => Unit,
+              onBackpressure: () => Unit,
               nbAttempts: Int = MaxAttemptsNumber,
               backpressureStaleness: FiniteDuration = CommandBackpressureStaleness,
-              ioActor: Option[IoActor] = None)(implicit ec: ExecutionContext) {
+              )(implicit ec: ExecutionContext) extends IoCommandStalenessBackpressuring {
 
   implicit private val timer: Timer[IO] = IO.timer(ec)
+
+  override def maxStaleness: FiniteDuration = backpressureStaleness
 
   private val processCommand: DefaultCommandContext[_] => IO[IoResult] = commandContext => {
 
@@ -77,11 +77,8 @@ class NioFlow(parallelism: Int,
       case _ => IO.raiseError(new UnsupportedOperationException("Method not implemented"))
     }
 
-    val commandStalenessThreshold = OffsetDateTime.now().minusSeconds(backpressureStaleness.toSeconds)
-    if (ioSingleCommand.creation.isBefore(commandStalenessThreshold)) {
-      println("NIO YO applying backpressure")
-      ioActor foreach { _.onBackpressure() }
-    }
+    // Apply backpressure if any of this command has been waiting too long to execute.
+    backpressureIfStale(ioSingleCommand, onBackpressure)
     ret
   }
 

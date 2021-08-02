@@ -4,7 +4,7 @@ import akka.actor.Scheduler
 import akka.stream.FlowShape
 import akka.stream.scaladsl.{Balance, GraphDSL, Merge}
 import cromwell.engine.io.IoActor.IoResult
-import cromwell.engine.io.{IoActor, IoCommandContext}
+import cromwell.engine.io.IoCommandContext
 
 import scala.concurrent.ExecutionContext
 
@@ -15,8 +15,8 @@ class ParallelGcsBatchFlow(parallelism: Int,
                            batchSize: Int,
                            scheduler: Scheduler,
                            onRetry: IoCommandContext[_] => Throwable => Unit,
-                           applicationName: String,
-                           ioActor: Option[IoActor] = None)
+                           onBackpressure: () => Unit,
+                           applicationName: String)
                           (implicit ec: ExecutionContext) {
   
   //noinspection TypeAnnotation
@@ -26,7 +26,7 @@ class ParallelGcsBatchFlow(parallelism: Int,
     val merge = builder.add(Merge[IoResult](parallelism))
 
     for (_ <- 1 to parallelism) {
-      val workerFlow = new GcsBatchFlow(batchSize, scheduler, onRetry, applicationName, ioActor).flow
+      val workerFlow = new GcsBatchFlow(batchSize, scheduler, onRetry, onBackpressure, applicationName).flow
       // for each worker, add an edge from the balancer to the worker, then wire
       // it to the merge element
       balancer ~> workerFlow.async ~> merge

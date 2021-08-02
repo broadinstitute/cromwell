@@ -8,7 +8,6 @@ import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.storage.Storage
-import com.typesafe.scalalogging.StrictLogging
 import common.util.StringUtil.EnhancedToStringable
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
@@ -17,11 +16,10 @@ import cromwell.engine.io.IoActor._
 import cromwell.engine.io.IoAttempts.EnhancedCromwellIoException
 import cromwell.engine.io.RetryableRequestSupport.{isInfinitelyRetryable, isRetryable}
 import cromwell.engine.io.gcs.GcsBatchFlow._
-import cromwell.engine.io.{IoActor, IoAttempts, IoCommandContext}
+import cromwell.engine.io.{IoActor, IoAttempts, IoCommandContext, IoCommandStalenessBackpressuring}
 import mouse.boolean._
 
 import java.io.IOException
-import java.time.OffsetDateTime
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
@@ -47,10 +45,10 @@ object GcsBatchFlow {
 class GcsBatchFlow(batchSize: Int,
                    scheduler: Scheduler,
                    onRetry: IoCommandContext[_] => Throwable => Unit,
+                   onBackpressure: () => Unit,
                    applicationName: String,
-                   ioActor: Option[IoActor] = None,
                    backpressureStaleness: FiniteDuration = IoActor.CommandBackpressureStaleness)
-                  (implicit ec: ExecutionContext) extends StrictLogging {
+                  (implicit ec: ExecutionContext) extends IoCommandStalenessBackpressuring {
 
   // Does not carry any authentication, assumes all underlying requests are properly authenticated
   private val httpRequestInitializer = new HttpRequestInitializer {
@@ -60,6 +58,8 @@ class GcsBatchFlow(batchSize: Int,
       ()
     }
   }
+
+  override def maxStaleness: FiniteDuration = backpressureStaleness
 
   /**
     * Returns a new BatchRequest instance.
@@ -171,12 +171,8 @@ class GcsBatchFlow(batchSize: Int,
     // Add all requests to the batch
     contexts foreach { _.queue(batchRequest) }
 
-    val commandStalenessThreshold = OffsetDateTime.now.minusSeconds(backpressureStaleness.toSeconds)
-
-    if (contexts.exists { _.creationTime.isBefore(commandStalenessThreshold) }) {
-      println("GCS Batch YO applying backpressure")
-      ioActor foreach { _.onBackpressure() }
-    }
+    // Apply backpressure if any of the contexts has been waiting too long to execute.
+    backpressureIfStale(contexts, onBackpressure)
 
     val batchCommandNamesList = contexts.map(_.request.toString)
     // Try to execute the batch request.

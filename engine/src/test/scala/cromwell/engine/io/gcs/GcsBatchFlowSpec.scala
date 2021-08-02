@@ -5,6 +5,7 @@ import com.google.cloud.storage.StorageException
 import com.google.cloud.storage.contrib.nio.CloudStorageFileSystem
 import common.assertion.CromwellTimeoutSpec
 import cromwell.core.TestKitSuite
+import cromwell.engine.io.IoCommandContext
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.gcs.batch.GcsBatchCrc32Command
 import org.specs2.mock.Mockito
@@ -16,6 +17,9 @@ import scala.concurrent.{ExecutionContextExecutor, Future}
 
 
 class GcsBatchFlowSpec extends TestKitSuite with AnyFlatSpecLike with CromwellTimeoutSpec with Matchers with PrivateMethodTester with Mockito {
+
+  private val NoopOnRetry: IoCommandContext[_] => Throwable => Unit = _ => _ => ()
+  private val NoopOnBackpressure: () => Unit = () => ()
 
   "GcsBatchFlow" should "know what read forbidden bucket failures look like" in {
     val ErrorTemplate = "foo@bar.iam.gserviceaccount.com does not have storage.objects.%s access to %s/three_step/f0000000-baaa-f000-baaa-f00000000000/call-foo/foo.log"
@@ -53,8 +57,8 @@ class GcsBatchFlowSpec extends TestKitSuite with AnyFlatSpecLike with CromwellTi
     val gcsBatchFlow = new GcsBatchFlow(
       batchSize = 1,
       scheduler = system.scheduler,
-      onRetry = null,
-      onBackpressure = null,
+      onRetry = NoopOnRetry,
+      onBackpressure = NoopOnBackpressure,
       applicationName = "testAppName")
 
     val mockGcsPath = GcsPath(

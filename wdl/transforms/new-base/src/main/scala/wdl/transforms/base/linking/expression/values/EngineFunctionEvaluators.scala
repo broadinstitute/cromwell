@@ -66,6 +66,7 @@ object EngineFunctionEvaluators {
         val tryResult = for {
           //validate
           read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readLinesLimit)
+          // The if statement below tests for file emptiness to handle different expected outputs based on file contents.
           lines = if (read.nonEmpty) {
             read.split(System.lineSeparator).toList
           } else {
@@ -76,6 +77,7 @@ object EngineFunctionEvaluators {
       }
     }
   }
+
   implicit val readTsvFunctionEvaluator: ValueEvaluator[ReadTsv] = new ValueEvaluator[ReadTsv] {
     override def evaluateValue(a: ReadTsv,
                                inputs: Map[String, WomValue],

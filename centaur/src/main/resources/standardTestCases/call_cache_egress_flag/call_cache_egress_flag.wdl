@@ -9,9 +9,8 @@ workflow call_cache_egress_flag {
 }
 
 task call_cache_egress_flag_t {
-  input {
-    String input_string
-  }
+  String input_string
+
   command {
     echo input_string
   }

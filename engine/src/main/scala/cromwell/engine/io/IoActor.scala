@@ -1,7 +1,5 @@
 package cromwell.engine.io
 
-import java.time.OffsetDateTime
-
 import akka.NotUsed
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Timers}
 import akka.dispatch.ControlMessage
@@ -20,7 +18,10 @@ import cromwell.engine.io.nio.NioFlow
 import cromwell.filesystems.gcs.batch.GcsBatchIoCommand
 import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadMetric, NormalLoad}
 
+import java.time.OffsetDateTime
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
 /**
   * Actor that performs IO operations asynchronously using akka streams
@@ -175,6 +176,11 @@ object IoActor {
   
   /** Maximum number of times a command will be attempted: First attempt + 5 retries */
   val MaxAttemptsNumber: Int = ioConfig.getOrElse("number-of-attempts", 5)
+
+  /** Commands that are more than `command-backpressure-staleness` old at the time they begin to be processed will
+    * trigger I/O backpressure. */
+  val CommandBackpressureStaleness: FiniteDuration =
+    ioConfig.getOrElse("command-backpressure-staleness", 5 seconds)
 
   case class DefaultCommandContext[T](request: IoCommand[T], replyTo: ActorRef, override val clientContext: Option[Any] = None) extends IoCommandContext[T]
   

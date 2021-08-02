@@ -8,7 +8,6 @@ import cromwell.core.io._
 import cromwell.core.path.Path
 import cromwell.engine.io.IoActor._
 import cromwell.engine.io.RetryableRequestSupport.{isInfinitelyRetryable, isRetryable}
-import cromwell.engine.io.nio.NioFlow.backpressureStaleDuration
 import cromwell.engine.io.{IoActor, IoAttempts, IoCommandContext}
 import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPath
@@ -18,12 +17,11 @@ import cromwell.util.TryWithResource._
 
 import java.io._
 import java.nio.charset.StandardCharsets
-import java.time.temporal.TemporalAmount
-import java.time.{Duration, OffsetDateTime}
+import java.time.OffsetDateTime
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.FiniteDuration
 object NioFlow {
   val NoopOnRetry: IoCommandContext[_] => Throwable => Unit = _ => _ => ()
-  val backpressureStaleDuration: TemporalAmount = Duration.ofSeconds(5)
 }
 
 /**
@@ -32,6 +30,7 @@ object NioFlow {
 class NioFlow(parallelism: Int,
               onRetryCallback: IoCommandContext[_] => Throwable => Unit = NioFlow.NoopOnRetry,
               nbAttempts: Int = MaxAttemptsNumber,
+              backpressureStaleness: FiniteDuration = CommandBackpressureStaleness,
               ioActor: Option[IoActor] = None)(implicit ec: ExecutionContext) {
 
   implicit private val timer: Timer[IO] = IO.timer(ec)
@@ -57,7 +56,7 @@ class NioFlow(parallelism: Int,
       _ <- IO.shift(ec)
       result <- operationResult
     } yield (result, commandContext)
-    
+
      io handleErrorWith {
       failure => IO.pure(commandContext.fail(failure))
     }
@@ -77,8 +76,9 @@ class NioFlow(parallelism: Int,
       case isDirectoryCommand: IoIsDirectoryCommand => isDirectory(isDirectoryCommand) map isDirectoryCommand.success
       case _ => IO.raiseError(new UnsupportedOperationException("Method not implemented"))
     }
-    val backpressureStaleThreshold = OffsetDateTime.now().minus(backpressureStaleDuration)
-    if (ioSingleCommand.creation.isBefore(backpressureStaleThreshold)) {
+
+    val commandStalenessThreshold = OffsetDateTime.now().minusSeconds(backpressureStaleness.toSeconds)
+    if (ioSingleCommand.creation.isBefore(commandStalenessThreshold)) {
       println("NIO YO applying backpressure")
       ioActor foreach { _.onBackpressure() }
     }

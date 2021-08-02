@@ -1,9 +1,9 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
 import java.security.MessageDigest
-
 import akka.actor.{ActorRef, LoggingFSM, Props, Terminated}
 import cats.data.NonEmptyList
+import com.typesafe.config.ConfigFactory
 import cromwell.backend.standard.callcaching.StandardFileHashingActor.{FileHashResponse, SingleFileHashRequest}
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, RuntimeAttributeDefinition}
 import cromwell.core.Dispatcher.EngineDispatcher
@@ -13,6 +13,7 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.CallCacheHashingJobActorData._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CacheMiss
+
 import javax.xml.bind.DatatypeConverter
 import wom.RuntimeAttributesKeys
 import wom.types._
@@ -44,7 +45,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
                                callCachePathPrefixes: Option[CallCachePathPrefixes]
                               ) extends LoggingFSM[CallCacheHashingJobActorState, CallCacheHashingJobActorData] {
 
-  val fileHashingActor = makeFileHashingActor()
+  val fileHashingActor: ActorRef = makeFileHashingActor()
 
   // Watch the read actor, as it will die when it's done (cache miss or successful cache hit)
   // When that happens we want to either stop if writeToCache is false, or keep going
@@ -198,7 +199,7 @@ object CallCacheHashingJobActor {
             callCachingEligible: CallCachingEligible,
             callCachingActivity: CallCachingActivity,
             callCachePathPrefixes: Option[CallCachePathPrefixes]
-           ) = Props(new CallCacheHashingJobActor(
+           ): Props = Props(new CallCacheHashingJobActor(
     jobDescriptor,
     callCacheReadingJobActor,
     initializationData,
@@ -233,9 +234,9 @@ object CallCacheHashingJobActor {
 
   object CallCacheHashingJobActorData {
     // Slick will eventually build a prepared statement with that many parameters. Don't set this too high or it will stackoverflow.
-    val BatchSize = 5
+    val BatchSize: Int = ConfigFactory.load().getInt("system.file-hash-batch-size")
 
-    def apply(fileHashRequestsRemaining: List[SingleFileHashRequest], callCacheReadingJobActor: Option[ActorRef]) = {
+    def apply(fileHashRequestsRemaining: List[SingleFileHashRequest], callCacheReadingJobActor: Option[ActorRef]): CallCacheHashingJobActorData = {
       new CallCacheHashingJobActorData(fileHashRequestsRemaining.grouped(BatchSize).toList, List.empty, callCacheReadingJobActor)
     }
   }

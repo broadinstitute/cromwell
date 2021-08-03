@@ -175,7 +175,7 @@ final class IoActor(queueSize: Int,
         case None =>
           // Start a new backpressure
           val durationSeconds = duration.toMillis / 1000.0
-          log.info("Beginning I/O Actor backpressure for {} seconds", f"$durationSeconds%.2f")
+          log.info("Beginning IoActor backpressure for {} seconds", f"$durationSeconds%.2f")
           timers.startSingleTimer(BackPressureTimerResetKey, BackPressureTimerResetAction, duration)
           backpressureExpiration = Option(proposedExpiry)
 
@@ -183,8 +183,14 @@ final class IoActor(queueSize: Int,
           // Extend the current backpressure
           val extension = expiry.until(proposedExpiry, ChronoUnit.MILLIS)
           val extensionSeconds = extension / 1000.0
-          log.info("Extending I/O Actor backpressure for {} seconds", f"$extensionSeconds%.2f")
-          timers.startSingleTimer(BackPressureTimerResetKey, BackPressureTimerResetAction, FiniteDuration(extension, MILLISECONDS))
+          if (extensionSeconds > 1.0) {
+            // There can be a lot of very short extensions when bursts of I/O requests are rejected from a full I/O
+            // queue. Don't clutter the logs with messages for these.
+            log.info("Extending IoActor backpressure {} seconds", f"$extensionSeconds%.2f")
+          }
+
+          val newExpiration = OffsetDateTime.now().until(proposedExpiry, ChronoUnit.MILLIS)
+          timers.startSingleTimer(BackPressureTimerResetKey, BackPressureTimerResetAction, FiniteDuration(newExpiration, MILLISECONDS))
           backpressureExpiration = Option(proposedExpiry)
 
         case _ => // Ignore proposed expiries that would be before the current expiry

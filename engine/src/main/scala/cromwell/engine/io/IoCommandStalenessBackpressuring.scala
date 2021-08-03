@@ -15,7 +15,7 @@ trait IoCommandStalenessBackpressuring extends StrictLogging {
 
   private def logAndBackpressure(ioCommand: IoCommand[_], onBackpressure: Option[Double] => Unit): Unit = {
     val millis = ChronoUnit.MILLIS.between(ioCommand.creation, commandStalenessThreshold)
-    val multiplier = millis.toDouble / maxStaleness.toMillis
+    val multiplier = (maxStaleness.toMillis + millis.toDouble) / maxStaleness.toMillis
 
     val seconds = millis / 1000.0
     logger.info("I/O command {} seconds stale, applying I/O subsystem backpressure with multiplier {}",

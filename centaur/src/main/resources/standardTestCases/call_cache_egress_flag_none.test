@@ -6,11 +6,10 @@ files {
   workflow: call_cache_egress_flag/call_cache_egress_flag.wdl
   inputs: call_cache_egress_flag/call_cache_egress_flag_none.inputs
   options: call_cache_egress_flag/none_egress_allowed_first.options
-  second-options: call_cache_egress_flag/none_egress_allowed_second.options
 }
 
 metadata {
   workflowName: call_cache_egress_flag
   status: Succeeded
-  "calls.call_cache_egress_flag.call_cache_egress_flag_t.callCaching.result": "Cache Miss"
+  "calls.call_cache_egress_flag.call_cache_egress_flag_t.callCaching.hit": true
 }

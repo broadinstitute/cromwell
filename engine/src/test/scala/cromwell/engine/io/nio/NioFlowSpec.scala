@@ -28,7 +28,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
   behavior of "NioFlowSpec"
 
   private val NoopOnRetry: IoCommandContext[_] => Throwable => Unit = _ => _ => ()
-  private val NoopOnBackpressure: () => Unit = () => ()
+  private val NoopOnBackpressure: Option[Double] => Unit = _ => ()
 
   private val flow = new NioFlow(
     parallelism = 1,

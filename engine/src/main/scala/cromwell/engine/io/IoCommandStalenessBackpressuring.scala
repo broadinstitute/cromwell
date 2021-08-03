@@ -13,23 +13,29 @@ trait IoCommandStalenessBackpressuring extends StrictLogging {
 
   private def commandStalenessThreshold: OffsetDateTime = OffsetDateTime.now().minusSeconds(maxStaleness.toSeconds)
 
+  private def logAndBackpressure(ioCommand: IoCommand[_], onBackpressure: Option[Double] => Unit): Unit = {
+    val millis = ChronoUnit.MILLIS.between(ioCommand.creation, commandStalenessThreshold)
+    val multiplier = millis.toDouble / maxStaleness.toMillis
+
+    logger.info("I/O command {} seconds stale, applying I/O subsystem backpressure with multiplier {}",
+      s"${millis * 1000}%,.3f", s"$multiplier%.2f")
+
+    onBackpressure(Option(multiplier))
+  }
+
   /** Invokes `onBackpressure` if `ioCommand` is older than the staleness limit returned by `maxStaleness`. */
-  def backpressureIfStale(ioCommand: IoCommand[_], onBackpressure: () => Unit): Unit = {
+  def backpressureIfStale(ioCommand: IoCommand[_], onBackpressure: Option[Double] => Unit): Unit = {
     if (ioCommand.creation.isBefore(commandStalenessThreshold)) {
-      logger.info("I/O command {} milliseconds stale, applying I/O subsystem backpressure",
-        ChronoUnit.MILLIS.between(ioCommand.creation, commandStalenessThreshold))
-      onBackpressure()
+      logAndBackpressure(ioCommand, onBackpressure)
     }
   }
 
   /** Invokes `onBackpressure` if at least one IoCommandContext in `contexts` is older than the
     * staleness limit returned by `maxStaleness`. */
-  def backpressureIfStale(contexts: Seq[IoCommandContext[_]], onBackpressure: () => Unit): Unit = {
-    val threshold = commandStalenessThreshold
-    if (contexts.exists(_.creationTime.isBefore(threshold))) {
-      logger.info("Found at least one I/O command staler than max staleness {}, applying I/O subsystem backpressure",
-        maxStaleness)
-      onBackpressure()
+  def backpressureIfStale(contexts: Seq[IoCommandContext[_]], onBackpressure: Option[Double] => Unit): Unit = {
+    val oldest = contexts.minBy(_.creationTime)
+    if (oldest.creationTime.isBefore(commandStalenessThreshold)) {
+      logAndBackpressure(oldest.request, onBackpressure)
     }
   }
 }

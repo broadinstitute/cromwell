@@ -126,12 +126,15 @@ final class IoActor(queueSize: Int,
     .alsoTo(instrumentationSink)  
     .withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
 
-  override def onBackpressure(): Unit = {
+  override def onBackpressure(factor: Option[Double] = None): Unit = {
     incrementBackpressure()
     serviceRegistryActor ! LoadMetric("IO", HighLoad)
     // Because this method will be called every time we backpressure, the timer will be overridden every
     // time until we're not backpressuring anymore
-    timers.startSingleTimer(BackPressureTimerResetKey, BackPressureTimerResetAction, LoadConfig.IoNormalWindow)
+    val uncappedDelay = factor.getOrElse(1.0d) * LoadConfig.IoNormalWindowMinimum
+    val cappedDelay = FiniteDuration(LoadConfig.IoNormalWindowMaximum.min(uncappedDelay).toMillis, MILLISECONDS)
+    println(s"IoActor uncapped delay: $uncappedDelay, capped delay $cappedDelay")
+    timers.startSingleTimer(BackPressureTimerResetKey, BackPressureTimerResetAction, cappedDelay)
   }
   
   override def actorReceive: Receive = {

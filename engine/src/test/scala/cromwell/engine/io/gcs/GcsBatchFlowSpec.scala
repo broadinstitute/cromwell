@@ -21,7 +21,7 @@ import scala.language.postfixOps
 class GcsBatchFlowSpec extends TestKitSuite with AnyFlatSpecLike with CromwellTimeoutSpec with Matchers with PrivateMethodTester with Mockito {
 
   private val NoopOnRetry: IoCommandContext[_] => Throwable => Unit = _ => _ => ()
-  private val NoopOnBackpressure: () => Unit = () => ()
+  private val NoopOnBackpressure: Option[Double] => Unit = _ => ()
 
   "GcsBatchFlow" should "know what read forbidden bucket failures look like" in {
     val ErrorTemplate = "foo@bar.iam.gserviceaccount.com does not have storage.objects.%s access to %s/three_step/f0000000-baaa-f000-baaa-f00000000000/call-foo/foo.log"

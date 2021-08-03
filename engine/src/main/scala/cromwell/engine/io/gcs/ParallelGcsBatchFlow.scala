@@ -17,7 +17,7 @@ class ParallelGcsBatchFlow(parallelism: Int,
                            batchTimespan: FiniteDuration,
                            scheduler: Scheduler,
                            onRetry: IoCommandContext[_] => Throwable => Unit,
-                           onBackpressure: () => Unit,
+                           onBackpressure: Option[Double] => Unit,
                            applicationName: String)
                           (implicit ec: ExecutionContext) {
 

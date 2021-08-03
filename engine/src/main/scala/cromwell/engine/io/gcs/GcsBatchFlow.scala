@@ -45,7 +45,7 @@ class GcsBatchFlow(batchSize: Int,
                    batchTimespan: FiniteDuration,
                    scheduler: Scheduler,
                    onRetry: IoCommandContext[_] => Throwable => Unit,
-                   onBackpressure: () => Unit,
+                   onBackpressure: Option[Double] => Unit,
                    applicationName: String,
                    backpressureStaleness: FiniteDuration = IoActor.CommandBackpressureStaleness)
                   (implicit ec: ExecutionContext) extends IoCommandStalenessBackpressuring {

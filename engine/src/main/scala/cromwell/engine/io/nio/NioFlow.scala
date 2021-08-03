@@ -26,7 +26,7 @@ import scala.concurrent.duration.FiniteDuration
   */
 class NioFlow(parallelism: Int,
               onRetryCallback: IoCommandContext[_] => Throwable => Unit,
-              onBackpressure: () => Unit,
+              onBackpressure: Option[Double] => Unit,
               nbAttempts: Int = MaxAttemptsNumber,
               backpressureStaleness: FiniteDuration = CommandBackpressureStaleness,
               )(implicit ec: ExecutionContext) extends IoCommandStalenessBackpressuring {

@@ -12,5 +12,5 @@ files {
 metadata {
   workflowName: call_cache_egress_flag
   status: Succeeded
-  "calls.call_cache_egress_flag.call_cache_egress_flag_t.callCaching.hit": "Cache Miss"
+  "calls.call_cache_egress_flag.call_cache_egress_flag_t.callCaching.result": "Cache Miss"
 }

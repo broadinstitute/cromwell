@@ -24,6 +24,8 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import net.ceedubs.ficus.Ficus._
 
+import java.time.temporal.ChronoUnit
+
 
 /**
   * Actor that performs IO operations asynchronously using akka streams
@@ -42,6 +44,9 @@ final class IoActor(queueSize: Int,
                     applicationName: String)(implicit val materializer: ActorMaterializer)
   extends Actor with ActorLogging with StreamActorHelper[IoCommandContext[_]] with IoInstrumentation with Timers {
   implicit val ec: ExecutionContext = context.dispatcher
+
+  //noinspection ActorMutableStateInspection
+  private var backpressureExpiration: Option[OffsetDateTime] = None
 
   /**
     * Method for instrumentation to be executed when a IoCommand failed and is being retried.
@@ -129,16 +134,11 @@ final class IoActor(queueSize: Int,
   override def onBackpressure(factor: Option[Double] = None): Unit = {
     incrementBackpressure()
     serviceRegistryActor ! LoadMetric("IO", HighLoad)
-    // Because this method will be called every time we backpressure, the timer will be overridden every
-    // time until we're not backpressuring anymore
+
     val uncappedDelay = factor.getOrElse(1.0d) * LoadConfig.IoNormalWindowMinimum
     val cappedDelay = FiniteDuration(LoadConfig.IoNormalWindowMaximum.min(uncappedDelay).toMillis, MILLISECONDS)
 
-    val cappedDelaySeconds = cappedDelay.toMillis / 1000.0
-    val uncappedDelaySeconds = uncappedDelay.toMillis / 1000.0
-    log.info("IoActor backpressuring with capped delay: {}, uncapped delay {}",
-      f"$cappedDelaySeconds%,.2f", f"$uncappedDelaySeconds%,.2f")
-    timers.startSingleTimer(BackPressureTimerResetKey, BackPressureTimerResetAction, cappedDelay)
+    self ! BackPressure(cappedDelay)
   }
   
   override def actorReceive: Receive = {
@@ -166,7 +166,33 @@ final class IoActor(queueSize: Int,
       val commandContext= DefaultCommandContext(command, replyTo)
       sendToStream(commandContext)
 
+    case BackPressure(duration) =>
+      lazy val proposedExpiry = OffsetDateTime.now().plusNanos(duration.toNanos)
+
+      // Because this method will be called every time we backpressure, the timer will be overridden every
+      // time until we're not backpressuring anymore
+      backpressureExpiration match {
+        case None =>
+          // Start a new backpressure
+          val durationSeconds = duration.toMillis / 1000.0
+          log.info("Beginning I/O Actor backpressure for {} seconds", f"$durationSeconds%.2f")
+          timers.startSingleTimer(BackPressureTimerResetKey, BackPressureTimerResetAction, duration)
+          backpressureExpiration = Option(proposedExpiry)
+
+        case Some(expiry) if expiry.isBefore(proposedExpiry) =>
+          // Extend the current backpressure
+          val extension = expiry.until(proposedExpiry, ChronoUnit.MILLIS)
+          val extensionSeconds = extension / 1000.0
+          log.info("Extending I/O Actor backpressure for {} seconds", f"$extensionSeconds%.2f")
+          timers.startSingleTimer(BackPressureTimerResetKey, BackPressureTimerResetAction, FiniteDuration(extension, MILLISECONDS))
+          backpressureExpiration = Option(proposedExpiry)
+
+        case _ => // Ignore proposed expiries that would be before the current expiry
+      }
+
     case BackPressureTimerResetAction =>
+      log.info("IoActor backpressure off")
+      backpressureExpiration = None
       serviceRegistryActor ! LoadMetric("IO", NormalLoad)
   }
 }
@@ -203,6 +229,7 @@ object IoActor {
   
   case object BackPressureTimerResetKey
   case object BackPressureTimerResetAction extends ControlMessage
+  case class BackPressure(duration: FiniteDuration) extends ControlMessage
 
   def props(queueSize: Int,
             nioConfig: Config,

@@ -33,10 +33,6 @@ final case class GcsPathBuilderFactory(globalConfig: Config, instanceConfig: Con
   lazy val defaultRetrySettings: RetrySettings = {
     RetrySettings.newBuilder()
       .setMaxAttempts(maxAttempts)
-      // Run cromwell-server-2021-07-30T21:17:54-04:00 had this accidentally set to 10 seconds and got the best
-      // results so far, but that may have been coincidence since I also added the stale threshold backpressuring
-      // for that run.
-      // .setTotalTimeout(Duration.ofSeconds(10))
       .setTotalTimeout(Duration.ofSeconds(30))
       .setInitialRetryDelay(Duration.ofMillis(100))
       .setRetryDelayMultiplier(1.1)

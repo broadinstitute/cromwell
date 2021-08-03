@@ -133,7 +133,11 @@ final class IoActor(queueSize: Int,
     // time until we're not backpressuring anymore
     val uncappedDelay = factor.getOrElse(1.0d) * LoadConfig.IoNormalWindowMinimum
     val cappedDelay = FiniteDuration(LoadConfig.IoNormalWindowMaximum.min(uncappedDelay).toMillis, MILLISECONDS)
-    println(s"IoActor uncapped delay: $uncappedDelay, capped delay $cappedDelay")
+
+    val cappedDelaySeconds = cappedDelay.toMillis / 1000.0
+    val uncappedDelaySeconds = uncappedDelay.toMillis / 1000.0
+    log.info("IoActor backpressuring with capped delay: {}, uncapped delay {}",
+      f"$cappedDelaySeconds%,.2f", f"$uncappedDelaySeconds%,.2f")
     timers.startSingleTimer(BackPressureTimerResetKey, BackPressureTimerResetAction, cappedDelay)
   }
   

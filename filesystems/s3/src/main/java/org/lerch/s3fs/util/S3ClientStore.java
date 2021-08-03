@@ -52,7 +52,7 @@ public class S3ClientStore {
 
         } catch (S3Exception e) {
             if(e.statusCode() == 403) {
-                logger.info("Cannot determine bucket location directly. Attempting to obtain bucket location with headBucket operation");
+                logger.info("Cannot determine location of '{}' bucket directly. Attempting to obtain bucket location with headBucket operation", name);
                 try {
                     final HeadBucketResponse headBucketResponse = DEFAULT_CLIENT.headBucket(builder -> builder.bucket(name));
                     bucketSpecificClient = this.clientForRegion(headBucketResponse.sdkHttpResponse().firstMatchingHeader("x-amz-bucket-region").orElseThrow());
@@ -69,8 +69,7 @@ public class S3ClientStore {
         }
 
         if (bucketSpecificClient == null) {
-            logger.warn("Unable to determine the region of bucket: '{}'", name);
-            logger.warn("Generating a client for the current region");
+            logger.warn("Unable to determine the region of bucket: '{}'. Generating a client for the current region.", name);
             bucketSpecificClient = S3Client.create();
         }
 

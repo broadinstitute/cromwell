@@ -146,6 +146,9 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     // this goes at the start of the script after the #!
     val preamble =
       s"""
+         |export AWS_METADATA_SERVICE_TIMEOUT=10
+         |export AWS_METADATA_SERVICE_NUM_ATTEMPTS=10
+         |
          |function _s3_localize_with_retry() {
          |  local s3_path=$$1
          |  # destination must be the path to a file and not just the directory you want the file in

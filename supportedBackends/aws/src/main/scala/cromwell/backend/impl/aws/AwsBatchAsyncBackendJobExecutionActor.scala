@@ -208,13 +208,10 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     (remotePathArray zip localPathArray zipWithIndex) flatMap {
       case ((remotePath, localPath), index) =>
         var localPathString = localPath.valueString
-        // Log.warn(s"!!!RAW: ${flag}: ${remotePath.valueString} -> ${localPathString}")
         if (localPathString.startsWith("s3://")){
           localPathString = localPathString.replace("s3://", "")
-          Log.error(s"!!!Debug error 1: ${remotePath.valueString} -> ${localPath.valueString} ->${localPathString}")
         }else if (localPathString.startsWith("s3:/")) {
           localPathString = localPathString.replace("s3:/", "")
-          Log.error(s"!!!Debug error 2: ${remotePath.valueString} -> ${localPath.valueString} -> ${localPathString}")
         }
         Seq(AwsBatchFileInput(s"$namePrefix-$index", remotePath.valueString, DefaultPathBuilder.get(localPathString), workingDisk))
     }

@@ -66,7 +66,7 @@ object EngineFunctionEvaluators {
         val tryResult = for {
           //validate
           read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readLinesLimit)
-          // The if statement below tests for file emptiness to handle different expected outputs based on file contents.
+          // Users expect an empty file to return zero lines [] not [""]
           lines = if (read.nonEmpty) {
             read.split(System.lineSeparator).toList
           } else {

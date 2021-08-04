@@ -1,5 +1,15 @@
 # Cromwell Change Log
 
+## 67 Release Notes
+
+### Workflow option for minimizing chance of GCP cross-region network egress for call-cache copying
+Call caching can now be made location-aware, and can optionally disallow cache copies from buckets in different locations.
+The new **workflow option** is `call_cache_egress`: `[none, continental, global]`
+where the values affect whether call cache copies can incur egress charges:
+`none`: only within-region copies are allowed, which generates no egress charges
+`continental`: within continent copies are allowed; within continent copies have reduced costs, such as $0.01 / GB in the US
+`global`: copies across all regions are allowed. Cross-content egress charges can be much higher (ranging from $0.08 / GB up to $0.23 / GB)
+
 ## 66 Release Notes
 
 ### Google Artifact Registry Support

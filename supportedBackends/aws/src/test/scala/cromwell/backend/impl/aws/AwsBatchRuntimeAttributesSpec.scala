@@ -65,7 +65,9 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
     false,
     ContinueOnReturnCodeSet(Set(0)),
     false,
-    "my-stuff")
+    "my-stuff",
+    1,
+    Vector(Map.empty[String, String]))
 
   val expectedDefaultsLocalFS = new AwsBatchRuntimeAttributes(refineMV[Positive](1), Vector("us-east-1a", "us-east-1b"),
 
@@ -76,6 +78,8 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
     ContinueOnReturnCodeSet(Set(0)),
     false,
     "",
+    1,
+    Vector(Map.empty[String, String]),
     "local")
 
   "AwsBatchRuntimeAttributes" should {
@@ -338,6 +342,33 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
       val workflowOptions = WorkflowOptions.fromJsonObject(workflowOptionsJson).get
       val expectedRuntimeAttributes = expectedDefaults.copy(cpu = refineMV[Positive](4))
       assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes, workflowOptions)
+    }
+
+    "validate a valid awsBatchRetryAttempts entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "awsBatchRetryAttempts" -> WomInteger(9), "scriptBucketName" -> WomString("my-stuff"))
+      val expectedRuntimeAttributes = expectedDefaults.copy(awsBatchRetryAttempts = 9)
+      assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "fail to validate with -1 as awsBatchRetryAttempts" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "awsBatchRetryAttempts" -> WomInteger(-1), "scriptBucketName" -> WomString("my-stuff"))
+      assertAwsBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting awsBatchRetryAttempts runtime attribute value greater than or equal to 0")
+    }
+
+    "fail to validate with 12 as awsBatchRetryAttempts" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "awsBatchRetryAttempts" -> WomInteger(12), "scriptBucketName" -> WomString("my-stuff"))
+      assertAwsBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting awsBatchRetryAttempts runtime attribute value lower than or equal to 10")
+    }
+
+    "fail to validate with a string as  awsBatchRetryAttempts" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "awsBatchRetryAttempts" -> WomString("test"), "scriptBucketName" -> WomString("my-stuff"))
+      assertAwsBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting awsBatchRetryAttempts runtime attribute to be an Integer")
+    }
+
+    "validate zero as awsBatchRetryAttempts entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "awsBatchRetryAttempts" -> WomInteger(0), "scriptBucketName" -> WomString("my-stuff"))
+      val expectedRuntimeAttributes = expectedDefaults.copy(awsBatchRetryAttempts = 0)
+      assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
   }
 

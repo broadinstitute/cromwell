@@ -61,6 +61,7 @@ object AwsBatchTestConfig {
       |    zones:["us-east-1a", "us-east-1b"]
       |    queueArn: "arn:aws:batch:us-east-1:111222333444:job-queue/job-queue"
       |    scriptBucketName: "my-bucket"
+      |    awsBatchRetryAttempts: 1
       |}
       |
       |""".stripMargin
@@ -140,6 +141,7 @@ object AwsBatchTestConfigForLocalFS {
       |    zones:["us-east-1a", "us-east-1b"]
       |    queueArn: "arn:aws:batch:us-east-1:111222333444:job-queue/job-queue"
       |    scriptBucketName: ""
+      |    awsBatchRetryAttempts: 1
       |}
       |
       |""".stripMargin

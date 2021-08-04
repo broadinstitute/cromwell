@@ -23,6 +23,7 @@ abstract class PartialIoCommandBuilder {
   def existsCommand: PartialFunction[Path, Try[IoExistsCommand]] = PartialFunction.empty
   def isDirectoryCommand: PartialFunction[Path, Try[IoIsDirectoryCommand]] = PartialFunction.empty
   def readLinesCommand: PartialFunction[Path, Try[IoReadLinesCommand]] = PartialFunction.empty
+  def locationCommand: PartialFunction[Path, Try[IoLocationCommand]] = PartialFunction.empty
 }
 
 object IoCommandBuilder {
@@ -98,6 +99,10 @@ class IoCommandBuilder(partialBuilders: List[PartialIoCommandBuilder] = List.emp
 
   def readLines(file: Path): Try[IoReadLinesCommand] = {
     buildOrDefault(_.readLinesCommand, file, DefaultIoReadLinesCommand(file))
+  }
+  
+  def locationCommand(file: Path): Try[IoLocationCommand] = {
+    buildOrDefault(_.locationCommand, file, DefaultIoLocationCommand(file))
   }
 }
 

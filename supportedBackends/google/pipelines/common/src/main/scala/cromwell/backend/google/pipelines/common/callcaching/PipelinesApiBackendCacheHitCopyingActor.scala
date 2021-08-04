@@ -21,7 +21,31 @@ class PipelinesApiBackendCacheHitCopyingActor(standardParams: StandardCacheHitCo
   private val cachingStrategy = BackendInitializationData
     .as[PipelinesApiBackendInitializationData](standardParams.backendInitializationDataOption)
     .papiConfiguration.papiAttributes.cacheHitDuplicationStrategy
-  
+
+  private def getBucketContinent(bucketLocation: String): String = {
+    val indexOf = bucketLocation.indexOf("-")
+    if (indexOf != -1) {
+      bucketLocation.substring(0, indexOf)
+    } else {
+      bucketLocation
+    }
+  }
+
+  override protected def locationCheckRequired: Boolean = {
+    standardParams.jobDescriptor.workflowDescriptor.workflowOptions.getOrElse("call_cache_egress", "global") != "global"
+  }
+
+  override protected def copyAllowedFromLocation(sourceLocation: String, destinationLocation: String): Boolean = {
+    val callCacheEgressOption = standardParams.jobDescriptor.workflowDescriptor.workflowOptions.getOrElse("call_cache_egress", "global")
+    callCacheEgressOption match {
+      case "global" => true
+      case "continental" =>
+        getBucketContinent(sourceLocation) == getBucketContinent(destinationLocation)
+      case "none" =>
+        sourceLocation == destinationLocation
+    }
+  }
+
   override def processSimpletons(womValueSimpletons: Seq[WomValueSimpleton],
                                  sourceCallRootPath: Path,
                                 ): Try[(CallOutputs, Set[IoCommand[_]])] =

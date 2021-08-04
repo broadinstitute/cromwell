@@ -4,7 +4,7 @@ import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.HttpHeaders
-import com.google.api.services.storage.model.{Objects, RewriteResponse, StorageObject}
+import com.google.api.services.storage.model.{Bucket, Objects, RewriteResponse, StorageObject}
 import cromwell.filesystems.gcs.{GcsPathBuilder, MockGcsPathBuilder}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
@@ -83,6 +83,22 @@ class GcsBatchIoCommandSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
     command.mapGoogleResponse(response) should be(Valid("aeiouy"))
 
     command.onSuccess(response, new HttpHeaders()).toEither.right.get.left.get should be("aeiouy")
+
+    command.onFailure(new GoogleJsonError(), new HttpHeaders()) should be(None)
+  }
+
+  it should "test GcsBatchLocationCommand" in {
+    val command = PartialGcsBatchCommandBuilder.locationCommand(gcsPath).get
+
+    type commandType = com.google.api.services.storage.Storage#Buckets#Get
+    command.operation should be(a[commandType])
+
+    val response = new Bucket()
+    response.setLocation("US")
+
+    command.mapGoogleResponse(response) should be(Valid("US"))
+
+    command.onSuccess(response, new HttpHeaders()).toEither.right.get.left.get should be ("US")
 
     command.onFailure(new GoogleJsonError(), new HttpHeaders()) should be(None)
   }

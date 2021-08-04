@@ -1,0 +1,15 @@
+name: call_cache_egress_flag_global
+testFormat: runtwiceexpectingcallcaching
+backends: [Papiv2]
+
+files {
+  workflow: call_cache_egress_flag/call_cache_egress_flag.wdl
+  inputs: call_cache_egress_flag/call_cache_egress_flag_global.inputs
+  options: call_cache_egress_flag/global_egress_allowed.options
+}
+
+metadata {
+  workflowName: call_cache_egress_flag
+  status: Succeeded
+  "calls.call_cache_egress_flag.call_cache_egress_flag_t.callCaching.hit": true
+}

@@ -1,0 +1,4 @@
+{
+  "jes_gcs_root": "gs://cloud-cromwell-dev-self-cleaning-europe-west-1",
+  "call_cache_egress": "none"
+}

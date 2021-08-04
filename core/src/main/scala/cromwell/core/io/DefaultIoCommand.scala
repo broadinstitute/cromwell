@@ -55,4 +55,8 @@ object DefaultIoCommand {
   case class DefaultIoIsDirectoryCommand(override val file: Path) extends IoIsDirectoryCommand(file) {
     override def commandDescription: String = s"DefaultIoIsDirectoryCommand file '$file'"
   }
+
+  case class DefaultIoLocationCommand(override val file: Path) extends IoLocationCommand(file) {
+    override def commandDescription: String = s"DefaultLocationCommand file '$file'"
+  }
 }

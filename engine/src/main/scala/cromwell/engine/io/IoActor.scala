@@ -5,10 +5,11 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props, Timers}
 import akka.dispatch.ControlMessage
 import akka.stream._
 import akka.stream.scaladsl.{Flow, GraphDSL, Merge, Partition, Sink, Source, SourceQueueWithComplete}
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.Config
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.actor.StreamActorHelper
 import cromwell.core.actor.StreamIntegration.StreamContext
+import cromwell.core.io.Throttle._
 import cromwell.core.io.{IoAck, IoCommand, Throttle}
 import cromwell.core.{Dispatcher, LoadConfig}
 import cromwell.engine.instrumentation.IoInstrumentation
@@ -19,6 +20,7 @@ import cromwell.engine.io.nio.NioFlow
 import cromwell.engine.io.nio.NioFlow.NioFlowConfig
 import cromwell.filesystems.gcs.batch.GcsBatchIoCommand
 import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadMetric, NormalLoad}
+import net.ceedubs.ficus.readers.ValueReader
 
 import java.time.OffsetDateTime
 import java.time.temporal.ChronoUnit
@@ -29,16 +31,11 @@ import scala.concurrent.duration._
 /**
   * Actor that performs IO operations asynchronously using akka streams
   * 
-  * @param queueSize size of the queue
-  * @param throttle optional throttler to control the throughput of requests.
-  *                 Applied to ALL incoming requests
+  * @param ioConfig IoActor configuration class
   * @param materializer actor materializer to run the stream
   * @param serviceRegistryActor actorRef for the serviceRegistryActor
   */
-final class IoActor(queueSize: Int,
-                    nioConfig: NioFlowConfig,
-                    gcsConfig: GcsBatchFlowConfig,
-                    throttle: Option[Throttle],
+final class IoActor(ioConfig: IoConfig,
                     override val serviceRegistryActor: ActorRef,
                     applicationName: String)(implicit val materializer: ActorMaterializer)
   extends Actor with ActorLogging with StreamActorHelper[IoCommandContext[_]] with IoInstrumentation with Timers {
@@ -62,71 +59,77 @@ final class IoActor(queueSize: Int,
   }
 
   private [io] lazy val defaultFlow = {
-    new NioFlow(nioConfig.parallelism, onRetry, onBackpressure)
+    new NioFlow(
+      parallelism = ioConfig.nio.parallelism,
+      onRetryCallback = onRetry,
+      onBackpressure = onBackpressure,
+      numberOfAttempts = ioConfig.numberOfAttempts,
+      commandBackpressureStaleness = ioConfig.commandBackpressureStaleness)
       .flow
       .withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
   }
 
   private [io] lazy val gcsBatchFlow = {
     new ParallelGcsBatchFlow(
-      config = gcsConfig,
+      config = ioConfig.gcsBatch,
       scheduler = context.system.scheduler,
       onRetry = onRetry,
       onBackpressure = onBackpressure,
-      applicationName = applicationName)
+      applicationName = applicationName,
+      commandBackpressureStaleness = ioConfig.commandBackpressureStaleness)
       .flow
       .withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
   }
 
-  private val source = Source.queue[IoCommandContext[_]](queueSize, OverflowStrategy.dropNew)
+  private val source = Source.queue[IoCommandContext[_]](ioConfig.queueSize, OverflowStrategy.dropNew)
 
   private val flow = GraphDSL.create() { implicit builder =>
     import GraphDSL.Implicits._
-    
+
     val input = builder.add(Flow[IoCommandContext[_]])
-    
+
     // Partitions requests between gcs batch, and single nio requests
     val batchPartitioner = builder.add(Partition[IoCommandContext[_]](2, {
       case _: GcsBatchCommandContext[_, _] => 0
       case _ => 1
     }))
-    
+
     // Sub flow for batched gcs requests
     val batches = batchPartitioner.out(0) collect { case batch: GcsBatchCommandContext[_, _] => batch }
-    
+
     // Sub flow for single nio requests
     val defaults = batchPartitioner.out(1) collect { case default: DefaultCommandContext[_] => default }
-    
+
     // Merge results from both flows back together
     val merger = builder.add(Merge[IoResult](2))
-    
+
     // Flow processing nio requests
     val defaultFlowPorts = builder.add(defaultFlow)
-    
+
     // Flow processing gcs batch requests
     val batchFlowPorts = builder.add(gcsBatchFlow)
 
     input ~> batchPartitioner
              defaults.outlet ~> defaultFlowPorts ~> merger
              batches.outlet ~> batchFlowPorts ~> merger
-    
+
     FlowShape[IoCommandContext[_], IoResult](input.in, merger.out)
   }
 
-  private val throttledFlow = throttle map { t =>
+  private val throttledFlow = ioConfig.throttle map { t =>
     Flow[IoCommandContext[_]]
       .throttle(t.elements, t.per, t.maximumBurst, ThrottleMode.Shaping)
       .via(flow)
   } getOrElse flow
-  
+
   private val instrumentationSink = Sink.foreach[IoResult](instrumentIoResult)
-  
+
   override protected lazy val streamSource: Source[
     (Any, IoCommandContext[_]),
     SourceQueueWithComplete[IoCommandContext[_]]
   ] = source
     .via(throttledFlow)
-    .alsoTo(instrumentationSink)  
+    .alsoTo(instrumentationSink)
     .withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
 
   override def onBackpressure(scale: Option[Double] = None): Unit = {
@@ -138,30 +141,38 @@ final class IoActor(queueSize: Int,
 
     self ! BackPressure(cappedDelay)
   }
-  
+
   override def actorReceive: Receive = {
     /* GCS Batch command with context */
     case (clientContext: Any, gcsBatchCommand: GcsBatchIoCommand[_, _]) =>
       val replyTo = sender()
-      val commandContext= GcsBatchCommandContext(gcsBatchCommand, replyTo, Option(clientContext))
+      val commandContext = GcsBatchCommandContext(
+        request = gcsBatchCommand,
+        maxAttemptsNumber = ioConfig.numberOfAttempts,
+        replyTo = replyTo,
+        clientContext = Option(clientContext))
       sendToStream(commandContext)
 
     /* GCS Batch command without context */
     case gcsBatchCommand: GcsBatchIoCommand[_, _] =>
       val replyTo = sender()
-      val commandContext= GcsBatchCommandContext(gcsBatchCommand, replyTo)
+      val commandContext = GcsBatchCommandContext(
+        request = gcsBatchCommand,
+        maxAttemptsNumber = ioConfig.numberOfAttempts,
+        replyTo = replyTo
+      )
       sendToStream(commandContext)
 
     /* Default command with context */
     case (clientContext: Any, command: IoCommand[_]) =>
       val replyTo = sender()
-      val commandContext= DefaultCommandContext(command, replyTo, Option(clientContext))
+      val commandContext = DefaultCommandContext(command, replyTo, Option(clientContext))
       sendToStream(commandContext)
-      
+
     /* Default command without context */
-    case command: IoCommand[_] => 
+    case command: IoCommand[_] =>
       val replyTo = sender()
-      val commandContext= DefaultCommandContext(command, replyTo)
+      val commandContext = DefaultCommandContext(command, replyTo)
       sendToStream(commandContext)
 
     case BackPressure(duration) =>
@@ -211,38 +222,68 @@ trait IoCommandContext[T] extends StreamContext {
 }
 
 object IoActor {
+
   import net.ceedubs.ficus.Ficus._
 
   /** Flow that can consume an IoCommandContext and produce an IoResult */
   type IoFlow = Flow[IoCommandContext[_], IoResult, NotUsed]
-  
+
   /** Result type of an IoFlow, contains the original command context and the final IoAck response. */
   type IoResult = (IoAck[_], IoCommandContext[_])
-  
-  private val ioConfig = ConfigFactory.load().getConfig("system.io")
-  
-  /** Maximum number of times a command will be attempted: First attempt + 5 retries */
-  val MaxAttemptsNumber: Int = ioConfig.getOrElse("number-of-attempts", 5)
-
-  /** I/O Commands that are more than `command-backpressure-staleness` old at the time they begin to be processed will
-    * trigger I/O backpressure. */
-  val CommandBackpressureStaleness: FiniteDuration =
-    ioConfig.as[FiniteDuration]("command-backpressure-staleness")
 
   case class DefaultCommandContext[T](request: IoCommand[T], replyTo: ActorRef, override val clientContext: Option[Any] = None) extends IoCommandContext[T]
-  
+
   case object BackPressureTimerResetKey
+
   case object BackPressureTimerResetAction extends ControlMessage
+
   case class BackPressure(duration: FiniteDuration) extends ControlMessage
 
-  def props(queueSize: Int,
-            nioConfig: NioFlowConfig,
-            gcsConfig: GcsBatchFlowConfig,
-            throttle: Option[Throttle],
+  def props(ioConfig: IoConfig,
             serviceRegistryActor: ActorRef,
             applicationName: String,
            )
            (implicit materializer: ActorMaterializer): Props = {
-    Props(new IoActor(queueSize, nioConfig, gcsConfig, throttle, serviceRegistryActor, applicationName)).withDispatcher(IoDispatcher)
+    Props(new IoActor(ioConfig, serviceRegistryActor, applicationName)).withDispatcher(IoDispatcher)
+  }
+
+  case class IoConfig(queueSize: Int,
+                      numberOfAttempts: Int,
+                      commandBackpressureStaleness: FiniteDuration,
+                      backPressureExtensionLogThreshold: FiniteDuration,
+                      ioNormalWindowMinimum: FiniteDuration,
+                      ioNormalWindowMaximum: FiniteDuration,
+                      nio: NioFlowConfig,
+                      gcsBatch: GcsBatchFlowConfig,
+                      throttle: Option[Throttle])
+
+  implicit val ioConfigReader: ValueReader[IoConfig] = (config: Config, _: String) => {
+
+    val loadControl: Config = config.as[Config]("load-control")
+
+    val queueSize: Int = loadControl.as[Int]("io-queue-size")
+    val ioNormalWindowMinimum: FiniteDuration = loadControl.as[FiniteDuration]("io-normal-window-minimum")
+    val ioNormalWindowMaximum: FiniteDuration = loadControl.as[FiniteDuration]("io-normal-window-maximum")
+
+    val io: Config = config.as[Config]("system.io")
+    val nioConfig = io.as[NioFlowConfig]("nio")
+    val gcsConfig = io.as[GcsBatchFlowConfig]("gcs")
+    val commandBackpressureStaleness = io.as[FiniteDuration]("command-backpressure-staleness")
+    val backpressureExtensionLogThreshold = io.as[FiniteDuration]("backpressure-extension-log-threshold")
+    val numberOfAttempts: Int = io.as[Int]("number-of-attempts")
+
+    val throttle = io.as[Option[Throttle]]("throttle")
+
+    IoConfig(
+      queueSize = queueSize,
+      numberOfAttempts = numberOfAttempts,
+      commandBackpressureStaleness = commandBackpressureStaleness,
+      backPressureExtensionLogThreshold = backpressureExtensionLogThreshold,
+      ioNormalWindowMinimum = ioNormalWindowMinimum,
+      ioNormalWindowMaximum = ioNormalWindowMaximum,
+      throttle = throttle,
+      nio = nioConfig,
+      gcsBatch = gcsConfig
+    )
   }
 }

@@ -20,6 +20,8 @@ import org.specs2.mock.Mockito._
 
 import java.nio.file.NoSuchFileException
 import java.util.UUID
+import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.control.NoStackTrace
 
@@ -33,7 +35,9 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
   private val flow = new NioFlow(
     parallelism = 1,
     onRetryCallback = NoopOnRetry,
-    onBackpressure = NoopOnBackpressure)(system.dispatcher).flow
+    onBackpressure = NoopOnBackpressure,
+    numberOfAttempts = 5,
+    commandBackpressureStaleness = 5 seconds)(system.dispatcher).flow
   
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   private val replyTo = mock[ActorRef]
@@ -213,7 +217,8 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
       parallelism = 1,
       onRetryCallback = NoopOnRetry,
       onBackpressure = NoopOnBackpressure,
-      nbAttempts = 3)(system.dispatcher) {
+      numberOfAttempts = 3,
+      commandBackpressureStaleness = 5 seconds)(system.dispatcher) {
 
       private var tries = 0
       override def handleSingleCommand(ioSingleCommand: IoCommand[_]): IO[IoSuccess[_]] = {

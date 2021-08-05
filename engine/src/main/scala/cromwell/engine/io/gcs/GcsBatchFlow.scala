@@ -17,7 +17,7 @@ import cromwell.engine.io.IoActor._
 import cromwell.engine.io.IoAttempts.EnhancedCromwellIoException
 import cromwell.engine.io.RetryableRequestSupport.{isInfinitelyRetryable, isRetryable}
 import cromwell.engine.io.gcs.GcsBatchFlow._
-import cromwell.engine.io.{IoActor, IoAttempts, IoCommandContext, IoCommandStalenessBackpressuring}
+import cromwell.engine.io.{IoAttempts, IoCommandContext, IoCommandStalenessBackpressuring}
 import mouse.boolean._
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
@@ -60,7 +60,7 @@ class GcsBatchFlow(batchSize: Int,
                    onRetry: IoCommandContext[_] => Throwable => Unit,
                    onBackpressure: Option[Double] => Unit,
                    applicationName: String,
-                   backpressureStaleness: FiniteDuration = IoActor.CommandBackpressureStaleness)
+                   backpressureStaleness: FiniteDuration)
                   (implicit ec: ExecutionContext) extends IoCommandStalenessBackpressuring {
 
   // Does not carry any authentication, assumes all underlying requests are properly authenticated

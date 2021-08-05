@@ -11,14 +11,11 @@ import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core._
 import cromwell.core.actor.StreamActorHelper.ActorRestartException
 import cromwell.core.filesystem.CromwellFileSystems
-import cromwell.core.io.Throttle
-import cromwell.core.io.Throttle._
 import cromwell.docker.DockerInfoActor
 import cromwell.docker.local.DockerCliFlow
 import cromwell.engine.CromwellTerminator
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
-import cromwell.engine.io.gcs.GcsBatchFlow.GcsBatchFlowConfig
-import cromwell.engine.io.nio.NioFlow.NioFlowConfig
+import cromwell.engine.io.IoActor.IoConfig
 import cromwell.engine.io.{IoActor, IoActorProxy}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.AbortAllWorkflowsCommand
@@ -101,21 +98,15 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
       "WorkflowStoreActor")
 
   lazy val jobStore: JobStore = new SqlJobStore(EngineServicesStore.engineDatabaseInterface)
-  lazy val jobStoreActor = context.actorOf(JobStoreActor.props(jobStore, serviceRegistryActor, workflowStoreAccess), "JobStoreActor")
+  lazy val jobStoreActor: ActorRef = context.actorOf(JobStoreActor.props(jobStore, serviceRegistryActor, workflowStoreAccess), "JobStoreActor")
 
   lazy val subWorkflowStore: SubWorkflowStore = new SqlSubWorkflowStore(EngineServicesStore.engineDatabaseInterface)
-  lazy val subWorkflowStoreActor = context.actorOf(SubWorkflowStoreActor.props(subWorkflowStore), "SubWorkflowStoreActor")
+  lazy val subWorkflowStoreActor: ActorRef = context.actorOf(SubWorkflowStoreActor.props(subWorkflowStore), "SubWorkflowStoreActor")
 
-  // Io Actor
-  lazy val nioConfig: NioFlowConfig = systemConfig.as[NioFlowConfig]("io.nio")
-  lazy val gcsConfig: GcsBatchFlowConfig = systemConfig.as[GcsBatchFlowConfig]("io.gcs")
-  lazy val ioThrottle: Throttle = systemConfig.getAs[Throttle]("io.throttle").getOrElse(Throttle(100000, 100.seconds, 100000))
+  lazy val ioConfig: IoConfig = config.as[IoConfig]
   lazy val ioActor: ActorRef = context.actorOf(
     IoActor.props(
-      queueSize = LoadConfig.IoQueueSize,
-      nioConfig = nioConfig,
-      gcsConfig = gcsConfig,
-      throttle = Option(ioThrottle),
+      ioConfig = ioConfig,
       serviceRegistryActor = serviceRegistryActor,
       applicationName = GoogleConfiguration(config).applicationName),
     "IoActor")

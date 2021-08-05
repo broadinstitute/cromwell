@@ -15,8 +15,8 @@ import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.oss.OssPath
 import cromwell.filesystems.s3.S3Path
 import cromwell.util.TryWithResource._
-import net.ceedubs.ficus.readers.ValueReader
 import net.ceedubs.ficus.Ficus._
+import net.ceedubs.ficus.readers.ValueReader
 
 import java.io._
 import java.nio.charset.StandardCharsets
@@ -30,13 +30,13 @@ import scala.concurrent.duration.FiniteDuration
 class NioFlow(parallelism: Int,
               onRetryCallback: IoCommandContext[_] => Throwable => Unit,
               onBackpressure: Option[Double] => Unit,
-              nbAttempts: Int = MaxAttemptsNumber,
-              backpressureStaleness: FiniteDuration = CommandBackpressureStaleness,
+              numberOfAttempts: Int,
+              commandBackpressureStaleness: FiniteDuration
               )(implicit ec: ExecutionContext) extends IoCommandStalenessBackpressuring {
 
   implicit private val timer: Timer[IO] = IO.timer(ec)
 
-  override def maxStaleness: FiniteDuration = backpressureStaleness
+  override def maxStaleness: FiniteDuration = commandBackpressureStaleness
 
   private val processCommand: DefaultCommandContext[_] => IO[IoResult] = commandContext => {
 
@@ -48,7 +48,7 @@ class NioFlow(parallelism: Int,
     val operationResult = IORetry.withRetry(
       handleSingleCommand(commandContext.request),
       IoAttempts(1),
-      maxRetries = Option(nbAttempts),
+      maxRetries = Option(numberOfAttempts),
       backoff = IoCommand.defaultBackoff,
       isRetryable = isRetryable,
       isInfinitelyRetryable = isInfinitelyRetryable,

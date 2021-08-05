@@ -8,6 +8,7 @@ import cromwell.engine.io.IoCommandContext
 import cromwell.engine.io.gcs.GcsBatchFlow.GcsBatchFlowConfig
 
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.FiniteDuration
 
 /**
   * Balancer that distributes requests to multiple batch flows in parallel
@@ -16,7 +17,8 @@ class ParallelGcsBatchFlow(config: GcsBatchFlowConfig,
                            scheduler: Scheduler,
                            onRetry: IoCommandContext[_] => Throwable => Unit,
                            onBackpressure: Option[Double] => Unit,
-                           applicationName: String)
+                           applicationName: String,
+                           commandBackpressureStaleness: FiniteDuration)
                           (implicit ec: ExecutionContext) {
 
   //noinspection TypeAnnotation
@@ -32,7 +34,8 @@ class ParallelGcsBatchFlow(config: GcsBatchFlowConfig,
         scheduler = scheduler,
         onRetry = onRetry,
         onBackpressure = onBackpressure,
-        applicationName = applicationName).flow
+        applicationName = applicationName,
+        backpressureStaleness = commandBackpressureStaleness).flow
       // for each worker, add an edge from the balancer to the worker, then wire
       // it to the merge element
       balancer ~> workerFlow.async ~> merge

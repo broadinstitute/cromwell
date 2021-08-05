@@ -30,7 +30,6 @@ task imitate_oom_error_on_preemptible {
     preemptible: 1
     docker: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
     memory: "1 GB"
-    continueOnReturnCode: true
     maxRetries: 1
     backend: "Papiv2"
   }

@@ -1,0 +1,13 @@
+name: do_not_retry_with_more_memory_rc1
+testFormat: workflowsuccess
+backends: [Papiv2]
+
+files {
+  workflow: retry_with_more_memory/do_not_retry_with_more_memory_rc1.wdl
+  options: retry_with_more_memory/retry_with_more_memory.options
+}
+
+metadata {
+  workflowName: do_not_retry_with_more_memory_rc1
+  status: Succeeded
+}

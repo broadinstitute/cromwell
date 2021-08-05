@@ -21,7 +21,6 @@ import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadMet
 import java.time.OffsetDateTime
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.language.postfixOps
 import net.ceedubs.ficus.Ficus._
 
 import java.time.temporal.ChronoUnit
@@ -63,7 +62,7 @@ final class IoActor(queueSize: Int,
   }
 
   private [io] lazy val defaultFlow = {
-    val parallelism: Int = nioConfig.getOrElse("parallelism", 20)
+    val parallelism: Int = nioConfig.as[Int]("parallelism")
 
     new NioFlow(parallelism, onRetry, onBackpressure)
       .flow
@@ -71,9 +70,9 @@ final class IoActor(queueSize: Int,
   }
 
   private [io] lazy val gcsBatchFlow = {
-    val parallelism: Int = gcsConfig.getOrElse("parallelism", 5)
-    val batchSize: Int = gcsConfig.getOrElse("max-batch-size", 20)
-    val batchTimespan = gcsConfig.getOrElse("max-batch-timespan", 2 seconds)
+    val parallelism: Int = gcsConfig.as[Int]("parallelism")
+    val batchSize: Int = gcsConfig.as[Int]("max-batch-size")
+    val batchTimespan = gcsConfig.as[FiniteDuration]("max-batch-timespan")
     new ParallelGcsBatchFlow(
       parallelism, batchSize, batchTimespan, context.system.scheduler, onRetry, onBackpressure, applicationName)
       .flow
@@ -131,11 +130,11 @@ final class IoActor(queueSize: Int,
     .alsoTo(instrumentationSink)  
     .withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
 
-  override def onBackpressure(factor: Option[Double] = None): Unit = {
+  override def onBackpressure(scale: Option[Double] = None): Unit = {
     incrementBackpressure()
     serviceRegistryActor ! LoadMetric("IO", HighLoad)
 
-    val uncappedDelay = factor.getOrElse(1.0d) * LoadConfig.IoNormalWindowMinimum
+    val uncappedDelay = scale.getOrElse(1.0d) * LoadConfig.IoNormalWindowMinimum
     val cappedDelay = FiniteDuration(LoadConfig.IoNormalWindowMaximum.min(uncappedDelay).toMillis, MILLISECONDS)
 
     self ! BackPressure(cappedDelay)
@@ -183,9 +182,9 @@ final class IoActor(queueSize: Int,
           // Extend the current backpressure
           val extension = expiry.until(proposedExpiry, ChronoUnit.MILLIS)
           val extensionSeconds = extension / 1000.0
+          // There can be a lot of very short extensions when bursts of I/O requests are rejected from a full I/O
+          // queue. Don't clutter the logs with messages for these.
           if (extensionSeconds > 1.0) {
-            // There can be a lot of very short extensions when bursts of I/O requests are rejected from a full I/O
-            // queue. Don't clutter the logs with messages for these.
             log.info("Extending IoActor backpressure {} seconds", f"$extensionSeconds%.2f")
           }
 
@@ -229,7 +228,7 @@ object IoActor {
   /** I/O Commands that are more than `command-backpressure-staleness` old at the time they begin to be processed will
     * trigger I/O backpressure. */
   val CommandBackpressureStaleness: FiniteDuration =
-    ioConfig.getOrElse("command-backpressure-staleness", 5 seconds)
+    ioConfig.as[FiniteDuration]("command-backpressure-staleness")
 
   case class DefaultCommandContext[T](request: IoCommand[T], replyTo: ActorRef, override val clientContext: Option[Any] = None) extends IoCommandContext[T]
   

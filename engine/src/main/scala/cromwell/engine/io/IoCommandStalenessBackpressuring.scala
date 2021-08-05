@@ -15,13 +15,13 @@ trait IoCommandStalenessBackpressuring extends StrictLogging {
 
   private def logAndBackpressure(ioCommand: IoCommand[_], onBackpressure: Option[Double] => Unit): Unit = {
     val millis = ChronoUnit.MILLIS.between(ioCommand.creation, commandStalenessThreshold)
-    val multiplier = (maxStaleness.toMillis + millis.toDouble) / maxStaleness.toMillis
+    val scale = (maxStaleness.toMillis + millis.toDouble) / maxStaleness.toMillis
 
     val seconds = millis / 1000.0
-    logger.info("I/O command {} seconds stale, applying I/O subsystem backpressure with multiplier {}",
-      f"$seconds%,.3f", f"$multiplier%.2f")
+    logger.info("I/O command {} seconds stale, applying I/O subsystem backpressure with scale {}",
+      f"$seconds%,.3f", f"$scale%.2f")
 
-    onBackpressure(Option(multiplier))
+    onBackpressure(Option(scale))
   }
 
   /** Invokes `onBackpressure` if `ioCommand` is older than the staleness limit returned by `maxStaleness`. */

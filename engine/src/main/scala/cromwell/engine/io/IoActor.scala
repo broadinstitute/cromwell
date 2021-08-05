@@ -69,9 +69,7 @@ final class IoActor(queueSize: Int,
 
   private [io] lazy val gcsBatchFlow = {
     new ParallelGcsBatchFlow(
-      parallelism = gcsConfig.parallelism,
-      batchSize = gcsConfig.maxBatchSize,
-      batchDuration = gcsConfig.maxBatchDuration,
+      config = gcsConfig,
       scheduler = context.system.scheduler,
       onRetry = onRetry,
       onBackpressure = onBackpressure,

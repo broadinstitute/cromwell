@@ -22,9 +22,6 @@ task write_fofn {
 
     Int num_inputs = 1700
 
-    # Resist the temptation to improve on my terrible Python unless you are willing to break the cache hits and
-    # re-run 700 shards of this...
-
     command <<<
         python <<CODE
         bucket = 'gs://bt-343-testing/'
@@ -61,15 +58,11 @@ task write_fofn {
         Array[String] inputs = read_lines("inputs.txt")
     }
     runtime {
-        # `python:3` trips up Cromwell's Docker image identifier regex. `3` is interpreted as a port so the hashing
-        # logic helpfully adds a "missing" `:latest` before querying the image hash. And then the `python:3:latest`
-        # lookup not-so-mysteriously fails, so no Docker image hash and no call cache.
-        # https://github.com/broadinstitute/cromwell/blob/develop/dockerHashing/src/main/scala/cromwell/docker/DockerImageIdentifier.scala#L42
         docker: "python:latest"
     }
 }
 
-workflow bt_343 {
+workflow lots_of_inputs_scattered {
 
     Int scatter_width = 700
 

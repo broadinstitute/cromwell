@@ -5,7 +5,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props, Timers}
 import akka.dispatch.ControlMessage
 import akka.stream._
 import akka.stream.scaladsl.{Flow, GraphDSL, Merge, Partition, Sink, Source, SourceQueueWithComplete}
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.ConfigFactory
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.actor.StreamActorHelper
 import cromwell.core.actor.StreamIntegration.StreamContext
@@ -13,17 +13,17 @@ import cromwell.core.io.{IoAck, IoCommand, Throttle}
 import cromwell.core.{Dispatcher, LoadConfig}
 import cromwell.engine.instrumentation.IoInstrumentation
 import cromwell.engine.io.IoActor._
+import cromwell.engine.io.gcs.GcsBatchFlow.GcsBatchFlowConfig
 import cromwell.engine.io.gcs.{GcsBatchCommandContext, ParallelGcsBatchFlow}
 import cromwell.engine.io.nio.NioFlow
+import cromwell.engine.io.nio.NioFlow.NioFlowConfig
 import cromwell.filesystems.gcs.batch.GcsBatchIoCommand
 import cromwell.services.loadcontroller.LoadControllerService.{HighLoad, LoadMetric, NormalLoad}
 
 import java.time.OffsetDateTime
+import java.time.temporal.ChronoUnit
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import net.ceedubs.ficus.Ficus._
-
-import java.time.temporal.ChronoUnit
 
 
 /**
@@ -36,8 +36,8 @@ import java.time.temporal.ChronoUnit
   * @param serviceRegistryActor actorRef for the serviceRegistryActor
   */
 final class IoActor(queueSize: Int,
-                    nioConfig: Config,
-                    gcsConfig: Config,
+                    nioConfig: NioFlowConfig,
+                    gcsConfig: GcsBatchFlowConfig,
                     throttle: Option[Throttle],
                     override val serviceRegistryActor: ActorRef,
                     applicationName: String)(implicit val materializer: ActorMaterializer)
@@ -62,19 +62,20 @@ final class IoActor(queueSize: Int,
   }
 
   private [io] lazy val defaultFlow = {
-    val parallelism: Int = nioConfig.as[Int]("parallelism")
-
-    new NioFlow(parallelism, onRetry, onBackpressure)
+    new NioFlow(nioConfig.parallelism, onRetry, onBackpressure)
       .flow
       .withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
   }
 
   private [io] lazy val gcsBatchFlow = {
-    val parallelism: Int = gcsConfig.as[Int]("parallelism")
-    val batchSize: Int = gcsConfig.as[Int]("max-batch-size")
-    val batchTimespan = gcsConfig.as[FiniteDuration]("max-batch-timespan")
     new ParallelGcsBatchFlow(
-      parallelism, batchSize, batchTimespan, context.system.scheduler, onRetry, onBackpressure, applicationName)
+      parallelism = gcsConfig.parallelism,
+      batchSize = gcsConfig.maxBatchSize,
+      batchDuration = gcsConfig.maxBatchDuration,
+      scheduler = context.system.scheduler,
+      onRetry = onRetry,
+      onBackpressure = onBackpressure,
+      applicationName = applicationName)
       .flow
       .withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
   }
@@ -237,8 +238,8 @@ object IoActor {
   case class BackPressure(duration: FiniteDuration) extends ControlMessage
 
   def props(queueSize: Int,
-            nioConfig: Config,
-            gcsConfig: Config,
+            nioConfig: NioFlowConfig,
+            gcsConfig: GcsBatchFlowConfig,
             throttle: Option[Throttle],
             serviceRegistryActor: ActorRef,
             applicationName: String,

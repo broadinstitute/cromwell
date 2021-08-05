@@ -8,6 +8,7 @@ import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.storage.Storage
+import com.typesafe.config.Config
 import common.util.StringUtil.EnhancedToStringable
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
@@ -18,6 +19,8 @@ import cromwell.engine.io.RetryableRequestSupport.{isInfinitelyRetryable, isRetr
 import cromwell.engine.io.gcs.GcsBatchFlow._
 import cromwell.engine.io.{IoActor, IoAttempts, IoCommandContext, IoCommandStalenessBackpressuring}
 import mouse.boolean._
+import net.ceedubs.ficus.Ficus._
+import net.ceedubs.ficus.readers.ValueReader
 
 import java.io.IOException
 import scala.concurrent.duration._
@@ -38,6 +41,16 @@ object GcsBatchFlow {
   private[gcs] def getReadForbiddenBucket(errorMsg: String): Option[String] = {
     val matcher = ReadForbiddenPattern.matcher(errorMsg)
     matcher.matches().option(matcher.group(1))
+  }
+
+  case class GcsBatchFlowConfig(parallelism: Int, maxBatchSize: Int, maxBatchDuration: FiniteDuration)
+
+  implicit val gcsFlowConfigReader: ValueReader[GcsBatchFlowConfig] = (config: Config, path: String) => {
+    val base = config.as[Config](path)
+    val parallelism = base.as[Int]("parallelism")
+    val maxBatchSize = base.as[Int]("max-batch-size")
+    val maxBatchDuration = base.as[FiniteDuration]("max-batch-duration")
+    GcsBatchFlowConfig(parallelism, maxBatchSize, maxBatchDuration)
   }
 }
 

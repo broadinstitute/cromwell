@@ -14,7 +14,7 @@ import scala.concurrent.duration.FiniteDuration
   */
 class ParallelGcsBatchFlow(parallelism: Int,
                            batchSize: Int,
-                           batchTimespan: FiniteDuration,
+                           batchDuration: FiniteDuration,
                            scheduler: Scheduler,
                            onRetry: IoCommandContext[_] => Throwable => Unit,
                            onBackpressure: Option[Double] => Unit,
@@ -28,7 +28,7 @@ class ParallelGcsBatchFlow(parallelism: Int,
     val merge = builder.add(Merge[IoResult](parallelism))
 
     for (_ <- 1 to parallelism) {
-      val workerFlow = new GcsBatchFlow(batchSize, batchTimespan, scheduler, onRetry, onBackpressure, applicationName).flow
+      val workerFlow = new GcsBatchFlow(batchSize, batchDuration, scheduler, onRetry, onBackpressure, applicationName).flow
       // for each worker, add an edge from the balancer to the worker, then wire
       // it to the merge element
       balancer ~> workerFlow.async ~> merge

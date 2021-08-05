@@ -6,6 +6,9 @@ import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags.IntegrationTest
 import cromwell.core.io._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
+import cromwell.engine.io.IoActorProxyGcsBatchSpec.{GcsConfig, NioConfig}
+import cromwell.engine.io.gcs.GcsBatchFlow.GcsBatchFlowConfig
+import cromwell.engine.io.nio.NioFlow.NioFlowConfig
 import cromwell.filesystems.gcs.batch._
 import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder, GcsPathBuilderFactory}
 import org.scalatest.concurrent.Eventually
@@ -72,7 +75,7 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with AnyFlatSpecLike with Ma
                        testActorName: String,
                        serviceRegistryActorName: String) = {
     val testActor = TestActorRef(
-      factory = new IoActor(10, ConfigFactory.empty(), ConfigFactory.empty(), None, TestProbe(serviceRegistryActorName).ref, "cromwell test"),
+      factory = new IoActor(10, NioConfig, GcsConfig, None, TestProbe(serviceRegistryActorName).ref, "cromwell test"),
       name = testActorName,
     )
 
@@ -148,7 +151,7 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with AnyFlatSpecLike with Ma
 
   it should "copy files across GCS storage classes" taggedAs IntegrationTest in {
     val testActor = TestActorRef(
-      factory = new IoActor(10, ConfigFactory.empty(), ConfigFactory.empty(), None, TestProbe("serviceRegistryActor").ref, "cromwell test"),
+      factory = new IoActor(10, NioConfig, GcsConfig, None, TestProbe("serviceRegistryActor").ref, "cromwell test"),
       name = "testActor",
     )
 
@@ -160,4 +163,11 @@ class IoActorProxyGcsBatchSpec extends TestKitSuite with AnyFlatSpecLike with Ma
 
     dstMultiRegional.exists shouldBe true
   }
+}
+
+object IoActorProxyGcsBatchSpec {
+  val GcsConfig: GcsBatchFlowConfig =
+    GcsBatchFlowConfig(parallelism = 10, maxBatchSize = 100, maxBatchDuration = 5 seconds)
+
+  val NioConfig: NioFlowConfig = NioFlowConfig(parallelism = 10)
 }

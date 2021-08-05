@@ -3,6 +3,7 @@ package cromwell.engine.io.nio
 import akka.stream.scaladsl.Flow
 import cats.effect.{IO, Timer}
 import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
+import com.typesafe.config.Config
 import common.util.IORetry
 import cromwell.core.io._
 import cromwell.core.path.Path
@@ -14,6 +15,8 @@ import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.oss.OssPath
 import cromwell.filesystems.s3.S3Path
 import cromwell.util.TryWithResource._
+import net.ceedubs.ficus.readers.ValueReader
+import net.ceedubs.ficus.Ficus._
 
 import java.io._
 import java.nio.charset.StandardCharsets
@@ -165,5 +168,15 @@ class NioFlow(parallelism: Int,
         })
       case None => IO.raiseError(new IOException(s"Error getting file hash of DRS path $drsPath. Reason: File attributes class DrsCloudNioRegularFileAttributes wasn't defined in DrsCloudNioFileProvider."))
     }
+  }
+}
+
+object NioFlow {
+  case class NioFlowConfig(parallelism: Int)
+
+  implicit val nioFlowConfigReader: ValueReader[NioFlowConfig] = (config: Config, path: String) => {
+    val base = config.as[Config](path)
+    val parallelism = base.as[Int]("parallelism")
+    NioFlowConfig(parallelism)
   }
 }

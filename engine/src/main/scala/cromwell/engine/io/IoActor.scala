@@ -191,10 +191,10 @@ final class IoActor(ioConfig: IoConfig,
         case Some(expiry) if expiry.isBefore(proposedExpiry) =>
           // Extend the current backpressure
           val extension = expiry.until(proposedExpiry, ChronoUnit.MILLIS)
-          val extensionSeconds = extension / 1000.0
           // There can be a lot of very short extensions when bursts of I/O requests are rejected from a full I/O
           // queue. Don't clutter the logs with messages for these.
-          if (extensionSeconds > 1.0) {
+          if (extension > ioConfig.backPressureExtensionLogThreshold.toMillis) {
+            val extensionSeconds = extension / 1000.0
             log.info("Extending IoActor backpressure {} seconds", f"$extensionSeconds%.2f")
           }
 
@@ -260,7 +260,6 @@ object IoActor {
   implicit val ioConfigReader: ValueReader[IoConfig] = (config: Config, _: String) => {
 
     val loadControl: Config = config.as[Config]("load-control")
-
     val queueSize: Int = loadControl.as[Int]("io-queue-size")
     val ioNormalWindowMinimum: FiniteDuration = loadControl.as[FiniteDuration]("io-normal-window-minimum")
     val ioNormalWindowMaximum: FiniteDuration = loadControl.as[FiniteDuration]("io-normal-window-maximum")

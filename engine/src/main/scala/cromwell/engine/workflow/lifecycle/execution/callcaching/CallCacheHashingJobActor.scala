@@ -1,23 +1,21 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
-import java.security.MessageDigest
 import akka.actor.{ActorRef, LoggingFSM, Props, Terminated}
 import cats.data.NonEmptyList
-import com.typesafe.config.ConfigFactory
 import cromwell.backend.standard.callcaching.StandardFileHashingActor.{FileHashResponse, SingleFileHashRequest}
 import cromwell.backend.{BackendInitializationData, BackendJobDescriptor, RuntimeAttributeDefinition}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching._
 import cromwell.core.simpleton.WomValueSimpleton
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache._
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.CallCacheHashingJobActorData._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CacheMiss
-
-import javax.xml.bind.DatatypeConverter
 import wom.RuntimeAttributesKeys
 import wom.types._
 import wom.values._
+
+import java.security.MessageDigest
+import javax.xml.bind.DatatypeConverter
 
 
 /**
@@ -236,19 +234,15 @@ object CallCacheHashingJobActor {
   }
 
   object CallCacheHashingJobActorData {
-    // Slick will eventually build a prepared statement with that many parameters. Don't set this too high or it will stackoverflow.
-    val BatchSize: Int = ConfigFactory.load().getInt("system.file-hash-batch-size")
-
     def apply(fileHashRequestsRemaining: List[SingleFileHashRequest], callCacheReadingJobActor: Option[ActorRef], batchSize: Int): CallCacheHashingJobActorData = {
-      new CallCacheHashingJobActorData(fileHashRequestsRemaining.grouped(batchSize).toList, List.empty, callCacheReadingJobActor)
+      new CallCacheHashingJobActorData(fileHashRequestsRemaining.grouped(batchSize).toList, List.empty, callCacheReadingJobActor, batchSize)
     }
   }
 
-  final case class CallCacheHashingJobActorData(
-                                           fileHashRequestsRemaining: List[List[SingleFileHashRequest]],
-                                           fileHashResults: List[HashResult],
-                                           callCacheReadingJobActor: Option[ActorRef]
-                                         ) {
+  final case class CallCacheHashingJobActorData(fileHashRequestsRemaining: List[List[SingleFileHashRequest]],
+                                                fileHashResults: List[HashResult],
+                                                callCacheReadingJobActor: Option[ActorRef],
+                                                batchSize: Int) {
     private val md5Digest = MessageDigest.getInstance("MD5")
 
     /**
@@ -270,10 +264,11 @@ object CallCacheHashingJobActor {
           else (List(updatedBatch), None)
         case currentBatch :: otherBatches =>
           val updatedBatch = currentBatch.filterNot(_.hashKey == hashResult.hashKey)
-          // If the current batch is empty, we got a partial result, take the first BatchSize of the list
+          // If the current batch is empty, we got a partial result, take the first fileHashBatchSize of the list
           if (updatedBatch.isEmpty) {
-            // hashResult + fileHashResults.take(BatchSize - 1) -> BatchSize elements
-            val partialHashes = NonEmptyList.of[HashResult](hashResult, fileHashResults.take(BatchSize - 1): _*)
+            // hashResult + fileHashResults.take(batchSize - 1) -> batchSize elements
+            // Slick will eventually build a prepared statement with that many parameters. Don't set this too high or it will stackoverflow.
+            val partialHashes = NonEmptyList.of[HashResult](hashResult, fileHashResults.take(batchSize - 1): _*)
             (otherBatches, Option(PartialFileHashingResult(partialHashes)))
           }
           // Otherwise just return the updated request list and no message

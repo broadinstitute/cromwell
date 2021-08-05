@@ -47,7 +47,7 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
                                               override val clientContext: Option[Any] = None,
                                               backoff: Backoff = GcsBatchCommandContext.defaultBackoff,
                                               currentAttempt: Int = 1,
-                                              promise: Promise[BatchResponse] = Promise[BatchResponse],
+                                              promise: Promise[BatchResponse] = Promise[BatchResponse]
                                              )
   extends IoCommandContext[T]
   with StrictLogging {

@@ -1,5 +1,14 @@
 version 1.0
 
+# Inspired by runs of the GATK SV WDL with ~700 shards localizing ~1700 inputs each.
+# The inputs also had some specific characteristics that stressed Cromwell:
+#
+# * Long object paths of > 300 characters each, coming from subworkflows.
+# * Largely unique, not taking much advantage of the RootWorkflowFileHashCacheActor and requiring
+#   large numbers of hash requests to go out to Google.
+# * Largely unique object path prefixes resulting in a large number of stanzas in the
+#   `gcs_localization.sh` script, inflating the size of these scripts to ~1.7 MiB per shard.
+
 task hello {
     input {
         Array[File] inputs

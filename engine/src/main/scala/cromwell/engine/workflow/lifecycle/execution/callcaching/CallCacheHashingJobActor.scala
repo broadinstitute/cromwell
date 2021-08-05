@@ -42,7 +42,8 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
                                fileHashingActorProps: Props,
                                callCachingEligible: CallCachingEligible,
                                callCachingActivity: CallCachingActivity,
-                               callCachePathPrefixes: Option[CallCachePathPrefixes]
+                               callCachePathPrefixes: Option[CallCachePathPrefixes],
+                               fileHashBatchSize: Int
                               ) extends LoggingFSM[CallCacheHashingJobActorState, CallCacheHashingJobActorData] {
 
   val fileHashingActor: ActorRef = makeFileHashingActor()
@@ -136,7 +137,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
       case WomValueSimpleton(name, x: WomFile) => SingleFileHashRequest(jobDescriptor.key, HashKey(true, "input", s"File $name"), x, initializationData)
     }
 
-    val hashingJobActorData = CallCacheHashingJobActorData(fileHashRequests.toList, callCacheReadingJobActor)
+    val hashingJobActorData = CallCacheHashingJobActorData(fileHashRequests.toList, callCacheReadingJobActor, fileHashBatchSize)
     startWith(WaitingForHashFileRequest, hashingJobActorData)
 
     val aggregatedBaseHash = calculateHashAggregation(initialHashes, MessageDigest.getInstance("MD5"))
@@ -198,7 +199,8 @@ object CallCacheHashingJobActor {
             fileHashingActorProps: Props,
             callCachingEligible: CallCachingEligible,
             callCachingActivity: CallCachingActivity,
-            callCachePathPrefixes: Option[CallCachePathPrefixes]
+            callCachePathPrefixes: Option[CallCachePathPrefixes],
+            fileHashBatchSize: Int
            ): Props = Props(new CallCacheHashingJobActor(
     jobDescriptor,
     callCacheReadingJobActor,
@@ -208,7 +210,8 @@ object CallCacheHashingJobActor {
     fileHashingActorProps,
     callCachingEligible,
     callCachingActivity,
-    callCachePathPrefixes
+    callCachePathPrefixes,
+    fileHashBatchSize
   )).withDispatcher(EngineDispatcher)
 
   sealed trait CallCacheHashingJobActorState
@@ -236,8 +239,8 @@ object CallCacheHashingJobActor {
     // Slick will eventually build a prepared statement with that many parameters. Don't set this too high or it will stackoverflow.
     val BatchSize: Int = ConfigFactory.load().getInt("system.file-hash-batch-size")
 
-    def apply(fileHashRequestsRemaining: List[SingleFileHashRequest], callCacheReadingJobActor: Option[ActorRef]): CallCacheHashingJobActorData = {
-      new CallCacheHashingJobActorData(fileHashRequestsRemaining.grouped(BatchSize).toList, List.empty, callCacheReadingJobActor)
+    def apply(fileHashRequestsRemaining: List[SingleFileHashRequest], callCacheReadingJobActor: Option[ActorRef], batchSize: Int): CallCacheHashingJobActorData = {
+      new CallCacheHashingJobActorData(fileHashRequestsRemaining.grouped(batchSize).toList, List.empty, callCacheReadingJobActor)
     }
   }
 

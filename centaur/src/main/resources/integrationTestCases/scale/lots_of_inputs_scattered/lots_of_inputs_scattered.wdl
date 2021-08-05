@@ -10,6 +10,9 @@ version 1.0
 #   `gcs_localization.sh` script, inflating the size of these scripts to ~1.7 MiB per shard.
 
 task hello {
+    meta {
+        volatile: true
+    }
     input {
         Array[File] inputs
     }

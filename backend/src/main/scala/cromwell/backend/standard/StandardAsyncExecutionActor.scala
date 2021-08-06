@@ -1325,9 +1325,7 @@ trait StandardAsyncExecutionActor
           }
         } else {
           tryReturnCodeAsInt match {
-            case Success(returnCodeAsInt) if continueOnReturnCode.continueFor(returnCodeAsInt) =>
-              handleExecutionSuccess(status, oldHandle, returnCodeAsInt)
-            case Success(returnCodeAsInt) if retryWithMoreMemory =>
+            case Success(returnCodeAsInt) if retryWithMoreMemory && !continueOnReturnCode.continueFor(returnCodeAsInt) =>
               val executionHandle = Future.successful(FailedNonRetryableExecutionHandle(RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption, memoryRetryErrorKeys, log), Option(returnCodeAsInt), None))
               retryElseFail(executionHandle, retryWithMoreMemory)
             case _ =>

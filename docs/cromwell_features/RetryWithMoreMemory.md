@@ -10,7 +10,7 @@ to be passed in through workflow options and should be in the range `1.0 ≤ mul
 will retry with same amount of memory). If this is not specified, Cromwell will retry the task (if applicable) but not 
 change the memory amount.
 
-For example, if the error keys set in Cromwell config are as below and the multipler passed through workflow options is 
+For example, if the error keys set in Cromwell config are as below, and the multiplier passed through workflow options is 
 `"memory_retry_multiplier": 1.1` 
 ```hocon
 system {
@@ -24,11 +24,15 @@ If the task has runtime attributes as below
 ```hocon
 runtimeAtrributes {
   memory: "1 GB"
-  continueOnReturnCode: true
   maxRetries: 1
 }
 ``` 
-the task will be retried 1 more time if it runs out of memory, and this time with "1.1 GB". 
+the task will be retried 1 more time if it runs out of memory, and this time with "1.1 GB".
+
+If the task return code is 0, the task will not be retried with more memory, even if the `stderr` file contains a
+string present in `system.memory-retry-error-keys`. Similarly, if the runtime attribute `continueOnReturnCode` is
+specified as a true, or the return code of the task matches a value specified by `continueOnReturnCode`, the task
+will be considered successful and will not be retried with more memory.
 
 Please note that this feature currently only works in Google Cloud backend. Also, Pipelines API might adjust the 
 memory value based on their standards for memory for a VM. So it's possible that even though the request says 1.1 GB 

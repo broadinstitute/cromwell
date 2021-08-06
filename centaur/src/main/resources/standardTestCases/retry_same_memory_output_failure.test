@@ -1,0 +1,21 @@
+name: retry_same_memory_output_failure
+testFormat: workflowfailure
+backends: [Papiv2]
+
+files {
+  workflow: retry_with_more_memory/retry_same_memory_output_failure.wdl
+  options: retry_with_more_memory/retry_with_more_memory.options
+}
+
+metadata {
+  workflowName: retry_same_memory_output_failure
+  status: Failed
+  "failures.0.message": "Workflow failed"
+  "failures.0.causedBy.0.message": "Task do_not_retry_output_failure_rc1.imitate_oom_error:NA:3 failed. The job was stopped before the command finished. PAPI error code 9. Please check the log file for more details: gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/do_not_retry_output_failure_rc1/a3eb7b4d-14bb-4162-b8a5-d3a75ca989f6/call-imitate_oom_error/attempt-3/imitate_oom_error.log."
+  "do_not_retry_output_failure_rc1.imitate_oom_error.-1.1.executionStatus": "RetryableFailure"
+  "do_not_retry_output_failure_rc1.imitate_oom_error.-1.1.runtimeAttributes.memory": "1 GB"
+  "do_not_retry_output_failure_rc1.imitate_oom_error.-1.2.executionStatus": "RetryableFailure"
+  "do_not_retry_output_failure_rc1.imitate_oom_error.-1.2.runtimeAttributes.memory": "1 GB"
+  "do_not_retry_output_failure_rc1.imitate_oom_error.-1.3.executionStatus": "Failed"
+  "do_not_retry_output_failure_rc1.imitate_oom_error.-1.3.runtimeAttributes.memory": "1 GB"
+}

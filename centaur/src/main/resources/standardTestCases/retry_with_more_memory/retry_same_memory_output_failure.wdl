@@ -9,8 +9,8 @@ task imitate_oom_error {
     # touch foo
   }
   output {
-    # Since this file does not exist, the code will go through an exception failure path. The task will end up
-    # retrying, but memory does not increase.
+    # Since the file does not exist, this will cause the status to be Failed. The task will end up retrying,
+    # but memory does not increase.
     File foo = "foo"
   }
   runtime {

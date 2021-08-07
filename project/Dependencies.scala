@@ -5,17 +5,17 @@ object Dependencies {
   private val akkaHttpV = "10.1.14" // scala-steward:off (CROM-6619)
   private val akkaV = "2.5.32" // scala-steward:off (CROM-6637)
   private val aliyunBcsV = "6.2.4"
-  private val aliyunCoreV = "4.5.24"
+  private val aliyunCoreV = "4.5.25"
   private val aliyunCrV = "4.1.2"
   private val aliyunOssV = "3.13.0"
   private val ammoniteOpsV = "2.4.0"
   private val apacheHttpClientV = "4.5.13"
-  private val awsSdkV = "2.17.4"
+  private val awsSdkV = "2.17.14"
   private val betterFilesV = "3.9.1"
   /*
   cats-effect, fs2, https4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.
    */
-  private val catsEffectV = "2.5.1" // scala-steward:off
+  private val catsEffectV = "2.5.2" // scala-steward:off (CROM-6564)
   private val catsV = "2.6.1"
   private val circeConfigV = "0.8.0"
   private val circeGenericExtrasV = "0.14.1"
@@ -23,7 +23,7 @@ object Dependencies {
   private val circeV = "0.14.1"
   private val circeYamlV = "0.14.0"
   private val commonsCodecV = "1.15"
-  private val commonsCsvV = "1.8"
+  private val commonsCsvV = "1.9.0"
   private val commonsIoV = "2.11.0"
   private val commonsLang3V = "3.12.0"
   private val commonsMathV = "3.6.1"
@@ -36,7 +36,7 @@ object Dependencies {
   // The "com.vladsch.flexmark" % "flexmark-profile-pegdown" % flexmarkV dependency is an implicit, version-specific
   // runtime dependency of ScalaTest. At the time of this writing this is the newest version known to work.
   private val flexmarkV = "0.36.8" // scala-steward:off
-  private val fs2V = "2.5.9" // scala-steward:off
+  private val fs2V = "2.5.9" // scala-steward:off (CROM-6564)
   // Scala Steward opened PR #5775 titled "Update fs2-io from 2.0.1 to 2.4.3" to upgrade the following dependency.
   // However that PR was actually attempting an upgrade from 1.0.5 to 2.4.3 which is a much more significant
   // undertaking, resulting in some thoroughly broken statsd proxy code. As this component lacks tests and is
@@ -64,13 +64,13 @@ object Dependencies {
   private val hsqldbV = "2.6.0"
   private val http4sVersion = "0.21.7" // scala-steward:off (CROM-6678)
   private val jacksonV = "2.12.4"
-  private val janinoV = "3.1.4"
+  private val janinoV = "3.1.6"
   private val jsr305V = "3.0.2"
   private val kindProjectorV = "0.9.10"
   private val kittensV = "2.3.2"
   private val liquibaseSlf4jV = "4.0.0"
-  private val liquibaseV = "4.4.0" // 4.4.1 and 4.4.2 need https://github.com/liquibase/liquibase/pull/2001
-  private val logbackV = "1.2.4"
+  private val liquibaseV = "4.4.0" // 4.4.1+ needs https://github.com/liquibase/liquibase/pull/2001
+  private val logbackV = "1.2.5"
   private val lz4JavaV = "1.8.0"
   private val mariadbV = "2.7.3"
   private val metrics3ScalaV = "3.5.10" // scala-steward:off https://github.com/erikvanoosten/metrics-scala/tree/f733e26#download-4x
@@ -80,7 +80,7 @@ object Dependencies {
   private val mouseV = "1.0.4"
   private val mysqlV = "8.0.26"
   private val nettyV = "4.1.66.Final"
-  private val owlApiV = "5.1.17"
+  private val owlApiV = "5.1.19"
   private val paradiseV = "2.1.1"
   private val pegdownV = "1.6.0"
   private val postgresV = "42.2.23"

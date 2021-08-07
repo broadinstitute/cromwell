@@ -441,7 +441,8 @@ public class S3FileSystemProvider extends FileSystemProvider {
             s3Source.getFileSystem()
                     .getClient()
                     .copyObject(CopyObjectRequest.builder()
-                            .copySource(bucketNameOrigin + "/" + keySource)
+                            .sourceBucket(bucketNameOrigin)
+                            .sourceKey(keySource)
                             .destinationBucket(bucketNameTarget)
                             .destinationKey(keyTarget)
                             .build());
@@ -498,7 +499,8 @@ public class S3FileSystemProvider extends FileSystemProvider {
                 CompletableFuture<UploadPartCopyResponse> uploadPartCopyResponseFuture = CompletableFuture.supplyAsync(() -> {
                     final UploadPartCopyRequest uploadPartCopyRequest = UploadPartCopyRequest.builder()
                             .uploadId(uploadId)
-                            .copySource(source.getFileStore().name() + "/" + source.getKey())
+                            .sourceBucket(source.getFileStore().name())
+                            .sourceKey(source.getKey())
                             .copySourceRange("bytes=" + finalBytePosition + "-" + lastByte)
                             .destinationBucket(target.getFileStore().name())
                             .destinationKey(target.getKey())

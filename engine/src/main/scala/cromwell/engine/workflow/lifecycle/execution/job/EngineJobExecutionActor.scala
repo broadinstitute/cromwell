@@ -845,7 +845,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
         publishHashesToMetadata(hashes)
         writeToMetadata(Map(callCachingAllowReuseMetadataKey -> false))
         saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = false)
-      case FailedResponseData(JobFailedRetryableResponse(jobKey, throwable, returnCode, _), hashes) =>
+      case FailedResponseData(JobFailedRetryableResponse(jobKey, throwable, returnCode), hashes) =>
         publishHashesToMetadata(hashes)
         writeToMetadata(Map(callCachingAllowReuseMetadataKey -> false))
         saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = true)

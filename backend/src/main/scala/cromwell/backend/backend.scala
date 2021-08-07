@@ -12,7 +12,6 @@ import cromwell.core.path.{DefaultPathBuilderFactory, PathBuilderFactory}
 import cromwell.core.{CallKey, HogGroup, WorkflowId, WorkflowOptions}
 import cromwell.docker.DockerInfoActor.DockerSize
 import cromwell.services.keyvalue.KeyValueServiceActor.KvResponse
-import eu.timepit.refined.refineMV
 import net.ceedubs.ficus.Ficus._
 import wom.callable.{ExecutableCallable, MetaValueElement}
 import wom.graph.CommandCallNode
@@ -29,8 +28,7 @@ import scala.util.Try
   */
 case class BackendJobDescriptorKey(call: CommandCallNode,
                                    index: Option[Int],
-                                   attempt: Int,
-                                   memoryMultiplier: MemoryRetryMultiplierRefined = refineMV[MemoryRetryMultiplier](1.0)) extends CallKey {
+                                   attempt: Int) extends CallKey {
   def node = call
   private val indexString = index map { _.toString } getOrElse "NA"
   lazy val tag = s"${call.fullyQualifiedName}:$indexString:$attempt"

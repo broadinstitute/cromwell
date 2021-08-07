@@ -1,12 +1,10 @@
 package cromwell.backend.async
 
-import common.validation.Validation.{MemoryRetryMultiplier, MemoryRetryMultiplierRefined}
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.async.AsyncBackendJobExecutionActor.JobId
 import cromwell.core.path.Path
 import cromwell.core.{CallOutputs, ExecutionEvent}
 import cromwell.services.keyvalue.KeyValueServiceActor.KvPair
-import eu.timepit.refined.refineMV
 
 /**
  * Trait to encapsulate whether an execution is complete and if so provide a result.  Useful in conjunction
@@ -51,7 +49,6 @@ final case class FailedNonRetryableExecutionHandle(throwable: Throwable,
 
 final case class FailedRetryableExecutionHandle(throwable: Throwable,
                                                 returnCode: Option[Int] = None,
-                                                memoryMultiplier: MemoryRetryMultiplierRefined = refineMV[MemoryRetryMultiplier](1.0),
                                                 override val kvPairsToSave: Option[Seq[KvPair]]) extends FailedExecutionHandle {
 
   override val isDone = true

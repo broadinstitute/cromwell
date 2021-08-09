@@ -41,6 +41,9 @@ final class IoActor(ioConfig: IoConfig,
   extends Actor with ActorLogging with StreamActorHelper[IoCommandContext[_]] with IoInstrumentation with Timers {
   implicit val ec: ExecutionContext = context.dispatcher
 
+  // IntelliJ disapproves of mutable state in Actors, but this should be safe as long as access occurs only in
+  // the `receive` method. Alternatively IntelliJ does suggest a `become` workaround we might try in the future.
+
   //noinspection ActorMutableStateInspection
   private var backpressureExpiration: Option[OffsetDateTime] = None
 

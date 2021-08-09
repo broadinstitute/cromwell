@@ -7,13 +7,12 @@
       <env name="CROMWELL_BUILD_CENTAUR_JDBC_URL" value="jdbc:mysql://localhost:3306/cromwell_test?allowPublicKeyRetrieval=true&amp;useSSL=false&amp;rewriteBatchedStatements=true&amp;serverTimezone=UTC&amp;useInformationSchema=true" />
       <env name="CROMWELL_BUILD_RESOURCES_DIRECTORY" value="target/ci/resources" />
       <env name="CROMWELL_BUILD_PAPI_JSON_FILE" value="target/ci/resources/cromwell-centaur-service-account.json" />
-      <env name="CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT" value="1280000" />
+      <env name="CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT" value="128000" />
     </envs>
-    <output_file path="cromwell-server.log" is_save="true" />
     <option name="MAIN_CLASS_NAME" value="cromwell.CromwellApp" />
     <module name="cromwell" />
     <option name="PROGRAM_PARAMETERS" value="server" />
-    <option name="VM_PARAMETERS" value="-Dconfig.file=target/ci/resources/papi_v2beta_application.conf" />
+    <option name="VM_PARAMETERS" value="-Dconfig.file=target/ci/resources/local_application.conf" />
     <method v="2">
       <option name="Make" enabled="true" />
       <option name="RunConfigurationTask" enabled="true" run_configuration_name="renderCiResources" run_configuration_type="SbtRunConfiguration" />

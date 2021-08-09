@@ -9,19 +9,19 @@ import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashing
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor3}
+import org.scalatest.prop.TableDrivenPropertyChecks
 
 class CallCacheHashingJobActorDataSpec extends TestKitSuite with AnyFlatSpecLike with BackendSpec with Matchers with Eventually with TableDrivenPropertyChecks {
   behavior of "CallCacheReadingJobActorData"
 
-  val fileHash1: HashResult = HashResult(HashKey("key"), HashValue("value"))
-  val fileHash2: HashResult = HashResult(HashKey("key2"), HashValue("value2"))
-  val fileHash3: HashResult = HashResult(HashKey("key3"), HashValue("value3"))
-  val fileHashRequest1: SingleFileHashRequest = SingleFileHashRequest(null, fileHash1.hashKey, null, null)
-  val fileHashRequest2: SingleFileHashRequest = SingleFileHashRequest(null, fileHash2.hashKey, null, null)
-  val fileHashRequest3: SingleFileHashRequest = SingleFileHashRequest(null, fileHash3.hashKey, null, null)
+  private val fileHash1 = HashResult(HashKey("key"), HashValue("value"))
+  private val fileHash2 = HashResult(HashKey("key2"), HashValue("value2"))
+  private val fileHash3 = HashResult(HashKey("key3"), HashValue("value3"))
+  private val fileHashRequest1 = SingleFileHashRequest(null, fileHash1.hashKey, null, null)
+  private val fileHashRequest2 = SingleFileHashRequest(null, fileHash2.hashKey, null, null)
+  private val fileHashRequest3 = SingleFileHashRequest(null, fileHash3.hashKey, null, null)
   
-  val testCases: TableFor3[CallCacheHashingJobActorData, CallCacheHashingJobActorData, Option[CallCacheHashingJobActor.CCHJAFileHashResponse]] = Table(
+  private val testCases = Table(
     ("dataBefore", "dataAfter", "result"),
     // No fileHashRequestsRemaining
     (

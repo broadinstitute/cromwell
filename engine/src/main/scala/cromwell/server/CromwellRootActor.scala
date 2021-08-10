@@ -11,12 +11,11 @@ import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core._
 import cromwell.core.actor.StreamActorHelper.ActorRestartException
 import cromwell.core.filesystem.CromwellFileSystems
-import cromwell.core.io.Throttle
-import cromwell.core.io.Throttle._
 import cromwell.docker.DockerInfoActor
 import cromwell.docker.local.DockerCliFlow
 import cromwell.engine.CromwellTerminator
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
+import cromwell.engine.io.IoActor.IoConfig
 import cromwell.engine.io.{IoActor, IoActorProxy}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.AbortAllWorkflowsCommand
@@ -99,17 +98,19 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
       "WorkflowStoreActor")
 
   lazy val jobStore: JobStore = new SqlJobStore(EngineServicesStore.engineDatabaseInterface)
-  lazy val jobStoreActor = context.actorOf(JobStoreActor.props(jobStore, serviceRegistryActor, workflowStoreAccess), "JobStoreActor")
+  lazy val jobStoreActor: ActorRef = context.actorOf(JobStoreActor.props(jobStore, serviceRegistryActor, workflowStoreAccess), "JobStoreActor")
 
   lazy val subWorkflowStore: SubWorkflowStore = new SqlSubWorkflowStore(EngineServicesStore.engineDatabaseInterface)
-  lazy val subWorkflowStoreActor = context.actorOf(SubWorkflowStoreActor.props(subWorkflowStore), "SubWorkflowStoreActor")
+  lazy val subWorkflowStoreActor: ActorRef = context.actorOf(SubWorkflowStoreActor.props(subWorkflowStore), "SubWorkflowStoreActor")
 
-  // Io Actor
-  lazy val nioParallelism = systemConfig.as[Option[Int]]("io.nio.parallelism").getOrElse(10)
-  lazy val gcsParallelism = systemConfig.as[Option[Int]]("io.gcs.parallelism").getOrElse(10)
-  lazy val ioThrottle = systemConfig.getAs[Throttle]("io").getOrElse(Throttle(100000, 100.seconds, 100000))
-  lazy val ioActor = context.actorOf(IoActor.props(LoadConfig.IoQueueSize, nioParallelism, gcsParallelism, Option(ioThrottle), serviceRegistryActor, GoogleConfiguration(config).applicationName), "IoActor")
-  lazy val ioActorProxy = context.actorOf(IoActorProxy.props(ioActor), "IoProxy")
+  lazy val ioConfig: IoConfig = config.as[IoConfig]
+  lazy val ioActor: ActorRef = context.actorOf(
+    IoActor.props(
+      ioConfig = ioConfig,
+      serviceRegistryActor = serviceRegistryActor,
+      applicationName = GoogleConfiguration(config).applicationName),
+    "IoActor")
+  lazy val ioActorProxy: ActorRef = context.actorOf(IoActorProxy.props(ioActor), "IoProxy")
 
   // Register the IoActor with the service registry:
   serviceRegistryActor ! IoActorRef(ioActorProxy)

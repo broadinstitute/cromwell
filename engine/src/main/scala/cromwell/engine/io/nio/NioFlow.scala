@@ -1,37 +1,43 @@
 package cromwell.engine.io.nio
 
-import java.io._
-import java.nio.charset.StandardCharsets
-
 import akka.stream.scaladsl.Flow
 import cats.effect.{IO, Timer}
 import cloud.nio.impl.drs.DrsCloudNioFileSystemProvider
+import com.typesafe.config.Config
 import common.util.IORetry
 import cromwell.core.io._
 import cromwell.core.path.Path
 import cromwell.engine.io.IoActor._
-import cromwell.engine.io.RetryableRequestSupport.{isRetryable, isInfinitelyRetryable}
-import cromwell.engine.io.{IoAttempts, IoCommandContext}
+import cromwell.engine.io.RetryableRequestSupport.{isInfinitelyRetryable, isRetryable}
+import cromwell.engine.io.{IoAttempts, IoCommandContext, IoCommandStalenessBackpressuring}
 import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.oss.OssPath
 import cromwell.filesystems.s3.S3Path
 import cromwell.util.TryWithResource._
+import net.ceedubs.ficus.Ficus._
+import net.ceedubs.ficus.readers.ValueReader
 
+import java.io._
+import java.nio.charset.StandardCharsets
 import scala.concurrent.ExecutionContext
-object NioFlow {
-  val NoopOnRetry: IoCommandContext[_] => Throwable => Unit = _ => _ => ()
-}
+import scala.concurrent.duration.FiniteDuration
+
 
 /**
   * Flow that executes IO operations by calling java.nio.Path methods
   */
 class NioFlow(parallelism: Int,
-              onRetryCallback: IoCommandContext[_] => Throwable => Unit = NioFlow.NoopOnRetry,
-              nbAttempts: Int = MaxAttemptsNumber)(implicit ec: ExecutionContext) {
-  
+              onRetryCallback: IoCommandContext[_] => Throwable => Unit,
+              onBackpressure: Option[Double] => Unit,
+              numberOfAttempts: Int,
+              commandBackpressureStaleness: FiniteDuration
+              )(implicit ec: ExecutionContext) extends IoCommandStalenessBackpressuring {
+
   implicit private val timer: Timer[IO] = IO.timer(ec)
-  
+
+  override def maxStaleness: FiniteDuration = commandBackpressureStaleness
+
   private val processCommand: DefaultCommandContext[_] => IO[IoResult] = commandContext => {
 
     val onRetry: (Throwable, IoAttempts) => IoAttempts = (t, s) => {
@@ -42,7 +48,7 @@ class NioFlow(parallelism: Int,
     val operationResult = IORetry.withRetry(
       handleSingleCommand(commandContext.request),
       IoAttempts(1),
-      maxRetries = Option(nbAttempts),
+      maxRetries = Option(numberOfAttempts),
       backoff = IoCommand.defaultBackoff,
       isRetryable = isRetryable,
       isInfinitelyRetryable = isInfinitelyRetryable,
@@ -53,14 +59,14 @@ class NioFlow(parallelism: Int,
       _ <- IO.shift(ec)
       result <- operationResult
     } yield (result, commandContext)
-    
+
      io handleErrorWith {
       failure => IO.pure(commandContext.fail(failure))
     }
   }
 
   private [nio] def handleSingleCommand(ioSingleCommand: IoCommand[_]): IO[IoSuccess[_]] = {
-    ioSingleCommand match {
+    val ret = ioSingleCommand match {
       case copyCommand: IoCopyCommand => copy(copyCommand) map copyCommand.success
       case writeCommand: IoWriteCommand => write(writeCommand) map writeCommand.success
       case deleteCommand: IoDeleteCommand => delete(deleteCommand) map deleteCommand.success
@@ -73,6 +79,10 @@ class NioFlow(parallelism: Int,
       case isDirectoryCommand: IoIsDirectoryCommand => isDirectory(isDirectoryCommand) map isDirectoryCommand.success
       case _ => IO.raiseError(new UnsupportedOperationException("Method not implemented"))
     }
+
+    // Apply backpressure if this command has been waiting too long to execute.
+    backpressureIfStale(ioSingleCommand, onBackpressure)
+    ret
   }
 
   private[io] val flow =
@@ -158,5 +168,15 @@ class NioFlow(parallelism: Int,
         })
       case None => IO.raiseError(new IOException(s"Error getting file hash of DRS path $drsPath. Reason: File attributes class DrsCloudNioRegularFileAttributes wasn't defined in DrsCloudNioFileProvider."))
     }
+  }
+}
+
+object NioFlow {
+  case class NioFlowConfig(parallelism: Int)
+
+  implicit val nioFlowConfigReader: ValueReader[NioFlowConfig] = (config: Config, path: String) => {
+    val base = config.as[Config](path)
+    val parallelism = base.as[Int]("parallelism")
+    NioFlowConfig(parallelism)
   }
 }

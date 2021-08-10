@@ -30,7 +30,8 @@ class EngineJobHashingActor(receiver: ActorRef,
                             backendNameForCallCachingPurposes: String,
                             activity: CallCachingActivity,
                             callCachingEligible: CallCachingEligible,
-                            callCachePathPrefixes: Option[CallCachePathPrefixes]) extends Actor with ActorLogging with JobLogging with CallMetadataHelper {
+                            callCachePathPrefixes: Option[CallCachePathPrefixes],
+                            fileHashBatchSize: Int) extends Actor with ActorLogging with JobLogging with CallMetadataHelper {
 
   override val jobTag = jobDescriptor.key.tag
   val workflowId = jobDescriptor.workflowDescriptor.id
@@ -54,7 +55,8 @@ class EngineJobHashingActor(receiver: ActorRef,
       fileHashingActorProps,
       callCachingEligible,
       activity,
-      callCachePathPrefixes
+      callCachePathPrefixes,
+      fileHashBatchSize
     ), s"CCHashingJobActor-${workflowId.shortString}-$jobTag")
     super.preStart()
   }
@@ -144,7 +146,8 @@ object EngineJobHashingActor {
             backendNameForCallCachingPurposes: String,
             activity: CallCachingActivity,
             callCachingEligible: CallCachingEligible,
-            callCachePathPrefixes: Option[CallCachePathPrefixes]): Props = Props(new EngineJobHashingActor(
+            callCachePathPrefixes: Option[CallCachePathPrefixes],
+            fileHashBatchSize: Int): Props = Props(new EngineJobHashingActor(
     receiver = receiver,
     serviceRegistryActor = serviceRegistryActor,
     jobDescriptor = jobDescriptor,
@@ -155,5 +158,6 @@ object EngineJobHashingActor {
     backendNameForCallCachingPurposes = backendNameForCallCachingPurposes,
     activity = activity,
     callCachingEligible = callCachingEligible,
-    callCachePathPrefixes = callCachePathPrefixes)).withDispatcher(EngineDispatcher)
+    callCachePathPrefixes = callCachePathPrefixes,
+    fileHashBatchSize = fileHashBatchSize)).withDispatcher(EngineDispatcher)
 }

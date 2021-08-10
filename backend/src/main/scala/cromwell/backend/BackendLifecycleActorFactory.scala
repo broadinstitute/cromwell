@@ -126,7 +126,7 @@ trait BackendLifecycleActorFactory {
   /**
     * A set of KV store keys that are requested and looked up on behalf of all backends before running each job.
     */
-  def defaultKeyValueStoreKeys: Seq[String] = Seq(BackendLifecycleActorFactory.FailedRetryCountKey)
+  def defaultKeyValueStoreKeys: Seq[String] = Seq(BackendLifecycleActorFactory.FailedRetryCountKey, BackendLifecycleActorFactory.MemoryMultiplierKey)
 
   /*
    * Returns credentials that can be used to authenticate to a docker registry server
@@ -137,4 +137,5 @@ trait BackendLifecycleActorFactory {
 
 object BackendLifecycleActorFactory {
   val FailedRetryCountKey = "FailedRetryCount"
+  val MemoryMultiplierKey = "MemoryMultiplier"
 }

@@ -18,7 +18,8 @@ class LoadConfigSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
     LoadConfig.KeyValueWriteThreshold shouldBe 10000
     LoadConfig.MetadataWriteThreshold shouldBe 100000
     LoadConfig.IoQueueSize shouldBe 10000
-    LoadConfig.IoNormalWindow shouldBe 10.seconds
+    LoadConfig.IoNormalWindowMinimum shouldBe 20.seconds
+    LoadConfig.IoNormalWindowMaximum shouldBe 60.seconds
     LoadConfig.MonitoringFrequency shouldBe 5.seconds
     LoadConfig.PAPIThreshold shouldBe 10000
   }

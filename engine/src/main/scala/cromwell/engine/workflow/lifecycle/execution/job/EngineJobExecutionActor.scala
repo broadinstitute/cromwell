@@ -628,7 +628,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
           backendLifecycleActorFactory.nameForCallCachingPurposes,
           activity,
           callCachingEligible,
-          callCachePathPrefixes
+          callCachePathPrefixes,
+          callCachingParameters.fileHashBatchSize
         )
         val ejha = context.actorOf(props, s"ejha_for_$jobDescriptor")
 
@@ -845,7 +846,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
         publishHashesToMetadata(hashes)
         writeToMetadata(Map(callCachingAllowReuseMetadataKey -> false))
         saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = false)
-      case FailedResponseData(JobFailedRetryableResponse(jobKey, throwable, returnCode, _), hashes) =>
+      case FailedResponseData(JobFailedRetryableResponse(jobKey, throwable, returnCode), hashes) =>
         publishHashesToMetadata(hashes)
         writeToMetadata(Map(callCachingAllowReuseMetadataKey -> false))
         saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = true)
@@ -923,8 +924,8 @@ object EngineJobExecutionActor {
                                   writeActor: ActorRef,
                                   fileHashCacheActor: Option[ActorRef],
                                   maxFailedCopyAttempts: Int,
-                                  blacklistCache: Option[BlacklistCache]
-
+                                  blacklistCache: Option[BlacklistCache],
+                                  fileHashBatchSize: Int
                                   )
 
   /** Commands */

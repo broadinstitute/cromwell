@@ -2,7 +2,6 @@ package cromwell.engine.workflow.lifecycle.execution
 
 import java.time.OffsetDateTime
 import java.util.concurrent.atomic.AtomicInteger
-
 import _root_.wdl.draft2.model._
 import akka.actor.{Scope => _, _}
 import cats.data.NonEmptyList
@@ -47,6 +46,7 @@ import wom.graph._
 import wom.graph.expression.{ExposedExpressionNode, TaskCallInputExpressionNode}
 import wom.values._
 
+import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.control.NoStackTrace
@@ -59,12 +59,12 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     with Timers
     with CromwellInstrumentation {
 
-  implicit val ec = context.dispatcher
-  override val serviceRegistryActor = params.serviceRegistryActor
-  val workflowDescriptor = params.workflowDescriptor
-  override val workflowIdForLogging = workflowDescriptor.possiblyNotRootWorkflowId
-  override val rootWorkflowIdForLogging = workflowDescriptor.rootWorkflowId
-  override val workflowIdForCallMetadata = workflowDescriptor.id
+  implicit val ec: ExecutionContextExecutor = context.dispatcher
+  override val serviceRegistryActor: ActorRef = params.serviceRegistryActor
+  val workflowDescriptor: EngineWorkflowDescriptor = params.workflowDescriptor
+  override val workflowIdForLogging: PossiblyNotRootWorkflowId = workflowDescriptor.possiblyNotRootWorkflowId
+  override val rootWorkflowIdForLogging: RootWorkflowId = workflowDescriptor.rootWorkflowId
+  override val workflowIdForCallMetadata: WorkflowId = workflowDescriptor.id
   private val ioEc = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
   private val restarting = params.startState.restarted
   private val tag = s"WorkflowExecutionActor [UUID(${workflowDescriptor.id.shortString})]"
@@ -73,6 +73,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
   private val DefaultMaxScatterSize = 1000000
   private val TotalMaxJobsPerRootWf = params.rootConfig.getOrElse("system.total-max-jobs-per-root-workflow", DefaultTotalMaxJobsPerRootWf)
   private val MaxScatterWidth = params.rootConfig.getOrElse("system.max-scatter-width-per-scatter", DefaultMaxScatterSize)
+  private val FileHashBatchSize: Int = params.rootConfig.as[Int]("system.file-hash-batch-size")
 
   private val backendFactories: Map[String, BackendLifecycleActorFactory] = {
     val factoriesValidation = workflowDescriptor.backendAssignments.values.toList
@@ -660,7 +661,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       writeActor = params.callCacheWriteActor,
       fileHashCacheActor = params.fileHashCacheActor,
       maxFailedCopyAttempts = params.rootConfig.getInt("call-caching.max-failed-copy-attempts"),
-      blacklistCache = params.blacklistCache
+      blacklistCache = params.blacklistCache,
+      fileHashBatchSize = FileHashBatchSize
     )
 
     val ejeaProps = EngineJobExecutionActor.props(

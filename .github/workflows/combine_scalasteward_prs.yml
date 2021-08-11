@@ -36,6 +36,7 @@ jobs:
           git config user.name "broadbot"
           echo "Fetching repo state..."
           git fetch --quiet
+          git fetch origin develop:origin_develop
 
           echo "Bringing in PRs:"
           gh pr list --limit 1000 | grep 'scala-steward:' | tac | head -n${PR_LIMIT}
@@ -54,8 +55,8 @@ jobs:
 
             NEW_BRANCH="consolidated-scala-steward-prs-${FIRST_PR}-${LAST_PR}-$(date +'%Y-%m-%d_%H-%M')"
             echo "NEW_BRANCH=${NEW_BRANCH}"
-            git checkout develop
-            git pull
+            git checkout origin_develop
+            echo "develop is currently at: $(git rev-parse --verify HEAD)"
             git checkout -B ${NEW_BRANCH}
 
             SUCCESSFUL_PRS=()
@@ -64,8 +65,12 @@ jobs:
             for pr in ${NEXT_SLICE[@]}
             do
               echo "Bringing in: $pr"
-
               git fetch origin pull/${pr}/head:pr_${pr}_temp
+              git checkout ${NEW_BRANCH}
+              echo "${NEW_BRANCH} is currently at: $(git rev-parse --verify HEAD)"
+              git checkout pr_${pr}_temp
+              echo "pr_${pr}_temp is currently at: $(git rev-parse --verify HEAD)"
+
               git rebase "${NEW_BRANCH}" "pr_${pr}_temp" && EXIT_CODE=$? || EXIT_CODE=$?
 
               if [ "${EXIT_CODE}" == "0" ]
@@ -95,7 +100,7 @@ jobs:
 
           Consolidates scala-steward PRs: ${SUCCESSFUL_PRS[*]}
 
-          Merge conflicts during consolidation (might be empty): ${UNSUCCESSFUL_PRS[*]}"
+          Merge conflicts during consolidation (if non-empty, this list of PRs will need to be manually applied): ${UNSUCCESSFUL_PRS[*]}"
             fi
 
             NEXT_INDEX=$(( NEXT_INDEX + PR_GROUP_SIZE ))

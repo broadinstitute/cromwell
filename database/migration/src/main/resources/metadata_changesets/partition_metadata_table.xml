@@ -4,8 +4,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <!-- Question: how do I know if this works on all the different db variants?-->
-    <changeSet id="compress_and_partition_metadata_table" author="cahrens" dbms="hsqldb,mariadb,mysql,postgresql">
+    <changeSet id="compress_and_partition_metadata_table" author="cahrens" dbms="mariadb,mysql">
         <!-- Do not run this migration in Terra, where we will have already done the migration/table swap -->
         <preConditions onFail="MARK_RAN">
             <indexExists tableName="METADATA_ENTRY" indexName="METADATA_WORKFLOW_IDX"/>
@@ -23,11 +22,6 @@
             <column name="METADATA_KEY"/>
         </createIndex>
         <dropIndex tableName="METADATA_ENTRY" indexName="METADATA_WORKFLOW_IDX"/>
-<!--        This failed because the auto-increment field must be part of a key (and drop/add are independent here)
-            I included the drop/add primary key in the alter table -->
-<!--        <dropPrimaryKey tableName="METADATA_ENTRY"/>-->
-<!--        <addPrimaryKey tableName="METADATA_ENTRY" columnNames="METADATA_JOURNAL_ID, WORKFLOW_EXECUTION_UUID"-->
-<!--                       constraintName="PK_METADATA_ENTRY"/>-->
         <sql>
             alter table METADATA_ENTRY ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8,
             drop primary key, add primary key(METADATA_JOURNAL_ID, WORKFLOW_EXECUTION_UUID)

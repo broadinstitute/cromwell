@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <!-- Question: how do I know if this works on all the different db variants?-->
+    <changeSet id="compress_and_partition_metadata_table" author="cahrens" dbms="hsqldb,mariadb,mysql,postgresql">
+        <!-- Do not run this migration in Terra, where we will have already done the migration/table swap -->
+        <preConditions onFail="MARK_RAN">
+            <indexExists tableName="METADATA_ENTRY" indexName="METADATA_WORKFLOW_IDX"/>
+        </preConditions>
+        <comment>Partition, compress, and update indexes on the METADATA_ENTRY table</comment>
+        <createIndex indexName="METADATA_ENTRY_UUID_KEY_CALL_INDEX_ATTEMPT_INDEX" tableName="METADATA_ENTRY">
+            <column name="WORKFLOW_EXECUTION_UUID"/>
+            <column name="CALL_FQN"/>
+            <column name="JOB_SCATTER_INDEX"/>
+            <column name="JOB_RETRY_ATTEMPT"/>
+            <column name="METADATA_KEY"/>
+        </createIndex>
+        <createIndex indexName="METADATA_ENTRY_UUID_KEY" tableName="METADATA_ENTRY">
+            <column name="WORKFLOW_EXECUTION_UUID"/>
+            <column name="METADATA_KEY"/>
+        </createIndex>
+        <dropIndex tableName="METADATA_ENTRY" indexName="METADATA_WORKFLOW_IDX"/>
+<!--        This failed because the auto-increment field must be part of a key (and drop/add are independent here)
+            I included the drop/add primary key in the alter table -->
+<!--        <dropPrimaryKey tableName="METADATA_ENTRY"/>-->
+<!--        <addPrimaryKey tableName="METADATA_ENTRY" columnNames="METADATA_JOURNAL_ID, WORKFLOW_EXECUTION_UUID"-->
+<!--                       constraintName="PK_METADATA_ENTRY"/>-->
+        <sql>
+            alter table METADATA_ENTRY ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8,
+            drop primary key, add primary key(METADATA_JOURNAL_ID, WORKFLOW_EXECUTION_UUID)
+            PARTITION BY RANGE COLUMNS(WORKFLOW_EXECUTION_UUID) (
+              partition p0 values less than ('1'),
+              partition p1 values less than ('2'),
+              partition p2 values less than ('3'),
+              partition p3 values less than ('4'),
+              partition p4 values less than ('5'),
+              partition p5 values less than ('6'),
+              partition p6 values less than ('7'),
+              partition p7 values less than ('8'),
+              partition p8 values less than ('9'),
+              partition p9 values less than ('a'),
+              partition pa values less than ('b'),
+              partition pb values less than ('c'),
+              partition pc values less than ('d'),
+              partition pd values less than ('e'),
+              partition pe values less than ('f'),
+              partition pf values less than MAXVALUE);
+        </sql>
+    </changeSet>
+</databaseChangeLog>

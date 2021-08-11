@@ -19,5 +19,6 @@
     <include file="metadata_changesets/remove_non_summarizable_metadata_from_queue.xml" relativeToChangelogFile="true" />
     <include file="metadata_changesets/update_metadata_archive_index.xml" relativeToChangelogFile="true" />
     <include file="metadata_changesets/reset_archive_statuses_to_null.xml" relativeToChangelogFile="true" />
+    <include file="metadata_changesets/partition_metadata_table.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>
 <!-- See Dos and Don'ts in changelog.xml -->

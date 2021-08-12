@@ -44,4 +44,23 @@
               partition pf values less than MAXVALUE);
         </sql>
     </changeSet>
+    <changeSet id="update_indexes_metadata_table" author="cahrens" dbms="hsqldb,postgresql">
+        <comment>Updates indexes on the METADATA_ENTRY table for databases where we cannot compress/partition</comment>
+        <createIndex indexName="METADATA_ENTRY_UUID_KEY_CALL_INDEX_ATTEMPT_INDEX" tableName="METADATA_ENTRY">
+            <column name="WORKFLOW_EXECUTION_UUID"/>
+            <column name="CALL_FQN"/>
+            <column name="JOB_SCATTER_INDEX"/>
+            <column name="JOB_RETRY_ATTEMPT"/>
+            <column name="METADATA_KEY"/>
+        </createIndex>
+        <createIndex indexName="METADATA_ENTRY_UUID_KEY" tableName="METADATA_ENTRY">
+            <column name="WORKFLOW_EXECUTION_UUID"/>
+            <column name="METADATA_KEY"/>
+        </createIndex>
+        <dropIndex tableName="METADATA_ENTRY" indexName="METADATA_WORKFLOW_IDX"/>
+        <sql>
+            alter table METADATA_ENTRY
+            drop primary key, add primary key(METADATA_JOURNAL_ID, WORKFLOW_EXECUTION_UUID);
+        </sql>
+    </changeSet>
 </databaseChangeLog>

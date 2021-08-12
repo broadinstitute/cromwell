@@ -60,7 +60,8 @@
         <dropIndex tableName="METADATA_ENTRY" indexName="METADATA_WORKFLOW_IDX"/>
         <sql>
             alter table METADATA_ENTRY
-            drop primary key, add primary key(METADATA_JOURNAL_ID, WORKFLOW_EXECUTION_UUID);
+            drop primary key
+            add primary key(METADATA_JOURNAL_ID, WORKFLOW_EXECUTION_UUID);
         </sql>
     </changeSet>
 </databaseChangeLog>

@@ -1,0 +1,21 @@
+name: retry_same_memory_output_failure
+testFormat: workflowfailure
+backends: [Papiv2]
+
+files {
+  workflow: retry_with_more_memory/retry_same_memory_output_failure.wdl
+  options: retry_with_more_memory/retry_with_more_memory.options
+}
+
+metadata {
+  workflowName: retry_same_memory_output_failure
+  status: Failed
+  "failures.0.message": "Workflow failed"
+  "failures.0.causedBy.0.message": ~~"Task retry_same_memory_output_failure.imitate_oom_error:NA:3 failed. Job exit code 1."
+  "retry_same_memory_output_failure.imitate_oom_error.-1.1.executionStatus": "RetryableFailure"
+  "retry_same_memory_output_failure.imitate_oom_error.-1.1.runtimeAttributes.memory": "1 GB"
+  "retry_same_memory_output_failure.imitate_oom_error.-1.2.executionStatus": "RetryableFailure"
+  "retry_same_memory_output_failure.imitate_oom_error.-1.2.runtimeAttributes.memory": "1 GB"
+  "retry_same_memory_output_failure.imitate_oom_error.-1.3.executionStatus": "Failed"
+  "retry_same_memory_output_failure.imitate_oom_error.-1.3.runtimeAttributes.memory": "1 GB"
+}

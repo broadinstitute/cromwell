@@ -30,8 +30,8 @@ class CentaurOperationsSpec extends AnyFlatSpec with Matchers {
     Await.ready(validation, atMost = 10.seconds)
     validation.value.get match {
       case Success(()) if expectMatching => // great
-      case Success(_) if !expectMatching => fail("Metadata unexpected decided as matching")
-      case Failure(e) if expectMatching  => fail("Metadata unexpected decided as mismatching", e)
+      case Success(_) if !expectMatching => fail("Metadata unexpectedly matches")
+      case Failure(e) if expectMatching  => fail("Metadata unexpectedly mismatches", e)
       case Failure(_) if !expectMatching => // great
     }
   }

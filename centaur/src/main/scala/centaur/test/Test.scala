@@ -721,7 +721,10 @@ object Operations extends StrictLogging {
 
       // Sometimes new metadata is allowed to be added between the diffs. Account for that here:
       def isAllowableAddition(pointer: jsonpointer.Pointer): Boolean = pointer.parts.toList match {
+        // Paths to metadata values are lists of Left(string)s - representing field names - and Right(integers) - for array indexing.
+        // This case represents a path starting with a field 'x' at the root of the metadata tree:
         case Left(x) :: _ if allowableAddedOneWordFields.contains(x) => true
+        // This case represents a path starting something like 'calls.callname[0].x'
         case Left("calls") :: Left(_) :: Right(_) :: Left(x) :: _ if allowableAddedOneWordFields.contains(x) => true
         case _ => false
       }
@@ -806,7 +809,9 @@ object Operations extends StrictLogging {
   // against what we get when we pull metadata again specifying the job-manager-specific fields.
   // It's possible for new values to trickle in after the first metadata pull, because our validation wasn't specifically looking for them.
   // In those cases, the second pull (for Job Manager metadata) may include new values not present in the original.
-  // That's not a sign of an error, so allow additions in these fields when comparing original vs "job-manager only" metadata:
+  // That's not a sign of an error, so allow additions in these fields when comparing original vs "job-manager only" metadata:.
+  // Specifically, 'outputs', 'executionEvents' and 'end' times are likely to come in at the end of the workflow run and
+  // might be left unchecked by the initial metadata validation. So, let them come in without calling that an error:
   val allowableOneWordAdditionsInJmMetadata = List("outputs", "executionEvents", "end")
 
   val jmArgs = Map(

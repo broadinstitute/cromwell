@@ -4,7 +4,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet id="update_indexes_metadata_table" author="cahrens" dbms="mysql">
+    <changeSet id="update_indexes_metadata_table" author="cahrens" dbms="mysql,postgresql,hsqldb,mariadb">
         <comment>Updates indexes on the METADATA_ENTRY table</comment>
         <createIndex indexName="METADATA_ENTRY_UUID_KEY_CALL_INDEX_ATTEMPT_INDEX" tableName="METADATA_ENTRY">
             <column name="WORKFLOW_EXECUTION_UUID"/>
@@ -53,4 +53,37 @@
               partition pf values less than MAXVALUE);
         </sql>
     </changeSet>
+    <changeSet id="update_primary_key_mariadb" author="cahrens" dbms="mariadb">
+        <comment>Update the primary key (mariadb)</comment>
+        <!-- Cannot run as 2 independent steps: "there can be only one auto column and it must be defined as a key" -->
+        <sql>
+            alter table METADATA_ENTRY
+            drop primary key, add primary key(METADATA_JOURNAL_ID, WORKFLOW_EXECUTION_UUID);
+        </sql>
+    </changeSet>
+    <changeSet id="update_primary_key_hsqldb" author="cahrens" dbms="hsqldb">
+        <comment>Update the primary key (hsqldb)</comment>
+        <dropPrimaryKey tableName="METADATA_ENTRY"/>
+        <addPrimaryKey tableName="METADATA_ENTRY" columnNames="METADATA_JOURNAL_ID, WORKFLOW_EXECUTION_UUID"
+                       constraintName="PK_METADATA_ENTRY"/>
+    </changeSet>
+    <changeSet id="update_primary_key_postgresql" author="cahrens" dbms="postgresql">
+        <comment>Update the primary key (postgresql)</comment>
+        <dropPrimaryKey tableName="METADATA_ENTRY"/>
+<!--        <sql>-->
+<!--            alter table "public"."METADATA_ENTRY" drop constraint METADATA_ENTRY_PKEY;-->
+<!--        </sql>-->
+        <addPrimaryKey tableName="METADATA_ENTRY" columnNames="METADATA_JOURNAL_ID, WORKFLOW_EXECUTION_UUID"
+                       constraintName="PK_METADATA_ENTRY"/>
+    </changeSet>
 </databaseChangeLog>
+
+<!--        Where: SQL statement "alter table "public"."METADATA_ENTRY" drop constraint PK_METADATA_JOURNAL"-->
+<!--        PL/pgSQL function inline_code_block line 7 at EXECUTE [Failed SQL: DO $$ DECLARE constraint_name varchar;-->
+<!--        BEGIN-->
+<!--        SELECT tc.CONSTRAINT_NAME into strict constraint_name-->
+<!--        FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc-->
+<!--        WHERE CONSTRAINT_TYPE = 'PRIMARY KEY'-->
+<!--        AND TABLE_NAME = 'METADATA_ENTRY' AND TABLE_SCHEMA = 'public';-->
+<!--        EXECUTE 'alter table "public"."METADATA_ENTRY" drop constraint ' || constraint_name;-->
+<!--        END $$;]-->

@@ -25,7 +25,7 @@ trait MetadataEntryComponent {
     Copy/paste another standardized table, and not this one.
      */
 
-    def metadataEntryId = column[Long]("METADATA_JOURNAL_ID", O.PrimaryKey, O.AutoInc)
+    def metadataEntryId = column[Long]("METADATA_JOURNAL_ID", O.AutoInc)
 
     def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID", O.Length(255)) // TODO: rename column via liquibase
 
@@ -46,8 +46,15 @@ trait MetadataEntryComponent {
     override def * = (workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt, metadataKey, metadataValue,
       metadataValueType, metadataTimestamp, metadataEntryId.?) <> (MetadataEntry.tupled, MetadataEntry.unapply)
 
-    // TODO: rename index via liquibase
-    def ixMetadataEntryWeu = index("METADATA_WORKFLOW_IDX", workflowExecutionUuid, unique = false)
+    def pk = primaryKey("PK_METADATA_ENTRY", (metadataEntryId, workflowExecutionUuid))
+
+    def ixMetadataEntryUuidCallJobKey = index("METADATA_ENTRY_UUID_KEY_CALL_INDEX_ATTEMPT_INDEX",
+      (workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt, metadataKey), unique = false
+    )
+
+    def ixMetadataEntryUuidKey = index("METADATA_ENTRY_UUID_KEY",
+      (workflowExecutionUuid, metadataKey), unique = false
+    )
   }
 
   val metadataEntries = TableQuery[MetadataEntries]

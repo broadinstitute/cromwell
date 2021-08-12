@@ -4,26 +4,35 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
-    <changeSet id="compress_and_partition_metadata_table" author="cahrens" dbms="mariadb,mysql">
-        <!-- Do not run this migration in Terra, where we will have already done the migration/table swap -->
-        <preConditions onFail="MARK_RAN">
-            <indexExists tableName="METADATA_ENTRY" indexName="METADATA_WORKFLOW_IDX"/>
-        </preConditions>
-        <comment>Partition, compress, and update indexes on the METADATA_ENTRY table</comment>
-        <createIndex indexName="METADATA_ENTRY_UUID_KEY_CALL_INDEX_ATTEMPT_INDEX" tableName="METADATA_ENTRY">
+    <changeSet id="update_indexes_metadata_table" author="cahrens" dbms="mysql">
+        <comment>Updates indexes on the METADATA_ENTRY table for databases</comment>
+        <createIndex indexName="METADATA_ENTRY_UUID_KEY_CALL_INDEX_ATTEMPT_INDEX" tableName="METADATA_ENTRY_4">
             <column name="WORKFLOW_EXECUTION_UUID"/>
             <column name="CALL_FQN"/>
             <column name="JOB_SCATTER_INDEX"/>
             <column name="JOB_RETRY_ATTEMPT"/>
             <column name="METADATA_KEY"/>
         </createIndex>
-        <createIndex indexName="METADATA_ENTRY_UUID_KEY" tableName="METADATA_ENTRY">
+        <createIndex indexName="METADATA_ENTRY_UUID_KEY" tableName="METADATA_ENTRY_4">
             <column name="WORKFLOW_EXECUTION_UUID"/>
             <column name="METADATA_KEY"/>
         </createIndex>
-        <dropIndex tableName="METADATA_ENTRY" indexName="METADATA_WORKFLOW_IDX"/>
+        <dropIndex tableName="METADATA_ENTRY_4" indexName="METADATA_WORKFLOW_IDX"/>
+    </changeSet>
+    <changeSet id="compress_and_partition_metadata_table_c" author="cahrens" dbms="mysql">
+        <!-- Do not run this migration in Terra, where we will have already done the migration/table swap -->
+        <preConditions onFail="MARK_RAN">
+            <!-- If we have already run the migration, the primary key will be composite (count 2) -->
+            <sqlCheck expectedResult="1">
+                SELECT COUNT(COLUMN_NAME)
+                FROM information_schema.KEY_COLUMN_USAGE
+                WHERE TABLE_NAME = 'METADATA_ENTRY_4'
+                AND CONSTRAINT_NAME = 'PRIMARY'
+            </sqlCheck>
+        </preConditions>
+        <comment>Partition and compress the METADATA_ENTRY table (mysqldb only)</comment>
         <sql>
-            alter table METADATA_ENTRY ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8,
+            alter table METADATA_ENTRY_4 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8,
             drop primary key, add primary key(METADATA_JOURNAL_ID, WORKFLOW_EXECUTION_UUID)
             PARTITION BY RANGE COLUMNS(WORKFLOW_EXECUTION_UUID) (
               partition p0 values less than ('1'),
@@ -42,26 +51,6 @@
               partition pd values less than ('e'),
               partition pe values less than ('f'),
               partition pf values less than MAXVALUE);
-        </sql>
-    </changeSet>
-    <changeSet id="update_indexes_metadata_table" author="cahrens" dbms="hsqldb,postgresql">
-        <comment>Updates indexes on the METADATA_ENTRY table for databases where we cannot compress/partition</comment>
-        <createIndex indexName="METADATA_ENTRY_UUID_KEY_CALL_INDEX_ATTEMPT_INDEX" tableName="METADATA_ENTRY">
-            <column name="WORKFLOW_EXECUTION_UUID"/>
-            <column name="CALL_FQN"/>
-            <column name="JOB_SCATTER_INDEX"/>
-            <column name="JOB_RETRY_ATTEMPT"/>
-            <column name="METADATA_KEY"/>
-        </createIndex>
-        <createIndex indexName="METADATA_ENTRY_UUID_KEY" tableName="METADATA_ENTRY">
-            <column name="WORKFLOW_EXECUTION_UUID"/>
-            <column name="METADATA_KEY"/>
-        </createIndex>
-        <dropIndex tableName="METADATA_ENTRY" indexName="METADATA_WORKFLOW_IDX"/>
-        <sql>
-            alter table METADATA_ENTRY
-            drop primary key
-            add primary key(METADATA_JOURNAL_ID, WORKFLOW_EXECUTION_UUID);
         </sql>
     </changeSet>
 </databaseChangeLog>

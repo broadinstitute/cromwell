@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 backends: [ Papiv2 ]
 
 files {
-  workflow: lots_of_inputs_scattered/lots_of_inputs_scattered.wdl
+  workflow: scale/lots_of_inputs_scattered/lots_of_inputs_scattered.wdl
 }
 
 metadata {

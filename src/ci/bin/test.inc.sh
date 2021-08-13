@@ -664,7 +664,7 @@ cromwell::private::create_centaur_variables() {
 
     case "${CROMWELL_BUILD_CENTAUR_TYPE}" in
         "${CROMWELL_BUILD_CENTAUR_TYPE_INTEGRATION}")
-            CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT=512000
+            CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT=1280000
             CROMWELL_BUILD_CENTAUR_MAX_WORKFLOW_LENGTH="10 hours"
             ;;
         *)

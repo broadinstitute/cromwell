@@ -10,18 +10,18 @@ object Dependencies {
   private val aliyunOssV = "3.13.0"
   private val ammoniteOpsV = "2.4.0"
   private val apacheHttpClientV = "4.5.13"
-  private val awsSdkV = "2.17.14"
+  private val awsSdkV = "2.17.19"
   private val betterFilesV = "3.9.1"
   /*
   cats-effect, fs2, https4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.
    */
-  private val catsEffectV = "2.5.2" // scala-steward:off (CROM-6564)
+  private val catsEffectV = "2.5.3" // scala-steward:off (CROM-6564)
   private val catsV = "2.6.1"
   private val circeConfigV = "0.8.0"
   private val circeGenericExtrasV = "0.14.1"
   private val circeOpticsV = "0.14.1"
   private val circeV = "0.14.1"
-  private val circeYamlV = "0.14.0"
+  private val circeYamlV = "0.14.1"
   private val commonsCodecV = "1.15"
   private val commonsCsvV = "1.9.0"
   private val commonsIoV = "2.11.0"
@@ -45,19 +45,19 @@ object Dependencies {
   // whatDependsOn temporarily set fs2VStatsDProxy to fs2V and revert back before trying to compile.
   private val fs2VStatsDProxy = "1.0.5" // scala-steward:off
   private val googleApiClientV = "1.32.1"
-  private val googleCloudBigQueryV = "1.137.1"
-  private val googleCloudKmsV = "v1-rev20210702-1.32.1"
-  private val googleCloudMonitoringV = "2.3.4"
-  private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off
-  private val googleCloudStorageV = "1.118.0"
-  private val googleGaxGrpcV = "1.67.0"
-  private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210605-1.32.1"
+  private val googleCloudBigQueryV = "2.1.1"
+  private val googleCloudKmsV = "v1-rev20210803-1.32.1"
+  private val googleCloudMonitoringV = "3.0.1"
+  private val googleCloudNioV = "0.123.6"
+  private val googleCloudStorageV = "2.0.1"
+  private val googleGaxGrpcV = "2.2.0"
+  private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210811-1.32.1"
   private val googleHttpClientApacheV = "2.1.2"
   private val googleHttpClientV = "1.38.0"
   private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20210527-1.32.1"
-  private val googleOauth2V = "0.27.0"
+  private val googleOauth2V = "1.0.0"
   private val googleOauthClientV = "1.31.5"
-  private val googleCloudResourceManagerV = "0.119.8-alpha"
+  private val googleCloudResourceManagerV = "1.0.1"
   private val grpcV = "1.39.0"
   private val guavaV = "30.1.1-jre"
   private val heterodonV = "1.0.0-beta3"
@@ -72,7 +72,7 @@ object Dependencies {
   private val liquibaseV = "4.4.0" // 4.4.1+ needs https://github.com/liquibase/liquibase/pull/2001
   private val logbackV = "1.2.5"
   private val lz4JavaV = "1.8.0"
-  private val mariadbV = "2.7.3"
+  private val mariadbV = "2.7.4"
   private val metrics3ScalaV = "3.5.10" // scala-steward:off https://github.com/erikvanoosten/metrics-scala/tree/f733e26#download-4x
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "2.8.0"
@@ -123,9 +123,9 @@ object Dependencies {
   private val testContainersScalaV = "0.39.5"
   private val tikaV = "2.0.0"
   private val typesafeConfigV = "1.4.1"
-  private val workbenchGoogleV = "0.21-89d0d9e"
-  private val workbenchModelV = "0.14-89d0d9e"
-  private val workbenchUtilV = "0.6-89d0d9e"
+  private val workbenchGoogleV = "0.21-89d0d9e" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/google/CHANGELOG.md
+  private val workbenchModelV = "0.14-89d0d9e" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/model/CHANGELOG.md
+  private val workbenchUtilV = "0.6-d7ed6bf" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/util/CHANGELOG.md
 
   private val slf4jFacadeDependencies = List(
     "org.slf4j" % "slf4j-api" % slf4jV,

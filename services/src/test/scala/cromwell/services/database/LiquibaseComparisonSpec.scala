@@ -350,13 +350,13 @@ object LiquibaseComparisonSpec {
       typeMapping = Map(
         HsqldbTypeBigInt -> ColumnType("BIGINT"),
         HsqldbTypeBlob -> ColumnType("LONGBLOB", Option(2147483647)),
-        HsqldbTypeBoolean -> ColumnType("BIT"),
+        HsqldbTypeBoolean -> ColumnType("TINYINT"),
         HsqldbTypeClob -> ColumnType("LONGTEXT", Option(2147483647)),
         HsqldbTypeInteger -> ColumnType("INT"),
         HsqldbTypeTimestamp -> ColumnType("DATETIME"),
       ),
       defaultMapping = Map(
-        HsqldbDefaultBooleanTrue -> new DatabaseFunction("1"),
+        HsqldbDefaultBooleanTrue -> Int.box(1),
       ),
     )
 

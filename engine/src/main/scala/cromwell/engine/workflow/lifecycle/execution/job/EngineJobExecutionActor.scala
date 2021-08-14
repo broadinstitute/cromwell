@@ -628,7 +628,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
           backendLifecycleActorFactory.nameForCallCachingPurposes,
           activity,
           callCachingEligible,
-          callCachePathPrefixes
+          callCachePathPrefixes,
+          callCachingParameters.fileHashBatchSize
         )
         val ejha = context.actorOf(props, s"ejha_for_$jobDescriptor")
 
@@ -923,8 +924,8 @@ object EngineJobExecutionActor {
                                   writeActor: ActorRef,
                                   fileHashCacheActor: Option[ActorRef],
                                   maxFailedCopyAttempts: Int,
-                                  blacklistCache: Option[BlacklistCache]
-
+                                  blacklistCache: Option[BlacklistCache],
+                                  fileHashBatchSize: Int
                                   )
 
   /** Commands */

@@ -1,0 +1,12 @@
+name: lots_of_inputs_scattered_papiv2
+testFormat: workflowsuccess
+backends: [ Papiv2 ]
+
+files {
+  workflow: scale/lots_of_inputs_scattered/lots_of_inputs_scattered.wdl
+}
+
+metadata {
+    workflowName: lots_of_inputs_scattered
+    status: Succeeded
+}

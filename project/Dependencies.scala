@@ -32,11 +32,6 @@ object Dependencies {
   // runtime dependency of ScalaTest. At the time of this writing this is the newest version known to work.
   private val flexmarkV = "0.36.8" // scala-steward:off
   private val fs2V = "2.5.4"
-  // Scala Steward opened PR #5775 titled "Update fs2-io from 2.0.1 to 2.4.3" to upgrade the following dependency.
-  // However that PR was actually attempting an upgrade from 1.0.5 to 2.4.3 which is a much more significant
-  // undertaking, resulting in some thoroughly broken statsd proxy code. As this component lacks tests and is
-  // probably not the most important corner of the Cromwell repo, going to punt on this for now.
-  private val fs2VStatsDProxy = "1.0.5" // scala-steward:off
   private val googleApiClientV = "1.31.3"
   private val googleCloudBigQueryV = "1.127.11"
   private val googleCloudKmsV = "v1-rev20210312-1.31.0"
@@ -418,12 +413,6 @@ object Dependencies {
     "com.github.pathikrit" %% "better-files" % betterFilesV
   )
 
-  val statsDProxyDependencies = List(
-    "co.fs2" %% "fs2-io" % fs2VStatsDProxy,
-    "com.iheart" %% "ficus" % ficusV,
-    "com.google.cloud" % "google-cloud-nio" % googleCloudNioV
-  ) ++ commonDependencies
-
   val womDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "io.spray" %% "spray-json" % sprayJsonV,
@@ -613,7 +602,6 @@ object Dependencies {
       sfsBackendDependencies ++
       spiDependencies ++
       spiUtilDependencies ++
-      statsDProxyDependencies ++
       tesBackendDependencies ++
       wdlDependencies ++
       wes2cromwellDependencies ++

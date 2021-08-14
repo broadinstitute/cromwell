@@ -373,10 +373,6 @@ lazy val `cloud-nio-impl-drs` = (project in cloudNio / "cloud-nio-impl-drs")
   .dependsOn(common)
   .dependsOn(common % "test->test")
 
-lazy val statsDProxy = (project in Path("scripts") / "perf" / "statsd-proxy")
-  .withExecutableSettings("statsd-proxy", dependencies = statsDProxyDependencies, pushDocker = false)
-  .dependsOn(common % "test->test")
-
 lazy val perf = project
   .withExecutableSettings("perf", dependencies = perfDependencies, pushDocker = false)
   .dependsOn(common)
@@ -443,7 +439,6 @@ lazy val root = (project in file("."))
   .aggregate(services)
   .aggregate(sfsBackend)
   .aggregate(sraFileSystem)
-  .aggregate(statsDProxy)
   .aggregate(tesBackend)
   .aggregate(wdlBiscayneLanguageFactory)
   .aggregate(wdlDraft2LanguageFactory)

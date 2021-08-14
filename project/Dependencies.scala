@@ -39,23 +39,13 @@ object Dependencies {
   private val diffsonSprayJsonV = "4.1.1"
   private val ficusV = "1.5.1"
   // The "com.vladsch.flexmark" % "flexmark-profile-pegdown" % flexmarkV dependency is an implicit, version-specific
-  // runtime dependency of ScalaTest. They must be upgraded together, based on the ScalaTest version.
-  private val flexmarkV = "0.62.2" // scala-steward:off
-  private val fs2V = "2.5.9" // scala-steward:off (CROM-6564)
-  // Scala Steward opened PR #5775 titled "Update fs2-io from 2.0.1 to 2.4.3" to upgrade the following dependency.
-  // However that PR was actually attempting an upgrade from 1.0.5 to 2.4.3 which is a much more significant
-  // undertaking, resulting in some thoroughly broken statsd proxy code. As this component lacks tests and is
-  // probably not the most important corner of the Cromwell repo, going to punt on this for now.
-  // NOTE: fs2VStatsDProxy usage within allProjectDependencies breaks sbt whatDependsOn.  If you want to use
-  // whatDependsOn temporarily set fs2VStatsDProxy to fs2V and revert back before trying to compile.
-  private val fs2VStatsDProxy = "1.0.5" // scala-steward:off
-  private val googleApiClientV = "1.32.1"
-  private val googleCloudBigQueryV = "2.1.13"
-  // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-cloudkms
-  private val googleCloudKmsV = "v1-rev20210820-1.32.1"
-  private val googleCloudMonitoringV = "3.0.6"
-  // BW-808 Pinning googleCloudNioV to this tried-and-true old version and quieting Scala Steward.
-  // 0.121.2 is the most recent version currently known to work.
+  // runtime dependency of ScalaTest. At the time of this writing this is the newest version known to work.
+  private val flexmarkV = "0.36.8" // scala-steward:off
+  private val fs2V = "2.5.4"
+  private val googleApiClientV = "1.31.3"
+  private val googleCloudBigQueryV = "1.127.11"
+  private val googleCloudKmsV = "v1-rev20210312-1.31.0"
+  private val googleCloudMonitoringV = "2.0.14"
   private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off
   private val googleCloudStorageV = "2.1.6"
   private val googleGaxGrpcV = "2.4.1"
@@ -394,13 +384,7 @@ object Dependencies {
     "com.github.pathikrit" %% "better-files" % betterFilesV
   )
 
-  val statsDProxyDependencies: List[ModuleID] = List(
-    "co.fs2" %% "fs2-io" % fs2VStatsDProxy,
-    "com.iheart" %% "ficus" % ficusV,
-    "com.google.cloud" % "google-cloud-nio" % googleCloudNioV
-  ) ++ commonDependencies
-
-  val womDependencies: List[ModuleID] = List(
+  val womDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "io.spray" %% "spray-json" % sprayJsonV,
     "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
@@ -591,7 +575,6 @@ object Dependencies {
       sfsBackendDependencies ++
       spiDependencies ++
       spiUtilDependencies ++
-      statsDProxyDependencies ++
       tesBackendDependencies ++
       wdlDependencies ++
       wes2cromwellDependencies ++

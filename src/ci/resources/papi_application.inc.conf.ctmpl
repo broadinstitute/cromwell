@@ -63,6 +63,9 @@ services {
   }
 }
 
+services.MetadataService.config.metadata-read-row-number-safety-threshold = "Error: BA-6546 The environment variable CROMWELL_BUILD_CENTAUR_MAX_METADATA_ROWS must be set/export specifying the maximum number of metadata rows that can be retrieved to satisfy a single metadata request."
+services.MetadataService.config.metadata-read-row-number-safety-threshold = ${?CROMWELL_BUILD_CENTAUR_MAX_METADATA_ROWS}
+
 filesystems.drs.global.config.martha.url = "https://us-central1-broad-dsde-dev.cloudfunctions.net/martha_v3"
 
 drs {

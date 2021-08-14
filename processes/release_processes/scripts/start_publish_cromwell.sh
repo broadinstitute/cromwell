@@ -30,6 +30,7 @@ export CROMWELL_BUILD_RESOURCES_DIRECTORY="${CROMWELL_ROOT}/target/ci/resources"
 export CROMWELL_BUILD_PAPI_JSON_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell-centaur-service-account.json"
 export CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT=128000
 export CROMWELL_BUILD_CENTAUR_256_BITS_KEY="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+export CROMWELL_BUILD_CENTAUR_MAX_METADATA_ROWS=1000000
 
 # Launch the Cromwell server. Call caching is enabled by default which is helpful to support resuming
 # a publish if one of the steps fails transiently.

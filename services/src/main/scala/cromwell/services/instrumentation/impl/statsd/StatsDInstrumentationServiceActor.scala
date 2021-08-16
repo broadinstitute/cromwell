@@ -9,7 +9,7 @@ import cromwell.services.instrumentation.InstrumentationService.InstrumentationS
 import cromwell.services.instrumentation._
 import cromwell.services.instrumentation.impl.statsd.StatsDInstrumentationServiceActor._
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
-import nl.grons.metrics.scala.{DefaultInstrumented, Meter, MetricName}
+import nl.grons.metrics4.scala.{DefaultInstrumented, Meter, MetricName}
 import net.ceedubs.ficus.Ficus._
 
 import scala.collection.JavaConverters._
@@ -18,13 +18,15 @@ import scala.concurrent.duration._
 object StatsDInstrumentationServiceActor {
   val CromwellMetricPrefix: String = "cromwell"
 
-  def props(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) = Props(new StatsDInstrumentationServiceActor(serviceConfig, globalConfig, serviceRegistryActor))
+  def props(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef): Props =
+    Props(new StatsDInstrumentationServiceActor(serviceConfig, globalConfig, serviceRegistryActor))
 
   implicit class CromwellBucketEnhanced(val cromwellBucket: CromwellBucket) extends AnyVal {
     /**
-      * Transforms a CromwellBucket to a StatsD path, optionally inserting a value between prefix and path 
+      * Transforms a CromwellBucket to a StatsD path, optionally inserting a value between prefix and path
       */
-    def toStatsDString(insert: Option[String] = None) = (cromwellBucket.prefix ++ insert ++ cromwellBucket.path.toList).mkString(".")
+    def toStatsDString(insert: Option[String] = None): String =
+      (cromwellBucket.prefix ++ insert ++ cromwellBucket.path.toList).mkString(".")
   }
 }
 
@@ -44,10 +46,11 @@ object StatsDInstrumentationServiceActor {
   * by making use of downsampling and / or multi metrics packets: https://github.com/etsy/statsd/blob/master/docs/metric_types.md
   */
 class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor with DefaultInstrumented {
-  val statsDConfig = StatsDConfig(serviceConfig)
+  val statsDConfig: StatsDConfig = StatsDConfig(serviceConfig)
   val cromwellInstanceIdOption: Option[String] = globalConfig.getAs[String]("system.cromwell_id")
 
-  override lazy val metricBaseName = MetricName(CromwellMetricPrefix + cromwellInstanceIdOption.fold("")("." + _))
+  override lazy val metricBaseName: MetricName =
+    MetricName(CromwellMetricPrefix + cromwellInstanceIdOption.fold("")("." + _))
 
   val gaugeFunctions = new ConcurrentHashMap[CromwellBucket, Long]()
 
@@ -59,7 +62,7 @@ class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Con
     .build(CromwellStatsD(statsDConfig.hostname, statsDConfig.port))
     .start(statsDConfig.flushRate.toMillis, TimeUnit.MILLISECONDS)
 
-  override def receive = {
+  override def receive: Receive = {
     case InstrumentationServiceMessage(cromwellMetric) => cromwellMetric match {
       case CromwellIncrement(bucket) => increment(bucket)
       case CromwellCount(bucket, value, _) => updateCounter(bucket, value)
@@ -87,12 +90,12 @@ class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Con
   /**
     * Increment the counter value for this bucket
     */
-  private def increment(bucket: CromwellBucket) = meterFor(bucket).mark(1L)
+  private def increment(bucket: CromwellBucket): Unit = meterFor(bucket).mark(1L)
 
   /**
     * Update the counter value for this bucket by adding (or subtracting) value
     */
-  private def updateCounter(bucket: CromwellBucket, value: Long) = meterFor(bucket).mark(value)
+  private def updateCounter(bucket: CromwellBucket, value: Long): Unit = meterFor(bucket).mark(value)
 
   /**
     * Update the gauge value for this bucket
@@ -109,7 +112,7 @@ class StatsDInstrumentationServiceActor(serviceConfig: Config, globalConfig: Con
   /**
     * Adds a new timing value for this bucket
     */
-  private def updateTiming(bucket: CromwellBucket, value: FiniteDuration) = {
+  private def updateTiming(bucket: CromwellBucket, value: FiniteDuration): Unit = {
     metrics.timer(bucket.toStatsDString()).update(value)
   }
 }

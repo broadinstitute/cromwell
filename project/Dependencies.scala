@@ -73,7 +73,11 @@ object Dependencies {
   private val logbackV = "1.2.5"
   private val lz4JavaV = "1.8.0"
   private val mariadbV = "2.7.4"
-  private val metrics3ScalaV = "3.5.10" // scala-steward:off https://github.com/erikvanoosten/metrics-scala/tree/f733e26#download-4x
+  /*
+  The StatsD reporter for DropWizard's (Code Hale's) Metrics 3.x still works with Metrics 4.x.
+  Still would be great to move to Prometheus / OpenCensus
+   */
+  private val metrics4ScalaV = "4.1.9"
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "2.8.0"
   private val mockserverNettyV = "5.11.2"
@@ -358,7 +362,7 @@ object Dependencies {
   ) ++ configDependencies ++ catsDependencies ++ slickDependencies ++ dbmsDependencies ++ refinedTypeDependenciesList
 
   val statsDDependencies = List(
-    "nl.grons" %% "metrics-scala" % metrics3ScalaV,
+    "nl.grons" %% "metrics4-scala" % metrics4ScalaV,
     "com.readytalk" % "metrics3-statsd" % metrics3StatsdV
   )
 

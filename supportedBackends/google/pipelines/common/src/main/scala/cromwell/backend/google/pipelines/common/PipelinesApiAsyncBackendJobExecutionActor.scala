@@ -159,7 +159,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   /*_*/ // https://stackoverflow.com/questions/36679973/controlling-false-intellij-code-editor-error-in-scala-plugin
 
   private def gcsAuthParameter: Option[PipelinesApiLiteralInput] = {
-    if (jesAttributes.auths.gcs.requiresAuthFile || dockerConfiguration.isDefined)
+    if (dockerConfiguration.isDefined)
       Option(PipelinesApiLiteralInput(ExtraConfigParamName, pipelinesApiCallPaths.workflowPaths.gcsAuthFilePath.pathAsString))
     else None
   }

@@ -46,15 +46,9 @@ trait MetadataEntryComponent {
     override def * = (workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt, metadataKey, metadataValue,
       metadataValueType, metadataTimestamp, metadataEntryId.?) <> (MetadataEntry.tupled, MetadataEntry.unapply)
 
-    def pk = primaryKey("PK_METADATA_ENTRY", (metadataEntryId, workflowExecutionUuid))
+    def pk = primaryKey("PK_METADATA_ENTRY", (workflowExecutionUuid, metadataTimestamp, metadataEntryId))
 
-    def ixMetadataEntryUuidCallJobKey = index("METADATA_ENTRY_UUID_KEY_CALL_INDEX_ATTEMPT_INDEX",
-      (workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt, metadataKey), unique = false
-    )
-
-    def ixMetadataEntryUuidKey = index("METADATA_ENTRY_UUID_KEY",
-      (workflowExecutionUuid, metadataKey), unique = false
-    )
+    def ixMetadataEntryMji = index("IX_METADATA_ENTRY_MJI", (metadataEntryId), unique = false)
   }
 
   val metadataEntries = TableQuery[MetadataEntries]

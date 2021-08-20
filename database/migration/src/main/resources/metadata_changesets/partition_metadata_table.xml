@@ -5,17 +5,9 @@
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
     <changeSet id="update_indexes_metadata_table" author="cahrens" dbms="mysql,postgresql,hsqldb,mariadb">
-        <comment>Updates indexes on the METADATA_ENTRY table</comment>
-        <createIndex indexName="METADATA_ENTRY_UUID_KEY_CALL_INDEX_ATTEMPT_INDEX" tableName="METADATA_ENTRY">
-            <column name="WORKFLOW_EXECUTION_UUID"/>
-            <column name="CALL_FQN"/>
-            <column name="JOB_SCATTER_INDEX"/>
-            <column name="JOB_RETRY_ATTEMPT"/>
-            <column name="METADATA_KEY"/>
-        </createIndex>
-        <createIndex indexName="METADATA_ENTRY_UUID_KEY" tableName="METADATA_ENTRY">
-            <column name="WORKFLOW_EXECUTION_UUID"/>
-            <column name="METADATA_KEY"/>
+        <comment>Updates indexes on the METADATA_ENTRY table to account for new primary key</comment>
+        <createIndex indexName="IX_METADATA_ENTRY_MJI" tableName="METADATA_ENTRY">
+            <column name="METADATA_JOURNAL_ID"/>
         </createIndex>
         <dropIndex tableName="METADATA_ENTRY" indexName="METADATA_WORKFLOW_IDX"/>
     </changeSet>
@@ -32,8 +24,8 @@
         </preConditions>
         <comment>Partition and compress the METADATA_ENTRY table (mysqldb only)</comment>
         <sql>
-            alter table METADATA_ENTRY ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8,
-            drop primary key, add primary key(METADATA_JOURNAL_ID, WORKFLOW_EXECUTION_UUID)
+            ALTER TABLE METADATA_ENTRY ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8,
+            DROP PRIMARY KEY, ADD PRIMARY KEY(WORKFLOW_EXECUTION_UUID, METADATA_TIMESTAMP, METADATA_JOURNAL_ID)
             PARTITION BY RANGE COLUMNS(WORKFLOW_EXECUTION_UUID) (
               partition p0 values less than ('1'),
               partition p1 values less than ('2'),
@@ -57,15 +49,16 @@
         <comment>Update the primary key (mariadb)</comment>
         <!-- Cannot run as 2 independent alters: "there can be only one auto column and it must be defined as a key" -->
         <sql>
-            alter table METADATA_ENTRY
-            drop primary key, add primary key(METADATA_JOURNAL_ID, WORKFLOW_EXECUTION_UUID);
+            ALTER TABLE METADATA_ENTRY
+            DROP PRIMARY KEY, ADD PRIMARY KEY(WORKFLOW_EXECUTION_UUID, METADATA_TIMESTAMP, METADATA_JOURNAL_ID);
         </sql>
     </changeSet>
     <changeSet id="update_primary_key_hsqldb_postgresql" author="cahrens" dbms="hsqldb,postgresql">
         <comment>Update the primary key (postgresql and hsqldb)</comment>
         <!-- For postgresql, must provide the constraintName to avoid case sensitivity issues. -->
         <dropPrimaryKey tableName="METADATA_ENTRY" constraintName="PK_METADATA_JOURNAL"/>
-        <addPrimaryKey tableName="METADATA_ENTRY" columnNames="METADATA_JOURNAL_ID, WORKFLOW_EXECUTION_UUID"
+        <addPrimaryKey tableName="METADATA_ENTRY"
+                       columnNames="WORKFLOW_EXECUTION_UUID, METADATA_TIMESTAMP, METADATA_JOURNAL_ID"
                        constraintName="PK_METADATA_ENTRY"/>
     </changeSet>
 </databaseChangeLog>

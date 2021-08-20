@@ -25,7 +25,8 @@
         <comment>Partition and compress the METADATA_ENTRY table (mysqldb only)</comment>
         <sql>
             ALTER TABLE METADATA_ENTRY ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8,
-            DROP PRIMARY KEY, ADD PRIMARY KEY(WORKFLOW_EXECUTION_UUID, METADATA_TIMESTAMP, METADATA_JOURNAL_ID)
+            DROP PRIMARY KEY,
+            ADD CONSTRAINT PK_METADATA_ENTRY PRIMARY KEY(WORKFLOW_EXECUTION_UUID, METADATA_TIMESTAMP, METADATA_JOURNAL_ID)
             PARTITION BY RANGE COLUMNS(WORKFLOW_EXECUTION_UUID) (
               partition p0 values less than ('1'),
               partition p1 values less than ('2'),
@@ -50,7 +51,8 @@
         <!-- Cannot run as 2 independent alters: "there can be only one auto column and it must be defined as a key" -->
         <sql>
             ALTER TABLE METADATA_ENTRY
-            DROP PRIMARY KEY, ADD PRIMARY KEY(WORKFLOW_EXECUTION_UUID, METADATA_TIMESTAMP, METADATA_JOURNAL_ID);
+            DROP PRIMARY KEY,
+            ADD CONSTRAINT PK_METADATA_ENTRY PRIMARY KEY(WORKFLOW_EXECUTION_UUID, METADATA_TIMESTAMP, METADATA_JOURNAL_ID);
         </sql>
     </changeSet>
     <changeSet id="update_primary_key_hsqldb_postgresql" author="cahrens" dbms="hsqldb,postgresql">

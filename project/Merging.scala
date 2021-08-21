@@ -4,8 +4,8 @@ import sbtassembly.{MergeStrategy, PathList}
 
 object Merging {
   val customMergeStrategy: Def.Initialize[String => MergeStrategy] = Def.setting {
-    case PathList(ps@_*) if ps.last == "project.properties" =>
-      // Merge/Filter project.properties files from Google jars that otherwise collide at merge time.
+    case PathList(ps@_*) if Set("project.properties", "execution.interceptors").contains(ps.last) =>
+      // Merge/Filter files from AWS/Google jars that otherwise collide at merge time.
       MergeStrategy.filterDistinctLines
     case PathList(ps@_*) if ps.last == "logback.xml" =>
       MergeStrategy.first

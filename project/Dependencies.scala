@@ -28,9 +28,6 @@ object Dependencies {
   private val configsV = "0.6.0"
   private val delightRhinoSandboxV = "0.0.15"
   private val ficusV = "1.5.0"
-  // The "com.vladsch.flexmark" % "flexmark-profile-pegdown" % flexmarkV dependency is an implicit, version-specific
-  // runtime dependency of ScalaTest. At the time of this writing this is the newest version known to work.
-  private val flexmarkV = "0.36.8" // scala-steward:off
   private val fs2V = "2.5.4"
   // Scala Steward opened PR #5775 titled "Update fs2-io from 2.0.1 to 2.4.3" to upgrade the following dependency.
   // However that PR was actually attempting an upgrade from 1.0.5 to 2.4.3 which is a much more significant
@@ -69,6 +66,7 @@ object Dependencies {
   // javax.activation and then be able to upgrade to jaxb-impl 2.3.3 or beyond, but some of those other dependencies
   // such as googleCloudNioV have already been pinned for Scala Steward so this might not be a trivial undertaking.
   private val jaxbV = "2.3.2" // scala-steward:off
+  private val junitV = "4.13.2"
   private val kindProjectorV = "0.9.9"
   private val kittensV = "2.2.1"
   private val liquibaseSlf4jV = "4.0.0"
@@ -84,6 +82,7 @@ object Dependencies {
   private val metrics3ScalaV = "4.0.0" // https://github.com/erikvanoosten/metrics-scala/tree/f733e26#download-4x
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "2.8.0"
+  private val mockitoV = "3.11.2"
   private val mockserverNettyV = "5.5.4" // scala-steward:off (CROM-6582)
   private val mouseV = "1.0.0"
   private val mysqlV = "8.0.22" // scala-steward:off (CROM-6772: DateTime/String conversion and connection string updates required)
@@ -100,12 +99,10 @@ object Dependencies {
   private val scalaGraphV = "1.13.1"
   private val scalaLoggingV = "3.9.3"
   private val scalaPoolV = "0.4.3"
-  private val scalacheckV = "1.15.3"
   private val scalacticV = "3.2.6"
   private val scalameterV = "0.19"
-  private val scalamockV = "5.1.0"
-  private val scalatestV = "3.2.6"
-  private val scalatestPlusMockitoV = "1.0.0-M2"
+  private val scalatestV = "3.2.9"
+  private val scalatestScalacheckV = scalatestV + ".0"
   private val scalazV = "7.3.3"
   private val scoptV = "4.0.1"
   private val sentryLogbackV = "1.7.30" // scala-steward:off (CROM-6640)
@@ -125,7 +122,6 @@ object Dependencies {
   */
   private val slickV = "3.3.2-2076hotfix" // scala-steward:off (CROM-6620)
   private val snakeyamlV = "1.28"
-  private val specs2MockV = "4.10.6"
   private val sprayJsonV = "1.3.6"
   private val sttpV = "1.5.19" // scala-steward:off (CROM-6564)
   private val swaggerParserV = "1.0.54"
@@ -193,7 +189,6 @@ object Dependencies {
     "commons-net" % "commons-net" % apacheCommonNetV,
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV,
     "com.google.guava" % "guava" % guavaV,
-    "org.scalamock" %% "scalamock" % scalamockV % Test,
     "org.mockftpserver" % "MockFtpServer" % mockFtpServerV % Test
   )
 
@@ -410,6 +405,46 @@ object Dependencies {
     "com.google.cloud" % "google-cloud-monitoring" % googleCloudMonitoringV
   )
 
+  /*
+  Generators are eventually coming to ScalaTest. Someday...
+    - https://youtu.be/lKtg-CDVDsI?t=562
+
+  For now use scalatestplus' scalacheck wrapper.
+
+  Tests that insist on using PropertyGenerators should actually use ScalaTest's wrapper. ScalaCheck tests no longer
+  run by default. See Testing.scala where only `ScalaTest` is specified in the `testFrameworks`.
+
+  See also (may be out of date):
+    - https://github.com/scalatest/scalatest/issues/1735
+    - https://www.scalatest.org/user_guide/generator_driven_property_checks
+    - https://www.scalatest.org/user_guide/writing_scalacheck_style_properties
+   */
+  private val scalacheckBaseV = "1.15"
+  private val scalacheckDependencies = List(
+    "org.scalatestplus" %% s"scalacheck-${scalacheckBaseV.replace(".", "-")}" % scalatestScalacheckV % Test,
+  )
+
+  /*
+  Note: `junitDependencies` only adds the dependency for JUnit tests to compile.
+
+  To actually _run_ the tests via SBT one would need the SBT to JUnit interface:
+    - https://github.com/sbt/junit-interface/
+
+  However, as of Aug 2021 there is only one S3 Java file using JUnit, and that code was copy-pasted from an
+  external GitHub repo. See `s3fsDependencies` for more information.
+
+  Also as of Aug 2021 Testing.scala only looks for and runs ScalaTest during regular testing.
+   */
+  private val junitDependencies = List(
+    "junit" % "junit" % junitV % Test
+  )
+
+  private val testDatabaseDependencies =
+    List("scalatest", "mysql", "mariadb", "postgresql")
+      .map(name => "com.dimafeng" %% s"testcontainers-scala-$name" % testContainersScalaV % Test)
+
+  val s3FileSystemDependencies = junitDependencies
+
   val gcsFileSystemDependencies = akkaHttpDependencies
 
   val httpFileSystemDependencies = akkaHttpDependencies
@@ -427,10 +462,9 @@ object Dependencies {
   val womDependencies = List(
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "io.spray" %% "spray-json" % sprayJsonV,
-    "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
     "org.typelevel" %% "simulacrum" % simulacrumV,
     "commons-codec" % "commons-codec" % commonsCodecV,
-  ) ++ circeDependencies ++ refinedTypeDependenciesList
+  ) ++ scalacheckDependencies ++ circeDependencies ++ refinedTypeDependenciesList
 
   val wdlDependencies = List(
     "commons-io" % "commons-io" % commonsIoV,
@@ -474,11 +508,9 @@ object Dependencies {
     "com.lihaoyi" %% "ammonite-ops" % ammoniteOpsV,
     "org.broadinstitute" % "heterodon" % heterodonV classifier "single",
     "org.scalactic" %% "scalactic" % scalacticV,
-    "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
     "io.circe" %% "circe-optics" % circeOpticsV,
     "org.mozilla" % "rhino" % rhinoV,
     "org.javadelight" % "delight-rhino-sandbox" % delightRhinoSandboxV,
-    "org.scalamock" %% "scalamock" % scalamockV % Test,
     "commons-io" % "commons-io" % commonsIoV % Test
   ) ++ betterFilesDependencies ++ owlApiDependencies
 
@@ -494,7 +526,6 @@ object Dependencies {
     "com.chuusai" %% "shapeless" % shapelessV,
     "com.storm-enroute" %% "scalameter" % scalameterV % Test,
     "com.github.scopt" %% "scopt" % scoptV,
-    "org.scalamock" %% "scalamock" % scalamockV % Test,
   ) ++ akkaStreamDependencies ++ configDependencies ++ catsDependencies ++ circeDependencies ++
     googleApiClientDependencies ++ statsDDependencies ++ betterFilesDependencies ++
     // TODO: We're not using the "F" in slf4j. Core only supports logback, specifically the WorkflowLogger.
@@ -526,12 +557,13 @@ object Dependencies {
       exclude("org.scala-tools.testing", "test-interface"),
     "com.fasterxml.jackson.core" % "jackson-databind" % jacksonV,
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV
-  ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ akkaHttpCirceIntegrationDependency ++ circeDependencies
+  ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ akkaHttpCirceIntegrationDependency ++ circeDependencies ++
+    testDatabaseDependencies
 
   val servicesDependencies = List(
     "com.google.api" % "gax-grpc" % googleGaxGrpcV,
     "org.apache.commons" % "commons-csv" % "1.8",
-  )
+  ) ++ testDatabaseDependencies
 
   val serverDependencies = slf4jBindingDependencies
 
@@ -546,9 +578,8 @@ object Dependencies {
   val wes2cromwellDependencies = coreDependencies ++ akkaHttpDependencies
 
   val backendDependencies = List(
-    "org.scalacheck" %% "scalacheck" % scalacheckV % Test,
     "co.fs2" %% "fs2-io" % fs2V
-  )
+  ) ++ scalacheckDependencies
 
   val bcsBackendDependencies = commonDependencies ++ refinedTypeDependenciesList ++ aliyunBatchComputeDependencies
   val tesBackendDependencies = akkaHttpDependencies
@@ -558,14 +589,9 @@ object Dependencies {
 
   val testDependencies = List(
     "org.scalatest" %% "scalatest" % scalatestV,
-    "org.scalatestplus" %% "scalatestplus-mockito" % scalatestPlusMockitoV,
-    "com.vladsch.flexmark" % "flexmark-profile-pegdown" % flexmarkV,
-    "org.pegdown" % "pegdown" % pegdownV,
-    "org.specs2" %% "specs2-mock" % specs2MockV,
-    "com.dimafeng" %% "testcontainers-scala-scalatest" % testContainersScalaV,
-    "com.dimafeng" %% "testcontainers-scala-mysql" % testContainersScalaV,
-    "com.dimafeng" %% "testcontainers-scala-mariadb" % testContainersScalaV,
-    "com.dimafeng" %% "testcontainers-scala-postgresql" % testContainersScalaV
+    // Use mockito Java DSL directly instead of the numerous and often hard to keep updated Scala DSLs.
+    // See also scaladoc in common.mock.MockSugar and that trait's various usages.
+    "org.mockito" % "mockito-core" % mockitoV
   ) ++ slf4jBindingDependencies // During testing, add an slf4j binding for _all_ libraries.
 
   val kindProjectorPlugin = "org.spire-math" %% "kind-projector" % kindProjectorV

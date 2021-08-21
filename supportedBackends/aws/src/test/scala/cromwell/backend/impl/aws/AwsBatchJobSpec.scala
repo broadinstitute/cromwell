@@ -43,7 +43,6 @@ import eu.timepit.refined.numeric._
 import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
 import software.amazon.awssdk.services.batch.model.KeyValuePair
 import spray.json.{JsObject, JsString}
@@ -51,7 +50,7 @@ import wdl4s.parser.MemoryUnit
 import wom.format.MemorySize
 import wom.graph.CommandCallNode
 
-class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Mockito with PrivateMethodTester {
+class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with PrivateMethodTester {
   import AwsBatchTestConfig._
 
   System.setProperty("aws.region", "us-east-1")

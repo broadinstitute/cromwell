@@ -61,7 +61,6 @@ import org.scalatest.concurrent.PatienceConfiguration
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.slf4j.Logger
-import org.specs2.mock.Mockito
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import spray.json._
@@ -82,14 +81,14 @@ import scala.language.postfixOps
 import scala.util.Success
 
 class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
-  with AnyFlatSpecLike with Matchers with ImplicitSender with Mockito with BackendSpec with BeforeAndAfter with DefaultJsonProtocol {
+  with AnyFlatSpecLike with Matchers with ImplicitSender with BackendSpec with BeforeAndAfter with DefaultJsonProtocol {
   lazy val mockPathBuilderS3: S3PathBuilder = S3PathBuilder.fromProvider(
     AnonymousCredentialsProvider.create,
     S3Storage.DefaultConfiguration,
     WorkflowOptions.empty,
     Option(Region.US_EAST_1)
   )
-  lazy val mockPathBuilderLocal = DefaultPathBuilder
+  lazy val mockPathBuilderLocal: PathBuilder = DefaultPathBuilder
 
   var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor), "kvService")
 
@@ -872,7 +871,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
       pendingExecutionResponse.jobDescriptor should be(jobDescriptor)
       pendingExecutionResponse.pendingJob should be(StandardAsyncJob(jobId))
       pendingExecutionResponse.previousState should be(None)
-      pendingExecutionResponse.runInfo should be(Some(backend.batchJob))
+      pendingExecutionResponse.runInfo should be(Option(backend.batchJob))
     }
   }
 

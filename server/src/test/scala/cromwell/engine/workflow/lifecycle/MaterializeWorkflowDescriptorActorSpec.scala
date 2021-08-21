@@ -13,25 +13,24 @@ import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDes
 import cromwell.util.SampleWdl.HelloWorld
 import cromwell.{CromwellTestKitSpec, CromwellTestKitWordSpec}
 import org.scalatest.BeforeAndAfter
-import org.scalatestplus.mockito.MockitoSugar
 import spray.json.DefaultJsonProtocol._
 import spray.json._
 import wom.values.{WomInteger, WomString}
 
 import scala.concurrent.duration._
 
-class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec with BeforeAndAfter with MockitoSugar {
+class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec with BeforeAndAfter {
 
-  val ioActor = system.actorOf(SimpleIoActor.props)
-  val workflowId = WorkflowId.randomId()
-  val minimumConf = ConfigFactory.parseString(
+  private val ioActor = system.actorOf(SimpleIoActor.props)
+  private val workflowId = WorkflowId.randomId()
+  private val minimumConf = ConfigFactory.parseString(
     """
       |backend {
       |  default = "Local"
       |}
       |""".stripMargin
   ).withFallback(CromwellTestKitSpec.DefaultConfig)
-  val differentDefaultBackendConf = ConfigFactory.parseString(
+  private val differentDefaultBackendConf = ConfigFactory.parseString(
     """
       |backend {
       |  default = "DefaultBackend"
@@ -44,26 +43,33 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
       |""".stripMargin
   ).withFallback(CromwellTestKitSpec.DefaultConfig)
   val unstructuredFile = "fubar badness!"
-  val validOptions = WorkflowOptions.fromJsonString(""" { "write_to_cache": true } """).get
+  private val validOptions = WorkflowOptions.fromJsonString(""" { "write_to_cache": true } """).get
   val validCustomLabelsFile="""{ "label1": "value1", "label2": "value2", "Label1": "valu£1" }"""
   val badCustomLabelsFile="""{ "key with characters more than 255-at vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpas": "value with characters more than 255-at vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa" }"""
 
-  val validInputsJson = HelloWorld.rawInputs.toJson.toString()
-  val workflowSourceWithDocker = HelloWorld.workflowSource(""" runtime { docker: "ubuntu:latest" } """)
-  val workflowSourceNoDocker = HelloWorld.workflowSource(""" runtime { } """)
-  val Timeout = 10.second.dilated
-  val NoBehaviorActor = system.actorOf(Props.empty)
+  private val validInputsJson = HelloWorld.rawInputs.toJson.toString()
+  private val workflowSourceNoDocker = HelloWorld.workflowSource(""" runtime { } """)
+  private val Timeout = 10.second.dilated
+  private val NoBehaviorActor = system.actorOf(Props.empty)
   val callCachingEnabled = true
   val invalidateBadCacheResults = true
 
-  val validMemoryRetryOptions1 = WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": 1.0 } """).get
-  val validMemoryRetryOptions2 = WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": 99.0 } """).get
-  val validMemoryRetryOptions3 = WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": 12.34 } """).get
-  val invalidMemoryRetryOptions1 = WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": 0.9 } """).get
-  val invalidMemoryRetryOptions2 = WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": 99.1 } """).get
-  val invalidMemoryRetryOptions3 = WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": -1.1 } """).get
-  val invalidMemoryRetryOptions4 = WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": "invalid value" } """).get
-  val invalidMemoryRetryOptions5 = WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": true } """).get
+  private val validMemoryRetryOptions1 =
+    WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": 1.0 } """).get
+  private val validMemoryRetryOptions2 =
+    WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": 99.0 } """).get
+  private val validMemoryRetryOptions3 =
+    WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": 12.34 } """).get
+  private val invalidMemoryRetryOptions1 =
+    WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": 0.9 } """).get
+  private val invalidMemoryRetryOptions2 =
+    WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": 99.1 } """).get
+  private val invalidMemoryRetryOptions3 =
+    WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": -1.1 } """).get
+  private val invalidMemoryRetryOptions4 =
+    WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": "invalid value" } """).get
+  private val invalidMemoryRetryOptions5 =
+    WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": true } """).get
 
   before {
   }
@@ -73,7 +79,7 @@ class MaterializeWorkflowDescriptorActorSpec extends CromwellTestKitWordSpec wit
     system.stop(ioActor)
   }
 
-  val fooHogGroup = HogGroup("foo")
+  private val fooHogGroup = HogGroup("foo")
 
   "MaterializeWorkflowDescriptorActor" should {
     "accept valid WDL, inputs and options files" in {

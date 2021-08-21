@@ -1,14 +1,15 @@
 package cromwell.backend.impl.bcs
 
+import common.mock.MockSugar
 import cromwell.filesystems.oss.OssPath
-import org.mockito.Mockito.when
+import org.mockito.Mockito._
 
-class BcsJobPathsSpec extends BcsTestUtilSpec {
+class BcsJobPathsSpec extends BcsTestUtilSpec with MockSugar {
   behavior of s"BcsJobPathsSpec"
 
   var root: OssPath = mockPathBuilder.build("oss://bcs-test/root/").getOrElse(throw new IllegalArgumentException())
 
-  var workflowPath = {
+  var workflowPath: BcsWorkflowPaths = {
     val workflowPaths = mock[BcsWorkflowPaths]
 
     when(workflowPaths.workflowRoot).thenReturn(root)

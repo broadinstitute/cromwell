@@ -15,8 +15,7 @@ import cromwell.engine.io.IoCommandContext
 import cromwell.filesystems.gcs.GcsPath
 import org.scalatest.flatspec.AsyncFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.mockito.MockitoSugar
-import org.specs2.mock.Mockito._
+import common.mock.MockSugar
 
 import java.nio.file.NoSuchFileException
 import java.util.UUID
@@ -25,7 +24,7 @@ import scala.language.postfixOps
 import scala.util.Failure
 import scala.util.control.NoStackTrace
 
-class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with MockitoSugar {
+class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with MockSugar {
 
   behavior of "NioFlowSpec"
 
@@ -38,7 +37,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
     onBackpressure = NoopOnBackpressure,
     numberOfAttempts = 5,
     commandBackpressureStaleness = 5 seconds)(system.dispatcher).flow
-  
+
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   private val replyTo = mock[ActorRef]
   private val readSink = Sink.head[(IoAck[_], IoCommandContext[_])]
@@ -63,12 +62,12 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
   it should "read from a Nio Path" in {
     val testPath = DefaultPathBuilder.createTempFile()
     testPath.write("hello")
-    
+
     val context = DefaultCommandContext(contentAsStringCommand(testPath, None, failOnOverflow = false).get, replyTo)
     val testSource = Source.single(context)
 
     val stream = testSource.via(flow).toMat(readSink)(Keep.right)
-    
+
     stream.run() map {
       case (success: IoSuccess[_], _) => assert(success.result.asInstanceOf[String] == "hello")
       case _ => fail("read returned an unexpected message")
@@ -89,7 +88,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
       case _ => fail("size returned an unexpected message")
     }
   }
-  
+
   it should "get hash from a Nio Path" in {
     val testPath = DefaultPathBuilder.createTempFile()
     testPath.write("hello")
@@ -107,7 +106,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
 
   it should "get hash from a GcsPath" in {
     val exception = new Exception("everything's fine, I am an expected blob failure") with NoStackTrace
-    val testPath = mock[GcsPath].smart
+    val testPath = mock[GcsPath]
     testPath.objectBlobId returns Failure(exception)
 
     val context = DefaultCommandContext(hashCommand(testPath).get, replyTo)
@@ -141,10 +140,10 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
   it should "copy Nio paths with" in {
     val testPath = DefaultPathBuilder.createTempFile()
     testPath.write("goodbye")
-    
+
     val testCopyPath = DefaultPathBuilder.createTempFile()
     testCopyPath.write("hello")
-    
+
     val context = DefaultCommandContext(copyCommand(testPath, testCopyPath).get, replyTo)
 
     val testSource = Source.single(context)
@@ -229,7 +228,7 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
         }
        }
     }.flow
-    
+
     val stream = testSource.via(customFlow).toMat(readSink)(Keep.right)
 
     stream.run() map {

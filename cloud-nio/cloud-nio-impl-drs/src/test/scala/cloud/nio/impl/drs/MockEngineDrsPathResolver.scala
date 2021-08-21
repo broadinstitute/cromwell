@@ -3,9 +3,8 @@ package cloud.nio.impl.drs
 import cats.data.NonEmptyList
 import cats.effect.IO
 import com.google.cloud.NoCredentials
+import common.mock.MockSugar
 import org.apache.http.impl.client.HttpClientBuilder
-import org.specs2.mock.Mockito
-import org.specs2.mock.Mockito._
 
 import scala.concurrent.duration.Duration
 
@@ -16,7 +15,7 @@ class MockEngineDrsPathResolver(drsConfig: DrsConfig = MockDrsPaths.mockDrsConfi
   extends EngineDrsPathResolver(drsConfig, accessTokenAcceptableTTL, NoCredentials.getInstance) {
 
   override protected lazy val httpClientBuilder: HttpClientBuilder =
-    httpClientBuilderOverride getOrElse Mockito.mock[HttpClientBuilder].smart
+    httpClientBuilderOverride getOrElse MockSugar.mock[HttpClientBuilder]
 
   private lazy val mockMarthaUri = drsConfig.marthaUrl
 

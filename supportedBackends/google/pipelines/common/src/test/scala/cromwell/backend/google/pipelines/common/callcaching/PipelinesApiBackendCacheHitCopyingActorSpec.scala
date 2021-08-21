@@ -23,11 +23,12 @@ import cromwell.services.instrumentation.CromwellCount
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineMV
+import org.mockito.ArgumentMatchers._
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.slf4j.Logger
-import org.specs2.mock.Mockito
+import common.mock.MockSugar
 import wom.callable.CommandTaskDefinition
 import wom.graph.{CommandCallNode, FullyQualifiedName, LocalName, WomIdentifier}
 import wom.values.WomValue
@@ -38,7 +39,7 @@ import scala.util.{Success, Try}
 
 
 class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
-  with AnyFlatSpecLike with Matchers with ImplicitSender with Mockito with Eventually {
+  with AnyFlatSpecLike with Matchers with ImplicitSender with MockSugar with Eventually {
 
   behavior of "PipelinesApiBackendCacheHitCopyingActor"
 
@@ -426,7 +427,7 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
       checkpointingInterval = 10.minutes
     )
 
-    val papiConfiguration = mock[PipelinesApiConfiguration]
+    val papiConfiguration = mockWithDefaults[PipelinesApiConfiguration]
     papiConfiguration.papiAttributes returns papiConfigurationAttributes
 
     val commandTaskDefinition = mock[CommandTaskDefinition]
@@ -466,7 +467,7 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
 
     pipelinesApiJobPaths.forCallCacheCopyAttempts returns copyDestinationPaths
     pipelinesApiJobPaths.metadataPaths returns Map.empty
-    workflowPaths.toJobPaths(anyObject[BackendJobDescriptor]).returns(pipelinesApiJobPaths)
+    workflowPaths.toJobPaths(any[BackendJobDescriptor]).returns(pipelinesApiJobPaths)
 
     def identityPathMocker(str: Any): Try[Path] = {
       val path = mock[Path]
@@ -474,12 +475,12 @@ class PipelinesApiBackendCacheHitCopyingActorSpec extends TestKitSuite
       Success(path)
     }
 
-    workflowPaths.getPath(anyString).answers(identityPathMocker _)
+    workflowPaths.getPath(anyString).answers(identityPathMocker)
     workflowPaths.gcsAuthFilePath returns mock[Path]
 
     val runtimeAttributesBuilder = mock[StandardValidatedRuntimeAttributesBuilder]
     runtimeAttributesBuilder
-      .build(anyObject[Map[String, WomValue]], anyObject[Logger])
+      .build(any[Map[String, WomValue]], any[Logger])
       .returns(ValidatedRuntimeAttributes(Map.empty))
 
     val backendInitializationData = mock[PipelinesApiBackendInitializationData]

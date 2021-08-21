@@ -14,33 +14,34 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.specs2.mock.Mockito
+import common.mock.MockSugar
 import wom.values.WomSingleFile
 
 import scala.util.Success
 
-class ConfigHashingStrategySpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks with Mockito with BeforeAndAfterAll {
+class ConfigHashingStrategySpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
+  with TableDrivenPropertyChecks with MockSugar with BeforeAndAfterAll {
 
   behavior of "ConfigHashingStrategy"
 
-  val steak = "Steak"
-  val steakMd5 = DigestUtils.md5Hex(steak)
-  val steakXxh64 = HashFileXxH64StrategyMethods.xxh64sumString(steak)
-  val file = DefaultPathBuilder.createTempFile()
-  val symLinksDir = DefaultPathBuilder.createTempDirectory("sym-dir")
-  val pathMd5 = DigestUtils.md5Hex(file.pathAsString)
-  val md5File = file.sibling(s"${file.name}.md5")
+  private val steak = "Steak"
+  private val steakMd5 = DigestUtils.md5Hex(steak)
+  private val steakXxh64 = HashFileXxH64StrategyMethods.xxh64sumString(steak)
+  private val file = DefaultPathBuilder.createTempFile()
+  private val symLinksDir = DefaultPathBuilder.createTempDirectory("sym-dir")
+  private val pathMd5 = DigestUtils.md5Hex(file.pathAsString)
+  private val md5File = file.sibling(s"${file.name}.md5")
   // Not the md5 value of "Steak". This is intentional so we can verify which hash is used depending on the strategy
   val md5FileHash = "103508832bace55730c8ee8d89c1a45f"
 
-  override def beforeAll() = {
+  override def beforeAll(): Unit = {
     file.write(steak)
     ()
   }
 
   private def randomName(): String = UUID.randomUUID().toString
 
-  def mockRequest(withSibling: Boolean, symlink: Boolean) = {
+  private def mockRequest(withSibling: Boolean, symlink: Boolean) = {
     if (withSibling && md5File.notExists) md5File.write(md5FileHash + System.lineSeparator())
     val requestFile = if (symlink) {
       val symLink: Path = symLinksDir./(s"symlink-${randomName()}")
@@ -56,7 +57,7 @@ class ConfigHashingStrategySpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     SingleFileHashRequest(null, null, WomSingleFile(requestFile.pathAsString), Option(initData))
   }
 
-  def makeStrategy(strategy: String, checkSibling: Option[Boolean] = None) = {
+  private def makeStrategy(strategy: String, checkSibling: Option[Boolean] = None) = {
     val conf = ConfigFactory.parseString(s"""hashing-strategy: "$strategy"""")
     ConfigHashingStrategy(
       checkSibling map { check => conf.withValue("check-sibling-md5", ConfigValueFactory.fromAnyRef(check)) } getOrElse conf
@@ -284,7 +285,7 @@ class ConfigHashingStrategySpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     }
   }
 
-  override def afterAll() = {
+  override def afterAll(): Unit = {
     file.delete(true)
     md5File.delete(true)
     ()

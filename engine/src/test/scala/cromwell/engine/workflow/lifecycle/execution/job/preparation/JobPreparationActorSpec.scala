@@ -13,7 +13,7 @@ import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvKeyLookupFailed
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
+import common.mock.MockSugar
 import wom.RuntimeAttributesKeys
 import wom.callable.Callable.InputDefinition
 import wom.core.LocallyQualifiedName
@@ -24,7 +24,7 @@ import scala.language.postfixOps
 import scala.util.control.NoStackTrace
 
 class JobPreparationActorSpec
-  extends TestKitSuite with AnyFlatSpecLike with Matchers with ImplicitSender with BeforeAndAfter with Mockito {
+  extends TestKitSuite with AnyFlatSpecLike with Matchers with ImplicitSender with BeforeAndAfter with MockSugar {
 
   behavior of "JobPreparationActor"
 
@@ -130,7 +130,9 @@ class JobPreparationActorSpec
     val actor = TestActorRef(helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, inputsAndAttributes, List.empty), self)
     actor ! Start(ValueStore.empty)
     helper.workflowDockerLookupActor.expectMsgClass(classOf[DockerInfoRequest])
-    helper.workflowDockerLookupActor.reply(DockerInfoSuccessResponse(DockerInformation(hashResult, None), mock[DockerInfoRequest]))
+    helper.workflowDockerLookupActor.reply(
+      DockerInfoSuccessResponse(DockerInformation(hashResult, None), mock[DockerInfoRequest])
+    )
     expectMsgPF(5 seconds) {
       case success: BackendJobPreparationSucceeded =>
         success.jobDescriptor.runtimeAttributes("docker").valueString shouldBe dockerValue

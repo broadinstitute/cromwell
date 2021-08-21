@@ -15,15 +15,28 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.enablers.Emptiness._
 import org.scalatest.time.{Millis, Seconds, Span}
-import org.specs2.mock.Mockito
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures with BeforeAndAfterAll with Mockito {
-  implicit val ec = ExecutionContext.global
-  implicit val defaultPatience = PatienceConfig(scaled(Span(10, Seconds)), scaled(Span(100, Millis)))
-  val sourceFilesCollection = NonEmptyList.of(WorkflowSourceFilesCollection(Option("sample"), None, None, None, None, "input", WorkflowOptions.empty, "string", None, workflowOnHold = true, Seq.empty))
+class SqlWorkflowStoreSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures
+  with BeforeAndAfterAll {
+  implicit val ec: ExecutionContext = ExecutionContext.global
+  implicit val defaultPatience: PatienceConfig = PatienceConfig(scaled(Span(10, Seconds)), scaled(Span(100, Millis)))
+  private val sourceFilesCollection =
+    NonEmptyList.of(WorkflowSourceFilesCollection(
+      workflowSource = Option("sample"),
+      workflowUrl = None,
+      workflowRoot = None,
+      workflowType = None,
+      workflowTypeVersion = None,
+      inputsJson = "input",
+      workflowOptions = WorkflowOptions.empty,
+      labelsJson = "string",
+      importsFile = None,
+      workflowOnHold = true,
+      warnings = Seq.empty,
+    ))
 
   DatabaseSystem.All foreach { databaseSystem =>
 

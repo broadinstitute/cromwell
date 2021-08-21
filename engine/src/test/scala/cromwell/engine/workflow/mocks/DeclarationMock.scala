@@ -1,7 +1,6 @@
 package cromwell.engine.workflow.mocks
 
-import org.specs2.mock.Mockito
-import wdl.draft2.model.WdlExpression
+import common.mock.MockSugar
 import wdl.draft2.model.{Declaration, WdlExpression}
 import wom.types.WomType
 
@@ -9,10 +8,10 @@ object DeclarationMock {
   type DeclarationMockType = (String, WomType, WdlExpression)
 }
 
-trait DeclarationMock extends Mockito {
+trait DeclarationMock extends MockSugar {
   def mockDeclaration(name: String,
                       womType: WomType,
-                      expression: WdlExpression) = {
+                      expression: WdlExpression): Declaration = {
     val declaration = mock[Declaration]
     declaration.unqualifiedName returns name
     declaration.expression returns Option(expression)

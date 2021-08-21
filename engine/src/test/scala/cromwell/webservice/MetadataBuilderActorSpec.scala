@@ -16,14 +16,13 @@ import org.scalatest.flatspec.AsyncFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.{Assertion, Succeeded}
-import org.specs2.mock.Mockito
 import spray.json._
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Random
 
-class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with Mockito
+class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers
   with TableDrivenPropertyChecks with ImplicitSender {
 
   behavior of "MetadataBuilderActor"
@@ -83,12 +82,12 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
     val workflowA = WorkflowId.randomId()
 
     val workflowACalls = List(
-      Option(MetadataJobKey("callB", Some(1), 3)),
+      Option(MetadataJobKey("callB", Option(1), 3)),
       Option(MetadataJobKey("callB", None, 1)),
-      Option(MetadataJobKey("callB", Some(1), 2)),
+      Option(MetadataJobKey("callB", Option(1), 2)),
       Option(MetadataJobKey("callA", None, 1)),
-      Option(MetadataJobKey("callB", Some(1), 1)),
-      Option(MetadataJobKey("callB", Some(0), 1)),
+      Option(MetadataJobKey("callB", Option(1), 1)),
+      Option(MetadataJobKey("callB", Option(0), 1)),
       None
     )
     val workflowAEvents = workflowACalls map { makeEvent(workflowA, _) }
@@ -555,11 +554,11 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
       metadataBuilderActorName = "mba-non-empty-values",
     )
   }
-  
+
   it should "expand sub workflow metadata when asked for" in {
     val mainWorkflowId = WorkflowId.randomId()
     val subWorkflowId = WorkflowId.randomId()
-    
+
     val mainEvents = List(
       MetadataEvent(MetadataKey(mainWorkflowId, Option(MetadataJobKey("callA", None, 1)), "subWorkflowId"), MetadataValue(subWorkflowId))
     )
@@ -567,13 +566,13 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
     val subEvents = List(
       MetadataEvent(MetadataKey(mainWorkflowId, None, "some"), MetadataValue("sub workflow info"))
     )
-    
+
     val mainQuery = MetadataQuery(mainWorkflowId, None, None, None, None, expandSubWorkflows = true)
     val mainQueryAction = GetMetadataAction(mainQuery)
-    
+
     val subQuery = MetadataQuery(subWorkflowId, None, None, None, None, expandSubWorkflows = true)
     val subQueryAction = GetMetadataAction(subQuery, checkTotalMetadataRowNumberBeforeQuerying = false)
-    
+
     val parentProbe = TestProbe("parentProbe")
 
     val mockReadMetadataWorkerActor = TestProbe("mockReadMetadataWorkerActor")
@@ -590,7 +589,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
     mockReadMetadataWorkerActor.reply(MetadataLookupResponse(mainQuery, mainEvents))
     mockReadMetadataWorkerActor.expectMsg(defaultTimeout, subQueryAction)
     mockReadMetadataWorkerActor.reply(MetadataLookupResponse(subQuery, subEvents))
-    
+
     val expandedRes =
       s"""
          |{
@@ -615,7 +614,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
     val bmr = response.mapTo[SuccessfulMetadataJsonResponse]
     bmr map { b => b.responseJson shouldBe expandedRes.parseJson}
   }
-  
+
   it should "NOT expand sub workflow metadata when NOT asked for" in {
     val mainWorkflowId = WorkflowId.randomId()
     val subWorkflowId = WorkflowId.randomId()
@@ -626,7 +625,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
 
     val queryNoExpand = MetadataQuery(mainWorkflowId, None, None, None, None, expandSubWorkflows = false)
     val queryNoExpandAction = GetMetadataAction(queryNoExpand)
-    
+
     val parentProbe = TestProbe("parentProbe")
 
     val mockReadMetadataWorkerActor = TestProbe("mockReadMetadataWorkerActor")
@@ -651,7 +650,7 @@ class MetadataBuilderActorSpec extends TestKitSuite with AsyncFlatSpecLike with 
          |        "subWorkflowId": "$subWorkflowId",
          |        "attempt": 1,
          |        "shardIndex": -1
-         |      }  
+         |      }
          |    ]
          |  },
          |  "id": "$mainWorkflowId"

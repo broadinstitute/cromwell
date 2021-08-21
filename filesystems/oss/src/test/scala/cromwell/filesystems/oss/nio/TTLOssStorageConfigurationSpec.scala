@@ -1,18 +1,15 @@
 package cromwell.filesystems.oss.nio
 
 import java.net.URI
-
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.TestKitSuite
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.mockito.MockitoSugar
-
 
 object TTLOssStorageConfigurationSpec {
 
-  val BcsBackendConfigString =
+  val BcsBackendConfigString: String =
     s"""
      |  auth {
      |      endpoint = "oss-cn-shanghai.aliyuncs.com"
@@ -25,15 +22,15 @@ object TTLOssStorageConfigurationSpec {
      |  }
       """.stripMargin
 
-  val BcsBackendConfig = ConfigFactory.parseString(BcsBackendConfigString)
+  val BcsBackendConfig: Config = ConfigFactory.parseString(BcsBackendConfigString)
 }
 
-class TTLOssStorageConfigurationSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with MockitoSugar with BeforeAndAfter {
+class TTLOssStorageConfigurationSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with BeforeAndAfter {
   val expectedEndpoint = "oss-cn-shanghai.aliyuncs.com"
   val expectedAccessId = "test-access-id"
   val expectedAccessKey = "test-access-key"
-  val expectedToken = Some("test-security-token")
-  val expectedFullEndpoint = URI.create("http://oss-cn-shanghai.aliyuncs.com")
+  val expectedToken: Option[String] = Option("test-security-token")
+  val expectedFullEndpoint: URI = URI.create("http://oss-cn-shanghai.aliyuncs.com")
 
   behavior of "TTLOssStorageConfiguration"
 

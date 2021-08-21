@@ -10,7 +10,7 @@ import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActorData
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.JobPreparationTestHelper._
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, ScopedKey}
-import org.specs2.mock.Mockito
+import common.mock.MockSugar
 import wdl.draft2.model.LocallyQualifiedName
 import wom.expression.NoIoFunctionSet
 import wom.graph.{CommandCallNode, WomIdentifier}
@@ -18,22 +18,23 @@ import wom.values.{WomEvaluatedCallInputs, WomValue}
 
 import scala.concurrent.duration.FiniteDuration
 
-class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito {
-  val executionData = mock[WorkflowExecutionActorData]
-  val workflowDescriptor = mock[EngineWorkflowDescriptor]
-  val backendDescriptor = mock[BackendWorkflowDescriptor]
-  val workflowId = WorkflowId.randomId()
+class JobPreparationTestHelper(implicit val system: ActorSystem) extends MockSugar {
+  val executionData: WorkflowExecutionActorData = mock[WorkflowExecutionActorData]
+  val workflowDescriptor: EngineWorkflowDescriptor = mock[EngineWorkflowDescriptor]
+  val backendDescriptor: BackendWorkflowDescriptor = mock[BackendWorkflowDescriptor]
+  val workflowId: WorkflowId = WorkflowId.randomId()
   workflowDescriptor.backendDescriptor returns backendDescriptor
   workflowDescriptor.id returns workflowId
   workflowDescriptor.possiblyNotRootWorkflowId returns workflowId.toPossiblyNotRoot
   workflowDescriptor.rootWorkflowId returns workflowId.toRoot
   workflowDescriptor.rootWorkflow returns workflowDescriptor
   executionData.workflowDescriptor returns workflowDescriptor
-  val call = CommandCallNode(WomIdentifier("JobPreparationSpec_call"), null, null, null, Set.empty, null, None)
-  val mockJobKey = BackendJobDescriptorKey(call, None, 1)
-  val serviceRegistryProbe = TestProbe()
-  val ioActor = TestProbe()
-  val workflowDockerLookupActor = TestProbe()
+  val call: CommandCallNode =
+    CommandCallNode(WomIdentifier("JobPreparationSpec_call"), null, null, null, Set.empty, null, None)
+  val mockJobKey: BackendJobDescriptorKey = BackendJobDescriptorKey(call, None, 1)
+  val serviceRegistryProbe: TestProbe = TestProbe()
+  val ioActor: TestProbe = TestProbe()
+  val workflowDockerLookupActor: TestProbe = TestProbe()
 
   val scopedKeyMaker: ScopedKeyMaker = key => ScopedKey(workflowId, KvJobKey("correct.horse.battery.staple", None, 1), key)
 
@@ -42,7 +43,7 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends Mockito
                                    dockerHashCredentials: List[Any],
                                    inputsAndAttributes: ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WomValue])],
                                    kvStoreKeysForPrefetch: List[String],
-                                   jobKey: BackendJobDescriptorKey = mockJobKey) = {
+                                   jobKey: BackendJobDescriptorKey = mockJobKey): Props = {
 
     Props(new TestJobPreparationActor(
       kvStoreKeysForPrefetch = kvStoreKeysForPrefetch,
@@ -78,15 +79,15 @@ private[preparation] class TestJobPreparationActor(kvStoreKeysForPrefetch: List[
                                                                                                   ioActor = ioActor,
                                                                                                   backendSingletonActor = None) {
 
-  override lazy val kvStoreKeysToPrefetch = kvStoreKeysForPrefetch
+  override private[preparation] lazy val kvStoreKeysToPrefetch = kvStoreKeysForPrefetch
 
   override private[preparation] lazy val expressionLanguageFunctions = NoIoFunctionSet
   override private[preparation] lazy val dockerHashCredentials = dockerHashCredentialsInput
   override private[preparation] lazy val noResponseTimeout = dockerNoResponseTimeoutInput
   override private[preparation] lazy val hasDockerDefinition = true
 
-  override def scopedKey(key: String) = scopedKeyMaker.apply(key)
-  override def evaluateInputsAndAttributes(valueStore: ValueStore) = inputsAndAttributes
+  override private[preparation] def scopedKey(key: String): ScopedKey = scopedKeyMaker.apply(key)
+  override private[preparation] def evaluateInputsAndAttributes(valueStore: ValueStore) = inputsAndAttributes
 
   override private[preparation] def jobExecutionProps(jobDescriptor: BackendJobDescriptor,
                                                       initializationData: Option[BackendInitializationData],

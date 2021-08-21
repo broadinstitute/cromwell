@@ -6,7 +6,6 @@ import cromwell.core.simpleton.WomValueSimpleton._
 import cromwell.util.WomMocks
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
 import wom.callable.Callable.OutputDefinition
 import wom.expression.PlaceholderWomExpression
 import wom.types.{WomArrayType, WomIntegerType, WomMapType, WomStringType}
@@ -16,10 +15,10 @@ import scala.util.Success
 
 object WomValueBuilderSpec {
   // WdlValueBuilder doesn't care about this expression, but something needs to be passed to the TaskOutput constructor.
-  val IgnoredExpression = PlaceholderWomExpression(Set.empty, WomStringType)
+  val IgnoredExpression: PlaceholderWomExpression = PlaceholderWomExpression(Set.empty, WomStringType)
 }
 
-class WomValueBuilderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Mockito {
+class WomValueBuilderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   case class SimpletonConversion(name: String, womValue: WomValue, simpletons: Seq[WomValueSimpleton])
   val simpletonConversions = List(
@@ -149,13 +148,13 @@ class WomValueBuilderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
       *         - a glob file
       *  - an unlisted directory
       *  - a glob file
-      *  
+      *
       *  Note: glob files technically are never simpletonized but as WomFiles they *can* be
      */
     SimpletonConversion(
       "directory",
       WomMaybeListedDirectory(
-        Option("outerValueName"), 
+        Option("outerValueName"),
         Option(List(
           WomSingleFile("outerSingleFile"),
           WomMaybeListedDirectory(Option("innerValueName"), Option(List(WomSingleFile("innerSingleFile")))),
@@ -178,16 +177,16 @@ class WomValueBuilderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
       List(
         WomValueSimpleton("directory:class", WomString("Directory")),
         WomValueSimpleton("directory:value", WomString("outerValueName")),
-        
+
         WomValueSimpleton("directory:listing[0]", WomSingleFile("outerSingleFile")),
-        
+
         WomValueSimpleton("directory:listing[1]:class", WomString("Directory")),
         WomValueSimpleton("directory:listing[1]:value", WomString("innerValueName")),
         WomValueSimpleton("directory:listing[1]:listing[0]", WomSingleFile("innerSingleFile")),
-        
+
         WomValueSimpleton("directory:listing[2]:class", WomString("File")),
         WomValueSimpleton("directory:listing[2]:value", WomString("populatedInnerValueName")),
-        
+
         WomValueSimpleton("directory:listing[2]:checksum", WomString("innerChecksum")),
         WomValueSimpleton("directory:listing[2]:size", WomInteger(10)),
         WomValueSimpleton("directory:listing[2]:format", WomString("innerFormat")),
@@ -198,7 +197,7 @@ class WomValueBuilderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
         WomValueSimpleton("directory:listing[2]:secondaryFiles[1]:listing[0]", WomSingleFile("innerDirectorySingleFile")),
         WomValueSimpleton("directory:listing[2]:secondaryFiles[2]", WomUnlistedDirectory("innerUnlistedDirectory")),
         WomValueSimpleton("directory:listing[2]:secondaryFiles[3]", WomGlobFile("innerGlobFile")),
-        
+
         WomValueSimpleton("directory:listing[3]", WomUnlistedDirectory("outerUnlistedDirectory")),
         WomValueSimpleton("directory:listing[4]", WomGlobFile("outerGlobFile"))
       )
@@ -283,7 +282,8 @@ class WomValueBuilderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
     }
   }
 
-  def assertSimpletonsEqual(expectedSimpletons: Iterable[WomValueSimpleton], actualSimpletons: Iterable[WomValueSimpleton]) = {
+  private def assertSimpletonsEqual(expectedSimpletons: Iterable[WomValueSimpleton],
+                                    actualSimpletons: Iterable[WomValueSimpleton]): Unit = {
 
     // Sanity check, make sure we don't lose anything when we "toSet":
     actualSimpletons.toSet should contain theSameElementsAs actualSimpletons

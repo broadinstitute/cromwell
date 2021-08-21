@@ -3,22 +3,23 @@ package cwl.preprocessor
 import better.files.File
 import cats.data.NonEmptyList
 import common.assertion.CromwellTimeoutSpec
-import common.validation.IOChecked._
+import common.mock.MockSugar
+import cwl.preprocessor.CwlPreProcessor.SaladFunction
 import io.circe.Printer
-import org.scalamock.function.MockFunction1
-import org.scalamock.scalatest.MockFactory
+import org.mockito.ArgumentMatchers._
+import org.mockito.Mockito._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class CwlPreProcessorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with MockFactory {
+class CwlPreProcessorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with MockSugar {
   behavior of "CwlPreProcessor"
 
-  val resourcesRoot = File(getClass.getResource(".").getPath)
-  val echoFileTool = CwlFileReference(resourcesRoot / "echo_tool.cwl", None)
+  private val resourcesRoot = File(getClass.getResource(".").getPath)
+  private val echoFileTool = CwlFileReference(resourcesRoot / "echo_tool.cwl", None)
 
   it should "flatten a simple file" in {
     validate(makeTestRoot("simple_workflow"), None) { mockSaladingFunction =>
-      mockSaladingFunction.expects(echoFileTool).onCall(CwlPreProcessor.saladCwlFile)
+      verify(mockSaladingFunction).apply(echoFileTool)
     }
   }
 
@@ -38,11 +39,11 @@ class CwlPreProcessorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
    */
   it should "flatten file with sub workflow, self reference and valid cyclic dependency" in {
     val testRoot = makeTestRoot("complex_workflow")
-    val subWorkflow =  CwlFileReference(testRoot / "sub" / "sub_workflow.cwl", Some("sub-echo-workflow-1"))
+    val subWorkflow =  CwlFileReference(testRoot / "sub" / "sub_workflow.cwl", Option("sub-echo-workflow-1"))
 
     validate(testRoot, Option("echo-workflow-2")) { mockSaladingFunction =>
-      mockSaladingFunction.expects(echoFileTool).onCall(CwlPreProcessor.saladCwlFile)
-      mockSaladingFunction.expects(subWorkflow).onCall(CwlPreProcessor.saladCwlFile)
+      verify(mockSaladingFunction).apply(echoFileTool)
+      verify(mockSaladingFunction).apply(subWorkflow)
     }
   }
 
@@ -67,8 +68,8 @@ class CwlPreProcessorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
         NonEmptyList.one(s"Found a circular dependency on file://$testRoot/root_workflow.cwl")
       )
     ) { mockSaladingFunction =>
-      mockSaladingFunction.expects(subWorkflow1).onCall(CwlPreProcessor.saladCwlFile)
-      mockSaladingFunction.expects(subWorkflow2).onCall(CwlPreProcessor.saladCwlFile)
+      verify(mockSaladingFunction).apply(subWorkflow1)
+      verify(mockSaladingFunction).apply(subWorkflow2)
     }
   }
 
@@ -79,32 +80,32 @@ class CwlPreProcessorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
     val subWorkflow2 =  CwlFileReference(testRoot / "parseInt-tool.cwl", None)
 
     validate(testRoot, None, uuidExtractor = Option("step0/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/")) { mockSaladingFunction =>
-      mockSaladingFunction.expects(subWorkflow1).onCall(CwlPreProcessor.saladCwlFile)
-      mockSaladingFunction.expects(subWorkflow2).onCall(CwlPreProcessor.saladCwlFile)
+      verify(mockSaladingFunction).apply(subWorkflow1)
+      verify(mockSaladingFunction).apply(subWorkflow2)
     }
   }
 
-  def makeTestRoot(testDirectoryName: String) = resourcesRoot / testDirectoryName
+  private def makeTestRoot(testDirectoryName: String) = resourcesRoot / testDirectoryName
 
   def validate[T](testRoot: File,
                   root: Option[String],
                   expectedFailure: Option[NonEmptyList[String]] = None,
                   uuidExtractor: Option[String] = None
-                 )(additionalValidation: MockFunction1[CwlReference, IOChecked[String]] => T) = {
+                 )(additionalValidation: SaladFunction => T): Unit = {
     val rootWorkflowReference = CwlFileReference(testRoot / "root_workflow.cwl", root)
 
     // Mocking the salad function allows us to validate how many times it is called exactly and with which parameters
-    val mockSaladingFunction = mockFunction[CwlReference, IOChecked[String]]
+    val mockSaladingFunction = mock[SaladFunction]
+    when(mockSaladingFunction.apply(any[CwlReference])) thenAnswer {
+      invocationOnMock =>
+        CwlPreProcessor.saladCwlFile(invocationOnMock.getArgument[CwlReference](0))
+    }
     val preProcessor = new CwlPreProcessor(mockSaladingFunction)
 
-    val saladExpectations = additionalValidation
-      // Always validate that the root is saladed
-      .andThen(_ => mockSaladingFunction.expects(rootWorkflowReference).onCall(CwlPreProcessor.saladCwlFile))
-
-    // Asserts that dependencies are only saladed once and exactly once
-    inAnyOrder(saladExpectations(mockSaladingFunction))
-
     val process = preProcessor.preProcessCwl(rootWorkflowReference).value.unsafeRunSync()
+    // Asserts that dependencies are only saladed once and exactly once
+    verify(mockSaladingFunction).apply(rootWorkflowReference)
+    additionalValidation(mockSaladingFunction)
 
     (process, expectedFailure) match {
       case (Left(errors), Some(failures)) => errors shouldBe failures
@@ -119,5 +120,6 @@ class CwlPreProcessorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
         result shouldBe io.circe.parser.parse(expectationContent).getOrElse(fail("Failed to parse expectation. Your test is broken !"))
       case (Right(_), Some(failures)) => fail("Unexpected success to pre-process workflow, was expecting failures: " + failures.toList.mkString(", "))
     }
+    ()
   }
 }

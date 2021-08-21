@@ -35,15 +35,13 @@ import common.collections.EnhancedCollections._
 import cromwell.backend.BackendSpec
 import org.scalatest.flatspec.AnyFlatSpecLike
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
-// import cromwell.cloudsupport.aws.auth.AwsBatchAuthModeSpec
 import cromwell.core.Tags.AwsTest
 import cromwell.core.TestKitSuite
 import cromwell.util.SampleWdl
 import org.scalatest.matchers.should.Matchers
-import org.specs2.mock.Mockito
 import spray.json.{JsObject, JsString}
 
-class AwsBatchWorkflowPathsSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Mockito {
+class AwsBatchWorkflowPathsSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
   import AwsBatchTestConfig._
   import BackendSpec._
 

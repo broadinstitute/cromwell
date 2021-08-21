@@ -17,7 +17,7 @@ jobs:
       BUILD_TYPE: centaurAws
       BUILD_MYSQL: 5.7
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -33,7 +33,7 @@ jobs:
       BUILD_TYPE: centaurBcs
       BUILD_MYSQL: 5.7
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -49,7 +49,7 @@ jobs:
       BUILD_TYPE: centaurDummy
       BUILD_MYSQL: 5.7
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -65,7 +65,7 @@ jobs:
       BUILD_TYPE: centaurEngineUpgradeLocal
       BUILD_MYSQL: 5.7
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -81,7 +81,7 @@ jobs:
       BUILD_TYPE: centaurEngineUpgradePapiV2alpha1
       BUILD_MYSQL: 5.7
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -97,7 +97,7 @@ jobs:
       BUILD_TYPE: centaurHoricromtalPapiV2alpha1
       BUILD_MYSQL: 5.7
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -113,7 +113,7 @@ jobs:
       BUILD_TYPE: centaurHoricromtalPapiV2beta
       BUILD_MYSQL: 5.7
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -129,7 +129,7 @@ jobs:
       BUILD_TYPE: centaurHoricromtalEngineUpgradePapiV2alpha1
       BUILD_MYSQL: 5.7
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -145,7 +145,7 @@ jobs:
       BUILD_TYPE: centaurPapiUpgradePapiV1
       BUILD_MYSQL: 5.7
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -161,7 +161,7 @@ jobs:
       BUILD_TYPE: centaurPapiUpgradeNewWorkflowsPapiV1
       BUILD_MYSQL: 5.7
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -177,7 +177,7 @@ jobs:
       BUILD_TYPE: centaurPapiUpgradePapiV2alpha1
       BUILD_MYSQL: 5.7
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -193,7 +193,7 @@ jobs:
       BUILD_TYPE: centaurPapiUpgradeNewWorkflowsPapiV2alpha1
       BUILD_MYSQL: 5.7
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -209,7 +209,7 @@ jobs:
       BUILD_TYPE: centaurLocal
       BUILD_HSQLDB: 'true'
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -225,7 +225,7 @@ jobs:
       BUILD_TYPE: centaurLocal
       BUILD_MARIADB: 10.3
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -241,7 +241,7 @@ jobs:
       BUILD_TYPE: centaurLocal
       BUILD_MYSQL: 5.7
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -257,7 +257,7 @@ jobs:
       BUILD_TYPE: centaurLocal
       BUILD_POSTGRESQL: 11.3
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -273,7 +273,7 @@ jobs:
       BUILD_TYPE: centaurLocal
       BUILD_SQLITE: 'true'
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -289,7 +289,7 @@ jobs:
       BUILD_TYPE: centaurPapiV1
       BUILD_MYSQL: 5.7
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -305,7 +305,7 @@ jobs:
       BUILD_TYPE: centaurPapiV2alpha1
       BUILD_MYSQL: 5.7
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -321,7 +321,7 @@ jobs:
       BUILD_TYPE: centaurPapiV2beta
       BUILD_MYSQL: 5.7
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -337,7 +337,7 @@ jobs:
       BUILD_TYPE: centaurSlurm
       BUILD_MYSQL: 5.7
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -353,7 +353,7 @@ jobs:
       BUILD_TYPE: centaurTes
       BUILD_MYSQL: 5.7
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -369,7 +369,7 @@ jobs:
       BUILD_TYPE: centaurWdlUpgradeLocal
       BUILD_MYSQL: 5.7
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -385,7 +385,7 @@ jobs:
       BUILD_TYPE: checkPublish
       BUILD_MYSQL: 5.7
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -401,7 +401,7 @@ jobs:
       BUILD_TYPE: conformanceLocal
       BUILD_MYSQL: 5.7
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -417,7 +417,7 @@ jobs:
       BUILD_TYPE: conformancePapiV2beta
       BUILD_MYSQL: 5.7
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -433,7 +433,7 @@ jobs:
       BUILD_TYPE: conformanceTesk
       BUILD_MYSQL: 5.7
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -448,7 +448,7 @@ jobs:
       BUILD_NAME: horicromtalDeadlock
       BUILD_TYPE: horicromtalDeadlock
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -463,7 +463,7 @@ jobs:
       BUILD_NAME: dockerScripts
       BUILD_TYPE: dockerScripts
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -478,7 +478,7 @@ jobs:
       BUILD_NAME: sbt
       BUILD_TYPE: sbt
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -493,7 +493,7 @@ jobs:
       BUILD_NAME: dbms
       BUILD_TYPE: dbms
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -508,7 +508,7 @@ jobs:
       BUILD_NAME: singleWorkflowRunner
       BUILD_TYPE: singleWorkflowRunner
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -523,7 +523,7 @@ jobs:
       BUILD_NAME: metadataComparisonPython
       BUILD_TYPE: metadataComparisonPython
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -538,7 +538,7 @@ jobs:
       BUILD_NAME: referenceDiskManifestBuilderApp
       BUILD_TYPE: referenceDiskManifestBuilderApp
     timeout-minutes: 120
-    runs-on: ubuntu-16.04
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2

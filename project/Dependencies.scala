@@ -10,7 +10,7 @@ object Dependencies {
   private val aliyunOssV = "3.13.0"
   private val ammoniteOpsV = "2.4.0"
   private val apacheHttpClientV = "4.5.13"
-  private val awsSdkV = "2.17.19"
+  private val awsSdkV = "2.17.24"
   private val betterFilesV = "3.9.1"
   /*
   cats-effect, fs2, https4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.
@@ -45,24 +45,24 @@ object Dependencies {
   // whatDependsOn temporarily set fs2VStatsDProxy to fs2V and revert back before trying to compile.
   private val fs2VStatsDProxy = "1.0.5" // scala-steward:off
   private val googleApiClientV = "1.32.1"
-  private val googleCloudBigQueryV = "2.1.1"
-  private val googleCloudKmsV = "v1-rev20210803-1.32.1"
+  private val googleCloudBigQueryV = "2.1.2"
+  private val googleCloudKmsV = "v1-rev20210812-1.32.1"
   private val googleCloudMonitoringV = "3.0.1"
-  private val googleCloudNioV = "0.123.6"
-  private val googleCloudStorageV = "2.0.1"
-  private val googleGaxGrpcV = "2.2.0"
+  private val googleCloudNioV = "0.123.7"
+  private val googleCloudStorageV = "2.0.2"
+  private val googleGaxGrpcV = "2.3.0"
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210811-1.32.1"
   private val googleHttpClientApacheV = "2.1.2"
   private val googleHttpClientV = "1.38.0"
   private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20210527-1.32.1"
-  private val googleOauth2V = "1.0.0"
+  private val googleOauth2V = "1.1.0"
   private val googleOauthClientV = "1.31.5"
-  private val googleCloudResourceManagerV = "1.0.1"
-  private val grpcV = "1.39.0"
+  private val googleCloudResourceManagerV = "1.0.2"
+  private val grpcV = "1.40.0"
   private val guavaV = "30.1.1-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.6.0"
-  private val http4sVersion = "0.21.7" // scala-steward:off (CROM-6678)
+  private val http4sV = "0.21.7" // scala-steward:off (CROM-6678)
   private val jacksonV = "2.12.4"
   private val janinoV = "3.1.6"
   private val jsr305V = "3.0.2"
@@ -77,7 +77,7 @@ object Dependencies {
   The StatsD reporter for DropWizard's (Code Hale's) Metrics 3.x still works with Metrics 4.x.
   Still would be great to move to Prometheus / OpenCensus
    */
-  private val metrics4ScalaV = "4.1.9"
+  private val metrics4ScalaV = "4.1.19"
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "2.8.0"
   private val mockserverNettyV = "5.11.2"
@@ -104,7 +104,7 @@ object Dependencies {
   private val scalatestPlusMockitoV = "1.0.0-M2"
   private val scalazV = "7.3.4"
   private val scoptV = "4.0.1"
-  private val sentryLogbackV = "5.0.1"
+  private val sentryLogbackV = "5.1.1"
   private val shapelessV = "2.3.7"
   private val simulacrumV = "1.0.1"
   private val slf4jV = "1.7.32"
@@ -157,9 +157,9 @@ object Dependencies {
   )
 
   private val http4sDependencies = List(
-    "org.http4s" %% "http4s-dsl" % http4sVersion,
-    "org.http4s" %% "http4s-blaze-client" % http4sVersion,
-    "org.http4s" %% "http4s-circe" % http4sVersion
+    "org.http4s" %% "http4s-dsl" % http4sV,
+    "org.http4s" %% "http4s-blaze-client" % http4sV,
+    "org.http4s" %% "http4s-circe" % http4sV
   )
 
   private val googleApiClientDependencies = List(

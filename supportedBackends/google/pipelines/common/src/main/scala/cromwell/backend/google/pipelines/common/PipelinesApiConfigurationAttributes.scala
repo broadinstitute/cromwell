@@ -1,16 +1,15 @@
 package cromwell.backend.google.pipelines.common
 
-import java.net.URL
-
-import cats.data.{NonEmptyList, Validated}
 import cats.data.Validated._
+import cats.data.{NonEmptyList, Validated}
 import cats.implicits._
 import com.typesafe.config.{Config, ConfigValue}
+import com.typesafe.scalalogging.StrictLogging
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.backend.CommonBackendConfigurationAttributes
-import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{BatchRequestTimeoutConfiguration, GcsTransferConfiguration, MemoryRetryConfiguration, VirtualPrivateCloudConfiguration}
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{BatchRequestTimeoutConfiguration, GcsTransferConfiguration, VirtualPrivateCloudConfiguration}
 import cromwell.backend.google.pipelines.common.authentication.PipelinesApiAuths
 import cromwell.backend.google.pipelines.common.callcaching.{CopyCachedOutputs, PipelinesCacheHitDuplicationStrategy, UseOriginalCachedOutputs}
 import cromwell.backend.google.pipelines.common.io.PipelinesApiReferenceFilesDisk
@@ -24,10 +23,11 @@ import eu.timepit.refined.{refineMV, refineV}
 import net.ceedubs.ficus.Ficus._
 import org.slf4j.{Logger, LoggerFactory}
 
+import java.net.URL
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-import scala.util.Try
 import scala.util.matching.Regex
+import scala.util.{Failure, Success, Try}
 
 case class PipelinesApiConfigurationAttributes(project: String,
                                                computeServiceAccount: String,
@@ -46,14 +46,15 @@ case class PipelinesApiConfigurationAttributes(project: String,
                                                gcsTransferConfiguration: GcsTransferConfiguration,
                                                virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
                                                batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
-                                               memoryRetryConfiguration: Option[MemoryRetryConfiguration],
-                                               allowNoAddress: Boolean,
                                                referenceFileToDiskImageMappingOpt: Option[Map[String, PipelinesApiReferenceFilesDisk]],
-                                               dockerImageToCacheDiskImageMappingOpt: Option[Map[String, String]])
+                                               dockerImageToCacheDiskImageMappingOpt: Option[Map[String, DockerImageCacheEntry]],
+                                               checkpointingInterval: FiniteDuration
+                                              )
 
 object PipelinesApiConfigurationAttributes
   extends PipelinesApiDockerCacheMappingOperations
-    with PipelinesApiReferenceFilesMappingOperations {
+    with PipelinesApiReferenceFilesMappingOperations
+    with StrictLogging {
 
   /**
     * @param transferAttempts This is the number of attempts, not retries, hence it is positive.
@@ -62,7 +63,6 @@ object PipelinesApiConfigurationAttributes
 
   final case class VirtualPrivateCloudConfiguration(name: String, subnetwork: Option[String], auth: GoogleAuthMode)
   final case class BatchRequestTimeoutConfiguration(readTimeoutMillis: Option[Int Refined Positive], connectTimeoutMillis: Option[Int Refined Positive])
-  final case class MemoryRetryConfiguration(errorKeys: List[String], multiplier: GreaterEqualRefined)
 
 
   lazy val Logger: Logger = LoggerFactory.getLogger("PipelinesApiConfiguration")
@@ -70,9 +70,7 @@ object PipelinesApiConfigurationAttributes
   val GenomicsApiDefaultQps = 1000
   val DefaultGcsTransferAttempts: Refined[Int, Positive] = refineMV[Positive](3)
 
-  lazy val DefaultMemoryRetryFactor: GreaterEqualRefined = refineMV[GreaterEqualOne](2.0)
-
-  val allowNoAddressAttributeKey = "allow-noAddress-attribute"
+  val checkpointingIntervalKey = "checkpointing-interval"
 
   private val papiKeys = CommonBackendConfigurationAttributes.commonValidConfigurationAttributeKeys ++ Set(
     "project",
@@ -106,11 +104,9 @@ object PipelinesApiConfigurationAttributes
     "virtual-private-cloud.network-label-key",
     "virtual-private-cloud.subnetwork-label-key",
     "virtual-private-cloud.auth",
-    "memory-retry.error-keys",
-    "memory-retry.multiplier",
-    allowNoAddressAttributeKey,
-    "reference-disk-localization-manifest-files",
-    "docker-image-cache-manifest-file"
+    "reference-disk-localization-manifests",
+    "docker-image-cache-manifest-file",
+    checkpointingIntervalKey
   )
 
   private val deprecatedJesKeys: Map[String, String] = Map(
@@ -134,15 +130,6 @@ object PipelinesApiConfigurationAttributes
       }
     }
 
-    def validateMemoryRetryConfig(errorKeys: Option[List[String]], multiplier: Option[GreaterEqualRefined]): ErrorOr[Option[MemoryRetryConfiguration]] = {
-      (errorKeys, multiplier) match {
-        case (Some(keys), Some(mul)) => Option(MemoryRetryConfiguration(keys, mul)).validNel
-        case (Some(keys), None) => Option(MemoryRetryConfiguration(keys, DefaultMemoryRetryFactor)).validNel
-        case (None, Some(_)) => "memory-retry configuration is invalid. No error-keys provided.".invalidNel
-        case (None, None) => None.validNel
-      }
-    }
-
     val configKeys = backendConfig.entrySet().asScala.toSet map { entry: java.util.Map.Entry[String, ConfigValue] => entry.getKey }
     warnNotRecognized(configKeys, papiKeys, backendName, Logger)
 
@@ -162,7 +149,6 @@ object PipelinesApiConfigurationAttributes
     val genomicsAuthName: ErrorOr[String] = validate { backendConfig.as[String]("genomics.auth") }
     val genomicsRestrictMetadataAccess: ErrorOr[Boolean] = validate { backendConfig.as[Option[Boolean]]("genomics.restrict-metadata-access").getOrElse(false) }
     val genomicsEnableFuse: ErrorOr[Boolean] = validate { backendConfig.as[Option[Boolean]]("genomics.enable-fuse").getOrElse(false) }
-    val allowNoAddress: ErrorOr[Boolean] = validate { backendConfig.as[Option[Boolean]](allowNoAddressAttributeKey).getOrElse(true) }
     val gcsFilesystemAuthName: ErrorOr[String] = validate { backendConfig.as[String]("filesystems.gcs.auth") }
     val qpsValidation = validateQps(backendConfig)
     val duplicationStrategy = validate { backendConfig.as[Option[String]]("filesystems.gcs.caching.duplication-strategy").getOrElse("copy") match {
@@ -206,20 +192,11 @@ object PipelinesApiConfigurationAttributes
       BatchRequestTimeoutConfiguration(readTimeoutMillis = read, connectTimeoutMillis = connect)
     }
 
-    val memoryRetryMultiplier: ErrorOr[Option[GreaterEqualRefined]] = validatePositiveOptionDouble(
-      backendConfig.as[Option[Double]]("memory-retry.multiplier"),
-      configPath = "memory-retry.multiplier"
-    )
-
-    val memoryRetryKeys: ErrorOr[Option[List[String]]] = validate { backendConfig.as[Option[List[String]]]("memory-retry.error-keys") }
-
-    val memoryRetryConfig: ErrorOr[Option[MemoryRetryConfiguration]] = {
-      (memoryRetryKeys, memoryRetryMultiplier) flatMapN validateMemoryRetryConfig
-    }
-
-    val referenceDiskLocalizationManifestFiles: ErrorOr[Option[List[ValidFullGcsPath]]] = validateGcsPathsToReferenceDiskManifestFiles(backendConfig)
+    val referenceDiskLocalizationManifestFiles: ErrorOr[Option[List[ManifestFile]]] = validateReferenceDiskManifestConfigs(backendConfig, backendName)
 
     val dockerImageCacheManifestFile: ErrorOr[Option[ValidFullGcsPath]] = validateGcsPathToDockerImageCacheManifestFile(backendConfig)
+
+    val checkpointingInterval: FiniteDuration = backendConfig.getOrElse(checkpointingIntervalKey, 10.minutes)
 
     def authGoogleConfigForPapiConfigurationAttributes(project: String,
                                                        bucket: String,
@@ -235,17 +212,15 @@ object PipelinesApiConfigurationAttributes
                                                        gcsTransferConfiguration: GcsTransferConfiguration,
                                                        virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
                                                        batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
-                                                       memoryRetryConfig: Option[MemoryRetryConfiguration],
-                                                       allowNoAddress: Boolean,
-                                                       referenceDiskLocalizationManifestFilesOpt: Option[List[ValidFullGcsPath]],
+                                                       referenceDiskLocalizationManifestFilesOpt: Option[List[ManifestFile]],
                                                        dockerImageCacheManifestFileOpt: Option[ValidFullGcsPath]): ErrorOr[PipelinesApiConfigurationAttributes] =
       (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN {
         (genomicsAuth, gcsAuth) =>
           val generatedReferenceFilesMappingOpt = referenceDiskLocalizationManifestFilesOpt map {
-            generateReferenceFilesMapping(gcsAuth, _)
+            generateReferenceFilesMapping(genomicsAuth, _)
           }
           val dockerImageToCacheDiskImageMappingOpt = dockerImageCacheManifestFileOpt map {
-            generateDockerImageToDiskImageMapping(gcsAuth, _)
+            generateDockerImageToDiskImageMapping(genomicsAuth, _)
           }
           PipelinesApiConfigurationAttributes(
             project = project,
@@ -265,10 +240,9 @@ object PipelinesApiConfigurationAttributes
             gcsTransferConfiguration = gcsTransferConfiguration,
             virtualPrivateCloudConfiguration = virtualPrivateCloudConfiguration,
             batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration,
-            memoryRetryConfiguration = memoryRetryConfig,
-            allowNoAddress,
             referenceFileToDiskImageMappingOpt = generatedReferenceFilesMappingOpt,
-            dockerImageToCacheDiskImageMappingOpt = dockerImageToCacheDiskImageMappingOpt
+            dockerImageToCacheDiskImageMappingOpt = dockerImageToCacheDiskImageMappingOpt,
+            checkpointingInterval = checkpointingInterval
           )
     }
 
@@ -286,8 +260,6 @@ object PipelinesApiConfigurationAttributes
       gcsTransferConfiguration,
       virtualPrivateCloudConfiguration,
       batchRequestTimeoutConfigurationValidation,
-      memoryRetryConfig,
-      allowNoAddress,
       referenceDiskLocalizationManifestFiles,
       dockerImageCacheManifestFile
     ) flatMapN authGoogleConfigForPapiConfigurationAttributes match {
@@ -307,22 +279,43 @@ object PipelinesApiConfigurationAttributes
     }
   }
 
-  def validateGcsPathToDockerImageCacheManifestFile(backendConfig: Config): ErrorOr[Option[ValidFullGcsPath]] = {
+  private [common] def validateGcsPathToDockerImageCacheManifestFile(backendConfig: Config): ErrorOr[Option[ValidFullGcsPath]] = {
     backendConfig.getAs[String]("docker-image-cache-manifest-file") match {
       case Some(gcsPath) => validateSingleGcsPath(gcsPath).map(Option.apply)
       case None => None.validNel
     }
   }
 
-  def validateGcsPathsToReferenceDiskManifestFiles(backendConfig: Config): ErrorOr[Option[List[ValidFullGcsPath]]] = {
-    backendConfig.getAs[List[String]]("reference-disk-localization-manifest-files") match {
-      case Some(gcsPaths) =>
-        gcsPaths.map(validateSingleGcsPath)
-          .sequence
-          .contextualizeErrors("parse paths to file as valid GCS paths")
-          .map(Option.apply)
+  /**
+    * Validate that the entries corresponding to "reference-disk-localization-manifests" in the specified
+    * backend are parseable as `ManifestFile`s.
+    */
+  private [common] def validateReferenceDiskManifestConfigs(backendConfig: Config, backendName: String): ErrorOr[Option[List[ManifestFile]]] = {
+    Try(backendConfig.getAs[List[Config]]("reference-disk-localization-manifests")) match {
+      case Failure(e) =>
+        ("Error attempting to parse value for 'reference-disk-localization-manifests' as List[Config]: " +
+          e.getMessage).invalidNel
+      case Success(s) =>
+        s match {
+          case Some(configs) =>
+            import _root_.io.circe.config.parser
+            import _root_.io.circe.generic.auto._
 
-      case None => None.validNel
+            // Unfortunately the `as` method of `config` collides with the Ficus method of the same name, so invoke its
+            // equivalent using clunkier syntax:
+            configs traverse parser.decode[ManifestFile] match {
+              case Right(manifests) =>
+                logger.info(s"Reference disks feature for $backendName backend is configured with the following reference images: ${manifests.map(_.imageIdentifier).mkString(", ")}.")
+                Option(manifests).validNel
+              case Left(err) =>
+                val message = s"Reference disks misconfigured for backend $backendName, could not parse as List[ManifestFile]"
+                logger.error(message, err.getCause)
+                s"$message: ${err.getMessage}".invalidNel
+            }
+          case None =>
+            logger.info(s"Reference disks feature for $backendName backend is not configured.")
+            None.validNel
+        }
     }
   }
 
@@ -380,16 +373,6 @@ object PipelinesApiConfigurationAttributes
 
     backendConfig.as[Option[FiniteDuration]](configPath) match {
       case Some(value) => validate(value).map(Option.apply)
-      case None => None.validNel
-    }
-  }
-
-  def validatePositiveOptionDouble(value: Option[Double], configPath: String): ErrorOr[Option[GreaterEqualRefined]] = {
-    value match {
-      case Some(n) => refineV[GreaterEqualOne](n) match {
-        case Left(_) => s"Value $n for $configPath should be greater than 1.0.".invalidNel
-        case Right(refined) => Option(refined).validNel
-      }
       case None => None.validNel
     }
   }

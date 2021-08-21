@@ -17,6 +17,7 @@ import cromwell.engine._
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.instrumentation.WorkflowInstrumentation
 import cromwell.engine.workflow.WorkflowActor._
+import cromwell.engine.workflow.WorkflowManagerActor.WorkflowActorWorkComplete
 import cromwell.engine.workflow.lifecycle._
 import cromwell.engine.workflow.lifecycle.deletion.DeleteWorkflowFilesActor
 import cromwell.engine.workflow.lifecycle.deletion.DeleteWorkflowFilesActor.{DeleteWorkflowFilesFailedResponse, DeleteWorkflowFilesSucceededResponse, StartWorkflowFilesDeletion}
@@ -30,6 +31,7 @@ import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDes
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor.{MaterializeWorkflowDescriptorCommand, MaterializeWorkflowDescriptorFailureResponse, MaterializeWorkflowDescriptorSuccessResponse}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.WorkflowStoreWriteHeartbeatCommand
 import cromwell.engine.workflow.workflowstore.{RestartableAborting, StartableState, WorkflowHeartbeatConfig, WorkflowToStart}
+import cromwell.services.metadata.MetadataService.{MetadataWriteFailure, MetadataWriteSuccess, PutMetadataActionAndRespond}
 import cromwell.subworkflowstore.SubWorkflowStoreActor.WorkflowComplete
 import cromwell.webservice.EngineStatsActor
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -49,6 +51,7 @@ object WorkflowActor {
   case object AbortWorkflowCommand extends WorkflowActorCommand
   final case class AbortWorkflowWithExceptionCommand(exception: Throwable) extends WorkflowActorCommand
   case object SendWorkflowHeartbeatCommand extends WorkflowActorCommand
+  case object AwaitMetadataIntegrity
 
   case class WorkflowFailedResponse(workflowId: WorkflowId, inState: WorkflowActorState, reasons: Seq[Throwable])
 
@@ -56,11 +59,11 @@ object WorkflowActor {
     * States for the WorkflowActor FSM
     */
   sealed trait WorkflowActorState {
-    def terminal = false
     // Each state in the FSM maps to a state in the `WorkflowState` which is used for Metadata reporting purposes
     def workflowState: WorkflowState
   }
-  sealed trait WorkflowActorTerminalState extends WorkflowActorState { override val terminal = true }
+
+  sealed trait WorkflowActorTerminalState extends WorkflowActorState
   sealed trait WorkflowActorRunningState extends WorkflowActorState { override val workflowState = WorkflowRunning }
 
   /**
@@ -95,6 +98,11 @@ object WorkflowActor {
     * those files state.
     */
   case object DeletingFilesState extends WorkflowActorRunningState
+
+  case object MetadataIntegrityValidationState extends WorkflowActorState {
+    override def toString = "MetadataIntegrityValidationState"
+    override def workflowState: WorkflowState = WorkflowRunning
+  }
 
   /**
     * The WorkflowActor is aborting. We're just waiting for everything to finish up then we'll respond back to the
@@ -402,7 +410,22 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       goto(WorkflowFailedState) using data.copy(lastStateReached = StateCheckpoint(FinalizingWorkflowState, Option(failures)))
     case Event(AbortWorkflowCommand, _) => stay()
   }
-  
+
+  when(MetadataIntegrityValidationState) {
+    case Event(_: MetadataWriteSuccess, _) =>
+      context.parent ! WorkflowActorWorkComplete(workflowId, self, stateData.lastStateReached.state.workflowState)
+      context stop self
+      stay()
+    case Event(MetadataWriteFailure(reason, msgs), _) =>
+      // If we shut down now the WMA will erase this workflow from the workflow store, so try again and hope for
+      // better luck. If we continue to be unable to write the completion message to the DB it's better to leave the
+      // workflow in its current state in the DB than to let the WMA delete it
+      // Note: this is an infinite retry right now, but it doesn't consume much in terms of resources and could help us successfully weather maintenance downtime on the DB
+      workflowLogger.error(reason, "Unable to complete workflow due to inability to write concluding metadata status. Retrying...")
+      PutMetadataActionAndRespond(msgs, self)
+      stay()
+  }
+
   def handleAbortCommand(data: WorkflowActorData, workflowDescriptor: EngineWorkflowDescriptor, exceptionCausedAbortOpt: Option[Throwable] = None) = {
     data.currentLifecycleStateActor match {
       case Some(currentActor) =>
@@ -449,6 +472,8 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
         case None => sender ! EngineStatsActor.NoJobs // This should be impossible, but if somehow here it's technically correct
       }
       stay()
+    case Event(AwaitMetadataIntegrity, data) =>
+      goto(MetadataIntegrityValidationState) using data.copy(lastStateReached = data.lastStateReached.copy(state = stateName))
   }
 
   onTransition {
@@ -464,7 +489,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
           val failures = nextStateData.lastStateReached.failures.getOrElse(List.empty)
           pushWorkflowFailures(workflowId, failures)
           context.parent ! WorkflowFailedResponse(workflowId, nextStateData.lastStateReached.state, failures)
-        case _ => // The WMA is watching state transitions and needs no further info
+        case _ => // The WMA is waiting for the WorkflowActorWorkComplete message. No extra information needed here.
       }
 
       // Copy/Delete workflow logs
@@ -498,16 +523,19 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
           }
         }
       }
-      context stop self
-  }
 
-  onTransition {
+      // We can't transition from within another transition function, but we can instruct ourselves to with a message:
+      self ! AwaitMetadataIntegrity
+
+      // Push the final status and ask for an acknowledgement (which we will now be waiting for):
+      pushCurrentStateToMetadataService(workflowId, terminalState.workflowState, confirmTo = Option(self))
+
     case fromState -> toState =>
       workflowLogger.debug(s"transitioning from {} to {}", arg1 = fromState, arg2 = toState)
       // This updates the workflow status
       // Only publish "External" state to metadata service
       // workflowState maps a state to an "external" state (e.g all states extending WorkflowActorRunningState map to WorkflowRunning)
-      if (fromState.workflowState != toState.workflowState) {
+      if (fromState.workflowState != toState.workflowState && toState != MetadataIntegrityValidationState) {
         pushCurrentStateToMetadataService(workflowId, toState.workflowState)
       }
   }

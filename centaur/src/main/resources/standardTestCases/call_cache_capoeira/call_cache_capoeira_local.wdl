@@ -69,7 +69,7 @@ task make_files {
         chmod go+w bananeira.txt
         echo balanca > balanca.txt
     }
-    runtime { docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950" }
+    runtime { docker: "gcr.io/gcp-runtimes/ubuntu_16_0_4@sha256:53a002b59dfcd43b4d15e97c1acbeae035ddd1b31a106659a312e9fe65f00afa" }
     output {
         Boolean done = true
         File bananeira = "bananeira.txt"
@@ -92,7 +92,7 @@ task modify_file_sfs {
     }
     runtime {
         # No docker, we need this to run against the same FS as Cromwell so it can modify the right file!
-        # docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+        # docker: "gcr.io/gcp-runtimes/ubuntu_16_0_4@sha256:53a002b59dfcd43b4d15e97c1acbeae035ddd1b31a106659a312e9fe65f00afa"
         backend: "Local"
     }
 }
@@ -107,7 +107,7 @@ task read_files {
         Boolean done = true
         String s = read_string("out") }
     runtime {
-        docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+        docker: "gcr.io/gcp-runtimes/ubuntu_16_0_4@sha256:53a002b59dfcd43b4d15e97c1acbeae035ddd1b31a106659a312e9fe65f00afa"
         continueOnReturnCode: 0
         failOnStderr: false
     }
@@ -119,7 +119,7 @@ task sleep {
     command { sleep ${duration} }
     output { Boolean done = true }
     runtime {
-        docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+        docker: "gcr.io/gcp-runtimes/ubuntu_16_0_4@sha256:53a002b59dfcd43b4d15e97c1acbeae035ddd1b31a106659a312e9fe65f00afa"
         continueOnReturnCode: 0
         failOnStderr: false
     }
@@ -136,7 +136,7 @@ task read_copied_files {
         Boolean done = true
         String s = read_string("out") }
     runtime {
-        docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+        docker: "gcr.io/gcp-runtimes/ubuntu_16_0_4@sha256:53a002b59dfcd43b4d15e97c1acbeae035ddd1b31a106659a312e9fe65f00afa"
         continueOnReturnCode: 0
         failOnStderr: false
     }
@@ -152,7 +152,7 @@ task read_files_swapped {
         Boolean done = true
         String s = read_string("out") }
     runtime {
-        docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+        docker: "gcr.io/gcp-runtimes/ubuntu_16_0_4@sha256:53a002b59dfcd43b4d15e97c1acbeae035ddd1b31a106659a312e9fe65f00afa"
         continueOnReturnCode: 0
         failOnStderr: false
     }
@@ -173,7 +173,7 @@ task read_files_whitespace {
         Boolean done = true
     }
     runtime {
-        docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+        docker: "gcr.io/gcp-runtimes/ubuntu_16_0_4@sha256:53a002b59dfcd43b4d15e97c1acbeae035ddd1b31a106659a312e9fe65f00afa"
         continueOnReturnCode: 0
         failOnStderr: false
     }
@@ -194,7 +194,7 @@ task read_files_new_command {
         Boolean done = true
         String s = read_string("out") }
     runtime {
-        docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+        docker: "gcr.io/gcp-runtimes/ubuntu_16_0_4@sha256:53a002b59dfcd43b4d15e97c1acbeae035ddd1b31a106659a312e9fe65f00afa"
         continueOnReturnCode: 0
         failOnStderr: false
     }
@@ -210,7 +210,7 @@ task read_files_new_output_expressions {
         Boolean done = true
         String s = read_string("out") + "_suffix" }
     runtime {
-        docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+        docker: "gcr.io/gcp-runtimes/ubuntu_16_0_4@sha256:53a002b59dfcd43b4d15e97c1acbeae035ddd1b31a106659a312e9fe65f00afa"
         continueOnReturnCode: 0
         failOnStderr: false
     }
@@ -226,7 +226,7 @@ task read_files_new_output_names {
         Boolean dunn = true
         String ess = read_string("out") }
     runtime {
-        docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+        docker: "gcr.io/gcp-runtimes/ubuntu_16_0_4@sha256:53a002b59dfcd43b4d15e97c1acbeae035ddd1b31a106659a312e9fe65f00afa"
         continueOnReturnCode: 0
         failOnStderr: false
     }
@@ -242,7 +242,7 @@ task read_files_inputs_renamed {
         Boolean done = true
         String s = read_string("out") }
     runtime {
-        docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+        docker: "gcr.io/gcp-runtimes/ubuntu_16_0_4@sha256:53a002b59dfcd43b4d15e97c1acbeae035ddd1b31a106659a312e9fe65f00afa"
         continueOnReturnCode: 0
         failOnStderr: false
     }
@@ -258,7 +258,7 @@ task read_files_different_docker {
         Boolean done = true
         String s = read_string("out") }
     runtime {
-        docker: "ubuntu@sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2"
+        docker: "gcr.io/gcp-runtimes/ubuntu_16_0_4@sha256:7eb386481d87e41ebddceb948f25379bb339784df5247a3dfbdea2ac101b10c0"
         continueOnReturnCode: 0
         failOnStderr: false
     }
@@ -289,7 +289,7 @@ task read_files_different_continueOnReturnCode {
          Boolean done = true
          String s = read_string("out") }
      runtime {
-         docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+         docker: "gcr.io/gcp-runtimes/ubuntu_16_0_4@sha256:53a002b59dfcd43b4d15e97c1acbeae035ddd1b31a106659a312e9fe65f00afa"
          continueOnReturnCode: false
          failOnStderr: false
      }
@@ -305,7 +305,7 @@ task read_files_different_continueOnReturnCode {
           Boolean done = true
           String s = read_string("out") }
       runtime {
-          docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+          docker: "gcr.io/gcp-runtimes/ubuntu_16_0_4@sha256:53a002b59dfcd43b4d15e97c1acbeae035ddd1b31a106659a312e9fe65f00afa"
           continueOnReturnCode: [ 0 ]
           failOnStderr: false
       }
@@ -321,7 +321,7 @@ task read_files_without_continueOnReturnCode {
         Boolean done = true
         String s = read_string("out") }
     runtime {
-        docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+        docker: "gcr.io/gcp-runtimes/ubuntu_16_0_4@sha256:53a002b59dfcd43b4d15e97c1acbeae035ddd1b31a106659a312e9fe65f00afa"
         failOnStderr: false
     }
 }
@@ -336,7 +336,7 @@ task read_files_different_failOnStderr {
         Boolean done = true
         String s = read_string("out") }
     runtime {
-        docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+        docker: "gcr.io/gcp-runtimes/ubuntu_16_0_4@sha256:53a002b59dfcd43b4d15e97c1acbeae035ddd1b31a106659a312e9fe65f00afa"
         continueOnReturnCode: 0
         failOnStderr: true
     }
@@ -352,7 +352,7 @@ task read_files_without_failOnStderr {
         Boolean done = true
         String s = read_string("out") }
     runtime {
-        docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+        docker: "gcr.io/gcp-runtimes/ubuntu_16_0_4@sha256:53a002b59dfcd43b4d15e97c1acbeae035ddd1b31a106659a312e9fe65f00afa"
         continueOnReturnCode: 0
     }
 }
@@ -367,7 +367,7 @@ task read_files_failOnStderr_expression {
         Boolean done = true
         String s = read_string("out") }
     runtime {
-        docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+        docker: "gcr.io/gcp-runtimes/ubuntu_16_0_4@sha256:53a002b59dfcd43b4d15e97c1acbeae035ddd1b31a106659a312e9fe65f00afa"
         continueOnReturnCode: 0
         failOnStderr: !ready
     }
@@ -383,7 +383,7 @@ task read_array_files {
         Boolean done = true
         String s = read_string("out") }
     runtime {
-        docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+        docker: "gcr.io/gcp-runtimes/ubuntu_16_0_4@sha256:53a002b59dfcd43b4d15e97c1acbeae035ddd1b31a106659a312e9fe65f00afa"
         continueOnReturnCode: 0
         failOnStderr: !ready
     }

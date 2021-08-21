@@ -457,7 +457,7 @@ docker {
 
     # How should docker hashes be looked up. Possible values are "local" and "remote"
     # "local": Lookup hashes on the local docker daemon using the cli
-    # "remote": Lookup hashes on docker hub and gcr
+    # "remote": Lookup hashes on docker hub, gcr, gar, quay
     #method = "remote"
   }
 }
@@ -512,5 +512,5 @@ Congratulations for improving the reproducibility of your workflows! You might f
 - [Getting started on Alibaba Cloud](BCSIntro/)
 
 
-[cromwell-examples-conf]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.examples.conf
+[cromwell-examples-conf]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends/cromwell.examples.conf
 [cromwell-examples-folder]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends

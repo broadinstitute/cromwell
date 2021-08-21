@@ -3,7 +3,7 @@ package cromwell.engine.workflow.workflowstore
 import java.time.{OffsetDateTime, Duration => JDuration}
 import java.util.concurrent.TimeUnit
 
-import akka.actor.{ActorRef, CoordinatedShutdown, Props}
+import akka.actor.{ActorRef, ActorSystem, CoordinatedShutdown, Props}
 import cats.data.{NonEmptyList, NonEmptyVector}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowId
@@ -25,6 +25,8 @@ case class WorkflowStoreHeartbeatWriteActor(workflowStoreAccess: WorkflowStoreAc
   extends EnhancedBatchActor[(WorkflowId, OffsetDateTime)](
     flushRate = workflowHeartbeatConfig.heartbeatInterval,
     batchSize = workflowHeartbeatConfig.writeBatchSize) {
+
+  implicit val actorSystem: ActorSystem = context.system
 
   override val threshold = workflowHeartbeatConfig.writeThreshold
 

@@ -14,7 +14,6 @@
       "cromwellVersion": "cromwell-version.conf-to-be-generated-by-sbt"
     }
   ],
-  "metadataSource": "Unarchived",
   "actualWorkflowLanguageVersion": "draft-2",
   "submittedFiles": {
     "workflow": "##\n# Checks a simple branch and join operation.\n# We start with a task, branch into two parallel executions, and then rejoin to calculate the result.\n##\n\ntask mkFile {\n  command {\n    for i in `seq 1 1000`\n    do\n      echo $i\n    done\n  }\n  output {\n    File numbers = stdout()\n  }\n  runtime {docker: \"ubuntu:latest\"}\n}\n\ntask grep {\n  String pattern\n  File in_file\n  command {\n    grep '${pattern}' ${in_file} | wc -l\n  }\n  output {\n    Int count = read_int(stdout())\n  }\n  runtime {docker: \"ubuntu:latest\"}\n}\n\ntask wc {\n  File in_file\n  command {\n    cat ${in_file} | wc -l\n  }\n  output {\n    Int count = read_int(stdout())\n  }\n  runtime {docker: \"ubuntu:latest\"}\n}\n\ntask join {\n  Int grepCount\n  Int wcCount\n  command {\n    expr ${wcCount} / ${grepCount}\n  }\n  output {\n    Int proportion = read_int(stdout())\n  }\n  runtime {docker: \"ubuntu:latest\"}\n}\n\nworkflow forkjoin {\n  call mkFile\n  call grep { input: in_file = mkFile.numbers }\n  call wc { input: in_file=mkFile.numbers }\n  call join { input: wcCount = wc.count, grepCount = grep.count }\n  output {\n    join.proportion\n  }\n}\n",

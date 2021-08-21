@@ -1,6 +1,6 @@
 package cromwell.engine.workflow.workflowstore
 
-import akka.actor.{ActorLogging, ActorRef, LoggingFSM, PoisonPill, Props, Timers}
+import akka.actor.{ActorLogging, ActorRef, ActorSystem, LoggingFSM, PoisonPill, Props, Timers}
 import cats.data.NonEmptyList
 import cromwell.core.Dispatcher._
 import cromwell.core.WorkflowProcessingEvents.DescriptionEventValue.PickedUp
@@ -27,6 +27,7 @@ final case class WorkflowStoreEngineActor private(store: WorkflowStore,
                                                   workflowHeartbeatConfig: WorkflowHeartbeatConfig)
   extends LoggingFSM[WorkflowStoreActorState, WorkflowStoreActorData] with ActorLogging with WorkflowInstrumentation with CromwellInstrumentationScheduler with WorkflowMetadataHelper with Timers {
 
+  implicit val actorSystem: ActorSystem = context.system
   implicit val ec: ExecutionContext = context.dispatcher
 
   startWith(Unstarted, WorkflowStoreActorData(None, List.empty))

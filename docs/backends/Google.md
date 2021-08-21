@@ -17,7 +17,6 @@ authentication schemes that might be used:
 * `application_default` (default, recommended) - Use [application default](https://developers.google.com/identity/protocols/application-default-credentials) credentials.
 * `service_account` - Use a specific service account and key file (in PEM format) to authenticate.
 * `user_account` - Authenticate as a user.
-* `refresh_token` - Authenticate each individual workflow using a refresh token supplied in the workflow options.
 * `user_service_account` - Authenticate each individual workflow using service account credentials supplied in the workflow options.
 
 The `auths` block in the `google` stanza defines the authentication schemes within a Cromwell deployment:
@@ -29,12 +28,6 @@ google {
     {
       name = "application-default"
       scheme = "application_default"
-    },
-    {
-      name = "user-via-refresh"
-      scheme = "refresh_token"
-      client-id = "secret_id"
-      client-secret = "secret_secret"
     },
     {
       name = "service-account"
@@ -91,12 +84,6 @@ Most importantly, the value of the `client_email` field should go into the `serv
 `private_key` portion needs to be pulled into its own file (e.g. `my-key.pem`).  The `\n`s in the string need to be converted to newline characters.
 
 While technically not part of Service Account authentication mode, one can also override the default service account that the compute VM is started with via the configuration option `JES.config.genomics.compute-service-account` or through the workflow options parameter `google_compute_service_account`.  The service account you provide must have been granted Service Account Actor role to Cromwell's primary service account. As this only affects Google Pipelines API and not GCS, it's important that this service account, and the service account specified in `JES.config.genomics.auth` can both read/write the location specified by `JES.config.root`
-
-**Refresh Token**
-
-A **refresh_token** field must be specified in the [Workflow Options](../wf_options/Google.md) when submitting the job.  Omitting this field will cause the workflow to fail.
-
-The refresh token is passed to Google along with the `client-id` and `client-secret` pair specified in the corresponding entry in `auths`.
 
 **User Service Account**
 
@@ -240,35 +227,6 @@ On the Google Pipelines backend the GCS (Google Cloud Storage) filesystem is use
 On the Local, SGE, and associated backends any GCS URI will be downloaded locally.  For the Google backend the `jes_gcs_root` [Workflow Option](../wf_options/Google) will take
 precedence over the `root` specified at `backend.providers.JES.config.root` in the configuration file. Google Cloud Storage URIs are the only acceptable values for `File` inputs for
 workflows using the Google backend.
-
-**Retry with More Memory**
-
-With `memory-retry` you can specify an array of strings which when encountered in the `stderr` file by Cromwell, allows the task to be retried with more memory.
-The optional `multiplier` config specifies the factor by which the memory should be multiplied while retrying. This multiplier should be greater than 1.0. 
-If the value is not mentioned in config, it will default to 2.0. The retry will be counted against the `maxRetries` count mentioned in the `runtimeAtrributes` in the task. 
-For example,
-```hocon
-backend.providers.Papiv2.config {
-  memory-retry {
-    error-keys = ["OutOfMemoryError", "Killed"]
-    multiplier = 1.1
-  }
-}
-```  
-this tells Cromwell to retry the task with 1.1x memory when it sees either `OutOfMemoryError` or `Killed` in the `stderr` file. If the task has 
-runtime attributes as below 
-```hocon
-runtimeAtrributes {
-  memory: "1 GB"
-  continueOnReturnCode: true
-  maxRetries: 1
-}
-``` 
-the task will be retried at max 1 more time, and this time with "1.1 GB" memory. Please note that Pipelines API will adjust the memory value based on their
-standards for memory for a VM. So it's possible that even though the request says 1.1 GB memory, it actually allocated a bit more memory to the VM.
-
-Two environment variables called `${MEM_UNIT}` and `${MEM_SIZE}` are also available inside the command block of a task,
-making it easy to retrieve the new value of memory on the machine.
 
 **Pipeline timeout**
 
@@ -525,9 +483,11 @@ before eventually giving up and running the job. This behavior may be corrected 
 ### Reference Disk Support
 
 Cromwell 55 and later support mounting reference disks from prebuilt GCP disk images as an alternative to localizing large
-input reference files on PAPI v2. Within the `config` stanza of a PAPI v2 backend the `reference-disk-localization-manifest-files`
-key specifies an array of manifest JSONs in GCS:  
+input reference files on PAPI v2. Please note the configuration of reference disk manifests has changed starting with
+Cromwell 57 and now uses the format documented below. 
 
+Within the `config` stanza of a PAPI v2 backend the `reference-disk-localization-manifests`
+key specifies an array of reference disk manifests:  
 
 ```hocon
 backend {
@@ -538,29 +498,25 @@ backend {
       actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
       config {
         ...
-        reference-disk-localization-manifest-files = ["gs://path/to/a/reference/disk/manifest.json"]
+        reference-disk-localization-manifests = [
+          {
+            "imageIdentifier" : "projects/broad-dsde-cromwell-dev/global/images/broad-references-disk-image",
+            "diskSizeGb" : 500,
+            "files" : [ {
+              "path" : "gcp-public-data--broad-references/Homo_sapiens_assembly19_1000genomes_decoy/Homo_sapiens_assembly19_1000genomes_decoy.fasta.nhr",
+              "crc32c" : 407769621
+            }, {
+              "path" : "gcp-public-data--broad-references/Homo_sapiens_assembly19_1000genomes_decoy/Homo_sapiens_assembly19_1000genomes_decoy.fasta.sa",
+              "crc32c" : 1902048083
+            },
+            ...
+          },
+          ...
+        ]
         ...
       }
     }
   }
-}
-```
-
-Reference manifest JSONs have a format like:
-
-```json
-{
-  "imageIdentifier" : "projects/my_project/global/images/my-references-disk-image",
-  "diskSizeGb" : 30,
-  "files" : [ {
-    "path" : "my-references/enormous_reference.bam",
-    "crc32c" : 407769621
-  }, {
-    "path" : "my-references/enormous_reference.bam.bai",
-    "crc32c" : 1902048083
-  },
-...
-  ]
 }
 ```
 
@@ -581,9 +537,13 @@ reference image without the leading `gs://`, Cromwell would
 arrange for a reference disk based on this image to be mounted and for the call's input to refer to the 
 copy of the file on the reference disk, bypassing localization of the input.     
 
-The Cromwell git repository includes a Java-based tool to facilitate the creation of manifest files called
+The Cromwell git repository includes a Java-based tool to facilitate the creation of manifests called
 [CromwellRefdiskManifestCreatorApp](https://github.com/broadinstitute/cromwell/tree/develop/CromwellRefdiskManifestCreator).
 Please see the help command of that tool for more details.
+
+Alternatively for public data stored under `gs://gcp-public-data--broad-references` there exists a shell script to
+extract reference data to a new disk and then convert that disk to a public image. For more information see
+[create_images.sh](https://github.com/broadinstitute/cromwell/tree/develop/scripts/reference_disks/create_images.sh).
 
 ### Docker Image Cache Support
 

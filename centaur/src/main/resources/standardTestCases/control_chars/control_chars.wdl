@@ -2,7 +2,7 @@ version 1.0
 
 task control {
   command {
-    echo "“Control characters should work with Carbonited metadata” — Cromwell"
+    echo "“Control characters should work with metadata” — Cromwell"
   }
   output {
     String salutation = read_string(stdout())

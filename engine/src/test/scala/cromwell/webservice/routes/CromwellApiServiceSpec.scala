@@ -1,5 +1,7 @@
 package cromwell.webservice.routes
 
+import java.time.OffsetDateTime
+
 import akka.actor.{Actor, ActorLogging, ActorSystem, Props}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.ContentTypes._
@@ -17,7 +19,7 @@ import cromwell.engine.workflow.workflowstore.WorkflowStoreEngineActor.{Workflow
 import cromwell.engine.workflow.workflowstore.WorkflowStoreSubmitActor.{WorkflowSubmittedToStore, WorkflowsBatchSubmittedToStore}
 import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{GetCurrentStatus, StatusCheckResponse, SubsystemStatus}
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
-import cromwell.services.metadata.MetadataArchiveStatus.Unarchived
+import cromwell.services.metadata.MetadataArchiveStatus._
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import cromwell.services.metadata.impl.builder.MetadataBuilderActor
@@ -525,8 +527,26 @@ object CromwellApiServiceSpec {
   val FailedWorkflowId = WorkflowId.fromString("df501790-cef5-4df7-9b48-8760533e3136")
   val SummarizedWorkflowId = WorkflowId.fromString("f0000000-0000-0000-0000-000000000000")
   val WorkflowIdExistingOnlyInSummaryTable = WorkflowId.fromString("f0000000-0000-0000-0000-000000000011")
-  val RecognizedWorkflowIds = Set(ExistingWorkflowId, AbortedWorkflowId, OnHoldWorkflowId, RunningWorkflowId, AbortingWorkflowId, SucceededWorkflowId, FailedWorkflowId, SummarizedWorkflowId)
-  val SummarizedWorkflowIds = Set(SummarizedWorkflowId, WorkflowIdExistingOnlyInSummaryTable)
+  val ArchivedWorkflowId = WorkflowId.fromString("c4c6339c-2145-47fb-acc5-b5cb8d2809f5")
+  val ArchivedAndDeletedWorkflowId = WorkflowId.fromString("abc1234d-2145-47fb-acc5-b5cb8d2809f5")
+  val SummarizedWorkflowIds = Set(
+    SummarizedWorkflowId,
+    WorkflowIdExistingOnlyInSummaryTable,
+    ArchivedWorkflowId,
+    ArchivedAndDeletedWorkflowId
+  )
+  val RecognizedWorkflowIds = Set(
+    ExistingWorkflowId,
+    AbortedWorkflowId,
+    OnHoldWorkflowId,
+    RunningWorkflowId,
+    AbortingWorkflowId,
+    SucceededWorkflowId,
+    FailedWorkflowId,
+    SummarizedWorkflowId,
+    ArchivedWorkflowId,
+    ArchivedAndDeletedWorkflowId
+  )
 
   class MockApiService()(implicit val system: ActorSystem) extends CromwellApiService {
     override def actorRefFactory = system
@@ -587,6 +607,12 @@ object CromwellApiServiceSpec {
       case ValidateWorkflowIdInMetadataSummaries(id) =>
         if (SummarizedWorkflowIds.contains(id)) sender ! MetadataService.RecognizedWorkflowId
         else sender ! MetadataService.UnrecognizedWorkflowId
+      case FetchWorkflowMetadataArchiveStatusAndEndTime(id) =>
+        id match {
+          case ArchivedAndDeletedWorkflowId => sender ! WorkflowMetadataArchivedStatusAndEndTime(ArchivedAndDeleted, Option(OffsetDateTime.now))
+          case ArchivedWorkflowId => sender ! WorkflowMetadataArchivedStatusAndEndTime(Archived, Option(OffsetDateTime.now))
+          case _ => sender ! WorkflowMetadataArchivedStatusAndEndTime(Unarchived, Option(OffsetDateTime.now))
+        }
       case GetCurrentStatus =>
         sender ! StatusCheckResponse(
           ok = true,
@@ -605,12 +631,12 @@ object CromwellApiServiceSpec {
         sender ! SuccessfulMetadataJsonResponse(request, MetadataBuilderActor.processStatusResponse(id, status))
       case request @ GetLabels(id) =>
         sender ! SuccessfulMetadataJsonResponse(request, MetadataBuilderActor.processLabelsResponse(id, Map("key1" -> "label1", "key2" -> "label2")))
-      case request @ WorkflowOutputs(id, _) =>
+      case request @ WorkflowOutputs(id) =>
         val event = Vector(MetadataEvent(MetadataKey(id, None, "outputs:test.hello.salutation"), MetadataValue("Hello foo!", MetadataString)))
         sender ! SuccessfulMetadataJsonResponse(request, MetadataBuilderActor.processOutputsResponse(id, event))
-      case request @ GetLogs(id, _) =>
+      case request @ GetLogs(id) =>
         sender ! SuccessfulMetadataJsonResponse(request, MetadataBuilderActor.workflowMetadataResponse(id, logsEvents(id), includeCallsIfEmpty = false, Map.empty))
-      case request @ GetMetadataAction(MetadataQuery(id, _, _, withKeys, withoutKeys, _), _, _) =>
+      case request @ GetMetadataAction(MetadataQuery(id, _, _, withKeys, withoutKeys, _), _) =>
         val withKeysList = withKeys.map(_.toList).getOrElse(List.empty)
         val withoutKeysList = withoutKeys.map(_.toList).getOrElse(List.empty)
         sender ! SuccessfulMetadataJsonResponse(request, responseMetadataValues(id, withKeysList, withoutKeysList))
@@ -665,7 +691,7 @@ object CromwellApiServiceSpec {
       case GetWorkflowStoreStats => sender ! Map(WorkflowRunning -> 5, WorkflowSubmitted -> 3, WorkflowAborting -> 2)
     }
   }
-  
+
   class MockWorkflowManagerActor extends Actor with ActorLogging {
     override def receive: Receive = {
       case WorkflowManagerActor.EngineStatsCommand =>

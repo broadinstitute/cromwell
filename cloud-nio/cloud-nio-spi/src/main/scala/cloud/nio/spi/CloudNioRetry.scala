@@ -28,7 +28,7 @@ class CloudNioRetry(config: Config) {
       case Failure(exception: Exception) if isFatal(exception) => throw exception
       case Failure(exception: Exception) if !isFatal(exception) =>
         val retriesLeft = if (isTransient(exception)) maxRetries else maxRetries map { _ - 1 }
-        if (retriesLeft.forall(_ > 0)) {
+        if (retriesLeft.forall(_ >= 0)) {
           Thread.sleep(delay)
           fromTry(f, retriesLeft, backoff.next)
         } else {

@@ -1,0 +1,241 @@
+{
+  "actualWorkflowLanguage": "WDL",
+  "actualWorkflowLanguageVersion": "1.0",
+  "calls": {
+    "wf_hello.goodbye": [
+      {
+        "attempt": 1,
+        "backend": "Papi",
+        "backendLogs": {
+          "log": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf_hello/9b3f9d6d-67a9-405f-a55c-70550af02127/call-goodbye/goodbye.log"
+        },
+        "callCaching": {
+          "allowResultReuse": true,
+          "effectiveCallCachingMode": "ReadAndWriteCache",
+          "hashes": {
+            "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+            "command template": "AC223CBDD5FCB85B9E1EEBA7B093BF9E",
+            "input": {
+              "String addressee": "2F904D52F600E616095A91048BB716A3"
+            },
+            "input count": "C4CA4238A0B923820DCC509A6F75849B",
+            "output count": "C4CA4238A0B923820DCC509A6F75849B",
+            "output expression": {
+              "String salutation": "0183144CF6617D5341681C6B2F756046"
+            },
+            "runtime attribute": {
+              "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+              "docker": "09F611634147800124391D34D57A3A9F",
+              "failOnStderr": "68934A3E9455FA72420237EB05902327"
+            }
+          },
+          "hit": true,
+          "result": "Cache Hit: fd07f36a-3b17-4ae1-bf50-801ba6b773bd:wf_hello.goodbye:0"
+        },
+        "callRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf_hello/9b3f9d6d-67a9-405f-a55c-70550af02127/call-goodbye",
+        "compressedDockerSize": 50310356,
+        "end": "2020-12-21T23:25:51.995Z",
+        "executionEvents": [
+          {
+            "description": "PreparingJob",
+            "endTime": "2020-12-21T23:25:46.436Z",
+            "startTime": "2020-12-21T23:25:46.355Z"
+          },
+          {
+            "description": "UpdatingCallCache",
+            "endTime": "2020-12-21T23:25:51.030Z",
+            "startTime": "2020-12-21T23:25:49.900Z"
+          },
+          {
+            "description": "Pending",
+            "endTime": "2020-12-21T23:25:45.716Z",
+            "startTime": "2020-12-21T23:25:45.716Z"
+          },
+          {
+            "description": "WaitingForValueStore",
+            "endTime": "2020-12-21T23:25:46.355Z",
+            "startTime": "2020-12-21T23:25:46.353Z"
+          },
+          {
+            "description": "UpdatingJobStore",
+            "endTime": "2020-12-21T23:25:51.995Z",
+            "startTime": "2020-12-21T23:25:51.030Z"
+          },
+          {
+            "description": "CallCacheReading",
+            "endTime": "2020-12-21T23:25:49.900Z",
+            "startTime": "2020-12-21T23:25:46.436Z"
+          },
+          {
+            "description": "RequestingExecutionToken",
+            "endTime": "2020-12-21T23:25:46.353Z",
+            "startTime": "2020-12-21T23:25:45.716Z"
+          }
+        ],
+        "executionStatus": "Done",
+        "inputs": {
+          "addressee": "there"
+        },
+        "outputs": {
+          "salutation": "Goodbye there."
+        },
+        "returnCode": 0,
+        "runtimeAttributes": {
+          "bootDiskSizeGb": "10",
+          "continueOnReturnCode": "0",
+          "cpu": "1",
+          "cpuMin": "1",
+          "disks": "local-disk 10 SSD",
+          "docker": "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950",
+          "failOnStderr": "false",
+          "maxRetries": "0",
+          "memory": "2 GB",
+          "memoryMin": "2 GB",
+          "noAddress": "false",
+          "preemptible": "0",
+          "zones": "us-central1-b"
+        },
+        "shardIndex": -1,
+        "start": "2020-12-21T23:25:45.716Z",
+        "stderr": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf_hello/9b3f9d6d-67a9-405f-a55c-70550af02127/call-goodbye/stderr",
+        "stdout": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf_hello/9b3f9d6d-67a9-405f-a55c-70550af02127/call-goodbye/stdout"
+      }
+    ],
+    "wf_hello.hello": [
+      {
+        "attempt": 1,
+        "backend": "Papi",
+        "backendLogs": {
+          "log": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf_hello/9b3f9d6d-67a9-405f-a55c-70550af02127/call-hello/hello.log"
+        },
+        "callCaching": {
+          "allowResultReuse": true,
+          "effectiveCallCachingMode": "ReadAndWriteCache",
+          "hashes": {
+            "backend name": "36EF4A8AB268D1A1C74D8108C93D48ED",
+            "command template": "4EAADE3CD5D558C5A6CFA4FD101A1486",
+            "input": {
+              "String addressee": "2F904D52F600E616095A91048BB716A3"
+            },
+            "input count": "C4CA4238A0B923820DCC509A6F75849B",
+            "output count": "C4CA4238A0B923820DCC509A6F75849B",
+            "output expression": {
+              "String salutation": "0183144CF6617D5341681C6B2F756046"
+            },
+            "runtime attribute": {
+              "continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA",
+              "docker": "09F611634147800124391D34D57A3A9F",
+              "failOnStderr": "68934A3E9455FA72420237EB05902327"
+            }
+          },
+          "hit": true,
+          "result": "Cache Hit: fd07f36a-3b17-4ae1-bf50-801ba6b773bd:wf_hello.hello:0"
+        },
+        "callRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf_hello/9b3f9d6d-67a9-405f-a55c-70550af02127/call-hello",
+        "compressedDockerSize": 50310356,
+        "end": "2020-12-21T23:25:51.995Z",
+        "executionEvents": [
+          {
+            "description": "Pending",
+            "endTime": "2020-12-21T23:25:45.716Z",
+            "startTime": "2020-12-21T23:25:45.716Z"
+          },
+          {
+            "description": "CallCacheReading",
+            "endTime": "2020-12-21T23:25:49.909Z",
+            "startTime": "2020-12-21T23:25:46.418Z"
+          },
+          {
+            "description": "UpdatingJobStore",
+            "endTime": "2020-12-21T23:25:51.995Z",
+            "startTime": "2020-12-21T23:25:51.030Z"
+          },
+          {
+            "description": "UpdatingCallCache",
+            "endTime": "2020-12-21T23:25:51.030Z",
+            "startTime": "2020-12-21T23:25:49.909Z"
+          },
+          {
+            "description": "RequestingExecutionToken",
+            "endTime": "2020-12-21T23:25:46.353Z",
+            "startTime": "2020-12-21T23:25:45.716Z"
+          },
+          {
+            "description": "PreparingJob",
+            "endTime": "2020-12-21T23:25:46.418Z",
+            "startTime": "2020-12-21T23:25:46.354Z"
+          },
+          {
+            "description": "WaitingForValueStore",
+            "endTime": "2020-12-21T23:25:46.354Z",
+            "startTime": "2020-12-21T23:25:46.353Z"
+          }
+        ],
+        "executionStatus": "Done",
+        "inputs": {
+          "addressee": "there"
+        },
+        "outputs": {
+          "salutation": "Hello there!"
+        },
+        "returnCode": 0,
+        "runtimeAttributes": {
+          "bootDiskSizeGb": "10",
+          "continueOnReturnCode": "0",
+          "cpu": "1",
+          "cpuMin": "1",
+          "disks": "local-disk 10 SSD",
+          "docker": "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950",
+          "failOnStderr": "false",
+          "maxRetries": "0",
+          "memory": "2 GB",
+          "memoryMin": "2 GB",
+          "noAddress": "false",
+          "preemptible": "0",
+          "zones": "us-central1-b"
+        },
+        "shardIndex": -1,
+        "start": "2020-12-21T23:25:45.716Z",
+        "stderr": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf_hello/9b3f9d6d-67a9-405f-a55c-70550af02127/call-hello/stderr",
+        "stdout": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf_hello/9b3f9d6d-67a9-405f-a55c-70550af02127/call-hello/stdout"
+      }
+    ]
+  },
+  "end": "2020-12-21T23:25:53.577Z",
+  "id": "9b3f9d6d-67a9-405f-a55c-70550af02127",
+  "inputs": {},
+  "labels": {
+    "cromwell-workflow-id": "cromwell-9b3f9d6d-67a9-405f-a55c-70550af02127"
+  },
+  "outputs": {
+    "wf_hello.goodbyes": "Goodbye there.",
+    "wf_hello.hellos": "Hello there!"
+  },
+  "start": "2020-12-21T23:25:43.044Z",
+  "status": "Succeeded",
+  "submission": "2020-12-21T23:25:42.461Z",
+  "submittedFiles": {
+    "inputs": "{}",
+    "labels": "{}",
+    "options": "{\n\n}",
+    "root": "",
+    "workflow": "version 1.0\n\ntask hello {\n    input {\n        String addressee\n    }\n    command {\n        echo \"Hello ~{addressee}!\"\n    }\n    output {\n        String salutation = read_string(stdout())\n    }\n    runtime {\n        docker: \"ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950\"\n    }\n}\n\ntask goodbye {\n    input {\n        String addressee\n    }\n    command {\n        echo \"Goodbye ~{addressee}.\"\n    }\n    output {\n        String salutation = read_string(stdout())\n    }\n    runtime {\n        docker: \"ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950\"\n    }\n}\n\n\nworkflow wf_hello {\n\n    call hello { input: addressee = \"there\" }\n    call goodbye { input: addressee = \"there\" }\n\n    output {\n        String hellos = hello.salutation\n        String goodbyes = goodbye.salutation\n    }\n}\n",
+    "workflowUrl": ""
+  },
+  "workflowName": "wf_hello",
+  "workflowProcessingEvents": [
+    {
+      "cromwellId": "cromid-5b21691",
+      "cromwellVersion": "55-8d04562-SNAP",
+      "description": "Finished",
+      "timestamp": "2020-12-21T23:25:53.577Z"
+    },
+    {
+      "cromwellId": "cromid-5b21691",
+      "cromwellVersion": "55-8d04562-SNAP",
+      "description": "PickedUp",
+      "timestamp": "2020-12-21T23:25:43.040Z"
+    }
+  ],
+  "workflowRoot": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/wf_hello/9b3f9d6d-67a9-405f-a55c-70550af02127/"
+}

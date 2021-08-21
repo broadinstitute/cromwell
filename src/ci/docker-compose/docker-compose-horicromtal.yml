@@ -5,8 +5,6 @@ services:
   # Runs the database initialization but is NOT a workflow-running backend.
   # Opts out of:
   # - Running the summarizer
-  # - Running the carboniter
-  # - Running the archived-metadata-deleter
   db-mstr:
     image: "broadinstitute/cromwell:${CROMWELL_BUILD_CENTAUR_MANAGED_TAG}"
     network_mode: ${CROMWELL_BUILD_HORICROMTAL_NETWORK}
@@ -23,28 +21,26 @@ services:
         -Dsystem.max-workflow-launch-count=0
         -Dsystem.new-workflow-poll-rate=999999
         -Dservices.MetadataService.config.metadata-summary-refresh-interval=Inf
-        -Dservices.MetadataService.config.carbonite-metadata-service.metadata-freezing.initial-interval=Inf
-        -Dservices.MetadataService.config.carbonite-metadata-service.metadata-deletion.interval=Inf
-      - CROMWELL_BUILD_RESOURCES_DIRECTORY
-      - CROMWELL_BUILD_CENTAUR_SLICK_PROFILE
+      - CROMWELL_BUILD_BCS_CLUSTER_ID
+      - CROMWELL_BUILD_CENTAUR_256_BITS_KEY
       - CROMWELL_BUILD_CENTAUR_JDBC_DRIVER
       - CROMWELL_BUILD_CENTAUR_JDBC_URL
       - CROMWELL_BUILD_CENTAUR_JDBC_METADATA_URL
       - CROMWELL_BUILD_CENTAUR_JDBC_NUM_THREADS
+      - CROMWELL_BUILD_CENTAUR_MAX_WORKFLOW_LENGTH
       - CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT
-      - CROMWELL_BUILD_CENTAUR_256_BITS_KEY
-      - CROMWELL_BUILD_BCS_CLUSTER_ID
-      - CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
+      - CROMWELL_BUILD_CENTAUR_SLICK_PROFILE
       - CROMWELL_BUILD_PAPI_AUTH_MODE
-      - CROMWELL_BUILD_PAPI_JSON_FILE
+      - CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
       - CROMWELL_BUILD_PAPI_ENDPOINT_URL
+      - CROMWELL_BUILD_RESOURCES_DIRECTORY
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080"]
       interval: 2s
       timeout: 120s
       retries: 60
   # Is a regular Cromwell workflow-running backend.
-  # Makes no changes to the config file we bring in, so always summarizes, and sometimes does carboniting and metadata
+  # Makes no changes to the config file we bring in, so always summarizes, and sometimes does metadata
   # deletion things, but only if the underlying config file says that we do.
   sum-back:
     image: "broadinstitute/cromwell:${CROMWELL_BUILD_CENTAUR_MANAGED_TAG}"
@@ -59,19 +55,19 @@ services:
         JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_CENTAUR_MANAGED_CONFIG}
         -Dwebservice.port=8000
         -Dsystem.cromwell_id=summarizer
-      - CROMWELL_BUILD_RESOURCES_DIRECTORY
-      - CROMWELL_BUILD_CENTAUR_SLICK_PROFILE
+      - CROMWELL_BUILD_BCS_CLUSTER_ID
+      - CROMWELL_BUILD_CENTAUR_256_BITS_KEY
       - CROMWELL_BUILD_CENTAUR_JDBC_DRIVER
       - CROMWELL_BUILD_CENTAUR_JDBC_URL
       - CROMWELL_BUILD_CENTAUR_JDBC_METADATA_URL
       - CROMWELL_BUILD_CENTAUR_JDBC_NUM_THREADS
+      - CROMWELL_BUILD_CENTAUR_MAX_WORKFLOW_LENGTH
       - CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT
-      - CROMWELL_BUILD_CENTAUR_256_BITS_KEY
-      - CROMWELL_BUILD_BCS_CLUSTER_ID
-      - CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
+      - CROMWELL_BUILD_CENTAUR_SLICK_PROFILE
       - CROMWELL_BUILD_PAPI_AUTH_MODE
-      - CROMWELL_BUILD_PAPI_JSON_FILE
+      - CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
       - CROMWELL_BUILD_PAPI_ENDPOINT_URL
+      - CROMWELL_BUILD_RESOURCES_DIRECTORY
     depends_on:
       db-mstr:
         condition: service_healthy
@@ -84,8 +80,6 @@ services:
   # Is also a regular Cromwell workflow-running "backend".
   # Opts out of:
   # - Running the summarizer
-  # - Running the carboniter
-  # - Running the archived-metadata-deleter
   front-back:
     image: "broadinstitute/cromwell:${CROMWELL_BUILD_CENTAUR_MANAGED_TAG}"
     container_name: ${CROMWELL_BUILD_HORICROMTAL_CONTAINER}
@@ -104,21 +98,19 @@ services:
         -Dwebservice.port=${CROMWELL_BUILD_HORICROMTAL_PORT}
         -Dsystem.cromwell_id=frontend
         -Dservices.MetadataService.config.metadata-summary-refresh-interval=Inf
-        -Dservices.MetadataService.config.carbonite-metadata-service.metadata-freezing.initial-interval=Inf
-        -Dservices.MetadataService.config.carbonite-metadata-service.metadata-deletion.interval=Inf
-      - CROMWELL_BUILD_RESOURCES_DIRECTORY
-      - CROMWELL_BUILD_CENTAUR_SLICK_PROFILE
+      - CROMWELL_BUILD_BCS_CLUSTER_ID
+      - CROMWELL_BUILD_CENTAUR_256_BITS_KEY
       - CROMWELL_BUILD_CENTAUR_JDBC_DRIVER
       - CROMWELL_BUILD_CENTAUR_JDBC_URL
       - CROMWELL_BUILD_CENTAUR_JDBC_METADATA_URL
       - CROMWELL_BUILD_CENTAUR_JDBC_NUM_THREADS
+      - CROMWELL_BUILD_CENTAUR_MAX_WORKFLOW_LENGTH
       - CROMWELL_BUILD_CENTAUR_READ_LINES_LIMIT
-      - CROMWELL_BUILD_CENTAUR_256_BITS_KEY
-      - CROMWELL_BUILD_BCS_CLUSTER_ID
-      - CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
+      - CROMWELL_BUILD_CENTAUR_SLICK_PROFILE
       - CROMWELL_BUILD_PAPI_AUTH_MODE
-      - CROMWELL_BUILD_PAPI_JSON_FILE
+      - CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
       - CROMWELL_BUILD_PAPI_ENDPOINT_URL
+      - CROMWELL_BUILD_RESOURCES_DIRECTORY
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:${CROMWELL_BUILD_HORICROMTAL_PORT}"]
       interval: 2s

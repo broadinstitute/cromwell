@@ -47,8 +47,14 @@ task doMajorRelease {
         echo 'Tag the release'
         git tag --message=~{releaseVersion} ~{releaseVersion}
 
+        # Use sbt.server.forcestart to workaround https://github.com/sbt/sbt/issues/6101
         echo 'Assemble jars for cromwell and womtool'
-        sbt -Dproject.version=~{releaseVersion} -Dproject.isSnapshot=false server/assembly womtool/assembly
+        sbt \
+        -Dsbt.server.forcestart=true \
+        -Dproject.version=~{releaseVersion} \
+        -Dproject.isSnapshot=false \
+        server/assembly \
+        womtool/assembly
 
         echo 'Smoke test Cromwell and Womtool artifacts'
         cat > hello.wdl <<FIN
@@ -141,8 +147,14 @@ task doMinorRelease {
         echo 'Tag the release'
         git tag --message=~{releaseVersion} ~{releaseVersion}
 
+        # Use sbt.server.forcestart to workaround https://github.com/sbt/sbt/issues/6101
         echo 'Assemble jars for cromwell and womtool'
-        sbt -Dproject.version=~{releaseVersion} -Dproject.isSnapshot=false server/assembly womtool/assembly
+        sbt \
+        -Dsbt.server.forcestart=true \
+        -Dproject.version=~{releaseVersion} \
+        -Dproject.isSnapshot=false \
+        server/assembly \
+        womtool/assembly
 
         echo 'Smoke test Cromwell and Womtool artifacts'
         cat > hello.wdl <<FIN
@@ -203,7 +215,7 @@ task prepGithub {
         set -euo pipefail
 
         curl \
-            --fail --silent \
+            --location --fail --silent --show-error \
             https://api.github.com/repos/~{organization}/cromwell/releases \
         > releases.json
 
@@ -221,16 +233,14 @@ task prepGithub {
         echo 'Verify that the token has the scopes that will be required later'
 
         curl \
-            --fail --silent \
+            --location --fail --silent --show-error \
             --header "Authorization: token $(cat ~{githubTokenFile})" \
             --head \
             https://api.github.com/rate_limit \
-        | grep -F 'X-OAuth-Scopes:' > scopesHeader.txt
+        | grep -i -F 'X-OAuth-Scopes:' > scopesHeader.txt || true
 
-        # All of these scopes are required
-        required_scopes=(repo)
-        # Plus one scopes of these are required
-        email_scopes=(user user:email)
+        # All of these scopes are required with an exact match
+        required_scopes=(read:org repo user:email workflow)
 
         echo 'Verify that all required scopes are present'
         correct_scopes=true
@@ -240,25 +250,15 @@ task prepGithub {
             fi
         done
 
-        if [[ "${correct_scopes}" == true ]]; then
-            # Verify that at least one of the email scopes is present
-            correct_scopes=false
-            for scope in "${email_scopes[@]}"; do
-                if grep -F " ${scope}" scopesHeader.txt; then
-                    correct_scopes=true
-                fi
-            done
-        fi
-
         if [[ "${correct_scopes}" != true ]]; then
-             echo "Token must have the scopes: (${required_scopes[*]}), plus one of (${email_scopes[*]})." >&2
+             echo "Token must have the exact scopes: (${required_scopes[*]})" >&2
              echo "Instead found $(cat scopesHeader.txt || echo "no scopes!")" >&2
              exit 1
         fi
 
         echo 'Get the GitHub user'
         curl \
-            --fail --silent \
+            --location --fail --silent --show-error \
             --header "Authorization: token $(cat ~{githubTokenFile})" \
             https://api.github.com/user \
         > githubUser.json
@@ -267,7 +267,7 @@ task prepGithub {
 
         echo 'Get the list of email addresses registered in GitHub'
         curl \
-            --fail --silent \
+            --location --fail --silent --show-error \
             --header "Authorization: token $(cat ~{githubTokenFile})" \
             https://api.github.com/user/emails \
         > githubEmails.json
@@ -279,7 +279,7 @@ task prepGithub {
         < githubEmails.json > githubEmail.txt
 
         echo "Get the user's name, that might be 'null'"
-        curl --fail --silent https://api.github.com/users/"$(cat githubUser.txt)" > githubUser.json
+        curl --location --fail --silent --show-error https://api.github.com/users/"$(cat githubUser.txt)" > githubUser.json
 
         jq --raw-output --exit-status .name < githubUser.json > githubName.txt \
         || echo "null" > githubName.txt
@@ -325,7 +325,7 @@ task draftGithubRelease {
 
         # download changelog from ~{changelogBranchName}
         curl \
-            --fail --silent \
+            --location --fail --silent --show-error \
             --output CHANGELOG.md \
             https://raw.githubusercontent.com/~{organization}/cromwell/~{changelogBranchName}/CHANGELOG.md
 
@@ -349,7 +349,7 @@ task draftGithubRelease {
 
         echo 'POST the release as a draft'
         curl \
-            --fail --silent \
+            --location --fail --silent --show-error \
             --header "Authorization: token $(cat ~{githubTokenFile})" \
             --request POST \
             --data @changelog.json \
@@ -390,7 +390,7 @@ task publishGithubRelease {
     String cromwellUploadUrl = "~{uploadUrl}?name=~{cromwellJarName}&label=~{cromwellJarName}"
     String womtoolUploadUrl = "~{uploadUrl}?name=~{womtoolJarName}&label=~{womtoolJarName}"
 
-    String releaseRoot = "https://github.com/~{organization}/cromwell/releases/download/~{releaseVersion}/"
+    String releaseRoot = "https://github.com/~{organization}/cromwell/releases/download/~{releaseVersion}"
 
     command <<<
         # Do not use `set -x` or it will print the GitHub token!
@@ -398,7 +398,7 @@ task publishGithubRelease {
 
         echo 'Upload the cromwell jar as an asset'
         curl \
-            --fail --silent \
+            --location --fail --silent --show-error \
             --header "Authorization: token $(cat ~{githubTokenFile})" \
             --header "Content-Type: application/octet-stream" \
             --data-binary @~{cromwellJar} \
@@ -406,7 +406,7 @@ task publishGithubRelease {
 
         echo 'Upload the womtool jar as an asset'
         curl \
-            --fail --silent \
+            --location --fail --silent --show-error \
             --header "Authorization: token $(cat ~{githubTokenFile})" \
             --header "Content-Type: application/octet-stream" \
             --data-binary @~{womtoolJar} \
@@ -414,7 +414,7 @@ task publishGithubRelease {
 
         echo 'Publish the draft'
         curl \
-            --fail --silent \
+            --location --fail --silent --show-error \
             --header "Authorization: token $(cat ~{githubTokenFile})" \
             --request PATCH \
             --data '{"draft": false, "tag": "~{releaseVersion}"}' \
@@ -540,7 +540,9 @@ task releaseHomebrew {
         echo '#####   Verify install works and create PR if so   #####'
         echo '########################################################'
 
+        # Temporarily capture-vs-exit on error, and temporarily debug bash statements
         set +e
+        set -x
         brew uninstall --force cromwell
         brew install --build-from-source Formula/cromwell.rb
         install_exit_status=$?
@@ -548,13 +550,17 @@ task releaseHomebrew {
         test_exit_status=$?
         brew audit --strict Formula/cromwell.rb
         audit_exit_status=$?
+        brew style Formula/cromwell.rb
+        style_exit_status=$?
+        set +x
         set -e
 
-        if [[ "${install_exit_status}" -eq 0 && "${test_exit_status}" -eq 0 && "${audit_exit_status}" -eq 0 ]]; then
+        if [[ "${install_exit_status}" -eq 0 && "${test_exit_status}" -eq 0 && \
+                "${audit_exit_status}" -eq 0 && "${style_exit_status}" -eq 0 ]]; then
             echo "Creating Homebrew PR"
             echo 'Download a template for the homebrew PR'
             curl \
-                --fail --silent \
+                --location --fail --silent --show-error \
                 --output template.md \
                 https://raw.githubusercontent.com/~{pullRepo}/homebrew-core/master/.github/PULL_REQUEST_TEMPLATE.md
 
@@ -571,7 +577,7 @@ task releaseHomebrew {
 
             jq \
                 --null-input --rawfile template template.md '{
-                    title: "Cromwell ~{releaseVersion}",
+                    title: "cromwell ~{releaseVersion}",
                     head: "~{headBranch}",
                     base: "~{baseBranch}",
                     body: $template
@@ -587,7 +593,7 @@ task releaseHomebrew {
 
             echo 'Create the pull request'
             curl \
-                --fail --silent \
+                --location --fail --silent --show-error \
                 --header "Content-Type: application/json" \
                 --header "Authorization: token $(cat ~{githubTokenFile})" \
                 --data @template.json \

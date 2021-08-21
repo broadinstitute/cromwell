@@ -1,5 +1,136 @@
 # Cromwell Change Log
 
+## 67 Release Notes
+
+### Configuration updates for improved scaling
+
+Some configuration changes were introduced in Cromwell 67 to support improved scaling. See Cromwell's `reference.conf` for details on new parameters.
+
+* I/O throttling moved from `io` to its own `io.throttle` stanza; config updates may be required if these values are currently being overridden in local deployments.
+
+* The default `system.job-rate-control` has been changed from 50 per second to 20 per 10 seconds.
+
+* New configuration parameters have been introduced for values which were previously hardcoded constants:
+  * `system.file-hash-batch-size`, value updated from `100` to `50`.
+  * `io.gcs.max-batch-size`, value stays the same at `100`.
+  * `io.gcs.max-batch-duration`, value stays the same at `5 seconds`.
+
+* New configuration parameters which should not require updating:
+  * `io.command-backpressure-staleness`
+  * `io.backpressure-extension-log-threshold`
+  * `load-control.io-normal-window-minimum`
+  * `load-control.io-normal-window-maximum`
+
+* `io.nio.parallelism` was previously misspelled in `reference.conf` but not in Cromwell's configuration reading code. Only correct spellings of this configuration key had or will have effect.
+
+## 66 Release Notes
+
+### Google Artifact Registry Support
+Cromwell now supports call caching when using Docker images hosted on
+[Google Artifact Registry](https://cloud.google.com/artifact-registry).
+
+### Google Image Repository Hashing Updates
+The previously documented `docker.hash-lookup.gcr` configuration has been renamed to `docker.hash-lookup.google` and
+now applies to both Google Container Registry (GCR) and Google Artifact Registry (GAR) repositories.
+Support for the `docker.hash-lookup.gcr-api-queries-per-100-seconds` configuration key has been formally discontinued
+and a bug preventing correct handling of `docker.hash-lookup...throttle` configuration has been fixed.
+Please see Cromwell's bundled
+[`reference.conf`](https://github.com/broadinstitute/cromwell/blob/develop/core/src/main/resources/reference.conf)
+for more details.
+
+## 65 Release Notes
+
+* An additional set of metrics relating to metadata age were added.
+
+### AMD Rome support on PAPI v2
+On the PAPI v2 backends "AMD Rome" is now supported as a CPU platform. More details can be found
+[here](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#cpuplatform).
+
+## 64 Release Notes
+
+### Intel Cascade Lake support on PAPI v2
+
+On the PAPI v2 backends "Intel Cascade Lake" is now supported as a CPU platform. More details can be found
+[here](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#cpuplatform).
+
+## 63 Release Notes
+
+### Removed refresh token authentication mode
+
+Google Pipelines API v1 supported authentication with refresh tokens, while v2 of the API does not.
+
+Now that v1 has been discontinued and shut down, this version of Cromwell removes support for refresh tokens.
+
+## 62 Release Notes
+
+### Downloading Access URLs
+
+Added experimental support to download data during Google [Cloud Life Sciences](https://cloud.google.com/life-sciences)
+jobs using [DRS
+AccessURLs](https://ga4gh.github.io/data-repository-service-schemas/preview/release/drs-1.1.0/docs/#_accessurl).
+
+## 61 Release Notes
+
+### No labels update for Archived workflows
+
+If **- and ONLY if -** you have metadata archiving turned on, then for a workflow whose metadata has been archived by Cromwell 
+according to the lifecycle policy, Cromwell will no longer add new labels or update existing labels for this workflow 
+coming through PATCH `/labels` endpoint.
+
+## 60 Release Notes
+
+### Java 11
+
+As of this version, a distribution of Java 11 is required to run Cromwell. Cromwell is developed, tested, and
+containerized using [AdoptOpenJDK 11 HotSpot](https://adoptopenjdk.net/).
+
+### Hybrid metadata storage ("carboniting") removed
+
+Carboniting functionality has been removed from Cromwell. 
+There will be no effect for customers who store metadata permanently in the relational database (most common),
+and there will also be no effect for customers who use the in-memory database.
+
+Breaking change only for customers who explicitly enabled `carbonite-metadata-service` in their configuration to split
+metadata storage between a relational database and Google Cloud Storage. If you had previously enabled carboniting and 
+deletion, any workflows marked as `ArchivedAndPurged` in your database will no longer be accessible via the Cromwell metadata API.
+
+## 59 Release Notes
+
+### Bug Fixes
+
+* Fixed a pair of bugs that could cause workflows to fail unexpectedly with the errors "413 Request Entity Too Large"
+  and "java.net.SocketTimeoutException: Read timed out" when accessing Google Cloud Storage.
+
+## 58 Release Notes
+
+Internal CI-related changes only.
+
+## 57 Release Notes
+
+### Breaking configuration change to reference disk support on PAPI v2
+
+Beginning with Cromwell 57, reference disk manifests are now specified completely within Cromwell configuration
+rather than through a level of indirection to a manifest file stored in GCS. More details can be found
+[here](https://cromwell.readthedocs.io/en/develop/backends/Google#reference-disk-support).
+
+## 56 Release Notes
+
+### Retry with More Memory as workflow option
+
+The experimental memory retry feature gains per-workflow customization and includes breaking changes:
+* The per-backend configuration key `<backend>.config.memory-retry.error-keys` has been removed and replaced 
+with global key `system.memory-retry-error-keys`
+* The per-backend configuration key `<backend>.config.memory-retry.multiplier` has been replaced with **workflow option** 
+`memory_retry_multiplier`
+
+More details can be found [here](https://cromwell.readthedocs.io/en/develop/wf_options/Overview.md#retry-with-more-memory-multiplier).
+
+### Bug Fixes
+
+* Fixed a bug that caused Cromwell to mark workflows as failed after a single `500`, `503`, or `504` error from Google Cloud Storage.
+  * Cromwell will now retry these errors as designed.
+  * The default retry count is `5` and may be customized with `system.io.number-of-attempts`. 
+
 ## 55 Release Notes
 
 ### Apple Silicon support statement
@@ -19,14 +150,23 @@ More information on JSON Type to WDL Type conversion can be found [here](https:/
 
 * Now retries HTTP 408 responses as well as HTTP 429 responses during DOS/DRS resolution requests.
 
-### Reference disk support on PAPI v2
+* Fixed a bug that prevented the call caching diff endpoint from working with scatters in workflows with archived metadata.
+
+### New Features
+
+#### Reference disk support on PAPI v2
 
 Cromwell now offers support for the use of reference disks on the PAPI v2 backend as an alternative to localizing
 reference inputs. More details [here](https://cromwell.readthedocs.io/en/develop/backends/Google#reference-disk-support).
 
-### Docker image cache support on PAPI v2 lifesciences beta
+#### Docker image cache support on PAPI v2 lifesciences beta
 
 Cromwell now offers support for the use of Docker image caches on the PAPI v2 lifesciences beta backend. More details [here](https://cromwell.readthedocs.io/en/develop/backends/Google#docker-image-cache-support).
+
+#### Preemptible Recovery via Checkpointing
+
+* Cromwell can now help tasks recover from preemption by allowing them to specify a 'checkpoint' file which will be restored
+to the worker VM on the next attempt if the task is interrupted. More details [here](https://cromwell.readthedocs.io/en/develop/optimizations/CheckpointFiles)
 
 ## 54 Release Notes
 
@@ -1092,7 +1232,7 @@ data. When switching connection information for an existing database containing 
 should be manually replicated from one database instance to another using the tools appropriate for your specific
 database types. Cromwell will not move any existing data automatically. This feature should be considered experimental
 and likely to change in the future. See the [Database Documentation](https://cromwell.readthedocs.io/en/develop/Configuring/#database) or the `database` section in
-[cromwell.examples.conf](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.examples.conf) for more
+[cromwell.examples.conf](https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends/cromwell.examples.conf) for more
 information.
 
 * **StatsD**  

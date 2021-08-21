@@ -30,6 +30,7 @@ import scala.collection.JavaConverters._
 case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, endpointUrl: URL)(implicit gcsTransferConfiguration: GcsTransferConfiguration) extends PipelinesApiFactoryInterface
   with ContainerSetup
   with MonitoringAction
+  with CheckpointingAction
   with Localization
   with UserAction
   with Delocalization
@@ -58,7 +59,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
     override def runRequest(createPipelineParameters: CreatePipelineParameters, jobLogger: JobLogger): HttpRequest = {
       def createNetworkWithVPC(vpcAndSubnetworkProjectLabelValues: VpcAndSubnetworkProjectLabelValues): Network = {
         val network = new Network()
-          .setUsePrivateAddress(createPipelineParameters.effectiveNoAddressValue)
+          .setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)
           .setName(VirtualPrivateCloudNetworkPath.format(createPipelineParameters.projectId, vpcAndSubnetworkProjectLabelValues.vpcName))
 
         vpcAndSubnetworkProjectLabelValues.subnetNameOpt.foreach(subnet => network.setSubnetwork(subnet))
@@ -68,7 +69,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       def createNetwork(): Network = {
         createPipelineParameters.vpcNetworkAndSubnetworkProjectLabels match {
           case Some(vpcAndSubnetworkProjectLabelValues) => createNetworkWithVPC(vpcAndSubnetworkProjectLabelValues)
-          case _ => new Network().setUsePrivateAddress(createPipelineParameters.effectiveNoAddressValue)
+          case _ => new Network().setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)
         }
       }
 
@@ -87,6 +88,8 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       val deLocalization: List[Action] = deLocalizeActions(createPipelineParameters, mounts)
       val monitoringSetup: List[Action] = monitoringSetupActions(createPipelineParameters, mounts)
       val monitoringShutdown: List[Action] = monitoringShutdownActions(createPipelineParameters)
+      val checkpointingStart: List[Action] = checkpointingSetupActions(createPipelineParameters, mounts)
+      val checkpointingShutdown: List[Action] = checkpointingShutdownActions(createPipelineParameters)
       val sshAccess: List[Action] = sshAccessActions(createPipelineParameters, mounts)
 
       // adding memory as environment variables makes it easy for a user to retrieve the new value of memory
@@ -103,6 +106,8 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
           deLocalization = deLocalization,
           monitoringSetup = monitoringSetup,
           monitoringShutdown = monitoringShutdown,
+          checkpointingStart = checkpointingStart,
+          checkpointingShutdown = checkpointingShutdown,
           sshAccess = sshAccess,
           isBackground =
             action =>
@@ -160,6 +165,12 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         .setLabels(createPipelineParameters.googleLabels.map(label => label.key -> label.value).toMap.asJava)
         .setNetwork(network)
         .setAccelerators(accelerators)
+
+      if(createPipelineParameters.dockerImageCacheDiskOpt.isDefined) {
+        jobLogger.info("Docker image cache requested for the job, but the job is being executed by Google " +
+          "Genomics API v2alpha1, while the feature is only supported by from Google Life Scielnces API starting from" +
+          "the version v2beta")
+      }
 
       createPipelineParameters.runtimeAttributes.gpuResource foreach { resource =>
         virtualMachine.setNvidiaDriverVersion(resource.nvidiaDriverVersion)

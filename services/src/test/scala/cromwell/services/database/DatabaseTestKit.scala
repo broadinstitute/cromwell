@@ -12,6 +12,7 @@ import cromwell.services.ServicesStore.EnhancedSqlDatabase
 import cromwell.services.{EngineServicesStore, MetadataServicesStore}
 import liquibase.snapshot.DatabaseSnapshot
 import liquibase.structure.core.Index
+import org.testcontainers.utility.DockerImageName
 import slick.jdbc.JdbcProfile
 import slick.jdbc.meta.{MIndexInfo, MPrimaryKey}
 
@@ -136,20 +137,20 @@ object DatabaseTestKit extends StrictLogging {
         networkDbSystem.platform match {
           case MariadbDatabasePlatform =>
             Option(MariaDBContainer(
-              dockerImageName = s"mariadb:${networkDbSystem.dockerImageVersion}",
+              dockerImageName = DockerImageName.parse(s"mariadb:${networkDbSystem.dockerImageVersion}"),
               dbName = "cromwell_test",
               dbUsername = "cromwell",
               dbPassword = "test"
             ))
           case MysqlDatabasePlatform =>
             Option(MySQLContainer(
-              mysqlImageVersion = s"mysql:${networkDbSystem.dockerImageVersion}",
+              mysqlImageVersion = DockerImageName.parse(s"mysql:${networkDbSystem.dockerImageVersion}"),
               databaseName = "cromwell_test",
               username = "cromwell",
               password = "test"))
           case PostgresqlDatabasePlatform =>
             Option(PostgreSQLContainer(
-              dockerImageNameOverride =  s"postgres:${networkDbSystem.dockerImageVersion}",
+              dockerImageNameOverride = DockerImageName.parse(s"postgres:${networkDbSystem.dockerImageVersion}"),
               databaseName = "cromwell_test",
               username = "cromwell",
               password = "test"))

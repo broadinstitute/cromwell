@@ -6,7 +6,7 @@ The following is the toolchain used for development of womtool.  Other versions 
 
 * [Scala 2.12](http://www.scala-lang.org/)
 * [SBT 1.x](https://www.scala-sbt.org/)
-* [Java 8](http://www.oracle.com/technetwork/java/javase/overview/java8-2100321.html)
+* [AdoptOpenJDK 11 HotSpot](https://adoptopenjdk.net/)
 * [Git](https://git-scm.com/)
 
 ## Building

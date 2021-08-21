@@ -30,7 +30,7 @@
  */
 package cromwell.cloudsupport.aws.auth
 
-import com.google.api.client.json.jackson2.JacksonFactory
+import com.google.api.client.json.gson.GsonFactory
 import cromwell.cloudsupport.aws.auth.AwsAuthMode.OptionLookup
 import org.slf4j.LoggerFactory
 import software.amazon.awssdk.auth.credentials._
@@ -43,7 +43,7 @@ import scala.util.{Failure, Success, Try}
 
 object AwsAuthMode {
   type OptionLookup = String => String
-  lazy val jsonFactory = JacksonFactory.getDefaultInstance
+  lazy val jsonFactory = GsonFactory.getDefaultInstance
 }
 
 sealed trait AwsAuthMode {

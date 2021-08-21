@@ -34,12 +34,6 @@ class GoogleConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
         |      scheme = "application_default"
         |    },
         |    {
-        |      name = "name-refresh"
-        |      scheme = "refresh_token"
-        |      client-id = "secret_id"
-        |      client-secret = "secret_secret"
-        |    },
-        |    {
         |      name = "name-user"
         |      scheme = "user_account"
         |      user = "me"
@@ -69,17 +63,12 @@ class GoogleConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
     val gconf = GoogleConfiguration(ConfigFactory.parseString(righteousGoogleConfig))
 
     gconf.applicationName shouldBe "cromwell"
-    gconf.authsByName should have size 6
+    gconf.authsByName should have size 5
 
     val auths = gconf.authsByName.values
 
     val appDefault = (auths collectFirst { case a: ApplicationDefaultMode => a }).get
     appDefault.name shouldBe "name-default"
-
-    val refreshToken = (auths collectFirst { case a: RefreshTokenMode => a }).get
-    refreshToken.name shouldBe "name-refresh"
-    refreshToken.clientSecret shouldBe "secret_secret"
-    refreshToken.clientId shouldBe "secret_id"
 
     val userServiceAccount = (auths collectFirst { case a: UserServiceAccountMode => a }).get
     userServiceAccount.name shouldBe "name-user-service-account"
@@ -275,31 +264,6 @@ class GoogleConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
     the[ConfigException.Missing] thrownBy {
       GoogleConfiguration(ConfigFactory.parseString(nameless))
     } should have message "String: 6: No configuration setting found for key 'name'"
-  }
-
-  it should "not parse a configuration stanza with a bad client-id in refresh token mode" in {
-    // The various GoogleAuthModes actually don't complain about spurious keys in their
-    // configurations as long as all the keys they do care about are present.  That's not
-    // necessarily ideal behavior.
-    val badKeyInRefreshTokenMode =
-      """
-        |google {
-        |  application-name = "cromwell"
-        |
-        |  auths = [
-        |    {
-        |      name = "name-refresh"
-        |      scheme = "refresh_token"
-        |      client-id-botched-key = "secret_id"
-        |      client-secret = "secret_secret"
-        |    }
-        |  ]
-        |}
-      """.stripMargin
-
-    the[GoogleConfigurationException] thrownBy {
-      GoogleConfiguration(ConfigFactory.parseString(badKeyInRefreshTokenMode))
-    } should have message "Google configuration:\nString: 6: No configuration setting found for key 'client-id'"
   }
 
   it should "parse a configuration stanza without a user in user mode" in {

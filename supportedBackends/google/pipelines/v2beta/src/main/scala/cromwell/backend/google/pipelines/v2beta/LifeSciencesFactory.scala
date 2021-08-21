@@ -30,6 +30,7 @@ import scala.collection.JavaConverters._
 case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode, endpointUrl: URL, location: String)(implicit gcsTransferConfiguration: GcsTransferConfiguration) extends PipelinesApiFactoryInterface
   with ContainerSetup
   with MonitoringAction
+  with CheckpointingAction
   with Localization
   with UserAction
   with Delocalization
@@ -58,7 +59,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
     override def runRequest(createPipelineParameters: CreatePipelineParameters, jobLogger: JobLogger): HttpRequest = {
       def createNetworkWithVPC(vpcAndSubnetworkProjectLabelValues: VpcAndSubnetworkProjectLabelValues): Network = {
         val network = new Network()
-          .setUsePrivateAddress(createPipelineParameters.effectiveNoAddressValue)
+          .setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)
           .setNetwork(VirtualPrivateCloudNetworkPath.format(createPipelineParameters.projectId, vpcAndSubnetworkProjectLabelValues.vpcName))
 
         vpcAndSubnetworkProjectLabelValues.subnetNameOpt.foreach(subnet => network.setSubnetwork(subnet))
@@ -68,7 +69,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
       def createNetwork(): Network = {
         createPipelineParameters.vpcNetworkAndSubnetworkProjectLabels match {
           case Some(vpcAndSubnetworkProjectLabelValues) => createNetworkWithVPC(vpcAndSubnetworkProjectLabelValues)
-          case _ => new Network().setUsePrivateAddress(createPipelineParameters.effectiveNoAddressValue)
+          case _ => new Network().setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)
         }
       }
 
@@ -87,6 +88,8 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
       val deLocalization: List[Action] = deLocalizeActions(createPipelineParameters, mounts)
       val monitoringSetup: List[Action] = monitoringSetupActions(createPipelineParameters, mounts)
       val monitoringShutdown: List[Action] = monitoringShutdownActions(createPipelineParameters)
+      val checkpointingStart: List[Action] = checkpointingSetupActions(createPipelineParameters, mounts)
+      val checkpointingShutdown: List[Action] = checkpointingShutdownActions(createPipelineParameters)
       val sshAccess: List[Action] = sshAccessActions(createPipelineParameters, mounts)
 
       // adding memory as environment variables makes it easy for a user to retrieve the new value of memory
@@ -103,6 +106,8 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
           deLocalization = deLocalization,
           monitoringSetup = monitoringSetup,
           monitoringShutdown = monitoringShutdown,
+          checkpointingStart = checkpointingStart,
+          checkpointingShutdown = checkpointingShutdown,
           sshAccess = sshAccess,
           isBackground = _.getRunInBackground,
         )
@@ -138,14 +143,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
         .setNetwork(network)
         .setAccelerators(accelerators)
 
-
-      val dockerImageCacheDiskOpt = createPipelineParameters.useDockerImageCache.option {
-        createPipelineParameters
-          .dockerImageToCacheDiskImageMappingOpt
-          .flatMap(_.get(createPipelineParameters.runtimeAttributes.dockerImage))
-      }.flatten
-
-      dockerImageCacheDiskOpt foreach { dockerImageCacheDisk =>
+      createPipelineParameters.dockerImageCacheDiskOpt foreach { dockerImageCacheDisk =>
         virtualMachine.setDockerCacheImages(List(dockerImageCacheDisk).asJava)
       }
 
@@ -160,7 +158,8 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
         val userCommandImageSizeRoundedUpInGB = userCommandImageSizeInGB.ceil.toInt
 
         val totalSize = fromRuntimeAttributes +
-          dockerImageCacheDiskOpt
+          createPipelineParameters
+            .dockerImageCacheDiskOpt
             .map(_ => 0) // if we are using docker image cache then we don't need this additional volume for the boot disk
             .getOrElse(userCommandImageSizeRoundedUpInGB + ActionUtils.cromwellImagesSizeRoundedUpInGB)
 

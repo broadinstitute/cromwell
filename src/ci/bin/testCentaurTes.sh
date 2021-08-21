@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 set -o errexit -o nounset -o pipefail
-export CROMWELL_BUILD_OPTIONAL_SECURE=true
 # import in shellcheck / CI / IntelliJ compatible ways
 # shellcheck source=/dev/null
 source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
@@ -57,10 +56,12 @@ startup_funnel
 # non_root_specified_user:   TES doesn't support switching users in the image
 # write_lines_files:         all inputs are read-only in TES
 # read_file_limits:          Fail only in Travis for unknown reason (Note that the draft 3 version does not fail)
+# docker_hash_dockerhub:     Prone to request rate limiting by Dockerhub
 
 # Limiting Centaur to 4 threads here in order to try to prevent exceeding the OS's max open files limit: BA-6153
 cromwell::build::run_centaur \
-    -p 4 \
+    -p 2 \
+    -e docker_hash_dockerhub \
     -e call_cache_capoeira_local \
     -e draft3_call_cache_capoeira_local \
     -e read_file_limits \

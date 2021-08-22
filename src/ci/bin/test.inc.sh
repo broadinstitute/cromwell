@@ -1056,6 +1056,28 @@ cromwell::private::delete_sbt_boot() {
     rm -rf ~/.sbt/boot/
 }
 
+cromwell::private::update_apt_get() {
+    sudo apt-get update
+}
+
+cromwell::private::install_unzip() {
+    sudo apt-get install -y unzip
+}
+
+cromwell::private::install_python3() {
+    sudo apt-get install -y python3-dev
+
+    # set python as python3
+    # https://manpages.ubuntu.com/manpages/focal/en/man1/update-alternatives.1.html#commands
+    update-alternatives --install /usr/bin/python python /usr/bin/python3 1
+
+    # upgrade python dependencies
+    # https://pip.pypa.io/en/stable/installing/#installing-with-get-pip-py
+    curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+    python3 get-pip.py
+    pip3 install --upgrade --force-reinstall pyopenssl
+}
+
 cromwell::private::install_adoptopenjdk() {
     # https://adoptopenjdk.net/installation.html#linux-pkg-deb
     sudo apt-get install -y wget apt-transport-https gnupg
@@ -1066,6 +1088,7 @@ cromwell::private::install_adoptopenjdk() {
         ) main" |
         sudo tee /etc/apt/sources.list.d/adoptopenjdk.list
     sudo apt-get update
+    sudo mkdir -p /usr/share/man/man1
     sudo apt-get install -y adoptopenjdk-11-hotspot
     sudo update-java-alternatives --set adoptopenjdk-11-hotspot-amd64
 }
@@ -1678,7 +1701,20 @@ cromwell::build::setup_common_environment() {
             cromwell::private::upgrade_pip
             cromwell::private::start_docker_databases
             ;;
-        "${CROMWELL_BUILD_PROVIDER_GITHUB}"|\
+        "${CROMWELL_BUILD_PROVIDER_GITHUB}")
+            cromwell::private::update_apt_get
+            cromwell::private::install_unzip
+            # Try to login to vault, and if successful then use vault creds to login to docker.
+            # For those committers with vault access this avoids pull rate limits reported in BT-143.
+            cromwell::private::install_vault
+            cromwell::private::login_vault
+            cromwell::private::login_docker
+            cromwell::private::install_adoptopenjdk
+            cromwell::private::install_sbt_launcher
+            cromwell::private::install_docker_compose
+            cromwell::private::install_python3
+            cromwell::private::start_docker_databases
+            ;;
         "${CROMWELL_BUILD_PROVIDER_GOOGLE}"|\
         "${CROMWELL_BUILD_PROVIDER_CIRCLE}")
             # Try to login to vault, and if successful then use vault creds to login to docker.

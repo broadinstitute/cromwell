@@ -20,12 +20,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   centaurBcs:
     env:
@@ -36,12 +30,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   centaurDummy:
     env:
@@ -52,12 +40,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   centaurEngineUpgradeLocal:
     env:
@@ -68,12 +50,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   centaurEngineUpgradePapiV2alpha1:
     env:
@@ -84,12 +60,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   centaurHoricromtalPapiV2alpha1:
     env:
@@ -100,12 +70,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   centaurHoricromtalPapiV2beta:
     env:
@@ -116,12 +80,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   centaurHoricromtalEngineUpgradePapiV2alpha1:
     env:
@@ -132,12 +90,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   centaurPapiUpgradePapiV1:
     env:
@@ -148,12 +100,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   centaurPapiUpgradeNewWorkflowsPapiV1:
     env:
@@ -164,12 +110,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   centaurPapiUpgradePapiV2alpha1:
     env:
@@ -180,12 +120,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   centaurPapiUpgradeNewWorkflowsPapiV2alpha1:
     env:
@@ -196,12 +130,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   centaurLocalHsqldb:
     env:
@@ -212,12 +140,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   centaurLocalMariadb:
     env:
@@ -228,12 +150,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   centaurLocalMysql:
     env:
@@ -244,12 +160,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   centaurLocalPostgresql:
     env:
@@ -260,12 +170,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   centaurLocalSqlite:
     env:
@@ -276,12 +180,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   centaurPapiV1:
     env:
@@ -292,12 +190,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   centaurPapiV2alpha1:
     env:
@@ -308,12 +200,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   centaurPapiV2beta:
     env:
@@ -324,12 +210,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   centaurSlurm:
     env:
@@ -340,12 +220,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   centaurTes:
     env:
@@ -356,12 +230,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   centaurWdlUpgradeLocal:
     env:
@@ -372,12 +240,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   checkPublish:
     env:
@@ -388,12 +250,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   conformanceLocal:
     env:
@@ -404,12 +260,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   conformancePapiV2beta:
     env:
@@ -420,12 +270,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   conformanceTesk:
     env:
@@ -436,12 +280,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   horicromtalDeadlock:
     env:
@@ -451,12 +289,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   dockerScripts:
     env:
@@ -466,12 +298,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   sbt:
     env:
@@ -481,12 +307,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   dbms:
     env:
@@ -496,12 +316,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   singleWorkflowRunner:
     env:
@@ -511,12 +325,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   metadataComparisonPython:
     env:
@@ -526,12 +334,6 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh
   referenceDiskManifestBuilderApp:
     env:
@@ -541,10 +343,4 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: 3.7
-      - uses: olafurpg/setup-scala@v10
-        with:
-          java-version: 'adopt@1.8'
       - run: src/ci/bin/test.sh

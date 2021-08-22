@@ -8,8 +8,10 @@ files {
 
 metadata {
   status: Succeeded
+  "outputs.cpus.cascadeLake.cpuPlatform": "Intel Cascade Lake"
   "outputs.cpus.broadwell.cpuPlatform": "Intel Broadwell"
   "outputs.cpus.haswell.cpuPlatform": "Intel Haswell"
+  "outputs.cpus.rome.cpuPlatform": "AMD Rome"
 }
 
 workflowType: WDL

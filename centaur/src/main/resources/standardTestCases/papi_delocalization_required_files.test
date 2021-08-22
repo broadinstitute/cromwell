@@ -1,0 +1,15 @@
+name: papi_delocalization_required_files
+testFormat: workflowfailure
+backends: [Papiv2]
+
+files {
+  workflow: papi_delocalization_required_files/papi_delocalization_required_files.wdl
+}
+
+metadata {
+  workflowName: required_files
+  "calls.required_files.check_it.executionStatus": "Done"
+  "calls.required_files.do_it.executionStatus": "Failed"
+  "calls.required_files.do_it.retryableFailure": "false"
+  "calls.required_files.do_it.failures.0.message": "Task required_files.do_it:NA:1 failed. Job exited without an error, exit code 0. PAPI error code 9. Please check the log file for more details: gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/required_files/<<UUID>>/call-do_it/do_it.log."
+}

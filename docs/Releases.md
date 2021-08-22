@@ -18,7 +18,8 @@ Mac users with Homebrew can also get Cromwell with the command `brew install cro
 This documentation frequently refers to a "Cromwell jar" with a name like `cromwell-<version>.jar`. 
 This is the main artifact in Cromwell releases that contains all executable Cromwell code and default configuration.   
 
-[Java 8](http://www.oracle.com/technetwork/java/javase/overview/java8-2100321.html) is required to run Cromwell.
+A distribution of Java 11 is required to run Cromwell. Cromwell is developed, tested, and containerized using
+[AdoptOpenJDK 11 HotSpot](https://adoptopenjdk.net/).
 
 For users running a Cromwell server [a docker image](https://hub.docker.com/r/broadinstitute/cromwell) has been made available.
 

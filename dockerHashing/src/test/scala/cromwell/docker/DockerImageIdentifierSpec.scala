@@ -17,6 +17,7 @@ class DockerImageIdentifierSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
       ("index.docker.io/ubuntu",         Option("index.docker.io"),   None,                   "ubuntu",     "latest"),
       ("broad/cromwell/submarine",                None,               Option("broad/cromwell"), "submarine",  "latest"),
       ("gcr.io/google/slim",              Option("gcr.io"),         Option("google"),         "slim",     "latest"),
+      ("us-central1-docker.pkg.dev/google/slim", Option("us-central1-docker.pkg.dev"), Option("google"), "slim", "latest"),
       // With tags
       ("ubuntu:latest",                           None,               None,                   "ubuntu",     "latest"),
       ("ubuntu:1235-SNAP",                        None,               None,                   "ubuntu",     "1235-SNAP"),

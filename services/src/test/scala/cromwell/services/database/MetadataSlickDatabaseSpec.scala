@@ -49,14 +49,14 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     it should "set up the test data" taggedAs DbmsTest in {
       database.runTestTransaction(
         database.dataAccess.metadataEntries ++= Seq(
-          MetadataEntry("workflow id: 3 to delete, 1 label", None, None, None, "someKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
-          MetadataEntry("workflow id: 3 to delete, 1 label", None, None, None, "someKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
-          MetadataEntry("workflow id: 3 to delete, 1 label", None, None, None, "someKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
-          MetadataEntry("workflow id: 3 to delete, 1 label", None, None, None, "labels:dontDeleteMe", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry("workflow id: 4 to delete, including 1 label", None, None, None, "someKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry("workflow id: 4 to delete, including 1 label", None, None, None, "someKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry("workflow id: 4 to delete, including 1 label", None, None, None, "someKey", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry("workflow id: 4 to delete, including 1 label", None, None, None, "labels:do delete me", None, None, OffsetDateTime.now().toSystemTimestamp, None),
 
-          MetadataEntry("workflow id: I am a root workflow with a subworkflow", None, None, None, "labels:dontDeleteMe", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry("workflow id: I am a root workflow with a subworkflow", None, None, None, "labels:do delete me", None, None, OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry("workflow id: I am a root workflow with a subworkflow", None, None, None, "please do delete me", None, None, OffsetDateTime.now().toSystemTimestamp, None),
-          MetadataEntry("workflow id: I am the subworkflow", None, None, None, "labels:dontDeleteMe", None, None, OffsetDateTime.now().toSystemTimestamp, None),
+          MetadataEntry("workflow id: I am the subworkflow", None, None, None, "labels:do delete me", None, None, OffsetDateTime.now().toSystemTimestamp, None),
           MetadataEntry("workflow id: I am the subworkflow", None, None, None, "please do delete me", None, None, OffsetDateTime.now().toSystemTimestamp, None),
 
           MetadataEntry("nested subworkflows: root", None, None, None, "please do delete me", None, None, OffsetDateTime.now().toSystemTimestamp, None),
@@ -122,18 +122,18 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     }
 
     it should "delete the right number of rows for a root workflow without subworkflows" taggedAs DbmsTest in {
-      val delete = database.deleteNonLabelMetadataForWorkflowAndUpdateArchiveStatus("workflow id: 3 to delete, 1 label", None)
-      delete.futureValue(Timeout(10.seconds)) should be(3)
+      val delete = database.deleteAllMetadataForWorkflowAndUpdateArchiveStatus("workflow id: 4 to delete, including 1 label", None)
+      delete.futureValue(Timeout(10.seconds)) should be(4)
     }
 
     it should "delete the right number of rows for a root workflow with subworkflows" taggedAs DbmsTest in {
-      val delete = database.deleteNonLabelMetadataForWorkflowAndUpdateArchiveStatus("workflow id: I am a root workflow with a subworkflow", None)
+      val delete = database.deleteAllMetadataForWorkflowAndUpdateArchiveStatus("workflow id: I am a root workflow with a subworkflow", None)
       delete.futureValue(Timeout(10.seconds)) should be(2)
     }
 
     it should "delete the right number of rows for a nested subworkflow" taggedAs DbmsTest in {
-      val delete = database.deleteNonLabelMetadataForWorkflowAndUpdateArchiveStatus("nested subworkflows: root", None)
-      delete.futureValue(Timeout(10.seconds)) should be(4)
+      val delete = database.deleteAllMetadataForWorkflowAndUpdateArchiveStatus("nested subworkflows: root", None)
+      delete.futureValue(Timeout(10.seconds)) should be(1)
     }
 
     it should "count up rows" taggedAs DbmsTest in {

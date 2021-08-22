@@ -2,14 +2,13 @@ package centaur.api
 
 import java.io.IOException
 import java.util.concurrent.Executors
-
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.StatusCodes.ClientError
 import akka.http.scaladsl.model.{HttpRequest, StatusCodes}
 import akka.http.scaladsl.unmarshalling.Unmarshaller.UnsupportedContentTypeException
 import akka.stream.{ActorMaterializer, ActorMaterializerSettings, BufferOverflowException, StreamTcpException}
-import cats.effect.IO
+import cats.effect.{ContextShift, IO, Timer}
 import centaur.test.workflow.Workflow
 import centaur.{CentaurConfig, CromwellManager}
 import com.typesafe.config.ConfigFactory
@@ -26,8 +25,8 @@ import scala.concurrent.duration._
 import scala.util.Try
 
 object CentaurCromwellClient extends StrictLogging {
-  val config = ConfigFactory.load()
-  val LogFailures = config.as[Option[Boolean]]("centaur.log-request-failures").getOrElse(false)
+  private val config = ConfigFactory.load()
+  val LogFailures: Boolean = config.as[Option[Boolean]]("centaur.log-request-failures").getOrElse(false)
   // Do not use scala.concurrent.ExecutionContext.Implicits.global as long as this is using Await.result
   // See https://github.com/akka/akka-http/issues/602
   // And https://github.com/viktorklang/blog/blob/master/Futures-in-Scala-2.12-part-7.md
@@ -35,13 +34,13 @@ object CentaurCromwellClient extends StrictLogging {
     Executors.newFixedThreadPool(100, DaemonizedDefaultThreadFactory))
 
   // Akka HTTP needs both the actor system and a materializer
-  final implicit val system = ActorSystem("centaur-acting-like-a-system")
+  final implicit val system: ActorSystem = ActorSystem("centaur-acting-like-a-system")
   final implicit val materializer: ActorMaterializer = ActorMaterializer(ActorMaterializerSettings(system))
   final val apiVersion = "v1"
   val cromwellClient = new CromwellClient(CentaurConfig.cromwellUrl, apiVersion)
   
-  val defaultMetadataArgs = config
-    .getAs[Map[String, List[String]]]("centaur.metadata-args")
+  val defaultMetadataArgs: Option[Map[String, List[String]]] =
+    config.getAs[Map[String, List[String]]]("centaur.metadata-args")
 
   def submit(workflow: Workflow): IO[SubmittedWorkflow] = {
     sendReceiveFutureCompletion(() => {
@@ -74,19 +73,16 @@ object CentaurCromwellClient extends StrictLogging {
     sendReceiveFutureCompletion(() => cromwellClient.abort(workflow.id))
   }
 
-  def outputs(workflow: SubmittedWorkflow, archived: Option[Boolean] = None): IO[WorkflowOutputs] = {
-    sendReceiveFutureCompletion(() => cromwellClient.outputs(workflow.id, Option(archivedBooleanToMetadataSourceParameter(archived))))
+  def outputs(workflow: SubmittedWorkflow): IO[WorkflowOutputs] = {
+    sendReceiveFutureCompletion(() => cromwellClient.outputs(workflow.id))
   }
 
   def callCacheDiff(workflowA: SubmittedWorkflow, callA: String, workflowB: SubmittedWorkflow, callB: String): IO[CallCacheDiff] = {
     sendReceiveFutureCompletion(() => cromwellClient.callCacheDiff(workflowA.id, callA, ShardIndex(None), workflowB.id, callB, ShardIndex(None)))
   }
 
-  private def archivedBooleanToMetadataSourceParameter(archived: Option[Boolean]): Map[String, List[String]] =
-    archived.map(isArchived => "metadataSource" -> List(if (isArchived) "Archived" else "Unarchived")).toMap
-
-  def logs(workflow: SubmittedWorkflow, archived: Option[Boolean] = None): IO[WorkflowMetadata] = {
-    sendReceiveFutureCompletion(() => cromwellClient.logs(workflow.id, Option(archivedBooleanToMetadataSourceParameter(archived))))
+  def logs(workflow: SubmittedWorkflow): IO[WorkflowMetadata] = {
+    sendReceiveFutureCompletion(() => cromwellClient.logs(workflow.id))
   }
 
   def labels(workflow: SubmittedWorkflow): IO[WorkflowLabels] = {
@@ -116,11 +112,9 @@ object CentaurCromwellClient extends StrictLogging {
 
   def metadata(workflow: SubmittedWorkflow,
                args: Option[Map[String, List[String]]] = defaultMetadataArgs,
-               expandSubworkflows: Boolean = false,
-               archived: Option[Boolean] = None): IO[WorkflowMetadata] = {
+               expandSubworkflows: Boolean = false): IO[WorkflowMetadata] = {
     val mandatoryArgs = Map("expandSubWorkflows" -> List(expandSubworkflows.toString))
-    val metadataSourceOverride = archivedBooleanToMetadataSourceParameter(archived)
-    metadataWithId(workflow.id, Option(args.getOrElse(Map.empty) ++ metadataSourceOverride ++ mandatoryArgs))
+    metadataWithId(workflow.id, Option(args.getOrElse(Map.empty) ++ mandatoryArgs))
   }
 
   def metadataWithId(id: WorkflowId, args: Option[Map[String, List[String]]] = defaultMetadataArgs): IO[WorkflowMetadata] = {
@@ -131,8 +125,8 @@ object CentaurCromwellClient extends StrictLogging {
     sendReceiveFutureCompletion(() => cromwellClient.query(id)).map(_.results.head.metadataArchiveStatus)
   }
   
-  implicit private val timer = IO.timer(blockingEc)
-  implicit private val contextShift = IO.contextShift(blockingEc)
+  implicit private val timer: Timer[IO] = IO.timer(blockingEc)
+  implicit private val contextShift: ContextShift[IO] = IO.contextShift(blockingEc)
 
   lazy val backends: IO[CromwellBackends] = cromwellClient.backends.timeout(CromwellManager.timeout * 2).asIo
 

@@ -1,6 +1,7 @@
 package wom.util
 
 import java.io.StringReader
+import java.util
 
 import com.typesafe.config.ConfigException.BadValue
 import com.typesafe.config.{Config, ConfigFactory}
@@ -11,6 +12,7 @@ import io.circe.{Json, ParsingFailure}
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
 import org.yaml.snakeyaml.LoaderOptions
+import org.yaml.snakeyaml.comments.CommentLine
 import org.yaml.snakeyaml.composer.Composer
 import org.yaml.snakeyaml.constructor.Constructor
 import org.yaml.snakeyaml.nodes.Node
@@ -98,19 +100,19 @@ object YamlUtils {
         throw new IllegalArgumentException(s"Parsing halted at node depth $maxDepth")
     }
 
-    override def composeScalarNode(anchor: String): Node = {
+    override def composeScalarNode(anchor: String, blockComments: util.List[CommentLine]): Node = {
       checkDepth()
-      super.composeScalarNode(anchor)
+      super.composeScalarNode(anchor, blockComments)
     }
 
-    override def composeSequenceNode(anchor: String): Node = {
+    override def composeSequenceNode(anchor: String, blockComments: util.List[CommentLine]): Node = {
       checkDepth()
-      super.composeSequenceNode(anchor)
+      super.composeSequenceNode(anchor, blockComments)
     }
 
-    override def composeMappingNode(anchor: String): Node = {
+    override def composeMappingNode(anchor: String, blockComments: util.List[CommentLine]): Node = {
       checkDepth()
-      super.composeMappingNode(anchor)
+      super.composeMappingNode(anchor, blockComments)
     }
   }
 

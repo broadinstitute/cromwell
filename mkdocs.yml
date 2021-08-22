@@ -42,6 +42,7 @@ nav:
   - Optimizations: optimizations/optimizations.md
   - "Task inputs: localization_optional": optimizations/FileLocalization.md
   - "Volatile Tasks: volatile": optimizations/VolatileTasks.md
+  - "CheckpointFiles": optimizations/CheckpointFiles.md
 - Configuration: Configuring.md
 - Scaling / Horizontal Cromwell: Scaling.md
 - Ecosystem: Ecosystem.md

@@ -22,16 +22,24 @@ object CentaurRunMode {
         val withRestart = jarConf.getBoolean("withRestart")
         val postRestartConfig =
           JarCromwellConfiguration(cromwellConfig.get[Config]("post-restart-jar").valueOrElse(jarConf))
-
-        ManagedCromwellServer(preRestart, postRestartConfig, withRestart)
+        ManagedCromwellServer(
+          cromwellHostname = "localhost",
+          cromwellPort = CromwellManager.ManagedCromwellPort,
+          preRestart = preRestart,
+          postRestart = postRestartConfig,
+          withRestart = withRestart,
+        )
       case "docker-compose" =>
+        val cromwellHostname = cromwellConfig.getString("hostname")
+        val cromwellPort = cromwellConfig.getInt("port")
         val composeConf = cromwellConfig.get[Config](path = "docker-compose").value
         val preRestart = DockerComposeCromwellConfiguration(composeConf)
         val withRestart = composeConf.getBoolean("withRestart")
         val postRestartConfig =
-          DockerComposeCromwellConfiguration(cromwellConfig.getOrElse("post-restart-docker-compose", composeConf).value)
-        ManagedCromwellServer(preRestart, postRestartConfig, withRestart)
-
+          DockerComposeCromwellConfiguration(
+            cromwellConfig.get[Config]("post-restart-docker-compose").valueOrElse(composeConf)
+          )
+        ManagedCromwellServer(cromwellHostname, cromwellPort, preRestart, postRestartConfig, withRestart)
       case other => throw new Exception(s"Unrecognized cromwell mode: $other")
     }
   }
@@ -42,23 +50,25 @@ sealed trait CentaurRunMode {
 }
 
 case class UnmanagedCromwellServer(cromwellUrl : URL) extends CentaurRunMode
-case class ManagedCromwellServer(preRestart: CromwellConfiguration, postRestart: CromwellConfiguration, withRestart: Boolean) extends CentaurRunMode {
-  override val cromwellUrl = new URL(s"http://localhost:${CromwellManager.ManagedCromwellPort}")
+case class ManagedCromwellServer(cromwellHostname: String,
+                                 cromwellPort: Int,
+                                 preRestart: CromwellConfiguration,
+                                 postRestart: CromwellConfiguration,
+                                 withRestart: Boolean,
+                                ) extends CentaurRunMode {
+  override val cromwellUrl = new URL(s"http://$cromwellHostname:$cromwellPort")
 }
 
 object CentaurConfig {
   lazy val conf: Config = ConfigFactory.load().getConfig("centaur")
   
   lazy val runMode: CentaurRunMode = CentaurRunMode(conf)
-  lazy val expectCarbonite: Boolean = conf.getOrElse("expectCarbonite", false).value
   
   lazy val cromwellUrl: URL = runMode.cromwellUrl
+  lazy val workflowProgressTimeout: FiniteDuration = conf.getDuration("workflow-progress-timeout").toScala
   lazy val sendReceiveTimeout: FiniteDuration = conf.getDuration("sendReceiveTimeout").toScala
   lazy val maxWorkflowLength: FiniteDuration = conf.getDuration("maxWorkflowLength").toScala
   lazy val metadataConsistencyTimeout: FiniteDuration = conf.getDuration("metadataConsistencyTimeout").toScala
-
-  lazy val metadataDeletionMinimumWait: FiniteDuration = conf.getDuration("metadataDeletionMinimumWait").toScala
-  lazy val metadataDeletionMaximumWait: FiniteDuration = conf.getDuration("metadataDeletionMaximumWait").toScala
 
   lazy val standardTestCasePath: Path = Paths.get(conf.getString("standardTestCasePath"))
 

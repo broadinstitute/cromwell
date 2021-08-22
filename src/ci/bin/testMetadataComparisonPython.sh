@@ -17,18 +17,18 @@ GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON="cromwell-centaur-service-account.json"
 export GOOGLE_APPLICATION_CREDENTIALS="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${GOOGLE_CENTAUR_SERVICE_ACCOUNT_JSON}"
 export DIGESTER_TEST_GCS=true
 
-docker run -it --rm \
+docker run --rm \
            -e GOOGLE_APPLICATION_CREDENTIALS \
            -e DIGESTER_TEST_GCS \
            -v "${CROMWELL_BUILD_RESOURCES_DIRECTORY}:${CROMWELL_BUILD_RESOURCES_DIRECTORY}" \
            -v "${CROMWELL_BUILD_ROOT_DIRECTORY}/scripts/metadata_comparison:/metadata_comparison" \
            python:3 /bin/bash -c "
 
-pip install --upgrade requests
-pip install --upgrade google-api-python-client
-pip install --upgrade google-cloud
-pip install --upgrade google-cloud-storage
-pip install --upgrade gitpython
-pip install --upgrade python-dateutil
-python -m unittest discover -v /metadata_comparison
+pip3 install --upgrade requests
+pip3 install --upgrade google-api-python-client
+pip3 install --upgrade google-cloud
+pip3 install --upgrade google-cloud-storage
+pip3 install --upgrade gitpython
+pip3 install --upgrade python-dateutil
+python3 -m unittest discover -v /metadata_comparison
 "

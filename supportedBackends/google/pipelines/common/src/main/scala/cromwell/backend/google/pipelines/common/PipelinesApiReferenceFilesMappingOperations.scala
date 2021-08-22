@@ -1,46 +1,43 @@
 package cromwell.backend.google.pipelines.common
 
-import java.util
-
-import _root_.io.circe.generic.auto._
-import _root_.io.circe.parser._
 import cats.effect.IO
 import cats.implicits._
 import com.google.api.services.storage.StorageScopes
+import com.google.cloud.storage.Storage.{BlobField, BlobGetOption}
 import com.google.cloud.storage.{BlobId, Storage, StorageOptions}
 import com.google.common.io.BaseEncoding
 import com.google.common.primitives.Longs
-import cromwell.backend.google.pipelines.common.io.PipelinesApiReferenceFilesDisk
-import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder}
-import cromwell.filesystems.gcs.GcsPathBuilder.{InvalidFullGcsPath, ValidFullGcsPath}
-import com.google.cloud.storage.Storage.{BlobField, BlobGetOption}
 import cromwell.backend.google.pipelines.common.errors.InvalidGcsPathsInManifestFileException
+import cromwell.backend.google.pipelines.common.io.PipelinesApiReferenceFilesDisk
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
+import cromwell.filesystems.gcs.GcsPathBuilder.{InvalidFullGcsPath, ValidFullGcsPath}
+import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder}
 import org.slf4j.{Logger, LoggerFactory}
+
+import java.util
+
+case class ReferenceFile(path: String, crc32c: Long)
+case class ManifestFile(imageIdentifier: String, diskSizeGb: Int, files: List[ReferenceFile])
 
 trait PipelinesApiReferenceFilesMappingOperations {
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 
-  case class ReferenceFile(path: String, crc32c: Long)
-  case class ManifestFile(imageIdentifier: String, diskSizeGb: Int, files: List[ReferenceFile])
-
   /**
-   * This method will read and parse reference disk manifest files from GCS. It will also validate reference
-   * files' CRC32Cs. Depending on number of manifests and their sizes may take significant amount of time.
+   * This method validates reference files' CRC32Cs. Depending on the number of manifests and their sizes this
+    * may take a significant amount of time.
    */
   def generateReferenceFilesMapping(auth: GoogleAuthMode,
-                                    referenceDiskLocalizationManifestFiles: List[ValidFullGcsPath]): Map[String, PipelinesApiReferenceFilesDisk] = {
+                                    referenceDiskLocalizationManifests: List[ManifestFile]): Map[String, PipelinesApiReferenceFilesDisk] = {
     val gcsClient = StorageOptions
       .newBuilder()
       .setCredentials(auth.credentials(Set(StorageScopes.DEVSTORAGE_READ_ONLY)))
       .build
       .getService
-    val manifestFilesIo = referenceDiskLocalizationManifestFiles traverse { manifestFilePath => readReferenceDiskManifestFileFromGCS(gcsClient, manifestFilePath) }
-    val validReferenceFilesMapIO = manifestFilesIo flatMap { manifestFiles =>
-      manifestFiles
+
+    val validReferenceFilesMapIO = referenceDiskLocalizationManifests
         .traverse(manifestFile => getMapOfValidReferenceFilePathsToDisks(gcsClient, manifestFile))
         .map(_.flatten.toMap)
-    }
+
     validReferenceFilesMapIO.unsafeRunSync()
   }
 
@@ -56,14 +53,6 @@ trait PipelinesApiReferenceFilesMappingOperations {
   def getReferenceDisksToMount(referenceFileToDiskImageMapping: Map[String, PipelinesApiReferenceFilesDisk],
                                inputFilePaths: Set[String]): List[PipelinesApiReferenceFilesDisk] = {
     referenceFileToDiskImageMapping.filterKeys(key => inputFilePaths.contains(s"gs://$key")).values.toList.distinct
-  }
-
-  protected def readReferenceDiskManifestFileFromGCS(gcsClient: Storage, gcsPath: ValidFullGcsPath): IO[ManifestFile] = {
-    val manifestFileBlobIo = IO { gcsClient.get(BlobId.of(gcsPath.bucket, gcsPath.path.substring(1))) }
-    manifestFileBlobIo flatMap { manifestFileBlob =>
-      val jsonStringIo = IO { manifestFileBlob.getContent().map(_.toChar).mkString }
-      jsonStringIo.flatMap(jsonStr => IO.fromEither(decode[ManifestFile](jsonStr)))
-    }
   }
 
   private def getReferenceFileToValidatedGcsPathMap(referenceFiles: Set[ReferenceFile]): IO[Map[ReferenceFile, ValidFullGcsPath]] = {

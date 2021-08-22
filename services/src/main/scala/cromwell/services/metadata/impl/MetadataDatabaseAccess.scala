@@ -4,24 +4,25 @@ import java.time.OffsetDateTime
 
 import cats.Semigroup
 import cats.data.NonEmptyList
-import cats.syntax.apply._
+import cats.instances.future._
+import cats.instances.list._
 import cats.syntax.semigroup._
 import cats.syntax.traverse._
-import cats.instances.list._
-import cats.instances.future._
 import common.validation.Validation._
 import cromwell.core._
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, WorkflowQuery}
-import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
+import cromwell.database.sql.tables.{InformationSchemaEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService.{QueryMetadata, WorkflowQueryResponse}
 import cromwell.services.metadata._
-import cromwell.services.metadata.impl.MetadataDatabaseAccess.SummaryResult
+import cromwell.services.metadata.impl.MetadataDatabaseAccess._
 import mouse.boolean._
+import slick.basic.DatabasePublisher
 
 import scala.concurrent.duration.Duration
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
 
 object MetadataDatabaseAccess {
 
@@ -83,7 +84,8 @@ object MetadataDatabaseAccess {
     }
   }
 
-  case class SummaryResult(rowsProcessedIncreasing: Long, rowsProcessedDecreasing: Long, decreasingGap: Long)
+  final case class SummaryResult(rowsProcessedIncreasing: Long, rowsProcessedDecreasing: Long, decreasingGap: Long)
+  final case class WorkflowArchiveStatusAndEndTimestamp(archiveStatus: Option[String], endTimestamp: Option[OffsetDateTime])
 }
 
 trait MetadataDatabaseAccess {
@@ -153,6 +155,10 @@ trait MetadataDatabaseAccess {
         metadataDatabaseInterface.countMetadataEntryWithKeyConstraints(uuid, listKeyRequirements(includeKeys), listKeyRequirements(excludeKeys), CallQuery(callFqn, index, attempt), q.expandSubWorkflows, timeout)
       case _ => Future.failed(new IllegalArgumentException(s"Invalid MetadataQuery: $query"))
     }
+  }
+
+  def metadataEventsStream(workflowId: WorkflowId): Try[DatabasePublisher[MetadataEntry]] = {
+    Try(metadataDatabaseInterface.streamMetadataEntries(workflowId.id.toString))
   }
 
   def queryMetadataEvents(query: MetadataQuery, timeout: Duration)(implicit ec: ExecutionContext): Future[Seq[MetadataEvent]] = {
@@ -268,9 +274,9 @@ trait MetadataDatabaseAccess {
       queryParameters.endDate.map(_.toSystemTimestamp),
       queryParameters.metadataArchiveStatus.map(MetadataArchiveStatus.toDatabaseValue),
       queryParameters.includeSubworkflows,
-      queryParameters.minimumSummaryEntryId,
       queryParameters.page,
-      queryParameters.pageSize
+      queryParameters.pageSize,
+      queryParameters.newestFirst
     )
 
     val workflowSummaryCount: Future[Int] = metadataDatabaseInterface.countWorkflowSummaries(
@@ -286,8 +292,7 @@ trait MetadataDatabaseAccess {
       queryParameters.startDate.map(_.toSystemTimestamp),
       queryParameters.endDate.map(_.toSystemTimestamp),
       queryParameters.metadataArchiveStatus.map(MetadataArchiveStatus.toDatabaseValue),
-      queryParameters.includeSubworkflows,
-      queryParameters.minimumSummaryEntryId
+      queryParameters.includeSubworkflows
     )
 
     def queryMetadata(count: Int): Option[QueryMetadata] = {
@@ -335,33 +340,46 @@ trait MetadataDatabaseAccess {
     } yield (WorkflowQueryResponse(queryResults, count), queryMetadata(count))
   }
 
-  def deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(rootWorkflowId: WorkflowId, newArchiveStatus: Option[String])(implicit ec: ExecutionContext): Future[Int] = {
+  def deleteAllMetadataEntriesForWorkflowAndUpdateArchiveStatus(workflowId: WorkflowId, newArchiveStatus: Option[String])(implicit ec: ExecutionContext): Future[Int] = {
     import cromwell.core.WorkflowState
 
-    ((metadataDatabaseInterface.isRootWorkflow(rootWorkflowId.toString), metadataDatabaseInterface.getWorkflowStatus(rootWorkflowId.toString)) mapN {
-      case (None, _) =>
-        Future.failed(new Exception(s"""Metadata deletion precondition failed: workflow ID "$rootWorkflowId" not found in summary table"""))
-      case (Some(false), _) =>
-        Future.failed(new Exception(s"""Metadata deletion precondition failed: workflow ID "$rootWorkflowId" is not a root workflow"""))
-      case (_, None) =>
-        Future.failed(new Exception(s"""Metadata deletion precondition failed: workflow ID "$rootWorkflowId" did not have a status in the summary table"""))
-      case (Some(true), Some(status)) =>
+    (metadataDatabaseInterface.getWorkflowStatus(workflowId.toString)) flatMap {
+      case None =>
+        Future.failed(new Exception(s"""Metadata deletion precondition failed: workflow ID "$workflowId" did not have a status in the summary table"""))
+      case Some(status) =>
         if (WorkflowState.withName(status).isTerminal)
-          metadataDatabaseInterface.deleteNonLabelMetadataForWorkflowAndUpdateArchiveStatus(rootWorkflowId.toString, newArchiveStatus)
+          metadataDatabaseInterface.deleteAllMetadataForWorkflowAndUpdateArchiveStatus(workflowId.toString, newArchiveStatus)
         else
-          Future.failed(new Exception(s"""Metadata deletion precondition failed: workflow ID "$rootWorkflowId" was in non-terminal status "$status""""))
+          Future.failed(new Exception(s"""Metadata deletion precondition failed: workflow ID "$workflowId" was in non-terminal status "$status""""))
 
-    }).flatten
+    }
   }
 
   def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = metadataDatabaseInterface.getRootWorkflowId(workflowId)
 
-  def queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(archiveStatus: Option[String], thresholdTimestamp: OffsetDateTime, batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[String]] =
-    metadataDatabaseInterface.queryRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus, thresholdTimestamp.toSystemTimestamp, batchSize)
-
-  def countRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(archiveStatus: Option[String], thresholdTimestamp: OffsetDateTime)(implicit ec: ExecutionContext): Future[Int] =
-    metadataDatabaseInterface.countRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus, thresholdTimestamp.toSystemTimestamp)
+  def queryWorkflowIdsByArchiveStatusAndOlderThanTimestamp(archiveStatus: Option[String], thresholdTimestamp: OffsetDateTime, batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[String]] =
+    metadataDatabaseInterface.queryWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus, thresholdTimestamp.toSystemTimestamp, batchSize)
 
   def getSummaryQueueSize()(implicit ec: ExecutionContext): Future[Int] =
     metadataDatabaseInterface.getSummaryQueueSize()
+
+  def getMetadataArchiveStatusAndEndTime(id: WorkflowId)(implicit ec: ExecutionContext): Future[WorkflowArchiveStatusAndEndTimestamp] = {
+    metadataDatabaseInterface.getMetadataArchiveStatusAndEndTime(id.toString).map {
+      case (statusOption, timestampOption) => WorkflowArchiveStatusAndEndTimestamp(statusOption, timestampOption.map(_.toSystemOffsetDateTime))
+    }
+  }
+
+  def queryWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],
+                                                                   workflowEndTimestampThreshold: OffsetDateTime,
+                                                                   batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] =
+    metadataDatabaseInterface.queryWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses, workflowEndTimestampThreshold.toSystemTimestamp, batchSize)
+
+  def countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],
+                                                                       workflowEndTimestampThreshold: OffsetDateTime)(implicit ec: ExecutionContext): Future[Int] =
+    metadataDatabaseInterface.countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses, workflowEndTimestampThreshold.toSystemTimestamp)
+
+  def countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(workflowEndTimestampThreshold: OffsetDateTime)(implicit ec: ExecutionContext): Future[Int] =
+    metadataDatabaseInterface.countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(workflowEndTimestampThreshold.toSystemTimestamp)
+
+  def getMetadataTableSizeInformation()(implicit ec: ExecutionContext): Future[Option[InformationSchemaEntry]] = metadataDatabaseInterface.getMetadataTableSizeInformation()
 }

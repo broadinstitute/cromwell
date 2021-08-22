@@ -1,7 +1,5 @@
 package cromwell.engine.io.gcs
 
-import java.io.FileNotFoundException
-
 import akka.actor.ActorRef
 import cats.data.Validated.{Invalid, Valid}
 import cats.implicits.catsSyntaxValidatedId
@@ -19,18 +17,19 @@ import common.validation.ErrorOr.ErrorOr
 import cromwell.core.io.SingleFileIoCommand
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.engine.io.IoActor.IoResult
+import cromwell.engine.io.IoCommandContext
 import cromwell.engine.io.gcs.GcsBatchCommandContext.BatchResponse
-import cromwell.engine.io.{IoActor, IoCommandContext}
 import cromwell.filesystems.gcs.RequesterPaysErrors._
 import cromwell.filesystems.gcs.batch.GcsBatchIoCommand
 
+import java.io.FileNotFoundException
 import scala.concurrent.Promise
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.Try
 
 object GcsBatchCommandContext {
-  def defaultBackoff = SimpleExponentialBackoff(
+  def defaultBackoff: SimpleExponentialBackoff = SimpleExponentialBackoff(
     new ExponentialBackOff.Builder()
       .setInitialIntervalMillis(1.second.toMillis.toInt)
       .setMultiplier(4)
@@ -44,6 +43,7 @@ object GcsBatchCommandContext {
 
 final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
                                               replyTo: ActorRef,
+                                              maxAttemptsNumber: Int,
                                               override val clientContext: Option[Any] = None,
                                               backoff: Backoff = GcsBatchCommandContext.defaultBackoff,
                                               currentAttempt: Int = 1,
@@ -55,7 +55,7 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
   /**
     * None if no retry should be attempted, Some(timeToWaitBeforeNextAttempt) otherwise
     */
-  lazy val retryIn = if (currentAttempt >= IoActor.MaxAttemptsNumber) None else Option(backoff.backoffMillis milliseconds)
+  lazy val retryIn: Option[FiniteDuration] = if (currentAttempt >= maxAttemptsNumber) None else Option(backoff.backoffMillis milliseconds)
 
   /**
     * Json batch call back for a batched request
@@ -97,7 +97,7 @@ final case class GcsBatchCommandContext[T, U](request: GcsBatchIoCommand[T, U],
   /**
     * Queue the request for batching
     */
-  def queue(batchRequest: BatchRequest) = {
+  def queue(batchRequest: BatchRequest): Unit = {
     request.logIOMsgOverLimit(s"GcsBatchCommandContext.queue '$batchRequest'")
     request.operation.queue(batchRequest, callback)
   }

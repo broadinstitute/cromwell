@@ -16,7 +16,7 @@ There are two ways to invoke the integration tests:
 
 * `sbt "centaur/it:test"` - compiles and run via sbt directly, simple but also has the problem of running 2x cores tests in parallel which can overwhelm your Cromwell server if running in a development environment
 
-* `run_tests_parallel.sh [THREADS]` - runs the same tests with an enforced parallelism limit.  Defaults to `3` if not specified
+* `src/ci/bin/testCentaurLocal.sh` - runs the same tests using the continuous integration pipeline configuration
 
 ### Tags
 

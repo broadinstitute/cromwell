@@ -10,7 +10,8 @@ import womtool.WomtoolMain.SuccessfulTermination
 object WomtoolJsonCommandSpec {
   final case class TestDefinition(testName: String, commandFormat: Seq[String], expectationFilename: String)
 
-  private def jsonLines(json: String): Set[String] = json.lines.toSet[String].map(_.stripSuffix(",")).filterNot(_.forall(_.isWhitespace))
+  private def jsonLines(json: String): Set[String] =
+    json.linesIterator.toSet[String].map(_.stripSuffix(",")).filterNot(_.forall(_.isWhitespace))
 }
 
 // Test for womtool command line commands which output JSON

@@ -140,7 +140,7 @@ class SingleWorkflowRunnerActor(source: WorkflowSourceFilesCollection,
   private def requestMetadataOrIssueReply(newData: TerminalSwraData) = if (metadataOutputPath.isDefined) requestMetadata(newData) else issueReply(newData)
   
   private def requestMetadata(newData: TerminalSwraData): State = {
-    serviceRegistryActor ! GetSingleWorkflowMetadataAction(newData.id, None, None, expandSubWorkflows = true, metadataSourceOverride = None)
+    serviceRegistryActor ! GetSingleWorkflowMetadataAction(newData.id, None, None, expandSubWorkflows = true)
     goto (RequestingMetadata) using newData
   }
 

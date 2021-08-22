@@ -2,12 +2,12 @@
 
 set -euo pipefail
 
-pip install docker-py
+pip3 install docker-py
 
 cromwell_hosts_file="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/cromwell_hosts.txt"
 
 # Get a list of cromwell hosts.
-python "${CROMWELL_BUILD_SCRIPTS_DIRECTORY}"/get_cromwell_hosts.py > "${cromwell_hosts_file}"
+python3 "${CROMWELL_BUILD_SCRIPTS_DIRECTORY}"/get_cromwell_hosts.py > "${cromwell_hosts_file}"
 cromwell_hosts=()
 while IFS=$'\n' read -r line; do
     cromwell_hosts+=("$line")

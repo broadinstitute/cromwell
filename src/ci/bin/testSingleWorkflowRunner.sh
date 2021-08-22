@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
 
-set -o errexit -o nounset -o pipefail
+set -o errexit -o nounset -o pipefail +x
 # import in shellcheck / CI / IntelliJ compatible ways
 # shellcheck source=/dev/null
 source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
 cromwell::build::setup_common_environment
-
-cromwell::build::start_build_heartbeat
 
 cromwell::build::assemble_jars
 
@@ -20,7 +18,7 @@ java \
 | tee console_output.txt
 
 # grep exits 1 if no matches
-grep "terminal state: WorkflowSucceededState" console_output.txt
+grep "completed with status 'Succeeded'" console_output.txt
 grep "\"wf_hello.hello.salutation\": \"Hello m'Lord!\"" console_output.txt
 
 cat > expected.json <<FIN

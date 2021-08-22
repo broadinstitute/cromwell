@@ -1,15 +1,23 @@
 package cromwell.core.retry
 
+import java.sql.SQLTransactionRollbackException
+
 import akka.actor.ActorSystem
+import akka.pattern.after
+import com.typesafe.scalalogging.StrictLogging
+import common.util.Backoff
 import cromwell.core.CromwellFatalException
 
 import scala.concurrent.duration._
-import scala.language.postfixOps
 import scala.concurrent.{ExecutionContext, Future}
-import akka.pattern.after
-import common.util.Backoff
+import scala.language.postfixOps
 
-object Retry {
+object Retry extends StrictLogging {
+
+  def throwableToFalse(t: Throwable) = false
+
+  def noopOnRetry(t: Throwable) = {}
+
   /**
     * Retries a Future on a designated backoff strategy until either a designated number of retries or a fatal error
     * is reached.
@@ -49,7 +57,32 @@ object Retry {
     }
   }
 
-  def throwableToFalse(t: Throwable) = false
-  def noopOnRetry(t: Throwable) = {}
+  /**
+   * Retries a Future if a 'SQLTransactionRollbackException' (i.e. deadlock exception) occurs on a designated
+   * backoff strategy until a designated number of retries is reached.
+   *
+   * @param f A function Unit => Future which will be executed once per cycle.
+   * @param maxRetries Number of times to retry the future
+   * @param backoff An exponential backoff strategy to use for each retry strategy.
+   * @tparam A The return type of the Future
+   * @return The final completed Future[A]
+   */
+  def withRetryForTransactionRollback[A](f: () => Future[A],
+                                         maxRetries: Int = 5,
+                                         backoff: Backoff = SimpleExponentialBackoff(5 seconds, 10 seconds, 1.1D))
+                                        (implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[A] = {
+    val delay = backoff.backoffMillis.millis
+
+    f() recoverWith {
+      case throwable if throwable.isInstanceOf[SQLTransactionRollbackException] =>
+        val retriesLeft = maxRetries - 1
+        if (retriesLeft > 0) {
+          logger.info(s"Received 'SQLTransactionRollbackException'. Retries left $retriesLeft. Will retry now...")
+          after(delay, actorSystem.scheduler)(withRetryForTransactionRollback(f, retriesLeft, backoff.next))
+        } else {
+          Future.failed(new CromwellFatalException(throwable))
+        }
+    }
+  }
 }
 

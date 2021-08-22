@@ -46,7 +46,7 @@ trait Path extends PathObjectMethods with NioPathMethods with BetterFileMethods 
     *
     * @return The internal nioPath.
     */
-  protected def nioPath: NioPath
+  def nioPath: NioPath
 
   /**
     * Wraps the nioPath in our container type.

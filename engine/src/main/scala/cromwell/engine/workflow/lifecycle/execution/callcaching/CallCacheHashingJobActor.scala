@@ -1,7 +1,5 @@
 package cromwell.engine.workflow.lifecycle.execution.callcaching
 
-import java.security.MessageDigest
-
 import akka.actor.{ActorRef, LoggingFSM, Props, Terminated}
 import cats.data.NonEmptyList
 import cromwell.backend.standard.callcaching.StandardFileHashingActor.{FileHashResponse, SingleFileHashRequest}
@@ -10,13 +8,14 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching._
 import cromwell.core.simpleton.WomValueSimpleton
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCache._
-import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor.CallCacheHashingJobActorData._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.CallCacheHashingJobActor._
 import cromwell.engine.workflow.lifecycle.execution.callcaching.EngineJobHashingActor.CacheMiss
-import javax.xml.bind.DatatypeConverter
 import wom.RuntimeAttributesKeys
 import wom.types._
 import wom.values._
+
+import java.security.MessageDigest
+import javax.xml.bind.DatatypeConverter
 
 
 /**
@@ -41,10 +40,11 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
                                fileHashingActorProps: Props,
                                callCachingEligible: CallCachingEligible,
                                callCachingActivity: CallCachingActivity,
-                               callCachePathPrefixes: Option[CallCachePathPrefixes]
+                               callCachePathPrefixes: Option[CallCachePathPrefixes],
+                               fileHashBatchSize: Int
                               ) extends LoggingFSM[CallCacheHashingJobActorState, CallCacheHashingJobActorData] {
 
-  val fileHashingActor = makeFileHashingActor()
+  val fileHashingActor: ActorRef = makeFileHashingActor()
 
   // Watch the read actor, as it will die when it's done (cache miss or successful cache hit)
   // When that happens we want to either stop if writeToCache is false, or keep going
@@ -135,7 +135,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
       case WomValueSimpleton(name, x: WomFile) => SingleFileHashRequest(jobDescriptor.key, HashKey(true, "input", s"File $name"), x, initializationData)
     }
 
-    val hashingJobActorData = CallCacheHashingJobActorData(fileHashRequests.toList, callCacheReadingJobActor)
+    val hashingJobActorData = CallCacheHashingJobActorData(fileHashRequests.toList, callCacheReadingJobActor, fileHashBatchSize)
     startWith(WaitingForHashFileRequest, hashingJobActorData)
 
     val aggregatedBaseHash = calculateHashAggregation(initialHashes, MessageDigest.getInstance("MD5"))
@@ -197,8 +197,9 @@ object CallCacheHashingJobActor {
             fileHashingActorProps: Props,
             callCachingEligible: CallCachingEligible,
             callCachingActivity: CallCachingActivity,
-            callCachePathPrefixes: Option[CallCachePathPrefixes]
-           ) = Props(new CallCacheHashingJobActor(
+            callCachePathPrefixes: Option[CallCachePathPrefixes],
+            fileHashBatchSize: Int
+           ): Props = Props(new CallCacheHashingJobActor(
     jobDescriptor,
     callCacheReadingJobActor,
     initializationData,
@@ -207,7 +208,8 @@ object CallCacheHashingJobActor {
     fileHashingActorProps,
     callCachingEligible,
     callCachingActivity,
-    callCachePathPrefixes
+    callCachePathPrefixes,
+    fileHashBatchSize
   )).withDispatcher(EngineDispatcher)
 
   sealed trait CallCacheHashingJobActorState
@@ -232,19 +234,15 @@ object CallCacheHashingJobActor {
   }
 
   object CallCacheHashingJobActorData {
-    // Slick will eventually build a prepared statement with that many parameters. Don't set this too high or it will stackoverflow.
-    val BatchSize = 100
-
-    def apply(fileHashRequestsRemaining: List[SingleFileHashRequest], callCacheReadingJobActor: Option[ActorRef]) = {
-      new CallCacheHashingJobActorData(fileHashRequestsRemaining.grouped(BatchSize).toList, List.empty, callCacheReadingJobActor)
+    def apply(fileHashRequestsRemaining: List[SingleFileHashRequest], callCacheReadingJobActor: Option[ActorRef], batchSize: Int): CallCacheHashingJobActorData = {
+      new CallCacheHashingJobActorData(fileHashRequestsRemaining.grouped(batchSize).toList, List.empty, callCacheReadingJobActor, batchSize)
     }
   }
 
-  final case class CallCacheHashingJobActorData(
-                                           fileHashRequestsRemaining: List[List[SingleFileHashRequest]],
-                                           fileHashResults: List[HashResult],
-                                           callCacheReadingJobActor: Option[ActorRef]
-                                         ) {
+  final case class CallCacheHashingJobActorData(fileHashRequestsRemaining: List[List[SingleFileHashRequest]],
+                                                fileHashResults: List[HashResult],
+                                                callCacheReadingJobActor: Option[ActorRef],
+                                                batchSize: Int) {
     private val md5Digest = MessageDigest.getInstance("MD5")
 
     /**
@@ -266,10 +264,11 @@ object CallCacheHashingJobActor {
           else (List(updatedBatch), None)
         case currentBatch :: otherBatches =>
           val updatedBatch = currentBatch.filterNot(_.hashKey == hashResult.hashKey)
-          // If the current batch is empty, we got a partial result, take the first BatchSize of the list
+          // If the current batch is empty, we got a partial result, take the first fileHashBatchSize of the list
           if (updatedBatch.isEmpty) {
-            // hashResult + fileHashResults.take(BatchSize - 1) -> BatchSize elements
-            val partialHashes = NonEmptyList.of[HashResult](hashResult, fileHashResults.take(BatchSize - 1): _*)
+            // hashResult + fileHashResults.take(batchSize - 1) -> batchSize elements
+            // Slick will eventually build a prepared statement with that many parameters. Don't set this too high or it will stackoverflow.
+            val partialHashes = NonEmptyList.of[HashResult](hashResult, fileHashResults.take(batchSize - 1): _*)
             (otherBatches, Option(PartialFileHashingResult(partialHashes)))
           }
           // Otherwise just return the updated request list and no message

@@ -123,6 +123,11 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override lazy val dockerImageUsed: Option[String] = Option(jobDockerImage)
 
+  private lazy val execScript =
+    s"""|#!$jobShell
+        |${jobPaths.script.pathWithoutScheme}
+        |""".stripMargin
+
 
   /* Batch job object (see AwsBatchJob). This has the configuration necessary
    * to perform all operations with the AWS Batch infrastructure. This is
@@ -156,12 +161,18 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
    * needs to push stuff out to S3. This is why we will eventually need
    * commandScriptContents here
    */
+
+  lazy val cmdScript = configuration.fileSystem match {
+     case AWSBatchStorageSystems.s3 => commandScriptContents.toEither.right.get
+     case _ => execScript
+  }
+
   lazy val batchJob: AwsBatchJob = {
     AwsBatchJob(
       jobDescriptor,
       runtimeAttributes,
       instantiatedCommand.commandString,
-      commandScriptContents.toEither.right.get,
+      cmdScript,
       rcPath.toString, executionStdout, executionStderr,
       generateAwsBatchInputs(jobDescriptor),
       generateAwsBatchOutputs(jobDescriptor),
@@ -348,7 +359,14 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   // used by generateAwsBatchOutputs, could potentially move this def within that function
   private def generateAwsBatchSingleFileOutputs(womFile: WomSingleFile): List[AwsBatchFileOutput] = {
-    val destination = callRootPath.resolve(womFile.value.stripPrefix("/")).pathAsString
+    val destination = configuration.fileSystem match {
+      case  AWSBatchStorageSystems.s3 =>  callRootPath.resolve(womFile.value.stripPrefix("/")).pathAsString
+      case _ => DefaultPathBuilder.get(womFile.valueString) match {
+        case p if !p.isAbsolute =>  callRootPath.resolve(womFile.value.stripPrefix("/")).pathAsString
+        case p => p.pathAsString
+      }
+
+    }
     val (relpath, disk) = relativePathAndVolume(womFile.value, runtimeAttributes.disks)
     val output = AwsBatchFileOutput(makeSafeAwsBatchReferenceName(womFile.value), destination, relpath, disk)
     List(output)

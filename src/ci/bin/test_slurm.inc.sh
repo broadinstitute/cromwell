@@ -22,7 +22,7 @@ cromwell::build::slurm::setup_slurm_environment() {
     sudo apt-get update
 
     # Try the Lawrence Livermore National Laboratory (LLNL) version first
-    sudo apt-get install -y slurm-llnl || apt-get install -y slurm-wlm
+    sudo apt-get install -y slurm-llnl || sudo apt-get install -y slurm-wlm
 
     # Create various directories used by slurm
     sudo mkdir -p /etc/slurm-llnl
@@ -36,6 +36,7 @@ cromwell::build::slurm::setup_slurm_environment() {
     # https://slurm.schedmd.com/slurm.conf.html
     # https://slurm.schedmd.com/quickstart_admin.html
     cat <<SLURM_CONF | sudo tee /etc/slurm-llnl/slurm.conf >/dev/null
+ClusterName=localhost
 ControlMachine=localhost
 NodeName=localhost
 PartitionName=localpartition Nodes=localhost Default=YES

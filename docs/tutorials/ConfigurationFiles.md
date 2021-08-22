@@ -64,7 +64,7 @@ In addition to the common configuration properties listed on the [configuration]
 backend provider examples in [cromwell.example.backends][cromwell-examples-folder].
 
 
-[cromwell.examples.conf](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.examples.conf).
+[cromwell.examples.conf](https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends/cromwell.examples.conf).
 
 ### Next Steps
 
@@ -73,5 +73,5 @@ After completing this tutorial you might find the following pages interesting:
 * [Configuring the Local Backend](LocalBackendIntro)
 * [Server Mode](ServerMode.md)
 
-[cromwell-examples-conf]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.examples.conf
+[cromwell-examples-conf]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends/cromwell.examples.conf
 [cromwell-examples-folder]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends

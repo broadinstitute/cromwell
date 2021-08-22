@@ -11,7 +11,7 @@ task check_if_docker_image_cache_disk_mounted {
     fi
   }
   runtime {
-    docker: "gcr.io/gcp-runtimes/ubuntu_16_0_4:latest"
+    docker: "us.gcr.io/broad-gatk/gatk:4.1.3.0"
     backend: "Papiv2-Docker-Image-Cache"
     useDockerImageCache: false
   }

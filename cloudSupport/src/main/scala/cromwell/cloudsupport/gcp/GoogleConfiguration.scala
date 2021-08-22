@@ -76,10 +76,6 @@ object GoogleConfiguration {
         UserMode(name, authConfig.as[String]("secrets-file"))
       }
 
-      def refreshTokenAuth(authConfig: Config, name: String): ErrorOr[GoogleAuthMode] = validate {
-        RefreshTokenMode(name, authConfig.as[String]("client-id"), authConfig.as[String]("client-secret"))
-      }
-
       def applicationDefaultAuth(name: String): ErrorOr[GoogleAuthMode] = ApplicationDefaultMode(name).validNel
 
       def userServiceAccountAuth(name: String): ErrorOr[GoogleAuthMode] = validate {
@@ -91,7 +87,6 @@ object GoogleConfiguration {
       scheme match {
         case "service_account" => serviceAccountAuth(authConfig, name)
         case "user_account" => userAccountAuth(authConfig, name)
-        case "refresh_token" => refreshTokenAuth(authConfig, name)
         case "application_default" => applicationDefaultAuth(name)
         case "user_service_account" => userServiceAccountAuth(name)
         case "mock" => MockAuthMode(name).validNel

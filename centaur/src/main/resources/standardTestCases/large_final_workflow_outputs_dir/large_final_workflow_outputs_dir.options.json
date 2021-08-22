@@ -1,0 +1,3 @@
+{
+  "final_workflow_outputs_dir": "gs://cloud-cromwell-dev-self-cleaning-fast"
+}

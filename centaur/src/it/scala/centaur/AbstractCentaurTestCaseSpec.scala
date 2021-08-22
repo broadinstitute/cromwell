@@ -6,6 +6,7 @@ import cats.effect.IO
 import cats.instances.list._
 import cats.syntax.flatMap._
 import cats.syntax.traverse._
+import centaur.callcaching.CromwellDatabaseCallCaching
 import centaur.reporting.{ErrorReporters, SuccessReporters, TestEnvironment}
 import centaur.test.CentaurTestException
 import centaur.test.standard.CentaurTestCase
@@ -64,11 +65,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
     // Make tags, but enforce lowercase:
     val tags = (testCase.testOptions.tags :+ testCase.workflow.testName :+ testCase.testFormat.name) map { x => Tag(x.toLowerCase) }
     val isIgnored = testCase.isIgnored(cromwellBackends)
-    val retries =
-      // in this case retrying may end up to be waste of time if some tasks have been cached on previous test attempts
-      if (testCase.reliesOnCallCachingMetadataVerification) 0
-      else if (testCase.workflow.retryTestFailures) ErrorReporters.retryAttempts
-      else 0
+    val retries = ErrorReporters.retryAttempts
 
     runOrDont(nameTest, tags, isIgnored, retries, runTestAndDeleteZippedImports())
   }
@@ -116,9 +113,9 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
           workflowContent = Option(upgradeResult.stdout.get), // this '.get' catches an error if upgrade fails
           zippedImports = Option(upgradedImportsDir.zip()))))(cromwellTracker) // An empty zip appears to be completely harmless, so no special handling
 
-    rootWorkflowFile.delete(true)
-    upgradedImportsDir.delete(true)
-    workingDir.delete(true)
+    rootWorkflowFile.delete(swallowIOExceptions = true)
+    upgradedImportsDir.delete(swallowIOExceptions = true)
+    workingDir.delete(swallowIOExceptions = true)
 
     newCase
   }
@@ -176,8 +173,12 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
     def maybeRetry(centaurTestException: CentaurTestException): IO[SubmitResponse] = {
       val testEnvironment = TestEnvironment(testName, retries, attempt)
       for {
-        _ <- ErrorReporters.logCentaurFailure(testEnvironment, centaurTestException)
+        _ <- ErrorReporters.logFailure(testEnvironment, centaurTestException)
         r <- if (attempt < retries) {
+          centaurTestException
+            .workflowIdOption
+            .map(CromwellDatabaseCallCaching.clearCachedResults)
+            .getOrElse(IO.unit) *>
           tryTryAgain(testName, runTest, retries, attempt + 1)
         } else {
           IO.raiseError(centaurTestException)
@@ -189,8 +190,12 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String], cromw
 
     runTestIo.redeemWith(
       {
-        case centaurTestException: CentaurTestException => maybeRetry(centaurTestException)
-        case _ => runTestIo
+        case centaurTestException: CentaurTestException =>
+          maybeRetry(centaurTestException)
+        case nonCentaurThrowable: Throwable =>
+          val testEnvironment = TestEnvironment(testName, retries = attempt + 1, attempt) // allow one last retry
+          ErrorReporters.logFailure(testEnvironment, nonCentaurThrowable)
+          runTestIo
       },
       {
         case workflowResponse: SubmitWorkflowResponse => SuccessReporters.logSuccessfulRun(workflowResponse)

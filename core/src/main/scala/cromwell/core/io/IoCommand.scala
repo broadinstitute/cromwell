@@ -34,7 +34,7 @@ object IoCommand {
 
 trait IoCommand[+T] {
   private val uuid = UUID.randomUUID().toString
-  private val creation = OffsetDateTime.now
+  val creation: OffsetDateTime = OffsetDateTime.now
 
   def commandDescription: String
 

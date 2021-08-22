@@ -1,7 +1,5 @@
 package cromwell.backend.standard.callcaching
 
-import java.util.concurrent.TimeoutException
-
 import akka.actor.{ActorRef, FSM}
 import cats.implicits._
 import cromwell.backend.BackendCacheHitCopyingActor._
@@ -21,6 +19,8 @@ import cromwell.services.CallCaching.CallCachingEntryId
 import cromwell.services.instrumentation.CromwellInstrumentationActor
 import wom.values.WomSingleFile
 
+import java.util.concurrent.TimeoutException
+import scala.util.matching.Regex
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -111,6 +111,7 @@ object StandardCacheHitCopyingActor {
   private[callcaching] case object AllCommandsDone extends CommandSetState
   private[callcaching] case class NextSubSet(commands: Set[IoCommand[_]]) extends CommandSetState
 
+  private val BucketRegex: Regex = "^gs://([^/]+).*".r
 }
 
 class DefaultStandardCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams) extends StandardCacheHitCopyingActor(standardParams)
@@ -223,6 +224,13 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
         case StillWaiting => stay() using Option(newData)
         case AllCommandsDone =>
           handleWhitelistingForSuccess(command)
+          // This is looking at the "before" data that should contain the last IoCommand we were waiting for.
+          data.commandsToWaitFor.flatten.headOption match {
+            case Some(command: IoCopyCommand) =>
+              logCacheHitCopyCommand(command)
+            case huh =>
+              log.warning(s"BT-322 {} unexpected commandsToWaitFor: {}", jobTag, huh)
+          }
           succeedAndStop(newData.returnCode, newData.newJobOutputs, newData.newDetritus)
         case NextSubSet(commands) =>
           commands foreach sendIoCommand
@@ -288,6 +296,16 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
     } yield()
     andThen
   }
+
+  private def logCacheHitCopyCommand(command: IoCopyCommand): Unit =
+    (command.source.pathAsString, command.destination.pathAsString) match {
+      case (BucketRegex(source), BucketRegex(destination)) =>
+        if (source == destination)
+          log.info(s"BT-322 {} cache hit copy within bucket: {}", jobTag, source)
+        else
+          log.info(s"BT-322 {} cache hit copy across buckets: {} -> {}", jobTag, source, destination)
+      case _ =>
+    }
 
   def succeedAndStop(returnCode: Option[Int], copiedJobOutputs: CallOutputs, detritusMap: DetritusMap): State = {
     import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter

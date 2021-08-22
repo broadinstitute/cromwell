@@ -48,7 +48,7 @@ The above scheme extends easily to multiple Cromwell instances, for use by diffe
 
 Even with a proxy in place, a single Cromwell server does not provide _authorization_ for individual users hitting the endpoints.  This allows, for instance, one _authenticated_ user to view the metadata for a workflow run by another _authenticated_ user.  Due to this limitation, it is important that all users of this Cromwell server be trusted.  
 
-With the exception of the use of the `refresh_token` or `google_compute_service_account` scheme in the [Configuration](Configuring#authentication) for the [Google Cloud backend](backends/Google)), Cromwell servers are setup to access files for use in workflows using a single set of credentials.  This means that all users of these Cromwell servers will have access to the same files that any other user has access to.  The `refresh_token` or `google_compute_service_account` scheme is the only way to ensure data is protected among multiple users of a Cromwell server, however the aforementioned caveats of authorization for endpoints still applies.  
+With the exception of the use of the `google_compute_service_account` scheme in the [Configuration](Configuring#authentication) for the [Google Cloud backend](backends/Google)), Cromwell servers are setup to access files for use in workflows using a single set of credentials.  This means that all users of these Cromwell servers will have access to the same files that any other user has access to.  The `refresh_token` or `google_compute_service_account` scheme is the only way to ensure data is protected among multiple users of a Cromwell server, however the aforementioned caveats of authorization for endpoints still applies.  
 
 **Protecting Secrets**
 

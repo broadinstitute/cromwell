@@ -4,7 +4,7 @@ task make_file {
         echo "hello ${content}" > out
     }
     runtime {
-        docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+        docker: "gcr.io/gcp-runtimes/ubuntu_16_0_4@sha256:53a002b59dfcd43b4d15e97c1acbeae035ddd1b31a106659a312e9fe65f00afa"
         backend: "Papi-Caching-No-Copy"
     }
     output {
@@ -18,7 +18,7 @@ task use_fofn {
         cat ${fofn}
     }
     runtime {
-        docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+        docker: "gcr.io/gcp-runtimes/ubuntu_16_0_4@sha256:53a002b59dfcd43b4d15e97c1acbeae035ddd1b31a106659a312e9fe65f00afa"
         backend: "Papi-Caching-No-Copy"
     }
     output {

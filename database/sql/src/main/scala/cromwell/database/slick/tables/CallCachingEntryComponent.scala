@@ -50,18 +50,25 @@ trait CallCachingEntryComponent {
   )
 
   val callCachingEntriesForWorkflowFqnIndex = Compiled(
-    (workflowId: Rep[String], callFqn: Rep[String],  jobIndex: Rep[Int]) => for {
-        callCachingEntry <- callCachingEntries
-        if callCachingEntry.workflowExecutionUuid === workflowId
-        if callCachingEntry.callFullyQualifiedName === callFqn
-        if callCachingEntry.jobIndex === jobIndex
-      } yield callCachingEntry
+    (workflowId: Rep[String], callFqn: Rep[String], jobIndex: Rep[Int]) => for {
+      callCachingEntry <- callCachingEntries
+      if callCachingEntry.workflowExecutionUuid === workflowId
+      if callCachingEntry.callFullyQualifiedName === callFqn
+      if callCachingEntry.jobIndex === jobIndex
+    } yield callCachingEntry
   )
 
-  def callCachingEntryIdsForWorkflowId(workflowId: String) = {
-    for {
+  val callCachingEntryIdsForWorkflowId = Compiled(
+    (workflowId: Rep[String]) => for {
       callCachingEntry <- callCachingEntries
       if callCachingEntry.workflowExecutionUuid === workflowId
     } yield callCachingEntry.callCachingEntryId
-  }
+  )
+
+  val allowResultReuseForWorkflowId = Compiled(
+    (workflowId: Rep[String]) => for {
+      callCachingEntry <- callCachingEntries
+      if callCachingEntry.workflowExecutionUuid === workflowId
+    } yield callCachingEntry.allowResultReuse
+  )
 }

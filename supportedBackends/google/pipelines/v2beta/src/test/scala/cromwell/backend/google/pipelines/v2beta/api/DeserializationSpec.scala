@@ -3,14 +3,16 @@ package cromwell.backend.google.pipelines.v2beta.api
 import java.util
 
 import com.google.api.services.lifesciences.v2beta.model.Operation
+import com.typesafe.scalalogging.StrictLogging
 import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.google.pipelines.v2beta.api.Deserialization._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
+import scala.util.{Failure, Success}
 
-class DeserializationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
+class DeserializationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with StrictLogging {
   behavior of "Deserialization"
 
   it should "deserialize events from operation metadata" in {
@@ -174,12 +176,15 @@ class DeserializationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
     ).asJava
     
     val deserialized = Deserialization.deserializeTo[DeserializationTestClass](valueMap)
-    deserialized.isSuccess shouldBe true
-    val deserializedSuccess = deserialized.get
-    deserializedSuccess.integerValue shouldBe 5
-    deserializedSuccess.doubleValue shouldBe 6D
-    deserializedSuccess.floatValue shouldBe 7F
-    deserializedSuccess.longValue shouldBe 8L
+    deserialized match {
+      case Success(deserializedSuccess) =>
+        deserializedSuccess.integerValue shouldBe 5
+        deserializedSuccess.doubleValue shouldBe 6D
+        deserializedSuccess.floatValue shouldBe 7F
+        deserializedSuccess.longValue shouldBe 8L
+      case Failure(f) =>
+        fail("Bad deserialization", f)
+    }
   }
   
 }

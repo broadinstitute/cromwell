@@ -2,7 +2,7 @@ version development
 
 workflow afters {
   input {
-    String where = "/tmp/helloFile"
+    String where = "/tmp/afters_helloFile"
   }
 
   # Should not impact 'read' because the second write overwrites it:
@@ -29,7 +29,7 @@ task write_to_shared {
   }
   command <<<
     sleep 2
-    echo "~{i}" > /tmp/helloFile
+    echo "~{i}" > /tmp/afters_helloFile
   >>>
   runtime {
     backend: "LocalNoDocker"

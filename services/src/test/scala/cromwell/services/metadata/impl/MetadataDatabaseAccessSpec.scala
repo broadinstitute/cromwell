@@ -106,6 +106,63 @@ class MetadataDatabaseAccessSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
       containerOpt.foreach { _.start }
     }
 
+    it should "properly get next workflow to archive and number of workflows left to archive" taggedAs DbmsTest in {
+      val defaultTimeout: FiniteDuration = 60.seconds
+      val terminalWorkflowStatuses = List(WorkflowSucceeded, WorkflowAborted, WorkflowFailed).map(_.toString)
+
+      // succeed first workflow and summarize it's metadata
+      val workflowId1Future = succeededWorkflowMetadata(WorkflowId.fromString("11111111-abcd-1111-1111-111111111111"))
+      val workflowId1 = Await.result(workflowId1Future, defaultTimeout)
+      val refreshSummariesFuture1 = dataAccess.refreshWorkflowMetadataSummaries(1000)
+      Await.result(refreshSummariesFuture1, defaultTimeout)
+
+      // succeed second workflow and summarize it's metadata
+      val workflowId2Future = succeededWorkflowMetadata(WorkflowId.fromString("11111111-1111-1111-abcd-111111111111"))
+      val workflowId2 = Await.result(workflowId2Future, defaultTimeout)
+      val refreshSummariesFuture2 = dataAccess.refreshWorkflowMetadataSummaries(1000)
+      Await.result(refreshSummariesFuture2, defaultTimeout)
+
+      // both workflows should be available for archiving
+      eventually(Timeout(2.minutes)) {
+        val workflowsLeftToArchiveFuture = dataAccess.countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(terminalWorkflowStatuses, OffsetDateTime.now().minusSeconds(10))
+        val workflowsLeftToArchiveResponse = Await.result(workflowsLeftToArchiveFuture, defaultTimeout)
+        workflowsLeftToArchiveResponse shouldBe 2
+      }
+
+      // check that the first workflow should be the one to be archived first
+      val workflowToArchiveResponse1 = eventually(Timeout(2.minutes)) {
+        val workflowToArchiveFuture = dataAccess.queryWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(terminalWorkflowStatuses, OffsetDateTime.now().minusSeconds(10), 1)
+        val workflowToArchiveResponse = Await.result(workflowToArchiveFuture, defaultTimeout)
+        workflowToArchiveResponse should not be empty
+        workflowToArchiveResponse
+      }
+
+      workflowToArchiveResponse1.length shouldBe 1
+      workflowToArchiveResponse1.head.workflowExecutionUuid shouldBe workflowId1.toString
+
+      // assume first workflow has been archived
+      val updateMetadataArchiveStatusFuture = dataAccess.updateMetadataArchiveStatus(workflowId1, MetadataArchiveStatus.Archived)
+      Await.result(updateMetadataArchiveStatusFuture, defaultTimeout)
+
+      // only 1 workflow should be left for archiving
+      eventually(Timeout(2.minutes)) {
+        val workflowsLeftToArchiveFuture = dataAccess.countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(terminalWorkflowStatuses, OffsetDateTime.now().minusSeconds(10))
+        val workflowsLeftToArchiveResponse = Await.result(workflowsLeftToArchiveFuture, defaultTimeout)
+        workflowsLeftToArchiveResponse shouldBe 1
+      }
+
+      // check that the second workflow should be the one to be archived next
+      val workflowToArchiveResponse2 = eventually(Timeout(2.minutes)) {
+        val workflowToArchiveFuture = dataAccess.queryWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(terminalWorkflowStatuses, OffsetDateTime.now().minusSeconds(10), 1)
+        val workflowToArchiveResponse = Await.result(workflowToArchiveFuture, defaultTimeout)
+        workflowToArchiveResponse should not be empty
+        workflowToArchiveResponse
+      }
+
+      workflowToArchiveResponse2.length shouldBe 1
+      workflowToArchiveResponse2.head.workflowExecutionUuid shouldBe workflowId2.toString
+    }
+
     it should "return pagination metadata only when page and pagesize query params are specified" taggedAs DbmsTest in {
       (for {
         _ <- baseWorkflowMetadata(Workflow1Name)
@@ -132,7 +189,7 @@ class MetadataDatabaseAccessSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
 
       def unorderedEvents(id: WorkflowId): Future[Vector[MetadataEvent]] = {
         val workflowKey = MetadataKey(id, jobKey = None, key = null)
-        val now = OffsetDateTime.now()
+        val now = OffsetDateTime.now().withNano(0)
         val yesterday = now.minusDays(1)
         val tomorrow = now.plusDays(1)
 
@@ -495,52 +552,39 @@ class MetadataDatabaseAccessSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
       val updateMetadataArchiveStatusFuture = dataAccess.updateMetadataArchiveStatus(workflowId1, MetadataArchiveStatus.Archived)
       Await.result(updateMetadataArchiveStatusFuture, defaultTimeout)
 
-      val responseEmptyFuture = dataAccess.queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp(Option("Archived"), OffsetDateTime.now().minusMinutes(1), 200)
+      val responseEmptyFuture = dataAccess.queryWorkflowIdsByArchiveStatusAndOlderThanTimestamp(Option("Archived"), OffsetDateTime.now().minusMinutes(1), 200)
       val responseEmpty = Await.result(responseEmptyFuture, defaultTimeout)
       responseEmpty shouldBe empty
 
       eventually(Timeout(2.minutes)) {
-        val responseNonEmptyFuture = dataAccess.queryRootWorkflowSummaryEntriesByArchiveStatusAndOlderThanTimestamp (Option ("Archived"), OffsetDateTime.now().minusMinutes(1), 200)
+        val responseNonEmptyFuture = dataAccess.queryWorkflowIdsByArchiveStatusAndOlderThanTimestamp (Option ("Archived"), OffsetDateTime.now().minusMinutes(1), 200)
         val responseNonEmpty = Await.result(responseNonEmptyFuture, 10.seconds)
         responseNonEmpty should not be empty
         responseNonEmpty should contain allElementsOf Seq(workflowId1.toString)
         responseNonEmpty should contain noElementsOf Seq(workflowId2.toString)
       }
 
-      val deleteMetadataFuture = dataAccess.deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(workflowId1, Option("ArchivedAndPurged"))
+      val deleteMetadataFuture = dataAccess.deleteAllMetadataEntriesForWorkflowAndUpdateArchiveStatus(workflowId1, Option("ArchivedAndDeleted"))
       Await.result(deleteMetadataFuture, defaultTimeout)
 
       val summaryResponseFuture = dataAccess.queryWorkflowSummaries(WorkflowQueryParameters(Seq(WorkflowQueryKey.Id.name -> workflowId1.toString)))
       val summaryResponse = Await.result(summaryResponseFuture, defaultTimeout)
       summaryResponse._1.results should not be empty
-      summaryResponse._1.results.head.metadataArchiveStatus.toString shouldBe "ArchivedAndPurged"
+      summaryResponse._1.results.head.metadataArchiveStatus.toString shouldBe "ArchivedAndDeleted"
     }
 
     it should "error when deleting metadata for a root workflow that does not exist" taggedAs DbmsTest in {
       dataAccess
-        .deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(WorkflowId.fromString("00000000-0000-0000-0000-000000000000"), None)
+        .deleteAllMetadataEntriesForWorkflowAndUpdateArchiveStatus(WorkflowId.fromString("00000000-0000-0000-0000-000000000000"), None)
         .failed.futureValue(Timeout(10.seconds))
-        .getMessage should be("""Metadata deletion precondition failed: workflow ID "00000000-0000-0000-0000-000000000000" not found in summary table""")
-    }
-
-    it should "error when deleting metadata for a subworkflow" taggedAs DbmsTest in {
-      val test = for {
-        rootWorkflowId <- baseWorkflowMetadata("root workflow name", workflowId = WorkflowId.fromString("11111111-1111-1111-1111-111111111111"))
-        subworkflowId <- subworkflowMetadata(rootWorkflowId, "subworkflow name", workflowId = WorkflowId.fromString("22222222-2222-2222-2222-222222222222"))
-        _ <- dataAccess.refreshWorkflowMetadataSummaries(1000)
-        _ <- dataAccess.deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(subworkflowId, None)
-      } yield ()
-
-      test
-        .failed.futureValue(Timeout(10.seconds))
-        .getMessage should be(s"""Metadata deletion precondition failed: workflow ID "22222222-2222-2222-2222-222222222222" is not a root workflow""")
+        .getMessage should be("""Metadata deletion precondition failed: workflow ID "00000000-0000-0000-0000-000000000000" did not have a status in the summary table""")
     }
 
     it should "refuse to delete a non-terminal workflow" taggedAs DbmsTest in {
       val test = for {
         rootWorkflowId <- baseWorkflowMetadata("root workflow name", workflowId = WorkflowId.fromString("33333333-3333-3333-3333-333333333333"))
         _ <- dataAccess.refreshWorkflowMetadataSummaries(1000)
-        _ <- dataAccess.deleteNonLabelMetadataEntriesForWorkflowAndUpdateArchiveStatus(rootWorkflowId, None)
+        _ <- dataAccess.deleteAllMetadataEntriesForWorkflowAndUpdateArchiveStatus(rootWorkflowId, None)
       } yield ()
 
       test

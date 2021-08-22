@@ -5,15 +5,20 @@ import common.validation.ErrorOr.ErrorOr
 import MetadataArchiveStatus._
 
 sealed trait MetadataArchiveStatus {
-  final def isArchived = this match {
-    case Archived | ArchivedAndPurged => true
-    case ArchiveFailed | Unarchived | TooLargeToArchive => false
+  final def isArchived: Boolean = this match {
+    case Archived | ArchivedAndDeleted => true
+    case ArchiveFailed | Unarchived => false
+  }
+
+  final def isDeleted: Boolean = this match {
+    case ArchivedAndDeleted => true
+    case Archived | ArchiveFailed | Unarchived => false
   }
 }
 
 object MetadataArchiveStatus {
 
-  lazy val MetadataArchiveStatusValues = Seq(Unarchived, Archived, ArchivedAndPurged, ArchiveFailed, TooLargeToArchive)
+  lazy val MetadataArchiveStatusValues = Seq(Unarchived, Archived, ArchivedAndDeleted, ArchiveFailed)
 
   def toDatabaseValue(status: MetadataArchiveStatus): Option[String] = status match {
     case Unarchived => None
@@ -32,8 +37,6 @@ object MetadataArchiveStatus {
 
   case object Unarchived extends MetadataArchiveStatus
   case object Archived extends MetadataArchiveStatus
-  case object ArchivedAndPurged extends MetadataArchiveStatus // `purged` means that original data is deleted from METADATA_ENTRY table
+  case object ArchivedAndDeleted extends MetadataArchiveStatus // this means that original data is deleted from METADATA_ENTRY table
   case object ArchiveFailed extends MetadataArchiveStatus
-  case object TooLargeToArchive extends MetadataArchiveStatus // would cause OOM on attempt to load metadata in memory
-
 }

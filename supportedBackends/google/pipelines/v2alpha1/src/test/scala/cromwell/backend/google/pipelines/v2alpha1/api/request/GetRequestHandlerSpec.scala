@@ -2,12 +2,12 @@ package cromwell.backend.google.pipelines.v2alpha1.api.request
 
 import java.net.URL
 import java.time.OffsetDateTime
-
 import akka.actor.ActorRef
 import com.google.api.client.http.GenericUrl
 import com.google.api.client.testing.http.MockHttpTransport
 import com.google.api.services.genomics.v2alpha1.model.Operation
 import common.assertion.CromwellTimeoutSpec
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.BatchRequestTimeoutConfiguration
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.PAPIStatusPollRequest
 import cromwell.backend.google.pipelines.common.api.RunStatus._
 import cromwell.backend.standard.StandardAsyncJob
@@ -25,7 +25,7 @@ class GetRequestHandlerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
   private val requestHandler: GetRequestHandler = new RequestHandler(
     "GetRequestHandlerSpec",
     new URL("file:///getrequesthandlerspec"),
-    null // This can be null because we never need to initialize http requests for this test
+    BatchRequestTimeoutConfiguration(None, None),
   )
 
   private val workflowId = WorkflowId.randomId()

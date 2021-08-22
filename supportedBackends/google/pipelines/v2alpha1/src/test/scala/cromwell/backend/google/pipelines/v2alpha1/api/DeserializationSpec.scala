@@ -2,7 +2,7 @@ package cromwell.backend.google.pipelines.v2alpha1.api
 
 import java.util
 
-import com.google.api.services.genomics.model.WorkerAssignedEvent
+import com.google.api.services.genomics.v2alpha1.model.WorkerAssignedEvent
 import com.google.api.services.genomics.v2alpha1.model.{ContainerStartedEvent, Operation}
 import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.google.pipelines.v2alpha1.api.Deserialization._

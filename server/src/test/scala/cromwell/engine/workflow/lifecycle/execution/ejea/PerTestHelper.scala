@@ -137,7 +137,8 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem) extends Mock
       writeActor = callCacheWriteActorProbe.ref,
       fileHashCacheActor = Option(dockerHashActorProbe.ref),
       maxFailedCopyAttempts = callCachingMaxFailedCopyAttempts,
-      blacklistCache = None
+      blacklistCache = None,
+      fileHashBatchSize = 100
     )
 
     val myBrandNewEjea = new TestFSMRef[EngineJobExecutionActorState, EJEAData, MockEjea](system, Props(new MockEjea(

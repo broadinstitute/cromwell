@@ -9,7 +9,6 @@ Other backends run tests for any user.
 | AWS           |                 |        ✅         |
 | BCS           |                 |        ✅         |
 | Local         |       ✅        |        ✅         |
-| PAPI V1       |                 |        ✅         |
 | PAPI V2alpha1 |                 |        ✅         |
 | PAPI V2beta   |                 |        ✅         |
 | SLURM         |       ✅        |        ✅         |
@@ -55,7 +54,7 @@ or `papi_v2beta_centaur_application.conf`
     2. sum-back: runs summarizer
     3. front-back: exposes HTTP
 - Horicromtal Engine Upgrade: Combination of Horicromtal and Engine Upgrade
-- PAPI Upgrade: Tests run with Papi V1 and upon restart use Papi V2
+- PAPI Upgrade: Tests run with an older version of Papi and upon restart use a newer version of Papi
 - PAPI Upgrade New Workflows: Test definition [does not run any tests](https://travis-ci.org/broadinstitute/cromwell/jobs/475378412)
 - WDL Upgrade: Upgrades WDL from draft-2 to 1.0 before testing
 - (other): Runs `*.test` files listing the configured backend names
@@ -67,7 +66,6 @@ or `papi_v2beta_centaur_application.conf`
 | AWS     |   ✅   |             |          |
 | BCS     |   ✅   |             |          |
 | Local   |   ✅   |      ✅     |          |
-| PAPI V1 |   ✅   |             |          |
 | PAPI V2 |   ✅   |             |    ⭕    |
 | SLURM   |   ✅   |             |          |
 | TES     |   ✅   |             |          |

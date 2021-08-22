@@ -75,14 +75,12 @@ class MetadataServiceActorSpec extends ServicesSpec {
     ("query1", query1, s"""{
                           |  "key1": "value2",
                           |  "calls": {},
-                          |  "id": "$workflowId",
-                          |  "metadataSource": "Unarchived"
+                          |  "id": "$workflowId"
                           |}""".stripMargin),
     ("query2", query2, s"""{
                           |  "key2": "value1",
                           |  "calls": {},
-                          |  "id": "$workflowId",
-                          |  "metadataSource": "Unarchived"
+                          |  "id": "$workflowId"
                           |}""".stripMargin),
     ("query3", query3, s"""{
                           |  "calls": {
@@ -92,8 +90,7 @@ class MetadataServiceActorSpec extends ServicesSpec {
                           |      "shardIndex": -1
                           |    }]
                           |  },
-                          |  "id": "$workflowId",
-                          |  "metadataSource": "Unarchived"
+                          |  "id": "$workflowId"
                           |}""".stripMargin),
     ("query4", query4, s"""{
                           |  "key1": "value2",
@@ -105,8 +102,7 @@ class MetadataServiceActorSpec extends ServicesSpec {
                           |      "shardIndex": -1
                           |    }]
                           |  },
-                          |  "id": "$workflowId",
-                          |  "metadataSource": "Unarchived"
+                          |  "id": "$workflowId"
                           |}""".stripMargin),
     ("query5", query5, s"""{
                           |  "calls": {
@@ -116,8 +112,7 @@ class MetadataServiceActorSpec extends ServicesSpec {
                           |      "shardIndex": -1
                           |    }]
                           |  },
-                          |  "id": "$workflowId",
-                          |  "metadataSource": "Unarchived"
+                          |  "id": "$workflowId"
                           |}""".stripMargin),
 
   )

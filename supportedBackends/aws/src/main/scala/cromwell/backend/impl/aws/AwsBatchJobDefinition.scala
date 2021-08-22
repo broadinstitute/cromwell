@@ -143,8 +143,11 @@ trait AwsBatchJobDefinitionBuilder {
     }
 
 
-
-    val packedCommand = packCommand("/bin/bash", "-c", "/var/scratch/fetch_and_run.sh")
+    val cmdName = context.runtimeAttributes.fileSystem match {
+       case AWSBatchStorageSystems.s3 => "/var/scratch/fetch_and_run.sh"
+       case _ =>  context.commandText
+    }
+    val packedCommand = packCommand("/bin/bash", "-c", cmdName)
     val volumes =  buildVolumes( context.runtimeAttributes.disks )
     val mountPoints = buildMountPoints( context.runtimeAttributes.disks)
     val jobDefinitionName = buildName(

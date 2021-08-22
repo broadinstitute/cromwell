@@ -1,7 +1,6 @@
 package centaur.reporting
 
 import cats.effect.IO
-import centaur.test.CentaurTestException
 
 import scala.concurrent.ExecutionContext
 
@@ -15,9 +14,9 @@ trait ErrorReporter {
   /** A description of where the reporter is sending the errors. */
   def destination: String
 
-  /** Send a report of a centaur failure. */
-  def logCentaurFailure(testEnvironment: TestEnvironment,
-                        ciEnvironment: CiEnvironment,
-                        centaurTestException: CentaurTestException)
-                       (implicit executionContext: ExecutionContext): IO[Unit]
+  /** Send a report of a failure. */
+  def logFailure(testEnvironment: TestEnvironment,
+                 ciEnvironment: CiEnvironment,
+                 throwable: Throwable)
+                (implicit executionContext: ExecutionContext): IO[Unit]
 }

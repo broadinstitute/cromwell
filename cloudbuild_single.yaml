@@ -1,0 +1,42 @@
+steps:
+  # This docker image (shared with Jenkins) was built via:
+  # docker \
+  #   build \
+  #   --pull \
+  #   --tag us-docker.pkg.dev/broad-dsde-cromwell-dev/ci/cromwell-test:pr-6139 \
+  #   --file src/ci/docker-compose/cromwell-test/Dockerfile \
+  #   src/ci/docker-compose/cromwell-test/.
+  - name: 'us-docker.pkg.dev/broad-dsde-cromwell-dev/ci/cromwell-test:pr-6139'
+    entrypoint: 'sudo'
+    args:
+      - '--preserve-env'
+      - 'bash'
+      - '-c'
+      - >-
+        export VAULT_TOKEN="$(gcloud secrets versions access latest --secret=VAULT_TOKEN)" &&
+        src/ci/bin/test.sh
+
+substitutions:
+  _OWNER_NAME: 'broadinstitute'
+
+options:
+  machineType: 'N1_HIGHCPU_8'
+  logStreamingOption: STREAM_ON
+  env:
+    - 'BUILD_NAME=${_BUILD_NAME}'
+    - 'BUILD_TYPE=${_BUILD_TYPE}'
+    - 'BUILD_HSQLDB=${_BUILD_HSQLDB}'
+    - 'BUILD_MARIADB=${_BUILD_MARIADB}'
+    - 'BUILD_MYSQL=${_BUILD_MYSQL}'
+    - 'BUILD_POSTGRESQL=${_BUILD_POSTGRESQL}'
+    - 'BUILD_SQLITE=${_BUILD_SQLITE}'
+    - 'CLOUD_BUILD=true'
+    - 'BUILD_ID=${BUILD_ID}'
+    - 'PROJECT_ID=${PROJECT_ID}'
+    - 'OWNER_NAME=${_OWNER_NAME}'
+    - 'REPO_NAME=${_REPO_NAME}'
+    - 'BRANCH_NAME=${_BRANCH_NAME}'
+    - 'TAG_NAME=${_TAG_NAME}'
+    - 'PR_NUMBER=${_PR_NUMBER}'
+
+timeout: 10800s

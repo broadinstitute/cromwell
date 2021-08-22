@@ -78,7 +78,7 @@ object ActionBuilder {
     ActionBuilder.cloudSdkShellAction(command)(mounts = mounts, labels = labels)
   }
 
-  def monitoringAction(image: String,
+  def backgroundAction(image: String,
                        command: List[String],
                        environment: Map[String, String],
                        mounts: List[Mount],
@@ -91,13 +91,19 @@ object ActionBuilder {
       .withMounts(mounts)
       .setEnvironment(environment.asJava)
       .withLabels(Map(Key.Tag -> Value.Monitoring))
-      .setPidNamespace(monitoringPidNamespace)
+      .setPidNamespace(backgroundActionPidNamespace)
   }
 
-  def monitoringTerminationAction(): Action =
-    cloudSdkShellAction(monitoringTerminationCommand)(labels = Map(Key.Tag -> Value.Monitoring))
+  def terminateBackgroundActionsAction(): Action =
+    cloudSdkShellAction(terminateAllBackgroundActionsCommand)(labels = Map(Key.Tag -> Value.Monitoring))
       .withAlwaysRun(true)
-      .setPidNamespace(monitoringPidNamespace)
+      .setPidNamespace(backgroundActionPidNamespace)
+
+  def gcsFileDeletionAction(cloudPath: String): Action =
+    cloudSdkShellAction(
+      s"""gsutil rm '$cloudPath'"""
+    )(labels = Map(Key.Tag -> Value.Monitoring))
+      .withIgnoreExitStatus(true)
 
   def userAction(docker: String,
                  scriptContainerPath: String,

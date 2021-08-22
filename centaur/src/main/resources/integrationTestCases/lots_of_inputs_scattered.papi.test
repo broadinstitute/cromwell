@@ -1,0 +1,18 @@
+name: lots_of_inputs_scattered_papiv2
+testFormat: workflowsuccess
+# This test usually runs successfully but its scale presents a lot of challenges for CI.
+# Too much log output to run on Travis, > 1 million metadata rows in the db, Akka HTTP response size nearly 1 GiB
+# (after numerous failed retry attempts), and "java.lang.OutOfMemoryError: Java heap space" on Jenkins workers.
+# `ignore`ing for now but hopefully can be re-enabled in Jenkins if full metadata fetches can be sidestepped (BT-380)
+# or perhaps migrated to the Cromwell perf environment.
+ignore: true
+backends: [ Papiv2 ]
+
+files {
+  workflow: scale/lots_of_inputs_scattered/lots_of_inputs_scattered.wdl
+}
+
+metadata {
+    workflowName: lots_of_inputs_scattered
+    status: Succeeded
+}

@@ -5,11 +5,12 @@ task large_dockerhub_image {
         String docker_image
     }
     command {
-        which jq > /dev/null || (apt-get update > /dev/null && apt-get install -y jq > /dev/null)
+        curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+        which jq || (apt-get update && apt-get install -y jq)
         NAME=`curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/name`
         ZONE=`basename \`curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/zone\``
         PROJECT=`curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/project/project-id`
-        curl -s -H "Authorization: Bearer `gcloud auth print-access-token`" "https://www.googleapis.com/compute/v1/projects/$PROJECT/zones/$ZONE/disks/$NAME?fields=sizeGb" | jq -r '.sizeGb'
+        curl -s -H "Authorization: Bearer `gcloud auth print-access-token`" "https://www.googleapis.com/compute/v1/projects/$PROJECT/zones/$ZONE/disks/$NAME?fields=sizeGb" | jq -r '.sizeGb' > disksize.txt
     }
 
     runtime {
@@ -17,7 +18,7 @@ task large_dockerhub_image {
     }
     
     output {
-        Int bootDiskSize = read_int(stdout())
+        Int bootDiskSize = read_int("disksize.txt")
     }
 }
 

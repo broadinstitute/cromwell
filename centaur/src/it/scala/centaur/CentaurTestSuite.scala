@@ -18,13 +18,14 @@ object CentaurTestSuite extends StrictLogging {
 
   def startCromwell(): Unit = {
     CentaurConfig.runMode match {
-      case ManagedCromwellServer(preRestart, _, _) =>
+      case ManagedCromwellServer(_, _, preRestart, _, _) =>
         CromwellManager.startCromwell(preRestart)
       case _ =>
     }
   }
 
-  val cromwellBackends = CentaurCromwellClient.backends.unsafeRunSync().supportedBackends.map(_.toLowerCase)
+  val cromwellBackends: List[String] =
+    CentaurCromwellClient.backends.unsafeRunSync().supportedBackends.map(_.toLowerCase)
 
   def isWdlUpgradeTest(testCase: CentaurTestCase): Boolean = testCase.containsTag("wdl_upgrade")
 
@@ -63,11 +64,11 @@ object CentaurTestSuite extends StrictLogging {
 trait CentaurTestSuiteShutdown extends Suite with BeforeAndAfterAll {
   private var shutdownHook: Option[ShutdownHookThread] = _
 
-  override protected def beforeAll() = {
+  override protected def beforeAll(): Unit = {
     shutdownHook = Option(sys.addShutdownHook { CromwellManager.stopCromwell("JVM Shutdown Hook") })
   }
 
-  override protected def afterAll() = {
+  override protected def afterAll(): Unit = {
     CromwellManager.stopCromwell("ScalaTest AfterAll")
     CentaurTestSuite.cromwellTracker foreach { _.assertHoricromtality() }
     shutdownHook.foreach(_.remove())

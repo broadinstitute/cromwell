@@ -1,23 +1,22 @@
 package cloud.nio.impl.drs
 
-import java.nio.channels.ReadableByteChannel
-import java.time.{Instant, OffsetDateTime, ZoneOffset}
-
 import cats.data.NonEmptyList
 import cats.effect.IO
 import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
-import com.google.api.client.testing.http.apache.MockHttpClient
 import com.typesafe.config.ConfigFactory
 import common.assertion.CromwellTimeoutSpec
 import org.apache.commons.compress.utils.SeekableInMemoryByteChannel
+import org.apache.http.HttpVersion
 import org.apache.http.client.methods.{CloseableHttpResponse, HttpPost}
-import org.apache.http.impl.client.HttpClientBuilder
+import org.apache.http.impl.client.{CloseableHttpClient, HttpClientBuilder}
 import org.apache.http.message.BasicStatusLine
-import org.apache.http.{HttpStatus, HttpVersion}
+import org.mockito.Mockito.verify
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 
+import java.nio.channels.ReadableByteChannel
+import java.time.{Instant, OffsetDateTime, ZoneOffset}
 import scala.concurrent.duration._
 
 class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matchers with Mockito {
@@ -60,8 +59,7 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
     val httpResponse = mock[CloseableHttpResponse].smart
     httpResponse.getStatusLine returns new BasicStatusLine(HttpVersion.HTTP_1_1, 200, "OK")
 
-    val httpClient = spy(new MockHttpClient()).smart
-    httpClient.setResponseCode(HttpStatus.SC_OK)
+    val httpClient = mock[CloseableHttpClient].smart
     doReturn(httpResponse).when(httpClient).execute(anyObject[HttpPost])
 
     val httpClientBuilder = mock[HttpClientBuilder].smart
@@ -70,9 +68,12 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
     val fileSystemProvider = new MockDrsCloudNioFileSystemProvider(httpClientBuilder = Option(httpClientBuilder))
     val fileProvider = fileSystemProvider.fileProvider.asInstanceOf[DrsCloudNioFileProvider]
     fileProvider.existsPaths("drs://dg.123/abc", "") should be(true)
+
+    verify(httpClient).close()
+    verify(httpResponse).close()
   }
 
-  it should "return a file provider that can read bytes" in {
+  it should "return a file provider that can read bytes from gcs" in {
     val drsPathResolver = new MockEngineDrsPathResolver() {
       override def resolveDrsThroughMartha(drsPath: String,
                                            fields: NonEmptyList[MarthaField.Value],
@@ -82,11 +83,37 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
     }
 
     val readChannel: ReadableByteChannel = new SeekableInMemoryByteChannel(Array.emptyByteArray)
-    val drsReadInterpreter: DrsReadInterpreter = (gsUriOption, googleServiceAccountOption) => {
+    val drsReadInterpreter: DrsReadInterpreter = (_, marthaResponse) => {
       IO(
-        (gsUriOption, googleServiceAccountOption) match {
+        (marthaResponse.gsUri, marthaResponse.googleServiceAccount) match {
           case (Some("gs://bucket/object/path"), None) => readChannel
-          case _ => fail(s"Unexpected parameters passed: ($gsUriOption,$googleServiceAccountOption")
+          case _ => fail(s"Unexpected parameters passed: $marthaResponse")
+        }
+      )
+    }
+
+    val fileSystemProvider = new MockDrsCloudNioFileSystemProvider(
+      mockResolver = Option(drsPathResolver),
+      drsReadInterpreter = drsReadInterpreter,
+    )
+    fileSystemProvider.fileProvider.read("dg.123", "abc", 0) should be(readChannel)
+  }
+
+  it should "return a file provider that can read bytes from an access url" in {
+    val drsPathResolver = new MockEngineDrsPathResolver() {
+      override def resolveDrsThroughMartha(drsPath: String,
+                                           fields: NonEmptyList[MarthaField.Value],
+                                          ): IO[MarthaResponse] = {
+        IO(MarthaResponse(accessUrl = Option(AccessUrl("https://host/object/path", None))))
+      }
+    }
+
+    val readChannel: ReadableByteChannel = new SeekableInMemoryByteChannel(Array.emptyByteArray)
+    val drsReadInterpreter: DrsReadInterpreter = (_, marthaResponse) => {
+      IO(
+        marthaResponse.accessUrl match {
+          case Some(AccessUrl("https://host/object/path", None)) => readChannel
+          case _ => fail(s"Unexpected parameters passed: $marthaResponse")
         }
       )
     }

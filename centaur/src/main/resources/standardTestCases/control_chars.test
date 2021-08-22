@@ -9,4 +9,5 @@ metadata {
   workflowName: control_chars
   status: Succeeded
   "calls.control_chars.control.executionStatus": Done
+  "calls.control_chars.control.outputs.salutation": "“Control characters should work with metadata” — Cromwell"
 }

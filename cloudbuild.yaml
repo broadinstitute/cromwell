@@ -1,0 +1,330 @@
+# As of Dec 2020 this workflow setup compared to .travis.yml uses:
+# - adoptopenjdk's openjdk instead of oracle's openjdk
+# - probably similar ubuntu
+# - probably similar python
+# - no slack notifications
+#
+# Also:
+# > Each Google Cloud project is granted quota to run ten builds at a time. When this quota is filled, requests for
+# > additional builds are queued and processed serially after the running build completes. An infinite number of builds
+# > can be queued.
+# https://cloud.google.com/cloud-build/quotas
+#
+# Except, there's also a quota cloudbuild.googleapis.com/get_requests for "Build and Operation Get requests per minute"
+# with a default value of 600. When using `gcloud build submit` in parallel builds it is easy to blow through this
+# quota. So we only run a certain number of build jobs at a time for now.
+steps:
+  - waitFor: ['-']
+    id: 'centaurAws'
+    env:
+      - 'BUILD_NAME=centaurAws'
+      - 'BUILD_TYPE=centaurAws'
+      - 'BUILD_MYSQL=5.7'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['centaurAws']
+    id: 'centaurBcs'
+    env:
+      - 'BUILD_NAME=centaurBcs'
+      - 'BUILD_TYPE=centaurBcs'
+      - 'BUILD_MYSQL=5.7'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['centaurBcs']
+    id: 'centaurDummy'
+    env:
+      - 'BUILD_NAME=centaurDummy'
+      - 'BUILD_TYPE=centaurDummy'
+      - 'BUILD_MYSQL=5.7'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['centaurDummy']
+    id: 'centaurEngineUpgradeLocal'
+    env:
+      - 'BUILD_NAME=centaurEngineUpgradeLocal'
+      - 'BUILD_TYPE=centaurEngineUpgradeLocal'
+      - 'BUILD_MYSQL=5.7'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['centaurEngineUpgradeLocal']
+    id: 'centaurEngineUpgradePapiV2alpha1'
+    env:
+      - 'BUILD_NAME=centaurEngineUpgradePapiV2alpha1'
+      - 'BUILD_TYPE=centaurEngineUpgradePapiV2alpha1'
+      - 'BUILD_MYSQL=5.7'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['-']
+    id: 'centaurHoricromtalPapiV2alpha1'
+    env:
+      - 'BUILD_NAME=centaurHoricromtalPapiV2alpha1'
+      - 'BUILD_TYPE=centaurHoricromtalPapiV2alpha1'
+      - 'BUILD_MYSQL=5.7'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['centaurHoricromtalPapiV2alpha1']
+    id: 'centaurHoricromtalPapiV2beta'
+    env:
+      - 'BUILD_NAME=centaurHoricromtalPapiV2beta'
+      - 'BUILD_TYPE=centaurHoricromtalPapiV2beta'
+      - 'BUILD_MYSQL=5.7'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['-']
+    id: 'centaurHoricromtalEngineUpgradePapiV2alpha1'
+    env:
+      - 'BUILD_NAME=centaurHoricromtalEngineUpgradePapiV2alpha1'
+      - 'BUILD_TYPE=centaurHoricromtalEngineUpgradePapiV2alpha1'
+      - 'BUILD_MYSQL=5.7'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['centaurHoricromtalEngineUpgradePapiV2alpha1']
+    id: 'centaurPapiUpgradePapiV1'
+    env:
+      - 'BUILD_NAME=centaurPapiUpgradePapiV1'
+      - 'BUILD_TYPE=centaurPapiUpgradePapiV1'
+      - 'BUILD_MYSQL=5.7'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['centaurPapiUpgradePapiV1']
+    id: 'centaurPapiUpgradeNewWorkflowsPapiV1'
+    env:
+      - 'BUILD_NAME=centaurPapiUpgradeNewWorkflowsPapiV1'
+      - 'BUILD_TYPE=centaurPapiUpgradeNewWorkflowsPapiV1'
+      - 'BUILD_MYSQL=5.7'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['centaurPapiUpgradeNewWorkflowsPapiV1']
+    id: 'centaurPapiUpgradePapiV2alpha1'
+    env:
+      - 'BUILD_NAME=centaurPapiUpgradePapiV2alpha1'
+      - 'BUILD_TYPE=centaurPapiUpgradePapiV2alpha1'
+      - 'BUILD_MYSQL=5.7'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['centaurPapiUpgradePapiV2alpha1']
+    id: 'centaurPapiUpgradeNewWorkflowsPapiV2alpha1'
+    env:
+      - 'BUILD_NAME=centaurPapiUpgradeNewWorkflowsPapiV2alpha1'
+      - 'BUILD_TYPE=centaurPapiUpgradeNewWorkflowsPapiV2alpha1'
+      - 'BUILD_MYSQL=5.7'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['-']
+    id: 'centaurLocalHsqldb'
+    env:
+      - 'BUILD_NAME=centaurLocalHsqldb'
+      - 'BUILD_TYPE=centaurLocal'
+      - 'BUILD_HSQLDB=true'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['centaurLocalHsqldb']
+    id: 'centaurLocalMariadb'
+    env:
+      - 'BUILD_NAME=centaurLocalMariadb'
+      - 'BUILD_TYPE=centaurLocal'
+      - 'BUILD_MARIADB=10.3'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['centaurLocalMariadb']
+    id: 'centaurLocalMysql'
+    env:
+      - 'BUILD_NAME=centaurLocalMysql'
+      - 'BUILD_TYPE=centaurLocal'
+      - 'BUILD_MYSQL=5.7'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['centaurLocalMysql']
+    id: 'centaurLocalPostgresql'
+    env:
+      - 'BUILD_NAME=centaurLocalPostgresql'
+      - 'BUILD_TYPE=centaurLocal'
+      - 'BUILD_POSTGRESQL=11.3'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['centaurLocalPostgresql']
+    id: 'centaurLocalSqlite'
+    env:
+      - 'BUILD_NAME=centaurLocalSqlite'
+      - 'BUILD_TYPE=centaurLocal'
+      - 'BUILD_SQLITE=true'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['-']
+    id: 'centaurPapiV1'
+    env:
+      - 'BUILD_NAME=centaurPapiV1'
+      - 'BUILD_TYPE=centaurPapiV1'
+      - 'BUILD_MYSQL=5.7'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['centaurPapiV1']
+    id: 'centaurPapiV2alpha1'
+    env:
+      - 'BUILD_NAME=centaurPapiV2alpha1'
+      - 'BUILD_TYPE=centaurPapiV2alpha1'
+      - 'BUILD_MYSQL=5.7'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['centaurPapiV2alpha1']
+    id: 'centaurPapiV2beta'
+    env:
+      - 'BUILD_NAME=centaurPapiV2beta'
+      - 'BUILD_TYPE=centaurPapiV2beta'
+      - 'BUILD_MYSQL=5.7'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['-']
+    id: 'centaurSlurm'
+    env:
+      - 'BUILD_NAME=centaurSlurm'
+      - 'BUILD_TYPE=centaurSlurm'
+      - 'BUILD_MYSQL=5.7'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['centaurSlurm']
+    id: 'centaurTes'
+    env:
+      - 'BUILD_NAME=centaurTes'
+      - 'BUILD_TYPE=centaurTes'
+      - 'BUILD_MYSQL=5.7'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['centaurTes']
+    id: 'centaurWdlUpgradeLocal'
+    env:
+      - 'BUILD_NAME=centaurWdlUpgradeLocal'
+      - 'BUILD_TYPE=centaurWdlUpgradeLocal'
+      - 'BUILD_MYSQL=5.7'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['centaurWdlUpgradeLocal']
+    id: 'checkPublish'
+    env:
+      - 'BUILD_NAME=checkPublish'
+      - 'BUILD_TYPE=checkPublish'
+      - 'BUILD_MYSQL=5.7'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['-']
+    id: 'conformanceLocal'
+    env:
+      - 'BUILD_NAME=conformanceLocal'
+      - 'BUILD_TYPE=conformanceLocal'
+      - 'BUILD_MYSQL=5.7'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['conformanceLocal']
+    id: 'conformancePapiV2beta'
+    env:
+      - 'BUILD_NAME=conformancePapiV2beta'
+      - 'BUILD_TYPE=conformancePapiV2beta'
+      - 'BUILD_MYSQL=5.7'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['conformancePapiV2beta']
+    id: 'conformanceTesk'
+    env:
+      - 'BUILD_NAME=conformanceTesk'
+      - 'BUILD_TYPE=conformanceTesk'
+      - 'BUILD_MYSQL=5.7'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['-']
+    id: 'horicromtalDeadlock'
+    env:
+      - 'BUILD_NAME=horicromtalDeadlock'
+      - 'BUILD_TYPE=horicromtalDeadlock'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['horicromtalDeadlock']
+    id: 'dockerScripts'
+    env:
+      - 'BUILD_NAME=dockerScripts'
+      - 'BUILD_TYPE=dockerScripts'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['dockerScripts']
+    id: 'sbt'
+    env:
+      - 'BUILD_NAME=sbt'
+      - 'BUILD_TYPE=sbt'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['sbt']
+    id: 'dbms'
+    env:
+      - 'BUILD_NAME=dbms'
+      - 'BUILD_TYPE=dbms'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['dbms']
+    id: 'singleWorkflowRunner'
+    env:
+      - 'BUILD_NAME=singleWorkflowRunner'
+      - 'BUILD_TYPE=singleWorkflowRunner'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['singleWorkflowRunner']
+    id: 'metadataComparisonPython'
+    env:
+      - 'BUILD_NAME=metadataComparisonPython'
+      - 'BUILD_TYPE=metadataComparisonPython'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+  - waitFor: ['metadataComparisonPython']
+    id: 'referenceDiskManifestBuilderApp'
+    env:
+      - 'BUILD_NAME=referenceDiskManifestBuilderApp'
+      - 'BUILD_TYPE=referenceDiskManifestBuilderApp'
+    name: '${_DOCKER_NAME}'
+    entrypoint: 'bash'
+    args: ['${_BASH_SCRIPT}']
+
+substitutions:
+  _DOCKER_NAME: 'gcr.io/cloud-builders/gcloud'
+  _BASH_SCRIPT: src/ci/bin/submitGoogleCloudBuild.sh
+
+options:
+  machineType: 'N1_HIGHCPU_8'
+  logStreamingOption: STREAM_ON
+  env:
+    - 'REPO_NAME=${REPO_NAME}'
+    - 'BRANCH_NAME=${BRANCH_NAME}'
+    - 'TAG_NAME=${TAG_NAME}'
+    - 'PR_NUMBER=${_PR_NUMBER}'
+
+timeout: 43200s

@@ -1,0 +1,20 @@
+LocalDockerSecure {
+  # The content of this config object is currently identical to that of the 'Local' backend
+  # specified in 'local_application.conf'. There is currently no actual 'ctmpl' processing
+  # required within this file.
+  #
+  # For authorized Travis users this .conf.ctmpl file will be rendered to a .conf file and
+  # included into 'local_application.conf', enabling the 'hello_private_repo' Centaur test
+  # to find its requested backend.
+  #
+  # For unauthorized Travis users the 'LocalDockerSecure' backend will not be defined
+  # and the 'hello_private_repo' test will be skipped because Centaur will not find a
+  # matching backend.
+  actor-factory = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"
+  config {
+    include "local_provider_config.inc.conf"
+
+    # Have the engine (maybe) authenticate to docker.io. See BT-141 for more info.
+    include "dockerhub_provider_config_v1.inc.conf"
+  }
+}

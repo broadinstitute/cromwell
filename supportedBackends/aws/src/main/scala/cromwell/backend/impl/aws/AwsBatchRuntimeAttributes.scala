@@ -136,7 +136,19 @@ object AwsBatchRuntimeAttributes {
 
   def runtimeAttributesBuilder(configuration: AwsBatchConfiguration): StandardValidatedRuntimeAttributesBuilder = {
     val runtimeConfig = configuration.runtimeConfig
-    StandardValidatedRuntimeAttributesBuilder.default(runtimeConfig).withValidation(
+    def validationsS3backend = StandardValidatedRuntimeAttributesBuilder.default(runtimeConfig).withValidation(
+                        cpuValidation(runtimeConfig),
+                        cpuMinValidation(runtimeConfig),
+                        disksValidation(runtimeConfig),
+                        zonesValidation(runtimeConfig),
+                        memoryValidation(runtimeConfig),
+                        memoryMinValidation(runtimeConfig),
+                        noAddressValidation(runtimeConfig),
+                        dockerValidation,
+                        queueArnValidation(runtimeConfig),
+                        scriptS3BucketNameValidation(runtimeConfig)
+                      )
+   def validationsLocalBackend  = StandardValidatedRuntimeAttributesBuilder.default(runtimeConfig).withValidation(
       cpuValidation(runtimeConfig),
       cpuMinValidation(runtimeConfig),
       disksValidation(runtimeConfig),
@@ -145,12 +157,17 @@ object AwsBatchRuntimeAttributes {
       memoryMinValidation(runtimeConfig),
       noAddressValidation(runtimeConfig),
       dockerValidation,
-      queueArnValidation(runtimeConfig),
-      scriptS3BucketNameValidation(runtimeConfig)
+      queueArnValidation(runtimeConfig)
     )
+
+    configuration.fileSystem match  {
+       case AWSBatchStorageSystems.s3 =>  validationsS3backend
+
+       case _ => validationsLocalBackend
+    }
   }
 
-  def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, runtimeAttrsConfig: Option[Config]): AwsBatchRuntimeAttributes = {
+  def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, runtimeAttrsConfig: Option[Config], fileSystem:String): AwsBatchRuntimeAttributes = {
     val cpu: Int Refined Positive = RuntimeAttributesValidation.extract(cpuValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val zones: Vector[String] = RuntimeAttributesValidation.extract(ZonesValidation, validatedRuntimeAttributes)
     val memory: MemorySize = RuntimeAttributesValidation.extract(memoryValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
@@ -160,7 +177,11 @@ object AwsBatchRuntimeAttributes {
     val failOnStderr: Boolean = RuntimeAttributesValidation.extract(failOnStderrValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val continueOnReturnCode: ContinueOnReturnCode = RuntimeAttributesValidation.extract(continueOnReturnCodeValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val noAddress: Boolean = RuntimeAttributesValidation.extract(noAddressValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-    val scriptS3BucketName = RuntimeAttributesValidation.extract(scriptS3BucketNameValidation(runtimeAttrsConfig) , validatedRuntimeAttributes)
+    val scriptS3BucketName = fileSystem match  {
+       case AWSBatchStorageSystems.s3 => RuntimeAttributesValidation.extract(scriptS3BucketNameValidation(runtimeAttrsConfig) , validatedRuntimeAttributes)
+       case _ => ""
+     }
+
 
     new AwsBatchRuntimeAttributes(
       cpu,
@@ -172,7 +193,8 @@ object AwsBatchRuntimeAttributes {
       failOnStderr,
       continueOnReturnCode,
       noAddress,
-      scriptS3BucketName
+      scriptS3BucketName,
+      fileSystem
     )
   }
 }

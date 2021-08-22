@@ -50,7 +50,8 @@ final case class PipelinesApiRuntimeAttributes(cpu: Int Refined Positive,
                                                continueOnReturnCode: ContinueOnReturnCode,
                                                noAddress: Boolean,
                                                googleLegacyMachineSelection: Boolean,
-                                               useDockerImageCache: Option[Boolean])
+                                               useDockerImageCache: Option[Boolean],
+                                               checkpointFilename: Option[String])
 
 object PipelinesApiRuntimeAttributes {
 
@@ -74,9 +75,15 @@ object PipelinesApiRuntimeAttributes {
 
   val CpuPlatformKey = "cpuPlatform"
   private val cpuPlatformValidationInstance = new StringRuntimeAttributesValidation(CpuPlatformKey).optional
+  // via `gcloud compute zones describe us-central1-a`
+  val CpuPlatformIntelCascadeLakeValue = "Intel Cascade Lake"
+  val CpuPlatformAMDRomeValue = "AMD Rome"
 
   val UseDockerImageCacheKey = "useDockerImageCache"
   private val useDockerImageCacheValidationInstance = new BooleanRuntimeAttributesValidation(UseDockerImageCacheKey).optional
+
+  val CheckpointFileKey = "checkpointFile"
+  private val checkpointFileValidationInstance = new StringRuntimeAttributesValidation(CheckpointFileKey).optional
 
   private val MemoryDefaultValue = "2048 MB"
 
@@ -164,6 +171,7 @@ object PipelinesApiRuntimeAttributes {
       noAddressValidation(runtimeConfig),
       cpuPlatformValidation(runtimeConfig),
       useDockerImageCacheValidation(runtimeConfig),
+      checkpointFileValidationInstance,
       dockerValidation,
       outDirMinValidation,
       tmpDirMinValidation,
@@ -174,6 +182,8 @@ object PipelinesApiRuntimeAttributes {
   def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes, runtimeAttrsConfig: Option[Config], googleLegacyMachineSelection: Boolean = false): PipelinesApiRuntimeAttributes = {
     val cpu: Int Refined Positive = RuntimeAttributesValidation.extract(cpuValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val cpuPlatform: Option[String] = RuntimeAttributesValidation.extractOption(cpuPlatformValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
+
+    val checkpointFileName: Option[String] = RuntimeAttributesValidation.extractOption(checkpointFileValidationInstance.key, validatedRuntimeAttributes)
 
     // GPU
     lazy val gpuType: Option[GpuType] = RuntimeAttributesValidation.extractOption(gpuTypeValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
@@ -220,7 +230,8 @@ object PipelinesApiRuntimeAttributes {
       continueOnReturnCode,
       noAddress,
       googleLegacyMachineSelection,
-      useDockerImageCache
+      useDockerImageCache,
+      checkpointFileName
     )
   }
 }

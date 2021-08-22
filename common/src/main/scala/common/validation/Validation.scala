@@ -10,9 +10,9 @@ import cats.syntax.validated._
 import common.Checked
 import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
-import eu.timepit.refined.numeric.GreaterEqual
 import eu.timepit.refined._
 import eu.timepit.refined.api.Refined
+import eu.timepit.refined.numeric.Interval.Closed
 import org.slf4j.Logger
 
 import scala.concurrent.Future
@@ -20,8 +20,13 @@ import scala.util.{Failure, Success, Try}
 
 object Validation {
 
-  type GreaterEqualOne = GreaterEqual[W.`1.0`.T]
-  type GreaterEqualRefined = Refined[Double, GreaterEqualOne]
+  /*
+    `memory-retry-multiplier` of value 1.0 is valid as we want to let users disable the memory retry
+    feature by adjusting the value down to 1.0, which is more convenient than having to add or remove
+    the entire parameter
+   */
+  type MemoryRetryMultiplier = Closed[W.`1.0`.T, W.`99.0`.T]
+  type MemoryRetryMultiplierRefined = Refined[Double, MemoryRetryMultiplier]
 
   private type ThrowableToStringFunction = Throwable => String
   private def defaultThrowableToString: ThrowableToStringFunction = {

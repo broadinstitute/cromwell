@@ -1,0 +1,15 @@
+name: do_not_retry_rc1
+testFormat: workflowsuccess
+backends: [Papiv2]
+
+files {
+  workflow: retry_with_more_memory/do_not_retry_rc1.wdl
+  options: retry_with_more_memory/retry_with_more_memory.options
+}
+
+metadata {
+  workflowName: do_not_retry_rc1
+  status: Succeeded
+  "calls.do_not_retry_rc1.imitate_oom_error.executionStatus": "Done"
+  "calls.do_not_retry_rc1.imitate_oom_error.runtimeAttributes.memory": "1 GB"
+}

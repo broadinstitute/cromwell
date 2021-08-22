@@ -1,25 +1,4 @@
 #!/usr/bin/env bash
 
-set -o errexit -o nounset -o pipefail
-export CROMWELL_BUILD_REQUIRES_SECURE=true
-export CROMWELL_BUILD_REQUIRES_PRIOR_VERSION=false
-# import in shellcheck / CI / IntelliJ compatible ways
-# shellcheck source=/dev/null
-source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
-# shellcheck source=/dev/null
-source "${BASH_SOURCE%/*}/test_papi.inc.sh" || source test_papi.inc.sh
-
-cromwell::build::setup_common_environment
-
-cromwell::build::setup_centaur_environment
-
-cromwell::build::papi::setup_papi_centaur_environment
-
-cromwell::build::assemble_jars
-
-cromwell::build::run_centaur \
-    -p 100 \
-    -e localdockertest \
-    -e gpu_on_papi \
-
-cromwell::build::generate_code_coverage
+echo "$(tput setab 1)$(tput blink)BT-81: This sub-build was doing no useful work; it built Cromwell and launched Centaur but never found tests to run. However, tests for functionality implied by this sub-build's name may be desirable, see BT-81 for further information.$(tput sgr 0)"
+exit 0

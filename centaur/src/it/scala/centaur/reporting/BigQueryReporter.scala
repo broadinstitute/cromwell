@@ -72,23 +72,32 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
     }
   }
 
-  override def logCentaurFailure(testEnvironment: TestEnvironment,
-                                 ciEnvironment: CiEnvironment,
-                                 centaurTestException: CentaurTestException)
-                                (implicit executionContext: ExecutionContext): IO[Unit] = {
-    for {
-      callAttemptFailures <- CallAttemptFailure.buildFailures(centaurTestException.metadataJsonOption)
-      jobKeyValueEntries <- params.database.jobKeyValueEntriesIo(centaurTestException.workflowIdOption)
-      metadataEntries <- params.database.metadataEntriesIo(centaurTestException.workflowIdOption)
-      _ <- sendBigQueryFailure(
-        testEnvironment,
-        ciEnvironment,
-        centaurTestException,
-        callAttemptFailures,
-        jobKeyValueEntries,
-        metadataEntries
-      )
-    } yield ()
+  /**
+    * In this ErrorReporter implementation this method will send information about exceptions of type
+    * CentaurTestException to BigQuery. Exceptions of other types will be ignored.
+    */
+  override def logFailure(testEnvironment: TestEnvironment,
+                          ciEnvironment: CiEnvironment,
+                          throwable: Throwable)
+                         (implicit executionContext: ExecutionContext): IO[Unit] = {
+    throwable match {
+      case centaurTestException: CentaurTestException =>
+        for {
+          callAttemptFailures <- CallAttemptFailure.buildFailures(centaurTestException.metadataJsonOption)
+          jobKeyValueEntries <- params.database.jobKeyValueEntriesIo(centaurTestException.workflowIdOption)
+          metadataEntries <- params.database.metadataEntriesIo(centaurTestException.workflowIdOption)
+          _ <- sendBigQueryFailure(
+            testEnvironment,
+            ciEnvironment,
+            centaurTestException,
+            callAttemptFailures,
+            jobKeyValueEntries,
+            metadataEntries
+          )
+        } yield ()
+      case _ =>
+        IO.unit // this ErrorReporter only supports exceptions of CentaurTestException type
+    }
   }
 
   private def sendBigQueryFailure(testEnvironment: TestEnvironment,

@@ -146,7 +146,7 @@ object ActionCommands {
     s"grep -E -q '$lookupKeysAsString' /cromwell_root/stderr ; echo $$? > /cromwell_root/memory_retry_rc"
   }
 
-  def multiLineCommand(commandString: String) = {
+  def multiLineCommandTransformer(shell: String)(commandString: String): String = {
     val randomUuid = UUID.randomUUID().toString
     val withBashShebang = s"#!/bin/bash\n\n$commandString"
     val base64EncodedScript = Base64.encodeBase64String(withBashShebang.getBytes)
@@ -154,6 +154,9 @@ object ActionCommands {
 
       s"""python -c 'import base64; print(base64.b64decode("$base64EncodedScript"));' > $scriptPath && """ +
       s"chmod u+x $scriptPath && " +
-      s"sh $scriptPath"
+      s"$shell $scriptPath"
   }
+
+  def multiLineCommand(commandString: String): String = multiLineCommandTransformer("sh")(commandString)
+  def multiLineBinBashCommand(commandString: String): String = multiLineCommandTransformer("/bin/bash")(commandString)
 }

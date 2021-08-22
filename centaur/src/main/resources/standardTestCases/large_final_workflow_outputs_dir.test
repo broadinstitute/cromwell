@@ -1,0 +1,13 @@
+name: large_final_workflow_outputs_dir
+testFormat: workflowsuccess
+backends: [Papi]
+
+files {
+  workflow: large_final_workflow_outputs_dir/large_final_workflow_outputs_dir.wdl
+  options: large_final_workflow_outputs_dir/large_final_workflow_outputs_dir.options.json
+}
+
+metadata {
+  workflowName: large_final_workflow_outputs_dir
+  status: Succeeded
+}

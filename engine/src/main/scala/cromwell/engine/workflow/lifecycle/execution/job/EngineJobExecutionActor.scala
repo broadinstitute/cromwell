@@ -235,7 +235,10 @@ class EngineJobExecutionActor(replyTo: ActorRef,
             s"Of these $copyFails failed to copy and $blacklisted were already blacklisted from previous attempts). " +
             s"Falling back to running job."
         )
+        val template = s"BT-322 {} cache hit copying failure: {} failed copy attempts of maximum {} with {}."
+        log.info(template, jobTag, data.failedCopyAttempts, callCachingParameters.maxFailedCopyAttempts, data.aggregatedHashString)
       } else {
+        log.info(s"BT-322 {} cache hit copying nomatch: could not find a suitable cache hit.", jobTag)
         workflowLogger.info("Could not copy a suitable cache hit for {}. No copy attempts were made.", jobTag)
       }
 
@@ -245,6 +248,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     case Event(hit: CacheHit, data: ResponsePendingData) =>
       fetchCachedResults(hit.cacheResultId, data.withCacheHit(hit))
     case Event(HashError(t), data: ResponsePendingData) =>
+      // How would we get hash errors here or in FetchingCachedOutputsFromDatabase / BackendIsCopyingCachedOutputs where
+      // a complete set of hashes is a prerequisite?
       writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Hashing Error: ${t.getMessage}"))
       disableCallCaching(Option(t))
       runJob(data)
@@ -495,11 +500,17 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       // If the job is eligible, initialize job hashing and go to CheckingCallCache state
       case eligible: CallCachingEligible =>
         initializeJobHashing(jobDescriptor, activity, eligible) match {
-          case Success(ejha) => goto(CheckingCallCache) using updatedData.withEJHA(ejha)
-          case Failure(failure) => respondAndStop(JobFailedNonRetryableResponse(jobDescriptorKey, failure, None))
+          case Success(ejha) =>
+            val template = s"BT-322 {} is eligible for call caching with read = {} and write = {}"
+            log.info(template, jobTag, activity.readFromCache, activity.writeToCache)
+            goto(CheckingCallCache) using updatedData.withEJHA(ejha)
+          case Failure(failure) =>
+            log.warning(s"BT-322 {} failed to initialize job hashing", jobTag)
+            respondAndStop(JobFailedNonRetryableResponse(jobDescriptorKey, failure, None))
         }
       case _ =>
         // If the job is ineligible, turn call caching off
+        log.info(s"BT-322 {} is not eligible for call caching", jobTag)
         writeToMetadata(Map(callCachingReadResultMetadataKey -> s"Cache Miss"))
         disableCallCaching()
         runJob(updatedData)
@@ -510,11 +521,19 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     jobDescriptor.maybeCallCachingEligible match {
       // If the job is eligible, initialize job hashing so it can be written to the cache
       case eligible: CallCachingEligible => initializeJobHashing(jobDescriptor, activity, eligible) match {
-        case Failure(failure) => log.error(failure, "Failed to initialize job hashing. The job will not be written to the cache")
+        case Failure(failure) =>
+          log.warning(s"BT-322 {} failed to initialize job hashing", jobTag)
+          // This condition in `handleReadFromCacheOn` ends in a `respondAndStop(JobFailedNonRetryableResponse(...))`,
+          // but with cache reading off Cromwell instead logs this condition and runs the job.
+          log.error(failure, "Failed to initialize job hashing. The job will not be written to the cache")
         case _ =>
+          val template = s"BT-322 {} is eligible for call caching with read = {} and write = {}"
+          log.info(template, jobTag, activity.readFromCache, activity.writeToCache)
       }
       // Don't even initialize hashing to write to the cache if the job is ineligible
-      case _ => disableCallCaching()
+      case _ =>
+        log.info(s"BT-322 {} is not eligible for call caching", jobTag)
+        disableCallCaching()
     }
     // If read from cache is off, always run the job
     runJob(updatedData)
@@ -555,6 +574,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   private def disableCallCaching(reason: Option[Throwable] = None) = {
+    log.warning(s"BT-322 {} disabling call caching due to error", jobTag)
     reason foreach { e => log.error("{}: Hash error ({}), disabling call caching for this job.", jobTag, e.getMessage) }
     effectiveCallCachingMode = CallCachingOff
     writeCallCachingModeToMetadata()
@@ -608,7 +628,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
           backendLifecycleActorFactory.nameForCallCachingPurposes,
           activity,
           callCachingEligible,
-          callCachePathPrefixes
+          callCachePathPrefixes,
+          callCachingParameters.fileHashBatchSize
         )
         val ejha = context.actorOf(props, s"ejha_for_$jobDescriptor")
 
@@ -689,7 +710,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
         writeToMetadata(Map(
           callCachingHitResultMetadataKey -> false,
           callCachingReadResultMetadataKey -> s"Cache Miss (${callCachingParameters.maxFailedCopyAttempts} failed copy attempts)"))
-        log.warning("Cache miss for job {} due to exceeding the maximum of {} failed copy attempts.", jobTag, callCachingParameters.maxFailedCopyAttempts)
+        log.warning("BT-322 {} cache hit copying maxfail: Cache miss due to exceeding the maximum of {} failed copy attempts.", jobTag, callCachingParameters.maxFailedCopyAttempts)
         publishCopyAttemptAbandonedMetrics(data)
         runJob(data)
       case _ =>
@@ -707,6 +728,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     val metadataMap = Map(callCachingHitResultMetadataKey -> true) ++ data.ejeaCacheHit.flatMap(_.details).map(details => callCachingReadResultMetadataKey -> s"Cache Hit: $details").toMap
 
     writeToMetadata(metadataMap)
+
+    log.info(s"BT-322 {} cache hit copying success with {}.", jobTag, data.aggregatedHashString)
 
     val totalFailures = data.cacheHitFailureCount
     if (totalFailures > 0) {
@@ -823,7 +846,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
         publishHashesToMetadata(hashes)
         writeToMetadata(Map(callCachingAllowReuseMetadataKey -> false))
         saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = false)
-      case FailedResponseData(JobFailedRetryableResponse(jobKey, throwable, returnCode, _), hashes) =>
+      case FailedResponseData(JobFailedRetryableResponse(jobKey, throwable, returnCode), hashes) =>
         publishHashesToMetadata(hashes)
         writeToMetadata(Map(callCachingAllowReuseMetadataKey -> false))
         saveUnsuccessfulJobResults(jobKey, returnCode, throwable, retryable = true)
@@ -901,8 +924,8 @@ object EngineJobExecutionActor {
                                   writeActor: ActorRef,
                                   fileHashCacheActor: Option[ActorRef],
                                   maxFailedCopyAttempts: Int,
-                                  blacklistCache: Option[BlacklistCache]
-
+                                  blacklistCache: Option[BlacklistCache],
+                                  fileHashBatchSize: Int
                                   )
 
   /** Commands */
@@ -978,6 +1001,12 @@ object EngineJobExecutionActor {
     }
 
     def withCacheDetails(details: String) = this.copy(ejeaCacheHit = ejeaCacheHit.map(_.copy(details = Option(details))))
+
+    def aggregatedHashString: String = hashes match {
+      case Some(Success(hashes)) => hashes.aggregatedHashString
+      case Some(Failure(_)) => "Failure"
+      case None => "None"
+    }
   }
 
   private[execution] trait ResponseData extends EJEAData {

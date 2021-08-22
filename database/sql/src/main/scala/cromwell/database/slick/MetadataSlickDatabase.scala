@@ -4,13 +4,14 @@ import java.sql.Timestamp
 
 import cats.syntax.functor._
 import cats.instances.future._
-
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.database.slick.tables.MetadataDataAccessComponent
 import cromwell.database.sql.MetadataSqlDatabase
 import cromwell.database.sql.SqlConverters._
 import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, MetadataJobQueryValue, WorkflowQuery}
-import cromwell.database.sql.tables.{CustomLabelEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
+import cromwell.database.sql.tables.{CustomLabelEntry, InformationSchemaEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
+import slick.basic.DatabasePublisher
+import slick.jdbc.{ResultSetConcurrency, ResultSetType}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
@@ -124,6 +125,18 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                    (implicit ec: ExecutionContext): Future[Seq[MetadataEntry]] = {
     val action = dataAccess.metadataEntriesForWorkflowExecutionUuid(workflowExecutionUuid).result
     runTransaction(action, timeout = timeout)
+  }
+
+  override def streamMetadataEntries(workflowExecutionUuid: String): DatabasePublisher[MetadataEntry] = {
+    val action = dataAccess.metadataEntriesForWorkflowSortedById(workflowExecutionUuid)
+      .result
+      .withStatementParameters(
+        rsType = ResultSetType.ForwardOnly,
+        rsConcurrency = ResultSetConcurrency.ReadOnly,
+        // Magic number alert: fetchSize is set to MIN_VALUE for MySQL to stream rather than cache in memory first.
+        // Inspired by: https://github.com/slick/slick/issues/1218
+        fetchSize = Integer.MIN_VALUE)
+    database.stream(action)
   }
 
   override def countMetadataEntries(workflowExecutionUuid: String,
@@ -371,7 +384,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
   }
 
   override def updateMetadataArchiveStatus(workflowExecutionUuid: String, newArchiveStatus: Option[String]): Future[Int] = {
-    val action = dataAccess.metadataArchiveStatusByWorkflowIdOrRootWorkflowId(workflowExecutionUuid).update(newArchiveStatus)
+    val action = dataAccess.metadataArchiveStatusByWorkflowId(workflowExecutionUuid).update(newArchiveStatus)
     runTransaction(action)
   }
 
@@ -416,14 +429,14 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       endTimestampOption: Option[Timestamp],
                                       metadataArchiveStatus: Set[Option[String]],
                                       includeSubworkflows: Boolean,
-                                      minimumSummaryEntryId: Option[Long],
                                       page: Option[Int],
-                                      pageSize: Option[Int])
+                                      pageSize: Option[Int],
+                                      newestFirst: Boolean)
                                      (implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = {
 
     val action = dataAccess.queryWorkflowMetadataSummaryEntries(parentIdWorkflowMetadataKey, workflowStatuses, workflowNames, workflowExecutionUuids,
       labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption,
-      endTimestampOption, metadataArchiveStatus, includeSubworkflows, minimumSummaryEntryId, page, pageSize)
+      endTimestampOption, metadataArchiveStatus, includeSubworkflows, page, pageSize, newestFirst)
     runTransaction(action)
   }
 
@@ -439,28 +452,21 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
                                       startTimestampOption: Option[Timestamp],
                                       endTimestampOption: Option[Timestamp],
                                       metadataArchiveStatus: Set[Option[String]],
-                                      includeSubworkflows: Boolean,
-                                      minimumSummaryEntryId: Option[Long])
+                                      includeSubworkflows: Boolean)
                                      (implicit ec: ExecutionContext): Future[Int] = {
     val action = dataAccess.countWorkflowMetadataSummaryEntries(parentIdWorkflowMetadataKey, workflowStatuses, workflowNames, workflowExecutionUuids,
       labelAndKeyLabelValues, labelOrKeyLabelValues, excludeLabelAndValues, excludeLabelOrValues, submissionTimestampOption, startTimestampOption,
-      endTimestampOption, metadataArchiveStatus, includeSubworkflows, minimumSummaryEntryId)
+      endTimestampOption, metadataArchiveStatus, includeSubworkflows)
     runTransaction(action)
   }
 
-  override def deleteNonLabelMetadataForWorkflowAndUpdateArchiveStatus(rootWorkflowId: String, newArchiveStatus: Option[String])(implicit ec: ExecutionContext): Future[Int] = {
+  override def deleteAllMetadataForWorkflowAndUpdateArchiveStatus(workflowId: String, newArchiveStatus: Option[String])(implicit ec: ExecutionContext): Future[Int] = {
     runTransaction {
       for {
-        numDeleted <- dataAccess.metadataEntriesWithoutLabelsForRootWorkflowId(rootWorkflowId).delete
-        _ <- dataAccess.metadataArchiveStatusByWorkflowIdOrRootWorkflowId(rootWorkflowId).update(newArchiveStatus)
+        numDeleted <- dataAccess.metadataEntriesForWorkflowSortedById(workflowId).delete
+        _ <- dataAccess.metadataArchiveStatusByWorkflowId(workflowId).update(newArchiveStatus)
       } yield numDeleted
     }
-  }
-
-  override def isRootWorkflow(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Option[Boolean]] = {
-    runTransaction(
-      dataAccess.isRootWorkflow(rootWorkflowId).result.headOption
-    )
   }
 
   override def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = {
@@ -469,15 +475,9 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     )
   }
 
-  override def queryRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp, batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[String]] = {
+  override def queryWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp, batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[String]] = {
     runAction(
-      dataAccess.rootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp((archiveStatus, thresholdTimestamp, batchSize)).result
-    )
-  }
-
-  override def countRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp)(implicit ec: ExecutionContext): Future[Int] = {
-    runAction(
-      dataAccess.countRootWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp((archiveStatus, thresholdTimestamp)).result
+      dataAccess.workflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp((archiveStatus, thresholdTimestamp, batchSize)).result
     )
   }
 
@@ -486,4 +486,33 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
       countSummaryQueueEntries()
     )
 
+  override def getMetadataArchiveStatusAndEndTime(workflowId: String)(implicit ec: ExecutionContext):  Future[(Option[String], Option[Timestamp])] = {
+    val action = dataAccess.metadataArchiveStatusAndEndTimeByWorkflowId(workflowId).result.headOption
+    runTransaction(action).map(_.getOrElse((None, None)))
+  }
+
+  override def queryWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],
+                                                                            workflowEndTimestampThreshold: Timestamp,
+                                                                            batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = {
+    runAction(
+      dataAccess.workflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses, workflowEndTimestampThreshold, batchSize).result
+    )
+  }
+
+  override def countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],
+                                                                                workflowEndTimestampThreshold: Timestamp)(implicit ec: ExecutionContext): Future[Int] = {
+    runAction(
+      dataAccess.countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses, workflowEndTimestampThreshold).result
+    )
+  }
+
+  override def countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(workflowEndTimestampThreshold: Timestamp)(implicit ec: ExecutionContext): Future[Int] = {
+    runAction(
+      dataAccess.countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(workflowEndTimestampThreshold).result
+    )
+  }
+
+  override def getMetadataTableSizeInformation()(implicit ec: ExecutionContext): Future[Option[InformationSchemaEntry]] = {
+    runAction(dataAccess.metadataTableSizeInformation())
+  }
 }

@@ -6,12 +6,14 @@ import java.util.concurrent.atomic.AtomicInteger
 import akka.actor.{Actor, ActorRef, ActorSystem, Kill, Props}
 import akka.testkit.{EventFilter, TestActorRef, TestFSMRef, TestProbe}
 import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.scalalogging.StrictLogging
 import cromwell._
 import cromwell.backend.{AllBackendInitializationData, JobExecutionMap}
 import cromwell.core._
 import cromwell.core.path.{DefaultPathBuilder, Path, PathBuilder, PathBuilderFactory}
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor._
+import cromwell.engine.workflow.WorkflowManagerActor.WorkflowActorWorkComplete
 import cromwell.engine.workflow.lifecycle.EngineLifecycleActorAbortCommand
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{WorkflowExecutionAbortedResponse, WorkflowExecutionFailedResponse, WorkflowExecutionSucceededResponse}
 import cromwell.engine.workflow.lifecycle.finalization.CopyWorkflowLogsActor
@@ -20,6 +22,7 @@ import cromwell.engine.workflow.lifecycle.initialization.WorkflowInitializationA
 import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDescriptorActor.MaterializeWorkflowDescriptorFailureResponse
 import cromwell.engine.workflow.workflowstore.{StartableState, Submitted, WorkflowHeartbeatConfig, WorkflowToStart}
 import cromwell.engine.{EngineFilesystems, EngineWorkflowDescriptor}
+import cromwell.services.metadata.MetadataService.{MetadataWriteSuccess, PutMetadataActionAndRespond}
 import cromwell.util.SampleWdl.ThreeStep
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually
@@ -27,7 +30,7 @@ import org.scalatest.concurrent.Eventually
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
-class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorBuilderForSpecs with BeforeAndAfter with Eventually {
+class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorBuilderForSpecs with BeforeAndAfter with Eventually with StrictLogging {
 
   override protected lazy val actorSystemConfig: Config =
     ConfigFactory.parseString("""akka.loggers = ["akka.testkit.TestEventListener"]""")
@@ -39,6 +42,8 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
     TestActorRef(
       new Actor {
         override def receive: Receive = {
+          case PutMetadataActionAndRespond(events, replyTo, _) =>
+            replyTo ! MetadataWriteSuccess(events)
           case _ => // No action
         }
       },
@@ -64,8 +69,11 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
 
   before {
     currentWorkflowId = WorkflowId.randomId()
-
     copyWorkflowLogsProbe = TestProbe(s"copyWorkflowLogsProbe-$currentWorkflowId")
+    // Clear the supervisor probe of anything remaining from previous runs:
+    supervisorProbe.receiveWhile(max = 1.second, idle = 1.second) {
+      case _ => println("Ignoring excess message to WMA: ")
+    }
   }
 
   private val workflowHeartbeatConfig = WorkflowHeartbeatConfig(ConfigFactory.load())
@@ -105,6 +113,14 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
 
   implicit val TimeoutDuration: FiniteDuration = CromwellTestKitSpec.TimeoutDuration
 
+  private def workflowManagerActorExpectsSingleWorkCompleteNotification(endState: WorkflowState) = {
+    supervisorProbe.expectMsgPF(TimeoutDuration) {
+      case wawc: WorkflowActorWorkComplete => wawc.finalState should be(endState)
+      case other => fail(s"Unexpected message to WMA while waiting for work complete: $other")
+    }
+    supervisorProbe.expectNoMessage(AwaitAlmostNothing)
+  }
+
   "WorkflowActor" should {
 
     "run Finalization actor if Initialization fails" in {
@@ -115,6 +131,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       actor.stateName should be(FinalizingWorkflowState)
       actor ! WorkflowFinalizationSucceededResponse
       supervisorProbe.expectMsgPF(TimeoutDuration) { case x: WorkflowFailedResponse => x.workflowId should be(currentWorkflowId) }
+      workflowManagerActorExpectsSingleWorkCompleteNotification(WorkflowFailed)
       deathwatch.expectTerminated(actor)
     }
 
@@ -129,7 +146,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       finalizationProbe.expectMsg(StartFinalizationCommand)
       actor.stateName should be(FinalizingWorkflowState)
       actor ! WorkflowFinalizationSucceededResponse
-      supervisorProbe.expectNoMessage(AwaitAlmostNothing)
+      workflowManagerActorExpectsSingleWorkCompleteNotification(WorkflowAborted)
       deathwatch.expectTerminated(actor)
     }
 
@@ -141,6 +158,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       actor.stateName should be(FinalizingWorkflowState)
       actor ! WorkflowFinalizationSucceededResponse
       supervisorProbe.expectMsgPF(TimeoutDuration) { case x: WorkflowFailedResponse => x.workflowId should be(currentWorkflowId) }
+      workflowManagerActorExpectsSingleWorkCompleteNotification(WorkflowFailed)
       deathwatch.expectTerminated(actor)
     }
 
@@ -156,7 +174,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       finalizationProbe.expectMsg(StartFinalizationCommand)
       actor.stateName should be(FinalizingWorkflowState)
       actor ! WorkflowFinalizationSucceededResponse
-      supervisorProbe.expectNoMessage(AwaitAlmostNothing)
+      workflowManagerActorExpectsSingleWorkCompleteNotification(WorkflowAborted)
       deathwatch.expectTerminated(actor)
     }
 
@@ -167,7 +185,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       finalizationProbe.expectMsg(StartFinalizationCommand)
       actor.stateName should be(FinalizingWorkflowState)
       actor ! WorkflowFinalizationSucceededResponse
-      supervisorProbe.expectNoMessage(AwaitAlmostNothing)
+      workflowManagerActorExpectsSingleWorkCompleteNotification(WorkflowSucceeded)
       deathwatch.expectTerminated(actor)
     }
 
@@ -175,7 +193,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       val actor = createWorkflowActor(WorkflowUnstartedState)
       deathwatch watch actor
       actor ! AbortWorkflowCommand
-      finalizationProbe.expectNoMessage(AwaitAlmostNothing)
+      workflowManagerActorExpectsSingleWorkCompleteNotification(WorkflowAborted)
       deathwatch.expectTerminated(actor)
     }
 
@@ -183,7 +201,7 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       val actor = createWorkflowActor(MaterializingWorkflowDescriptorState)
       deathwatch watch actor
       actor ! AbortWorkflowCommand
-      finalizationProbe.expectNoMessage(AwaitAlmostNothing)
+      workflowManagerActorExpectsSingleWorkCompleteNotification(WorkflowAborted)
       deathwatch.expectTerminated(actor)
     }
 
@@ -194,8 +212,8 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       copyWorkflowLogsProbe.expectNoMessage(AwaitAlmostNothing)
       actor ! MaterializeWorkflowDescriptorFailureResponse(new Exception("Intentionally failing workflow materialization to test log copying"))
       copyWorkflowLogsProbe.expectMsg(CopyWorkflowLogsActor.Copy(currentWorkflowId, mockDir))
-
-      finalizationProbe.expectNoMessage(AwaitAlmostNothing)
+      supervisorProbe.expectMsgPF(TimeoutDuration) { case _: WorkflowFailedResponse => /* success! */ }
+      workflowManagerActorExpectsSingleWorkCompleteNotification(WorkflowFailed)
       deathwatch.expectTerminated(actor)
     }
 
@@ -213,10 +231,8 @@ class WorkflowActorSpec extends CromwellTestKitWordSpec with WorkflowDescriptorB
       finalizationProbe.expectMsg(StartFinalizationCommand)
       workflowActor.stateName should be(FinalizingWorkflowState)
       workflowActor ! WorkflowFinalizationSucceededResponse
-      supervisorProbe.expectMsgPF(TimeoutDuration) {
-        case _: WorkflowFailedResponse => // success
-      }
-
+      supervisorProbe.expectMsgPF(TimeoutDuration) { case _: WorkflowFailedResponse => /* success! */ }
+      workflowManagerActorExpectsSingleWorkCompleteNotification(WorkflowFailed)
       deathwatch.expectTerminated(workflowActor)
     }
 

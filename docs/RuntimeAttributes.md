@@ -417,10 +417,19 @@ A usage example:
 ```
 runtime {
     cpu: 2
-    cpuPlatform: "Intel Skylake"
+    cpuPlatform: "Intel Cascade Lake"
 }
 ```
 Note that when this options is specified, make sure the requested CPU platform is [available](https://cloud.google.com/compute/docs/regions-zones/#available) in the `zones` you selected.
+
+The following CPU platforms are currently supported by the Google Cloud backend:
+- `Intel Cascade Lake`
+- `Intel Skylake`     
+- `Intel Broadwell`   
+- `Intel Haswell`     
+- `Intel Ivy Bridge`  
+- `Intel Sandy Bridge`
+- `AMD Rome`
 
 ### 'useDockerImageCache'
 

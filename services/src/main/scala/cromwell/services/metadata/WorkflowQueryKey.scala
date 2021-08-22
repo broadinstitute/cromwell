@@ -9,7 +9,6 @@ import cats.instances.list._
 import cromwell.core.labels.Label
 import cromwell.core.{WorkflowId, WorkflowMetadataKeys, WorkflowState}
 import common.validation.ErrorOr._
-import common.validation.Validation._
 import cats.data.Validated._
 import mouse.boolean._
 import cromwell.services.metadata.{MetadataArchiveStatus => MetadataArchiveStatusImported}
@@ -33,7 +32,7 @@ object WorkflowQueryKey {
     SubmissionTime,
     IncludeSubworkflows,
     MetadataArchiveStatus,
-    MinimumSummaryEntryId
+    NewestFirst
   ) map { _.name }
 
   case object StartDate extends DateTimeWorkflowQueryKey {
@@ -143,21 +142,6 @@ object WorkflowQueryKey {
     }
   }
 
-  case object MinimumSummaryEntryId extends WorkflowQueryKey[Option[Long]] {
-    override val name = "Minimumsummaryentryid"
-
-    override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Option[Long]] = {
-      val values = valuesFromMap(grouped).toList
-      if (values.isEmpty) {
-        None.validNel
-      } else if (values.length == 1) {
-        Try(Option(values.head.toLong)).toErrorOr
-      } else {
-        "Cannot specify more than one minimum summary entry ID".invalidNel
-      }
-    }
-  }
-
   case object AdditionalQueryResultFields extends SeqWorkflowQueryKey[String] {
     override val name = "Additionalqueryresultfields"
 
@@ -180,6 +164,14 @@ object WorkflowQueryKey {
     override def displayName = "include subworkflows"
     override def defaultBooleanValue: Boolean = true
   }
+
+  // Note: `false` means "oldest first" not "no ordering specified". Might want to encode in code later.
+  case object NewestFirst extends BooleanWorkflowQueryKey {
+    override val name = "Newestfirst"
+    override def displayName = "return newest first"
+    override def defaultBooleanValue: Boolean = true
+  }
+
 }
 
 sealed trait WorkflowQueryKey[T] {

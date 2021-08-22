@@ -122,7 +122,13 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       jobPaths, Seq.empty[AwsBatchParameter], None)
     job
   }
-
+  private def generateBasicJobForLocalFS: AwsBatchJob = {
+    val job = AwsBatchJob(null, runtimeAttributes.copy(fileSystem="local"), "commandLine", script,
+      "/cromwell_root/hello-rc.txt", "/cromwell_root/hello-stdout.log", "/cromwell_root/hello-stderr.log",
+      Seq.empty[AwsBatchInput].toSet, Seq.empty[AwsBatchFileOutput].toSet,
+      jobPaths, Seq.empty[AwsBatchParameter], None)
+    job
+  }
 
   // TESTS BEGIN HERE
   behavior of "AwsBatchJob"
@@ -137,7 +143,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
     job.AWS_MAX_ATTEMPTS_DEFAULT_VALUE should be ("14")
   }
 
-  it should "generate appropriate KV pairs for the container environment" in {
+  it should "generate appropriate KV pairs for the container environment for S3" in {
     val job = generateBasicJob
     val generateEnvironmentKVPairs = PrivateMethod[List[KeyValuePair]]('generateEnvironmentKVPairs)
 
@@ -148,5 +154,18 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
     kvPairs should contain (buildKVPair(job.AWS_RETRY_MODE, "adaptive"))
     kvPairs should contain (buildKVPair("BATCH_FILE_TYPE", "script"))
     kvPairs should contain (buildKVPair("BATCH_FILE_S3_URL", "s3://script-bucket/prefix-key"))
+  }
+
+  it should "generate appropriate KV pairs for the container environment for Local FS" in {
+    val job = generateBasicJobForLocalFS
+    val generateEnvironmentKVPairs = PrivateMethod[List[KeyValuePair]]('generateEnvironmentKVPairs)
+
+    // testing a private method see https://www.scalatest.org/user_guide/using_PrivateMethodTester
+    val kvPairs = job invokePrivate generateEnvironmentKVPairs("script-bucket", "prefix-", "key")
+
+    kvPairs should contain (buildKVPair(job.AWS_MAX_ATTEMPTS, job.AWS_MAX_ATTEMPTS_DEFAULT_VALUE))
+    kvPairs should contain (buildKVPair(job.AWS_RETRY_MODE, "adaptive"))
+    kvPairs should contain (buildKVPair("BATCH_FILE_TYPE", "script"))
+    kvPairs should contain (buildKVPair("BATCH_FILE_S3_URL", ""))
   }
 }

@@ -1,0 +1,6 @@
+name: bad_basename
+testFormat: workflowfailure
+
+files {
+  workflow: bad_basename/bad_basename.wdl
+}

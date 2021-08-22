@@ -47,7 +47,7 @@ metadata {
   
   // Check that hashes are published to metadata
   "calls.call_cache_capoeira.read_array_files.callCaching.hashes.output count": "C81E728D9D4C2F636F067F89CC14862C"
-  "calls.call_cache_capoeira.read_array_files.callCaching.hashes.runtime attribute.docker": "09F611634147800124391D34D57A3A9F"
+  "calls.call_cache_capoeira.read_array_files.callCaching.hashes.runtime attribute.docker": "C11F9B6B81E6E6C9D9822ED1C53D090D"
   "calls.call_cache_capoeira.read_array_files.callCaching.hashes.runtime attribute.continueOnReturnCode": "CFCD208495D565EF66E7DFF9F98764DA"
   "calls.call_cache_capoeira.read_array_files.callCaching.hashes.runtime attribute.failOnStderr": "68934A3E9455FA72420237EB05902327"
   "calls.call_cache_capoeira.read_array_files.callCaching.hashes.output expression.Boolean done": "B326B5062B2F0E69046810717534CB09"

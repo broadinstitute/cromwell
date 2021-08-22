@@ -2,7 +2,7 @@ package cromwell.engine.workflow.workflowstore
 
 import java.time.OffsetDateTime
 
-import akka.actor.{Actor, Props, Status}
+import akka.actor.{Actor, ActorSystem, Props, Status}
 import cats.data.NonEmptyVector
 import cromwell.core.{Dispatcher, WorkflowId}
 import cromwell.engine.workflow.workflowstore.WorkflowStoreCoordinatedAccessActor._
@@ -20,6 +20,7 @@ import scala.util.{Failure, Success, Try}
   */
 class WorkflowStoreCoordinatedAccessActor(workflowStore: WorkflowStore) extends Actor {
   implicit val ec: ExecutionContext = context.system.dispatcher
+  implicit val actorSystem: ActorSystem = context.system
 
   def run[A](future: Future[A]): Unit = {
     val result = Try(Await.result(future, Timeout)) match {

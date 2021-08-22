@@ -10,8 +10,6 @@ source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
 cromwell::build::setup_common_environment
 
-cromwell::build::setup_docker_environment
-
 cromwell::build::build_cromwell_docker
 
 # Turn off exit-on-error temporarily, as we expect an error

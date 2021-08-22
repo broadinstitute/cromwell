@@ -19,7 +19,8 @@ class GcsBatchCommandContextSpec
   it should "handle exceptions in success handlers" in {
     val exceptionSpewingCommandContext = GcsBatchCommandContext[Unit, Void](
       request = ExceptionSpewingGcsBatchIoCommand,
-      replyTo = ActorRef.noSender
+      replyTo = ActorRef.noSender,
+      maxAttemptsNumber = 5
     )
 
     exceptionSpewingCommandContext.promise.isCompleted should be(false)
@@ -40,7 +41,8 @@ class GcsBatchCommandContextSpec
   it should "handle exceptions in failure handlers" in {
     val exceptionSpewingCommandContext = GcsBatchCommandContext[Unit, Void](
       request = ExceptionSpewingGcsBatchIoCommand,
-      replyTo = ActorRef.noSender
+      replyTo = ActorRef.noSender,
+      maxAttemptsNumber = 5
     )
 
     exceptionSpewingCommandContext.promise.isCompleted should be(false)
@@ -61,7 +63,8 @@ class GcsBatchCommandContextSpec
   it should "handle errors in onSuccess" in {
     val errorReturningCommandContext = GcsBatchCommandContext[Unit, Unit](
       request = ErrorReturningGcsBatchIoCommand(),
-      replyTo = ActorRef.noSender
+      replyTo = ActorRef.noSender,
+      maxAttemptsNumber = 5
     )
 
     errorReturningCommandContext.promise.isCompleted should be(false)

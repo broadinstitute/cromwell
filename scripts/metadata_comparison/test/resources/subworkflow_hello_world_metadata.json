@@ -249,7 +249,6 @@
     "cromwell-workflow-id": "cromwell-f6cf8176-f7f9-458c-9bf7-e2b2a416e28e",
     "newlyAddedLabel": "All mimsy were the borogoves, and the mome raths outgrabe"
   },
-  "metadataSource": "Archived",
   "outputs": {
     "main_workflow.main_output": "Hello sub world!"
   },

@@ -196,12 +196,6 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
 
               import spray.json._
 
-              val encryptedJsObject = sources.workflowOptions.jsObject
-              encryptedJsObject.fields.keys should contain theSameElementsAs Seq("key", "refresh_token")
-              encryptedJsObject.fields("key") should be(JsString("value"))
-              encryptedJsObject.fields("refresh_token").asJsObject.fields.keys should contain theSameElementsAs
-                Seq("iv", "ciphertext")
-
               // We need to wait for workflow metadata to be flushed before we can successfully query for it
               eventually(timeout(15.seconds.dilated), interval(500.millis.dilated)) {
                 val actorNameUniquificationString = UUID.randomUUID().toString.take(7)
@@ -215,9 +209,7 @@ class WorkflowStoreActorSpec extends CromwellTestKitWordSpec with CoordinatedWor
                   case MetadataLookupResponse(_, eventList) =>
                     val optionsEvent = eventList.find(_.key.key == "submittedFiles:options").get
                     val clearedJsObject = optionsEvent.value.get.value.parseJson.asJsObject
-                    clearedJsObject.fields.keys should contain theSameElementsAs Seq("key", "refresh_token")
                     clearedJsObject.fields("key") should be(JsString("value"))
-                    clearedJsObject.fields("refresh_token") should be(JsString("cleared"))
                 }
               }
           }

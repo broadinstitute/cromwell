@@ -1,6 +1,6 @@
 package cromwell.jobstore
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import cats.data.{NonEmptyList, NonEmptyVector}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.LoadConfig
@@ -27,6 +27,8 @@ case class JobStoreWriterActor(jsd: JobStore,
   extends EnhancedBatchActor[CommandAndReplyTo[JobStoreWriterCommand]](flushRate, batchSize) {
 
   override protected def process(nonEmptyData: NonEmptyVector[CommandAndReplyTo[JobStoreWriterCommand]]): Future[Int] = instrumentedProcess {
+    implicit val actorSystem: ActorSystem = context.system
+
     val data = nonEmptyData.toVector
     log.debug("Flushing {} job store commands to the DB", data.length)
     val completions = data.collect({ case CommandAndReplyTo(c: JobStoreWriterCommand, _) => c.completion })
@@ -50,9 +52,9 @@ case class JobStoreWriterActor(jsd: JobStore,
       combinedAction onComplete {
         case Success(_) =>
           data foreach { case CommandAndReplyTo(c: JobStoreWriterCommand, r) => r ! JobStoreWriteSuccess(c) }
-        case Failure(regerts) =>
-          log.error(regerts, "Failed to write job store entries to database")
-          data foreach { case CommandAndReplyTo(_, r) => r ! JobStoreWriteFailure(regerts) }
+        case Failure(error) =>
+          log.error(error, "Failed to write job store entries to database")
+          data foreach { case CommandAndReplyTo(_, r) => r ! JobStoreWriteFailure(error) }
       }
 
       combinedAction.map(_ => 1)

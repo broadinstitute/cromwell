@@ -6,10 +6,10 @@ lazy val root = (project in file(".")).
     Seq(organization := "org.broadinstitute.cromwell",
     name := "cromwell-client",
     version := createVersion("0.1"),
-    scalaVersion := "2.12.8",
+    scalaVersion := "2.12.12", // scala-steward:off (CROM-6777) - 2.12.13 blocked by duplicate import of nowarn
     scalacOptions ++= Seq("-feature"),
-    javacOptions in compile ++= Seq("-Xlint:deprecation"),
-    publishArtifact in (Compile, packageDoc) := false,
+    compile / javacOptions ++= Seq("-Xlint:deprecation"),
+    Compile / packageDoc / publishArtifact := false,
     resolvers += Resolver.mavenLocal,
     updateOptions := updateOptions.value.withGigahorse(false),
     libraryDependencies ++= Seq(
@@ -17,7 +17,7 @@ lazy val root = (project in file(".")).
       "com.squareup.okhttp3" % "okhttp" % "3.12.1",
       "com.squareup.okhttp3" % "logging-interceptor" % "3.12.1",
       "com.google.code.gson" % "gson" % "2.8.5",
-      "org.apache.commons" % "commons-lang3" % "3.11",
+      "org.apache.commons" % "commons-lang3" % "3.12.0",
       "org.apache.oltu.oauth2" % "org.apache.oltu.oauth2.client" % "1.0.1",
       "org.threeten" % "threetenbp" % "1.3.5" % "compile",
       "io.gsonfire" % "gson-fire" % "1.8.0" % "compile",
@@ -25,4 +25,3 @@ lazy val root = (project in file(".")).
       "com.novocode" % "junit-interface" % "0.10" % "test"
     )) ++ publishSettings:_*
   )
-  

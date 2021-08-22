@@ -23,6 +23,12 @@ class DockerEmptyFlowSpec extends DockerRegistrySpec with AnyFlatSpecLike with M
     expectMsgClass(5.seconds, classOf[DockerHashUnknownRegistry])
   }
 
+  it should "send an unrecognized host message back for a public docker on gar" in {
+    dockerActor ! makeRequest("us-central1-docker.pkg.dev/google-containers/alpine-with-bash:1.0")
+
+    expectMsgClass(5.seconds, classOf[DockerHashUnknownRegistry])
+  }
+
   it should "send an unrecognized host message back if the image does not exist" in {
     val notFound = makeRequest("ubuntu:nonexistingtag")
     dockerActor ! notFound

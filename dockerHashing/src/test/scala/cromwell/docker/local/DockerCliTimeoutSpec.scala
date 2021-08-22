@@ -41,6 +41,19 @@ class DockerCliTimeoutSpec extends DockerRegistrySpec with AnyFlatSpecLike with 
 
   }
 
+  it should "timeout retrieving a public docker hash on gar" taggedAs IntegrationTest in {
+    dockerActor ! makeRequest("us-central1-docker.pkg.dev/broad-dsde-cromwell-dev/bt-335/ubuntu:bt-335")
+
+    expectMsgPF(5.seconds) {
+      case DockerInfoFailedResponse(exception: TimeoutException, _) =>
+        exception.getMessage should be(
+          """|Timeout while looking up hash of us-central1-docker.pkg.dev/broad-dsde-cromwell-dev/bt-335/ubuntu:bt-335.
+             |Ensure that docker is running correctly.
+             |""".stripMargin)
+    }
+
+  }
+
   it should "timeout retrieving an image that does not exist" taggedAs IntegrationTest in {
     val notFound = makeRequest("ubuntu:nonexistingtag")
     dockerActor ! notFound

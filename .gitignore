@@ -2,6 +2,7 @@
 *~
 .DS_Store
 .artifactory
+.bsp
 .idea/*
 **/.idea/*
 .ensime_cache/*
@@ -37,7 +38,6 @@ cromwell-centaur-requester-pays-service-account.json
 cromwell-centaur-service-account.json
 cromwell-service-account.json
 cwl_conformance_test.inputs.json
-dockerhub_auth.inc.sh
 dockerhub_provider_config_v1.inc.conf
 dockerhub_provider_config_v2.inc.conf
 github_private_deploy_key

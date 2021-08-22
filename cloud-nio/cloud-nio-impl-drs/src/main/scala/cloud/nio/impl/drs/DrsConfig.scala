@@ -4,6 +4,7 @@ import com.typesafe.config.Config
 import net.ceedubs.ficus.Ficus._
 
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
 final case class DrsConfig(marthaUrl: String,
                            numRetries: Int,
@@ -16,9 +17,9 @@ final case class DrsConfig(marthaUrl: String,
 object DrsConfig {
   // If you update these values also update Filesystems.md!
   private val DefaultNumRetries = 3
-  private val DefaultWaitInitial = 30.seconds
-  private val DefaultWaitMaximum = 5.minutes
-  private val DefaultWaitMultiplier = 2.0d
+  private val DefaultWaitInitial = 10 seconds
+  private val DefaultWaitMaximum = 30 seconds
+  private val DefaultWaitMultiplier = 1.5d
   private val DefaultWaitRandomizationFactor = 0.1
 
   private val EnvMarthaUrl = "MARTHA_URL"

@@ -23,23 +23,35 @@ trait WomExpression {
     * file paths, and should have all the essentials for determining if two `WomExpression` are conceptually the same.
     */
   def cacheString = sourceString
+
   def inputs: Set[String]
+
   def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue]
+
   def evaluateType(inputTypes: Map[String, WomType]): ErrorOr[WomType]
+
   def evaluateFiles(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet, coerceTo: WomType): ErrorOr[Set[FileEvaluation]]
 
   /** Returns `true` if all file types within the specified `WomType` are optional. If not all the file types are
     * optional, return `false` since the current file evaluation structure doesn't allow for mapping individual
     * output files to their corresponding primitives within a non-primitive `WomType`. */
-  protected def areAllFileTypesInWomTypeOptional(womType: WomType): Boolean = womType match {
-    case WomOptionalType(_: WomPrimitiveFileType) => true
-    case _: WomPrimitiveFileType => false
-    case _: WomPrimitiveType => true // WomPairTypes and WomCompositeTypes may have non-File components here which is fine.
-    case WomArrayType(inner) => areAllFileTypesInWomTypeOptional(inner)
-    case WomMapType(_, inner) => areAllFileTypesInWomTypeOptional(inner)
-    case WomPairType(leftType, rightType) => areAllFileTypesInWomTypeOptional(leftType) && areAllFileTypesInWomTypeOptional(rightType)
-    case WomCompositeType(typeMap, _) => typeMap.values.forall(areAllFileTypesInWomTypeOptional)
-    case _ => false
+  protected def areAllFileTypesInWomTypeOptional(womType: WomType): Boolean = {
+    def innerAreAllFileTypesInWomTypeOptional(womType: WomType): Boolean = womType match {
+      case WomOptionalType(_: WomPrimitiveFileType) => true
+      case _: WomPrimitiveFileType => false
+      case _: WomPrimitiveType => true // WomPairTypes and WomCompositeTypes may have non-File components here which is fine.
+      case WomArrayType(inner) => innerAreAllFileTypesInWomTypeOptional(inner)
+      case WomMapType(_, inner) => innerAreAllFileTypesInWomTypeOptional(inner)
+      case WomPairType(leftType, rightType) => innerAreAllFileTypesInWomTypeOptional(leftType) && innerAreAllFileTypesInWomTypeOptional(rightType)
+      case WomCompositeType(typeMap, _) => typeMap.values.forall(innerAreAllFileTypesInWomTypeOptional)
+      case _ => false
+    }
+
+    // At the outermost level, primitives are never optional.
+    womType match {
+      case _: WomPrimitiveType => false
+      case _ => innerAreAllFileTypesInWomTypeOptional(womType)
+    }
   }
 }
 

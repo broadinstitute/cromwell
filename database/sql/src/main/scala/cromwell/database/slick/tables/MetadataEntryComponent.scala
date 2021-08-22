@@ -1,9 +1,10 @@
 package cromwell.database.slick.tables
 
 import java.sql.Timestamp
-import javax.sql.rowset.serial.SerialClob
 
-import cromwell.database.sql.tables.MetadataEntry
+import javax.sql.rowset.serial.SerialClob
+import cromwell.database.sql.tables.{InformationSchemaEntry, MetadataEntry}
+import slick.jdbc.GetResult
 
 trait MetadataEntryComponent {
 
@@ -62,6 +63,13 @@ trait MetadataEntryComponent {
     } yield metadataEntry).sortBy(_.metadataTimestamp)
   )
 
+  val metadataEntriesForWorkflowSortedById = Compiled(
+    (workflowExecutionUuid: Rep[String]) => (for {
+      metadataEntry <- metadataEntries
+      if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
+    } yield metadataEntry).sortBy(_.metadataEntryId)
+  )
+
   val countMetadataEntriesForWorkflowExecutionUuid = Compiled(
     (rootWorkflowId: Rep[String], expandSubWorkflows: Rep[Boolean]) => {
       val targetWorkflowIds = for {
@@ -75,22 +83,6 @@ trait MetadataEntryComponent {
         if metadata.workflowExecutionUuid in targetWorkflowIds // Uses `METADATA_WORKFLOW_IDX`
       } yield metadata
     }.size
-  )
-
-  val metadataEntriesWithoutLabelsForRootWorkflowId = Compiled(
-    (rootWorkflowId: Rep[String]) => {
-      val targetWorkflowIds = for {
-        summary <- workflowMetadataSummaryEntries
-        // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
-        if summary.rootWorkflowExecutionUuid === rootWorkflowId || summary.workflowExecutionUuid === rootWorkflowId
-      } yield summary.workflowExecutionUuid
-
-      for {
-        metadata <- metadataEntries
-        if metadata.workflowExecutionUuid in targetWorkflowIds // Uses `METADATA_WORKFLOW_IDX`
-        if !(metadata.metadataKey like "labels:%")
-      } yield metadata
-    }
   )
 
   val metadataEntryExistsForWorkflowExecutionUuid = Compiled(
@@ -304,6 +296,18 @@ trait MetadataEntryComponent {
       // regardless of the attempt
       if (metadataEntry.jobAttempt === jobAttempt) || jobAttempt.isEmpty
     } yield metadataEntry).size
+  }
+
+  def metadataTableSizeInformation() = {
+    val query =
+      sql"""
+          |SELECT DATA_LENGTH, INDEX_LENGTH, DATA_FREE
+          |FROM information_schema.tables
+          |WHERE TABLE_NAME = 'METADATA_ENTRY'
+         """.stripMargin
+    query.as[InformationSchemaEntry](rconv = GetResult { r =>
+      InformationSchemaEntry(r.<<, r.<<, r.<<)
+    }).headOption
   }
 
   private[this] def metadataEntryHasMetadataKeysLike(metadataEntry: MetadataEntries,

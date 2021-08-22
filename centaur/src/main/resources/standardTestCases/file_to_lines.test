@@ -1,0 +1,14 @@
+name: read_file_to_lines
+testFormat: workflowsuccess
+
+files {
+    workflow: file_to_lines/file_to_lines.wdl
+}
+
+metadata {
+    workflowName: wf_test
+    status: Succeeded
+    "calls.wf_test.file_to_lines.executionStatus": Done
+    "outputs.wf_test.lines_oneline.0": "one_line"
+    "outputs.wf_test.lines_null_count": 0
+}

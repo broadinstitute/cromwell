@@ -38,7 +38,7 @@ trait StreamActorHelper[T <: StreamContext] { this: Actor with ActorLogging =>
 
   override def receive = streamReceive.orElse(actorReceive)
   
-  protected def onBackpressure(): Unit = {}
+  protected def onBackpressure(scale: Option[Double] = None): Unit = {}
 
   private [actor] lazy val stream = {
     streamSource

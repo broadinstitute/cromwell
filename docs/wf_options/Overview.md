@@ -128,3 +128,19 @@ Example `options.json`:
     "read_from_cache": true
 }
 ```
+
+## Retry with More Memory Multiplier
+
+The `memory_retry_multiplier` workflow option sets the factor by which the memory should be multiplied while retrying 
+when Cromwell encounters one of the error keys (specified in Cromwell config using `system.memory-retry-error-keys`) in 
+the `stderr` file. The factor should be in the range `1.0 ≤ multipler ≤ 99.0` (note: if set to `1.0` the task will retry 
+with same amount of memory). If this is not specified, Cromwell will retry the task (if applicable) but not change the 
+memory amount. See the [Retry with More Memory](../cromwell_features/RetryWithMoreMemory.md) section for 
+more details.
+
+Example `options.json`:
+```json
+{
+    "memory_retry_multiplier" : 1.1
+}
+```

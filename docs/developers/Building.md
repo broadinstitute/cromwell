@@ -5,7 +5,7 @@ features or fixes, the following are required to build Cromwell from source:
 
 * [Scala 2.12](http://www.scala-lang.org/)
 * [SBT 1.x](https://www.scala-sbt.org/)
-* [Java 8](http://www.oracle.com/technetwork/java/javase/overview/java8-2100321.html)
+* [AdoptOpenJDK 11 HotSpot](https://adoptopenjdk.net/)
 * [Git](https://git-scm.com/)
 
 You can also use the [development image](https://github.com/broadinstitute/cromwell/tree/develop/scripts/docker-develop), and build a development container to work inside:
@@ -47,4 +47,3 @@ $ sbt server/docker
 ```
 
 This will build and tag a Docker image with a name like `broadinstitute/cromwell:<VERSION>-SNAP`.
-

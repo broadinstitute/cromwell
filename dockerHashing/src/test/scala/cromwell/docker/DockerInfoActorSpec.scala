@@ -3,7 +3,7 @@ package cromwell.docker
 import cromwell.core.Tags.IntegrationTest
 import cromwell.docker.DockerInfoActor._
 import cromwell.docker.registryv2.flows.dockerhub.DockerHubRegistry
-import cromwell.docker.registryv2.flows.gcr.GcrRegistry
+import cromwell.docker.registryv2.flows.google.GoogleRegistry
 import cromwell.docker.registryv2.flows.quay.QuayRegistry
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -17,7 +17,7 @@ class DockerInfoActorSpec extends DockerRegistrySpec with AnyFlatSpecLike with M
 
   override protected lazy val registryFlows = List(
     new DockerHubRegistry(DockerRegistryConfig.default),
-    new GcrRegistry(DockerRegistryConfig.default),
+    new GoogleRegistry(DockerRegistryConfig.default),
     new QuayRegistry(DockerRegistryConfig.default)
   )
 
@@ -33,6 +33,16 @@ class DockerInfoActorSpec extends DockerRegistrySpec with AnyFlatSpecLike with M
 
   it should "retrieve a public docker hash on gcr" taggedAs IntegrationTest in {
     dockerActor ! makeRequest("gcr.io/google-containers/alpine-with-bash:1.0")
+
+    expectMsgPF(5 second) {
+      case DockerInfoSuccessResponse(DockerInformation(DockerHashResult(alg, hash), _), _) =>
+        alg shouldBe "sha256"
+        hash should not be empty
+    }
+  }
+
+  it should "retrieve a public docker hash on gar" taggedAs IntegrationTest in {
+    dockerActor ! makeRequest("us-central1-docker.pkg.dev/broad-dsde-cromwell-dev/bt-335/ubuntu:bt-335")
 
     expectMsgPF(5 second) {
       case DockerInfoSuccessResponse(DockerInformation(DockerHashResult(alg, hash), _), _) =>

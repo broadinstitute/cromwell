@@ -2,7 +2,7 @@ package cromwell.cloudsupport.gcp.gcs
 
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
 import com.google.api.client.googleapis.media.MediaHttpUploader
-import com.google.api.client.json.jackson2.JacksonFactory
+import com.google.api.client.json.gson.GsonFactory
 import com.google.api.gax.retrying.RetrySettings
 import com.google.cloud.storage.StorageOptions
 import com.google.api.services.storage.Storage
@@ -14,7 +14,7 @@ import cromwell.cloudsupport.gcp.http.GoogleHttpTransportOptions.TransportOption
 import net.ceedubs.ficus.Ficus._
 
 object GcsStorage {
-  val JsonFactory = JacksonFactory.getDefaultInstance
+  val JsonFactory = GsonFactory.getDefaultInstance
   val HttpTransport = GoogleNetHttpTransport.newTrustedTransport
 
   val DefaultCloudStorageConfiguration = {

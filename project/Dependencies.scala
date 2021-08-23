@@ -133,7 +133,7 @@ object Dependencies {
 
   private val slf4jFacadeDependencies = List(
     "org.slf4j" % "slf4j-api" % slf4jV,
-    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV
+    "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
   )
 
   private val circeYamlDependency = "io.circe" %% "circe-yaml" % circeYamlV
@@ -159,7 +159,7 @@ object Dependencies {
   private val http4sDependencies = List(
     "org.http4s" %% "http4s-dsl" % http4sV,
     "org.http4s" %% "http4s-blaze-client" % http4sV,
-    "org.http4s" %% "http4s-circe" % http4sV
+    "org.http4s" %% "http4s-circe" % http4sV,
   )
 
   private val googleApiClientDependencies = List(
@@ -172,16 +172,16 @@ object Dependencies {
       exclude("com.google.guava", "guava-jdk5"),
     "com.google.api-client" % "google-api-client-jackson2" % googleApiClientV
       exclude("com.google.guava", "guava-jdk5"),
-    "com.google.cloud" % "google-cloud-resourcemanager" % googleCloudResourceManagerV
+    "com.google.cloud" % "google-cloud-resourcemanager" % googleCloudResourceManagerV,
   )
 
   val spiDependencies: List[ModuleID] = List(
-    "com.iheart" %% "ficus" % ficusV
+    "com.iheart" %% "ficus" % ficusV,
   ) ++ googleApiClientDependencies ++ slf4jFacadeDependencies
 
   val spiUtilDependencies = List(
     "com.iheart" %% "ficus" % ficusV,
-    "org.typelevel" %% "cats-effect" % catsEffectV
+    "org.typelevel" %% "cats-effect" % catsEffectV,
   )
 
   val implFtpDependencies = List(
@@ -246,12 +246,12 @@ object Dependencies {
 
   private val akkaDependencies = List(
     "com.typesafe.akka" %% "akka-actor" % akkaV,
-    "com.typesafe.akka" %% "akka-testkit" % akkaV % Test
+    "com.typesafe.akka" %% "akka-testkit" % akkaV % Test,
   )
 
   private val akkaStreamDependencies = List(
     "com.typesafe.akka" %% "akka-stream" % akkaV,
-    "com.typesafe.akka" %% "akka-stream-testkit" % akkaV % Test
+    "com.typesafe.akka" %% "akka-stream-testkit" % akkaV % Test,
   ) ++ akkaDependencies
 
   private val akkaHttpDependencies = List(
@@ -259,7 +259,7 @@ object Dependencies {
     "com.typesafe.akka" %% "akka-http-testkit" % akkaHttpV % Test,
     // WOM internally embeds spray-json. Leave this import here until WOM externalizes the json library choice like
     // other libraries do. See akka-http, elastic4s, etc.
-    "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV
+    "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
   ) ++ akkaStreamDependencies
 
   private val akkaHttpCirceIntegrationDependency = List(
@@ -292,11 +292,11 @@ object Dependencies {
     "com.google.code.findbugs" % "jsr305" % jsr305V,
     "com.google.guava" % "guava" % guavaV,
     "org.apache.tika" % "tika-core" % tikaV,
-    "software.amazon.awssdk" % "s3" % awsSdkV
+    "software.amazon.awssdk" % "s3" % awsSdkV,
   ) ++ slf4jBindingDependencies
 
   private val awsCloudDependencies = List(
-    "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonV
+    "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonV,
   ) ++ s3fsDependencies ++ List(
     "batch",
     "core",
@@ -352,13 +352,13 @@ object Dependencies {
     "org.typelevel" %% "cats-effect" % catsEffectV,
     "org.apache.commons" % "commons-lang3" % commonsLang3V,
     "org.apache.commons" % "commons-text" % commonsTextV,
-    "com.lihaoyi" %% "pprint" % pprintV
+    "com.lihaoyi" %% "pprint" % pprintV,
   ) ++ catsDependencies ++ configDependencies ++ slf4jFacadeDependencies ++ refinedTypeDependenciesList
 
   val cloudSupportDependencies: List[ModuleID] = googleApiClientDependencies ++ googleCloudDependencies ++ betterFilesDependencies ++ awsCloudDependencies
 
   val databaseSqlDependencies: List[ModuleID] = List(
-    "commons-io" % "commons-io" % commonsIoV
+    "commons-io" % "commons-io" % commonsIoV,
   ) ++ configDependencies ++ catsDependencies ++ slickDependencies ++ dbmsDependencies ++ refinedTypeDependenciesList
 
   val statsDDependencies = List(
@@ -467,7 +467,7 @@ object Dependencies {
   val cromwellApiClientDependencies: List[ModuleID] = List(
     "org.scalaz" %% "scalaz-core" % scalazV,
     "org.typelevel" %% "cats-effect" % catsEffectV,
-    "co.fs2" %% "fs2-io" % fs2V % Test
+    "co.fs2" %% "fs2-io" % fs2V % Test,
   ) ++ akkaHttpDependencies ++ betterFilesDependencies ++ catsDependencies
 
   val centaurDependencies: List[ModuleID] = List(
@@ -490,7 +490,7 @@ object Dependencies {
 
   val servicesDependencies = List(
     "com.google.api" % "gax-grpc" % googleGaxGrpcV,
-    "org.apache.commons" % "commons-csv" % commonsCsvV
+    "org.apache.commons" % "commons-csv" % commonsCsvV,
   )
 
   val serverDependencies: List[ModuleID] = slf4jBindingDependencies
@@ -511,7 +511,9 @@ object Dependencies {
   )
 
   val bcsBackendDependencies: List[ModuleID] = commonDependencies ++ refinedTypeDependenciesList ++ aliyunBatchComputeDependencies
+
   val tesBackendDependencies: List[ModuleID] = akkaHttpDependencies
+
   val sfsBackendDependencies = List (
     "org.lz4" % "lz4-java" % lz4JavaV
   )
@@ -601,7 +603,7 @@ object Dependencies {
     https://mvnrepository.com/artifact/com.google.api-client/google-api-client/1.28.0
      */
     "com.google.http-client" % "google-http-client-apache" % googleHttpClientApacheV,
-    "com.google.http-client" % "google-http-client" % googleHttpClientV
+    "com.google.http-client" % "google-http-client" % googleHttpClientV,
   )
 
   val nettyDependencyOverrides: List[ModuleID] = List(
@@ -617,7 +619,7 @@ object Dependencies {
     "resolver-dns",
     "transport",
     "transport-native-epoll",
-    "transport-native-unix-common"
+    "transport-native-unix-common",
   ).map(m => "io.netty" % s"netty-$m" % nettyV)
 
   val rdf4jDependencyOverrides: List[ModuleID] = List(
@@ -645,7 +647,7 @@ object Dependencies {
     "rio-trig",
     "rio-trix",
     "rio-turtle",
-    "util"
+    "util",
   ).map(m => "org.eclipse.rdf4j" % s"rdf4j-$m" % rdf4jV)
 
   // Some libraries are importing older version of these dependencies, causing conflicts. Hence the need to override them.
@@ -658,7 +660,7 @@ object Dependencies {
     "netty-shaded",
     "protobuf-lite",
     "protobuf",
-    "stub"
+    "stub",
   ).map(m => "io.grpc" % s"grpc-$m" % grpcV)
 
   /*
@@ -666,7 +668,7 @@ object Dependencies {
   https://github.com/scala/scala-collection-compat/issues/426
    */
   private val scalaCollectionCompatOverrides = List(
-    "org.scala-lang.modules" %% "scala-collection-compat" % scalaCollectionCompatV
+    "org.scala-lang.modules" %% "scala-collection-compat" % scalaCollectionCompatV,
   )
 
   /*

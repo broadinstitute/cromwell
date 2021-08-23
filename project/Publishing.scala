@@ -100,7 +100,7 @@ object Publishing {
     docker / buildOptions := BuildOptions(
       cache = false,
       removeIntermediateContainers = BuildOptions.Remove.Always
-    )
+    ),
   )
 
   def dockerPushSettings(pushEnabled: Boolean): Seq[Setting[_]] = {

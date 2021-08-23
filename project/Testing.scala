@@ -64,7 +64,7 @@ object Testing {
       spanScaleFactor,
       "-W",
       "300",
-      "300"
+      "300",
     )
 
   /** Run minnie-kenny only once per sbt invocation. */
@@ -114,7 +114,7 @@ object Testing {
     Test / test := {
       minnieKenny.toTask("").value
       (Test / test).value
-    }
+    },
   )
 
   private val integrationTestSettings = List(

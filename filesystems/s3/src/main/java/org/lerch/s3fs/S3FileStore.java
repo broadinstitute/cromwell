@@ -25,8 +25,7 @@ public class S3FileStore extends FileStore implements Comparable<S3FileStore> {
     private S3FileSystem fileSystem;
     private String name;
     private S3Client defaultClient;
-    private S3Client bucketSpecificClient;
-    private Logger logger = LoggerFactory.getLogger("S3FileStore");
+    private final Logger logger = LoggerFactory.getLogger("S3FileStore");
 
     public S3FileStore(S3FileSystem s3FileSystem, String name) {
         this.fileSystem = s3FileSystem;

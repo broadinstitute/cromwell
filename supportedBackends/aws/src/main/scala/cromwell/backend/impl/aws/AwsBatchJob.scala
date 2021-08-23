@@ -234,8 +234,10 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
          |echo '*** DELOCALIZING OUTPUTS ***'
          |$outputCopyCommand
          |echo '*** COMPLETED DELOCALIZATION ***'
-         |echo '*** EXITING WITH RC CODE ***'
-         |exit $$(head -n 1 $workDir/${jobPaths.returnCodeFilename})
+         |echo '*** EXITING WITH RETURN CODE ***'
+         |rc=$$(head -n 1 $workDir/${jobPaths.returnCodeFilename})
+         |echo $$rc
+         |exit $$rc
          |}
          |""".stripMargin
   }

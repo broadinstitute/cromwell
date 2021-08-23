@@ -33,7 +33,7 @@ public class S3ClientStore {
     }
 
     public S3Client getClientForBucketName( String bucketName ) {
-        logger.info("obtaining client for bucket '{}'", bucketName);
+        logger.debug("obtaining client for bucket '{}'", bucketName);
         if (bucketName == null || bucketName.trim().equals("")) {
             return DEFAULT_CLIENT;
         }

@@ -106,7 +106,6 @@ object Dependencies {
   private val scalamockV = "5.1.0"
   private val scalatestV = "3.2.6"
   private val scalatestPlusMockitoV = "1.0.0-M2"
-  private val scalazV = "7.3.3"
   private val scoptV = "4.0.1"
   private val sentryLogbackV = "1.7.30" // scala-steward:off (CROM-6640)
   private val shapelessV = "2.3.3"
@@ -505,7 +504,6 @@ object Dependencies {
   val dockerHashingDependencies = http4sDependencies ++ circeDependencies ++ aliyunCrDependencies
 
   val cromwellApiClientDependencies = List(
-    "org.scalaz" %% "scalaz-core" % scalazV,
     "org.typelevel" %% "cats-effect" % catsEffectV,
     "co.fs2" %% "fs2-io" % fs2V % Test,
   ) ++ akkaHttpDependencies ++ betterFilesDependencies ++ catsDependencies

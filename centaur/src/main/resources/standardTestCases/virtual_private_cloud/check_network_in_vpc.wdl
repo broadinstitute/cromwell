@@ -40,7 +40,7 @@ workflow check_network_in_vpc {
   # Create a reusable script for multiple backends using workarounds for Cromwell 66:
   #  - can't pass `backend` as a variable runtime attribute; the call will run on the default backend
   #  - use an `Array[String]` to simulate a WDL multiline string
-  #  - an escapeed backslash `\\` at the end of a WDL string returns a syntax error (maybe from womtool describe?)
+  #  - an escaped backslash `\\` at the end of a WDL string returns a syntax error (maybe from womtool describe?)
   String backslash = "\u005c"
   Array[String] commandScript = [
     "set -euo pipefail",

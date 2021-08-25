@@ -63,20 +63,7 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
   private lazy val genomicsCredentials: Future[Credentials] = pipelinesConfiguration.papiAttributes.auths.genomics
     .retryCredentials(workflowOptions, List(
       CloudLifeSciencesScopes.CLOUD_PLATFORM,
-      GenomicsScopes.GENOMICS,
-      /*
-      Used to write so-called "auth" files. The `gcsAuthFilePath` could probably be refactored such that *this* created
-      `genomicsCredentials` doesn't actually need DEVSTORAGE_FULL_CONTROL, but it's also not clear how the magic
-      Genomics Pipelines API parameter "__extra_config_gcs_path" works nor where it's documented.
-
-      See also:
-      - cromwell.backend.google.pipelines.common.PipelinesApiWorkflowPaths#gcsAuthFilePath
-      - https://github.com/broadinstitute/cromwell/pull/2435
-      - cromwell.backend.google.pipelines.common.PipelinesApiConfiguration#needAuthFileUpload
-      - cromwell.cloudsupport.gcp.auth.GoogleAuthMode#requiresAuthFile
-      - cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor#gcsAuthParameter
-       */
-      StorageScopes.DEVSTORAGE_FULL_CONTROL,
+      GenomicsScopes.GENOMICS
     ))
 
   // Genomics object to access the Genomics API

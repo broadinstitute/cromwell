@@ -62,8 +62,6 @@ object PipelinesApiAsyncBackendJobExecutionActor {
 
   type JesPendingExecutionHandle = PendingExecutionHandle[StandardAsyncJob, Run, RunStatus]
 
-  private val ExtraConfigParamName = "__extra_config_gcs_path"
-
   val maxUnexpectedRetries = 2
 
   val JesFailedToDelocalize = 5
@@ -157,12 +155,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   /*_*/ // Silence an errant IntelliJ warning
   override def receive: Receive = pollingActorClientReceive orElse runCreationClientReceive orElse abortActorClientReceive orElse kvClientReceive orElse super.receive
   /*_*/ // https://stackoverflow.com/questions/36679973/controlling-false-intellij-code-editor-error-in-scala-plugin
-
-  private def gcsAuthParameter: Option[PipelinesApiLiteralInput] = {
-    if (jesAttributes.auths.gcs.requiresAuthFile || dockerConfiguration.isDefined)
-      Option(PipelinesApiLiteralInput(ExtraConfigParamName, pipelinesApiCallPaths.workflowPaths.gcsAuthFilePath.pathAsString))
-    else None
-  }
 
   /**
     * Takes two arrays of remote and local WOM File paths and generates the necessary `PipelinesApiInput`s.
@@ -617,7 +609,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           rcFileOutputParameter = rcFileOutput,
           memoryRetryRCFileOutputParameter = memoryRetryRCFileOutput
         ),
-        gcsAuthParameter.toList
+        List.empty
       )
     })
 

@@ -1,6 +1,6 @@
 package cromwell.backend.google.pipelines.common
 
-import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
+import com.typesafe.config.ConfigFactory
 import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.BackendConfigurationDescriptor
 import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig._
@@ -121,23 +121,5 @@ class PipelinesApiConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec
     val dockerConf = new PipelinesApiConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig), genomicsFactory, googleConfiguration, papiAttributes).dockerCredentials
     dockerConf shouldBe defined
     dockerConf.get.token shouldBe "dockerToken"
-  }
-
-  it should "have correct needAuthFileUpload" in {
-    val configs = Table(
-      ("backendConfig", "globalConfig"),
-      // With Docker
-      (backendConfig.withValue("filesystems.gcs.auth", ConfigValueFactory.fromAnyRef("application-default")), true),
-      (backendConfig.withValue("filesystems.gcs.auth", ConfigValueFactory.fromAnyRef("service-account")), true),
-      // Without Docker
-      (backendConfig.withValue("filesystems.gcs.auth", ConfigValueFactory.fromAnyRef("application-default")).withoutPath("dockerhub"), false),
-      (backendConfig.withValue("filesystems.gcs.auth", ConfigValueFactory.fromAnyRef("service-account")).withoutPath("dockerhub"), false)
-    )
-
-    forAll(configs) { (backend, needAuthFileUpload) =>
-      val customGoogleConfig = GoogleConfiguration(globalConfig)
-      val attributes = PipelinesApiConfigurationAttributes(customGoogleConfig, backend, "papi")
-      new PipelinesApiConfiguration(BackendConfigurationDescriptor(backend, globalConfig), genomicsFactory, googleConfiguration, attributes).needAuthFileUpload shouldBe needAuthFileUpload
-    }
   }
 }

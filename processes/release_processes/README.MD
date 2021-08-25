@@ -95,6 +95,8 @@ If so, refer to the additional details in the [full document](https://docs.googl
 
 This performance testing process happens as part of the release into FireCloud / Terra.
 
+* **Note:** Performance testing is currently broken, please see [CROM-6795](https://broadworkbench.atlassian.net/browse/CROM-6795) for details. Please skip the remainder of this `Performance Testing` section until these issues are resolved.
+
 * **Note:** This process is non-blocking and optional for HOTFIX releases.
 
 1. Look at the [performance testing spreadsheet](https://docs.google.com/spreadsheets/d/1ksSHJdODuqqmvJ_94zZdc33Ai1Xv_53XzpsDd8jdmB0/edit#gid=479925276)

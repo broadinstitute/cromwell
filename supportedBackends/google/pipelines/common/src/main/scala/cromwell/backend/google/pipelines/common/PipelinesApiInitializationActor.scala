@@ -172,20 +172,29 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
       } yield networkLabelsFromProjectLabels(vpcConfig, projectLabels)
     }
 
-    val vpcConfig = pipelinesConfiguration.papiAttributes.virtualPrivateCloudConfiguration
-    // Try to fetch the network information from labels, where the labels may still return None
-    val fetchedFromLabels = vpcConfig.labelsOption match {
-      case Some(labels) => fetchVpcLabelsFromProjectMetadata(labels)
-      case None => Future.successful(None)
-    }
-    // If we did not discover a network via labels for whatever reason then check the literal values
-    fetchedFromLabels map {
-      _ orElse {
-        vpcConfig.literalsOption map { literals =>
-          VpcAndSubnetworkProjectLabelValues(literals.network, literals.subnetwork)
+    /*
+    First, try to fetch the network information from labels, where that fetch may still return None.
+    Then, if we did not discover a network via labels for whatever reason try to look for literal values.
+     */
+    def fetchVpcLabels(vpcConfig: VirtualPrivateCloudConfiguration
+                      ): Future[Option[VpcAndSubnetworkProjectLabelValues]] = {
+      // Added explicit types to hopefully help future devs who stumble across this two-step code
+      val fetchedFromLabels: Future[Option[VpcAndSubnetworkProjectLabelValues]] = vpcConfig.labelsOption match {
+        case Some(labels: VirtualPrivateCloudLabels) => fetchVpcLabelsFromProjectMetadata(labels)
+        case None => Future.successful(None)
+      }
+      fetchedFromLabels map {
+        _ orElse {
+          vpcConfig.literalsOption map { literals: VirtualPrivateCloudLiterals =>
+            VpcAndSubnetworkProjectLabelValues(literals.network, literals.subnetwork)
+          }
         }
       }
     }
+
+    val vpcConfig: VirtualPrivateCloudConfiguration =
+      pipelinesConfiguration.papiAttributes.virtualPrivateCloudConfiguration
+    fetchVpcLabels(vpcConfig)
   }
 
   override lazy val workflowPaths: Future[PipelinesApiWorkflowPaths] = for {

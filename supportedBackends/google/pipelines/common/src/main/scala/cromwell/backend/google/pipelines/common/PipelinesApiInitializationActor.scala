@@ -136,8 +136,10 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
           .setApplicationName(pipelinesConfiguration.googleConfig.applicationName)
           .build()
 
-        val project = cloudResourceManagerBuilder.projects().get(googleProject(workflowDescriptor))
-
+        val project = cloudResourceManagerBuilder.projects()
+          .get(vpcConfig.sharedProjectId
+          .getOrElse(googleProject(workflowDescriptor)))
+        
         project.buildHttpRequest()
       }
     }
@@ -157,8 +159,14 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
             case (labelName, labelValue) if labelName.equals(s) => labelValue
           }
         }
+    
+        val fullResourceSubnetworkLabelOption:Option[String] = List(vpcConfig.sharedProjectId, vpcConfig.sharedRegion, subnetworkLabelOption).flatten 
+          match {
+            case List(project, region, subnetwork) => Some("projects/%s/regions/%s/subnetworks/%s".format(project, region, subnetwork))
+            case _ => subnetworkLabelOption
+          }
 
-        VpcAndSubnetworkProjectLabelValues(vpcNetworkLabelValue, subnetworkLabelOption)
+        VpcAndSubnetworkProjectLabelValues(vpcConfig.sharedProjectId, vpcConfig.sharedRegion, vpcNetworkLabelValue, fullResourceSubnetworkLabelOption)
       }
     }
 

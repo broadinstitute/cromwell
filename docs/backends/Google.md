@@ -397,7 +397,7 @@ Own repository can be used by adding `cloud-sdk-image-url` reference to used con
 ```
 google {
   ...
-  cloud-sdk-image-url = "eu.gcr.io/your-project-id/cloudsdktool/cloud-sdk:275.0.0-slim"
+  cloud-sdk-image-url = "eu.gcr.io/your-project-id/cloudsdktool/cloud-sdk:354.0.0-alpine"
   cloud-sdk-image-size-gb = 1
 }
 ```

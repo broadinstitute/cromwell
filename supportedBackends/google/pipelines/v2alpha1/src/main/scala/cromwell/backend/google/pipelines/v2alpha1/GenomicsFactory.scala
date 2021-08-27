@@ -38,8 +38,6 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
   with SSHAccessAction {
 
   override def build(initializer: HttpRequestInitializer): PipelinesApiRequestFactory = new PipelinesApiRequestFactory {
-    val VirtualPrivateCloudNetworkPath = "projects/%s/global/networks/%s/"
-
     val genomics: Genomics = new Genomics.Builder(
       GoogleAuthMode.httpTransport,
       GoogleAuthMode.jsonFactory,
@@ -60,9 +58,12 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       def createNetworkWithVPC(vpcAndSubnetworkProjectLabelValues: VpcAndSubnetworkProjectLabelValues): Network = {
         val network = new Network()
           .setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)
-          .setName(VirtualPrivateCloudNetworkPath.format(createPipelineParameters.projectId, vpcAndSubnetworkProjectLabelValues.vpcName))
+          .setName(vpcAndSubnetworkProjectLabelValues.networkName(createPipelineParameters.projectId))
 
-        vpcAndSubnetworkProjectLabelValues.subnetNameOpt.foreach(subnet => network.setSubnetwork(subnet))
+        vpcAndSubnetworkProjectLabelValues
+          .subnetNameOption(createPipelineParameters.projectId)
+          .foreach(network.setSubnetwork)
+
         network
       }
 

@@ -313,7 +313,9 @@ This filesystem has two required configuration options:
 
 To run your jobs in a private network add the `virtual-private-cloud` stanza in the `config` stanza of the PAPI v2 backend:
 
-```
+#### Virtual Private Network via Labels
+
+```hocon
 backend {
   ...
   providers {
@@ -347,8 +349,46 @@ For example, if your `virtual-private-cloud` config looks like the one above, an
 
 Cromwell will get labels from the project's metadata and look for a label whose key is `my-private-network`.
 Then it will use the value of the label, which is `vpc-network` here, as the name of private network and run the jobs on this network.
-If the network key is not present in the project's metadata Cromwell will fall back to running jobs on the default network.
+If the network key is not present in the project's metadata Cromwell will fall back to trying to run jobs using literal
+network labels, and then fall back to running on the default network.
 
+#### Virtual Private Network via Literals
+
+```hocon
+backend {
+  ...
+  providers {
+    ...
+    PapiV2 {
+      actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
+      config {
+      ...
+      virtual-private-cloud {
+              network-name = "vpc-network"
+              subnetwork-name = "vpc-subnetwork"
+            }
+        ...
+      }
+    }
+  }
+}
+```
+
+The `network-name` and `subnetwork-name` should reference the name of your private network and subnetwork within that
+network respectively. The `subnetwork-name` is an optional config.
+
+For example, if your `virtual-private-cloud` config looks like the one above, then Cromwell will use the value of the
+configuration key, which is `vpc-network` here, as the name of private network and run the jobs on this network.
+If the network name is not present in the config Cromwell will fall back to trying to run jobs on the default network.
+
+If the `network-name` or `subnetwork-name` values contain the string `${projectId}` then that value will be replaced
+by Cromwell with the name of the project running the Pipelines API.
+
+If the `network-name` does not contain a `/` then it will be prefixed with `projects/${projectId}/global/networks/`.
+
+Cromwell will then pass the network and subnetwork values to the Pipelines API. See the documentation for the
+[Cloud Life Sciences API](https://cloud.google.com/life-sciences/docs/reference/rest/v2beta/projects.locations.pipelines/run#Network)
+for more information on the various formats accepted for `network` and `subnetwork`.
 
 ### Custom Google Cloud SDK container
 Cromwell can't use Google's container registry if VPC Perimeter is used in project.

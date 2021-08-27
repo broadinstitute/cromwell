@@ -38,8 +38,6 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
   with SSHAccessAction {
 
   override def build(initializer: HttpRequestInitializer): PipelinesApiRequestFactory = new PipelinesApiRequestFactory {
-    val VirtualPrivateCloudNetworkPath = "projects/%s/global/networks/%s/"
-
     val lifeSciences: CloudLifeSciences = new CloudLifeSciences.Builder(
       GoogleAuthMode.httpTransport,
       GoogleAuthMode.jsonFactory,
@@ -60,9 +58,12 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
       def createNetworkWithVPC(vpcAndSubnetworkProjectLabelValues: VpcAndSubnetworkProjectLabelValues): Network = {
         val network = new Network()
           .setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)
-          .setNetwork(VirtualPrivateCloudNetworkPath.format(createPipelineParameters.projectId, vpcAndSubnetworkProjectLabelValues.vpcName))
+          .setNetwork(vpcAndSubnetworkProjectLabelValues.networkName(createPipelineParameters.projectId))
 
-        vpcAndSubnetworkProjectLabelValues.subnetNameOpt.foreach(subnet => network.setSubnetwork(subnet))
+        vpcAndSubnetworkProjectLabelValues
+          .subnetNameOption(createPipelineParameters.projectId)
+          .foreach(network.setSubnetwork)
+
         network
       }
 

@@ -83,7 +83,7 @@ object PipelinesApiRequestFactory {
                                       privateDockerKeyAndEncryptedToken: Option[CreatePipelineDockerKeyAndToken],
                                       womOutputRuntimeExtractor: Option[WomOutputRuntimeExtractor],
                                       adjustedSizeDisks: Seq[PipelinesApiAttachedDisk],
-                                      virtualPrivateCloudConfiguration: Option[VirtualPrivateCloudConfiguration],
+                                      virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
                                       retryWithMoreMemoryKeys: Option[List[String]],
                                       fuseEnabled: Boolean,
                                       referenceDisksForLocalizationOpt: Option[List[PipelinesApiAttachedDisk]],

@@ -7,10 +7,10 @@ object Dependencies {
   private val aliyunBcsV = "6.2.4"
   private val aliyunCoreV = "4.5.25"
   private val aliyunCrV = "4.1.2"
-  private val aliyunOssV = "3.13.0"
+  private val aliyunOssV = "3.13.1"
   private val ammoniteOpsV = "2.4.0"
   private val apacheHttpClientV = "4.5.13"
-  private val awsSdkV = "2.17.24"
+  private val awsSdkV = "2.17.29"
   private val betterFilesV = "3.9.1"
   /*
   cats-effect, fs2, https4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.
@@ -22,12 +22,12 @@ object Dependencies {
   private val circeOpticsV = "0.14.1"
   private val circeV = "0.14.1"
   private val circeYamlV = "0.14.1"
-  private val commonsCodecV = "1.15"
+  private val commonsCodecV = "1.15" // via: https://commons.apache.org/proper/commons-codec/
   private val commonsCsvV = "1.9.0"
-  private val commonsIoV = "2.11.0"
+  private val commonsIoV = "2.11.0" // via: https://commons.apache.org/proper/commons-io/
   private val commonsLang3V = "3.12.0"
   private val commonsMathV = "3.6.1"
-  private val commonNetV = "3.8.0"
+  private val commonNetV = "3.8.0" // via: https://commons.apache.org/proper/commons-net/
   private val commonsTextV = "1.9"
   private val configsV = "0.6.1"
   private val delightRhinoSandboxV = "0.0.15"
@@ -45,25 +45,28 @@ object Dependencies {
   // whatDependsOn temporarily set fs2VStatsDProxy to fs2V and revert back before trying to compile.
   private val fs2VStatsDProxy = "1.0.5" // scala-steward:off
   private val googleApiClientV = "1.32.1"
-  private val googleCloudBigQueryV = "2.1.2"
+  private val googleCloudBigQueryV = "2.1.4"
+  // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-cloudkms
   private val googleCloudKmsV = "v1-rev20210812-1.32.1"
-  private val googleCloudMonitoringV = "3.0.1"
-  private val googleCloudNioV = "0.123.7"
-  private val googleCloudStorageV = "2.0.2"
-  private val googleGaxGrpcV = "2.3.0"
+  private val googleCloudMonitoringV = "3.0.2"
+  private val googleCloudNioV = "0.123.8"
+  private val googleCloudStorageV = "2.1.0"
+  private val googleGaxGrpcV = "2.4.0"
+  // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-genomics
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210811-1.32.1"
   private val googleHttpClientApacheV = "2.1.2"
   private val googleHttpClientV = "1.38.0"
-  private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20210527-1.32.1"
+  // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-lifesciences
+  private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20210813-1.32.1"
   private val googleOauth2V = "1.1.0"
-  private val googleOauthClientV = "1.31.5"
-  private val googleCloudResourceManagerV = "1.0.2"
-  private val grpcV = "1.40.0"
+  private val googleOauthClientV = "1.32.1"
+  private val googleCloudResourceManagerV = "1.0.4"
+  private val grpcV = "1.40.1"
   private val guavaV = "30.1.1-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.6.0"
   private val http4sV = "0.21.7" // scala-steward:off (CROM-6678)
-  private val jacksonV = "2.12.4"
+  private val jacksonV = "2.12.5"
   private val janinoV = "3.1.6"
   private val jsr305V = "3.0.2"
   private val kindProjectorV = "0.9.10"
@@ -104,7 +107,7 @@ object Dependencies {
   private val scalatestPlusMockitoV = "1.0.0-M2"
   private val scalazV = "7.3.5"
   private val scoptV = "4.0.1"
-  private val sentryLogbackV = "5.1.1"
+  private val sentryLogbackV = "5.1.2"
   private val shapelessV = "2.3.7"
   private val simulacrumV = "1.0.1"
   private val slf4jV = "1.7.32"
@@ -124,10 +127,10 @@ object Dependencies {
   private val sttpV = "1.5.19" // scala-steward:off (CROM-6564)
   private val swaggerParserV = "1.0.55"
   private val swaggerUiV = "3.23.11" // scala-steward:off (CROM-6621)
-  private val testContainersScalaV = "0.39.5"
-  private val tikaV = "2.0.0"
+  private val testContainersScalaV = "0.39.6"
+  private val tikaV = "2.1.0"
   private val typesafeConfigV = "1.4.1"
-  private val workbenchGoogleV = "0.21-89d0d9e" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/google/CHANGELOG.md
+  private val workbenchGoogleV = "0.21-5c9c4f6" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/google/CHANGELOG.md
   private val workbenchModelV = "0.14-89d0d9e" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/model/CHANGELOG.md
   private val workbenchUtilV = "0.6-d7ed6bf" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/util/CHANGELOG.md
 

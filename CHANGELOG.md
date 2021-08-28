@@ -1,5 +1,16 @@
 # Cromwell Change Log
 
+## 68 Release Notes
+
+### Virtual Private Cloud
+
+Previous Cromwell versions allowed PAPIV2 jobs to run on a specific subnetwork inside a private network by adding the
+information to Google Cloud project labels.
+
+Cromwell now allows PAPIV2 jobs to run on a specific subnetwork inside a private network by adding the network and
+subnetwork name directly inside the `virtual-private-cloud` backend configuration. More info
+[here](https://cromwell.readthedocs.io/en/stable/backends/Google/).
+
 ## 67 Release Notes
 
 ### Configuration updates for improved scaling

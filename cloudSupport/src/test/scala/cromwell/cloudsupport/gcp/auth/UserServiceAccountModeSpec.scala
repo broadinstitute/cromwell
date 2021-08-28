@@ -23,9 +23,4 @@ class UserServiceAccountModeSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
     exception.getMessage should be("user_service_account_json")
   }
 
-  it should "requiresAuthFile" in {
-    val userServiceAccountMode = UserServiceAccountMode("user-service-account")
-    userServiceAccountMode.requiresAuthFile should be(false)
-  }
-
 }

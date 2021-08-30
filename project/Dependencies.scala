@@ -13,7 +13,7 @@ object Dependencies {
   private val awsSdkV = "2.17.29"
   private val betterFilesV = "3.9.1"
   /*
-  cats-effect, fs2, https4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.
+  cats-effect, fs2, http4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.
    */
   private val catsEffectV = "2.5.3" // scala-steward:off (CROM-6564)
   private val catsV = "2.6.1"

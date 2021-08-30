@@ -1,15 +1,16 @@
 package cromwell.backend.google.pipelines.v2alpha1.api
 
 import com.google.api.services.genomics.v2alpha1.model.{Action, Mount}
+import cromwell.backend.google.pipelines.common.action.ActionCommands
+import cromwell.backend.google.pipelines.common.action.ActionUtils
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
-import cromwell.backend.google.pipelines.v2alpha1.GenomicsFactory
 
 trait CheckpointingAction {
   def checkpointingSetupActions(createPipelineParameters: CreatePipelineParameters,
                                 mounts: List[Mount]
                             ): List[Action] =
     createPipelineParameters.runtimeAttributes.checkpointFilename map { checkpointFilename =>
-      val checkpointingImage = GenomicsFactory.CloudSdkImage
+      val checkpointingImage = ActionUtils.CloudSdkImage
       val checkpointingCommand = createPipelineParameters.checkpointingConfiguration.checkpointingCommand(checkpointFilename, ActionCommands.multiLineBinBashCommand)
       val checkpointingEnvironment = Map.empty[String, String]
 

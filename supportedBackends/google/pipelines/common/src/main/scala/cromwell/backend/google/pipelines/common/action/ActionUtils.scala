@@ -1,6 +1,8 @@
 package cromwell.backend.google.pipelines.common.action
 
+import com.typesafe.config.ConfigFactory
 import org.apache.commons.text.StringEscapeUtils
+import net.ceedubs.ficus.Ficus._
 
 object ActionUtils {
   /** Image to use for ssh access. */
@@ -16,6 +18,26 @@ object ActionUtils {
    * At the moment, cloud-sdk (924MB for 276.0.0-slim) and stedolan/jq (182MB) decompressed ~= 1.1 GB
    */
   val cromwellImagesSizeRoundedUpInGB = 1
+
+  private val config = ConfigFactory.load().getConfig("google")
+
+  /**
+    * An image with the Google Cloud SDK installed.
+    * http://gcr.io/google.com/cloudsdktool/cloud-sdk
+    *
+    * FYI additional older versions are available on DockerHub at:
+    * https://hub.docker.com/r/google/cloud-sdk
+    *
+    * When updating this value, also consider updating the CromwellImagesSizeRoundedUpInGB below.
+    */
+  val CloudSdkImage: String =
+    config.getOrElse("cloud-sdk-image-url", "gcr.io/google.com/cloudsdktool/cloud-sdk:354.0.0-alpine")
+
+  /*
+   * At the moment, cloud-sdk (584MB for 354.0.0-alpine) and stedolan/jq (182MB) decompressed ~= 0.8 GB
+   */
+  val CromwellImagesSizeRoundedUpInGB: Int =
+    config.getOrElse("cloud-sdk-image-size-gb", 1)
 
   /** Quotes a string such that it's compatible as a string argument in the shell. */
   def shellEscaped(any: Any): String = {
@@ -51,6 +73,9 @@ object ActionUtils {
   private val backgroundActionTerminationGraceTime = 10
 
   val terminateAllBackgroundActionsCommand: String = s"kill -TERM -1 && sleep $backgroundActionTerminationGraceTime || true"
+
+  def timestampedMessage(message: String): String =
+    s"""printf '%s %s\\n' "$$(date -u '+%Y/%m/%d %H:%M:%S')" ${shellEscaped(message)}"""
 
   /** Start background actions first, leave the rest as is */
   def sortActions[Action](containerSetup: List[Action],

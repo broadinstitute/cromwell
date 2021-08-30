@@ -13,7 +13,7 @@ task get_stdout {
     output {
         File out = stdout()
     }
-    runtime { docker: "google/cloud-sdk:251.0.0-slim" }
+    runtime { docker: "google/cloud-sdk:slim" }
 }
 
 
@@ -28,5 +28,5 @@ task check_detritus {
     output {
         String out = read_string(stdout())
     }
-    runtime { docker: "google/cloud-sdk:251.0.0-slim" }
+    runtime { docker: "google/cloud-sdk:slim" }
 }

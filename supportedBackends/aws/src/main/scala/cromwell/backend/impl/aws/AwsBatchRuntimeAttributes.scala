@@ -60,6 +60,8 @@ import scala.util.matching.Regex
  * @param noAddress is there no address
  * @param scriptS3BucketName the s3 bucket where the execution command or script will be written and, from there, fetched into the container and executed
  * @param fileSystem the filesystem type, default is "s3"
+ * @param awsBatchRetryAttempts number of attempts that AWS Batch will retry the task if it fails
+ * @param ulimits ulimit values to be passed to the container
  */
 case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                      zones: Vector[String],
@@ -71,13 +73,17 @@ case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                      continueOnReturnCode: ContinueOnReturnCode,
                                      noAddress: Boolean,
                                      scriptS3BucketName: String,
-                                     fileSystem:String= "s3")
+                                     awsBatchRetryAttempts: Int,
+                                     ulimits: Vector[Map[String, String]],
+                                     fileSystem: String= "s3")
 
 object AwsBatchRuntimeAttributes {
 
   val QueueArnKey = "queueArn"
 
   val scriptS3BucketKey = "scriptBucketName"
+
+  val awsBatchRetryAttemptsKey = "awsBatchRetryAttempts"
 
   val ZonesKey = "zones"
   private val ZonesDefaultValue = WomString("us-east-1a")
@@ -91,6 +97,9 @@ object AwsBatchRuntimeAttributes {
   private val DisksDefaultValue = WomString(s"${AwsBatchWorkingDisk.Name}")
 
   private val MemoryDefaultValue = "2 GB"
+
+  val UlimitsKey = "ulimits"
+  private val UlimitsDefaultValue = WomArray(WomArrayType(WomMapType(WomStringType,WomStringType)), Vector(WomMap(Map.empty[WomValue, WomValue])))
 
   private def cpuValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int Refined Positive] = CpuValidation.instance
     .withDefault(CpuValidation.configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin)
@@ -134,6 +143,14 @@ object AwsBatchRuntimeAttributes {
     QueueArnValidation.withDefault(QueueArnValidation.configDefaultWomValue(runtimeConfig) getOrElse
       (throw new RuntimeException("queueArn is required")))
 
+  private def awsBatchRetryAttemptsValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] = {
+    AwsBatchRetryAttemptsValidation(awsBatchRetryAttemptsKey).withDefault(AwsBatchRetryAttemptsValidation(awsBatchRetryAttemptsKey)
+    .configDefaultWomValue(runtimeConfig).getOrElse(WomInteger(0)))
+  }
+
+  private def ulimitsValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Vector[Map[String, String]]] =
+   UlimitsValidation.withDefault(UlimitsValidation.configDefaultWomValue(runtimeConfig) getOrElse UlimitsDefaultValue)
+
   def runtimeAttributesBuilder(configuration: AwsBatchConfiguration): StandardValidatedRuntimeAttributesBuilder = {
     val runtimeConfig = configuration.runtimeConfig
     def validationsS3backend = StandardValidatedRuntimeAttributesBuilder.default(runtimeConfig).withValidation(
@@ -146,7 +163,9 @@ object AwsBatchRuntimeAttributes {
                         noAddressValidation(runtimeConfig),
                         dockerValidation,
                         queueArnValidation(runtimeConfig),
-                        scriptS3BucketNameValidation(runtimeConfig)
+                        scriptS3BucketNameValidation(runtimeConfig),
+                        awsBatchRetryAttemptsValidation(runtimeConfig),
+                        ulimitsValidation(runtimeConfig),
                       )
    def validationsLocalBackend  = StandardValidatedRuntimeAttributesBuilder.default(runtimeConfig).withValidation(
       cpuValidation(runtimeConfig),
@@ -181,6 +200,8 @@ object AwsBatchRuntimeAttributes {
        case AWSBatchStorageSystems.s3 => RuntimeAttributesValidation.extract(scriptS3BucketNameValidation(runtimeAttrsConfig) , validatedRuntimeAttributes)
        case _ => ""
      }
+    val awsBatchRetryAttempts: Int = RuntimeAttributesValidation.extract(awsBatchRetryAttemptsValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val ulimits: Vector[Map[String, String]] = RuntimeAttributesValidation.extract(ulimitsValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
 
 
     new AwsBatchRuntimeAttributes(
@@ -194,6 +215,8 @@ object AwsBatchRuntimeAttributes {
       continueOnReturnCode,
       noAddress,
       scriptS3BucketName,
+      awsBatchRetryAttempts,
+      ulimits,
       fileSystem
     )
   }
@@ -371,4 +394,95 @@ object DisksValidation extends RuntimeAttributesValidation[Seq[AwsBatchVolume]] 
 
   override protected def missingValueMessage: String =
     s"Expecting $key runtime attribute to be a comma separated String or Array[String]"
+}
+
+object AwsBatchRetryAttemptsValidation {
+  def apply(key: String): AwsBatchRetryAttemptsValidation = new AwsBatchRetryAttemptsValidation(key)
+}
+
+class AwsBatchRetryAttemptsValidation(key: String) extends IntRuntimeAttributesValidation(key) {
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[Int]] = {
+    case womValue if WomIntegerType.coerceRawValue(womValue).isSuccess =>
+      WomIntegerType.coerceRawValue(womValue).get match {
+        case WomInteger(value) =>
+          if (value.toInt < 0)
+            s"Expecting $key runtime attribute value greater than or equal to 0".invalidNel
+          else if (value.toInt > 10)
+            s"Expecting $key runtime attribute value lower than or equal to 10".invalidNel
+          else
+            value.toInt.validNel
+      }
+  }
+
+  override protected def missingValueMessage: String = s"Expecting $key runtime attribute to be an Integer"
+}
+
+
+object UlimitsValidation
+    extends RuntimeAttributesValidation[Vector[Map[String, String]]] {
+  override def key: String = AwsBatchRuntimeAttributes.UlimitsKey
+
+  override def coercion: Traversable[WomType] =
+    Set(WomStringType, WomArrayType(WomMapType(WomStringType, WomStringType)))
+
+  var accepted_keys = Set("name", "softLimit", "hardLimit")
+
+  override protected def validateValue
+      : PartialFunction[WomValue, ErrorOr[Vector[Map[String, String]]]] = {
+    case WomArray(womType, value)
+        if womType.memberType == WomMapType(WomStringType, WomStringType) =>
+      check_maps(value.toVector)
+    case WomMap(_, _) => "!!! ERROR1".invalidNel
+
+  }
+
+  private def check_maps(
+      maps: Vector[WomValue]
+  ): ErrorOr[Vector[Map[String, String]]] = {
+    val entryNels: Vector[ErrorOr[Map[String, String]]] = maps.map {
+      case WomMap(_, value) => check_keys(value)
+      case _                 => "!!! ERROR2".invalidNel
+    }
+    val sequenced: ErrorOr[Vector[Map[String, String]]] = sequenceNels(
+      entryNels
+    )
+    sequenced
+  }
+
+  private def check_keys(
+      dict: Map[WomValue, WomValue]
+  ): ErrorOr[Map[String, String]] = {
+    val map_keys = dict.keySet.map(_.valueString).toSet
+    val unrecognizedKeys =
+      accepted_keys.diff(map_keys) union map_keys.diff(accepted_keys)
+
+    if (!dict.nonEmpty){
+      Map.empty[String, String].validNel  
+    }else if (unrecognizedKeys.nonEmpty) {
+      s"Invalid keys in $key runtime attribute. Refer to 'ulimits' section on https://docs.aws.amazon.com/batch/latest/userguide/job_definition_parameters.html#containerProperties".invalidNel
+    } else {
+      dict
+        .collect { case (WomString(k), WomString(v)) =>
+          (k, v)
+        // case _ => "!!! ERROR3".invalidNel
+        }
+        .toMap
+        .validNel
+    }
+  }
+
+  private def sequenceNels(
+      nels: Vector[ErrorOr[Map[String, String]]]
+  ): ErrorOr[Vector[Map[String, String]]] = {
+    val emptyNel: ErrorOr[Vector[Map[String, String]]] =
+      Vector.empty[Map[String, String]].validNel
+    val seqNel: ErrorOr[Vector[Map[String, String]]] =
+      nels.foldLeft(emptyNel) { (acc, v) =>
+        (acc, v) mapN { (a, v) => a :+ v }
+      }
+    seqNel
+  }
+
+  override protected def missingValueMessage: String =
+    s"Expecting $key runtime attribute to be an Array[Map[String, String]]"
 }

@@ -87,7 +87,7 @@ class EnhancedCollectionsSpec extends AsyncFlatSpec with Matchers {
     newQueue shouldBe empty
   }
 
-  behavior of "EnhancedQueue"
+  behavior of "EnhancedMapLike"
 
   it should "intersectWith a map" in {
     val mapOne = Map("a" -> "A", "b" -> "B", "c" -> "C", "d" -> "D")

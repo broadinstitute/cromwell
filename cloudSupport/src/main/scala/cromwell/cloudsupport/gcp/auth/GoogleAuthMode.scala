@@ -107,8 +107,6 @@ sealed trait GoogleAuthMode extends LazyLogging {
     credentials(options, Nil)
   }
 
-  def requiresAuthFile: Boolean = false
-
   /**
     * Enables swapping out credential validation for various testing purposes ONLY.
     *

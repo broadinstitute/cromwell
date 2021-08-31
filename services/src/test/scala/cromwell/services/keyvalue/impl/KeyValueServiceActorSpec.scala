@@ -2,13 +2,17 @@ package cromwell.services.keyvalue.impl
 
 import akka.actor.ActorRef
 import akka.pattern._
-import akka.testkit.TestProbe
+import akka.testkit.{TestDuration, TestProbe}
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.WorkflowId
 import cromwell.services.ServicesSpec
 import cromwell.services.keyvalue.KeyValueServiceActor._
+import org.scalatest.concurrent.Eventually
+import org.scalatest.concurrent.PatienceConfiguration.{Interval, Timeout}
 
-class KeyValueServiceActorSpec extends ServicesSpec {
+import scala.concurrent.duration._
+
+class KeyValueServiceActorSpec extends ServicesSpec with Eventually {
 
   val cromwellConfig: Config = ConfigFactory.parseString(
     s"""services: {
@@ -38,6 +42,14 @@ class KeyValueServiceActorSpec extends ServicesSpec {
   val kvPair3: KvPair = KvPair(ScopedKey(wfID, jobKey2, "k1"), "v1")
 
   "KeyValueServiceActor" should {
+    "eventually insert a single key/value" in {
+      // Wait a bit longer for yet another in memory database plus actor system to be created and liquibased
+      eventually(Timeout(defaultPatience.timeout.scaledBy(3)), Interval(15.seconds.dilated)) {
+        val kvPut1 = KvPut(KvPair(ScopedKey(wfID, jobKey1, "k1"), "v1"))
+        (sqlKvServiceActor ? kvPut1).mapTo[KvResponse].futureValue
+      }
+    }
+
     "insert a key/value" in {
       val kvPut1 = KvPut(KvPair(ScopedKey(wfID, jobKey1, "k1"), "v1"))
 

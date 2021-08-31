@@ -74,7 +74,7 @@ abstract class ServicesSpec extends TestKitSuite
   with Matchers with AnyWordSpecLike with ScalaFutures {
 
   override protected lazy val actorSystemConfig: Config = ServicesSpec.config
-  implicit val timeout: Timeout = Timeout(20.seconds.dilated)
+  implicit val timeout: Timeout = Timeout(60.seconds.dilated)
   implicit val ec: ExecutionContext = system.dispatcher
   implicit val defaultPatience: PatienceConfig = PatienceConfig(timeout = Span(1, Minute), interval = Span(100, Millis))
 }

@@ -36,11 +36,4 @@ class UserModeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     secretsMockFile.delete(swallowIOExceptions = true)
   }
 
-  it should "requiresAuthFile" in {
-    val secretsMockFile = File.newTemporaryFile("secrets.", ".json").write(GoogleAuthModeSpec.userCredentialsContents)
-    val userMode = UserMode("user", secretsMockFile.pathAsString)
-    userMode.requiresAuthFile should be(false)
-    secretsMockFile.delete(swallowIOExceptions = true)
-  }
-
 }

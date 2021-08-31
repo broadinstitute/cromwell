@@ -70,6 +70,11 @@ object PipelinesApiTestConfig {
        |  application-name = "cromwell"
        |  auths = [
        |    {
+       |      name = mock
+       |      scheme = mock
+       |    }
+       |    {
+       |      # legacy `application-default` auth that actually just mocks
        |      name = "application-default"
        |      scheme = "mock"
        |    }

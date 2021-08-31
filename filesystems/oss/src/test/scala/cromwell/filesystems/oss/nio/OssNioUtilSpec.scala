@@ -98,6 +98,7 @@ trait OssNioUtilSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Mocki
     OssStorageRetry.from(
       () => ossClient.deleteObject(path.bucket, path.key)
     )
+    ()
   }
 
   def writeObject(path: OssStoragePath): Unit = {

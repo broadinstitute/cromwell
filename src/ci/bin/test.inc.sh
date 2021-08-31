@@ -813,7 +813,7 @@ cromwell::private::install_sbt_launcher() {
     # Non-deb package installation instructions adapted from
     # - https://github.com/sbt/sbt/releases/tag/v1.4.9
     # - https://github.com/broadinstitute/scala-baseimage/pull/4/files
-    curl --location --fail --silent --show-error "https://github.com/sbt/sbt/releases/download/v1.4.9/sbt-1.4.9.tgz" |
+    curl --location --fail --silent --show-error "https://github.com/sbt/sbt/releases/download/v1.5.5/sbt-1.5.5.tgz" |
         sudo tar zxf - -C /usr/share
     sudo update-alternatives --install /usr/bin/sbt sbt /usr/share/sbt/bin/sbt 1
 }
@@ -1147,9 +1147,9 @@ cromwell::private::assemble_jars() {
     # CROMWELL_BUILD_SBT_ASSEMBLY_COMMAND allows for an override of the default `assembly` command for assembly.
     # This can be useful to reduce time and memory that might otherwise be spent assembling unused subprojects.
     # shellcheck disable=SC2086
-    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=error \
-        sbt \
+    sbt \
         -Dsbt.supershell=false \
+        'set ThisBuild / assembly / logLevel := Level.Error' \
         --warn \
         ${CROMWELL_BUILD_SBT_COVERAGE_COMMAND} \
         --error \
@@ -1198,11 +1198,11 @@ cromwell::private::generate_code_coverage() {
 }
 
 cromwell::private::publish_artifacts_only() {
-    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt -Dsbt.supershell=false --warn "$@" publish
+    sbt 'set ThisBuild / assembly / logLevel := Level.Warn' -Dsbt.supershell=false --warn "$@" publish
 }
 
 cromwell::private::publish_artifacts_and_docker() {
-    CROMWELL_SBT_ASSEMBLY_LOG_LEVEL=warn sbt -Dsbt.supershell=false --warn "$@" publish dockerBuildAndPush
+    sbt 'set ThisBuild / assembly / logLevel := Level.Warn' -Dsbt.supershell=false --warn "$@" publish dockerBuildAndPush
 }
 
 cromwell::private::publish_artifacts_check() {
@@ -1510,7 +1510,7 @@ cromwell:build::run_sbt_test() {
     sbt \
         -Dsbt.supershell=false \
         ${CROMWELL_BUILD_SBT_COVERAGE_COMMAND} \
-        test:compile
+        Test/compile
 
     local sbt_tests
 

@@ -57,7 +57,10 @@ case class OssBatchDeleteCommand(
                                  override val file: OssPath,
                                  override val swallowIOExceptions: Boolean
                                ) extends IoDeleteCommand(file, swallowIOExceptions) with OssBatchIoCommand[Unit, Void] {
-  def operation: Unit = file.ossClient.deleteObject(file.bucket, file.key)
+  def operation: Unit = {
+    file.ossClient.deleteObject(file.bucket, file.key)
+    ()
+  }
   override protected def mapOssResponse(response: Void): Unit = ()
   override def commandDescription: String = s"OssBatchDeleteCommand file '$file' swallowIOExceptions '$swallowIOExceptions'"
 }

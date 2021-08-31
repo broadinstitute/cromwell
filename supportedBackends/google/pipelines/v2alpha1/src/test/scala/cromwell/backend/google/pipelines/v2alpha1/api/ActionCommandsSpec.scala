@@ -4,7 +4,7 @@ import java.nio.file.Path
 
 import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
-import cromwell.backend.google.pipelines.v2alpha1.api.ActionCommands._
+import cromwell.backend.google.pipelines.common.action.ActionCommands._
 import cromwell.filesystems.gcs.GcsPath
 import eu.timepit.refined.refineMV
 import org.scalatest.flatspec.AnyFlatSpec

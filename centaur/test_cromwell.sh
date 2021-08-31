@@ -124,11 +124,11 @@ cd "${RUN_DIR}"
 TEST_STATUS="failed"
 
 if [[ "${CENTAUR_SBT_COVERAGE}" == "true" ]]; then
-    sbt -Dsbt.supershell=false --warn coverage centaur/it:compile
-    CP=$(sbt -no-colors --error coverage "export centaur/it:dependencyClasspath")
+    sbt -Dsbt.supershell=false --warn coverage centaur/IntegrationTest/compile
+    CP=$(sbt -no-colors --error coverage "export centaur/IntegrationTest/dependencyClasspath")
 else
-    sbt -Dsbt.supershell=false --warn centaur/it:compile
-    CP=$(sbt -no-colors --error "export centaur/it:dependencyClasspath")
+    sbt -Dsbt.supershell=false --warn centaur/IntegrationTest/compile
+    CP=$(sbt -no-colors --error "export centaur/IntegrationTest/dependencyClasspath")
 fi
 
 # Add the it-classes folder to the classpath to ensure logback configuration files are picked up.

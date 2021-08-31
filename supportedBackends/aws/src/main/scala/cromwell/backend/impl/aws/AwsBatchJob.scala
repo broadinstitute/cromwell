@@ -267,8 +267,17 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
 
                   generateEnvironmentKVPairs(runtimeAttributes.scriptS3BucketName, scriptKeyPrefix, scriptKey): _*
                 )
-                .memory(runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt)
-                .vcpus(runtimeAttributes.cpu.##).build
+                .resourceRequirements(
+                  ResourceRequirement.builder()
+                    .`type`(ResourceType.VCPU)
+                    .value(runtimeAttributes.cpu.value.toString)
+                    .build(),
+                  ResourceRequirement.builder()
+                    .`type`(ResourceType.MEMORY)
+                    .value(runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt.toString)
+                    .build(),
+                )
+                .build()
             )
             .jobQueue(runtimeAttributes.queueArn)
             .jobDefinition(definitionArn)

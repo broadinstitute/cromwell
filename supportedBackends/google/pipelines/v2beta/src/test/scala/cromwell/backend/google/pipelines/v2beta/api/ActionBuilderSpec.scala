@@ -1,11 +1,10 @@
 package cromwell.backend.google.pipelines.v2beta.api
 
 import java.util
-
 import com.google.api.services.lifesciences.v2beta.model.{Action, Mount}
 import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.google.pipelines.common.action.ActionLabels._
-import cromwell.backend.google.pipelines.v2beta.LifeSciencesFactory
+import cromwell.backend.google.pipelines.common.action.ActionUtils
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -18,18 +17,18 @@ class ActionBuilderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
 
   private val dockerRunActions = Table(
     ("description", "action", "command"),
-    ("a cloud sdk action", ActionBuilder.cloudSdkAction, s"docker run ${LifeSciencesFactory.CloudSdkImage}"),
+    ("a cloud sdk action", ActionBuilder.cloudSdkAction, s"docker run ${ActionUtils.CloudSdkImage}"),
     ("a cloud sdk action with args",
       ActionBuilder.cloudSdkAction.setCommands(List("bash", "-c", "echo hello").asJava),
-      s"docker run ${LifeSciencesFactory.CloudSdkImage} bash -c echo\\ hello"
+      s"docker run ${ActionUtils.CloudSdkImage} bash -c echo\\ hello"
     ),
     ("a cloud sdk action with quotes in the args",
       ActionBuilder.cloudSdkAction.setCommands(List("bash", "-c", "echo hello m'lord").asJava),
-      s"docker run ${LifeSciencesFactory.CloudSdkImage} bash -c echo\\ hello\\ m\\'lord"
+      s"docker run ${ActionUtils.CloudSdkImage} bash -c echo\\ hello\\ m\\'lord"
     ),
     ("a cloud sdk action with a newline in the args",
       ActionBuilder.cloudSdkAction.setCommands(List("bash", "-c", "echo hello\\\nworld").asJava),
-      s"docker run ${LifeSciencesFactory.CloudSdkImage} bash -c echo\\ hello\\\\world"
+      s"docker run ${ActionUtils.CloudSdkImage} bash -c echo\\ hello\\\\world"
     ),
     ("an action with multiple args",
       new Action()

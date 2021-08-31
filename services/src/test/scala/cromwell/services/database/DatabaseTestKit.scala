@@ -1,9 +1,7 @@
 package cromwell.services.database
 
-import java.sql.Connection
-
 import better.files._
-import com.dimafeng.testcontainers.{Container, JdbcDatabaseContainer, MariaDBContainer, MySQLContainer, PostgreSQLContainer}
+import com.dimafeng.testcontainers._
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.database.migration.liquibase.LiquibaseUtils
@@ -12,12 +10,14 @@ import cromwell.services.ServicesStore.EnhancedSqlDatabase
 import cromwell.services.{EngineServicesStore, MetadataServicesStore}
 import liquibase.snapshot.DatabaseSnapshot
 import liquibase.structure.core.Index
+import org.testcontainers.containers.{JdbcDatabaseContainer => JavaJdbcDatabaseContainer}
 import org.testcontainers.utility.DockerImageName
 import slick.jdbc.JdbcProfile
 import slick.jdbc.meta.{MIndexInfo, MPrimaryKey}
 
+import java.sql.Connection
 import scala.concurrent.Await
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration._
 
 object DatabaseTestKit extends StrictLogging {
 
@@ -109,7 +109,7 @@ object DatabaseTestKit extends StrictLogging {
   }
 
   def getDatabaseTestContainer(databaseSystem: DatabaseSystem): Option[Container] = {
-    databaseSystem match {
+    val containerOption: Option[SingleContainer[_ <: JavaJdbcDatabaseContainer[_]]] = databaseSystem match {
       case HsqldbDatabaseSystem => None
       case networkDbSystem: NetworkDatabaseSystem =>
         networkDbSystem.platform match {
@@ -135,6 +135,12 @@ object DatabaseTestKit extends StrictLogging {
           case _ => None
         }
     }
+
+    // Give low cpu/mem CI a bit more patience to start the container
+    containerOption.map(_.configure { container =>
+      container.withStartupTimeoutSeconds(5.minutes.toSeconds.toInt)
+      ()
+    })
   }
 
   def initializeDatabaseByContainerOptTypeAndSystem[A <: SlickDatabase](containerOpt: Option[Container],

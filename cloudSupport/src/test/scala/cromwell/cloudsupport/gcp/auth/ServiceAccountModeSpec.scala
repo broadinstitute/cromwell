@@ -86,29 +86,4 @@ class ServiceAccountModeSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
     credentials.getAuthenticationType should be("OAuth2")
     pemMockFile.delete(true)
   }
-
-  it should "requiresAuthFile from json" in {
-    val jsonMockFile = File
-      .newTemporaryFile("service-account.", ".json")
-      .write(GoogleAuthModeSpec.serviceAccountJsonContents)
-    val serviceAccountMode = ServiceAccountMode(
-      "service-account",
-      ServiceAccountMode.JsonFileFormat(jsonMockFile.pathAsString)
-    )
-    serviceAccountMode.requiresAuthFile should be(false)
-    jsonMockFile.delete(true)
-  }
-
-  it should "requiresAuthFile from a pem" in {
-    val pemMockFile = File
-      .newTemporaryFile("service-account.", ".pem")
-      .write(GoogleAuthModeSpec.serviceAccountPemContents)
-    val serviceAccountMode = ServiceAccountMode(
-      "service-account",
-      ServiceAccountMode.PemFileFormat("the_account_id", pemMockFile.pathAsString)
-    )
-    serviceAccountMode.requiresAuthFile should be(false)
-    pemMockFile.delete(true)
-  }
-
 }

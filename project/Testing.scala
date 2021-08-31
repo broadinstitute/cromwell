@@ -101,7 +101,11 @@ object Testing {
     CromwellBenchmarkTest / testFrameworks += new TestFramework("org.scalameter.ScalaMeterFramework"),
     // Don't execute benchmarks in parallel
     CromwellBenchmarkTest / parallelExecution := false,
-    // Make sure no secrets are commited to git
+    // Until we move away from Travis do not execute ANY tests in parallel (see also Settings.sharedSettings)
+    Test / parallelExecution := false,
+    // Since parallelExecution is off do not buffer test results
+    Test / logBuffered := false,
+    // Make sure no secrets are committed to git
     minnieKenny := {
       val log = streams.value.log
       val args = spaceDelimited("<arg>").parsed
@@ -113,7 +117,7 @@ object Testing {
     },
   )
 
-  val integrationTestSettings = List(
+  private val integrationTestSettings = List(
     libraryDependencies ++= testDependencies.map(_ % IntegrationTest)
   ) ++ itSettings
 

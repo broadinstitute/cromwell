@@ -27,7 +27,7 @@ case class AccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes
           hashes.get("crc32c").map(GetmChecksum("gs_crc32c", _))
         }
         // etags could be anything; only ask `getm` to check s3 etags if this actually looks like an s3 signed url.
-        else if (hashes.contains("etag") && accessUrl.url.matches("^https://[^/]+\\.s3\\.amazonaws.com/")) {
+        else if (hashes.contains("etag") && accessUrl.url.matches("^https://[^/]+\\.s3\\.amazonaws.com/.*")) {
           hashes.get("etag") map (GetmChecksum("s3_etag", _))
         }
         // not pictured: sha256, which does appear in Martha test data but is not currently supported by `getm`.

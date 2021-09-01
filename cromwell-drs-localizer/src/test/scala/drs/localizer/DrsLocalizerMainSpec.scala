@@ -55,7 +55,9 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
   it should "resolve to use the correct downloader for an access url" in {
     val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithAccessUrlResolutionOnly, fakeDownloadLocation, None)
     val expected = AccessUrlDownloader(
-      accessUrl = AccessUrl(url = "http://abc/def/ghi.bam", headers = None), downloadLoc = fakeDownloadLocation
+      accessUrl = AccessUrl(url = "http://abc/def/ghi.bam", headers = None),
+      downloadLoc = fakeDownloadLocation,
+      hashes = None
     )
     mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloaderFactory).unsafeRunSync() shouldBe expected
   }
@@ -63,7 +65,8 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
   it should "resolve to use the correct downloader for an access url when the Martha response also contains a gs url" in {
     val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithAccessUrlAndGcsResolution, fakeDownloadLocation, None)
     val expected = AccessUrlDownloader(
-      accessUrl = AccessUrl(url = "http://abc/def/ghi.bam", headers = None), downloadLoc = fakeDownloadLocation
+      accessUrl = AccessUrl(url = "http://abc/def/ghi.bam", headers = None), downloadLoc = fakeDownloadLocation,
+      hashes = None
     )
     mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloaderFactory).unsafeRunSync() shouldBe expected
   }
@@ -83,7 +86,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     })
 
     val downloaderFactory = new DownloaderFactory {
-      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String): IO[Downloader] = {
+      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes): IO[Downloader] = {
         accessUrlDownloader
       }
 
@@ -117,7 +120,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     })
 
     val downloaderFactory = new DownloaderFactory {
-      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String): IO[Downloader] = {
+      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes): IO[Downloader] = {
         accessUrlDownloader
       }
 
@@ -152,7 +155,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     })
 
     val downloaderFactory = new DownloaderFactory {
-      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String): IO[Downloader] = {
+      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes): IO[Downloader] = {
         // This test path should never ask for the access URL downloader
         throw new RuntimeException("test failure")
       }
@@ -184,7 +187,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     })
 
     val downloaderFactory = new DownloaderFactory {
-      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String): IO[Downloader] = {
+      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes): IO[Downloader] = {
         // This test path should never ask for the access URL downloader
         throw new RuntimeException("test failure")
       }

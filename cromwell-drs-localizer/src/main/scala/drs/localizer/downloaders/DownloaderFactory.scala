@@ -4,7 +4,9 @@ import cats.effect.IO
 import cloud.nio.impl.drs.AccessUrl
 
 trait DownloaderFactory {
-  def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String): IO[Downloader]
+  type Hashes = Option[Map[String, String]]
+
+  def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes): IO[Downloader]
 
   def buildGcsUriDownloader(gcsPath: String,
                             serviceAccountJsonOption: Option[String],

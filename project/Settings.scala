@@ -115,13 +115,17 @@ object Settings {
 
   /*
       Docker instructions to install Google Cloud SDK image in docker image. It also installs `crcmod` which
-      is needed while downloading large files using `gsutil`
+      is needed while downloading large files using `gsutil`.
       References:
         - https://stackoverflow.com/questions/28372328/how-to-install-the-google-cloud-sdk-in-a-docker-image
         - https://cromwell.readthedocs.io/en/develop/backends/Google/#issues-with-composite-files
         - https://cloud.google.com/storage/docs/gsutil/addlhelp/CRC32CandInstallingcrcmod
+
+      Install `getm` for performant signed URL downloading with integrity checking.
+      References:
+        - https://github.com/xbrianh/getm
    */
-  val installGcloudSettings: List[Setting[Seq[Instruction]]] = List(
+  val installLocalizerSettings: List[Setting[Seq[Instruction]]] = List(
     dockerCustomSettings := List(
       Instructions.Env("PATH", "$PATH:/usr/local/gcloud/google-cloud-sdk/bin"),
       // instructions to install `crcmod`
@@ -137,7 +141,9 @@ object Settings {
       Instructions.Run("curl https://dl.google.com/dl/cloudsdk/release/google-cloud-sdk.tar.gz > /tmp/google-cloud-sdk.tar.gz"),
       Instructions.Run("""mkdir -p /usr/local/gcloud \
                          | && tar -C /usr/local/gcloud -xvf /tmp/google-cloud-sdk.tar.gz \
-                         | && /usr/local/gcloud/google-cloud-sdk/install.sh""".stripMargin)
+                         | && /usr/local/gcloud/google-cloud-sdk/install.sh""".stripMargin),
+      // instructions to install `getm`
+      Instructions.Run("pip3 install getm")
     )
   )
 
@@ -145,7 +151,7 @@ object Settings {
   val backendSettings = List(addCompilerPlugin(kindProjectorPlugin))
   val engineSettings: List[Setting[_]] = swaggerUiSettings
   val cromiamSettings: List[Setting[_]] = swaggerUiSettings
-  val drsLocalizerSettings: List[Setting[_]] = installGcloudSettings
+  val drsLocalizerSettings: List[Setting[_]] = installLocalizerSettings
 
   private def buildProject(project: Project,
                            projectName: String,

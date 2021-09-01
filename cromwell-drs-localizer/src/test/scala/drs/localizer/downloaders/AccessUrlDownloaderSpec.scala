@@ -15,7 +15,8 @@ class AccessUrlDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
 
     val downloader = AccessUrlDownloader(
       accessUrl = AccessUrl(url = fakeAccessUrl, headers = None),
-      downloadLoc = fakeDownloadLocation
+      downloadLoc = fakeDownloadLocation,
+      hashes = None
     )
 
     val expected = s"""mkdir -p $$(dirname '$fakeDownloadLocation') && rm -f '$fakeDownloadLocation' && curl --silent --write-out '%{http_code}' --location --fail --output '$fakeDownloadLocation' '$fakeAccessUrl'"""
@@ -35,7 +36,7 @@ class AccessUrlDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
     (0, "  ", RetryableDownloadFailure(ExitCode(0))),
   )
 
-  val accessUrlDownloader: AccessUrlDownloader = AccessUrlDownloader(null, null)
+  val accessUrlDownloader: AccessUrlDownloader = AccessUrlDownloader(null, null, null)
 
   forAll(results) { (exitCode, httpStatus, expected) =>
     it should s"produce $expected for exitCode $exitCode and http status '$httpStatus'" in {

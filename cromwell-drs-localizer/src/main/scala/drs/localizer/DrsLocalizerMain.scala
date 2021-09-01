@@ -40,8 +40,8 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     initialInterval = 10 seconds, maxInterval = 60 seconds, multiplier = 2)
 
   val defaultDownloaderFactory: DownloaderFactory = new DownloaderFactory {
-    override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String): IO[Downloader] =
-      IO.pure(AccessUrlDownloader(accessUrl, downloadLoc))
+    override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes): IO[Downloader] =
+      IO.pure(AccessUrlDownloader(accessUrl, downloadLoc, hashes))
 
     override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] =
       IO.pure(GcsUriDownloader(gcsPath, serviceAccountJsonOption, downloadLoc, requesterPaysProjectOption))
@@ -89,7 +89,7 @@ class DrsLocalizerMain(drsUrl: String,
   }
 
   private [localizer] def resolve(downloaderFactory: DownloaderFactory): IO[Downloader] = {
-    val fields = NonEmptyList.of(MarthaField.GsUri, MarthaField.GoogleServiceAccount, MarthaField.AccessUrl)
+    val fields = NonEmptyList.of(MarthaField.GsUri, MarthaField.GoogleServiceAccount, MarthaField.AccessUrl, MarthaField.Hashes)
     for {
       resolver <- getDrsPathResolver
       marthaResponse <- resolver.resolveDrsThroughMartha(drsUrl, fields)
@@ -97,7 +97,7 @@ class DrsLocalizerMain(drsUrl: String,
       // Currently Martha only supports resolving DRS paths to access URLs or GCS paths.
       downloader <- (marthaResponse.accessUrl, marthaResponse.gsUri) match {
         case (Some(accessUrl), _) =>
-          downloaderFactory.buildAccessUrlDownloader(accessUrl, downloadLoc)
+          downloaderFactory.buildAccessUrlDownloader(accessUrl, downloadLoc, marthaResponse.hashes)
         case (_, Some(gcsPath)) =>
           val serviceAccountJsonOption = marthaResponse.googleServiceAccount.map(_.data.spaces2)
           downloaderFactory.buildGcsUriDownloader(

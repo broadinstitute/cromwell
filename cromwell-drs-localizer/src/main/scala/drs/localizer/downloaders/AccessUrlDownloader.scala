@@ -4,15 +4,49 @@ import cats.effect.{ExitCode, IO}
 import cloud.nio.impl.drs.AccessUrl
 import com.typesafe.scalalogging.StrictLogging
 import common.util.StringUtil._
+import drs.localizer.DrsLocalizerMain.defaultDownloaderFactory.Hashes
 
 import scala.sys.process.{Process, ProcessLogger}
 
-case class AccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String) extends Downloader with StrictLogging {
+case class GetmChecksum(algorithm: String, value: String) {
+  def args: String = s"--checksum-algorithm '$algorithm' --checksum '$value''"
+}
+
+case class AccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes) extends Downloader with StrictLogging {
+
+  // Return a `getm` checksum algorithm and value or None if no checksum should be checked.
+  private [downloaders] def checksumAlgorithmAndValue: Option[GetmChecksum] = {
+    hashes match {
+      case Some(hashes) if hashes.nonEmpty =>
+        // `hashes` uses the Martha keys for these hash algorithms, which in turn are forwarded DRS providers' keys for
+        // the algorithms. `getm` has its own notions of what these algorithms are called.
+        if (hashes.contains("md5")) {
+          hashes.get("md5").map(GetmChecksum("md5", _))
+        }
+        else if (hashes.contains("crc32c")) {
+          hashes.get("crc32c").map(GetmChecksum("gs_crc32c", _))
+        }
+        // etags could be anything; only ask `getm` to check s3 etags if this actually looks like an s3 signed url.
+        else if (hashes.contains("etag") && accessUrl.url.matches("^https://[^/]+\\.s3\\.amazonaws.com/")) {
+          hashes.get("etag") map (GetmChecksum("s3_etag", _))
+        }
+        // not pictured: sha256, which does appear in Martha test data but is not currently supported by `getm`.
+        else {
+          // If this code were running in Cromwell this condition would probably merit a warning but the localizer
+          // runs on the VM and at best can only complain to stderr. The `getm` algorithm of `null` is specified which
+          // means "do not validate checksums" with the stringified contents of the hashes map as a value.
+          Option(GetmChecksum("null", hashes.toString()))
+        }
+      case _ => None
+    }
+  }
 
   def generateDownloadScript(): String = {
     val signedUrl = accessUrl.url
     // TODO headers
-    s"""mkdir -p $$(dirname '$downloadLoc') && rm -f '$downloadLoc' && curl --silent --write-out '%{http_code}' --location --fail --output '$downloadLoc' '$signedUrl'"""
+    // s"""mkdir -p $$(dirname '$downloadLoc') && rm -f '$downloadLoc' && curl --silent --write-out '%{http_code}' --location --fail --output '$downloadLoc' '$signedUrl'"""
+    val checksumArgs = checksumAlgorithmAndValue map { _.args } getOrElse ""
+    s"""mkdir -p $$(dirname '$downloadLoc') && rm -f '$downloadLoc' && getm --filepath '$downloadLoc' $checksumArgs '$signedUrl'"""
   }
 
   def returnCodeAndHttpStatus: IO[(Int, String)] = IO {

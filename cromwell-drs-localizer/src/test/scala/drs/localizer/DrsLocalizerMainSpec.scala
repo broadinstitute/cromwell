@@ -4,6 +4,7 @@ import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO}
 import cloud.nio.impl.drs.{AccessUrl, DrsConfig, MarthaField, MarthaResponse}
 import common.assertion.CromwellTimeoutSpec
+import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -97,7 +98,8 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     }
 
     drsLocalizer.resolveAndDownloadWithRetries(
-      retries = 3,
+      downloadRetries = 3,
+      checksumRetries = 1,
       downloaderFactory = downloaderFactory,
       backoff = None
     ).unsafeRunSync() shouldBe DownloadSuccess
@@ -132,7 +134,8 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
     assertThrows[Throwable] {
       drsLocalizer.resolveAndDownloadWithRetries(
-        retries = 3,
+        downloadRetries = 3,
+        checksumRetries = 1,
         downloaderFactory = downloaderFactory,
         backoff = None
       ).unsafeRunSync()
@@ -166,7 +169,8 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     }
 
     drsLocalizer.resolveAndDownloadWithRetries(
-      retries = 3,
+      downloadRetries = 3,
+      checksumRetries = 1,
       downloaderFactory = downloaderFactory,
       backoff = None).unsafeRunSync()
 
@@ -199,7 +203,8 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
     assertThrows[Throwable] {
       drsLocalizer.resolveAndDownloadWithRetries(
-        retries = 3,
+        downloadRetries = 3,
+        checksumRetries = 1,
         downloaderFactory = downloaderFactory,
         backoff = None).unsafeRunSync()
     }

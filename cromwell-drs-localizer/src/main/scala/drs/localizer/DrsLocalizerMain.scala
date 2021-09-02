@@ -5,6 +5,7 @@ import cats.effect.{ExitCode, IO, IOApp}
 import cloud.nio.impl.drs.{AccessUrl, DrsConfig, DrsPathResolver, MarthaField}
 import cloud.nio.spi.{CloudNioBackoff, CloudNioSimpleExponentialBackoff}
 import com.typesafe.scalalogging.StrictLogging
+import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
 
 import scala.concurrent.duration._
@@ -24,10 +25,10 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     argsLength match {
       case 2 =>
         new DrsLocalizerMain(args.head, args(1), None).
-          resolveAndDownloadWithRetries(retries = 3, defaultDownloaderFactory, Option(defaultBackoff)).map(_.exitCode)
+          resolveAndDownloadWithRetries(downloadRetries = 3, checksumRetries = 1, defaultDownloaderFactory, Option(defaultBackoff)).map(_.exitCode)
       case 3 =>
         new DrsLocalizerMain(args.head, args(1), Option(args(2))).
-          resolveAndDownloadWithRetries(retries = 3, defaultDownloaderFactory, Option(defaultBackoff)).map(_.exitCode)
+          resolveAndDownloadWithRetries(downloadRetries = 3, checksumRetries = 1, defaultDownloaderFactory, Option(defaultBackoff)).map(_.exitCode)
       case _ =>
         val argsList = if (args.nonEmpty) args.mkString(",") else "None"
         logger.error(s"Received $argsLength arguments. DRS input and download location path is required. Requester Pays billing project ID is optional. " +
@@ -59,27 +60,42 @@ class DrsLocalizerMain(drsUrl: String,
     }
   }
 
-  def resolveAndDownloadWithRetries(retries: Int, downloaderFactory: DownloaderFactory,
+  def resolveAndDownloadWithRetries(downloadRetries: Int,
+                                    checksumRetries: Int,
+                                    downloaderFactory: DownloaderFactory,
                                     backoff: Option[CloudNioBackoff],
-                                    attempt: Int = 0): IO[DownloadResult] = {
+                                    downloadAttempt: Int = 0,
+                                    checksumAttempt: Int = 0): IO[DownloadResult] = {
 
-    def maybeResolveAndDownloadWithRetry(t: Throwable): IO[DownloadResult] = {
-      if (attempt < retries) {
+    def maybeRetryForChecksumFailure(t: Throwable): IO[DownloadResult] = {
+      if (checksumAttempt < checksumRetries) {
         backoff foreach { b => Thread.sleep(b.backoffMillis) }
-        logger.warn(s"Attempting retry $attempt of $retries retries to download $drsUrl", t)
-        resolveAndDownloadWithRetries(retries, downloaderFactory, backoff map { _.next }, attempt + 1)
+        logger.warn(s"Attempting retry $checksumAttempt of $checksumRetries checksum retries to download $drsUrl", t)
+        resolveAndDownloadWithRetries(downloadRetries, checksumRetries, downloaderFactory, backoff map { _.next }, downloadAttempt, checksumAttempt + 1)
       } else {
-        IO.raiseError(new RuntimeException(s"Exhausted $retries retries to resolve and download $drsUrl", t))
+        IO.raiseError(new RuntimeException(s"Exhausted $checksumRetries retries to resolve, download and checksum $drsUrl", t))
+      }
+    }
+
+    def maybeRetryForDownloadFailure(t: Throwable): IO[DownloadResult] = {
+      if (downloadAttempt < downloadRetries) {
+        backoff foreach { b => Thread.sleep(b.backoffMillis) }
+        logger.warn(s"Attempting retry $downloadAttempt of $downloadRetries retries to download $drsUrl", t)
+        resolveAndDownloadWithRetries(downloadRetries, checksumRetries, downloaderFactory, backoff map { _.next }, downloadAttempt + 1, checksumAttempt)
+      } else {
+        IO.raiseError(new RuntimeException(s"Exhausted $downloadRetries retries to resolve, download and checksum $drsUrl", t))
       }
     }
 
     resolveAndDownload(downloaderFactory).redeemWith({
-      maybeResolveAndDownloadWithRetry
+      maybeRetryForDownloadFailure
     },
     {
       case r: RetryableDownloadFailure =>
-        maybeResolveAndDownloadWithRetry(
-          new RuntimeException(s"Retryable download error: exit code ${r.exitCode.code} for $drsUrl on retry attempt $attempt of $retries"))
+        maybeRetryForDownloadFailure(
+          new RuntimeException(s"Retryable download error: exit code ${r.exitCode.code} for $drsUrl on retry attempt $downloadAttempt of $downloadRetries"))
+      case ChecksumFailure =>
+        maybeRetryForChecksumFailure(new RuntimeException(s"Checksum failure for $drsUrl on checksum retry attempt $checksumAttempt of $checksumRetries"))
       case o => IO.pure(o)
     })
   }

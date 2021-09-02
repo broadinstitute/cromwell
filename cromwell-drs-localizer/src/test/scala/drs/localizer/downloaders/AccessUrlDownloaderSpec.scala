@@ -27,15 +27,15 @@ class AccessUrlDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
   val results: TableFor3[Int, String, DownloadResult] = Table(
     ("exitCode", "stderr", "download result"),
     (0, "", DownloadSuccess),
-    (0, "what the", RetryableDownloadFailure(ExitCode(0))),
+    (0, "what the", UnrecognizedRetryableDownloadFailure(ExitCode(0))),
     (0, "oh me oh my: AssertionError: Checksum failed!!!", ChecksumFailure),
-    (1, "oh me oh my: AssertionError: Checksum failed!!!", RetryableDownloadFailure(ExitCode(1))),
-    (1, " foobar ", RetryableDownloadFailure(ExitCode(1))),
-    (0, """ERROR:getm.cli possibly some words "status_code": 503 words""", RetryableDownloadFailure(ExitCode(0))),
-    (1, """ERROR:getm.cli possibly some words "status_code": 503 words""", RetryableDownloadFailure(ExitCode(1))),
-    (1, """ERROR:getm.cli possibly some words "status_code": 408 more words""", RetryableDownloadFailure(ExitCode(1))),
+    (1, "oh me oh my: AssertionError: Checksum failed!!!", UnrecognizedRetryableDownloadFailure(ExitCode(1))),
+    (1, " foobar ", UnrecognizedRetryableDownloadFailure(ExitCode(1))),
+    (0, """ERROR:getm.cli possibly some words "status_code": 503 words""", UnrecognizedRetryableDownloadFailure(ExitCode(0))),
+    (1, """ERROR:getm.cli possibly some words "status_code": 503 words""", RecognizedRetryableDownloadFailure(ExitCode(1))),
+    (1, """ERROR:getm.cli possibly some words "status_code": 408 more words""", RecognizedRetryableDownloadFailure(ExitCode(1))),
     (1, """ERROR:getm.cli possibly some words "status_code": 404 even more words""", NonRetryableDownloadFailure(ExitCode(1))),
-    (0, """ERROR:getm.cli possibly some words "status_code": 404 even more words""", RetryableDownloadFailure(ExitCode(0))),
+    (0, """ERROR:getm.cli possibly some words "status_code": 404 even more words""", UnrecognizedRetryableDownloadFailure(ExitCode(0))),
   )
 
   val accessUrlDownloader: AccessUrlDownloader = AccessUrlDownloader(null, null, null)

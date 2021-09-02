@@ -119,7 +119,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     }
     val accessUrlDownloader = IO.pure(new Downloader {
       override def download: IO[DownloadResult] =
-        IO.pure(RetryableDownloadFailure(exitCode = ExitCode(0)))
+        IO.pure(RecognizedRetryableDownloadFailure(exitCode = ExitCode(0)))
     })
 
     val downloaderFactory = new DownloaderFactory {
@@ -188,7 +188,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     }
     val gcsUriDownloader = IO.pure(new Downloader {
       override def download: IO[DownloadResult] =
-        IO.pure(RetryableDownloadFailure(exitCode = ExitCode(1)))
+        IO.pure(RecognizedRetryableDownloadFailure(exitCode = ExitCode(1)))
     })
 
     val downloaderFactory = new DownloaderFactory {

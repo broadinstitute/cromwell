@@ -15,9 +15,8 @@ case class AccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes
   def generateDownloadScript(): String = {
     val signedUrl = accessUrl.url
     // TODO headers
-    // s"""mkdir -p $$(dirname '$downloadLoc') && rm -f '$downloadLoc' && curl --silent --write-out '%{http_code}' --location --fail --output '$downloadLoc' '$signedUrl'"""
-    val checksumArgs = GetmChecksum.build(hashes, accessUrl) map { _.args } getOrElse ""
-    s"""mkdir -p $$(dirname '$downloadLoc') && rm -f '$downloadLoc' && getm --filepath '$downloadLoc' $checksumArgs '$signedUrl'"""
+    val checksumArgs = GetmChecksum(hashes, accessUrl).args
+    s"""mkdir -p $$(dirname '$downloadLoc') && rm -f '$downloadLoc' && getm $checksumArgs --filepath '$downloadLoc' '$signedUrl'"""
   }
 
   def getmResult: IO[GetmResult] = IO {
@@ -76,5 +75,5 @@ object AccessUrlDownloader {
   type Hashes = Option[Map[String, String]]
 
   val ChecksumFailureMessage: Regex = raw""".*AssertionError: Checksum failed!.*""".r
-  val HttpStatusMessage: Regex = raw"""ERROR:getm\.cli.*, *"status_code": (\d+).*""".r
+  val HttpStatusMessage: Regex = raw"""ERROR:getm\.cli.*"status_code":\s*(\d+).*""".r
 }

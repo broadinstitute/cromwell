@@ -4,6 +4,7 @@ import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO}
 import cloud.nio.impl.drs.{AccessUrl, DrsConfig, MarthaField, MarthaResponse}
 import common.assertion.CromwellTimeoutSpec
+import drs.localizer.MockDrsLocalizerDrsPathResolver.FakeHashes
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
 import org.scalatest.flatspec.AnyFlatSpec
@@ -58,7 +59,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     val expected = AccessUrlDownloader(
       accessUrl = AccessUrl(url = "http://abc/def/ghi.bam", headers = None),
       downloadLoc = fakeDownloadLocation,
-      hashes = None
+      hashes = FakeHashes
     )
     mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloaderFactory).unsafeRunSync() shouldBe expected
   }
@@ -67,7 +68,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     val mockDrsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithAccessUrlAndGcsResolution, fakeDownloadLocation, None)
     val expected = AccessUrlDownloader(
       accessUrl = AccessUrl(url = "http://abc/def/ghi.bam", headers = None), downloadLoc = fakeDownloadLocation,
-      hashes = None
+      hashes = FakeHashes
     )
     mockDrsLocalizer.resolve(DrsLocalizerMain.defaultDownloaderFactory).unsafeRunSync() shouldBe expected
   }
@@ -241,7 +242,7 @@ class MockDrsLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
   override def resolveDrsThroughMartha(drsPath: String, fields: NonEmptyList[MarthaField.Value]): IO[MarthaResponse] = {
     val marthaResponse = MarthaResponse(
       size = Option(1234),
-      hashes = Option(Map("md5" -> "abc123", "crc32c" -> "34fd67"))
+      hashes = FakeHashes
     )
 
     IO.pure(drsPath) map {
@@ -260,4 +261,8 @@ class MockDrsLocalizerDrsPathResolver(drsConfig: DrsConfig) extends
       case e => throw new RuntimeException(s"Unexpected exception in DRS localization test code: $e")
     }
   }
+}
+
+object MockDrsLocalizerDrsPathResolver {
+  val FakeHashes = Option(Map("md5" -> "abc123", "crc32c" -> "34fd67"))
 }

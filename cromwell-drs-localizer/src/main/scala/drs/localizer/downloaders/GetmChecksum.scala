@@ -17,13 +17,17 @@ case class Crc32c(override val value: String) extends GetmChecksum {
 case class AwsEtag(override val value: String) extends GetmChecksum {
   override def algorithm: String = "s3_etag"
 }
-case class Null(override val value: String) extends GetmChecksum {
+case object Null extends GetmChecksum {
+  override def algorithm: String = "null"
+  override def value: String = "null"
+}
+// The `value` for `Unsupported` will be the named algorithm keys
+case class Unsupported(override val value: String) extends GetmChecksum {
   override def algorithm: String = "null"
 }
 
 object GetmChecksum {
-  // `build` not `apply` as this currently returns an `Option[GetmChecksum]` not a `GetmChecksum`.
-  def build(hashes: Hashes, accessUrl: AccessUrl): Option[GetmChecksum] = {
+  def apply(hashes: Hashes, accessUrl: AccessUrl): GetmChecksum = {
     hashes match {
       case Some(hashes) if hashes.nonEmpty =>
         // `hashes` uses the Martha keys for these hash algorithms, which in turn are forwarded DRS providers' keys for
@@ -31,14 +35,14 @@ object GetmChecksum {
         // `md5` the algorithm names are the same between DRS providers and `getm`, but all of the other algorithm names
         // currently differ between DRS providers and `getm`.
         if (hashes.contains("md5")) {
-          hashes.get("md5") map Md5
+          Md5(hashes("md5"))
         }
         else if (hashes.contains("crc32c")) {
-          hashes.get("crc32c") map Crc32c
+          Crc32c(hashes("crc32c"))
         }
         // etags could be anything; only ask `getm` to check s3 etags if this actually looks like an s3 signed url.
         else if (hashes.contains("etag") && accessUrl.url.matches("^https://[^/]+\\.s3\\.amazonaws.com/.*")) {
-          hashes.get("etag") map AwsEtag
+          AwsEtag(hashes("etag"))
         }
         // Not pictured: sha256 which is observed at least in staging data, e.g. open access Kids First object
         // drs://dg.F82A1A:5b92382f-51d2-424d-9def-c9ac0ed8b807. At the time of this writing `getm` does not support
@@ -48,9 +52,9 @@ object GetmChecksum {
           // If this code were running in Cromwell this condition would probably merit a warning but the localizer
           // runs on the VM and at best can only complain to stderr. The `getm` algorithm of `null` is specified which
           // means "do not validate checksums" with the stringified contents of the hashes map as a value.
-          Option(Null(hashes.toString()))
+          Unsupported(value = hashes.keys.mkString(", "))
         }
-      case _ => None
+      case _ => Null
     }
   }
 }

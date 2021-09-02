@@ -14,11 +14,12 @@ object SqlConverters {
   // https://github.com/slick/slick/issues/1026
 
   implicit class TimestampToSystemOffsetDateTime(val timestamp: Timestamp) extends AnyVal {
-    def toSystemOffsetDateTime = timestamp.toLocalDateTime.atZone(ZoneId.systemDefault).toOffsetDateTime
+    def toSystemOffsetDateTime: OffsetDateTime = timestamp.toLocalDateTime.atZone(ZoneId.systemDefault).toOffsetDateTime
   }
 
   implicit class OffsetDateTimeToSystemTimestamp(val offsetDateTime: OffsetDateTime) extends AnyVal {
-    def toSystemTimestamp = Timestamp.valueOf(offsetDateTime.atZoneSameInstant(ZoneId.systemDefault).toLocalDateTime)
+    def toSystemTimestamp: Timestamp =
+      Timestamp.valueOf(offsetDateTime.atZoneSameInstant(ZoneId.systemDefault).toLocalDateTime)
   }
 
   implicit class ClobOptionToRawString(val clobOption: Option[Clob]) extends AnyVal {
@@ -56,10 +57,11 @@ object SqlConverters {
     import eu.timepit.refined.api.Refined
     import eu.timepit.refined.collection.NonEmpty
 
-    def toClobOption: Option[SerialClob] = if (str.isEmpty) None else Option(new SerialClob(str.toCharArray))
+    def toClobOption: Option[SerialClob] =
+      if (str == null || str.isEmpty) None else Option(new SerialClob(str.toCharArray))
 
     def toClob(default: String Refined NonEmpty): SerialClob = {
-      val nonEmpty = if (str.isEmpty) default.value else str
+      val nonEmpty = if (str == null || str.isEmpty) default.value else str
       new SerialClob(nonEmpty.toCharArray)
     }
   }
@@ -91,7 +93,7 @@ object SqlConverters {
   }
 
   implicit class BytesToBlobOption(val bytes: Array[Byte]) extends AnyVal {
-    def toBlobOption: Option[SerialBlob] = if (bytes.isEmpty) None else Option(new SerialBlob(bytes))
+    def toBlobOption: Option[SerialBlob] = if (bytes == null || bytes.isEmpty) None else Option(new SerialBlob(bytes))
   }
 
   implicit class EnhancedFiniteDuration(val duration: FiniteDuration) extends AnyVal {

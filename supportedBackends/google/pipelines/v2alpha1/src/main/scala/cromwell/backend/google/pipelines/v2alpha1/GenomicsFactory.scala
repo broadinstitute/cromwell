@@ -9,7 +9,6 @@ import com.google.api.services.genomics.v2alpha1.model._
 import com.google.api.services.genomics.v2alpha1.{Genomics, GenomicsScopes}
 import com.google.api.services.oauth2.Oauth2Scopes
 import com.google.api.services.storage.StorageScopes
-import com.typesafe.config.ConfigFactory
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.pipelines.common.action.ActionUtils
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
@@ -38,8 +37,6 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
   with SSHAccessAction {
 
   override def build(initializer: HttpRequestInitializer): PipelinesApiRequestFactory = new PipelinesApiRequestFactory {
-    val VirtualPrivateCloudNetworkPath = "projects/%s/global/networks/%s/"
-
     val genomics: Genomics = new Genomics.Builder(
       GoogleAuthMode.httpTransport,
       GoogleAuthMode.jsonFactory,
@@ -60,9 +57,12 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       def createNetworkWithVPC(vpcAndSubnetworkProjectLabelValues: VpcAndSubnetworkProjectLabelValues): Network = {
         val network = new Network()
           .setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)
-          .setName(VirtualPrivateCloudNetworkPath.format(createPipelineParameters.projectId, vpcAndSubnetworkProjectLabelValues.vpcName))
+          .setName(vpcAndSubnetworkProjectLabelValues.networkName(createPipelineParameters.projectId))
 
-        vpcAndSubnetworkProjectLabelValues.subnetNameOpt.foreach(subnet => network.setSubnetwork(subnet))
+        vpcAndSubnetworkProjectLabelValues
+          .subnetNameOption(createPipelineParameters.projectId)
+          .foreach(network.setSubnetwork)
+
         network
       }
 
@@ -198,25 +198,4 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
   }
 
   override def usesEncryptedDocker: Boolean = true
-}
-
-//noinspection ScalaRedundantConversion
-object GenomicsFactory {
-  private val config = ConfigFactory.load().getConfig("google")
-
-  /**
-    * An image with the Google Cloud SDK installed.
-    * http://gcr.io/google.com/cloudsdktool/cloud-sdk
-    *
-    * FYI additional older versions are available on DockerHub at:
-    * https://hub.docker.com/r/google/cloud-sdk
-    *
-    * When updating this value, also consider updating the CromwellImagesSizeRoundedUpInGB below.
-    */
-  val CloudSdkImage: String = if (config.hasPath("cloud-sdk-image-url")) { config.getString("cloud-sdk-image-url").toString } else "gcr.io/google.com/cloudsdktool/cloud-sdk:276.0.0-slim"
-
-  /*
-   * At the moment, cloud-sdk (924MB for 276.0.0-slim) and stedolan/jq (182MB) decompressed ~= 1.1 GB
-   */
-  val CromwellImagesSizeRoundedUpInGB: Int = if (config.hasPath("cloud-sdk-image-size-gb")) { config.getInt("cloud-sdk-image-size-gb") } else 1
 }

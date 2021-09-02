@@ -2,11 +2,11 @@ package cromwell.backend.google.pipelines.v2beta.api
 
 import com.google.api.services.lifesciences.v2beta.model.{Action, Mount, Secret}
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
+import cromwell.backend.google.pipelines.common.action.ActionCommands
 import cromwell.backend.google.pipelines.common.action.ActionLabels._
 import cromwell.backend.google.pipelines.common.action.ActionUtils._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineDockerKeyAndToken
 import cromwell.backend.google.pipelines.common.{PipelinesApiInput, PipelinesApiOutput, PipelinesParameter}
-import cromwell.backend.google.pipelines.v2beta.LifeSciencesFactory
 import cromwell.core.path.Path
 import cromwell.docker.DockerImageIdentifier
 import cromwell.docker.registryv2.flows.dockerhub.DockerHub
@@ -66,7 +66,7 @@ object ActionBuilder {
     }
   }
 
-  def cloudSdkAction: Action = new Action().setImageUri(LifeSciencesFactory.CloudSdkImage)
+  def cloudSdkAction: Action = new Action().setImageUri(CloudSdkImage)
 
   def withImage(image: String): Action = new Action()
     .setImageUri(image)

@@ -7,14 +7,14 @@ import common.util.StringUtil._
 import cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.pipelines.common.PipelinesApiJobPaths.GcsDelocalizationScriptName
+import cromwell.backend.google.pipelines.common.action.ActionCommands._
 import cromwell.backend.google.pipelines.common.action.ActionLabels._
 import cromwell.backend.google.pipelines.common.action.ActionUtils._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.v2alpha1.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2alpha1.ToParameter.ops._
 import cromwell.backend.google.pipelines.v2alpha1.api.ActionBuilder._
-import cromwell.backend.google.pipelines.v2alpha1.api.ActionCommands._
-import cromwell.backend.google.pipelines.v2alpha1.{GenomicsFactory, RuntimeOutputMapping}
+import cromwell.backend.google.pipelines.v2alpha1.RuntimeOutputMapping
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import wom.runtime.WomOutputRuntimeExtractor
 
@@ -60,7 +60,7 @@ trait Delocalization {
     )
 
     ActionBuilder
-      .withImage(womOutputRuntimeExtractor.dockerImage.getOrElse(GenomicsFactory.CloudSdkImage))
+      .withImage(womOutputRuntimeExtractor.dockerImage.getOrElse(CloudSdkImage))
       .setCommands(commands.asJava)
       .withMounts(mounts)
       .setEntrypoint("/bin/bash")

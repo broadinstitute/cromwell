@@ -1,6 +1,5 @@
 package drs.localizer.downloaders
 
-import cats.effect.ExitCode
 import cloud.nio.impl.drs.AccessUrl
 import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
@@ -25,22 +24,21 @@ class AccessUrlDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
   }
 
   val results: TableFor3[Int, String, DownloadResult] = Table(
-    ("exitCode", "httpStatus", "download result"),
-    (0, "200", DownloadSuccess),
-    (0, "408", RetryableDownloadFailure(ExitCode(0))),
-    (1, "408", RetryableDownloadFailure(ExitCode(1))),
-    (1, " foobar ", RetryableDownloadFailure(ExitCode(1))),
-    (1, "503", RetryableDownloadFailure(ExitCode(1))),
-    (1, "429", NonRetryableDownloadFailure(ExitCode(1))),
-    (7, "429", RetryableDownloadFailure(ExitCode(7))),
-    (0, "  ", RetryableDownloadFailure(ExitCode(0))),
+    ("exitCode", "stderr", "expected"),
+    (0, "FIXME", null),
+    (0, "FIXME", null),
+    (1, "FIXME", null),
+    (1, "FIXME", null),
+    (1, "FIXME", null),
+    (1, "FIXME", null),
+    (0, "FIXME", null),
   )
 
   val accessUrlDownloader: AccessUrlDownloader = AccessUrlDownloader(null, null, null)
 
-  forAll(results) { (exitCode, httpStatus, expected) =>
-    it should s"produce $expected for exitCode $exitCode and http status '$httpStatus'" in {
-      accessUrlDownloader.result(exitCode, httpStatus, "drs://foo/bar") shouldBe expected
+  forAll(results) { (exitCode, stderr, expected) =>
+    it should s"produce $expected for exitCode $exitCode and stderr '$stderr'" in {
+      accessUrlDownloader.result(GetmResult(exitCode, "", "")) shouldBe expected
     }
   }
 }

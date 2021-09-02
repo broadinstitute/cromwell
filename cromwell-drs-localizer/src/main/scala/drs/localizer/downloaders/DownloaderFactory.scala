@@ -2,10 +2,9 @@ package drs.localizer.downloaders
 
 import cats.effect.IO
 import cloud.nio.impl.drs.AccessUrl
+import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 
 trait DownloaderFactory {
-  type Hashes = Option[Map[String, String]]
-
   def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes): IO[Downloader]
 
   def buildGcsUriDownloader(gcsPath: String,

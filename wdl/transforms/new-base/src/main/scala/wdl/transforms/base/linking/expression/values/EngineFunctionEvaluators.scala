@@ -595,19 +595,18 @@ object EngineFunctionEvaluators {
                                ioFunctionSet: IoFunctionSet,
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomString]] = {
-      def simpleBasename(fileNameAsString: WomString) = {
-        val resolvedPath = Await.result(ioFunctionSet.resolvedPath(fileNameAsString.valueString), 10.seconds)
-        resolvedPath.split('/').last
+      def simpleBasename(fileNameAsString: WomString): Try[String] = {
+        Try(Await.result(ioFunctionSet.resolvedPath(fileNameAsString.valueString), 60.seconds)).map(_.split('/').last)
       }
 
       a.suffixToRemove match {
-        case None => processValidatedSingleValue[WomString, WomString](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { str =>
-          EvaluatedValue(WomString(simpleBasename(str)), Seq.empty).validNel
+        case None => processValidatedSingleValue[WomString, WomString](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { name =>
+          simpleBasename(name).map(basename => EvaluatedValue(WomString(basename), Seq.empty)).toErrorOrWithContext(s"Unable to interpret '${name.valueString}' as a file path input for basename")
         }
         case Some(suffixToRemove) => processTwoValidatedValues[WomString, WomString, WomString](
           a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions),
           suffixToRemove.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { (name, suffix) =>
-            EvaluatedValue(WomString(simpleBasename(name).stripSuffix(suffix.valueString)), Seq.empty).validNel
+          simpleBasename(name).map(basename => EvaluatedValue(WomString(basename.stripSuffix(suffix.valueString)), Seq.empty)).toErrorOrWithContext(s"Unable to interpret '${name.valueString}' as a file path input for basename")
           }
       }
     }

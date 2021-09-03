@@ -30,10 +30,10 @@ object GetmChecksum {
   def apply(hashes: Hashes, accessUrl: AccessUrl): GetmChecksum = {
     hashes match {
       case Some(hashes) if hashes.nonEmpty =>
-        // `hashes` is keyed by the Martha names for these hash algorithms, which in turn are forwarded DRS providers'
-        // names for the algorithms. `getm` has its own notions of what these algorithms are called. For the specific
-        // case of `md5` the algorithm names are the same between DRS providers and `getm`, but all of the other
-        // algorithm names currently differ between DRS providers and `getm`.
+        // `hashes` is keyed by the Martha names for these hash algorithms, which in turn are the forwarded DRS
+        // providers' names for the algorithms. `getm` has its own notions of what these algorithms are called.
+        // For the specific case of `md5` the algorithm names are the same between DRS providers and `getm`, but all of
+        // the other algorithm names currently differ between DRS providers and `getm`.
         if (hashes.contains("md5")) {
           Md5(hashes("md5"))
         }
@@ -41,7 +41,7 @@ object GetmChecksum {
           Crc32c(hashes("crc32c"))
         }
         // etags could be anything; only ask `getm` to check s3 etags if this actually looks like an s3 signed url.
-        else if (hashes.contains("etag") && accessUrl.url.matches("^https://[^/]+\\.s3\\.amazonaws.com/.*")) {
+        else if (hashes.contains("etag") && accessUrl.url.matches("^https://[^/]+\\.s3\\.amazonaws\\.com/.*")) {
           AwsEtag(hashes("etag"))
         }
         // Not pictured: sha256 which is observed at least in staging data, e.g. open access Kids First object
@@ -54,7 +54,7 @@ object GetmChecksum {
           // means "do not validate checksums" with the stringified contents of the hashes map as a value.
           Unsupported(value = hashes.keys.mkString(", "))
         }
-      case _ => Null
+      case _ => Null // None or an empty hashes map.
     }
   }
 }

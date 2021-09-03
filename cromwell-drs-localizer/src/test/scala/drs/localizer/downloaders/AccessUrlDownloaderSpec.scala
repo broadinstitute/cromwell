@@ -6,7 +6,6 @@ import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks._
-import org.scalatest.prop.TableFor3
 
 class AccessUrlDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   it should "return the correct download script for a url-only access URL, no requester pays" in {
@@ -24,7 +23,7 @@ class AccessUrlDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
     downloader.generateDownloadScript() shouldBe expected
   }
 
-  val results: TableFor3[Int, String, DownloadResult] = Table(
+  private val results = Table(
     ("exitCode", "stderr", "download result"),
     (0, "", DownloadSuccess),
     // Checksum failures currently exit 0.

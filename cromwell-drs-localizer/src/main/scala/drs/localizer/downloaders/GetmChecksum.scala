@@ -32,8 +32,8 @@ object GetmChecksum {
       case Some(hashes) if hashes.nonEmpty =>
         // `hashes` is keyed by the Martha names for these hash algorithms, which in turn are the forwarded DRS
         // providers' names for the algorithms. `getm` has its own notions of what these algorithms are called.
-        // For the specific case of `md5` the algorithm names are the same between DRS providers and `getm`, but all of
-        // the other algorithm names currently differ between DRS providers and `getm`.
+        // For the specific case of `md5` the algorithm names are the same between DRS providers and `getm`,
+        // but all of the other algorithm names currently differ between DRS providers and `getm`.
         if (hashes.contains("md5")) {
           Md5(hashes("md5"))
         }

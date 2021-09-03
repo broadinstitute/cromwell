@@ -1,6 +1,6 @@
 package cromwell.backend.google.pipelines.common
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.backend._
 import cromwell.backend.google.pipelines.common.PipelinesApiBackendLifecycleActorFactory._
 import cromwell.backend.google.pipelines.common.authentication.PipelinesApiDockerCredentials
@@ -9,13 +9,19 @@ import cromwell.backend.standard._
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardFileHashingActor}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
+import cromwell.core.retry.Retry
 import cromwell.core.{CallOutputs, DockerCredentials}
 import wom.graph.CommandCallNode
 
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
 import scala.util.{Success, Try}
 
 abstract class PipelinesApiBackendLifecycleActorFactory(override val name: String, override val configurationDescriptor: BackendConfigurationDescriptor)
-  extends StandardLifecycleActorFactory {
+  extends StandardLifecycleActorFactory with ActorLogging {
+
+  self: Actor =>
 
   // Abstract members
   protected def requiredBackendSingletonActor(serviceRegistryActor: ActorRef): Props
@@ -23,9 +29,15 @@ abstract class PipelinesApiBackendLifecycleActorFactory(override val name: Strin
 
   override val requestedKeyValueStoreKeys: Seq[String] = Seq(preemptionCountKey, unexpectedRetryCountKey)
 
-  protected val googleConfig = GoogleConfiguration(configurationDescriptor.globalConfig)
+  protected val googleConfig: GoogleConfiguration = GoogleConfiguration(configurationDescriptor.globalConfig)
 
-  protected val papiAttributes = PipelinesApiConfigurationAttributes(googleConfig, configurationDescriptor.backendConfig, name)
+  protected val papiAttributes: PipelinesApiConfigurationAttributes = Await.result(
+    Retry.withRetry(
+      () => Future.successful(
+        PipelinesApiConfigurationAttributes(googleConfig, configurationDescriptor.backendConfig, name)),
+      maxRetries = Option(2),
+      onRetry = t => log.error(t, "Error initializing PAPI configuration, retrying..."))
+    (context.system), 30 seconds)
 
   override lazy val initializationActorClass: Class[_ <: StandardInitializationActor] = classOf[PipelinesApiInitializationActor]
 
@@ -35,7 +47,7 @@ abstract class PipelinesApiBackendLifecycleActorFactory(override val name: Strin
     Option(classOf[PipelinesApiFinalizationActor])
   override lazy val jobIdKey: String = PipelinesApiAsyncBackendJobExecutionActor.JesOperationIdKey
 
-  override def backendSingletonActorProps(serviceRegistryActor: ActorRef) = Option(requiredBackendSingletonActor(serviceRegistryActor))
+  override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] = Option(requiredBackendSingletonActor(serviceRegistryActor))
 
   override def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[CommandCallNode],
                                                  serviceRegistryActor: ActorRef, restart: Boolean): StandardInitializationActorParams = {

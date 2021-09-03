@@ -4,36 +4,36 @@ import cloud.nio.impl.drs.AccessUrl
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 
 sealed trait GetmChecksum {
-  def algorithm: String
+  def getmAlgorithm: String
   def value: String
-  def args: String = s"--checksum-algorithm '$algorithm' --checksum '$value'"
+  def args: String = s"--checksum-algorithm '$getmAlgorithm' --checksum '$value'"
 }
 case class Md5(override val value: String) extends GetmChecksum {
-  override def algorithm: String = "md5"
+  override def getmAlgorithm: String = "md5"
 }
 case class Crc32c(override val value: String) extends GetmChecksum {
-  override def algorithm: String = "gs_crc32c"
+  override def getmAlgorithm: String = "gs_crc32c"
 }
 case class AwsEtag(override val value: String) extends GetmChecksum {
-  override def algorithm: String = "s3_etag"
+  override def getmAlgorithm: String = "s3_etag"
 }
 case object Null extends GetmChecksum {
-  override def algorithm: String = "null"
+  override def getmAlgorithm: String = "null"
   override def value: String = "null"
 }
 // The `value` for `Unsupported` will be the named algorithm keys
 case class Unsupported(override val value: String) extends GetmChecksum {
-  override def algorithm: String = "null"
+  override def getmAlgorithm: String = "null"
 }
 
 object GetmChecksum {
   def apply(hashes: Hashes, accessUrl: AccessUrl): GetmChecksum = {
     hashes match {
       case Some(hashes) if hashes.nonEmpty =>
-        // `hashes` uses the Martha keys for these hash algorithms, which in turn are forwarded DRS providers' keys for
-        // the algorithms. `getm` has its own notions of what these algorithms are called. For the specific case of
-        // `md5` the algorithm names are the same between DRS providers and `getm`, but all of the other algorithm names
-        // currently differ between DRS providers and `getm`.
+        // `hashes` is keyed by the Martha names for these hash algorithms, which in turn are forwarded DRS providers'
+        // names for the algorithms. `getm` has its own notions of what these algorithms are called. For the specific
+        // case of `md5` the algorithm names are the same between DRS providers and `getm`, but all of the other
+        // algorithm names currently differ between DRS providers and `getm`.
         if (hashes.contains("md5")) {
           Md5(hashes("md5"))
         }

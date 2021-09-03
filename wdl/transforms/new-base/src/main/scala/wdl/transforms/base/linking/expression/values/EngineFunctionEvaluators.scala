@@ -595,7 +595,10 @@ object EngineFunctionEvaluators {
                                ioFunctionSet: IoFunctionSet,
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomString]] = {
-      def simpleBasename(fileNameAsString: WomString) = fileNameAsString.valueString.split('/').last
+      def simpleBasename(fileNameAsString: WomString) = {
+        val resolvedPath = Await.result(ioFunctionSet.resolvedPath(fileNameAsString.valueString), 10.seconds)
+        resolvedPath.split('/').last
+      }
 
       a.suffixToRemove match {
         case None => processValidatedSingleValue[WomString, WomString](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { str =>

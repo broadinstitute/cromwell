@@ -128,6 +128,8 @@ trait IoFunctionSet {
   // Functions that do NOT necessitate network I/O but are only manipulating paths
   def pathFunctions: PathFunctionSet
 
+  def resolvedPath(path: String): Future[String]
+
   // Functions that (possibly) necessitate I/O operation (on local, network, or cloud filesystems)
   /**
     * Read the content of a file
@@ -187,7 +189,7 @@ trait IoFunctionSet {
     * To map/flatMap over IO results
     */
   implicit def ec: ExecutionContext
-  
+
   implicit def cs = IO.contextShift(ec)
 
   /**

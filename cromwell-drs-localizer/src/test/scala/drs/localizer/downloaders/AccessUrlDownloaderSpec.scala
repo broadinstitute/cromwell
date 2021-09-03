@@ -50,7 +50,7 @@ class AccessUrlDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
 
   forAll(results) { (exitCode, stderr, expected) =>
     it should s"produce $expected for exitCode $exitCode and stderr '$stderr'" in {
-      accessUrlDownloader.result(GetmResult(exitCode, null, stderr)) shouldBe expected
+      accessUrlDownloader.toDownloadResult(GetmResult(exitCode, null, stderr)) shouldBe expected
     }
   }
 }

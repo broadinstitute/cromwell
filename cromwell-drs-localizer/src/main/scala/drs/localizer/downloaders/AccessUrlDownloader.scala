@@ -19,7 +19,7 @@ case class AccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes
     s"""mkdir -p $$(dirname '$downloadLoc') && rm -f '$downloadLoc' && getm $checksumArgs --filepath '$downloadLoc' '$signedUrl'"""
   }
 
-  def getmResult: IO[GetmResult] = IO {
+  def runGetm: IO[GetmResult] = IO {
     val copyCommand = Seq("bash", "-c", generateDownloadScript())
     val copyProcess = Process(copyCommand)
     val stdout = new StringBuilder()
@@ -39,13 +39,10 @@ case class AccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes
     val masked = accessUrl.url.maskSensitiveUri
     logger.info(s"Attempting to download data to '$downloadLoc' from access URL '$masked'.")
 
-    for {
-      gmr <- getmResult
-      ret = result(gmr)
-    } yield ret
+    runGetm map toDownloadResult
   }
 
-  def result(getmResult: GetmResult): DownloadResult = {
+  def toDownloadResult(getmResult: GetmResult): DownloadResult = {
     getmResult match {
       case GetmResult(0, _, stderr) if stderr.isEmpty =>
         DownloadSuccess

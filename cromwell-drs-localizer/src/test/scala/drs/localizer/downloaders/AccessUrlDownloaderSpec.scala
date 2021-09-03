@@ -27,14 +27,23 @@ class AccessUrlDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
   val results: TableFor3[Int, String, DownloadResult] = Table(
     ("exitCode", "stderr", "download result"),
     (0, "", DownloadSuccess),
-    (0, "what the", UnrecognizedRetryableDownloadFailure(ExitCode(0))),
+    // Checksum failures currently exit 0.
     (0, "oh me oh my: AssertionError: Checksum failed!!!", ChecksumFailure),
+    // Unrecognized because of non-zero exit code without an HTTP status.
     (1, "oh me oh my: AssertionError: Checksum failed!!!", UnrecognizedRetryableDownloadFailure(ExitCode(1))),
+    // Unrecognized because of zero exit status with stderr that does not look like a checksum failure.
+    (0, "what the", UnrecognizedRetryableDownloadFailure(ExitCode(0))),
+    // Unrecognized because of non-zero exit code without an HTTP status.
     (1, " foobar ", UnrecognizedRetryableDownloadFailure(ExitCode(1))),
+    // Unrecognized because of zero exit status with stderr that does not look like a checksum failure.
     (0, """ERROR:getm.cli possibly some words "status_code": 503 words""", UnrecognizedRetryableDownloadFailure(ExitCode(0))),
+    // Recognized because of non-zero exit status and an HTTP status.
     (1, """ERROR:getm.cli possibly some words "status_code": 503 words""", RecognizedRetryableDownloadFailure(ExitCode(1))),
+    // Recognized because of non-zero exit status and an HTTP status.
     (1, """ERROR:getm.cli possibly some words "status_code": 408 more words""", RecognizedRetryableDownloadFailure(ExitCode(1))),
+    // Recognized and non-retryable because of non-zero exit status and 404 HTTP status.
     (1, """ERROR:getm.cli possibly some words "status_code": 404 even more words""", NonRetryableDownloadFailure(ExitCode(1))),
+    // Unrecognized because of zero exit status and 404 HTTP status.
     (0, """ERROR:getm.cli possibly some words "status_code": 404 even more words""", UnrecognizedRetryableDownloadFailure(ExitCode(0))),
   )
 

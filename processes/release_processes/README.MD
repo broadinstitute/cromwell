@@ -91,23 +91,6 @@ If so, refer to the additional details in the [full document](https://docs.googl
 
 ![firecloud-develop](firecloud-develop.dot.png) 
 
-#### Performance Testing
-
-This performance testing process happens as part of the release into FireCloud / Terra.
-
-* **Note:** Performance testing is currently broken, please see [CROM-6795](https://broadworkbench.atlassian.net/browse/CROM-6795) for details. Please skip the remainder of this `Performance Testing` section until these issues are resolved.
-
-* **Note:** This process is non-blocking and optional for HOTFIX releases.
-
-1. Look at the [performance testing spreadsheet](https://docs.google.com/spreadsheets/d/1ksSHJdODuqqmvJ_94zZdc33Ai1Xv_53XzpsDd8jdmB0/edit#gid=479925276)
-for any performance changes since the previous release.
-
-2. A small amount of jitter is acceptable. So long as the lines are holding stable (or improving!), we consider Cromwell performance to not have regressed.
-
-    * **Note:** If the spreadsheet is out of date, go to the testResults.tsv artifacts for recent runs of [Cromwell Perf: Limit Finder](https://fc-jenkins.dsp-techops.broadinstitute.org/job/cromwell-perf-limit-finder/)
-runs and fill in any missing entries in the table.
- 
-
 ### How to Deploy Cromwell in CaaS staging and CaaS prod
 
 **Note:** If the Cromwell CHANGELOG indicates that the upgrade might take some time (eg because of a database migration), checking in with the CaaS users

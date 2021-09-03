@@ -14,4 +14,9 @@ files {
 metadata {
   workflowName: drs_basename
   status: Succeeded
+  "outputs.drs_basename.basenames.0": "E18_20161004_Neurons_Sample_49_S048_L004_R2_005.fastq.gz"
+  "outputs.drs_basename.basenames.1": "E18_20161004_Neurons_Sample_49_S048_L004_R2_005.fastq.gz"
+  "outputs.drs_basename.basenames.2": "E18_20161004_Neurons_Sample_49_S048_L004_R2_005.fastq.gz"
+  "outputs.drs_basename.basenames.3": "E18_20161004_Neurons_Sample_49_S048_L004_R2_005.fastq.gz"
+  "outputs.drs_basename.basenames.4": "E18_20161004_Neurons_Sample_49_S048_L004_R2_005.foo.bar"
 }

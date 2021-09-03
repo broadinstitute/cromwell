@@ -32,6 +32,8 @@ task pump_up_the_base {
         echo ~{basednamed_at_call_site}
         echo ~{task_level_basename}
         echo ~{basename(file)}
+        # Also validate the two-parameter version of the function with a DRS input for file extension replacements:
+        echo ~{basename(file, ".fastq.gz")}.foo.bar
     >>>
 
     output {

@@ -1,6 +1,7 @@
 package cromwell.backend.google.pipelines.common
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.{ActorRef, Props}
+import com.google.api.client.util.ExponentialBackOff
 import cromwell.backend._
 import cromwell.backend.google.pipelines.common.PipelinesApiBackendLifecycleActorFactory._
 import cromwell.backend.google.pipelines.common.authentication.PipelinesApiDockerCredentials
@@ -9,19 +10,17 @@ import cromwell.backend.standard._
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardFileHashingActor}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
-import cromwell.core.retry.Retry
 import cromwell.core.{CallOutputs, DockerCredentials}
+import org.slf4j.{Logger, LoggerFactory}
 import wom.graph.CommandCallNode
 
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration.DurationInt
-import scala.language.postfixOps
-import scala.util.{Success, Try}
+import scala.annotation.tailrec
+import scala.util.{Failure, Success, Try}
 
 abstract class PipelinesApiBackendLifecycleActorFactory(override val name: String, override val configurationDescriptor: BackendConfigurationDescriptor)
-  extends StandardLifecycleActorFactory with ActorLogging {
+  extends StandardLifecycleActorFactory {
 
-  self: Actor =>
+  private val logger: Logger = LoggerFactory.getLogger(getClass)
 
   // Abstract members
   protected def requiredBackendSingletonActor(serviceRegistryActor: ActorRef): Props
@@ -31,13 +30,33 @@ abstract class PipelinesApiBackendLifecycleActorFactory(override val name: Strin
 
   protected val googleConfig: GoogleConfiguration = GoogleConfiguration(configurationDescriptor.globalConfig)
 
-  protected val papiAttributes: PipelinesApiConfigurationAttributes = Await.result(
-    Retry.withRetry(
-      () => Future.successful(
-        PipelinesApiConfigurationAttributes(googleConfig, configurationDescriptor.backendConfig, name)),
-      maxRetries = Option(2),
-      onRetry = t => log.error(t, "Error initializing PAPI configuration, retrying..."))
-    (context.system), 30 seconds)
+  protected val papiAttributes: PipelinesApiConfigurationAttributes = {
+    val backoff = new ExponentialBackOff.Builder()
+      .setInitialIntervalMillis(5000)
+      .setMaxIntervalMillis(10000)
+      .setMultiplier(1.5)
+      .setRandomizationFactor(0.5)
+      .build()
+
+    // 1 initial attempt plus 2 retries
+    val maxAttempts = 3
+
+    // `attempt` is 1-based
+    @tailrec
+    def build(attempt: Int): PipelinesApiConfigurationAttributes = {
+      Try {
+        PipelinesApiConfigurationAttributes(googleConfig, configurationDescriptor.backendConfig, name)
+      } match {
+        case Success(value) => value
+        case Failure(e) if e.getMessage.contains("We encountered an internal error. Please try again.") && attempt < maxAttempts =>
+          logger.warn(s"Failed to build PipelinesApiConfigurationAttributes on attempt $attempt of $maxAttempts, retrying.", e)
+          Thread.sleep(backoff.nextBackOffMillis())
+          build(attempt + 1)
+        case Failure(e) => throw e
+      }
+    }
+    build(attempt = 1)
+  }
 
   override lazy val initializationActorClass: Class[_ <: StandardInitializationActor] = classOf[PipelinesApiInitializationActor]
 

@@ -601,12 +601,12 @@ object EngineFunctionEvaluators {
 
       a.suffixToRemove match {
         case None => processValidatedSingleValue[WomString, WomString](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { name =>
-          simpleBasename(name).map(basename => EvaluatedValue(WomString(basename), Seq.empty)).toErrorOrWithContext(s"Unable to interpret '${name.valueString}' as a file path input for basename")
+          simpleBasename(name).map(basename => EvaluatedValue(WomString(basename), Seq.empty)).toErrorOrWithContext(s"interpret '${name.valueString}' as a file path input for basename")
         }
         case Some(suffixToRemove) => processTwoValidatedValues[WomString, WomString, WomString](
           a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions),
           suffixToRemove.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { (name, suffix) =>
-          simpleBasename(name).map(basename => EvaluatedValue(WomString(basename.stripSuffix(suffix.valueString)), Seq.empty)).toErrorOrWithContext(s"Unable to interpret '${name.valueString}' as a file path input for basename")
+          simpleBasename(name).map(basename => EvaluatedValue(WomString(basename.stripSuffix(suffix.valueString)), Seq.empty)).toErrorOrWithContext(s"interpret '${name.valueString}' as a file path input for basename")
           }
       }
     }

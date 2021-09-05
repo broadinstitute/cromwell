@@ -142,8 +142,9 @@ object Settings {
       Instructions.Run("""mkdir -p /usr/local/gcloud \
                          | && tar -C /usr/local/gcloud -xvf /tmp/google-cloud-sdk.tar.gz \
                          | && /usr/local/gcloud/google-cloud-sdk/install.sh""".stripMargin),
-      // instructions to install `getm`
-      Instructions.Run("pip3 install getm")
+      // instructions to install `getm`. Pin to version 0.0.4 as the behaviors of future versions with respect to
+      // messages or exit codes may change.
+      Instructions.Run("pip3 install getm==0.0.4")
     )
   )
 

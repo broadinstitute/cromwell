@@ -51,7 +51,7 @@ object GetmChecksum {
         else {
           // If this code were running in Cromwell this condition would probably merit a warning but the localizer
           // runs on the VM and at best can only complain to stderr. The `getm` algorithm of `null` is specified which
-          // means "do not validate checksums" with the stringified contents of the hashes map as a value.
+          // means "do not validate checksums" with the stringified contents of the hash keys as a value.
           Unsupported(value = hashes.keys.mkString(", "))
         }
       case _ => Null // None or an empty hashes map.

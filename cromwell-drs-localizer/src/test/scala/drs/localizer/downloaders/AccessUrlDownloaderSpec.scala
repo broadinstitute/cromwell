@@ -26,9 +26,9 @@ class AccessUrlDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
   private val results = Table(
     ("exitCode", "stderr", "download result"),
     (0, "", DownloadSuccess),
-    // Checksum failures currently exit 0.
+    // In `getm` version 0.0.4 checksum failures currently exit 0.
     (0, "oh me oh my: AssertionError: Checksum failed!!!", ChecksumFailure),
-    // Unrecognized because of non-zero exit code without an HTTP status.
+    // Unrecognized because of non-zero exit code without an HTTP status, despite what looks like a checksum failure.
     (1, "oh me oh my: AssertionError: Checksum failed!!!", UnrecognizedRetryableDownloadFailure(ExitCode(1))),
     // Unrecognized because of zero exit status with stderr that does not look like a checksum failure.
     (0, "what the", UnrecognizedRetryableDownloadFailure(ExitCode(0))),

@@ -41,6 +41,7 @@ class PipelinesApiBackendLifecycleActorFactorySpec extends AnyFlatSpecLike with 
   it should "retry retryable failures only" in {
     val fails = Table(
       ("function", "a of x"),
+      (() => throw new RuntimeException(), "1 of 3"),
       (() => throw new RuntimeException("non retryable failure"), "1 of 3"),
       (() => throw new RuntimeException("We encountered an internal error. Please try again."), "3 of 3")
     )

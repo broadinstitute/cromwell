@@ -108,13 +108,25 @@ object PipelinesApiBackendLifecycleActorFactory {
         buildAttributes()
       } match {
         case Success(value) => value
-        case Failure(e) if e.getMessage.contains("We encountered an internal error. Please try again.") && attempt < maxAttempts =>
-          logger.warn(s"Failed to build PipelinesApiConfigurationAttributes on attempt $attempt of $maxAttempts, retrying.", e)
+        case Failure(t) if isRetryableException(t) && attempt < maxAttempts =>
+          logger.warn(s"Failed to build PipelinesApiConfigurationAttributes on attempt $attempt of $maxAttempts, retrying.", t)
           Thread.sleep(backoff.nextBackOffMillis())
           build(attempt + 1)
         case Failure(e) => throw new RuntimeException(s"Failed to build PipelinesApiConfigurationAttributes on attempt $attempt of $maxAttempts", e)
       }
     }
     build(attempt = 1)
+  }
+
+  // Is this an `Exception` (as opposed to an `Error`) with a message indicating the operation should be retried?
+  def isRetryableException(t: Throwable): Boolean = {
+    t match {
+      case e: Exception =>
+        Option(e.getMessage) match {
+          case Some(message) => message.contains("We encountered an internal error. Please try again.")
+          case None => false
+        }
+      case _ => false
+    }
   }
 }

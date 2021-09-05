@@ -41,18 +41,18 @@ class PipelinesApiBackendLifecycleActorFactorySpec extends AnyFlatSpecLike with 
   {
     val retryMessage = "We encountered an internal error. Please try again."
     val fails = Table(
-      ("function", "failing attempt", "description"),
-      (() => throw new RuntimeException(), 1, "no exception message"),
-      (() => throw new RuntimeException("non retryable failure"), 1, "not a retryable message"),
-      (() => throw new RuntimeException(retryMessage), 3, "retryable message"),
-      (() => throw new Error(retryMessage), 1, "error not exception")
+      ("attempts", "description", "function"),
+      (1, "no exception message", () => throw new RuntimeException()),
+      (1, "not a retryable message", () => throw new RuntimeException("non retryable failure")),
+      (3, "retryable message", () => throw new RuntimeException(retryMessage)),
+      (1, "error not exception", () => throw new Error(retryMessage))
     )
-    forAll(fails) { (fn, failingAttempt, description) =>
-      it should s"make $failingAttempt attribute creation attempts before giving up when $description" in {
+    forAll(fails) { (attempts, description, function) =>
+      it should s"$description: make $attempts attribute creation attempts before giving up" in {
         val e = the [RuntimeException] thrownBy {
-          PipelinesApiBackendLifecycleActorFactory.robustBuildAttributes(fn, initialIntervalMillis = 1, maxIntervalMillis = 5)
+          PipelinesApiBackendLifecycleActorFactory.robustBuildAttributes(function, initialIntervalMillis = 1, maxIntervalMillis = 5)
         }
-        e.getMessage should startWith(s"Failed to build PipelinesApiConfigurationAttributes on attempt $failingAttempt of 3")
+        e.getMessage should startWith(s"Failed to build PipelinesApiConfigurationAttributes on attempt $attempts of 3")
       }
     }
   }

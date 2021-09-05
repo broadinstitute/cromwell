@@ -20,8 +20,6 @@ import scala.util.{Failure, Success, Try}
 abstract class PipelinesApiBackendLifecycleActorFactory(override val name: String, override val configurationDescriptor: BackendConfigurationDescriptor)
   extends StandardLifecycleActorFactory {
 
-  private val logger: Logger = LoggerFactory.getLogger(getClass)
-
   // Abstract members
   protected def requiredBackendSingletonActor(serviceRegistryActor: ActorRef): Props
   protected val jesConfiguration: PipelinesApiConfiguration
@@ -30,33 +28,9 @@ abstract class PipelinesApiBackendLifecycleActorFactory(override val name: Strin
 
   protected val googleConfig: GoogleConfiguration = GoogleConfiguration(configurationDescriptor.globalConfig)
 
-  protected val papiAttributes: PipelinesApiConfigurationAttributes = {
-    val backoff = new ExponentialBackOff.Builder()
-      .setInitialIntervalMillis(5000)
-      .setMaxIntervalMillis(10000)
-      .setMultiplier(1.5)
-      .setRandomizationFactor(0.5)
-      .build()
+  private def defaultBuildAttributes() = PipelinesApiConfigurationAttributes(googleConfig, configurationDescriptor.backendConfig, name)
 
-    // 1 initial attempt plus 2 retries
-    val maxAttempts = 3
-
-    // `attempt` is 1-based
-    @tailrec
-    def build(attempt: Int): PipelinesApiConfigurationAttributes = {
-      Try {
-        PipelinesApiConfigurationAttributes(googleConfig, configurationDescriptor.backendConfig, name)
-      } match {
-        case Success(value) => value
-        case Failure(e) if e.getMessage.contains("We encountered an internal error. Please try again.") && attempt < maxAttempts =>
-          logger.warn(s"Failed to build PipelinesApiConfigurationAttributes on attempt $attempt of $maxAttempts, retrying.", e)
-          Thread.sleep(backoff.nextBackOffMillis())
-          build(attempt + 1)
-        case Failure(e) => throw e
-      }
-    }
-    build(attempt = 1)
-  }
+  protected val papiAttributes: PipelinesApiConfigurationAttributes = robustBuildAttributes(defaultBuildAttributes)
 
   override lazy val initializationActorClass: Class[_ <: StandardInitializationActor] = classOf[PipelinesApiInitializationActor]
 
@@ -113,4 +87,34 @@ abstract class PipelinesApiBackendLifecycleActorFactory(override val name: Strin
 object PipelinesApiBackendLifecycleActorFactory {
   val preemptionCountKey = "PreemptionCount"
   val unexpectedRetryCountKey = "UnexpectedRetryCount"
+
+  private val logger: Logger = LoggerFactory.getLogger(getClass)
+
+  private [common] def robustBuildAttributes(buildAttributes: () => PipelinesApiConfigurationAttributes): PipelinesApiConfigurationAttributes = {
+    val backoff = new ExponentialBackOff.Builder()
+      .setInitialIntervalMillis(5000)
+      .setMaxIntervalMillis(10000)
+      .setMultiplier(1.5)
+      .setRandomizationFactor(0.5)
+      .build()
+
+    // 1 initial attempt plus 2 retries
+    val maxAttempts = 3
+
+    // `attempt` is 1-based
+    @tailrec
+    def build(attempt: Int): PipelinesApiConfigurationAttributes = {
+      Try {
+        buildAttributes()
+      } match {
+        case Success(value) => value
+        case Failure(e) if e.getMessage.contains("We encountered an internal error. Please try again.") && attempt < maxAttempts =>
+          logger.warn(s"Failed to build PipelinesApiConfigurationAttributes on attempt $attempt of $maxAttempts, retrying.", e)
+          Thread.sleep(backoff.nextBackOffMillis())
+          build(attempt + 1)
+        case Failure(e) => throw new RuntimeException(s"Failed to build PipelinesApiConfigurationAttributes on attempt $attempt of $maxAttempts", e)
+      }
+    }
+    build(attempt = 1)
+  }
 }

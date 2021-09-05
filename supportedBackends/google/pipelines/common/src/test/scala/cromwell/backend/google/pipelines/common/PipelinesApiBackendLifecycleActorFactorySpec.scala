@@ -48,9 +48,9 @@ class PipelinesApiBackendLifecycleActorFactorySpec extends AnyFlatSpecLike with 
       (() => throw new Error(retryMessage), 1, "error not exception")
     )
     forAll(fails) { (fn, failingAttempt, description) =>
-      it should s"retry an appropriate number of times ($failingAttempt) when $description" in {
+      it should s"make $failingAttempt attribute creation attempts before giving up when $description" in {
         val e = the [RuntimeException] thrownBy {
-          PipelinesApiBackendLifecycleActorFactory.robustBuildAttributes(fn)
+          PipelinesApiBackendLifecycleActorFactory.robustBuildAttributes(fn, initialIntervalMillis = 1, maxIntervalMillis = 5)
         }
         e.getMessage should startWith(s"Failed to build PipelinesApiConfigurationAttributes on attempt $failingAttempt of 3")
       }

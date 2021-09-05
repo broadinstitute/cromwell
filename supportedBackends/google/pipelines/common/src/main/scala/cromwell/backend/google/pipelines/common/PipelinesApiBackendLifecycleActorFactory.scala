@@ -90,12 +90,17 @@ object PipelinesApiBackendLifecycleActorFactory {
 
   private val logger: Logger = LoggerFactory.getLogger(getClass)
 
-  private [common] def robustBuildAttributes(buildAttributes: () => PipelinesApiConfigurationAttributes): PipelinesApiConfigurationAttributes = {
+  private [common] def robustBuildAttributes(buildAttributes: () => PipelinesApiConfigurationAttributes,
+                                             maxAttempts: Int = 3,
+                                             initialIntervalMillis: Int = 5000,
+                                             maxIntervalMillis: Int = 10000,
+                                             multiplier: Double = 1.5,
+                                             randomizationFactor: Double = 0.5): PipelinesApiConfigurationAttributes = {
     val backoff = new ExponentialBackOff.Builder()
-      .setInitialIntervalMillis(5000)
-      .setMaxIntervalMillis(10000)
-      .setMultiplier(1.5)
-      .setRandomizationFactor(0.5)
+      .setInitialIntervalMillis(initialIntervalMillis)
+      .setMaxIntervalMillis(maxIntervalMillis)
+      .setMultiplier(multiplier)
+      .setRandomizationFactor(randomizationFactor)
       .build()
 
     // Is this an `Exception` (as opposed to an `Error`) with a message indicating the operation should be retried?
@@ -109,9 +114,6 @@ object PipelinesApiBackendLifecycleActorFactory {
         case _ => false
       }
     }
-
-    // 1 initial attempt plus 2 retries
-    val maxAttempts = 3
 
     // `attempt` is 1-based
     @tailrec

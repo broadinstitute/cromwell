@@ -98,7 +98,6 @@ object PipelinesApiBackendLifecycleActorFactory {
       .setRandomizationFactor(0.5)
       .build()
 
-
     // Is this an `Exception` (as opposed to an `Error`) with a message indicating the operation should be retried?
     def isRetryableException(t: Throwable): Boolean = {
       t match {

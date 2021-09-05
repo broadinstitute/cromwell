@@ -98,6 +98,19 @@ object PipelinesApiBackendLifecycleActorFactory {
       .setRandomizationFactor(0.5)
       .build()
 
+
+    // Is this an `Exception` (as opposed to an `Error`) with a message indicating the operation should be retried?
+    def isRetryableException(t: Throwable): Boolean = {
+      t match {
+        case e: Exception =>
+          Option(e.getMessage) match {
+            case Some(message) => message.contains("We encountered an internal error. Please try again.")
+            case None => false
+          }
+        case _ => false
+      }
+    }
+
     // 1 initial attempt plus 2 retries
     val maxAttempts = 3
 
@@ -116,17 +129,5 @@ object PipelinesApiBackendLifecycleActorFactory {
       }
     }
     build(attempt = 1)
-  }
-
-  // Is this an `Exception` (as opposed to an `Error`) with a message indicating the operation should be retried?
-  def isRetryableException(t: Throwable): Boolean = {
-    t match {
-      case e: Exception =>
-        Option(e.getMessage) match {
-          case Some(message) => message.contains("We encountered an internal error. Please try again.")
-          case None => false
-        }
-      case _ => false
-    }
   }
 }

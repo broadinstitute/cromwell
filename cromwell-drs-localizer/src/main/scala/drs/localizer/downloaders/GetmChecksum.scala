@@ -3,10 +3,17 @@ package drs.localizer.downloaders
 import cloud.nio.impl.drs.AccessUrl
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 
+import java.util.regex.Matcher
+
 sealed trait GetmChecksum {
   def getmAlgorithm: String
   def value: String
-  def args: String = s"--checksum-algorithm '$getmAlgorithm' --checksum '$value'"
+  def args: String = {
+    // Backslash any single quotes that will be interpolated into the final result. Also `quoteReplacement` for the
+    // replacement per the docs in String#replaceAll.
+    val sanitizedValue = value.replaceAll("'", Matcher.quoteReplacement(raw"\'"))
+    s"--checksum-algorithm '$getmAlgorithm' --checksum '$sanitizedValue'"
+  }
 }
 case class Md5(override val value: String) extends GetmChecksum {
   override def getmAlgorithm: String = "md5"

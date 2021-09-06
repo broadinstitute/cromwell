@@ -9,8 +9,8 @@ sealed trait GetmChecksum {
   def getmAlgorithm: String
   def value: String
   def args: String = {
-    // Backslash any single quotes that will be interpolated into the final result. Also `quoteReplacement` for the
-    // replacement per the docs in String#replaceAll.
+    // Backslash any single quotes that will be interpolated into the final result. Also `Matcher#quoteReplacement`
+    // for the extra level of escape on the replacement String per the docs in `String#replaceAll`.
     val sanitizedValue = value.replaceAll("'", Matcher.quoteReplacement(raw"\'"))
     s"--checksum-algorithm '$getmAlgorithm' --checksum '$sanitizedValue'"
   }

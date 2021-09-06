@@ -73,17 +73,17 @@ class DrsLocalizerMain(drsUrl: String,
         logger.warn(s"Attempting retry $checksumAttempt of $checksumRetries checksum retries to download $drsUrl", t)
         resolveAndDownloadWithRetries(downloadRetries, checksumRetries, downloaderFactory, backoff map { _.next }, downloadAttempt, checksumAttempt + 1)
       } else {
-        IO.raiseError(new RuntimeException(s"Exhausted $checksumRetries retries to resolve, download and checksum $drsUrl", t))
+        IO.raiseError(new RuntimeException(s"Exhausted $checksumRetries checksum retries to resolve, download and checksum $drsUrl", t))
       }
     }
 
     def maybeRetryForDownloadFailure(t: Throwable): IO[DownloadResult] = {
       if (downloadAttempt < downloadRetries) {
         backoff foreach { b => Thread.sleep(b.backoffMillis) }
-        logger.warn(s"Attempting retry $downloadAttempt of $downloadRetries retries to download $drsUrl", t)
+        logger.warn(s"Attempting retry $downloadAttempt of $downloadRetries download retries to download $drsUrl", t)
         resolveAndDownloadWithRetries(downloadRetries, checksumRetries, downloaderFactory, backoff map { _.next }, downloadAttempt + 1, checksumAttempt)
       } else {
-        IO.raiseError(new RuntimeException(s"Exhausted $downloadRetries retries to resolve, download and checksum $drsUrl", t))
+        IO.raiseError(new RuntimeException(s"Exhausted $downloadRetries download retries to resolve, download and checksum $drsUrl", t))
       }
     }
 

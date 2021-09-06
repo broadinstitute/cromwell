@@ -9,12 +9,11 @@ import drs.localizer.downloaders.AccessUrlDownloader._
 import scala.sys.process.{Process, ProcessLogger}
 import scala.util.matching.Regex
 
-case class GetmResult(returnCode: Int, stdout: String, stderr: String)
+case class GetmResult(returnCode: Int, stderr: String)
 
 case class AccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes) extends Downloader with StrictLogging {
   def generateDownloadScript(): String = {
     val signedUrl = accessUrl.url
-    // TODO headers
     val checksumArgs = GetmChecksum(hashes, accessUrl).args
     s"""mkdir -p $$(dirname '$downloadLoc') && rm -f '$downloadLoc' && getm $checksumArgs --filepath '$downloadLoc' '$signedUrl'"""
   }
@@ -22,15 +21,16 @@ case class AccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes
   def runGetm: IO[GetmResult] = IO {
     val copyCommand = Seq("bash", "-c", generateDownloadScript())
     val copyProcess = Process(copyCommand)
-    val stdout = new StringBuilder()
+
     val stderr = new StringBuilder()
+    val errorCapture: String => Unit = { s => stderr.append(s); () }
 
-    val outfn: String => Unit = { s => stdout.append(s); () }
-    val errfn: String => Unit = { s => stderr.append(s); () }
+    // As of `getm` version 0.0.4 the contents of stdout do not appear to be interesting (only a progress bar
+    // with no option to suppress it), so ignore stdout for now. If stdout becomes interesting in future versions
+    // of `getm` it can be captured just like stderr is being captured here.
+    val returnCode = copyProcess ! ProcessLogger(_ => (), errorCapture)
 
-    val returnCode = copyProcess ! ProcessLogger(outfn, errfn)
-
-    GetmResult(returnCode, stdout.toString().trim, stderr.toString().trim())
+    GetmResult(returnCode, stderr.toString().trim())
   }
 
   override def download: IO[DownloadResult] = {
@@ -44,16 +44,16 @@ case class AccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes
 
   def toDownloadResult(getmResult: GetmResult): DownloadResult = {
     getmResult match {
-      case GetmResult(0, _, stderr) if stderr.isEmpty =>
+      case GetmResult(0, stderr) if stderr.isEmpty =>
         DownloadSuccess
-      case GetmResult(0, _, stderr) =>
+      case GetmResult(0, stderr) =>
         stderr match {
           case ChecksumFailureMessage() =>
             ChecksumFailure
           case _ =>
             UnrecognizedRetryableDownloadFailure(ExitCode(0))
         }
-      case GetmResult(rc, _, stderr) =>
+      case GetmResult(rc, stderr) =>
         stderr match {
           case HttpStatusMessage(status) =>
             val intStatus = Integer.parseInt(status)

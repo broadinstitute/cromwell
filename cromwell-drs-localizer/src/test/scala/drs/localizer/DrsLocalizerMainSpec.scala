@@ -212,6 +212,41 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
     actualAttempts shouldBe 4 // 1 initial attempt + 3 retries = 4 total attempts
   }
+
+  it should "retry an appropriate number of times for checksum failures" in {
+    var actualAttempts = 0
+    val drsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithAccessUrlResolutionOnly, fakeDownloadLocation, None) {
+      override def resolveAndDownload(downloaderFactory: DownloaderFactory): IO[DownloadResult] = {
+        actualAttempts = actualAttempts + 1
+        super.resolveAndDownload(downloaderFactory)
+      }
+    }
+    val accessUrlDownloader = IO.pure(new Downloader {
+      override def download: IO[DownloadResult] =
+        IO.pure(ChecksumFailure)
+    })
+
+    val downloaderFactory = new DownloaderFactory {
+      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes): IO[Downloader] = {
+        accessUrlDownloader
+      }
+
+      override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] = {
+        // This test path should never ask for the GCS URI downloader.
+        throw new RuntimeException("test failure")
+      }
+    }
+
+    assertThrows[Throwable] {
+      drsLocalizer.resolveAndDownloadWithRetries(
+        downloadRetries = 3,
+        checksumRetries = 1,
+        downloaderFactory = downloaderFactory,
+        backoff = None).unsafeRunSync()
+    }
+
+    actualAttempts shouldBe 2 // 1 initial attempt + 1 retry = 2 total attempts
+  }
 }
 
 object MockDrsPaths {

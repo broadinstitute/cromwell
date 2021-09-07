@@ -102,7 +102,6 @@ object Dependencies {
   private val scalameterV = "0.19"
   private val scalatestV = "3.2.9"
   private val scalatestScalacheckV = scalatestV + ".0"
-  private val scalazV = "7.3.5"
   private val scoptV = "4.0.1"
   private val sentryLogbackV = "5.1.2"
   private val shapelessV = "2.3.7"
@@ -128,7 +127,7 @@ object Dependencies {
   private val typesafeConfigV = "1.4.1"
   private val workbenchGoogleV = "0.21-5c9c4f6" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/google/CHANGELOG.md
   private val workbenchModelV = "0.14-89d0d9e" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/model/CHANGELOG.md
-  private val workbenchUtilV = "0.6-d7ed6bf" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/util/CHANGELOG.md
+  private val workbenchUtilV = "0.6-65bba14" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/util/CHANGELOG.md
 
   private val slf4jFacadeDependencies = List(
     "org.slf4j" % "slf4j-api" % slf4jV,
@@ -499,7 +498,6 @@ object Dependencies {
   val dockerHashingDependencies: List[ModuleID] = http4sDependencies ++ circeDependencies ++ aliyunCrDependencies
 
   val cromwellApiClientDependencies: List[ModuleID] = List(
-    "org.scalaz" %% "scalaz-core" % scalazV,
     "org.typelevel" %% "cats-effect" % catsEffectV,
     "co.fs2" %% "fs2-io" % fs2V % Test,
   ) ++ akkaHttpDependencies ++ betterFilesDependencies ++ catsDependencies

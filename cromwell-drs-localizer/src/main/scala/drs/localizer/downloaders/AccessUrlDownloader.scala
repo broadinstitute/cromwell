@@ -57,7 +57,7 @@ case class AccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes
         stderr match {
           case HttpStatusMessage(status) =>
             val intStatus = Integer.parseInt(status)
-            if (intStatus / 100 == 5 || intStatus == 408)
+            if (intStatus / 100 == 5 || intStatus == 408 || intStatus == 429)
               RecognizedRetryableDownloadFailure(ExitCode(rc))
             else
               NonRetryableDownloadFailure(ExitCode(rc))

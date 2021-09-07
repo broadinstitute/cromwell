@@ -2,6 +2,7 @@ package drs.localizer
 
 import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO, IOApp}
+import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, TransientRetryDisposition}
 import cloud.nio.impl.drs.{AccessUrl, DrsConfig, DrsPathResolver, MarthaField}
 import cloud.nio.spi.{CloudNioBackoff, CloudNioSimpleExponentialBackoff}
 import com.typesafe.scalalogging.StrictLogging
@@ -78,12 +79,20 @@ class DrsLocalizerMain(drsUrl: String,
     }
 
     def maybeRetryForDownloadFailure(t: Throwable): IO[DownloadResult] = {
-      if (downloadAttempt < downloadRetries) {
-        backoff foreach { b => Thread.sleep(b.backoffMillis) }
-        logger.warn(s"Attempting retry $downloadAttempt of $downloadRetries download retries to download $drsUrl", t)
-        resolveAndDownloadWithRetries(downloadRetries, checksumRetries, downloaderFactory, backoff map { _.next }, downloadAttempt + 1, checksumAttempt)
-      } else {
-        IO.raiseError(new RuntimeException(s"Exhausted $downloadRetries download retries to resolve, download and checksum $drsUrl", t))
+      t match {
+        case _: FatalRetryDisposition =>
+          IO.raiseError(t)
+        case _: TransientRetryDisposition =>
+          backoff foreach { b => Thread.sleep(b.backoffMillis) }
+          logger.warn(s"Transient failure: Attempting retry $downloadAttempt of $downloadRetries download retries to download $drsUrl", t)
+          // Do not increment the retry counter for transient errors. *Do* take the next backoff.
+          resolveAndDownloadWithRetries(downloadRetries, checksumRetries, downloaderFactory, backoff map { _.next }, downloadAttempt, checksumAttempt)
+        case _ if downloadAttempt < downloadRetries =>
+          backoff foreach { b => Thread.sleep(b.backoffMillis) }
+          logger.warn(s"Attempting retry $downloadAttempt of $downloadRetries download retries to download $drsUrl", t)
+          resolveAndDownloadWithRetries(downloadRetries, checksumRetries, downloaderFactory, backoff map { _.next }, downloadAttempt + 1, checksumAttempt)
+        case _ =>
+          IO.raiseError(new RuntimeException(s"Exhausted $downloadRetries download retries to resolve, download and checksum $drsUrl", t))
       }
     }
 

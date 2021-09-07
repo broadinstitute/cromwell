@@ -27,7 +27,7 @@ import scala.concurrent.{Await, Promise}
 class WorkflowExecutionActorSpec extends CromwellTestKitSpec with AnyFlatSpecLike with Matchers with BeforeAndAfter with WorkflowDescriptorBuilderForSpecs {
 
   override implicit val actorSystem = system
-  implicit val DefaultDuration = 20.seconds.dilated
+  implicit val DefaultDuration = 60.seconds.dilated
 
   def mockServiceRegistryActor = TestActorRef(new Actor {
     override def receive = {

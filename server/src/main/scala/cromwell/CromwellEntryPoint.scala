@@ -6,10 +6,10 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.pattern.GracefulStopSupport
 import akka.stream.ActorMaterializer
 import cats.data.Validated._
-import cats.effect.IO
+import cats.effect.{ContextShift, IO}
 import cats.syntax.apply._
 import cats.syntax.validated._
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import cromwell.CommandLineArguments.{ValidSubmission, WorkflowSourceOrUrl}
@@ -21,40 +21,36 @@ import cromwell.core.{WorkflowSourceFilesCollection, WorkflowSourceFilesWithDepe
 import cromwell.engine.workflow.SingleWorkflowRunnerActor
 import cromwell.engine.workflow.SingleWorkflowRunnerActor.RunWorkflow
 import cromwell.server.{CromwellServer, CromwellShutdown, CromwellSystem}
-import io.sentry.Sentry
-import io.sentry.config.Lookup
-import io.sentry.dsn.Dsn
-import io.sentry.util.Util
 import net.ceedubs.ficus.Ficus._
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future, TimeoutException}
+import scala.concurrent.{Await, ExecutionContext, Future, TimeoutException}
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object CromwellEntryPoint extends GracefulStopSupport {
 
-  lazy val EntryPointLogger = LoggerFactory.getLogger("Cromwell EntryPoint")
+  private lazy val EntryPointLogger = LoggerFactory.getLogger("Cromwell EntryPoint")
   private lazy val config = ConfigFactory.load()
 
   // Only abort jobs on SIGINT if the config explicitly sets system.abort-jobs-on-terminate = true.
-  val abortJobsOnTerminate = config.as[Option[Boolean]]("system.abort-jobs-on-terminate")
+  private val abortJobsOnTerminate = config.as[Option[Boolean]]("system.abort-jobs-on-terminate")
 
-  val gracefulShutdown = config.as[Boolean]("system.graceful-server-shutdown")
+  private val gracefulShutdown = config.as[Boolean]("system.graceful-server-shutdown")
 
   // 3 minute DNS TTL down from JVM default of infinite [BA-6454]
-  val dnsCacheTtl = config.getOrElse("system.dns-cache-ttl", 3 minutes)
+  private val dnsCacheTtl = config.getOrElse("system.dns-cache-ttl", 3 minutes)
   java.security.Security.setProperty("networkaddress.cache.ttl", dnsCacheTtl.toSeconds.toString)
 
   /**
     * Run Cromwell in server mode.
     */
-  def runServer() = {
+  def runServer(): Unit = {
     initLogging(Server)
 
-    val system = buildCromwellSystem(Server)
+    val system = buildCromwellSystem()
     waitAndExit(CromwellServer.run(gracefulShutdown, abortJobsOnTerminate.getOrElse(false)) _, system)
   }
 
@@ -66,8 +62,8 @@ object CromwellEntryPoint extends GracefulStopSupport {
 
     val sources = validateRunArguments(args)
 
-    val cromwellSystem = buildCromwellSystem(Run)
-    implicit val actorSystem = cromwellSystem.actorSystem
+    val cromwellSystem = buildCromwellSystem()
+    implicit val actorSystem: ActorSystem = cromwellSystem.actorSystem
 
     val runnerProps = SingleWorkflowRunnerActor.props(
       source = sources,
@@ -88,10 +84,10 @@ object CromwellEntryPoint extends GracefulStopSupport {
     initLogging(Submit)
     lazy val Log = LoggerFactory.getLogger("cromwell-submit")
 
-    implicit val actorSystem = ActorSystem("SubmitSystem")
-    implicit val materializer = ActorMaterializer()
-    implicit val ec = actorSystem.dispatcher
-    implicit val cs = IO.contextShift(ec)
+    implicit val actorSystem: ActorSystem = ActorSystem("SubmitSystem")
+    implicit val materializer: ActorMaterializer = ActorMaterializer()
+    implicit val ec: ExecutionContext = actorSystem.dispatcher
+    implicit val cs: ContextShift[IO] = IO.contextShift(ec)
 
     val cromwellClient = new CromwellClient(args.host, "v2")
 
@@ -120,11 +116,11 @@ object CromwellEntryPoint extends GracefulStopSupport {
     waitAndExit(submissionFuture, () => actorSystem.terminate())
   }
 
-  private def buildCromwellSystem(command: Command): CromwellSystem = {
+  private def buildCromwellSystem(): CromwellSystem = {
     lazy val Log = LoggerFactory.getLogger("cromwell")
     Try {
       new CromwellSystem {
-        override lazy val config = CromwellEntryPoint.config
+        override lazy val config: Config = CromwellEntryPoint.config
       }
     } recoverWith {
       case t: Throwable =>
@@ -170,15 +166,10 @@ object CromwellEntryPoint extends GracefulStopSupport {
     Make sure that the next time one uses the ConfigFactory that our updated system properties are loaded.
      */
     ConfigFactory.invalidateCaches()
-
-    // Quiet warnings about missing sentry DSNs by just providing the default.
-    val dsn = Option(Lookup.getDefault().get("dsn")).filterNot(Util.isNullOrEmpty).getOrElse(
-      Dsn.DEFAULT_DSN + "&stacktrace.app.packages=quieted_with_any_value_because_empty_was_not_working")
-    Sentry.init(dsn)
     ()
   }
 
-  protected def waitAndExit[A](operation: () => Future[A], shutdown: () => Future[Any]) = {
+  protected def waitAndExit[A](operation: () => Future[A], shutdown: () => Future[Any]): Nothing = {
     val futureResult = operation()
     Await.ready(futureResult, Duration.Inf)
 

@@ -14,11 +14,4 @@ class MockAuthModeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
     val credentials = mockAuthMode.credentials()
     credentials.getAuthenticationType should be("OAuth2")
   }
-
-  it should "requiresAuthFile" in {
-    val mockAuthMode = MockAuthMode("no_auth")
-    mockAuthMode.requiresAuthFile should be(false)
-    succeed
-  }
-
 }

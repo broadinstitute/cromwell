@@ -47,7 +47,7 @@ object Publishing {
       val artifact: File = assembly.value
       val artifactTargetPath = s"/app/${artifact.name}"
       val projectName = name.value
-      val additionalDockerInstr: Seq[Instruction] = dockerCustomSettings.value
+      val additionalDockerInstr: Seq[Instruction] = (dockerCustomSettings ?? Nil).value
 
       new Dockerfile {
         from("us.gcr.io/broad-dsp-gcr-public/base/jre:11-debian")
@@ -101,7 +101,6 @@ object Publishing {
       cache = false,
       removeIntermediateContainers = BuildOptions.Remove.Always
     ),
-    ThisBuild / dockerCustomSettings := Nil // setting the default value
   )
 
   def dockerPushSettings(pushEnabled: Boolean): Seq[Setting[_]] = {

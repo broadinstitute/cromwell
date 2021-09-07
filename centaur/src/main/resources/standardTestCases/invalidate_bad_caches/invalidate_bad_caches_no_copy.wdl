@@ -36,7 +36,8 @@ task delete_file_in_gcs {
         gsutil rm ${file_path}
     }
     runtime {
-        docker: "google/cloud-sdk@sha256:fb904276e8a902ccd9564989d9222bdfbe37ffcd7f9989ca7e24b4019a9b4b6b"
+        # google/cloud-sdk:354.0.0-slim
+        docker: "google/cloud-sdk@sha256:b5bd0d4b9e56a8b82cea893e7c45f9dfb01fa7cb4e1ce0d426a4468d64654710"
         backend: "Papi-Caching-No-Copy"
     }
     output {

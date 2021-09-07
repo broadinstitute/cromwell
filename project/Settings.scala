@@ -82,13 +82,11 @@ object Settings {
     assembly / assemblyJarName := name.value + "-" + version.value + ".jar",
     assembly / test := {},
     assembly / assemblyMergeStrategy := customMergeStrategy.value,
-    assembly / logLevel :=
-      sys.env.get("CROMWELL_SBT_ASSEMBLY_LOG_LEVEL").flatMap(Level.apply).getOrElse((assembly / logLevel).value)
   )
 
-  val Scala2_12Version = "2.12.12" // scala-steward:off (CROM-6777) - 2.12.13 blocked by duplicate import of nowarn
-  val ScalaVersion: String = Scala2_12Version
-  val sharedSettings: Seq[Setting[_]] =
+  val Scala2_12Version = "2.12.14"
+  private val ScalaVersion: String = Scala2_12Version
+  private val sharedSettings: Seq[Setting[_]] =
     cromwellVersionWithGit ++ publishingSettings ++ List(
     organization := "org.broadinstitute",
     scalaVersion := ScalaVersion,
@@ -130,7 +128,7 @@ object Settings {
       Instructions.Run("apt-get -y update"),
       Instructions.Run("apt-get -y install python3.8"),
       Instructions.Run("apt -y install python3-pip"),
-      Instructions.Run("apt-get -y install gcc python-dev python-setuptools"),
+      Instructions.Run("apt-get -y install gcc python3-dev python3-setuptools"),
       Instructions.Run("pip3 uninstall crcmod"),
       Instructions.Run("pip3 install --no-cache-dir -U crcmod"),
       Instructions.Run("update-alternatives --install /usr/bin/python python /usr/bin/python3 1"),

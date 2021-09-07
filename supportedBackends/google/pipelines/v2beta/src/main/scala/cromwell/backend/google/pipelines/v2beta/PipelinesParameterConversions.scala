@@ -3,12 +3,12 @@ package cromwell.backend.google.pipelines.v2beta
 import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, DrsConfig}
 import com.google.api.services.lifesciences.v2beta.model.{Action, Mount}
 import com.typesafe.config.ConfigFactory
+import cromwell.backend.google.pipelines.common.action.ActionCommands._
 import cromwell.backend.google.pipelines.common.action.ActionLabels._
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.pipelines.common._
 import cromwell.backend.google.pipelines.v2beta.api.ActionBuilder
 import cromwell.backend.google.pipelines.v2beta.api.ActionBuilder._
-import cromwell.backend.google.pipelines.v2beta.api.ActionCommands._
 import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.http.HttpPath

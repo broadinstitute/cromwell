@@ -4,7 +4,7 @@ import java.nio.file.Path
 
 import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
-import cromwell.backend.google.pipelines.v2alpha1.api.ActionCommands._
+import cromwell.backend.google.pipelines.common.action.ActionCommands._
 import cromwell.filesystems.gcs.GcsPath
 import eu.timepit.refined.refineMV
 import org.scalatest.flatspec.AnyFlatSpec
@@ -13,7 +13,7 @@ import org.specs2.mock.Mockito
 
 class ActionCommandsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Mockito {
   behavior of "ActionCommands"
-  
+
   it should "inject project flag when request fails because of requester pays" in {
     val path = GcsPath(any[Path], any[com.google.api.services.storage.Storage], any[com.google.cloud.storage.Storage], "my-project")
     val recovered = recoverRequesterPaysError(path) { flag =>
@@ -39,7 +39,7 @@ class ActionCommandsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
                          |  exit 0
                          |fi""".stripMargin
   }
-  
+
   it should "use GcsTransferConfiguration to set the number of localization retries" in {
     implicit val gcsTransferConfiguration = GcsTransferConfiguration(
       transferAttempts = refineMV(31380), parallelCompositeUploadThreshold = "0")

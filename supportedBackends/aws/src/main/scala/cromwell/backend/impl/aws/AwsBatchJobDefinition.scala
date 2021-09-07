@@ -31,16 +31,14 @@
 
 package cromwell.backend.impl.aws
 
-import scala.language.postfixOps
 import scala.collection.mutable.ListBuffer
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.JobPaths
-import software.amazon.awssdk.services.batch.model.{ContainerProperties, Host, KeyValuePair, MountPoint, Volume}
+import software.amazon.awssdk.services.batch.model.{ContainerProperties, Host, KeyValuePair, MountPoint, ResourceRequirement, ResourceType, Volume}
 import cromwell.backend.impl.aws.io.AwsBatchVolume
 
 import scala.collection.JavaConverters._
 import java.security.MessageDigest
-
 import org.apache.commons.lang3.builder.{ToStringBuilder, ToStringStyle}
 import org.slf4j.{Logger, LoggerFactory}
 import wdl4s.parser.MemoryUnit
@@ -160,8 +158,16 @@ trait AwsBatchJobDefinitionBuilder {
 
     (builder
        .command(packedCommand.asJava)
-        .memory(context.runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt)
-        .vcpus(context.runtimeAttributes.cpu##)
+      .resourceRequirements(
+        ResourceRequirement.builder()
+          .`type`(ResourceType.MEMORY)
+          .value(context.runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt.toString)
+          .build(),
+        ResourceRequirement.builder()
+          .`type`(ResourceType.VCPU)
+          .value(context.runtimeAttributes.cpu.value.toString)
+          .build(),
+      )
         .volumes( volumes.asJava)
         .mountPoints( mountPoints.asJava)
         .environment(environment.asJava),

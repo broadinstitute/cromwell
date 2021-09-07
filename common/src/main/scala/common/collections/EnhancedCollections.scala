@@ -9,7 +9,7 @@ import scala.collection.immutable.{MapLike, Queue}
 import scala.reflect.ClassTag
 
 object EnhancedCollections {
-  
+
   case class DeQueued[A](head: Vector[A], tail: Queue[A])
 
   /**
@@ -37,22 +37,22 @@ object EnhancedCollections {
     /**
       * Take from the queue based on the following conditions:
       * (in this context, "head" means the Vector[A] dequeued, not a single A element)
-      * 
+      *
       * The head's total weight (calculated using weightFunction) will be:
       *   - Always less than or equal to maxWeight if strict is true
       *   - The smallest list of elements at the head of the queue for which the total weight is greater or equal to max weight if strict is false
-      *   
+      *
       * In other words, if a single element happens to be greater than max weight:
       *   with strict = true the element will be dropped and processing will continue
       *   with strict = false the element will be added to the head and processing will stop
-      * 
+      *
       * If maxHeadLength is provided, the head size will be <= maxHeadLength's value.
-      * 
+      *
       * --- Implementation ---
       * The implementation is simple but naive. The more general problem is described here https://en.wikipedia.org/wiki/Knapsack_problem
-      * 
+      *
       * @tparam W a numeric type for the weight
-      * @return a tuple of 
+      * @return a tuple of
       *         The elements removed from the queue as a vector
       *         The rest of the queue (tail)
       */
@@ -82,12 +82,12 @@ object EnhancedCollections {
       }
 
       if (queue.isEmpty || maxHeadLength.contains(0)) DeQueued(Vector.empty, queue)
-      // If strict is enabled, we should never return a head with a weight > maxWeight. So start from the original queue and drop elements over maxWeight if necessary 
+      // If strict is enabled, we should never return a head with a weight > maxWeight. So start from the original queue and drop elements over maxWeight if necessary
       else if (strict) {
         val (head, tail) = takeWhileWeightedRec(queue, Vector.empty, n.zero)
         DeQueued(head, tail)
       }
-      // Otherwise to ensure we don't deadlock, start the recursion with the head of the queue, this way even if it's over maxWeight it'll return a single element head 
+      // Otherwise to ensure we don't deadlock, start the recursion with the head of the queue, this way even if it's over maxWeight it'll return a single element head
       else {
         val (head, tail) = takeWhileWeightedRec(queue.tail, queue.headOption.toVector, queue.headOption.map(weightFunction).getOrElse(n.zero))
         DeQueued(head, tail)
@@ -101,6 +101,16 @@ object EnhancedCollections {
       * evaluate the supplied function once on each value and at the time this method is called.
       */
     def safeMapValues[C](f: B => C): Map[A, C] = mapLike map { case (k, v) => k -> f(v) }
+
+    /**
+      * Based on scalaz's intersectWith, applies `f` to values of keys found in this `mapLike` and map`
+      */
+    def intersectWith[C, D](map: Map[A, C])(f: (B, C) => D): Map[A, D] = {
+      mapLike collect {
+        case (mapLikeKey, mapLikeValue) if map.contains(mapLikeKey) =>
+          mapLikeKey -> f(mapLikeValue, map(mapLikeKey))
+      }
+    }
   }
 
   implicit class EnhancedNonEmptyList[A](val nel: NonEmptyList[A]) extends AnyVal {

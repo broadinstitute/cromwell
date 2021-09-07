@@ -2,8 +2,9 @@ package cromwell.backend.google.pipelines.common
 
 import akka.actor.{ActorRef, Props}
 import com.google.api.client.util.ExponentialBackOff
+import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend._
-import cromwell.backend.google.pipelines.common.PipelinesApiBackendLifecycleActorFactory._
+import cromwell.backend.google.pipelines.common.PipelinesApiBackendLifecycleActorFactory.{preemptionCountKey, robustBuildAttributes, unexpectedRetryCountKey}
 import cromwell.backend.google.pipelines.common.authentication.PipelinesApiDockerCredentials
 import cromwell.backend.google.pipelines.common.callcaching.{PipelinesApiBackendCacheHitCopyingActor, PipelinesApiBackendFileHashingActor}
 import cromwell.backend.standard._
@@ -11,10 +12,8 @@ import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, Stan
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.core.{CallOutputs, DockerCredentials}
-import org.slf4j.{Logger, LoggerFactory}
 import wom.graph.CommandCallNode
 
-import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
 abstract class PipelinesApiBackendLifecycleActorFactory(override val name: String, override val configurationDescriptor: BackendConfigurationDescriptor)
@@ -87,11 +86,9 @@ abstract class PipelinesApiBackendLifecycleActorFactory(override val name: Strin
   }
 }
 
-object PipelinesApiBackendLifecycleActorFactory {
+object PipelinesApiBackendLifecycleActorFactory extends StrictLogging {
   val preemptionCountKey = "PreemptionCount"
   val unexpectedRetryCountKey = "UnexpectedRetryCount"
-
-  private val logger: Logger = LoggerFactory.getLogger(getClass)
 
   private [common] def robustBuildAttributes(buildAttributes: () => PipelinesApiConfigurationAttributes,
                                              maxAttempts: Int = 3,
@@ -111,7 +108,7 @@ object PipelinesApiBackendLifecycleActorFactory {
       t match {
         case e: Exception =>
           Option(e.getMessage) match {
-            case Some(message) => message.contains("We encountered an internal error. Please try again.")
+            case Some(message) => message.contains("Please try again.")
             case None => false
           }
         case _ => false
@@ -119,19 +116,18 @@ object PipelinesApiBackendLifecycleActorFactory {
     }
 
     // `attempt` is 1-based
-    @tailrec
-    def build(attempt: Int): PipelinesApiConfigurationAttributes = {
+    def build(attempt: Int): Try[PipelinesApiConfigurationAttributes] = {
       Try {
         buildAttributes()
-      } match {
-        case Success(value) => value
-        case Failure(t) if isRetryableException(t) && attempt < maxAttempts =>
+      } recoverWith {
+        case t if isRetryableException(t) && attempt < maxAttempts =>
           logger.warn(s"Failed to build PipelinesApiConfigurationAttributes on attempt $attempt of $maxAttempts, retrying.", t)
           Thread.sleep(backoff.nextBackOffMillis())
           build(attempt + 1)
-        case Failure(e) => throw new RuntimeException(s"Failed to build PipelinesApiConfigurationAttributes on attempt $attempt of $maxAttempts", e)
+        case e => Failure(new RuntimeException(s"Failed to build PipelinesApiConfigurationAttributes on attempt $attempt of $maxAttempts", e))
       }
     }
-    build(attempt = 1)
+    // This intentionally throws if the final result of `build` is a `Failure`.
+    build(attempt = 1).get
   }
 }

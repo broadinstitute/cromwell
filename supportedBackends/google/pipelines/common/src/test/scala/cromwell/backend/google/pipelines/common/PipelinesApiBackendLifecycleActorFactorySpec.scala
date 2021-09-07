@@ -39,13 +39,17 @@ class PipelinesApiBackendLifecycleActorFactorySpec extends AnyFlatSpecLike with 
   }
 
   {
-    val retryMessage = "We encountered an internal error. Please try again."
+    // The message string Cromwell keys off to retry construction.
+    val baseRetryMessage = "Please try again."
+    // The message string actually observed during construction failure.
+    val actualRetryMessage = s"We encountered an internal error. $baseRetryMessage"
     val fails = Table(
       ("attempts", "description", "function"),
       (1, "no exception message", () => throw new RuntimeException()),
       (1, "not a retryable message", () => throw new RuntimeException("non retryable failure")),
-      (3, "retryable message", () => throw new RuntimeException(retryMessage)),
-      (1, "error not exception", () => throw new Error(retryMessage))
+      (3, "retryable message", () => throw new RuntimeException(actualRetryMessage)),
+      (1, "error not exception", () => throw new Error(actualRetryMessage)),
+      (3, "error not exception", () => throw new RuntimeException(s"Heavens to Betsy something most unfortunate has occurred. $baseRetryMessage"))
     )
     forAll(fails) { (attempts, description, function) =>
       it should s"$description: make $attempts attribute creation attempts before giving up" in {

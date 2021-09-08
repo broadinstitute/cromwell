@@ -95,42 +95,41 @@ class AwsBatchInitializationActor(params: AwsBatchInitializationActorParams)
   private lazy val provider: Future[AwsCredentialsProvider] =
     Future { configuration.awsAuth.provider() }
 
-    
   lazy val secretsClient: SecretsManagerClient = {
     val builder = SecretsManagerClient.builder()
     configureClient(builder, Option(configuration.awsAuth), configuration.awsConfig.region)
   }
-    
+
   private def storePrivateDockerToken(token: String) = {
     try {
-      
+
       val secretName: String = "cromwell/credentials/dockerhub"
 
       // Check if secret already exists
       // If exists, update it otherwise create it
       val secretsList: List[SecretListEntry] = secretsClient.listSecrets().secretList().asScala.toList
       val secretsNameList = secretsList.map(_.name)
-      
+
       if(secretsNameList.contains(secretName)){
         val secretRequest: UpdateSecretRequest = UpdateSecretRequest.builder()
         .secretId(secretName)
         .secretString(token)
         .build();
-        
+
         secretsClient.updateSecret(secretRequest);
-        
+
         Log.info(s"Secret '$secretName' was updated.")
       } else {
         val secretRequest: CreateSecretRequest = CreateSecretRequest.builder()
         .name(secretName)
         .secretString(token)
         .build()
-        
+
         secretsClient.createSecret(secretRequest)
-        
+
         Log.info(s"Secret '$secretName' was created.")
       }
-    } 
+    }
     catch {
       case e: SecretsManagerException => Log.warn(e.awsErrorDetails().errorMessage())
     }

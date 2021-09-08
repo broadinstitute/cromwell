@@ -2,6 +2,7 @@ package drs.localizer
 
 import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO}
+import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, TransientRetryDisposition}
 import cloud.nio.impl.drs.{AccessUrl, DrsConfig, MarthaField, MarthaResponse}
 import common.assertion.CromwellTimeoutSpec
 import drs.localizer.MockDrsLocalizerDrsPathResolver.FakeHashes
@@ -108,7 +109,7 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     actualAttempts shouldBe 1
   }
 
-  it should "retry an appropriate number of times for retryable access URL download failures" in {
+  it should "retry an appropriate number of times for regular retryable access URL download failures" in {
     var actualAttempts = 0
 
     val drsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithAccessUrlResolutionOnly, fakeDownloadLocation, None) {
@@ -143,6 +144,86 @@ class DrsLocalizerMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
     }
 
     actualAttempts shouldBe 4 // 1 initial attempt + 3 retries = 4 total attempts
+  }
+
+  it should "retry an appropriate number of times for transient retryable access URL download failures" in {
+    var actualAttempts = 0
+
+    val drsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithAccessUrlResolutionOnly, fakeDownloadLocation, None) {
+      override def resolveAndDownload(downloaderFactory: DownloaderFactory): IO[DownloadResult] = {
+        actualAttempts = actualAttempts + 1
+        if (actualAttempts <= 3) {
+          IO.raiseError(new RuntimeException("testing: transient error") with TransientRetryDisposition)
+        }
+        else {
+          super.resolveAndDownload(downloaderFactory)
+        }
+      }
+    }
+    val accessUrlDownloader = IO.pure(new Downloader {
+      override def download: IO[DownloadResult] =
+        IO.pure(RecognizedRetryableDownloadFailure(exitCode = ExitCode(0)))
+    })
+
+    val downloaderFactory = new DownloaderFactory {
+      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes): IO[Downloader] = {
+        accessUrlDownloader
+      }
+
+      override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] = {
+        // This test path should never ask for the GCS downloader
+        throw new RuntimeException("test failure")
+      }
+    }
+
+    assertThrows[Throwable] {
+      drsLocalizer.resolveAndDownloadWithRetries(
+        downloadRetries = 3,
+        checksumRetries = 1,
+        downloaderFactory = downloaderFactory,
+        backoff = None
+      ).unsafeRunSync()
+    }
+
+    actualAttempts shouldBe 7 // 1 initial attempt + 3 transient retries + 3 regular retries = 7 total attempts
+  }
+
+  it should "retry an appropriate number of times for fatal retryable access URL download failures" in {
+    var actualAttempts = 0
+
+    val drsLocalizer = new MockDrsLocalizerMain(MockDrsPaths.fakeDrsUrlWithAccessUrlResolutionOnly, fakeDownloadLocation, None) {
+      override def resolveAndDownload(downloaderFactory: DownloaderFactory): IO[DownloadResult] = {
+        actualAttempts = actualAttempts + 1
+          IO.raiseError(new RuntimeException("testing: fatal error") with FatalRetryDisposition)
+      }
+    }
+
+    val accessUrlDownloader = IO.pure(new Downloader {
+      override def download: IO[DownloadResult] =
+        IO.pure(RecognizedRetryableDownloadFailure(exitCode = ExitCode(0)))
+    })
+
+    val downloaderFactory = new DownloaderFactory {
+      override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes): IO[Downloader] = {
+        accessUrlDownloader
+      }
+
+      override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] = {
+        // This test path should never ask for the GCS downloader
+        throw new RuntimeException("test failure")
+      }
+    }
+
+    assertThrows[Throwable] {
+      drsLocalizer.resolveAndDownloadWithRetries(
+        downloadRetries = 3,
+        checksumRetries = 1,
+        downloaderFactory = downloaderFactory,
+        backoff = None
+      ).unsafeRunSync()
+    }
+
+    actualAttempts shouldBe 1 // 1 and done with a fatal exception
   }
 
   it should "not retry on GCS URI download success" in {

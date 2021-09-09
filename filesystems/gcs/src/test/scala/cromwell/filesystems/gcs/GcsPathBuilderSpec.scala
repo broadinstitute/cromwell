@@ -1,6 +1,7 @@
 package cromwell.filesystems.gcs
 
 import com.google.api.gax.retrying.RetrySettings
+import com.google.auth.Credentials
 import com.google.auth.oauth2.GoogleCredentials
 import com.google.cloud.NoCredentials
 import com.google.cloud.storage.contrib.nio.{CloudStorageConfiguration, CloudStorageFileSystemProvider}
@@ -299,27 +300,36 @@ class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
     def retrySettings: RetrySettings = RetrySettings.newBuilder().build()
     val cloudStorageConfig: CloudStorageConfiguration = GcsStorage.DefaultCloudStorageConfiguration
 
+    val noCredentials = NoCredentials.getInstance()
     val noCredentialsPathBuilder: GcsPathBuilder = {
-      val noCredentials = NoCredentials.getInstance()
       val noCredentialsStorage = GcsStorage.gcsStorage("no-credentials", noCredentials, retrySettings)
       val noCredentialsStorageOptions = GcsStorage.gcsStorageOptions(noCredentials, retrySettings, Option("proj-no-credentials"))
 
       new GcsPathBuilder(noCredentialsStorage, cloudStorageConfig, noCredentialsStorageOptions)
     }
 
+    val applicationDefault = GoogleCredentials.getApplicationDefault()
     val applicationDefaultPathBuilder: GcsPathBuilder = {
-      val applicationDefault = GoogleCredentials.getApplicationDefault()
       val applicationDefaultStorage = GcsStorage.gcsStorage("app-default", applicationDefault, retrySettings)
       val applicationDefaultStorageOptions = GcsStorage.gcsStorageOptions(applicationDefault, retrySettings, Option("proj-app-default"))
 
       new GcsPathBuilder(applicationDefaultStorage, cloudStorageConfig, applicationDefaultStorageOptions)
     }
 
+    def credentialsForPath(gcsPath: GcsPath): Credentials = {
+      val cloudFilesystemProvider = gcsPath.nioPath.getFileSystem.provider().asInstanceOf[CloudStorageFileSystemProvider]
+      val storageOptionsField = cloudFilesystemProvider.getClass.getDeclaredField("storageOptions")
+      storageOptionsField.setAccessible(true)
+      val storageOptions = storageOptionsField.get(cloudFilesystemProvider)
+      val credentialsField = storageOptions.getClass.getSuperclass.getDeclaredField("credentials")
+      credentialsField.setAccessible(true)
+      credentialsField.get(storageOptions).asInstanceOf[Credentials]
+    }
+
     val noCredentialsPath: Try[GcsPath] = noCredentialsPathBuilder.build("gs://no-credentials")
     val appDefaultPath: Try[GcsPath] = applicationDefaultPathBuilder.build("gs://app-default")
 
-    noCredentialsPath should not be appDefaultPath
+    credentialsForPath(noCredentialsPath.get) shouldBe noCredentials
+    credentialsForPath(appDefaultPath.get) shouldBe applicationDefault
   }
-
-
 }

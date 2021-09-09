@@ -49,7 +49,11 @@ object Dependencies {
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-cloudkms
   private val googleCloudKmsV = "v1-rev20210812-1.32.1"
   private val googleCloudMonitoringV = "3.0.2"
-  private val googleCloudNioV = "0.123.8"
+
+  // Last release before a bad PR [0] shipped in 0.122.0 [1]
+  // [0] https://www.github.com/googleapis/java-storage-nio/issues/168
+  // [1] https://github.com/googleapis/java-storage-nio/releases/tag/v0.122.0
+  private val googleCloudNioV = "0.121.2"
   private val googleCloudStorageV = "2.1.0"
   private val googleGaxGrpcV = "2.4.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-genomics

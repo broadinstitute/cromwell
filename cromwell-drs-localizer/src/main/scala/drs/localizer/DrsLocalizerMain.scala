@@ -100,9 +100,13 @@ class DrsLocalizerMain(drsUrl: String,
       maybeRetryForDownloadFailure
     },
     {
+      case f: FatalDownloadFailure =>
+        IO.raiseError(new RuntimeException(s"Fatal error downloading DRS object: $f"))
+      case t: TransientRetryableDownloadFailure =>
+        maybeRetryForDownloadFailure(new RuntimeException(t.toString) with TransientRetryDisposition)
       case r: RetryableDownloadFailure =>
         maybeRetryForDownloadFailure(
-          new RuntimeException(s"Retryable download error: exit code ${r.exitCode.code} for $drsUrl on retry attempt $downloadAttempt of $downloadRetries"))
+          new RuntimeException(s"Retryable download error: $r for $drsUrl on retry attempt $downloadAttempt of $downloadRetries"))
       case ChecksumFailure =>
         maybeRetryForChecksumFailure(new RuntimeException(s"Checksum failure for $drsUrl on checksum retry attempt $checksumAttempt of $checksumRetries"))
       case o => IO.pure(o)

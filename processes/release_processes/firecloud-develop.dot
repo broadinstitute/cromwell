@@ -68,7 +68,6 @@ digraph {
   jenkins_set -> fcdev_pr
   confirm_cromwell_v -> fcdev_success
 
-  fcdev_success -> jenkins_reset
   fcdev_success -> dspjenkins_merge
   fcdev_success -> fcdev_merge
 

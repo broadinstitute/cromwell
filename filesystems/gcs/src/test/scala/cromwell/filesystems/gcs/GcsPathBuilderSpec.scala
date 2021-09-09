@@ -1,10 +1,17 @@
 package cromwell.filesystems.gcs
 
+import com.google.api.gax.retrying.RetrySettings
+import com.google.auth.oauth2.GoogleCredentials
+import com.google.cloud.NoCredentials
+import com.google.cloud.storage.contrib.nio.{CloudStorageConfiguration, CloudStorageFileSystemProvider}
+import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.core.path._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.Tables.Table
+
+import scala.util.Try
 
 class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with PathBuilderSpecUtils {
 
@@ -287,4 +294,32 @@ class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
   private lazy val pathBuilder = {
     MockGcsPathBuilder.instance
   }
+
+  it should "not mix up credentials" in {
+    def retrySettings: RetrySettings = RetrySettings.newBuilder().build()
+    val cloudStorageConfig: CloudStorageConfiguration = GcsStorage.DefaultCloudStorageConfiguration
+
+    val noCredentialsPathBuilder: GcsPathBuilder = {
+      val noCredentials = NoCredentials.getInstance()
+      val noCredentialsStorage = GcsStorage.gcsStorage("no-credentials", noCredentials, retrySettings)
+      val noCredentialsStorageOptions = GcsStorage.gcsStorageOptions(noCredentials, retrySettings, Option("proj-no-credentials"))
+
+      new GcsPathBuilder(noCredentialsStorage, cloudStorageConfig, noCredentialsStorageOptions)
+    }
+
+    val applicationDefaultPathBuilder: GcsPathBuilder = {
+      val applicationDefault = GoogleCredentials.getApplicationDefault()
+      val applicationDefaultStorage = GcsStorage.gcsStorage("app-default", applicationDefault, retrySettings)
+      val applicationDefaultStorageOptions = GcsStorage.gcsStorageOptions(applicationDefault, retrySettings, Option("proj-app-default"))
+
+      new GcsPathBuilder(applicationDefaultStorage, cloudStorageConfig, applicationDefaultStorageOptions)
+    }
+
+    val noCredentialsPath: Try[GcsPath] = noCredentialsPathBuilder.build("gs://no-credentials")
+    val appDefaultPath: Try[GcsPath] = applicationDefaultPathBuilder.build("gs://app-default")
+
+    noCredentialsPath should not be appDefaultPath
+  }
+
+
 }

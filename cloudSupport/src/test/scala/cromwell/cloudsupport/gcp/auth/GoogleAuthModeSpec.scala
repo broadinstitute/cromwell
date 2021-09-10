@@ -2,7 +2,6 @@ package cromwell.cloudsupport.gcp.auth
 
 import com.google.api.client.http.{HttpHeaders, HttpResponseException}
 import common.assertion.CromwellTimeoutSpec
-import cromwell.cloudsupport.gcp.auth.CredentialsTestUtil.{serviceAccountJsonContents, toJson}
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode.OptionLookup
 import org.scalatest.Assertions._
 import org.scalatest.flatspec.AnyFlatSpec
@@ -42,7 +41,7 @@ class GoogleAuthModeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
   }
 }
 
-object GoogleAuthModeSpec {
+object GoogleAuthModeSpec extends ServiceAccountTestSupport {
   def assumeHasApplicationDefaultCredentials(): Unit = {
     tryApplicationDefaultCredentials match {
       case Failure(exception) => cancel(exception.getMessage)

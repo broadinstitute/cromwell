@@ -4,7 +4,7 @@ import java.io.StringWriter
 import java.security.KeyPairGenerator
 import java.util.Base64
 
-object CredentialsTestUtil {
+trait ServiceAccountTestSupport {
   def serviceAccountPemContents: String = {
     val keyPairGenerator = KeyPairGenerator.getInstance("RSA")
     keyPairGenerator.initialize(1024)

@@ -2,13 +2,12 @@ package cromwell.cloudsupport.gcp.auth
 
 import better.files.File
 import common.assertion.CromwellTimeoutSpec
-import cromwell.cloudsupport.gcp.auth.CredentialsTestUtil.{serviceAccountJsonContents, serviceAccountPemContents}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.io.FileNotFoundException
 
-class ServiceAccountModeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
+class ServiceAccountModeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ServiceAccountTestSupport {
 
   behavior of "ServiceAccountMode"
 

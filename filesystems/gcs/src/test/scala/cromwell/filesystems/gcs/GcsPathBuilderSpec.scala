@@ -5,7 +5,7 @@ import com.google.auth.Credentials
 import com.google.auth.oauth2.ServiceAccountCredentials
 import com.google.cloud.NoCredentials
 import com.google.cloud.storage.contrib.nio.{CloudStorageConfiguration, CloudStorageFileSystemProvider}
-import cromwell.cloudsupport.gcp.auth.CredentialsTestUtil
+import cromwell.cloudsupport.gcp.auth.ServiceAccountTestSupport
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.core.path._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
@@ -15,7 +15,7 @@ import org.scalatest.prop.Tables.Table
 
 import java.io.ByteArrayInputStream
 
-class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with PathBuilderSpecUtils {
+class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with PathBuilderSpecUtils with ServiceAccountTestSupport {
 
   behavior of "GcsPathBuilder"
 
@@ -310,10 +310,10 @@ class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
     }
 
     val serviceAccountCredentials = ServiceAccountCredentials.fromStream(
-      new ByteArrayInputStream(CredentialsTestUtil.serviceAccountJsonContents.getBytes))
+      new ByteArrayInputStream(serviceAccountJsonContents.getBytes))
     val serviceAccountPathBuilder: GcsPathBuilder = {
       val serviceAccountStorage = GcsStorage.gcsStorage("service-account", serviceAccountCredentials, retrySettings)
-      val serviceAccountStorageOptions = GcsStorage.gcsStorageOptions(serviceAccountCredentials, retrySettings, Option("proj-app-default"))
+      val serviceAccountStorageOptions = GcsStorage.gcsStorageOptions(serviceAccountCredentials, retrySettings, Option("proj-service-account"))
 
       new GcsPathBuilder(serviceAccountStorage, cloudStorageConfig, serviceAccountStorageOptions)
     }

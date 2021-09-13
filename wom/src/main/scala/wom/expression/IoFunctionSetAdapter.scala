@@ -3,7 +3,7 @@ import scala.concurrent.Future
 
 class IoFunctionSetAdapter(delegate: IoFunctionSet) extends IoFunctionSet {
   override def pathFunctions: PathFunctionSet = delegate.pathFunctions
-  override def resolvedPath(path: String): Future[String] = delegate.resolvedPath(path)
+  override def resolvedFileBasename(path: String): Future[String] = delegate.resolvedFileBasename(path)
   override def readFile(path: String, maxBytes: Option[Int], failOnOverflow: Boolean): Future[String] = delegate.readFile(path, maxBytes, failOnOverflow)
   override def writeFile(path: String, content: String) = delegate.writeFile(path, content)
   override def createTemporaryDirectory(name: Option[String]) = delegate.createTemporaryDirectory(name)

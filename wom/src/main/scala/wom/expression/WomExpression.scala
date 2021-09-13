@@ -128,7 +128,12 @@ trait IoFunctionSet {
   // Functions that do NOT necessitate network I/O but are only manipulating paths
   def pathFunctions: PathFunctionSet
 
-  def resolvedPath(path: String): Future[String]
+  /**
+    * Get the basename of this path. If a DRS path, resolve to a real URL and get the basename
+    * @param path The input path
+    * @return The base filename of the object at the (fully resolved) path
+    */
+  def resolvedFileBasename(path: String): Future[String]
 
   // Functions that (possibly) necessitate I/O operation (on local, network, or cloud filesystems)
   /**

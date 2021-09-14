@@ -32,18 +32,18 @@ object DrsResolver {
     } yield drsFileSystemProvider.drsPathResolver
   }
 
-  final case class GsUriFileNameAndBondProvider(gsUri: Option[String], fileName: Option[String], bondProvider: Option[String])
+  final case class PartialMarthaResponse(gsUri: Option[String], fileName: Option[String], bondProvider: Option[String])
   private def getGsUriFileNameBondProvider(pathAsString: String,
                                            drsPathResolver: DrsPathResolver
-                                          ): IO[GsUriFileNameAndBondProvider] = {
+                                          ): IO[PartialMarthaResponse] = {
     val fields = NonEmptyList.of(MarthaField.GsUri, MarthaField.FileName, MarthaField.BondProvider)
     for {
       marthaResponse <- drsPathResolver.resolveDrsThroughMartha(pathAsString, fields)
-    } yield GsUriFileNameAndBondProvider(marthaResponse.gsUri, marthaResponse.fileName, marthaResponse.bondProvider)
+    } yield PartialMarthaResponse(marthaResponse.gsUri, marthaResponse.fileName, marthaResponse.bondProvider)
   }
 
   /** Returns the `gsUri` if it ends in the `fileName` and the `bondProvider` is empty. */
-  private def getSimpleGsUri(gsUriFileNameAndBondProvider: GsUriFileNameAndBondProvider): Option[String] = {
+  private def getSimpleGsUri(gsUriFileNameAndBondProvider: PartialMarthaResponse): Option[String] = {
     for {
       // Only return gsUri that do not use Bond
       gsUri <- if (gsUriFileNameAndBondProvider.bondProvider.isEmpty) gsUriFileNameAndBondProvider.gsUri else None

@@ -56,6 +56,21 @@ object EngineFunctionEvaluators {
     Try(Await.result(ioFunctionSet.readFile(fileToRead.value, Option(sizeLimit), failOnOverflow = true), ReadWaitTimeout))
   }
 
+  def split_lines(read: String): List[String] = {
+    List("hello")
+//    if (read.nonEmpty) {
+//      if (read.matches("[\\n]+")) {
+//        val empty_string_list = List("")
+//        println(empty_string_list)
+//        empty_string_list
+//      } else {
+//        read.split(System.lineSeparator).toList
+//      }
+//    } else {
+//      List.empty
+//    }
+  }
+
   implicit val readLinesFunctionEvaluator: ValueEvaluator[ReadLines] = new ValueEvaluator[ReadLines] {
     override def evaluateValue(a: ReadLines,
                                inputs: Map[String, WomValue],
@@ -67,11 +82,7 @@ object EngineFunctionEvaluators {
           //validate
           read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readLinesLimit)
           // Users expect an empty file to return zero lines [] not [""]
-          lines = if (read.nonEmpty) {
-            read.split(System.lineSeparator).toList
-          } else {
-            List.empty
-          }
+          lines = split_lines(read)
         } yield EvaluatedValue(WomArray(lines map WomString.apply), Seq.empty)
         tryResult.toErrorOr.contextualizeErrors(s"""read_lines("${fileToRead.value}")""")
       }

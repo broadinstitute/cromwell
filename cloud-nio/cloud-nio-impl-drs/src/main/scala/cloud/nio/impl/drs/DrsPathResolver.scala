@@ -3,7 +3,7 @@ package cloud.nio.impl.drs
 import cats.data.NonEmptyList
 import cats.effect.{IO, Resource}
 import cats.implicits._
-import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, TransientRetryDisposition}
+import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, RegularRetryDisposition, TransientRetryDisposition}
 import cloud.nio.impl.drs.MarthaResponseSupport._
 import common.exception.toIO
 import io.circe._
@@ -60,7 +60,7 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, retryInternally: Boolean = 
       case s if s / 100 == 4 =>
         IO.raiseError(new RuntimeException(retryMessage) with FatalRetryDisposition)
       case s if s / 100 == 5 =>
-        IO.raiseError(new RuntimeException(retryMessage))
+        IO.raiseError(new RuntimeException(retryMessage) with RegularRetryDisposition)
       case _ =>
         val marthaResponseEntityOption = Option(httpResponse.getEntity).map(EntityUtils.toString)
         val exceptionMsg = errorMessageFromResponse(drsPathForDebugging, marthaResponseEntityOption, responseStatusLine, drsConfig.marthaUrl)
@@ -135,8 +135,12 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, retryInternally: Boolean = 
 object DrsPathResolver {
   final val ExtractUriErrorMsg = "No access URL nor GCS URI starting with 'gs://' found in Martha response!"
   sealed trait RetryDisposition
+  // Should not increase the attempt counter.
   trait TransientRetryDisposition extends RetryDisposition
+  // Should immediately fail the download attempt.
   trait FatalRetryDisposition extends RetryDisposition
+  // Should increase the attempt counter and continue retrying if more retry attempts remain.
+  trait RegularRetryDisposition extends RetryDisposition
 }
 
 object MarthaField extends Enumeration {

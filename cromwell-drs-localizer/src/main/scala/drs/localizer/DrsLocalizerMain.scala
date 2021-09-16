@@ -2,7 +2,7 @@ package drs.localizer
 
 import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO, IOApp}
-import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, TransientRetryDisposition}
+import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, RegularRetryDisposition, TransientRetryDisposition}
 import cloud.nio.impl.drs.{AccessUrl, DrsConfig, DrsPathResolver, MarthaField}
 import cloud.nio.spi.{CloudNioBackoff, CloudNioSimpleExponentialBackoff}
 import com.typesafe.scalalogging.StrictLogging
@@ -106,7 +106,7 @@ class DrsLocalizerMain(drsUrl: String,
         maybeRetryForDownloadFailure(new RuntimeException(t.toString) with TransientRetryDisposition)
       case r: RetryableDownloadFailure =>
         maybeRetryForDownloadFailure(
-          new RuntimeException(s"Retryable download error: $r for $drsUrl on retry attempt $downloadAttempt of $downloadRetries"))
+          new RuntimeException(s"Retryable download error: $r for $drsUrl on retry attempt $downloadAttempt of $downloadRetries") with RegularRetryDisposition)
       case ChecksumFailure =>
         maybeRetryForChecksumFailure(new RuntimeException(s"Checksum failure for $drsUrl on checksum retry attempt $checksumAttempt of $checksumRetries"))
       case o => IO.pure(o)

@@ -92,7 +92,9 @@ trait PathFunctionSet {
   def relativeToHostCallRoot(path: String): String
 
   /**
-    * Similar to java.nio.Path.getFileName
+    * Similar to java.nio.Path.getFileName.
+    *
+    * Note: Does NOT run DRS resolution so will return the wrong value for DRS files.
     */
   def name(path: String): String
 

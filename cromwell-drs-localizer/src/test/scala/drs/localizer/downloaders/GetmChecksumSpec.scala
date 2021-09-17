@@ -29,12 +29,12 @@ class GetmChecksumSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
   {
     val results = Table(
       ("description", "algorithm", "expected"),
-      ("md5", Md5("abcdef"), "--checksum-algorithm 'md5' --checksum 'abcdef'"),
-      ("crc32c", Crc32c("012345"), "--checksum-algorithm 'gs_crc32c' --checksum '012345'"),
-      ("AWS ETag", AwsEtag("012345"), "--checksum-algorithm 's3_etag' --checksum '012345'"),
-      // Single quotes in unsupported algorithms should be escaped to avoid injection issues when interpolated.
-      ("Unsupported", Unsupported("odd'ity, indeed"), raw"--checksum-algorithm 'null' --checksum 'odd\'ity, indeed'"),
-      ("Null", Null, "--checksum-algorithm 'null' --checksum 'null'"),
+      ("md5", Md5("abcdef"), "--checksum-algorithm 'md5' --checksum abcdef"),
+      ("crc32c", Crc32c("012345"), "--checksum-algorithm 'gs_crc32c' --checksum 012345"),
+      ("AWS ETag", AwsEtag("012345"), "--checksum-algorithm 's3_etag' --checksum 012345"),
+      // Escape checksum values constructed from unvalidated data returned by DRS servers.
+      ("Unsupported", Unsupported("Robert'); DROP TABLE Students; --"), raw"--checksum-algorithm 'null' --checksum Robert\'\)\;\ DROP\ TABLE\ Students\;\ --"),
+      ("Null", Null, "--checksum-algorithm 'null' --checksum null"),
     )
 
     forAll(results) { (description, algorithm, expected) =>

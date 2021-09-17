@@ -10,7 +10,7 @@ sealed trait GetmChecksum {
   def args: String = {
     // The value for `--checksum-algorithm` is constrained by the algorithm names in the `sealed` hierarchy of
     // `GetmChecksum`, but the value for `--checksum` is largely a function of data returned by the DRS server.
-    // Shell escape this to avoid a "Little Bobby Tables" situation.
+    // Shell escape this to avoid injection.
     val escapedValue = StringEscapeUtils.escapeXSI(value)
     s"--checksum-algorithm '$getmAlgorithm' --checksum $escapedValue"
   }

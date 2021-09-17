@@ -25,7 +25,7 @@ workflow wf_test {
     call file_to_lines
 
     output {
-        Array[String] lines_null = file_to_lines.lines_null
+        Int lines_null = length(file_to_lines.lines_null)
         Array[String] lines_oneline = file_to_lines.lines_oneline
         Array[String] lines_emptyline = file_to_lines.lines_emptyline
     }

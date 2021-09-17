@@ -80,7 +80,6 @@ object EngineFunctionEvaluators {
         val tryResult = for {
           //validate
           read <- readFile(fileToRead, ioFunctionSet, fileSizeLimitationConfig.readLinesLimit)
-          // Users expect an empty file to return zero lines [] not [""]
           lines = split_lines(read)
         } yield EvaluatedValue(WomArray(lines map WomString.apply), Seq.empty)
         tryResult.toErrorOr.contextualizeErrors(s"""read_lines("${fileToRead.value}")""")

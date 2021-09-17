@@ -57,18 +57,17 @@ object EngineFunctionEvaluators {
   }
 
   def split_lines(read: String): List[String] = {
-    List("hello")
-//    if (read.nonEmpty) {
-//      if (read.matches("[\\n]+")) {
-//        val empty_string_list = List("")
-//        println(empty_string_list)
-//        empty_string_list
-//      } else {
-//        read.split(System.lineSeparator).toList
-//      }
-//    } else {
-//      List.empty
-//    }
+    if (read.nonEmpty) {
+      if (read.matches("[\\n]+")) {
+        val empty_string_list = List("")
+        println(empty_string_list)
+        empty_string_list
+      } else {
+        read.split(System.lineSeparator).toList
+      }
+    } else {
+      List.empty
+    }
   }
 
   implicit val readLinesFunctionEvaluator: ValueEvaluator[ReadLines] = new ValueEvaluator[ReadLines] {

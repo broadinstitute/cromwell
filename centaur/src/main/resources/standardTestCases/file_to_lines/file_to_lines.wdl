@@ -1,6 +1,9 @@
 version 1.0
 
 task file_to_lines {
+    meta {
+        volatile: true
+    }
     command {
         touch null.txt
         echo "one_line" > oneline.txt

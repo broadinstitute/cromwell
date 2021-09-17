@@ -1,8 +1,10 @@
 package wom.expression
+import scala.concurrent.Future
 
 class IoFunctionSetAdapter(delegate: IoFunctionSet) extends IoFunctionSet {
-  override def pathFunctions = delegate.pathFunctions
-  override def readFile(path: String, maxBytes: Option[Int], failOnOverflow: Boolean) = delegate.readFile(path, maxBytes, failOnOverflow)
+  override def pathFunctions: PathFunctionSet = delegate.pathFunctions
+  override def resolvedFileBasename(path: String): Future[String] = delegate.resolvedFileBasename(path)
+  override def readFile(path: String, maxBytes: Option[Int], failOnOverflow: Boolean): Future[String] = delegate.readFile(path, maxBytes, failOnOverflow)
   override def writeFile(path: String, content: String) = delegate.writeFile(path, content)
   override def createTemporaryDirectory(name: Option[String]) = delegate.createTemporaryDirectory(name)
   override def copyFile(source: String, destination: String) = delegate.copyFile(source, destination)

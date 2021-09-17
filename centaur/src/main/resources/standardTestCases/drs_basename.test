@@ -1,0 +1,22 @@
+name: drs_basename
+testFormat: WorkflowSuccess
+backends: ["papi-v2-usa"]
+skipDescribeEndpointValidation: true
+
+files {
+  workflow: drs_tests/drs_basename.wdl
+  options-dir: "Error: BA-6546 The environment variable CROMWELL_BUILD_RESOURCES_DIRECTORY must be set/export pointing to a valid path such as '${YOUR_CROMWELL_DIR}/target/ci/resources'"
+  options-dir: ${?CROMWELL_BUILD_RESOURCES_DIRECTORY}
+  options: ${files.options-dir}/papi_v2_usa.options.json
+  inputs: drs_tests/drs_basename.inputs
+}
+
+metadata {
+  workflowName: drs_basename
+  status: Succeeded
+  "outputs.drs_basename.basenames.0": "E18_20161004_Neurons_Sample_49_S048_L004_R2_005.fastq.gz"
+  "outputs.drs_basename.basenames.1": "E18_20161004_Neurons_Sample_49_S048_L004_R2_005.fastq.gz"
+  "outputs.drs_basename.basenames.2": "E18_20161004_Neurons_Sample_49_S048_L004_R2_005.fastq.gz"
+  "outputs.drs_basename.basenames.3": "E18_20161004_Neurons_Sample_49_S048_L004_R2_005.fastq.gz"
+  "outputs.drs_basename.basenames.4": "E18_20161004_Neurons_Sample_49_S048_L004_R2_005.foo.bar"
+}

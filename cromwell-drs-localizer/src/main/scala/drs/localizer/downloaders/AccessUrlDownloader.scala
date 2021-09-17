@@ -58,7 +58,7 @@ case class AccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes
           case HttpStatusMessage(status) =>
             Integer.parseInt(status) match {
               case 408 | 429 =>
-                TransientRetryableDownloadFailure(ExitCode(rc))
+                RecognizedRetryableDownloadFailure(ExitCode(rc))
               case s if s / 100 == 4 =>
                 FatalDownloadFailure(ExitCode(rc))
               case s if s / 100 == 5 =>

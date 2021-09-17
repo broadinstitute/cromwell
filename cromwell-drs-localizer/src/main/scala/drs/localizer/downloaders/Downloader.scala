@@ -11,8 +11,6 @@ case object DownloadSuccess extends DownloadResult {
 sealed trait DownloadFailure extends DownloadResult
 // For a `FatalDownloadFailure` Cromwell should fail the download immediately with no further download attempts.
 case class FatalDownloadFailure(override val exitCode: ExitCode) extends DownloadFailure
-// For a `TransientRetryableDownloadFailure` Cromwell should retry without incrementing the retry counter.
-case class TransientRetryableDownloadFailure(override val exitCode: ExitCode) extends DownloadFailure
 sealed trait RetryableDownloadFailure extends DownloadResult
 // A regular retryable download failure corresponding to a known set of conditions (http status, stderr content etc.).
 case class RecognizedRetryableDownloadFailure(override val exitCode: ExitCode) extends RetryableDownloadFailure

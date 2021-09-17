@@ -18,7 +18,7 @@ class AccessUrlDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
       hashes = None
     )
 
-    val expected = s"""mkdir -p $$(dirname '$fakeDownloadLocation') && rm -f '$fakeDownloadLocation' && getm --checksum-algorithm 'null' --checksum 'null' --filepath '$fakeDownloadLocation' '$fakeAccessUrl'"""
+    val expected = s"""mkdir -p $$(dirname '$fakeDownloadLocation') && rm -f '$fakeDownloadLocation' && getm --checksum-algorithm 'null' --checksum null --filepath '$fakeDownloadLocation' '$fakeAccessUrl'"""
 
     downloader.generateDownloadScript() shouldBe expected
   }
@@ -40,7 +40,7 @@ class AccessUrlDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with 
       // Recognized because of non-zero exit status and an HTTP status.
       (1, """ERROR:getm.cli possibly some words "status_code": 503 words""", RecognizedRetryableDownloadFailure(ExitCode(1))),
       // Recognized because of non-zero exit status and an HTTP status.
-      (1, """ERROR:getm.cli possibly some words "status_code": 408 more words""", TransientRetryableDownloadFailure(ExitCode(1))),
+      (1, """ERROR:getm.cli possibly some words "status_code": 408 more words""", RecognizedRetryableDownloadFailure(ExitCode(1))),
       // Recognized and non-retryable because of non-zero exit status and 404 HTTP status.
       (1, """ERROR:getm.cli possibly some words "status_code": 404 even more words""", FatalDownloadFailure(ExitCode(1))),
       // Unrecognized because of zero exit status and 404 HTTP status.

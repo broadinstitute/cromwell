@@ -2,7 +2,7 @@ package drs.localizer
 
 import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO, IOApp}
-import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, RegularRetryDisposition, TransientRetryDisposition}
+import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, RegularRetryDisposition}
 import cloud.nio.impl.drs.{AccessUrl, DrsConfig, DrsPathResolver, MarthaField}
 import cloud.nio.spi.{CloudNioBackoff, CloudNioSimpleExponentialBackoff}
 import com.typesafe.scalalogging.StrictLogging
@@ -72,7 +72,8 @@ class DrsLocalizerMain(drsUrl: String,
       if (checksumAttempt < checksumRetries) {
         backoff foreach { b => Thread.sleep(b.backoffMillis) }
         logger.warn(s"Attempting retry $checksumAttempt of $checksumRetries checksum retries to download $drsUrl", t)
-        resolveAndDownloadWithRetries(downloadRetries, checksumRetries, downloaderFactory, backoff map { _.next }, downloadAttempt, checksumAttempt + 1)
+        // In the event of a checksum failure reset the download attempt to zero.
+        resolveAndDownloadWithRetries(downloadRetries, checksumRetries, downloaderFactory, backoff map { _.next }, 0, checksumAttempt + 1)
       } else {
         IO.raiseError(new RuntimeException(s"Exhausted $checksumRetries checksum retries to resolve, download and checksum $drsUrl", t))
       }
@@ -82,11 +83,6 @@ class DrsLocalizerMain(drsUrl: String,
       t match {
         case _: FatalRetryDisposition =>
           IO.raiseError(t)
-        case _: TransientRetryDisposition =>
-          backoff foreach { b => Thread.sleep(b.backoffMillis) }
-          logger.warn(s"Transient failure: Attempting retry $downloadAttempt of $downloadRetries download retries to download $drsUrl", t)
-          // Do not increment the retry counter for transient errors. *Do* take the next backoff.
-          resolveAndDownloadWithRetries(downloadRetries, checksumRetries, downloaderFactory, backoff map { _.next }, downloadAttempt, checksumAttempt)
         case _ if downloadAttempt < downloadRetries =>
           backoff foreach { b => Thread.sleep(b.backoffMillis) }
           logger.warn(s"Attempting retry $downloadAttempt of $downloadRetries download retries to download $drsUrl", t)
@@ -102,8 +98,6 @@ class DrsLocalizerMain(drsUrl: String,
     {
       case f: FatalDownloadFailure =>
         IO.raiseError(new RuntimeException(s"Fatal error downloading DRS object: $f"))
-      case t: TransientRetryableDownloadFailure =>
-        maybeRetryForDownloadFailure(new RuntimeException(t.toString) with TransientRetryDisposition)
       case r: RetryableDownloadFailure =>
         maybeRetryForDownloadFailure(
           new RuntimeException(s"Retryable download error: $r for $drsUrl on retry attempt $downloadAttempt of $downloadRetries") with RegularRetryDisposition)

@@ -33,7 +33,7 @@ class GetmChecksumSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
       ("crc32c", Crc32c("012345"), "--checksum-algorithm 'gs_crc32c' --checksum 012345"),
       ("AWS ETag", AwsEtag("012345"), "--checksum-algorithm 's3_etag' --checksum 012345"),
       // Escape checksum values constructed from unvalidated data returned by DRS servers.
-      ("Unsupported", Unsupported("Robert'); DROP TABLE Students; --"), raw"--checksum-algorithm 'null' --checksum Robert\'\)\;\ DROP\ TABLE\ Students\;\ --"),
+      ("Unsupported", Unsupported("Robert'); DROP TABLE Students;\n --\\"), raw"--checksum-algorithm 'null' --checksum Robert\'\)\;\ DROP\ TABLE\ Students\;\ --\\"),
       ("Null", Null, "--checksum-algorithm 'null' --checksum null"),
     )
 

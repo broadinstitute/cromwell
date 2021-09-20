@@ -187,12 +187,16 @@ backend {
           // A reference to an auth defined in the `google` stanza at the top.  This auth is used to create
           // Pipelines and manipulate auth JSONs.
           auth = "application-default"
-          // Endpoint for APIs, no reason to change this unless directed by Google.
+          
+          // Endpoint for APIs, which defaults to us-central1. To run with a location different from us-central1,
+          // change the endpoint-url to start with the location, such as https://europe-west2-lifesciences.googleapis.com/
           endpoint-url = "https://lifesciences.googleapis.com/"
+          
           // This allows you to use an alternative service account to launch jobs, by default uses default service account
           compute-service-account = "default"
 		   
-          // Currently Cloud Life Sciences API is available only in `us-central1` and `europe-west2` locations.
+          // Cloud Life Sciences API is limited to certain locations. See https://cloud.google.com/life-sciences/docs/concepts/locations
+          // and note that changing the location also requires changing the endpoint-url.
           location = "us-central1"	
 
           // Pipelines v2 only: specify the number of times localization and delocalization operations should be attempted

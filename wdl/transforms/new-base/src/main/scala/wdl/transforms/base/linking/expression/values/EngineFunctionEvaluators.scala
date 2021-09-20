@@ -59,9 +59,7 @@ object EngineFunctionEvaluators {
   def split_lines(read: String): List[String] = {
     if (read.nonEmpty) {
       if (read.matches("[\\n]+")) {
-        val empty_string_list = List("")
-        println(empty_string_list)
-        empty_string_list
+        List("")
       } else {
         read.split(System.lineSeparator).toList
       }

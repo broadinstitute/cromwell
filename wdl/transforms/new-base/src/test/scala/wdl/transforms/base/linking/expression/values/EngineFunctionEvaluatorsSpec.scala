@@ -5,7 +5,7 @@ import org.scalatest.matchers.should.Matchers
 
 class EngineFunctionEvaluatorsSpec extends AnyFlatSpec with Matchers{
   behavior of "read_lines"
-  it should "return an empty array with an empty file" in {
+  it should "return an empty array from an empty file" in {
     EngineFunctionEvaluators.split_lines("") shouldBe(List.empty)
   }
   it should "return a one element array with a one line file" in {
@@ -23,7 +23,4 @@ class EngineFunctionEvaluatorsSpec extends AnyFlatSpec with Matchers{
   it should "return a three element array with three words and three double new line characters" in {
     EngineFunctionEvaluators.split_lines("a word\n\na word\n\none more word\n\n") shouldBe(List("a word", "", "a word", "", "one more word"))
   }
-//  it should "return an empty array with an empty file" in {
-//    EngineFunctionEvaluators.split_lines("") shouldBe(List.empty)
-//  }
 }

@@ -63,7 +63,7 @@ object EngineFunctionEvaluators {
         println(empty_string_list)
         empty_string_list
       } else {
-        read.split(System.lineSeparator).toList
+        read.split("\\r?\\n").toList
       }
     } else {
       List.empty

@@ -61,7 +61,7 @@ object EngineFunctionEvaluators {
       if (read.matches("[\\n]+")) {
         List("")
       } else {
-        read.split(System.lineSeparator).toList
+        read.split("\\r?\\n").toList
       }
     } else {
       List.empty

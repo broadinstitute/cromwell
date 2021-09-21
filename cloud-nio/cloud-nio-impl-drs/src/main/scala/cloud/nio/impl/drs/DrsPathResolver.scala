@@ -3,6 +3,7 @@ package cloud.nio.impl.drs
 import cats.data.NonEmptyList
 import cats.effect.{IO, Resource}
 import cats.implicits._
+import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, RegularRetryDisposition}
 import cloud.nio.impl.drs.MarthaResponseSupport._
 import common.exception.toIO
 import io.circe._
@@ -45,17 +46,32 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, retryInternally: Boolean = 
   }
 
   private def httpResponseToMarthaResponse(drsPathForDebugging: String)(httpResponse: HttpResponse): IO[MarthaResponse] = {
-    val marthaResponseEntityOption = Option(httpResponse.getEntity).map(EntityUtils.toString)
     val responseStatusLine = httpResponse.getStatusLine
+    val status = responseStatusLine.getStatusCode
 
-    val exceptionMsg = errorMessageFromResponse(drsPathForDebugging, marthaResponseEntityOption, responseStatusLine, drsConfig.marthaUrl)
-    val responseEntityOption = (responseStatusLine.getStatusCode == HttpStatus.SC_OK).valueOrZero(marthaResponseEntityOption)
-    val responseContentIO = toIO(responseEntityOption, exceptionMsg)
+    lazy val retryMessage = {
+      val reason = responseStatusLine.getReasonPhrase
+      s"Unexpected response during resolution of '$drsPathForDebugging': HTTP status $status: $reason"
+    }
 
-    responseContentIO.flatMap{ responseContent =>
-      IO.fromEither(decode[MarthaResponse](responseContent))
-    }.handleErrorWith {
-      e => IO.raiseError(new RuntimeException(s"Unexpected response during DRS resolution: ${ExceptionUtils.getMessage(e)}"))
+    status match {
+      case 408 | 429 =>
+        IO.raiseError(new RuntimeException(retryMessage) with RegularRetryDisposition)
+      case s if s / 100 == 4 =>
+        IO.raiseError(new RuntimeException(retryMessage) with FatalRetryDisposition)
+      case s if s / 100 == 5 =>
+        IO.raiseError(new RuntimeException(retryMessage) with RegularRetryDisposition)
+      case _ =>
+        val marthaResponseEntityOption = Option(httpResponse.getEntity).map(EntityUtils.toString)
+        val exceptionMsg = errorMessageFromResponse(drsPathForDebugging, marthaResponseEntityOption, responseStatusLine, drsConfig.marthaUrl)
+        val responseEntityOption = (responseStatusLine.getStatusCode == HttpStatus.SC_OK).valueOrZero(marthaResponseEntityOption)
+        val responseContentIO = toIO(responseEntityOption, exceptionMsg)
+
+        responseContentIO.flatMap { responseContent =>
+          IO.fromEither(decode[MarthaResponse](responseContent))
+        }.handleErrorWith {
+          e => IO.raiseError(new RuntimeException(s"Unexpected response during DRS resolution: ${ExceptionUtils.getMessage(e)}"))
+        }
     }
   }
 
@@ -118,6 +134,11 @@ abstract class DrsPathResolver(drsConfig: DrsConfig, retryInternally: Boolean = 
 
 object DrsPathResolver {
   final val ExtractUriErrorMsg = "No access URL nor GCS URI starting with 'gs://' found in Martha response!"
+  sealed trait RetryDisposition
+  // Should immediately fail the download attempt.
+  trait FatalRetryDisposition extends RetryDisposition
+  // Should increase the attempt counter and continue retrying if more retry attempts remain.
+  trait RegularRetryDisposition extends RetryDisposition
 }
 
 object MarthaField extends Enumeration {

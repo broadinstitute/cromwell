@@ -2,9 +2,11 @@ package drs.localizer
 
 import cats.data.NonEmptyList
 import cats.effect.{ExitCode, IO, IOApp}
+import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, RegularRetryDisposition}
 import cloud.nio.impl.drs.{AccessUrl, DrsConfig, DrsPathResolver, MarthaField}
 import cloud.nio.spi.{CloudNioBackoff, CloudNioSimpleExponentialBackoff}
 import com.typesafe.scalalogging.StrictLogging
+import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
 
 import scala.concurrent.duration._
@@ -24,10 +26,10 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     argsLength match {
       case 2 =>
         new DrsLocalizerMain(args.head, args(1), None).
-          resolveAndDownloadWithRetries(retries = 3, defaultDownloaderFactory, Option(defaultBackoff)).map(_.exitCode)
+          resolveAndDownloadWithRetries(downloadRetries = 3, checksumRetries = 1, defaultDownloaderFactory, Option(defaultBackoff)).map(_.exitCode)
       case 3 =>
         new DrsLocalizerMain(args.head, args(1), Option(args(2))).
-          resolveAndDownloadWithRetries(retries = 3, defaultDownloaderFactory, Option(defaultBackoff)).map(_.exitCode)
+          resolveAndDownloadWithRetries(downloadRetries = 3, checksumRetries = 1, defaultDownloaderFactory, Option(defaultBackoff)).map(_.exitCode)
       case _ =>
         val argsList = if (args.nonEmpty) args.mkString(",") else "None"
         logger.error(s"Received $argsLength arguments. DRS input and download location path is required. Requester Pays billing project ID is optional. " +
@@ -40,8 +42,8 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     initialInterval = 10 seconds, maxInterval = 60 seconds, multiplier = 2)
 
   val defaultDownloaderFactory: DownloaderFactory = new DownloaderFactory {
-    override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String): IO[Downloader] =
-      IO.pure(AccessUrlDownloader(accessUrl, downloadLoc))
+    override def buildAccessUrlDownloader(accessUrl: AccessUrl, downloadLoc: String, hashes: Hashes): IO[Downloader] =
+      IO.pure(AccessUrlDownloader(accessUrl, downloadLoc, hashes))
 
     override def buildGcsUriDownloader(gcsPath: String, serviceAccountJsonOption: Option[String], downloadLoc: String, requesterPaysProjectOption: Option[String]): IO[Downloader] =
       IO.pure(GcsUriDownloader(gcsPath, serviceAccountJsonOption, downloadLoc, requesterPaysProjectOption))
@@ -59,27 +61,48 @@ class DrsLocalizerMain(drsUrl: String,
     }
   }
 
-  def resolveAndDownloadWithRetries(retries: Int, downloaderFactory: DownloaderFactory,
+  def resolveAndDownloadWithRetries(downloadRetries: Int,
+                                    checksumRetries: Int,
+                                    downloaderFactory: DownloaderFactory,
                                     backoff: Option[CloudNioBackoff],
-                                    attempt: Int = 0): IO[DownloadResult] = {
+                                    downloadAttempt: Int = 0,
+                                    checksumAttempt: Int = 0): IO[DownloadResult] = {
 
-    def maybeResolveAndDownloadWithRetry(t: Throwable): IO[DownloadResult] = {
-      if (attempt < retries) {
+    def maybeRetryForChecksumFailure(t: Throwable): IO[DownloadResult] = {
+      if (checksumAttempt < checksumRetries) {
         backoff foreach { b => Thread.sleep(b.backoffMillis) }
-        logger.warn(s"Attempting retry $attempt of $retries retries to download $drsUrl", t)
-        resolveAndDownloadWithRetries(retries, downloaderFactory, backoff map { _.next }, attempt + 1)
+        logger.warn(s"Attempting retry $checksumAttempt of $checksumRetries checksum retries to download $drsUrl", t)
+        // In the event of a checksum failure reset the download attempt to zero.
+        resolveAndDownloadWithRetries(downloadRetries, checksumRetries, downloaderFactory, backoff map { _.next }, 0, checksumAttempt + 1)
       } else {
-        IO.raiseError(new RuntimeException(s"Exhausted $retries retries to resolve and download $drsUrl", t))
+        IO.raiseError(new RuntimeException(s"Exhausted $checksumRetries checksum retries to resolve, download and checksum $drsUrl", t))
+      }
+    }
+
+    def maybeRetryForDownloadFailure(t: Throwable): IO[DownloadResult] = {
+      t match {
+        case _: FatalRetryDisposition =>
+          IO.raiseError(t)
+        case _ if downloadAttempt < downloadRetries =>
+          backoff foreach { b => Thread.sleep(b.backoffMillis) }
+          logger.warn(s"Attempting retry $downloadAttempt of $downloadRetries download retries to download $drsUrl", t)
+          resolveAndDownloadWithRetries(downloadRetries, checksumRetries, downloaderFactory, backoff map { _.next }, downloadAttempt + 1, checksumAttempt)
+        case _ =>
+          IO.raiseError(new RuntimeException(s"Exhausted $downloadRetries download retries to resolve, download and checksum $drsUrl", t))
       }
     }
 
     resolveAndDownload(downloaderFactory).redeemWith({
-      maybeResolveAndDownloadWithRetry
+      maybeRetryForDownloadFailure
     },
     {
+      case f: FatalDownloadFailure =>
+        IO.raiseError(new RuntimeException(s"Fatal error downloading DRS object: $f"))
       case r: RetryableDownloadFailure =>
-        maybeResolveAndDownloadWithRetry(
-          new RuntimeException(s"Retryable download error: exit code ${r.exitCode.code} for $drsUrl on retry attempt $attempt of $retries"))
+        maybeRetryForDownloadFailure(
+          new RuntimeException(s"Retryable download error: $r for $drsUrl on retry attempt $downloadAttempt of $downloadRetries") with RegularRetryDisposition)
+      case ChecksumFailure =>
+        maybeRetryForChecksumFailure(new RuntimeException(s"Checksum failure for $drsUrl on checksum retry attempt $checksumAttempt of $checksumRetries"))
       case o => IO.pure(o)
     })
   }
@@ -89,7 +112,7 @@ class DrsLocalizerMain(drsUrl: String,
   }
 
   private [localizer] def resolve(downloaderFactory: DownloaderFactory): IO[Downloader] = {
-    val fields = NonEmptyList.of(MarthaField.GsUri, MarthaField.GoogleServiceAccount, MarthaField.AccessUrl)
+    val fields = NonEmptyList.of(MarthaField.GsUri, MarthaField.GoogleServiceAccount, MarthaField.AccessUrl, MarthaField.Hashes)
     for {
       resolver <- getDrsPathResolver
       marthaResponse <- resolver.resolveDrsThroughMartha(drsUrl, fields)
@@ -97,7 +120,7 @@ class DrsLocalizerMain(drsUrl: String,
       // Currently Martha only supports resolving DRS paths to access URLs or GCS paths.
       downloader <- (marthaResponse.accessUrl, marthaResponse.gsUri) match {
         case (Some(accessUrl), _) =>
-          downloaderFactory.buildAccessUrlDownloader(accessUrl, downloadLoc)
+          downloaderFactory.buildAccessUrlDownloader(accessUrl, downloadLoc, marthaResponse.hashes)
         case (_, Some(gcsPath)) =>
           val serviceAccountJsonOption = marthaResponse.googleServiceAccount.map(_.data.spaces2)
           downloaderFactory.buildGcsUriDownloader(

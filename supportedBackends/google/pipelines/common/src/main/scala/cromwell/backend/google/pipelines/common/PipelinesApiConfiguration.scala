@@ -20,7 +20,6 @@ class PipelinesApiConfiguration(val configurationDescriptor: BackendConfiguratio
   val root: String = configurationDescriptor.backendConfig.getString("root")
   val pipelineTimeout: FiniteDuration = papiAttributes.pipelineTimeout
   val runtimeConfig: Option[Config] = configurationDescriptor.backendRuntimeAttributesConfig
-  val jesComputeServiceAccount: String = papiAttributes.computeServiceAccount
 
   val dockerCredentials: Option[PipelinesApiDockerCredentials] = {
     BackendDockerConfiguration.build(configurationDescriptor.backendConfig).dockerCredentials map { creds =>

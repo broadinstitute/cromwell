@@ -35,7 +35,7 @@ case class GcsUriDownloader(gcsUrl: String,
     // run the multiple bash script to download file and log stream sent to stdout and stderr using ProcessLogger
     val returnCode = copyProcess ! ProcessLogger(logger.underlying.info, logger.underlying.error)
 
-    val result = if (returnCode == 0) DownloadSuccess else RetryableDownloadFailure(exitCode = ExitCode(returnCode))
+    val result = if (returnCode == 0) DownloadSuccess else RecognizedRetryableDownloadFailure(exitCode = ExitCode(returnCode))
 
     IO.pure(result)
   }

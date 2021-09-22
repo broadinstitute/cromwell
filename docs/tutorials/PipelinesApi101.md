@@ -27,13 +27,14 @@ You may create a service account using the `gcloud` command, consider running th
 
 ```
 #!/bin/bash
+export LC_ALL=C 
 RANDOM_BUCKET_NAME=$(head /dev/urandom | tr -dc a-z | head -c 32 ; echo '')
 
-#Create a new service account called "MyServiceAccount", and from the output of the command, take the email address that was generated
-EMAIL=$(gcloud beta iam service-accounts create MyServiceAccount --description "to run cromwell"  --display-name "cromwell service account" --format json | jq '.email' | sed -e 's/\"//g')
+#Create a new service account called "my-service-account", and from the output of the command, take the email address that was generated
+EMAIL=$(gcloud beta iam service-accounts create my-service-account --description "to run cromwell"  --display-name "cromwell service account" --format json | jq '.email' | sed -e 's/\"//g')
 
 # add all the roles to the service account
-for i in storage.objectCreator storage.objectViewer genomics.pipelinesRunner genomics.admin iam.serviceAccountUser storage.objects.create
+for i in storage.objectCreator storage.objectViewer lifesciences.workflowsRunner lifesciences.admin iam.serviceAccountUser storage.objects.create
 do
     gcloud projects add-iam-policy-binding MY-GOOGLE-PROJECT --member serviceAccount:"$EMAIL" --role roles/$i
 done
@@ -74,9 +75,9 @@ Create a <a href="https://cloud.google.com/resource-manager/docs/creating-managi
 
 On your Google project, open up the <a href="https://console.developers.google.com/apis/library" target="_blank">API Manager</a> and enable the following APIs:
         
-* Google Compute Engine
-* Google Cloud Storage
-* Genomics API
+* Google Compute Engine API
+* Cloud Storage
+* Google Cloud Life Sciences API
 
 Authenticate to Google Cloud Platform  
 `gcloud auth login <google-user-id>`
@@ -161,10 +162,10 @@ engine {
 }
 
 backend {
-  default = "JES"
+  default = “PAPIv2”
   providers {
-    JES {
-      actor-factory = "cromwell.backend.impl.jes.JesBackendLifecycleActorFactory"
+    PAPIv2 {
+      actor-factory = "cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory"
       config {
         // Google project
         project = "<google-project-id>"
@@ -186,10 +187,17 @@ backend {
           // A reference to an auth defined in the `google` stanza at the top.  This auth is used to create
           // Pipelines and manipulate auth JSONs.
           auth = "application-default"
-          // Endpoint for APIs, no reason to change this unless directed by Google.
-          endpoint-url = "https://genomics.googleapis.com/"
+          
+          // Endpoint for APIs, which defaults to us-central1. To run with a location different from us-central1,
+          // change the endpoint-url to start with the location, such as https://europe-west2-lifesciences.googleapis.com/
+          endpoint-url = "https://lifesciences.googleapis.com/"
+          
           // This allows you to use an alternative service account to launch jobs, by default uses default service account
           compute-service-account = "default"
+		   
+          // Cloud Life Sciences API is limited to certain locations. See https://cloud.google.com/life-sciences/docs/concepts/locations
+          // and note that changing the location also requires changing the endpoint-url.
+          location = "us-central1"	
 
           // Pipelines v2 only: specify the number of times localization and delocalization operations should be attempted
           // There is no logic to determine if the error was transient or not, everything is retried upon failure
@@ -212,7 +220,7 @@ backend {
 
 **Run Workflow**
 
-`java -Dconfig.file=google.conf -jar cromwell-29.jar run hello.wdl -i hello.inputs`
+`java -Dconfig.file=google.conf -jar cromwell-67.jar run hello.wdl -i hello.inputs`
 
 **Outputs**
 

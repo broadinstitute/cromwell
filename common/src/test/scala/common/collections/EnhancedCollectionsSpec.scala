@@ -30,7 +30,7 @@ class EnhancedCollectionsSpec extends AsyncFlatSpec with Matchers {
   }
 
   behavior of "EnhancedQueue"
-  
+
   it should "behead an empty queue" in {
     val q = Queue.empty[Int]
     val DeQueued(head, newQueue) = q.takeWhileWeighted(10, identity[Int], None)
@@ -85,5 +85,14 @@ class EnhancedCollectionsSpec extends AsyncFlatSpec with Matchers {
     val DeQueued(head, newQueue) = q.takeWhileWeighted(maxWeight = 4, identity[Int], Option(3), strict = true)
     head shouldBe Vector(1, 2)
     newQueue shouldBe empty
+  }
+
+  behavior of "EnhancedMapLike"
+
+  it should "intersectWith a map" in {
+    val mapOne = Map("a" -> "A", "b" -> "B", "c" -> "C", "d" -> "D")
+    val mapTwo = Map("b" -> 2, "c" -> 3, "e" -> 5)
+    val expected = Map("b" -> "BB", "c" -> "CCC")
+    mapOne.intersectWith(mapTwo)(_ * _) shouldBe expected
   }
 }

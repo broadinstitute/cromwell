@@ -49,7 +49,9 @@ object Dependencies {
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-cloudkms
   private val googleCloudKmsV = "v1-rev20210812-1.32.1"
   private val googleCloudMonitoringV = "3.0.2"
-  private val googleCloudNioV = "0.123.8"
+  // BW-808 Pinning googleCloudNioV to this tried-and-true old version and quieting Scala Steward.
+  // 0.121.2 is the most recent version currently known to work.
+  private val googleCloudNioV = "0.61.0-alpha" // scala-steward:off
   private val googleCloudStorageV = "2.1.0"
   private val googleGaxGrpcV = "2.4.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-genomics
@@ -105,7 +107,6 @@ object Dependencies {
   private val scalamockV = "5.1.0"
   private val scalatestV = "3.2.9"
   private val scalatestPlusMockitoV = "1.0.0-M2"
-  private val scalazV = "7.3.5"
   private val scoptV = "4.0.1"
   private val sentryLogbackV = "5.1.2"
   private val shapelessV = "2.3.7"
@@ -132,7 +133,7 @@ object Dependencies {
   private val typesafeConfigV = "1.4.1"
   private val workbenchGoogleV = "0.21-5c9c4f6" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/google/CHANGELOG.md
   private val workbenchModelV = "0.14-89d0d9e" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/model/CHANGELOG.md
-  private val workbenchUtilV = "0.6-d7ed6bf" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/util/CHANGELOG.md
+  private val workbenchUtilV = "0.6-65bba14" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/util/CHANGELOG.md
 
   private val slf4jFacadeDependencies = List(
     "org.slf4j" % "slf4j-api" % slf4jV,
@@ -468,7 +469,6 @@ object Dependencies {
   val dockerHashingDependencies: List[ModuleID] = http4sDependencies ++ circeDependencies ++ aliyunCrDependencies
 
   val cromwellApiClientDependencies: List[ModuleID] = List(
-    "org.scalaz" %% "scalaz-core" % scalazV,
     "org.typelevel" %% "cats-effect" % catsEffectV,
     "co.fs2" %% "fs2-io" % fs2V % Test,
   ) ++ akkaHttpDependencies ++ betterFilesDependencies ++ catsDependencies

@@ -195,6 +195,7 @@ lazy val backend = project
   .dependsOn(services)
   .dependsOn(core % "test->test")
   .dependsOn(common % "test->test")
+  .dependsOn(drsFileSystem)
 
 lazy val googlePipelinesCommon = (project in backendRoot / "google" / "pipelines" / "common")
   .withLibrarySettings("cromwell-pipelines-common")

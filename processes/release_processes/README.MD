@@ -67,7 +67,7 @@ the release is published.
 #### Run the `publish_workflow.wdl` Workflow
 
 * Run the Cromwell instance using the Local backend. The publish workflow is quite resource intensive; it's a good idea to
-  shut down as many other resource intensive apps as possible before running it to avoid painfully slow or failed executions.
+  shut down other resource intensive apps before launching it to avoid painfully slow or failed executions.
     * In server mode with a persistent backing database is probably a good idea - it will allow call caching to happen if you need to restart for any reason.
       Some instructions for using a Dockerized MySQL server and CI config [here](#cromwell-setup-for-publishing).
 

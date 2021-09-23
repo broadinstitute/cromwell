@@ -54,10 +54,10 @@ This is optional, but I find it useful. Make or copy the following files into so
 }
 ```
 
-#### Make sure docker will have enough memory
+#### Make sure Docker will have enough memory
 
-I had to follow the instructions [here](https://docs.docker.com/docker-for-mac/#resources) to increase my docker memory.
-I chose to increase it from 2GB to 8GB but 4 might have been sufficient.
+I had to follow the instructions [here](https://docs.docker.com/docker-for-mac/#resources) to increase my Docker memory.
+I chose to increase it from 2GB to 8GB; 4GB is not sufficient.
 
 #### Let people know the publish is underway
 
@@ -66,7 +66,8 @@ the release is published.
 
 #### Run the `publish_workflow.wdl` Workflow
 
-* Run the Cromwell instance using the local-backend.
+* Run the Cromwell instance using the Local backend. The publish workflow is quite resource intensive; it's a good idea to
+  shut down other resource intensive apps before launching it to avoid painfully slow or failed executions.
     * In server mode with a persistent backing database is probably a good idea - it will allow call caching to happen if you need to restart for any reason.
       Some instructions for using a Dockerized MySQL server and CI config [here](#cromwell-setup-for-publishing).
 

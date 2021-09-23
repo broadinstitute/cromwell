@@ -54,10 +54,10 @@ This is optional, but I find it useful. Make or copy the following files into so
 }
 ```
 
-#### Make sure docker will have enough memory
+#### Make sure Docker will have enough memory
 
-I had to follow the instructions [here](https://docs.docker.com/docker-for-mac/#resources) to increase my docker memory.
-I chose to increase it from 2GB to 8GB but 4 might have been sufficient.
+I had to follow the instructions [here](https://docs.docker.com/docker-for-mac/#resources) to increase my Docker memory.
+I chose to increase it from 2GB to 8GB; 4GB is not sufficient.
 
 #### Let people know the publish is underway
 

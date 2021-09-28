@@ -32,31 +32,37 @@ object DrsResolver {
     } yield drsFileSystemProvider.drsPathResolver
   }
 
-  final case class PartialMarthaResponse(gsUri: Option[String], fileName: Option[String], bondProvider: Option[String])
   private def getGsUriFileNameBondProvider(pathAsString: String,
                                            drsPathResolver: DrsPathResolver
-                                          ): IO[PartialMarthaResponse] = {
+                                          ): IO[(Option[String], Option[String], Option[String])] = {
     val fields = NonEmptyList.of(MarthaField.GsUri, MarthaField.FileName, MarthaField.BondProvider)
     for {
       marthaResponse <- drsPathResolver.resolveDrsThroughMartha(pathAsString, fields)
-    } yield PartialMarthaResponse(marthaResponse.gsUri, marthaResponse.fileName, marthaResponse.bondProvider)
+    } yield (marthaResponse.gsUri, marthaResponse.fileName, marthaResponse.bondProvider)
   }
 
   /** Returns the `gsUri` if it ends in the `fileName` and the `bondProvider` is empty. */
-  private def getSimpleGsUri(gsUriFileNameAndBondProvider: PartialMarthaResponse): Option[String] = {
+  private def getSimpleGsUri(gsUriOption: Option[String],
+                             fileNameOption: Option[String],
+                             bondProviderOption: Option[String],
+                            ): Option[String] = {
     for {
       // Only return gsUri that do not use Bond
-      gsUri <- if (gsUriFileNameAndBondProvider.bondProvider.isEmpty) gsUriFileNameAndBondProvider.gsUri else None
+      gsUri <- if (bondProviderOption.isEmpty) gsUriOption else None
       // Only return the gsUri if there is no fileName or if gsUri ends in /fileName
-      if gsUriFileNameAndBondProvider.fileName.forall(fileName => gsUri.endsWith(s"/$fileName"))
+      if fileNameOption.forall(fileName => gsUri.endsWith(s"/$fileName"))
     } yield gsUri
   }
 
   /** Returns the `gsUri` if it ends in the `fileName` and the `bondProvider` is empty. */
   def getSimpleGsUri(pathAsString: String,
                      drsPathResolver: DrsPathResolver): IO[Option[String]] = {
-    getGsUriFileNameBondProvider(pathAsString, drsPathResolver).map(getSimpleGsUri)
-      .handleErrorWith(resolveError(pathAsString))
+    val gsUriIO = for {
+      tuple <- getGsUriFileNameBondProvider(pathAsString, drsPathResolver)
+      (gsUriOption, fileNameOption, bondProviderOption) = tuple
+    } yield getSimpleGsUri(gsUriOption, fileNameOption, bondProviderOption)
+
+    gsUriIO.handleErrorWith(resolveError(pathAsString))
   }
 
   /** Returns the `gsUri` if it ends in the `fileName` and the `bondProvider` is empty. */
@@ -70,27 +76,20 @@ object DrsResolver {
   def getContainerRelativePath(drsPath: DrsPath): IO[String] = {
     val pathIO = for {
       drsPathResolver <- getDrsPathResolver(drsPath)
-      gsUriFileNameAndBondProvider <- getGsUriFileNameBondProvider(drsPath.pathAsString, drsPathResolver)
+      tuple <- getGsUriFileNameBondProvider(drsPath.pathAsString, drsPathResolver)
+      (gsUriOption, fileNameOption, _) = tuple
       /*
       In the DOS/DRS spec file names are safe for file systems but not necessarily the DRS URIs.
       Reuse the regex defined for ContentsObject.name, plus add "/" for directory separators.
       https://ga4gh.github.io/data-repository-service-schemas/preview/release/drs-1.0.0/docs/#_contentsobject
        */
       rootPath = DefaultPathBuilder.get(drsPath.pathWithoutScheme.replaceAll("[^/A-Za-z0-9._-]", "_"))
-      fileName <- getFileName(gsUriFileNameAndBondProvider.fileName, gsUriFileNameAndBondProvider.gsUri)
+      fileName <- getFileName(fileNameOption, gsUriOption)
       fullPath = rootPath.resolve(fileName)
       fullPathString = fullPath.pathAsString
     } yield fullPathString
 
     pathIO.handleErrorWith(resolveError(drsPath.pathAsString))
-  }
-
-  def getResolvedBasename(drsPath: DrsPath): IO[String] = {
-    for {
-      drsPathResolver <- getDrsPathResolver(drsPath)
-      gsUriFileNameAndBondProvider <- getGsUriFileNameBondProvider(drsPath.pathAsString, drsPathResolver)
-      filename <- getFileName(gsUriFileNameAndBondProvider.fileName, gsUriFileNameAndBondProvider.gsUri)
-    } yield filename
   }
 
   /**

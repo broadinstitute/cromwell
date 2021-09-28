@@ -6,9 +6,7 @@ workflow taskless_engine_functions {
 
   Array[String] strings = ["a", "b"]
 
-  # This is a local file path so that all test backends can interpret it. In Cromwell instances without a local
-  # backend, we might expect this to fail because "that doesn't look like a path"
-  String filepath = "/not/a/real/file.txt"
+  String filepath = "gs://not/a/real/file.txt"
 
   Array[Array[Int]] matrix = [
     [1, 0],

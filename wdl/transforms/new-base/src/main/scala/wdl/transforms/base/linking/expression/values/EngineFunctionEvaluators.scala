@@ -595,19 +595,17 @@ object EngineFunctionEvaluators {
                                ioFunctionSet: IoFunctionSet,
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions])
                               (implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomString]] = {
-      def simpleBasename(fileNameAsString: WomString): Try[String] = {
-        Try(Await.result(ioFunctionSet.resolvedFileBasename(fileNameAsString.valueString), 60.seconds))
-      }
+      def simpleBasename(fileNameAsString: WomString) = fileNameAsString.valueString.split('/').last
 
       a.suffixToRemove match {
-        case None => processValidatedSingleValue[WomString, WomString](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { filePathString =>
-          simpleBasename(filePathString).map(basename => EvaluatedValue(WomString(basename), Seq.empty)).toErrorOrWithContext(s"interpret '${filePathString.valueString}' as a file path input for basename")
+        case None => processValidatedSingleValue[WomString, WomString](a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { str =>
+          EvaluatedValue(WomString(simpleBasename(str)), Seq.empty).validNel
         }
         case Some(suffixToRemove) => processTwoValidatedValues[WomString, WomString, WomString](
           a.param.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions),
-          suffixToRemove.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { (filePathString, suffix) =>
-          simpleBasename(filePathString).map(basename => EvaluatedValue(WomString(basename.stripSuffix(suffix.valueString)), Seq.empty)).toErrorOrWithContext(s"interpret '${filePathString.valueString}' as a file path input for basename")
-        }
+          suffixToRemove.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)) { (name, suffix) =>
+            EvaluatedValue(WomString(simpleBasename(name).stripSuffix(suffix.valueString)), Seq.empty).validNel
+          }
       }
     }
   }

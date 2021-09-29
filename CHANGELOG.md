@@ -1,14 +1,5 @@
 # Cromwell Change Log
 
-## 69 Release Notes
-
-### Bug Fixes
-
-### DRS/`basename` Fix
-
-The WDL `basename` function should now work as expected with DRS paths, giving the basename of the
-resolved file, not just a substring of the DRS path.
-
 ## 68 Release Notes
 
 ### Virtual Private Cloud

@@ -1,5 +1,15 @@
 # Cromwell Change Log
 
+## 70 Release Notes
+
+### CWL security fix [#6510](https://github.com/broadinstitute/cromwell/pull/6510)
+
+Fixed an issue that could allow submission of an untrusted CWL file to initiate remote code execution. The vector was improper deserialization of the YAML file.
+
+Cromwell instances with CWL execution disabled were not affected. CWL is disabled by default unless a `CWL` [stanza](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.example.backends/cromwell.examples.conf#L319-L329) is present in the configuration.
+
+- Thank you to [Bruno P. Kinoshita](https://github.com/kinow) who first found the issue in a different CWL project and [Michael R. Crusoe](https://github.com/mr-c) who suggested we investigate ours.
+
 ## 68 Release Notes
 
 ### Virtual Private Cloud

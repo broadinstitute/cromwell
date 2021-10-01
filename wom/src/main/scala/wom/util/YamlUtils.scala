@@ -13,7 +13,7 @@ import net.ceedubs.ficus.readers.ValueReader
 import org.yaml.snakeyaml.LoaderOptions
 import org.yaml.snakeyaml.comments.CommentLine
 import org.yaml.snakeyaml.composer.Composer
-import org.yaml.snakeyaml.constructor.Constructor
+import org.yaml.snakeyaml.constructor.SafeConstructor
 import org.yaml.snakeyaml.nodes.{MappingNode, Node, NodeTuple}
 import org.yaml.snakeyaml.parser.ParserImpl
 import org.yaml.snakeyaml.reader.StreamReader
@@ -38,7 +38,7 @@ object YamlUtils {
             maxDepth: Int Refined NonNegative = defaultMaxDepth
            ): Either[ParsingFailure, Json] = {
     try {
-      val yamlConstructor = new Constructor()
+      val yamlConstructor = new SafeConstructor()
       val yamlComposer = new MaxDepthComposer(yaml, maxDepth)
       yamlConstructor.setComposer(yamlComposer)
       val parsed = yamlConstructor.getSingleData(classOf[AnyRef])

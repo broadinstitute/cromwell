@@ -4,9 +4,9 @@
 
 ### CWL security fix [#6510](https://github.com/broadinstitute/cromwell/pull/6510)
 
-Fixed an issue that could allow submission of an untrusted CWL file to initiate remote code execution. The vector was improper deserialization of the YAML file.
+Fixed an issue that could allow submission of an untrusted CWL file to initiate remote code execution. The vector was improper deserialization of the YAML source file.
 
-Cromwell instances with CWL execution disabled were not affected. CWL is disabled by default unless a `CWL` [stanza](https://github.com/broadinstitute/cromwell/blob/develop/cromwell.example.backends/cromwell.examples.conf#L319-L329) is present in the configuration.
+CWL execution is enabled by default unless a `CWL` [stanza](https://github.com/broadinstitute/cromwell/blob/develop/core/src/main/resources/reference.conf#L460-L482) is present in the configuration that specifies `enabled: false`. Cromwell instances with CWL disabled were not affected.
 
 - Thank you to [Bruno P. Kinoshita](https://github.com/kinow) who first found the issue in a different CWL project and [Michael R. Crusoe](https://github.com/mr-c) who suggested we investigate ours.
 

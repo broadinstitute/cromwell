@@ -68,7 +68,7 @@ object Dependencies {
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.6.0"
   private val http4sV = "0.21.7" // scala-steward:off (CROM-6678)
-  private val jacksonV = "2.12.5"
+  private val jacksonV = "2.13.0"
   private val janinoV = "3.1.6"
   private val jsr305V = "3.0.2"
   private val kindProjectorV = "0.9.10"

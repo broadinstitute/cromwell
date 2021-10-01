@@ -126,7 +126,7 @@ object Dependencies {
   private val specs2MockV = "4.12.3"
   private val sprayJsonV = "1.3.6"
   private val sttpV = "1.5.19" // scala-steward:off (CROM-6564)
-  private val swaggerParserV = "1.0.55"
+  private val swaggerParserV = "1.0.56"
   private val swaggerUiV = "3.23.11" // scala-steward:off (CROM-6621)
   private val testContainersScalaV = "0.39.6"
   private val tikaV = "2.1.0"

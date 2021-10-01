@@ -10,7 +10,7 @@ object Dependencies {
   private val aliyunOssV = "3.13.1"
   private val ammoniteOpsV = "2.4.0"
   private val apacheHttpClientV = "4.5.13"
-  private val awsSdkV = "2.17.29"
+  private val awsSdkV = "2.17.50"
   private val betterFilesV = "3.9.1"
   /*
   cats-effect, fs2, http4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.

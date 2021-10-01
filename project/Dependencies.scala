@@ -63,7 +63,7 @@ object Dependencies {
   private val googleOauth2V = "1.1.0"
   private val googleOauthClientV = "1.32.1"
   private val googleCloudResourceManagerV = "1.0.4"
-  private val grpcV = "1.40.1"
+  private val grpcV = "1.41.0"
   private val guavaV = "30.1.1-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.6.0"

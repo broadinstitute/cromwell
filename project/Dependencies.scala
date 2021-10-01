@@ -32,7 +32,7 @@ object Dependencies {
   private val configsV = "0.6.1"
   private val delightRhinoSandboxV = "0.0.15"
   private val diffsonSprayJsonV = "4.1.1"
-  private val ficusV = "1.5.0"
+  private val ficusV = "1.5.1"
   // The "com.vladsch.flexmark" % "flexmark-profile-pegdown" % flexmarkV dependency is an implicit, version-specific
   // runtime dependency of ScalaTest. At the time of this writing this is the newest version known to work.
   private val flexmarkV = "0.36.8" // scala-steward:off

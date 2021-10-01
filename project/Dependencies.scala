@@ -86,7 +86,7 @@ object Dependencies {
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "2.8.0"
   private val mockserverNettyV = "5.11.2"
-  private val mouseV = "1.0.4"
+  private val mouseV = "1.0.5"
   private val mysqlV = "8.0.26"
   private val nettyV = "4.1.66.Final"
   private val owlApiV = "5.1.19"

@@ -6,6 +6,7 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import com.typesafe.config.Config
 import cromwell.backend._
+import cromwell.backend.standard.StandardInitializationData
 import cromwell.backend.standard.callcaching.BlacklistCache
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.WorkflowOptions.FinalWorkflowLogDir
@@ -581,8 +582,10 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
 
     def deleteFiles() = {
       val rootWorkflowId = data.workflowDescriptor.get.rootWorkflowId
+      val rootWorkflowRoots = data.initializationData.data.values.collect({case Some(i: StandardInitializationData) => i.workflowPaths.workflowRoot}).toSet[Path]
       val deleteActor = context.actorOf(DeleteWorkflowFilesActor.props(
         rootWorkflowId = rootWorkflowId,
+        rootWorkflowRoots = rootWorkflowRoots,
         rootAndSubworkflowIds = data.rootAndSubworkflowIds,
         workflowFinalOutputs = data.workflowFinalOutputs,
         workflowAllOutputs = data.workflowAllOutputs,

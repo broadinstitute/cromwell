@@ -8,7 +8,7 @@ Fixed an issue that could allow submission of an untrusted CWL file to initiate 
 
 CWL execution is enabled by default unless a `CWL` [stanza](https://github.com/broadinstitute/cromwell/blob/develop/core/src/main/resources/reference.conf#L460-L482) is present in the configuration that specifies `enabled: false`. Cromwell instances with CWL disabled were not affected. Consequently, users who wish to mitigate the vulnerability without upgrading Cromwell may do so via this config change.
 
-- Thank you to [Bruno P. Kinoshita](https://github.com/kinow) who first found the issue in a different CWL project and [Michael R. Crusoe](https://github.com/mr-c) who suggested we investigate ours.
+- Thank you to [Bruno P. Kinoshita](https://github.com/kinow) who first found the issue in a different CWL project [CVE-2021-41110 ](https://github.com/common-workflow-language/cwlviewer/security/advisories/GHSA-7g7j-f5g3-fqp7) and [Michael R. Crusoe](https://github.com/mr-c) who suggested we investigate ours.
 
 ## 68 Release Notes
 

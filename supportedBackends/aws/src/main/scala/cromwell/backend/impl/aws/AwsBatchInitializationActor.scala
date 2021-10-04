@@ -112,18 +112,18 @@ class AwsBatchInitializationActor(params: AwsBatchInitializationActorParams)
 
       if(secretsNameList.contains(secretName)){
         val secretRequest: UpdateSecretRequest = UpdateSecretRequest.builder()
-        .secretId(secretName)
-        .secretString(token)
-        .build();
+          .secretId(secretName)
+          .secretString(token)
+          .build();
 
         secretsClient.updateSecret(secretRequest);
 
         Log.info(s"Secret '$secretName' was updated.")
       } else {
         val secretRequest: CreateSecretRequest = CreateSecretRequest.builder()
-        .name(secretName)
-        .secretString(token)
-        .build()
+          .name(secretName)
+          .secretString(token)
+          .build()
 
         secretsClient.createSecret(secretRequest)
 

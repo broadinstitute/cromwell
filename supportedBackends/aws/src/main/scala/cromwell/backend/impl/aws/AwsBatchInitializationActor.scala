@@ -108,9 +108,8 @@ class AwsBatchInitializationActor(params: AwsBatchInitializationActorParams)
       // Check if secret already exists
       // If exists, update it otherwise create it
       val secretsList: List[SecretListEntry] = secretsClient.listSecrets().secretList().asScala.toList
-      val secretsNameList = secretsList.map(_.name)
 
-      if(secretsNameList.contains(secretName)){
+      if(secretsList.exists(_.name == secretName)){
         val secretRequest: UpdateSecretRequest = UpdateSecretRequest.builder()
           .secretId(secretName)
           .secretString(token)

@@ -135,7 +135,7 @@ class AwsBatchInitializationActor(params: AwsBatchInitializationActorParams)
     }
   }
 
-  lazy val privateDockerUnencryptedToken: Option[String] = configuration.dockerToken flatMap { dockerToken =>
+  val privateDockerUnencryptedToken: Option[String] = configuration.dockerToken flatMap { dockerToken =>
     new String(Base64.decodeBase64(dockerToken)).split(':') match {
       case Array(username, password) =>
         // unencrypted tokens are base64-encoded username:password

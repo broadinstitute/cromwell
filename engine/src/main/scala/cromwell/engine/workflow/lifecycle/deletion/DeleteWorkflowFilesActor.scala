@@ -76,7 +76,10 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
         TryUtil.sequence(intermediateFiles.toSeq.map(gcsCommandBuilder.deleteCommand(_, swallowIoExceptions = false)))
       deleteCommandsTry match {
         case Success(deleteCommands) =>
-          deleteCommands foreach sendIoCommand
+          deleteCommands foreach { cmd =>
+            sendIoCommand(cmd)
+            log.info(s"Calling '$cmd' to delete intermediary file for root workflow $rootWorkflowId.")
+          }
           goto(WaitingForIoResponses) using WaitingForIoResponsesData(deleteCommands.toSet)
         case Failure(failure) =>
           self ! InvalidateCallCache
@@ -235,7 +238,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
     val potentialIntermediaries = allOutputFiles.diff(finalOutputFiles).flatMap(toPath)
     val checkedIntermediaries = potentialIntermediaries.filter(p => rootWorkflowRootPaths.exists(r => p.toAbsolutePath.startsWith(r.toAbsolutePath)))
     for ( path <- potentialIntermediaries.diff(checkedIntermediaries) ) {
-      log.info(s"Did not delete $path because it is not contained within a workflow root directory for $rootWorkflowId")
+      log.info(s"Did not delete $path because it is not contained within a workflow root directory for $rootWorkflowId.")
     }
     checkedIntermediaries
   }

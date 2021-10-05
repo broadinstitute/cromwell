@@ -34,7 +34,9 @@ package cromwell.backend.impl.aws
 import common.collections.EnhancedCollections._
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.backend.BackendSpec._
+import cromwell.backend.impl.aws.io.AwsBatchWorkingDisk
 import cromwell.backend.validation.ContinueOnReturnCodeFlag
+import cromwell.core.path.{DefaultPathBuilder}
 import cromwell.core.TestKitSuite
 import cromwell.util.SampleWdl
 import eu.timepit.refined.api.Refined
@@ -84,7 +86,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
                  |
                  |
                  |)
-                 |mv /cromwell_root/hello-rc.txt.tmp /cromwell_root/hello-rc.txt"""
+                 |mv /cromwell_root/hello-rc.txt.tmp /cromwell_root/hello-rc.txt""".stripMargin
 
   val workFlowDescriptor: BackendWorkflowDescriptor = buildWdlWorkflowDescriptor(
     SampleWdl.HelloWorld.workflowSource(),
@@ -100,6 +102,8 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
   val call: CommandCallNode = workFlowDescriptor.callable.taskCallNodes.head
   val jobKey: BackendJobDescriptorKey = BackendJobDescriptorKey(call, None, 1)
   val jobPaths: AwsBatchJobPaths = AwsBatchJobPaths(workflowPaths, jobKey)
+  val s3Inputs: Set[AwsBatchInput] = Set(AwsBatchFileInput("foo", "s3://bucket/foo", DefaultPathBuilder.get("foo"), AwsBatchWorkingDisk()))
+  val s3Outputs: Set[AwsBatchFileOutput] = Set(AwsBatchFileOutput("baa", "s3://bucket/somewhere/baa", DefaultPathBuilder.get("baa"), AwsBatchWorkingDisk()))
 
   val cpu: Int Refined Positive = 2
   val runtimeAttributes: AwsBatchRuntimeAttributes = new AwsBatchRuntimeAttributes(
@@ -131,29 +135,22 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       jobPaths, Seq.empty[AwsBatchParameter], None)
     job
   }
+  private def generateJobWithS3InOut: AwsBatchJob = {
+    val job = AwsBatchJob(null, runtimeAttributes, "commandLine", script,
+      "/cromwell_root/hello-rc.txt", "/cromwell_root/hello-stdout.log", "/cromwell_root/hello-stderr.log",
+      s3Inputs, s3Outputs,
+      jobPaths, Seq.empty[AwsBatchParameter], None)
+    job
+  }
 
   // TESTS BEGIN HERE
   behavior of "AwsBatchJob"
-
-  it should "have correctly named AWS constants" in {
-
-    val job: AwsBatchJob = generateBasicJob
-
-    job.AWS_RETRY_MODE should be ("AWS_RETRY_MODE")
-    job.AWS_RETRY_MODE_DEFAULT_VALUE should be ("adaptive")
-    job.AWS_MAX_ATTEMPTS should be ("AWS_MAX_ATTEMPTS")
-    job.AWS_MAX_ATTEMPTS_DEFAULT_VALUE should be ("14")
-  }
-
   it should "generate appropriate KV pairs for the container environment for S3" in {
     val job = generateBasicJob
     val generateEnvironmentKVPairs = PrivateMethod[List[KeyValuePair]]('generateEnvironmentKVPairs)
 
     // testing a private method see https://www.scalatest.org/user_guide/using_PrivateMethodTester
     val kvPairs = job invokePrivate generateEnvironmentKVPairs("script-bucket", "prefix-", "key")
-
-    kvPairs should contain (buildKVPair(job.AWS_MAX_ATTEMPTS, job.AWS_MAX_ATTEMPTS_DEFAULT_VALUE))
-    kvPairs should contain (buildKVPair(job.AWS_RETRY_MODE, "adaptive"))
     kvPairs should contain (buildKVPair("BATCH_FILE_TYPE", "script"))
     kvPairs should contain (buildKVPair("BATCH_FILE_S3_URL", "s3://script-bucket/prefix-key"))
   }
@@ -164,10 +161,103 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
 
     // testing a private method see https://www.scalatest.org/user_guide/using_PrivateMethodTester
     val kvPairs = job invokePrivate generateEnvironmentKVPairs("script-bucket", "prefix-", "key")
-
-    kvPairs should contain (buildKVPair(job.AWS_MAX_ATTEMPTS, job.AWS_MAX_ATTEMPTS_DEFAULT_VALUE))
-    kvPairs should contain (buildKVPair(job.AWS_RETRY_MODE, "adaptive"))
     kvPairs should contain (buildKVPair("BATCH_FILE_TYPE", "script"))
     kvPairs should contain (buildKVPair("BATCH_FILE_S3_URL", ""))
+  }
+
+  it should "contain expected command script in reconfigured script" in {
+    val job = generateBasicJob
+    job.reconfiguredScript should include (script.replace("/cromwell_root", "/tmp/scratch"))
+  }
+
+  it should "add metadata environment variables to reconfigured script" in {
+    val job = generateJobWithS3InOut
+    job.reconfiguredScript should include ("export AWS_METADATA_SERVICE_TIMEOUT=10\n")
+    job.reconfiguredScript should include ("export AWS_METADATA_SERVICE_NUM_ATTEMPTS=10\n")
+  }
+
+  it should "add s3 localize with retry function to reconfigured script" in {
+    val job = generateBasicJob
+    val retryFunctionText = s"""
+                              |function _s3_localize_with_retry() {
+                              |  local s3_path=$$1
+                              |  # destination must be the path to a file and not just the directory you want the file in
+                              |  local destination=$$2
+                              |
+                              |  for i in {1..5};
+                              |  do
+                              |    if [[ $$s3_path =~ s3://([^/]+)/(.+) ]]; then
+                              |        bucket="$${BASH_REMATCH[1]}"
+                              |        key="$${BASH_REMATCH[2]}"
+                              |        content_length=$$(/usr/local/aws-cli/v2/current/bin/aws  s3api head-object --bucket "$$bucket" --key "$$key" --query 'ContentLength')
+                              |    else
+                              |      echo "$$s3_path is not an S3 path with a bucket and key. aborting"
+                              |      exit 1
+                              |    fi
+                              |    /usr/local/aws-cli/v2/current/bin/aws  s3 cp --no-progress "$$s3_path" "$$destination" &&
+                              |    [[ $$(LC_ALL=C ls -dn -- "$$destination" | awk '{print $$5; exit}') -eq "$$content_length" ]] && break ||
+                              |    echo "attempt $$i to copy $$s3_path failed";
+                              |
+                              |    if [ "$$i" -eq 5 ]; then
+                              |        echo "failed to copy $$s3_path after $$i attempts. aborting"
+                              |        exit 2
+                              |    fi
+                              |    sleep $$((7 * "$$i"))
+                              |  done
+                              |}
+                              |""".stripMargin
+
+    job.reconfiguredScript should include (retryFunctionText)
+  }
+
+  it should "generate postscript with output copy command in reconfigured script" in {
+    val job = generateJobWithS3InOut
+    val postscript =
+      s"""
+         |{
+         |set -e
+         |echo '*** DELOCALIZING OUTPUTS ***'
+         |
+         |/usr/local/aws-cli/v2/current/bin/aws  s3 cp --no-progress /tmp/scratch/baa s3://bucket/somewhere/baa
+         |
+         |
+         |if [ -f /tmp/scratch/hello-rc.txt ]; then /usr/local/aws-cli/v2/current/bin/aws  s3 cp --no-progress /tmp/scratch/hello-rc.txt ${job.jobPaths.returnCode} ; fi
+         |
+         |if [ -f /tmp/scratch/hello-stderr.log ]; then /usr/local/aws-cli/v2/current/bin/aws  s3 cp --no-progress /tmp/scratch/hello-stderr.log ${job.jobPaths.standardPaths.error}; fi
+         |if [ -f /tmp/scratch/hello-stdout.log ]; then /usr/local/aws-cli/v2/current/bin/aws  s3 cp --no-progress /tmp/scratch/hello-stdout.log ${job.jobPaths.standardPaths.output}; fi
+         |
+         |echo '*** COMPLETED DELOCALIZATION ***'
+         |echo '*** EXITING WITH RETURN CODE ***'
+         |rc=$$(head -n 1 /tmp/scratch/hello-rc.txt)
+         |echo $$rc
+         |exit $$rc
+         |}
+         |""".stripMargin
+    job.reconfiguredScript should include (postscript)
+  }
+
+  it should "generate preamble with input copy command in reconfigured script" in {
+    val job = generateJobWithS3InOut
+    val preamble =
+      s"""
+         |{
+         |set -e
+         |echo '*** LOCALIZING INPUTS ***'
+         |if [ ! -d /tmp/scratch ]; then mkdir /tmp/scratch && chmod 777 /tmp/scratch; fi
+         |cd /tmp/scratch
+         |_s3_localize_with_retry s3://bucket/foo /tmp/scratch/foo
+         |echo '*** COMPLETED LOCALIZATION ***'
+         |set +e
+         |}
+         |""".stripMargin
+
+    job.reconfiguredScript should include (preamble)
+  }
+
+  it should "contain AWS Service clients" in {
+    val job = generateBasicJob
+    job.batchClient should not be null
+    job.s3Client should not be null
+    job.cloudWatchLogsClient should not be null
   }
 }

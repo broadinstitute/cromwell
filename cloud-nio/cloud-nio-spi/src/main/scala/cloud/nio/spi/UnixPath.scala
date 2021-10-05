@@ -69,7 +69,7 @@ final private[spi] case class UnixPath(path: String) extends CharSequence {
 
   def isAbsolute: Boolean = UnixPath.isAbsolute(path)
 
-  def isEmpty: Boolean = path.isEmpty
+  override def isEmpty: Boolean = path.isEmpty
 
   def hasTrailingSeparator: Boolean = UnixPath.hasTrailingSeparator(path)
 

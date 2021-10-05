@@ -78,7 +78,7 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
         case Success(deleteCommands) =>
           deleteCommands foreach { cmd =>
             sendIoCommand(cmd)
-            log.info(s"Calling '$cmd' to delete intermediary file for root workflow $rootWorkflowId.")
+            log.info(s"Deleting intermediary file ${cmd.file} for root workflow $rootWorkflowId.")
           }
           goto(WaitingForIoResponses) using WaitingForIoResponsesData(deleteCommands.toSet)
         case Failure(failure) =>

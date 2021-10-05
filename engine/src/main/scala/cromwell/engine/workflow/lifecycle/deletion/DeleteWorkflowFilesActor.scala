@@ -28,7 +28,7 @@ import scala.util.{Failure, Success, Try}
 //noinspection DuplicatedCode
 class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
                                rootAndSubworkflowIds: Set[WorkflowId],
-                               rootWorkflowRoots: Set[Path],
+                               rootWorkflowRootPaths: Set[Path],
                                workflowFinalOutputs: Set[WomValue],
                                workflowAllOutputs: Set[WomValue],
                                pathBuilders: List[PathBuilder],
@@ -233,9 +233,9 @@ class DeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
     val allOutputFiles = allOutputs.flatMap(getWomSingleFiles)
     val finalOutputFiles = finalOutputs.flatMap(getWomSingleFiles)
     val potentialIntermediaries = allOutputFiles.diff(finalOutputFiles).flatMap(toPath)
-    val checkedIntermediaries = potentialIntermediaries.filter(p => rootWorkflowRoots.exists(r => p.pathAsString.startsWith(r.pathAsString)))
+    val checkedIntermediaries = potentialIntermediaries.filter(p => rootWorkflowRootPaths.exists(r => p.toAbsolutePath.startsWith(r.toAbsolutePath)))
     for ( path <- potentialIntermediaries.diff(checkedIntermediaries) ) {
-      log.warning(s"Did not delete $path because it is not contained within a workflow root directory for $rootWorkflowId")
+      log.info(s"Did not delete $path because it is not contained within a workflow root directory for $rootWorkflowId")
     }
     checkedIntermediaries
   }
@@ -345,7 +345,7 @@ object DeleteWorkflowFilesActor {
 
   def props(rootWorkflowId: RootWorkflowId,
             rootAndSubworkflowIds: Set[WorkflowId],
-            rootWorkflowRoots: Set[Path],
+            rootWorkflowRootPaths: Set[Path],
             workflowFinalOutputs: Set[WomValue],
             workflowAllOutputs: Set[WomValue],
             pathBuilders: List[PathBuilder],
@@ -356,7 +356,7 @@ object DeleteWorkflowFilesActor {
     Props(new DeleteWorkflowFilesActor(
       rootWorkflowId = rootWorkflowId,
       rootAndSubworkflowIds = rootAndSubworkflowIds,
-      rootWorkflowRoots = rootWorkflowRoots,
+      rootWorkflowRootPaths = rootWorkflowRootPaths,
       workflowFinalOutputs = workflowFinalOutputs,
       workflowAllOutputs = workflowAllOutputs,
       pathBuilders = pathBuilders,

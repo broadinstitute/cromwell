@@ -1,5 +1,8 @@
 package cromwell.backend
 
+import cromwell.backend.standard.StandardInitializationData
+import cromwell.core.path.Path
+
 // single-backend "marker interface"
 trait BackendInitializationData
 
@@ -27,4 +30,5 @@ object AllBackendInitializationData {
 // Holds initialization data for all backends initialized for a workflow.
 case class AllBackendInitializationData(data: Map[String, Option[BackendInitializationData]]) {
   def get(backendName: String): Option[BackendInitializationData] = data.get(backendName).flatten
+  def getWorkflowRoots(): Set[Path] = data.values.collect({case Some(i: StandardInitializationData) => i.workflowPaths.workflowRoot}).toSet[Path]
 }

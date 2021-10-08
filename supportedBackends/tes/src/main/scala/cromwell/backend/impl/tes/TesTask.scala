@@ -40,6 +40,8 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     workflowDescriptor.workflowOptions.getOrElse("project", "")
   }
 
+  val executorIdentity: Option[String] = workflowDescriptor.workflowOptions.get("identity").toOption
+
   // contains the script to be executed
   private val commandScript = Input(
     name = Option("commandScript"),
@@ -219,12 +221,17 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       None
   }
 
+  // This was added in BT-409 to let us pass information to an Azure
+  // TES server about which user identity to run tasks as.
+  private val backendParameters = executorIdentity.map(i => Map(TesWorkflowOptionKeys.Identity -> i))
+
   val resources = Resources(
     cpu_cores = runtimeAttributes.cpu.map(_.value),
     ram_gb = ram,
     disk_gb = disk,
     preemptible = Option(runtimeAttributes.preemptible),
-    zones = None
+    zones = None,
+    backend_parameters = backendParameters
   )
 
   val executors = Seq(Executor(
@@ -276,7 +283,8 @@ final case class Resources(cpu_cores: Option[Int],
                            ram_gb: Option[Double],
                            disk_gb: Option[Double],
                            preemptible: Option[Boolean],
-                           zones: Option[Seq[String]])
+                           zones: Option[Seq[String]],
+                           backend_parameters: Option[Map[String, String]])
 
 final case class OutputFileLog(url: String,
                                path: String,

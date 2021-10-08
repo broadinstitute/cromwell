@@ -10,6 +10,19 @@ CWL execution is enabled by default unless a `CWL` [stanza](https://github.com/b
 
 - Thank you to [Bruno P. Kinoshita](https://github.com/kinow) who first found the issue in a different CWL project ([CVE-2021-41110](https://github.com/common-workflow-language/cwlviewer/security/advisories/GHSA-7g7j-f5g3-fqp7)) and [Michael R. Crusoe](https://github.com/mr-c) who suggested we investigate ours.
 
+### AWS Backend
+
+### Docker Hub Authentication ([#6489](https://github.com/broadinstitute/cromwell/pull/6489)) [Henrique Ribeiro](https://github.com/henriqueribeiro)
+
+Cromwell now supports Docker Hub authentication for AWS Backend, enabling users to access and use private Docker containers.
+
+1. Create an access token in Docker Hub;
+2. Enconde the following string as base64: `<dockerhub-username>:<dockerhub-acess-token>`
+3. Place the following snippet into `cromwell.conf` file under `config`:
+```
+dockerhub { token = "<enconded-string-from-point-2>" }
+```
+
 ## 68 Release Notes
 
 ### Virtual Private Cloud

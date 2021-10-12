@@ -63,4 +63,19 @@ class TesTaskSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
         == Resources(None, None, None, Some(false), None, Some(Map(TesWorkflowOptionKeys.Identity -> "5")))
     )
   }
+
+  // TODO this isn't actually the behavior we want
+  "TesTask" should "silently do nothing when the identity passed in WorkflowOptions is an object" in {
+    val wd = buildWdlWorkflowDescriptor(
+      TestWorkflows.HelloWorld,
+      None,
+      WorkflowOptions(
+        JsObject(Map(TesWorkflowOptionKeys.Identity -> JsObject(Map("hi" -> JsString("there")))))
+      )
+    )
+    assert(
+      TesTask.makeResources(runtimeAttributes, wd)
+        == Resources(None, None, None, Some(false), None, None)
+    )
+  }
 }

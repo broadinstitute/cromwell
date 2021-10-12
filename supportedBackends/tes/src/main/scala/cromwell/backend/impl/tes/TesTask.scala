@@ -3,7 +3,7 @@ package cromwell.backend.impl.tes
 import common.collections.EnhancedCollections._
 import common.util.StringUtil._
 import cromwell.backend.impl.tes.OutputMode.OutputMode
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, BackendWorkflowDescriptor}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import wdl.draft2.model.FullyQualifiedName
@@ -39,8 +39,6 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   val project = {
     workflowDescriptor.workflowOptions.getOrElse("project", "")
   }
-
-  val executorIdentity: Option[String] = workflowDescriptor.workflowOptions.get("identity").toOption
 
   // contains the script to be executed
   private val commandScript = Input(
@@ -214,25 +212,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     result
   }
 
-  private val disk :: ram :: _ = Seq(runtimeAttributes.disk, runtimeAttributes.memory) map {
-    case Some(x) =>
-      Option(x.to(MemoryUnit.GB).amount)
-    case None =>
-      None
-  }
-
-  // This was added in BT-409 to let us pass information to an Azure
-  // TES server about which user identity to run tasks as.
-  private val backendParameters = executorIdentity.map(i => Map(TesWorkflowOptionKeys.Identity -> i))
-
-  val resources = Resources(
-    cpu_cores = runtimeAttributes.cpu.map(_.value),
-    ram_gb = ram,
-    disk_gb = disk,
-    preemptible = Option(runtimeAttributes.preemptible),
-    zones = None,
-    backend_parameters = backendParameters
-  )
+  val resources = TesTask.makeResources(runtimeAttributes, workflowDescriptor)
 
   val executors = Seq(Executor(
     image = dockerImageUsed,
@@ -243,6 +223,34 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     stdin = None,
     env = None
   ))
+}
+
+object TesTask {
+  def makeResources(runtimeAttributes: TesRuntimeAttributes,
+                    workflowDescriptor: BackendWorkflowDescriptor): Resources = {
+
+    val executorIdentity: Option[String] = workflowDescriptor.workflowOptions.get("identity").toOption
+
+    // This was added in BT-409 to let us pass information to an Azure
+    // TES server about which user identity to run tasks as.
+    val backendParameters = executorIdentity.map(i => Map(TesWorkflowOptionKeys.Identity -> i))
+
+    val disk :: ram :: _ = Seq(runtimeAttributes.disk, runtimeAttributes.memory) map {
+      case Some(x) =>
+        Option(x.to(MemoryUnit.GB).amount)
+      case None =>
+        None
+    }
+
+    Resources(
+      cpu_cores = runtimeAttributes.cpu.map(_.value),
+      ram_gb = ram,
+      disk_gb = disk,
+      preemptible = Option(runtimeAttributes.preemptible),
+      zones = None,
+      backend_parameters = backendParameters
+    )
+  }
 }
 
 // Field requirements in classes below based off GA4GH schema

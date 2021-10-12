@@ -6,7 +6,7 @@ import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.core.WorkflowOptions
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import spray.json.{JsObject, JsString, JsValue}
+import spray.json.{JsNumber, JsObject, JsString, JsValue}
 
 class TesTaskSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with BackendSpec {
 
@@ -47,6 +47,20 @@ class TesTaskSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
     assert(
       TesTask.makeResources(runtimeAttributes, wd)
         == Resources(None, None, None, Some(false), None, None)
+    )
+  }
+
+  "TesTask" should "create the correct response when a numeric identity is passed in WorkflowOptions" in {
+    val wd = buildWdlWorkflowDescriptor(
+      TestWorkflows.HelloWorld,
+      None,
+      WorkflowOptions(
+        JsObject(Map(TesWorkflowOptionKeys.Identity -> JsNumber(5)))
+      )
+    )
+    assert(
+      TesTask.makeResources(runtimeAttributes, wd)
+        == Resources(None, None, None, Some(false), None, Some(Map(TesWorkflowOptionKeys.Identity -> "5")))
     )
   }
 }

@@ -583,6 +583,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       val rootWorkflowId = data.workflowDescriptor.get.rootWorkflowId
       val deleteActor = context.actorOf(DeleteWorkflowFilesActor.props(
         rootWorkflowId = rootWorkflowId,
+        rootWorkflowRootPaths = data.initializationData.getWorkflowRoots(),
         rootAndSubworkflowIds = data.rootAndSubworkflowIds,
         workflowFinalOutputs = data.workflowFinalOutputs,
         workflowAllOutputs = data.workflowAllOutputs,

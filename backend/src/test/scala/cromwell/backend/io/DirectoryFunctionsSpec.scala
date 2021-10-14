@@ -7,7 +7,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wom.expression.IoFunctionSet.{IoDirectory, IoFile}
 
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
 class DirectoryFunctionsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
@@ -18,8 +18,7 @@ class DirectoryFunctionsSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
     override def copyFile(source: String, destination: String) = throw new UnsupportedOperationException()
     override def glob(pattern: String) = throw new UnsupportedOperationException()
     override def size(path: String) = throw new UnsupportedOperationException()
-    override def resolvedFileBasename(path: String): Future[String] = throw new UnsupportedOperationException()
-    override def readFile(path: String, maxBytes: Option[Int], failOnOverflow: Boolean) = throw new UnsupportedOperationException()
+    override def readFile(path: String, maxBytes: Option[Int], failOnOverflow: Boolean)  = throw new UnsupportedOperationException()
     override def pathFunctions = throw new UnsupportedOperationException()
     override def writeFile(path: String, content: String) = throw new UnsupportedOperationException()
     override implicit def ec = throw new UnsupportedOperationException()
@@ -33,7 +32,7 @@ class DirectoryFunctionsSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
     val innerDir = (rootDir / "innerDir").createDirectories()
     val link = innerDir / "linkToRootDirInInnerDir"
     link.symbolicLinkTo(rootDir)
-
+    
     def listRecursively(path: String)(visited: Vector[String] = Vector.empty): Iterator[String] = {
       Await.result(functions.listDirectory(path)(visited), Duration.Inf) flatMap {
         case IoFile(v) => List(v)

@@ -1,13 +1,14 @@
 # Cromwell Change Log
 
-## 69 Release Notes
+## 70 Release Notes
 
-### Bug Fixes
+### CWL security fix [#6510](https://github.com/broadinstitute/cromwell/pull/6510)
 
-### DRS/`basename` Fix
+Fixed an issue that could allow submission of an untrusted CWL file to initiate remote code execution. The vector was improper deserialization of the YAML source file.
 
-The WDL `basename` function should now work as expected with DRS paths, giving the basename of the
-resolved file, not just a substring of the DRS path.
+CWL execution is enabled by default unless a `CWL` [stanza](https://github.com/broadinstitute/cromwell/blob/develop/core/src/main/resources/reference.conf#L460-L482) is present in the configuration that specifies `enabled: false`. Cromwell instances with CWL disabled were not affected. Consequently, users who wish to mitigate the vulnerability without upgrading Cromwell may do so via this config change.
+
+- Thank you to [Bruno P. Kinoshita](https://github.com/kinow) who first found the issue in a different CWL project ([CVE-2021-41110](https://github.com/common-workflow-language/cwlviewer/security/advisories/GHSA-7g7j-f5g3-fqp7)) and [Michael R. Crusoe](https://github.com/mr-c) who suggested we investigate ours.
 
 ## 68 Release Notes
 

@@ -46,6 +46,8 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite
   var testProbe: TestProbe = _
   var rootWorkflowId: RootWorkflowId = _
   var subworkflowId: WorkflowId = _
+  var rootWorkflowExecutionDir: String = _
+  var rootWorkflowRoots: Set[Path] = _
   var allOutputs: CallOutputs = _
   var finalOutputs: CallOutputs = _
   var testDeleteWorkflowFilesActor: TestFSMRef[DeleteWorkflowFilesActor.DeleteWorkflowFilesActorState, DeleteWorkflowFilesActor.DeleteWorkflowFilesActorStateData, MockDeleteWorkflowFilesActor] = _
@@ -54,29 +56,31 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite
   before {
     rootWorkflowId = RootWorkflowId(WorkflowId.randomId().id)
     subworkflowId = WorkflowId.randomId()
+    rootWorkflowExecutionDir = s"gs://my_bucket/main_workflow/$rootWorkflowId"
+    rootWorkflowRoots = Set[Path](mockPathBuilder.build(rootWorkflowExecutionDir).get)
     testProbe = TestProbe(s"test-probe-$rootWorkflowId")
 
     allOutputs = CallOutputs(Map(
       GraphNodeOutputPort(WomIdentifier(LocalName("main_output"),FullyQualifiedName("main_workflow.main_output")), WomSingleFileType, null)
-        -> WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt"),
+        -> WomSingleFile(s"$rootWorkflowExecutionDir/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt"),
       ExpressionBasedOutputPort(WomIdentifier(LocalName("first_task.first_task_output_2"),FullyQualifiedName("first_sub_workflow.first_task.first_task_output_2")), WomSingleFileType, null, null)
-        -> WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file2.txt"),
+        -> WomSingleFile(s"$rootWorkflowExecutionDir/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file2.txt"),
       GraphNodeOutputPort(WomIdentifier(LocalName("first_output_file"),FullyQualifiedName("first_sub_workflow.first_output_file")), WomSingleFileType, null)
-        -> WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt"),
+        -> WomSingleFile(s"$rootWorkflowExecutionDir/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt"),
       ExpressionBasedOutputPort(WomIdentifier(LocalName("first_task.first_task_output_1"),FullyQualifiedName("first_sub_workflow.first_task.first_task_output_1")), WomSingleFileType, null, null)
-        -> WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt"),
+        -> WomSingleFile(s"$rootWorkflowExecutionDir/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt"),
       GraphNodeOutputPort(WomIdentifier(LocalName("second_output_file"),FullyQualifiedName("first_sub_workflow.second_output_file")), WomSingleFileType, null)
-        -> WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file2.txt")
+        -> WomSingleFile(s"$rootWorkflowExecutionDir/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file2.txt")
     ))
     finalOutputs = CallOutputs(Map(
       GraphNodeOutputPort(WomIdentifier(LocalName("main_output"),FullyQualifiedName("main_workflow.main_output")), WomSingleFileType, null)
-        -> WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file2.txt")
+        -> WomSingleFile(s"$rootWorkflowExecutionDir/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file2.txt")
     ))
 
-    testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, emptyWorkflowIdSet, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
+    testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, emptyWorkflowIdSet, rootWorkflowRoots, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
     testProbe watch testDeleteWorkflowFilesActor
 
-    gcsFilePath = mockPathBuilder.build(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt").get
+    gcsFilePath = mockPathBuilder.build(s"$rootWorkflowExecutionDir/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt").get
   }
 
   it should "follow the expected golden-path lifecycle" in {
@@ -259,11 +263,11 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite
 
     finalOutputs = CallOutputs.empty
 
-    val gcsFilePath1: Path = mockPathBuilder.build(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt").get
-    val gcsFilePath2: Path = mockPathBuilder.build(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file2.txt").get
+    val gcsFilePath1: Path = mockPathBuilder.build(s"$rootWorkflowExecutionDir/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt").get
+    val gcsFilePath2: Path = mockPathBuilder.build(s"$rootWorkflowExecutionDir/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file2.txt").get
     val expectedIntermediateFiles = Set(gcsFilePath1, gcsFilePath2)
 
-    testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, emptyWorkflowIdSet, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
+    testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, emptyWorkflowIdSet, rootWorkflowRoots, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
 
     val actualIntermediateFiles = testDeleteWorkflowFilesActor.underlyingActor.gatherIntermediateOutputFiles(
       allOutputs.outputs.values.toSet,
@@ -285,6 +289,7 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite
     testDeleteWorkflowFilesActor =
       TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId,
         rootAndSubworkflowIds = emptyWorkflowIdSet,
+        rootWorkflowRoots = rootWorkflowRoots,
         workflowFinalOutputs = finalOutputs,
         workflowAllOutputs = allOutputs,
         pathBuilders = mockPathBuilders,
@@ -313,12 +318,12 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite
 
     finalOutputs = CallOutputs(Map(
       GraphNodeOutputPort(WomIdentifier(LocalName("main_output_1"),FullyQualifiedName("main_workflow.main_output_1")), WomSingleFileType, null)
-        -> WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt") ,
+        -> WomSingleFile(s"$rootWorkflowExecutionDir/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt") ,
       GraphNodeOutputPort(WomIdentifier(LocalName("main_output_2"),FullyQualifiedName("main_workflow.main_output_2")), WomSingleFileType, null)
-        -> WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file2.txt")
+        -> WomSingleFile(s"$rootWorkflowExecutionDir/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file2.txt")
     ))
 
-    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, emptyWorkflowIdSet, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
+    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, emptyWorkflowIdSet, rootWorkflowRoots, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
 
     testProbe watch testDeleteWorkflowFilesActor
 
@@ -334,14 +339,14 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite
       GraphNodeOutputPort(WomIdentifier(LocalName("file_with_file_path_string_output"),FullyQualifiedName("first_sub_workflow.file_with_file_path_string_output")), WomStringType, null)
         -> WomString(s"gs://my_bucket/non_existent_file.txt"),
       ExpressionBasedOutputPort(WomIdentifier(LocalName("first_task.first_task_file_with_file_path_output"),FullyQualifiedName("first_sub_workflow.first_task.first_task_file_with_file_path_output")), WomSingleFileType, null, null)
-        -> WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/file_with_file_path.txt")
+        -> WomSingleFile(s"$rootWorkflowExecutionDir/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/file_with_file_path.txt")
     ))
 
-    val gcsFilePath1: Path = mockPathBuilder.build(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt").get
-    val gcsFilePath2: Path = mockPathBuilder.build(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/file_with_file_path.txt").get
+    val gcsFilePath1: Path = mockPathBuilder.build(s"$rootWorkflowExecutionDir/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt").get
+    val gcsFilePath2: Path = mockPathBuilder.build(s"$rootWorkflowExecutionDir/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/file_with_file_path.txt").get
     val expectedIntermediateFiles = Set(gcsFilePath1, gcsFilePath2)
 
-    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, emptyWorkflowIdSet, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
+    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, emptyWorkflowIdSet, rootWorkflowRoots, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
 
     val actualIntermediateFiles = testDeleteWorkflowFilesActor.underlyingActor.gatherIntermediateOutputFiles(
       allOutputs.outputs.values.toSet,
@@ -356,20 +361,20 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite
 
     allOutputs = allOutputs.copy(outputs = allOutputs.outputs ++ Map(
       GraphNodeOutputPort(WomIdentifier(LocalName("glob_output"),FullyQualifiedName("first_sub_workflow.glob_output")), WomMaybeEmptyArrayType(WomSingleFileType), null)
-        -> WomArray(Seq(WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/glob-random_id/intermediate_file1.txt"),
-        WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/glob-random_id/intermediate_file2.txt"))),
+        -> WomArray(Seq(WomSingleFile(s"$rootWorkflowExecutionDir/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/glob-random_id/intermediate_file1.txt"),
+        WomSingleFile(s"$rootWorkflowExecutionDir/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/glob-random_id/intermediate_file2.txt"))),
       ExpressionBasedOutputPort(WomIdentifier(LocalName("first_task.first_task_glob"),FullyQualifiedName("first_sub_workflow.first_task.first_task_glob")), WomMaybeEmptyArrayType(WomSingleFileType), null, null)
-        -> WomArray(Seq(WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/glob-random_id/intermediate_file1.txt"),
-        WomSingleFile(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/glob-random_id/intermediate_file2.txt")))
+        -> WomArray(Seq(WomSingleFile(s"$rootWorkflowExecutionDir/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/glob-random_id/intermediate_file1.txt"),
+        WomSingleFile(s"$rootWorkflowExecutionDir/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/glob-random_id/intermediate_file2.txt")))
     ))
 
-    val gcsFilePath1: Path = mockPathBuilder.build(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt").get
-    val gcsGlobFilePath1: Path = mockPathBuilder.build(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/glob-random_id/intermediate_file1.txt").get
-    val gcsGlobFilePath2: Path = mockPathBuilder.build(s"gs://my_bucket/main_workflow/$rootWorkflowId/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/glob-random_id/intermediate_file2.txt").get
+    val gcsFilePath1: Path = mockPathBuilder.build(s"$rootWorkflowExecutionDir/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/intermediate_file1.txt").get
+    val gcsGlobFilePath1: Path = mockPathBuilder.build(s"$rootWorkflowExecutionDir/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/glob-random_id/intermediate_file1.txt").get
+    val gcsGlobFilePath2: Path = mockPathBuilder.build(s"$rootWorkflowExecutionDir/call-first_sub_workflow/firstSubWf.first_sub_workflow/$subworkflowId/call-first_task/glob-random_id/intermediate_file2.txt").get
 
     val expectedIntermediateFiles = Set(gcsFilePath1, gcsGlobFilePath1, gcsGlobFilePath2)
 
-    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, emptyWorkflowIdSet, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
+    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, emptyWorkflowIdSet, rootWorkflowRoots, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
 
     val actualIntermediateFiles = testDeleteWorkflowFilesActor.underlyingActor.gatherIntermediateOutputFiles(
       allOutputs.outputs.values.toSet,
@@ -378,11 +383,46 @@ class DeleteWorkflowFilesActorSpec extends TestKitSuite
 
     actualIntermediateFiles shouldBe expectedIntermediateFiles
   }
+
+
+  it should "sanity check in multiple rootWorkflowRoots" in {
+    val expectedIntermediateFiles = Set(gcsFilePath)
+
+    val rootWorkflowRoots = Set[Path](
+      mockPathBuilder.build(s"gs://my_bucket/main_workflow/xxxx").get,
+      mockPathBuilder.build(s"gs://my_bucket/main_workflow/yyyy").get,
+      mockPathBuilder.build(rootWorkflowExecutionDir).get
+    )
+    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, emptyWorkflowIdSet, rootWorkflowRoots, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
+
+    val actualIntermediateFiles = testDeleteWorkflowFilesActor.underlyingActor.gatherIntermediateOutputFiles(
+      allOutputs.outputs.values.toSet,
+      finalOutputs.outputs.values.toSet
+    )
+
+    actualIntermediateFiles shouldBe expectedIntermediateFiles
+  }
+
+
+  it should "not delete outputs if they are outside the root workflow execution directory" in {
+    val rootWorkflowRoots = Set[Path](mockPathBuilder.build(s"gs://my_bucket/main_workflow/xxxx").get)
+    val testDeleteWorkflowFilesActor = TestFSMRef(new MockDeleteWorkflowFilesActor(rootWorkflowId, emptyWorkflowIdSet, rootWorkflowRoots, finalOutputs, allOutputs, mockPathBuilders, serviceRegistryActor.ref, ioActor.ref))
+
+    val actualIntermediateFiles = testDeleteWorkflowFilesActor.underlyingActor.gatherIntermediateOutputFiles(
+      allOutputs.outputs.values.toSet,
+      finalOutputs.outputs.values.toSet
+    )
+
+    actualIntermediateFiles shouldBe Set()
+  }
 }
+
+
 
 
 class MockDeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
                                    rootAndSubworkflowIds: Set[WorkflowId],
+                                   rootWorkflowRoots: Set[Path],
                                    workflowFinalOutputs: CallOutputs,
                                    workflowAllOutputs: CallOutputs,
                                    pathBuilders: PathBuilders,
@@ -393,6 +433,7 @@ class MockDeleteWorkflowFilesActor(rootWorkflowId: RootWorkflowId,
   DeleteWorkflowFilesActor(
     rootWorkflowId,
     rootAndSubworkflowIds,
+    rootWorkflowRoots,
     workflowFinalOutputs.outputs.values.toSet,
     workflowAllOutputs.outputs.values.toSet,
     pathBuilders,

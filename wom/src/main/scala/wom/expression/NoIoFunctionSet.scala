@@ -11,8 +11,6 @@ object EmptyIoFunctionSet {
 }
 
 class EmptyIoFunctionSet extends IoFunctionSet {
-
-  override def resolvedFileBasename(path: String): Future[String] = Future.failed(new UnsupportedOperationException("resolvedPath is not available here"))
   override def readFile(path: String, maxBytes: Option[Int] = None, failOnOverflow: Boolean = false): Future[String] = Future.failed(new UnsupportedOperationException("readFile is not available here"))
 
   override def writeFile(path: String, content: String): Future[WomSingleFile] = {

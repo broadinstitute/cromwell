@@ -212,7 +212,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
     result
   }
 
-  val resources = TesTask.makeResources(runtimeAttributes, workflowDescriptor)
+  val resources: Resources = TesTask.makeResources(runtimeAttributes, workflowDescriptor)
 
   val executors = Seq(Executor(
     image = dockerImageUsed,
@@ -229,11 +229,14 @@ object TesTask {
   def makeResources(runtimeAttributes: TesRuntimeAttributes,
                     workflowDescriptor: BackendWorkflowDescriptor): Resources = {
 
-    val executorIdentity: Option[String] = workflowDescriptor.workflowOptions.get("identity").toOption
-
     // This was added in BT-409 to let us pass information to an Azure
     // TES server about which user identity to run tasks as.
-    val backendParameters = executorIdentity.map(i => Map(TesWorkflowOptionKeys.Identity -> i))
+    val backendParameters = workflowDescriptor
+      .workflowOptions
+      .get(TesWorkflowOptionKeys.WorkflowExecutionIdentity)
+      .toOption
+      .map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> _)
+      .toMap
 
     val disk :: ram :: _ = Seq(runtimeAttributes.disk, runtimeAttributes.memory) map {
       case Some(x) =>
@@ -248,7 +251,7 @@ object TesTask {
       disk_gb = disk,
       preemptible = Option(runtimeAttributes.preemptible),
       zones = None,
-      backend_parameters = backendParameters
+      backend_parameters = Option(backendParameters)
     )
   }
 }

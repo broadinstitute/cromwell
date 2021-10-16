@@ -22,60 +22,60 @@ class TesTaskSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
   )
 
   def workflowDescriptorWithIdentity(excIdentity: Option[String]) = {
-    val optionsMap: Map[String, JsValue] = excIdentity.map(i => TesWorkflowOptionKeys.Identity -> JsString(i)).toMap
+    val optionsMap: Map[String, JsValue] = excIdentity.map(i => TesWorkflowOptionKeys.WorkflowExecutionIdentity -> JsString(i)).toMap
     buildWdlWorkflowDescriptor(TestWorkflows.HelloWorld, None, WorkflowOptions(JsObject(optionsMap)))
   }
 
-  "TesTask" should "create the correct resources when an identity is passed in WorkflowOptions" in {
-    val wd = workflowDescriptorWithIdentity(Some("abc123"))
+  it should "create the correct resources when an identity is passed in WorkflowOptions" in {
+    val wd = workflowDescriptorWithIdentity(Option("abc123"))
     assert(
       TesTask.makeResources(runtimeAttributes, wd)
-        == Resources(None, None, None, Some(false), None, Some(Map(TesWorkflowOptionKeys.Identity -> "abc123")))
+        == Resources(None, None, None, Option(false), None, Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> "abc123")))
     )
   }
 
-  "TesTask" should "create the correct resources when an empty identity is passed in WorkflowOptions" in {
-    val wd = workflowDescriptorWithIdentity(Some(""))
+  it should "create the correct resources when an empty identity is passed in WorkflowOptions" in {
+    val wd = workflowDescriptorWithIdentity(Option(""))
     assert(
       TesTask.makeResources(runtimeAttributes, wd)
-        == Resources(None, None, None, Some(false), None, Some(Map(TesWorkflowOptionKeys.Identity -> "")))
+        == Resources(None, None, None, Option(false), None, Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> "")))
     )
   }
 
-  "TesTask" should "create the correct resources when no identity is passed in WorkflowOptions" in {
+  it should "create the correct resources when no identity is passed in WorkflowOptions" in {
     val wd = workflowDescriptorWithIdentity(None)
     assert(
       TesTask.makeResources(runtimeAttributes, wd)
-        == Resources(None, None, None, Some(false), None, None)
+        == Resources(None, None, None, Option(false), None, Option(Map.empty[String, String]))
     )
   }
 
-  "TesTask" should "create the correct response when a numeric identity is passed in WorkflowOptions" in {
+  it should "create the correct response when a numeric identity is passed in WorkflowOptions" in {
     val wd = buildWdlWorkflowDescriptor(
       TestWorkflows.HelloWorld,
       None,
       WorkflowOptions(
-        JsObject(Map(TesWorkflowOptionKeys.Identity -> JsNumber(5)))
+        JsObject(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> JsNumber(5)))
       )
     )
     assert(
       TesTask.makeResources(runtimeAttributes, wd)
-        == Resources(None, None, None, Some(false), None, Some(Map(TesWorkflowOptionKeys.Identity -> "5")))
+        == Resources(None, None, None, Option(false), None, Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> "5")))
     )
   }
 
   // TODO this isn't actually the behavior we want
-  "TesTask" should "silently do nothing when the identity passed in WorkflowOptions is an object" in {
+  it should "silently do nothing when the identity passed in WorkflowOptions is an object" in {
     val wd = buildWdlWorkflowDescriptor(
       TestWorkflows.HelloWorld,
       None,
       WorkflowOptions(
-        JsObject(Map(TesWorkflowOptionKeys.Identity -> JsObject(Map("hi" -> JsString("there")))))
+        JsObject(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> JsObject(Map("hi" -> JsString("there")))))
       )
     )
     assert(
       TesTask.makeResources(runtimeAttributes, wd)
-        == Resources(None, None, None, Some(false), None, None)
+        == Resources(None, None, None, Option(false), None, Option(Map.empty[String, String]))
     )
   }
 }

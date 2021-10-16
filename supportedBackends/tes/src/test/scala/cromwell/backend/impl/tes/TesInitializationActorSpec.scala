@@ -1,7 +1,6 @@
 package cromwell.backend.impl.tes
 
 import java.util.UUID
-
 import akka.actor.Props
 import akka.testkit.{EventFilter, ImplicitSender, TestDuration}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -10,11 +9,12 @@ import cromwell.backend.BackendWorkflowInitializationActor.{InitializationFailed
 import cromwell.backend.async.RuntimeAttributeValidationFailures
 import cromwell.backend.{BackendConfigurationDescriptor, BackendWorkflowDescriptor}
 import cromwell.core.Tags.PostWomTest
-import cromwell.core.TestKitSuite
+import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.logging.LoggingTest._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
+import spray.json.{JsNumber, JsObject, JsString}
 import wom.graph.CommandCallNode
 
 import scala.concurrent.duration._
@@ -95,6 +95,40 @@ class TesInitializationActorSpec extends TestKitSuite
         expectMsgPF() {
           case InitializationSuccess(_) => // Docker entry is present.
           case InitializationFailed(failure) => fail(s"InitializationSuccess was expected but got $failure")
+        }
+      }
+    }
+
+    "fail to start when WorkflowExecutionIdentity is not a string" in {
+      within(Timeout) {
+        val workflowOptionsWithNumber = WorkflowOptions(
+          JsObject(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> JsString("5")))
+        )
+        val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld,
+          runtime = """runtime { docker: "ubuntu/latest" test: true }""",
+          options = workflowOptionsWithNumber)
+        val backend = getActorRef(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, conf)
+        backend ! Initialize
+        expectMsgPF() {
+          case InitializationSuccess(_) =>
+          case InitializationFailed(f) => fail(s"InitializationSuccess was expected but got $f")
+        }
+      }
+    }
+
+    "successfully start when WorkflowExecutionIdentity is a string" in {
+      within(Timeout) {
+        val workflowOptionsWithNumber = WorkflowOptions(
+          JsObject(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> JsNumber(5)))
+        )
+        val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld,
+          runtime = """runtime { docker: "ubuntu/latest" test: true }""",
+          options = workflowOptionsWithNumber)
+        val backend = getActorRef(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, conf)
+        backend ! Initialize
+        expectMsgPF() {
+          case InitializationSuccess(s) => fail(s"InitializationFailed was expected but got $s")
+          case InitializationFailed(_) =>
         }
       }
     }

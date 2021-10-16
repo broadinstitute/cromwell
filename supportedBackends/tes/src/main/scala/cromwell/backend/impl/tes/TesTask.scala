@@ -231,6 +231,8 @@ object TesTask {
 
     // This was added in BT-409 to let us pass information to an Azure
     // TES server about which user identity to run tasks as.
+    // Note that we validate the type of WorkflowExecutionIdentity
+    // in TesInitializationActor.
     val backendParameters = workflowDescriptor
       .workflowOptions
       .get(TesWorkflowOptionKeys.WorkflowExecutionIdentity)

@@ -6,7 +6,7 @@ import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.core.WorkflowOptions
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import spray.json.{JsNumber, JsObject, JsString, JsValue}
+import spray.json.{JsObject, JsString, JsValue}
 
 class TesTaskSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with BackendSpec {
 
@@ -44,35 +44,6 @@ class TesTaskSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
 
   it should "create the correct resources when no identity is passed in WorkflowOptions" in {
     val wd = workflowDescriptorWithIdentity(None)
-    assert(
-      TesTask.makeResources(runtimeAttributes, wd)
-        == Resources(None, None, None, Option(false), None, Option(Map.empty[String, String]))
-    )
-  }
-
-  it should "create the correct response when a numeric identity is passed in WorkflowOptions" in {
-    val wd = buildWdlWorkflowDescriptor(
-      TestWorkflows.HelloWorld,
-      None,
-      WorkflowOptions(
-        JsObject(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> JsNumber(5)))
-      )
-    )
-    assert(
-      TesTask.makeResources(runtimeAttributes, wd)
-        == Resources(None, None, None, Option(false), None, Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> "5")))
-    )
-  }
-
-  // TODO this isn't actually the behavior we want
-  it should "silently do nothing when the identity passed in WorkflowOptions is an object" in {
-    val wd = buildWdlWorkflowDescriptor(
-      TestWorkflows.HelloWorld,
-      None,
-      WorkflowOptions(
-        JsObject(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> JsObject(Map("hi" -> JsString("there")))))
-      )
-    )
     assert(
       TesTask.makeResources(runtimeAttributes, wd)
         == Resources(None, None, None, Option(false), None, Option(Map.empty[String, String]))

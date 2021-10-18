@@ -15,8 +15,8 @@ will need to be on the Broad internal network or VPN to open the following links
     1. Tests for various backends supported by Cromwell. Log into Jenkins [here](https://fc-jenkins.dsp-techops.broadinstitute.org), check the tests [here](https://fc-jenkins.dsp-techops.broadinstitute.org/job/cromwell-cron-parent/).
     1. Tests for Cromwell in Terra environment. Log into Jenkins [here](https://fc-jenkins.dsp-techops.broadinstitute.org), check the tests [here](https://fc-jenkins.dsp-techops.broadinstitute.org/view/Batch/).
 1. [Run the publish script to create a new version of Cromwell](#how-to-publish-a-new-cromwell-version)  
-1. [Run through the "How to Release Cromwell into Firecloud" process](#how-to-release-cromwell-into-firecloud)  
-1. [Run through the "How to Deploy Cromwell in CAAS prod" process](#how-to-deploy-cromwell-in-caas-prod)  
+1. [Run through the "How to Release Cromwell into Firecloud/Terra" process](#how-to-release-cromwell-into-firecloud--terra)  
+1. [Run through the "How to Deploy Cromwell in CaaS prod" process](#how-to-deploy-cromwell-in-caas-staging-and-caas-prod)  
 
 ### How to publish a new Cromwell version
 
@@ -40,7 +40,7 @@ The release WDL uses a github token to perform actions on your behalf.
 
 This is optional, but I find it useful. Make or copy the following files into some temporary `releases/` directory:
 
-* A cromwell jar file, preferably the most recent Cromwell version.
+* If you plan to execute the release WDL by running Cromwell with a local backend, a copy of the Cromwell jar file, preferably the most recent version (unnecessary if you run Cromwell with Docker containers, as described [below](#run-the-publish_workflowwdl-workflow))
 * A copy of the workflow file to run (https://github.com/broadinstitute/cromwell/blob/develop/publish/publish_workflow.wdl)
 * An inputs json like this:
 
@@ -56,8 +56,8 @@ This is optional, but I find it useful. Make or copy the following files into so
 
 #### Make sure Docker will have enough memory
 
-I had to follow the instructions [here](https://docs.docker.com/docker-for-mac/#resources) to increase my Docker memory.
-I chose to increase it from 2GB to 8GB; 4GB is not sufficient.
+If you will be running Cromwell with Docker containers, follow the instructions [here](https://docs.docker.com/docker-for-mac/#resources) to increase Docker memory.
+Ensure you have at least 8GB; 4GB is not sufficient.
 
 #### Let people know the publish is underway
 
@@ -66,12 +66,15 @@ the release is published.
 
 #### Run the `publish_workflow.wdl` Workflow
 
-* Run the Cromwell instance using the Local backend. The publish workflow is quite resource intensive; it's a good idea to
-  shut down other resource intensive apps before launching it to avoid painfully slow or failed executions.
-    * In server mode with a persistent backing database is probably a good idea - it will allow call caching to happen if you need to restart for any reason.
+* You can run the Cromwell instance with either the local backend, or in server mode using Docker containers.
+    * If running with the local backend, note that the publish workflow is quite resource intensive; it's a good idea to
+      shut down other resource intensive apps before launching it to avoid painfully slow or failed executions.
+    * Running in server mode with a persistent backing database using Docker containers is a good idea - it will allow call caching to happen if you need to restart for any reason.
       Some instructions for using a Dockerized MySQL server and CI config [here](#cromwell-setup-for-publishing).
 
 * Submit the workflow to Cromwell along with the inputs file.
+    * If running with the local backend, supply these as input arguments when executing the JAR.
+    * If running with Docker containers, submit the workflow and inputs file through the Swagger API.
 
 #### Make sure it all went swimmingly
 
@@ -83,25 +86,27 @@ the release is published.
 
 ### How to Release Cromwell into Firecloud / Terra
 
-**Note:** If the Cromwell CHANGELOG indicates that the upgrade might take some time (e.g. because of a database migration), checking in with the release engineer
+**Note:** If the Cromwell CHANGELOG indicates that the upgrade might take some time (e.g., because of a database migration), checking in with the release engineer
 and user support/comms to let them know that the upgrade may involve downtime is also required. You may need to help draft an impact statement and co-ordinate timing
 the deploy to make sure user impact in minimized.
 
-**Note:** How to accomplish some of these steps might be non-obvious to you (e.g. generating the release notes).
+**Note:** How to accomplish some of these steps might be non-obvious to you (e.g., generating the release notes).
 If so, refer to the additional details in the [full document](https://docs.google.com/document/d/1EEzwemE8IedCplIwL506fiqXr0262Pz4G0x6Cr6V-5E). 
 
 ![firecloud-develop](firecloud-develop.dot.png) 
 
 ### How to Deploy Cromwell in CaaS staging and CaaS prod
 
-**Note:** If the Cromwell CHANGELOG indicates that the upgrade might take some time (eg because of a database migration), checking in with the CaaS users
+CaaS is "Crowell as a service". It is used by a couple of Broad teams (Pipelines and Epi), though the long-term plan is for those teams to migrate to using Terra.
+
+**Note:** If the Cromwell CHANGELOG indicates that the upgrade might take some time (e.g., because of a database migration), checking in with the CaaS users
 to let them know that the upgrade is about to happen is a good idea.
 
-Deploying to CAAS is detailed in the [Quick CAAS Deployment Guide](https://docs.google.com/document/d/1s0YC-oohJ7o-OGcgnH_-YBtIEKmLIPTRpG36yvWxUpE) 
+Deploying to CaaS is detailed in the [Quick CAAS Deployment Guide](https://docs.google.com/document/d/1s0YC-oohJ7o-OGcgnH_-YBtIEKmLIPTRpG36yvWxUpE) 
 
 ## Bonus Processes
 
-The swagger client library is not part of our core publish/release process but can be performed from time to time, as required.
+The Swagger client library is not part of our core publish/release process but can be performed from time to time, as required.
 
 ### How to Generate and Publish Swagger Client Library
 

@@ -40,7 +40,6 @@ The release WDL uses a github token to perform actions on your behalf.
 
 This is optional, but I find it useful. Make or copy the following files into some temporary `releases/` directory:
 
-* If you plan to execute the release WDL by running Cromwell with a local backend, a copy of the Cromwell jar file, preferably the most recent version (unnecessary if you run Cromwell with Docker containers, as described [below](#run-the-publish_workflowwdl-workflow))
 * A copy of the workflow file to run (https://github.com/broadinstitute/cromwell/blob/develop/publish/publish_workflow.wdl)
 * An inputs json like this:
 
@@ -56,7 +55,7 @@ This is optional, but I find it useful. Make or copy the following files into so
 
 #### Make sure Docker will have enough memory
 
-If you will be running Cromwell with Docker containers, follow the instructions [here](https://docs.docker.com/docker-for-mac/#resources) to increase Docker memory.
+Follow the instructions [here](https://docs.docker.com/docker-for-mac/#resources) to increase Docker memory.
 Ensure you have at least 8GB; 4GB is not sufficient.
 
 #### Let people know the publish is underway
@@ -66,15 +65,13 @@ the release is published.
 
 #### Run the `publish_workflow.wdl` Workflow
 
-* You can run the Cromwell instance with either the local backend, or in server mode using Docker containers.
-    * If running with the local backend, note that the publish workflow is quite resource intensive; it's a good idea to
-      shut down other resource intensive apps before launching it to avoid painfully slow or failed executions.
-    * Running in server mode with a persistent backing database using Docker containers is a good idea - it will allow call caching to happen if you need to restart for any reason.
-      Some instructions for using a Dockerized MySQL server and CI config [here](#cromwell-setup-for-publishing).
+Run Cromwell in server mode with a persistent backing database, using Docker containers. This allows call caching to happen if you need to restart for any reason. 
+See instructions for using a Dockerized MySQL server and CI config [here](#cromwell-setup-for-publishing).
 
-* Submit the workflow to Cromwell along with the inputs file.
-    * If running with the local backend, supply these as input arguments when executing the JAR.
-    * If running with Docker containers, submit the workflow and inputs file through the Swagger API.
+Note that the publish workflow is quite resource intensive; it's a good idea to
+shut down other resource intensive apps before launching it to avoid painfully slow or failed executions.
+
+Using the Swagger API, submit the workflow to Cromwell along with the inputs file.
 
 #### Make sure it all went swimmingly
 
@@ -97,12 +94,12 @@ If so, refer to the additional details in the [full document](https://docs.googl
 
 ### How to Deploy Cromwell in CaaS staging and CaaS prod
 
-CaaS is "Crowell as a service". It is used by a couple of Broad teams (Pipelines and Epi), though the long-term plan is for those teams to migrate to using Terra.
+CaaS is "Cromwell as a Service". It is used by a couple of Broad teams (Pipelines and Epigenomics), though the long-term plan is for those teams to migrate to using Terra.
 
 **Note:** If the Cromwell CHANGELOG indicates that the upgrade might take some time (e.g., because of a database migration), checking in with the CaaS users
 to let them know that the upgrade is about to happen is a good idea.
 
-Deploying to CaaS is detailed in the [Quick CAAS Deployment Guide](https://docs.google.com/document/d/1s0YC-oohJ7o-OGcgnH_-YBtIEKmLIPTRpG36yvWxUpE) 
+Deploying to CaaS is detailed in the [Quick CaaS Deployment Guide](https://docs.google.com/document/d/1s0YC-oohJ7o-OGcgnH_-YBtIEKmLIPTRpG36yvWxUpE) 
 
 ## Bonus Processes
 

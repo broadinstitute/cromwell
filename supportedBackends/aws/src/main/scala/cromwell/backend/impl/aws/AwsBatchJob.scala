@@ -456,17 +456,6 @@ final case class AwsBatchJob(jobDescriptor: BackendJobDescriptor, // WDL/CWL
     jobDetail
   }
 
-  case class BatchJobContainerContext(jobId: String, containerInstanceArn: String, ecsClusterArns: Seq[String], ec2InstanceIds: Seq[String]) {
-    override def toString: String = {
-      new ToStringBuilder(this, ToStringStyle.JSON_STYLE)
-        .append("jobId", this.jobId)
-        .append("containerInstanceArn", containerInstanceArn)
-        .append("ecsClusterArns", ecsClusterArns)
-        .append("ec2InstanceIds", ec2InstanceIds)
-        .build()
-    }
-  }
-
   def rc(detail: JobDetail): Integer = {
     detail.container.exitCode
   }

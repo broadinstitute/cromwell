@@ -36,7 +36,7 @@ import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.backend.BackendSpec._
 import cromwell.backend.impl.aws.io.AwsBatchWorkingDisk
 import cromwell.backend.validation.ContinueOnReturnCodeFlag
-import cromwell.core.path.{DefaultPathBuilder}
+import cromwell.core.path.DefaultPathBuilder
 import cromwell.core.TestKitSuite
 import cromwell.util.SampleWdl
 import eu.timepit.refined.api.Refined
@@ -47,7 +47,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.specs2.mock.Mockito
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
-import software.amazon.awssdk.services.batch.model.KeyValuePair
+import software.amazon.awssdk.services.batch.model.{ContainerDetail, JobDetail, KeyValuePair}
 import spray.json.{JsObject, JsString}
 import wdl4s.parser.MemoryUnit
 import wom.format.MemorySize
@@ -58,7 +58,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
 
   System.setProperty("aws.region", "us-east-1")
 
-  val script = """
+  val script: String = """
                  |tmpDir=mkdir -p "/cromwell-aws/cromwell-execution/wf_hello/2422ea26-2578-48b0-86e9-50cbdda7d70a/call-hello/tmp.39397e83" && echo "/cromwell-aws/cromwell-execution/wf_hello/2422ea26-2578-48b0-86e9-50cbdda7d70a/call-hello/tmp.39397e83"
                  |chmod 777 "$tmpDir"
                  |export _JAVA_OPTIONS=-Djava.io.tmpdir="$tmpDir"
@@ -120,6 +120,9 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       awsBatchRetryAttempts = 1,
       ulimits = Vector(Map.empty[String, String]),
       fileSystem = "s3")
+
+  val containerDetail: ContainerDetail = ContainerDetail.builder().exitCode(0).build()
+  val jobDetail: JobDetail = JobDetail.builder().container(containerDetail).build
 
   private def generateBasicJob: AwsBatchJob = {
     val job = AwsBatchJob(null, runtimeAttributes, "commandLine", script,
@@ -260,4 +263,19 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
     job.s3Client should not be null
     job.cloudWatchLogsClient should not be null
   }
+
+  it should "have correct script prefix" in {
+    val job = generateBasicJob
+    job.scriptKeyPrefix should equal("scripts/")
+  }
+
+  it should "return correct RC code given Batch Job Detail" in {
+    val containerDetail: ContainerDetail = ContainerDetail.builder().exitCode(0).build
+    val jobDetail: JobDetail = JobDetail.builder().container(containerDetail).build
+    val job = generateBasicJob
+    job.rc(jobDetail) should be (0)
+  }
+
+
+
 }

@@ -99,14 +99,14 @@ class TesInitializationActorSpec extends TestKitSuite
       }
     }
 
-    "fail to start when WorkflowExecutionIdentity is not a string" in {
+    "successfully start when WorkflowExecutionIdentity is a string" in {
       within(Timeout) {
-        val workflowOptionsWithNumber = WorkflowOptions(
+        val workflowOptions = WorkflowOptions(
           JsObject(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> JsString("5")))
         )
         val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld,
           runtime = """runtime { docker: "ubuntu/latest" test: true }""",
-          options = workflowOptionsWithNumber)
+          options = workflowOptions)
         val backend = getActorRef(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, conf)
         backend ! Initialize
         expectMsgPF() {
@@ -116,7 +116,7 @@ class TesInitializationActorSpec extends TestKitSuite
       }
     }
 
-    "successfully start when WorkflowExecutionIdentity is a string" in {
+    "fail to start when WorkflowExecutionIdentity is not a string" in {
       within(Timeout) {
         val workflowOptionsWithNumber = WorkflowOptions(
           JsObject(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> JsNumber(5)))

@@ -307,7 +307,6 @@ object Dependencies {
     "cloudwatchlogs",
     "s3",
     "sts",
-    "ecs"
   ).map(artifactName => "software.amazon.awssdk" % artifactName % awsSdkV)
 
   private val googleCloudDependencies = List(

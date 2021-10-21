@@ -40,8 +40,8 @@ class TesInitializationActor(params: TesInitializationActorParams)
     workflowDescriptor.workflowOptions.toMap.get(TesWorkflowOptionKeys.WorkflowExecutionIdentity) match {
       case None => Success(())
       case Some(_: JsString) => Success(())
-      case _ => Failure(
-        new Exception(s"Workflow option ${TesWorkflowOptionKeys.WorkflowExecutionIdentity} must be a string.")
+      case Some(v) => Failure(
+        new Exception(s"Workflow option ${TesWorkflowOptionKeys.WorkflowExecutionIdentity} must be a string, was ${v}.")
       )
     }
 

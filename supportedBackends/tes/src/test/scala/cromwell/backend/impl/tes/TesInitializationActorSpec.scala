@@ -116,7 +116,7 @@ class TesInitializationActorSpec extends TestKitSuite
       }
     }
 
-    "fail to start when WorkflowExecutionIdentity is not a string" in {
+    "return InitializationFailed when WorkflowExecutionIdentity is not a string" in {
       within(Timeout) {
         val workflowOptionsWithNumber = WorkflowOptions(
           JsObject(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> JsNumber(5)))
@@ -128,7 +128,13 @@ class TesInitializationActorSpec extends TestKitSuite
         backend ! Initialize
         expectMsgPF() {
           case InitializationSuccess(s) => fail(s"InitializationFailed was expected but got $s")
-          case InitializationFailed(_) =>
+          case InitializationFailed(failure) => {
+            val expectedMsg = s"Workflow option ${TesWorkflowOptionKeys.WorkflowExecutionIdentity} must be a string"
+            Option(failure.getMessage) match {
+              case Some(m) if m.contains(expectedMsg) =>
+              case _ => fail(s"Exception message does not contain '${expectedMsg}'")
+            }
+          }
         }
       }
     }

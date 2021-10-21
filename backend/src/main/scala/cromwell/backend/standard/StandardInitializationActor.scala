@@ -12,7 +12,7 @@ import wom.graph.CommandCallNode
 import wom.values.WomValue
 
 import scala.concurrent.Future
-import scala.util.Try
+import scala.util.{Success, Try}
 
 trait StandardInitializationActorParams {
   def workflowDescriptor: BackendWorkflowDescriptor
@@ -82,7 +82,7 @@ class StandardInitializationActor(val standardParams: StandardInitializationActo
     RuntimeAttributesDefault.workflowOptionsDefault(options, runtimeAttributesBuilder.coercionMap)
   }
 
-  def validateWorkflowOptions(): Try[Unit] = Try(())
+  def validateWorkflowOptions(): Try[Unit] = Success(())
 
   def checkForUnsupportedRuntimeAttributes(): Try[Unit] = Try {
     calls foreach { call =>

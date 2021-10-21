@@ -28,25 +28,22 @@ class TesTaskSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
 
   it should "create the correct resources when an identity is passed in WorkflowOptions" in {
     val wd = workflowDescriptorWithIdentity(Option("abc123"))
-    assert(
-      TesTask.makeResources(runtimeAttributes, wd)
-        == Resources(None, None, None, Option(false), None, Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> "abc123")))
+    TesTask.makeResources(runtimeAttributes, wd) shouldEqual
+        Resources(None, None, None, Option(false), None, Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> "abc123"))
     )
   }
 
   it should "create the correct resources when an empty identity is passed in WorkflowOptions" in {
     val wd = workflowDescriptorWithIdentity(Option(""))
-    assert(
-      TesTask.makeResources(runtimeAttributes, wd)
-        == Resources(None, None, None, Option(false), None, Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> "")))
+    TesTask.makeResources(runtimeAttributes, wd) shouldEqual
+        Resources(None, None, None, Option(false), None, Option(Map(TesWorkflowOptionKeys.WorkflowExecutionIdentity -> ""))
     )
   }
 
   it should "create the correct resources when no identity is passed in WorkflowOptions" in {
     val wd = workflowDescriptorWithIdentity(None)
-    assert(
-      TesTask.makeResources(runtimeAttributes, wd)
-        == Resources(None, None, None, Option(false), None, Option(Map.empty[String, String]))
+    TesTask.makeResources(runtimeAttributes, wd) shouldEqual
+        Resources(None, None, None, Option(false), None, Option(Map.empty[String, String])
     )
   }
 }

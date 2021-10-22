@@ -1,5 +1,6 @@
-import sbt._
-import sbtassembly.AssemblyPlugin.autoImport._
+import sbt.*
+import sbt.Keys.ps
+import sbtassembly.AssemblyPlugin.autoImport.*
 import sbtassembly.{MergeStrategy, PathList}
 
 object Merging {

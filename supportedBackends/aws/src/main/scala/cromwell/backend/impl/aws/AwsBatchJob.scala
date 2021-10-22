@@ -309,7 +309,7 @@ final case class AwsBatchJob(
                     ResourceRequirement
                       .builder()
                       .`type`(ResourceType.VCPU)
-                      .value(runtimeAttributes.cpu.value.toString)
+                      .value(runtimeAttributes.cpu.##.toString)
                       .build(),
                     ResourceRequirement
                       .builder()

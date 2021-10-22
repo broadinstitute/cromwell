@@ -180,7 +180,7 @@ trait AwsBatchJobDefinitionBuilder {
          ResourceRequirement
            .builder()
            .`type`(ResourceType.VCPU)
-           .value(context.runtimeAttributes.cpu.value.toString)
+           .value(context.runtimeAttributes.cpu.##.toString)
            .build()
        )
        .volumes(volumes.asJava)

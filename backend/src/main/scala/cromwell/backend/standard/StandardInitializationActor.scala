@@ -12,7 +12,7 @@ import wom.graph.CommandCallNode
 import wom.values.WomValue
 
 import scala.concurrent.Future
-import scala.util.Try
+import scala.util.{Success, Try}
 
 trait StandardInitializationActorParams {
   def workflowDescriptor: BackendWorkflowDescriptor
@@ -82,20 +82,29 @@ class StandardInitializationActor(val standardParams: StandardInitializationActo
     RuntimeAttributesDefault.workflowOptionsDefault(options, runtimeAttributesBuilder.coercionMap)
   }
 
-  override def validate(): Future[Unit] = {
-    Future.fromTry(Try {
-      calls foreach { call =>
-        val runtimeAttributeKeys = call.callable.runtimeAttributes.attributes.keys.toList
-        val notSupportedAttributes = runtimeAttributesBuilder.unsupportedKeys(runtimeAttributeKeys).toList
+  def validateWorkflowOptions(): Try[Unit] = Success(())
 
-        if (notSupportedAttributes.nonEmpty) {
-          val notSupportedAttrString = notSupportedAttributes mkString ", "
-          workflowLogger.warn(
-            s"Key/s [$notSupportedAttrString] is/are not supported by backend. " +
-              s"Unsupported attributes will not be part of job executions.")
-        }
+  def checkForUnsupportedRuntimeAttributes(): Try[Unit] = Try {
+    calls foreach { call =>
+      val runtimeAttributeKeys = call.callable.runtimeAttributes.attributes.keys.toList
+      val notSupportedAttributes = runtimeAttributesBuilder.unsupportedKeys(runtimeAttributeKeys).toList
+
+      if (notSupportedAttributes.nonEmpty) {
+        val notSupportedAttrString = notSupportedAttributes mkString ", "
+        workflowLogger.warn(
+          s"Key/s [$notSupportedAttrString] is/are not supported by backend. " +
+            s"Unsupported attributes will not be part of job executions.")
       }
-    })
+    }
+  }
+
+  override def validate(): Future[Unit] = {
+    Future.fromTry(
+      for {
+        _ <- validateWorkflowOptions()
+        _ <- checkForUnsupportedRuntimeAttributes()
+      } yield ()
+    )
   }
 
   override protected lazy val workflowDescriptor: BackendWorkflowDescriptor = standardParams.workflowDescriptor

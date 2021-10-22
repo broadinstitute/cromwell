@@ -31,6 +31,7 @@ import spray.json.{JsObject, JsString}
 import wom.graph.CommandCallNode
 
 import scala.concurrent.Future
+import scala.util.Try
 
 case class PipelinesApiInitializationActorParams
 (
@@ -219,12 +220,12 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
     privateDockerEncryptedToken = privateDockerEncryptedToken,
     vpcNetworkAndSubnetworkProjectLabels = vpcNetworkAndSubnetworkProjectLabels)
 
+  override def validateWorkflowOptions(): Try[Unit] = GoogleLabels.fromWorkflowOptions(workflowOptions).map(_ => ())
+
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     for {
       paths <- workflowPaths
       _ = publishWorkflowRoot(paths.workflowRoot.pathAsString)
-      // Validate the google-labels workflow options, and only succeed initialization if they're good:
-      _ <- Future.fromTry(GoogleLabels.fromWorkflowOptions(workflowOptions))
       data <- initializationData
     } yield Option(data)
   }

@@ -11,7 +11,7 @@ object Dependencies {
   private val ammoniteOpsV = "2.3.8"
   private val apacheCommonNetV = "3.7.2"
   private val apacheHttpClientV = "4.5.13"
-  private val awsSdkV = "2.15.41"
+  private val awsSdkV = "2.17.66"
   private val betterFilesV = "3.9.1"
   private val catsEffectV = "2.3.0"
   private val catsV = "2.3.0"
@@ -56,7 +56,7 @@ object Dependencies {
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.5.1"
   private val http4sVersion = "0.21.7" // scala-steward:off (CROM-6678)
-  private val jacksonV = "2.12.2"
+  private val jacksonV = "2.12.5"
   private val jacksonJqV = "1.0.0-preview.20201123"
   private val janinoV = "3.1.2"
   private val javaxActivationV = "1.2.0"
@@ -311,7 +311,9 @@ object Dependencies {
     "cloudwatchlogs",
     "s3",
     "sts",
-    "ecs"
+    "ecs",
+    "ecr",
+    "ecrpublic",
   ).map(artifactName => "software.amazon.awssdk" % artifactName % awsSdkV)
 
   private val googleCloudDependencies = List(
@@ -502,7 +504,7 @@ object Dependencies {
 
   val databaseMigrationDependencies = liquibaseDependencies ++ dbmsDependencies
 
-  val dockerHashingDependencies = http4sDependencies ++ circeDependencies ++ aliyunCrDependencies
+  val dockerHashingDependencies = http4sDependencies ++ circeDependencies ++ aliyunCrDependencies ++ awsCloudDependencies
 
   val cromwellApiClientDependencies = List(
     "org.scalaz" %% "scalaz-core" % scalazV,

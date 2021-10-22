@@ -60,7 +60,7 @@ object DockerRegistryV2Abstract {
           )
       })
   }
-  
+
   // Placeholder exceptions that can be carried through IO before being converted to a DockerInfoFailedResponse
   private class Unauthorized() extends Exception
   private class NotFound() extends Exception
@@ -75,6 +75,8 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
   implicit val ec = config.executionContext
   implicit val cs = IO.contextShift(ec)
   implicit val timer = IO.timer(ec)
+
+  protected val authorizationScheme: AuthScheme = AuthScheme.Bearer
 
   /**
     * This is the main function. Given a docker context and an http client, retrieve information about the docker image.
@@ -204,7 +206,7 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
     * Request to get the manifest, using the auth token if provided
     */
   private def manifestRequest(token: Option[String], imageId: DockerImageIdentifier): IO[Request[IO]] = {
-    val authorizationHeader = token.map(t => Authorization(Credentials.Token(AuthScheme.Bearer, t)))
+    val authorizationHeader = token.map(t => Authorization(Credentials.Token(authorizationScheme, t)))
     val request = Method.GET(
       buildManifestUri(imageId),
       List(
@@ -235,13 +237,13 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
     * The response can be of 2 sorts:
     * - A manifest (https://docs.docker.com/registry/spec/manifest-v2-2/#image-manifest-field-descriptions)
     * - A manifest list which contains a list of pointers to other manifests (https://docs.docker.com/registry/spec/manifest-v2-2/#manifest-list)
-    * 
+    *
     * When a manifest list is returned, we need to pick one of the manifest pointers and make another request for that manifest.
-    * 
+    *
     * Because the different manifests in the list are (supposed to be) variations of the same image over different platforms,
     * we simply pick the first one here since we only care about the approximate size, and we don't expect it to change drastically
     * between platforms.
-    * If that assumption turns out to be incorrect, a smarter decision may need to be made to choose the manifest to lookup. 
+    * If that assumption turns out to be incorrect, a smarter decision may need to be made to choose the manifest to lookup.
     */
   private def parseManifest(dockerImageIdentifier: DockerImageIdentifier, token: Option[String])(response: Response[IO])(implicit client: Client[IO]): IO[Option[DockerManifest]] = response match {
     case Status.Successful(r) if r.headers.exists(_.value.equalsIgnoreCase(ManifestV2MediaType)) =>
@@ -268,14 +270,14 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
     }
   }
 
-  private def getDigestFromResponse(response: Response[IO]): IO[DockerHashResult] = response match {
+  protected def getDigestFromResponse(response: Response[IO]): IO[DockerHashResult] = response match {
     case Status.Successful(r) => extractDigestFromHeaders(r.headers)
     case Status.Unauthorized(_) => IO.raiseError(new Unauthorized)
     case Status.NotFound(_) => IO.raiseError(new NotFound)
     case failed => failed.as[String].flatMap(body => IO.raiseError(new Exception(s"Failed to get manifest: $body"))
     )
   }
-  
+
   private def extractDigestFromHeaders(headers: Headers) = {
     headers.find(a => a.toRaw.name.equals(DigestHeaderName)) match {
       case Some(digest) => IO.fromEither(DockerHashResult.fromString(digest.value).toEither)

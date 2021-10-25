@@ -53,7 +53,7 @@ object DrsResolver {
       case MarthaLocalizationData(None, _, _, _) => None
       // `bondProvider` defined, cannot "preresolve" to GCS.
       case MarthaLocalizationData(_, _, Some(_), _) => None
-      // `localizationPath` defined which takes precedence over `fileName`. Don't attempt preresolve for this case.
+      // `localizationPath` defined which takes precedence over `fileName`. Do not attempt preresolve for this case.
       case MarthaLocalizationData(_, _, _ , Some(_)) => None
       case MarthaLocalizationData(Some(gsUri), Some(fileName), _, _) if !gsUri.endsWith(s"/$fileName") => None
       case MarthaLocalizationData(Some(gsUri), _, _, _) => Option(gsUri)
@@ -78,19 +78,6 @@ object DrsResolver {
   }
 
   def getContainerRelativePath(drsPath: DrsPath): IO[String] = {
-
-    def buildFullPath(fileName: String, rootPath: Path): IO[Path] = {
-      if (fileName.startsWith("/"))
-        // If `fileName` has a leading slash do not treat it as being relative to the DRS `rootPath` as this is the way
-        // localization paths are specified by TDR [BT-418]. Do strip the leading slash as the resulting path will still
-        // need to be made relative to the container root.
-        IO.fromTry(DefaultPathBuilder.build(fileName.substring(1)))
-      else {
-        // Regular non-leading-slash `fileName` should be made relative to the `rootPath`.
-        IO(rootPath.resolve(fileName))
-      }
-    }
-
     val pathIO = for {
       drsPathResolver <- getDrsPathResolver(drsPath)
       localizationData <- getMarthaLocalizationData(drsPath.pathAsString, drsPathResolver)
@@ -100,27 +87,30 @@ object DrsResolver {
       https://ga4gh.github.io/data-repository-service-schemas/preview/release/drs-1.0.0/docs/#_contentsobject
        */
       rootPath = DefaultPathBuilder.get(drsPath.pathWithoutScheme.replaceAll("[^/A-Za-z0-9._-]", "_"))
-      fileName <- getFileName(localizationData)
-      fullPath <- buildFullPath(fileName, rootPath)
-    } yield fullPath.pathAsString
+      containerRelativePath <- buildContainerRelativePath(localizationData, rootPath)
+    } yield containerRelativePath.pathAsString
 
     pathIO.handleErrorWith(resolveError(drsPath.pathAsString))
   }
 
-  /**
-    * Return the file name returned from the martha response or get it from the gsUri
-    */
-  private def getFileName(localizationData: MarthaLocalizationData): IO[String] = {
+  // Return the container relative path built from the Martha-specified localization path, file name, or gs URI.
+  private def buildContainerRelativePath(localizationData: MarthaLocalizationData, rootPath: Path): IO[Path] = {
     localizationData match {
-      case MarthaLocalizationData(_, _, _, Some(localizationPath)) => IO.pure(localizationPath)
-      case MarthaLocalizationData(_, Some(fileName), _, _) => IO.pure(fileName)
+      case MarthaLocalizationData(_, _, _, Some(localizationPath)) =>
+        // TDR may return an explicit localization path and if so this should not be made relative to the `rootPath`.
+        // Do strip any leading slashes as the resulting path will still be made relative to the container root.
+        val relativePath = if (localizationPath.startsWith("/")) localizationPath.substring(1) else localizationPath
+        IO.fromTry(DefaultPathBuilder.build(relativePath))
+      case MarthaLocalizationData(_, Some(fileName), _, _) =>
+        // Paths specified by filename only are made relative to `rootPath`.
+        IO(rootPath.resolve(fileName))
       case _ =>
         // If this logic is forced to fall back on the GCS path there better be a GCS path to fall back on.
         IO
           .fromEither(localizationData.gsUri.toRight(UrlNotFoundException(GcsScheme)))
           .map(_.substring(GcsProtocolLength))
           .map(DefaultPathBuilder.get(_))
-          .map(_.name)
+          .map(path => rootPath.resolve(path.name))
     }
   }
 }

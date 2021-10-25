@@ -4,7 +4,7 @@ import cats.data.NonEmptyList
 import cats.effect.IO
 import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, DrsPathResolver, MarthaField}
 import common.exception._
-import cromwell.core.path.DefaultPathBuilder
+import cromwell.core.path.{DefaultPathBuilder, Path}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import shapeless.syntax.typeable._
 
@@ -78,6 +78,19 @@ object DrsResolver {
   }
 
   def getContainerRelativePath(drsPath: DrsPath): IO[String] = {
+
+    def buildFullPath(fileName: String, rootPath: Path): IO[Path] = {
+      if (fileName.startsWith("/"))
+        // If `fileName` has a leading slash do not treat it as being relative to the DRS `rootPath` as this is the way
+        // localization paths are specified by TDR [BT-418]. Do strip the leading slash as the resulting path will still
+        // need to be made relative to the container root.
+        IO.fromTry(DefaultPathBuilder.build(fileName.substring(1)))
+      else {
+        // Regular non-leading-slash `fileName` should be made relative to the `rootPath`.
+        IO(rootPath.resolve(fileName))
+      }
+    }
+
     val pathIO = for {
       drsPathResolver <- getDrsPathResolver(drsPath)
       localizationData <- getMarthaLocalizationData(drsPath.pathAsString, drsPathResolver)
@@ -88,10 +101,8 @@ object DrsResolver {
        */
       rootPath = DefaultPathBuilder.get(drsPath.pathWithoutScheme.replaceAll("[^/A-Za-z0-9._-]", "_"))
       fileName <- getFileName(localizationData)
-      relativeFileName = if (fileName.startsWith("/")) fileName.substring(1) else fileName
-      fullPath = rootPath.resolve(relativeFileName)
-      fullPathString = fullPath.pathAsString
-    } yield fullPathString
+      fullPath <- buildFullPath(fileName, rootPath)
+    } yield fullPath.pathAsString
 
     pathIO.handleErrorWith(resolveError(drsPath.pathAsString))
   }

@@ -37,6 +37,10 @@ class MockEngineDrsPathResolver(drsConfig: DrsConfig = MockDrsPaths.mockDrsConfi
 
   private val marthaObjWithFileName = marthaObjWithGcsPath.copy(fileName = Option("file.txt"))
 
+  private val marthaObjWithLocalizationPath = marthaObjWithGcsPath.copy(localizationPath = Option("/dir/subdir/file.txt"))
+
+  private val marthaObjWithAllThePaths = marthaObjWithLocalizationPath.copy(fileName = marthaObjWithFileName.fileName)
+
   private val marthaObjWithNoGcsPath = marthaObjWithGcsPath.copy(gsUri = None)
 
   override def resolveDrsThroughMartha(drsPath: String, fields: NonEmptyList[MarthaField.Value]): IO[MarthaResponse] = {
@@ -44,6 +48,8 @@ class MockEngineDrsPathResolver(drsConfig: DrsConfig = MockDrsPaths.mockDrsConfi
       case MockDrsPaths.drsPathResolvingGcsPath => IO(marthaObjWithGcsPath)
       case MockDrsPaths.drsPathWithNonPathChars => IO(marthaObjWithGcsPath)
       case MockDrsPaths.drsPathResolvingWithFileName => IO(marthaObjWithFileName)
+      case MockDrsPaths.drsPathResolvingWithLocalizationPath => IO.pure(marthaObjWithLocalizationPath)
+      case MockDrsPaths.drsPathResolvingWithAllThePaths => IO.pure(marthaObjWithAllThePaths)
       case MockDrsPaths.drsPathResolvingToNoGcsPath => IO(marthaObjWithNoGcsPath)
       case MockDrsPaths.drsPathNotExistingInMartha =>
         IO.raiseError(

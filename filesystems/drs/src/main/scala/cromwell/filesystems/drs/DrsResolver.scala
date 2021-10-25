@@ -32,35 +32,39 @@ object DrsResolver {
     } yield drsFileSystemProvider.drsPathResolver
   }
 
-  private def getGsUriFileNameBondProvider(pathAsString: String,
-                                           drsPathResolver: DrsPathResolver
-                                          ): IO[(Option[String], Option[String], Option[String])] = {
-    val fields = NonEmptyList.of(MarthaField.GsUri, MarthaField.FileName, MarthaField.BondProvider)
-    for {
-      marthaResponse <- drsPathResolver.resolveDrsThroughMartha(pathAsString, fields)
-    } yield (marthaResponse.gsUri, marthaResponse.fileName, marthaResponse.bondProvider)
+  case class MarthaLocalizationData(gsUri: Option[String],
+                                    fileName: Option[String],
+                                    bondProvider: Option[String],
+                                    localizationPath: Option[String])
+
+  private def getMarthaLocalizationData(pathAsString: String,
+                                        drsPathResolver: DrsPathResolver): IO[MarthaLocalizationData] = {
+    val fields = NonEmptyList.of(MarthaField.GsUri, MarthaField.FileName, MarthaField.BondProvider, MarthaField.LocalizationPath)
+
+    drsPathResolver.resolveDrsThroughMartha(pathAsString, fields) map { r =>
+      MarthaLocalizationData(r.gsUri, r.fileName, r.bondProvider, r.localizationPath)
+    }
   }
 
   /** Returns the `gsUri` if it ends in the `fileName` and the `bondProvider` is empty. */
-  private def getSimpleGsUri(gsUriOption: Option[String],
-                             fileNameOption: Option[String],
-                             bondProviderOption: Option[String],
-                            ): Option[String] = {
-    for {
-      // Only return gsUri that do not use Bond
-      gsUri <- if (bondProviderOption.isEmpty) gsUriOption else None
-      // Only return the gsUri if there is no fileName or if gsUri ends in /fileName
-      if fileNameOption.forall(fileName => gsUri.endsWith(s"/$fileName"))
-    } yield gsUri
+  private def getSimpleGsUri(localizationData: MarthaLocalizationData): Option[String] = {
+    localizationData match {
+      // `gsUri` not defined so no gsUri can be returned.
+      case MarthaLocalizationData(None, _, _, _) => None
+      // `bondProvider` defined, cannot "preresolve" to GCS.
+      case MarthaLocalizationData(_, _, Some(_), _) => None
+      // `localizationPath` defined which takes precedence over `fileName`. Don't attempt preresolve for this case.
+      case MarthaLocalizationData(_, _, _ , Some(_)) => None
+      case MarthaLocalizationData(Some(gsUri), Some(fileName), _, _) if !gsUri.endsWith(s"/$fileName") => None
+      case MarthaLocalizationData(Some(gsUri), _, _, _) => Option(gsUri)
+    }
   }
 
   /** Returns the `gsUri` if it ends in the `fileName` and the `bondProvider` is empty. */
   def getSimpleGsUri(pathAsString: String,
                      drsPathResolver: DrsPathResolver): IO[Option[String]] = {
-    val gsUriIO = for {
-      tuple <- getGsUriFileNameBondProvider(pathAsString, drsPathResolver)
-      (gsUriOption, fileNameOption, bondProviderOption) = tuple
-    } yield getSimpleGsUri(gsUriOption, fileNameOption, bondProviderOption)
+
+    val gsUriIO = getMarthaLocalizationData(pathAsString, drsPathResolver) map getSimpleGsUri
 
     gsUriIO.handleErrorWith(resolveError(pathAsString))
   }
@@ -76,16 +80,16 @@ object DrsResolver {
   def getContainerRelativePath(drsPath: DrsPath): IO[String] = {
     val pathIO = for {
       drsPathResolver <- getDrsPathResolver(drsPath)
-      tuple <- getGsUriFileNameBondProvider(drsPath.pathAsString, drsPathResolver)
-      (gsUriOption, fileNameOption, _) = tuple
+      localizationData <- getMarthaLocalizationData(drsPath.pathAsString, drsPathResolver)
       /*
       In the DOS/DRS spec file names are safe for file systems but not necessarily the DRS URIs.
       Reuse the regex defined for ContentsObject.name, plus add "/" for directory separators.
       https://ga4gh.github.io/data-repository-service-schemas/preview/release/drs-1.0.0/docs/#_contentsobject
        */
       rootPath = DefaultPathBuilder.get(drsPath.pathWithoutScheme.replaceAll("[^/A-Za-z0-9._-]", "_"))
-      fileName <- getFileName(fileNameOption, gsUriOption)
-      fullPath = rootPath.resolve(fileName)
+      fileName <- getFileName(localizationData)
+      relativeFileName = if (fileName.startsWith("/")) fileName.substring(1) else fileName
+      fullPath = rootPath.resolve(relativeFileName)
       fullPathString = fullPath.pathAsString
     } yield fullPathString
 
@@ -95,13 +99,14 @@ object DrsResolver {
   /**
     * Return the file name returned from the martha response or get it from the gsUri
     */
-  private def getFileName(fileName: Option[String], gsUri: Option[String]): IO[String] = {
-    fileName match {
-      case Some(actualFileName) => IO.pure(actualFileName)
-      case None =>
-        //Currently, Martha only supports resolving DRS paths to GCS paths
+  private def getFileName(localizationData: MarthaLocalizationData): IO[String] = {
+    localizationData match {
+      case MarthaLocalizationData(_, _, _, Some(localizationPath)) => IO.pure(localizationPath)
+      case MarthaLocalizationData(_, Some(fileName), _, _) => IO.pure(fileName)
+      case _ =>
+        // If this logic is forced to fall back on the GCS path there better be a GCS path to fall back on.
         IO
-          .fromEither(gsUri.toRight(UrlNotFoundException(GcsScheme)))
+          .fromEither(localizationData.gsUri.toRight(UrlNotFoundException(GcsScheme)))
           .map(_.substring(GcsProtocolLength))
           .map(DefaultPathBuilder.get(_))
           .map(_.name)

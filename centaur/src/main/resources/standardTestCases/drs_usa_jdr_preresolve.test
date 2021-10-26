@@ -2,6 +2,9 @@ name: drs_usa_jdr_preresolve
 testFormat: WorkflowSuccess
 backends: ["papi-v2-usa"]
 skipDescribeEndpointValidation: true
+# Turning off this test at least temporarily because of BT-432 work where TDR will express an opinion about the
+# localization path for these files.
+ignore: true
 
 files {
   workflow: drs_tests/drs_usa_jdr.wdl

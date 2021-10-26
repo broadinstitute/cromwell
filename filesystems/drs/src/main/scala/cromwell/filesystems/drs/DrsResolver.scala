@@ -46,7 +46,7 @@ object DrsResolver {
     }
   }
 
-  /** Returns the `gsUri` if it ends in the `fileName` and the `bondProvider` is empty. */
+  /* Returns `Some(gsUri)` if conditions allow, otherwise return `None`. */
   private def getSimpleGsUri(localizationData: MarthaLocalizationData): Option[String] = {
     localizationData match {
       // `gsUri` not defined so no gsUri can be returned.
@@ -55,12 +55,15 @@ object DrsResolver {
       case MarthaLocalizationData(_, _, Some(_), _) => None
       // `localizationPath` defined which takes precedence over `fileName`. Do not attempt preresolve for this case.
       case MarthaLocalizationData(_, _, _ , Some(_)) => None
+      // Do not preresolve if the `fileName` from metadata is mismatched to the filename in the `gsUri`.
+      // Preresolve would inappropriately use the filename from `gsUri` to the preferred metadata `fileName`.
       case MarthaLocalizationData(Some(gsUri), Some(fileName), _, _) if !gsUri.endsWith(s"/$fileName") => None
+      // Barring any of the situations above return the `gsUri`.
       case MarthaLocalizationData(Some(gsUri), _, _, _) => Option(gsUri)
     }
   }
 
-  /** Returns the `gsUri` if it ends in the `fileName` and the `bondProvider` is empty. */
+  /** Returns `Some(gsUri)` if conditions allow, otherwise return `None`. */
   def getSimpleGsUri(pathAsString: String,
                      drsPathResolver: DrsPathResolver): IO[Option[String]] = {
 
@@ -69,7 +72,7 @@ object DrsResolver {
     gsUriIO.handleErrorWith(resolveError(pathAsString))
   }
 
-  /** Returns the `gsUri` if it ends in the `fileName` and the `bondProvider` is empty. */
+  /** Returns `Some(gsUri)` if conditions allow, otherwise return `None`. */
   def getSimpleGsUri(drsPath: DrsPath): IO[Option[String]] = {
     for {
       drsPathResolver <- getDrsPathResolver(drsPath)

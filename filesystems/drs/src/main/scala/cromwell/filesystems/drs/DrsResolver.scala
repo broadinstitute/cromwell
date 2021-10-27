@@ -46,24 +46,21 @@ object DrsResolver {
     }
   }
 
-  /* Returns `Some(gsUri)` if conditions allow, otherwise return `None`. */
+  /** Returns the `gsUri` if it ends in the `fileName` and the `bondProvider` is empty. */
   private def getSimpleGsUri(localizationData: MarthaLocalizationData): Option[String] = {
     localizationData match {
       // `gsUri` not defined so no gsUri can be returned.
       case MarthaLocalizationData(None, _, _, _) => None
       // `bondProvider` defined, cannot "preresolve" to GCS.
       case MarthaLocalizationData(_, _, Some(_), _) => None
-      // `localizationPath` defined which takes precedence over `fileName`. Do not attempt preresolve for this case.
-      case MarthaLocalizationData(_, _, _ , Some(_)) => None
-      // Do not preresolve if the `fileName` from metadata is mismatched to the filename in the `gsUri`.
-      // Preresolve would inappropriately use the filename from `gsUri` to the preferred metadata `fileName`.
+      // Do not return the simple GS URI if the `fileName` from metadata is mismatched to the filename in the `gsUri`.
       case MarthaLocalizationData(Some(gsUri), Some(fileName), _, _) if !gsUri.endsWith(s"/$fileName") => None
       // Barring any of the situations above return the `gsUri`.
       case MarthaLocalizationData(Some(gsUri), _, _, _) => Option(gsUri)
     }
   }
 
-  /** Returns `Some(gsUri)` if conditions allow, otherwise return `None`. */
+  /** Returns the `gsUri` if it ends in the `fileName` and the `bondProvider` is empty. */
   def getSimpleGsUri(pathAsString: String,
                      drsPathResolver: DrsPathResolver): IO[Option[String]] = {
 
@@ -72,7 +69,7 @@ object DrsResolver {
     gsUriIO.handleErrorWith(resolveError(pathAsString))
   }
 
-  /** Returns `Some(gsUri)` if conditions allow, otherwise return `None`. */
+  /** Returns the `gsUri` if it ends in the `fileName` and the `bondProvider` is empty. */
   def getSimpleGsUri(drsPath: DrsPath): IO[Option[String]] = {
     for {
       drsPathResolver <- getDrsPathResolver(drsPath)

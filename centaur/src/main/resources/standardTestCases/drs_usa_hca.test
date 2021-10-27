@@ -18,5 +18,5 @@ metadata {
   "outputs.drs_usa_hca.path" = "/cromwell_root/hca_dev_20201217_test4/5acd55ef/E18_20161004_Neurons_Sample_49_S048_L004_R2_005.fastq.gz"
   "outputs.drs_usa_hca.hash" = "badf266412ff0e307232421e56d647ed"
   "outputs.drs_usa_hca.size" = 438932948
-  "outputs.drs_usa_hca.cloud" = "/cromwell_root/hca_dev_20201217_test4/5acd55ef/E18_20161004_Neurons_Sample_49_S048_L004_R2_005.fastq.gz"
+  "outputs.drs_usa_hca.cloud" = "gs://broad-jade-dev-data-bucket/ecb5601e-9026-428c-b49d-3c5f1807ecb7/e37266ba-790d-4641-aa76-854d94be2fbe/E18_20161004_Neurons_Sample_49_S048_L004_R2_005.fastq.gz"
 }

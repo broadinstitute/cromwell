@@ -1,10 +1,12 @@
 package cromwell.webservice
 
-import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
 import akka.http.scaladsl.server.Route
 import com.typesafe.config.Config
 import net.ceedubs.ficus.Ficus._
 import akka.http.scaladsl.server.Directives._
+import akka.stream.scaladsl.Flow
+import akka.util.ByteString
 
 /**
  * Serves up the swagger UI from org.webjars/swagger-ui.
@@ -127,15 +129,30 @@ trait SwaggerResourceHttpService {
    */
   protected def swaggerDocsPath = s"$swaggerDirectory/$swaggerServiceName.$swaggerResourceType"
 
+
+
   /**
    * @return A route that returns the swagger resource.
    */
   final def swaggerResourceRoute: Route = {
     val swaggerDocsDirective = path(separateOnSlashes(swaggerDocsPath))
+
+    def injectBasePath(basePath: Option[String])(response: HttpResponse): HttpResponse = {
+      basePath match {
+        case _ if response.status != StatusCodes.OK => response
+        case None => response
+        case Some(bp) => response.mapEntity { entity =>
+          val swapperFlow: Flow[ByteString, ByteString, Any] = Flow[ByteString].map(byteString => ByteString.apply(byteString.utf8String.replace("#basePath: ...", "basePath: " + bp)))
+          entity.transformDataBytes(swapperFlow)
+        }
+      }
+    }
+
     val route = get {
       swaggerDocsDirective {
         // Return /uiPath/serviceName.resourceType from the classpath resources.
-        getFromResource(swaggerDocsPath)
+        val basePathOverride = Option(System.getenv("SWAGGER_BASE_PATH"))
+        mapResponse(injectBasePath(basePathOverride))(getFromResource(swaggerDocsPath))
       }
     }
 

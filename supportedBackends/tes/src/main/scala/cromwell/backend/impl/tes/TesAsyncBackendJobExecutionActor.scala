@@ -172,11 +172,14 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
     // BT-426 temporary log msg to exercise KeyVault access
     val executionIdentity = workflowDescriptor.workflowOptions.get(TesWorkflowOptionKeys.WorkflowExecutionIdentity).toOption
-    val keyVaultClient = AzureKeyVaultClient(tesConfiguration.azureKeyVaultName, executionIdentity)
-    val secretMessage = keyVaultClient.flatMap(_.getSecret(tesConfiguration.azureB2CTokenSecretName)) match {
-      case Valid(secret) => s"Successfully accessed a secret of length ${secret.length} from KeyVault"
-      case Invalid(err) => s"Couldn't access secret: $err"
-    }
+    val secretMessage: String =
+      (tesConfiguration.azureKeyVaultName, tesConfiguration.azureB2CTokenSecretName).mapN { case (keyVaultName, secretName) =>
+        AzureKeyVaultClient(keyVaultName, executionIdentity)
+          .flatMap(_.getSecret(secretName)) match {
+            case Valid(secret) => s"Successfully accessed a secret of length ${secret.length} from KeyVault"
+            case Invalid(err) => s"Couldn't access KeyVault secret: $err"
+          }
+      }.getOrElse("Skipping KeyVault test, didn't find necessary config items")
     jobLogger.info(secretMessage)
 
     // create call exec dir

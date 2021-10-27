@@ -12,7 +12,7 @@ workflow drs_usa_jdr {
             file2 = file2
     }
 
-    call still_cant_skip_localize_jdr_drs_with_usa {
+    call skip_localize_jdr_drs_with_usa {
         input:
             file1 = file1,
             file2 = file2
@@ -31,8 +31,8 @@ workflow drs_usa_jdr {
         String hash2 = localize_jdr_drs_with_usa.hash2
         Float size1 = localize_jdr_drs_with_usa.size1
         Float size2 = localize_jdr_drs_with_usa.size2
-        String cloud1 = still_cant_skip_localize_jdr_drs_with_usa.path1
-        String cloud2 = still_cant_skip_localize_jdr_drs_with_usa.path2
+        String cloud1 = skip_localize_jdr_drs_with_usa.path1
+        String cloud2 = skip_localize_jdr_drs_with_usa.path2
         Map[String, String] map1 = read_drs_with_usa.map1
         Map[String, String] map2 = read_drs_with_usa.map2
     }
@@ -66,15 +66,13 @@ task localize_jdr_drs_with_usa {
     }
 }
 
-task still_cant_skip_localize_jdr_drs_with_usa {
+task skip_localize_jdr_drs_with_usa {
     input {
        File file1
        File file2
     }
 
     parameter_meta {
-        # Despite the `localization_optional: true` specifications these files are still going to be localized with the
-        # Cromwell DRS localizer because Martha is returning a `localizationPath` for the specified DRS objects.
         file1: { localization_optional: true }
         file2: { localization_optional: true }
     }

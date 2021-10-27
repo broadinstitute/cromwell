@@ -10,13 +10,13 @@ workflow drs_usa_hca {
             file = file
     }
 
-    call still_cant_skip_localize_drs_with_usa { input: file = file }
+    call skip_localize_drs_with_usa { input: file = file }
 
     output {
         String path = localize_drs_with_usa.path
         String hash = localize_drs_with_usa.hash
         Float size = localize_drs_with_usa.size
-        String cloud = still_cant_skip_localize_drs_with_usa.path
+        String cloud = skip_localize_drs_with_usa.path
     }
 }
 
@@ -43,7 +43,7 @@ task localize_drs_with_usa {
     }
 }
 
-task still_cant_skip_localize_drs_with_usa {
+task skip_localize_drs_with_usa {
     input {
         File file
     }

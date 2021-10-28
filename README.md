@@ -30,6 +30,10 @@ Users with specialized needs who wish to install and maintain their own Cromwell
 
 Cromwell [supports](https://cromwell.readthedocs.io/en/stable/LanguageSupport/) the WDL and CWL workflow languages. The Cromwell team is actively developing WDL, while maintenance for CWL is primarily community-based.  
 
+### Security reports
+
+If you believe you have found a security issue please contact `infosec@broadinstitute.org`.
+
 ### Issue tracking in JIRA
 
 <!--

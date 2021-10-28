@@ -11,6 +11,8 @@ This directory contains a selection of processes which are:
 Do you have a better idea about how any of these processes should work? 
 Make a PR and it'll be reviewed, just like a code change!
 
+ * [Install Graphviz](https://graphviz.org/download/)
+   * `brew install graphviz` on Mac
  * Modify the appropriate `.dot` file(s)
  * Navigate to the `processes` directory 
  * Run `refresh.sh` to update the png files.

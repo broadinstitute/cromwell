@@ -1,12 +1,21 @@
 package cromwell.filesystems.gcs
 
+import com.google.api.gax.retrying.RetrySettings
+import com.google.auth.Credentials
+import com.google.auth.oauth2.ServiceAccountCredentials
+import com.google.cloud.NoCredentials
+import com.google.cloud.storage.contrib.nio.{CloudStorageConfiguration, CloudStorageFileSystemProvider}
+import cromwell.cloudsupport.gcp.auth.ServiceAccountTestSupport
+import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.core.path._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.Tables.Table
 
-class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with PathBuilderSpecUtils {
+import java.io.ByteArrayInputStream
+
+class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with PathBuilderSpecUtils with ServiceAccountTestSupport {
 
   behavior of "GcsPathBuilder"
 
@@ -286,5 +295,43 @@ class GcsPathBuilderSpec extends TestKitSuite with AnyFlatSpecLike with Matchers
 
   private lazy val pathBuilder = {
     MockGcsPathBuilder.instance
+  }
+
+  it should "not mix up credentials" in {
+    def retrySettings: RetrySettings = RetrySettings.newBuilder().build()
+    val cloudStorageConfig: CloudStorageConfiguration = GcsStorage.DefaultCloudStorageConfiguration
+
+    val noCredentials = NoCredentials.getInstance()
+    val noCredentialsPathBuilder: GcsPathBuilder = {
+      val noCredentialsStorage = GcsStorage.gcsStorage("no-credentials", noCredentials, retrySettings)
+      val noCredentialsStorageOptions = GcsStorage.gcsStorageOptions(noCredentials, retrySettings, Option("proj-no-credentials"))
+
+      new GcsPathBuilder(noCredentialsStorage, cloudStorageConfig, noCredentialsStorageOptions)
+    }
+
+    val serviceAccountCredentials = ServiceAccountCredentials.fromStream(
+      new ByteArrayInputStream(serviceAccountJsonContents.getBytes))
+    val serviceAccountPathBuilder: GcsPathBuilder = {
+      val serviceAccountStorage = GcsStorage.gcsStorage("service-account", serviceAccountCredentials, retrySettings)
+      val serviceAccountStorageOptions = GcsStorage.gcsStorageOptions(serviceAccountCredentials, retrySettings, Option("proj-service-account"))
+
+      new GcsPathBuilder(serviceAccountStorage, cloudStorageConfig, serviceAccountStorageOptions)
+    }
+
+    def credentialsForPath(gcsPath: GcsPath): Credentials = {
+      val cloudFilesystemProvider = gcsPath.nioPath.getFileSystem.provider().asInstanceOf[CloudStorageFileSystemProvider]
+      val storageOptionsField = cloudFilesystemProvider.getClass.getDeclaredField("storageOptions")
+      storageOptionsField.setAccessible(true)
+      val storageOptions = storageOptionsField.get(cloudFilesystemProvider)
+      val credentialsField = storageOptions.getClass.getSuperclass.getDeclaredField("credentials")
+      credentialsField.setAccessible(true)
+      credentialsField.get(storageOptions).asInstanceOf[Credentials]
+    }
+
+    val noCredentialsPath = noCredentialsPathBuilder.build("gs://no-credentials").get
+    val serviceAccountPath = serviceAccountPathBuilder.build("gs://service-account").get
+
+    credentialsForPath(noCredentialsPath) shouldBe noCredentials
+    credentialsForPath(serviceAccountPath) shouldBe serviceAccountCredentials
   }
 }

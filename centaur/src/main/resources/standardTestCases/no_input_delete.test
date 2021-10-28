@@ -1,0 +1,34 @@
+# Verify that an input File, which is also an intermediary output, is not deleted.
+
+name: no_input_delete
+testFormat: workflowsuccess
+backends: [Papiv2]
+
+files {
+  workflow: delete_intermediates/no_input_delete_setup.wdl
+  imports: [
+    delete_intermediates/no_input_delete.wdl
+  ]
+  options: delete_intermediates/delete_intermediates.options
+}
+
+metadata {
+  workflowName: no_input_delete_setup
+  status: Succeeded
+  fileDeletionStatus: Succeeded
+}
+
+# This test case is ensuring that input files do not get deleted, even if they are also intermediary outputs.
+# no_input_delete.txt within SUB_WORKFLOW_UUID probably should be deleted as an intermediary, but we plan to address
+# that with the bigger change outlined in BW-776
+fileSystemCheck: "gcs"
+outputExpectations: {
+  # Represents 1 directory and 3 files)
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/no_input_delete/test_execution/": 4
+  # Represents 2 files (.txt and .txt.idx)
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/no_input_delete/test_execution/no_input_delete.txt": 2
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/no_input_delete/test_execution/no_input_delete.txt.idx": 1
+  # No current way to match on the subworkflow id, so for now just make sure the total directory count matches.
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/no_input_delete_setup/<<UUID>>/call-no_input_delete/no_input_delete/": 95
+  # "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/no_input_delete_setup/<<UUID>>/call-no_input_delete/no_input_delete/<<SUB_WORKFLOW_UUID>>/call-simple_mirror/cloud-cromwell-dev-self-cleaning/cromwell_execution/no_input_delete/test_execution/no_input_delete.txt": 1
+}

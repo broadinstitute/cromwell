@@ -4,9 +4,11 @@ import akka.actor.ActorRef
 import cromwell.backend.standard._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
 import cromwell.core.path.PathBuilder
+import spray.json.JsString
 import wom.graph.CommandCallNode
 
 import scala.concurrent.Future
+import scala.util.{Failure, Success, Try}
 
 case class TesInitializationActorParams
 (
@@ -22,7 +24,7 @@ class TesInitializationActor(params: TesInitializationActorParams)
   extends StandardInitializationActor(params) {
 
   private val tesConfiguration = params.tesConfiguration
-  
+
   override lazy val pathBuilders: Future[List[PathBuilder]] = {
     standardParams.configurationDescriptor.pathBuildersWithDefault(workflowDescriptor.workflowOptions)
   }
@@ -33,6 +35,15 @@ class TesInitializationActor(params: TesInitializationActorParams)
 
   override lazy val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder =
     TesRuntimeAttributes.runtimeAttributesBuilder(tesConfiguration.runtimeConfig)
+
+  override def validateWorkflowOptions(): Try[Unit] =
+    workflowDescriptor.workflowOptions.toMap.get(TesWorkflowOptionKeys.WorkflowExecutionIdentity) match {
+      case None => Success(())
+      case Some(_: JsString) => Success(())
+      case Some(v) => Failure(
+        new Exception(s"Workflow option ${TesWorkflowOptionKeys.WorkflowExecutionIdentity} must be a string, was ${v}.")
+      )
+    }
 
   override def beforeAll(): Future[Option[BackendInitializationData]] = {
     workflowPaths map { paths =>

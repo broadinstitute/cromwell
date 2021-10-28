@@ -242,10 +242,7 @@ object Dependencies {
   )
 
   private val liquibaseDependencies = List(
-    "org.liquibase" % "liquibase-core" % liquibaseV,
-    // This is to stop liquibase from being so noisy by default
-    // See: http://stackoverflow.com/questions/20880783/how-to-get-liquibase-to-log-using-slf4j
-    "com.mattbertolini" % "liquibase-slf4j" % liquibaseSlf4jV
+    "org.liquibase" % "liquibase-core" % liquibaseV
   )
 
   private val akkaDependencies = List(

@@ -14,7 +14,7 @@
     <option name="MAIN_CLASS_NAME" value="cromwell.CromwellApp" />
     <module name="cromwell" />
     <option name="PROGRAM_PARAMETERS" value="server" />
-    <option name="VM_PARAMETERS" value="-Dconfig.file=target/ci/resources/papi_v2beta_application.conf" />
+    <option name="VM_PARAMETERS" value="-Dconfig.file=target/ci/resources/local_application.conf" />
     <method v="2">
       <option name="Make" enabled="true" />
       <option name="RunConfigurationTask" enabled="true" run_configuration_name="renderCiResources" run_configuration_type="SbtRunConfiguration" />

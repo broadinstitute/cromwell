@@ -519,10 +519,12 @@ object Dependencies {
 
   val bcsBackendDependencies: List[ModuleID] = commonDependencies ++ refinedTypeDependenciesList ++ aliyunBatchComputeDependencies
 
-  val tesBackendDependencies: List[ModuleID] = List(
+  val tesBackendAzureDependencies: List[ModuleID] = List(
     "com.azure" % "azure-identity" % azureIdentitySdkV % "provided",
     "com.azure" % "azure-security-keyvault-secrets" % azureKeyVaultSdkV % "provided"
-  ) ++ akkaHttpDependencies
+  )
+
+  val tesBackendDependencies: List[ModuleID] = tesBackendAzureDependencies ++ akkaHttpDependencies
 
   val sfsBackendDependencies = List (
     "org.lz4" % "lz4-java" % lz4JavaV

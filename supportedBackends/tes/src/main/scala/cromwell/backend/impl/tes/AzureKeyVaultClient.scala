@@ -6,9 +6,7 @@ import common.validation.ErrorOr
 import common.validation.ErrorOr._
 
 class AzureKeyVaultClient(client: SecretClient) {
-  def getSecret(secretName: String): ErrorOr[String] = {
-    ErrorOr(client.getSecret(secretName)).map(_.getValue)
-  }
+  def getSecret(secretName: String): ErrorOr[String] = ErrorOr(client.getSecret(secretName).getValue)
 }
 
 object AzureKeyVaultClient {

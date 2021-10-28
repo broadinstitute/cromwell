@@ -94,12 +94,6 @@ case class BackendWorkflowDescriptor(id: WorkflowId,
   */
 case class BackendConfigurationDescriptor(backendConfig: Config, globalConfig: Config) {
 
-  def getOptBackendConfString(configPath: String): Option[String] =
-    if (backendConfig.hasPath(configPath))
-      Option(backendConfig.getString(configPath))
-    else
-      None
-
   lazy val backendRuntimeAttributesConfig =
     if (backendConfig.hasPath("default-runtime-attributes"))
       Option(backendConfig.getConfig("default-runtime-attributes"))

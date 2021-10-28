@@ -99,7 +99,7 @@ object DrsResolver {
       case MarthaLocalizationData(_, _, _, Some(localizationPath)) =>
         // TDR may return an explicit localization path and if so this should not be made relative to the `rootPath`.
         // Do strip any leading slashes as the resulting path will still be made relative to the container root.
-        val relativePath = if (localizationPath.startsWith("/")) localizationPath.substring(1) else localizationPath
+        val relativePath = if (localizationPath.startsWith("/")) localizationPath.tail else localizationPath
         IO.fromTry(DefaultPathBuilder.build(relativePath))
       case MarthaLocalizationData(_, Some(fileName), _, _) =>
         // Paths specified by filename only are made relative to `rootPath`.

@@ -21,7 +21,7 @@ class CommandLineParser extends scopt.OptionParser[CommandLineArguments](Usage) 
     arg[String]("drs-id").text("DRS object ID").required().
       action((s, c) =>
         c.copy(drsObject = Option(s))),
-    opt[String]("container-path").text("Container path").required().
+    arg[String]("container-path").text("Container path").required().
       action((s, c) =>
         c.copy(containerPath = Option(s))),
   )

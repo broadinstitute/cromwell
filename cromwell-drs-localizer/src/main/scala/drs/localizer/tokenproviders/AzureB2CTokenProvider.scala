@@ -1,6 +1,8 @@
 package drs.localizer.tokenproviders
 
-class AzureB2CTokenProvider extends AccessTokenProvider {
+import drs.localizer.CommandLineArguments
+
+case class AzureB2CTokenProvider(commandLineArguments: CommandLineArguments) extends AccessTokenProvider {
   // Wire up logic to extract B2C token from KeyVault using UAMI
-  override def getAccessToken(params: Map[String, String]): String = ???
+  override def getAccessToken(): String = ???
 }

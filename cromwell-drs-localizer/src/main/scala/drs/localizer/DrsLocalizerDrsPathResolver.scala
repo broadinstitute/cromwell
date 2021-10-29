@@ -1,13 +1,9 @@
 package drs.localizer
 
 import cloud.nio.impl.drs.{DrsConfig, DrsPathResolver}
-import com.google.auth.oauth2.GoogleCredentials
-
-import scala.collection.JavaConverters._
+import drs.localizer.tokenproviders.AccessTokenProvider
 
 
-class DrsLocalizerDrsPathResolver(drsConfig: DrsConfig)
-  extends DrsPathResolver(drsConfig) {
-
-
+class DrsLocalizerDrsPathResolver(drsConfig: DrsConfig, accessTokenProvider: AccessTokenProvider) extends DrsPathResolver(drsConfig) {
+  override def getAccessToken: String = accessTokenProvider.getAccessToken()
 }

@@ -1,15 +1,21 @@
 package drs.localizer
 
 import common.util.VersionUtil
+import drs.localizer.CommandLineParser.Cloud._
 import scopt.{OParser, OParserBuilder}
 
 
 object CommandLineParser {
+  object Cloud {
+    val Azure = "azure"
+    val Google = "google"
+  }
+
   val Usage =
-    """
-    java -jar /path/to/localizer.jar --cloud azure drs://provider/object /local/path/to/file.txt [--vault-name <name>] [--secret-name <name>] [--identity-client-id <id>]
+    s"""
+    java -jar /path/to/localizer.jar --cloud $Azure drs://provider/object /local/path/to/file.txt [--vault-name <name>] [--secret-name <name>] [--identity-client-id <id>]
 OR
-    java -jar /path/to/localizer.jar --cloud google drs://provider/object /local/path/to/file.txt [--requester-pays-project <project>]
+    java -jar /path/to/localizer.jar --cloud $Google drs://provider/object /local/path/to/file.txt [--requester-pays-project <project>]
     """
 
   lazy val localizerVersion: String = VersionUtil.getVersion("cromwell-drs-localizer")
@@ -45,15 +51,16 @@ OR
           c.copy(googleRequesterPaysProject = Option(s))),
       checkConfig(c =>
         c.cloudName match {
-          case Some("azure") if c.googleRequesterPaysProject.isDefined =>
-            failure("'requester-pays-project' is only valid for --cloud google")
-          case Some("google") if c.azureVaultName.isDefined =>
-            failure("'vault-name' is only valid for --cloud azure")
-          case Some("google") if c.azureSecretName.isDefined =>
-            failure("'secret-name' is only valid for --cloud azure")
-          case Some("google") if c.azureIdentityClientId.isDefined =>
-            failure("'identity-client-id' is only valid for --cloud azure")
-          case _ => success
+          case Some(Azure) if c.googleRequesterPaysProject.isDefined =>
+            failure(s"'requester-pays-project' is only valid for --cloud $Google")
+          case Some(Google) if c.azureVaultName.isDefined =>
+            failure(s"'vault-name' is only valid for --cloud $Azure")
+          case Some(Google) if c.azureSecretName.isDefined =>
+            failure(s"'secret-name' is only valid for --cloud $Azure")
+          case Some(Google) if c.azureIdentityClientId.isDefined =>
+            failure(s"'identity-client-id' is only valid for --cloud $Azure")
+          case Some(Google) | Some(Azure) => success
+          case Some(other) => failure(s"Unrecognized --cloud '$other', only '$Azure' and '$Google' are supported.")
         }
       )
     )

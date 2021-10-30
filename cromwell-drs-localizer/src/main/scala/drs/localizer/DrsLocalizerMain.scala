@@ -6,6 +6,7 @@ import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, RegularRetryDi
 import cloud.nio.impl.drs.{AccessUrl, DrsConfig, DrsPathResolver, MarthaField}
 import cloud.nio.spi.{CloudNioBackoff, CloudNioSimpleExponentialBackoff}
 import com.typesafe.scalalogging.StrictLogging
+import drs.localizer.CommandLineParser.Cloud.{Azure, Google}
 import drs.localizer.CommandLineParser.buildParser
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
@@ -25,8 +26,8 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
     parsedArgs match {
       case Some(pa) =>
         pa.cloudName match {
-          case Some("azure") => runLocalizer(pa, AzureB2CTokenProvider(pa))
-          case Some("google") => runLocalizer(pa, GoogleTokenProvider)
+          case Some(Azure) => runLocalizer(pa, AzureB2CTokenProvider(pa))
+          case Some(Google) => runLocalizer(pa, GoogleTokenProvider)
           case _ => usage // should never get here per checkConfig in parser
         }
       case _ => usage

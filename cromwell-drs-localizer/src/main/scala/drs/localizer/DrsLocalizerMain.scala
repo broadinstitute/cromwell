@@ -23,15 +23,15 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
 
     val parsedArgs = OParser.parse(parser, args, CommandLineArguments())
 
-    parsedArgs match {
-      case Some(pa) =>
-        pa.cloudName match {
-          case Some(Azure) => runLocalizer(pa, AzureB2CTokenStrategy(pa))
-          case Some(Google) => runLocalizer(pa, GoogleTokenStrategy)
-          case _ => usage // should never get here per checkConfig in parser
-        }
-      case _ => usage
-    }
+    val localize: Option[IO[ExitCode]] = for {
+      pa <- parsedArgs
+      run <- pa.tokenStrategy.collect {
+        case Azure => runLocalizer(pa, AzureB2CTokenStrategy(pa))
+        case Google => runLocalizer(pa, GoogleTokenStrategy)
+      }
+    } yield run
+
+    localize getOrElse printUsage
   }
 
   val defaultBackoff: CloudNioBackoff = CloudNioSimpleExponentialBackoff(
@@ -45,7 +45,7 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
       IO.pure(GcsUriDownloader(gcsPath, serviceAccountJsonOption, downloadLoc, requesterPaysProjectOption))
   }
 
-  private def usage: IO[ExitCode] = {
+  private def printUsage: IO[ExitCode] = {
     System.err.println(CommandLineParser.Usage)
     IO.pure(ExitCode.Error)
   }

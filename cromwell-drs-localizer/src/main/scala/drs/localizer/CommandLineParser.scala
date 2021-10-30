@@ -36,7 +36,7 @@ OR
         action((s, c) =>
           c.copy(containerPath = Option(s))),
       opt[String]('t', "token-strategy").text("Strategy to use when generating an access token to call Martha").required().
-        action((s, c) => c.copy(cloudName = Option(s.toLowerCase()))),
+        action((s, c) => c.copy(tokenStrategy = Option(s.toLowerCase()))),
       opt[String]('v', "vault-name").text("Azure vault name").
         action((s, c) =>
           c.copy(azureVaultName = Option(s))),
@@ -50,13 +50,13 @@ OR
         action((s, c) =>
           c.copy(googleRequesterPaysProject = Option(s))),
       checkConfig(c =>
-        c.cloudName match {
+        c.tokenStrategy match {
           case Some(Azure) if c.googleRequesterPaysProject.isDefined =>
             failure(s"'requester-pays-project' is only valid for --token-strategy $Google")
           case Some(Google) if c.azureVaultName.isDefined || c.azureSecretName.isDefined || c.azureIdentityClientId.isDefined =>
-            failure(s"--token-strategy 'google' specified, but 'vault-name', 'secret-name', and 'identity-client-id' are valid only with --token-strategy $Azure")
+            failure(s"token-strategy $Google specified, but 'vault-name', 'secret-name', and 'identity-client-id' are valid only with token-strategy $Azure")
           case Some(Google) | Some(Azure) => success
-          case Some(other) => failure(s"Unrecognized --token-strategy '$other', only '$Azure' and '$Google' are supported.")
+          case Some(other) => failure(s"Unrecognized token-strategy '$other', only '$Azure' and '$Google' are supported.")
           case _ => failure("")
         }
       )
@@ -64,7 +64,7 @@ OR
   }
 }
 
-case class CommandLineArguments(cloudName: Option[String] = None,
+case class CommandLineArguments(tokenStrategy: Option[String] = None,
                                 drsObject: Option[String] = None,
                                 containerPath: Option[String] = None,
                                 googleRequesterPaysProject: Option[String] = None,

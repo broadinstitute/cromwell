@@ -61,6 +61,7 @@ OR
             failure(s"'identity-client-id' is only valid for --cloud $Azure")
           case Some(Google) | Some(Azure) => success
           case Some(other) => failure(s"Unrecognized --cloud '$other', only '$Azure' and '$Google' are supported.")
+          case _ => failure("")
         }
       )
     )

@@ -6,9 +6,11 @@ import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, RegularRetryDi
 import cloud.nio.impl.drs.{AccessUrl, DrsConfig, DrsPathResolver, MarthaField}
 import cloud.nio.spi.{CloudNioBackoff, CloudNioSimpleExponentialBackoff}
 import com.typesafe.scalalogging.StrictLogging
+import drs.localizer.CommandLineParser.localizerVersion
 import drs.localizer.downloaders.AccessUrlDownloader.Hashes
 import drs.localizer.downloaders._
 import drs.localizer.tokenproviders.{AccessTokenProvider, AzureB2CTokenProvider, GoogleTokenProvider}
+import scopt.{OParser, OParserBuilder}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -18,16 +20,16 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
   override def run(args: List[String]): IO[ExitCode] = {
     val parser = buildParser()
 
-    val parsedArgs = parser.parse(args, CommandLineArguments())
+    val parsedArgs = OParser.parse(parser, args, CommandLineArguments())
 
     parsedArgs match {
-      case Some(pa) if pa.cloudName.contains("azure") =>
-        runLocalizer(pa, AzureB2CTokenProvider(pa))
-      case Some(pa) if pa.cloudName.contains("google") =>
-        runLocalizer(pa, GoogleTokenProvider)
-      case _ =>
-        System.err.println(parser.usage)
-        IO.pure(ExitCode.Error)
+      case Some(pa) =>
+        pa.cloudName match {
+          case Some("azure") => runLocalizer(pa, AzureB2CTokenProvider(pa))
+          case Some("google") => runLocalizer(pa, GoogleTokenProvider)
+          case _ => usage // should never get here per checkConfig in parser
+        }
+      case _ => usage
     }
   }
 
@@ -42,7 +44,56 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
       IO.pure(GcsUriDownloader(gcsPath, serviceAccountJsonOption, downloadLoc, requesterPaysProjectOption))
   }
 
-  private def buildParser(): scopt.OptionParser[CommandLineArguments] = new CommandLineParser()
+  def buildParser(): OParser[Unit, CommandLineArguments] = {
+    import scopt.OParser
+    val builder: OParserBuilder[CommandLineArguments] = OParser.builder[CommandLineArguments]
+
+    import builder._
+    OParser.sequence(
+      programName("Cromwell DRS Localizer"),
+      version("version"),
+      help("help").text("Cromwell DRS Localizer"),
+      head("cromwell-drs-localizer", localizerVersion),
+      arg[String]("drs-id").text("DRS object ID").required().
+        action((s, c) =>
+          c.copy(drsObject = Option(s))),
+      arg[String]("container-path").text("Container path").required().
+        action((s, c) =>
+          c.copy(containerPath = Option(s))),
+      opt[String]('c', "cloud").text("Cloud vendor for which to generate an access token").required().
+        action((s, c) => c.copy(cloudName = Option(s))),
+      opt[String]('v', "vault-name").text("Azure vault name").
+        action((s, c) =>
+          c.copy(azureVaultName = Option(s))),
+      opt[String]('s', "secret-name").text("Azure secret name").
+        action((s, c) =>
+          c.copy(azureSecretName = Option(s))),
+      opt[String]('i', "identity-client-id").text("Azure identity client id").
+        action((s, c) =>
+          c.copy(azureIdentityClientId = Option(s))),
+      opt[String]('r', "requester-pays-project").text("Google requester pays project name").
+        action((s, c) =>
+          c.copy(googleRequesterPaysProject = Option(s))),
+      checkConfig(c =>
+        c.cloudName match {
+          case Some("azure") if c.googleRequesterPaysProject.isDefined =>
+            failure("'requester-pays-project' is only valid for --cloud google")
+          case Some("google") if c.azureVaultName.isDefined =>
+            failure("'vault-name' is only valid for --cloud azure")
+          case Some("google") if c.azureSecretName.isDefined =>
+            failure("'secret-name' is only valid for --cloud azure")
+          case Some("google") if c.azureIdentityClientId.isDefined =>
+            failure("'identity-client-id' is only valid for --cloud azure")
+          case _ => success
+        }
+      )
+    )
+  }
+
+  private def usage: IO[ExitCode] = {
+    System.err.println(CommandLineParser.Usage)
+    IO.pure(ExitCode.Error)
+  }
 
   def runLocalizer(commandLineArguments: CommandLineArguments, tokenProvider: AccessTokenProvider): IO[ExitCode] = {
     val drsObject = commandLineArguments.drsObject.get

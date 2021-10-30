@@ -20,7 +20,6 @@ OR
 
     import builder._
     OParser.sequence(
-      programName("Cromwell DRS Localizer"),
       version("version"),
       help("help").text("Cromwell DRS Localizer"),
       head("cromwell-drs-localizer", localizerVersion),

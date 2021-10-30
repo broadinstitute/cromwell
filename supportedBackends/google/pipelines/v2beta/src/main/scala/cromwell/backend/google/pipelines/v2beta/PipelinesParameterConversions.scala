@@ -33,12 +33,11 @@ trait PipelinesParameterConversions {
 
           val drsFileSystemProvider = drsPath.drsPath.getFileSystem.provider.asInstanceOf[DrsCloudNioFileSystemProvider]
 
-          // val drsDockerImage = config.getString("drs.localization.docker-image")
-          val drsDockerImage = "broadinstitute/cromwell-drs-localizer:71-9cf3374-SNAP"
+          val drsDockerImage = config.getString("drs.localization.docker-image")
           // Note: Don't ShellPath.escape the paths as we are directly invoking the localizer and NOT launching a shell.
           val drsCommand =
             List("--cloud", "google", fileInput.cloudPath.pathAsString, fileInput.containerPath.pathAsString) ++
-              drsPath.requesterPaysProjectIdOption.toList flatMap { p => List("--requester-pays-project", p) }
+              drsPath.requesterPaysProjectIdOption.toList.flatMap(p => List("--requester-pays-project", p))
           val marthaEnv = DrsConfig.toEnv(drsFileSystemProvider.drsConfig)
           val localizationAction = ActionBuilder
             .withImage(drsDockerImage)

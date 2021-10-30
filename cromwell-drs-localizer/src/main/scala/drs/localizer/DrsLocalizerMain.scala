@@ -81,9 +81,7 @@ class DrsLocalizerMain(drsUrl: String,
         backoff foreach { b => Thread.sleep(b.backoffMillis) }
         logger.warn(s"Attempting retry $checksumAttempt of $checksumRetries checksum retries to download $drsUrl", t)
         // In the event of a checksum failure reset the download attempt to zero.
-        resolveAndDownloadWithRetries(downloadRetries, checksumRetries, downloaderFactory, backoff map {
-          _.next
-        }, 0, checksumAttempt + 1)
+        resolveAndDownloadWithRetries(downloadRetries, checksumRetries, downloaderFactory, backoff map { _.next }, 0, checksumAttempt + 1)
       } else {
         IO.raiseError(new RuntimeException(s"Exhausted $checksumRetries checksum retries to resolve, download and checksum $drsUrl", t))
       }
@@ -96,9 +94,7 @@ class DrsLocalizerMain(drsUrl: String,
         case _ if downloadAttempt < downloadRetries =>
           backoff foreach { b => Thread.sleep(b.backoffMillis) }
           logger.warn(s"Attempting retry $downloadAttempt of $downloadRetries download retries to download $drsUrl", t)
-          resolveAndDownloadWithRetries(downloadRetries, checksumRetries, downloaderFactory, backoff map {
-            _.next
-          }, downloadAttempt + 1, checksumAttempt)
+          resolveAndDownloadWithRetries(downloadRetries, checksumRetries, downloaderFactory, backoff map { _.next }, downloadAttempt + 1, checksumAttempt)
         case _ =>
           IO.raiseError(new RuntimeException(s"Exhausted $downloadRetries download retries to resolve, download and checksum $drsUrl", t))
       }
@@ -107,25 +103,23 @@ class DrsLocalizerMain(drsUrl: String,
     resolveAndDownload(downloaderFactory).redeemWith({
       maybeRetryForDownloadFailure
     },
-      {
-        case f: FatalDownloadFailure =>
-          IO.raiseError(new RuntimeException(s"Fatal error downloading DRS object: $f"))
-        case r: RetryableDownloadFailure =>
-          maybeRetryForDownloadFailure(
-            new RuntimeException(s"Retryable download error: $r for $drsUrl on retry attempt $downloadAttempt of $downloadRetries") with RegularRetryDisposition)
-        case ChecksumFailure =>
-          maybeRetryForChecksumFailure(new RuntimeException(s"Checksum failure for $drsUrl on checksum retry attempt $checksumAttempt of $checksumRetries"))
-        case o => IO.pure(o)
-      })
+    {
+      case f: FatalDownloadFailure =>
+        IO.raiseError(new RuntimeException(s"Fatal error downloading DRS object: $f"))
+      case r: RetryableDownloadFailure =>
+        maybeRetryForDownloadFailure(
+          new RuntimeException(s"Retryable download error: $r for $drsUrl on retry attempt $downloadAttempt of $downloadRetries") with RegularRetryDisposition)
+      case ChecksumFailure =>
+        maybeRetryForChecksumFailure(new RuntimeException(s"Checksum failure for $drsUrl on checksum retry attempt $checksumAttempt of $checksumRetries"))
+      case o => IO.pure(o)
+    })
   }
 
-  private[localizer] def resolveAndDownload(downloaderFactory: DownloaderFactory): IO[DownloadResult] = {
-    resolve(downloaderFactory) flatMap {
-      _.download
-    }
+  private [localizer] def resolveAndDownload(downloaderFactory: DownloaderFactory): IO[DownloadResult] = {
+    resolve(downloaderFactory) flatMap { _.download }
   }
 
-  private[localizer] def resolve(downloaderFactory: DownloaderFactory): IO[Downloader] = {
+  private [localizer] def resolve(downloaderFactory: DownloaderFactory): IO[Downloader] = {
     val fields = NonEmptyList.of(MarthaField.GsUri, MarthaField.GoogleServiceAccount, MarthaField.AccessUrl, MarthaField.Hashes)
     for {
       resolver <- getDrsPathResolver
